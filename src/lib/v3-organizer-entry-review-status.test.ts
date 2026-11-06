@@ -7,6 +7,7 @@ import {
   hasOutdatedOrganizerEntryReview,
   hasOutdatedOrganizerResponseReview,
   hasCurrentOrganizerResponseReviewDecision,
+  hasCurrentOrganizerResponseSongSubmission,
   describeOrganizerNationalFinalQueue,
   type OrganizerResponseReviewEvidence,
 } from "./v3-organizer-entry-review-status";
@@ -143,6 +144,60 @@ describe("Organizer Entry Review current-version queue", () => {
     expect(hasOutdatedOrganizerResponseReview({
       ...internal(stale), selection_method: null,
     })).toBe(false);
+  });
+
+  it("counts a song as submitted only from the active, known selection", () => {
+    expect(hasCurrentOrganizerResponseSongSubmission(internal(accepted()))).toBe(true);
+    expect(hasCurrentOrganizerResponseSongSubmission({
+      ...internal(accepted()), participating: false,
+    })).toBe(false);
+    expect(hasCurrentOrganizerResponseSongSubmission({
+      ...internal(accepted()), entry_unknown: true,
+    })).toBe(false);
+    expect(hasCurrentOrganizerResponseSongSubmission(internal({
+      ...accepted(), song_title: "  ",
+    }))).toBe(false);
+    expect(hasCurrentOrganizerResponseSongSubmission(internal({
+      ...accepted(), removed: true,
+    }))).toBe(false);
+    expect(hasCurrentOrganizerResponseSongSubmission(internal({
+      ...accepted(), review_status: "removed",
+    }))).toBe(false);
+    expect(hasCurrentOrganizerResponseSongSubmission({
+      ...internal(accepted()), selection_method: "national_final",
+    })).toBe(false);
+  });
+
+  it("ignores unknown and removed National Final candidates in song-submitted filter", () => {
+    const ready = nationalFinal([accepted()], "entry-1");
+    expect(hasCurrentOrganizerResponseSongSubmission(ready)).toBe(true);
+    expect(hasCurrentOrganizerResponseSongSubmission({
+      ...ready, nf_entries_unknown: true,
+    })).toBe(false);
+    expect(hasCurrentOrganizerResponseSongSubmission(nationalFinal([
+      { ...accepted(), removed: true },
+    ], "entry-1"))).toBe(false);
+    expect(hasCurrentOrganizerResponseSongSubmission(nationalFinal([
+      { ...accepted(), review_status: "removed" },
+    ], "entry-1"))).toBe(false);
+    expect(hasCurrentOrganizerResponseSongSubmission(nationalFinal([
+      { ...accepted(), song_title: null },
+    ], null))).toBe(false);
+    expect(hasCurrentOrganizerResponseSongSubmission(nationalFinal([
+      { ...accepted(), song_title: null }, accepted("version-3"),
+    ], null))).toBe(true);
+    expect(hasCurrentOrganizerResponseSongSubmission({
+      ...ready, participating: false,
+    })).toBe(false);
+  });
+
+  it("uses known current-song status for submitted and missing queue filters", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/confirmations/admin/responses.tsx"), "utf8");
+    expect(route).toContain("hasCurrentOrganizerResponseSongSubmission(row)");
+    expect(route).toContain('if (filter === "song_submitted") return songSubmitted(row)');
+    expect(route).toContain('if (filter === "song_missing") return row.participating && !songSubmitted(row)');
+    expect(route).not.toContain("return Boolean(row.internal_entries?.song_title)");
   });
 
   it("does not surface withdrawn or unknown selections in accepted/declined filters", () => {
