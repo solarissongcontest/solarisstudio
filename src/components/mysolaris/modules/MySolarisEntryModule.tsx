@@ -100,7 +100,8 @@ export function MySolarisEntryModule() {
   const [confirmationEditError, setConfirmationEditError] = useState<string | null>(null);
 
   const featureQuery = useQuery({
-    queryKey: ["studio2-entry-readiness-flags"],
+    queryKey: ["studio2-entry-readiness-flags", actorId],
+    enabled: Boolean(actorId),
     queryFn: async () => {
       const [hodEnabled, workflowEnabled] = await Promise.all([
         isStudio2FeatureEnabled("hod_workspace_v2"),

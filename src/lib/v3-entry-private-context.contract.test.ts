@@ -17,6 +17,8 @@ describe("V3 MySolaris Entry private context", () => {
 
   it("keys participant Entry and Confirmation reads to the authenticated actor", () => {
     expect(source).toContain('queryKey: ["studio2-readiness-editions", actorId, country?.id ?? "none"]');
+    expect(source).toContain('queryKey: ["studio2-entry-readiness-flags", actorId]');
+    expect(source).toContain("enabled: Boolean(actorId)");
     expect(source).toMatch(/"studio2-entry-readiness",\s+actorId,\s+country\?\.id/);
     expect(source).toContain('queryKey: ["country-confirmation-access", "mysolaris-entry", actorId, ownCountry?.id ?? "none"]');
     expect(source).toContain("Boolean(actorId && ownCountry && !organizerInspection)");
