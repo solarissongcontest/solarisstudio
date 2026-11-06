@@ -205,14 +205,6 @@ begin
   ) then
     raise exception using errcode='23514',message='UNITY_UNAVAILABLE';
   end if;
-  if exists (
-    select 1 from public.world_organizations o
-    where lower(btrim(o.short_name)) = lower(v_short_name)
-      or lower(btrim(o.official_name)) = lower(v_name)
-  ) then
-    raise exception using errcode='23505',message='NAME_ALREADY_USED';
-  end if;
-
   v_claim := private.studio2_claim_operation(
     p_operation_id,p_idempotency_key,coalesce(p_correlation_id,p_operation_id),
     'world.union.recognition.apply','R2',
@@ -227,6 +219,17 @@ begin
     return public.studio2_reconcile_operation(v_operation_id)
       || jsonb_build_object('replayed',true);
   end if;
+
+  -- Replays must reconcile before the name collision check, because a
+  -- previously successful application necessarily reserves its own name.
+  if exists (
+    select 1 from public.world_organizations o
+    where lower(btrim(o.short_name)) = lower(v_short_name)
+      or lower(btrim(o.official_name)) = lower(v_name)
+  ) then
+    raise exception using errcode='23505',message='NAME_ALREADY_USED';
+  end if;
+
 
   perform 1 from public.country_accounts ca
   where ca.user_id=auth.uid() and ca.country_id=p_lead_country_id
