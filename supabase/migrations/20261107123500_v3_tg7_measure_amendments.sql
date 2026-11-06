@@ -127,8 +127,8 @@ as $amendments_manage$
     or auth.uid() is null or p_measure_id is null then null
   else (
    select case when not (
-       public.world_access_allowed('world.measure.review_procedural',
-         m.organization_id,m.sponsor_country_id,m.organ_id,null,null)
+       coalesce(public.world_access_allowed('world.measure.review_procedural',
+         m.organization_id,m.sponsor_country_id,m.organ_id,null,null),false)
        or exists(select 1 from public.country_accounts acct
          where acct.user_id=auth.uid() and acct.status='active'
            and acct.country_id in (
@@ -176,8 +176,8 @@ as $amendments_manage$
            from public.world_measure_amendments amendment
            where amendment.measure_id=m.id
              and (
-               public.world_access_allowed('world.measure.review_procedural',
-                 m.organization_id,m.sponsor_country_id,m.organ_id,null,null)
+               coalesce(public.world_access_allowed('world.measure.review_procedural',
+                 m.organization_id,m.sponsor_country_id,m.organ_id,null,null),false)
                or exists(select 1 from public.country_accounts account
                   where account.user_id=auth.uid() and account.status='active'
                     and account.country_id=amendment.sponsor_country_id)
