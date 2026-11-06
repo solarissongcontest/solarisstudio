@@ -49,6 +49,7 @@ describe("V3 web Search canonical discovery shortcuts", () => {
     expect(archive).toContain("publicEditionIds.has(participant.edition_id)");
     expect(archive).toContain("...publicEditions");
     expect(archive).toContain("...publicShows");
+    expect(archive).toMatch(/href: country\s*\?\s*`\/countries\/\$\{country\.short_code\}`\s*:\s*edition\s*\?\s*`\/editions\/\$\{edition\.slug\}`/);
   });
 
   it("fails closed on unavailable archive data and distinguishes errors from empty matches", () => {
