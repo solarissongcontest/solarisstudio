@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertJuryIntegrityV5Evidence, numberValue, percentageValue, peerCountValue, proportionValue } from "./jury-integrity-readback";
+import { assertCompleteJuryIntegrityReadback, assertJuryIntegrityV5Evidence, numberValue, percentageValue, peerCountValue, proportionValue } from "./jury-integrity-readback";
 
 describe("Jury Integrity v5 numeric readback", () => {
   it.each([0, 1, 12, 0.125, 100, "12", "0.25"])(
@@ -62,5 +62,22 @@ describe("Jury Integrity v5 evidence version coherence", () => {
     { modelVersion: "jury-integrity-model-v5", risk: null, confidence: 78 },
   ])("rejects stale/mixed/corrupt evidence %o", (evidence) => {
     expect(() => assertJuryIntegrityV5Evidence(stored, evidence)).toThrow();
+  });
+});
+
+describe("Jury Integrity bounded edition-wide completeness", () => {
+  it.each([[0, 0], [1, 1], [37, 37], [1000, 1000]])(
+    "accepts a complete %s-row readback",
+    (exact, received) => expect(() => assertCompleteJuryIntegrityReadback(exact, received)).not.toThrow(),
+  );
+
+  it.each([
+    [null, 0], [undefined, 0], ["1", 1], [1, 0], [1001, 1000],
+    [1000, 999], [999, 1000], [1001, 1001], [-1, 0],
+    [Number.NaN, 0], [1.5, 1], [0, -1], [0, 0.5],
+  ])("rejects unverifiable or truncated readback count %s / rows %s", (exact, received) => {
+    expect(() => assertCompleteJuryIntegrityReadback(exact, received)).toThrow(
+      "Jury integrity evidence is incomplete",
+    );
   });
 });
