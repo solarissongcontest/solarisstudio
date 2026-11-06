@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
     select: vi.fn(), or: vi.fn(), order: vi.fn(), range: vi.fn(),
   },
   organizations: {
-    select: vi.fn(), eq: vi.fn(), or: vi.fn(), order: vi.fn(), range: vi.fn(),
+    select: vi.fn(), eq: vi.fn(), in: vi.fn(), or: vi.fn(), order: vi.fn(), range: vi.fn(),
   },
 }));
 
@@ -16,6 +16,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 
 import {
   WORLD_UNIFIED_SEARCH_LIMIT,
+  WORLD_PUBLIC_SEARCH_STATUSES,
   fetchWorldUnifiedSearch,
   parseWorldSearchCountries,
   parseWorldSearchPage,
@@ -44,6 +45,7 @@ beforeEach(() => {
   mocks.countries.range.mockResolvedValue({ data: [country], count: 1, error: null });
   mocks.organizations.select.mockReturnValue(mocks.organizations);
   mocks.organizations.eq.mockReturnValue(mocks.organizations);
+  mocks.organizations.in.mockReturnValue(mocks.organizations);
   mocks.organizations.or.mockReturnValue(mocks.organizations);
   mocks.organizations.order.mockReturnValue(mocks.organizations);
   mocks.organizations.range.mockResolvedValue({ data: [organization], count: 1, error: null });
@@ -82,6 +84,7 @@ describe("Terra Solaris unified public World search", () => {
       "id,slug,official_name,short_name,type,description,status,public_visibility",
       { count: "exact" });
     expect(mocks.organizations.eq).toHaveBeenCalledWith("public_visibility", "public");
+    expect(mocks.organizations.in).toHaveBeenCalledWith("status", [...WORLD_PUBLIC_SEARCH_STATUSES]);
     expect(mocks.countries.range).toHaveBeenCalledWith(0, WORLD_UNIFIED_SEARCH_LIMIT - 1);
     expect(mocks.organizations.range).toHaveBeenCalledWith(0, WORLD_UNIFIED_SEARCH_LIMIT - 1);
     expect(result.countries[0]).not.toHaveProperty("account_email");
@@ -93,6 +96,14 @@ describe("Terra Solaris unified public World search", () => {
       data: [{ ...organization, public_visibility: "private" }], count: 1, error: null,
     });
     await expect(fetchWorldUnifiedSearch("GUARD"))
+      .rejects.toThrow("Published organization results could not be verified");
+  });
+
+  it("rejects an unrecognized proposal even if a backend reader returns it", async () => {
+    mocks.organizations.range.mockResolvedValueOnce({
+      data: [{ ...organization, status: "proposed" }], count: 1, error: null,
+    });
+    await expect(fetchWorldUnifiedSearch("unity"))
       .rejects.toThrow("Published organization results could not be verified");
   });
 
