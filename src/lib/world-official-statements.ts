@@ -170,14 +170,18 @@ export async function issueWorldOfficialStatement(input: WorldIssueStatementInpu
     p_correlation_id: operationId,
   });
   if (error) throw new Error(error.message || "The statement was not published.");
-  const row = record(data);
-  if (!row || row.ok !== true || !nonempty(row.statementId) ||
-      !nonempty(row.versionId) || !nonempty(row.operationId) ||
-      !positiveRevision(row.revision) || typeof row.replayed !== "boolean") {
+  // Existing S2 reconcile_operation returns an *envelope* with status and
+  // result; the replay marker is on the envelope, not inside result.
+  const envelope = record(data);
+  const row = record(envelope?.result);
+  if (envelope?.status !== "succeeded" || row?.ok !== true ||
+      !nonempty(row.statementId) || !nonempty(row.versionId) ||
+      !nonempty(row.operationId) || !positiveRevision(row.revision) ||
+      typeof envelope.replayed !== "boolean") {
     throw new Error("The statement receipt could not be verified.");
   }
   return {
     ok: true, statementId: row.statementId, versionId: row.versionId,
-    revision: row.revision, operationId: row.operationId, replayed: row.replayed,
+    revision: row.revision, operationId: row.operationId, replayed: envelope.replayed,
   };
 }
