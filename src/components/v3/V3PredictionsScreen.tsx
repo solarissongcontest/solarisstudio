@@ -117,19 +117,22 @@ export function V3PredictionsScreen() {
               Loading prediction state…
             </p>
           </V3Surface>
-        ) : rounds.isError ? (
+        ) : rounds.isError || session.isError ? (
           <V3Surface data-v3-predictions-state="error">
             <p role="alert" className="text-sm font-semibold">Prediction state could not be loaded.</p>
             <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
-              Solaris will not infer whether a round is open or locked from cached browser state.
+              Solaris cannot confirm the prediction round or account session. Private picks are not shown as signed out until the check succeeds.
             </p>
             <button
               type="button"
-              disabled={rounds.isFetching}
-              onClick={() => void rounds.refetch()}
+              disabled={rounds.isFetching || session.isFetching}
+              onClick={() => {
+                if (rounds.isError) void rounds.refetch();
+                if (session.isError) void session.refetch();
+              }
               className="mt-3 min-h-11 rounded-xl border border-white/20 px-4 text-sm font-semibold transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {rounds.isFetching ? "Retrying…" : "Retry prediction rounds"}
+              {rounds.isFetching || session.isFetching ? "Retrying…" : "Retry prediction state"}
             </button>
           </V3Surface>
         ) : rounds.data?.schemaReady === false ? (
@@ -349,11 +352,18 @@ export function V3PredictionsScreen() {
                           <p className="mt-2 text-2xl font-bold tabular-nums">#{myStanding.position}</p>
                         ) : (
                           <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
-                            {session.data && profile.data?.leaderboard_opt_in !== true
-                              ? "Your fan profile is not opted into public standings. Your scores remain private."
-                              : "No public scored position is available for this account yet."}
+                            {session.data && profile.isError
+                              ? "Your leaderboard privacy setting could not be checked."
+                              : session.data && profile.data?.leaderboard_opt_in !== true
+                                ? "Your fan profile is not opted into public standings. Your scores remain private."
+                                : "No public scored position is available for this account yet."}
                           </p>
                         )}
+                        {session.data && profile.isError ? (
+                          <button type="button" onClick={() => void profile.refetch()} disabled={profile.isFetching} className="mt-2 min-h-10 rounded-xl border border-white/20 px-3 text-xs font-semibold disabled:opacity-50">
+                            {profile.isFetching ? "Retrying…" : "Retry privacy setting"}
+                          </button>
+                        ) : null}
                         <p className="mt-3 text-xs leading-5 text-[var(--v3-text-tertiary)]">
                           Total points determine position. More scored rounds are the first tie-break in the current canonical league contract. Historical prediction scores retain their scoring version.
                         </p>
