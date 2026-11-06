@@ -97,6 +97,7 @@ describe("Solaris Studio V3 primary surface bootstrap", () => {
 
     expect(bundle.home.currentContest).toEqual({
       title: "Hanvør 2026",
+      href: "/editions/hanvor-2026",
       headline: "SSC 22 is the current Solaris edition",
       meta: "Delegations are preparing their entries.",
       stats: [
@@ -106,6 +107,23 @@ describe("Solaris Studio V3 primary surface bootstrap", () => {
       liveHeadline: null,
       resultsHeadline: null,
     });
+  });
+
+  it("derives the Home edition action only from a published canonical edition", async () => {
+    const published = await loadV3PrimarySurfaceBundle(request, {
+      loadSnapshot: async () => snapshot(),
+    });
+    expect(published.home.currentContest.href).toBe("/editions/hanvor-2026");
+
+    const withoutEdition = await loadV3PrimarySurfaceBundle(request, {
+      loadSnapshot: async () => snapshot({
+        publicContest: {
+          ...publicContest,
+          edition: null,
+        },
+      }),
+    });
+    expect(withoutEdition.home.currentContest.href).toBeNull();
   });
 
   it("carries Coming up and Latest from the shared snapshot rather than inventing another loader", async () => {
