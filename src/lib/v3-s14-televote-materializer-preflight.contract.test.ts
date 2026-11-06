@@ -15,11 +15,16 @@ describe("S14 Televote materializer preflight before local writes", () => {
 
   it("validates frozen round → exact Solaris show/edition binding before any local mutation", () => {
     const bindingRead = adapter.indexOf('.from("televoting_round_bindings")');
-    const bindingGuard = adapter.indexOf('if (!binding || String(binding.show_id) !== showId');
+    const bindingGuard = adapter.indexOf('if (\n    !binding || String(binding.remote_round_id) !== roundId');
     expect(bindingRead).toBeGreaterThan(-1);
     expect(bindingGuard).toBeGreaterThan(bindingRead);
+    expect(adapter).toContain('String(binding.remote_edition_id) !== String(round.edition_id)');
+    expect(adapter).toContain('binding.source_mode !== "show"');
+    expect(adapter).toContain('String(binding.show_id) !== showId');
     expect(adapter).toContain('String(binding.edition_id) !== editionId');
     expect(adapter).toContain('!binding.frozen_at');
+    expect(adapter).toContain('.select("id,edition_id,status,total_points_to_distribute');
+    expect(adapter).toContain('.select("remote_round_id,remote_edition_id,edition_id,show_id,source_mode,frozen_at")');
     expect(bindingGuard).toBeLessThan(firstWrite);
     expect(bindingGuard).toBeLessThan(influenceWrite);
     expect(bindingGuard).toBeLessThan(insert);
