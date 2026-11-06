@@ -36,11 +36,9 @@ export type MergedRoundSolarisSource = {
 };
 
 export const syncMergedTelevotingEditionCatalog = createServerFn({ method: "POST" }).handler(async () => {
-  const { requireSolarisCapabilityServer } = await import(
-    "@/integrations/supabase/capabilities.server"
-  );
-  await requireSolarisCapabilityServer("voting.manage");
-
+  // Repair is a privileged mutation, not a side effect of read-only diagnostics.
+  const { requireSolarisCapabilityServer } = await import("@/integrations/supabase/capabilities.server");
+  await requireSolarisCapabilityServer("voting.manage", null);
   const { ensureCanonicalTelevotingEditionsServer } = await import(
     "@/integrations/televoting/solaris-sync.server"
   );

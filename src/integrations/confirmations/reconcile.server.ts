@@ -79,6 +79,14 @@ function boundedInteger(
   return value;
 }
 
+/** Exact cardinality is required: a page length is never a safe total. */
+function requireExactReconciliationCount(value: unknown, context: string): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`${context}: exact submission count is unavailable; reconciliation cannot claim completeness.`);
+  }
+  return value;
+}
+
 function normalizeCountry(value: unknown) {
   return typeof value === "string" ? value.trim().toLocaleLowerCase() : "";
 }
@@ -148,7 +156,10 @@ export async function reconcileConfirmationEditionToSolarisWithDependencies(
   if (page.error) throw new Error(page.error.message);
 
   const rows = page.data ?? [];
-  const totalSubmissions = page.count ?? rows.length;
+  const totalSubmissions = requireExactReconciliationCount(page.count, "Confirmation repair");
+  if (totalSubmissions < offset + rows.length) {
+    throw new Error("Confirmation repair: exact submission count is inconsistent with the requested page.");
+  }
   const outcomes: ReconcileOutcome[] = [];
 
   // Deliberately sequential. A repair wave must not create an uncontrolled
@@ -231,7 +242,13 @@ export async function verifyConfirmationEditionProjectionWithDatabase(
     .range(0, V3_CONFIRMATION_RECONCILIATION_VERIFY_MAX_ROWS - 1);
   if (submissionsResult.error) throw new Error(submissionsResult.error.message);
 
-  const totalSubmissions = submissionsResult.count ?? (submissionsResult.data ?? []).length;
+  const totalSubmissions = requireExactReconciliationCount(
+    submissionsResult.count,
+    "Confirmation verification",
+  );
+  if (totalSubmissions < (submissionsResult.data ?? []).length) {
+    throw new Error("Confirmation verification: exact submission count is inconsistent with the returned page.");
+  }
   if (totalSubmissions > V3_CONFIRMATION_RECONCILIATION_VERIFY_MAX_ROWS) {
     return {
       editionId,

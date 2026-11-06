@@ -21,11 +21,6 @@ async function solarisDb() {
   return supabaseAdmin as any;
 }
 
-async function televotingDb() {
-  const { televotingAdmin } = await import("@/integrations/televoting/client.server");
-  return televotingAdmin;
-}
-
 /**
  * Read-only projection for Organizer integration diagnostics.
  *
@@ -36,8 +31,13 @@ async function televotingDb() {
 export async function listMergedTelevotingEditionLinksServer(): Promise<
   MergedTelevotingEditionLink[]
 > {
-  await requireSolarisCapabilityServer("voting.read");
-  const [db, votingDb] = await Promise.all([solarisDb(), televotingDb()]);
+  // Diagnostics span editions and must be capability-checked before either
+  // service-role client can be imported, never merely Organizer-role checked.
+  await requireSolarisCapabilityServer("voting.read", null);
+  const [db, { televotingAdmin }] = await Promise.all([
+    solarisDb(),
+    import("@/integrations/televoting/client.server"),
+  ]);
 
   const [solarisResult, linkResult, remoteResult] = await Promise.all([
     db
@@ -50,7 +50,7 @@ export async function listMergedTelevotingEditionLinksServer(): Promise<
       .select("solaris_id,remote_id,sync_status,last_synced_at")
       .eq("service", "televoting")
       .eq("entity_type", "edition"),
-    votingDb
+    televotingAdmin
       .from("editions")
       .select("id,name,is_active,is_archived")
       .order("created_at"),

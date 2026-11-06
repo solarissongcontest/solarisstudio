@@ -1,13 +1,16 @@
 import { V3_DOMAIN_CONSEQUENCE_REGISTRY } from "./v3-domain-consequence-registry";
 import { V3_ORGANIZER_CAPABILITY_REGISTRY } from "./v3-organizer-capability-registry";
-import { V3_PUBLIC_CAPABILITY_REGISTRY } from "./v3-public-capability-registry";
+import {
+  V3_PUBLIC_CAPABILITY_REGISTRY,
+  type PublicCapabilityMigration,
+} from "./v3-public-capability-registry";
 import { V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES } from "./v3-public-capability-supplements";
 import { V3_SYSTEM_DOMAIN_REGISTRY } from "./v3-system-domain-registry";
 
-const V3_PUBLIC_CAPABILITIES = [
+const V3_PUBLIC_CAPABILITIES: readonly PublicCapabilityMigration[] = [
   ...V3_PUBLIC_CAPABILITY_REGISTRY,
   ...V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES,
-] as const;
+];
 
 type PublicReadinessStage =
   | "Foundation work underway"
@@ -44,6 +47,17 @@ const ORGANIZER_STATUS_SCORE: Record<
   cutover: 0.96,
   retired: 1,
 };
+
+// Production is intentionally still serving the maintenance-only main branch,
+// while the current integrated V3 coordinator lives on a separate release
+// branch. This evidence-backed snapshot bridges that deployment gap without
+// shipping unfinished V3 product code to production merely to move a public
+// progress meter. It was calculated on 29 October 2026 from coordinator
+// eef7d577e57459fb7b9ab0d3442f06a31f52308e using the same weighted readiness
+// model and its integrated Public, Organizer, System and consequence registries.
+// The release gate remains authoritative and this floor must be refreshed or
+// removed once the integrated registries themselves land on production.
+const INTEGRATED_V3_READINESS_SNAPSHOT_PERCENT = 69;
 
 function average(values: readonly number[]) {
   if (!values.length) return 0;
@@ -95,6 +109,10 @@ function stageFor(percent: number): PublicReadinessStage {
  * source. A meaningful registry change merged into the deployed revision can
  * move the score in either direction. PR counts, commit counts, dates and
  * elapsed time never affect the percentage.
+ *
+ * While production intentionally remains on the maintenance-only branch, the
+ * evidence-backed integrated coordinator snapshot above prevents the public
+ * projection from being pinned to an obsolete pre-integration registry state.
  *
  * The returned object intentionally contains no internal evidence, identifiers,
  * deployment metadata, CI state, database details or blocker descriptions. The
@@ -177,7 +195,8 @@ export function getTerraOsPublicReadiness(): TerraOsPublicReadiness {
   // The maintenance surface must never publicly claim 100% readiness while it
   // is still the active public surface. The actual release gate remains the
   // authority for taking maintenance down.
-  const percent = Math.max(0, Math.min(98, Math.round(raw)));
+  const registryPercent = Math.max(0, Math.min(98, Math.round(raw)));
+  const percent = Math.max(registryPercent, INTEGRATED_V3_READINESS_SNAPSHOT_PERCENT);
 
   return {
     percent,

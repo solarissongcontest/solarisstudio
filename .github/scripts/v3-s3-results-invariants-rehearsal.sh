@@ -35,7 +35,10 @@ log "Seeding one exact result version"
 db_exec "insert into public.countries(id,name,short_code) values ('$COUNTRY_ID','S3 Results Country','S3R');"
 db_exec "insert into public.editions(id,name,year,slug,edition_number,status,published) values ('$EDITION_A','S3 Results A',2026,'s3-results-a',9931,'active',false),('$EDITION_B','S3 Results B',2026,'s3-results-b',9932,'active',false);"
 db_exec "insert into public.shows(id,edition_id,name,kind,sort_order,published) values ('$SHOW_ID','$EDITION_A','S3 Results Final','final',1,false);"
-db_exec "insert into public.results(id,edition_id,show_id,country_id,jury_points,televote_points,total_points,final_rank) values ('$RESULT_ID','$EDITION_A','$SHOW_ID','$COUNTRY_ID',12,-2,10,1);"
+# Version capture requires a real confirmed identity; the raw row below
+# remains a synthetic invariant fixture, rather than an orphan Result.
+db_exec "insert into public.participants(edition_id,show_id,country_id,participation_status) values ('$EDITION_A','$SHOW_ID','$COUNTRY_ID','confirmed');"
+db_exec "insert into public.results(id,edition_id,show_id,country_id,jury_points,televote_points,total_points,final_rank) values ('$RESULT_ID','$EDITION_A','$SHOW_ID','$COUNTRY_ID',12,-2,10,1) on conflict (show_id,country_id) where show_id is not null do update set id=excluded.id,jury_points=excluded.jury_points,televote_points=excluded.televote_points,total_points=excluded.total_points,final_rank=excluded.final_rank;"
 db_exec "insert into public.studio2_result_operations(show_id,edition_id,calculation_version,reviewed_version,locked_version,reveal_ready_version) values ('$SHOW_ID','$EDITION_A',1,1,1,1);"
 
 [[ "$(db_value "select result_row_count from private.v3_result_versions where show_id='$SHOW_ID' and version=1;")" == '1' ]] || fail "calculation version did not capture exactly one result row"
