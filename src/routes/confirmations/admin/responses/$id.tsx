@@ -665,7 +665,8 @@ function EntryReviewCard({
 
   return (
     <>
-      <AdminCard className={`!p-4 ${entryCardClass(entry, winner)}`}>
+      <div id={`entry-${entry.id}`} className="scroll-mt-24">
+        <AdminCard className={`!p-4 ${entryCardClass(entry, winner)}`}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
@@ -739,7 +740,8 @@ function EntryReviewCard({
         >
           {status === "pending" ? "Review entry" : "Review actions"}
         </button>
-      </AdminCard>
+        </AdminCard>
+      </div>
 
       <AdminSheet
         open={open}
@@ -999,6 +1001,16 @@ function ResponseDetailPage() {
   const syncToSolaris = useServerFn(syncConfirmationSnapshotToSolaris);
   const reconcileWinnerOperation = useServerFn(reconcileSystemOperation);
   const [data, setData] = useState<ResponseDetail | null>(null);
+
+  // The candidate-level Entry Review worklist links directly to a specific
+  // Entry. Wait until the authorized response has loaded and its card exists
+  // before scrolling; this does not open or authorize a review operation.
+  useEffect(() => {
+    if (!data || data.id !== id || typeof window === "undefined") return;
+    const match = /^#entry-([0-9a-f-]{36})$/i.exec(window.location.hash);
+    if (!match) return;
+    document.getElementById(`entry-${match[1]}`)?.scrollIntoView({ block: "start" });
+  }, [data?.id, id]);
   const [technical, setTechnical] = useState<TechnicalData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

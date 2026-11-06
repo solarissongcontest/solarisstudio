@@ -59,6 +59,15 @@ describe("Organizer Entry decision review sheet", () => {
     expect(route).toContain("<AdminConfirmSheet");
     expect(route).toContain("Review current Entry version");
   });
+  it("makes authorized Entry cards addressable from the candidate worklist", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
+    expect(route).toContain('id={`entry-${entry.id}`}');
+    expect(route).toContain('const match = /^#entry-([0-9a-f-]{36})$/i.exec(window.location.hash)');
+    expect(route).toContain('getElementById(`entry-${match[1]}`)');
+    expect(route).toContain('data.id !== id');
+  });
+
   it("keeps the canonical preflight and receipted authority on actual apply", () => {
     const route = readFileSync(resolve(process.cwd(),
       "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
