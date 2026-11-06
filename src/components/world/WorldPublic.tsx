@@ -20,22 +20,29 @@ import {
 type WorldView = "overview" | "leadership" | "members";
 
 /** No public world projection mounts before the canonical rollout RPC permits it. */
-export function WorldPublicGate({ children }: { children: ReactNode }) {
+export function WorldPublicGate({
+  children, verifyOnMount = false,
+}: { children: ReactNode; verifyOnMount?: boolean }) {
   const rollout = useQuery({
     queryKey: ["world", "public", "rollout"],
     queryFn: fetchWorldPublicEnabled,
     staleTime: 45_000,
+    // The body routes opt into publication re-verification on navigation.
+    // Other World screens retain their previous cached-gate behavior.
+    refetchOnMount: verifyOnMount ? "always" : undefined,
     retry: false,
   });
-  if (rollout.isPending) {
-    return <PublicFrame><LoadingWorld label="Checking Terra Solaris availability" /></PublicFrame>;
-  }
+  // A cached enabled flag is not proof that this route is still published.
+  // An error is handled first, so a failed refresh cannot leave this loading.
   if (rollout.isError) {
     return (
       <PublicFrame>
         <QueryFailure message="World availability could not be verified. No institutional records were loaded." retry={() => void rollout.refetch()} />
       </PublicFrame>
     );
+  }
+  if (rollout.isPending || (verifyOnMount && (!rollout.isFetchedAfterMount || rollout.isFetching))) {
+    return <PublicFrame><LoadingWorld label="Checking Terra Solaris availability" /></PublicFrame>;
   }
   if (!rollout.data) {
     return (
