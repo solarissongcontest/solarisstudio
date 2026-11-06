@@ -43,3 +43,19 @@ export function peerCountValue(value: unknown): number {
   }
   return parsed;
 }
+
+/** Prevent showing mixed-version or partially overwritten integrity evidence. */
+export function assertJuryIntegrityV5Evidence(
+  stored: { risk: unknown; confidence: unknown },
+  evidence: { modelVersion?: unknown; risk?: unknown; confidence?: unknown },
+): void {
+  if (evidence.modelVersion !== "jury-integrity-model-v5") {
+    throw new Error("Jury integrity evidence does not match the v5 model");
+  }
+  if (
+    percentageValue(stored.risk) !== percentageValue(evidence.risk) ||
+    percentageValue(stored.confidence) !== percentageValue(evidence.confidence)
+  ) {
+    throw new Error("Jury integrity evidence disagrees with the canonical preflight");
+  }
+}
