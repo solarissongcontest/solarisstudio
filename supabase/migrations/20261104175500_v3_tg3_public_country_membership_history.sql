@@ -19,6 +19,9 @@ security definer
 set search_path = pg_catalog
 as $history$
   select jsonb_build_object(
+    -- Server clock anchors public current-vs-scheduled classification;
+    -- the browser's local timezone or clock cannot grant a future office.
+    'effectiveAt', now(),
     'organization', jsonb_build_object(
       'id', organization_row.id,
       'slug', organization_row.slug,
@@ -67,6 +70,7 @@ as $history$
       join public.world_office_terms term_row
         on term_row.office_id = office_row.id
        and term_row.status = 'active'
+       and term_row.started_at <= now()
        and term_row.actual_end_at is null
        and term_row.represented_country_id = p_country_id
       join public.delegation_people holder_row
@@ -105,7 +109,7 @@ begin
       'forward_fix_only',
       false,
       null,
-      'Add one country-scoped public TG2 read projection for institutional membership, representation and current offices without duplicating authoritative world state.'
+      'Add one country-scoped, server-effective-time public TG2 read projection for institutional membership, representation and current offices without duplicating authoritative world state.'
     );
   end if;
 end
