@@ -3,6 +3,7 @@ import { useId, useState, type ReactNode } from "react";
 
 import { FlagFrame } from "@/components/FlagMedia";
 import type { CountryIdentityModel } from "@/lib/country-semantic-model";
+import type { CountryCurrentContext } from "@/lib/v3-country-current-context";
 
 const COUNTRY_MOBILE_LINK_CLASS = "country-mobile-web-action inline-flex min-h-11 items-center rounded-lg border border-border bg-transparent px-3 py-2 text-sm font-semibold text-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
@@ -13,9 +14,11 @@ const COUNTRY_MOBILE_LINK_CLASS = "country-mobile-web-action inline-flex min-h-1
 export function CountryMobileWebMasthead({
   identity,
   follow,
+  currentContext,
 }: {
   identity: CountryIdentityModel;
   follow: ReactNode;
+  currentContext: CountryCurrentContext;
 }) {
   const latestEntry = identity.currentEntry;
   const meaningfulStats = identity.statistics.slice(0, 3);
@@ -57,6 +60,11 @@ export function CountryMobileWebMasthead({
             <p className="mt-2 text-xs leading-5 text-muted-foreground">{identity.nativeName}</p>
           ) : null}
         </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-y border-border/70 py-3" aria-label="Current-edition participation">
+        <span className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">{currentContext.editionLabel}</span>
+        <strong className="text-sm font-semibold text-foreground">{currentContext.status}</strong>
       </div>
 
       {identity.description ? (
