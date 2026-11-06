@@ -174,6 +174,7 @@ as $projection$
           where term_row.office_id = office_row.id
             and term_row.status = 'active'
             and term_row.actual_end_at is null
+            and term_row.started_at <= now()
           limit 1
         )
       ) order by office_row.display_priority, office_row.title)
