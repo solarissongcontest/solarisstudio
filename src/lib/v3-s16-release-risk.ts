@@ -9,7 +9,7 @@ import type {
 export type V3S16ReleaseRisk = "hard_blocker" | "conditional_blocker";
 
 export type V3S16ClassifiedFinding = Omit<V3S16Finding, "kind" | "releaseRisk"> & {
-  kind: V3S16Finding["kind"] | "canonical_command_inventory_missing" | "legacy_application_writer";
+  kind: V3S16Finding["kind"] | "canonical_command_inventory_missing" | "legacy_application_writer" | "critical_domain_inventory_invalid";
   releaseRisk: V3S16ReleaseRisk;
   rule: string;
 };
@@ -195,6 +195,47 @@ export function classifyV3S16ReleaseAuthority(input: {
   candidateSha?: string;
 }) {
   const findings: V3S16ClassifiedFinding[] = input.baseFindings.map(classifyBaseFinding);
+  // Static-only callers may intentionally inspect one domain. Certification may
+  // not: a valid catalog for zero or a subset of domains is not S16 evidence.
+  if (!input.staticOnly) {
+    const sameMembers = (actual: readonly string[], expected: readonly string[]) =>
+      actual.length === expected.length && expected.every((value) => actual.includes(value));
+    const requiredDomains = new Map(V3_S16_CRITICAL_DOMAINS.map((domain) => [domain.id, domain]));
+
+    for (const expected of V3_S16_CRITICAL_DOMAINS) {
+      const matching = input.domains.filter((domain) => domain.id === expected.id);
+      const supplied = matching[0];
+      const matchesCanonicalInventory = matching.length === 1 &&
+        supplied.canonicalOwner === expected.canonicalOwner &&
+        supplied.ownerBoundary === (expected.resultsFrozenOwner ? "results_pr_1400" : "shared") &&
+        sameMembers(supplied.canonicalTables, expected.canonicalTables) &&
+        sameMembers(supplied.canonicalCommands, expected.canonicalCommands) &&
+        sameMembers(supplied.sanctionedInternalWriters, expected.sanctionedInternalWriters ?? []) &&
+        sameMembers(supplied.sanctionedWriteTriggers, expected.sanctionedWriteTriggers ?? []);
+      if (matchesCanonicalInventory) continue;
+      findings.push({
+        domain: expected.id,
+        kind: "critical_domain_inventory_invalid",
+        subject: expected.id,
+        detail: `Exact-SHA S16 evidence omitted, duplicated or altered the canonical authority inventory for ${expected.id}.`,
+        releaseRisk: "hard_blocker",
+        ownerBoundary: expected.resultsFrozenOwner ? "results_pr_1400" : "shared",
+        rule: "s16_certification_requires_complete_canonical_domain_inventory",
+      });
+    }
+    for (const domain of input.domains) {
+      if (requiredDomains.has(domain.id)) continue;
+      findings.push({
+        domain: domain.id,
+        kind: "critical_domain_inventory_invalid",
+        subject: domain.id,
+        detail: `Unrecognized S16 domain ${domain.id} appears in certification evidence.`,
+        releaseRisk: "hard_blocker",
+        ownerBoundary: "shared",
+        rule: "s16_certification_requires_complete_canonical_domain_inventory",
+      });
+    }
+  }
   if (!input.staticOnly) findings.push(...auditV3S16CatalogAuthority(
     input.catalog ?? null, input.candidateSha ?? "",
     input.domains.map(domain => ({...domain, risk:"integrity_critical" as const})),
