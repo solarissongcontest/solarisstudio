@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { scanV3S16StaticAuthority } from "./v3-s16-mutation-authority";
 
 const root = resolve(process.cwd(), "scripts");
 const forbiddenDirectIdentityWrites =
@@ -29,5 +30,36 @@ describe("S16 canonical identity mutation authority", () => {
     // Account changes belong to authenticated, authorized, auditable server
     // operations, not standalone scripts able to act with service-role access.
     expect(unsafe).toEqual([]);
+  });
+
+  it("classifies standalone raw account mutations as hard S16 release blockers", () => {
+    const findings = scanV3S16StaticAuthority(
+      [{
+        path: "scripts/one-off-identity-update.mjs",
+        source: "await supabase.auth.admin.updateUserById('fixed-id', { email: 'test@example.invalid' });",
+      }],
+      [],
+    );
+
+    expect(findings).toEqual([
+      expect.objectContaining({
+        domain: "account-session",
+        kind: "competing_legacy_writer",
+        path: "scripts/one-off-identity-update.mjs",
+        releaseRisk: "hard_blocker",
+      }),
+    ]);
+  });
+
+  it("does not misclassify isolated rehearsal data mutations or S16 source tests", () => {
+    const findings = scanV3S16StaticAuthority(
+      [
+        { path: "scripts/local-rehearsal.ts", source: "await db.from('entries').update({ name: 'test' });" },
+        { path: "scripts/writer.test.ts", source: "await admin.auth.admin.deleteUser('fixture-id');" },
+      ],
+      [],
+    );
+
+    expect(findings).toEqual([]);
   });
 });
