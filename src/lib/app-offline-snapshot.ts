@@ -80,7 +80,7 @@ function isValidOfflinePublicIndex(value: unknown): value is OfflinePublicIndex 
     return false;
   }
   if (typeof value.savedAt !== "string" ||
-      !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/.test(value.savedAt)) {
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value.savedAt)) {
     return false;
   }
   const savedAt = new Date(value.savedAt);
