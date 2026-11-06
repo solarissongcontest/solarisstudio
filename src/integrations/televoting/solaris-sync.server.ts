@@ -1,3 +1,4 @@
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 import { saveMergedRoundCountriesServer } from "@/integrations/televoting/entries.server";
@@ -25,6 +26,11 @@ async function solarisDb() {
   return supabaseAdmin as any;
 }
 
+/**
+ * Legacy catalog reconciliation writer. Request-facing repair is capability
+ * gated by the explicit Organizer repair action; the rounds workspace still
+ * owns a compatibility auto-reconciliation caller until its separate cutover.
+ */
 export async function ensureCanonicalTelevotingEditionsServer(): Promise<CanonicalTelevotingEdition[]> {
   await requireMergedTelevotingAdminServer();
   const db = await solarisDb();
@@ -164,9 +170,48 @@ export async function ensureCanonicalTelevotingEditionsServer(): Promise<Canonic
   return projections.sort((a, b) => b.edition_number - a.edition_number);
 }
 
+async function resolveLinkedCanonicalEdition(
+  db: any,
+  remoteEditionId: string,
+): Promise<CanonicalTelevotingEdition> {
+  const { data: link, error: linkError } = await db
+    .from("integration_links")
+    .select("solaris_id,remote_id,sync_status")
+    .eq("service", "televoting")
+    .eq("entity_type", "edition")
+    .eq("remote_id", remoteEditionId)
+    .maybeSingle();
+  if (linkError) throw new Error(linkError.message);
+  if (!link?.solaris_id) {
+    throw new Error("This Televoting edition is not linked to Solaris. Repair edition links before continuing.");
+  }
+
+  const { data: edition, error: editionError } = await db
+    .from("editions")
+    .select("id,name,edition_number,status")
+    .eq("id", link.solaris_id)
+    .maybeSingle();
+  if (editionError) throw new Error(editionError.message);
+  if (!edition) throw new Error("The linked Solaris edition could not be resolved");
+
+  const editionNumber = Number(edition.edition_number);
+  if (!Number.isInteger(editionNumber)) {
+    throw new Error("The linked Solaris edition has no canonical edition number");
+  }
+
+  return {
+    id: remoteEditionId,
+    solaris_id: String(edition.id),
+    name: String(edition.name),
+    edition_number: editionNumber,
+    is_active: edition.status === "active",
+    is_archived: edition.status === "completed" || edition.status === "finished",
+  };
+}
+
+/** Read-only resolver. Missing/drifted catalog links are surfaced, not repaired. */
 async function resolveRoundSource(roundId: string) {
   const db = await solarisDb();
-  const editions = await ensureCanonicalTelevotingEditionsServer();
 
   const { data: round, error: roundError } = await televotingAdmin
     .from("rounds")
@@ -176,8 +221,7 @@ async function resolveRoundSource(roundId: string) {
   if (roundError) throw new Error(roundError.message);
   if (!round) throw new Error("Round not found");
 
-  const edition = editions.find((candidate) => candidate.id === round.edition_id);
-  if (!edition) throw new Error("This Televoting round is not linked to a canonical Solaris edition");
+  const edition = await resolveLinkedCanonicalEdition(db, String(round.edition_id));
 
   const [{ data: binding, error: bindingError }, { data: shows, error: showsError }] = await Promise.all([
     db
@@ -193,12 +237,15 @@ async function resolveRoundSource(roundId: string) {
   ]);
   if (bindingError) throw new Error(bindingError.message);
   if (showsError) throw new Error(showsError.message);
+  if (binding && String(binding.edition_id) !== edition.solaris_id) {
+    throw new Error("This voting round binding points to a different Solaris edition. Repair the binding before continuing.");
+  }
 
   return { db, round, edition, binding, shows: shows ?? [] };
 }
 
 export async function getMergedRoundSolarisSourceServer(roundId: string) {
-  await requireMergedTelevotingAdminServer();
+  await requireSolarisCapabilityServer("voting.read", null);
   const source = await resolveRoundSource(roundId);
 
   const { count: editionParticipantCount, error: countError } = await source.db
@@ -238,7 +285,9 @@ export async function syncMergedRoundFromSolarisServer(data: {
   showId?: string | null;
   sourceMode?: "edition" | "show";
 }) {
+  await requireSolarisCapabilityServer("voting.manage", null);
   const actor = await requireMergedTelevotingAdminServer();
+  await ensureCanonicalTelevotingEditionsServer();
   const source = await resolveRoundSource(data.roundId);
 
   if (source.round.status === "open") {
