@@ -348,6 +348,14 @@ function EntryReviewCard({
     .map((item) => ({ category: item.id, explanation: correctionNotes[item.id] ?? "" }));
   const correctionReason = buildOrganizerEntryCorrectionReason(selectedCorrectionIssues, correctionMessage);
 
+  // A new immutable submission is a fresh review. Never carry earlier issue
+  // selections into a later Entry version, even when the card stays mounted.
+  useEffect(() => {
+    setCorrectionNotes({});
+    setCorrectionMessage("");
+    setError(null);
+  }, [entry.current_version_id]);
+
   function toggleCorrectionCategory(category: OrganizerEntryCorrectionCategory) {
     setCorrectionNotes((current) => {
       const next = { ...current };
