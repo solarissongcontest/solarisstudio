@@ -87,7 +87,7 @@ describe("offline public-index fail-closed storage boundary", () => {
   });
 
   it("does not persist an unsafe index supplied by an erroneous published-data caller", () => {
-    const setItem = vi.fn();
+    const setItem = vi.fn((_key: string, _value: string) => undefined);
     writeOfflinePublicIndex({
       editions: [{ id: "e1", name: "SSC 22", slug: "ssc22", edition_number: 22 }],
       shows: [],
