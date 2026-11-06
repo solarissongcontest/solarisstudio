@@ -106,6 +106,7 @@ export function V3DelegationRouteGate({
     >
       <V3DelegationScreen
         projection={bundle.projection}
+        countryId={bundle.countryId}
         activeEditionLabel={bundle.activeEditionLabel}
         hideResultSpoilers={hideResultSpoilers}
       />
