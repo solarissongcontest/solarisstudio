@@ -52,6 +52,10 @@ export function auditV3ProductionMigrationFrontier(
     if (repository.has(version)) errors.push(`Duplicate repository migration version: ${version}`);
     repository.set(version, { version, name, filename });
   }
+  // A directory with only README/config files is not a valid migration inventory.
+  // Without this guard, historical hosted entries can falsely certify an empty
+  // repository inventory as reconciled at the bootstrap cutover.
+  if (repository.size === 0) errors.push("Repository migration inventory contains no SQL migrations");
 
   const hosted = new Map<string, HostedMigration>();
   for (const migration of hostedMigrations) {
