@@ -111,7 +111,25 @@ export function V3PredictionsScreen() {
           description="Make private predictions, follow their scoring, and see the opt-in league without treating submission and standings as separate products."
         />
 
-        {rounds.isLoading || session.isLoading ? (
+        {(rounds.isPending && rounds.isPaused) || (session.isPending && session.isPaused) ? (
+          <V3Surface data-v3-predictions-state="paused">
+            <p role="status" className="text-sm font-semibold">Prediction state is waiting for a connection.</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
+              Solaris has not verified the rounds or your session. No signed-out or empty-state conclusion is being made.
+            </p>
+            <button
+              type="button"
+              disabled={rounds.isFetching || session.isFetching}
+              onClick={() => {
+                if (rounds.isPending) void rounds.refetch();
+                if (session.isPending) void session.refetch();
+              }}
+              className="mt-3 min-h-11 rounded-xl border border-white/20 px-4 text-sm font-semibold disabled:opacity-50"
+            >
+              Retry prediction connection
+            </button>
+          </V3Surface>
+        ) : rounds.isLoading || session.isLoading ? (
           <V3Surface>
             <p role="status" aria-live="polite" className="text-sm text-[var(--v3-text-secondary)]">
               Loading prediction state…
@@ -146,8 +164,15 @@ export function V3PredictionsScreen() {
           </V3Surface>
         ) : (
           <>
-            <V3Section title="Prediction rounds" meta={viewerId && (history.isLoading || history.isError) ? "Checking saved picks" : active.length ? `${active.length} current` : "No current round"}>
-              {viewerId && history.isLoading ? (
+            <V3Section title="Prediction rounds" meta={viewerId && (history.isPending || history.isError) ? "Checking saved picks" : active.length ? `${active.length} current` : "No current round"}>
+              {viewerId && history.isPending && history.isPaused ? (
+                <V3Surface data-v3-prediction-rounds-state="paused">
+                  <p role="status" className="text-sm text-[var(--v3-text-secondary)]">Your saved picks have not been verified while the connection is paused.</p>
+                  <button type="button" disabled={history.isFetching} onClick={() => void history.refetch()} className="mt-3 min-h-11 rounded-xl border border-white/20 px-4 text-sm font-semibold disabled:opacity-50">
+                    Retry saved predictions
+                  </button>
+                </V3Surface>
+              ) : viewerId && history.isLoading ? (
                 <V3Surface><p role="status" className="text-sm text-[var(--v3-text-secondary)]">Verifying your submitted predictions…</p></V3Surface>
               ) : viewerId && history.isError ? (
                 <V3Surface data-v3-prediction-rounds-state="private-history-error">
@@ -214,6 +239,13 @@ export function V3PredictionsScreen() {
                   <a href="/auth?redirect=%2Fpredictions" className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-[var(--v3-accent)] px-4 text-sm font-semibold text-black">
                     Sign in or create an account
                   </a>
+                </V3Surface>
+              ) : history.isPending && history.isPaused ? (
+                <V3Surface data-v3-prediction-history-state="paused">
+                  <p role="status" className="text-sm text-[var(--v3-text-secondary)]">Your private prediction history has not loaded because the connection is paused.</p>
+                  <button type="button" disabled={history.isFetching} onClick={() => void history.refetch()} className="mt-3 min-h-11 rounded-xl border border-white/20 px-4 text-sm font-semibold disabled:opacity-50">
+                    Retry prediction history
+                  </button>
                 </V3Surface>
               ) : history.isLoading ? (
                 <V3Surface><p role="status" className="text-sm text-[var(--v3-text-secondary)]">Loading your predictions…</p></V3Surface>
@@ -299,7 +331,12 @@ export function V3PredictionsScreen() {
                   </select>
                 </div>
               ) : null}
-              {leagueFeature.isLoading ? (
+              {leagueFeature.isPending && leagueFeature.isPaused ? (
+                <V3Surface data-v3-prediction-league-state="paused">
+                  <p role="status" className="text-sm text-[var(--v3-text-secondary)]">League availability has not been verified while offline.</p>
+                  <button type="button" disabled={leagueFeature.isFetching} onClick={() => void leagueFeature.refetch()} className="mt-3 min-h-11 rounded-xl border border-white/20 px-4 text-sm font-semibold disabled:opacity-50">Retry league availability</button>
+                </V3Surface>
+              ) : leagueFeature.isLoading ? (
                 <V3Surface><p role="status" className="text-sm text-[var(--v3-text-secondary)]">Checking league availability…</p></V3Surface>
               ) : leagueFeature.isError ? (
                 <V3Surface data-v3-prediction-league-state="error">
@@ -320,6 +357,11 @@ export function V3PredictionsScreen() {
                     <p className="text-sm font-semibold">Prediction League is not available</p>
                     <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">Prediction submission remains separate from league rollout and continues to use the canonical round state.</p>
                   </div>
+                </V3Surface>
+              ) : standings.isPending && standings.isPaused ? (
+                <V3Surface data-v3-prediction-league-state="standings-paused">
+                  <p role="status" className="text-sm text-[var(--v3-text-secondary)]">Public standings have not been verified while the connection is paused.</p>
+                  <button type="button" disabled={standings.isFetching} onClick={() => void standings.refetch()} className="mt-3 min-h-11 rounded-xl border border-white/20 px-4 text-sm font-semibold disabled:opacity-50">Retry standings</button>
                 </V3Surface>
               ) : standings.isLoading ? (
                 <V3Surface><p role="status" className="text-sm text-[var(--v3-text-secondary)]">Loading standings…</p></V3Surface>
@@ -361,14 +403,16 @@ export function V3PredictionsScreen() {
                           <p className="mt-2 text-2xl font-bold tabular-nums">#{myStanding.position}</p>
                         ) : (
                           <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
-                            {session.data && profile.isError
+                            {session.data && profile.isPending
+                              ? "Your leaderboard privacy setting has not been verified."
+                              : session.data && profile.isError
                               ? "Your leaderboard privacy setting could not be checked."
                               : session.data && profile.data?.leaderboard_opt_in !== true
                                 ? "Your fan profile is not opted into public standings. Your scores remain private."
                                 : "No public scored position is available for this account yet."}
                           </p>
                         )}
-                        {session.data && profile.isError ? (
+                        {session.data && (profile.isError || (profile.isPending && profile.isPaused)) ? (
                           <button type="button" onClick={() => void profile.refetch()} disabled={profile.isFetching} className="mt-2 min-h-10 rounded-xl border border-white/20 px-3 text-xs font-semibold disabled:opacity-50">
                             {profile.isFetching ? "Retrying…" : "Retry privacy setting"}
                           </button>
