@@ -105,7 +105,7 @@ test("image-led chapters use the dedicated local TerraOS asset namespace", async
 
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page.locator('img[src="/assets/terraos-maintenance/atmosphere.jpeg"]')).toHaveCount(3);
-  await expect(page.locator('img[src="/assets/terraos-maintenance/moment-a.png"]')).toHaveCount(2);
-  await expect(page.locator('img[src="/assets/terraos-maintenance/moment-b.png"]')).toHaveCount(2);
+  await expect(page.locator('img[src^="/assets/terraos-maintenance/moment-a.svg?v="]')).toHaveCount(2);
+  await expect(page.locator('img[src^="/assets/terraos-maintenance/moment-b.svg?v="]')).toHaveCount(2);
   expect(remoteImageRequests).toEqual([]);
 });

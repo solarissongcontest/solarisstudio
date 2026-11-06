@@ -61,7 +61,11 @@ export type V3ExploreRoutes = {
   editionsArchive: string;
   wiki: string;
   encyclopedia: string;
+  /** Explicit canonical Reference route, when its independent rollout is available. */
+  reference?: string | null;
   archiveGames?: string | null;
+  /** Link to the existing public Prediction Arena; not a new voting authority. */
+  predictions?: string | null;
   advancedDiscovery?: string | null;
 };
 
@@ -287,12 +291,9 @@ export function buildV3ExploreRootProjection(
 
   const archiveLinks: V3ExploreLink[] = [
     { key: "editions", label: "Editions", href: input.routes.editionsArchive },
-    { key: "wiki", label: "Wiki", href: input.routes.wiki },
-    {
-      key: "encyclopedia",
-      label: "Encyclopedia",
-      href: input.routes.encyclopedia,
-    },
+    // One public Reference destination. Until the independently gated
+    // Reference rollout is available, the legacy Wiki remains a usable path.
+    { key: "reference", label: "Reference", href: input.routes.reference || input.routes.wiki },
   ];
 
   const more: V3ExploreLink[] = [
@@ -311,6 +312,13 @@ export function buildV3ExploreRootProjection(
       key: "archive-games",
       label: "Archive games",
       href: input.routes.archiveGames,
+    });
+  }
+  if (input.routes.predictions) {
+    more.push({
+      key: "predictions",
+      label: "Predictions",
+      href: input.routes.predictions,
     });
   }
   if (input.routes.advancedDiscovery) {
