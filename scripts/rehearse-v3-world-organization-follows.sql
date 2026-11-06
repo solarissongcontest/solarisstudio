@@ -33,6 +33,40 @@ begin
 end $anon$;
 reset role;
 
+-- World remains DARK by default. A guessed public organization UUID must not
+-- bypass the canonical server rollout gate, even for an authenticated fan.
+set local role authenticated;
+set local request.jwt.claim.role='authenticated';
+do $dark$
+declare
+ v jsonb:=current_setting('solaris.tg10_follow_fixture')::jsonb;
+begin
+ perform set_config('request.jwt.claim.sub',v->>'me',true);
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',v->>'me','role','authenticated')::text,true);
+ if public.studio2_feature_enabled('terra_world_public',null) then
+   raise exception 'TG10_WORLD_ROLLOUT_UNEXPECTEDLY_ENABLED';
+ end if;
+ begin
+   perform public.set_fan_follow('organization',(v->>'organization')::uuid,true,'important');
+   raise exception 'TG10_DARK_ROLLOUT_FOLLOW_ALLOWED';
+ exception when others then
+   if sqlerrm <> 'This item is not available to follow' then raise; end if;
+ end;
+end $dark$;
+reset role;
+
+-- Flip the flag *only inside this transaction* for positive-path checks.
+-- The final rollback restores the original disabled production-like state.
+update public.studio2_feature_flags
+set enabled=true,admins_only=false,user_ids='{}'::uuid[],edition_ids='{}'::uuid[]
+where key='terra_world_public';
+do $flag$
+begin
+ if not found then
+   raise exception 'TG10_WORLD_ROLLOUT_FLAG_MISSING';
+ end if;
+end $flag$;
+
 set local role authenticated;
 set local request.jwt.claim.role='authenticated';
 do $own$
