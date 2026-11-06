@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Search } from "lucide-react";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
@@ -62,6 +62,11 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
     staleTime: 90_000,
     retry: false,
   });
+  useEffect(() => {
+    if (!query.isSuccess || query.isPlaceholderData || !query.data) return;
+    const lastPage = Math.max(0, Math.ceil(query.data.total / WORLD_BODIES_PAGE_SIZE) - 1);
+    if (page > lastPage) setPage(lastPage);
+  }, [page, query.isSuccess, query.isPlaceholderData, query.data?.total]);
   function applySearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const cleaned = cleanWorldBodySearch(input);
@@ -75,7 +80,9 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
     setStatus("all");
     setPage(0);
   }
-  const result = query.data;
+  // A background refresh can fail while TanStack retains previously cached data.
+  // Never show that stale publication snapshot after a failed verification.
+  const result = query.isError ? undefined : query.data;
   return <Frame>
     <Back institution={result?.organization} />
     {!valid ? <Unavailable missing /> : null}
@@ -139,7 +146,7 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
     queryKey: ["world", "public", "body", slug, bodySlug],
     queryFn: () => readPublicWorldBody(slug, bodySlug), enabled: valid, staleTime: 90_000, retry: false,
   });
-  const result = query.data;
+  const result = query.isError ? undefined : query.data;
   const offices = useQuery({
     queryKey: ["world", "public", "body-offices", result?.organization.id, result?.body.id],
     queryFn: () => readPublicBodyOffices(result!.organization, result!.body),
