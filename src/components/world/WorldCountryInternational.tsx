@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, Globe2, Landmark, Search } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { PageHeader } from "@/components/AppShell";
+import { WorldPublicGate } from "@/components/world/WorldPublic";
 import { ArchiveDataLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import {
@@ -18,11 +19,9 @@ import {
   type WorldPublicInstitution,
 } from "@/lib/world-country-international";
 import {
-  WORLD_PUBLIC_ROLLOUT_QUERY_KEY,
   fetchWorldCountryDirectory,
   fetchWorldCountryIdentity,
   fetchWorldCountryMembershipPage,
-  fetchWorldCountryRollout,
   fetchWorldPublicCountryInstitutions,
 } from "@/lib/world-country-international-queries";
 type Phase = "current" | "historical";
@@ -32,44 +31,11 @@ const membershipDate = (value: string): string => new Intl.DateTimeFormat("en", 
 }).format(new Date(value));
 
 /**
- * Guard independently until #1934's shared WorldPublicGate is on the
- * integration branch. Use its identical flag RPC and query cache key.
- * Children are not mounted while publication is disabled or unverified.
+ * Reuse the one canonical World publication gate now that TG3 #1934 is on
+ * main. Country records are never mounted from a cached rollout decision.
  */
 export function WorldCountryRolloutGate({ children }: { children: ReactNode }) {
-  const rollout = useQuery({
-    queryKey: WORLD_PUBLIC_ROLLOUT_QUERY_KEY,
-    staleTime: 45_000,
-    retry: false,
-    queryFn: fetchWorldCountryRollout,
-    // A cached enabled flag is insufficient when navigating from another World route.
-    refetchOnMount: "always",
-  });
-
-  if (rollout.isError || rollout.isRefetchError) {
-    return <div className="mx-auto max-w-5xl px-4 py-8">
-      <FailureState title="World availability could not be verified"
-        retry={() => void rollout.refetch()} />
-    </div>;
-  }
-  // An old cached true must not bypass a fresh mount's publication check.
-  if (rollout.isPending || rollout.isFetching || !rollout.isFetchedAfterMount) {
-    return <div className="mx-auto max-w-5xl px-4 py-8">
-      <ArchiveDataLoading label="Checking Terra Solaris availability…" />
-    </div>;
-  }
-  if (!rollout.data) {
-    return <div className="mx-auto max-w-5xl px-4 py-12">
-      <h1 className="text-2xl font-bold">Terra Solaris is not yet available</h1>
-      <p className="mt-2 max-w-prose text-sm leading-6 text-muted-foreground">
-        International records open when Terra Solaris is officially published.
-      </p>
-      <Link to="/explore" className="mt-5 inline-flex min-h-11 items-center font-semibold text-primary">
-        Return to Explore
-      </Link>
-    </div>;
-  }
-  return <>{children}</>;
+  return <WorldPublicGate verifyOnMount>{children}</WorldPublicGate>;
 }
 
 function FailureState({ retry, title = "International records unavailable" }: { retry: () => void; title?: string }) {
