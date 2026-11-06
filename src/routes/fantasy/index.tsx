@@ -219,11 +219,24 @@ function FantasyPage() {
       const { data: confirmedActor, error: actorError } = await supabase.auth.getUser();
       if (actorError || confirmedActor.user?.id !== intent.viewerId ||
           latestRosterScope.current !== intent.scope) throw unconfirmed;
-      return teamId;
+      return {
+        team: savedTeam.data as V3FantasyTeam,
+        entries: savedEntries.data as V3FantasyTeamEntry[],
+      };
     },
-    onSuccess: (_teamId, intent) => {
-      // Only a verified RPC + readback can mark the original draft saved.
-      if (latestRosterScope.current === intent.scope) setDraftDirty(false);
+    onSuccess: (verified, intent) => {
+      // Publish exact verified server rows before clearing the draft. Without
+      // this, a stale pre-save cache can temporarily replace the new roster.
+      if (latestRosterScope.current !== intent.scope) return;
+      queryClient.setQueryData(
+        ["fantasy-my-team", intent.gameId, intent.viewerId],
+        verified.team,
+      );
+      queryClient.setQueryData(
+        ["fantasy-my-team-entries", intent.viewerId, verified.team.id],
+        verified.entries,
+      );
+      setDraftDirty(false);
     },
     onSettled: async (_result, _error, intent) => {
       // Even an unconfirmed write may have committed. Refresh the correct scope.
