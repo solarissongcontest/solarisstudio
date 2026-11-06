@@ -126,3 +126,13 @@ test('actual CLI returns 2 for collision under require-clean and emits valid JSO
     rmSync(dir, {recursive: true, force: true});
   }
 });
+
+
+test('INOUT participates in input identity rather than disappearing like OUT', () => {
+  const report = auditWorldSqlAuthorities(snapshot(
+    patch(1, A, 'CREATE FUNCTION public.world_member(INOUT member_id uuid) LANGUAGE sql AS $$ SELECT NULL $$;'),
+    patch(2, B, 'CREATE FUNCTION public.world_member(actor uuid) RETURNS void AS $$ SELECT NULL $$ LANGUAGE sql;', 'same_signature')
+  ));
+  assert.equal(report.collisionCount, 1);
+  assert.equal(report.collisions[0].identity, 'routine:public.world_member(uuid)');
+});
