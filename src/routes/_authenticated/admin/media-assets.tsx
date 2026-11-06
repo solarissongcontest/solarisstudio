@@ -395,7 +395,16 @@ function MediaAssetsPage() {
           </>
         )}
 
-        <MediaAssetSheet asset={selectedAsset} reviews={(reviewsQuery.data ?? []).filter((review) => review.assetKey === selectedAsset?.assetKey)} onClose={() => updateSearch({ asset: undefined })} />
+        <MediaAssetSheet
+          // Force a new consent state for every asset/source and for closed → reopened.
+          // React key remount also prevents A → B → A from restoring earlier consent.
+          key={selectedAsset
+            ? [selectedAsset.editionId, selectedAsset.assetKey, selectedAsset.sourceFingerprint ?? 'no-source'].join(':')
+            : 'closed'}
+          asset={selectedAsset}
+          reviews={(reviewsQuery.data ?? []).filter((review) => review.assetKey === selectedAsset?.assetKey)}
+          onClose={() => updateSearch({ asset: undefined })}
+        />
 
         <AdminConfirmSheet
           open={Boolean(pendingReview)}

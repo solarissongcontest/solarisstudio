@@ -73,6 +73,17 @@ describe("Organizer Media Review opt-in external preview", () => {
     }
   });
 
+  it("remounts preview consent when the exact asset/source changes, including A-B-A", () => {
+    const route = readFileSync(resolve(process.cwd(), "src/routes/_authenticated/admin/media-assets.tsx"), "utf8");
+    expect(route).toContain("key={selectedAsset");
+    expect(route).toContain("selectedAsset.editionId, selectedAsset.assetKey, selectedAsset.sourceFingerprint");
+    expect(route).toContain(": 'closed'}");
+    // The preview state is local to MediaAssetSheet, so changing its key
+    // destroys the previous opt-in instead of reusing it after navigation.
+    expect(route).toContain("const [previewTarget, setPreviewTarget] = useState<string | null>(null);");
+    expect(route).not.toContain("sessionStorage.setItem(");
+  });
+
   it("keeps opaque URLs and signed fingerprints out of reviewer-visible labels", () => {
     const signed = "https://cdn.example.test/private/opaque/file.mp3?X-Amz-Signature=SECRET";
     expect(describeOrganizerMediaSource(signed)).toBe("External source · cdn.example.test");
