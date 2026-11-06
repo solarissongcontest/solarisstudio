@@ -102,7 +102,7 @@ begin
     when 'country' then exists (select 1 from public.countries country where country.id = _entity_id)
     when 'edition' then exists (select 1 from public.editions edition where edition.id = _entity_id and edition.published is true)
     when 'show' then public.show_publication_enabled(_entity_id, 'participants')
-    when 'organization' then exists (
+    when 'organization' then public.studio2_feature_enabled('terra_world_public', null) is true and exists (
       select 1 from public.world_organizations organization_row
       where organization_row.id = _entity_id
         and organization_row.public_visibility = 'public'
