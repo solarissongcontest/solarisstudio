@@ -122,6 +122,7 @@ function CommunicationsCentre() {
   const [lifecycleReview, setLifecycleReview] = useState<PendingLifecycleReview | null>(null);
   const [reviewError, setReviewError] = useState<Error | null>(null);
   const [entryFollowupReviewOpen, setEntryFollowupReviewOpen] = useState(false);
+  const [entryFollowupReviewEditionId, setEntryFollowupReviewEditionId] = useState<string | null>(null);
   const [followupComposing, setFollowupComposing] = useState(false);
 
   const inboxEnabled = displaySurfaces.includes('delegation_inbox');
@@ -371,6 +372,7 @@ function CommunicationsCentre() {
   function loadIntoComposer(notice: OperationalNotice, clearReview = true) {
     setFollowupComposing(false);
     setEntryFollowupReviewOpen(false);
+    setEntryFollowupReviewEditionId(null);
     setReviewError(null);
     if (clearReview) setLifecycleReview(null);
     setEditingId(notice.id);
@@ -390,6 +392,7 @@ function CommunicationsCentre() {
   function resetComposer() {
     setFollowupComposing(false);
     setEntryFollowupReviewOpen(false);
+    setEntryFollowupReviewEditionId(null);
     setLifecycleReview(null);
     setEditingId(null);
     setEditingBase(null);
@@ -406,6 +409,15 @@ function CommunicationsCentre() {
   }
 
   function applyEntryFollowupTemplate() {
+    // A confirmation is valid only for the edition in which its review opened,
+    // and only while no other notice draft/publication command is in flight.
+    if (!entryFollowupReviewOpen || !editionId ||
+        entryFollowupReviewEditionId !== editionId || busy) {
+      setEntryFollowupReviewOpen(false);
+      setEntryFollowupReviewEditionId(null);
+      toast.error("Organizer edition or communication state changed. Reopen the Entry follow-up review.");
+      return;
+    }
     // A confirmed template replaces local composer state only. It does not
     // create, edit or publish a notice until the Organizer uses the governed
     // draft/publication commands below.
@@ -508,7 +520,11 @@ function CommunicationsCentre() {
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => setEntryFollowupReviewOpen(true)}
+                onClick={() => {
+                  if (busy || !editionId) return;
+                  setEntryFollowupReviewEditionId(editionId);
+                  setEntryFollowupReviewOpen(true);
+                }}
                 disabled={busy}
                 className="admin-action-secondary"
               >
@@ -1078,7 +1094,10 @@ function CommunicationsCentre() {
 
         <AdminConfirmSheet
           open={entryFollowupReviewOpen}
-          onClose={() => setEntryFollowupReviewOpen(false)}
+          onClose={() => {
+            setEntryFollowupReviewOpen(false);
+            setEntryFollowupReviewEditionId(null);
+          }}
           onConfirm={applyEntryFollowupTemplate}
           title="Prepare a targeted Entry follow-up?"
           description={
