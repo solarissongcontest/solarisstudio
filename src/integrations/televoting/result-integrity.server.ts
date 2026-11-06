@@ -1,5 +1,9 @@
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import {
+  requireResultIntegrityReadServer,
+  requireResultIntegrityRecomputeServer,
+} from "@/integrations/televoting/result-integrity-auth.server";
+import {
   canonicalEditionForRound,
   loadCanonicalVotingContextServer,
 } from "@/integrations/televoting/canonical-context.server";
@@ -91,6 +95,8 @@ async function currentSubmissionIdentity(roundId: string) {
 }
 
 export async function recomputeResultIntegrityServer(roundId: string) {
+  // Direct server imports must not bypass the handler-level capability gate.
+  await requireResultIntegrityRecomputeServer();
   await requireMergedTelevotingAdminServer();
   const round = await loadMergedConversionRound(roundId);
   if (round.televote_engine_version !== ROBUST_TELEVOTE_ENGINE_VERSION) {
@@ -166,6 +172,8 @@ export async function recomputeResultIntegrityServer(roundId: string) {
 }
 
 export async function getResultIntegrityServer(roundId: string) {
+  // Confidential ballot/evidence reads are guarded even without the adapter.
+  await requireResultIntegrityReadServer();
   await requireMergedTelevotingAdminServer();
   const round = await loadMergedConversionRound(roundId);
   const identity = await currentSubmissionIdentity(roundId);
