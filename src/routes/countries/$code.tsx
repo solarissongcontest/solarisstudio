@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 
@@ -49,6 +50,7 @@ import {
   type QualificationStatus,
 } from "@/lib/qualification";
 import { computeRelationship } from "@/lib/stats";
+import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 import { countryThemeToVisual, useCountryTheme } from "@/lib/visual-theme";
 import "@/country-mobile-web.css";
 
@@ -121,8 +123,15 @@ type Tab = (typeof TABS)[number]["value"];
 
 function CountryProfilePage() {
   const { code } = Route.useParams();
-  const { isAppMode } = useSolarisApp();
+  const { isAppMode, platformResolved } = useSolarisApp();
   const countryLayoutMode = useCountryDirectoryPresentation();
+  const referenceRollout = useQuery({
+    queryKey: ["studio2-feature", "public_encyclopedia"],
+    queryFn: () => isStudio2FeatureEnabled("public_encyclopedia"),
+    enabled: platformResolved,
+    staleTime: 30_000,
+  });
+  const legacyWikiArticleAvailable = referenceRollout.isSuccess && referenceRollout.data === false;
   const [archiveEnabled, setArchiveEnabled] = useState(!isAppMode);
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
@@ -433,7 +442,9 @@ function CountryProfilePage() {
     })),
     geography: null,
     actions: {
-      wiki: { label: "Reference", href: "/wiki" },
+      wiki: legacyWikiArticleAvailable
+        ? { label: "Wiki article", href: `/wiki/${country.short_code}` }
+        : { label: "Reference", href: "/wiki" },
       compare: { label: "Compare", href: `/compare?a=${country.short_code}` },
       follow: { label: "Follow", href: `/countries/${country.short_code}` },
     },
@@ -494,6 +505,7 @@ function CountryProfilePage() {
         {countryLayoutMode === "mobile-web" ? (
           <CountryMobileWebMasthead
             identity={identityModel}
+            legacyWikiCode={legacyWikiArticleAvailable ? country.short_code : null}
             currentContext={currentContext}
             follow={<FollowButton entityType="country" entityId={country.id} label={country.name} />}
           />
@@ -510,7 +522,11 @@ function CountryProfilePage() {
             actions={
               <>
                 <div className="country-v2-hero-secondary-actions">
-                  <Link to="/wiki">Reference</Link>
+                  {legacyWikiArticleAvailable ? (
+                    <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki article</Link>
+                  ) : (
+                    <Link to="/wiki">Reference</Link>
+                  )}
                   <Link to="/compare" search={{ a: country.short_code }}>Compare</Link>
                   <Link to="/voting-dna/$code" params={{ code: country.short_code }}>Voting DNA</Link>
                 </div>
@@ -533,7 +549,11 @@ function CountryProfilePage() {
             className="mb-6"
             actions={
               <>
-                <Link to="/wiki">Reference</Link>
+                {legacyWikiArticleAvailable ? (
+                    <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki article</Link>
+                  ) : (
+                    <Link to="/wiki">Reference</Link>
+                  )}
                 <Link to="/compare" search={{ a: country.short_code }}>Compare</Link>
                 <Link to="/voting-dna/$code" params={{ code: country.short_code }}>Voting DNA</Link>
                 <FollowButton entityType="country" entityId={country.id} label={country.name} />
