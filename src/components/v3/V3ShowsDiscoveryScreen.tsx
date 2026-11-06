@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight, Search, SlidersHorizontal, X } from "lucide-react";
 import type { V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import "@/styles/v3-shows-directory.css";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppEmptyState, AppSectionHeader } from "@/components/app/AppPrimitives";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
@@ -10,6 +10,7 @@ import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/s
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import { showPublishesResults } from "@/lib/publication";
+import { getV3ShowBrowsePage, V3_SHOW_BROWSE_PAGE_SIZE } from "@/lib/v3-show-browse-page";
 import {
   buildShowDiscovery,
   type ShowDiscoveryItem,
@@ -34,6 +35,13 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
   const [editionId, setEditionId] = useState("all");
   const [kind, setKind] = useState("all");
   const [state, setState] = useState<ShowDiscoveryState | "all">("all");
+  const [browsePage, setBrowsePage] = useState(1);
+
+  // A new search/facet must start at the first result window, including when
+  // a visitor narrows a previously expanded historical browse.
+  useEffect(() => {
+    setBrowsePage(1);
+  }, [search, editionId, kind, state]);
 
   const discovery = useMemo(
     () =>
@@ -87,6 +95,10 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
     [allItems, editionId, kind, state, search],
   );
 
+  const browseWindow = useMemo(
+    () => getV3ShowBrowsePage(browseItems, browsePage),
+    [browseItems, browsePage],
+  );
   const activeFilterCount = [editionId !== "all", kind !== "all", state !== "all"].filter(Boolean).length;
 
   if (archiveIsLoading(editionsQuery, showsQuery)) {
@@ -288,10 +300,10 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
           )}
         </div>
         <p className="v3-directory-results-count" role="status" aria-live="polite">
-          Showing {browseItems.length} of {allItems.length} published shows
+          Showing {browseWindow.visible.length} of {browseItems.length} matching shows · {allItems.length} published
         </p>
-        <div className="v3-shows-browse-results">
-          {browseItems.map((item) =>
+        <div id="v3-shows-browse-results" className="v3-shows-browse-results">
+          {browseWindow.visible.map((item) =>
             presentation === "mobile-web" ? (
               <ShowWebRow key={item.show.id} item={item} />
             ) : presentation === "desktop-web" ? (
@@ -301,6 +313,16 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
             ),
           )}
         </div>
+        {browseWindow.hasMore ? (
+          <button
+            type="button"
+            className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-5 text-sm font-semibold text-primary hover:bg-primary/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            aria-controls="v3-shows-browse-results"
+            onClick={() => setBrowsePage((page) => page + 1)}
+          >
+            Show {Math.min(V3_SHOW_BROWSE_PAGE_SIZE, browseWindow.remaining)} more shows
+          </button>
+        ) : null}
         {!browseItems.length ? (
           <AppEmptyState
             className="mt-3"
