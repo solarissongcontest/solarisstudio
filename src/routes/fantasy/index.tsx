@@ -52,7 +52,8 @@ function FantasyPage() {
     queryFn: () => isStudio2FeatureEnabled("fantasy_ssc"),
     staleTime: 30_000,
   });
-  const { data: countries = [] } = useCountries();
+  const countriesQuery = useCountries();
+  const countries = countriesQuery.data ?? [];
   const countryMap = useMemo(() => new Map(countries.map((country) => [country.id, country])), [countries]);
   const [gameId, setGameId] = useState<string>("");
   const [selected, setSelected] = useState<string[]>([]);
@@ -265,7 +266,10 @@ function FantasyPage() {
         choice.game_id === activeGame.id && choice.country_id === id && choice.eligible && Number.isFinite(choice.cost) && choice.cost >= 0,
       ))
     : [];
-  const loadingError = session.isError || games.isError || choices.isError || myTeam.isError || myTeamEntries.isError;
+  const loadingError = session.isError || countriesQuery.isError || games.isError || choices.isError || myTeam.isError || myTeamEntries.isError;
+  const initialReads = [session, countriesQuery, games, choices, myTeam, myTeamEntries];
+  const initialReadPaused = initialReads.some((query) => query.isPending && query.isPaused);
+  const initialReadLoading = initialReads.some((query) => query.isLoading);
   const fantasyState = resolveV3FantasyState({ game: activeGame, team: myTeam.data ?? null, nowMs });
   const editable = canEditV3FantasyRoster(fantasyState);
   const locked = !editable;
@@ -302,13 +306,6 @@ function FantasyPage() {
   }
 
   if (v3Enabled) {
-    if (session.isLoading || games.isLoading || choices.isLoading || myTeam.isLoading || myTeamEntries.isLoading) {
-      return (
-        <V3AppShell editionLabel="Solaris Studio" phaseLabel="Fantasy">
-          <V3Screen><V3Surface className="p-5"><p role="status">Loading Fantasy game…</p></V3Surface></V3Screen>
-        </V3AppShell>
-      );
-    }
     if (loadingError) {
       return (
         <V3AppShell editionLabel="Solaris Studio" phaseLabel="Fantasy">
@@ -317,6 +314,22 @@ function FantasyPage() {
             <p role="alert" className="mt-2 text-sm text-[var(--v3-text-secondary)]">Your account or Fantasy game could not be verified. No roster changes have been submitted.</p>
             <button type="button" className="mt-4 min-h-11 rounded-xl border px-4 text-sm font-semibold" onClick={() => window.location.reload()}>Retry loading</button>
           </V3Surface></V3Screen>
+        </V3AppShell>
+      );
+    }
+    if (initialReadPaused) {
+      return (
+        <V3AppShell editionLabel="Solaris Studio" phaseLabel="Fantasy">
+          <V3Screen><V3Surface className="p-5" data-v3-fantasy-initial-state="paused">
+            <p role="status" className="text-sm">Reconnect to verify the Fantasy game, country catalogue and your saved roster.</p>
+          </V3Surface></V3Screen>
+        </V3AppShell>
+      );
+    }
+    if (initialReadLoading) {
+      return (
+        <V3AppShell editionLabel="Solaris Studio" phaseLabel="Fantasy">
+          <V3Screen><V3Surface className="p-5"><p role="status">Loading Fantasy game…</p></V3Surface></V3Screen>
         </V3AppShell>
       );
     }
@@ -385,7 +398,9 @@ function FantasyPage() {
           <p role="alert" className="text-sm text-muted-foreground">Your account or Fantasy game could not be verified. No roster changes have been submitted.</p>
           <button type="button" className="mt-3 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold" onClick={() => window.location.reload()}>Retry loading</button>
         </Panel>
-      ) : session.isLoading || games.isLoading || choices.isLoading || myTeam.isLoading || myTeamEntries.isLoading ? (
+      ) : initialReadPaused ? (
+        <Panel title="Fantasy connection paused"><p role="status" className="text-sm text-muted-foreground">Reconnect to verify the Fantasy game, country catalogue and your saved roster.</p></Panel>
+      ) : initialReadLoading ? (
         <Panel><p role="status" className="text-sm text-muted-foreground">Loading Fantasy game and your saved roster…</p></Panel>
       ) : !activeGame ? (
         <Panel title="No Fantasy game is open"><p className="text-sm text-muted-foreground">An Organizer has not published a Fantasy roster window yet.</p></Panel>

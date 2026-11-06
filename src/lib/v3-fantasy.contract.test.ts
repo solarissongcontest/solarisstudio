@@ -38,7 +38,7 @@ const projection = source("src/lib/v3-fantasy.ts");
   });
 
   it("does not present an unavailable or unauthorized game as a legitimate empty state", () => {
-    expect(route).toContain("const loadingError = session.isError || games.isError || choices.isError || myTeam.isError || myTeamEntries.isError");
+    expect(route).toContain("const loadingError = session.isError || countriesQuery.isError || games.isError || choices.isError || myTeam.isError || myTeamEntries.isError");
     expect(route).toContain("Fantasy data could not be loaded");
     expect(route).toContain("No roster changes have been submitted");
     expect(route).toContain("Retry loading");
@@ -102,6 +102,24 @@ const projection = source("src/lib/v3-fantasy.ts");
     expect(route).toContain("onSubmit={submitRoster}");
     expect(route).toContain("onClick={submitRoster}");
     expect(route).toContain("submit.variables?.scope === rosterScope");
+  });
+
+  it("fails closed when initial Fantasy country or account reads fail or pause", () => {
+    expect(route).toContain("const countriesQuery = useCountries()");
+    expect(route).toContain("const countries = countriesQuery.data ?? []");
+    expect(route).toContain("countriesQuery.isError");
+    expect(route).toContain("const initialReads = [session, countriesQuery, games, choices, myTeam, myTeamEntries]");
+    expect(route).toContain("query.isPending && query.isPaused");
+    expect(route).toContain("query.isLoading");
+    expect(route).toContain('data-v3-fantasy-initial-state="paused"');
+    expect(route).toContain('title="Fantasy connection paused"');
+    expect(route).toContain("Reconnect to verify the Fantasy game, country catalogue and your saved roster.");
+    expect(route.indexOf("if (loadingError) {", route.indexOf("if (v3Enabled) {"))).toBeLessThan(
+      route.indexOf("if (initialReadPaused) {", route.indexOf("if (v3Enabled) {")),
+    );
+    expect(route.indexOf("if (initialReadPaused) {", route.indexOf("if (v3Enabled) {"))).toBeLessThan(
+      route.indexOf("if (initialReadLoading) {", route.indexOf("if (v3Enabled) {")),
+    );
   });
 
   it("only clears the Fantasy draft after canonical account-scoped roster readback", () => {
