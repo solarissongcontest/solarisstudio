@@ -31,9 +31,9 @@ import {
   countryDesignCssVariables,
   countryDesignFontCss,
   useCountryDesignV2,
+  type CountryDesignV2,
 } from "@/lib/country-design-v2";
 import { canonicalCountryPersonalityId } from "@/lib/country-personality-system";
-import type { CountryIdentityModel } from "@/lib/country-semantic-model";
 import type { CountryDirectoryPresentation } from "@/lib/country-directory-presentation";
 import { buildCountryCharacter, buildCountryFunFacts } from "@/lib/country-wiki";
 import type { Country, Edition, Participant } from "@/lib/data";
@@ -336,7 +336,7 @@ function CountryWikiArticle({
         style={publishedDesign ? countryDesignCssVariables(publishedDesign) : undefined}
       >
         {publishedDesign && countryDesignFontCss(publishedDesign) ? <style>{countryDesignFontCss(publishedDesign)}</style> : null}
-        <CountryWikiHeader country={country} layoutMode={countryLayoutMode} />
+        <CountryWikiHeader country={country} layoutMode={countryLayoutMode} publishedDesign={publishedDesign} />
 
         {countryLayoutMode === "mobile-web" ? (
           <div className="wiki-mobile-web-navigation">
@@ -544,30 +544,18 @@ function CountryWikiArticle({
   );
 }
 
-function CountryWikiHeader({ country, layoutMode }: { country: Country; layoutMode: CountryDirectoryPresentation }) {
+function CountryWikiHeader({
+  country,
+  layoutMode,
+  publishedDesign,
+}: {
+  country: Country;
+  layoutMode: CountryDirectoryPresentation;
+  publishedDesign: CountryDesignV2 | null;
+}) {
   const { data: countryThemeRow } = useCountryTheme(country.id);
-  const designV2Query = useCountryDesignV2(country.id);
   const visualTheme = countryThemeToVisual(countryThemeRow);
   const personality = canonicalCountryPersonalityId(visualTheme?.heroLayout ?? "classic");
-  const publishedDesign = designV2Query.data?.isPublishedV2 ? designV2Query.data.design : null;
-  const identityModel: CountryIdentityModel = {
-    code: country.short_code,
-    name: country.name,
-    nativeName: country.native_name,
-    region: country.region,
-    description: country.description,
-    flag: { src: country.flag_image, alt: `Flag of ${country.name}` },
-    colors: { primary: country.accent_color, accent: country.accent_color },
-    facts: country.region ? [{ id: "region", label: "Region", value: country.region }] : [],
-    statistics: [],
-    history: [],
-    geography: null,
-    actions: {
-      wiki: { label: "Wiki", href: `/wiki/${country.short_code}` },
-      compare: { label: "Compare", href: `/compare?a=${country.short_code}` },
-      follow: { label: "Country", href: `/countries/${country.short_code}` },
-    },
-  };
 
   if (layoutMode === "mobile-web") {
     return (
@@ -599,46 +587,35 @@ function CountryWikiHeader({ country, layoutMode }: { country: Country; layoutMo
     );
   }
 
+  // Reuse the parent's canonical published V2 design and the same factual
+  // Country fields in both heroes. No redundant query or synthetic identity.
+  const heroProps = {
+    as: "header" as const,
+    compact: true,
+    code: country.short_code,
+    name: country.name,
+    nativeName: country.native_name,
+    region: country.region,
+    description: country.description,
+    flagImage: country.flag_image,
+    eyebrow: "Terra Solaris Wiki",
+    className: "country-wiki-header mb-5",
+    actions: (
+      <Link to="/countries/$code" params={{ code: country.short_code }}>
+        Open country dashboard →
+      </Link>
+    ),
+  };
+
   return publishedDesign ? (
-    <CountryDesignV2Hero
-      as="header"
-      compact
-      design={publishedDesign}
-      code={identityModel.code}
-      name={identityModel.name}
-      nativeName={identityModel.nativeName}
-      region={identityModel.region}
-      description={identityModel.description}
-      flagImage={identityModel.flag.src}
-      eyebrow="Terra Solaris Wiki"
-      className="country-wiki-header mb-5"
-      actions={
-        <Link to="/countries/$code" params={{ code: country.short_code }}>
-          Open country dashboard →
-        </Link>
-      }
-    />
+    <CountryDesignV2Hero {...heroProps} design={publishedDesign} />
   ) : (
     <CountryIdentityHero
-      as="header"
-      compact
+      {...heroProps}
       personality={personality}
       decoration={visualTheme?.decorationStyle ?? "auto"}
-      code={identityModel.code}
-      name={identityModel.name}
-      nativeName={identityModel.nativeName}
-      region={identityModel.region}
-      description={identityModel.description}
-      flagImage={identityModel.flag.src}
-      accentColor={identityModel.colors.accent}
-      geography={identityModel.geography}
-      eyebrow="Terra Solaris Wiki"
-      className="country-wiki-header mb-5"
-      actions={
-        <Link to="/countries/$code" params={{ code: country.short_code }}>
-          Open country dashboard →
-        </Link>
-      }
+      accentColor={country.accent_color}
+      geography={null}
     />
   );
 }
