@@ -356,44 +356,8 @@ function ShowCollection({
   );
 }
 
-function ShowContext({ item, truncate = false }: { item: ShowDiscoveryItem; truncate?: boolean }) {
-  return (
-    <span className="flex flex-wrap items-center gap-2">
-      <ShowStateBadge item={item} />
-      <span className={truncate ? "truncate text-xs text-muted-foreground" : "text-xs text-muted-foreground"}>
-        {editionLabel(item.edition)}
-      </span>
-    </span>
-  );
-}
-
-function ShowKindAndTime({ item }: { item: ShowDiscoveryItem }) {
-  return (
-    <>
-      {showKindLabel(item.show.kind)}
-      {item.scheduledStart ? ` · ${formatShowTime(item.scheduledStart)}` : ""}
-    </>
-  );
-}
-
 function ShowWebRow({ item }: { item: ShowDiscoveryItem }) {
-  return (
-    <Link
-      to="/shows/$showId"
-      params={{ showId: item.show.id }}
-      className="v3-show-web-row flex min-h-20 items-center gap-3 border-b border-border py-3"
-    >
-      <span className="min-w-0 flex-1">
-        <ShowContext item={item} />
-        <strong className="mt-1.5 block text-sm font-semibold">{item.show.name}</strong>
-        <span className="mt-1 block text-xs capitalize text-muted-foreground">
-          <ShowKindAndTime item={item} />
-          {showPublishesResults(item.show) ? " · Results published" : ""}
-        </span>
-      </span>
-      <ChevronRight size={20} className="shrink-0 text-muted-foreground" aria-hidden="true" />
-    </Link>
-  );
+  return <ShowRow item={item} web />;
 }
 
 function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: boolean }) {
@@ -401,7 +365,10 @@ function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: bool
     <div className={`rounded-2xl border p-4 ${live ? "border-primary/45 bg-primary/5" : "border-border bg-surface"}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <ShowContext item={item} />
+          <div className="flex flex-wrap items-center gap-2">
+            <ShowStateBadge item={item} />
+            <span className="text-xs text-muted-foreground">{editionLabel(item.edition)}</span>
+          </div>
           <Link
             to="/shows/$showId"
             params={{ showId: item.show.id }}
@@ -410,7 +377,7 @@ function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: bool
             {item.show.name}
           </Link>
           <p className="mt-1 text-xs capitalize text-muted-foreground">
-            <ShowKindAndTime item={item} />
+            {showKindLabel(item.show.kind)}{item.scheduledStart ? ` · ${formatShowTime(item.scheduledStart)}` : ""}
           </p>
         </div>
       </div>
@@ -440,20 +407,34 @@ function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: bool
   );
 }
 
-function ShowRow({ item, compact = false }: { item: ShowDiscoveryItem; compact?: boolean }) {
+function ShowRow({
+  item, compact = false, web = false,
+}: { item: ShowDiscoveryItem; compact?: boolean; web?: boolean }) {
   return (
     <Link to="/shows/$showId" params={{ showId: item.show.id }}
-      className="flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+      className={web
+        ? "v3-show-web-row flex min-h-20 items-center gap-3 border-b border-border py-3"
+        : "flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3"}>
       <span className="min-w-0 flex-1">
-        <ShowContext item={item} truncate />
-        <strong className="mt-1 block truncate text-sm font-semibold">{item.show.name}</strong>
-        {!compact ? (
-          <span className="mt-0.5 block text-xs capitalize text-muted-foreground">
-            <ShowKindAndTime item={item} />
+        <span className="flex flex-wrap items-center gap-2">
+          <ShowStateBadge item={item} />
+          <span className={web ? "text-xs text-muted-foreground" : "truncate text-xs text-muted-foreground"}>
+            {editionLabel(item.edition)}
+          </span>
+        </span>
+        <strong className={web ? "mt-1.5 block text-sm font-semibold" : "mt-1 block truncate text-sm font-semibold"}>
+          {item.show.name}
+        </strong>
+        {web || !compact ? (
+          <span className={web ? "mt-1 block text-xs capitalize text-muted-foreground" : "mt-0.5 block text-xs capitalize text-muted-foreground"}>
+            {showKindLabel(item.show.kind)}
+            {item.scheduledStart ? ` · ${formatShowTime(item.scheduledStart)}` : ""}
+            {web && showPublishesResults(item.show) ? " · Results published" : ""}
           </span>
         ) : null}
       </span>
-      <span aria-hidden="true" className="inline-flex min-h-11 min-w-11 items-center justify-center text-primary">→</span>
+      {web ? <ChevronRight size={20} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+        : <span aria-hidden="true" className="inline-flex min-h-11 min-w-11 items-center justify-center text-primary">→</span>}
     </Link>
   );
 }
