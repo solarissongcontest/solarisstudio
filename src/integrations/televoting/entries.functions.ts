@@ -17,10 +17,12 @@ export type MergedRoundEntry = {
 };
 
 async function requireVotingCapability(capability: "voting.read" | "voting.manage") {
+  // This legacy round-entry workspace is cross-edition. Require the global
+  // read or manage permission before importing its privileged backend.
   const { requireSolarisCapabilityServer } = await import(
     "@/integrations/supabase/capabilities.server"
   );
-  await requireSolarisCapabilityServer(capability);
+  await requireSolarisCapabilityServer(capability, null);
 }
 
 function cleanOptionalText(value: unknown, maxLength: number) {

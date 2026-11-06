@@ -212,8 +212,11 @@ function reportPublicWebVital(
     | undefined;
   const navigationType = normalizeNavigationType(navigation?.type);
 
+  const sessionId = getPublicUxSessionId();
+  if (!sessionId) return; // Do not emit anonymous telemetry with weak/empty IDs.
+
   const payload = {
-    session_id: getPublicUxSessionId(),
+    session_id: sessionId,
     pathname: sanitizePublicUxPath(pathname),
     metric_name: metric,
     value,

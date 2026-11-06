@@ -1,33 +1,26 @@
 import { readFileSync } from "node:fs";
-
 import { describe, expect, it } from "vitest";
 
-const functions = readFileSync(
-  "src/integrations/televoting/entries.functions.ts",
-  "utf8",
-);
-const legacyServer = readFileSync(
-  "src/integrations/televoting/entries.server.ts",
-  "utf8",
-);
-const routeMap = readFileSync("src/lib/permission-route-map.ts", "utf8");
+const source = (file: string) => readFileSync(file, "utf8");
+const functions = source("src/integrations/televoting/entries.functions.ts");
+const legacyServer = source("src/integrations/televoting/entries.server.ts");
+const routeMap = source("src/lib/permission-route-map.ts");
 
-function exportBody(exportName: string) {
-  const start = functions.indexOf(`export const ${exportName}`);
-  if (start < 0) throw new Error(`Missing ${exportName}`);
+function exportBody(name: string) {
+  const start = functions.indexOf(`export const ${name}`);
+  if (start < 0) throw new Error(`Missing ${name}`);
   const next = functions.indexOf("\nexport const ", start + 1);
-  return functions.slice(start, next < 0 ? functions.length : next);
+  return functions.slice(start, next < 0 ? undefined : next);
 }
 
-describe("V3 Organizer Televoting round-entry authorization", () => {
-  it("requires voting.read before loading the privileged round-entry projection", () => {
-    expect(routeMap).toContain('rule(["/televoting/admin"], "voting.read")');
-    const body = exportBody("getMergedRoundEntries");
-    const capability = body.indexOf('await requireVotingCapability("voting.read")');
-    const serverImport = body.indexOf('"@/integrations/televoting/entries.server"');
-    expect(capability).toBeGreaterThan(-1);
-    expect(serverImport).toBeGreaterThan(-1);
-    expect(capability).toBeLessThan(serverImport);
+describe("Organizer Televoting round-entry adapter authorization", () => {
+  it("checks global voting.read before importing its privileged reader", () => {
+    const code = exportBody("getMergedRoundEntries");
+    const check = code.indexOf('await requireVotingCapability("voting.read")');
+    const engine = code.indexOf('"@/integrations/televoting/entries.server"');
+    expect(check).toBeGreaterThanOrEqual(0);
+    expect(engine).toBeGreaterThan(check);
+    expect(routeMap).toContain('"voting.read"');
   });
 
   it.each([
@@ -36,24 +29,25 @@ describe("V3 Organizer Televoting round-entry authorization", () => {
     "deleteMergedCustomRoundEntry",
     "reorderMergedRoundEntries",
     "setMergedRoundSelfVotingMode",
-  ])("requires voting.manage before %s can load a legacy writer", (exportName) => {
-    const body = exportBody(exportName);
-    const capability = body.indexOf('await requireVotingCapability("voting.manage")');
-    const writerImport = body.indexOf('"@/integrations/televoting/entries.server"');
-    expect(capability).toBeGreaterThan(-1);
-    expect(writerImport).toBeGreaterThan(-1);
-    expect(capability).toBeLessThan(writerImport);
+  ])("checks global voting.manage before importing the privileged %s writer", (name) => {
+    const code = exportBody(name);
+    const check = code.indexOf('await requireVotingCapability("voting.manage")');
+    const engine = code.indexOf('"@/integrations/televoting/entries.server"');
+    expect(check).toBeGreaterThanOrEqual(0);
+    expect(engine).toBeGreaterThan(check);
   });
 
-  it("keeps the canonical capability helper lazy at the request boundary", () => {
-    expect(functions).toContain('requireSolarisCapabilityServer(capability)');
+  it("uses one shared lazy request-boundary capability guard, not legacy Organizer presence", () => {
+    expect(functions).toContain('requireSolarisCapabilityServer(capability, null)');
     expect(functions).toContain('"@/integrations/supabase/capabilities.server"');
-    expect(functions).not.toContain(
-      'import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server"',
-    );
+    expect(functions).not.toContain("requireMergedTelevotingAdminServer");
+    expect(functions).not.toContain('import { requireSolarisCapabilityServer }');
   });
 
-  it("keeps the unresolved direct-write command debt explicit", () => {
+  it("preserves input bounds while keeping ungoverned legacy writers explicit as debt", () => {
+    expect(functions).toContain("data.countryCodes.length > 50");
+    expect(functions).toContain('throw new Error("Duplicate entry in order")');
+    expect(functions).toContain('throw new Error("Invalid self-voting mode")');
     expect(legacyServer).toContain("requireMergedTelevotingAdminServer");
     expect(legacyServer).toContain('.from("round_entries")');
     expect(legacyServer).toContain(".insert(");

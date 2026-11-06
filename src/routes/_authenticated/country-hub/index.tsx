@@ -10,5 +10,4 @@ export const Route = createFileRoute("/_authenticated/country-hub/")({
     throw redirect({ to: NAV_TARGETS.mySolarisCountry, search, replace: true });
   },
   head: () => ({ meta: [{ title: "Country workspace — Solaris Studio" }] }),
-  component: () => null,
 });
