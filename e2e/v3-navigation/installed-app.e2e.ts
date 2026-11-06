@@ -423,6 +423,21 @@ test("installed Liquid dock cancels held gestures on overlay/keyboard and restor
     await expect(nav).toHaveAttribute("data-collapsed", "false");
     await expect(nav).toBeVisible();
     const current = nav.locator('[data-v3-tab-index][aria-current="page"]');
+    // Page transitions can briefly paint a layer above the dock. Unlike
+    // locator.click(), raw page.mouse.down() does not wait for actionability.
+    // Do not start a hold until the tab is really the pointer hit target.
+    await expect
+      .poll(async () =>
+        current.evaluate((link) => {
+          const rect = link.getBoundingClientRect();
+          const target = document.elementFromPoint(
+            rect.left + rect.width / 2,
+            rect.top + rect.height / 2,
+          );
+          return target === link || (target != null && link.contains(target));
+        }),
+      )
+      .toBe(true);
     const bounds = await current.boundingBox();
     expect(bounds).not.toBeNull();
     if (!bounds) throw new Error("The selected tab must remain measurable");
