@@ -150,7 +150,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
           presentation={presentation}
           id="shows-recent"
           eyebrow="Recent"
-          title="Recently completed"
+          title="Latest completed"
           items={discovery.recent}
         />
       ) : null}
