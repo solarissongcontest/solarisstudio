@@ -23,6 +23,10 @@ declare
   v_version_id uuid;
   v_result jsonb;
 begin
+  -- A hidden route is not a security boundary: disabled World must
+  -- also block this SECURITY DEFINER mutation at its authoritative entry.
+  if not coalesce(public.studio2_feature_enabled('terra_world_public',null),false)
+  then raise exception using errcode='25006',message='WORLD_INTAKE_ROLLOUT_DISABLED'; end if;
   if p_intake_id is null or auth.uid() is null or p_operation_id is null
      or p_expected_intake_revision is null
      or nullif(btrim(coalesce(p_idempotency_key,'')),'') is null then
