@@ -31,7 +31,8 @@ create table public.world_mediation_cases (
   issue_summary text not null,
   state text not null default 'requested',
   visibility text not null default 'private',
-  submitted_by uuid references auth.users(id) on delete set null,
+  -- Preserve the filing actor's stable opaque id even if login is later deleted.
+  submitted_by uuid not null,
   submitted_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   closed_at timestamptz,
@@ -66,7 +67,8 @@ create table public.world_mediation_history (
   from_state text,
   to_state text not null,
   reason text,
-  actor_user_id uuid references auth.users(id) on delete set null,
+  -- Never erase official action attribution when an auth account is deleted.
+  actor_user_id uuid not null,
   operation_id uuid not null unique,
   revision bigint not null,
   occurred_at timestamptz not null default now(),
@@ -232,6 +234,7 @@ begin
   end if;
   if p_expected_revision is null or p_expected_revision < 1
     or p_operation_id is null or nullif(btrim(coalesce(p_idempotency_key,'')),'') is null
+    or p_target_state is null
     or p_target_state not in ('accepted','open','negotiating','settled','failed','referred_to_court','closed')
     or length(coalesce(v_reason,'')) > 1500 then
     raise exception using errcode = '22023', message = 'VALIDATION';
@@ -290,6 +293,17 @@ begin
   if (v_case.state = 'requested' and not v_respondent)
     or (v_case.state <> 'requested' and not v_manager) then
     raise exception using errcode = '42501', message = 'AUTHORIZATION';
+  end if;
+  -- Bind respondent consent to its live country-controller row. A concurrent
+  -- ownership transfer must invalidate acceptance, not authorize an old HoD.
+  if v_case.state = 'requested' then
+    perform 1 from public.country_accounts ca
+    where ca.country_id = v_case.respondent_country_id
+      and ca.user_id = auth.uid() and ca.status = 'active'
+    for share;
+    if not found then
+      raise exception using errcode = '42501', message = 'AUTHORIZATION';
+    end if;
   end if;
   if not (
     (v_case.state = 'requested' and p_target_state in ('accepted','failed'))
