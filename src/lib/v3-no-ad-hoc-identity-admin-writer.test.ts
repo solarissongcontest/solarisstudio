@@ -62,7 +62,13 @@ describe("S16 canonical identity mutation authority", () => {
         { path: "scripts/local-rehearsal.ts", source: "await db.from('entries').update({ name: 'test' });" },
         { path: "scripts/writer.test.ts", source: "await admin.auth.admin.deleteUser('fixture-id');" },
       ],
-      [],
+      [{
+        id: "entry",
+        risk: "integrity_critical",
+        canonicalTables: ["public.entries"],
+        canonicalOwner: "entry domain",
+        canonicalCommands: [],
+      }],
     );
 
     expect(findings).toEqual([]);
