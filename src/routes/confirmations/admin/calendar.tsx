@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Clock3 } from "lucide-react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
@@ -10,7 +10,6 @@ import { AdminPage } from "@/components/admin/AdminShell";
 import {
   loadConfirmationEditions,
   type ConfirmationCalendarRow,
-  type ConfirmationEdition,
 } from "@/integrations/confirmations/admin";
 import { verifyOrganizerConfirmationRead } from "@/integrations/confirmations/organizer-confirmation-read-authorization";
 import { loadExactOrganizerConfirmationCalendar } from "@/integrations/confirmations/organizer-calendar-read";
@@ -58,6 +57,10 @@ function CalendarPage() {
   const { id: actorId } = useAuthenticatedUser();
   const { editionId: organizerEditionId, setEditionId: setOrganizerEditionId } = useAdminContext();
   const [roundChoice, setRoundChoice] = useState<CalendarRoundChoice | null>(null);
+  // An A→B→A session transition must not resurrect an old round filter.
+  useEffect(() => {
+    setRoundChoice(null);
+  }, [actorId]);
 
   // Identity + scope are part of every private cache key. Never reuse the
   // previous Organizer's editions or calendar data while a new actor loads.
