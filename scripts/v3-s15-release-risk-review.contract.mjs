@@ -7,7 +7,15 @@ import { join } from "node:path";
 import { assessS15ReleaseRisk, runCli } from "./v3-s15-release-risk-review.mjs";
 
 const SHA = "a".repeat(40);
-const SOURCE_RAW = '{"candidateSha":"'+SHA+'"}\n';
+const SOURCE_RAW = JSON.stringify({
+  candidateSha:SHA,
+  findings:[
+    "PUBLIC_CUTOVER_UNRESOLVED entry:building",
+    "PUBLIC_CUTOVER_UNRESOLVED results:building",
+    "ORGANIZER_CUTOVER_UNRESOLVED media:building",
+  ],
+  physicalOwnership:{zeroOwnershipConflicts:true},
+})+"\n";
 const SOURCE_DIGEST = createHash("sha256").update(SOURCE_RAW).digest("hex");
 const row = (id, lane = "public") => ({
   lane, owner: lane === "public" ? "Chat 2 / Public" : "Chat 3 / Organizer",
@@ -52,7 +60,7 @@ test("records evidence-backed, typed release risks without clearing S15 cutovers
     {...decision(t.cutovers[3],"obsolete_replaced"),
       replacementOrRetirement:"Replaced by canonical Results route"},
   ];
-  const r=assessS15ReleaseRisk(t,SHA,review(decisions),SOURCE_RAW);
+  const r=assessS15ReleaseRisk(t,SHA,review(decisions));
   assert.equal(r.counts.hardBlockers,1);
   assert.equal(r.counts.conditionalBlockers,1);
   assert.equal(r.counts.trackedV3Debt,1);
@@ -92,8 +100,16 @@ test("conditional exclusions, debt and retirement cannot be silently waived", ()
 test("rejects source evidence digests and preserves independent structural findings", () => {
   assert.throws(()=>assessS15ReleaseRisk(triage(),SHA,null,"changed source bytes"));
   const t={...triage(),structuralFindings:["CANONICAL_OWNER_MISSING critical"]};
-  assert.equal(assessS15ReleaseRisk(t,SHA,null,SOURCE_RAW).structuralFindings.length,1);
+  assert.equal(assessS15ReleaseRisk(t,SHA).structuralFindings.length,1);
   assert.throws(()=>assessS15ReleaseRisk({...t,releaseCertified:true},SHA));
+});
+
+test("source-bound triage cannot omit findings while retaining a valid original digest", () => {
+  const t=triage();
+  t.cutovers=t.cutovers.slice(1);
+  t.cutoverCount=2;
+  assert.throws(()=>assessS15ReleaseRisk(t,SHA,null,SOURCE_RAW),
+    /does not reproduce every canonical finding/);
 });
 
 test("CLI emits real read-only JSON and Markdown without owner decisions or Supabase", () => {

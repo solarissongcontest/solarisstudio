@@ -24,9 +24,21 @@ export function assessS15ReleaseRisk(triage, candidateSha, review = null, rawS15
       !Number.isInteger(triage.cutoverCount) || triage.cutoverCount !== triage.cutovers.length) {
     throw new Error("S15 owner triage must be complete, exact-SHA-bound and uncertified");
   }
-  if (rawS15 !== null &&
-      createHash("sha256").update(rawS15).digest("hex") !== triage.sourceSha256) {
-    throw new Error("S15 owner triage digest does not match canonical source evidence");
+  if (rawS15 !== null) {
+    if (createHash("sha256").update(rawS15).digest("hex") !== triage.sourceSha256)
+      throw new Error("S15 owner triage digest does not match canonical source evidence");
+    let canonical;
+    try { canonical = JSON.parse(rawS15.toString()); }
+    catch { throw new Error("Canonical S15 source must be valid JSON"); }
+    if (canonical.candidateSha !== candidateSha || !Array.isArray(canonical.findings))
+      throw new Error("Canonical S15 source lacks exact SHA or complete findings");
+    const reported = [...triage.cutovers.map((r) => r.sourceFinding), ...triage.structuralFindings];
+    if (reported.length !== canonical.findings.length ||
+        new Set(reported).size !== reported.length ||
+        canonical.findings.some((finding) => !reported.includes(finding)))
+      throw new Error("S15 review triage does not reproduce every canonical finding");
+    if (canonical.physicalOwnership?.zeroOwnershipConflicts !== triage.physicalOwnershipConflictFree)
+      throw new Error("S15 triage contradicts canonical physical ownership status");
   }
   const current = new Map();
   for (const row of triage.cutovers) {
