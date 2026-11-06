@@ -418,9 +418,10 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
         return null;
       }
       const fingerprint = JSON.stringify(ballot);
+      const operationScope = { actorId: userId, countryId: country.id, showId: round.show_id };
       const prepared = prepareV3JuryOperation({
-        existing: readV3JuryOperation(round.show_id),
-        showId: round.show_id,
+        existing: readV3JuryOperation(operationScope),
+        ...operationScope,
         ballotFingerprint: fingerprint,
         newOperationId: crypto.randomUUID(),
         now: new Date().toISOString(),
@@ -469,7 +470,9 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
       }
     },
     onSuccess: (receipt) => {
-      if (v3ReliabilityEnabled) clearV3JuryOperation(round.show_id);
+      if (v3ReliabilityEnabled) {
+        clearV3JuryOperation({ actorId: userId, countryId: country.id, showId: round.show_id });
+      }
       setSubmissionReceipt(receipt);
       setGovernanceReceipt(captureGovernanceSnapshot("jury.vote"));
       try {
