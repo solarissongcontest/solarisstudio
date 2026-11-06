@@ -14,7 +14,7 @@ function discovery(status?: "participating" | "withdrawn" | "disqualified"): Cou
     debuting: [],
     notParticipating: status ? [] : [country],
     regions: [],
-  } as CountryDiscovery;
+  } as unknown as CountryDiscovery;
 }
 
 const available = { loading: false, error: false };
