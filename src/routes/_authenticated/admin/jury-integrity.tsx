@@ -114,7 +114,21 @@ function JuryIntegrityPage() {
       {query.isLoading ? (
         <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading jury integrity evidence…</p></AdminCard>
       ) : query.error ? (
-        <AdminCard><p className="text-sm text-red-200">{query.error instanceof Error ? query.error.message : "Could not load jury integrity evidence."}</p></AdminCard>
+        <AdminCard>
+          <div role="alert">
+            <p className="text-sm font-semibold text-red-200">Jury integrity evidence could not be loaded</p>
+            <p className="mt-1 text-xs text-muted-foreground">No integrity conclusion can be drawn from an unavailable or unauthorized readback.</p>
+          </div>
+          <button
+            type="button"
+            className="admin-action-secondary mt-4"
+            onClick={() => void query.refetch()}
+            disabled={query.isFetching}
+            aria-busy={query.isFetching}
+          >
+            {query.isFetching ? "Retrying…" : "Retry integrity evidence"}
+          </button>
+        </AdminCard>
       ) : cases.length ? (
         <div className="space-y-3">
           {cases.map((row) => <CaseCard key={row.id} row={row} />)}
