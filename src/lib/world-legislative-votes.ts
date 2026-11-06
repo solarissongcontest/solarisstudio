@@ -67,7 +67,7 @@ function hash(value: unknown): value is string {
 const choice = (value: unknown): value is "aye"|"nay"|"abstain" =>
   value==="aye" || value==="nay" || value==="abstain";
 const fraction = (value: unknown): value is string =>
-  string(value) && /^\\d{1,19}$/.test(value);
+  string(value) && /^\d{1,19}$/.test(value);
 const optionalFraction = (value: unknown): value is string|null =>
   textOrNull(value) && (value===null || /^\d{1,19}$/.test(value));
 function parseListRow(value: unknown): WorldVoteListRow {
