@@ -11,7 +11,7 @@ import { AdminCard, AdminConfirmSheet, AdminEmptyState, AdminPageHeader, AdminSh
 import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useCountries, useEditions } from '@/lib/data';
 import { MEDIA_ASSET_TYPES, type MediaAssetType } from '@/lib/media-asset-vault';
-import { resolveOrganizerMediaPreviewSource } from '@/lib/v3-organizer-media-preview-source';
+import { describeOrganizerMediaSource, resolveOrganizerMediaPreviewSource } from '@/lib/v3-organizer-media-preview-source';
 import {
   countOutdatedOrganizerMediaReviewSelections,
   resolveOrganizerMediaReviewTargets,
@@ -173,7 +173,8 @@ function MediaAssetsPage() {
         <div className="min-w-0">
           <p>{item.title}</p>
           <p className="mt-1 truncate text-xs font-normal text-muted-foreground">
-            {item.sourceUrl ?? (item.required ? 'Required source not supplied' : 'No source supplied')}
+            {item.sourceUrl ? describeOrganizerMediaSource(item.sourceUrl)
+              : (item.required ? 'Required source not supplied' : 'No source supplied')}
           </p>
         </div>
       ),
@@ -487,7 +488,9 @@ function MediaAssetsPage() {
                       </div>
                       <AdminStatus tone={stateTone(item.state)}>{stateLabel(item.state)}</AdminStatus>
                     </div>
-                    <p className="mt-2 break-all font-mono text-[10px] text-muted-foreground">Source fingerprint: {item.sourceFingerprint}</p>
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      Exact source identity is attached to the reviewed operation; private URL details are hidden.
+                    </p>
                   </div>
                 ))}
               </div>
@@ -537,7 +540,7 @@ function MediaAssetSheet({
             <h3 className="text-sm font-semibold">Canonical source</h3>
             <div className="mt-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
               <div className="flex items-center justify-between gap-3"><span className="text-xs text-muted-foreground">Current state</span><AdminStatus tone={stateTone(asset.state)}>{stateLabel(asset.state)}</AdminStatus></div>
-              <p className="mt-3 break-all text-sm">{asset.sourceUrl ?? 'No source supplied.'}</p>
+              <p className="mt-3 text-sm">{describeOrganizerMediaSource(asset.sourceUrl)}</p>
               {asset.sourceFingerprint ? (
                 <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
                   Review is bound to the currently submitted source. A changed URL or source
@@ -545,7 +548,7 @@ function MediaAssetSheet({
                 </p>
               ) : null}
               {source ? (
-                <a href={source.url} target="_blank" rel="noopener noreferrer" className="admin-action-secondary mt-3 inline-flex">
+                <a href={source.url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" className="admin-action-secondary mt-3 inline-flex">
                   Open source <ExternalLink className="size-4" />
                 </a>
               ) : asset.sourceUrl ? (

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { resolveOrganizerMediaPreviewSource } from "./v3-organizer-media-preview-source";
+import { describeOrganizerMediaSource, resolveOrganizerMediaPreviewSource } from "./v3-organizer-media-preview-source";
 
 describe("Organizer Media Review opt-in external preview", () => {
   it("allows direct image previews only for image asset types", () => {
@@ -70,6 +70,33 @@ describe("Organizer Media Review opt-in external preview", () => {
       previewKind: null,
     });
     expect(resolveOrganizerMediaPreviewSource(null, "postcard")).toBeNull();
+  });
+
+  it("hides signed query strings, opaque paths and fragment tokens in visible labels", () => {
+    const secret = "https://cdn.example.test/private/token-in-path/song.mp3?X-Amz-Signature=SECRET#secret-fragment";
+    expect(describeOrganizerMediaSource(secret)).toBe("External source · cdn.example.test");
+    expect(describeOrganizerMediaSource(secret)).not.toContain("SECRET");
+    expect(describeOrganizerMediaSource(secret)).not.toContain("token-in-path");
+  });
+
+  it("does not display malformed, credentialed or control-character URL strings", () => {
+    for (const value of [
+      "javascript:alert(1)", "/private/a.mp3",
+      "https://user:pass@example.test/song.mp3",
+      "https://cdn.example.test/file.mp3\r",
+    ]) {
+      expect(describeOrganizerMediaSource(value)).toBe("Source link requires inspection");
+    }
+    expect(describeOrganizerMediaSource(null)).toBe("No source supplied");
+  });
+
+  it("never directly renders a signed source fingerprint in list, detail or confirmation", () => {
+    const route = readFileSync(resolve(process.cwd(), "src/routes/_authenticated/admin/media-assets.tsx"), "utf8");
+    expect(route).toContain("describeOrganizerMediaSource(item.sourceUrl)");
+    expect(route).toContain("describeOrganizerMediaSource(asset.sourceUrl)");
+    expect(route).not.toContain("{item.sourceFingerprint}</p>");
+    expect(route).not.toContain("{item.sourceUrl ??");
+    expect(route).not.toContain("{asset.sourceUrl ??");
   });
 
   it("renders media only behind deliberate interaction, without eager audio or video downloads", () => {
