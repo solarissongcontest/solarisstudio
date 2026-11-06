@@ -59,6 +59,75 @@ const SCENARIOS: readonly { id: PreviewScenario; label: string }[] = [
   { id: "results", label: "Results" },
 ];
 
+const PREVIEW_CARDS = {
+  "home": [
+    [
+      "Semi-final 1",
+      "Tomorrow · 20:00 CEST"
+    ],
+    [
+      "Public voting",
+      "Opens during the live show"
+    ]
+  ],
+  "explore": [
+    [
+      "Countries",
+      "Delegations, entries and histories"
+    ],
+    [
+      "Songs & artists",
+      "Meet the current field"
+    ],
+    [
+      "Shows",
+      "Semi-finals, finals and running orders"
+    ],
+    [
+      "Stories",
+      "Important Solaris moments"
+    ]
+  ],
+  "results": [
+    [
+      "Scorechart",
+      "See the official points breakdown"
+    ],
+    [
+      "Jury vs televote",
+      "Compare the two voting components"
+    ]
+  ],
+  "me": [
+    [
+      "History",
+      "Past editions and roles"
+    ],
+    [
+      "Receipts",
+      "Verified submission history"
+    ],
+    [
+      "Following",
+      "Countries and updates you care about"
+    ],
+    [
+      "Preferences",
+      "Notifications, appearance and accessibility"
+    ]
+  ]
+} as const;
+
+function PreviewCards({ cards }: { cards: readonly (readonly [string, string])[] }) {
+  return (
+    <div className="v3-preview-grid">
+      {cards.map(([title, description]) => (
+        <V3ActionCard key={title} title={title} description={description} tone="neutral" />
+      ))}
+    </div>
+  );
+}
+
 function completedTask(
   id: string,
   kind: "confirmation" | "entry" | "media" | "jury",
@@ -475,18 +544,7 @@ function HomePreview({ bootstrap }: { bootstrap: V3BootstrapProjection }) {
       </V3Section>
 
       <V3Section title="Coming up" meta="Next 3">
-        <div className="v3-preview-grid">
-          <V3ActionCard
-            title="Semi-final 1"
-            description="Tomorrow · 20:00 CEST"
-            tone="neutral"
-          />
-          <V3ActionCard
-            title="Public voting"
-            description="Opens during the live show"
-            tone="neutral"
-          />
-        </div>
+        <PreviewCards cards={PREVIEW_CARDS.home} />
       </V3Section>
 
       <V3Section title="Latest" meta="Quiet by default">
@@ -609,28 +667,7 @@ function ExplorePreview() {
         </p>
       </V3Surface>
       <V3Section title="Discover">
-        <div className="v3-preview-grid">
-          <V3ActionCard
-            title="Countries"
-            description="Delegations, entries and histories"
-            tone="neutral"
-          />
-          <V3ActionCard
-            title="Songs & artists"
-            description="Meet the current field"
-            tone="neutral"
-          />
-          <V3ActionCard
-            title="Shows"
-            description="Semi-finals, finals and running orders"
-            tone="neutral"
-          />
-          <V3ActionCard
-            title="Stories"
-            description="Important Solaris moments"
-            tone="neutral"
-          />
-        </div>
+        <PreviewCards cards={PREVIEW_CARDS.explore} />
       </V3Section>
     </V3Screen>
   );
@@ -661,18 +698,7 @@ function ResultsPreview({ bootstrap }: { bootstrap: V3BootstrapProjection }) {
         </div>
       </V3Surface>
       <V3Section title="Explore this result" meta="Analysis second">
-        <div className="v3-preview-grid">
-          <V3ActionCard
-            title="Scorechart"
-            description="See the official points breakdown"
-            tone="neutral"
-          />
-          <V3ActionCard
-            title="Jury vs televote"
-            description="Compare the two voting components"
-            tone="neutral"
-          />
-        </div>
+        <PreviewCards cards={PREVIEW_CARDS.results} />
       </V3Section>
     </V3Screen>
   );
@@ -692,28 +718,7 @@ function MePreview() {
         <p className="mt-1 text-sm text-white/52">Current edition · SSC 22</p>
       </V3Surface>
       <V3Section title="Your Solaris">
-        <div className="v3-preview-grid">
-          <V3ActionCard
-            title="History"
-            description="Past editions and roles"
-            tone="neutral"
-          />
-          <V3ActionCard
-            title="Receipts"
-            description="Verified submission history"
-            tone="neutral"
-          />
-          <V3ActionCard
-            title="Following"
-            description="Countries and updates you care about"
-            tone="neutral"
-          />
-          <V3ActionCard
-            title="Preferences"
-            description="Notifications, appearance and accessibility"
-            tone="neutral"
-          />
-        </div>
+        <PreviewCards cards={PREVIEW_CARDS.me} />
       </V3Section>
     </V3Screen>
   );

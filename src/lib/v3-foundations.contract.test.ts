@@ -27,6 +27,11 @@ describe("Solaris Studio V3 foundation preview", () => {
     expect(preview).toContain("Optional now");
     expect(preview).toContain("Outcome first");
     expect(preview).toContain("Your Solaris identity");
+    expect(preview).toContain("const PREVIEW_CARDS =");
+    expect(preview).toContain("function PreviewCards(");
+    for (const section of ["home", "explore", "results", "me"]) {
+      expect(preview).toContain(`cards={PREVIEW_CARDS.${section}}`);
+    }
   });
 
   it("keeps the preview route isolated, unindexed and disabled in production by default", () => {
