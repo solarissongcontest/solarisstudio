@@ -111,62 +111,89 @@ export function verifiedWorldSearchTerm(value: string): string {
   return cleanWorldSearch(value);
 }
 
+export type WorldCountrySearchPage = {
+  countries: WorldSearchCountry[];
+  countryTotal: number;
+};
+
+export type WorldOrganizationSearchPage = {
+  organizations: WorldOrganization[];
+  organizationTotal: number;
+};
+
+/**
+ * Country result pages have their own React Query identity. Changing the
+ * organization page must not refetch unchanged countries or their exact count.
+ */
+export async function fetchWorldCountrySearchPage(
+  raw: string,
+  page = 0,
+): Promise<WorldCountrySearchPage> {
+  checkedPage(page);
+  const term = verifiedWorldSearchTerm(raw);
+  if (term.length < 2) return { countries: [], countryTotal: 0 };
+
+  const { data, error, count } = await (supabase as any).from("countries")
+    .select(COUNTRY_FIELDS, { count: "exact" })
+    .or("name.ilike.%" + term + "%,short_code.ilike.%" + term + "%")
+    .order("name", { ascending: true })
+    .order("short_code", { ascending: true })
+    .order("id", { ascending: true })
+    .range(page * WORLD_UNIFIED_SEARCH_LIMIT,
+      (page + 1) * WORLD_UNIFIED_SEARCH_LIMIT - 1);
+  if (error) throw new Error("Public World country search is temporarily unavailable.");
+
+  const countries = parseWorldSearchCountries(data);
+  return { countries, countryTotal: checkedCount(count, countries.length, page) };
+}
+
+/**
+ * Institution pages select only public, recognized/historical organizations.
+ * No private organization/member access or unbounded N+1 requests.
+ */
+export async function fetchWorldOrganizationSearchPage(
+  raw: string,
+  page = 0,
+): Promise<WorldOrganizationSearchPage> {
+  checkedPage(page);
+  const term = verifiedWorldSearchTerm(raw);
+  if (term.length < 2) return { organizations: [], organizationTotal: 0 };
+
+  const { data, error, count } = await (supabase as any).from("world_organizations")
+    .select(ORGANIZATION_FIELDS, { count: "exact" })
+    .eq("public_visibility", "public")
+    .in("status", [...WORLD_PUBLIC_SEARCH_STATUSES])
+    .or("official_name.ilike.%" + term + "%,short_name.ilike.%" + term + "%")
+    .order("official_name", { ascending: true })
+    .order("slug", { ascending: true })
+    .range(page * WORLD_UNIFIED_SEARCH_LIMIT,
+      (page + 1) * WORLD_UNIFIED_SEARCH_LIMIT - 1);
+  if (error) throw new Error("Public World organization search is temporarily unavailable.");
+  if (!Array.isArray(data)) {
+    throw new Error("Published organization results could not be verified.");
+  }
+  const organizations = parseWorldDirectoryRows(data);
+  if (organizations.length !== data.length ||
+    organizations.some((item) =>
+      !(WORLD_PUBLIC_SEARCH_STATUSES as readonly string[]).includes(item.status))) {
+    throw new Error("Published organization results could not be verified.");
+  }
+  return { organizations, organizationTotal: checkedCount(count, organizations.length, page) };
+}
+
+/** Aggregate convenience reader, without creating a competing cache/authority. */
 export async function fetchWorldUnifiedSearch(
   raw: string,
   countryPage = 0,
   organizationPage = 0,
 ): Promise<WorldUnifiedSearchResult> {
+  // Validate both page arguments before starting either request.
   checkedPage(countryPage);
   checkedPage(organizationPage);
   const term = verifiedWorldSearchTerm(raw);
-  if (term.length < 2) {
-    return { term, countries: [], organizations: [], countryTotal: 0, organizationTotal: 0 };
-  }
-
-  // Two small, parallel, RLS-authorized queries. No full-table downloads,
-  // per-result hydration, private account data, or production-test fallback.
-  const [countryResult, organizationResult] = await Promise.all([
-    (supabase as any).from("countries")
-      .select(COUNTRY_FIELDS, { count: "exact" })
-      .or("name.ilike.%" + term + "%,short_code.ilike.%" + term + "%")
-      .order("name", { ascending: true })
-      .order("short_code", { ascending: true })
-      .order("id", { ascending: true })
-      .range(countryPage * WORLD_UNIFIED_SEARCH_LIMIT,
-        (countryPage + 1) * WORLD_UNIFIED_SEARCH_LIMIT - 1),
-    (supabase as any).from("world_organizations")
-      .select(ORGANIZATION_FIELDS, { count: "exact" })
-      .eq("public_visibility", "public")
-      .in("status", [...WORLD_PUBLIC_SEARCH_STATUSES])
-      .or("official_name.ilike.%" + term + "%,short_name.ilike.%" + term + "%")
-      .order("official_name", { ascending: true })
-      .order("slug", { ascending: true })
-      .range(organizationPage * WORLD_UNIFIED_SEARCH_LIMIT,
-        (organizationPage + 1) * WORLD_UNIFIED_SEARCH_LIMIT - 1),
+  const [countries, organizations] = await Promise.all([
+    fetchWorldCountrySearchPage(term, countryPage),
+    fetchWorldOrganizationSearchPage(term, organizationPage),
   ]);
-
-  if (countryResult.error || organizationResult.error) {
-    throw new Error("Public World search is temporarily unavailable.");
-  }
-
-  const countries = parseWorldSearchCountries(countryResult.data);
-  if (!Array.isArray(organizationResult.data)) {
-    throw new Error("Published organization results could not be verified.");
-  }
-  const organizations = parseWorldDirectoryRows(organizationResult.data);
-  // A malformed/private row must never silently turn a misleading count into
-  // a claim that a hidden institution exists.
-  if (organizations.length !== organizationResult.data.length ||
-    organizations.some((item) =>
-      !(WORLD_PUBLIC_SEARCH_STATUSES as readonly string[]).includes(item.status))) {
-    throw new Error("Published organization results could not be verified.");
-  }
-
-  return {
-    term,
-    countries,
-    organizations,
-    countryTotal: checkedCount(countryResult.count, countries.length, countryPage),
-    organizationTotal: checkedCount(organizationResult.count, organizations.length, organizationPage),
-  };
+  return { term, ...countries, ...organizations };
 }
