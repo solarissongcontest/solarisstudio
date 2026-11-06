@@ -37,6 +37,14 @@ describe("Organizer Televoting overview authorization", () => {
     expect(privilegedImportIndex).toBeLessThan(privateReadIndex);
     expect(overview).not.toContain("requireMergedTelevotingAdminServer");
   });
+  it("never reuses capability-gated overview data between signed-in organizers", () => {
+    expect(overviewPage).toContain("useAuthenticatedUser");
+    expect(overviewPage).toContain("const actorId = useAuthenticatedUser().id");
+    expect(overviewPage).toContain('queryKey: ["merged-televoting-admin-overview", actorId, editionId ?? "none"]');
+    expect(overviewPage).toContain("gcTime: 0");
+    expect(overviewPage).not.toContain('queryKey: ["merged-televoting-admin-overview", editionId ?? "none"]');
+  });
+
   it("lets organizers explicitly retry unavailable canonical voting state", () => {
     expect(overviewPage).toContain("isFetching, refetch");
     expect(overviewPage).toContain("onClick={() => void refetch()}");
