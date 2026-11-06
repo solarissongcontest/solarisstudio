@@ -105,3 +105,48 @@ test("desktop website collapse control references and restores its actual naviga
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await expect(body).toBeHidden();
 });
+
+test("browser navigation remains identifiable in system high-contrast mode", async ({ page }, testInfo) => {
+  test.skip(
+    !["public-390", "public-1440"].includes(testInfo.project.name),
+    "Check both mobile and desktop website navigation",
+  );
+
+  await page.emulateMedia({ forcedColors: "active" });
+  await page.goto("/results", { waitUntil: "domcontentloaded" });
+  expect(await page.evaluate(() => matchMedia("(forced-colors: active)").matches)).toBe(true);
+
+  if (testInfo.project.name === "public-390") {
+    const nav = page.locator(".public-mobile-section-nav");
+    const trigger = nav.locator(".public-mobile-section-trigger");
+    await trigger.click();
+
+    const selected = nav.locator(".public-mobile-section-link.is-active").first();
+    await expect(selected).toBeVisible();
+    const border = await selected.evaluate((element) =>
+      getComputedStyle(element).borderInlineStartWidth,
+    );
+    expect(border, "Selected links keep a physical indicator in forced colors").toBe("3px");
+
+    await trigger.focus();
+    const outline = await trigger.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { width: style.outlineWidth, type: style.outlineStyle };
+    });
+    expect(outline).toEqual({ width: "2px", type: "solid" });
+  } else {
+    const nav = page.locator(".public-site-sidebar");
+    const selected = nav.locator(".public-site-sidebar-link.is-active").first();
+    await expect(selected).toBeVisible();
+    const border = await selected.evaluate((element) =>
+      getComputedStyle(element).borderInlineStartWidth,
+    );
+    expect(border).toBe("3px");
+
+    await selected.focus();
+    const outlineWidth = await selected.evaluate((element) =>
+      getComputedStyle(element).outlineWidth,
+    );
+    expect(outlineWidth).toBe("2px");
+  }
+});
