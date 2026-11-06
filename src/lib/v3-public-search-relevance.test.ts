@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { PublicSearchResult } from "./public-search";
 import {
+  limitV3PublicSearchGroups,
   matchesV3PublicSearch,
   navigationV3PublicSearchResults,
   rankV3PublicSearchResults,
@@ -73,6 +74,44 @@ describe("V3 publication-safe Search relevance", () => {
     ];
     expect(rankV3PublicSearchResults(rows, "SSC22").map((row) => row.id))
       .toEqual(["edition", "generic"]);
+  });
+
+  it("keeps categories discoverable when one archive source dominates the matches", () => {
+    const prolific = Array.from({ length: 120 }, (_, index) => ({
+      id: `entry-${index}`,
+      group: "Entries",
+    }));
+    const ranked = [
+      ...prolific,
+      { id: "country", group: "Countries" },
+      { id: "story", group: "Stories" },
+      { id: "rule", group: "Rules" },
+    ];
+    const visible = limitV3PublicSearchGroups(ranked);
+    expect(visible.filter((item) => item.group === "Entries")).toHaveLength(10);
+    expect(visible.map((item) => item.id)).toContain("country");
+    expect(visible.map((item) => item.id)).toContain("story");
+    expect(visible.map((item) => item.id)).toContain("rule");
+    expect(visible.map((item) => item.id).slice(0, 3)).toEqual([
+      "entry-0",
+      "entry-1",
+      "entry-2",
+    ]);
+    expect(ranked).toHaveLength(123);
+  });
+
+  it("never exceeds the 50-result UI budget and preserves ranked source order", () => {
+    const ranked = Array.from({ length: 80 }, (_, index) => ({
+      id: `result-${index}`,
+      group: `Group ${Math.floor(index / 10)}`,
+    }));
+    const visible = limitV3PublicSearchGroups(ranked);
+    expect(visible).toHaveLength(50);
+    expect(visible.map((item) => item.group)).toContain("Group 7");
+    const positions = visible.map((item) => Number(item.id.slice("result-".length)));
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    expect(Math.max(...[...new Set(visible.map((item) => item.group))]
+      .map((group) => visible.filter((item) => item.group === group).length))).toBeLessThanOrEqual(10);
   });
 
   it("preserves provider order for equally relevant matches, immutably", () => {
