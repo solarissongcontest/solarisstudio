@@ -26,6 +26,8 @@ export type WorldCountryOffice = {
 };
 
 export type WorldMembershipHistory = {
+  /** Database timestamp anchoring public current-vs-future classification. */
+  effectiveAt: string;
   organizationId: string;
   organizationSlug: string;
   organizationName: string;
@@ -109,6 +111,7 @@ export function readWorldCountryMembership(
 ): WorldMembershipHistory | null {
   if (raw === null) return null;
   const projection = object(raw, "projection");
+  const effectiveAt = date(projection.effectiveAt, "server effectiveAt");
   const organization = object(projection.organization, "organization");
   const slug = text(organization.slug, "organization slug");
   if (slug !== requestedSlug) {
@@ -192,6 +195,7 @@ export function readWorldCountryMembership(
   }
 
   return {
+    effectiveAt,
     organizationId,
     organizationSlug: slug,
     organizationName: text(organization.shortName, "organization name"),
@@ -202,12 +206,26 @@ export function readWorldCountryMembership(
   };
 }
 
-export function currentMembershipPeriod(periods: WorldMembershipPeriod[]): WorldMembershipPeriod | null {
-  return periods.find((period) => period.endedAt === null) ?? null;
+export function currentMembershipPeriod(
+  periods: WorldMembershipPeriod[],
+  effectiveAt: string,
+): WorldMembershipPeriod | null {
+  const instant = Date.parse(effectiveAt);
+  if (!Number.isFinite(instant)) return null;
+  return periods.find((period) =>
+    period.endedAt === null && Date.parse(period.joinedAt) <= instant
+  ) ?? null;
 }
 
-export function currentRepresentativePeriods(periods: WorldRepresentationPeriod[]): WorldRepresentationPeriod[] {
-  return periods.filter((period) => period.endsAt === null);
+export function currentRepresentativePeriods(
+  periods: WorldRepresentationPeriod[],
+  effectiveAt: string,
+): WorldRepresentationPeriod[] {
+  const instant = Date.parse(effectiveAt);
+  if (!Number.isFinite(instant)) return [];
+  return periods.filter((period) =>
+    period.endsAt === null && Date.parse(period.startsAt) <= instant
+  );
 }
 
 export function membershipLabel(value: string): string {
