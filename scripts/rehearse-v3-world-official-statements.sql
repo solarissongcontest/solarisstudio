@@ -15,7 +15,11 @@ begin
   end if;
   if has_table_privilege('anon','public.world_statements','INSERT')
     or has_table_privilege('authenticated','public.world_statements','UPDATE')
-    or has_table_privilege('anon','public.world_statement_versions','DELETE') then
+    or has_table_privilege('anon','public.world_statement_versions','DELETE')
+    or has_table_privilege('service_role','public.world_statements','INSERT')
+    or has_table_privilege('service_role','public.world_statements','UPDATE')
+    or has_table_privilege('service_role','public.world_statement_versions','INSERT')
+    or has_table_privilege('service_role','public.world_statement_versions','UPDATE') then
     raise exception 'TG9_DIRECT_CLIENT_DML_NOT_REVOKED';
   end if;
   select id into strict v_org
