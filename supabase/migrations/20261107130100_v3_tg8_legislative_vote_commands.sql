@@ -29,9 +29,8 @@ begin
      or not (coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
        and coalesce(public.studio2_feature_enabled('terra_world_legislative_voting',null),false))
   then raise exception using errcode='25006',message='VOTING_NOT_AVAILABLE'; end if;
-  if p_closes_at is null or p_closes_at < v_at + interval '1 minute'
-     or p_closes_at > v_at + interval '90 days'
-  then raise exception using errcode='22023',message='INVALID_VOTE_WINDOW'; end if;
+  -- Window validity is checked after replay: a completed idempotent
+  -- operation must remain reconcilable after the original closing time.
 
   -- The formal measure is the one canonical subject. No generic string ID or
   -- caller-selected organization is trusted.
@@ -55,6 +54,11 @@ begin
     return public.studio2_reconcile_operation(v_operation_id)
       ||jsonb_build_object('replayed',true);
   end if;
+
+  -- A NEW operation requires a future close; old receipts do not.
+  if p_closes_at is null or p_closes_at < v_at + interval '1 minute'
+     or p_closes_at > v_at + interval '90 days'
+  then raise exception using errcode='22023',message='INVALID_VOTE_WINDOW'; end if;
 
   if v_measure.revision<>p_expected_measure_revision
      or v_measure.state not in ('registered','scheduled','under_debate')
