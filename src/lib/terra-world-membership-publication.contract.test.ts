@@ -23,6 +23,15 @@ describe("TG3 membership chronicle public rollout boundary", () => {
     expect(decoder).toContain("WORLD_RECOGNIZED_INSTITUTION_STATUSES");
   });
 
+  it("does not count unpublished institution memberships as public pagination results", () => {
+    const source = readFileSync(resolve(process.cwd(),
+      "src/integrations/v3/terra-world-membership-chronicle.server.ts"), "utf8");
+    expect(source).toContain("world_organizations!inner(id,status,public_visibility)");
+    expect(source).toContain('.eq("world_organizations.public_visibility", "public")');
+    expect(source).toContain('.in("world_organizations.status", [...WORLD_RECOGNIZED_INSTITUTION_STATUSES])');
+    expect(source.indexOf("world_organizations!inner")).toBeLessThan(source.indexOf('if (selectedOrganization) query = query.eq'));
+  });
+
   it("never presents cached identities and membership terms during refetch", () => {
     const source = readFileSync(resolve(process.cwd(),
       "src/components/world/TerraWorldMembershipChronicle.tsx"), "utf8");

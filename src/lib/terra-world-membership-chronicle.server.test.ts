@@ -122,6 +122,24 @@ describe("TG3 World membership chronicle server query boundary", () => {
       args: [0, 15],
     });
     expect(calls).toContainEqual({
+      table: "world_organization_memberships",
+      method: "select",
+      args: [
+        "id,organization_id,country_id,membership_type,status,joined_at,ended_at,world_organizations!inner(id,status,public_visibility)",
+        { count: "exact" },
+      ],
+    });
+    expect(calls).toContainEqual({
+      table: "world_organization_memberships",
+      method: "eq",
+      args: ["world_organizations.public_visibility", "public"],
+    });
+    expect(calls).toContainEqual({
+      table: "world_organization_memberships",
+      method: "in",
+      args: ["world_organizations.status", ["recognized", "active", "suspended", "historical", "dissolved"]],
+    });
+    expect(calls).toContainEqual({
       table: "world_organizations",
       method: "eq",
       args: ["public_visibility", "public"],
@@ -147,6 +165,29 @@ describe("TG3 World membership chronicle server query boundary", () => {
       method: "studio2_feature_enabled",
       args: [{ p_key: "terra_world_public", p_edition_id: null }],
     });
+  });
+
+  it("keeps exact membership counts scoped to recognized parents *before* pagination", async () => {
+    const calls = installPublicClient({
+      world_organization_memberships: [noError([membership], 1)],
+      world_organizations: [noError([organization])],
+      countries: [noError([country])],
+    });
+    const result = await loadWorldMembershipChronicle(filters);
+    expect(result.total).toBe(1);
+    const countSelect = calls.find(({ table, method }) =>
+      table === "world_organization_memberships" && method === "select");
+    expect(countSelect?.args[1]).toEqual({ count: "exact" });
+    expect(String(countSelect?.args[0])).toContain("world_organizations!inner");
+    const joinGate = calls.filter(({ table, method, args }) =>
+      table === "world_organization_memberships" &&
+      (method === "eq" || method === "in") &&
+      String(args[0]).startsWith("world_organizations."));
+    expect(joinGate).toHaveLength(2);
+    const pageIndex = calls.findIndex(({ table, method }) =>
+      table === "world_organization_memberships" && method === "range");
+    expect(pageIndex).toBeGreaterThan(calls.indexOf(joinGate[0]));
+    expect(pageIndex).toBeGreaterThan(calls.indexOf(joinGate[1]));
   });
 
   it("returns an empty result for unknown or private institution without probing its members", async () => {

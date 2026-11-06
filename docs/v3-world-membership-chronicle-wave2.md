@@ -62,3 +62,7 @@ This is not a full World governance timeline. Direct current/public status
 is all TG2 can prove here. Historical country identity resolution, immutable
 decision/event provenance, full archive narratives, jurisdictional votes
 and official acts depend on later authorized World System projections.
+
+## Publication-correct exact pagination
+
+The canonical TG2 anonymous RLS policy grants visibility to memberships of organizations whose `public_visibility` is `public`, even while their institutional status is `proposed`. To avoid putting pre-recognition rows into page totals or displacing recognized records, the chronicle count/pagination read uses a PostgREST `world_organizations!inner` join and applies both official-status and public-visibility predicates **before** ordering/ranging. It still verifies the small set of displayed institution identities separately, fails closed on any inconsistent upstream payload, and never exposes private person/proxy fields. No TG2 RLS rewrite, second store, or database migration is introduced.

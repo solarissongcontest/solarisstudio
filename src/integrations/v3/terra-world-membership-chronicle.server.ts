@@ -103,8 +103,14 @@ export async function loadWorldMembershipChronicle(input: {
     }
   }
 
+  // Count *only* membership terms of officially published institutions.
+  // TG2's RLS allows public proposed organization rows, so resolving public
+  // parent identities after pagination alone is too late: it would include
+  // proposed memberships in exact totals and displace valid rows.
   let query = client.from("world_organization_memberships")
-    .select("id,organization_id,country_id,membership_type,status,joined_at,ended_at", { count: "exact" });
+    .select("id,organization_id,country_id,membership_type,status,joined_at,ended_at,world_organizations!inner(id,status,public_visibility)", { count: "exact" })
+    .eq("world_organizations.public_visibility", "public")
+    .in("world_organizations.status", [...WORLD_RECOGNIZED_INSTITUTION_STATUSES]);
 
   if (selectedOrganization) query = query.eq("organization_id", selectedOrganization.id);
   if (countryId) query = query.eq("country_id", countryId);
