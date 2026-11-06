@@ -16,7 +16,17 @@ describe("Organisation OS V5 feature counterparts", () => {
     );
     const navigation = mySolarisNavigationItems();
 
-    expect([...audited].sort()).toEqual(navigation.map((item) => item.id).sort());
+    // Tasks remains a scoped Organizer inspection compatibility route, not a
+    // second participant navigation destination. Audit it until Organizer cutover.
+    const legacyTasks = ORGANISATION_OS_V5_COUNTERPARTS.find(
+      (item) => item.id === "mysolaris.tasks",
+    );
+    expect(legacyTasks?.kind).toBe("inspect");
+    expect(legacyTasks?.participantSurface).toBe("/my-solaris/tasks");
+    expect(legacyTasks?.organizerSurface).toBe("/admin/countries/:countryId?tab=participant-view");
+    expect([...audited].filter((id) => id !== "tasks").sort()).toEqual(
+      navigation.map((item) => item.id).sort(),
+    );
 
     for (const item of navigation) {
       const audit = ORGANISATION_OS_V5_COUNTERPARTS.find(
