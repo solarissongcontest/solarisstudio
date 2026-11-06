@@ -90,7 +90,11 @@ function optionalLabel(value: string | null | undefined, label: string) {
 function internalRoute(value: string | undefined, label: string) {
   if (value == null) return undefined;
   const normalized = required(value, label);
-  if (!normalized.startsWith("/") || normalized.startsWith("//")) {
+  // WHATWG URL parsing treats a path starting with "/\" or "/<TAB>/" as
+  // a protocol-relative external URL. Reject those separators, not just "//".
+  const unsafeSeparator = normalized.includes("\\") ||
+    [...normalized].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127);
+  if (!normalized.startsWith("/") || normalized.startsWith("//") || unsafeSeparator) {
     throw new Error(`${label} must be an internal Solaris route`);
   }
   return normalized;
@@ -193,6 +197,27 @@ function projectPrimarySurfaceBundle(
   const resultsHeadline =
     publicContest.phase === "results_published" ? publicContest.headline : null;
 
+  // A spoiler preference changes Home's preview, never official publication.
+  // Keep canonical links and result availability intact without sending winner
+  // headlines, result statistics or result-story teasers to the Home screen.
+  // Other results surfaces remain responsible for deliberate reveal.
+  const hidePublishedResultSummary =
+    snapshot.hideResultSpoilers === true &&
+    publicContest.phase === "results_published";
+  const spoilerSafeHeadline = `${contestTitle(snapshot, bootstrap)} results are published`;
+  const homeLatest = snapshot.hideResultSpoilers
+    ? latest.map((item) =>
+        item.id.startsWith("results:") ||
+        (hidePublishedResultSummary && item.id.startsWith("contest:"))
+          ? {
+              ...item,
+              title: "Published results",
+              description: "Official results are available to reveal in Results.",
+            }
+          : item,
+      )
+    : latest;
+
   return {
     bootstrap,
     shell: {
@@ -204,25 +229,25 @@ function projectPrimarySurfaceBundle(
       bootstrap,
       currentContest: {
         title: contestTitle(snapshot, bootstrap),
-        headline: required(publicContest.headline, "publicContest.headline"),
-        meta: optionalLabel(
-          publicContest.description,
-          "publicContest.description",
-        ),
-        stats,
+        headline: hidePublishedResultSummary
+          ? spoilerSafeHeadline
+          : required(publicContest.headline, "publicContest.headline"),
+        meta: hidePublishedResultSummary
+          ? "Official results are available. Open Results when you're ready."
+          : optionalLabel(publicContest.description, "publicContest.description"),
+        stats: hidePublishedResultSummary ? [] : stats,
         liveHeadline,
-        resultsHeadline,
+        resultsHeadline: hidePublishedResultSummary ? null : resultsHeadline,
       },
       upcoming,
-      latest,
+      latest: homeLatest,
       liveShowLabel: optionalLabel(
         snapshot.primarySurfaces.liveShowLabel,
         "liveShowLabel",
       ),
-      resultsLabel: optionalLabel(
-        snapshot.primarySurfaces.resultsLabel,
-        "resultsLabel",
-      ),
+      resultsLabel: hidePublishedResultSummary
+        ? "Results available to reveal"
+        : optionalLabel(snapshot.primarySurfaces.resultsLabel, "resultsLabel"),
     },
     participate: {
       bootstrap,

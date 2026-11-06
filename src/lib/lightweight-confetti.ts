@@ -17,8 +17,9 @@ const COLORS = ["#26ccff", "#a25afd", "#ff5e7e", "#fcff42"];
 const DURATION_MS = 1_800;
 
 /**
- * Narrow one-shot winner burst. Solaris does not need canvas-confetti's
- * general-purpose API for this non-authoritative visual effect.
+ * Narrow one-shot winner burst for Broadcast. The production app only uses
+ * canvas-confetti's default one-shot call, so a general-purpose effects
+ * runtime is unnecessary client payload here.
  */
 export default function confetti(options: ConfettiOptions = {}) {
   if (typeof document === "undefined" || typeof window === "undefined") return;
