@@ -111,6 +111,7 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
             className="min-h-12 w-full rounded-xl border border-border bg-background px-4 text-foreground focus-visible:outline focus-visible:outline-2">
             <option value="all">All published</option>
             <option value="active">Active bodies</option>
+            <option value="inactive">Inactive bodies</option>
             <option value="historical">Historical bodies</option>
           </select>
         </label>
@@ -185,9 +186,10 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
             All public bodies <ArrowRight className="size-4" aria-hidden="true" /></Link>
         </section>
         <aside className="border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
-          <h2 className="font-semibold">Offices of this body</h2>
+          <h2 className="font-semibold">Active offices of this body</h2>
           <p className="mt-2 text-xs leading-5 text-muted-foreground">
-            Public institutional offices only. Private terms and unpublished appointments are excluded.
+            Currently active public office definitions only. This is not a historical office roster;
+            private terms and unpublished appointments are excluded.
           </p>
           {offices.isPending ? <p role="status" className="mt-4 text-sm text-muted-foreground">Checking offices…</p> : null}
           {offices.isError ? <div role="alert" className="mt-4 text-sm">
@@ -196,7 +198,7 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
               className="mt-2 min-h-11 rounded-xl border border-border px-4 font-semibold">Retry offices</button>
           </div> : null}
           {offices.isSuccess && offices.data.length === 0 ? (
-            <p className="mt-4 text-sm text-muted-foreground">No public offices recorded.</p>
+            <p className="mt-4 text-sm text-muted-foreground">No active public offices are assigned to this body.</p>
           ) : null}
           {offices.isSuccess && offices.data.length > 0 ? (
             <ul className="mt-3 divide-y divide-border">
@@ -207,7 +209,7 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
             </ul>
           ) : null}
           {offices.isSuccess && offices.data.length === WORLD_BODY_OFFICE_LIMIT ? (
-            <p className="mt-2 text-xs text-muted-foreground">Showing the first {WORLD_BODY_OFFICE_LIMIT} offices.</p>
+            <p className="mt-2 text-xs text-muted-foreground">Showing the first {WORLD_BODY_OFFICE_LIMIT} active public offices.</p>
           ) : null}
           <div className="mt-7 border-t border-border pt-6">
           <h2 className="font-semibold">Parent institution</h2>
