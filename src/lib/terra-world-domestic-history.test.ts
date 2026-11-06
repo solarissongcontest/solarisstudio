@@ -12,7 +12,7 @@ import {
 import { parseWorldHistoryPage, readWorldHistoryPage } from "./terra-world-history";
 
 const MIGRATION = readFileSync(resolve(process.cwd(),
-  "supabase/migrations/20261107003000_v3_tg16_domestic_politics_history.sql"),"utf8");
+  "supabase/migrations/20261107004000_v3_tg16_domestic_politics_history.sql"),"utf8");
 const countryId = "11111111-1111-4111-8111-111111111111";
 const partyId = "22222222-2222-4222-8222-222222222222";
 const operationId = "33333333-3333-4333-8333-333333333333";
