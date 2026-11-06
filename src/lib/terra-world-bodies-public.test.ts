@@ -28,11 +28,12 @@ const organ = {
 };
 function chain(response: Record<string, unknown>) {
   const q = {
-    select: vi.fn(), eq: vi.fn(), or: vi.fn(), maybeSingle: vi.fn(), order: vi.fn(), range: vi.fn(), limit: vi.fn(),
+    select: vi.fn(), eq: vi.fn(), or: vi.fn(), abortSignal: vi.fn(), maybeSingle: vi.fn(), order: vi.fn(), range: vi.fn(), limit: vi.fn(),
   };
   q.select.mockReturnValue(q);
   q.eq.mockReturnValue(q);
   q.or.mockReturnValue(q);
+  q.abortSignal.mockReturnValue(q);
   q.order.mockReturnValue(q);
   q.maybeSingle.mockResolvedValue(response);
   q.range.mockResolvedValue(response);
@@ -89,6 +90,28 @@ describe("TG3 public institution bodies", () => {
     );
     expect(body.order).toHaveBeenCalledWith("slug", { ascending: true });
     expect(body.range).toHaveBeenCalledWith(0, WORLD_BODIES_PAGE_SIZE - 1);
+  });
+  it("passes the caller's cancellation signal to the bounded public directory request", async () => {
+    const controller = new AbortController();
+    const org = chain({ data: parent, error: null });
+    const body = chain({ data: [organ], error: null, count: 1 });
+    mockFrom.mockImplementation((name: string) => name === "world_organizations" ? org : body);
+    await readPublicWorldBodies("guard", 0, { signal: controller.signal });
+    expect(body.abortSignal).toHaveBeenCalledWith(controller.signal);
+  });
+  it("passes the same cancellation signal to an exceptional public-only recount", async () => {
+    const controller = new AbortController();
+    const org = chain({ data: parent, error: null });
+    const outOfRange = chain({ data: null, error: { code: "PGRST103" }, count: null });
+    const recount = chain({ data: [], error: null, count: 0 });
+    let numberOfOrganQueries = 0;
+    mockFrom.mockImplementation((name: string) =>
+      name === "world_organizations" ? org :
+      ++numberOfOrganQueries === 1 ? outOfRange : recount);
+    await readPublicWorldBodies("guard", 1, { signal: controller.signal });
+    expect(outOfRange.abortSignal).toHaveBeenCalledWith(controller.signal);
+    expect(recount.abortSignal).toHaveBeenCalledWith(controller.signal);
+    expect(numberOfOrganQueries).toBe(2);
   });
   it("preserves public-only predicates for historical filtering without search", async () => {
     const org = chain({ data: parent, error: null });
