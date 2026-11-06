@@ -59,6 +59,36 @@ describe("Organizer Confirmation legacy access mutation scope", () => {
     expect(sheet).toContain("updatedAt: live.updated_at ?? \"\"");
   });
 
+  it("reads the authoritative exact-edition response before evaluating any private settings", () => {
+    const sheet = readFileSync(resolve(process.cwd(),
+      "src/components/admin/ConfirmationAccessSettingsSheet.tsx"), "utf8");
+    expect(sheet).toContain('"admin_confirmation_response_for_edition"');
+    expect(sheet).toContain("_edition_id: pendingReview.scope.editionId");
+    expect(sheet).toContain("_submission_id: pendingReview.scope.submissionId");
+    expect(sheet).not.toContain('"admin_confirmation_response",');
+    const scopeCheck = sheet.indexOf("assertOrganizerConfirmationAccessScope(pendingReview.scope, {");
+    const serverRead = sheet.indexOf('"admin_confirmation_response_for_edition"');
+    const serverWrite = sheet.indexOf('"admin_update_confirmation_controls"');
+    expect(scopeCheck).toBeGreaterThan(-1);
+    expect(serverRead).toBeGreaterThan(scopeCheck);
+    expect(serverWrite).toBeGreaterThan(serverRead);
+  });
+
+  it("serializes legacy access writes against rapid repeated confirmations", () => {
+    const sheet = readFileSync(resolve(process.cwd(),
+      "src/components/admin/ConfirmationAccessSettingsSheet.tsx"), "utf8");
+    expect(sheet).toContain("const saveInFlightRef = useRef(false);");
+    expect(sheet).toContain("if (!pendingReview || saving || saveInFlightRef.current) return;");
+    expect(sheet).toContain("saveInFlightRef.current = true;");
+    expect(sheet).toContain("saveInFlightRef.current = false;");
+    const lock = sheet.indexOf("saveInFlightRef.current = true;");
+    const mutation = sheet.indexOf('"admin_update_confirmation_controls"');
+    const unlock = sheet.indexOf("saveInFlightRef.current = false;");
+    expect(lock).toBeLessThan(mutation);
+    expect(unlock).toBeGreaterThan(mutation);
+    expect(sheet).toContain("if (saving || saveInFlightRef.current) return;");
+  });
+
   it("binds the sheet to the exact response scope from Organizer detail", () => {
     const detail = readFileSync(resolve(process.cwd(),
       "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
