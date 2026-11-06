@@ -190,7 +190,7 @@
 
   /* The tablet web rail must not silently hide Advanced destinations.
      Expand them within the existing scrollable web navigation instead. */
-  .public-site-sidebar details {
+  .public-site-sidebar > nav > details.mt-4.border-t {
     display: block;
     margin: 0;
     border: 0;
