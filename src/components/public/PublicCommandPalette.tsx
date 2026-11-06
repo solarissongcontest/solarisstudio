@@ -755,6 +755,11 @@ function WebSearchArchiveResults({
     }),
     [preferences.spoilerFree, publicEditions, publicShows],
   );
+  // If Show publication is still unresolved, no current-final spoiler scope can
+  // be trusted. Hide previews until the public source has completed successfully.
+  const spoilerPreviewVerificationPending =
+    preferences.spoilerFree &&
+    (!publicEditions.length || !showsQuery.isSuccess || showsQuery.isFetching || showsQuery.isError);
   const spoilerSafeRecordArchive = useMemo(
     () => ({
       editions: spoilerScope.editionId
@@ -798,11 +803,13 @@ function WebSearchArchiveResults({
   );
   const records = useMemo(
     () =>
-      buildCanonicalFanRecords({
-        countries,
-        ...spoilerSafeRecordArchive,
-      }),
-    [countries, spoilerSafeRecordArchive],
+      !spoilerPreviewVerificationPending && participantsQuery.isSuccess && !participantsQuery.isError
+        ? buildCanonicalFanRecords({
+            countries,
+            ...spoilerSafeRecordArchive,
+          })
+        : [],
+    [countries, spoilerSafeRecordArchive, spoilerPreviewVerificationPending, participantsQuery.isSuccess, participantsQuery.isError],
   );
 
   const searchResults = useMemo(() => {
@@ -882,7 +889,7 @@ function WebSearchArchiveResults({
           };
         }),
       ...excludeSearchSpoilerStories(
-        storiesQuery.isError ? [] : storiesQuery.data ?? [],
+        spoilerPreviewVerificationPending || storiesQuery.isError ? [] : storiesQuery.data ?? [],
         spoilerScope.editionSlug,
       )
         .filter((story) =>
@@ -1012,6 +1019,7 @@ function WebSearchArchiveResults({
     storiesQuery.data,
     storiesQuery.isError,
     spoilerScope.editionSlug,
+    spoilerPreviewVerificationPending,
   ]);
 
   const isFetching =
