@@ -86,6 +86,14 @@ describe("Organizer Jury Integrity protected ballot boundary", () => {
     expect(page).toContain("Show top 8 targets");
   });
 
+  it("does not share confidential jury target evidence across users or inactive queries", () => {
+    expect(page).toContain("useAuthenticatedUser");
+    expect(page).toContain("const actorId = useAuthenticatedUser().id");
+    expect(page).toContain('queryKey: ["jury-integrity-v5", actorId, editionId ?? "unscoped"]');
+    expect(page).toContain("gcTime: 0");
+    expect(page).not.toContain('queryKey: ["jury-integrity-v5", editionId ?? "unscoped"]');
+  });
+
   it("bounds private evidence traffic and preserves an explicit operator refresh path", () => {
     expect(page).toContain("retry: false");
     expect(page).toContain("refetchOnWindowFocus: false");
