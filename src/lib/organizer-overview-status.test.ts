@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { organizerOverviewStatus } from './organizer-overview-status';
+import { organizerOverviewEmptyAttention, organizerOverviewStatus } from './organizer-overview-status';
 
 describe('Organizer Overview risk and verified health presentation', () => {
   it('never describes unknown control-room evidence as on track', () => {
@@ -21,5 +21,23 @@ describe('Organizer Overview risk and verified health presentation', () => {
   it('shows on track only when system health is positively verified', () => {
     expect(organizerOverviewStatus('normal', 'healthy'))
       .toEqual({ tone: 'ready', label: 'On track' });
+  });
+  it('does not give a green all-clear when no tasks are listed but health is unknown', () => {
+    expect(organizerOverviewEmptyAttention('normal', 'unknown')).toMatchObject({
+      heading: 'Operational status not verified',
+      verifiedClear: false,
+    });
+  });
+
+  it('retains a clear state only for verified healthy operations with no tasks', () => {
+    expect(organizerOverviewEmptyAttention('normal', 'healthy')).toMatchObject({
+      heading: 'Nothing is asking for intervention',
+      verifiedClear: true,
+    });
+  });
+
+  it('does not hide elevated risk or outage when the task list is empty', () => {
+    expect(organizerOverviewEmptyAttention('elevated', 'healthy').verifiedClear).toBe(false);
+    expect(organizerOverviewEmptyAttention('normal', 'outage').heading).toBe('Review operational health');
   });
 });

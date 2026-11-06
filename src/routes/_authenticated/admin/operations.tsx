@@ -26,7 +26,7 @@ import type {
   V3OrganizerReadinessFactor,
 } from "@/lib/v3-organizer-projection";
 import { useV3OrganizerProjection } from "@/lib/v3-organizer-projection.query";
-import { organizerOverviewStatus } from "@/lib/organizer-overview-status";
+import { organizerOverviewEmptyAttention, organizerOverviewStatus } from "@/lib/organizer-overview-status";
 
 export const Route = createFileRoute("/_authenticated/admin/operations")({
   head: () => ({
@@ -50,6 +50,9 @@ function OrganizerOverview() {
   const overviewStatus = projection
     ? organizerOverviewStatus(projection.risk, projection.systemHealth.state)
     : { tone: "neutral" as const, label: "Status unverified" };
+  const emptyAttention = projection
+    ? organizerOverviewEmptyAttention(projection.risk, projection.systemHealth.state)
+    : null;
 
   return (
     <AdminPage>
@@ -117,12 +120,12 @@ function OrganizerOverview() {
                   title={
                     projection.attention.length
                       ? `${projection.tasks.total} ${projection.tasks.total === 1 ? "item needs" : "items need"} attention`
-                      : "No organizer action required"
+                      : emptyAttention?.heading ?? "Operational status not verified"
                   }
                   description={
                     projection.attention.length
                       ? "Only the highest-priority unresolved canonical conditions are shown here."
-                      : "Solaris currently has no unresolved Organizer Task for this edition."
+                      : emptyAttention?.description ?? "Operational evidence is unavailable."
                   }
                   action={
                     <Link
@@ -142,13 +145,28 @@ function OrganizerOverview() {
                     ))}
                   </div>
                 ) : (
-                  <div className="flex items-start gap-3 rounded-xl border border-emerald-200/10 bg-emerald-200/[0.045] p-4">
-                    <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-200" />
+                  <div className={`flex items-start gap-3 rounded-xl border p-4 ${
+                    emptyAttention?.verifiedClear
+                      ? "border-emerald-200/10 bg-emerald-200/[0.045]"
+                      : "border-amber-200/15 bg-amber-200/[0.045]"
+                  }`}>
+                    {emptyAttention?.verifiedClear ? (
+                      <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-200" />
+                    ) : (
+                      <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-100" />
+                    )}
                     <div>
-                      <p className="text-sm font-semibold text-foreground">Nothing is asking for intervention</p>
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                        Normal state stays quiet. The next scheduled operation is shown beside this card.
+                      <p className="text-sm font-semibold text-foreground">
+                        {emptyAttention?.heading ?? "Operational status not verified"}
                       </p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        {emptyAttention?.description ?? "Operational evidence is unavailable."}
+                      </p>
+                      {!emptyAttention?.verifiedClear ? (
+                        <Link to="/admin/control-room" className="mt-2 inline-block text-xs font-semibold text-sky-100">
+                          Review Control Room →
+                        </Link>
+                      ) : null}
                     </div>
                   </div>
                 )}
@@ -180,6 +198,31 @@ function OrganizerOverview() {
                 )}
               </AdminCard>
             </section>
+
+            {(projection.live.issues.incidents ?? 0) > 0 ? (
+              <section className="mt-4" aria-label="Active production incidents">
+                <AdminCard>
+                  <AdminCardHeader
+                    eyebrow="Production incidents"
+                    title={`${projection.live.issues.incidents} active incident${projection.live.issues.incidents === 1 ? "" : "s"}`}
+                    description={
+                      (projection.live.issues.criticalIncidents ?? 0) > 0
+                        ? `${projection.live.issues.criticalIncidents} critical incident${projection.live.issues.criticalIncidents === 1 ? "" : "s"} require immediate review.`
+                        : "Verified active incident count for the selected edition. Review details and escalation in Incident Command."
+                    }
+                    action={
+                      <Link
+                        to="/admin/incidents"
+                        search={{ status: "active" }}
+                        className="text-xs font-semibold text-sky-100"
+                      >
+                        Open Incident Command →
+                      </Link>
+                    }
+                  />
+                </AdminCard>
+              </section>
+            ) : null}
 
             {(projection.live.currentSegment || projection.live.nextSegment) ? (
               <section className="mt-4" aria-label="Show-day production">
