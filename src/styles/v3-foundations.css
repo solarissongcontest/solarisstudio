@@ -566,3 +566,30 @@
     background-color: var(--v3-bg-subtle);
   }
 }
+
+/* System contrast themes remove translucent controls and gradient-only bars.
+   Use platform colors, not theme variables, for visible control boundaries. */
+@media (forced-colors: active) {
+  [data-solaris-v3] .v3-action-card {
+    border-color: CanvasText;
+  }
+
+  [data-solaris-v3] .v3-action-card[data-interactive="true"] .v3-action-card__title {
+    text-decoration: underline;
+  }
+
+  [data-solaris-v3] .v3-action-card[data-interactive="true"]:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  [data-solaris-v3] .v3-progress {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    height: 0.5rem;
+  }
+
+  [data-solaris-v3] .v3-progress__fill {
+    background: Highlight;
+  }
+}
