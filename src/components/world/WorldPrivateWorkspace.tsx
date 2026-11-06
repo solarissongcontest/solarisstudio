@@ -30,7 +30,9 @@ function useWorldPrivateIdentity() {
       // Sensitive data must not survive account switches, sign-out, or token
       // changes, even in an otherwise still-mounted member workspace.
       queryClient.removeQueries({ queryKey: PRIVATE_WORLD_QUERY_ROOT });
-      void identity.refetch();
+      // Supabase auth callbacks run under its session lock; revalidation is
+      // scheduled outside the callback to avoid locking the auth client.
+      queueMicrotask(() => void identity.refetch());
     });
     return () => auth.subscription.unsubscribe();
   }, [queryClient, identity.refetch]);
