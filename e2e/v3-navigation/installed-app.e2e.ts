@@ -234,8 +234,18 @@ test("installed app shell survives representative navigation without duplicate c
   await page.keyboard.press("Tab");
   const focusedExplore = page.locator(".solaris-app-tabbar")
     .getByRole("link", { name: "Explore", exact: true });
+  const beforeFocusBounds = await focusedExplore.boundingBox();
+  expect(beforeFocusBounds).not.toBeNull();
   await focusedExplore.focus();
   await expect(focusedExplore).toBeFocused();
+  const afterFocusBounds = await focusedExplore.boundingBox();
+  expect(afterFocusBounds).not.toBeNull();
+  if (beforeFocusBounds && afterFocusBounds) {
+    expect(Math.abs(afterFocusBounds.x - beforeFocusBounds.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(afterFocusBounds.y - beforeFocusBounds.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs(afterFocusBounds.width - beforeFocusBounds.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(afterFocusBounds.height - beforeFocusBounds.height)).toBeLessThanOrEqual(1);
+  }
   await expect.poll(() =>
     focusedExplore.evaluate((element) => {
       const style = getComputedStyle(element);
