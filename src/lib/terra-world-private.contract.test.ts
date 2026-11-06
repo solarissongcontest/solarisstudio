@@ -8,8 +8,8 @@ const ui = readFileSync(resolve(process.cwd(), "src/components/world/WorldPrivat
 
 describe("TG11/TG12 private workspace authority contracts", () => {
   it("has matched PostgreSQL function delimiters and transactional DDL", () => {
-    expect((sql.match(/as \$\$/g) ?? []).length).toBe(12);
-    expect((sql.match(/^\$\$;/gm) ?? []).length).toBe(12);
+    expect((sql.match(/as \$\$/g) ?? []).length).toBe(13);
+    expect((sql.match(/^\$\$;/gm) ?? []).length).toBe(13);
     expect(sql.startsWith("begin;")).toBe(true);
     expect(sql.trimEnd().endsWith("commit;")).toBe(true);
   });
@@ -41,6 +41,9 @@ describe("TG11/TG12 private workspace authority contracts", () => {
     expect(sql).toContain("v_space.history_policy = 'all_member_history'");
     expect(sql).toContain("v_grant.history_from");
     expect(sql).toContain("private.world_space_read_from_v1(p_space_id)");
+    expect(sql).toContain("create function public.world_space_search_v1");
+    expect(sql).toContain("msg.created_at >= v_from");
+    expect(sql).toContain("msg.redacted_at is null");
   });
 
   it("protects revisions, same-room replies, idempotent sends and message updates", () => {
