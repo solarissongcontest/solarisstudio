@@ -31,7 +31,7 @@ export function OrganizerEntryVersionHistory({
   targetType,
   currentVersionId,
 }: Props) {
-  const scope = `${editionId}:${submissionId}:${targetType}:${entryId}`;
+  const scope = `${editionId}:${submissionId}:${targetType}:${entryId}:${currentVersionId ?? "unbound"}`;
   const activeScope = useRef(scope);
   activeScope.current = scope;
   const requestGeneration = useRef(0);
@@ -144,7 +144,7 @@ export function OrganizerEntryVersionHistory({
         <div className="mt-3 space-y-3">
           {currentVersionId && !versions.some((item) => item.id === currentVersionId) ? (
             <p className="text-xs text-amber-100">
-              The current Entry version was not found in the loaded history. Refresh the response
+              The displayed Entry version was not found in the loaded history. Refresh the response
               before relying on its review status.
             </p>
           ) : null}
@@ -164,7 +164,7 @@ export function OrganizerEntryVersionHistory({
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                      {isCurrent ? <AdminStatus tone="ready">Current content</AdminStatus> : null}
+                      {isCurrent ? <AdminStatus tone="ready">Displayed version</AdminStatus> : null}
                       {version.source === "organizer_restore" ? (
                         <AdminStatus tone="attention">Restored snapshot</AdminStatus>
                       ) : null}
@@ -218,7 +218,7 @@ export function OrganizerEntryVersionHistory({
                   ) : null}
                   {version.restoredFromSubmissionVersionId ? (
                     <p className="mt-2 text-[11px] text-muted-foreground">
-                      Created from an organizer-restored Confirmation snapshot. It still requires its own current-version review.
+                      Created from an organizer-restored Confirmation snapshot. Review decisions bind to each immutable version.
                     </p>
                   ) : null}
                 </li>

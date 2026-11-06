@@ -648,7 +648,7 @@ function EntryReviewCard({
           <EntrySourceInspection entry={entry} />
           {open && editionId ? (
             <OrganizerEntryVersionHistory
-              key={`${editionId}:${submissionId}:${targetType}:${entry.id}`}
+              key={`${editionId}:${submissionId}:${targetType}:${entry.id}:${entry.current_version_id ?? "unbound"}`}
               editionId={editionId}
               submissionId={submissionId}
               entryId={entry.id}
