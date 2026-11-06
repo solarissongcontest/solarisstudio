@@ -117,8 +117,15 @@ export async function writeDomesticMeasure(x:DomesticMeasureWrite){
     if(error.code==="42501")throw new Error("Domestic legislation is unavailable or country control changed.");
     throw new Error(error.message||"The domestic legislative operation failed");
   }
-  if(!record(data)||data.ok!==true||!uuid.test(String(data.id))||
-     !uuid.test(String(data.operationId))||!positive(data.revision)||data.action!==x.action)
+  // S2 reconcile returns a status envelope. An HTTP 200 or nested ok alone
+  // must not claim success for processing, failed, or mismatched operations.
+  if(!record(data)||data.status!=="succeeded"||data.error!==null||
+    data.operationId!==x.operationId||!record(data.result))
     throw new Error("Missing authoritative legislative operation receipt");
-  return{id:data.id as string,revision:data.revision as number,operationId:data.operationId as string};
+  const result=data.result;
+  if(result.ok!==true||!uuid.test(String(result.id))||
+     result.operationId!==x.operationId||!positive(result.revision)||
+     result.action!==x.action)
+    throw new Error("Missing authoritative legislative operation receipt");
+  return{id:result.id as string,revision:result.revision as number,operationId:x.operationId};
 }
