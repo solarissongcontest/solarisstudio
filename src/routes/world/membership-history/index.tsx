@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { WorldPublicGate } from "@/components/world/WorldPublic";
 import { TerraWorldMembershipChronicle } from "@/components/world/TerraWorldMembershipChronicle";
 
 export const Route = createFileRoute("/world/membership-history/")({
@@ -15,13 +16,15 @@ export const Route = createFileRoute("/world/membership-history/")({
 
 function WorldMembershipHistoryPage() {
   return (
-    <AppShell>
+    <WorldPublicGate verifyOnMount>
+      <AppShell>
       <div className="mx-auto w-full max-w-6xl pb-12 pt-4">
         <Link to="/countries" className="mb-8 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-primary">
           <ArrowLeft aria-hidden="true" className="size-4" /> Solaris countries
         </Link>
         <TerraWorldMembershipChronicle />
       </div>
-    </AppShell>
+      </AppShell>
+    </WorldPublicGate>
   );
 }

@@ -23,4 +23,12 @@ describe("TG3 membership chronicle public rollout boundary", () => {
     expect(source).toContain("verifiedHistory.records.map");
     expect(source).not.toContain("history.data.records.map");
   });
+  it("re-verifies the World rollout before mounting the public membership chronicle", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/world/membership-history/index.tsx"), "utf8");
+    expect(route).toContain("<WorldPublicGate verifyOnMount>");
+    expect(route).toContain("<TerraWorldMembershipChronicle />");
+    expect(route.indexOf("<WorldPublicGate verifyOnMount>")).toBeLessThan(
+      route.indexOf("<TerraWorldMembershipChronicle />"));
+  });
 });
