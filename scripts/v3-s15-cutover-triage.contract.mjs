@@ -85,7 +85,7 @@ test("retained JSON and Markdown bind to identical raw S15 source bytes",()=>{
   try {
     const input=join(dir,"s15.json");
     const output=join(dir,"reports");
-    const raw=JSON.stringify(fixture(["PUBLIC_CUTOVER_UNRESOLVED entry:building"]),null,2)+"\\n";
+    const raw=JSON.stringify(fixture(["PUBLIC_CUTOVER_UNRESOLVED entry:building"]),null,2)+"\n";
     writeFileSync(input,raw,"utf8");
     const report=runCli(["--input",input,"--sha",sha,"--output-dir",output]);
     const expected=createHash("sha256").update(raw,"utf8").digest("hex");
