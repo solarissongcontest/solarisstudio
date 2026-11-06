@@ -1,3 +1,4 @@
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 import { saveMergedRoundCountriesServer } from "@/integrations/televoting/entries.server";
@@ -26,6 +27,7 @@ async function solarisDb() {
 }
 
 export async function ensureCanonicalTelevotingEditionsServer(): Promise<CanonicalTelevotingEdition[]> {
+  await requireSolarisCapabilityServer("voting.manage", null);
   await requireMergedTelevotingAdminServer();
   const db = await solarisDb();
 
@@ -198,6 +200,7 @@ async function resolveRoundSource(roundId: string) {
 }
 
 export async function getMergedRoundSolarisSourceServer(roundId: string) {
+  await requireSolarisCapabilityServer("voting.read", null);
   await requireMergedTelevotingAdminServer();
   const source = await resolveRoundSource(roundId);
 
@@ -238,6 +241,7 @@ export async function syncMergedRoundFromSolarisServer(data: {
   showId?: string | null;
   sourceMode?: "edition" | "show";
 }) {
+  await requireSolarisCapabilityServer("voting.manage", null);
   const actor = await requireMergedTelevotingAdminServer();
   const source = await resolveRoundSource(data.roundId);
 

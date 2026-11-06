@@ -37,6 +37,13 @@ const normalizeInput = (data?: IntelligenceInput) => ({
   editionId: data?.editionId ? String(data.editionId) : null,
 });
 
+async function requirePrivateAnalysis() {
+  const { requirePrivateVotingAnalysisServer } = await import(
+    "@/integrations/televoting/private-analysis-auth.server"
+  );
+  await requirePrivateVotingAnalysisServer();
+}
+
 const emptyCoordination = (warning: string | null = null): CoordinationPayload => ({
   groups: [],
   edges: [],
@@ -164,6 +171,7 @@ function addCommonMetadata(payload: any, resilient: Awaited<ReturnType<typeof ge
 export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" })
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
+    await requirePrivateAnalysis();
     const resilient = await getResilientFriendVotingIntelligence(data);
     const { result, settings, effectiveScope } = resilient;
     let coordination: CoordinationPayload = emptyCoordination();
@@ -207,6 +215,7 @@ export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" }
 export const getLightweightFriendVotingIntelligence = createServerFn({ method: "POST" })
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
+    await requirePrivateAnalysis();
     const resilient = await getResilientFriendVotingIntelligence(data);
     const { result, settings } = resilient;
     const allRelationships = result.relationships;
@@ -226,6 +235,7 @@ export const getLightweightFriendVotingIntelligence = createServerFn({ method: "
 export const getFriendVotingCoordination = createServerFn({ method: "POST" })
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
+    await requirePrivateAnalysis();
     if (data.lens !== "hod") return emptyCoordination();
 
     if (!data.editionId && !data.hodPersonId) {
