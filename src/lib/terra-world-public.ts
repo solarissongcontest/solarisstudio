@@ -73,6 +73,18 @@ export type WorldProjection = {
   offices: WorldOffice[];
 };
 
+/**
+ * Publication lifecycle shared by the World landing and World Search. A
+ * proposed union is not yet an officially recognized public institution.
+ */
+export const WORLD_PUBLIC_INSTITUTION_STATUSES = [
+  "recognized", "active", "suspended", "historical", "dissolved",
+] as const;
+
+export function isPublicWorldInstitutionStatus(status: string): boolean {
+  return (WORLD_PUBLIC_INSTITUTION_STATUSES as readonly string[]).includes(status);
+}
+
 export type WorldDirectoryFilter = "all" | "current" | "historical";
 export const WORLD_DIRECTORY_PAGE_SIZE = 12;
 
@@ -210,9 +222,14 @@ export async function fetchFeaturedWorldOrganizations(): Promise<WorldOrganizati
     .select("id,slug,official_name,short_name,type,description,status,public_visibility")
     .eq("public_visibility", "public")
     .in("slug", ["guard", "unity"])
+    .in("status", [...WORLD_PUBLIC_INSTITUTION_STATUSES])
     .order("short_name", { ascending: true });
   if (error) throw new Error("World institutions are temporarily unavailable.");
-  return parseWorldDirectoryRows(data);
+  // Guard against an upstream/RLS regression returning a pre-recognition row
+  // despite the explicitly scoped publication query.
+  return parseWorldDirectoryRows(data).filter((item) =>
+    (item.slug === "guard" || item.slug === "unity") &&
+    isPublicWorldInstitutionStatus(item.status));
 }
 
 export async function fetchWorldProjection(slug: string): Promise<WorldProjection | null> {
