@@ -19,6 +19,10 @@ describe("V3 QA release-truth preflight integration", () => {
     expect(consequences).toContain('"results.calculated"');
     expect(scanner).toContain('"results."');
     expect(scanner).not.toContain('"result."');
+    const fullContest = source("scripts/v3-s14-full-contest-spec.ts");
+    expect(fullContest).toContain("minimumShowCount: 3");
+    expect(scanner).toContain("V3_S14_SEED_CONTRACT.minimumShowCount < 3");
+    expect(scanner).not.toContain("V3_S14_SEED_CONTRACT.minimumShowCount < 2");
   });
 
   it("uses the existing canonical cross-release consistency validator for S14, S15 and S16", () => {
