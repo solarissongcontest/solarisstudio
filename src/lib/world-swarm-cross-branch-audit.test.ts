@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { auditWorldSwarmCrossBranches, isPotentialWorldSwarmPull, type WorldSwarmPull, type WorldSwarmSnapshot } from "./world-swarm-cross-branch-audit";
+import { auditWorldSwarmCrossBranches, isPotentialWorldSwarmPull, sameWorldSwarmPullSet, type WorldSwarmPull, type WorldSwarmSnapshot } from "./world-swarm-cross-branch-audit";
 
 const SHA = "a".repeat(40);
 const MAIN = "b".repeat(40);
@@ -175,6 +175,27 @@ describe("TG19 read-only World cross-PR migration preflight", () => {
     const report = auditWorldSwarmCrossBranches(snapshot([candidate]));
     expect(report.clean).toBe(true);
     expect(report.migrationsChecked).toBe(1);
+  });
+
+  it("rejects new World PRs appearing while a live migration snapshot is collected", () => {
+    const first = pr(101, [], "main");
+    const second = pr(102, [], "main");
+    expect(sameWorldSwarmPullSet([first], [first, second])).toBe(false);
+    expect(sameWorldSwarmPullSet([first], [])).toBe(false);
+  });
+
+  it("rejects live PR head, base or title drift and duplicate identities", () => {
+    const first = pr(101, [], "main");
+    expect(sameWorldSwarmPullSet([first], [{ ...first, headSha: "c".repeat(40) }])).toBe(false);
+    expect(sameWorldSwarmPullSet([first], [{ ...first, baseRef: "parent" }])).toBe(false);
+    expect(sameWorldSwarmPullSet([first], [{ ...first, title: "changed" }])).toBe(false);
+    expect(sameWorldSwarmPullSet([first, first], [first, first])).toBe(false);
+  });
+
+  it("accepts the same unchanged World PR set despite GitHub ordering differences", () => {
+    const a = pr(101, []);
+    const b = pr(102, []);
+    expect(sameWorldSwarmPullSet([a, b], [b, a])).toBe(true);
   });
 
 });
