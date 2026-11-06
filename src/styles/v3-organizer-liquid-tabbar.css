@@ -36,7 +36,7 @@
   height: 1.08rem;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 900px) and (min-height: 600px) {
   [data-organizer-v3-liquid-nav] {
     display: none;
   }

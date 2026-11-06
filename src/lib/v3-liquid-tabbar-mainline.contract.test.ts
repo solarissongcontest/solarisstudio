@@ -175,4 +175,21 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
     expect(shell).toContain("safe live adjacent DOM surfaces");
     expect(shell).toContain("duplicate data graphs");
   });
+
+  it("keeps Organizer Liquid navigation and scroll clearance active on wide landscape phones", () => {
+    const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
+    const organizer = source("src/components/admin/OrganizerV3MobileChrome.tsx");
+    const organizerCss = source("src/styles/v3-organizer-liquid-tabbar.css");
+    const responsive = source("src/styles/v3-responsive-shell.css");
+    const geometry = source("src/styles/v3-navigation-fixed-geometry.css");
+
+    expect(tabs).toContain("(window.innerWidth >= 1024 && window.innerHeight >= 600)");
+    expect(organizer).toContain('window.matchMedia("(max-width: 899px), (max-height: 599px)")');
+    expect(organizer).toContain("(window.innerWidth >= 900 && window.innerHeight >= 600)");
+    expect(organizerCss).toContain("@media (min-width: 900px) and (min-height: 600px)");
+    expect(responsive).toContain("@media (min-width: 1024px) and (max-height: 599px)");
+    expect(responsive).toContain("html[data-solaris-app] [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabbar");
+    expect(geometry).toContain("@media (min-width: 1024px) and (min-height: 600px)");
+  });
+
 });

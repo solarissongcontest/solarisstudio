@@ -151,7 +151,7 @@ export function V3LiquidTabBar({
       syncDirection();
       if (
         !bar ||
-        window.innerWidth >= 1024 ||
+        (window.innerWidth >= 1024 && window.innerHeight >= 600) ||
         root.hasAttribute("data-solaris-keyboard-open")
       ) {
         root.style.setProperty("--v3-bottom-obstruction", "0px");

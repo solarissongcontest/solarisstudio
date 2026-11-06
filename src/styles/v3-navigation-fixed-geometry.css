@@ -221,7 +221,7 @@ html[data-solaris-keyboard-open]
   height: 20px;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1024px) and (min-height: 600px) {
   [data-solaris-v3] [data-v3-legacy-route-adapter] > .v3-legacy-route-bottom-clearance {
     height: 20px;
   }

@@ -145,6 +145,19 @@
   }
 }
 
+
+/* A wide but short installed landscape iPhone is still an app-phone screen.
+ * Keep the fixed navigation visible while web desktop navigation stays intact. */
+@media (min-width: 1024px) and (max-height: 599px) {
+  html[data-solaris-app] [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabbar {
+    display: block !important;
+  }
+
+  html[data-solaris-app] [data-solaris-v3] .v3-screen {
+    padding-bottom: calc(var(--v3-bottom-obstruction, 108px) + 14px);
+  }
+}
+
 @media (min-width: 1440px) {
   [data-solaris-v3] .v3-desktop-primary-nav,
   [data-solaris-v3] .v3-screen {
