@@ -37,12 +37,13 @@ function Failure({ error, retry }: { error: unknown; retry: () => void }) {
 function CaseFilings({ id }: { id: string }) {
   const filings = useQuery({
     queryKey: ["world", "court", "filings", id],
+    gcTime: 0,
     queryFn: () => fetchCourtCaseFilings(id),
     staleTime: 0,
     refetchOnMount: "always",
     retry: false,
   });
-  if (filings.isPending) return <Message>Checking private Court documents…</Message>;
+  if (filings.isPending || filings.isFetching) return <Message>Checking private Court documents…</Message>;
   if (filings.isError) return <Failure error={filings.error} retry={() => void filings.refetch()} />;
   return (
     <ol className="mt-4 divide-y divide-border border-t border-border">
