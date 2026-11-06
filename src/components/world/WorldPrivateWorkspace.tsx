@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, LockKeyhole, MessageSquare, Pencil, Pin, Plus, RefreshCcw, Reply, Send, ShieldCheck } from "lucide-react";
+import { ArrowLeft, LockKeyhole, MessageSquare, Pencil, Pin, Plus, RefreshCcw, Reply, Search, Send, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { AppShell } from "@/components/AppShell";
@@ -9,7 +9,7 @@ import {
   PRIVATE_WORLD_QUERY_ROOT, WORLD_ROOM_PAGE_SIZE,
   createWorldRoom, editWorldRoomMessage, getMyWorldWorkspaces, getWorldWorkspaceContext,
   getWorldRoomMessages, getWorldRooms, isVisiblePrivateWorldQuery,
-  moderateWorldRoomMessage, reactToWorldRoomMessage, sendWorldRoomMessage,
+  moderateWorldRoomMessage, reactToWorldRoomMessage, searchWorldRoomMessages, sendWorldRoomMessage,
   type WorldChatMessage, type WorldPrivateRoom,
 } from "@/lib/terra-world-private";
 
@@ -152,6 +152,8 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
   const selectedRoom = requestedRoom ?? (!roomId ? verifiedRooms?.[0] : undefined);
   const selectedId = selectedRoom?.id;
   const [draft, setDraft] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [activeSearch, setActiveSearch] = useState("");
   const [replyToId, setReplyToId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBody, setEditBody] = useState("");
@@ -163,7 +165,7 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
   const [historyPolicy, setHistoryPolicy] = useState<WorldPrivateRoom["history"]>("from_join");
 
   useEffect(() => {
-    setDraft(""); setReplyToId(null); setEditingId(null); setActionError(null);
+    setDraft(""); setSearchInput(""); setActiveSearch(""); setReplyToId(null); setEditingId(null); setActionError(null);
     pendingRequest.current = null;
   }, [selectedId, identity.data]);
 
@@ -182,6 +184,14 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
   const verifiedMessages = isVisiblePrivateWorldQuery(messages, online)
     ? messages.data?.pages.slice().reverse().flat() ?? null : null;
   const canShowMessages = Boolean(selectedRoom && verifiedRooms && verifiedMessages);
+  const search = useQuery({
+    queryKey: [...PRIVATE_WORLD_QUERY_ROOT, identity.data, slug, selectedId, "search", activeSearch],
+    queryFn: ({ signal }) => searchWorldRoomMessages(selectedId!, activeSearch, signal),
+    enabled: Boolean(identity.data && selectedId && verifiedRooms && online && activeSearch),
+    gcTime: 0, staleTime: 0, retry: false, refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+  });
+  const verifiedSearch = isVisiblePrivateWorldQuery(search, online) ? search.data : null;
 
   const send = useMutation({
     mutationFn: async () => {
@@ -340,6 +350,32 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
                 <RefreshCcw className="size-4" />
               </button>
             </div>
+            <form className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2" onSubmit={(event) => {
+              event.preventDefault();
+              const term = searchInput.trim();
+              if (term.length >= 2 && term.length <= 80) setActiveSearch(term);
+            }}>
+              <Search className="size-4 text-muted-foreground" aria-hidden="true" />
+              <label className="sr-only" htmlFor="world-chat-search">Search this room</label>
+              <input id="world-chat-search" type="search" value={searchInput} maxLength={80}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Search messages in this room"
+                className="min-h-11 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm" />
+              <button type="submit" disabled={searchInput.trim().length < 2}
+                className="min-h-11 rounded-lg border border-border px-4 text-sm font-semibold disabled:opacity-50">Search</button>
+              {activeSearch ? <button type="button" onClick={() => { setActiveSearch(""); setSearchInput(""); }}
+                className="min-h-11 rounded-lg px-3 text-sm text-primary">Clear</button> : null}
+            </form>
+            {activeSearch ? <div className="max-h-[60vh] min-h-[300px] space-y-3 overflow-y-auto px-4 py-5 sm:px-6" aria-live="polite">
+              <h3 className="text-sm font-semibold">Search results for “{activeSearch}”</h3>
+              {search.isPending || !search.isFetchedAfterMount ? <p role="status" className="text-sm text-muted-foreground">Verifying search access…</p> :
+                !verifiedSearch ? <AccessNotice message="Private search could not be verified. Cached results have been hidden." retry={() => void search.refetch()} /> :
+                verifiedSearch.length === 0 ? <p className="text-sm text-muted-foreground">No matching messages within your visible history.</p> :
+                verifiedSearch.map((hit) => <article key={hit.id} className="border-b border-border py-3">
+                  <p className="text-xs text-muted-foreground">{hit.mine ? "You" : "Institution member"} · {new Date(hit.createdAt).toLocaleString()}</p>
+                  <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">{hit.body}</p>
+                </article>)}
+            </div> :
             <div className="max-h-[60vh] min-h-[300px] space-y-4 overflow-y-auto px-4 py-5 sm:px-6" aria-live="polite">
               {messages.isPending || !messages.isFetchedAfterMount ? <p role="status" className="text-sm text-muted-foreground">Checking your message access…</p> :
                 !canShowMessages ? <AccessNotice message="Messages cannot be verified. Private cached results are hidden." retry={() => void messages.refetch()} /> :
@@ -405,7 +441,7 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
                     </div> : null}
                   </article>)}
                 </>}
-            </div>
+            </div>}
             <form className="border-t border-border p-4" onSubmit={(event) => { event.preventDefault(); send.mutate(); }}>
               {replyTo ? <div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
                 <span>Replying to {replyTo.mine ? "your message" : replyTo.senderName}</span>
