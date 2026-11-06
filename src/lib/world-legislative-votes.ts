@@ -147,16 +147,29 @@ export function parseManagedWorldVote(value: unknown): ManagedWorldVote|null {
   return value as unknown as ManagedWorldVote;
 }
 export function parseVoteReceipt(value: unknown, operationId: string): WorldVoteReceipt {
-  if (!object(value) || value.ok!==true || !voteUuid(value.voteId) ||
-      value.operationId!==operationId || !integer(value.revision) || value.revision<1 ||
-      !string(value.status) || !["open","cast","certified"].includes(value.status) ||
-      typeof value.replayed!=="boolean" ||
-      (value.measureId!==undefined && !voteUuid(value.measureId)) ||
-      (value.resultHash!==undefined && !hash(value.resultHash)) ||
-      (value.outcome!==undefined && (!string(value.outcome) || !outcomes.has(value.outcome)))) {
+  // All TG8 commands return the canonical S2 reconcile envelope. Never
+  // mistake the operation's succeeded status for the inner vote state.
+  const envelope = object(value) ? value : null;
+  const result = object(envelope?.result) ? envelope.result : null;
+  if (!envelope || envelope.status!=="succeeded" ||
+      envelope.operationId!==operationId || typeof envelope.replayed!=="boolean" ||
+      !result || result.ok!==true || !voteUuid(result.voteId) ||
+      result.operationId!==operationId || !integer(result.revision) ||
+      result.revision<1 || !string(result.status) ||
+      !["open","cast","certified"].includes(result.status) ||
+      (result.measureId!==undefined && !voteUuid(result.measureId)) ||
+      (result.resultHash!==undefined && !hash(result.resultHash)) ||
+      (result.outcome!==undefined &&
+        (!string(result.outcome) || !outcomes.has(result.outcome)))) {
     return invalid("operation receipt");
   }
-  return value as unknown as WorldVoteReceipt;
+  return { ok: true, voteId: result.voteId, operationId,
+    revision: result.revision, status: result.status as WorldVoteReceipt["status"],
+    replayed: envelope.replayed,
+    ...(result.measureId ? {measureId: result.measureId} : {}),
+    ...(result.resultHash ? {resultHash: result.resultHash} : {}),
+    ...(result.outcome ? {outcome: result.outcome as WorldVoteListRow["outcome"]} : {}),
+  };
 }
 async function rpc(name: string,args: Json): Promise<unknown> {
   const {data,error} = await db.rpc(name,args);
