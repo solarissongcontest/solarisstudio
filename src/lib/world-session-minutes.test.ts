@@ -96,6 +96,19 @@ describe("TG6 minutes authority and source invariants", () => {
     expect(ui).toContain("enabled: showManager");
   });
 
+  it("does not archive concluded sessions without published minutes", () => {
+    const archival = migration.slice(
+      migration.indexOf("create or replace function private.world_session_archival_minutes_guard_v1"),
+      migration.indexOf("alter table public.world_session_minutes enable row level security"),
+    );
+    expect(archival).toContain("old.status='concluded' and new.status='archived'");
+    expect(archival).toContain("m.status='published'");
+    expect(archival).toContain("SESSION_MINUTES_NOT_PUBLISHED");
+    expect(archival).toContain("create trigger world_session_archive_requires_minutes");
+    expect(rehearsal).toContain("TG6_MINUTES_UNPUBLISHED_ARCHIVE_ALLOWED");
+    expect(rehearsal).toContain("update public.world_sessions set status='archived'");
+  });
+
   it("prevents unreviewed publication and rechecks canonical session state", () => {
     const publishing = migration.slice(
       migration.indexOf("create or replace function public.world_publish_session_minutes_v1"),
