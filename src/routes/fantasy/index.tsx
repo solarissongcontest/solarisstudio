@@ -149,7 +149,8 @@ function FantasyPage() {
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc("fantasy_leaderboard", { _game_id: activeGame!.id });
       if (error) throw error;
-      return normalizeV3FantasyStandings(data ?? []);
+      // A null RPC payload is not a verified empty leaderboard. Fail closed.
+      return normalizeV3FantasyStandings(data);
     },
   });
 

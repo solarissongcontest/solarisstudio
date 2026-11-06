@@ -110,6 +110,9 @@ describe("V3 Fantasy projection", () => {
       { profileId: "fan-c", displayName: "Fan C", score: 0, position: 3 },
     ]);
     expect(normalizeV3FantasyStandings([])).toEqual([]);
+    // A missing RPC payload is not the same as a successfully returned empty array.
+    expect(() => normalizeV3FantasyStandings(null)).toThrow();
+    expect(() => normalizeV3FantasyStandings(undefined)).toThrow();
   });
 
   it("fails the entire standings projection closed when a ranking or identity is malformed", () => {

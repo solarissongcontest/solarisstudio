@@ -121,7 +121,8 @@ const projection = source("src/lib/v3-fantasy.ts");
   });
   it("never presents failed, paused, pending or unpublished Fantasy leaderboard reads as empty scores", () => {
     expect(projection).toContain("normalizeV3FantasyStandings(payload: unknown)");
-    expect(route).toContain("return normalizeV3FantasyStandings(data ?? [])");
+    expect(route).toContain("return normalizeV3FantasyStandings(data);");
+    expect(route).not.toContain("normalizeV3FantasyStandings(data ?? [])");
     expect(route).toContain('activeGame?.status !== "scored" ? "unpublished"');
     expect(route).toContain('leaderboard.isError ? "error"');
     expect(route).toContain('leaderboard.isPending && leaderboard.isPaused ? "paused"');
