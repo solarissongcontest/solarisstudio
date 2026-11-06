@@ -119,7 +119,7 @@ describe("PR455 Browser Audit regression contracts", () => {
     const audit = source("e2e/audit-helpers.ts");
     const preflight = source("e2e/pr455-organizer-regression.e2e.ts");
     const bootLocator = audit.indexOf(
-      'page.locator("[data-v3-primary-boot], [data-v3-explore-boot], [data-v3-edition-boot], [data-v3-confirmation-route-boot], [data-v3-account-settings-route-boot], [data-v3-notifications-route-boot]")',
+      'page.locator("[data-v3-primary-boot], [data-v3-explore-boot], [data-v3-edition-boot], [data-v3-confirmation-route-boot], [data-v3-account-settings-route-boot], [data-v3-notifications-route-boot], [data-v3-stories-boot]")',
     );
     const finalMainReadiness = audit.indexOf('page.locator("main:visible")', bootLocator + 1);
     const finalHeadingReadiness = audit.indexOf('page.locator("h1:visible")', finalMainReadiness + 1);
@@ -176,11 +176,10 @@ describe("PR455 Browser Audit regression contracts", () => {
     );
     expect(config).toContain('{ width: 390, height: 844 }');
     expect(config).toContain('{ width: 1440, height: 900 }');
-    expect(workflow).toContain("Pull requests run a representative smoke set");
-    const fullAuditSetting = workflow.split("E2E_FULL_AUDIT:")[1]?.split("\n")[0];
+    const fullAuditSetting = workflow.split("E2E_FULL_AUDIT:")[1]?.split("\n")[0] ?? "";
+    expect(fullAuditSetting).toContain("github.event_name == 'workflow_dispatch'");
     expect(fullAuditSetting).not.toContain("github.ref == 'refs/heads/main'");
-    expect(workflow).toContain("E2E_FULL_AUDIT:");
-    expect(workflow).toContain("github.event_name == 'workflow_dispatch'");
+    expect(fullAuditSetting).not.toContain("github.head_ref");
 
     const publicRoutes = source("e2e/public-routes.e2e.ts");
     expect(publicRoutes).toContain("const PR_SMOKE_PUBLIC_ROUTES = [");

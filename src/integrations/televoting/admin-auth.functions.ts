@@ -2,6 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 
 export const getMergedTelevotingAdmin = createServerFn({ method: "GET" }).handler(async () => {
   try {
+    // This compatibility identity includes private voting administrator data.
+    // Check voting.read before importing the legacy privileged session loader.
+    const { requireSolarisCapabilityServer } = await import(
+      "@/integrations/supabase/capabilities.server"
+    );
+    await requireSolarisCapabilityServer("voting.read", null);
     const { loadMergedTelevotingAdminServer } = await import(
       "@/integrations/televoting/admin-session.server"
     );
