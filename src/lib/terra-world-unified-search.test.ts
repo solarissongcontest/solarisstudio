@@ -18,6 +18,8 @@ import {
   WORLD_UNIFIED_SEARCH_LIMIT,
   WORLD_PUBLIC_SEARCH_STATUSES,
   fetchWorldUnifiedSearch,
+  fetchWorldCountrySearchPage,
+  fetchWorldOrganizationSearchPage,
   parseWorldSearchCountries,
   parseWorldSearchPage,
   verifiedWorldSearchTerm,
@@ -131,6 +133,24 @@ describe("Terra Solaris unified public World search", () => {
     }
   });
 
+  it("country page changes never request institutions", async () => {
+    mocks.countries.range.mockResolvedValueOnce({ data: [country], count: 20, error: null });
+    const result = await fetchWorldCountrySearchPage("Oland", 1);
+    expect(result.countryTotal).toBe(20);
+    expect(mocks.from.mock.calls.map((call) => call[0])).toEqual(["countries"]);
+    expect(mocks.countries.range).toHaveBeenCalledWith(12, 23);
+    expect(mocks.organizations.range).not.toHaveBeenCalled();
+  });
+
+  it("institution page changes never request countries", async () => {
+    mocks.organizations.range.mockResolvedValueOnce({ data: [organization], count: 30, error: null });
+    const result = await fetchWorldOrganizationSearchPage("GUARD", 1);
+    expect(result.organizationTotal).toBe(30);
+    expect(mocks.from.mock.calls.map((call) => call[0])).toEqual(["world_organizations"]);
+    expect(mocks.organizations.range).toHaveBeenCalledWith(12, 23);
+    expect(mocks.countries.range).not.toHaveBeenCalled();
+  });
+
   it("pages countries and organizations independently, with bounded exact ranges", async () => {
     mocks.countries.range.mockResolvedValueOnce({ data: [country], count: 49, error: null });
     mocks.organizations.range.mockResolvedValueOnce({ data: [organization], count: 52, error: null });
@@ -173,6 +193,6 @@ describe("Terra Solaris unified public World search", () => {
       data: null, count: null, error: { message: "temporarily unavailable" },
     });
     await expect(fetchWorldUnifiedSearch("GUARD"))
-      .rejects.toThrow("Public World search is temporarily unavailable");
+      .rejects.toThrow("Public World organization search is temporarily unavailable");
   });
 });
