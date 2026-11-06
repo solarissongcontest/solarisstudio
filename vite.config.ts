@@ -23,7 +23,13 @@ export default defineConfig({
       },
     },
     build: {
+      // Keep imported image/font assets as cacheable files instead of base64
+      // strings inside JS/CSS chunks, reducing executable download weight.
+      assetsInlineLimit: 0,
       rolldownOptions: {
+        // Fold immutable cross-module constants into their consumers rather
+        // than carrying unnecessary imports/exports through the client graph.
+        optimization: { inlineConst: { mode: "all", pass: 2 } },
         output: {
           // Production evidence showed repeated gzip framing across hundreds of
           // tiny Lucide chunks and several TanStack Router helper chunks. Keep
