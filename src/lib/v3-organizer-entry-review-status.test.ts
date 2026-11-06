@@ -184,7 +184,7 @@ describe("Organizer Entry Review current-version queue", () => {
       { ...accepted(), song_title: null },
     ], null))).toBe(false);
     expect(hasCurrentOrganizerResponseSongSubmission(nationalFinal([
-      { ...accepted(), song_title: null }, accepted("version-3"),
+      { ...accepted(), song_title: null }, { ...accepted(), id: "entry-2" },
     ], null))).toBe(true);
     expect(hasCurrentOrganizerResponseSongSubmission({
       ...ready, participating: false,
