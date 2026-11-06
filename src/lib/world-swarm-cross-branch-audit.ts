@@ -30,6 +30,7 @@ export interface WorldSwarmAuditIssue {
     | "duplicate_pr_number"
     | "main_migration_collision"
     | "main_migration_modified"
+    | "main_migration_removed"
     | "migration_path_overlap"
     | "migration_version_overlap"
     | "invalid_new_migration_calendar"
@@ -122,7 +123,17 @@ export function auditWorldSwarmCrossBranches(snapshot: WorldSwarmSnapshot): Worl
       const changes = changedByPath.get(file.filename) ?? [];
       changes.push({ pr: pull.number, status: file.status });
       changedByPath.set(file.filename, changes);
-      if (file.status === "removed") continue;
+      if (file.status === "removed") {
+        // A PR that removes a file already on main can silently undo an applied
+        // migration when its parent/merge-base is stale. This is different
+        // from removing an unmerged invalid proposal on the SAME branch.
+        if (mainPaths.has(file.filename)) addIssue(issues, {
+          severity: "error", code: "main_migration_removed",
+          message: `PR #${pull.number} removes a migration already on main; restore upstream history before integration`,
+          prs: [pull.number], paths: [file.filename],
+        });
+        continue;
+      }
       if (mainPaths.has(file.filename) && file.status !== "added") addIssue(issues, {
         severity: "error", code: "main_migration_modified",
         message: `PR #${pull.number} changes an existing main migration (${file.status}); create a new forward-only migration`,
