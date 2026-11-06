@@ -115,7 +115,7 @@ export default defineConfig({
                 minSize: 10000,
                 // Never concatenate every shared route dependency into an
                 // oversized download; Rolldown splits at module boundaries.
-                maxSize: 400000,
+                maxSize: 800000,
                 priority: -1,
               },
             ],
