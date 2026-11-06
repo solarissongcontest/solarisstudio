@@ -55,13 +55,6 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
     queryFn: () => readPublicWorldBodies(slug, page), enabled: valid, staleTime: 90_000, retry: false,
   });
   const result = query.data;
-  const offices = useQuery({
-    queryKey: ["world", "public", "body-offices", result?.organization.id, result?.body.id],
-    queryFn: () => readPublicBodyOffices(result!.organization, result!.body),
-    enabled: !!result,
-    staleTime: 90_000,
-    retry: false,
-  });
   return <Frame>
     <Back institution={result?.organization} />
     {!valid ? <Unavailable missing /> : null}
@@ -103,6 +96,13 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
     queryFn: () => readPublicWorldBody(slug, bodySlug), enabled: valid, staleTime: 90_000, retry: false,
   });
   const result = query.data;
+  const offices = useQuery({
+    queryKey: ["world", "public", "body-offices", result?.organization.id, result?.body.id],
+    queryFn: () => readPublicBodyOffices(result!.organization, result!.body),
+    enabled: !!result,
+    staleTime: 90_000,
+    retry: false,
+  });
   return <Frame>
     <Back institution={result?.organization} />
     {!valid ? <Unavailable missing /> : null}
