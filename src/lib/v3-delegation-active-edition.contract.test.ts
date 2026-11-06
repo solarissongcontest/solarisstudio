@@ -1,0 +1,42 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+import type { Edition } from "./data";
+import { resolveActivePublicEdition } from "./v3-discovery-entities";
+
+const makeEdition = (id: string, editionNumber: number, status: string): Edition => ({
+  id,
+  edition_number: editionNumber,
+  name: `SSC ${editionNumber}`,
+  status,
+  published: true,
+  slug: `ssc-${editionNumber}`,
+} as Edition);
+
+describe("Public Delegation current-edition authority", () => {
+  it("does not treat a completed/archived edition as a current contest", () => {
+    const archived = makeEdition("archived", 23, "archived");
+    const completed = makeEdition("completed", 22, "post_edition");
+    expect(resolveActivePublicEdition([archived, completed])).toBeNull();
+    expect(resolveActivePublicEdition([])).toBeNull();
+  });
+
+  it("selects the actual published active edition despite a newer archived record", () => {
+    const archived = makeEdition("archived", 23, "archived");
+    const current = makeEdition("active", 22, "pre_show");
+    expect(resolveActivePublicEdition([archived, current])?.id).toBe("active");
+    expect(resolveActivePublicEdition([{ ...current, published: false }])).toBeNull();
+  });
+
+  it("uses the same authoritative active edition for published current entry and result slots", () => {
+    const source = readFileSync("src/integrations/v3/delegation-source.server.ts", "utf8");
+    expect(source).toContain("import { resolveActivePublicEdition }");
+    expect(source).toContain("const currentEdition = resolveActivePublicEdition(publishedEditions)");
+    expect(source).toContain("parseProfile(profileResult.data, currentEdition?.id ?? null)");
+    expect(source).toContain("currentEdition,");
+    expect(source).toContain("if (!input.currentEdition) return null");
+    expect(source).not.toContain("const currentEdition = resolveCurrentPublicEdition(publishedEditions)");
+    expect(source).toContain("eq(\"published\", true)");
+    expect(source).toContain('"v3_public_country_profile"');
+  });
+});
