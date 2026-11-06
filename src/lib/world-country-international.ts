@@ -6,6 +6,21 @@
  * TG2 organization-scoped RLS policy. No country owner, HoD, capability,
  * representation or private organization is inferred here.
  */
+/**
+ * Publication-safe React Query snapshot. Cached successful pages are not
+ * current authority while a mount-time or background verification is pending.
+ */
+export function verifiedWorldQueryData<T>(query: {
+  isSuccess: boolean;
+  isFetchedAfterMount: boolean;
+  isFetching: boolean;
+  data: T | undefined;
+}): T | undefined {
+  return query.isSuccess && query.isFetchedAfterMount && !query.isFetching
+    ? query.data
+    : undefined;
+}
+
 export const WORLD_COUNTRY_PAGE_SIZE = 24;
 export const WORLD_AFFILIATION_PAGE_SIZE = 12;
 
