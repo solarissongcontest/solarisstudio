@@ -36,6 +36,12 @@ describe("WORLD-09 TG16 canonical domestic political records", () => {
     expect(MIGRATION).not.toMatch(/insert into public\.country_accounts/i);
     expect(MIGRATION).not.toMatch(/update public\.country_profiles/i);
   });
+  it("refuses all direct domestic RPC access when public World rollout is disabled", () => {
+    expect(MIGRATION).toContain("public.studio2_feature_enabled('terra_world_public',null)");
+    expect(MIGRATION).toContain("WORLD_NOT_PUBLISHED");
+    expect(MIGRATION.split("studio2_feature_enabled('terra_world_public'").length - 1).toBe(3);
+  });
+
   it("denies direct anonymous and authenticated mutation", () => {
     for (const table of ["world_domestic_parties","world_domestic_elections",
                          "world_history_events","world_domestic_record_revisions"]) {
