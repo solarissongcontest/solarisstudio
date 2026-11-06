@@ -38,7 +38,7 @@ describe("Organizer Jury private ballot account/show isolation", () => {
 
   it("preserves the existing versioned Jury review RPCs and does not alter official scoring authority", () => {
     expect(source).toContain('lifecycleRpc("studio2_jury_dnv_preview"');
-    expect(source).toContain('lifecycleRpc("studio2_jury_dnv_commit"');
+    expect(source).toContain('lifecycleRpc("studio2_apply_jury_dnv"');
     expect(source).toContain("p_expected_version");
     expect(source).toContain("idempotencyKey");
     expect(source).toContain("assign_jury_vote");
