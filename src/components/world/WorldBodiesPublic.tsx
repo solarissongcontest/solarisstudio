@@ -58,16 +58,18 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
     queryFn: () => readPublicWorldBodies(slug, page, { term, status }),
     enabled: valid,
     // Preserve the verified parent and search controls while the next filtered page loads.
-    placeholderData: (previous) => previous,
+    placeholderData: (previous) => previous?.organization.slug === slug ? previous : undefined,
     staleTime: 90_000,
     retry: false,
   });
+  const verifiedTotal = query.isSuccess && !query.isPlaceholderData
+    ? query.data?.total : undefined;
   useEffect(() => {
-    if (!query.isSuccess || query.isPlaceholderData || !query.data) return;
+    if (verifiedTotal === undefined) return;
     const lastPage = Math.min(WORLD_BODIES_MAX_PAGE,
-      Math.max(0, Math.ceil(query.data.total / WORLD_BODIES_PAGE_SIZE) - 1));
+      Math.max(0, Math.ceil(verifiedTotal / WORLD_BODIES_PAGE_SIZE) - 1));
     if (page > lastPage) setPage(lastPage);
-  }, [page, query.isSuccess, query.isPlaceholderData, query.data?.total]);
+  }, [page, verifiedTotal]);
   function applySearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const cleaned = cleanWorldBodySearch(input);
