@@ -381,13 +381,21 @@ export function WorldOrganizationPage({
                   {projection.data.organs.length ? (
                     <div className="mt-4 divide-y divide-border">
                       {projection.data.organs.slice(0, 5).map((organ) => (
-                        <div key={organ.id} className="flex flex-wrap items-center justify-between gap-2 py-4">
-                          <span className="font-medium">{organ.name}</span>
-                          <span className="text-xs capitalize text-muted-foreground">{organ.status}</span>
-                        </div>
+                        <Link key={organ.id} to="/world/organizations/$slug/bodies/$bodySlug"
+                          params={{ slug, bodySlug: organ.slug }}
+                          className="flex min-h-14 flex-wrap items-center justify-between gap-2 py-4 focus-visible:rounded-md focus-visible:outline focus-visible:outline-2">
+                          <span className="font-medium hover:underline">{organ.name}</span>
+                          <span className="text-xs capitalize text-muted-foreground">{organ.status} · View body</span>
+                        </Link>
                       ))}
                     </div>
                   ) : <p className="mt-4 text-sm text-muted-foreground">No public bodies have been recorded.</p>}
+                  {projection.data.organs.length > 0 ? (
+                    <Link to="/world/organizations/$slug/bodies/" params={{ slug }}
+                      className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary">
+                      Browse all public bodies <ArrowRight className="size-4" aria-hidden="true" />
+                    </Link>
+                  ) : null}
                 </section>
               </div>
               <aside className="border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-7 lg:pt-0" aria-label="Institution at a glance">
