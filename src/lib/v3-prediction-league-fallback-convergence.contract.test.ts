@@ -61,4 +61,16 @@ describe("V3 Prediction League fallback convergence", () => {
     expect(code).toContain("Retry standings");
     expect(code).toContain('value={editionId}');
   });
+  it("does not confuse paused initial queries with disabled league or empty scored rounds", () => {
+    const code = fallback();
+    expect(code).toContain("feature.isPending && feature.isPaused ? (");
+    expect(code).toContain("standings.isPending && standings.isPaused ? (");
+    expect(code).toContain("Prediction League availability not verified");
+    expect(code).toContain("Standings cannot be verified while the connection is paused.");
+    expect(code.indexOf("feature.isError ? (")).toBeLessThan(code.indexOf("feature.isPending && feature.isPaused ? ("));
+    expect(code.indexOf("feature.isPending && feature.isPaused ? (")).toBeLessThan(code.indexOf("feature.data !== true ? ("));
+    expect(code.indexOf("standings.isError ? (")).toBeLessThan(code.indexOf("standings.isPending && standings.isPaused ? ("));
+    expect(code.indexOf("standings.isPending && standings.isPaused ? (")).toBeLessThan(code.indexOf("standings.data?.length ? ("));
+  });
+
 });
