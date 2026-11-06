@@ -37,7 +37,8 @@ describe("Organizer Jury Integrity protected ballot boundary", () => {
 
   it("does not silently discard the private evidence that justifies the extra permission", () => {
     expect(server).toContain("admin_evidence");
-    expect(server).toContain('import { numberValue } from "./jury-integrity-readback"');
+    expect(server).toContain('from "./jury-integrity-readback"');
+    expect(server).toContain("numberValue, percentageValue, peerCountValue, proportionValue");
     expect(server).toContain("score: numberValue(item.score)");
     expect(server).toContain("risk: percentageValue(row.risk_score)");
     expect(server).toContain("confidence: percentageValue(row.confidence)");
