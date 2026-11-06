@@ -6,6 +6,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { ArchiveDataLoading } from "@/components/ArchiveDataState";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { suggestedPublicWorldComparisonPair } from "@/lib/world-document-comparison";
 import {
   getWorldDocumentDetail,
   getWorldDocumentIndexPage,
@@ -308,6 +309,9 @@ export function WorldDocumentReaderScreen({
   const detail = query.data;
   const provisions = detail?.version.provisions;
   const currentVersion = detail?.history.find((item) => item.publicationState === "published");
+  const comparisonPair = detail
+    ? suggestedPublicWorldComparisonPair(detail.version.versionNumber, detail.history)
+    : null;
   const historicalVersion = Boolean(detail && (
     detail.version.publicationState !== "published" ||
     (currentVersion && currentVersion.versionNumber !== detail.version.versionNumber)
@@ -547,6 +551,18 @@ export function WorldDocumentReaderScreen({
                   </ul>
                 )}
               </nav>
+              {comparisonPair && (
+                <Link
+                  to="/world/legal-compare"
+                  search={{
+                    organization, document,
+                    from: comparisonPair.from, to: comparisonPair.to,
+                  }}
+                  className="inline-flex min-h-11 items-center rounded-xl border border-border px-4 text-sm font-semibold text-primary hover:bg-surface/70"
+                >
+                  Compare with version {comparisonPair.otherVersion}
+                </Link>
+              )}
             </aside>
           </div>
         )}

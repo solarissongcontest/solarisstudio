@@ -47,6 +47,31 @@ export type WorldProvisionDifference = {
 
 const PUBLIC_STATES = new Set(["published", "superseded", "historical_source"]);
 
+/**
+ * Suggest an actual two-version public comparison from a published document
+ * reader. Never offer a draft/manager-only version or compare a version to
+ * itself. The history RPC still revalidates identity and publication on click.
+ */
+export function suggestedPublicWorldComparisonPair(
+  currentVersion: number,
+  history: readonly { versionNumber: number; publicationState: string }[],
+): { from: number; to: number; otherVersion: number } | null {
+  if (!Number.isSafeInteger(currentVersion) || currentVersion < 1) return null;
+  const available = history
+    .filter((item) =>
+      Number.isSafeInteger(item.versionNumber) && item.versionNumber >= 1 &&
+      item.versionNumber !== currentVersion && PUBLIC_STATES.has(item.publicationState))
+    .sort((a, b) => b.versionNumber - a.versionNumber);
+  const otherVersion = available[0]?.versionNumber;
+  if (otherVersion == null) return null;
+  return {
+    from: Math.min(currentVersion, otherVersion),
+    to: Math.max(currentVersion, otherVersion),
+    otherVersion,
+  };
+}
+
+
 function row(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Invalid public document " + label);
