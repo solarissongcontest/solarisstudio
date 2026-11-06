@@ -107,8 +107,16 @@ describe("V3 Jury reliability foundation", () => {
     expect(route).toContain("useServerFn(reconcileV3JurySubmission)");
     expect(route).toContain('"uncertain"');
     expect(route).toContain("Checking submission status…");
-    expect(route).toContain("readV3JuryOperation(round.show_id)");
-    expect(route).toContain("clearV3JuryOperation(round.show_id)");
+    expect(route).toContain("readV3JuryOperation(operationScope)");
+    expect(route).toContain("clearV3JuryOperation(operationScope)");
+    expect(route).toContain("actorId: userId");
+    expect(route).toContain("countryId: country.id");
+    expect(route).toContain("editionId: round.edition_id");
+    expect(route).toContain("readLegacyV3JuryOperation(round.show_id)");
+    expect(route).toContain("reconcileSubmission({ data: { operationId: legacy.operationId } })");
+    expect(route).toContain("clearLegacyV3JuryOperation(round.show_id)");
+    expect(route.indexOf("reconcileSubmission({ data: { operationId: legacy.operationId } })"))
+      .toBeLessThan(route.indexOf("prepareV3JuryOperation({"));
     expect(route).toContain("if (!v3ReliabilityEnabled)");
   });
 

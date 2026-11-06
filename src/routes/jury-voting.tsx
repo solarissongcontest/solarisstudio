@@ -47,8 +47,10 @@ import {
   type V3JuryReceipt,
 } from "@/lib/v3-jury.functions";
 import {
+  clearLegacyV3JuryOperation,
   clearV3JuryOperation,
   prepareV3JuryOperation,
+  readLegacyV3JuryOperation,
   readV3JuryOperation,
   updateV3JuryOperation,
   writeV3JuryOperation,
@@ -288,6 +290,12 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
   const submitBallot = useServerFn(submitV3JuryBallot);
   const reconcileSubmission = useServerFn(reconcileV3JurySubmission);
   const draftKey = `solaris:jury-ballot-draft:${userId}:${country.id}:${round.show_id}`;
+  const operationScope = {
+    actorId: userId,
+    countryId: country.id,
+    editionId: round.edition_id,
+    showId: round.show_id,
+  };
   const [deviceId] = useState(() => getOrCreateBrowserId(
     typeof window === "undefined" ? null : window.localStorage,
     "ssc.v3.jury.device",
@@ -417,10 +425,43 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
         if (error) throw error;
         return null;
       }
+      // V1 persisted only showId. Reconcile the previous ID through the
+      // authenticated, actor-owned server before discarding that ambiguous
+      // browser record. Never submit it as the current actor's operation ID.
+      const legacy = readLegacyV3JuryOperation(round.show_id);
+      if (legacy) {
+        setCheckingSubmission(true);
+        let recovered;
+        try {
+          recovered = await reconcileSubmission({ data: { operationId: legacy.operationId } });
+        } catch {
+          // A network failure is not evidence of non-submission. Retain the
+          // legacy ID and refuse to mint an additional request until checked.
+          throw new Error("A previous Jury attempt cannot yet be verified. Reconnect and retry before submitting another ballot.");
+        } finally {
+          setCheckingSubmission(false);
+        }
+        if (recovered.found) {
+          if (!recovered.ok || !recovered.receipt) {
+            throw new Error("The previous Jury operation has no valid authoritative receipt.");
+          }
+          if (recovered.receipt.showId === round.show_id &&
+              recovered.receipt.voterCountryId === country.id) {
+            clearLegacyV3JuryOperation(round.show_id);
+            return recovered.receipt;
+          }
+          // Same actor can have a historic receipt for another country. Its
+          // identity is not valid authority for this country's current vote.
+        }
+        // The server checked the legacy ID for this actor: no matching
+        // current-scope receipt was found. New writes get a scoped ID. The
+        // canonical server enforces at most one ballot per show/country.
+        clearLegacyV3JuryOperation(round.show_id);
+      }
       const fingerprint = JSON.stringify(ballot);
       const prepared = prepareV3JuryOperation({
-        existing: readV3JuryOperation(round.show_id),
-        showId: round.show_id,
+        existing: readV3JuryOperation(operationScope),
+        scope: operationScope,
         ballotFingerprint: fingerprint,
         newOperationId: crypto.randomUUID(),
         now: new Date().toISOString(),
@@ -469,7 +510,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
       }
     },
     onSuccess: (receipt) => {
-      if (v3ReliabilityEnabled) clearV3JuryOperation(round.show_id);
+      if (v3ReliabilityEnabled) clearV3JuryOperation(operationScope);
       setSubmissionReceipt(receipt);
       setGovernanceReceipt(captureGovernanceSnapshot("jury.vote"));
       try {
