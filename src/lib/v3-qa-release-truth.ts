@@ -44,6 +44,34 @@ function normalizeSha(value: unknown) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
 
+/**
+ * Bind release evidence to the actual checked-out source, never to a supplied
+ * environment SHA alone. A stale workflow input cannot certify another commit.
+ */
+export function assertV3QaEvidenceCheckoutIdentity(
+  gitHead: string,
+  env: { candidateSha?: string; githubSha?: string },
+): string {
+  const actual = normalizeSha(gitHead);
+  if (!SHA_PATTERN.test(actual)) {
+    throw new Error("Checked-out Git HEAD must be one exact 40-character commit SHA");
+  }
+  for (const [label, raw] of [
+    ["V3_CANDIDATE_SHA", env.candidateSha],
+    ["GITHUB_SHA", env.githubSha],
+  ] as const) {
+    if (raw === undefined || raw === "") continue;
+    const declared = normalizeSha(raw);
+    if (!SHA_PATTERN.test(declared)) {
+      throw new Error(`${label} must contain one exact 40-character commit SHA`);
+    }
+    if (declared !== actual) {
+      throw new Error(`${label} ${declared} does not match checked-out Git HEAD ${actual}`);
+    }
+  }
+  return actual;
+}
+
 function exactShaIssue(value: unknown, expectedSha: string, label: string) {
   const sha = normalizeSha(value);
   if (!SHA_PATTERN.test(sha)) return `${label} must contain one exact 40-character candidate SHA`;

@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
-import { assessV3QaReleaseTruth } from "./v3-qa-release-truth";
+import { assertV3QaEvidenceCheckoutIdentity, assessV3QaReleaseTruth } from "./v3-qa-release-truth";
 import { V3_S14_STAGES, V3_S14_INVARIANTS, V3_S14_FAILURE_INJECTIONS, V3_S14_SEED_CONTRACT } from "../../scripts/v3-s14-full-contest-spec";
 
 const roots: string[] = [];
@@ -103,6 +103,23 @@ function s15() {
 
 afterEach(() => {
   while (roots.length) rmSync(roots.pop()!, { recursive: true, force: true });
+});
+
+describe("V3 QA checkout identity", () => {
+  it("rejects stale or malformed environment SHAs instead of certifying unrelated Git source", () => {
+    expect(assertV3QaEvidenceCheckoutIdentity(SHA, {})).toBe(SHA);
+    expect(assertV3QaEvidenceCheckoutIdentity(SHA.toUpperCase(), {
+      candidateSha: SHA.toUpperCase(), githubSha: SHA,
+    })).toBe(SHA);
+    expect(() => assertV3QaEvidenceCheckoutIdentity(SHA, { candidateSha: OTHER_SHA }))
+      .toThrow("does not match checked-out Git HEAD");
+    expect(() => assertV3QaEvidenceCheckoutIdentity(SHA, { githubSha: OTHER_SHA }))
+      .toThrow("does not match checked-out Git HEAD");
+    expect(() => assertV3QaEvidenceCheckoutIdentity(SHA, { candidateSha: "refs/heads/main" }))
+      .toThrow("must contain one exact 40-character commit SHA");
+    expect(() => assertV3QaEvidenceCheckoutIdentity("invalid", {}))
+      .toThrow("Checked-out Git HEAD must be one exact 40-character commit SHA");
+  });
 });
 
 describe("V3 QA exact-SHA release truth", () => {

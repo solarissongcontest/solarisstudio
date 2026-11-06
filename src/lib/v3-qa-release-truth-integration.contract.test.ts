@@ -23,6 +23,12 @@ describe("V3 QA release-truth preflight integration", () => {
     expect(workflow).not.toContain("ref: ${{ inputs.candidate_sha }}");
   });
 
+  it("binds CLI evidence identity to the checked-out Git source, not only environment claims", () => {
+    expect(cli).toContain('execFileSync("git", ["rev-parse", "HEAD"]');
+    expect(cli).toContain("assertV3QaEvidenceCheckoutIdentity(checkedOutSha");
+    expect(cli).not.toContain("for (const candidate of [process.env.V3_CANDIDATE_SHA");
+  });
+
   it("binds the generated truth artifact to the exact requested candidate SHA", () => {
     expect(workflow).toContain("V3_CANDIDATE_SHA=$actual");
     expect(workflow).toContain("scripts/check-v3-qa-release-truth.ts");

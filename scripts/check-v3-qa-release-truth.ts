@@ -1,19 +1,18 @@
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
-import { assessV3QaReleaseTruth } from "../src/lib/v3-qa-release-truth";
+import { assertV3QaEvidenceCheckoutIdentity, assessV3QaReleaseTruth } from "../src/lib/v3-qa-release-truth";
 
 function currentSha() {
-  for (const candidate of [process.env.V3_CANDIDATE_SHA, process.env.GITHUB_SHA]) {
-    const normalized = candidate?.trim().toLowerCase();
-    if (normalized && /^[0-9a-f]{40}$/.test(normalized)) return normalized;
-  }
+  let checkedOutSha: string;
   try {
-    const value = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim().toLowerCase();
-    if (/^[0-9a-f]{40}$/.test(value)) return value;
+    checkedOutSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
   } catch {
-    // The explicit error below is more useful than leaking git stderr.
+    throw new Error("Cannot establish the checked-out Git HEAD for V3 release evidence");
   }
-  throw new Error("Cannot resolve one exact 40-character candidate SHA");
+  return assertV3QaEvidenceCheckoutIdentity(checkedOutSha, {
+    candidateSha: process.env.V3_CANDIDATE_SHA,
+    githubSha: process.env.GITHUB_SHA,
+  });
 }
 
 const candidateSha = currentSha();
