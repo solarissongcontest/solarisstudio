@@ -7,6 +7,17 @@
 import { fileURLToPath, URL } from "node:url";
 
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { loadEnv } from "vite";
+
+import { shouldOmitDisabledV3Preview } from "./scripts/v3-disabled-preview-build-policy";
+
+const isProduction = process.env.NODE_ENV === "production";
+// An explicitly enabled private preview must remain available in production.
+// Respect exported variables first, then the repository's production env files.
+const previewFlag = process.env.VITE_SOLARIS_V3_PREVIEW ??
+  loadEnv(isProduction ? "production" : "development", process.cwd(), "VITE_").VITE_SOLARIS_V3_PREVIEW;
+const omitDisabledV3Preview = shouldOmitDisabledV3Preview(isProduction, previewFlag);
+
 
 const browserAudit = process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1";
 
@@ -20,6 +31,13 @@ export default defineConfig({
         "canvas-confetti": fileURLToPath(
           new URL("./src/lib/lightweight-confetti.ts", import.meta.url),
         ),
+        ...(omitDisabledV3Preview
+          ? {
+              "@/components/v3/V3FoundationPreview": fileURLToPath(
+                new URL("./src/components/v3/V3FoundationPreview.disabled.tsx", import.meta.url),
+              ),
+            }
+          : {}),
       },
     },
     build: {

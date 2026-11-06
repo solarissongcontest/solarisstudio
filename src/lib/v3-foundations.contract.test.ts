@@ -39,6 +39,28 @@ describe("Solaris Studio V3 foundation preview", () => {
     expect(route).not.toContain("supabase");
   });
 
+  it("keeps disabled preview out of standard production builds without blocking opted-in previews", async () => {
+    const { shouldOmitDisabledV3Preview } = await import(
+      "../../scripts/v3-disabled-preview-build-policy"
+    );
+    expect(shouldOmitDisabledV3Preview(true, undefined)).toBe(true);
+    expect(shouldOmitDisabledV3Preview(true, "0")).toBe(true);
+    expect(shouldOmitDisabledV3Preview(true, "1")).toBe(false);
+    expect(shouldOmitDisabledV3Preview(false, undefined)).toBe(false);
+
+    const config = source("vite.config.ts");
+    const stub = source("src/components/v3/V3FoundationPreview.disabled.tsx");
+    const route = source("src/routes/v3-preview.tsx");
+    expect(config).toContain('"@/components/v3/V3FoundationPreview"');
+    expect(config).toContain("shouldOmitDisabledV3Preview(isProduction, previewFlag)");
+    expect(config).toContain('loadEnv(isProduction ? "production" : "development"');
+    expect(config).toContain("V3FoundationPreview.disabled.tsx");
+    expect(stub).toContain("export function V3FoundationPreview()");
+    expect(stub).not.toContain("import ");
+    expect(route).toContain("if (!enabled) throw redirect");
+    expect(route).toContain('import.meta.env.VITE_SOLARIS_V3_PREVIEW === "1"');
+  });
+
   it("keeps required status semantic rather than colour-only", () => {
     const components = source("src/components/v3/V3Foundation.tsx");
     expect(components).toContain("V3StatusChip");
