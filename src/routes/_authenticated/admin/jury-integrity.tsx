@@ -95,7 +95,7 @@ function JuryIntegrityPage() {
 
       {query.data && !query.error && !query.isLoading ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Metric label="Checked ballots" value={query.data.stats.total} icon={Scale} />
+          <Metric label="Integrity checks" value={query.data.stats.total} icon={Scale} />
           <Metric label="Review 50+" value={query.data.stats.reviewOrHigher} icon={Users} />
           <Metric label="Declaration 65+" value={query.data.stats.declarationOrHigher} icon={AlertTriangle} />
           <Metric label="High 80+" value={query.data.stats.highOrHigher} icon={ShieldAlert} />
