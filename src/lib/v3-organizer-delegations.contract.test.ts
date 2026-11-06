@@ -46,9 +46,11 @@ describe('V3 Organizer Delegations context boundary', () => {
   });
 
   it('rejects implicit shell edition fallback and binds review selection to its choosing actor', () => {
-    expect(delegationsRoute).not.toContain('useAdminContext()');
+    expect(delegationsRoute).toContain('const { editionId, setEditionContext } = useAdminContext();');
     expect(delegationsRoute).toContain('const explicitEditionId = explicitChoice?.actorId === actorId ? explicitChoice.editionId : "";');
-    expect(delegationsRoute).toContain('setExplicitChoice(event.target.value ? { actorId, editionId: event.target.value } : null)');
+    expect(delegationsRoute).toContain('setExplicitChoice(choice ? { actorId, editionId: choice.id } : null)');
+    expect(delegationsRoute).toContain('setEditionContext({ id: choice.id, slug: choice.slug, label: editionLabel(choice) })');
+    expect(delegationsRoute).toContain('const verifiedChoiceId = explicitEditionId && editionId === explicitEditionId ? explicitEditionId : "";');
     expect(delegationsRoute).toContain('Choose an edition for this Delegations review');
     expect(delegationsRoute).toContain('No edition is inferred from the Organizer shell.');
     expect(delegationsRoute).toContain('!editionsQuery.isFetching && Boolean(resolvedEditionId)');
@@ -58,7 +60,7 @@ describe('V3 Organizer Delegations context boundary', () => {
   it('resolves the Delegations overview against the exact accessible Organizer edition before querying requirements', () => {
     expect(delegationsRoute).toContain('editionsQuery.isSuccess && !editionsQuery.error');
     expect(delegationsRoute).toContain(
-      'selectOrganizerEdition(editionsQuery.data ?? [], explicitEditionId)',
+      'selectOrganizerEdition(editionsQuery.data ?? [], verifiedChoiceId)',
     );
     expect(delegationsRoute).toContain('const resolvedEditionId = selectedEdition?.id ?? "";');
     expect(delegationsRoute).toContain('queryFn: () => loadConfirmationRequirements(resolvedEditionId)');
@@ -125,7 +127,7 @@ describe('V3 Organizer Delegations context boundary', () => {
 
   it('fails closed before rendering country detail without an exact selected edition', () => {
     expect(countriesRoute).toContain(
-      'const selectedEdition = selectOrganizerEdition(editionsQuery.data ?? [], explicitEditionId);',
+      'const selectedEdition = selectOrganizerEdition(editionsQuery.data ?? [], verifiedChoiceId);',
     );
     expect(countriesRoute).toContain("if (pathname.startsWith('/admin/countries/'))");
     expect(countriesRoute).toContain('if (!selectedEdition)');
