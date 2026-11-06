@@ -27,6 +27,7 @@ import {
 import {
   assertOrganizerResponsePageContinuity,
   safeOrganizerResponseSongUrl,
+  assertOrganizerNextInLineRowsInScope,
 } from "@/lib/v3-organizer-response-queue-guards";
 
 export const Route = createFileRoute("/confirmations/admin/responses")({
@@ -245,6 +246,9 @@ function ConfirmationResponsesList() {
   const [editions, setEditions] = useState<ConfirmationEdition[]>([]);
   const [rows, setRows] = useState<ResponseRow[]>([]);
   const [nextRows, setNextRows] = useState<NextInLineRow[]>([]);
+  const [loadingNextRows, setLoadingNextRows] = useState(false);
+  const [nextError, setNextError] = useState<string | null>(null);
+  const nextLoadGenerationRef = useRef(0);
   const [loadingEditions, setLoadingEditions] = useState(true);
   const [loadingResponses, setLoadingResponses] = useState(false);
   const [loadingMoreResponses, setLoadingMoreResponses] = useState(false);
@@ -337,23 +341,47 @@ function ConfirmationResponsesList() {
 
   useEffect(() => {
     let alive = true;
+    const generation = ++nextLoadGenerationRef.current;
     setNextRows([]);
-    if (!editionId) return () => { alive = false; };
+    setNextError(null);
+    if (!editionId || mode !== "next_in_line") {
+      setLoadingNextRows(false);
+      return () => {
+        alive = false;
+        if (generation === nextLoadGenerationRef.current) nextLoadGenerationRef.current += 1;
+      };
+    }
 
+    setLoadingNextRows(true);
     void (async () => {
-      const result = await confirmationsSupabase.rpc("admin_confirmation_next_in_line", {
-        _edition_id: editionId,
-      });
-      if (!alive) return;
-      if (result.error) {
-        setError((current) => current ?? result.error.message);
-      } else {
-        setNextRows(Array.isArray(result.data) ? (result.data as unknown as NextInLineRow[]) : []);
+      try {
+        const result = await confirmationsSupabase.rpc("admin_confirmation_next_in_line", {
+          _edition_id: editionId,
+        });
+        if (!alive || generation !== nextLoadGenerationRef.current ||
+            activeEditionRef.current !== editionId) return;
+        if (result.error) throw result.error;
+        if (!Array.isArray(result.data)) {
+          throw new Error("Next in Line returned an invalid response payload.");
+        }
+        setNextRows(assertOrganizerNextInLineRowsInScope(
+          result.data as NextInLineRow[], editionId,
+        ));
+      } catch (caught) {
+        if (!alive || generation !== nextLoadGenerationRef.current ||
+            activeEditionRef.current !== editionId) return;
+        setNextRows([]);
+        setNextError(caught instanceof Error ? caught.message : "Next in Line could not be loaded.");
+      } finally {
+        if (alive && generation === nextLoadGenerationRef.current) setLoadingNextRows(false);
       }
     })();
 
-    return () => { alive = false; };
-  }, [editionId, responseReloadKey]);
+    return () => {
+      alive = false;
+      if (generation === nextLoadGenerationRef.current) nextLoadGenerationRef.current += 1;
+    };
+  }, [editionId, mode, responseReloadKey]);
 
   async function loadMoreResponses() {
     if (!editionId || !responseCursor || loadingMoreResponses || loadMoreInFlightRef.current) return;
@@ -445,14 +473,16 @@ function ConfirmationResponsesList() {
   const issueCount = rows.filter((row) => responseCardState(row) === "issue").length;
   const readyCount = rows.filter((row) => responseCardState(row) === "ready").length;
   const outdatedCount = rows.filter(hasOutdatedOrganizerResponseReview).length;
-  const loading = loadingEditions || (Boolean(editionId) && loadingResponses);
+  const loading = loadingEditions || (Boolean(editionId) &&
+    (mode === "next_in_line" ? loadingNextRows : loadingResponses));
+  const visibleError = mode === "next_in_line" && editionId ? nextError : error;
 
   return (
     <div className="admin-page pb-5" data-v3-organizer-entry-review="">
       <AdminPageHeader
         eyebrow="Contest · Entry Review"
         title="Responses"
-        description="Review confirmation and entry state for the exact edition selected in Solaris Organizer. The response queue is fetched through the bounded edition-scoped server projection; historical editions are never downloaded into this browser view."
+        description="Review confirmation and entry state for the exact edition selected in Solaris Organizer. The response queue is fetched through the bounded edition-scoped server projection. Next in Line is loaded separately only when opened; historical editions are never downloaded into this browser view."
         actions={<Link to="/confirmations/admin" className="admin-action-secondary">Delegations overview</Link>}
       />
 
@@ -517,13 +547,13 @@ function ConfirmationResponsesList() {
 
       {loading ? (
         <AdminCard className="py-8 text-center text-sm text-muted-foreground">Loading exact-edition responses…</AdminCard>
-      ) : error ? (
+      ) : visibleError ? (
         <AdminCard className="mb-4 border-rose-200/20 bg-rose-200/[0.045]">
           <div className="flex items-start gap-3">
             <ShieldAlert className="mt-0.5 size-5 shrink-0 text-rose-200" />
             <div className="space-y-2">
               <p className="font-semibold">Responses could not be loaded safely</p>
-              <p className="text-sm text-muted-foreground">{error}</p>
+              <p className="text-sm text-muted-foreground">{visibleError}</p>
               <button type="button" className="admin-action-secondary"
                 onClick={() => setResponseReloadKey((current) => current + 1)}>
                 Reload current edition
@@ -595,7 +625,7 @@ function OrganizerNextInLineSongLink({ sourceUrl }: { sourceUrl: string | null }
     ) : null;
   }
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer"
+    <a href={href} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer"
       className="mt-2 inline-block text-xs text-sky-100/75 underline">
       Open song
     </a>
