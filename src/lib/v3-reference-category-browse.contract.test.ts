@@ -12,6 +12,8 @@ describe("Reference category browsing", () => {
     expect(source).toContain('kind === "all" || destination.kind === kind');
     expect(source).toContain("browseDestinations.map(({ label, description, href }) =>");
     expect(source).not.toContain("BROWSE_DESTINATIONS.map(");
+    expect(source).toContain('aria-live="polite"');
+    expect(source).toContain('kind === "all" ? "Browse published Solaris"');
   });
 
   it("does not invent an unpublished entry index when a category is empty", () => {
