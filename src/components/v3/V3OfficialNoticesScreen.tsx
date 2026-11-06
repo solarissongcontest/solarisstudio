@@ -16,6 +16,7 @@ import {
   V3_OFFICIAL_NOTICE_FILTER_STATES,
   v3OfficialNoticeAcknowledgementState,
   v3OfficialNoticeNeedsAction,
+  v3OfficialNoticeOutstandingAcknowledgement,
   v3OfficialNoticeReason,
 } from "@/lib/v3-official-notices";
 import {
@@ -106,7 +107,12 @@ export function V3OfficialNoticesScreen({
     ? items.find((item) => item.notice.id === selectedId) ?? null
     : null;
   const actionCount = items.filter((item) =>
-    v3OfficialNoticeNeedsAction(item.notice, item.inboxState),
+    v3OfficialNoticeOutstandingAcknowledgement(item.notice, item.inboxState, item.receipt),
+  ).length;
+  const archivedOutstandingCount = items.filter(
+    (item) =>
+      item.inboxState === "archived" &&
+      v3OfficialNoticeOutstandingAcknowledgement(item.notice, item.inboxState, item.receipt),
   ).length;
   const unreadCount = items.filter((item) => item.inboxState === "unread").length;
   const hasLoadedInbox = !loading && !loadError && !unavailable;
@@ -141,6 +147,13 @@ export function V3OfficialNoticesScreen({
               <p className="mt-1 text-2xl font-semibold">{hasLoadedInbox ? items.length : "—"}</p>
             </V3Surface>
           </div>
+          {hasLoadedInbox && archivedOutstandingCount > 0 ? (
+            <p className="mt-3 text-xs leading-5 text-[var(--v3-text-secondary)]" role="status">
+              {archivedOutstandingCount} archived notice{archivedOutstandingCount === 1 ? "" : "s"} still
+              require acknowledgement. Choose the Archived filter and restore each notice
+              before acknowledging it. Archiving does not complete a required acknowledgement.
+            </p>
+          ) : null}
         </V3Section>
 
         <V3Section title="Inbox">
