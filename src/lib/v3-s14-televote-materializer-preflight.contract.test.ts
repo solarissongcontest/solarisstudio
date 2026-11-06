@@ -31,6 +31,20 @@ describe("S14 Televote materializer preflight before local writes", () => {
     expect(bindingGuard).toBeLessThan(publish);
   });
 
+  it("accepts only country-mode rounds and explicit country entries before any write", () => {
+    const roundModeGuard = adapter.indexOf('if (round.participant_mode !== "countries")');
+    const entryModeGuard = adapter.indexOf('if (row.entry_type !== "country"');
+    expect(adapter).toContain('.select("id,edition_id,status,participant_mode,total_points_to_distribute');
+    expect(adapter).toContain('.select("entry_type,country_code,display_order")');
+    expect(adapter).not.toContain('row.country_code ?? row.entry_key');
+    expect(roundModeGuard).toBeGreaterThan(-1);
+    expect(entryModeGuard).toBeGreaterThan(roundModeGuard);
+    expect(entryModeGuard).toBeLessThan(firstWrite);
+    expect(entryModeGuard).toBeLessThan(influenceWrite);
+    expect(entryModeGuard).toBeLessThan(insert);
+    expect(entryModeGuard).toBeLessThan(publish);
+  });
+
   it("checks authoritative show, edition and roster before clearing, inserting or publishing results", () => {
     const show = adapter.indexOf('.from("shows")');
     const participants = adapter.indexOf('.from("participants")');
