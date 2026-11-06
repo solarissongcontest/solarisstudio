@@ -27,6 +27,9 @@ declare
   v_reference text:=nullif(btrim(coalesce(p_source_reference,'')),'');
   v_note text:=nullif(btrim(coalesce(p_source_note,'')),'');
 begin
+  -- The public World rollout is a server-owned mutation gate.
+  if not coalesce(public.studio2_feature_enabled('terra_world_public',null),false)
+  then raise exception using errcode='25006',message='WORLD_INTAKE_ROLLOUT_DISABLED'; end if;
   if auth.uid() is null or p_organization_id is null or
      not public.world_access_allowed(
        'world.measure.register_external',p_organization_id,null,null,null,null)
