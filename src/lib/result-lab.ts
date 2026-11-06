@@ -441,7 +441,14 @@ export function simulateResultLab({
 export function resultLabCsv(rows: ResultLabRow[]) {
   const escape = (value: string | number | null) => {
     const text = value == null ? "" : String(value);
-    return `"${text.replaceAll('"', '""')}"`;
+    // Quoted CSV fields can still be interpreted as spreadsheet formulas.
+    // Prefix only suspicious text values; legitimate negative numeric ranks
+    // remain numbers, and the original published names remain unchanged.
+    const safeText =
+      typeof value === "string" && /^[\s\p{Cc}]*[=+\-@]/u.test(text)
+        ? `'${text}`
+        : text;
+    return `"${safeText.replaceAll('"', '""')}"`;
   };
 
   const header = [
