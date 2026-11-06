@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -20,6 +20,11 @@ import {
   type CountryConfirmationResponse,
 } from "@/lib/confirmation-country-account";
 import { useMyCountryAccount } from "@/lib/country-account";
+import {
+  advanceConfirmationEditScope,
+  canUseConfirmationEditToken,
+  type ConfirmationEditScope,
+} from "@/lib/confirmation-edit-scope";
 import { useCountries, useEditions } from "@/lib/data";
 import {
   buildEntryReadinessModel,
@@ -164,8 +169,57 @@ export function MySolarisEntryModule() {
     };
   }, [queryClient, actorId, country?.id, ownCountry?.id]);
 
+  // The edit-token request may finish after a user, country, edition or
+  // submission change. Never navigate with a token from a previous context.
+  const editableConfirmation = (confirmationAccessQuery.data?.responses ?? []).find(
+    (response) => response.edition_id === editionId,
+  ) ?? null;
+  const editScopeInput = useMemo(
+    () => ({
+      actorId,
+      countryId: ownCountry?.id ?? null,
+      editionId: editionId || null,
+      roundId: editableConfirmation?.round_id ?? null,
+      authorized: Boolean(
+        actorId &&
+          ownCountry?.id &&
+          editableConfirmation?.can_edit &&
+          !organizerInspection &&
+          access?.countryStatus === "active",
+      ),
+    }),
+    [
+      actorId,
+      ownCountry?.id,
+      editionId,
+      editableConfirmation?.round_id,
+      editableConfirmation?.can_edit,
+      organizerInspection,
+      access?.countryStatus,
+    ],
+  );
+  const editScopeRef = useRef<ConfirmationEditScope>({ ...editScopeInput, generation: 0 });
+  useEffect(() => {
+    editScopeRef.current = advanceConfirmationEditScope(editScopeRef.current, editScopeInput);
+    return () => {
+      // Invalidate in-flight results even when unmounting and remounting the
+      // same delegation/edition. A-B-A context hops must not reuse an old token.
+      editScopeRef.current = {
+        ...editScopeRef.current,
+        authorized: false,
+        generation: editScopeRef.current.generation + 1,
+      };
+    };
+  }, [editScopeInput]);
+
   const editConfirmation = useMutation({
-    mutationFn: async (response: CountryConfirmationResponse) => {
+    mutationFn: async ({
+      response,
+      scope,
+    }: {
+      response: CountryConfirmationResponse;
+      scope: ConfirmationEditScope;
+    }) => {
       const result = await createCountryAccountConfirmationEditToken(response.round_id);
       if (!result.ok || !result.token) {
         if (result.reason === "editing_closed") throw new Error("Editing is closed for this submission.");
@@ -173,10 +227,16 @@ export function MySolarisEntryModule() {
         if (result.reason === "not_authenticated") throw new Error("Sign in to the country account again, then retry.");
         throw new Error("This submission could not be opened for editing.");
       }
-      return result.token;
+      return { token: result.token, scope };
     },
     onMutate: () => setConfirmationEditError(null),
-    onSuccess: (token) => {
+    onSuccess: ({ token, scope }) => {
+      if (!canUseConfirmationEditToken(scope, editScopeRef.current)) {
+        setConfirmationEditError(
+          "Your account or submission changed while opening the editor. Reopen the current submission to try again.",
+        );
+        return;
+      }
       window.location.assign(`/confirmations/edit/${encodeURIComponent(token)}`);
     },
     onError: (error) => {
@@ -278,10 +338,7 @@ export function MySolarisEntryModule() {
   const entry = snapshot?.context.entry ?? null;
   const waitingForOrganizerReview =
     entry?.source === "confirmations" && entry.status === "pending";
-  const currentConfirmation =
-    (confirmationAccessQuery.data?.responses ?? []).find(
-      (response) => response.edition_id === editionId,
-    ) ?? null;
+  const currentConfirmation = editableConfirmation;
 
   return (
     <AppShell>
@@ -439,8 +496,11 @@ export function MySolarisEntryModule() {
                     {currentConfirmation?.can_edit && !organizerInspection ? (
                       <button
                         type="button"
-                        disabled={editConfirmation.isPending}
-                        onClick={() => editConfirmation.mutate(currentConfirmation)}
+                        disabled={editConfirmation.isPending || !editScopeInput.authorized}
+                        onClick={() => editConfirmation.mutate({
+                          response: currentConfirmation,
+                          scope: { ...editScopeRef.current },
+                        })}
                         className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold disabled:opacity-50"
                       >
                         {editConfirmation.isPending ? "Opening…" : "Edit submission"}
