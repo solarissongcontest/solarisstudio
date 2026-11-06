@@ -3,6 +3,8 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft, BookOpen, Landmark, Pencil, Plus, Vote } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 
+import { WorldDomesticLegislature } from "@/components/world/WorldDomesticLegislature";
+
 import {
   readWorldDomesticCountry, writeWorldDomesticCanon,
   type DomesticCountry, type DomesticParty, type DomesticElection, type DomesticRecordKind,
@@ -254,6 +256,7 @@ export function WorldDomesticPolitics({ code }: { code: string }) {
             <p className="mt-4 text-sm text-muted-foreground">No published domestic election history yet.</p>}
         </section>
       </div>
+      <WorldDomesticLegislature code={code} />
       {country.isController ? <DomesticEditor country={country} /> : null}
     </> : null}
   </div>;
