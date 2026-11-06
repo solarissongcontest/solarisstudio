@@ -107,10 +107,11 @@ describe("TG9 public statements: privacy and historical fidelity", () => {
       idempotencyKey: "key-1",
     };
     mocks.rpc.mockResolvedValueOnce({
-      data: { ok: true, statementId: "statement-1", versionId: "version-1",
-        revision: 1, operationId: "operation-1", replayed: false },
-      error: null,
-    }).mockResolvedValueOnce({ data: { ok: false }, error: null });
+      data: { status: "succeeded", replayed: false, result: {
+        ok: true, statementId: "statement-1", versionId: "version-1",
+        revision: 1, operationId: "operation-1",
+      } }, error: null,
+    }).mockResolvedValueOnce({ data: { status: "failed", result: { ok: false } }, error: null });
     await expect(issueWorldOfficialStatement(args)).resolves.toMatchObject({
       ok: true, revision: 1, operationId: "operation-1",
     });
