@@ -120,6 +120,8 @@ export function WorldUnifiedSearchPage({
     queryFn: fetchFeaturedWorldOrganizations,
     enabled: !canSearch && showOrganizations,
     staleTime: 90_000,
+    // Recheck publication when revisiting this result page, not just on cache expiry.
+    refetchOnMount: "always",
     retry: false,
   });
   // Separate caches mean paging countries does not trigger an unnecessary
@@ -129,6 +131,8 @@ export function WorldUnifiedSearchPage({
     queryFn: () => fetchWorldCountrySearchPage(normalized, countryPage),
     enabled: canSearch && showCountries,
     staleTime: 90_000,
+    // Recheck publication when revisiting this result page, not just on cache expiry.
+    refetchOnMount: "always",
     retry: false,
   });
   const organizationQuery = useQuery({
@@ -136,6 +140,8 @@ export function WorldUnifiedSearchPage({
     queryFn: () => fetchWorldOrganizationSearchPage(normalized, organizationPage),
     enabled: canSearch && showOrganizations,
     staleTime: 90_000,
+    // Recheck publication when revisiting this result page, not just on cache expiry.
+    refetchOnMount: "always",
     retry: false,
   });
   const verifiedFeatured = !canSearch && showOrganizations && worldPublicQueryVerified(featured)
