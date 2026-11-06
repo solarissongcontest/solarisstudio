@@ -127,7 +127,7 @@ describe("TG13 Ethics Committee findings and nonbinding recommendations",()=>{
     expect(runner).toContain("supabase status -o json");
     expect(runner).toContain("new URL(api)");
     expect(runner).toContain("new URL(db)");
-    expect(runner).toContain("a.hostname");
+    expect(runner).toContain("u.hostname");
     expect(runner).toContain("d.search || d.hash");
     expect(runner).not.toContain("eval ");
     expect(runner).not.toContain("DATABASE_URL");
