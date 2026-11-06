@@ -11,6 +11,7 @@ import {
  * The route must be mounted behind the canonical WorldPublicGate.
  */
 export const WORLD_UNIFIED_SEARCH_LIMIT = 12;
+export const WORLD_UNIFIED_SEARCH_MAX_PAGE = 1000;
 
 export type WorldSearchCountry = {
   id: string;
@@ -71,10 +72,31 @@ export function parseWorldSearchCountries(raw: unknown): WorldSearchCountry[] {
   });
 }
 
-function checkedCount(count: unknown, returned: number): number {
+/**
+ * Parse an untrusted URL page as a bounded page index. Bad bookmarks safely
+ * start at the first page instead of triggering unbounded database offsets.
+ */
+export function parseWorldSearchPage(value: unknown): number {
+  if (typeof value !== "string" && typeof value !== "number") return 0;
+  if (typeof value === "string" && !/^(0|[1-9][0-9]{0,3})$/.test(value)) return 0;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= 0 &&
+    parsed <= WORLD_UNIFIED_SEARCH_MAX_PAGE ? parsed : 0;
+}
+
+function checkedPage(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 0 || value > WORLD_UNIFIED_SEARCH_MAX_PAGE) {
+    throw new Error("Invalid bounded World search page.");
+  }
+  return value;
+}
+
+/** Check an exact count against a bounded requested page without false zeros. */
+function checkedCount(count: unknown, returned: number, page: number): number {
   if (typeof count !== "number" || !Number.isSafeInteger(count) ||
-    count < 0 || count < returned || returned > WORLD_UNIFIED_SEARCH_LIMIT ||
-    (count > 0 && returned === 0)) {
+    count < 0 || returned > WORLD_UNIFIED_SEARCH_LIMIT ||
+    (page === 0 && count > 0 && returned === 0) ||
+    (returned > 0 && page * WORLD_UNIFIED_SEARCH_LIMIT + returned > count)) {
     throw new Error("World search count could not be verified.");
   }
   return count;
@@ -86,7 +108,11 @@ export function verifiedWorldSearchTerm(value: string): string {
 
 export async function fetchWorldUnifiedSearch(
   raw: string,
+  countryPage = 0,
+  organizationPage = 0,
 ): Promise<WorldUnifiedSearchResult> {
+  checkedPage(countryPage);
+  checkedPage(organizationPage);
   const term = verifiedWorldSearchTerm(raw);
   if (term.length < 2) {
     return { term, countries: [], organizations: [], countryTotal: 0, organizationTotal: 0 };
@@ -101,14 +127,16 @@ export async function fetchWorldUnifiedSearch(
       .order("name", { ascending: true })
       .order("short_code", { ascending: true })
       .order("id", { ascending: true })
-      .range(0, WORLD_UNIFIED_SEARCH_LIMIT - 1),
+      .range(countryPage * WORLD_UNIFIED_SEARCH_LIMIT,
+        (countryPage + 1) * WORLD_UNIFIED_SEARCH_LIMIT - 1),
     (supabase as any).from("world_organizations")
       .select(ORGANIZATION_FIELDS, { count: "exact" })
       .eq("public_visibility", "public")
       .or("official_name.ilike.%" + term + "%,short_name.ilike.%" + term + "%")
       .order("official_name", { ascending: true })
       .order("slug", { ascending: true })
-      .range(0, WORLD_UNIFIED_SEARCH_LIMIT - 1),
+      .range(organizationPage * WORLD_UNIFIED_SEARCH_LIMIT,
+        (organizationPage + 1) * WORLD_UNIFIED_SEARCH_LIMIT - 1),
   ]);
 
   if (countryResult.error || organizationResult.error) {
@@ -130,7 +158,7 @@ export async function fetchWorldUnifiedSearch(
     term,
     countries,
     organizations,
-    countryTotal: checkedCount(countryResult.count, countries.length),
-    organizationTotal: checkedCount(organizationResult.count, organizations.length),
+    countryTotal: checkedCount(countryResult.count, countries.length, countryPage),
+    organizationTotal: checkedCount(organizationResult.count, organizations.length, organizationPage),
   };
 }
