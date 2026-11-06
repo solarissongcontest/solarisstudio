@@ -91,6 +91,21 @@ describe('V3 Organizer Control Room consequence reviews', () => {
     expect(route).toContain('reviewChecking || transitionEdition.isPending');
   });
 
+  it('never allows compact SEV-1 creation to bypass Incident Command crisis review', () => {
+    expect(route).toContain("INCIDENT_SEVERITIES.filter((severity) => severity !== 'sev1')");
+    expect(route).toContain("if (incidentSeverity === 'sev1') return;");
+    expect(route).toContain("snapshot.editionId !== editionId");
+    expect(route).toContain('SEV-1 activates crisis handling.');
+    expect(route).toContain('to="/admin/incidents"');
+  });
+
+  it('retains the current-main exact-edition identity guard on reviewed commands', () => {
+    expect(route).toContain("controlRoomReviewMatchesEdition(");
+    expect(route).toContain("pendingReview.editionId,");
+    expect(route).toContain("editionIdRef.current,");
+    expect(route).toContain("snapshot.editionId,");
+  });
+
   it('states the System transition-authority boundary instead of faking parity', () => {
     expect(route).toContain('System #587');
     expect(route).toContain('server-side expected-version/CAS');

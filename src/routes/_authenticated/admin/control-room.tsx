@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { AlertTriangle, CheckCircle2, RadioTower, ShieldAlert } from 'lucide-react';
 
@@ -26,6 +26,7 @@ import {
   type IncidentStatus,
 } from '@/lib/incident-command';
 import { studio2ControlRoom, type Studio2ControlRoomSnapshot } from '@/lib/studio2-control-room';
+import { controlRoomReviewMatchesEdition } from '@/lib/v3-organizer-control-room-review';
 
 type TransitionRisk = 'normal' | 'elevated' | 'critical';
 
@@ -211,7 +212,9 @@ function ControlRoomV2() {
 
   const submitIncident = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!incidentTitle.trim()) return;
+    if (!incidentTitle.trim() || !editionId || !snapshot || snapshot.editionId !== editionId) return;
+    // SEV-1 triggers crisis treatment: use the reviewed Incident Command path.
+    if (incidentSeverity === 'sev1') return;
     createIncident.mutate();
   };
 
@@ -300,7 +303,11 @@ function ControlRoomV2() {
     setReviewError(null);
     setReviewChecking(true);
     try {
-      if (editionIdRef.current !== reviewedEditionId) {
+      if (!snapshot || !controlRoomReviewMatchesEdition(
+        pendingReview.editionId,
+        editionIdRef.current,
+        snapshot.editionId,
+      )) {
         throw new Error('Organizer edition context changed after this review opened. Nothing was applied.');
       }
 
@@ -721,7 +728,7 @@ function ControlRoomV2() {
                     onChange={(event) => setIncidentSeverity(event.target.value as IncidentSeverity)}
                     className="min-h-10 rounded-xl border border-border bg-background px-2 text-sm text-foreground"
                   >
-                    {INCIDENT_SEVERITIES.map((severity) => (
+                    {INCIDENT_SEVERITIES.filter((severity) => severity !== 'sev1').map((severity) => (
                       <option key={severity} value={severity}>
                         {severity.toUpperCase()}
                       </option>
@@ -735,6 +742,13 @@ function ControlRoomV2() {
                     {createIncident.isPending ? 'Creating…' : 'Create incident'}
                   </button>
                 </form>
+                <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
+                  SEV-1 activates crisis handling. Create and review critical incidents in{' '}
+                  <Link to="/admin/incidents" className="font-semibold text-sky-100 underline underline-offset-2">
+                    Incident Command
+                  </Link>
+                  , where the crisis consequence requires explicit confirmation.
+                </p>
 
                 {snapshot.incidents.length ? (
                   <div className="space-y-2">
