@@ -6,7 +6,13 @@ const str=(v:unknown):v is string=>typeof v==="string";
 const opt=(v:unknown):v is string|null=>v===null||str(v);
 const rev=(v:unknown):v is number=>typeof v==="number"&&Number.isSafeInteger(v)&&v>0;
 
-export type WorldLorePerson={id:string;displayName:string;biography:string|null;published:boolean;revision:number};
+export type WorldLorePerson={
+  id:string;displayName:string;nativeName:string|null;
+  biography:string|null;publicSummary:string|null;
+  status:"active"|"deceased"|"historical"|"unknown";
+  bornOn:string|null;diedOn:string|null;
+  published:boolean;revision:number;
+};
 export type WorldDomesticOffice={id:string;title:string;officeType:string;description:string|null;published:boolean;revision:number};
 export type WorldDomesticOfficeTerm={
   id:string;officeId:string;holderPersonId:string;
@@ -26,6 +32,8 @@ export type OfficialMutation={
   expectedRevision:number;operationId:string;idempotencyKey:string;
 };
 const iso=(v:unknown):v is string=>str(v)&&Number.isFinite(Date.parse(v));
+const date=(v:unknown):v is string|null=>v===null||
+  (str(v)&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v)));
 
 export function parseWorldDomesticOfficials(v:unknown,code:string):WorldDomesticOfficials|null{
   if(v==null)return null;
@@ -35,10 +43,16 @@ export function parseWorldDomesticOfficials(v:unknown,code:string):WorldDomestic
     v.people.length>100||v.offices.length>50||v.terms.length>500)
     throw new Error("Invalid World officials projection");
   const people=v.people.map((p):WorldLorePerson=>{
-    if(!obj(p)||!uuid.test(String(p.id))||!str(p.displayName)||!opt(p.biography)||
+    if(!obj(p)||!uuid.test(String(p.id))||!str(p.displayName)||
+      !opt(p.nativeName)||!opt(p.biography)||!opt(p.publicSummary)||
+      !["active","deceased","historical","unknown"].includes(String(p.status))||
+      !date(p.bornOn)||!date(p.diedOn)||
       typeof p.published!=="boolean"||!rev(p.revision))
       throw new Error("Invalid fictional person projection");
-    return{id:p.id as string,displayName:p.displayName,biography:p.biography,
+    return{id:p.id as string,displayName:p.displayName,nativeName:p.nativeName,
+      biography:p.biography,publicSummary:p.publicSummary,
+      status:p.status as WorldLorePerson["status"],
+      bornOn:p.bornOn,diedOn:p.diedOn,
       published:p.published,revision:p.revision};
   });
   const offices=v.offices.map((o):WorldDomesticOffice=>{
