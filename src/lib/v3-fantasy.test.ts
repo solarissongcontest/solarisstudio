@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   canEditV3FantasyRoster,
+  canShowV3FantasyTeamScore,
   fantasyBudgetUsed,
   fantasyRosterReady,
   resolveV3FantasyState,
   restoreV3FantasyRoster,
+  shouldRestoreV3FantasyRoster,
   type V3FantasyGame,
 } from "./v3-fantasy";
 
@@ -32,6 +34,27 @@ describe("V3 Fantasy projection", () => {
     expect(resolveV3FantasyState({ game: { ...game, status: "scored" }, team: null, nowMs: Date.parse("2026-10-18T12:00:00Z") })).toBe("settled");
   });
 
+  it("does not leak an individual score during partial game scoring", () => {
+    const team = {
+      id: "team", game_id: game.id, profile_id: "viewer",
+      state: "scored", captain_country_id: null, score: 42,
+    };
+    const beforeScoring = { ...game, status: "locked" };
+    const scoring = { ...game, status: "scoring" };
+    const settled = { ...game, status: "scored" };
+    const nowMs = Date.parse("2026-10-18T12:00:00Z");
+    expect(resolveV3FantasyState({ game: scoring, team, nowMs })).toBe("live_scoring");
+    expect(resolveV3FantasyState({ game: beforeScoring, team, nowMs })).toBe("locked");
+    expect(canShowV3FantasyTeamScore(scoring, team)).toBe(false);
+    expect(canShowV3FantasyTeamScore(beforeScoring, team)).toBe(false);
+    expect(canShowV3FantasyTeamScore(settled, team)).toBe(true);
+    expect(canShowV3FantasyTeamScore(settled, { ...team, game_id: "other" })).toBe(false);
+    expect(canShowV3FantasyTeamScore(settled, { ...team, state: "submitted" })).toBe(false);
+    expect(canShowV3FantasyTeamScore(settled, { ...team, score: Number.NaN })).toBe(false);
+    expect(canShowV3FantasyTeamScore(settled, { ...team, score: Number.POSITIVE_INFINITY })).toBe(false);
+    expect(canShowV3FantasyTeamScore(settled, { ...team, score: null })).toBe(false);
+  });
+
   it("restores the canonical saved roster and captain instead of reopening an empty builder", () => {
     const restored = restoreV3FantasyRoster(
       { id: "team", game_id: game.id, profile_id: "viewer", state: "submitted", captain_country_id: "country-b", score: null },
@@ -41,6 +64,13 @@ describe("V3 Fantasy projection", () => {
       ],
     );
     expect(restored).toEqual({ selected: ["country-a", "country-b"], captain: "country-b" });
+  });
+
+  it("preserves unsaved drafts on refetch but restores on account or game switch", () => {
+    expect(shouldRestoreV3FantasyRoster({ rosterScope: "A:game-1", draftScope: "A:game-1", draftDirty: true })).toBe(false);
+    expect(shouldRestoreV3FantasyRoster({ rosterScope: "A:game-1", draftScope: "A:game-1", draftDirty: false })).toBe(true);
+    expect(shouldRestoreV3FantasyRoster({ rosterScope: "B:game-1", draftScope: "A:game-1", draftDirty: true })).toBe(true);
+    expect(shouldRestoreV3FantasyRoster({ rosterScope: "A:game-2", draftScope: "A:game-1", draftDirty: true })).toBe(true);
   });
 
   it("derives roster readiness from exact size and server-published costs", () => {
@@ -53,6 +83,11 @@ describe("V3 Fantasy projection", () => {
     expect(fantasyRosterReady({ game, selected: ["country-a", "country-b"], choices })).toBe(true);
     expect(fantasyRosterReady({ game, selected: ["country-b", "country-c"], choices })).toBe(false);
     expect(fantasyRosterReady({ game, selected: ["country-a"], choices })).toBe(false);
+    expect(fantasyRosterReady({ game, selected: ["country-a", "country-a"], choices })).toBe(false);
+    expect(fantasyRosterReady({ game, selected: ["country-a", "not-a-country"], choices })).toBe(false);
+    expect(fantasyRosterReady({ game, selected: ["country-a", "country-b"], choices: choices.map((choice) => choice.country_id === "country-b" ? { ...choice, eligible: false } : choice) })).toBe(false);
+    expect(fantasyRosterReady({ game, selected: ["country-a", "country-b"], choices: choices.map((choice) => choice.country_id === "country-b" ? { ...choice, game_id: "another-game" } : choice) })).toBe(false);
+    expect(fantasyRosterReady({ game, selected: ["country-a", "country-b"], choices: choices.map((choice) => choice.country_id === "country-b" ? { ...choice, cost: Number.NaN } : choice) })).toBe(false);
   });
 
   it("only exposes editing while the authoritative lifecycle still permits roster changes", () => {
