@@ -43,7 +43,7 @@ export function parseReferenceSearchRows(value: unknown): ReferenceSearchItem[] 
     // directly to the same canonical country identity as /countries/$code.
     const canonicalHref = legacyWiki
       ? `/countries/${href.slice("/wiki/".length).toUpperCase()}`
-      : sourceKind === "country"
+      : sourceKind === "country" || sourceKind === "entry"
         ? `/countries/${href.slice("/countries/".length).toUpperCase()}`
         : href;
     const kind: ReferenceResultKind = legacyWiki ? "country" : row.result_type as ReferenceResultKind;
