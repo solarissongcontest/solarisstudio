@@ -41,7 +41,8 @@ describe("V3 public Shows bounded browse", () => {
     );
     expect(source).toContain("getV3ShowBrowsePage(");
     expect(source).toContain("browseWindowState.key === browseFilterKey ? browseWindowState.page : 1");
-    expect(source).toContain("JSON.stringify([search.trim(), editionId, kind, state])");
+    expect(source).toContain("const normalizedSearch = search.trim().toLowerCase()");
+    expect(source).toContain("JSON.stringify([normalizedSearch, editionId, kind, state])");
     expect(source).toContain("setBrowseWindowState((previous) => (");
     expect(source).toContain("browseWindow.visible.map((item)");
     expect(source).not.toContain("browseItems.map((item)");
