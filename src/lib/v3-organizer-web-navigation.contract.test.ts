@@ -9,9 +9,12 @@ describe("Organizer V3 website and installed navigation families", () => {
     const shell = source("src/components/admin/AdminShell.tsx");
     expect(shell).toContain("const { isAppMode, platformResolved } = useSolarisApp()");
     expect(shell).toContain('data-organizer-runtime={!platformResolved ? "resolving" : isAppMode ? "app" : "web"}');
-    expect(shell).toContain("organizerV3Enabled && platformResolved && !isAppMode");
+    expect(shell).toContain("organizerModeResolved && platformResolved && !isAppMode");
+    expect(shell).toContain("<OrganizerLegacyWebNavigation pathname={pathname} />");
     expect(shell).toContain("<OrganizerV3WebNavigation pathname={pathname} />");
-    expect(shell).toContain("platformResolved && isAppMode ? <OrganizerV3MobileChrome />");
+    expect(shell).toContain("organizerModeResolved && platformResolved && isAppMode");
+    expect(shell).toContain("<OrganizerV3MobileChrome />");
+    expect(shell).toContain("<OrganizerV6MobileChrome />");
     expect(shell).toContain("const organizerModeResolved =");
     expect(shell).toContain("!organizerV3.isLoading && !organizerV3.isError && organizerV3.data != null");
     expect(shell).toContain("{organizerModeResolved");
@@ -43,5 +46,22 @@ describe("Organizer V3 website and installed navigation families", () => {
     expect(desktop).toContain("@media (min-width: 720px)");
     expect(desktop).toContain(".admin-sidebar");
     expect(css).toContain('data-organizer-runtime="web"] .admin-main');
+  });
+  it("keeps legacy Organizer website controls in flow and uses edition scope without guessing", () => {
+    const legacy = source("src/components/admin/OrganizerLegacyWebNavigation.tsx");
+    expect(legacy).toContain('data-organizer-legacy-web-navigation=""');
+    expect(legacy).toContain("adminEditionRoute(pathname, slug)");
+    expect(legacy).toContain("adminDelegationRoute(pathname)");
+    expect(legacy).toContain("resolveAdminEditionContext(editions, editionId)");
+    for (const route of ["/admin/operations", "/admin/tasks", "/admin/countries", "/admin/more"]) {
+      expect(legacy).toContain(route);
+    }
+    expect(legacy).toContain('aria-disabled="true"');
+    expect(legacy).toContain('title="Select an edition first"');
+    expect(legacy).not.toContain("getAdminAppTabDestination");
+    expect(legacy).not.toContain("onClick={");
+    const css = source("src/styles/v3-organizer-web-navigation.css");
+    expect(css).toContain('[data-organizer-runtime="web"]');
+    expect(css).not.toContain('[data-organizer-generation="v3"][data-organizer-runtime="web"]');
   });
 });

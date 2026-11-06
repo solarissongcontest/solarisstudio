@@ -3,7 +3,7 @@
  * sidebar provides the same canonical destinations, so there is no second
  * primary rail. Installed floating Liquid Glass remains untouched.
  */
-.admin-control-room[data-organizer-generation="v3"][data-organizer-runtime="web"] .v3-organizer-web-navigation {
+.admin-control-room[data-organizer-runtime="web"] .v3-organizer-web-navigation {
   display: flex;
   align-items: stretch;
   gap: 2px;
@@ -43,7 +43,7 @@
   outline-offset: -3px;
 }
 @media (max-width: 719px) {
-  .admin-control-room[data-organizer-generation="v3"][data-organizer-runtime="web"] .admin-main {
+  .admin-control-room[data-organizer-runtime="web"] .admin-main {
     padding-bottom: max(2rem, env(safe-area-inset-bottom));
     scroll-padding-bottom: max(2rem, env(safe-area-inset-bottom));
   }

@@ -20,6 +20,7 @@ import { AdminPermissionShadowProbe } from "./AdminPermissionShadowProbe";
 import { OrganizerV6MobileChrome } from "./OrganizerV6MobileChrome";
 import { OrganizerV3MobileChrome } from "./OrganizerV3MobileChrome";
 import { OrganizerV3WebNavigation } from "./OrganizerV3WebNavigation";
+import { OrganizerLegacyWebNavigation } from "./OrganizerLegacyWebNavigation";
 import { JuryVotingWindowControl } from "./JuryVotingWindowControl";
 import { AdminSelectors } from "./AdminSelectors";
 
@@ -137,8 +138,10 @@ export function AdminShell({
               ) : null}
             </div>
           ) : null}
-          {organizerV3Enabled && platformResolved && !isAppMode ? (
-            <OrganizerV3WebNavigation pathname={pathname} />
+          {organizerModeResolved && platformResolved && !isAppMode ? (
+            organizerV3Enabled
+              ? <OrganizerV3WebNavigation pathname={pathname} />
+              : <OrganizerLegacyWebNavigation pathname={pathname} />
           ) : null}
           <AdminEditionScopedWorkspace
             showJuryWindowControl={showJuryWindowControl}
@@ -146,9 +149,9 @@ export function AdminShell({
           >
             {children}
           </AdminEditionScopedWorkspace>
-          {organizerModeResolved
+          {organizerModeResolved && platformResolved && isAppMode
             ? organizerV3Enabled
-              ? platformResolved && isAppMode ? <OrganizerV3MobileChrome /> : null
+              ? <OrganizerV3MobileChrome />
               : <OrganizerV6MobileChrome />
             : null}
         </div>
