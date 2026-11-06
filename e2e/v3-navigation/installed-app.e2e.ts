@@ -785,6 +785,19 @@ test("installed app shell survives representative navigation without duplicate c
     ] as const) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await expect(nav).toHaveAttribute("data-layout", viewport.layout);
+      // Landscape/tablet reflow can replace the internal glass DOM after the
+      // outer nav's data-layout is already correct. Wait for the complete
+      // canonical five-link surface before taking an atomic geometry reading.
+      // This is not a screenshot delay or a weakened target-size assertion.
+      await expect(nav).toBeVisible();
+      await expect(nav.locator(".solaris-app-tabbar-material")).toBeVisible();
+      await expect(nav.locator(".solaris-app-tabbar-backdrop")).toBeVisible();
+      await expect(nav.locator(".solaris-app-tab-indicator")).toBeVisible();
+      await expect(nav.locator("[data-app-tab-index]")).toHaveCount(5);
+      await expect.poll(
+        async () => (await readGeometry(page))?.items.length ?? 0,
+        { message: `${viewport.width}x${viewport.height} must settle a complete installed navigation surface` },
+      ).toBe(5);
       const bounds = await readGeometry(page);
       expect(bounds, `${viewport.width}x${viewport.height} should render installed navigation`).not.toBeNull();
       if (!bounds) continue;

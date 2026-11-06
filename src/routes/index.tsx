@@ -9,6 +9,7 @@ import { FlagChip } from "@/components/FlagChip";
 import { CurrentContestHero } from "@/components/home/CurrentContestHero";
 import { HomePersonalAttention } from "@/components/home/HomePersonalAttention";
 import { PulseStrip } from "@/components/PulseStrip";
+import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import {
   editionLabel,
   useAllResults,
@@ -248,11 +249,16 @@ function LegacyHomePage() {
                 </p>
               </div>
 
-              <div className="hidden shrink-0 text-right sm:block">
-                <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                  Terra Solaris
-                </p>
-                <p className="mt-1 text-xs font-semibold">Song Contest Desk</p>
+              <div className="flex shrink-0 items-center gap-2">
+                <div className="lg:hidden" data-v3-home-web-search-entry="">
+                  <PublicCommandPalette compact keyboardShortcut={false} />
+                </div>
+                <div className="hidden shrink-0 text-right sm:block">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                    Terra Solaris
+                  </p>
+                  <p className="mt-1 text-xs font-semibold">Song Contest Desk</p>
+                </div>
               </div>
             </div>
 
