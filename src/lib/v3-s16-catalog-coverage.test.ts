@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { requireV3S16CatalogTableCoverage } from "./v3-s16-catalog-coverage";
 
@@ -33,4 +35,13 @@ describe("S16 local catalog critical-table completeness", () => {
     expect(() => requireV3S16CatalogTableCoverage(expected, [complete[0], {} as typeof complete[number], complete[2]]))
       .toThrow(/mismatched identity: public\.results/);
   });
+  it("binds the collector to the coverage check before it persists any artifact", () => {
+    const collector = readFileSync(resolve(process.cwd(), "scripts/collect-v3-s16-catalog-evidence.ts"), "utf8");
+    const enforcement = collector.indexOf("const tables = requireV3S16CatalogTableCoverage(criticalTables, tableRows)");
+    const persistence = collector.indexOf("writeFileSync(output,");
+    expect(enforcement).toBeGreaterThan(-1);
+    expect(persistence).toBeGreaterThan(enforcement);
+    expect(collector).not.toContain("criticalTables.flatMap(table =>");
+  });
+
 });
