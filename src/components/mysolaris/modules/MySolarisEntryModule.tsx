@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -77,18 +77,18 @@ export function MySolarisEntryModule() {
       ? locationSearch.country
       : undefined;
   const account = useMyCountryAccount();
+  const queryClient = useQueryClient();
   const countries = useCountries();
   const allEditions = useEditions();
   const access = account.data?.access;
+  const actorId = access?.userId ?? null;
   const ownCountry = account.data?.country;
-  const organizerCountry =
-    access?.isOrganizer && targetCountryId
-      ? (countries.data ?? []).find(
-          (candidate) => candidate.id === targetCountryId,
-        )
-      : undefined;
-  const country = organizerCountry ?? ownCountry;
-  const organizerInspection = Boolean(organizerCountry);
+  const organizerInspection = Boolean(access?.isOrganizer && targetCountryId);
+  const organizerCountry = organizerInspection
+    ? (countries.data ?? []).find((candidate) => candidate.id === targetCountryId)
+    : undefined;
+  // Never replace a failed Organizer inspection target with the viewer's country.
+  const country = organizerInspection ? organizerCountry : ownCountry;
   const countrySearch = buildCountrySearch(targetCountryId);
   const [editionId, setEditionId] = useState("");
   const [activeSection, setActiveSection] = useState<EntrySection>("overview");
@@ -107,8 +107,8 @@ export function MySolarisEntryModule() {
   });
 
   const editionsQuery = useQuery({
-    queryKey: ["studio2-readiness-editions", country?.id ?? "none"],
-    enabled: featureQuery.data === true && Boolean(country?.id),
+    queryKey: ["studio2-readiness-editions", actorId, country?.id ?? "none"],
+    enabled: featureQuery.data === true && Boolean(actorId && country?.id),
     queryFn: () => listStudio2HodEditions(country!.id),
   });
 
@@ -133,20 +133,36 @@ export function MySolarisEntryModule() {
   const workspaceQuery = useQuery({
     queryKey: [
       "studio2-entry-readiness",
+      actorId,
       country?.id ?? "none",
       editionId || "none",
     ],
-    enabled: featureQuery.data === true && Boolean(country?.id && editionId),
+    enabled: featureQuery.data === true && Boolean(actorId && country?.id && editionId),
     queryFn: () => loadStudio2HodWorkspace(editionId, country!.id),
   });
 
   const confirmationAccessQuery = useQuery({
-    queryKey: ["country-confirmation-access", "mysolaris-entry"],
-    enabled: Boolean(ownCountry && !organizerInspection),
+    queryKey: ["country-confirmation-access", "mysolaris-entry", actorId, ownCountry?.id ?? "none"],
+    enabled: Boolean(actorId && ownCountry && !organizerInspection),
     queryFn: getCountryConfirmationAccess,
     staleTime: 10_000,
     refetchOnWindowFocus: true,
   });
+
+  useEffect(() => {
+    if (!actorId || !country?.id) return;
+    const privateKeys = [
+      ["studio2-readiness-editions", actorId, country.id],
+      ["studio2-entry-readiness", actorId, country.id],
+      ["country-confirmation-access", "mysolaris-entry", actorId, ownCountry?.id ?? "none"],
+    ];
+    return () => {
+      for (const queryKey of privateKeys) {
+        void queryClient.cancelQueries({ queryKey });
+        queryClient.removeQueries({ queryKey });
+      }
+    };
+  }, [queryClient, actorId, country?.id, ownCountry?.id]);
 
   const editConfirmation = useMutation({
     mutationFn: async (response: CountryConfirmationResponse) => {
@@ -188,6 +204,27 @@ export function MySolarisEntryModule() {
         <p className="text-sm text-muted-foreground">
           Loading entry…
         </p>
+      </AppShell>
+    );
+  }
+
+  if (account.isError || featureQuery.isError) {
+    return (
+      <AppShell>
+        <PageHeader
+          eyebrow="MySolaris · Entry"
+          title="Entry access could not be verified"
+          description="Solaris has not assumed there are no submissions or responsibilities. Retry the access check."
+          actions={
+            <button
+              type="button"
+              onClick={() => { void account.refetch(); void featureQuery.refetch(); }}
+              className="min-h-11 rounded-xl border border-border px-4 text-sm font-semibold"
+            >
+              Retry access check
+            </button>
+          }
+        />
       </AppShell>
     );
   }
