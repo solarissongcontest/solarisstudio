@@ -40,6 +40,14 @@ describe("V3 global Search spoiler-safe web previews", () => {
     expect(web).toContain("storiesQuery.isError ? [] : storiesQuery.data ?? []");
   });
 
+  it("fails closed while publication scope is loading, refreshing or failed", () => {
+    expect(web).toContain("const spoilerPreviewVerificationPending =");
+    expect(web).toContain("!showsQuery.isSuccess || showsQuery.isFetching || showsQuery.isError");
+    expect(web).toContain("!publicEditions.length");
+    expect(web).toContain("spoilerPreviewVerificationPending || storiesQuery.isError ? []");
+    expect(web).toContain("!spoilerPreviewVerificationPending && participantsQuery.isSuccess");
+  });
+
   it("shows a spoiler-mode explanation while leaving canonical route navigation available", () => {
     expect(web).toContain("spoilerScope.editionId ? (");
     expect(web).toContain("Spoiler-free mode hides current-edition story and record previews.");
