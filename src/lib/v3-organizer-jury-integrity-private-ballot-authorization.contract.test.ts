@@ -19,6 +19,7 @@ describe("Organizer Jury Integrity protected ballot boundary", () => {
   it("requires an explicit valid edition before querying private evidence", () => {
     expect(endpoint).toContain("if (!UUID.test(editionId))");
     expect(server).toContain("if (!scopedEditionId) throw new Error");
+    expect(server).toContain("if (!EDITION_UUID.test(scopedEditionId))");
   });
 
   it("resolves the exact edition capability set once and checks BOTH permissions before private reads", () => {
