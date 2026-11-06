@@ -166,6 +166,8 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
 }
 
 export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: string }) {
+  const { connectivity } = useSolarisApp();
+  const officeNetworkBlocked = connectivity.status === "offline" || connectivity.status === "service-restricted";
   const valid = validWorldSlug(slug) && validWorldSlug(bodySlug);
   const query = useQuery({
     queryKey: ["world", "public", "body", slug, bodySlug],
@@ -209,9 +211,15 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
           </p>
           {offices.isPending ? <p role="status" className="mt-4 text-sm text-muted-foreground">Checking offices…</p> : null}
           {offices.isError ? <div role="alert" className="mt-4 text-sm">
-            <p>Office records could not be verified.</p>
-            <button type="button" onClick={() => void offices.refetch()}
-              className="mt-2 min-h-11 rounded-xl border border-border px-4 font-semibold">Retry offices</button>
+            <p>{connectivity.status === "offline"
+              ? "Reconnect to verify current public offices."
+              : connectivity.status === "service-restricted"
+                ? "The institutional service is temporarily restricted."
+                : "Office records could not be verified."}</p>
+            <button type="button" onClick={() => void offices.refetch()} disabled={officeNetworkBlocked}
+              className="mt-2 min-h-11 rounded-xl border border-border px-4 font-semibold disabled:cursor-not-allowed disabled:opacity-50">
+              Retry offices
+            </button>
           </div> : null}
           {offices.isSuccess && offices.data.length === 0 ? (
             <p className="mt-4 text-sm text-muted-foreground">No active public offices are assigned to this body.</p>
