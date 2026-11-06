@@ -60,11 +60,13 @@ describe("V3 Confirmation uncertain submission recovery", () => {
 
   it("does not restore an old local receipt over an active edit-token flow", () => {
     const source = wrapper();
-    const restore = source.indexOf("readStoredV3ConfirmationReceipt(roundId)");
-    const editGuard = source.lastIndexOf("if (editing) return;", restore);
+    const restore = source.indexOf("readStoredV3ConfirmationReceipt(roundId, receiptScope)");
+    const editGuard = source.lastIndexOf("if (editing || !receiptScope || activeReceiptScope.current !== receiptScope) return;", restore);
 
     expect(restore).toBeGreaterThan(-1);
     expect(editGuard).toBeGreaterThan(-1);
     expect(editGuard).toBeLessThan(restore);
+    expect(source).toContain("supabase.auth.onAuthStateChange");
+    expect(source).toContain("clearStoredV3ConfirmationReceipt(roundId)");
   });
 });
