@@ -13,11 +13,13 @@ import { V3RelationshipsIndexScreen } from "./V3RelationshipsIndexScreen";
 function V3RelationshipsLoading({
   editionLabel,
   unavailable = false,
+  notFound = false,
   retrying = false,
   onRetry,
 }: {
   editionLabel?: string;
   unavailable?: boolean;
+  notFound?: boolean;
   retrying?: boolean;
   onRetry?: () => void;
 }) {
@@ -34,10 +36,17 @@ function V3RelationshipsLoading({
         >
           <h1 className="text-2xl font-bold">Voting relationships</h1>
           <p role="status" className="mt-2 text-sm text-[var(--v3-text-secondary)]">
-            {unavailable
-              ? "Published voting relationships cannot be verified. No analysis is shown until the official service is reachable."
-              : "Calculating published relationship history…"}
+            {notFound
+              ? "No published relationship matches this country pair. Check the country codes or choose a pair from the relationship directory."
+              : unavailable
+                ? "Published voting relationships cannot be verified. No analysis is shown until the official service is reachable."
+                : "Calculating published relationship history…"}
           </p>
+          {notFound ? (
+            <a href="/relationships" className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70">
+              Browse voting relationships
+            </a>
+          ) : null}
           {unavailable && onRetry ? (
             <button
               type="button"
@@ -114,6 +123,12 @@ export function V3RelationshipDetailGate({
     bundle.isSuccess && !rolloutEditionSlug,
   );
   const rollout = rolloutEditionSlug ? editionProbe : currentProbe;
+
+  // A successful pair lookup can legitimately return null (unknown country
+  // code or identical countries). Do not misclassify that as a service outage.
+  if (bundle.isSuccess && bundle.data === null) {
+    return <V3RelationshipsLoading notFound />;
+  }
 
   const loading = bundle.isLoading || (bundle.isSuccess && rollout.isLoading);
   const unavailable = bundle.isError || !bundle.data || rollout.isError || !rollout.data;
