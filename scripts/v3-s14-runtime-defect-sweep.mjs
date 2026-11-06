@@ -209,6 +209,20 @@ export function collectDefectSweep({ root, evidenceDir, candidateSha, toolSha = 
       laneStatuses[lane] = "invalid-evidence";
       continue;
     }
+    // The runner emits a lane field for every artifact. A filename is not
+    // evidence of provenance: an accidentally reused success from another lane
+    // must not count as execution of this one.
+    if (report.lane !== lane) {
+      laneStatuses[lane] = "invalid-evidence";
+      findings.push(finding(
+        "EVIDENCE_LANE_MISMATCH_" + lane.toUpperCase().replace(/-/g, "_"),
+        "evidence-integrity",
+        "confirmed-blocker",
+        "Runtime evidence lacks the expected " + lane + " lane identity; another lane's result cannot substitute for this rehearsal.",
+        "runtime-" + lane + ".json",
+      ));
+      continue;
+    }
     const ok = report.exitCode === 0 && report.status === "passed";
     // 90/91/92/93 are local-bootstrap, isolation, lane-config and
     // unexpected-step-abort evidence sentinels. None proves a contest runtime failure; all block evidence.
