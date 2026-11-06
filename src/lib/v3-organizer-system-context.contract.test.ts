@@ -44,6 +44,10 @@ describe("Organizer System Settings exact edition context", () => {
     expect(privateAdminOps).toContain('queryKey: ["admin-deadlines", exactEditionId ?? "unscoped", actorId]');
     expect(privateAdminOps).toContain('queryKey: ["admin-deadlines", normalizedEditionId ?? "unscoped", actorId]');
     expect(privateAdminOps).toContain('queryKey: ["admin-audit", limit, actorId]');
+    expect(privateAdminOps).toContain("Missing private authority is not an all-clear");
+    expect(privateAdminOps).toContain("Audit history must not silently become empty");
+    expect(privateAdminOps).not.toContain("if (missingSchema(error)) return [] as AdminDeadline[]");
+    expect(privateAdminOps).not.toContain("if (missingSchema(error)) return [] as AdminAuditRow[]");
     expect(privateSchedule).toContain('const actorId = useAuthenticatedUser().id;');
     expect(privateSchedule).toContain('queryKey: ["admin-operational-schedule", exactEditionId ?? "unscoped", slug ?? "", actorId]');
     expect(privateAdminOps).toContain('qc.invalidateQueries({ queryKey: ["admin-deadlines"] })');
