@@ -391,7 +391,7 @@ describe("TG3 institution body offices", () => {
   const office = {
     id: "office-1", organization_id: "org-1", organ_id: "body-1",
     title: "Assembly Chair", office_type: "leadership", active: true,
-    world_organizations: { id: "org-1", public_visibility: "public" },
+    world_organizations: { id: "org-1", public_visibility: "public", status: "active" },
     world_organization_organs: { id: "body-1", organization_id: "org-1", visibility: "public" },
     holder_user_id: "must-not-leak", current_term: { private: "must-not-leak" },
   };
