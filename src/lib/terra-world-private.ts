@@ -166,3 +166,28 @@ export async function getWorldWorkspaceContext(slug: string, signal?: AbortSigna
     canManage: response.canManage,
   };
 }
+
+export type WorldChatSearchResult = {
+  id: string;
+  spaceId: string;
+  mine: boolean;
+  body: string;
+  revision: number;
+  createdAt: string;
+  editedAt: string | null;
+  redacted: boolean;
+};
+const isSearchResult = (x: unknown): x is WorldChatSearchResult =>
+  isRecord(x) && isValidRoomId(x.id) && isValidRoomId(x.spaceId) &&
+  typeof x.mine === "boolean" && typeof x.body === "string" &&
+  typeof x.createdAt === "string";
+
+/** Explicit submit-only private search, never sent to public global Search. */
+export async function searchWorldRoomMessages(spaceId: string, term: string, signal?: AbortSignal): Promise<WorldChatSearchResult[]> {
+  if (!isValidRoomId(spaceId) || term.trim().length < 2 || term.trim().length > 80) {
+    throw new Error("Search requires 2–80 characters and a valid room.");
+  }
+  return asList(await callWorldPrivateRpc("world_space_search_v1", {
+    p_space_id: spaceId, p_query: term.trim(), p_limit: WORLD_ROOM_PAGE_SIZE,
+  }, signal), isSearchResult);
+}
