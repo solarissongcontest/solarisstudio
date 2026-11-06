@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       candidate_sha:
-        description: Optional exact commit SHA. Defaults to the dispatched branch SHA.
+        description: Optional exact commit SHA; must match the commit selected by workflow dispatch.
         required: false
         type: string
       require_complete:
@@ -23,7 +23,7 @@ concurrency:
 jobs:
   rehearsal:
     name: Stateful local contest rehearsal
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     env:
       V3_VERIFICATION_TARGET: local
@@ -50,7 +50,14 @@ jobs:
             exit 1
           fi
           requested="$(printf '%s' "$requested" | tr '[:upper:]' '[:lower:]')"
-          echo "sha=$requested" >> "$GITHUB_OUTPUT"
+          dispatched="$(printf '%s' "$DISPATCH_SHA" | tr '[:upper:]' '[:lower:]')"
+          # Do not execute an arbitrarily supplied commit with default-branch cache access.
+          # To rehearse a PR branch, dispatch the workflow on that branch at its exact head.
+          if [[ "$requested" != "$dispatched" ]]; then
+            echo "::error::candidate_sha must match the dispatched commit $dispatched; select the desired branch/ref when dispatching"
+            exit 1
+          fi
+          echo "sha=$dispatched" >> "$GITHUB_OUTPUT"
 
           if [[ "$REQUIRE_COMPLETE" == "true" ]]; then
             echo "V3_S14_ALLOW_PARTIAL=0" >> "$GITHUB_ENV"
@@ -65,7 +72,8 @@ jobs:
       - name: Checkout exact candidate
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.identity.outputs.sha }}
+          # The dispatch's immutable commit, never an untrusted input-controlled checkout.
+          ref: ${{ github.sha }}
           fetch-depth: 1
 
       - name: Verify exact checkout
@@ -93,6 +101,28 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      # This runner exercises the same S14 Grand Final Playwright browser paths.
+      - name: Install Playwright Chromium
+        run: bunx playwright install --with-deps chromium
+
+      - name: Verify S14 replay and local-only contracts before contest startup
+        shell: bash
+        run: |
+          set -euo pipefail
+          bunx vitest run \
+            src/lib/ci-egress-safety.contract.test.ts \
+            src/lib/v3-s14-stage7-deadline-command-identity.contract.test.ts \
+            src/lib/v3-s14-stage7-failure-detail.contract.test.ts \
+            src/lib/v3-s14-grand-final-failure-evidence.contract.test.ts \
+            src/lib/v3-qualification-null-rank-reset.contract.test.ts
+          for script in \
+            .github/scripts/v3-s14-stage-7-genuine-deadline.sh \
+            .github/scripts/v3-s14-grand-final-voting.sh \
+            .github/scripts/v3-full-contest-rehearsal.sh; do
+            bash -n "$script"
+          done
+
 
       - name: Start disposable local Supabase
         run: supabase start
