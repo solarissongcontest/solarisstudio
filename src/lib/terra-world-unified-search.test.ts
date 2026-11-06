@@ -58,8 +58,10 @@ beforeEach(() => {
 
 describe("Terra Solaris unified public World search", () => {
   it("fails closed when a successful cached query is being rechecked or refetch failed", () => {
-    const valid = { isSuccess: true, isError: false, isRefetchError: false, isFetching: false };
+    const valid = { isSuccess: true, isError: false, isRefetchError: false,
+      isFetching: false, isFetchedAfterMount: true };
     expect(worldPublicQueryVerified(valid)).toBe(true);
+    expect(worldPublicQueryVerified({ ...valid, isFetchedAfterMount: false })).toBe(false);
     expect(worldPublicQueryVerified({ ...valid, isFetching: true })).toBe(false);
     expect(worldPublicQueryVerified({ ...valid, isRefetchError: true })).toBe(false);
     expect(worldPublicQueryVerified({ ...valid, isError: true })).toBe(false);

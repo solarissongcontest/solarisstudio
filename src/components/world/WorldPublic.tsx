@@ -136,6 +136,7 @@ export function WorldLanding() {
     queryKey: ["world", "public", "featured"],
     queryFn: fetchFeaturedWorldOrganizations,
     staleTime: 90_000,
+    refetchOnMount: "always",
     retry: false,
   });
   const featured = directory.data ?? [];
@@ -201,6 +202,7 @@ export function WorldDirectory() {
     queryKey: ["world", "public", "organizations", term, filter, page],
     queryFn: () => fetchWorldDirectory({ term, filter, page }),
     staleTime: 90_000,
+    refetchOnMount: "always",
     retry: false,
   });
   // The directory may retain its last successful page while an authoritative
@@ -313,6 +315,7 @@ export function WorldOrganizationPage({
     queryKey: ["world", "public", "organization", slug],
     queryFn: () => fetchWorldProjection(slug),
     staleTime: 60_000,
+    refetchOnMount: "always",
     retry: false,
   });
   // A successful cached projection is no longer evidence after a failed or
@@ -334,6 +337,7 @@ export function WorldOrganizationPage({
     enabled: verifiedProjection !== null && view === "members" && countryIds.length > 0,
     retry: false,
     staleTime: 300_000,
+    refetchOnMount: "always",
     queryFn: async () => {
       // Exact member IDs and five display fields. Never download account owners,
       // country controls, private delegation or membership authority.

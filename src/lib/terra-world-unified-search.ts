@@ -25,9 +25,11 @@ export type WorldPublicQueryState = {
   isError: boolean;
   isRefetchError: boolean;
   isFetching: boolean;
+  isFetchedAfterMount: boolean;
 };
 export function worldPublicQueryVerified(query: WorldPublicQueryState): boolean {
-  return query.isSuccess && !query.isError && !query.isRefetchError && !query.isFetching;
+  return query.isSuccess && query.isFetchedAfterMount &&
+    !query.isError && !query.isRefetchError && !query.isFetching;
 }
 
 /** Featured rows reuse the landing query, which may contain pre-recognition drafts. */
