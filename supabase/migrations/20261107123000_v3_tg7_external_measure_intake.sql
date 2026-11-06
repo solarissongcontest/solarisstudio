@@ -204,6 +204,18 @@ as $intake_options$
         ) order by c.name),'[]'::jsonb)
         from (select id,name,short_code from public.countries
               order by name,id limit 200) c
+      ),'[]'::jsonb),
+      'categories',coalesce((
+        select jsonb_agg(jsonb_build_object(
+          'code',c.code,'label',c.label
+        ) order by c.code),'[]'::jsonb)
+        from (
+          select code,label from public.world_measure_categories
+          where organization_id=p_organization_id and active
+            and (effective_from is null or effective_from<=now())
+            and (effective_to is null or effective_to>now())
+          order by code limit 100
+        ) c
       ),'[]'::jsonb)
     ) end
 $intake_options$;
