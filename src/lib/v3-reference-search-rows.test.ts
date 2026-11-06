@@ -50,6 +50,17 @@ describe("Publication-safe Reference legacy Wiki search compatibility", () => {
     expect(items.every((item) => item.href.startsWith("/"))).toBe(true);
   });
 
+  it("keeps different country articles separate even when both are legacy aliases", () => {
+    const aotea = {
+      ...wiki,
+      result_id: "wiki:a2",
+      title: "Aotea in the Wiki",
+      href: "/wiki/AOT",
+    };
+    expect(parseReferenceSearchRows([wiki, aotea]).map((item) => item.href))
+      .toEqual(["/countries/OLA", "/countries/AOT"]);
+  });
+
   it("rejects malformed and traversal-style legacy aliases rather than redirecting them", () => {
     for (const href of ["/wiki/../admin", "/wiki/OLA/private", "//wiki/OLA", "https://example.com"]) {
       expect(() => parseReferenceSearchRows([{ ...wiki, href }])).toThrow("Invalid public Reference result");
