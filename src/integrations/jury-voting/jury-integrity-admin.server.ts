@@ -1,6 +1,6 @@
 import { getSolarisCapabilitiesServer } from "@/integrations/supabase/capabilities.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { assertJuryIntegrityV5Evidence, numberValue, percentageValue, peerCountValue, proportionValue } from "./jury-integrity-readback";
+import { assertCompleteJuryIntegrityReadback, assertJuryIntegrityV5Evidence, numberValue, percentageValue, peerCountValue, proportionValue } from "./jury-integrity-readback";
 
 const EDITION_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -63,9 +63,9 @@ export async function listJuryIntegrityCasesServer(editionId: string) {
   const db = supabaseAdmin as any;
   const tv = db.schema("televoting");
 
-  const { data: rows, error } = await tv
+  const { data: rows, error, count: exactCount } = await tv
     .from("vote_preflight_checks")
-    .select("id,show_id,canonical_edition_id,country_code,hod_person_id,relationship_risk,risk_score,confidence,intervention_level,model_version,admin_evidence,attested_at,submitted_at,created_at")
+    .select("id,show_id,canonical_edition_id,country_code,hod_person_id,relationship_risk,risk_score,confidence,intervention_level,model_version,admin_evidence,attested_at,submitted_at,created_at", { count: "exact" })
     .eq("canonical_edition_id", scopedEditionId)
     .not("show_id", "is", null)
     .eq("model_version", "jury-integrity-model-v5")
@@ -73,7 +73,11 @@ export async function listJuryIntegrityCasesServer(editionId: string) {
     .limit(1000);
   if (error) throw new Error(error.message);
 
-  const preflights = rows ?? [];
+  if (!Array.isArray(rows)) {
+    throw new Error("Jury Integrity returned no valid protected preflight evidence");
+  }
+  const preflights = rows;
+  assertCompleteJuryIntegrityReadback(exactCount, preflights.length);
   const mismatchedPreflight = preflights.find(
     (row: any) => String(row.canonical_edition_id ?? "") !== scopedEditionId,
   );
