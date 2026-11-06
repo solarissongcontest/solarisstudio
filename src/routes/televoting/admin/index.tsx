@@ -4,11 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowRight,
   BarChart3,
-  Blend,
-  FlaskConical,
   Globe2,
   History,
-  Network,
   PlayCircle,
   Settings2,
   ShieldAlert,
@@ -272,7 +269,7 @@ function VotingAdminOverview() {
             <div className="border-t border-white/[0.07] px-1 pb-1">
               <WorkspaceRow
                 to="/admin/friend-voting"
-                icon={Network}
+                icon={Users}
                 title="Friend-voting intelligence"
                 description="Historical relationships, reciprocity and HOD-aware network analysis."
               />
@@ -284,7 +281,7 @@ function VotingAdminOverview() {
               />
               <WorkspaceRow
                 to="/televoting/admin/combined"
-                icon={Blend}
+                icon={BarChart3}
                 title="Combined result tools"
                 description="Inspect how jury and public voting are combined."
               />
@@ -308,7 +305,7 @@ function VotingAdminOverview() {
               />
               <WorkspaceRow
                 to="/televoting/admin/backtest"
-                icon={FlaskConical}
+                icon={PlayCircle}
                 title="Result backtest"
                 description="Rehearse historical result and integrity scenarios without changing official state."
               />
