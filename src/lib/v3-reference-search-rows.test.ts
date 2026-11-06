@@ -50,6 +50,25 @@ describe("Publication-safe Reference legacy Wiki search compatibility", () => {
     expect(items.every((item) => item.href.startsWith("/"))).toBe(true);
   });
 
+  it("canonicalizes mixed-case published Wiki and Country aliases without duplicate Country results", () => {
+    const lowerWiki = { ...wiki, href: "/wiki/ola" };
+    const lowerCountry = { ...country, href: "/countries/ola" };
+    expect(parseReferenceSearchRows([lowerWiki, country])).toEqual([{
+      id: lowerWiki.result_id,
+      kind: "country",
+      title: "Oland",
+      subtitle: "Detailed country article",
+      href: "/countries/OLA",
+    }]);
+    expect(parseReferenceSearchRows([lowerCountry, wiki])).toEqual([{
+      id: lowerCountry.result_id,
+      kind: "country",
+      title: "Oland",
+      subtitle: "OLA · Hydra",
+      href: "/countries/OLA",
+    }]);
+  });
+
   it("keeps different country articles separate even when both are legacy aliases", () => {
     const aotea = {
       ...wiki,
@@ -66,6 +85,34 @@ describe("Publication-safe Reference legacy Wiki search compatibility", () => {
       expect(() => parseReferenceSearchRows([{ ...wiki, href }])).toThrow("Invalid public Reference result");
     }
     expect(() => parseReferenceSearchRows({})).toThrow("Invalid public search projection");
+  });
+
+  it("rejects cross-kind and internal routes even when a result claims to be published", () => {
+    const cases = [
+      { result_type: "country", href: "/admin/countries" },
+      { result_type: "country", href: "/wiki/OLA" },
+      { result_type: "entry", href: "/shows/s1" },
+      { result_type: "show", href: "/countries/OLA" },
+      { result_type: "edition", href: "/editions/../admin" },
+      { result_type: "show", href: "/shows/s1?draft=true" },
+      { result_type: "country", href: "/countries/OLA#private" },
+      { result_type: "country", href: "/countries/%2E%2E" },
+    ];
+    for (const candidate of cases) {
+      expect(() => parseReferenceSearchRows([{ ...country, ...candidate }]))
+        .toThrow("Invalid public Reference result");
+    }
+  });
+
+  it("retains published entry drilldowns to Country profiles without duplicating entities", () => {
+    const items = parseReferenceSearchRows([
+      { result_id: "entry:e1", result_type: "entry", title: "Artist — Song", href: "/countries/OLA" },
+      country,
+    ]);
+    expect(items.map(({ kind, href }) => ({ kind, href }))).toEqual([
+      { kind: "entry", href: "/countries/OLA" },
+      { kind: "country", href: "/countries/OLA" },
+    ]);
   });
 
   it("continues using the server-owned rollout and published-search RPC in the actual route", () => {
