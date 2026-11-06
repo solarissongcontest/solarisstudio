@@ -19,7 +19,7 @@ function singleSegment(path: string, kind: "editions" | "stories"): string | nul
       slug.length > 160 ||
       slug === "." ||
       slug === ".." ||
-      /[\/\\?#]/.test(slug) ||
+      ["/", "\\", "?", "#"].some((separator) => slug.includes(separator)) ||
       [...slug].some((character) => {
         const code = character.charCodeAt(0);
         return code <= 0x1f || code === 0x7f;
