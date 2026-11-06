@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  effectiveOrganizerEntryReviewStatus,
   inspectOrganizerEntrySource,
   safeOrganizerEntrySourceUrl,
 } from "./v3-organizer-entry-source-inspection";
@@ -107,4 +108,26 @@ describe("Organizer Entry source inspection", () => {
     expect(route).not.toContain("href={entry.song_url}");
     expect(route).not.toContain("href={entry.replacement_video_url}");
   });
+
+  it("keeps accepted and declined decisions current only for exactly reviewed immutable versions", () => {
+    expect(effectiveOrganizerEntryReviewStatus(valid)).toBe("accepted");
+    expect(effectiveOrganizerEntryReviewStatus({ ...valid, review_status: "declined" })).toBe("declined");
+    expect(effectiveOrganizerEntryReviewStatus({ ...valid, reviewed_version_id: "version-1" })).toBe("pending");
+    expect(effectiveOrganizerEntryReviewStatus({ ...valid, reviewed_version_id: null })).toBe("pending");
+    expect(effectiveOrganizerEntryReviewStatus({ ...valid, current_version_id: null })).toBe("pending");
+    expect(effectiveOrganizerEntryReviewStatus({ ...valid, review_status: "removed" })).toBe("removed");
+    expect(effectiveOrganizerEntryReviewStatus({ ...valid, removed: true })).toBe("removed");
+    expect(effectiveOrganizerEntryReviewStatus({ ...valid, review_status: "unknown" })).toBe("pending");
+  });
+
+  it("requires the detail card and summary to use a single fail-closed effective status", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
+    expect(route).toContain("return effectiveOrganizerEntryReviewStatus(entry);");
+    expect(route).toContain("const reviewStates = entries.map(reviewLabel)");
+    expect(route).toContain("reviewStates.some((status) => status !== \"accepted\")");
+    expect(route).not.toContain('entry.review_status === "declined")) return "issue"');
+    expect(route).not.toContain('entry.review_status === "pending"))');
+  });
+
 });

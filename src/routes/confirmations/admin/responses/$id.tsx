@@ -1,6 +1,7 @@
 import { EntryVersionEvidence } from "@/components/ConfirmationReviewStatus";
 import { assertDisplayedEntryVersion } from "@/lib/v3-entry-review-preview";
 import {
+  effectiveOrganizerEntryReviewStatus,
   inspectOrganizerEntrySource,
   safeOrganizerEntrySourceUrl,
 } from "@/lib/v3-organizer-entry-source-inspection";
@@ -160,7 +161,7 @@ function reviewTone(status: string) {
 }
 
 function reviewLabel(entry: ReviewEntry) {
-  return entry.removed ? "removed" : entry.review_status || "pending";
+  return effectiveOrganizerEntryReviewStatus(entry);
 }
 
 function detailState(data: ResponseDetail): DetailState {
@@ -181,10 +182,12 @@ function detailState(data: ResponseDetail): DetailState {
       (entry) => !entry.removed && entry.review_status !== "removed",
     );
     if (!entries.length || data.nf_entries_unknown) return "neutral";
-    if (entries.some((entry) => entry.review_status === "declined")) return "issue";
-    if (entries.some((entry) => !entry.review_status || entry.review_status === "pending"))
-      return "review";
-    return data.national_final?.winning_entry_id ? "ready" : "neutral";
+    const reviewStates = entries.map(reviewLabel);
+    if (reviewStates.includes("declined")) return "issue";
+    if (reviewStates.some((status) => status !== "accepted")) return "review";
+    // A missing, removed or foreign winner does not make an accepted NF ready.
+    const winnerId = data.national_final?.winning_entry_id;
+    return winnerId && entries.some((entry) => entry.id === winnerId) ? "ready" : "neutral";
   }
 
   return "neutral";

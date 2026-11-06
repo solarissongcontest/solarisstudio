@@ -104,3 +104,18 @@ export function inspectOrganizerEntrySource(
 
   return { songUrl, replacementVideoUrl, checks };
 }
+
+/**
+ * Presentation-only effective review status. Older accepted/declined decisions
+ * are evidence of a previous immutable Entry version, never current approval.
+ * The canonical review command is still the sole mutation authority.
+ */
+export function effectiveOrganizerEntryReviewStatus(
+  entry: OrganizerEntrySourceInput & { removed?: boolean | null },
+): "pending" | "accepted" | "declined" | "removed" {
+  if (entry.removed || entry.review_status === "removed") return "removed";
+  if (entry.review_status !== "accepted" && entry.review_status !== "declined") return "pending";
+  const current = entry.current_version_id?.trim();
+  const reviewed = entry.reviewed_version_id?.trim();
+  return current && reviewed && current === reviewed ? entry.review_status : "pending";
+}
