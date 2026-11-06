@@ -13,6 +13,11 @@ import {
 export const WORLD_UNIFIED_SEARCH_LIMIT = 12;
 export const WORLD_UNIFIED_SEARCH_MAX_PAGE = 1000;
 
+/** Proposals are not yet official international organizations. */
+export const WORLD_PUBLIC_SEARCH_STATUSES = [
+  "recognized", "active", "suspended", "historical", "dissolved",
+] as const;
+
 export type WorldSearchCountry = {
   id: string;
   code: string;
@@ -132,6 +137,7 @@ export async function fetchWorldUnifiedSearch(
     (supabase as any).from("world_organizations")
       .select(ORGANIZATION_FIELDS, { count: "exact" })
       .eq("public_visibility", "public")
+      .in("status", [...WORLD_PUBLIC_SEARCH_STATUSES])
       .or("official_name.ilike.%" + term + "%,short_name.ilike.%" + term + "%")
       .order("official_name", { ascending: true })
       .order("slug", { ascending: true })
@@ -150,7 +156,9 @@ export async function fetchWorldUnifiedSearch(
   const organizations = parseWorldDirectoryRows(organizationResult.data);
   // A malformed/private row must never silently turn a misleading count into
   // a claim that a hidden institution exists.
-  if (organizations.length !== organizationResult.data.length) {
+  if (organizations.length !== organizationResult.data.length ||
+    organizations.some((item) =>
+      !(WORLD_PUBLIC_SEARCH_STATUSES as readonly string[]).includes(item.status))) {
     throw new Error("Published organization results could not be verified.");
   }
 
