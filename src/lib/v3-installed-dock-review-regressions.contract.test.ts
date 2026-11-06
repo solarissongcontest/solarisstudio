@@ -77,6 +77,16 @@ describe("V3 installed dock review regressions", () => {
     expect(tab).toContain('root.style.setProperty("--solaris-bottom-obstruction", "0px")');
   });
 
+  it("removes overlay-obscured installed tabs from keyboard and assistive focus", () => {
+    const appCss = source("src/styles/app-shell.css");
+    const overlayRule = appCss.match(
+      /html\\[data-solaris-app\\]\\[data-solaris-feature-overlay-open\\] \\.solaris-app-tabbar,[\\s\\S]*?html\\[data-solaris-app\\]:has\\(\\[data-solaris-dialog\\]\\[data-state="open"\\]\\) \\.solaris-app-tabbar \\{([\\s\\S]*?)\\}/,
+    );
+    expect(overlayRule?.[1]).toContain("visibility: hidden;");
+    expect(overlayRule?.[1]).toContain("pointer-events: none;");
+    expect(overlayRule?.[1]).toContain("opacity: 0;");
+  });
+
   it("names the installed V3 landmark without relabeling legacy tab bars", () => {
     expect(tab).toContain('ariaLabel = "Solaris Studio"');
     expect(tab).toContain("ariaLabel?: string;");
