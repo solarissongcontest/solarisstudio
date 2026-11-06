@@ -531,6 +531,7 @@ function AccessPermissionsPage() {
           approvals={approvalsQuery.data ?? []}
           loading={approvalsQuery.isLoading}
           error={approvalsQuery.error}
+          actionsAvailable={editionContextVerified}
           scopeLabelForEdition={(approvalEditionId) =>
             permissionScopeLabel(approvalEditionId, editionLabels)
           }
@@ -905,6 +906,7 @@ function PermissionApprovalQueue({
   approvals,
   loading,
   error,
+  actionsAvailable,
   scopeLabelForEdition,
   onApprove,
   onApply,
@@ -912,6 +914,7 @@ function PermissionApprovalQueue({
   approvals: PermissionChangeApproval[];
   loading: boolean;
   error: Error | null;
+  actionsAvailable: boolean;
   scopeLabelForEdition: (editionId: string | null) => string;
   onApprove: (approval: PermissionChangeApproval) => void;
   onApply: (approval: PermissionChangeApproval) => void;
@@ -925,12 +928,17 @@ function PermissionApprovalQueue({
         title="Second-operator approvals"
         description="Permission mutations are bound to one reviewed operation. The requester cannot approve their own request, and approved requests expire before they can become stale standing authority."
         action={
-          <AdminStatus tone={actionable ? "attention" : "ready"}>
-            {actionable ? `${actionable} actionable` : "No action"}
+          <AdminStatus tone={!actionsAvailable ? "neutral" : actionable ? "attention" : "ready"}>
+            {!actionsAvailable ? "Scope verification required" : actionable ? `${actionable} actionable` : "No action"}
           </AdminStatus>
         }
       />
 
+      {!actionsAvailable ? (
+        <p className="mt-2 text-xs text-muted-foreground" role="status">
+          R3 approval actions are paused until the Organizer edition context can be verified.
+        </p>
+      ) : null}
       {loading ? (
         <p className="py-6 text-center text-sm text-muted-foreground">
           Loading R3 approval queue…
@@ -991,6 +999,7 @@ function PermissionApprovalQueue({
                   <button
                     type="button"
                     className="admin-action-secondary shrink-0"
+                    disabled={!actionsAvailable}
                     onClick={() => onApprove(approval)}
                   >
                     Approve as second operator
@@ -999,6 +1008,7 @@ function PermissionApprovalQueue({
                   <button
                     type="button"
                     className="admin-action-primary shrink-0"
+                    disabled={!actionsAvailable}
                     onClick={() => onApply(approval)}
                   >
                     Apply approved change
