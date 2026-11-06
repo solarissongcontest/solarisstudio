@@ -279,11 +279,15 @@ function AppPublicPaletteDialog({
     // hosted read traffic. Explicit Retry remains under the visitor's control.
     retry: false,
     refetchOnWindowFocus: false,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("solaris_public_search", {
-        search_query: debouncedQuery,
-        result_limit: 30,
-      });
+    queryFn: async ({ signal }) => {
+      // React Query invalidates an obsolete query key as the visitor types.
+      // Forward that cancellation into PostgREST to stop unnecessary reads.
+      const { data, error } = await (supabase as any)
+        .rpc("solaris_public_search", {
+          search_query: debouncedQuery,
+          result_limit: 30,
+        })
+        .abortSignal(signal);
       if (error) throw error;
       return (Array.isArray(data) ? data : []) as AppSearchRow[];
     },
