@@ -352,7 +352,7 @@ create function public.world_space_create_v1(
 )
 returns uuid language plpgsql volatile security definer set search_path = pg_catalog
 as $$
-declare v_id uuid;
+declare v_id uuid; v_existing public.world_spaces%rowtype;
 begin
   if not public.world_access_allowed('world.space.manage', p_organization_id)
      and not public.world_access_allowed('world.organization.settings.manage', p_organization_id)
@@ -382,11 +382,19 @@ begin
     p_visibility, p_history, auth.uid(), p_request_id
   ) on conflict (created_by, create_request_id) do nothing returning id into v_id;
   if v_id is null then
-    select id into v_id from public.world_spaces
-      where created_by = auth.uid() and create_request_id = p_request_id
-        and organization_id = p_organization_id;
+    select * into v_existing from public.world_spaces
+      where created_by = auth.uid() and create_request_id = p_request_id;
+    if not found then
+      raise exception using errcode='23514',message='STATE_CHANGED'; end if;
+    if v_existing.organization_id is distinct from p_organization_id
+      or v_existing.organ_id is distinct from p_organ_id
+      or v_existing.name is distinct from btrim(p_name)
+      or v_existing.description is distinct from left(btrim(coalesce(p_description,'')),500)
+      or v_existing.visibility_policy is distinct from p_visibility
+      or v_existing.history_policy is distinct from p_history then
+      raise exception using errcode='23514',message='IDEMPOTENCY_SCOPE'; end if;
+    v_id := v_existing.id;
   end if;
-  if v_id is null then raise exception using errcode='23514', message='STATE_CHANGED'; end if;
   return v_id;
 end
 $$;
