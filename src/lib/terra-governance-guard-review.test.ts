@@ -218,6 +218,10 @@ describe("WORLD-03 TG5B GUARD application review", () => {
     expect(migration).toContain("public.studio2_reconcile_operation(");
     expect(migration).toContain("private.v3_emit_domain_event(");
     expect(migration).toContain("for update;");
+    expect(migration).toContain("term_row.started_at <= now()");
+    expect(migration).toContain("term_row.actual_end_at is null");
+    expect(migration).not.toContain("term_row.ends_at is null");
+    expect(migration).not.toContain("term_row.starts_at");
     expect(migration).toContain("v_application.revision <> p_expected_revision");
     expect(migration).toContain("limit 21");
     expect(migration).toContain("v_items := v_items - 20");
