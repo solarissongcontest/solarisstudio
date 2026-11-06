@@ -72,18 +72,47 @@ export function inspectPrivateWorldComponent(file, source) {
   const masked = codeOnly(source);
   const violations = [];
   const hasTransition = AUTH_TRANSITION.test(masked);
+  // Only data-reading queries require actor-scoped keys. Invalidation and
+  // cache-removal queryKeys intentionally target an entire private namespace.
+  const queryPattern = /\buse(?:Infinite|Suspense|SuspenseInfinite)?Query\s*\(/g;
   const keyPattern = /\bqueryKey\s*:/g;
-  let match;
-  let found = 0;
+  let queryMatch;
 
-  while ((match = keyPattern.exec(masked)) !== null) {
-    found++;
-    const position = match.index;
-    const line = lineAt(source, position);
+  while ((queryMatch = queryPattern.exec(masked)) !== null) {
+    const line = lineAt(source, queryMatch.index);
+    let optionsStart = queryPattern.lastIndex;
+    while (/\s/.test(masked[optionsStart] ?? "") && optionsStart < masked.length) optionsStart++;
+    if (masked[optionsStart] !== "{") {
+      violations.push({ file, line, code: "NON_LITERAL_QUERY_OPTIONS",
+        detail: "Private useQuery options must be an inspectable object with a scoped queryKey." });
+      continue;
+    }
+    let braces = 0;
+    let optionsEnd = optionsStart;
+    for (; optionsEnd < masked.length; optionsEnd++) {
+      if (masked[optionsEnd] === "{") braces++;
+      else if (masked[optionsEnd] === "}") {
+        braces--;
+        if (braces === 0) { optionsEnd++; break; }
+      }
+    }
+    if (braces !== 0 || optionsEnd > masked.length) {
+      violations.push({ file, line, code: "MALFORMED_QUERY_OPTIONS",
+        detail: "Private useQuery options could not be parsed safely." });
+      continue;
+    }
+    keyPattern.lastIndex = optionsStart + 1;
+    const keyMatch = keyPattern.exec(masked);
+    if (!keyMatch || keyMatch.index >= optionsEnd) {
+      violations.push({ file, line, code: "QUERY_KEY_MISSING",
+        detail: "Private useQuery has no statically inspectable queryKey." });
+      continue;
+    }
+    const keyLine = lineAt(source, keyMatch.index);
     let start = keyPattern.lastIndex;
     while (/\s/.test(masked[start] ?? "") && start < masked.length) start++;
     if (masked[start] !== "[") {
-      violations.push({ file, line, code: "NON_LITERAL_QUERY_KEY",
+      violations.push({ file, line: keyLine, code: "NON_LITERAL_QUERY_KEY",
         detail: "Private queryKey must expose a statically inspectable actor-scoped array." });
       continue;
     }
@@ -96,8 +125,8 @@ export function inspectPrivateWorldComponent(file, source) {
         if (depth === 0) { end++; break; }
       }
     }
-    if (depth !== 0 || end > masked.length) {
-      violations.push({ file, line, code: "MALFORMED_QUERY_KEY",
+    if (depth !== 0 || end > optionsEnd) {
+      violations.push({ file, line: keyLine, code: "MALFORMED_QUERY_KEY",
         detail: "Query key array could not be parsed safely." });
       continue;
     }
@@ -105,19 +134,15 @@ export function inspectPrivateWorldComponent(file, source) {
     const raw = source.slice(start, end);
     if (IDENTITY_BOOTSTRAP.test(raw.trim())) continue;
     if (!ACTOR_PARTITION.test(expression)) {
-      violations.push({ file, line, code: "ACTOR_NOT_IN_QUERY_KEY",
+      violations.push({ file, line: keyLine, code: "ACTOR_NOT_IN_QUERY_KEY",
         detail: "Private queryKey must include current actor identity or auth generation." });
     }
     if (!hasTransition) {
-      violations.push({ file, line, code: "AUTH_TRANSITION_UNOBSERVED",
+      violations.push({ file, line: keyLine, code: "AUTH_TRANSITION_UNOBSERVED",
         detail: "Private query has no observable auth-transition subscription/hook." });
     }
   }
 
-  if (/\buse(?:Infinite)?Query\s*\(/.test(masked) && found === 0) {
-    violations.push({ file, line: 1, code: "QUERY_KEY_MISSING",
-      detail: "Private World component uses React Query without visible queryKey." });
-  }
   if (STALE_FALLBACK.test(masked)) {
     violations.push({ file, line: lineAt(source, masked.search(STALE_FALLBACK)),
       code: "STALE_PRIVATE_FALLBACK",
