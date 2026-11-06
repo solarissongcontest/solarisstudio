@@ -70,6 +70,22 @@ describe("country page presentation ownership", () => {
     expect(css).not.toContain(":root {");
   });
 
+  it("shows the same current published participation in mobile-browser and desktop Country identity", () => {
+    const route = read("src/routes/countries/$code.tsx");
+    const masthead = read("src/components/country/CountryMobileWebMasthead.tsx");
+    expect(route).toContain("resolveCountryCurrentContext(");
+    expect(route).toContain("buildCountryDiscovery({");
+    expect(route).toContain("currentParticipants: publicArchive.participants");
+    expect(route).toContain("archiveHasError(editionsQuery, showsQuery, participantsQuery)");
+    expect(route).toContain("currentContext={currentContext}");
+    expect(route).toContain('countryLayoutMode !== "mobile-web" ? (');
+    expect(route).toContain('aria-label="Current-edition participation"');
+    expect(masthead).toContain("currentContext: CountryCurrentContext");
+    expect(masthead).toContain('aria-label="Current-edition participation"');
+    expect(masthead).toContain("{currentContext.status}");
+    expect(route).not.toContain("countriesQuery.data?.length || 67");
+  });
+
   it("loads scoped mobile-web styling as route CSS rather than repeated JavaScript style strings", () => {
     const country = read("src/routes/countries/$code.tsx");
     const wiki = read("src/components/wiki/CountryWikiExperience.tsx");
