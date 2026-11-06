@@ -87,6 +87,9 @@ begin
     ) then
     raise exception using errcode='42501',message='AUTHORIZATION';
   end if;
+  if not coalesce(public.studio2_feature_enabled('terra_world_public',null),false) then
+    raise exception using errcode='42501',message='WORLD_NOT_PUBLISHED';
+  end if;
   if p_kind not in ('legislature','chamber')
     or p_payload is null or jsonb_typeof(p_payload) <> 'object'
     or pg_column_size(p_payload) > 16384
@@ -269,6 +272,7 @@ as $reader$
         where ca.country_id=c.id and ca.user_id=auth.uid() and ca.status='active'))
   where lower(c.short_code)=lower(btrim(p_country_code))
     and length(btrim(p_country_code)) between 2 and 12
+    and coalesce(public.studio2_feature_enabled('terra_world_public',null),false)
   limit 1
 $reader$;
 revoke all on function public.world_domestic_legislature_v1(text)
