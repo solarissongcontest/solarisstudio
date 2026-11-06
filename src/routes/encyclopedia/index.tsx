@@ -1,12 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useSolarisApp } from "@/components/app/AppRuntime";
+import { SolarisSearchField } from "@/components/app/SolarisSearchField";
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Check, Search, SlidersHorizontal, X } from "lucide-react";
+import { useV3DirectoryPresentation, type V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
+import "@/styles/v3-directory-family.css";
+import "@/styles/v3-reference-directory.css";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { ArchiveDataLoading } from "@/components/ArchiveDataState";
 import { supabase } from "@/integrations/supabase/client";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
+import { parseReferenceSearchRows } from "@/lib/v3-reference-search-rows";
 
 export const Route = createFileRoute("/encyclopedia/")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -33,14 +40,7 @@ export const Route = createFileRoute("/encyclopedia/")({
 });
 
 type ResultKind = "edition" | "country" | "entry" | "show";
-type Kind = "all" | ResultKind;
-type ReferenceItem = {
-  id: string;
-  kind: ResultKind;
-  title: string;
-  subtitle: string;
-  href: string;
-};
+type Kind = "all" | ResultKind | "story" | "rule";
 type Coverage = {
   countries: number;
   entries: number;
@@ -54,6 +54,8 @@ const KIND_LABELS: Record<Kind, string> = {
   country: "Countries",
   entry: "Entries",
   show: "Shows",
+  story: "Stories",
+  rule: "Official rules",
 };
 const RESULT_LABELS: Record<ResultKind, string> = {
   edition: "Edition",
@@ -62,56 +64,17 @@ const RESULT_LABELS: Record<ResultKind, string> = {
   show: "Show",
 };
 const KINDS = Object.keys(KIND_LABELS) as Kind[];
-const RESULT_KINDS = new Set<ResultKind>([
-  "edition",
-  "country",
-  "entry",
-  "show",
-]);
+const REFERENCE_SEARCH_DELAY_MS = 300;
+const MAX_REFERENCE_QUERY_LENGTH = 120;
 const BROWSE_DESTINATIONS = [
-  ["Editions", "Browse every published Solaris edition.", "/editions"],
-  [
-    "Countries",
-    "Open canonical country profiles and participation history.",
-    "/countries",
-  ],
-  ["Shows", "Find published shows and their edition context.", "/shows"],
-  ["Stories", "Continue into published Solaris editorial history.", "/stories"],
+  { kind: "edition", label: "Editions", description: "Browse every published Solaris edition.", href: "/editions" },
+  { kind: "country", label: "Countries", description: "Open canonical country profiles and participation history.", href: "/countries" },
+  { kind: "show", label: "Shows", description: "Find published shows and their edition context.", href: "/shows" },
+  { kind: "story", label: "Stories", description: "Continue into published Solaris editorial history.", href: "/stories" },
+  { kind: "rule", label: "Official rules", description: "Read the current published Rules and guidance.", href: "/rules" },
 ] as const;
 
-function parseSearchRows(value: unknown): ReferenceItem[] {
-  if (!Array.isArray(value)) throw new Error("Invalid public search projection");
-
-  const seen = new Set<string>();
-  return value.flatMap((raw) => {
-    if (!raw || typeof raw !== "object") {
-      throw new Error("Invalid public search row");
-    }
-
-    const row = raw as Record<string, unknown>;
-    if (!RESULT_KINDS.has(row.result_type as ResultKind)) return [];
-
-    const id = typeof row.result_id === "string" ? row.result_id.trim() : "";
-    const title = typeof row.title === "string" ? row.title.trim() : "";
-    const href = typeof row.href === "string" ? row.href.trim() : "";
-
-    if (!id || !title || !href.startsWith("/") || href.startsWith("//")) {
-      throw new Error("Invalid public Reference result");
-    }
-    if (seen.has(id)) return [];
-    seen.add(id);
-
-    return [
-      {
-        id,
-        kind: row.result_type as ResultKind,
-        title,
-        subtitle: typeof row.subtitle === "string" ? row.subtitle : "",
-        href,
-      },
-    ];
-  });
-}
+const parseSearchRows = parseReferenceSearchRows;
 
 function parseCoverage(value: unknown): Coverage {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -133,10 +96,20 @@ function parseCoverage(value: unknown): Coverage {
 }
 
 function ReferencePage() {
+  const { platformResolved } = useSolarisApp();
+  const presentation = useV3DirectoryPresentation();
   const search = Route.useSearch();
   const [query, setQuery] = useState(search.artist ?? "");
   const [kind, setKind] = useState<Kind>("all");
   const normalizedQuery = query.trim();
+  const [settledQuery, setSettledQuery] = useState(normalizedQuery);
+  useEffect(() => {
+    if (settledQuery === normalizedQuery) return;
+    const timeoutId = window.setTimeout(() => setSettledQuery(normalizedQuery), REFERENCE_SEARCH_DELAY_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [normalizedQuery, settledQuery]);
+  const searchPending = settledQuery !== normalizedQuery;
+  const dedicatedTopicOnly = kind === "story" || kind === "rule";
 
   const feature = useQuery({
     queryKey: ["studio2-feature", "public_encyclopedia"],
@@ -162,15 +135,16 @@ function ReferencePage() {
       "v3",
       "reference",
       "search",
-      normalizedQuery.toLocaleLowerCase(),
+      settledQuery.toLocaleLowerCase(),
     ],
-    enabled: feature.data === true && normalizedQuery.length >= 2,
+    enabled: feature.data === true && !dedicatedTopicOnly && normalizedQuery.length >= 2 &&
+      normalizedQuery.length <= MAX_REFERENCE_QUERY_LENGTH && !searchPending,
     staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc(
         "solaris_public_search",
         {
-          search_query: normalizedQuery,
+          search_query: settledQuery,
           result_limit: 50,
         },
       );
@@ -178,6 +152,12 @@ function ReferencePage() {
       return parseSearchRows(data);
     },
   });
+
+  // Topic choices must also filter the idle browse index, not only typed search hits.
+  // Entries have no independent public directory yet: users search the published projection.
+  const browseDestinations = BROWSE_DESTINATIONS.filter((destination) =>
+    kind === "all" || destination.kind === kind,
+  );
 
   const filtered = useMemo(
     () =>
@@ -187,33 +167,52 @@ function ReferencePage() {
     [kind, referenceQuery.data],
   );
 
+  if (!platformResolved) {
+    return <div data-directory-boot="" role="status" aria-label="Opening Reference" className="min-h-20" />;
+  }
+
   if (feature.isLoading) {
     return (
       <AppShell>
-        <PageHeader
-          eyebrow="Explore Solaris"
-          title="Reference"
-          description="Published Solaris history, connected."
-        />
-        <ArchiveDataLoading label="Opening the public reference…" />
+        <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
+          <ReferenceDirectoryHeader presentation={presentation} />
+          <ArchiveDataLoading label="Opening the public reference…" />
+        </div>
       </AppShell>
     );
   }
 
-  if (feature.isError || feature.data !== true) {
+  if (feature.isError) {
     return (
       <AppShell>
-        <PageHeader
-          eyebrow="Explore Solaris"
-          title="Reference"
-          description="Published Solaris history, connected."
-        />
+        <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
+          <ReferenceDirectoryHeader presentation={presentation} />
+          <Panel title="Reference availability could not be checked">
+            <p className="text-sm text-muted-foreground">
+              Solaris could not verify whether the public Reference is enabled. No unpublished articles are shown.
+            </p>
+            <button type="button" onClick={() => void feature.refetch()}
+              className="mt-3 min-h-11 rounded-xl border border-border bg-surface px-4 text-sm font-semibold">
+              Retry availability check
+            </button>
+          </Panel>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (feature.data !== true) {
+    return (
+      <AppShell>
+        <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
+          <ReferenceDirectoryHeader presentation={presentation} />
         <Panel title="Reference is not enabled yet">
           <p className="text-sm text-muted-foreground">
             The product is installed but its rollout flag is still off while production
             verification finishes.
           </p>
         </Panel>
+        </div>
       </AppShell>
     );
   }
@@ -228,20 +227,21 @@ function ReferencePage() {
 
   return (
     <AppShell>
-      <PageHeader
-        eyebrow="Explore Solaris"
-        title="Reference"
-        description="A publication-safe reference across editions, countries, published entries and shows."
-        actions={
-          <Link
-            to="/countries"
-            className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold"
-          >
-            Browse countries →
-          </Link>
-        }
-      />
-
+      <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
+        <ReferenceDirectoryHeader presentation={presentation} />
+        <div className="v3-directory-workspace">
+          {presentation === "desktop-web" ? (
+            <aside className="v3-directory-desktop-rail" aria-label="Filter Reference">
+              <h2>Reference topics</h2>
+              {KINDS.map((value) => (
+                <button key={value} type="button" aria-pressed={kind === value}
+                  onClick={() => setKind(value)}>
+                  <span>{KIND_LABELS[value]}</span>
+                </button>
+              ))}
+            </aside>
+          ) : null}
+          <div className="v3-directory-results">
       <Panel
         title="Archive coverage"
         description="Small server-owned aggregates describe the public archive without downloading it into this page."
@@ -259,45 +259,71 @@ function ReferencePage() {
           <StatTile label="Stories" value={coverageValue(coverage?.stories)} />
         </div>
         {coverageQuery.isError ? (
-          <p className="mt-3 text-xs text-muted-foreground">
-            Archive totals are temporarily unavailable. Search and reference links still work.
-          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            <p>Archive totals are temporarily unavailable. Search and reference links still work.</p>
+            <button type="button" onClick={() => void coverageQuery.refetch()}
+              className="min-h-11 rounded-xl border border-border px-3 font-semibold text-foreground">
+              Retry archive totals
+            </button>
+          </div>
         ) : null}
       </Panel>
 
       <section className="mt-5 rounded-2xl border border-border bg-surface/60 p-3 sm:p-4">
-        <label className="relative block">
-          <span className="sr-only">Search Reference</span>
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search published Solaris history"
-            autoComplete="off"
-            className="min-h-11 w-full rounded-xl border border-border bg-background/50 pl-10 pr-3 text-sm outline-none focus:border-primary/60"
-          />
-        </label>
+        {presentation === "installed-app" ? (
+          <SolarisSearchField value={query} onChange={setQuery}
+            label="Search Reference" placeholder="Search published Solaris history…" />
+        ) : (
+          <div className="v3-directory-search" role="search">
+            <Search size={18} aria-hidden="true" />
+            <input type="search" aria-label="Search Reference"
+              value={query} onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search published Solaris history" autoComplete="off" />
+            {query ? (
+              <button type="button" className="v3-directory-search-clear"
+                aria-label="Clear search" onClick={() => setQuery("")}>
+                <X size={16} aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
+        )}
 
-        <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Filter Reference">
-          {KINDS.map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setKind(value)}
-              aria-pressed={kind === value}
-              className={`min-h-9 rounded-lg px-3 text-xs font-semibold ${
-                kind === value
-                  ? "bg-primary/12 text-primary"
-                  : "bg-background/45 text-muted-foreground"
-              }`}
-            >
-              {KIND_LABELS[value]}
-            </button>
-          ))}
-        </div>
+        {presentation === "installed-app" ? (
+          <Sheet>
+            <SheetTrigger asChild>
+              <button type="button" className="v3-directory-sheet-trigger mt-3" aria-label="Filter Reference by topic">
+                <SlidersHorizontal size={18} aria-hidden="true" />
+                <span>{KIND_LABELS[kind]}</span>
+              </button>
+            </SheetTrigger>
+            <SheetContent side="bottom" aria-label="Filter Reference by topic" className="max-h-[80dvh] overflow-y-auto">
+              <h2 className="mb-3 text-lg font-bold">Reference topics</h2>
+              <div className="v3-directory-sheet-options">
+                {KINDS.map((value) => (
+                  <SheetClose key={value} asChild>
+                    <button type="button" aria-pressed={kind === value} onClick={() => setKind(value)}>
+                      <span className="inline-flex items-center gap-2">
+                        {kind === value ? <Check size={16} aria-hidden="true" /> : null}
+                        {KIND_LABELS[value]}
+                      </span>
+                    </button>
+                  </SheetClose>
+                ))}
+              </div>
+            </SheetContent>
+          </Sheet>
+        ) : presentation === "mobile-web" ? (
+          <label className="v3-directory-area-select mt-3 block">
+            <span className="sr-only">Filter Reference</span>
+            <select aria-label="Filter Reference" value={kind}
+              onChange={(event) => setKind(event.target.value as Kind)}>
+              {KINDS.map((value) => <option key={value} value={value}>{KIND_LABELS[value]}</option>)}
+            </select>
+          </label>
+        ) : null}
       </section>
 
-      {normalizedQuery.length === 0 ? (
+      {normalizedQuery.length === 0 || dedicatedTopicOnly ? (
         <section className="mt-5" aria-labelledby="reference-browse-heading">
           <div className="mb-3 border-b border-border/60 pb-3">
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
@@ -305,17 +331,23 @@ function ReferencePage() {
             </p>
             <h2
               id="reference-browse-heading"
-              className="mt-1 font-display text-xl font-bold"
+              className="mt-1 font-sans text-xl font-bold"
+              aria-live="polite"
             >
-              Browse published Solaris
+              {kind === "all" ? "Browse published Solaris" : `Browse ${KIND_LABELS[kind].toLowerCase()}`}
             </h2>
           </div>
-          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-            {BROWSE_DESTINATIONS.map(([label, description, href]) => (
+          {dedicatedTopicOnly && normalizedQuery.length > 0 ? (
+            <p className="mb-3 text-sm leading-6 text-muted-foreground" role="status">
+              {KIND_LABELS[kind]} has a dedicated published index. The bounded Reference record search does not index this topic; open its public index below.
+            </p>
+          ) : null}
+          <div className={presentation === "mobile-web" ? "v3-directory-mobile-list" : presentation === "installed-app" ? "solaris-app-grouped-list" : "v3-directory-desktop-grid"}>
+            {browseDestinations.map(({ label, description, href }) => (
               <Link
                 key={href}
                 to={href as any}
-                className="flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-surface p-4 transition hover:border-primary/35"
+                className={presentation === "mobile-web" ? "v3-directory-mobile-row" : presentation === "installed-app" ? "solaris-app-list-row" : "v3-directory-desktop-card"}
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">{label}</p>
@@ -329,12 +361,21 @@ function ReferencePage() {
               </Link>
             ))}
           </div>
+          {browseDestinations.length === 0 ? (
+            <p className="mt-3 py-5 text-sm text-muted-foreground" role="status">
+              No standalone index exists for this topic. Search above to find published entries, songs and artists in their edition context.
+            </p>
+          ) : null}
         </section>
       ) : normalizedQuery.length < 2 ? (
         <div className="mt-5 rounded-2xl border border-border bg-surface p-7 text-center text-sm text-muted-foreground">
           Type at least two characters to search the published reference.
         </div>
-      ) : referenceQuery.isLoading ? (
+      ) : normalizedQuery.length > MAX_REFERENCE_QUERY_LENGTH ? (
+        <div className="mt-5 rounded-2xl border border-border bg-surface p-7 text-center text-sm text-muted-foreground" role="status">
+          Search terms must be no longer than {MAX_REFERENCE_QUERY_LENGTH} characters.
+        </div>
+      ) : searchPending || referenceQuery.isLoading ? (
         <div className="mt-5 rounded-2xl border border-border bg-surface p-7 text-center text-sm text-muted-foreground">
           Searching the published reference…
         </div>
@@ -364,25 +405,25 @@ function ReferencePage() {
               </h2>
             </div>
             <span className="text-xs tabular-nums text-muted-foreground">
-              {filtered.length}
+              {filtered.length} shown · bounded search
             </span>
           </div>
 
-          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+          <div className={presentation === "mobile-web" ? "v3-directory-mobile-list" : presentation === "installed-app" ? "solaris-app-grouped-list" : "v3-directory-desktop-grid"}>
             {filtered.map((item) => (
               <Link
                 key={item.id}
                 to={item.href as any}
-                className="flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-surface p-4 transition hover:border-primary/35"
+                className={presentation === "mobile-web" ? "v3-directory-mobile-row" : presentation === "installed-app" ? "solaris-app-list-row" : "v3-directory-desktop-card"}
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">
                     {RESULT_LABELS[item.kind]}
                   </p>
-                  <p className="mt-1 truncate text-sm font-semibold">
+                  <p className="mt-1 line-clamp-2 break-words text-sm font-semibold">
                     {item.title}
                   </p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  <p className="mt-0.5 break-words text-xs text-muted-foreground">
                     {item.subtitle || "Published Solaris record"}
                   </p>
                 </div>
@@ -406,6 +447,38 @@ function ReferencePage() {
         unpublished results are never indexed here. Artist and song labels remain attached to
         their published Entry until Solaris has durable first-class Artist and Song identity.
       </p>
+          </div>
+        </div>
+      </div>
     </AppShell>
+  );
+}
+
+function ReferenceDirectoryHeader({ presentation }: { presentation: V3DirectoryPresentation }) {
+  if (presentation === "mobile-web") {
+    return (
+      <header className="v3-directory-mobile-header" data-directory-mobile-header="">
+                <p className="v3-directory-eyebrow">SOLARIS KNOWLEDGE</p>
+        <h1>Reference</h1>
+        <p>Search published records and browse connected public history.</p>
+      </header>
+    );
+  }
+  if (presentation === "installed-app") {
+    return (
+      <header className="v3-directory-app-heading">
+        <p className="v3-directory-eyebrow">SOLARIS KNOWLEDGE</p>
+        <h1>Reference</h1>
+        <p>Find published countries, shows, entries and edition history.</p>
+      </header>
+    );
+  }
+  return (
+    <PageHeader
+      eyebrow="Explore Solaris"
+      title="Reference"
+      description="A publication-safe knowledge base across editions, countries, published entries and shows."
+      actions={<Link to="/countries" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold">Browse countries →</Link>}
+    />
   );
 }

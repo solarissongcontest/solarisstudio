@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PredictionRound, SavedPredictionEntry } from "./prediction-data";
-import { predictionState, projectPredictionRound } from "./v3-predictions";
+import { hasSubmittedPrediction, predictionState, projectPredictionRound } from "./v3-predictions";
 
 function round(status: PredictionRound["status"]): PredictionRound {
   return {
@@ -53,6 +53,35 @@ describe("V3 Predictions projection", () => {
     expect(predictionState(round("scoring"), entry("locked"))).toBe("scoring");
     expect(predictionState(round("scored"), entry("scored", true))).toBe("scored");
     expect(predictionState(round("cancelled"))).toBeNull();
+  });
+
+  it("does not report a saved draft as submitted or consensus-eligible", () => {
+    expect(hasSubmittedPrediction(null)).toBe(false);
+    expect(hasSubmittedPrediction(entry("draft"))).toBe(false);
+    expect(predictionState(round("open"), entry("draft"))).toBe("open");
+    expect(projectPredictionRound(round("open"), entry("draft"))?.state).toBe("open");
+  });
+
+  it("recognizes only canonical submitted, locked and scored entry states", () => {
+    expect(hasSubmittedPrediction(entry("submitted"))).toBe(true);
+    expect(hasSubmittedPrediction(entry("locked"))).toBe(true);
+    expect(hasSubmittedPrediction(entry("scored", true))).toBe(true);
+    expect(predictionState(round("open"), entry("submitted"))).toBe("submitted");
+  });
+
+  it("never treats a stale saved score as round-status authority", () => {
+    for (const status of ["draft", "open", "locked", "scoring"] as const) {
+      const current = round(status);
+      const state = predictionState(current, entry("scored", true));
+      expect(state).toBe(status === "draft" ? "upcoming" : status === "open" ? "submitted" : status);
+      const projected = projectPredictionRound(current, entry("scored", true));
+      expect(projected?.score).toBeNull();
+      expect(projected?.percentile).toBeNull();
+      expect(projected?.breakdown).toBeNull();
+      expect(projected?.scoringVersion).toBe("v7");
+    }
+    expect(predictionState(round("cancelled"), entry("scored", true))).toBeNull();
+    expect(projectPredictionRound(round("cancelled"), entry("scored", true))).toBeNull();
   });
 
   it("uses the immutable score's scoring version once scored", () => {

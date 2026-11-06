@@ -25,11 +25,16 @@ describe("Friend Voting prepared V5 scope", () => {
     const overview = source("routes/televoting/admin/index.tsx");
     const workspace = overview.indexOf('eyebrow="Voting workspace"');
     const advanced = overview.indexOf("Advanced voting tools");
-    const friendVoting = overview.indexOf('title="Friend-voting intelligence"');
+    // The typed tool catalogue may be declared above the rendered component.
+    // Require its Friend Voting destination to render inside Advanced instead
+    // of relying on lexical ordering of JSX and module-level definitions.
+    const advancedDetails = overview.indexOf('<details className="admin-card group');
     expect(workspace).toBeGreaterThan(-1);
     expect(advanced).toBeGreaterThan(workspace);
-    expect(friendVoting).toBeGreaterThan(advanced);
-    expect(overview).toContain('to="/admin/friend-voting"');
+    expect(advancedDetails).toBeGreaterThan(workspace);
+    expect(overview).toContain('title: "Friend-voting intelligence"');
+    expect(overview).toContain('to: "/admin/friend-voting"');
+    expect(overview.slice(advancedDetails)).toContain("ADVANCED_VOTING_TOOLS.map");
   });
 
   it("keeps selected-edition history causal inside the primary engine", () => {

@@ -23,9 +23,13 @@ describe("Public Encyclopedia durable identity boundary", () => {
     const implementation = route();
 
     expect(implementation).toContain('type ResultKind = "edition" | "country" | "entry" | "show";');
-    expect(implementation).toContain('"entry",');
-    expect(implementation).toContain("kind: row.result_type as ResultKind");
-    expect(implementation).toContain("id = typeof row.result_id");
+    // Search row parsing moved into the tested shared helper. Verify identity at
+    // the actual parsing boundary rather than requiring an inline route parser.
+    const parser = readFileSync(resolve(root, "src/lib/v3-reference-search-rows.ts"), "utf8");
+    expect(implementation).toContain("const parseSearchRows = parseReferenceSearchRows");
+    expect(parser).toContain('"entry",');
+    expect(parser).toContain('row.result_type as ReferenceResultKind');
+    expect(parser).toContain("const id = typeof row.result_id");
     expect(implementation).toContain("to={item.href as any}");
     expect(implementation).not.toContain("participant.artist");
     expect(implementation).not.toContain("participant.song");

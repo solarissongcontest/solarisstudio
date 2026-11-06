@@ -193,3 +193,124 @@
 @media (prefers-reduced-motion: reduce) {
   .v3-countries-discovery .v3-country-desktop-item svg { transition: none; }
 }
+
+/* Directory scope is a collection choice, never a muted chip ambiguity. */
+.v3-countries-discovery .v3-countries-intro{padding-block:0}
+.v3-countries-discovery .v3-countries-title{
+  font-family:var(--font-sans,system-ui,sans-serif);
+  font-size:clamp(1.8rem,7vw,2.15rem);
+  font-weight:750;
+  letter-spacing:-.035em;
+}
+.v3-countries-discovery .v3-countries-lead{max-width:42ch;margin-top:.4rem;font-size:.84rem;line-height:1.45}
+.v3-countries-discovery .v3-countries-browser{margin-top:.85rem}
+.v3-countries-discovery .v3-countries-collections{margin-bottom:.8rem}
+.v3-countries-discovery .v3-countries-controls{margin-bottom:.75rem}
+.v3-countries-discovery .v3-countries-grid{margin-top:.75rem}
+.v3-countries-discovery .v3-countries-scope-button{
+  display:flex;align-items:center;justify-content:center;gap:.35rem;
+  min-height:46px;padding:.55rem .45rem;
+  background:var(--surface);border-color:var(--border);
+  color:var(--muted-foreground);font-variant-numeric:tabular-nums
+}
+.v3-countries-discovery .v3-countries-scope-button.is-selected{
+  color:var(--primary-foreground,var(--background));
+  background:var(--primary);
+  border-color:var(--primary);
+  box-shadow:0 0 0 1px var(--primary)
+}
+.v3-countries-discovery .v3-countries-scope-button:focus-visible{
+  outline:2px solid var(--foreground);outline-offset:3px
+}
+.v3-countries-discovery .solaris-app-directory-count{
+  min-width:0;font-size:.77rem;line-height:1.4;font-variant-numeric:tabular-nums
+}
+.v3-countries-discovery[data-country-directory-experience="installed-app"] .v3-countries-secondary{margin-top:1.45rem}
+.v3-countries-discovery[data-country-directory-experience="mobile-web"] .v3-countries-collections{margin-bottom:.65rem}
+.v3-countries-discovery[data-country-directory-experience="mobile-web"] .v3-countries-web-region select{
+  min-height:46px;border-radius:.8rem
+}
+@media (max-width:359px){
+  .v3-countries-discovery .v3-countries-scope-button{gap:.22rem;font-size:.72rem}
+}
+
+/* The browser shell already renders the semantic route breadcrumb. Avoid
+ * duplicating it inside the Countries editorial masthead. */
+.country-directory-mobile-masthead{margin-top:0;padding-bottom:.75rem}
+.country-directory-mobile-masthead h1,
+.countries-library-hero h1{
+  font-family:var(--font-sans,system-ui,sans-serif);
+  font-size:clamp(1.9rem,7vw,2.4rem);
+  font-weight:750;line-height:1.14;letter-spacing:-.035em;
+  text-transform:none
+}
+.countries-library-hero{
+  margin-bottom:1rem;border-radius:0;background:transparent;box-shadow:none
+}
+
+/* Browser search is deliberately styled independently of html[data-solaris-app].
+ * SolarisSearchField keeps its shared semantics, reset action and query state. */
+.v3-countries-discovery .v3-countries-web-search {
+  display:flex;align-items:center;gap:.65rem;
+  min-width:0;min-height:48px;
+  padding:.1rem .8rem;
+  border:1px solid var(--border);
+  border-radius:.8rem;
+  background:var(--surface);
+}
+.v3-countries-discovery .v3-countries-web-search .solaris-app-search-icon {
+  position:static;flex-shrink:0;color:var(--muted-foreground)
+}
+.v3-countries-discovery .v3-countries-web-search .solaris-app-search-input {
+  display:block;flex:1;min-width:0;width:100%;height:44px;
+  padding:0;border:0;outline:0;background:transparent;
+  box-shadow:none;color:var(--foreground);font-size:.9rem
+}
+.v3-countries-discovery .v3-countries-web-search .solaris-app-search-input::placeholder {
+  color:var(--muted-foreground)
+}
+.v3-countries-discovery .v3-countries-web-search .solaris-app-search-clear {
+  display:grid;place-items:center;flex-shrink:0;
+  min-width:36px;min-height:36px;
+  border-radius:.5rem;color:var(--muted-foreground)
+}
+.v3-countries-discovery .v3-countries-web-search:focus-within {
+  outline:2px solid var(--primary);outline-offset:2px
+}
+.v3-countries-discovery .v3-countries-web-search .solaris-app-search-clear:focus-visible {
+  outline:2px solid var(--primary);outline-offset:2px
+}
+.v3-countries-discovery[data-country-directory-experience="mobile-web"] .solaris-app-directory-filterbar {
+  display:flex;align-items:center;justify-content:space-between;
+  gap:.5rem;flex-wrap:wrap
+}
+.v3-countries-discovery[data-country-directory-experience="mobile-web"] .solaris-app-directory-count {
+  display:block;flex:1 1 12rem
+}
+.v3-countries-discovery[data-country-directory-experience="desktop-web"] .v3-countries-browser {
+  margin-top:0
+}
+/* A desktop country explorer needs one page identity, not a giant hero
+ * followed by a second heading with almost the same title. */
+body .countries-library-hero.directory-page-hero {
+  margin-bottom:.9rem !important;
+  padding:.75rem 0 .9rem !important;
+  border:0 !important;
+  border-bottom:1px solid var(--border) !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  overflow:visible !important
+}
+body .countries-library-hero.directory-page-hero::before,
+body .countries-library-hero.directory-page-hero::after {
+  content:none !important;display:none !important
+}
+body .countries-library-hero.directory-page-hero h1 {
+  font-family:var(--font-sans,ui-sans-serif,system-ui,sans-serif) !important;
+  font-size:clamp(1.95rem,3vw,2.4rem) !important;
+  font-weight:750 !important;
+  letter-spacing:-.035em !important;
+  line-height:1.15 !important;
+  text-transform:none !important
+}

@@ -25,6 +25,8 @@ import { VotingMatrix } from "@/components/VotingMatrix";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
 import {
   useContestEntities,
+  useEditionById,
+  editionLabel,
   useAllResults,
   useAllShows,
   useCountries,
@@ -45,6 +47,7 @@ import {
 } from "@/lib/participation-status";
 import { useFanSession } from "@/lib/prediction-data";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
+import { isPublishedShowInPublishedEdition, publishedShowReadAccess } from "@/lib/v3-public-show-edition";
 import { usePublicShowParticipants } from "@/lib/public-participants";
 import { resolveTheme } from "@/lib/theme";
 import { resolveV3ResultsSpoilerProtection } from "@/lib/v3-results";
@@ -147,29 +150,32 @@ function ShowPage() {
   const serverPreferences = useNotificationPreferences(viewer.data?.id);
   const [resultSpoilersRevealed, setResultSpoilersRevealed] = useState(false);
   const showQuery = useShow(showId);
-  const participantsQuery = usePublicShowParticipants(showId);
-  const resultsQuery = useResults(showId);
-  const juryQuery = useJuryVotes(showId);
-  const televoteQuery = useTelevotes(showId);
-  const votersQuery = useShowVoters(showId);
+  const editionQuery = useEditionById(showQuery.data?.edition_id);
+  // Historical/global archives are never requested for unpublished Show or
+  // Edition contexts. Publication ownership stays in existing server/RLS rules.
+  const publishedShowContext = isPublishedShowInPublishedEdition(showQuery.data, editionQuery.data);
+  const readAccess = publishedShowReadAccess(showQuery.data, editionQuery.data);
+  const canLoadPublishedResultHistory = publishedShowContext && resolveShowPublication(showQuery.data).results;
+  const participantsQuery = usePublicShowParticipants(readAccess.showId);
+  const resultsQuery = useResults(readAccess.resultsId);
+  const juryQuery = useJuryVotes(readAccess.juryVotesId);
+  const televoteQuery = useTelevotes(readAccess.televoteVotesId);
+  const votersQuery = useShowVoters(readAccess.votersId);
   const countriesQuery = useCountries();
-  const allResultsQuery = useAllResults();
-  const allShowsQuery = useAllShows();
+  const allResultsQuery = useAllResults({ enabled: canLoadPublishedResultHistory });
+  const allShowsQuery = useAllShows({ enabled: publishedShowContext });
   const themesQuery = useThemes();
-  const entitiesQuery = useContestEntities(showQuery.data?.edition_id);
+  const entitiesQuery = useContestEntities(readAccess.editionId);
   const getPublicTelevoteDetail = useServerFn(getPublicShowTelevoteDetail);
   const televoteDetailQuery = useQuery({
     queryKey: ["public-show-televote-detail", showId],
     queryFn: () => getPublicTelevoteDetail({ data: { showId } }),
-    enabled: Boolean(
-      showQuery.data &&
-        resolveShowPublication(showQuery.data).detailed_voting &&
-        resolveShowPublication(showQuery.data).televote_results,
-    ),
+    enabled: Boolean(readAccess.televoteDetailId),
     staleTime: 5 * 60_000,
     retry: false,
   });
   const { data: show } = showQuery;
+  const { data: showEdition } = editionQuery;
   const { data: participants } = participantsQuery;
   const { data: archivedResults } = resultsQuery;
   const { data: jury } = juryQuery;
@@ -205,7 +211,7 @@ function ShowPage() {
   const detailedTelevote = televoteDetailQuery.data ?? null;
   const hasDetailedTelevote = Boolean(detailedTelevote?.rounds.length);
 
-  const showIsPublic = isShowPublic(show);
+  const showIsPublic = publishedShowContext;
   const displayMap = useMemo(() => entityDisplayMap(entities, countries), [entities, countries]);
   const participantRows = (participants ?? []) as ParticipationAwareParticipant[];
   const scoreableResults = useMemo(
@@ -392,11 +398,11 @@ function ShowPage() {
     if (!valid) setTab(tabOptions[0].value);
   }, [tab, tabOptions]);
 
-  const archiveQueries = [showQuery, participantsQuery, resultsQuery, juryQuery, televoteQuery, votersQuery, countriesQuery, allResultsQuery, allShowsQuery, themesQuery, entitiesQuery];
+  const archiveQueries = [showQuery, editionQuery, participantsQuery, resultsQuery, juryQuery, televoteQuery, votersQuery, countriesQuery, allResultsQuery, allShowsQuery, themesQuery, entitiesQuery];
   if (archiveIsLoading(...archiveQueries)) return <AppShell><ArchiveDataLoading label="Loading show…" /></AppShell>;
   if (archiveHasError(...archiveQueries)) return <AppShell><ArchiveDataError /></AppShell>;
 
-  if (!show) {
+  if (!show || !showEdition) {
     return (
       <AppShell>
         <PageHeader title="Show unavailable" />
@@ -413,7 +419,7 @@ function ShowPage() {
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
               Solaris Song Contest
             </p>
-            <h1 className="mt-2 font-display text-3xl font-bold">{show.name}</h1>
+            <h1 className="mt-2 font-display text-3xl font-bold">Show unavailable</h1>
             <p className="mt-3 text-sm text-muted-foreground">This show is not available publicly yet.</p>
             <Link to="/editions" className="mt-5 inline-flex text-sm font-semibold text-primary">
               ← Back to editions
@@ -470,7 +476,6 @@ function ShowPage() {
 
   const showSidebarItems = (allShows ?? [])
     .filter((item) => item.edition_id === show.edition_id && isShowPublic(item))
-    .slice()
     .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
     .map((item) => ({
       key: item.id,
@@ -494,7 +499,7 @@ function ShowPage() {
         />
         <div className="solaris-app-entity-content">
       <PageHeader
-        eyebrow={show.kind.replace("-", " ")}
+        eyebrow={`${editionLabel(showEdition)} · ${show.kind.replace("-", " ")}`}
         title={show.name}
         description={
           winner && winnerStanding && publication.results
@@ -506,8 +511,12 @@ function ShowPage() {
         actions={
           <div className="flex flex-wrap justify-end gap-2">
             <FollowButton entityType="show" entityId={show.id} label={show.name} />
-            <Link to="/editions" className="rounded-xl border border-border px-4 py-2.5 text-sm">
-              ← Editions
+            <Link
+              to="/editions/$slug"
+              params={{ slug: showEdition.slug }}
+              className="rounded-xl border border-border px-4 py-2.5 text-sm"
+            >
+              ← {editionLabel(showEdition)}
             </Link>
           </div>
         }

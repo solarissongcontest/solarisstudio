@@ -36,9 +36,10 @@ const GROUPS: V3DirectoryGroup[] = SITE_DIRECTORY_AREA_ORDER.map((area) => ({
 function SiteDirectoryPage() {
   return (
     <V3DirectoryFamilyIndex
+      variant="sitemap"
       title="All Solaris pages"
       eyebrow="FIND YOUR WAY"
-      intro="Browse every Solaris Studio destination, including advanced tools and familiar older names."
+      intro="Find public pages, tools and destinations by topic."
       browserIntro="Browse Solaris by topic or search for a page, tool or feature."
       searchLabel="Search Solaris Studio pages"
       searchPlaceholder="Search pages, tools or old feature names…"

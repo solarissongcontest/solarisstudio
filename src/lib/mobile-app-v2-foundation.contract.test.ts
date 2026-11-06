@@ -130,9 +130,9 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(countries).toContain("AppCountriesPage");
     expect(countries).toContain("<AppScreen>");
     expect(countries).toContain('<V3CountriesDiscoveryScreen presentation="installed-app" />');
-    expect(shows).toContain("AppShowsPage");
+    expect(shows).toContain('presentation === "installed-app"');
     expect(shows).toContain("<AppScreen>");
-    expect(shows).toContain("<V3ShowsDiscoveryScreen />");
+    expect(shows).toContain("<V3ShowsDiscoveryScreen presentation={presentation} />");
     expect(wiki).toContain("AppWikiIndexPage");
   });
 
@@ -154,7 +154,7 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(search).toContain('type="text"');
     expect(search).toContain('inputMode="search"');
     expect(editions).toContain("AppScreen");
-    expect(editions).toContain("AppSectionHeader");
+    expect(editions).toContain('id="app-edition-archive" className="v3-directory-group-title"');
     expect(editions).toContain("AppGroupedList");
     expect(editions).toContain("solaris-app-card solaris-app-edition-current");
     expect(editions).toContain("solaris-app-edition-row");

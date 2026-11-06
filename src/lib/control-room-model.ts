@@ -1,7 +1,7 @@
 import type { EditionRuntimeState, EditionState, SubsystemState } from './edition-state';
 import { defaultSubsystemStatesForEdition, normalizeLegacyEditionStatus } from './edition-state';
 
-export type ControlRoomHealth = 'healthy' | 'attention' | 'critical';
+export type ControlRoomHealth = 'healthy' | 'attention' | 'critical' | 'unknown';
 export type ControlRoomActionRisk = 'normal' | 'elevated' | 'critical';
 
 export type ControlRoomAction = {
@@ -18,10 +18,10 @@ export type ControlRoomInput = {
   legacyEditionStatus?: string | null;
   runtimeState?: EditionRuntimeState | null;
   healthStatus?: 'ready' | 'needs-attention' | 'blocked' | null;
-  healthIssues?: number;
-  criticalIssues?: number;
-  activeIncidents?: number;
-  criticalIncidents?: number;
+  healthIssues?: number | null;
+  criticalIssues?: number | null;
+  activeIncidents?: number | null;
+  criticalIncidents?: number | null;
   currentSegment?: string | null;
   nextSegment?: string | null;
   ballotsReceived?: number | null;
@@ -44,8 +44,9 @@ export type ControlRoomModel = {
   issues: {
     total: number;
     critical: number;
-    incidents: number;
-    criticalIncidents: number;
+    /** null means the viewer cannot verify incident evidence. */
+    incidents: number | null;
+    criticalIncidents: number | null;
   };
   actions: ControlRoomAction[];
 };
@@ -56,6 +57,17 @@ function deriveHealth(input: ControlRoomInput): ControlRoomHealth {
   }
   if ((input.activeIncidents ?? 0) > 0 || (input.healthIssues ?? 0) > 0 || input.healthStatus === 'needs-attention') {
     return 'attention';
+  }
+  // An absent health response or an unreadable incident source cannot prove
+  // that the live show is healthy. Keep "unknown" distinct from zero incidents.
+  if (
+    input.healthStatus !== 'ready' ||
+    input.healthIssues == null ||
+    input.criticalIssues == null ||
+    input.activeIncidents == null ||
+    input.criticalIncidents == null
+  ) {
+    return 'unknown';
   }
   return 'healthy';
 }
@@ -135,8 +147,8 @@ export function buildControlRoomModel(input: ControlRoomInput): ControlRoomModel
     issues: {
       total: Math.max(0, input.healthIssues ?? 0),
       critical: Math.max(0, input.criticalIssues ?? 0),
-      incidents: Math.max(0, input.activeIncidents ?? 0),
-      criticalIncidents: Math.max(0, input.criticalIncidents ?? 0),
+      incidents: input.activeIncidents == null ? null : Math.max(0, input.activeIncidents),
+      criticalIncidents: input.criticalIncidents == null ? null : Math.max(0, input.criticalIncidents),
     },
     actions: buildActions(editionState, subsystems.televoting),
   };

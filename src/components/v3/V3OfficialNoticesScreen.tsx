@@ -13,6 +13,7 @@ import { noticeTypeLabel } from "@/lib/official-communications";
 import type { Studio2NoticeInboxItem } from "@/lib/studio2-communications";
 import {
   V3_OFFICIAL_NOTICE_FILTER_STATES,
+  v3OfficialNoticeAcknowledgementState,
   v3OfficialNoticeNeedsAction,
   v3OfficialNoticeReason,
 } from "@/lib/v3-official-notices";
@@ -39,6 +40,7 @@ export type V3OfficialNoticesScreenProps = {
   onFilter: (state?: NoticeInboxState) => void;
   onAcknowledge: (noticeId: string) => void;
   onArchive: (noticeId: string, archived: boolean) => void;
+  onRetry: () => void;
 };
 
 function formatTimestamp(value: string | null | undefined) {
@@ -100,6 +102,7 @@ export function V3OfficialNoticesScreen({
   onFilter,
   onAcknowledge,
   onArchive,
+  onRetry,
 }: V3OfficialNoticesScreenProps) {
   const filteredItems = filter
     ? items.filter((item) => item.inboxState === filter)
@@ -111,6 +114,7 @@ export function V3OfficialNoticesScreen({
     v3OfficialNoticeNeedsAction(item.notice, item.inboxState),
   ).length;
   const unreadCount = items.filter((item) => item.inboxState === "unread").length;
+  const hasLoadedInbox = !loading && !loadError && !unavailable;
 
   return (
     <V3Screen className="pb-8">
@@ -127,25 +131,25 @@ export function V3OfficialNoticesScreen({
               <p className="text-[10px] font-black uppercase tracking-[0.13em] text-[var(--v3-text-tertiary)]">
                 Action required
               </p>
-              <p className="mt-1 text-2xl font-semibold">{actionCount}</p>
+              <p className="mt-1 text-2xl font-semibold">{hasLoadedInbox ? actionCount : "—"}</p>
             </V3Surface>
             <V3Surface>
               <p className="text-[10px] font-black uppercase tracking-[0.13em] text-[var(--v3-text-tertiary)]">
                 Unread
               </p>
-              <p className="mt-1 text-2xl font-semibold">{unreadCount}</p>
+              <p className="mt-1 text-2xl font-semibold">{hasLoadedInbox ? unreadCount : "—"}</p>
             </V3Surface>
             <V3Surface>
               <p className="text-[10px] font-black uppercase tracking-[0.13em] text-[var(--v3-text-tertiary)]">
                 Total
               </p>
-              <p className="mt-1 text-2xl font-semibold">{items.length}</p>
+              <p className="mt-1 text-2xl font-semibold">{hasLoadedInbox ? items.length : "—"}</p>
             </V3Surface>
           </div>
         </V3Section>
 
         <V3Section title="Inbox">
-          <nav className="mb-3 flex gap-2 overflow-x-auto pb-1" aria-label="Filter official notices">
+          {hasLoadedInbox ? <nav className="mb-3 flex gap-2 overflow-x-auto pb-1" aria-label="Filter official notices">
             <FilterButton active={!filter} label="All" onClick={() => onFilter(undefined)} />
             {V3_OFFICIAL_NOTICE_FILTER_STATES.map((state) => (
               <FilterButton
@@ -155,7 +159,7 @@ export function V3OfficialNoticesScreen({
                 onClick={() => onFilter(state)}
               />
             ))}
-          </nav>
+          </nav> : null}
 
           {unavailable ? (
             <V3Surface>
@@ -182,6 +186,14 @@ export function V3OfficialNoticesScreen({
                 <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
                   Solaris has not changed any notice or acknowledgement state.
                 </p>
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="mt-3 inline-flex min-h-11 items-center rounded-xl border border-[var(--v3-border)] px-4 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45"
+                >
+                  <RotateCcw className="mr-2 size-4" aria-hidden="true" />
+                  Retry loading
+                </button>
               </div>
             </V3Surface>
           ) : filteredItems.length === 0 ? (
@@ -277,8 +289,9 @@ function NoticeDetail({
 }) {
   const { notice, receipt, inboxState } = item;
   const archived = inboxState === "archived";
-  const acknowledged = inboxState === "acknowledged";
-  const needsAction = v3OfficialNoticeNeedsAction(notice, inboxState);
+  const acknowledgementState = v3OfficialNoticeAcknowledgementState(notice, inboxState, receipt);
+  const acknowledged = acknowledgementState === "recorded";
+  const needsAction = !acknowledged && v3OfficialNoticeNeedsAction(notice, inboxState);
 
   return (
     <article className="space-y-5" data-v3-official-notice-detail={notice.id}>
@@ -315,12 +328,18 @@ function NoticeDetail({
             <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[var(--v3-text-secondary)]" aria-hidden="true" />
             <div>
               <p className="text-sm font-semibold">
-                {acknowledged ? "Acknowledgement recorded" : "Acknowledgement required"}
+                {acknowledged
+                  ? "Acknowledgement recorded"
+                  : archived
+                    ? "Archived without acknowledgement"
+                    : "Acknowledgement required"}
               </p>
               <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
                 {acknowledged
                   ? `Recorded ${formatTimestamp(receipt?.acknowledgedAt)}.`
-                  : "Reading this notice does not acknowledge it. Use the button below only after you have read the official message."}
+                  : archived
+                    ? "This notice was archived without a recorded acknowledgement. Restore it to the inbox to acknowledge it."
+                    : "Reading this notice does not acknowledge it. Use the button below only after you have read the official message."}
               </p>
             </div>
           </div>

@@ -204,6 +204,23 @@ describe("V3 Explore projection", () => {
     expect(live.more).toContainEqual({ key: "rules", label: "Rules", href: "/rules" });
   });
 
+  it("links to the already public Prediction Arena without inventing game availability", () => {
+    const projection = buildV3ExploreRootProjection(
+      rootInput({ routes: { ...routes, predictions: "/predictions" } }),
+    );
+
+    expect(projection.more).toContainEqual({
+      key: "predictions",
+      label: "Predictions",
+      href: "/predictions",
+    });
+    // Fantasy requires a separate rollout decision; Explore must not imply
+    // the game is available without server-owned evidence.
+    expect(projection.more).not.toContainEqual(
+      expect.objectContaining({ key: "fantasy" }),
+    );
+  });
+
   it("keeps result-analysis tools owned by Results rather than Explore", () => {
     expect(classifyV3ExploreOrResultsFeature("edition")).toBe("explore");
     expect(classifyV3ExploreOrResultsFeature("story")).toBe("explore");

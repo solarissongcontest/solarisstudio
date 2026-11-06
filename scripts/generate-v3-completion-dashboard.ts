@@ -10,6 +10,10 @@ import {
   V3_SYSTEM_DOMAIN_REGISTRY,
 } from "../src/lib/v3-capability-registry";
 import { evaluateV3NavigationRuntimeEvidence } from "../src/lib/v3-qa-navigation-runtime-evidence";
+import {
+  V3_PUBLIC_DIRECTORY_EVIDENCE,
+  validateV3PublicDirectoryEvidence,
+} from "../src/lib/v3-public-directory-evidence";
 
 type CompletionState =
   | "missing"
@@ -552,7 +556,33 @@ function table(rows: readonly EvidenceRow[]) {
   ].join("\n");
 }
 
-const blockers = [...systemRows, ...publicRows, ...organizerRows, ...navigationRows, ...navigationAcceptanceRows]
+const directoryRegistryIssues = validateV3PublicDirectoryEvidence(
+  V3_PUBLIC_DIRECTORY_EVIDENCE, candidateSha,
+);
+const directoryRows: EvidenceRow[] = V3_PUBLIC_DIRECTORY_EVIDENCE.map((directory) => {
+  const certified = directory.certification === "certified"
+    && directoryRegistryIssues.every((issue) => !issue.startsWith(`directory ${directory.id}:`));
+  return {
+    id: `DIR-${directory.id}`,
+    name: `${directory.route} · three experiences`,
+    state: certified ? "certified"
+      : directory.productParity === "partial" ? "implemented" : "foundation",
+    evidence: [
+      `capability ${directory.capabilityId}`,
+      `owner ${directory.domainOwner}`,
+      `app/web/desktop: defined`,
+      `responsive ${directory.responsiveEvidence.length}`,
+      `accessibility ${directory.accessibilityEvidence.length}`,
+      `visual ${directory.visualEvidence.length}`,
+      `exact CI ${directory.exactHeadCi.sha ?? "none"}`,
+    ].join("; "),
+    blocker: certified ? undefined : `Directory certification incomplete: ${directoryRegistryIssues
+      .filter((issue) => issue.startsWith(`directory ${directory.id}:`))
+      .join("; ") || "exact-head responsive, accessibility and visual evidence not all certified"}`,
+  };
+});
+
+const blockers = [...systemRows, ...publicRows, ...organizerRows, ...navigationRows, ...navigationAcceptanceRows, ...directoryRows]
   .filter((row) => row.blocker)
   .map((row) => `${row.id} ${row.name}: ${row.blocker}`);
 
@@ -566,6 +596,8 @@ const payload = {
   organizer: organizerRows,
   navigation: navigationRows,
   navigationAcceptance: navigationAcceptanceRows,
+  directories: directoryRows,
+  directoryRegistryIssues,
   registrySummary: {
     public: Object.fromEntries(countStatus(V3_PUBLIC_CAPABILITIES, (item) => item.specificationStatus)),
     organizer: Object.fromEntries(countStatus(V3_ORGANIZER_CAPABILITY_REGISTRY, (item) => item.migrationStatus)),
@@ -601,6 +633,10 @@ if (process.argv.includes("--json")) {
     "### Public capability registry",
     "",
     ...countStatus(V3_PUBLIC_CAPABILITIES, (item) => item.specificationStatus).map(([status, count]) => `- ${status}: **${count}**`),
+    "",
+    "## Public directories · three-experience certification",
+    "",
+    table(directoryRows),
     "",
     "## Organizer O0–O18",
     "",
