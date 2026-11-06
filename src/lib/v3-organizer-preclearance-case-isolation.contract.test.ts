@@ -26,7 +26,7 @@ describe("Preclearance case isolation", () => {
     expect(source).toContain("Ruling history could not be verified");
     expect(source).toContain("The private rule-question queue could not be verified");
     expect(source).toContain('value={casesVerified ? questions.length : null}');
-    expect(source).toContain('caseId && rulingsVerified ? rulingsQuery.data.length : null');
+    expect(source).toContain('caseId && rulingsVerified ? (rulingsQuery.data?.length ?? null) : null');
     expect(source).toContain('value === null ? "Not verified"');
   });
 });
