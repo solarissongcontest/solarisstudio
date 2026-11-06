@@ -82,7 +82,7 @@ describe("V3 Following & Saved read and mutation recovery", () => {
 
   it("never shows an old account's delayed mutation message to a different viewer", () => {
     const source = screen();
-    expect(source).toContain('useEffect(() => {\n    setMessage(null);\n    setSearch("");\n  }, [viewerId]);');
+    expect(source).toContain('useEffect(() => {\n    latestViewerId.current = viewerId;\n    setMessage(null);\n    setSearch("");\n  }, [viewerId]);');
     expect(source).toContain("setMessage({ viewerId, text: confirmed");
     expect(source).toContain("Update not confirmed. Solaris could not confirm whether that preference was saved.");
     expect(source).toContain("message?.viewerId === viewerId");
@@ -102,6 +102,16 @@ describe("V3 Following & Saved read and mutation recovery", () => {
     expect(source).toContain("matchesIntent(reconciled.data.follows)");
     expect(source).toContain("has not confirmed it yet");
     expect(source).toContain("could not confirm whether that preference was saved");
+  });
+
+  it("checks the live actor before dispatching the saved preference writer", () => {
+    const source = screen();
+    expect(source).toContain('import { supabase } from "@/integrations/supabase/client";');
+    expect(source).toContain("const latestViewerId = useRef(viewerId);");
+    expect(source).toContain("const { data: auth, error: authError } = await supabase.auth.getUser();");
+    expect(source).toContain("auth.user.id !== viewerId || latestViewerId.current !== viewerId");
+    expect(source.indexOf("supabase.auth.getUser()")).toBeLessThan(source.indexOf("await setFollow.mutateAsync({"));
+    expect(source).toContain("Following account changed before the preference update.");
   });
 
 });
