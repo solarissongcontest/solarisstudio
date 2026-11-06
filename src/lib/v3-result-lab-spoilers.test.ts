@@ -65,8 +65,10 @@ describe("Public Result Lab spoiler-safe presentation", () => {
     expect(gate).toContain("serverPreferences.isError");
     expect(gate).toContain("resolveV3ResultLabSpoilerGate({");
     expect(gate).toContain("spoilerGate.protected ? (");
-    expect(gate).toContain('data-v3-result-lab-spoiler-protected=""');
-    expect(gate).toContain("Reveal this simulation");
+    expect(gate).toContain("<V3AnalysisRevealScreen");
+    const reveal = readFileSync(resolve(process.cwd(), "src/components/v3/V3AnalysisRevealScreen.tsx"), "utf8");
+    expect(reveal).toContain("data-v3-result-lab-spoiler-protected");
+    expect(reveal).toContain("Reveal this simulation");
     expect(gate).toContain("setRevealedResultKey(null)");
     expect(gate).not.toContain("localStorage");
   });

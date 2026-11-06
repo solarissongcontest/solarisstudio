@@ -91,6 +91,13 @@ test("tablet browser keeps Advanced destinations keyboard-accessible with readab
   const size = await firstLink.evaluate((element) => element.getBoundingClientRect().height);
   expect(size, "Tablet destinations need at least a 44px touch target").toBeGreaterThanOrEqual(43.9);
 
+  // Escape from an Advanced link should close the disclosure and restore
+  // keyboard focus to its summary, not leave focus in hidden links.
+  await firstLink.focus();
+  await page.keyboard.press("Escape");
+  await expect(advanced).not.toHaveAttribute("open", "");
+  await expect(summary).toBeFocused();
+
   const overflow = await page.evaluate(() =>
     Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) - innerWidth,
   );
@@ -218,6 +225,14 @@ test("desktop advanced section follows deep links and browser history", async ({
 
   const resultLab = advanced.getByRole("link", { name: "Result Lab", exact: true });
   await expect(resultLab).toBeVisible();
+
+  await resultLab.focus();
+  await page.keyboard.press("Escape");
+  await expect(advanced).not.toHaveAttribute("open", "");
+  await expect(summary).toBeFocused();
+
+  await summary.click();
+  await expect(advanced).toHaveAttribute("open", "");
   await resultLab.click();
   await expect(page).toHaveURL(/\/result-lab\/?(?:[?#].*)?$/);
   await expect(advanced).toHaveAttribute("open", "");

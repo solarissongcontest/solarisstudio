@@ -17,7 +17,9 @@ describe("V3 web global Search request budget", () => {
 
     expect(web).toContain("useCountries()");
     expect(web).toContain("useEditions()");
-    expect(web).toContain("{normalized ? (");
+    expect(web).toContain("{normalized.length >= 2 ? (");
+    expect(web).toContain('Type one more character to search published Solaris content.');
+    expect(web).toContain(") : normalized ? (");
     expect(web).toContain("<WebSearchArchiveResults");
     expect(web).not.toContain("useAllShows()");
     expect(web).not.toContain("useAllParticipants()");
@@ -30,7 +32,8 @@ describe("V3 web global Search request budget", () => {
     const archive = section("function WebSearchArchiveResults", "function renderSearchGroups");
 
     expect(archive).toContain("useAllShows()");
-    expect(archive).toContain("useAllParticipants()");
+    expect(archive).toContain("usePublicSearchParticipants()");
+    expect(archive).not.toContain("useAllParticipants()");
     expect(archive).toContain("useAllResults()");
     expect(archive).toContain("useAllJuryVotes()");
     expect(archive).toContain("loadPublicStorylines(40)");
