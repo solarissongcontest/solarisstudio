@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, CheckCircle2, ClipboardCheck, Landmark, Scale } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ClipboardCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   castWorldBallot, certifyWorldVote, getManagedWorldVote, getMyWorldVote,
