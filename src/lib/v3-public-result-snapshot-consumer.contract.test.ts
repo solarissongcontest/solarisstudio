@@ -39,6 +39,15 @@ describe("Public V3 exact published Result consumer", () => {
     expect(source).toContain("legacy/unversioned publication returns `null`");
   });
 
+  it("registers the read adapter and uses JSON-safe detailed voting transport", () => {
+    const parser = read("src/lib/v3-public-result-snapshot.ts");
+    const registry = read("src/lib/v3-system-zero-orphan-registry.ts");
+
+    expect(parser).toContain("televoteComponents: z.json().optional()");
+    expect(parser).not.toContain("televoteComponents: z.unknown()");
+    expect(registry).toContain('path: "src/integrations/v3/public-result-snapshot.server.ts", coordinatorDomain: "results", role: "projection-adapter"');
+  });
+
   it("pins field-level split-result publication instead of trusting the consuming screen", () => {
     const parser = read("src/lib/v3-public-result-snapshot.ts");
 

@@ -8,7 +8,8 @@ const publicResultRowSchema = z
     finalRank: z.number().int().positive(),
     juryPoints: z.number().int().nullable().optional(),
     televotePoints: z.number().int().nullable().optional(),
-    televoteComponents: z.unknown().optional(),
+    // Immutable JSONB detail must remain JSON-serializable across the server-function boundary.
+    televoteComponents: z.json().optional(),
   })
   .strict()
   .superRefine((row, ctx) => {

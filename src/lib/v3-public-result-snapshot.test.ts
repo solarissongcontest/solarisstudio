@@ -195,6 +195,27 @@ describe("V3 public exact Result snapshot", () => {
     );
   });
 
+  it("preserves nested JSON detail and rejects unserializable components", () => {
+    const components = { app: 100, sources: [{ kind: "public", points: 100 }], validated: true };
+    const value = snapshot({
+      availability: { results: true, jury: true, televote: true, detailedVoting: true },
+      rows: (snapshot().rows as Array<Record<string, unknown>>).map((row) => ({
+        ...row,
+        televoteComponents: components,
+      })),
+    });
+    const parsed = parseV3PublishedResultSnapshot(value);
+    expect(parsed?.rows[0]?.televoteComponents).toEqual(components);
+
+    const invalid = {
+      ...value,
+      rows: (value.rows as Array<Record<string, unknown>>).map((row, index) =>
+        index === 0 ? { ...row, televoteComponents: { unsafe: () => 42 } } : row,
+      ),
+    };
+    expect(() => parseV3PublishedResultSnapshot(invalid)).toThrow();
+  });
+
   it("requires durable row identity and rejects duplicate canonical identities", () => {
     const missingIdentity = snapshot();
     (missingIdentity.rows as Array<Record<string, unknown>>)[0] = {
