@@ -49,6 +49,7 @@ const response = {
 
 function renderWorldSearch(countryPage: number, organizationPage: number, term = "land") {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(["world", "public", "featured"], [response.organizations[0]]);
   client.setQueryData(
     ["world", "public", "country-search", term, countryPage],
     { countries: response.countries, countryTotal: response.countryTotal },
@@ -98,10 +99,18 @@ describe("Unified World Search public rendering", () => {
     expect(html).toContain("24 of 37");
   });
 
-  it("does not display stored result rows when the search term is too short", () => {
+  it("shows published featured institutions without searching when the term is too short", () => {
     const html = renderWorldSearch(0, 0, "a");
     expect(html).toContain("Enter at least two characters");
+    expect(html).toContain("Featured institutions");
+    expect(html).toContain("GUARD");
     expect(html).not.toContain("Oland");
-    expect(html).not.toContain("Global Union for Allied Resilience and Defence");
+    expect(html).not.toContain("never-render");
+  });
+
+  it("keeps the main search result pages separate from featured institutions", () => {
+    const html = renderWorldSearch(0, 0);
+    expect(html).toContain("Oland");
+    expect(html).not.toContain("Featured institutions");
   });
 });
