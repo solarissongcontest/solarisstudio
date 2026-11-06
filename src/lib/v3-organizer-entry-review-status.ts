@@ -104,6 +104,33 @@ export function deriveOrganizerResponseReviewState(
 }
 
 /**
+ * Song-submitted queue evidence must describe the currently participating
+ * selection. Inactive or unknown selection records can retain old Entry
+ * titles, but those titles do not prove a song has been submitted now.
+ * National Finals count if at least one active, known candidate has a title;
+ * this is a filter, not a completeness or eligibility verdict.
+ */
+export function hasCurrentOrganizerResponseSongSubmission(
+  response: OrganizerResponseReviewEvidence,
+): boolean {
+  if (!response.participating) return false;
+  if (response.selection_method === "internal") {
+    return !response.entry_unknown &&
+      Boolean(response.internal_entries?.song_title?.trim()) &&
+      !response.internal_entries?.removed &&
+      response.internal_entries?.review_status !== "removed";
+  }
+  if (response.selection_method === "national_final") {
+    if (response.nf_entries_unknown) return false;
+    return (response.national_finals?.national_final_entries ?? []).some(
+      (entry) => !entry.removed && entry.review_status !== "removed" &&
+        Boolean(entry.song_title?.trim()),
+    );
+  }
+  return false;
+}
+
+/**
  * These are response-queue filters, not historical decision counts.
  * Withdrawn/unknown selections cannot appear in the current accepted or
  * declined queues just because a previous decision is still in the read model.
