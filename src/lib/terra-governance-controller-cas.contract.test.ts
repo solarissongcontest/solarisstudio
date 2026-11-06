@@ -40,6 +40,21 @@ describe("WORLD-01 TG1 controller-person CAS and effective identity", () => {
     expect(bind).not.toMatch(/(?:insert into|update|delete from)\s+public\.country_accounts/i);
   });
 
+  it("can supersede a future-dated open term without violating the TG1 historical time check", () => {
+    expect(bind).toBeDefined();
+    expect(bind).toContain("greatest(now(), v_existing.started_at)");
+    expect(bind).toContain("set ended_at = greatest(now(), v_existing.started_at)");
+    expect(bind!.indexOf("set ended_at = greatest(now(), v_existing.started_at)"))
+      .toBeGreaterThan(bind!.indexOf("if v_current_user_id is distinct from p_expected_current_user_id"));
+    expect(migration).toContain("world_country_control_terms_time_order");
+    const rehearsal = readFileSync(
+      resolve(process.cwd(), "scripts/rehearse-v3-world-controller-cas.sql"), "utf8",
+    );
+    expect(rehearsal).toContain("TG1_CAS_FUTURE_SUPERSESSION_INVALID");
+    expect(rehearsal).toContain("term.ended_at is distinct from term.started_at");
+    expect(rehearsal).toContain("TG1_CAS_FUTURE_SUPERSESSION_OWNER_CHANGED");
+  });
+
   it("preserves historical bindings, durable person identity, audit and receipt authority", () => {
     expect(bind).toContain("private.studio2_claim_operation(");
     expect(bind).toContain("private.studio2_complete_operation(");
