@@ -23,6 +23,32 @@ function normalized(value: unknown) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
 
+/**
+ * Normalize a route only for *privacy classification*, never for navigation.
+ * Encoded slashes or the World prefix must not turn a sensitive notification
+ * into a public provider payload. Decode a bounded number of times because
+ * double-encoded deep links can pass through several producer layers.
+ */
+function isWorldRoute(rawRoute: string): boolean {
+  let route = rawRoute;
+  for (let pass = 0; pass < 4; pass += 1) {
+    // Also fail closed on an invalid encoded delimiter immediately after
+    // /world, without redacting unrelated paths such as /worldwide.
+    if (/^\/world(?:$|[\/?#\\%])/i.test(route)) return true;
+    if (!route.includes("%")) return false;
+    try {
+      const decoded = decodeURIComponent(route);
+      if (decoded === route) return false;
+      route = decoded;
+    } catch {
+      // Malformed encodings elsewhere in an otherwise unknown route cannot
+      // safely be interpreted as canonical World paths.
+      return false;
+    }
+  }
+  return /^\/world(?:$|[\/?#\\%])/i.test(route);
+}
+
 export function isPrivateWorldPush(candidate: WorldPushCandidate): boolean {
   if (candidate.sensitive === true) return true;
   const confidential = new Set(["private", "confidential", "restricted", "committee", "sealed"]);
@@ -39,7 +65,7 @@ export function isPrivateWorldPush(candidate: WorldPushCandidate): boolean {
   // must not accidentally display their producer-provided case details.
   if (category === "world" || category.startsWith("world_") || category.startsWith("world.")) return true;
   if (eventType === "world" || eventType.startsWith("world.") || eventType.startsWith("world_")) return true;
-  if (route === "/world" || route.startsWith("/world/") || route.startsWith("/world?")) return true;
+  if (isWorldRoute(route)) return true;
 
   // Canonical responsibility/task kinds can be delivered through the ordinary
   // Task category, so never rely solely on category=world.
