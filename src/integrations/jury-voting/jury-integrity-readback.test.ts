@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { numberValue, percentageValue, peerCountValue, proportionValue } from "./jury-integrity-readback";
+import { assertJuryIntegrityV5Evidence, numberValue, percentageValue, peerCountValue, proportionValue } from "./jury-integrity-readback";
 
 describe("Jury Integrity v5 numeric readback", () => {
   it.each([0, 1, 12, 0.125, 100, "12", "0.25"])(
@@ -44,4 +44,23 @@ describe("Jury Integrity model-bound evidence values", () => {
     "refuses partial or invalid peer ballot counts: %s",
     (value) => expect(() => peerCountValue(value)).toThrow(),
   );
+});
+
+describe("Jury Integrity v5 evidence version coherence", () => {
+  const stored = { risk: 64, confidence: 78 };
+  const matching = { modelVersion: "jury-integrity-model-v5", risk: 64, confidence: 78 };
+
+  it("accepts matching model, risk and confidence", () => {
+    expect(() => assertJuryIntegrityV5Evidence(stored, matching)).not.toThrow();
+  });
+
+  it.each([
+    { modelVersion: "jury-integrity-model-v4", risk: 64, confidence: 78 },
+    { modelVersion: null, risk: 64, confidence: 78 },
+    { modelVersion: "jury-integrity-model-v5", risk: 50, confidence: 78 },
+    { modelVersion: "jury-integrity-model-v5", risk: 64, confidence: 50 },
+    { modelVersion: "jury-integrity-model-v5", risk: null, confidence: 78 },
+  ])("rejects stale/mixed/corrupt evidence %o", (evidence) => {
+    expect(() => assertJuryIntegrityV5Evidence(stored, evidence)).toThrow();
+  });
 });
