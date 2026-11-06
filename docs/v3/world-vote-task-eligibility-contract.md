@@ -34,7 +34,7 @@ This contract is **not** an authorization to publish tasks, enable flags or depl
 
 New companion file: `scripts/rehearse-v3-world-vote-task-eligibility.sql`.
 
-It consumes the **existing WORLD-05 TG8 fixture** within its already-open disposable PostgreSQL transaction, opens an isolated TG10-only SAVEPOINT and restores it before the TG8 checks begin. It tests permitted representative vs wrong-country/outsider/null actor, expired vote, anonymous EXECUTE denial, voting-rule and vote flags, platform read-only and **real TG8 ballot casting followed by immediate revocation**. The TG8 companion continues to own the final `ROLLBACK`.
+It consumes the **existing WORLD-05 TG8 fixture** within its already-open disposable PostgreSQL transaction, opens an isolated TG10-only SAVEPOINT and restores it before the TG8 checks begin. It tests permitted representative vs wrong-country/outsider/null actor, expired vote, anonymous EXECUTE denial, voting-rule and vote flags, platform read-only, an approved **frozen proxy and its immediate revocation**, and **real TG8 ballot casting followed by immediate task revocation**. The TG8 companion continues to own the final `ROLLBACK`.
 
 A repository-enabled WORLD-05/WORLD-01 reviewer must invoke these files **together and in this exact order** inside a preflighted, strict loopback-only local Supabase connection (never from an arbitrary `DATABASE_URL`):
 
@@ -44,4 +44,4 @@ A repository-enabled WORLD-05/WORLD-01 reviewer must invoke these files **togeth
 
 **Known upstream blocker:** TG8 #2275 currently references retired `world_vote_electorate` and `world_legislative_ballots` in its fixture and companion checks. WORLD-05 must first repair its own scripts to match `world_vote_eligibility` / `world_ballots`, verify real receipt foreign keys and harden its local-only shell URL guard. **Do not execute TG10 as a substitute for broken TG8 rehearsal.** This SQL file has no standalone runner and has **not** been executed against PostgreSQL; source-contract tests alone are not runtime validation.
 
-Additional required follow-up scenarios remain: approved/revoked/expired proxy and representation/membership revision changes, exact production-like RLS/role checks and concurrent revocation/ballot races.
+Additional required follow-up scenarios remain: independently expired proxy, representation/membership revision changes, production-like RLS/role checks and concurrent revocation/ballot races.
