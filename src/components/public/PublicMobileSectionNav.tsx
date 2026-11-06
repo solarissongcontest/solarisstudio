@@ -20,6 +20,18 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
   // Browser history and direct links must not carry an expanded menu to a new page.
   useEffect(() => setOpen(false), [pathname]);
 
+  // The tablet/desktop rail replaces this disclosure at 768px. If the user
+  // rotates or resizes back to mobile, do not resurrect a stale open panel.
+  useEffect(() => {
+    const wideWebsite = window.matchMedia("(min-width: 768px)");
+    const closeForWideWebsite = (event: MediaQueryListEvent) => {
+      if (event.matches) setOpen(false);
+    };
+    if (wideWebsite.matches) setOpen(false);
+    wideWebsite.addEventListener("change", closeForWideWebsite);
+    return () => wideWebsite.removeEventListener("change", closeForWideWebsite);
+  }, []);
+
   // Inline browser menus should also dismiss when the user taps elsewhere,
   // without stealing focus or swallowing the outside pointer interaction.
   useEffect(() => {
