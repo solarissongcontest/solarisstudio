@@ -8,6 +8,19 @@ const cli = source("scripts/check-v3-qa-release-truth.ts");
 const truth = source("src/lib/v3-qa-release-truth.ts");
 
 describe("V3 QA release-truth preflight integration", () => {
+  it("includes plural Results lifecycle events in S14 critical consequence readiness", () => {
+    const scanner = source("scripts/check-v3-s14-rehearsal-readiness.ts");
+    const registry = source("src/lib/solaris-v6-domain-registry.ts");
+    const consequences = source("src/lib/v3-domain-consequence-registry.ts");
+
+    expect(registry).toContain('"results.calculated"');
+    expect(registry).toContain('"results.verified"');
+    expect(registry).toContain('"results.locked"');
+    expect(consequences).toContain('"results.calculated"');
+    expect(scanner).toContain('"results."');
+    expect(scanner).not.toContain('"result."');
+  });
+
   it("uses the existing canonical cross-release consistency validator for S14, S15 and S16", () => {
     expect(truth).toContain('releaseEvidenceConsistencyFailure } from "../../scripts/v3-release-evidence-consistency"');
     expect(truth).toContain("releaseEvidenceConsistencyFailure(S14_FILE, value)");

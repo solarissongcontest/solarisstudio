@@ -86,7 +86,7 @@ for (const id of organizerRequired) {
   }
 }
 
-const consequencePrefixes = ["confirmation.", "entry.", "media.", "jury.", "televote.", "result."];
+const consequencePrefixes = ["confirmation.", "entry.", "media.", "jury.", "televote.", "results."];
 const relevantConsequences = V3_DOMAIN_CONSEQUENCE_REGISTRY.filter((item) =>
   consequencePrefixes.some((prefix) => item.eventType.startsWith(prefix)),
 );
