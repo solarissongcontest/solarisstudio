@@ -172,6 +172,67 @@ end
 $manager$;
 reset role;
 
+-- A still-live acting-proxy request must not be silently invalidated by
+-- moving its meeting outside the approved/requested time window.
+do $tg6_reschedule_proxy_seed$
+declare
+  v jsonb:=current_setting('solaris.tg6_schedule_fixture')::jsonb;
+  v_country uuid:=gen_random_uuid();
+  v_rep uuid:=gen_random_uuid();
+  v_rep_person uuid:=gen_random_uuid();
+  v_proxy_person uuid:=gen_random_uuid();
+begin
+  insert into public.countries(id,name,short_code)
+  values(v_country,'TG6 Schedule Proxy Country','ZZT');
+  insert into public.delegation_people(id,display_name,identity_key)
+  values
+  (v_rep_person,'TG6 Schedule Representative','tg6-schedule-rep:'||v_rep_person::text),
+  (v_proxy_person,'TG6 Schedule Proxy','tg6-schedule-proxy:'||v_proxy_person::text);
+  insert into public.world_organization_memberships(
+    organization_id,country_id,membership_type,status)
+  values(
+    (select organization_id from public.world_sessions
+     where id=(v->>'sessionId')::uuid),
+    v_country,'member','member');
+  insert into public.world_organization_representations(
+    id,organization_id,country_id,person_id,role,voting_authority,source)
+  values(
+    v_rep,
+    (select organization_id from public.world_sessions
+     where id=(v->>'sessionId')::uuid),
+    v_country,v_rep_person,'representative',true,'tg6_rollback_fixture');
+  insert into public.world_representation_proxies(
+    representation_id,proxy_person_id,session_id,valid_from,valid_until,
+    status,reason)
+  values(v_rep,v_proxy_person,(v->>'sessionId')::uuid,
+    (v->>'startsAt')::timestamptz+interval '10 minutes',
+    (v->>'startsAt')::timestamptz+interval '30 minutes',
+    'requested','TG6 local pending proxy window');
+end
+$tg6_reschedule_proxy_seed$;
+
+set local role authenticated;
+set local request.jwt.claim.role='authenticated';
+do $tg6_reschedule_proxy_negative$
+declare v jsonb:=current_setting('solaris.tg6_schedule_fixture')::jsonb;
+begin
+  perform set_config('request.jwt.claim.sub',v->>'manager',true);
+  perform set_config('request.jwt.claims',
+    jsonb_build_object('sub',v->>'manager','role','authenticated')::text,true);
+  begin
+    perform public.world_session_reschedule_v1(
+      (v->>'sessionId')::uuid,
+      (v->>'startsAt')::timestamptz+interval '1 day',
+      (v->>'endsAt')::timestamptz+interval '1 day',
+      'external','New venue','https://tg6.invalid/private',2,
+      gen_random_uuid(),'tg6-proxy-window:'||gen_random_uuid()::text);
+    raise exception 'TG6_SCHEDULE_PROXY_WINDOW_INVALIDATION_ALLOWED';
+  exception when check_violation then null;
+  end;
+end
+$tg6_reschedule_proxy_negative$;
+reset role;
+
 -- Only the rollback fixture changes the session state directly. Production
 -- follows the existing TG6 governed session lifecycle RPC from #1950.
 update public.world_sessions set status='open'
