@@ -146,7 +146,7 @@ describe("V3 Chat 3 show discovery", () => {
     expect(result.currentEdition?.id).toBe("e22");
     expect(result.liveNow.map((item) => item.show.id)).toEqual(["live-show"]);
     expect(result.upNext.map((item) => item.show.id)).toEqual(["next-show", "delayed-show"]);
-    expect(result.recent.map((item) => item.show.id)).toEqual(["recent-show"]);
+    expect(result.recent.map((item) => item.show.id)).toEqual(["recent-show", "archive-show"]);
     expect(result.currentEditionShows.map((item) => item.show.id)).toEqual([
       "recent-show",
       "live-show",
