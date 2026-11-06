@@ -148,26 +148,7 @@ function canonicalShowState(show: Show): ShowDiscoveryState {
 }
 
 function stateLabel(state: ShowDiscoveryState) {
-  switch (state) {
-    case "live":
-      return "Live";
-    case "paused":
-      return "Paused";
-    case "delayed":
-      return "Delayed";
-    case "preparing":
-      return "Preparing";
-    case "scheduled":
-      return "Scheduled";
-    case "ended":
-      return "Ended";
-    case "cancelled":
-      return "Cancelled";
-    case "archived":
-      return "Archived";
-    case "other":
-      return "Show";
-  }
+  return state === "other" ? "Show" : state.charAt(0).toUpperCase() + state.slice(1);
 }
 
 function scheduledTime(item: ShowDiscoveryItem) {
@@ -210,10 +191,9 @@ export function buildShowDiscovery(input: {
     // A terminal Edition is never "on air" or "coming soon". Preserve
     // explicit completed/cancelled Show states, but neutralize stale active
     // status labels from historical records without inventing a completion.
-    const staleHistoricalState = isTerminalEdition(edition) &&
-      (rawState === "live" || rawState === "paused" || rawState === "delayed" ||
-        rawState === "preparing" || rawState === "scheduled");
-    const state: ShowDiscoveryState = staleHistoricalState ? "archived" : rawState;
+    const state: ShowDiscoveryState = isTerminalEdition(edition) &&
+      rawState !== "ended" && rawState !== "cancelled" && rawState !== "other"
+      ? "archived" : rawState;
     const broadcastUrl = safeShowModeYoutubeUrl(config.youtubeUrl);
 
     return [{
@@ -227,12 +207,11 @@ export function buildShowDiscovery(input: {
   });
 
   const liveNow = items
-    .filter((item) => !isTerminalEdition(item.edition) && (item.state === "live" || item.state === "paused"))
+    .filter((item) => item.state === "live" || item.state === "paused")
     .sort(sortUpcoming);
   const upNext = items
     .filter(
       (item) =>
-        !isTerminalEdition(item.edition) &&
         (item.state === "scheduled" ||
           item.state === "preparing" ||
           item.state === "delayed"),
