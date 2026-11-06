@@ -79,4 +79,25 @@ describe("Organizer Televoting round-entry adapter authorization", () => {
     expect(privilegedImport).toBeGreaterThan(guard);
   });
 
+
+  it("keeps round-editor readbacks and prepared actions isolated across Organizer accounts", () => {
+    const editor = source("src/routes/televoting/admin/rounds/$id/entries.tsx");
+    expect(editor).toContain('useAuthenticatedUser().id');
+    expect(editor).toContain('queryKey: ["merged-televoting-admin", actorId]');
+    expect(editor).toContain('queryKey: ["merged-televoting-round-entries", actorId, roundId]');
+    expect(editor).toContain('queryKey: ["merged-televoting-solaris-source", actorId, roundId]');
+    expect(editor).toContain('enabled: Boolean(actorId && admin)');
+    expect((editor.match(/gcTime: 0/g) ?? [])).toHaveLength(3);
+    expect((editor.match(/refetchInterval: false/g) ?? [])).toHaveLength(3);
+    expect((editor.match(/refetchOnWindowFocus: false/g) ?? [])).toHaveLength(3);
+    expect((editor.match(/refetchOnReconnect: false/g) ?? [])).toHaveLength(3);
+    expect(editor).toContain('}, [actorId, roundId]);');
+    expect(editor).toContain('setDeleteTarget(null)');
+    expect(editor).toContain('setPendingSelfVotingMode(null)');
+    expect(editor).toContain('setCustomForm(emptyCustom)');
+    expect(editor).toContain('const editable = Boolean(actorId && admin && data && data.round.status !== "open")');
+    expect(editor).toContain('queryKey: ["merged-televoting-round-entries", actorId, roundId] })');
+    expect(editor).toContain('queryKey: ["merged-televoting-solaris-source", actorId, roundId] })');
+  });
+
 });
