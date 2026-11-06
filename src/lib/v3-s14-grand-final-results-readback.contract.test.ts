@@ -59,6 +59,10 @@ describe("S14 Grand Final result calculation readback", () => {
     expect(refetch).toBeGreaterThan(cacheWrite);
     expect(resultsView).toContain('const completedQueryKey = ["merged-televoting-conversion", target.actorId, target.editionId, target.roundId] as const');
     expect(resultsView).toContain("result.state.round.id === target.roundId");
+    // A readback must never repopulate protected results for an unmounted account.
+    expect(resultsView).toContain("getQueryCache().find({ queryKey: completedQueryKey, exact: true })");
+    expect(resultsView).toContain("activeTargetQuery?.getObserversCount()");
+    expect(resultsView).toContain("result.state.round.id === target.roundId && activeTargetQuery?.getObserversCount()");
     expect(resultsView).toContain("target.roundId, confirm: target.confirmProtected");
     expect(resultsView).toContain("roundId: effectiveRoundId, editionId, actorId, confirmProtected:");
     expect(resultsView).toContain("onError: async (caught, target) => {");
