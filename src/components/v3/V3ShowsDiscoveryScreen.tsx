@@ -10,6 +10,7 @@ import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/s
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import { showPublishesResults } from "@/lib/publication";
+import { formatEventDateTime } from "@/lib/public-time";
 import { getV3ShowBrowsePage, V3_SHOW_BROWSE_PAGE_SIZE } from "@/lib/v3-show-browse-page";
 import {
   buildShowDiscovery,
@@ -25,6 +26,7 @@ const STATE_ORDER: ShowDiscoveryState[] = [
   "scheduled",
   "ended",
   "cancelled",
+  "archived",
   "other",
 ];
 
@@ -37,7 +39,8 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
   const [state, setState] = useState<ShowDiscoveryState | "all">("all");
   // Keyed pagination resets synchronously with any filter change, without a
   // render/effect cycle that could briefly reveal a stale historical window.
-  const browseFilterKey = JSON.stringify([search.trim(), editionId, kind, state]);
+  const normalizedSearch = search.trim().toLowerCase();
+  const browseFilterKey = JSON.stringify([normalizedSearch, editionId, kind, state]);
   const [browseWindowState, setBrowseWindowState] = useState({ key: "", page: 1 });
 
   const discovery = useMemo(
@@ -49,23 +52,16 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
     [editionsQuery.data, showsQuery.data],
   );
 
-  const allItems = useMemo(() => {
-    const byId = new Map<string, ShowDiscoveryItem>();
-    for (const item of [
-      ...discovery.currentEditionShows,
-      ...discovery.archive,
-      ...discovery.liveNow,
-      ...discovery.upNext,
-      ...discovery.recent,
-    ]) {
-      byId.set(item.show.id, item);
-    }
-    return [...byId.values()].sort((left, right) => {
+  // Current-edition and archive are disjoint and together cover every
+  // published Show; live/up-next/recent are previews of those same rows.
+  const allItems = useMemo(
+    () => [...discovery.currentEditionShows, ...discovery.archive].sort((left, right) => {
       const editionDifference =
         (right.edition.edition_number ?? -1) - (left.edition.edition_number ?? -1);
       return editionDifference || left.show.sort_order - right.show.sort_order;
-    });
-  }, [discovery]);
+    }),
+    [discovery],
+  );
 
   const kinds = useMemo(
     () => [...new Set(allItems.map((item) => item.show.kind).filter(Boolean))].sort(),
@@ -81,15 +77,15 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
     () =>
       allItems.filter(
         (item) =>
-          (!search.trim() || [
+          (!normalizedSearch || [
             item.show.name, editionLabel(item.edition),
             showKindLabel(item.show.kind), item.stateLabel,
-          ].join(" ").toLowerCase().includes(search.trim().toLowerCase())) &&
+          ].join(" ").toLowerCase().includes(normalizedSearch)) &&
           (editionId === "all" || item.edition.id === editionId) &&
           (kind === "all" || item.show.kind === kind) &&
           (state === "all" || item.state === state),
       ),
-    [allItems, editionId, kind, state, search],
+    [allItems, editionId, kind, state, normalizedSearch],
   );
 
   const browseWindow = useMemo(
@@ -99,7 +95,24 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
     ),
     [browseItems, browseFilterKey, browseWindowState],
   );
-  const activeFilterCount = [editionId !== "all", kind !== "all", state !== "all"].filter(Boolean).length;
+  const activeFilterCount = Number(editionId !== "all") + Number(kind !== "all") + Number(state !== "all");
+  // Shared fields render in the app filter sheet or desktop/mobile-web filter row,
+  // avoiding duplicate controls, translation drift and client bundle cost.
+  const filterFields = [
+    {
+      label: "Edition", allLabel: "All editions", value: editionId, onChange: setEditionId,
+      options: editions.map((edition) => ({ value: edition.id, label: editionLabel(edition) })),
+    },
+    {
+      label: "Show type", allLabel: "All show types", value: kind, onChange: setKind,
+      options: kinds.map((value) => ({ value, label: showKindLabel(value) })),
+    },
+    {
+      label: "State", allLabel: "All states", value: state,
+      onChange: (value: string) => setState(value as ShowDiscoveryState | "all"),
+      options: STATE_ORDER.map((value) => ({ value, label: stateFilterLabel(value) })),
+    },
+  ].map((field) => <ShowFilterSelect key={field.label} {...field} />);
 
   if (archiveIsLoading(editionsQuery, showsQuery)) {
     return <ArchiveDataLoading label="Loading show discovery…" />;
@@ -124,46 +137,19 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
 
   return (
     <div className="v3-shows-directory space-y-8" data-show-directory-experience={presentation}>
-      {discovery.liveNow.length > 0 ? (
-        <ShowCollection
-          presentation={presentation}
-          id="shows-live-now"
-          eyebrow="Live now"
-          title="On air"
-          items={discovery.liveNow}
-          emphasis="live"
-        />
-      ) : null}
-
-      {discovery.upNext.length > 0 ? (
-        <ShowCollection
-          presentation={presentation}
-          id="shows-up-next"
-          eyebrow="Up next"
-          title="Coming shows"
-          items={discovery.upNext.slice(0, 4)}
-        />
-      ) : null}
-
-      {discovery.recent.length > 0 ? (
-        <ShowCollection
-          presentation={presentation}
-          id="shows-recent"
-          eyebrow="Recent"
-          title="Latest completed"
-          items={discovery.recent}
-        />
-      ) : null}
-
-      {discovery.currentEdition && discovery.currentEditionShows.length > 0 ? (
-        <ShowCollection
-          presentation={presentation}
-          id="shows-current-edition"
-          eyebrow="Current edition"
-          title={editionLabel(discovery.currentEdition)}
-          items={discovery.currentEditionShows}
-        />
-      ) : null}
+      {[
+        { id: "shows-live-now", eyebrow: "Live now", title: "On air",
+          items: discovery.liveNow, emphasis: "live" as const },
+        { id: "shows-up-next", eyebrow: "Up next", title: "Coming shows",
+          items: discovery.upNext.slice(0, 4), emphasis: "normal" as const },
+        { id: "shows-recent", eyebrow: "Recent", title: "Latest completed",
+          items: discovery.recent, emphasis: "normal" as const },
+        { id: "shows-current-edition", eyebrow: "Current edition",
+          title: discovery.currentEdition ? editionLabel(discovery.currentEdition) : "",
+          items: discovery.currentEditionShows, emphasis: "normal" as const },
+      ].filter((collection) => collection.items.length > 0).map((collection) => (
+        <ShowCollection key={collection.id} presentation={presentation} {...collection} />
+      ))}
 
       <section id="shows-browse" aria-labelledby="shows-browse-title" className="scroll-mt-24">
         <h2 id="shows-browse-title" className="v3-shows-browse-heading">All public shows</h2>
@@ -186,51 +172,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
                   className="max-h-[85dvh] overflow-y-auto pb-[max(1.25rem,env(safe-area-inset-bottom))]">
                   <h2 className="mb-3 text-lg font-bold">Filter public shows</h2>
                   <div className="grid gap-3">
-          <label className="text-xs font-semibold text-muted-foreground">
-            Edition
-            <select
-              value={editionId}
-              onChange={(event) => setEditionId(event.target.value)}
-              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
-            >
-              <option value="all">All editions</option>
-              {editions.map((edition) => (
-                <option key={edition.id} value={edition.id}>
-                  {editionLabel(edition)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs font-semibold text-muted-foreground">
-            Show type
-            <select
-              value={kind}
-              onChange={(event) => setKind(event.target.value)}
-              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
-            >
-              <option value="all">All show types</option>
-              {kinds.map((value) => (
-                <option key={value} value={value}>
-                  {showKindLabel(value)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs font-semibold text-muted-foreground">
-            State
-            <select
-              value={state}
-              onChange={(event) => setState(event.target.value as ShowDiscoveryState | "all")}
-              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
-            >
-              <option value="all">All states</option>
-              {STATE_ORDER.map((value) => (
-                <option key={value} value={value}>
-                  {stateFilterLabel(value)}
-                </option>
-              ))}
-            </select>
-          </label>
+          {filterFields}
                   </div>
                   <SheetClose asChild>
                     <button type="button" className="mt-4 min-h-11 w-full rounded-xl border border-primary bg-primary/10 px-4 text-sm font-semibold">
@@ -251,51 +193,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
                     onClick={() => setSearch("")}><X size={16} aria-hidden="true" /></button>
                 ) : null}
               </div>
-          <label className="text-xs font-semibold text-muted-foreground">
-            Edition
-            <select
-              value={editionId}
-              onChange={(event) => setEditionId(event.target.value)}
-              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
-            >
-              <option value="all">All editions</option>
-              {editions.map((edition) => (
-                <option key={edition.id} value={edition.id}>
-                  {editionLabel(edition)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs font-semibold text-muted-foreground">
-            Show type
-            <select
-              value={kind}
-              onChange={(event) => setKind(event.target.value)}
-              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
-            >
-              <option value="all">All show types</option>
-              {kinds.map((value) => (
-                <option key={value} value={value}>
-                  {showKindLabel(value)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs font-semibold text-muted-foreground">
-            State
-            <select
-              value={state}
-              onChange={(event) => setState(event.target.value as ShowDiscoveryState | "all")}
-              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
-            >
-              <option value="all">All states</option>
-              {STATE_ORDER.map((value) => (
-                <option key={value} value={value}>
-                  {stateFilterLabel(value)}
-                </option>
-              ))}
-            </select>
-          </label>
+          {filterFields}
             </>
           )}
         </div>
@@ -305,7 +203,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
         <div id="v3-shows-browse-results" className="v3-shows-browse-results">
           {browseWindow.visible.map((item) =>
             presentation === "mobile-web" ? (
-              <ShowWebRow key={item.show.id} item={item} />
+              <ShowRow key={item.show.id} item={item} web />
             ) : presentation === "desktop-web" ? (
               <ShowCard key={item.show.id} item={item} />
             ) : (
@@ -362,7 +260,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
           <div className="space-y-2">
             {discovery.archive.slice(0, 8).map((item) =>
               presentation === "mobile-web"
-                ? <ShowWebRow key={item.show.id} item={item} />
+                ? <ShowRow key={item.show.id} item={item} web />
                 : <ShowRow key={item.show.id} item={item} compact />,
             )}
           </div>
@@ -374,6 +272,27 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
         </section>
       ) : null}
     </div>
+  );
+}
+
+function ShowFilterSelect({
+  label, allLabel, value, onChange, options,
+}: {
+  label: string;
+  allLabel: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <label className="text-xs font-semibold text-muted-foreground">
+      {label}
+      <select value={value} onChange={(event) => onChange(event.target.value)}
+        className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground">
+        <option value="all">{allLabel}</option>
+        {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+      </select>
+    </label>
   );
 }
 
@@ -398,7 +317,7 @@ function ShowCollection({
       <div className={presentation === "mobile-web" ? "v3-shows-web-list" : emphasis === "live" ? "grid gap-3" : "grid gap-2 sm:grid-cols-2"}>
         {items.map((item) =>
           presentation === "mobile-web"
-            ? <ShowWebRow key={item.show.id} item={item} />
+            ? <ShowRow key={item.show.id} item={item} web />
             : <ShowCard key={item.show.id} item={item} live={emphasis === "live"} />,
         )}
       </div>
@@ -406,35 +325,10 @@ function ShowCollection({
   );
 }
 
-function ShowWebRow({ item }: { item: ShowDiscoveryItem }) {
-  return (
-    <Link
-      to="/shows/$showId"
-      params={{ showId: item.show.id }}
-      className="v3-show-web-row flex min-h-20 items-center gap-3 border-b border-border py-3"
-    >
-      <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-center gap-2">
-          <ShowStateBadge item={item} />
-          <span className="text-xs text-muted-foreground">{editionLabel(item.edition)}</span>
-        </span>
-        <strong className="mt-1.5 block text-sm font-semibold">{item.show.name}</strong>
-        <span className="mt-1 block text-xs capitalize text-muted-foreground">
-          {showKindLabel(item.show.kind)}
-          {item.scheduledStart ? ` · ${formatShowTime(item.scheduledStart)}` : ""}
-          {showPublishesResults(item.show) ? " · Results published" : ""}
-        </span>
-      </span>
-      <ChevronRight size={20} className="shrink-0 text-muted-foreground" aria-hidden="true" />
-    </Link>
-  );
-}
-
 function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: boolean }) {
   return (
     <div className={`rounded-2xl border p-4 ${live ? "border-primary/45 bg-primary/5" : "border-border bg-surface"}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+      <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <ShowStateBadge item={item} />
             <span className="text-xs text-muted-foreground">{editionLabel(item.edition)}</span>
@@ -449,7 +343,6 @@ function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: bool
           <p className="mt-1 text-xs capitalize text-muted-foreground">
             {showKindLabel(item.show.kind)}{item.scheduledStart ? ` · ${formatShowTime(item.scheduledStart)}` : ""}
           </p>
-        </div>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
         <Link
@@ -477,36 +370,35 @@ function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: bool
   );
 }
 
-function ShowRow({ item, compact = false }: { item: ShowDiscoveryItem; compact?: boolean }) {
+function ShowRow({
+  item, compact = false, web = false,
+}: { item: ShowDiscoveryItem; compact?: boolean; web?: boolean }) {
   return (
-    <div className="flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3">
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
+    <Link to="/shows/$showId" params={{ showId: item.show.id }}
+      className={web
+        ? "v3-show-web-row flex min-h-20 items-center gap-3 border-b border-border py-3"
+        : "flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3"}>
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-center gap-2">
           <ShowStateBadge item={item} />
-          <span className="truncate text-xs text-muted-foreground">{editionLabel(item.edition)}</span>
-        </div>
-        <Link
-          to="/shows/$showId"
-          params={{ showId: item.show.id }}
-          className="mt-1 block truncate text-sm font-semibold"
-        >
+          <span className={web ? "text-xs text-muted-foreground" : "truncate text-xs text-muted-foreground"}>
+            {editionLabel(item.edition)}
+          </span>
+        </span>
+        <strong className={web ? "mt-1.5 block text-sm font-semibold" : "mt-1 block truncate text-sm font-semibold"}>
           {item.show.name}
-        </Link>
-        {!compact ? (
-          <span className="mt-0.5 block text-xs capitalize text-muted-foreground">
-            {showKindLabel(item.show.kind)}{item.scheduledStart ? ` · ${formatShowTime(item.scheduledStart)}` : ""}
+        </strong>
+        {web || !compact ? (
+          <span className={web ? "mt-1 block text-xs capitalize text-muted-foreground" : "mt-0.5 block text-xs capitalize text-muted-foreground"}>
+            {showKindLabel(item.show.kind)}
+            {item.scheduledStart ? ` · ${formatShowTime(item.scheduledStart)}` : ""}
+            {web && showPublishesResults(item.show) ? " · Results published" : ""}
           </span>
         ) : null}
-      </div>
-      <Link
-        to="/shows/$showId"
-        params={{ showId: item.show.id }}
-        aria-label={`Open ${item.show.name}`}
-        className="inline-flex min-h-11 min-w-11 items-center justify-center text-primary"
-      >
-        →
-      </Link>
-    </div>
+      </span>
+      {web ? <ChevronRight size={20} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+        : <span aria-hidden="true" className="inline-flex min-h-11 min-w-11 items-center justify-center text-primary">→</span>}
+    </Link>
   );
 }
 
@@ -522,16 +414,9 @@ function ShowStateBadge({ item }: { item: ShowDiscoveryItem }) {
 }
 
 function formatShowTime(value: string) {
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return "Time TBA";
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Europe/Helsinki",
-    timeZoneName: "short",
-  }).format(date);
+  return Number.isFinite(Date.parse(value))
+    ? formatEventDateTime(value, { locale: "en-GB" })
+    : "Time TBA";
 }
 
 function stateFilterLabel(state: ShowDiscoveryState) {
