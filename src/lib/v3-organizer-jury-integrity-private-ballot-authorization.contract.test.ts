@@ -47,6 +47,8 @@ describe("Organizer Jury Integrity protected ballot boundary", () => {
     expect(server).toContain('.eq("model_version", "jury-integrity-model-v5")');
     expect(server).toContain('.limit(1000)');
     expect(server).toContain("mismatchedPreflight");
+    expect(server).toContain("assertJuryIntegrityV5Evidence(");
+    expect(server.indexOf("assertJuryIntegrityV5Evidence(")).toBeLessThan(server.indexOf("const showIds"));
     expect(server).toContain("missingShow");
   });
   it("renders failed authorized reads as errors with an explicit accessible retry", () => {
