@@ -139,15 +139,6 @@ export default defineConfig({
                 minSize: 5000,
                 priority: 1,
               },
-              // Bound modules shared by multiple lazy routes. Route-only code
-              // stays lazy; this also avoids oversized single JS downloads.
-              {
-                name: "shared-cross-route",
-                minShareCount: 2,
-                minSize: 10000,
-                maxSize: 800000,
-                priority: -1,
-              },
             ],
           },
         },
