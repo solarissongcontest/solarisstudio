@@ -75,7 +75,7 @@ as $public_detail$
                       select jsonb_agg(jsonb_build_object(
                         'countryCode',country.short_code,'choice',ballot.choice
                       ) order by country.short_code)
-                      from private.world_legislative_ballots ballot
+                      from private.world_ballots ballot
                       join public.countries country on country.id=ballot.country_id
                       where ballot.vote_id=vote.id
                     ),'[]'::jsonb)
@@ -126,9 +126,9 @@ as $own_ballot$
             'canCast',vote.status='open' and now()>=vote.opened_at
                and now()<vote.closes_at and ballot.vote_id is null
           ) order by country.short_code)
-          from public.world_vote_electorate seat
+          from public.world_vote_eligibility seat
           join public.countries country on country.id=seat.country_id
-          left join private.world_legislative_ballots ballot
+          left join private.world_ballots ballot
             on ballot.vote_id=seat.vote_id and ballot.country_id=seat.country_id
           where seat.vote_id=vote.id
             and private.world_vote_cast_authorized_v1(
@@ -138,7 +138,7 @@ as $own_ballot$
       from public.world_votes vote
       where vote.id=p_vote_id
         and exists (
-          select 1 from public.world_vote_electorate seat
+          select 1 from public.world_vote_eligibility seat
           where seat.vote_id=vote.id
             and private.world_vote_cast_authorized_v1(
               seat.vote_id,seat.country_id,auth.uid(),now())
