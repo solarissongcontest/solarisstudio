@@ -61,15 +61,20 @@ export function buildBroadcastRundown(
       latestDrift = secondsBetween(plannedStartedAt, estimatedStartedAt);
     }
 
-    let segmentEnd = plusSeconds(estimatedStartedAt, segment.plannedDurationSeconds);
-    if (segment.actualCompletedAt) {
+    // A cue skipped before going live never occupies airtime. The skip command
+    // may record when the operator clicked Skip, which is not a broadcast end
+    // timestamp and must not pull the schedule backwards or into the future.
+    // A cue skipped *after* going live still uses its observed completion time.
+    const skippedBeforeAir = segment.status === 'skipped' && !segment.actualStartedAt;
+    let segmentEnd = skippedBeforeAir
+      ? estimatedStartedAt
+      : plusSeconds(estimatedStartedAt, segment.plannedDurationSeconds);
+    if (segment.actualCompletedAt && !skippedBeforeAir) {
       const actualEndMs = new Date(segment.actualCompletedAt).getTime();
       if (!Number.isFinite(actualEndMs)) throw new Error(`Invalid actual completion time for segment: ${segment.id}`);
       segmentEnd = new Date(actualEndMs).toISOString();
-      latestDrift = secondsBetween(plannedCompletedAt, segmentEnd);
-    } else {
-      latestDrift = secondsBetween(plannedStartedAt, estimatedStartedAt);
     }
+    latestDrift = secondsBetween(plannedCompletedAt, segmentEnd);
 
     const scheduledSegment: ScheduledRundownSegment = {
       ...segment,
