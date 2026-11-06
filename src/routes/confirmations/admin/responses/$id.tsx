@@ -1,5 +1,6 @@
 import { EntryVersionEvidence } from "@/components/ConfirmationReviewStatus";
 import { assertDisplayedEntryVersion } from "@/lib/v3-entry-review-preview";
+import { effectiveOrganizerEntryReviewStatus, inspectOrganizerEntrySource, safeOrganizerEntrySourceUrl } from "@/lib/v3-organizer-entry-source-inspection";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -152,7 +153,7 @@ function reviewTone(status: string) {
 }
 
 function reviewLabel(entry: ReviewEntry) {
-  return entry.removed ? "removed" : entry.review_status || "pending";
+  return effectiveOrganizerEntryReviewStatus(entry);
 }
 
 function detailState(data: ResponseDetail): DetailState {
@@ -170,13 +171,14 @@ function detailState(data: ResponseDetail): DetailState {
 
   if (data.selection_method === "national_final") {
     const entries = (data.national_final?.entries ?? []).filter(
-      (entry) => !entry.removed && entry.review_status !== "removed",
+      (entry) => reviewLabel(entry) !== "removed",
     );
     if (!entries.length || data.nf_entries_unknown) return "neutral";
-    if (entries.some((entry) => entry.review_status === "declined")) return "issue";
-    if (entries.some((entry) => !entry.review_status || entry.review_status === "pending"))
-      return "review";
-    return data.national_final?.winning_entry_id ? "ready" : "neutral";
+    const reviewStates = entries.map(reviewLabel);
+    if (reviewStates.some((status) => status === "declined")) return "issue";
+    if (reviewStates.some((status) => status !== "accepted")) return "review";
+    const winnerId = data.national_final?.winning_entry_id;
+    return winnerId && entries.some((entry) => entry.id === winnerId) ? "ready" : "review";
   }
 
   return "neutral";
@@ -217,6 +219,7 @@ function formatRange(start?: string | null, end?: string | null) {
 }
 
 function TechnicalRows({ entry }: { entry: ReviewEntry }) {
+  const replacementVideoUrl = safeOrganizerEntrySourceUrl(entry.replacement_video_url);
   return (
     <div className="mt-3 grid gap-2 sm:grid-cols-3">
       <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
@@ -234,23 +237,46 @@ function TechnicalRows({ entry }: { entry: ReviewEntry }) {
       <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
         <p className="admin-section-label">Replacement video</p>
         {entry.replacement_video_required ? (
-          entry.replacement_video_url ? (
+          replacementVideoUrl ? (
             <a
-              href={entry.replacement_video_url}
+              href={replacementVideoUrl}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-sky-100/80 underline"
             >
               Open video <ExternalLink className="size-3.5" />
             </a>
           ) : (
-            <p className="mt-1 text-xs font-semibold text-amber-100">Required · URL missing</p>
+            <p className="mt-1 text-xs font-semibold text-amber-100">Required · URL missing or unsafe</p>
           )
         ) : (
           <p className="mt-1 text-xs font-semibold">Not needed</p>
         )}
       </div>
     </div>
+  );
+}
+
+function EntrySourceInspection({ entry }: { entry: ReviewEntry }) {
+  const inspection = inspectOrganizerEntrySource(entry);
+  return (
+    <section className="mt-3 space-y-2 border-t border-white/10 pt-3" aria-label="Entry source inspection">
+      <p className="text-xs font-semibold text-sky-100">Entry inspection</p>
+      <p className="text-xs text-muted-foreground">
+        This checklist is not the authoritative validation. Inspect real content and apply the governed review decision.
+      </p>
+      {inspection.checks.map((check) => (
+        <div key={check.id} className="flex items-start justify-between gap-3 text-xs">
+          <div className="min-w-0">
+            <p className="font-semibold">{check.label}</p>
+            <p className="text-muted-foreground">{check.detail}</p>
+          </div>
+          <AdminStatus tone={check.status === "present" ? "ready" : check.status === "attention" ? "attention" : "neutral"}>
+            {check.status === "present" ? "Present" : check.status === "attention" ? "Inspect" : "Manual"}
+          </AdminStatus>
+        </div>
+      ))}
+    </section>
   );
 }
 
@@ -280,6 +306,7 @@ function EntryReviewCard({
   const [receipt, setReceipt] = useState<SystemReceipt | null>(null);
   const reconcileOperation = useServerFn(reconcileSystemOperation);
   const status = reviewLabel(entry);
+  const songSourceUrl = safeOrganizerEntrySourceUrl(entry.song_url);
 
   async function recoverReview(operationId: string) {
     const reconciliation = await reconcileOperation({ data: { operationId } });
@@ -448,17 +475,17 @@ function EntryReviewCard({
               {typeof entry.position === "number" ? (
                 <span>Running order {entry.position}</span>
               ) : null}
-              {entry.song_url ? (
+              {songSourceUrl ? (
                 <a
-                  href={entry.song_url}
+                  href={songSourceUrl}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="inline-flex min-h-9 items-center gap-1 text-sky-100/75 hover:text-sky-100"
                 >
                   Open song <ExternalLink className="size-3.5" />
                 </a>
               ) : (
-                <span>No song link</span>
+                <span>{entry.song_url ? "Source link requires inspection" : "No song link"}</span>
               )}
             </div>
           </div>
@@ -469,6 +496,7 @@ function EntryReviewCard({
         </div>
 
         <TechnicalRows entry={entry} />
+        <EntrySourceInspection entry={entry} />
         <EntryVersionEvidence entry={entry} />
 
         {entry.review_reason ? (
@@ -519,6 +547,7 @@ function EntryReviewCard({
           </div>
 
           <TechnicalRows entry={entry} />
+          <EntrySourceInspection entry={entry} />
           <EntryVersionEvidence entry={entry} />
 
           <div className="space-y-2">
@@ -885,13 +914,18 @@ function ResponseDetailPage() {
   }
 
   const activeNfEntries = (data.national_final?.entries ?? []).filter(
-    (entry) => !entry.removed && entry.review_status !== "removed",
+    (entry) => reviewLabel(entry) !== "removed",
   );
   const entryCount = data.internal_entry ? 1 : activeNfEntries.length;
   const acceptedCount = [data.internal_entry, ...activeNfEntries].filter(
-    (entry): entry is ReviewEntry =>
-      Boolean(entry && !entry.removed && entry.review_status === "accepted"),
+    (entry): entry is ReviewEntry => Boolean(entry && reviewLabel(entry) === "accepted"),
   ).length;
+  const nationalFinalWinnerReady = Boolean(
+    data.national_final?.winning_entry_id &&
+    activeNfEntries.length > 0 &&
+    activeNfEntries.every((entry) => reviewLabel(entry) === "accepted") &&
+    activeNfEntries.some((entry) => entry.id === data.national_final?.winning_entry_id),
+  );
   const state = detailState(data);
   const copyArtists = activeNfEntries.map((entry) => entry.artist ?? "Unknown artist").join("\n");
   const copySongs = activeNfEntries.map((entry) => entry.song_title ?? "Unknown song").join("\n");
@@ -1036,10 +1070,12 @@ function ResponseDetailPage() {
               title={data.national_final.nf_name || "National Final"}
               description={`${activeNfEntries.length} active ${activeNfEntries.length === 1 ? "entry" : "entries"}${data.national_final.winning_entry_id ? " · winner selected" : " · winner not selected"}`}
               action={
-                data.national_final.winning_entry_id ? (
-                  <AdminStatus tone="ready">Winner set</AdminStatus>
+                nationalFinalWinnerReady ? (
+                  <AdminStatus tone="ready">Winner ready</AdminStatus>
+                ) : data.national_final.winning_entry_id ? (
+                  <AdminStatus tone="attention">Winner review required</AdminStatus>
                 ) : activeNfEntries.length &&
-                  activeNfEntries.every((entry) => entry.review_status === "accepted") ? (
+                  activeNfEntries.every((entry) => reviewLabel(entry) === "accepted") ? (
                   <AdminStatus tone="neutral">Waiting for winner</AdminStatus>
                 ) : (
                   <AdminStatus tone="attention">Review in progress</AdminStatus>
