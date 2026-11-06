@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { createSecureClientId } from "@/lib/secure-client-id";
 import {
   publicUxTelemetryAllowed,
   sanitizePublicUxPath,
@@ -106,10 +107,8 @@ export function getPublicUxSessionId(
     // A blocked or malformed localStorage entry should never break navigation.
   }
 
-  const id =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `ux-${now.toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+  const id = createSecureClientId();
+  if (!id) return ""; // Optional telemetry must fail closed without secure randomness.
 
   try {
     storage.setItem(SESSION_KEY, JSON.stringify({ id, createdAt: now }));
@@ -150,9 +149,12 @@ export function trackPublicUxEvent(
     });
   }
 
+  const sessionId = getPublicUxSessionId();
+  if (!sessionId) return;
+
   const payload = {
     event_name: eventName,
-    session_id: getPublicUxSessionId(),
+    session_id: sessionId,
     pathname: sanitizePublicUxPath(window.location.pathname),
     target: sanitizePublicUxTarget(options.target),
     metadata,
@@ -210,12 +212,12 @@ export function beginPublicUxBetaTask(id: string, target?: string | null) {
   if (typeof window === "undefined") return;
   if (!privacyAllowsPublicUxTelemetry()) return;
 
+  const runId = createSecureClientId();
+  if (!runId) return;
+
   const task: ActiveBetaTask = {
     id: id.slice(0, 120),
-    runId:
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `beta-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
+    runId,
     startedAt: Date.now(),
     startRoute: sanitizePublicUxPath(window.location.pathname),
     lastRoute: sanitizePublicUxPath(window.location.pathname),

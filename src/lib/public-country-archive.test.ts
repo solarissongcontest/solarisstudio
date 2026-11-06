@@ -180,4 +180,121 @@ describe("buildPublicCountryArchive", () => {
     expect(archive.participants).toEqual([]);
     expect(archive.results).toEqual([]);
   });
+  it("never uses one edition's public show to release another edition's history", () => {
+    const input = baseInput();
+    input.shows[0].publication_config.results = true;
+    input.shows[0].publication_config.detailed_voting = true;
+
+    // Both editions are public, but a legacy row incorrectly points to the
+    // other edition's published show. A show-id-only gate would leak it.
+    input.editions.push({
+      ...input.editions[0],
+      id: "e23",
+      slug: "ssc-23",
+      edition_number: 23,
+    });
+    input.shows.push({ ...input.shows[0], id: "sf23", edition_id: "e23" });
+
+    input.participants.push({
+      ...input.participants[0],
+      id: "p-cross",
+      edition_id: "e23",
+      show_id: "sf22",
+      artist: "Cross-edition artist",
+    });
+    input.results.push({
+      ...input.results[0],
+      id: "r-cross",
+      edition_id: "e23",
+      show_id: "sf22",
+      final_rank: 1,
+    });
+    input.jury.push({
+      ...input.jury[0],
+      id: "j-cross",
+      edition_id: "e23",
+      show_id: "sf22",
+    });
+    input.televote.push({
+      ...input.televote[0],
+      id: "t-cross",
+      edition_id: "e23",
+      show_id: "sf22",
+    });
+
+    // Correctly joined rows for the newer edition must still pass.
+    input.participants.push({
+      ...input.participants[0],
+      id: "p23",
+      edition_id: "e23",
+      show_id: "sf23",
+    });
+    input.results.push({
+      ...input.results[0],
+      id: "r23",
+      edition_id: "e23",
+      show_id: "sf23",
+    });
+    input.jury.push({
+      ...input.jury[0],
+      id: "j23",
+      edition_id: "e23",
+      show_id: "sf23",
+    });
+    input.televote.push({
+      ...input.televote[0],
+      id: "t23",
+      edition_id: "e23",
+      show_id: "sf23",
+    });
+
+    const archive = buildPublicCountryArchive(input);
+    expect(archive.participants.map((row) => row.id)).toEqual(["p1", "p23"]);
+    expect(archive.results.map((row) => row.id)).toEqual(["r1", "r23"]);
+    expect(archive.jury.map((row) => row.id)).toEqual(["j1", "j23"]);
+    expect(archive.televote.map((row) => row.id)).toEqual(["t1", "t23"]);
+  });
+
+  it("never assigns show-specific running order or qualification to an edition entry", () => {
+    const input = baseInput();
+    input.shows[0].publication_config.running_order = true;
+    input.shows[0].publication_config.qualifiers = true;
+    input.participants.push({
+      ...input.participants[0],
+      id: "edition-only",
+      show_id: null,
+    });
+
+    const archive = buildPublicCountryArchive(input);
+    const appearance = archive.participants.find((row) => row.id === "p1");
+    const canonical = archive.participants.find((row) => row.id === "edition-only");
+
+    // The specific published show is authorized to disclose its own stage fields.
+    expect(appearance?.running_order).toBe(4);
+    expect(appearance?.qualified).toBe(true);
+
+    // A showless canonical row is *not* a performance or qualifier decision:
+    // public_safe_participants also returns null for both these fields.
+    expect(canonical?.artist).toBe("Artist");
+    expect(canonical?.song).toBe("Song");
+    expect(canonical?.running_order).toBeNull();
+    expect(canonical?.qualified).toBeNull();
+  });
+
+  it("retains correctly published edition-level canonical entries", () => {
+    const input = baseInput();
+    input.participants.push({
+      ...input.participants[0],
+      id: "edition-p1",
+      show_id: null,
+    });
+
+    const archive = buildPublicCountryArchive(input);
+    const editionEntry = archive.participants.find((row) => row.id === "edition-p1");
+    expect(editionEntry?.artist).toBe("Artist");
+    expect(editionEntry?.song).toBe("Song");
+    expect(editionEntry?.notes).toBeNull();
+    expect(editionEntry?.running_order).toBeNull();
+  });
+
 });
