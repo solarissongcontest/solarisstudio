@@ -38,6 +38,36 @@ const request = {
 };
 
 describe("TG14 immutable Court judgment and reconsideration",()=>{
+  it("ships an explicitly loopback-only rollback SQL rehearsal, never a production fallback",()=>{
+    const run=read("scripts/rehearse-v3-world-court-judgments.sh");
+    const rehearsal=read("scripts/rehearse-v3-world-court-judgments.sql");
+    for(const literal of [
+      "supabase status -o env",
+      "Refusing nonloopback Supabase API",
+      "Refusing nonloopback or non-disposable database URL",
+      "unset DATABASE_URL PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE",
+      '--no-psqlrc -v ON_ERROR_STOP=1',
+    ]) expect(run).toContain(literal);
+    for(const literal of [
+      "begin;", "rollback;",
+      "set local role anon", "set local role authenticated",
+      "TG14_OUTSIDER_PRIVATE_CASE_VISIBLE",
+      "TG14_FILE_REPLAY_INVALID",
+      "TG14_FIRST_JUDGMENT_NOT_RECORDED",
+      "TG14_SECOND_RECONSIDERATION_INVALID",
+      "TG14_PREMATURE_REVISED_JUDGMENT_ALLOWED",
+      "TG14_ACCEPTED_REVIEW_INCORRECTLY_CLEARED",
+      "TG14_REVISED_JUDGMENT_MISSING",
+      "TG14_PUBLIC_ROLLOUT_BYPASS",
+      "TG14_PRIVATE_EVIDENCE_IN_PUBLIC_JUDGMENT",
+      "TG14_PRIVILEGED_JUDGMENT_TAMPERING_ALLOWED",
+      "TG14_LOCAL_FIXTURE_PERSISTED",
+    ]) expect(rehearsal).toContain(literal);
+    expect(rehearsal.lastIndexOf("rollback;")).toBeGreaterThan(rehearsal.indexOf("begin;"));
+    expect(run).not.toMatch(/https:\/\/[^\s]*supabase\.co/);
+    expect(rehearsal).not.toMatch(/connect\s+https?:/i);
+  });
+
   it("retains immutable judgments and rejects unknown versions/publication",()=>{
     expect(parseCourtJudgment(original).kind).toBe("original");
     expect(parseCourtJudgment({ ...original,kind:"revised",judgment_number:2 }).judgmentNumber).toBe(2);
