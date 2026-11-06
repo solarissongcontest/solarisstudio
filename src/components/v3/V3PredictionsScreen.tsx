@@ -146,8 +146,17 @@ export function V3PredictionsScreen() {
           </V3Surface>
         ) : (
           <>
-            <V3Section title="Prediction rounds" meta={active.length ? `${active.length} current` : "No current round"}>
-              {active.length ? (
+            <V3Section title="Prediction rounds" meta={viewerId && (history.isLoading || history.isError) ? "Checking saved picks" : active.length ? `${active.length} current` : "No current round"}>
+              {viewerId && history.isLoading ? (
+                <V3Surface><p role="status" className="text-sm text-[var(--v3-text-secondary)]">Verifying your submitted predictions…</p></V3Surface>
+              ) : viewerId && history.isError ? (
+                <V3Surface data-v3-prediction-rounds-state="private-history-error">
+                  <p role="alert" className="text-sm text-[var(--v3-text-secondary)]">Your submitted prediction states could not be verified.</p>
+                  <button type="button" disabled={history.isFetching} onClick={() => void history.refetch()} className="mt-3 min-h-11 rounded-xl border border-white/20 px-4 text-sm font-semibold disabled:opacity-50">
+                    {history.isFetching ? "Retrying…" : "Retry saved predictions"}
+                  </button>
+                </V3Surface>
+              ) : active.length ? (
                 <div className="grid gap-3 sm:grid-cols-2">
                   {active.map((round) => {
                     const Icon = stateIcon(round.state);
