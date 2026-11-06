@@ -45,7 +45,8 @@ describe("Organizer Confirmation detail edition isolation", () => {
     expect(technicalRead).toBeGreaterThan(scopeCheck);
     expect(source).toContain("responseLoadGenerationRef.current += 1;");
     expect(source).toContain("currentScopeRef.current.responseId === id");
-    expect(source).toContain("if (responseLoadGenerationRef.current !== generation) return;");
+    expect(source).toContain("responseLoadGenerationRef.current !== generation ||");
+    expect(source).toContain("currentScopeRef.current.editionId !== organizerEditionId) return;");
   });
 
   it("reviews an official-state reconciliation explicitly before any sync mutation", () => {
@@ -238,4 +239,32 @@ describe("Organizer Confirmation detail edition isolation", () => {
     expect(recover.split("unresolvedReviewOperationRef.current = null;").length - 1).toBe(2);
     expect(recover).toContain("await onChanged();");
   });
+  it("preserves same-response receipts and refuses obsolete refresh callbacks before invalidating current loads", () => {
+    const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
+    const start = source.indexOf("  const load = useCallback(async () => {");
+    const end = source.indexOf("  useEffect(() => {", start);
+    const loader = source.slice(start, end);
+    expect(loader).toContain("if (currentScopeRef.current.responseId !== id ||");
+    expect(loader.indexOf("if (currentScopeRef.current.responseId !== id ||")).toBeLessThan(
+      loader.indexOf("++responseLoadGenerationRef.current"),
+    );
+    expect(loader).toContain("const alreadyLoadedInScope = lastLoadedResponseScopeRef.current?.responseId === id");
+    expect(loader).toContain("if (!alreadyLoadedInScope) {");
+    expect(loader).toContain("setLoading(Boolean(organizerEditionId) && !alreadyLoadedInScope)");
+    expect(loader).toContain("lastLoadedResponseScopeRef.current = { responseId: id, editionId: organizerEditionId }");
+    expect(source).toContain("lastLoadedResponseScopeRef.current = null;");
+  });
+
+  it("disables reconciliation cancellation before preflight as well as during the privileged mutation", () => {
+    const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
+    const start = source.indexOf("  async function manualSync() {");
+    const end = source.indexOf("  async function copyValue(", start);
+    const action = source.slice(start, end);
+    expect(action.indexOf("setSyncReviewBusy(true)")).toBeGreaterThan(-1);
+    expect(action.indexOf("setSyncReviewBusy(true)")).toBeLessThan(action.indexOf("const fresh = await confirmationsSupabase.rpc"));
+    expect(action).toContain("setSyncReviewBusy(false)");
+    expect(source).toContain("onClose={() => { if (!syncInFlightRef.current) setSyncReviewOpen(false); }}");
+    expect(source).toContain("busy={syncReviewBusy || syncingSolaris}");
+  });
+
 });
