@@ -18,6 +18,10 @@ describe("V3 mobile-browser and desktop section-navigation accessibility", () =>
     expect(mobile).toContain('hidden={!open}');
     expect(css).toContain(".public-mobile-section-panel[hidden] {\n  display: none;");
     expect(mobile).toContain('useEffect(() => setOpen(false), [pathname])');
+    expect(mobile).toContain('ref={navigationRef}');
+    expect(mobile).toContain('document.addEventListener("pointerdown", onOutsidePointerDown)');
+    expect(mobile).toContain('document.removeEventListener("pointerdown", onOutsidePointerDown)');
+    expect(mobile).toContain('!navigationRef.current?.contains(event.target)');
   });
 
   it("lets keyboard users dismiss the mobile disclosure with focus restored to its trigger", () => {
