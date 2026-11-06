@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Bell, BellOff, BookmarkCheck, ChevronRight, Radio, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import { useMyFollows, useSetFanFollow } from "@/lib/engagement-data";
@@ -106,6 +106,7 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
   const shows = useAllShows();
   const setFollow = useSetFanFollow(viewerId);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const mutationInFlight = useRef(false);
   const [message, setMessage] = useState<string | null>(null);
 
   const projection = useMemo(() => {
@@ -137,7 +138,8 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
     following: boolean,
     notificationLevel = item.notificationLevel,
   ) => {
-    if (pendingKey) return;
+    if (mutationInFlight.current) return;
+    mutationInFlight.current = true;
     const operationKey = `${item.entityType}:${item.entityId}`;
     setPendingKey(operationKey);
     setMessage(null);
@@ -151,8 +153,9 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
       setMessage(following ? `Updated ${item.title}.` : `Removed ${item.title} from Following & Saved.`);
     } catch (error) {
       console.error("[V3 Following & Saved] Preference update failed", error);
-      setMessage("Solaris could not save that preference. Nothing else was changed.");
+      setMessage("Update not confirmed. Check your saved items before trying again.");
     } finally {
+      mutationInFlight.current = false;
       setPendingKey(null);
     }
   };
