@@ -26,7 +26,7 @@ function WorldDocumentPage() {
   const { organization, document } = Route.useParams();
   const { version } = Route.useSearch();
   return (
-    <WorldPublicGate>
+    <WorldPublicGate verifyOnMount>
       <WorldDocumentReaderScreen organization={organization} document={document} version={version} />
     </WorldPublicGate>
   );
