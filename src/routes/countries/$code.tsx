@@ -40,6 +40,8 @@ import {
   useEditions,
 } from "@/lib/data-live";
 import { canonicalEditionEntries, canonicalEntryFor } from "@/lib/entry-utils";
+import { resolveCountryCurrentContext } from "@/lib/v3-country-current-context";
+import { buildCountryDiscovery } from "@/lib/v3-discovery-entities";
 import { computeCountryForm } from "@/lib/form";
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 import {
@@ -437,6 +439,19 @@ function CountryProfilePage() {
     },
   };
 
+  const currentContext = resolveCountryCurrentContext(
+    buildCountryDiscovery({
+      countries: countries ?? [],
+      editions: publicArchive.editions,
+      currentParticipants: publicArchive.participants,
+    }),
+    country.id,
+    {
+      loading: !archiveEnabled || archiveIsLoading(editionsQuery, showsQuery, participantsQuery),
+      error: archiveHasError(editionsQuery, showsQuery, participantsQuery),
+    },
+  );
+
   const chartData =
     stats?.timeline.flatMap((point) =>
       point.rank == null ? [] : [{ edition: point.label, rank: point.rank }],
@@ -475,6 +490,7 @@ function CountryProfilePage() {
         {countryLayoutMode === "mobile-web" ? (
           <CountryMobileWebMasthead
             identity={identityModel}
+            currentContext={currentContext}
             follow={<FollowButton entityType="country" entityId={country.id} label={country.name} />}
           />
         ) : publishedDesign ? (
@@ -521,6 +537,13 @@ function CountryProfilePage() {
             }
           />
         )}
+
+        {countryLayoutMode !== "mobile-web" ? (
+          <div className="mb-5 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-y border-border/70 py-3" aria-label="Current-edition participation">
+            <span className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">{currentContext.editionLabel}</span>
+            <strong className="text-sm font-semibold text-foreground">{currentContext.status}</strong>
+          </div>
+        ) : null}
 
         {countryLayoutMode === "mobile-web" ? (
           <nav className="country-mobile-web-tabs scroll-slim mb-5 flex gap-4 overflow-x-auto overscroll-x-contain border-b border-border" aria-label="Country sections">
