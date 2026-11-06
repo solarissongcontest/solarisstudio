@@ -80,4 +80,13 @@ describe("V3 three-experience shell navigation cutover", () => {
     expect(probe).toContain("await prepareNavbarInstalledContext(context, {");
   });
 
+  it("checks Countries scroll-end clearance against the actual installed dock owner", () => {
+    const account = read("e2e/account-states.e2e.ts");
+    const countries = account.slice(account.indexOf("const dockClearance = await page.evaluate"));
+    expect(countries).toContain(".solaris-app-tabbar[data-layout='bar']");
+    expect(countries).toContain("[data-v3-legacy-bottom-clearance]");
+    expect(countries).toContain("expect(dockClearance!.gap).toBeGreaterThanOrEqual(12)");
+    expect(countries).not.toContain('querySelector<HTMLElement>("[data-v3-liquid-tabbar]")');
+  });
+
 });
