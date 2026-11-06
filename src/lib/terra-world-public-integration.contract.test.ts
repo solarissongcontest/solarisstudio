@@ -82,6 +82,19 @@ describe("Integrated Terra Solaris public discovery chain", () => {
     expect(bodyStatuses?.replace(/\s+/g, "")).toBe(canonicalStatuses?.replace(/\s+/g, ""));
   });
 
+  it("rechecks cached public World records on each route mount", () => {
+    // No polling, no stale publication decisions on an old Query cache entry.
+    const feature = source("src/components/world/WorldPublic.tsx");
+    const finder = source("src/components/world/WorldUnifiedSearch.tsx");
+    expect(feature.split('refetchOnMount: "always"').length - 1).toBe(4);
+    expect(finder.split('refetchOnMount: "always"').length - 1).toBe(3);
+    expect(feature).toContain("worldPublicQueryVerified(projection)");
+    expect(feature).toContain("worldPublicQueryVerified(countries)");
+    expect(finder).toContain("worldPublicQueryVerified(countryQuery)");
+    expect(finder).toContain("worldPublicQueryVerified(organizationQuery)");
+    expect(finder).not.toContain("setInterval(");
+  });
+
   it("keeps exactly one page-level main landmark in the Search shell", () => {
     expect(source("src/components/AppShell.tsx")).toContain("<main");
     expect(search).toContain("<AppShell>");
