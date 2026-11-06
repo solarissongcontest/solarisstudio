@@ -31,6 +31,7 @@ import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
 import { cn } from "@/lib/utils";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { V3DesktopPrimaryNavigation } from "./V3DesktopPrimaryNavigation";
+import { V3WebTopContext } from "./V3WebTopContext";
 import { V3MobileWebPrimaryNavigation } from "./V3MobileWebPrimaryNavigation";
 import { V3FoundationShell, V3TopContext } from "./V3Foundation";
 import {
@@ -353,7 +354,11 @@ export function V3AppShell({
         className={cn("min-h-dvh", isAppMode && "v3-installed-app-layout", className)}
         data-v3-shell-experience={!platformResolved ? "resolving" : isAppMode ? "app" : "web"}
       >
-        <V3TopContext edition={editionLabel} phase={phaseLabel} actions={shellActions} />
+        {!platformResolved ? null : isAppMode ? (
+          <V3TopContext edition={editionLabel} phase={phaseLabel} actions={shellActions} />
+        ) : (
+          <V3WebTopContext edition={editionLabel} phase={phaseLabel} actions={shellActions} />
+        )}
         {platformResolved && !isAppMode ? (
           <V3MobileWebPrimaryNavigation
             destinations={V3_SHELL_DESTINATIONS}
