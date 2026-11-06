@@ -59,3 +59,27 @@ export function assertJuryIntegrityV5Evidence(
     throw new Error("Jury integrity evidence disagrees with the canonical preflight");
   }
 }
+
+/**
+ * The protected query is capped at one thousand rows. A partial read cannot
+ * support trustworthy edition-wide risk totals or a complete evidence review.
+ * The count comes from the same PostgREST request, not a second round trip.
+ */
+export function assertCompleteJuryIntegrityReadback(
+  exactCount: unknown,
+  receivedCount: number,
+): void {
+  if (
+    typeof exactCount !== "number" ||
+    !Number.isSafeInteger(exactCount) ||
+    exactCount < 0 ||
+    !Number.isSafeInteger(receivedCount) ||
+    receivedCount < 0 ||
+    receivedCount > 1000 ||
+    exactCount !== receivedCount
+  ) {
+    throw new Error(
+      "Jury integrity evidence is incomplete; the edition-wide risk totals cannot be verified. Review paging or service health before relying on these cases.",
+    );
+  }
+}
