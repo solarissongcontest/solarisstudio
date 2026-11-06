@@ -38,9 +38,9 @@ describe("Solaris V6 Broadcast edition isolation", () => {
     const lockSection = mutationSection(route, "const lockMutation = useMutation", "const transitionMutation = useMutation");
     const transitionSection = mutationSection(route, "const transitionMutation = useMutation", "const calculated = useMemo");
 
-    expectGuardBeforeWrite(saveSection, "assertProductionEditionScope(review.editionId, review.showId)", "saveStudio2BroadcastRundown(");
-    expectGuardBeforeWrite(lockSection, "assertProductionEditionScope(reviewedEditionId, reviewedShowId)", "setStudio2BroadcastRundownLock(");
-    expectGuardBeforeWrite(transitionSection, "assertProductionEditionScope(reviewedEditionId, reviewedShowId)", "return transitionStudio2BroadcastSegment(\n        reviewedShowId,");
+    expectGuardBeforeWrite(saveSection, "assertProductionEditionScope(review.editionId, review.showId, review.actorId)", "saveStudio2BroadcastRundown(");
+    expectGuardBeforeWrite(lockSection, "assertProductionEditionScope(reviewedEditionId, reviewedShowId, reviewedActorId)", "setStudio2BroadcastRundownLock(");
+    expectGuardBeforeWrite(transitionSection, "assertProductionEditionScope(reviewedEditionId, reviewedShowId, reviewedActorId)", "return transitionStudio2BroadcastSegment(\n        reviewedShowId,");
 
     expect(saveSection).toContain("const live = await loadStudio2BroadcastRundown(review.showId)");
     expect(saveSection).toContain("liveRevision !== review.revision");
@@ -53,7 +53,7 @@ describe("Solaris V6 Broadcast edition isolation", () => {
     const route = source("src/routes/_authenticated/admin/broadcast-rundown.tsx");
     const transitionSection = mutationSection(route, "const transitionMutation = useMutation", "const calculated = useMemo");
     const rehearsalGuard = transitionSection.indexOf("if (mode === 'rehearsal') {");
-    const productionGuard = transitionSection.indexOf("assertProductionEditionScope(reviewedEditionId, reviewedShowId)");
+    const productionGuard = transitionSection.indexOf("assertProductionEditionScope(reviewedEditionId, reviewedShowId, reviewedActorId)");
 
     expect(rehearsalGuard).toBeGreaterThanOrEqual(0);
     expect(productionGuard).toBeGreaterThan(rehearsalGuard);
@@ -68,7 +68,7 @@ describe("Solaris V6 Broadcast edition isolation", () => {
     expect(route).toContain("component: BroadcastRundownRoute");
     expect(route).toContain("function BroadcastRundownRoute()");
     expect(route).toContain("const { editionId, showId } = useAdminContext()");
-    expect(route).toContain("key={`${editionId || 'unscoped'}:${showId || 'no-show'}`}");
+    expect(route).toContain("key={`${actorId}:${editionId || 'unscoped'}:${showId || 'no-show'}`}");
     expect(route).toContain("showId: contextShowId");
     expect(route).toContain("setShowContext");
   });

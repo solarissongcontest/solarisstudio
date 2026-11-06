@@ -11,9 +11,10 @@ import {
   Trash2,
   Unlock,
 } from 'lucide-react';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
+import { useAuthenticatedUser } from '@/components/auth/AuthenticatedUserContext';
 import { SolarisReorderableList } from '@/components/interaction/SolarisReorderableList';
 import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
 import { AdminPage } from '@/components/admin/AdminShell';
@@ -44,6 +45,7 @@ import {
 } from '@/lib/studio2-broadcast-rundown';
 
 type ReviewedBroadcastContext = {
+  actorId: string;
   editionId: string;
   editionLabel: string;
   showId: string;
@@ -71,6 +73,7 @@ type SegmentTransitionCommand = {
   segmentId: string;
   status: RundownSegmentStatus;
   reason: string;
+  reviewedActorId?: string;
   reviewedEditionId?: string;
   reviewedShowId?: string;
   reviewedRevision?: number;
@@ -89,7 +92,8 @@ export const Route = createFileRoute('/_authenticated/admin/broadcast-rundown')(
 
 function BroadcastRundownRoute() {
   const { editionId, showId } = useAdminContext();
-  return <BroadcastRundownPage key={`${editionId || 'unscoped'}:${showId || 'no-show'}`} />;
+  const actorId = useAuthenticatedUser().id;
+  return <BroadcastRundownPage key={`${actorId}:${editionId || 'unscoped'}:${showId || 'no-show'}`} />;
 }
 
 function BroadcastRundownPage() {
@@ -99,6 +103,10 @@ function BroadcastRundownPage() {
     showId: contextShowId,
     setShowContext,
   } = useAdminContext();
+  const actorId = useAuthenticatedUser().id;
+  const actorIdRef = useRef(actorId);
+  actorIdRef.current = actorId;
+  useEffect(() => () => { actorIdRef.current = ''; }, [actorId]);
   const showsQuery = useShows(editionId ?? undefined);
   const queryClient = useQueryClient();
   const shows = showsQuery.data ?? [];
@@ -117,8 +125,10 @@ function BroadcastRundownPage() {
   }, [contextShowId, selectedShow, setShowContext, showsQuery.isLoading]);
 
   const rundownQuery = useQuery({
-    queryKey: ['studio2-broadcast-rundown', editionId, showId],
-    enabled: Boolean(editionId && selectedShow),
+    queryKey: ['studio2-broadcast-rundown', actorId, editionId, showId],
+    enabled: Boolean(actorId && editionId && selectedShow),
+    gcTime: 0,
+    refetchOnWindowFocus: false,
     queryFn: () => loadStudio2BroadcastRundown(showId),
   });
 
@@ -139,11 +149,11 @@ function BroadcastRundownPage() {
     setPendingStructureReview(null);
     setPendingLockReview(null);
     setPendingSegmentReview(null);
-  }, [showId, mode]);
+  }, [showId, mode, actorId]);
 
   const refreshRundown = async (targetShowId = showId) => {
     await queryClient.invalidateQueries({
-      queryKey: ['studio2-broadcast-rundown', editionId, targetShowId],
+      queryKey: ['studio2-broadcast-rundown', actorId, editionId, targetShowId],
     });
     await queryClient.invalidateQueries({ queryKey: ['shows'] });
   };
@@ -151,6 +161,7 @@ function BroadcastRundownPage() {
   function assertProductionEditionScope(
     reviewedEditionId = editionId,
     reviewedShowId = showId,
+    reviewedActorId = actorId,
   ) {
     if (mode === 'rehearsal') return;
 
@@ -163,6 +174,10 @@ function BroadcastRundownPage() {
     });
 
     if (
+      !actorId ||
+      !reviewedActorId ||
+      actorIdRef.current !== reviewedActorId ||
+      actorId !== reviewedActorId ||
       !editionId ||
       !reviewedEditionId ||
       editionId !== reviewedEditionId ||
@@ -187,7 +202,7 @@ function BroadcastRundownPage() {
       if (mode !== 'production') {
         throw staleBroadcastReview('The rundown left Production mode while the structure review was open.');
       }
-      assertProductionEditionScope(review.editionId, review.showId);
+      assertProductionEditionScope(review.editionId, review.showId, review.actorId);
       if (review.config.revision !== review.revision) {
         throw staleBroadcastReview('The reviewed structure carries inconsistent revision evidence.');
       }
@@ -196,6 +211,7 @@ function BroadcastRundownPage() {
       if (liveRevision !== review.revision) {
         throw staleBroadcastReview('The canonical rundown revision changed while the structure review was open.');
       }
+      assertProductionEditionScope(review.editionId, review.showId, review.actorId);
       return saveStudio2BroadcastRundown(
         review.showId,
         review.config,
@@ -212,6 +228,7 @@ function BroadcastRundownPage() {
 
   const lockMutation = useMutation({
     mutationFn: async ({
+      actorId: reviewedActorId,
       editionId: reviewedEditionId,
       showId: reviewedShowId,
       revision,
@@ -219,11 +236,12 @@ function BroadcastRundownPage() {
       reason,
     }: PendingLockReview) => {
       if (!showId || !draft) throw new Error('Select a show and load its rundown first.');
-      assertProductionEditionScope(reviewedEditionId, reviewedShowId);
+      assertProductionEditionScope(reviewedEditionId, reviewedShowId, reviewedActorId);
       const live = await loadStudio2BroadcastRundown(reviewedShowId);
       if (!live || live.revision !== revision) {
         throw staleBroadcastReview('The rundown revision changed while the lock review was open.');
       }
+      assertProductionEditionScope(reviewedEditionId, reviewedShowId, reviewedActorId);
       return setStudio2BroadcastRundownLock(reviewedShowId, live, locked, reason);
     },
     onSuccess: async (config, review) => {
@@ -239,6 +257,7 @@ function BroadcastRundownPage() {
       segmentId,
       status,
       reason,
+      reviewedActorId,
       reviewedEditionId,
       reviewedShowId,
       reviewedRevision,
@@ -248,15 +267,16 @@ function BroadcastRundownPage() {
       if (mode === 'rehearsal') {
         return transitionStudio2BroadcastSegment(showId, draft, segmentId, status, reason, mode);
       }
-      if (!reviewedEditionId || !reviewedShowId || reviewedRevision == null || !reviewedStatus) {
+      if (!reviewedActorId || !reviewedEditionId || !reviewedShowId || reviewedRevision == null || !reviewedStatus) {
         throw staleBroadcastReview('The reviewed Organizer context is no longer current.');
       }
-      assertProductionEditionScope(reviewedEditionId, reviewedShowId);
+      assertProductionEditionScope(reviewedEditionId, reviewedShowId, reviewedActorId);
       const live = await loadStudio2BroadcastRundown(reviewedShowId);
       const liveSegment = live?.segments.find((segment) => segment.id === segmentId) ?? null;
       if (!live || live.revision !== reviewedRevision || liveSegment?.status !== reviewedStatus) {
         throw staleBroadcastReview('The rundown or segment state changed while the transition review was open.');
       }
+      assertProductionEditionScope(reviewedEditionId, reviewedShowId, reviewedActorId);
       return transitionStudio2BroadcastSegment(
         reviewedShowId,
         live,
@@ -378,8 +398,9 @@ function BroadcastRundownPage() {
   };
 
   const reviewStructure = () => {
-    if (!draft || !editionId || !selectedShow || mode !== 'production' || structureLocked) return;
+    if (!draft || !editionId || !actorId || !selectedShow || mode !== 'production' || structureLocked) return;
     setPendingStructureReview({
+      actorId,
       editionId,
       editionLabel: currentEditionLabel,
       showId: selectedShow.id,
@@ -391,8 +412,9 @@ function BroadcastRundownPage() {
   };
 
   const changeLock = (locked: boolean) => {
-    if (!draft || !editionId || mode !== 'production' || !selectedShow) return;
+    if (!draft || !editionId || !actorId || mode !== 'production' || !selectedShow) return;
     setPendingLockReview({
+      actorId,
       editionId,
       editionLabel: currentEditionLabel,
       showId: selectedShow.id,
@@ -413,8 +435,9 @@ function BroadcastRundownPage() {
       });
       return;
     }
-    if (!draft || !editionId || !selectedShow) return;
+    if (!draft || !editionId || !actorId || !selectedShow) return;
     setPendingSegmentReview({
+      actorId,
       editionId,
       editionLabel: currentEditionLabel,
       showId: selectedShow.id,
@@ -764,6 +787,7 @@ function BroadcastRundownPage() {
               segmentId: pendingSegmentReview.segment.id,
               status: pendingSegmentReview.status,
               reason: pendingSegmentReview.reason.trim(),
+              reviewedActorId: pendingSegmentReview.actorId,
               reviewedEditionId: pendingSegmentReview.editionId,
               reviewedShowId: pendingSegmentReview.showId,
               reviewedRevision: pendingSegmentReview.revision,

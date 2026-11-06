@@ -44,7 +44,7 @@ describe("V3 Organizer Broadcast Rundown production review boundaries", () => {
   });
 
   it("re-reads canonical rundown state and fails closed before reviewed structure save", () => {
-    expect(route).toContain("assertProductionEditionScope(review.editionId, review.showId)");
+    expect(route).toContain("assertProductionEditionScope(review.editionId, review.showId, review.actorId)");
     expect(route).toContain("review.config.revision !== review.revision");
     expect(route).toContain("const live = await loadStudio2BroadcastRundown(review.showId)");
     expect(route).toContain("const liveRevision = live?.revision ?? 0");
@@ -67,7 +67,7 @@ describe("V3 Organizer Broadcast Rundown production review boundaries", () => {
   });
 
   it("re-reads canonical rundown state and fails closed before a reviewed lock mutation", () => {
-    expect(route).toContain("assertProductionEditionScope(reviewedEditionId, reviewedShowId)");
+    expect(route).toContain("assertProductionEditionScope(reviewedEditionId, reviewedShowId, reviewedActorId)");
     expect(route).toContain("const live = await loadStudio2BroadcastRundown(reviewedShowId)");
     expect(route).toContain("live.revision !== revision");
     expect(route).toContain("The rundown revision changed while the lock review was open.");
@@ -80,7 +80,7 @@ describe("V3 Organizer Broadcast Rundown production review boundaries", () => {
     expect(route).toContain("reviewedShowId: pendingSegmentReview.showId");
     expect(route).toContain("reviewedRevision: pendingSegmentReview.revision");
     expect(route).toContain("reviewedStatus: pendingSegmentReview.segment.status");
-    expect(route).toContain("assertProductionEditionScope(reviewedEditionId, reviewedShowId)");
+    expect(route).toContain("assertProductionEditionScope(reviewedEditionId, reviewedShowId, reviewedActorId)");
     expect(route).toContain("liveSegment?.status !== reviewedStatus");
     expect(route).toContain("The rundown or segment state changed while the transition review was open.");
     expect(route).toContain("pendingSegmentReview.editionLabel} · {pendingSegmentReview.showName");
