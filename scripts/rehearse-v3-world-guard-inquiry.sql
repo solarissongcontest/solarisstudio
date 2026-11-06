@@ -29,6 +29,9 @@ begin
  values(v_target_country,'GUARD Local Inquiry Test Country','ZQJ');
  insert into public.country_accounts(user_id,country_id,status)
  values(v_target_user,v_target_country,'active');
+ insert into public.world_organization_memberships(
+  organization_id,country_id,membership_type,status,joined_at
+ ) values(v_guard,v_target_country,'member','member',now()-interval '1 day');
  insert into public.delegation_people(id,display_name,identity_key)
  values(v_chair_person,'GUARD Local Chair','guard-inquiry:'||v_chair_person::text);
  insert into public.world_office_terms(
