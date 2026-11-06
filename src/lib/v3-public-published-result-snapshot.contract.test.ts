@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -68,6 +69,16 @@ describe("System V3 public published result snapshot", () => {
     expect(sql).not.toContain("grant select on table private.v3_result_versions");
     expect(sql).toContain("security definer");
     expect(sql).toContain("set search_path = ''");
+  });
+
+  it("executes adversarial localhost URL tests without a database or network", () => {
+    const outcome = spawnSync(
+      process.execPath,
+      ["--test", "scripts/rehearse-v3-public-result-snapshot.security.test.mjs"],
+      { encoding: "utf8", timeout: 60_000 },
+    );
+    expect(outcome.error).toBeUndefined();
+    expect(outcome.status, outcome.stderr || outcome.stdout).toBe(0);
   });
 
   it("has a fail-closed local-only rehearsal for immutable publication, hiding and correction", () => {
