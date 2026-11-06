@@ -104,6 +104,19 @@ describe("Publication-safe Reference legacy Wiki search compatibility", () => {
     }
   });
 
+  it("normalizes the Country destination of each published Entry without merging distinct entries", () => {
+    const items = parseReferenceSearchRows([
+      { result_id: "entry:e1", result_type: "entry", title: "First artist — song", href: "/countries/ola" },
+      { result_id: "entry:e2", result_type: "entry", title: "Second artist — song", href: "/countries/Ola" },
+      country,
+    ]);
+    expect(items.map(({ id, kind, href }) => ({ id, kind, href }))).toEqual([
+      { id: "entry:e1", kind: "entry", href: "/countries/OLA" },
+      { id: "entry:e2", kind: "entry", href: "/countries/OLA" },
+      { id: "country:a1", kind: "country", href: "/countries/OLA" },
+    ]);
+  });
+
   it("retains published entry drilldowns to Country profiles without duplicating entities", () => {
     const items = parseReferenceSearchRows([
       { result_id: "entry:e1", result_type: "entry", title: "Artist — Song", href: "/countries/OLA" },
