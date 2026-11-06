@@ -12,7 +12,10 @@ import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useCountries, useEditions } from '@/lib/data';
 import { MEDIA_ASSET_TYPES, type MediaAssetType } from '@/lib/media-asset-vault';
 import { resolveOrganizerMediaPreviewSource } from '@/lib/v3-organizer-media-preview-source';
-import { resolveOrganizerMediaReviewTargets } from '@/lib/v3-organizer-media-review-selection';
+import {
+  countOutdatedOrganizerMediaReviewSelections,
+  resolveOrganizerMediaReviewTargets,
+} from '@/lib/v3-organizer-media-review-selection';
 import { loadStudio2CountryCockpit } from '@/lib/studio2-country-cockpit';
 import {
   STUDIO2_MEDIA_ASSET_STATES,
@@ -86,7 +89,7 @@ function MediaAssetsPage() {
   const queryClient = useQueryClient();
   const editionsQuery = useEditions();
   const countriesQuery = useCountries();
-  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
+  const [selectedSources, setSelectedSources] = useState<Map<string, string>>(() => new Map());
   const [reviewReason, setReviewReason] = useState('');
   const [pendingReview, setPendingReview] = useState<PendingMediaReview | null>(null);
 
@@ -95,7 +98,7 @@ function MediaAssetsPage() {
   const resolvedEditionId = selectedEdition?.id ?? '';
 
   useEffect(() => {
-    setSelectedKeys(new Set());
+    setSelectedSources(new Map());
     setReviewReason('');
     setPendingReview(null);
   }, [resolvedEditionId]);
@@ -125,6 +128,10 @@ function MediaAssetsPage() {
     cockpits: cockpitQuery.data ?? [],
     reviews: reviewsQuery.data ?? [],
   }) : [], [selectedEdition, countriesQuery.data, cockpitQuery.data, reviewsQuery.data]);
+  const selectedKeys = new Set(selectedSources.keys());
+  const outdatedSelectedCount = countOutdatedOrganizerMediaReviewSelections(
+    inventory, selectedSources, resolvedEditionId,
+  );
 
   const normalizedQuery = (search.q ?? '').trim().toLocaleLowerCase();
   const statusFilter = search.status ?? 'all';
@@ -201,7 +208,8 @@ function MediaAssetsPage() {
   ] satisfies readonly AdminDataColumn<Studio2MediaAssetItem>[];
   const selectedItems = inventory.filter((item) => selectedKeys.has(item.assetKey));
   const reviewableSelected = selectedItems.filter((item) => Boolean(item.sourceFingerprint) && !item.processing);
-  const canApproveSelected = reviewableSelected.length === selectedItems.length
+  const canApproveSelected = outdatedSelectedCount === 0 &&
+    reviewableSelected.length === selectedItems.length
     && reviewableSelected.every((item) => !item.validation.some((check) => check.level === 'blocked'));
   const error = editionsQuery.error ?? countriesQuery.error ?? cockpitQuery.error ?? reviewsQuery.error;
 
@@ -249,7 +257,7 @@ function MediaAssetsPage() {
       await queryClient.invalidateQueries({ queryKey: ['studio2-media-asset-reviews', variables.commandEditionId] });
       if (editionId !== variables.commandEditionId) return;
       toast.success(variables.decision === 'approved' ? 'Media assets approved.' : 'Media assets marked invalid.');
-      setSelectedKeys(new Set());
+      setSelectedSources(new Map());
       setReviewReason('');
       setPendingReview(null);
     },
@@ -264,22 +272,27 @@ function MediaAssetsPage() {
   }
 
   function toggleSelection(assetKey: string) {
-    setSelectedKeys((current) => {
-      const next = new Set(current);
+    const asset = inventory.find((item) => item.assetKey === assetKey);
+    setSelectedSources((current) => {
+      const next = new Map(current);
       if (next.has(assetKey)) next.delete(assetKey);
-      else next.add(assetKey);
+      else if (asset?.sourceFingerprint && !asset.processing &&
+          asset.editionId === resolvedEditionId) next.set(assetKey, asset.sourceFingerprint);
       return next;
     });
   }
 
   function selectVisible() {
-    const reviewable = filtered.filter((item) => item.sourceFingerprint && !item.processing);
-    setSelectedKeys(new Set(reviewable.map((item) => item.assetKey)));
+    const reviewable = filtered.filter((item) => item.sourceFingerprint && !item.processing &&
+      item.editionId === resolvedEditionId);
+    setSelectedSources(new Map(reviewable.map((item) =>
+      [item.assetKey, item.sourceFingerprint!] as const,
+    )));
   }
 
   function requestReview(
     decision: Studio2MediaReviewDecision,
-    singleAssetReview?: { assetKey: string; reason: string },
+    singleAssetReview?: { assetKey: string; sourceFingerprint: string; reason: string },
   ) {
     if (!selectedEdition || editionId !== selectedEdition.id || reviewMutation.isPending) {
       toast.error('Select the current Organizer edition again before reviewing media.');
@@ -293,8 +306,8 @@ function MediaAssetsPage() {
     let exactAssets: Studio2MediaAssetItem[];
     try {
       const selection = singleAssetReview
-        ? new Set([singleAssetReview.assetKey])
-        : selectedKeys;
+        ? new Map([[singleAssetReview.assetKey, singleAssetReview.sourceFingerprint]])
+        : selectedSources;
       exactAssets = resolveOrganizerMediaReviewTargets(
         inventory, selection, selectedEdition.id, decision,
       );
@@ -406,12 +419,19 @@ function MediaAssetsPage() {
                 <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row xl:max-w-3xl">
                   <input aria-label="Review reason" value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} className="admin-input min-w-0 flex-1" placeholder="Review reason (required)" />
                   <button type="button" className="admin-action-secondary" onClick={selectVisible}>Select visible</button>
-                  <button type="button" className="admin-action-secondary" onClick={() => setSelectedKeys(new Set())} disabled={!selectedKeys.size}>Clear</button>
+                  <button type="button" className="admin-action-secondary" onClick={() => setSelectedSources(new Map())} disabled={!selectedKeys.size}>Clear</button>
                   <button type="button" className="admin-action-primary" disabled={!resolvedEditionId || !selectedKeys.size || reviewReason.trim().length < 5 || !canApproveSelected || reviewMutation.isPending} onClick={() => requestReview('approved')}>Review approval</button>
-                  <button type="button" className="admin-action-secondary" disabled={!resolvedEditionId || !selectedKeys.size || reviewReason.trim().length < 5 || reviewMutation.isPending} onClick={() => requestReview('invalid')}>Review invalidation</button>
+                  <button type="button" className="admin-action-secondary" disabled={!resolvedEditionId || !selectedKeys.size || reviewReason.trim().length < 5 || outdatedSelectedCount > 0 || reviewMutation.isPending} onClick={() => requestReview('invalid')}>Review invalidation</button>
                 </div>
               </div>
               {selectedKeys.size ? <p className="mt-3 text-xs text-muted-foreground">{selectedKeys.size} selected · {reviewableSelected.length} reviewable</p> : null}
+              {outdatedSelectedCount > 0 ? (
+                <p role="alert" className="mt-2 text-xs text-amber-100">
+                  {outdatedSelectedCount} selected media source{outdatedSelectedCount === 1 ? "" : "s"} changed
+                  or disappeared since selection. Clear and explicitly reselect the replacement
+                  before approving or invalidating any media.
+                </p>
+              ) : null}
             </AdminCard>
 
             <AdminCard>
@@ -436,7 +456,7 @@ function MediaAssetsPage() {
           asset={selectedAsset}
           reviews={(reviewsQuery.data ?? []).filter((review) => review.assetKey === selectedAsset?.assetKey)}
           onClose={() => updateSearch({ asset: undefined })}
-          onRequestReview={(assetKey, decision, reason) => requestReview(decision, { assetKey, reason })}
+          onRequestReview={(assetKey, sourceFingerprint, decision, reason) => requestReview(decision, { assetKey, sourceFingerprint, reason })}
           reviewPending={reviewMutation.isPending}
         />
 
@@ -491,7 +511,7 @@ function MediaAssetSheet({
   asset: Studio2MediaAssetItem | null;
   reviews: Awaited<ReturnType<typeof listStudio2MediaAssetReviews>>;
   onClose: () => void;
-  onRequestReview: (assetKey: string, decision: Studio2MediaReviewDecision, reason: string) => void;
+  onRequestReview: (assetKey: string, sourceFingerprint: string, decision: Studio2MediaReviewDecision, reason: string) => void;
   reviewPending: boolean;
 }) {
   // The sheet is keyed by edition, asset identity, fingerprint and URL, so
@@ -629,7 +649,7 @@ function MediaAssetSheet({
                     type="button"
                     disabled={reviewPending || singleAssetReviewReason.trim().length < 5 ||
                       asset.validation.some((check) => check.level === 'blocked')}
-                    onClick={() => onRequestReview(asset.assetKey, 'approved', singleAssetReviewReason)}
+                    onClick={() => onRequestReview(asset.assetKey, asset.sourceFingerprint!, 'approved', singleAssetReviewReason)}
                     className="admin-action-primary w-full"
                   >
                     Review approval
@@ -637,7 +657,7 @@ function MediaAssetSheet({
                   <button
                     type="button"
                     disabled={reviewPending || singleAssetReviewReason.trim().length < 5}
-                    onClick={() => onRequestReview(asset.assetKey, 'invalid', singleAssetReviewReason)}
+                    onClick={() => onRequestReview(asset.assetKey, asset.sourceFingerprint!, 'invalid', singleAssetReviewReason)}
                     className="admin-action-secondary w-full"
                   >
                     Review invalidation
