@@ -4,6 +4,7 @@ import { Command as CommandIcon, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { useAppExperiencePreferences } from "@/lib/app-experience";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -27,8 +28,10 @@ import type { AccountAccess } from "@/lib/country-account";
 import { buildCanonicalFanRecords } from "@/lib/canonical-fan-records";
 import { usePublicSearchParticipants } from "@/lib/public-participants";
 import { publicSearchPublicationScope, publicSearchRowsForPublishedShows } from "@/lib/public-search-published-scope";
+import { excludeSearchSpoilerEdition, excludeSearchSpoilerStories, resolvePublicSearchSpoilerPreviewScope } from "@/lib/public-search-spoiler-preview";
 import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
 import { canSuggestDelegationSearchActions } from "@/lib/public-search-action-visibility";
+import { limitV3PublicSearchGroups, matchesV3PublicSearch, navigationV3PublicSearchResults, rankV3PublicSearchResults } from "@/lib/v3-public-search-relevance";
 import {
   editionLabel,
   useAllJuryVotes,
@@ -41,26 +44,28 @@ import {
 } from "@/lib/data";
 import {
   dedupePublicSearchResults,
-  matchesPublicSearch,
-  navigationSearchResults,
   type PublicSearchResult,
 } from "@/lib/public-search";
 import { isRecentShowPublic } from "@/lib/public-recent-show-publication";
 import { readPublicRecents } from "@/lib/public-recents";
+import { recentPublicationSlugs, spoilerSafePublicRecents, visiblePublicationVerifiedRecents } from "@/lib/v3-search-recent-publication";
 import { visibleRecentShowDestinations } from "@/lib/v3-show-public-discovery";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { searchGovernanceLibrary } from "@/lib/public-library-governance";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
-import { loadPublicStorylines } from "@/lib/studio2-storytelling";
+import { loadPublicStoryline, loadPublicStorylines } from "@/lib/studio2-storytelling";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
 export function PublicCommandPalette({
   compact = false,
   access,
+  keyboardShortcut = true,
 }: {
   compact?: boolean;
   access?: AccountAccess;
+  /** Mobile Home uses the same palette without registering a second global shortcut. */
+  keyboardShortcut?: boolean;
 }) {
   const { isAppMode } = useSolarisApp();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -70,6 +75,7 @@ export function PublicCommandPalette({
   const wasOpen = useRef(false);
 
   useEffect(() => {
+    if (!keyboardShortcut) return;
     const handler = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -80,7 +86,7 @@ export function PublicCommandPalette({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [keyboardShortcut]);
 
   useEffect(() => {
     if (!isAppMode) return;
@@ -198,8 +204,11 @@ function publicRecentShowIds(recents: readonly { path: string }[]): string[] {
 }
 
 function usePublicationSafeRecents() {
+  const { preferences } = useAppExperiencePreferences();
   const recents = useMemo(() => readPublicRecents(), []);
   const showIds = useMemo(() => publicRecentShowIds(recents), [recents]);
+  const publicationSlugs = useMemo(() => recentPublicationSlugs(recents), [recents]);
+  const { editionSlugs, storySlugs } = publicationSlugs;
   const showVisibility = useQuery({
     queryKey: ["public-command-palette-recent-show-visibility", showIds],
     enabled: showIds.length > 0,
@@ -233,18 +242,95 @@ function usePublicationSafeRecents() {
         .map((show) => ({ id: show.id }));
     },
   });
-  return useMemo(
-    () =>
-      visibleRecentShowDestinations(
-        recents,
-        showVisibility.isSuccess &&
-          showVisibility.isFetchedAfterMount &&
-          !showVisibility.isFetching
-          ? showVisibility.data
+  const editionVisibility = useQuery({
+    queryKey: ["public-command-palette-recent-edition-visibility", editionSlugs],
+    enabled: editionSlugs.length > 0,
+    // A previously public Edition can become unpublished while its title
+    // remains in shared-device storage. Require a new read on every opening.
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+    retry: false,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("editions")
+        .select("slug,published,name")
+        .in("slug", editionSlugs);
+      if (error) throw error;
+      return (data ?? [])
+        .filter((edition) => edition.published === true && Boolean(edition.name?.trim()))
+        .map((edition) => ({ slug: edition.slug, label: edition.name }));
+    },
+  });
+  const storyVisibility = useQuery({
+    queryKey: ["public-command-palette-recent-story-visibility", storySlugs],
+    enabled: storySlugs.length > 0,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+    retry: false,
+    queryFn: async () => {
+      // No cheap per-slug published-story metadata RPC exists. Use the
+      // existing server-authoritative publication-gated detail function only
+      // for the at-most-eight remembered Story URLs. Errors fail closed.
+      const checked = await Promise.allSettled(
+        storySlugs.map((slug) => loadPublicStoryline(slug)),
+      );
+      return checked.flatMap((result, index) =>
+        result.status === "fulfilled" &&
+        result.value?.editionSlug === storySlugs[index] &&
+        Boolean(result.value?.title?.trim())
+          ? [{ slug: storySlugs[index], label: result.value.title }]
           : [],
+      );
+    },
+  });
+
+  return useMemo(() => {
+    const allowedShows =
+      showVisibility.isSuccess &&
+      showVisibility.isFetchedAfterMount &&
+      !showVisibility.isFetching
+        ? showVisibility.data
+        : [];
+    const allowedEditionLabels =
+      editionVisibility.isSuccess &&
+      editionVisibility.isFetchedAfterMount &&
+      !editionVisibility.isFetching
+        ? editionVisibility.data
+        : [];
+    const allowedStoryLabels =
+      storyVisibility.isSuccess &&
+      storyVisibility.isFetchedAfterMount &&
+      !storyVisibility.isFetching
+        ? storyVisibility.data
+        : [];
+    return spoilerSafePublicRecents(
+      visiblePublicationVerifiedRecents(
+        visibleRecentShowDestinations(recents, allowedShows),
+        {
+          publishedEditionLabels: new Map(allowedEditionLabels.map((row) => [row.slug, row.label])),
+          publishedStoryLabels: new Map(allowedStoryLabels.map((row) => [row.slug, row.label])),
+        },
       ),
-    [recents, showVisibility.isSuccess, showVisibility.isFetchedAfterMount, showVisibility.isFetching, showVisibility.data],
-  );
+      preferences.spoilerFree,
+    );
+  }, [
+    recents,
+    preferences.spoilerFree,
+    showVisibility.isSuccess,
+    showVisibility.isFetchedAfterMount,
+    showVisibility.isFetching,
+    showVisibility.data,
+    editionVisibility.isSuccess,
+    editionVisibility.isFetchedAfterMount,
+    editionVisibility.isFetching,
+    editionVisibility.data,
+    storyVisibility.isSuccess,
+    storyVisibility.isFetchedAfterMount,
+    storyVisibility.isFetching,
+    storyVisibility.data,
+  ]);
 }
 
 function AppPublicPaletteDialog({
@@ -279,11 +365,14 @@ function AppPublicPaletteDialog({
     // hosted read traffic. Explicit Retry remains under the visitor's control.
     retry: false,
     refetchOnWindowFocus: false,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("solaris_public_search", {
-        search_query: debouncedQuery,
-        result_limit: 30,
-      });
+    queryFn: async ({ signal }) => {
+      // A superseded React Query key cancels the pending PostgREST request.
+      const { data, error } = await (supabase as any)
+        .rpc("solaris_public_search", {
+          search_query: debouncedQuery,
+          result_limit: 30,
+        })
+        .abortSignal(signal);
       if (error) throw error;
       return (Array.isArray(data) ? data : []) as AppSearchRow[];
     },
@@ -356,9 +445,9 @@ function AppPublicPaletteDialog({
 
     const local = [
       ...actionResults.filter((item) =>
-        matchesPublicSearch(normalized, item.label, item.description, item.keywords),
+        matchesV3PublicSearch(normalized, item.label, item.description, item.keywords),
       ),
-      ...navigationSearchResults(normalized),
+      ...navigationV3PublicSearchResults(normalized),
       ...searchGovernanceLibrary(normalized).slice(0, 16).map((item) => ({
         id: `governance:${item.to}:${item.title}`,
         label: item.title,
@@ -368,7 +457,7 @@ function AppPublicPaletteDialog({
       })),
     ];
 
-    return dedupePublicSearchResults([...local, ...remoteResults]).slice(0, 50);
+    return limitV3PublicSearchGroups(rankV3PublicSearchResults(dedupePublicSearchResults([...local, ...remoteResults]), normalized));
   }, [actionResults, normalized, awaitingRemote, remote.data, remote.isError]);
 
   const grouped = useMemo(() => {
@@ -672,7 +761,7 @@ function WebPublicPaletteDialog({
           {renderSearchGroups(idleGroups, openIdleResult)}
           {!recentResults.length ? (
             <CommandGroup heading="Start here">
-              {navigationSearchResults("")
+              {navigationV3PublicSearchResults("")
                 .filter((item) =>
                   ["/explore", "/participate", "/results", "/guide", "/rules"].includes(item.href),
                 )
@@ -704,6 +793,7 @@ function WebSearchArchiveResults({
   setOpen: (open: boolean) => void;
 }) {
   const router = useRouter();
+  const { preferences } = useAppExperiencePreferences();
   const showsQuery = useAllShows();
   const participantsQuery = usePublicSearchParticipants();
   const resultsQuery = useAllResults();
@@ -741,6 +831,34 @@ function WebSearchArchiveResults({
     [jury, detailedVotingShowIds],
   );
 
+  // Spoiler-free Search protects preview content, not canonical published
+  // destinations. Publication checks remain server-authoritative.
+  const spoilerScope = useMemo(
+    () => resolvePublicSearchSpoilerPreviewScope({
+      spoilerFree: preferences.spoilerFree,
+      editions: publicEditions,
+      shows: publicShows,
+    }),
+    [preferences.spoilerFree, publicEditions, publicShows],
+  );
+  // Do not treat a failed, stale-refreshing, or unresolved publication
+  // source as permission to expose a potentially revealing Story headline.
+  const spoilerPreviewVerificationPending =
+    preferences.spoilerFree &&
+    (!publicEditions.length || !showsQuery.isSuccess || showsQuery.isFetching || showsQuery.isError);
+  const spoilerSafeRecordArchive = useMemo(
+    () => ({
+      editions: spoilerScope.editionId
+        ? publicEditions.filter((edition) => edition.id !== spoilerScope.editionId)
+        : publicEditions,
+      shows: excludeSearchSpoilerEdition(publicShows, spoilerScope.editionId),
+      participants: excludeSearchSpoilerEdition(participants, spoilerScope.editionId),
+      results: excludeSearchSpoilerEdition(visibleResults, spoilerScope.editionId),
+      jury: excludeSearchSpoilerEdition(visibleJury, spoilerScope.editionId),
+    }),
+    [participants, publicEditions, publicShows, spoilerScope.editionId, visibleJury, visibleResults],
+  );
+
   const editionById = useMemo(
     () => new Map(publicEditions.map((edition) => [edition.id, edition])),
     [publicEditions],
@@ -774,33 +892,29 @@ function WebSearchArchiveResults({
   // An unavailable source is not an empty participant list.
   const records = useMemo(
     () =>
-      participantsQuery.isSuccess && !participantsQuery.isError
+      !spoilerPreviewVerificationPending && participantsQuery.isSuccess && !participantsQuery.isError
         ? buildCanonicalFanRecords({
             countries,
-            editions: publicEditions,
-            shows: publicShows,
-            participants,
-            results: visibleResults,
-            jury: visibleJury,
+            ...spoilerSafeRecordArchive,
           })
         : [],
-    [countries, publicEditions, visibleJury, participants, visibleResults, publicShows, participantsQuery.isSuccess, participantsQuery.isError],
+    [countries, spoilerSafeRecordArchive, spoilerPreviewVerificationPending, participantsQuery.isSuccess, participantsQuery.isError],
   );
 
   const searchResults = useMemo(() => {
     const values: PublicSearchResult[] = [
       ...actionResults.filter((item) =>
-        matchesPublicSearch(
+        matchesV3PublicSearch(
           normalized,
           item.label,
           item.description,
           item.keywords,
         ),
       ),
-      ...navigationSearchResults(normalized),
+      ...navigationV3PublicSearchResults(normalized),
       ...countries
         .filter((country) =>
-          matchesPublicSearch(
+          matchesV3PublicSearch(
             normalized,
             country.name,
             country.native_name,
@@ -826,10 +940,11 @@ function WebSearchArchiveResults({
         ]),
       ...publicEditions
         .filter((edition) =>
-          matchesPublicSearch(
+          matchesV3PublicSearch(
             normalized,
             edition.name,
             edition.edition_number,
+            edition.edition_number == null ? null : `SSC ${edition.edition_number}`,
             edition.year,
             edition.host_city,
             edition.slug,
@@ -845,12 +960,13 @@ function WebSearchArchiveResults({
       ...publicShows
         .filter((show) => {
           const edition = editionById.get(show.edition_id);
-          return matchesPublicSearch(
+          return matchesV3PublicSearch(
             normalized,
             show.name,
             show.kind,
             edition?.name,
             edition?.edition_number,
+            edition?.edition_number == null ? null : `SSC ${edition.edition_number}`,
           );
         })
         .map((show) => {
@@ -863,9 +979,12 @@ function WebSearchArchiveResults({
             group: "Shows",
           };
         }),
-      ...(storiesQuery.isError ? [] : storiesQuery.data ?? [])
+      ...excludeSearchSpoilerStories(
+        spoilerPreviewVerificationPending || storiesQuery.isError ? [] : storiesQuery.data ?? [],
+        spoilerScope.editionSlug,
+      )
         .filter((story) =>
-          matchesPublicSearch(
+          matchesV3PublicSearch(
             normalized,
             story.title,
             story.subtitle,
@@ -884,7 +1003,7 @@ function WebSearchArchiveResults({
         .filter((entry) => {
           const country = countryById.get(entry.country_id);
           const edition = editionById.get(entry.edition_id);
-          return matchesPublicSearch(
+          return matchesV3PublicSearch(
             normalized,
             entry.artist,
             entry.song,
@@ -892,6 +1011,7 @@ function WebSearchArchiveResults({
             country?.short_code,
             edition?.name,
             edition?.edition_number,
+            edition?.edition_number == null ? null : `SSC ${edition.edition_number}`,
           );
         })
         .map((entry) => {
@@ -918,7 +1038,7 @@ function WebSearchArchiveResults({
       ...scorechartShows
         .filter((show) => {
           const edition = editionById.get(show.edition_id);
-          return matchesPublicSearch(
+          return matchesV3PublicSearch(
             normalized,
             show.name,
             show.kind,
@@ -944,7 +1064,7 @@ function WebSearchArchiveResults({
         }),
       ...records
         .filter((record) =>
-          matchesPublicSearch(
+          matchesV3PublicSearch(
             normalized,
             record.label,
             record.value,
@@ -976,7 +1096,7 @@ function WebSearchArchiveResults({
       })),
     ];
 
-    return dedupePublicSearchResults(values).slice(0, 50);
+    return limitV3PublicSearchGroups(rankV3PublicSearchResults(dedupePublicSearchResults(values), normalized));
   }, [
     actionResults,
     countries,
@@ -989,6 +1109,9 @@ function WebSearchArchiveResults({
     searchableEntries,
     publicShows,
     storiesQuery.data,
+    storiesQuery.isError,
+    spoilerScope.editionSlug,
+    spoilerPreviewVerificationPending,
   ]);
 
   const isFetching =
@@ -1052,6 +1175,11 @@ function WebSearchArchiveResults({
 
   return (
     <CommandList className="max-h-[min(68dvh,34rem)]">
+      {spoilerScope.editionId ? (
+        <p className="px-4 py-2 text-xs text-muted-foreground" role="status">
+          Spoiler-free mode hides current-edition story and record previews. Published pages remain available to open.
+        </p>
+      ) : null}
       <CommandEmpty>
         {isFetching
           ? "Searching Solaris…"
