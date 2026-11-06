@@ -4,6 +4,7 @@ import { Command as CommandIcon, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { useAppExperiencePreferences } from "@/lib/app-experience";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -27,6 +28,7 @@ import type { AccountAccess } from "@/lib/country-account";
 import { buildCanonicalFanRecords } from "@/lib/canonical-fan-records";
 import { usePublicSearchParticipants } from "@/lib/public-participants";
 import { publicSearchPublicationScope, publicSearchRowsForPublishedShows } from "@/lib/public-search-published-scope";
+import { excludeSearchSpoilerEdition, excludeSearchSpoilerStories, resolvePublicSearchSpoilerPreviewScope } from "@/lib/public-search-spoiler-preview";
 import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
 import { canSuggestDelegationSearchActions } from "@/lib/public-search-action-visibility";
 import {
@@ -704,6 +706,7 @@ function WebSearchArchiveResults({
   setOpen: (open: boolean) => void;
 }) {
   const router = useRouter();
+  const { preferences } = useAppExperiencePreferences();
   const showsQuery = useAllShows();
   const participantsQuery = usePublicSearchParticipants();
   const resultsQuery = useAllResults();
@@ -741,6 +744,28 @@ function WebSearchArchiveResults({
     [jury, detailedVotingShowIds],
   );
 
+  // Spoiler-free is a preview preference. Hide source records and story
+  // headlines from the current published final without modifying public
+  // edition, show, entry or Results destinations.
+  const spoilerScope = useMemo(
+    () => resolvePublicSearchSpoilerPreviewScope({
+      spoilerFree: preferences.spoilerFree,
+      editions: publicEditions,
+      shows: publicShows,
+    }),
+    [preferences.spoilerFree, publicEditions, publicShows],
+  );
+  const spoilerSafeRecordArchive = useMemo(
+    () => ({
+      editions: excludeSearchSpoilerEdition(publicEditions, spoilerScope.editionId),
+      shows: excludeSearchSpoilerEdition(publicShows, spoilerScope.editionId),
+      participants: excludeSearchSpoilerEdition(participants, spoilerScope.editionId),
+      results: excludeSearchSpoilerEdition(visibleResults, spoilerScope.editionId),
+      jury: excludeSearchSpoilerEdition(visibleJury, spoilerScope.editionId),
+    }),
+    [participants, publicEditions, publicShows, spoilerScope.editionId, visibleJury, visibleResults],
+  );
+
   const editionById = useMemo(
     () => new Map(publicEditions.map((edition) => [edition.id, edition])),
     [publicEditions],
@@ -773,13 +798,9 @@ function WebSearchArchiveResults({
     () =>
       buildCanonicalFanRecords({
         countries,
-        editions: publicEditions,
-        shows: publicShows,
-        participants,
-        results: visibleResults,
-        jury: visibleJury,
+        ...spoilerSafeRecordArchive,
       }),
-    [countries, publicEditions, visibleJury, participants, visibleResults, publicShows],
+    [countries, spoilerSafeRecordArchive],
   );
 
   const searchResults = useMemo(() => {
@@ -858,7 +879,10 @@ function WebSearchArchiveResults({
             group: "Shows",
           };
         }),
-      ...(storiesQuery.isError ? [] : storiesQuery.data ?? [])
+      ...excludeSearchSpoilerStories(
+        storiesQuery.isError ? [] : storiesQuery.data ?? [],
+        spoilerScope.editionSlug,
+      )
         .filter((story) =>
           matchesPublicSearch(
             normalized,
@@ -984,6 +1008,8 @@ function WebSearchArchiveResults({
     searchableEntries,
     publicShows,
     storiesQuery.data,
+    storiesQuery.isError,
+    spoilerScope.editionSlug,
   ]);
 
   const isFetching =
@@ -1047,6 +1073,11 @@ function WebSearchArchiveResults({
 
   return (
     <CommandList className="max-h-[min(68dvh,34rem)]">
+      {spoilerScope.editionId ? (
+        <p className="px-4 py-2 text-xs text-muted-foreground" role="status">
+          Spoiler-free mode hides current-edition story and record previews. Published pages remain available to open.
+        </p>
+      ) : null}
       <CommandEmpty>
         {isFetching
           ? "Searching Solaris…"
