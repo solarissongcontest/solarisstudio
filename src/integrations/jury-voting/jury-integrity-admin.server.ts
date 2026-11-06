@@ -1,6 +1,6 @@
 import { getSolarisCapabilitiesServer } from "@/integrations/supabase/capabilities.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { numberValue } from "./jury-integrity-readback";
+import { numberValue, percentageValue, peerCountValue, proportionValue } from "./jury-integrity-readback";
 
 export type JuryIntegrityTargetEvidence = {
   targetCountryId: string;
@@ -136,10 +136,10 @@ export async function listJuryIntegrityCasesServer(editionId: string) {
         targetCountryId,
         targetName: countryNames.get(targetCountryId) ?? targetCountryId,
         score: numberValue(item.score),
-        expectedNormalizedScore: numberValue(item.expectedNormalizedScore),
-        positiveDeviation: numberValue(item.positiveDeviation),
+        expectedNormalizedScore: proportionValue(item.expectedNormalizedScore),
+        positiveDeviation: proportionValue(item.positiveDeviation),
         zScore: numberValue(item.zScore),
-        risk: numberValue(item.risk),
+        risk: percentageValue(item.risk),
       };
     });
     return {
@@ -150,12 +150,12 @@ export async function listJuryIntegrityCasesServer(editionId: string) {
       editionLabel,
       countryCode: String(row.country_code ?? ""),
       hodPersonId: row.hod_person_id ? String(row.hod_person_id) : null,
-      risk: numberValue(row.risk_score),
-      relationshipRisk: numberValue(row.relationship_risk),
-      confidence: numberValue(row.confidence),
-      independenceScore: numberValue(evidence.independenceScore),
-      peerDeviationRisk: numberValue(evidence.peerDeviationRisk),
-      peerBallots: numberValue(evidence.peerBallots),
+      risk: percentageValue(row.risk_score),
+      relationshipRisk: percentageValue(row.relationship_risk),
+      confidence: percentageValue(row.confidence),
+      independenceScore: percentageValue(evidence.independenceScore),
+      peerDeviationRisk: percentageValue(evidence.peerDeviationRisk),
+      peerBallots: peerCountValue(evidence.peerBallots),
       evidenceFamilies: asArray(evidence.evidenceFamilies).map(String),
       interventionLevel: String(row.intervention_level ?? "none"),
       attestedAt: row.attested_at ? String(row.attested_at) : null,
