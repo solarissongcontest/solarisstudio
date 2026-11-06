@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -39,10 +40,28 @@ function writeJson(dir: string, filename: string, value: unknown) {
   writeFileSync(join(dir, filename), `${JSON.stringify(value, null, 2)}\n`);
 }
 
+const PHASE_PROOF_CONTENT = JSON.stringify({ schema_version: 1, candidate_sha: SHA, gate_id: "S10-S13", result: "pass" }) + "\n";
+const PHASE_PROOF_SHA = createHash("sha256").update(PHASE_PROOF_CONTENT).digest("hex");
+
+function writePhaseSource(dir: string) {
+  writeFileSync(join(dir, "phase-evidence.json"), PHASE_PROOF_CONTENT);
+}
+
+function writeS16GateSources(dir: string) {
+  for (const [id, filename] of S16_EXPECTED) {
+    if (filename === "s16-system-hardening.json" || filename === "s14-full-contest.json" || filename === "s15-zero-orphan.json") continue;
+    writeJson(dir, filename, {
+      schema_version: 1, candidate_sha: SHA, gate_id: id,
+      result: "pass", workflow_run_id: 123, job_name: "isolated-source-fixture",
+      produced_at: "2026-11-07T00:00:00.000Z",
+    });
+  }
+}
+
 function source() {
   return {
     artifact: "phase-evidence.json",
-    sha256: "c".repeat(64),
+    sha256: PHASE_PROOF_SHA,
     workflow: "V3 exact-SHA phase evidence",
     runId: 123,
     runAttempt: 1,
@@ -133,6 +152,7 @@ describe("V3 QA exact-SHA release truth", () => {
 
   it("binds System hardening phases to exact successful source-run evidence", () => {
     const dir = root();
+    writePhaseSource(dir);
     writeJson(dir, "s16-system-hardening.json", hardening());
     const truth = assessV3QaReleaseTruth(SHA, dir);
     expect(truth.phases.slice(0, 4).map((phase) => phase.state)).toEqual(["passed", "passed", "passed", "passed"]);
@@ -143,6 +163,28 @@ describe("V3 QA exact-SHA release truth", () => {
     const rejected = assessV3QaReleaseTruth(SHA, dir);
     expect(rejected.phases.find((phase) => phase.id === "S12")?.state).toBe("invalid");
     expect(rejected.invalidEvidence.join("\n")).toContain("not exact candidate");
+  });
+
+  it("requires real SHA-256-matching source bytes, not self-declared hardening success", () => {
+    const dir = root();
+    writeJson(dir, "s16-system-hardening.json", hardening());
+    let truth = assessV3QaReleaseTruth(SHA, dir);
+    expect(truth.phases.find((phase) => phase.id === "S10")?.state).toBe("invalid");
+    expect(truth.invalidEvidence.join("\n")).toContain("source artifact is missing or unreadable");
+
+    writePhaseSource(dir);
+    truth = assessV3QaReleaseTruth(SHA, dir);
+    expect(truth.phases.slice(0, 4).every((phase) => phase.state === "passed")).toBe(true);
+
+    writeFileSync(join(dir, "phase-evidence.json"), "tampered source bytes");
+    truth = assessV3QaReleaseTruth(SHA, dir);
+    expect(truth.invalidEvidence.join("\n")).toContain("SHA-256 digest mismatch");
+
+    const unsafe = hardening();
+    unsafe.phases[0]!.sources[0]!.artifact = "/tmp/forbidden-evidence.json";
+    writeJson(dir, "s16-system-hardening.json", unsafe);
+    truth = assessV3QaReleaseTruth(SHA, dir);
+    expect(truth.invalidEvidence.join("\n")).toContain("artifact must be a local relative file");
   });
 
   it("requires release-grade S14 and zero-orphan S15 semantics", () => {
@@ -182,6 +224,8 @@ describe("V3 QA exact-SHA release truth", () => {
 
   it("marks the exact candidate certified only after S10 through S16 all pass", () => {
     const dir = root();
+    writePhaseSource(dir);
+    writeS16GateSources(dir);
     writeJson(dir, "s16-system-hardening.json", hardening());
     writeJson(dir, "s14-full-contest.json", s14());
     writeJson(dir, "s15-zero-orphan.json", s15());
@@ -191,6 +235,29 @@ describe("V3 QA exact-SHA release truth", () => {
     expect(truth.certified).toBe(true);
     expect(truth.invalidEvidence).toEqual([]);
     expect(truth.missingEvidence).toEqual([]);
+  });
+
+  it("rejects fabricated S16 category lists without the actual gate files", () => {
+    const dir = root();
+    writePhaseSource(dir);
+    writeJson(dir, "s16-system-hardening.json", hardening());
+    writeJson(dir, "s14-full-contest.json", s14());
+    writeJson(dir, "s15-zero-orphan.json", s15());
+    writeJson(dir, "s16-certification.json", s16());
+
+    let truth = assessV3QaReleaseTruth(SHA, dir);
+    expect(truth.readyForS16).toBe(true);
+    expect(truth.certified).toBe(false);
+    expect(truth.invalidEvidence.join("\n")).toContain("S16 canonical-ci source artifact is missing");
+
+    writeS16GateSources(dir);
+    writeJson(dir, "s16-canonical-ci.json", {
+      schema_version: 1, candidate_sha: OTHER_SHA, gate_id: "canonical-ci",
+      result: "pass", workflow_run_id: 123, job_name: "test", produced_at: "2026-11-07T00:00:00.000Z",
+    });
+    truth = assessV3QaReleaseTruth(SHA, dir);
+    expect(truth.certified).toBe(false);
+    expect(truth.invalidEvidence.join("\n")).toContain("not exact candidate");
   });
 
   it("rejects missing, duplicate, renamed, and stale S16 categories", () => {
