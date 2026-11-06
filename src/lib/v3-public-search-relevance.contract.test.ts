@@ -25,6 +25,8 @@ describe("V3 global Search relevance integration", () => {
   it("uses typo-aware matching only on existing source records and navigation results", () => {
     expect(palette).toContain("matchesV3PublicSearch");
     expect(app).toContain("matchesV3PublicSearch(normalized");
+    expect(app).toContain("navigationV3PublicSearchResults(normalized)");
+    expect(web).toContain("navigationV3PublicSearchResults(normalized)");
     expect(web).toContain("matchesV3PublicSearch(");
     expect(web).toContain("publicSearchPublicationScope(editions, shows)");
     expect(web).toContain("usePublicSearchParticipants()");
