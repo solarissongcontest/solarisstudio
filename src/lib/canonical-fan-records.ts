@@ -86,15 +86,8 @@ function qualificationSegments(
 
 function buildQualificationRecordOverrides(
   input: Parameters<typeof buildFanRecords>[0],
+  archive: ReturnType<typeof buildPublicCountryArchive>,
 ): FanRecord[] {
-  const archive = buildPublicCountryArchive({
-    editions: input.editions,
-    shows: input.shows,
-    participants: input.participants,
-    results: input.results,
-    jury: input.jury,
-    televote: [],
-  });
   const histories = new Map<string, Map<number, boolean>>();
   const countryMap = new Map(input.countries.map((country) => [country.id, country]));
 
@@ -204,9 +197,9 @@ function buildQualificationRecordOverrides(
   return records;
 }
 
-export function buildCanonicalFanRecords(
+export function buildCanonicalFanRecordsWithCoverage(
   input: Parameters<typeof buildFanRecords>[0],
-): FanRecord[] {
+): { records: FanRecord[]; archivedFinalEditions: number } {
   // Records are public analytics too. Apply the same publication gates used by
   // country history so draft/prepared rows never become public records.
   const archive = buildPublicCountryArchive({
@@ -217,6 +210,19 @@ export function buildCanonicalFanRecords(
     jury: input.jury,
     televote: [],
   });
+  // Use the same publication-filtered rows as the visible records. Raw
+  // results may exist for an unpublished show and must not affect the public
+  // archive-coverage count.
+  const finalShowIds = new Set(
+    archive.shows
+      .filter((show) => show.kind === "grand-final" || show.kind === "final")
+      .map((show) => show.id),
+  );
+  const archivedFinalEditions = new Set(
+    archive.results
+      .filter((result) => result.show_id != null && finalShowIds.has(result.show_id))
+      .map((result) => result.edition_id),
+  ).size;
   const safeInput: Parameters<typeof buildFanRecords>[0] = {
     ...input,
     editions: archive.editions,
@@ -227,7 +233,7 @@ export function buildCanonicalFanRecords(
   };
 
   const overrides = new Map(
-    buildQualificationRecordOverrides(safeInput).map((record) => [record.id, record]),
+    buildQualificationRecordOverrides(safeInput, archive).map((record) => [record.id, record]),
   );
   const base = buildFanRecords(safeInput);
   const seen = new Set<string>();
@@ -239,8 +245,18 @@ export function buildCanonicalFanRecords(
     if (!seen.has(id)) records.push(record);
   });
 
-  return records.map((record) => ({
-    ...record,
-    holders: collapseFanRecordHolders(record.holders),
-  }));
+  return {
+    archivedFinalEditions,
+    records: records.map((record) => ({
+      ...record,
+      holders: collapseFanRecordHolders(record.holders),
+    })),
+  };
+}
+
+/** Preserve existing Records consumers that only need published record rows. */
+export function buildCanonicalFanRecords(
+  input: Parameters<typeof buildFanRecords>[0],
+): FanRecord[] {
+  return buildCanonicalFanRecordsWithCoverage(input).records;
 }

@@ -24,6 +24,9 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
     background:
       linear-gradient(180deg, rgba(18,43,72,.66), rgba(5,17,36,.94)),
       rgba(6,18,39,.96);
+    color: #f5fbff;
+    --muted: rgba(232,245,250,.88);
+    --muted-soft: rgba(210,228,238,.80);
     box-shadow: inset 0 1px 0 rgba(230,248,255,.08), 0 14px 34px rgba(0,4,18,.14);
   }
   .hod-portal-head {
@@ -559,6 +562,17 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
     document.getElementById("hod-recovery").addEventListener("click", onRecovery);
   }
 
+  function renderRecoveryFeedback(message, available) {
+    renderSignedOut();
+    const form = document.getElementById("hod-signin-form");
+    const className = available ? "hod-success" : "hod-note";
+    const role = available ? "status" : "alert";
+    form.insertAdjacentHTML(
+      "beforeend",
+      '<div class="' + className + '" role="' + role + '">' + escapeHtml(message) + '</div>',
+    );
+  }
+
   function renderWrongAccount() {
     hodRoot.innerHTML =
       '<div class="hod-error" role="alert"><strong>This account is not an active country account.</strong><br />No delegation data has been exposed.</div>' +
@@ -733,9 +747,17 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
         body: { action: "recover", identifier },
       });
       if (result.error) throw result.error;
-      renderSignedOut();
-      const form = document.getElementById("hod-signin-form");
-      form.insertAdjacentHTML("beforeend", '<div class="hod-success" role="status">If recovery is available for that account, Solaris has sent the next steps.</div>');
+      if (result.data?.recoveryAvailable === false) {
+        renderRecoveryFeedback(
+          "This country account does not have a recovery email. Contact an organizer to regain access.",
+          false,
+        );
+        return;
+      }
+      renderRecoveryFeedback(
+        "If that account has a recovery email, a password reset link has been sent.",
+        true,
+      );
     } catch (error) {
       renderSignedOut(await browserErrorMessage(error));
     }
