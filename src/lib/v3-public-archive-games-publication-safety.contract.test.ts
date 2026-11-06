@@ -36,6 +36,16 @@ describe("Public V3 Archive Games publication safety", () => {
     expect(game).not.toContain("publication_status");
   });
 
+  it("derives displayed country labels from public Countries without reading raw Contest Entities", () => {
+    const route = read("src/routes/archive-games/index.tsx");
+    expect(route).toContain("const countryNames = useMemo(");
+    expect(route).toContain("country.id, country.name");
+    expect(route).toContain("countryNames.get(id)");
+    expect(route).not.toContain("useAllContestEntities");
+    expect(route).not.toContain("entityDisplayMap");
+    expect(route).not.toContain("entitiesQuery");
+  });
+
   it("does not add a mutation or privileged client to the retained public game surface", () => {
     const route = read("src/routes/archive-games/index.tsx");
 
