@@ -11,6 +11,7 @@ import {
 
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
+import { LiveRundownCueSummary } from "@/components/admin/LiveRundownCueSummary";
 import {
   AdminCard,
   AdminCardHeader,
@@ -187,6 +188,27 @@ function OrganizerOverview() {
                 )}
               </AdminCard>
             </section>
+
+            {(projection.live.currentSegment || projection.live.nextSegment) ? (
+              <section className="mt-4" aria-label="Show-day production">
+                <AdminCard>
+                  <AdminCardHeader
+                    eyebrow="Live production"
+                    title="Broadcast rundown"
+                    description="Read-only now and next cues from the governed active-show rundown. Open the rundown to review or operate it with the appropriate permission."
+                    action={
+                      <Link to="/admin/broadcast-rundown" className="text-xs font-semibold text-sky-100">
+                        Open Rundown →
+                      </Link>
+                    }
+                  />
+                  <LiveRundownCueSummary
+                    current={projection.live.currentSegment}
+                    next={projection.live.nextSegment}
+                  />
+                </AdminCard>
+              </section>
+            ) : null}
 
             <section className="mt-4" aria-label="Edition readiness">
               <AdminCard>
