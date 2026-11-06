@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
@@ -41,7 +42,7 @@ const institution = {
 function mockSelectResponse(response: { data: unknown; count?: number | null; error?: unknown }) {
   const calls: Array<{ method: string; args: unknown[] }> = [];
   const chain: Record<string, any> = {};
-  for (const method of ["select", "eq", "or", "order", "is", "not", "in", "ilike"]) {
+  for (const method of ["select", "eq", "or", "order", "is", "not", "in", "ilike", "abortSignal"]) {
     chain[method] = vi.fn((...args: unknown[]) => {
       calls.push({ method, args });
       return chain;
@@ -72,6 +73,51 @@ beforeEach(() => {
 });
 
 describe("Country International public Supabase read contracts", () => {
+  it("passes the exact AbortSignal into every scoped country, membership, and institution query", async () => {
+    const controller = new AbortController();
+
+    const directory = mockSelectResponse({ data: [country], count: 1, error: null });
+    await fetchWorldCountryDirectory("Oland", 0, controller.signal);
+    called(directory.calls, "abortSignal", controller.signal);
+
+    const identity = mockSelectResponse({ data: country, error: null });
+    await fetchWorldCountryIdentity("OL", controller.signal);
+    called(identity.calls, "abortSignal", controller.signal);
+
+    const members = mockSelectResponse({ data: [membership], count: 1, error: null });
+    await fetchWorldCountryMembershipPage("country-1", "current", 0, controller.signal);
+    called(members.calls, "abortSignal", controller.signal);
+
+    const organizations = mockSelectResponse({ data: [institution], error: null });
+    await fetchWorldPublicCountryInstitutions(["org-1"], controller.signal);
+    called(organizations.calls, "abortSignal", controller.signal);
+  });
+
+  it("does not start any Supabase read after an International request was cancelled", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await expect(fetchWorldCountryDirectory("Oland", 0, controller.signal))
+      .rejects.toMatchObject({ name: "AbortError" });
+    await expect(fetchWorldCountryIdentity("OL", controller.signal))
+      .rejects.toMatchObject({ name: "AbortError" });
+    await expect(fetchWorldCountryMembershipPage("country-1", "current", 0, controller.signal))
+      .rejects.toMatchObject({ name: "AbortError" });
+    await expect(fetchWorldPublicCountryInstitutions(["org-1"], controller.signal))
+      .rejects.toMatchObject({ name: "AbortError" });
+    expect(client.from).not.toHaveBeenCalled();
+  });
+
+  it("preserves current unsignaled readers and forwards React Query cancellation in each International UI", async () => {
+    const directory = mockSelectResponse({ data: [country], count: 1, error: null });
+    await fetchWorldCountryDirectory("Oland", 0);
+    expect(directory.calls.some(({ method }) => method === "abortSignal")).toBe(false);
+    const ui = readFileSync("src/components/world/WorldCountryInternational.tsx", "utf8");
+    expect(ui).toContain("queryFn: ({ signal }) => fetchWorldCountryDirectory(safeSearch, page, signal)");
+    expect(ui).toContain('queryFn: ({ signal }) => fetchWorldCountryMembershipPage(countryId ?? "", phase, page, signal)');
+    expect(ui).toContain("queryFn: ({ signal }) => fetchWorldCountryIdentity(canonicalCode, signal)");
+    expect(ui).toContain("queryFn: ({ signal }) => fetchWorldPublicCountryInstitutions(organizationIds, signal)");
+  });
+
   it("shares the canonical World rollout flag key and refuses unknown decisions", async () => {
     expect(WORLD_PUBLIC_ROLLOUT_QUERY_KEY).toEqual(["world", "public", "rollout"]);
     client.rpc.mockResolvedValueOnce({ data: false, error: null });
