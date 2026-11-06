@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import { WorldDocumentLibraryScreen } from "@/components/v3/V3WorldDocumentLibrary";
+import { WorldPublicGate } from "@/components/world/WorldPublic";
 import { isWorldSlug, normalizeWorldSearch } from "@/lib/world-public-documents";
 
 export const Route = createFileRoute("/world/documents/")({
@@ -24,12 +25,14 @@ function WorldDocumentsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
   return (
-    <WorldDocumentLibraryScreen
+    <WorldPublicGate>
+      <WorldDocumentLibraryScreen
       initialSearch={search.q}
       initialOrganization={search.organization}
       onApplySearch={(q, organization) => {
         void navigate({ to: "/world/documents", search: { q, organization } });
       }}
-    />
+      />
+    </WorldPublicGate>
   );
 }
