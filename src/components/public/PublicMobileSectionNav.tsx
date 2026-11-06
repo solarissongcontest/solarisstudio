@@ -11,18 +11,24 @@ import {
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
+// AppShell can be route-owned and remount on navigation. Keep only a transient,
+// public route path in this browser module so the new shell can consume the
+// keyboard focus hand-off after the old disclosure unmounts.
+let pendingKeyboardSectionFocus: { path: string; at: number } | null = null;
+
 export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
   const area = publicAreaForPath(pathname);
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const navigationRef = useRef<HTMLElement>(null);
-  const focusRouteHeadingRef = useRef(false);
 
   // Browser history and direct links must not carry an expanded menu to a new page.
   useEffect(() => {
     setOpen(false);
-    if (!focusRouteHeadingRef.current) return;
-    focusRouteHeadingRef.current = false;
+    const pending = pendingKeyboardSectionFocus;
+    if (!pending || pending.path !== pathname) return;
+    pendingKeyboardSectionFocus = null;
+    if (Date.now() - pending.at > 5_000) return;
 
     // A route transition may replace the focused link (and sometimes the
     // disclosure trigger). After the new page paints, focus its heading so
@@ -73,7 +79,8 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
   const closeAfterNavigation = (keyboardActivated: boolean, targetPath: string) => {
     setOpen(false);
     if (!keyboardActivated) return;
-    focusRouteHeadingRef.current = pathname !== targetPath;
+    pendingKeyboardSectionFocus =
+      pathname !== targetPath ? { path: targetPath, at: Date.now() } : null;
     // Retain a visible focus location until navigation completes.
     triggerRef.current?.focus();
   };
