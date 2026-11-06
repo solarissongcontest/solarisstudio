@@ -13,7 +13,7 @@ import {
   WORLD_UNIFIED_SEARCH_MAX_PAGE,
   type WorldSearchCountry,
 } from "@/lib/terra-world-unified-search";
-import type { WorldOrganization } from "@/lib/terra-world-public";
+import { fetchFeaturedWorldOrganizations, type WorldOrganization } from "@/lib/terra-world-public";
 
 type Props = {
   term: string;
@@ -101,6 +101,15 @@ export function WorldUnifiedSearchPage({
 
   const normalized = verifiedWorldSearchTerm(term);
   const canSearch = normalized.length >= 2;
+  // Reuse World Landing's same featured query cache; only load it while
+  // browsing an empty search. This avoids another copy of the GUARD/UNITY list.
+  const featured = useQuery({
+    queryKey: ["world", "public", "featured"],
+    queryFn: fetchFeaturedWorldOrganizations,
+    enabled: !canSearch,
+    staleTime: 90_000,
+    retry: false,
+  });
   // Separate caches mean paging countries does not trigger an unnecessary
   // organization request, or vice versa. Both readers remain RLS-authorized.
   const countryQuery = useQuery({
@@ -171,7 +180,7 @@ export function WorldUnifiedSearchPage({
               value={draft}
               maxLength={64}
               onChange={(event) => setDraft(event.target.value)}
-              placeholder="Country, GUARD, UNITY…"
+              placeholder="Country, region, GUARD, UNITY…"
               autoComplete="off"
               className="w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />
@@ -202,6 +211,32 @@ export function WorldUnifiedSearchPage({
                 <Landmark className="size-4" aria-hidden="true" /> Organizations
               </Link>
             </div>
+            <section className="mt-10 border-t border-border pt-7" aria-labelledby="world-search-featured">
+              <h3 id="world-search-featured" className="text-lg font-semibold">Featured institutions</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Official GUARD and UNITY profiles, where published.
+              </p>
+              {featured.isPending ? (
+                <p role="status" className="py-5 text-sm text-muted-foreground">Loading public institutions…</p>
+              ) : featured.isError ? (
+                <div role="alert" className="py-5 text-sm text-muted-foreground">
+                  Featured institutions could not be verified.
+                  <button type="button" onClick={() => void featured.refetch()}
+                    className="ml-3 min-h-11 font-semibold text-primary">
+                    Retry
+                  </button>
+                </div>
+              ) : featured.data.length ? (
+                <div className="mt-3 divide-y divide-border">
+                  {featured.data.map((organization) =>
+                    <OrganizationRow key={organization.id} organization={organization} />)}
+                </div>
+              ) : (
+                <p className="py-5 text-sm text-muted-foreground">
+                  No featured public institutions are available.
+                </p>
+              )}
+            </section>
           </section>
         ) : null}
 
