@@ -42,7 +42,10 @@ export function WorldPublicGate({
       </PublicFrame>
     );
   }
-  if (rollout.isPending || rollout.isFetching) {
+  // The first render may hold a cached true result before refetchOnMount
+  // starts. Strict routes must wait for a successful fetch after mounting.
+  if (rollout.isPending || rollout.isFetching ||
+      (verifyOnMount && !rollout.isFetchedAfterMount)) {
     return <PublicFrame><LoadingWorld label="Checking Terra Solaris availability" /></PublicFrame>;
   }
   if (!rollout.data) {

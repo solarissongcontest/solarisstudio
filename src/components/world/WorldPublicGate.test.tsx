@@ -26,7 +26,7 @@ import { WorldPublicGate } from "./WorldPublic";
  * This is a real React rendering test. It models a resolved authoritative
  * rollout decision through React Query's public cache, without any Supabase.
  */
-function renderWorldGate(rollout: boolean) {
+function renderWorldGate(rollout: boolean, verifyOnMount = false) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -96,6 +96,12 @@ describe("World public rollout gate", () => {
     } finally {
       client.clear();
     }
+  });
+
+  it("does not trust cached enabled data before a strict-route mount re-verifies it", () => {
+    const html = renderWorldGate(true, true);
+    expect(html).toContain("Checking Terra Solaris availability");
+    expect(html).not.toContain("Published world profile sentinel");
   });
 
   it("mounts the reader only after the server-approved decision is true", () => {
