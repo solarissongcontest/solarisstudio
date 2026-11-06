@@ -84,17 +84,17 @@ begin
     (id,organization_id,organ_id,identifier,measure_type,title,
      sponsor_country_id,state,visibility,registered_at)
   values(measure,org,organ,'TG8.2026.1.XZA.LEG.A','proposal','Open test measure',
-    c_a,'registered','public',now()-interval '1 hour'),
+    c_a,'submitted','public',now()-interval '1 hour'),
         (closed_measure,org,organ,'TG8.2026.2.XZA.LEG.B','proposal',
-         'Closed test measure',c_a,'voting','public',now()-interval '1 hour');
+         'Closed test measure',c_a,'submitted','public',now()-interval '1 hour');
   insert into public.world_measure_versions
     (id,measure_id,version_number,title,full_text,content_hash,publication_state)
   values(version,measure,1,'Open test measure','Test proposal text',
          encode(sha256(convert_to('Test proposal text','UTF8')),'hex'),'published'),
         (closed_version,closed_measure,1,'Closed test measure','Closed proposal text',
          encode(sha256(convert_to('Closed proposal text','UTF8')),'hex'),'published');
-  update public.world_measures set current_version_id=version where id=measure;
-  update public.world_measures set current_version_id=closed_version where id=closed_measure;
+  update public.world_measures set current_version_id=version, state='registered' where id=measure;
+  update public.world_measures set current_version_id=closed_version, state='voting' where id=closed_measure;
 
   -- A trusted already-closed fixture permits certification testing without
   -- sleeping or altering the server clock or mutating a frozen vote.
