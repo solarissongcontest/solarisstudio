@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Archive, BarChart3, BookOpen, GitCompareArrows, Trophy, Vote } from "lucide-react";
 
+import { FollowButton } from "@/components/FollowButton";
 import type { V3CountryExploreProjection } from "@/lib/v3-explore-entities";
 import {
   V3ActionCard,
@@ -14,6 +15,7 @@ import {
 
 export type V3DelegationScreenProps = {
   projection: V3CountryExploreProjection;
+  countryId: string;
   hideResultSpoilers: boolean;
   activeEditionLabel?: string | null;
 };
@@ -65,6 +67,7 @@ function EditionContextLink({
  */
 export function V3DelegationScreen({
   projection,
+  countryId,
   hideResultSpoilers,
   activeEditionLabel,
 }: V3DelegationScreenProps) {
@@ -116,6 +119,9 @@ export function V3DelegationScreen({
                 Public Solaris delegation identity and published entry history.
               </p>
             )}
+            <div className="mt-4 flex min-h-11 items-center">
+              <FollowButton entityType="country" entityId={countryId} label={projection.name} />
+            </div>
           </div>
         </div>
       </V3Surface>
