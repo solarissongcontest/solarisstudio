@@ -56,7 +56,7 @@ test("groups S15 cutover inventory without turning every item into a hard blocke
 });
 test("does not accept success without complete same-SHA Archive evidence", () => {
   fixture(({ root, evidenceDir, put }) => {
-    put("runtime-full-contest.json", { candidateSha: SHA, status: "passed", exitCode: 0 });
+    put("runtime-full-contest.json", { candidateSha: SHA, lane: "full-contest", status: "passed", exitCode: 0 });
     const result = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
     assert.equal(result.exactShaFullContestProof, "not-observed");
     assert.ok(result.findings.some((f) => f.id === "S14_RUNTIME_EVIDENCE_GAP"));
@@ -64,7 +64,7 @@ test("does not accept success without complete same-SHA Archive evidence", () =>
 });
 test("accepts valid S14 proof only for its exact commit", () => {
   fixture(({ root, evidenceDir, put }) => {
-    put("runtime-full-contest.json", { candidateSha: SHA, status: "passed", exitCode: 0 });
+    put("runtime-full-contest.json", { candidateSha: SHA, lane: "full-contest", status: "passed", exitCode: 0 });
     put("s14-full-contest.json", completeS14Proof());
     const result = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
     assert.equal(result.exactShaFullContestProof, "complete-on-exact-sha");
@@ -102,7 +102,7 @@ test("rejects reordered lifecycle and incomplete success coverage on the exact S
 
 test("failed stage does not imply that unexecuted later stages passed", () => {
   fixture(({ root, evidenceDir, put }) => {
-    put("runtime-full-contest.json", { candidateSha: SHA, status: "failed", exitCode: 1 });
+    put("runtime-full-contest.json", { candidateSha: SHA, lane: "full-contest", status: "failed", exitCode: 1 });
     put("s14-full-contest.partial.json", {
       candidateSha: SHA, passed: false, partial: true,
       failurePhase: "stage-8-results", failureStage: "stage-8-results",
@@ -155,6 +155,37 @@ test("the local-only runner exports Supabase CLI variables before Node validates
   ]) assert.ok(workflow.includes(name), `Must validate ${name} before browser rehearsal`);
   assert.ok(workflow.includes("Disposable local Supabase failed, no hosted fallback"));
   assert.ok(!workflow.includes("continue-on-error: true"));
+});
+
+test("rejects malformed S14 matrix reports before using them as evidence", () => {
+  for (const [caseName, report] of [
+    ["missing lane", { candidateSha: SHA, status: "passed", exitCode: 0 }],
+    ["wrong lane", { candidateSha: SHA, lane: "deadline", status: "passed", exitCode: 0 }],
+    ["missing exit", { candidateSha: SHA, lane: "archive", status: "passed" }],
+    ["negative exit", { candidateSha: SHA, lane: "archive", status: "failed", exitCode: -1 }],
+    ["fractional exit", { candidateSha: SHA, lane: "archive", status: "failed", exitCode: 1.5 }],
+    ["failed zero exit", { candidateSha: SHA, lane: "archive", status: "failed", exitCode: 0 }],
+    ["passed nonzero exit", { candidateSha: SHA, lane: "archive", status: "passed", exitCode: 1 }],
+    ["invalid preflight status", { candidateSha: SHA, lane: "archive", status: "blocked-preflight", exitCode: 1 }],
+  ]) {
+    fixture(({ root, evidenceDir, put }) => {
+      put("runtime-archive.json", report);
+      const result = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
+      assert.equal(result.checks.localRuntimeLanes.archive, "invalid-evidence", caseName);
+      assert.ok(result.findings.some((f) =>
+        f.id === "RUNTIME_LANE_EVIDENCE_INVALID_ARCHIVE" &&
+        f.status === "confirmed-blocker"), caseName);
+      assert.ok(result.confirmedBlockerCount >= 1, caseName);
+      assert.equal(hasRuntimeCleanProof(result), false, caseName);
+    });
+  }
+  fixture(({ root, evidenceDir, put }) => {
+    put("runtime-archive.json", { candidateSha: SHA, lane: "archive", status: "blocked-preflight", exitCode: 91 });
+    const result = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
+    assert.equal(result.checks.localRuntimeLanes.archive, "blocked-preflight");
+    assert.ok(result.findings.some((f) => f.id === "PREFLIGHT_ARCHIVE"));
+    assert.ok(!result.findings.some((f) => f.id === "RUNTIME_LANE_EVIDENCE_INVALID_ARCHIVE"));
+  });
 });
 
 test("a preflight refusal blocks the lane without inventing a contest runtime failure", () => {
@@ -355,6 +386,16 @@ test("a complete S14 runtime is not clean without exact-SHA static audit and obs
     report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
     assert.equal(report.checks.staticEvidence.complete, true);
     assert.equal(hasRuntimeCleanProof(report), true, "unresolved S15 cutovers remain triage, not automatic runtime failures");
+
+    // A successful full-contest artifact cannot stand in for the Archive lane.
+    put("runtime-archive.json", { candidateSha: SHA, lane: "full-contest", status: "passed", exitCode: 0 });
+    report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
+    assert.equal(report.checks.localRuntimeLanes.archive, "invalid-evidence");
+    assert.ok(report.findings.some((f) => f.id === "RUNTIME_LANE_EVIDENCE_INVALID_ARCHIVE"));
+    assert.equal(hasRuntimeCleanProof(report), false, "mislabelled lane must not be certified clean");
+    put("runtime-archive.json", { candidateSha: SHA, lane: "archive", status: "passed", exitCode: 0 });
+    report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
+    assert.equal(hasRuntimeCleanProof(report), true, "restored valid lane identity is accepted");
 
     put("checks-static.json", { ...evidence, candidateSha: "b".repeat(40) });
     report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
