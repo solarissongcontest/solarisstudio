@@ -57,6 +57,31 @@ describe("WORLD-01 TG11/TG12 private workspace registry integration", () => {
     expect(registration.sourceFeatureFlags).not.toContain("terra_world_public");
   });
 
+  it("requires both rollout flags for every chat RPC, including direct server calls", () => {
+    const sql = file("supabase/migrations/20261107223000_v3_tg11_tg12_private_spaces_chat.sql");
+    const chatOperations = [
+      "world_space_messages_v1",
+      "world_space_search_v1",
+      "world_space_send_v1",
+      "world_space_edit_v1",
+      "world_space_set_reaction_v1",
+      "world_space_moderate_v1",
+    ];
+
+    for (const operation of chatOperations) {
+      const start = sql.indexOf("create function public." + operation + "(");
+      expect(start, operation + " must exist in the producer's domain SQL").toBeGreaterThanOrEqual(0);
+      const next = sql.indexOf("\ncreate function public.", start + 1);
+      const body = sql.slice(start, next < 0 ? sql.length : next);
+      const gate = body.slice(0, 1000);
+      expect(gate, operation + " must deny when chat is disabled")
+        .toContain("studio2_feature_enabled('terra_chat',null)");
+      expect(gate, operation + " must also deny when private spaces are disabled")
+        .toContain("studio2_feature_enabled('terra_private_spaces',null)");
+      expect(gate, operation + " must fail closed server-side").toContain("FEATURE_DISABLED");
+    }
+  });
+
   it("requires distinct ownership and exact additive CHECK validation in V3 guards", () => {
     for (const path of [
       "scripts/check-v3-capability-registry.ts",
