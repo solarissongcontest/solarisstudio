@@ -75,6 +75,12 @@ begin
     and member.status='member' and member.joined_at<=now()
     and member.ended_at is null for share;
   if not found then raise exception using errcode='23514',message='SPONSOR_NOT_CURRENT_MEMBER'; end if;
+  -- GUARD identifiers structurally include an authoritative topic code.
+  -- Do not create a proposal that can never pass formal registration.
+  if p_category_code is null and exists(
+    select 1 from public.world_organizations org
+    where org.id=v_intake.organization_id and org.slug='guard'
+  ) then raise exception using errcode='22023',message='GUARD_TOPIC_CODE_REQUIRED'; end if;
   if p_category_code is not null and not exists(
     select 1 from public.world_measure_categories category
     where category.organization_id=v_intake.organization_id
