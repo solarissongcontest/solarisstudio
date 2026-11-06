@@ -33,6 +33,19 @@ const valid: GuardApplicationFields = {
   commitment: "We undertake to respect the international obligations of GUARD.",
 };
 
+describe("TG5A GUARD actor isolation", () => {
+  it("does not reuse private application snapshots across account or country changes", () => {
+    expect(route).toContain('queryKey: ["world", "guard", "membership-intake", userId, countryId]');
+    expect(route).toContain("gcTime: 0");
+    expect(route).toContain("staleTime: 0");
+    expect(route).toContain("activeActorRef.current = actorScope");
+    expect(route).toContain("variables.actorScope !== activeActorRef.current");
+    expect(route).toContain("requestRef.current = null");
+    expect(route).toContain("withdrawRef.current = null");
+    expect(route).toContain("setFields({ ...EMPTY_GUARD_APPLICATION })");
+  });
+});
+
 describe("TG5A GUARD voluntary membership intake", () => {
   it("requires all five canonical submission fields and trims meaningful content", () => {
     expect(Object.keys(validateGuardApplication(EMPTY_GUARD_APPLICATION)).sort()).toEqual(
