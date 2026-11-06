@@ -183,6 +183,9 @@ begin
       raise exception using errcode = '22023', message = 'VALIDATION';
     end if;
     if p_subject_id is null then
+      if (select count(*) from public.world_domestic_parties where country_id=p_country_id) >= 100 then
+        raise exception using errcode='22023',message='COUNTRY_PARTY_LIMIT';
+      end if;
       if p_expected_revision <> 0 then
         raise exception using errcode = '40001', message = 'VERSION_CONFLICT';
       end if;
@@ -237,6 +240,9 @@ begin
       end if;
     end if;
     if p_subject_id is null then
+      if (select count(*) from public.world_domestic_elections where country_id=p_country_id) >= 500 then
+        raise exception using errcode='22023',message='COUNTRY_ELECTION_LIMIT';
+      end if;
       insert into public.world_domestic_elections(
         country_id,title,scope,held_on,turnout_percent,winner_party_id,
         result_summary,visibility
@@ -267,6 +273,9 @@ begin
     v_when := (p_payload ->> 'occurredAt')::timestamptz;
     if v_when > now() then
       raise exception using errcode = '22023', message = 'VALIDATION';
+    end if;
+    if (select count(*) from public.world_history_events where country_id=p_country_id) >= 5000 then
+      raise exception using errcode='22023',message='COUNTRY_HISTORY_LIMIT';
     end if;
     insert into public.world_history_events(
       country_id,country_ids,title,summary,occurred_at,created_by,
@@ -333,23 +342,28 @@ as $reader$
        'ideology',p.ideology,'summary',p.summary,'status',p.status,
        'published',p.visibility='public','revision',p.revision)
        order by p.name,p.id)
-     from public.world_domestic_parties p where p.country_id=c.id
-       and (p.visibility='public' or exists(
-         select 1 from public.country_accounts ca
-         where ca.user_id=auth.uid() and ca.country_id=c.id
-           and ca.status='active'))
+     from (
+       select p0.* from public.world_domestic_parties p0 where p0.country_id=c.id
+         and (p0.visibility='public' or exists(
+           select 1 from public.country_accounts ca
+           where ca.user_id=auth.uid() and ca.country_id=c.id and ca.status='active'))
+       order by p0.name,p0.id limit 100
+     ) p
    ),'[]'::jsonb),
    'elections',coalesce((
      select jsonb_agg(jsonb_build_object(
        'id',e.id,'title',e.title,'scope',e.scope,'heldOn',e.held_on,
        'turnoutPercent',e.turnout_percent,'resultSummary',e.result_summary,
-       'winnerPartyId',e.winner_party_id,'published',e.visibility='public')
+       'winnerPartyId',e.winner_party_id,'published',e.visibility='public',
+       'revision',e.revision)
        order by e.held_on desc,e.id)
-     from public.world_domestic_elections e where e.country_id=c.id
-       and (e.visibility='public' or exists(
-         select 1 from public.country_accounts ca
-         where ca.user_id=auth.uid() and ca.country_id=c.id
-           and ca.status='active'))
+     from (
+       select e0.* from public.world_domestic_elections e0 where e0.country_id=c.id
+         and (e0.visibility='public' or exists(
+           select 1 from public.country_accounts ca
+           where ca.user_id=auth.uid() and ca.country_id=c.id and ca.status='active'))
+       order by e0.held_on desc,e0.id limit 30
+     ) e
    ),'[]'::jsonb)
  )
  from public.countries c
@@ -394,7 +408,7 @@ begin
         and h.occurred_at<=now()
         and (p_country_code is null or lower(c.short_code)=lower(p_country_code))
       union all
-      select ('election:'||e.id::text), e.held_on::timestamptz,
+      select ('election:'||e.id::text), (e.held_on::timestamp at time zone 'UTC'),
         e.title,e.result_summary,'domestic_election',
         'world_domestic_elections',c.short_code,null::text
       from public.world_domestic_elections e
