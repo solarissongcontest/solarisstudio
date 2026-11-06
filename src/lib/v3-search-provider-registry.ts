@@ -71,8 +71,8 @@ export const V3_SEARCH_PROVIDER_REGISTRY = [
     ownerDomain: "entry",
     capabilityId: "explore-root",
     resultGroups: ["Entries"],
-    evidence: ["src/components/public/PublicCommandPalette.tsx#useAllParticipants"],
-    notes: "Search deduplicates logical edition-country entries instead of exposing show appearances as separate entries.",
+    evidence: ["src/components/public/PublicCommandPalette.tsx#usePublicSearchParticipants"],
+    notes: "Search consumes the publication-safe participant RPC and deduplicates logical edition-country entries instead of exposing hidden submissions or show appearances.",
   },
   {
     id: "stories",
