@@ -259,8 +259,10 @@ begin
     on office_row.id=term_row.office_id
   where office_row.organization_id=p_organization_id
     and term_row.holder_user_id=v_actor
-    and term_row.status='active' and term_row.ends_at is null
-  order by term_row.starts_at desc,term_row.id desc
+    and term_row.status='active'
+    and term_row.started_at <= now()
+    and term_row.actual_end_at is null
+  order by term_row.started_at desc,term_row.id desc
   limit 1;
 
   insert into public.world_membership_application_review_history(
