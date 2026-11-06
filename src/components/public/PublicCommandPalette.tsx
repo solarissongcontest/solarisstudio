@@ -29,7 +29,7 @@ import { usePublicSearchParticipants } from "@/lib/public-participants";
 import { publicSearchPublicationScope, publicSearchRowsForPublishedShows } from "@/lib/public-search-published-scope";
 import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
 import { canSuggestDelegationSearchActions } from "@/lib/public-search-action-visibility";
-import { matchesV3PublicSearch, rankV3PublicSearchResults } from "@/lib/v3-public-search-relevance";
+import { matchesV3PublicSearch, navigationV3PublicSearchResults, rankV3PublicSearchResults } from "@/lib/v3-public-search-relevance";
 import {
   editionLabel,
   useAllJuryVotes,
@@ -42,7 +42,6 @@ import {
 } from "@/lib/data";
 import {
   dedupePublicSearchResults,
-  navigationSearchResults,
   type PublicSearchResult,
 } from "@/lib/public-search";
 import { isRecentShowPublic } from "@/lib/public-recent-show-publication";
@@ -362,7 +361,7 @@ function AppPublicPaletteDialog({
       ...actionResults.filter((item) =>
         matchesV3PublicSearch(normalized, item.label, item.description, item.keywords),
       ),
-      ...navigationSearchResults(normalized),
+      ...navigationV3PublicSearchResults(normalized),
       ...searchGovernanceLibrary(normalized).slice(0, 16).map((item) => ({
         id: `governance:${item.to}:${item.title}`,
         label: item.title,
@@ -796,7 +795,7 @@ function WebSearchArchiveResults({
           item.keywords,
         ),
       ),
-      ...navigationSearchResults(normalized),
+      ...navigationV3PublicSearchResults(normalized),
       ...countries
         .filter((country) =>
           matchesV3PublicSearch(
