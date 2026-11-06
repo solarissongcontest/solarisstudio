@@ -228,7 +228,11 @@ export function V3LiquidTabBar({
 
   const resetDragDom = useCallback(() => {
     clearAppUpdateBlocker(V3_LIQUID_LENS_UPDATE_BLOCKER);
+    // Forget the gesture before releasing capture: WebKit may dispatch
+    // lostpointercapture synchronously, and its handler must not overwrite
+    // a previously suppressed synthetic click from an interrupted gesture.
     const drag = dragState.current;
+    dragState.current = null;
     if (drag) {
       try {
         if (drag.captureTarget.hasPointerCapture?.(drag.pointerId)) {
@@ -251,7 +255,6 @@ export function V3LiquidTabBar({
     material?.style.setProperty("--v3-liquid-pull-height", "0px");
     material?.style.setProperty("--v3-liquid-pull-radius", "0px");
     material?.removeAttribute("data-drag-direction");
-    dragState.current = null;
   }, []);
 
   const clearDrag = useCallback(() => {
