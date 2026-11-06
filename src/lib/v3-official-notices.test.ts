@@ -5,6 +5,7 @@ import {
   parseV3OfficialNoticeFilter,
   v3OfficialNoticeAcknowledgementState,
   v3OfficialNoticeNeedsAction,
+  v3OfficialNoticeOutstandingAcknowledgement,
   v3OfficialNoticeReason,
   v3OfficialNoticeResolved,
 } from "./v3-official-notices";
@@ -69,6 +70,16 @@ describe("V3 official notice presentation model", () => {
       .toBe("recorded");
     expect(v3OfficialNoticeAcknowledgementState(notice(), "archived", null))
       .toBe("not-required");
+  });
+
+  it("keeps archived unacknowledged requirements visible while preserving recorded receipts", () => {
+    const required = notice({ acknowledgementRequired: true });
+    const ordinary = notice({ acknowledgementRequired: false });
+    expect(v3OfficialNoticeOutstandingAcknowledgement(required, "archived", { acknowledgedAt: null })).toBe(true);
+    expect(v3OfficialNoticeOutstandingAcknowledgement(required, "archived", { acknowledgedAt: "2026-10-17T13:00:00Z" })).toBe(false);
+    expect(v3OfficialNoticeOutstandingAcknowledgement(required, "acknowledgement_required", null)).toBe(true);
+    expect(v3OfficialNoticeOutstandingAcknowledgement(required, "acknowledged", { acknowledgedAt: "2026-10-17T13:00:00Z" })).toBe(false);
+    expect(v3OfficialNoticeOutstandingAcknowledgement(ordinary, "archived", null)).toBe(false);
   });
 
   it("derives recipient explanation from canonical audience metadata", () => {

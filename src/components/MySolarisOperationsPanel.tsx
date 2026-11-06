@@ -30,6 +30,7 @@ export function MySolarisOperationsPanel() {
     taskCounts,
     priorities,
     isLoading,
+    hasParticipationReadError,
   } = useMySolaris();
 
   const attentionItems = priorities
@@ -44,6 +45,29 @@ export function MySolarisOperationsPanel() {
     .filter((item) => isUpcomingPriority(item))
     .slice(0, 3);
   const hasAttention = attentionItems.length > 0;
+
+  if (hasParticipationReadError) {
+    return (
+      <div className="space-y-4">
+        <OfficialAnnouncementFeed surface="mysolaris_home" />
+        <Panel
+          title="Current responsibilities unavailable"
+          description="Solaris could not verify your current tasks, deadlines or official notices."
+        >
+          <p role="alert" className="text-sm leading-6 text-muted-foreground">
+            This is a temporary read failure, not confirmation that your work is complete.
+            No task or acknowledgement state was changed.
+          </p>
+          <Link
+            to={NAV_TARGETS.participate}
+            className="mt-3 inline-flex min-h-11 items-center rounded-xl border border-border px-4 text-sm font-semibold"
+          >
+            Check current tasks in Participate
+          </Link>
+        </Panel>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

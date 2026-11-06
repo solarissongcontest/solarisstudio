@@ -43,12 +43,6 @@ export const MY_SOLARIS_NAVIGATION: readonly MySolarisNavigationGroup[] = [
     label: "My edition",
     items: [
       {
-        id: "tasks",
-        label: "Tasks",
-        description: "What needs action now and what comes next",
-        to: NAV_TARGETS.mySolarisTasks,
-      },
-      {
         id: "entry",
         label: "Entry",
         description: "Current entry details, media, eligibility and readiness",
@@ -124,7 +118,7 @@ export const MY_SOLARIS_NAVIGATION: readonly MySolarisNavigationGroup[] = [
   },
 ] as const;
 
-export const MY_SOLARIS_MOBILE_PRIMARY_IDS = ["home", "tasks", "entry", "voting"] as const;
+export const MY_SOLARIS_MOBILE_PRIMARY_IDS = ["home", "entry", "voting", "notices"] as const;
 
 export function mySolarisNavigationItems() {
   return MY_SOLARIS_NAVIGATION.flatMap((group) => group.items);

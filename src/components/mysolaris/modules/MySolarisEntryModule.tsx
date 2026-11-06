@@ -1,6 +1,6 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -20,7 +20,13 @@ import {
   type CountryConfirmationResponse,
 } from "@/lib/confirmation-country-account";
 import { useMyCountryAccount } from "@/lib/country-account";
+import {
+  advanceConfirmationEditScope,
+  canUseConfirmationEditToken,
+  type ConfirmationEditScope,
+} from "@/lib/confirmation-edit-scope";
 import { useCountries, useEditions } from "@/lib/data";
+import { useFanSession } from "@/lib/prediction-data";
 import {
   buildEntryReadinessModel,
   type EntryReadinessStatus,
@@ -77,25 +83,31 @@ export function MySolarisEntryModule() {
       ? locationSearch.country
       : undefined;
   const account = useMyCountryAccount();
+  const session = useFanSession();
+  const queryClient = useQueryClient();
   const countries = useCountries();
   const allEditions = useEditions();
-  const access = account.data?.access;
-  const ownCountry = account.data?.country;
-  const organizerCountry =
-    access?.isOrganizer && targetCountryId
-      ? (countries.data ?? []).find(
-          (candidate) => candidate.id === targetCountryId,
-        )
+  // A cached private account must never be projected under a different session.
+  const access =
+    session.data?.id && account.data?.access.userId === session.data.id
+      ? account.data.access
       : undefined;
-  const country = organizerCountry ?? ownCountry;
-  const organizerInspection = Boolean(organizerCountry);
+  const actorId = access?.userId ?? null;
+  const ownCountry = access ? account.data?.country : null;
+  const organizerInspection = Boolean(access?.isOrganizer && targetCountryId);
+  const organizerCountry = organizerInspection
+    ? (countries.data ?? []).find((candidate) => candidate.id === targetCountryId)
+    : undefined;
+  // Never replace a failed Organizer inspection target with the viewer's country.
+  const country = organizerInspection ? organizerCountry : ownCountry;
   const countrySearch = buildCountrySearch(targetCountryId);
   const [editionId, setEditionId] = useState("");
   const [activeSection, setActiveSection] = useState<EntrySection>("overview");
   const [confirmationEditError, setConfirmationEditError] = useState<string | null>(null);
 
   const featureQuery = useQuery({
-    queryKey: ["studio2-entry-readiness-flags"],
+    queryKey: ["studio2-entry-readiness-flags", actorId],
+    enabled: Boolean(actorId),
     queryFn: async () => {
       const [hodEnabled, workflowEnabled] = await Promise.all([
         isStudio2FeatureEnabled("hod_workspace_v2"),
@@ -107,8 +119,8 @@ export function MySolarisEntryModule() {
   });
 
   const editionsQuery = useQuery({
-    queryKey: ["studio2-readiness-editions", country?.id ?? "none"],
-    enabled: featureQuery.data === true && Boolean(country?.id),
+    queryKey: ["studio2-readiness-editions", actorId, country?.id ?? "none"],
+    enabled: featureQuery.data === true && Boolean(actorId && country?.id),
     queryFn: () => listStudio2HodEditions(country!.id),
   });
 
@@ -133,23 +145,88 @@ export function MySolarisEntryModule() {
   const workspaceQuery = useQuery({
     queryKey: [
       "studio2-entry-readiness",
+      actorId,
       country?.id ?? "none",
       editionId || "none",
     ],
-    enabled: featureQuery.data === true && Boolean(country?.id && editionId),
+    enabled: featureQuery.data === true && Boolean(actorId && country?.id && editionId),
     queryFn: () => loadStudio2HodWorkspace(editionId, country!.id),
   });
 
   const confirmationAccessQuery = useQuery({
-    queryKey: ["country-confirmation-access", "mysolaris-entry"],
-    enabled: Boolean(ownCountry && !organizerInspection),
+    queryKey: ["country-confirmation-access", "mysolaris-entry", actorId, ownCountry?.id ?? "none"],
+    enabled: Boolean(actorId && ownCountry && !organizerInspection),
     queryFn: getCountryConfirmationAccess,
     staleTime: 10_000,
     refetchOnWindowFocus: true,
   });
 
+  useEffect(() => {
+    if (!actorId || !country?.id) return;
+    const privateKeys = [
+      ["studio2-readiness-editions", actorId, country.id],
+      ["studio2-entry-readiness", actorId, country.id],
+      ["country-confirmation-access", "mysolaris-entry", actorId, ownCountry?.id ?? "none"],
+    ];
+    return () => {
+      for (const queryKey of privateKeys) {
+        void queryClient.cancelQueries({ queryKey });
+        queryClient.removeQueries({ queryKey });
+      }
+    };
+  }, [queryClient, actorId, country?.id, ownCountry?.id]);
+
+  // The edit-token request may finish after a user, country, edition or
+  // submission change. Never navigate with a token from a previous context.
+  const editableConfirmation = (confirmationAccessQuery.data?.responses ?? []).find(
+    (response) => response.edition_id === editionId,
+  ) ?? null;
+  const editScopeInput = useMemo(
+    () => ({
+      actorId,
+      countryId: ownCountry?.id ?? null,
+      editionId: editionId || null,
+      roundId: editableConfirmation?.round_id ?? null,
+      authorized: Boolean(
+        actorId &&
+          ownCountry?.id &&
+          editableConfirmation?.can_edit &&
+          !organizerInspection &&
+          access?.countryStatus === "active",
+      ),
+    }),
+    [
+      actorId,
+      ownCountry?.id,
+      editionId,
+      editableConfirmation?.round_id,
+      editableConfirmation?.can_edit,
+      organizerInspection,
+      access?.countryStatus,
+    ],
+  );
+  const editScopeRef = useRef<ConfirmationEditScope>({ ...editScopeInput, generation: 0 });
+  useEffect(() => {
+    editScopeRef.current = advanceConfirmationEditScope(editScopeRef.current, editScopeInput);
+    return () => {
+      // Invalidate in-flight results even when unmounting and remounting the
+      // same delegation/edition. A-B-A context hops must not reuse an old token.
+      editScopeRef.current = {
+        ...editScopeRef.current,
+        authorized: false,
+        generation: editScopeRef.current.generation + 1,
+      };
+    };
+  }, [editScopeInput]);
+
   const editConfirmation = useMutation({
-    mutationFn: async (response: CountryConfirmationResponse) => {
+    mutationFn: async ({
+      response,
+      scope,
+    }: {
+      response: CountryConfirmationResponse;
+      scope: ConfirmationEditScope;
+    }) => {
       const result = await createCountryAccountConfirmationEditToken(response.round_id);
       if (!result.ok || !result.token) {
         if (result.reason === "editing_closed") throw new Error("Editing is closed for this submission.");
@@ -157,10 +234,16 @@ export function MySolarisEntryModule() {
         if (result.reason === "not_authenticated") throw new Error("Sign in to the country account again, then retry.");
         throw new Error("This submission could not be opened for editing.");
       }
-      return result.token;
+      return { token: result.token, scope };
     },
     onMutate: () => setConfirmationEditError(null),
-    onSuccess: (token) => {
+    onSuccess: ({ token, scope }) => {
+      if (!canUseConfirmationEditToken(scope, editScopeRef.current)) {
+        setConfirmationEditError(
+          "Your account or submission changed while opening the editor. Reopen the current submission to try again.",
+        );
+        return;
+      }
       window.location.assign(`/confirmations/edit/${encodeURIComponent(token)}`);
     },
     onError: (error) => {
@@ -179,6 +262,8 @@ export function MySolarisEntryModule() {
   }, [workspaceQuery.data]);
 
   if (
+    session.isPending ||
+    account.isPending ||
     featureQuery.isLoading ||
     account.isLoading ||
     (targetCountryId && access?.isOrganizer && countries.isLoading)
@@ -188,6 +273,34 @@ export function MySolarisEntryModule() {
         <p className="text-sm text-muted-foreground">
           Loading entry…
         </p>
+      </AppShell>
+    );
+  }
+
+  if (
+    session.isError ||
+    account.isError ||
+    featureQuery.isError ||
+    allEditions.isError ||
+    (targetCountryId && access?.isOrganizer && countries.isError) ||
+    (session.data?.id && account.data && account.data.access.userId !== session.data.id)
+  ) {
+    return (
+      <AppShell>
+        <PageHeader
+          eyebrow="MySolaris · Entry"
+          title="Entry access could not be verified"
+          description="Solaris has not assumed there are no submissions or responsibilities. Retry the access check."
+          actions={
+            <button
+              type="button"
+              onClick={() => { void session.refetch(); void account.refetch(); void featureQuery.refetch(); void countries.refetch(); void allEditions.refetch(); }}
+              className="min-h-11 rounded-xl border border-border px-4 text-sm font-semibold"
+            >
+              Retry access check
+            </button>
+          }
+        />
       </AppShell>
     );
   }
@@ -241,10 +354,7 @@ export function MySolarisEntryModule() {
   const entry = snapshot?.context.entry ?? null;
   const waitingForOrganizerReview =
     entry?.source === "confirmations" && entry.status === "pending";
-  const currentConfirmation =
-    (confirmationAccessQuery.data?.responses ?? []).find(
-      (response) => response.edition_id === editionId,
-    ) ?? null;
+  const currentConfirmation = editableConfirmation;
 
   return (
     <AppShell>
@@ -399,11 +509,25 @@ export function MySolarisEntryModule() {
                     </div>
                   )}
                   <div className="mt-4 flex flex-wrap gap-2">
-                    {currentConfirmation?.can_edit && !organizerInspection ? (
+                    {confirmationAccessQuery.isError && !organizerInspection ? (
+                      <div role="alert" className="rounded-xl border border-destructive/20 bg-destructive/[0.06] p-3 text-xs">
+                        <p>Confirmation edit permissions could not be verified. No submission status was changed.</p>
+                        <button
+                          type="button"
+                          className="mt-2 min-h-10 rounded-lg border border-border px-3 font-semibold"
+                          onClick={() => { void confirmationAccessQuery.refetch(); }}
+                        >
+                          Retry Confirmation access
+                        </button>
+                      </div>
+                    ) : currentConfirmation?.can_edit && !organizerInspection ? (
                       <button
                         type="button"
-                        disabled={editConfirmation.isPending}
-                        onClick={() => editConfirmation.mutate(currentConfirmation)}
+                        disabled={editConfirmation.isPending || !editScopeInput.authorized}
+                        onClick={() => editConfirmation.mutate({
+                          response: currentConfirmation,
+                          scope: { ...editScopeRef.current },
+                        })}
                         className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold disabled:opacity-50"
                       >
                         {editConfirmation.isPending ? "Opening…" : "Edit submission"}
