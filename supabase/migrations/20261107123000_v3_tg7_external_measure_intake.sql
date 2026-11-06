@@ -54,7 +54,8 @@ create table private.world_measure_intakes (
     check(length(btrim(raw_text)) between 1 and 25000),
   constraint world_measure_external_attachments_check
     check(jsonb_typeof(raw_attachments)='array'
-          and jsonb_array_length(raw_attachments)<=20),
+          and jsonb_array_length(raw_attachments)<=20
+          and octet_length(raw_attachments::text)<=32768),
   constraint world_measure_external_note_check
     check(source_note is null or length(source_note)<=2000),
   constraint world_measure_external_hash_check
@@ -77,6 +78,19 @@ alter table public.world_measures add constraint world_measures_external_intake_
   foreign key(intake_id) references private.world_measure_intakes(id) on delete restrict;
 create unique index world_measures_one_external_intake_uidx
   on public.world_measures(intake_id) where intake_id is not null;
+
+-- Database structural integrity, not merely an RPC conditional: a raw
+-- message from Country A / Organization X cannot be attached to a proposal
+-- attributed to Country B / Organization Y.
+alter table private.world_measure_intakes
+  add constraint world_external_intake_composite_identity
+  unique (id,organization_id,submitted_by_country_id,source_channel);
+alter table public.world_measures
+  add constraint world_measures_intake_source_identity_fk
+  foreign key (intake_id,organization_id,sponsor_country_id,source_channel)
+  references private.world_measure_intakes(
+    id,organization_id,submitted_by_country_id,source_channel)
+  on delete restrict;
 
 alter table private.world_measure_intakes enable row level security;
 revoke all on private.world_measure_intakes from public,anon,authenticated,service_role;
@@ -144,6 +158,58 @@ $private_intakes$;
 revoke all on function public.world_external_intakes_manage_v1(uuid)
  from public,anon,authenticated,service_role;
 grant execute on function public.world_external_intakes_manage_v1(uuid)
+ to authenticated,service_role;
+
+-- Private capability-filtered chooser is not limited to PUBLIC institutions;
+-- authorized officers may record private institution messages.
+create or replace function public.world_external_intake_institutions_v1()
+returns jsonb language sql stable security definer set search_path=pg_catalog
+as $intake_institutions$
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id',i.id,'slug',i.slug,'shortName',i.short_name
+  ) order by i.short_name),'[]'::jsonb)
+  from (
+    select org.id,org.slug,org.short_name
+    from public.world_organizations org
+    where auth.uid() is not null and org.status='active'
+      and public.world_access_allowed(
+        'world.measure.register_external',org.id,null,null,null,null)
+    order by org.short_name,org.id limit 30
+  ) i
+$intake_institutions$;
+revoke all on function public.world_external_intake_institutions_v1()
+ from public,anon,authenticated,service_role;
+grant execute on function public.world_external_intake_institutions_v1()
+ to authenticated,service_role;
+
+create or replace function public.world_external_intake_options_v1(
+  p_organization_id uuid
+) returns jsonb language sql stable security definer set search_path=pg_catalog
+as $intake_options$
+  select case when auth.uid() is null or p_organization_id is null or
+    not public.world_access_allowed(
+      'world.measure.register_external',p_organization_id,null,null,null,null)
+    then null else jsonb_build_object(
+      'organs',coalesce((
+        select jsonb_agg(jsonb_build_object(
+          'id',o.id,'name',o.name
+        ) order by o.sort_order,o.name),'[]'::jsonb)
+        from (select id,name,sort_order from public.world_organization_organs
+              where organization_id=p_organization_id and status='active'
+              order by sort_order,name limit 60) o
+      ),'[]'::jsonb),
+      'countries',coalesce((
+        select jsonb_agg(jsonb_build_object(
+          'id',c.id,'name',c.name,'shortCode',c.short_code
+        ) order by c.name),'[]'::jsonb)
+        from (select id,name,short_code from public.countries
+              order by name,id limit 200) c
+      ),'[]'::jsonb)
+    ) end
+$intake_options$;
+revoke all on function public.world_external_intake_options_v1(uuid)
+ from public,anon,authenticated,service_role;
+grant execute on function public.world_external_intake_options_v1(uuid)
  to authenticated,service_role;
 
 comment on table private.world_measure_intakes is
