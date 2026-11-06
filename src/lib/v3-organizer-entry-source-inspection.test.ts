@@ -29,10 +29,14 @@ describe("Organizer Entry source inspection", () => {
       "javascript:alert(1)", "data:text/html,hello", "blob:https://example.test/a",
       "file:///etc/passwd", "not a link", "/uploads/song.mp3", "//example.test/a",
       "https://name:secret@example.test/song.mp3", "https://media.example.test/\n@attacker.test/a",
-      "https://media.example.test/song.mp3\n", "\thttps://media.example.test/song.mp3",
     ]) {
       expect(safeOrganizerEntrySourceUrl(value)).toBeNull();
     }
+  });
+
+  it("rejects leading and trailing URL controls before trimming", () => {
+    expect(safeOrganizerEntrySourceUrl("\nhttps://media.example.test/a.mp3")).toBeNull();
+    expect(safeOrganizerEntrySourceUrl("https://media.example.test/a.mp3\r")).toBeNull();
   });
 
   it("reports submitted artist, title, and source as present without claiming media eligibility", () => {
