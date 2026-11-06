@@ -162,17 +162,12 @@ export async function loadV3ResultsBundle(
 
   const snapshot = await loadV3PublishedResultSnapshot(selectedShow.id);
   if (!snapshot) {
-    return {
-      editionSlug: selectedEdition.slug,
-      options,
-      shell: {
-        editionLabel: editionLabel(selectedEdition),
-        phaseLabel: "Results",
-      },
-      input: emptyInput(selectedEdition, selectedShow),
-      countries: [],
-      generatedAt: new Date().toISOString(),
-    };
+    // Show publication metadata asserts official Results are public, but the
+    // immutable published version is absent. This is an authority/provenance
+    // availability failure, NOT evidence that no public result was published.
+    // Throw into the existing Results retry boundary; never present fake empty
+    // rankings or fall back to mutable public.results.
+    throw new Error("Published Result version is temporarily unavailable");
   }
   if (snapshot.edition.id !== selectedEdition.id) {
     throw new Error(

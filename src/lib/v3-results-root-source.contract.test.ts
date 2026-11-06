@@ -78,8 +78,10 @@ describe("V3 Results root source contract", () => {
 
   it("fails closed when publication metadata lacks canonical Result-version provenance", () => {
     expect(source).toContain("if (!snapshot)");
-    expect(source).toContain("input: emptyInput(selectedEdition, selectedShow)");
-    expect(source).toContain('publication: "hidden"');
+    expect(source).toContain('throw new Error("Published Result version is temporarily unavailable")');
+    expect(source).not.toContain("input: emptyInput(selectedEdition, selectedShow)");
+    expect(gate).toContain("Official results temporarily unavailable");
+    expect(gate).toContain("Retry official results");
     expect(source).not.toMatch(/fallback.*results|results.*fallback/i);
     expect(source).not.toContain("RESULT_COLUMNS");
     expect(source).not.toContain("ResultRow");
