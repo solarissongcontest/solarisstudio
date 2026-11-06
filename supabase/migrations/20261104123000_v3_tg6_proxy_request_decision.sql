@@ -120,6 +120,7 @@ begin
   if v_rep.id is null
      or v_rep.ends_at is not null
      or v_rep.starts_at > now()
+     or v_rep.role <> 'representative'
      or not v_rep.voting_authority
      or not (coalesce(v_rep.user_id = v_actor,false) or exists (
        select 1 from public.country_accounts account_row
@@ -375,6 +376,7 @@ begin
     if v_proxy.valid_until <= now()
        or v_rep.ends_at is not null
        or v_rep.starts_at > now()
+       or v_rep.role <> 'representative'
        or not v_rep.voting_authority
        or (v_proxy.session_id is not null and v_organ_id is null)
        or not exists (
