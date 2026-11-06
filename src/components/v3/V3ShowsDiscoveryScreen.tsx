@@ -356,6 +356,26 @@ function ShowCollection({
   );
 }
 
+function ShowContext({ item, truncate = false }: { item: ShowDiscoveryItem; truncate?: boolean }) {
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      <ShowStateBadge item={item} />
+      <span className={truncate ? "truncate text-xs text-muted-foreground" : "text-xs text-muted-foreground"}>
+        {editionLabel(item.edition)}
+      </span>
+    </span>
+  );
+}
+
+function ShowKindAndTime({ item }: { item: ShowDiscoveryItem }) {
+  return (
+    <>
+      {showKindLabel(item.show.kind)}
+      {item.scheduledStart ? ` · ${formatShowTime(item.scheduledStart)}` : ""}
+    </>
+  );
+}
+
 function ShowWebRow({ item }: { item: ShowDiscoveryItem }) {
   return (
     <Link
@@ -364,14 +384,10 @@ function ShowWebRow({ item }: { item: ShowDiscoveryItem }) {
       className="v3-show-web-row flex min-h-20 items-center gap-3 border-b border-border py-3"
     >
       <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-center gap-2">
-          <ShowStateBadge item={item} />
-          <span className="text-xs text-muted-foreground">{editionLabel(item.edition)}</span>
-        </span>
+        <ShowContext item={item} />
         <strong className="mt-1.5 block text-sm font-semibold">{item.show.name}</strong>
         <span className="mt-1 block text-xs capitalize text-muted-foreground">
-          {showKindLabel(item.show.kind)}
-          {item.scheduledStart ? ` · ${formatShowTime(item.scheduledStart)}` : ""}
+          <ShowKindAndTime item={item} />
           {showPublishesResults(item.show) ? " · Results published" : ""}
         </span>
       </span>
@@ -385,10 +401,7 @@ function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: bool
     <div className={`rounded-2xl border p-4 ${live ? "border-primary/45 bg-primary/5" : "border-border bg-surface"}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <ShowStateBadge item={item} />
-            <span className="text-xs text-muted-foreground">{editionLabel(item.edition)}</span>
-          </div>
+          <ShowContext item={item} />
           <Link
             to="/shows/$showId"
             params={{ showId: item.show.id }}
@@ -397,7 +410,7 @@ function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: bool
             {item.show.name}
           </Link>
           <p className="mt-1 text-xs capitalize text-muted-foreground">
-            {showKindLabel(item.show.kind)}{item.scheduledStart ? ` · ${formatShowTime(item.scheduledStart)}` : ""}
+            <ShowKindAndTime item={item} />
           </p>
         </div>
       </div>
@@ -431,10 +444,7 @@ function ShowRow({ item, compact = false }: { item: ShowDiscoveryItem; compact?:
   return (
     <div className="flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3">
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <ShowStateBadge item={item} />
-          <span className="truncate text-xs text-muted-foreground">{editionLabel(item.edition)}</span>
-        </div>
+        <ShowContext item={item} truncate />
         <Link
           to="/shows/$showId"
           params={{ showId: item.show.id }}
@@ -444,7 +454,7 @@ function ShowRow({ item, compact = false }: { item: ShowDiscoveryItem; compact?:
         </Link>
         {!compact ? (
           <span className="mt-0.5 block text-xs capitalize text-muted-foreground">
-            {showKindLabel(item.show.kind)}{item.scheduledStart ? ` · ${formatShowTime(item.scheduledStart)}` : ""}
+            <ShowKindAndTime item={item} />
           </span>
         ) : null}
       </div>
