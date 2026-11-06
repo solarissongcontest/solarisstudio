@@ -531,6 +531,14 @@ export function WorldDocumentReaderScreen({
                   Print or save this Version as PDF
                 </Link>
               )}
+              <Link
+                to="/world/documents/$organization/$document/archive"
+                params={{ organization, document }}
+                search={{ before: null }}
+                className="inline-flex min-h-11 items-center rounded-xl border border-border px-4 text-sm font-semibold text-primary hover:bg-surface/70"
+              >
+                Browse permanent legal Archive
+              </Link>
               <nav aria-label="Document versions">
                 <h3 className="text-xs font-bold uppercase tracking-[0.13em] text-muted-foreground">Version history</h3>
                 {detail.history.length === 0 ? (
