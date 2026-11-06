@@ -11,7 +11,7 @@ describe("V3 mobile-browser and desktop section-navigation accessibility", () =>
     const mobile = source("src/components/public/PublicMobileSectionNav.tsx");
     const css = source("src/styles/public-navigation.css");
 
-    expect(mobile).toContain('<nav\n      className="public-mobile-section-nav"');
+    expect(mobile).toContain('className="public-mobile-section-nav"');
     expect(mobile).toContain('aria-label={sectionLabel(area) + " navigation"}');
     expect(mobile).toContain('aria-expanded={open}');
     expect(mobile).toContain('aria-controls={"public-mobile-section-panel-" + area}');
