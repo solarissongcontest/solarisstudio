@@ -250,6 +250,19 @@ begin
        and coalesce(public.studio2_feature_enabled('terra_world_legislative_voting',null),false))
   then raise exception using errcode='25006',message='BALLOT_UNAVAILABLE'; end if;
 
+  -- Unlike officer actions, representative ballots authorize from frozen
+  -- TG2 identity rather than an office capability. They must STILL obey the
+  -- canonical WORLD-01 platform-mode mutation policy (Read-only/Maintenance
+  -- cannot be bypassed by a currently valid representative).
+  if not exists (
+    select 1 from public.studio2_capabilities capability
+    join public.studio2_platform_operational_state platform
+      on platform.singleton=true
+    where capability.key='world.vote.cast' and platform.mode is not null
+      and private.studio2_capability_allowed_in_platform_mode(
+        capability.key,capability.access_level,platform.mode)
+  ) then raise exception using errcode='25006',message='PLATFORM_VOTING_READ_ONLY'; end if;
+
   -- Shared lock allows parallel country submissions but blocks certification.
   select * into v_vote from public.world_votes where id=p_vote_id for share;
   if v_vote.id is null then raise exception using errcode='42501',message='BALLOT_UNAVAILABLE'; end if;
