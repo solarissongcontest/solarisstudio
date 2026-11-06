@@ -118,11 +118,19 @@ export function V3PredictionsScreen() {
             </p>
           </V3Surface>
         ) : rounds.isError ? (
-          <V3Surface>
+          <V3Surface data-v3-predictions-state="error">
             <p role="alert" className="text-sm font-semibold">Prediction state could not be loaded.</p>
             <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
               Solaris will not infer whether a round is open or locked from cached browser state.
             </p>
+            <button
+              type="button"
+              disabled={rounds.isFetching}
+              onClick={() => void rounds.refetch()}
+              className="mt-3 min-h-11 rounded-xl border border-white/20 px-4 text-sm font-semibold transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {rounds.isFetching ? "Retrying…" : "Retry prediction rounds"}
+            </button>
           </V3Surface>
         ) : rounds.data?.schemaReady === false ? (
           <V3Surface>
@@ -198,7 +206,17 @@ export function V3PredictionsScreen() {
               ) : history.isLoading ? (
                 <V3Surface><p role="status" className="text-sm text-[var(--v3-text-secondary)]">Loading your predictions…</p></V3Surface>
               ) : history.isError ? (
-                <V3Surface><p role="alert" className="text-sm">Your prediction history could not be loaded.</p></V3Surface>
+                <V3Surface data-v3-prediction-history-state="error">
+                  <p role="alert" className="text-sm">Your prediction history could not be loaded.</p>
+                  <button
+                    type="button"
+                    disabled={history.isFetching}
+                    onClick={() => void history.refetch()}
+                    className="mt-3 min-h-11 rounded-xl border border-white/20 px-4 text-sm font-semibold transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {history.isFetching ? "Retrying…" : "Retry prediction history"}
+                  </button>
+                </V3Surface>
               ) : scored.length ? (
                 <div className="grid gap-3">
                   {scored.slice(0, 12).map((round) => {
@@ -271,7 +289,20 @@ export function V3PredictionsScreen() {
               ) : null}
               {leagueFeature.isLoading ? (
                 <V3Surface><p role="status" className="text-sm text-[var(--v3-text-secondary)]">Checking league availability…</p></V3Surface>
-              ) : leagueFeature.isError || leagueFeature.data !== true ? (
+              ) : leagueFeature.isError ? (
+                <V3Surface data-v3-prediction-league-state="error">
+                  <p role="alert" className="text-sm font-semibold">League availability could not be verified.</p>
+                  <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">Standings stay hidden until Solaris confirms whether this feature is available.</p>
+                  <button
+                    type="button"
+                    disabled={leagueFeature.isFetching}
+                    onClick={() => void leagueFeature.refetch()}
+                    className="mt-3 min-h-11 rounded-xl border border-white/20 px-4 text-sm font-semibold transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {leagueFeature.isFetching ? "Retrying…" : "Retry league availability"}
+                  </button>
+                </V3Surface>
+              ) : leagueFeature.data !== true ? (
                 <V3Surface>
                   <div data-v3-prediction-league-state="unavailable">
                     <p className="text-sm font-semibold">Prediction League is not available</p>
@@ -281,7 +312,17 @@ export function V3PredictionsScreen() {
               ) : standings.isLoading ? (
                 <V3Surface><p role="status" className="text-sm text-[var(--v3-text-secondary)]">Loading standings…</p></V3Surface>
               ) : standings.isError ? (
-                <V3Surface><p role="alert" className="text-sm">The public standings could not be loaded.</p></V3Surface>
+                <V3Surface data-v3-prediction-league-state="standings-error">
+                  <p role="alert" className="text-sm">The public standings could not be loaded.</p>
+                  <button
+                    type="button"
+                    disabled={standings.isFetching}
+                    onClick={() => void standings.refetch()}
+                    className="mt-3 min-h-11 rounded-xl border border-white/20 px-4 text-sm font-semibold transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {standings.isFetching ? "Retrying…" : "Retry standings"}
+                  </button>
+                </V3Surface>
               ) : (
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_18rem]">
                   <V3Surface level="raised" className="p-2">
