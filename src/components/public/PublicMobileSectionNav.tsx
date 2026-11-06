@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   publicAreaForPath,
@@ -14,6 +14,10 @@ import { cn } from "@/lib/utils";
 export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
   const area = publicAreaForPath(pathname);
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  // Browser history and direct links must not carry an expanded menu to a new page.
+  useEffect(() => setOpen(false), [pathname]);
 
   if (!hasLocalNavigation(area)) return null;
   // Entity pages already have a breadcrumb and global Explore navigation.
@@ -29,8 +33,19 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
   const advanced = items.filter((item) => item.visibility === "advanced");
 
   return (
-    <section className="public-mobile-section-nav" aria-label={sectionLabel(area) + " navigation"}>
+    <nav
+      className="public-mobile-section-nav"
+      aria-label={sectionLabel(area) + " navigation"}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape" || !open) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setOpen(false);
+        triggerRef.current?.focus();
+      }}
+    >
       <button
+        ref={triggerRef}
         type="button"
         className="public-mobile-section-trigger"
         aria-expanded={open}
@@ -51,8 +66,11 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
         />
       </button>
 
-      {open ? (
-        <div id={"public-mobile-section-panel-" + area} className="public-mobile-section-panel">
+      <div
+        id={"public-mobile-section-panel-" + area}
+        className="public-mobile-section-panel"
+        hidden={!open}
+      >
           <MobileGroup area={area} items={primary} activeTo={active?.to} onNavigate={() => setOpen(false)} />
           {secondary.length ? (
             <MobileGroup
@@ -88,9 +106,8 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
               All Solaris pages
             </Link>
           </div>
-        </div>
-      ) : null}
-    </section>
+      </div>
+    </nav>
   );
 }
 
