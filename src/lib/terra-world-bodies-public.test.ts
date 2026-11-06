@@ -25,17 +25,18 @@ const organ = {
   id: "body-1", organization_id: "org-1", slug: "gag", name: "General Assembly",
   short_name: "GAG", type: "general_assembly", description: "Public assembly",
   status: "active", visibility: "public", sort_order: 10, private_notes: "never-return-this",
-  world_organizations: { id: "org-1", public_visibility: "public" },
+  world_organizations: { id: "org-1", public_visibility: "public", status: "active" },
 };
 function chain(response: Record<string, unknown>) {
   const q = {
-    select: vi.fn(), eq: vi.fn(), or: vi.fn(), abortSignal: vi.fn(), maybeSingle: vi.fn(), order: vi.fn(), range: vi.fn(), limit: vi.fn(),
+    select: vi.fn(), eq: vi.fn(), in: vi.fn(), or: vi.fn(), abortSignal: vi.fn(), maybeSingle: vi.fn(), order: vi.fn(), range: vi.fn(), limit: vi.fn(),
     // A HEAD-only count reads the PostgREST builder directly (no .range).
     then: vi.fn((resolve: (result: Record<string, unknown>) => unknown,
       reject?: (reason: unknown) => unknown) => Promise.resolve(response).then(resolve, reject)),
   };
   q.select.mockReturnValue(q);
   q.eq.mockReturnValue(q);
+  q.in.mockReturnValue(q);
   q.or.mockReturnValue(q);
   q.abortSignal.mockReturnValue(q);
   q.order.mockReturnValue(q);
@@ -59,7 +60,17 @@ describe("TG3 public institution bodies", () => {
     expect(decodePublicWorldInstitution({ ...parent, public_visibility: "private" }, "guard")).toBeNull();
     expect(decodePublicWorldInstitution(parent, "unity")).toBeNull();
     expect(decodePublicWorldInstitution({ ...parent, official_name: "" }, "guard")).toBeNull();
+    expect(decodePublicWorldInstitution({ ...parent, status: "proposed" }, "guard")).toBeNull();
   });
+  it("blocks proposed unions before any body or office read", async () => {
+    const proposal = chain({ data: { ...parent, status: "proposed" }, error: null });
+    mockFrom.mockReturnValue(proposal);
+    expect(await readPublicWorldBodies("guard", 0)).toBeNull();
+    expect(mockFrom).toHaveBeenCalledTimes(1);
+    expect(proposal.in).toHaveBeenCalledWith(
+      "status", ["recognized", "active", "suspended", "historical", "dissolved"]);
+  });
+
   it("rejects private, cross-parent, invalid-status and invalid-slug bodies", () => {
     expect(decodePublicWorldBody({ ...organ, visibility: "members" }, "org-1")).toBeNull();
     expect(decodePublicWorldBody({ ...organ, organization_id: "other" }, "org-1")).toBeNull();
@@ -97,7 +108,7 @@ describe("TG3 public institution bodies", () => {
     expect(body.eq).toHaveBeenCalledWith("status", "active");
     expect(body.or).toHaveBeenCalledWith("name.ilike.%GAG%,short_name.ilike.%GAG%");
     expect(body.select).toHaveBeenCalledWith(
-      "id,organization_id,slug,name,short_name,type,status,visibility,sort_order,world_organizations!inner(id,public_visibility)",
+      "id,organization_id,slug,name,short_name,type,status,visibility,sort_order,world_organizations!inner(id,public_visibility,status)",
       { count: "exact" },
     );
     expect(body.order).toHaveBeenCalledWith("slug", { ascending: true });
@@ -186,7 +197,7 @@ describe("TG3 public institution bodies", () => {
     mockFrom.mockImplementation((name: string) => name === "world_organizations" ? org : body);
     await readPublicWorldBody("guard", "gag");
     expect(body.select).toHaveBeenCalledWith(
-      "id,organization_id,slug,name,short_name,type,description,status,visibility,sort_order,world_organizations!inner(id,public_visibility)",
+      "id,organization_id,slug,name,short_name,type,description,status,visibility,sort_order,world_organizations!inner(id,public_visibility,status)",
     );
     expect(body.eq).toHaveBeenCalledWith("world_organizations.public_visibility", "public");
   });
@@ -256,7 +267,7 @@ describe("TG3 public institution bodies", () => {
     expect(response?.bodies).toEqual([]);
     expect(response?.total).toBe(4);
     expect(organQueries).toBe(2);
-    expect(recount.select).toHaveBeenCalledWith("id,world_organizations!inner(id,public_visibility)", { count: "exact", head: true });
+    expect(recount.select).toHaveBeenCalledWith("id,world_organizations!inner(id,public_visibility,status)", { count: "exact", head: true });
     expect(recount.eq).toHaveBeenCalledWith("organization_id", "org-1");
     expect(recount.eq).toHaveBeenCalledWith("visibility", "public");
     expect(recount.eq).toHaveBeenCalledWith("status", "active");
@@ -274,7 +285,7 @@ describe("TG3 public institution bodies", () => {
     const response = await readPublicWorldBodies("guard", 1);
     expect(response?.total).toBe(0);
     expect(response?.bodies).toEqual([]);
-    expect(recount.select).toHaveBeenCalledWith("id,world_organizations!inner(id,public_visibility)", { count: "exact", head: true });
+    expect(recount.select).toHaveBeenCalledWith("id,world_organizations!inner(id,public_visibility,status)", { count: "exact", head: true });
     expect(recount.range).not.toHaveBeenCalled();
     expect(recount.then).toHaveBeenCalled();
     expect(organQueries).toBe(2);
@@ -287,7 +298,7 @@ describe("TG3 public institution bodies", () => {
     mockFrom.mockImplementation((name: string) =>
       name === "world_organizations" ? org : ++organQueries === 1 ? vanished : recount);
     await expect(readPublicWorldBodies("guard", 1)).rejects.toThrow("could not be verified");
-    expect(recount.select).toHaveBeenCalledWith("id,world_organizations!inner(id,public_visibility)", { count: "exact", head: true });
+    expect(recount.select).toHaveBeenCalledWith("id,world_organizations!inner(id,public_visibility,status)", { count: "exact", head: true });
   });
   it("fails closed if a PostgREST 416 recount leaves the requested page in range", async () => {
     const org = chain({ data: parent, error: null });
@@ -388,7 +399,7 @@ describe("TG3 institution body offices", () => {
   const office = {
     id: "office-1", organization_id: "org-1", organ_id: "body-1",
     title: "Assembly Chair", office_type: "leadership", active: true,
-    world_organizations: { id: "org-1", public_visibility: "public" },
+    world_organizations: { id: "org-1", public_visibility: "public", status: "active" },
     world_organization_organs: { id: "body-1", organization_id: "org-1", visibility: "public" },
     holder_user_id: "must-not-leak", current_term: { private: "must-not-leak" },
   };
@@ -433,7 +444,7 @@ describe("TG3 institution body offices", () => {
     expect(query.eq).toHaveBeenCalledWith("active", true);
     expect(query.order).toHaveBeenCalledWith("id", { ascending: true });
     expect(query.limit).toHaveBeenCalledWith(WORLD_BODY_OFFICE_LIMIT);
-    expect(query.select).toHaveBeenCalledWith("id,organization_id,organ_id,title,office_type,active,world_organizations!inner(id,public_visibility),world_organization_organs:world_organization_organs!world_offices_organ_same_organization_fk!inner(id,organization_id,visibility)");
+    expect(query.select).toHaveBeenCalledWith("id,organization_id,organ_id,title,office_type,active,world_organizations!inner(id,public_visibility,status),world_organization_organs:world_organization_organs!world_offices_organ_same_organization_fk!inner(id,organization_id,visibility)");
     // Keep the DTO join alias unchanged so public parent/organ verification
     // still fails closed on mismatched or unpublished embedded records.
   });
