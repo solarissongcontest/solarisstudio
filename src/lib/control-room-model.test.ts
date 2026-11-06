@@ -91,4 +91,23 @@ describe('control room model', () => {
       ...base, criticalIncidents: 0,
     }).overallHealth).toBe('attention');
   });
+
+  it('does not present unreadable incident counts as verified zero', () => {
+    const unknown = buildControlRoomModel({
+      editionId: 'ssc22', editionName: 'SSC22',
+      healthStatus: 'ready', healthIssues: 0, criticalIssues: 0,
+    });
+    expect(unknown.issues.incidents).toBeNull();
+    expect(unknown.issues.criticalIncidents).toBeNull();
+    expect(unknown.overallHealth).toBe('unknown');
+
+    const verifiedClean = buildControlRoomModel({
+      editionId: 'ssc22', editionName: 'SSC22',
+      healthStatus: 'ready', healthIssues: 0, criticalIssues: 0,
+      activeIncidents: 0, criticalIncidents: 0,
+    });
+    expect(verifiedClean.issues.incidents).toBe(0);
+    expect(verifiedClean.issues.criticalIncidents).toBe(0);
+    expect(verifiedClean.overallHealth).toBe('healthy');
+  });
 });

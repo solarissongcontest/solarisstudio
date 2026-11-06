@@ -44,8 +44,9 @@ export type ControlRoomModel = {
   issues: {
     total: number;
     critical: number;
-    incidents: number;
-    criticalIncidents: number;
+    /** null means the viewer cannot verify incident evidence. */
+    incidents: number | null;
+    criticalIncidents: number | null;
   };
   actions: ControlRoomAction[];
 };
@@ -146,8 +147,8 @@ export function buildControlRoomModel(input: ControlRoomInput): ControlRoomModel
     issues: {
       total: Math.max(0, input.healthIssues ?? 0),
       critical: Math.max(0, input.criticalIssues ?? 0),
-      incidents: Math.max(0, input.activeIncidents ?? 0),
-      criticalIncidents: Math.max(0, input.criticalIncidents ?? 0),
+      incidents: input.activeIncidents == null ? null : Math.max(0, input.activeIncidents),
+      criticalIncidents: input.criticalIncidents == null ? null : Math.max(0, input.criticalIncidents),
     },
     actions: buildActions(editionState, subsystems.televoting),
   };
