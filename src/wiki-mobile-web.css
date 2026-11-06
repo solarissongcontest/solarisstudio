@@ -4,6 +4,7 @@
   .wiki-canvas[data-wiki-layout-mode="mobile-web"] {
     inline-size: 100%;
     min-inline-size: 0;
+    overflow-wrap: anywhere;
   }
 
   /* Article-first browser composition: original legacy mobile cards are
@@ -46,11 +47,6 @@
     min-inline-size: 0;
   }
 
-  .wiki-canvas[data-wiki-layout-mode="mobile-web"] .wiki-record-strip :is(dt, dd),
-  .wiki-canvas[data-wiki-layout-mode="mobile-web"] .wiki-infobox :is(dt, dd) {
-    overflow-wrap: anywhere;
-  }
-
   .wiki-canvas[data-wiki-layout-mode="mobile-web"] .wiki-mobile-web-heading {
     margin-block-end: 1rem;
     border-block-end: 1px solid var(--border);
@@ -72,7 +68,6 @@
 
   .wiki-canvas[data-wiki-layout-mode="mobile-web"] .wiki-mobile-web-heading h1 {
     min-inline-size: 0;
-    overflow-wrap: anywhere;
     font-family: var(--font-display, inherit);
     font-size: clamp(1.6rem, 7.25vw, 2.25rem);
     font-weight: 800;
