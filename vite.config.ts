@@ -25,6 +25,9 @@ export default defineConfig({
     build: {
       rolldownOptions: {
         output: {
+          // Retain licence and tree-shaking annotations, omit non-runtime
+          // documentation comments from emitted production JS.
+          comments: { legal: true, annotation: true, jsdoc: false },
           // JS is already minified in production; mangle only private top-level
           // module bindings, keeping public export contracts and runtime data.
           minify: { compress: true, mangle: { toplevel: true } },
