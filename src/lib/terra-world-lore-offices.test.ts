@@ -16,7 +16,9 @@ const termId="44444444-4444-4444-8444-444444444444";
 const operationId="55555555-5555-4555-8555-555555555555";
 const officials={
   countryId,countryCode:"OL",isController:false,
-  people:[{id:personId,displayName:"Fictional President",biography:null,
+  people:[{id:personId,displayName:"Fictional President",nativeName:"President of Oland",
+    biography:null,publicSummary:"A fictional officeholder.",status:"historical",
+    bornOn:"1980-05-03",diedOn:null,
     published:true,revision:1,authUserId:"PRIVATE"}],
   offices:[{id:officeId,title:"President",officeType:"head_of_state",
     description:null,published:true,revision:1}],
@@ -31,6 +33,11 @@ describe("TG16 fictional people, offices and historical terms",()=>{
   it("never creates an alternate real-human or country control authority",()=>{
     expect(SQL).toContain("public.country_accounts");
     expect(SQL).toContain("create table public.world_lore_people");
+    expect(SQL).toContain("name text not null");
+    expect(SQL).toContain("native_name text");
+    expect(SQL).toContain("public_summary text");
+    expect(SQL).toContain("world_lore_people_dates");
+    expect(SQL).toContain("v_died_on<v_born_on");
     expect(SQL).toContain("create table public.world_domestic_offices");
     expect(SQL).toContain("create table public.world_domestic_office_terms");
     expect(SQL).not.toContain("create table public.delegation_people");
@@ -64,6 +71,9 @@ describe("TG16 fictional people, offices and historical terms",()=>{
     expect(parsed.terms[0].holderDisplayName).toBe("Fictional President");
     expect(parsed).not.toHaveProperty("privateUserId");
     expect(parsed.people[0]).not.toHaveProperty("authUserId");
+    expect(parsed.people[0].nativeName).toBe("President of Oland");
+    expect(parsed.people[0].status).toBe("historical");
+    expect(parsed.people[0].bornOn).toBe("1980-05-03");
     expect(parsed.terms[0]).not.toHaveProperty("secretReason");
     expect(()=>parseWorldDomesticOfficials(officials,"UN")).toThrow();
     expect(()=>parseWorldDomesticOfficials({...officials,terms:Array(501).fill(officials.terms[0])},"OL")).toThrow();
