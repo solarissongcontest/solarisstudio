@@ -145,6 +145,11 @@ describe("TG6 governed rescheduling source contract", () => {
     expect(command).toContain("p_ends_at <= p_starts_at");
     expect(command).toContain("organization_row.status='active'");
     expect(command).toContain("organ_row.status='active'");
+    expect(command).toContain("proxy_row.status in ('requested','approved')");
+    expect(command).toContain("proxy_row.revoked_at is null");
+    expect(command).toContain("proxy_row.valid_from < p_starts_at");
+    expect(command).toContain("proxy_row.valid_until > p_ends_at");
+    expect(command).toContain("SESSION_PROXY_WINDOW_CONFLICT");
     expect(event).toContain("'world.session.rescheduled'");
     expect(event).toContain("previousStartsAt");
     expect(event).toContain("previousEndsAt");
@@ -164,6 +169,7 @@ describe("TG6 governed rescheduling source contract", () => {
       "TG6_SCHEDULE_STALE_CAS_ALLOWED",
       "TG6_SCHEDULE_CLOSED_REPLAY_LOST",
       "TG6_SCHEDULE_OPEN_SESSION_MUTABLE",
+      "TG6_SCHEDULE_PROXY_WINDOW_INVALIDATION_ALLOWED",
       "TG6_SCHEDULE_FIXTURES_PERSISTED",
     ]) expect(fixture).toContain(marker);
     expect(fixture).toContain("set local role anon");
