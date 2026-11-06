@@ -165,11 +165,12 @@ describe('Organizer Control Room server incident verification', () => {
     expect(model.overallHealth).toBe('critical');
   });
 
-  it('rejects contradictory incident counts instead of fabricating clean evidence', async () => {
+  it('preserves critical incident escalation despite inconsistent simultaneous count snapshots', async () => {
     arrange({ active: 1, critical: 2 });
     const model = await loadControlRoomModelServer('ssc22');
     expect(model.issues.incidents).toBeNull();
-    expect(model.overallHealth).toBe('unknown');
+    expect(model.issues.criticalIncidents).toBe(2);
+    expect(model.overallHealth).toBe('critical');
   });
 
   it('uses the authoritative live Show rundown for current and next cue labels', async () => {
