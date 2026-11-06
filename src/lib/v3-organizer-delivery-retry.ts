@@ -1,4 +1,3 @@
-import { supabase as baseSupabase } from "@/integrations/supabase/client";
 import { normalizeSystemReceipt } from "@/lib/system-receipt";
 import {
   resolveSolarisV6OperationRecovery,
@@ -59,8 +58,6 @@ export type DeliveryRetryRpcClient = {
     params: Record<string, unknown>,
   ): Promise<{ data: unknown; error: RpcError | null }>;
 };
-
-const defaultClient = baseSupabase as unknown as DeliveryRetryRpcClient;
 
 function objectValue(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -126,7 +123,7 @@ export async function reconcileDeliveryRetry(
     deliveryId: string;
     recovery: SolarisV6OperationRecovery;
   },
-  client: DeliveryRetryRpcClient = defaultClient,
+  client: DeliveryRetryRpcClient,
 ): Promise<DeliveryRetryOutcome> {
   let response: { data: unknown; error: RpcError | null };
   try {
@@ -207,7 +204,7 @@ export async function retryFailedDeliveryWithReconciliation(
     identity: DeliveryRetryIdentity;
     online?: boolean;
   },
-  client: DeliveryRetryRpcClient = defaultClient,
+  client: DeliveryRetryRpcClient,
 ): Promise<DeliveryRetryOutcome> {
   let response: { data: unknown; error: RpcError | null };
   try {

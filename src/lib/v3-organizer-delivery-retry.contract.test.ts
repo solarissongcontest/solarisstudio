@@ -34,6 +34,12 @@ describe("Organizer Delivery & Jobs operation recovery", () => {
     expect(route).toContain("Operation blocked");
   });
 
+  it("requires explicit caller-owned RPC injection rather than importing Supabase in a V3 library", () => {
+    expect(adapter).not.toContain("integrations/supabase");
+    expect(adapter).not.toContain("defaultClient");
+    expect(route).toContain("supabase as unknown as DeliveryRetryRpcClient");
+  });
+
   it("does not introduce direct notification table writes or a second operation authority", () => {
     expect(route).not.toMatch(/\.from\(["']notification_deliveries["']\)\s*\.update/i);
     expect(adapter).not.toContain("notification_deliveries");

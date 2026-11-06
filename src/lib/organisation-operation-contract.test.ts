@@ -88,7 +88,10 @@ describe("Organisation OS V5 operation contract", () => {
     const route = source("src/routes/_authenticated/admin/system-operations.tsx");
     expect(route).toContain('command: "system.push.retry_failed"');
     expect(route).toContain('riskClass: "R1"');
-    expect(route).toContain("p_operation_id");
-    expect(route).toContain("p_idempotency_key");
+    const adapter = source("src/lib/v3-organizer-delivery-retry.ts");
+    expect(route).toContain("retryFailedDeliveryWithReconciliation");
+    expect(adapter).toContain("p_operation_id: input.identity.operationId");
+    expect(adapter).toContain("p_idempotency_key: input.identity.idempotencyKey");
+    expect(adapter).toContain('"studio2_reconcile_operation"');
   });
 });

@@ -12,6 +12,26 @@ const browserAudit = process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1";
 
 export default defineConfig({
   vite: {
+    plugins: [
+      {
+        // Rolldown's catch-all shared grouping is beneficial in the browser,
+        // but can change SSR module evaluation order in Cloudflare Workers.
+        // Keep the existing vendor groups while disabling only this group
+        // for non-client environments. Never sacrifice server correctness to
+        // get a smaller browser download.
+        name: "solaris-client-only-shared-cross-route",
+        configEnvironment(name, options) {
+          if (name === "client") return;
+          const output = options.build?.rolldownOptions?.output;
+          if (!output || Array.isArray(output)) return;
+          const splitting = output.codeSplitting;
+          if (!splitting || typeof splitting !== "object") return;
+          splitting.groups = splitting.groups?.filter(
+            (group) => group.name !== "shared-cross-route",
+          );
+        },
+      },
+    ],
     resolve: {
       // Broadcast uses only canvas-confetti's one-shot default function. Keep
       // that narrow decorative effect local instead of shipping the general
@@ -25,6 +45,8 @@ export default defineConfig({
     build: {
       rolldownOptions: {
         output: {
+          // Shorten private module bindings without changing export signatures.
+          minify: { compress: true, mangle: { toplevel: true } },
           // Production evidence showed repeated gzip framing across hundreds of
           // tiny Lucide chunks and several TanStack Router helper chunks. Keep
           // package behavior unchanged while consolidating only those vendor
@@ -93,6 +115,20 @@ export default defineConfig({
                 minSize: 5000,
                 priority: 1,
               },
+              // Reused public-browser presentation primitives are shared across
+              // the section rails, hubs and data explorers. Consolidate only
+              // components referenced from multiple route chunks; preserve
+              // route-only modules and installed-app boundaries.
+              {
+                name: "shared-cross-page-primitives",
+                // Preserve existing app, control, Organizer and V3 shell
+                // boundaries. Only reused cross-page presentation modules
+                // can join the group; route-specific modules remain lazy.
+                test: /[\\/]src[\\/]components[\\/](?!(?:app|ui|admin|v3)[\\/])/,
+                minShareCount: 2,
+                minSize: 5000,
+                priority: 1,
+              },
               // Reused client-only domain modules were each carrying separate
               // chunk wrappers and gzip framing. Combine only modules actually
               // shared by multiple lazy entrypoints; preserve route-local code.
@@ -102,6 +138,15 @@ export default defineConfig({
                 minShareCount: 2,
                 minSize: 5000,
                 priority: 1,
+              },
+              // Bound modules shared by multiple lazy routes. Route-only code
+              // stays lazy; this also avoids oversized single JS downloads.
+              {
+                name: "shared-cross-route",
+                minShareCount: 2,
+                minSize: 10000,
+                maxSize: 800000,
+                priority: -1,
               },
             ],
           },

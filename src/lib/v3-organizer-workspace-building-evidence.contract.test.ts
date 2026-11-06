@@ -87,9 +87,11 @@ describe("V3 Organizer implemented workspace building evidence", () => {
 
   it("keeps failed-delivery retry on the canonical operation receipt path", () => {
     expect(systemOperations).toContain('command: "system.push.retry_failed"');
-    expect(systemOperations).toContain("p_operation_id: operationId");
-    expect(systemOperations).toContain("p_idempotency_key: idempotencyKey");
-    expect(systemOperations).toContain("resolveSolarisV6OperationRecovery");
+    const retryAdapter = readFileSync("src/lib/v3-organizer-delivery-retry.ts", "utf8");
+    expect(systemOperations).toContain("retryFailedDeliveryWithReconciliation");
+    expect(retryAdapter).toContain("p_operation_id: input.identity.operationId");
+    expect(retryAdapter).toContain("p_idempotency_key: input.identity.idempotencyKey");
+    expect(retryAdapter).toContain("resolveSolarisV6OperationRecovery");
     expect(operationContract).toContain("private.studio2_claim_operation(");
     expect(operationContract).toContain("'system.push.retry_failed'");
     expect(operationContract).toContain("private.studio2_complete_operation(v_operation_id, v_result)");

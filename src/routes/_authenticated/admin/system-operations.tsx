@@ -27,6 +27,7 @@ import {
   reconcileDeliveryRetry,
   retryFailedDeliveryWithReconciliation,
   type DeliveryRetryIdentity,
+  type DeliveryRetryRpcClient,
   type DeliveryRetryOutcome,
 } from "@/lib/v3-organizer-delivery-retry";
 
@@ -178,10 +179,10 @@ function SystemOperationsPage() {
           "The production database does not yet support System Operations.",
         );
       }
-      return retryFailedDeliveryWithReconciliation({
-        deliveryId,
-        identity: { operationId, idempotencyKey },
-      });
+      return retryFailedDeliveryWithReconciliation(
+        { deliveryId, identity: { operationId, idempotencyKey } },
+        supabase as unknown as DeliveryRetryRpcClient,
+      );
     },
     onSuccess: async (outcome, variables) => {
       await applyRetryOutcome(variables.actorIdAtRequest, variables.deliveryId, outcome);
@@ -208,11 +209,10 @@ function SystemOperationsPage() {
           "The production database does not yet support System Operations.",
         );
       }
-      return reconcileDeliveryRetry({
-        deliveryId,
-        operationId,
-        recovery: outcome.recovery,
-      });
+      return reconcileDeliveryRetry(
+        { deliveryId, operationId, recovery: outcome.recovery },
+        supabase as unknown as DeliveryRetryRpcClient,
+      );
     },
     onSuccess: async (outcome, variables) => {
       await applyRetryOutcome(variables.actorIdAtRequest, variables.deliveryId, outcome);
