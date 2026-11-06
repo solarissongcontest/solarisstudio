@@ -528,10 +528,11 @@ function CountryAccountsAdminPage() {
                 <p className="text-xs leading-5 text-muted-foreground">
                   Organizer refreshes the account directory immediately before the first apply and
                   refuses the change if the exact country, owner email, access state, suspension
-                  reason or account revision changed while this review was open. The canonical R2
-                  command then repeats exact user + country scope and applies only when this reviewed
-                  account revision still matches. If transport and reconciliation both become
-                  unavailable, this review keeps the same operation identity for the retry.
+                  reason or account revision changed while this review was open. The canonical R2 command
+                  repeats exact user + country scope and applies only when this reviewed account
+                  revision still matches. If transport and reconciliation both become unavailable,
+                  this review keeps the frozen identity and reconciles the same operation receipt
+                  rather than creating a second access change.
                 </p>
               )}
             </div>
