@@ -17,6 +17,13 @@ export type PredictionRoundSaveReview = PredictionRoundWrite & {
   idempotencyKey: string;
 };
 
+export type PredictionRoundDeleteReview = {
+  roundId: string;
+  expectedRoundVersion: number;
+  operationId: string;
+  idempotencyKey: string;
+};
+
 export type PredictionScoreReview = {
   roundId: string;
   expectedScoreRevision: number;
@@ -28,6 +35,15 @@ export async function previewPredictionRoundSave(showId: string) {
   const { data, error } = await (supabase as any).rpc(
     "studio2_prediction_round_config_preview",
     { p_show_id: showId },
+  );
+  if (error) throw error;
+  return data as { roundVersion: number };
+}
+
+export async function previewPredictionRoundDelete(roundId: string) {
+  const { data, error } = await (supabase as any).rpc(
+    "studio2_prediction_round_delete_preview",
+    { p_round_id: roundId },
   );
   if (error) throw error;
   return data as { roundVersion: number };
@@ -49,6 +65,17 @@ export async function applyReviewedPredictionRound(review: PredictionRoundSaveRe
     p_status: review.status,
     p_prediction_types: review.prediction_types,
     p_consensus_minimum: review.consensus_minimum,
+    p_operation_id: review.operationId,
+    p_idempotency_key: review.idempotencyKey,
+    p_expected_round_version: review.expectedRoundVersion,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function applyReviewedPredictionRoundDelete(review: PredictionRoundDeleteReview) {
+  const { data, error } = await (supabase as any).rpc("studio2_delete_prediction_round", {
+    p_round_id: review.roundId,
     p_operation_id: review.operationId,
     p_idempotency_key: review.idempotencyKey,
     p_expected_round_version: review.expectedRoundVersion,

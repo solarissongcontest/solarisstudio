@@ -13,13 +13,16 @@ import {
 } from "@/components/admin/AdminUI";
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { editionLabel, useEditions, useIsOrganizer, useShows } from "@/lib/data";
-import { type PredictionRound, useDeletePredictionRound } from "@/lib/prediction-data";
+import { type PredictionRound } from "@/lib/prediction-data";
 import { useOrganizerPredictionRoundsForShows } from "@/lib/v3-organizer-prediction-data";
 import {
+  previewPredictionRoundDelete,
   previewPredictionRoundSave,
   previewPredictionScore,
   useApplyReviewedPredictionRound,
+  useApplyReviewedPredictionRoundDelete,
   useApplyReviewedPredictionScore,
+  type PredictionRoundDeleteReview,
   type PredictionRoundSaveReview,
   type PredictionScoreReview,
 } from "@/lib/v3-organizer-prediction-operations";
@@ -57,6 +60,21 @@ type PendingSaveReview = {
   operation: PredictionRoundSaveReview;
 };
 
+type PendingDeleteReview = {
+  editionId: string;
+  editionLabel: string;
+  showId: string;
+  showName: string;
+  roundId: string;
+  roundStatus: PredictionRound["status"];
+  roundFingerprint: string;
+  opensAt: string;
+  locksAt: string;
+  predictionTypes: PredictionType[];
+  consensusMinimum: number;
+  operation: PredictionRoundDeleteReview;
+};
+
 type PendingScoreReview = {
   editionId: string;
   editionLabel: string;
@@ -86,6 +104,18 @@ function defaultForm(): FormState {
   };
 }
 
+function predictionRoundFingerprint(round: PredictionRound) {
+  return JSON.stringify({
+    id: round.id,
+    showId: round.show_id,
+    opensAt: round.opens_at,
+    locksAt: round.locks_at,
+    status: round.status,
+    predictionTypes: round.prediction_types,
+    consensusMinimum: round.consensus_minimum,
+  });
+}
+
 function PredictionRoundAdmin() {
   const { editionId } = useAdminContext();
   const { data: isOrganizer } = useIsOrganizer();
@@ -102,13 +132,13 @@ function PredictionRoundAdmin() {
   const showIds = useMemo(() => sortedShows.map((show) => show.id), [sortedShows]);
   const { data: roundData, isLoading: roundsLoading } = useOrganizerPredictionRoundsForShows(showIds, true);
   const applyRound = useApplyReviewedPredictionRound();
-  const deleteRound = useDeletePredictionRound();
+  const applyDelete = useApplyReviewedPredictionRoundDelete();
   const applyScore = useApplyReviewedPredictionScore();
   const [form, setForm] = useState<FormState>(() => defaultForm());
   const [message, setMessage] = useState<string | null>(null);
-  const [deleteOpen, setDeleteOpen] = useState(false);
   const [reviewBusy, setReviewBusy] = useState(false);
   const [pendingSaveReview, setPendingSaveReview] = useState<PendingSaveReview | null>(null);
+  const [pendingDeleteReview, setPendingDeleteReview] = useState<PendingDeleteReview | null>(null);
   const [pendingScoreReview, setPendingScoreReview] = useState<PendingScoreReview | null>(null);
 
   const roundByShow = useMemo(
@@ -120,8 +150,8 @@ function PredictionRoundAdmin() {
 
   useEffect(() => {
     setForm(defaultForm());
-    setDeleteOpen(false);
     setPendingSaveReview(null);
+    setPendingDeleteReview(null);
     setPendingScoreReview(null);
     setMessage(null);
   }, [activeEdition?.id]);
@@ -252,21 +282,72 @@ function PredictionRoundAdmin() {
     }
   };
 
-  const remove = async () => {
-    if (!selectedRound) return;
+  const reviewDelete = async () => {
+    if (!selectedRound || !activeEdition || !selectedShow) return;
     setMessage(null);
     const scopeError = assertExactSelection();
     if (scopeError) {
-      setDeleteOpen(false);
       setMessage(scopeError);
       return;
     }
+    if (selectedRound.status !== "draft") {
+      setMessage("Only a draft prediction round can be deleted. Cancel an active or historical round instead.");
+      return;
+    }
+
+    setReviewBusy(true);
     try {
-      await deleteRound.mutateAsync(selectedRound.id);
-      setMessage("Draft prediction round deleted.");
-      setDeleteOpen(false);
+      const preview = await previewPredictionRoundDelete(selectedRound.id);
+      const operationId = crypto.randomUUID();
+      setPendingDeleteReview({
+        editionId: activeEdition.id,
+        editionLabel: editionLabel(activeEdition),
+        showId: selectedShow.id,
+        showName: selectedShow.name,
+        roundId: selectedRound.id,
+        roundStatus: selectedRound.status,
+        roundFingerprint: predictionRoundFingerprint(selectedRound),
+        opensAt: selectedRound.opens_at,
+        locksAt: selectedRound.locks_at,
+        predictionTypes: [...selectedRound.prediction_types],
+        consensusMinimum: selectedRound.consensus_minimum,
+        operation: {
+          roundId: selectedRound.id,
+          expectedRoundVersion: preview.roundVersion,
+          operationId,
+          idempotencyKey: `prediction-round-delete:${operationId}`,
+        },
+      });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "A round with saved entries cannot be deleted; cancel it instead.");
+      setMessage(error instanceof Error ? error.message : "Prediction round deletion review could not be prepared.");
+    } finally {
+      setReviewBusy(false);
+    }
+  };
+
+  const applyDeleteReview = async () => {
+    if (!pendingDeleteReview) return;
+    setMessage(null);
+    const scopeError = assertExactSelection();
+    if (
+      scopeError ||
+      editionId !== pendingDeleteReview.editionId ||
+      selectedShow?.id !== pendingDeleteReview.showId ||
+      selectedRound?.id !== pendingDeleteReview.roundId ||
+      selectedRound.status !== pendingDeleteReview.roundStatus ||
+      predictionRoundFingerprint(selectedRound) !== pendingDeleteReview.roundFingerprint
+    ) {
+      setPendingDeleteReview(null);
+      setMessage(scopeError ?? "Prediction round state changed while deletion was being reviewed. Nothing was deleted; prepare a new review from the current draft.");
+      return;
+    }
+
+    try {
+      await applyDelete.mutateAsync(pendingDeleteReview.operation);
+      setPendingDeleteReview(null);
+      setMessage("Reviewed draft prediction round deleted.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "The delete outcome could not be confirmed. The same reviewed operation remains open; do not start a second deletion identity.");
     }
   };
 
@@ -365,7 +446,7 @@ function PredictionRoundAdmin() {
 
           <AdminCard>
             <AdminCardHeader eyebrow="Show" title={selectedShow?.name ?? "Choose a show"} description={selectedRound ? `Prediction round · ${humanize(selectedRound.status)}` : "No prediction round exists for this show yet."} action={selectedRound ? <AdminStatus tone={selectedRound.status === "open" ? "ready" : selectedRound.status === "cancelled" ? "blocked" : selectedRound.status === "scored" ? "info" : "neutral"}>{humanize(selectedRound.status)}</AdminStatus> : <AdminStatus tone="neutral">Not configured</AdminStatus>} />
-            <select value={form.showId} onChange={(event) => { setMessage(null); setPendingSaveReview(null); setPendingScoreReview(null); setForm((current) => ({ ...current, showId: event.target.value })); }} className="min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30">
+            <select value={form.showId} onChange={(event) => { setMessage(null); setPendingSaveReview(null); setPendingDeleteReview(null); setPendingScoreReview(null); setForm((current) => ({ ...current, showId: event.target.value })); }} className="min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30">
               {sortedShows.map((show) => <option key={show.id} value={show.id}>{show.name}{roundByShow.get(show.id) ? ` · ${humanize(roundByShow.get(show.id)!.status)}` : " · no round"}</option>)}
             </select>
           </AdminCard>
@@ -391,7 +472,7 @@ function PredictionRoundAdmin() {
                 <div className="admin-sticky-actions"><button type="submit" disabled={reviewBusy || applyRound.isPending || !selectedShow} className="admin-action-primary w-full">{reviewBusy ? "Preparing review…" : "Review prediction round"}</button></div>
               </form>
 
-              {selectedRound ? <div className="mt-4 flex flex-col gap-2 border-t border-white/[0.07] pt-4 sm:flex-row"><button type="button" onClick={() => void reviewScore()} disabled={reviewBusy || applyScore.isPending || Date.now() < new Date(selectedRound.locks_at).getTime()} className="admin-action-secondary flex-1">{reviewBusy ? "Preparing review…" : applyScore.isPending ? "Scoring…" : "Review scoring"}</button>{selectedRound.status === "draft" ? <button type="button" onClick={() => setDeleteOpen(true)} disabled={deleteRound.isPending} className="admin-action-danger"><Trash2 className="size-4" /> Delete draft</button> : null}</div> : null}
+              {selectedRound ? <div className="mt-4 flex flex-col gap-2 border-t border-white/[0.07] pt-4 sm:flex-row"><button type="button" onClick={() => void reviewScore()} disabled={reviewBusy || applyScore.isPending || Date.now() < new Date(selectedRound.locks_at).getTime()} className="admin-action-secondary flex-1">{reviewBusy ? "Preparing review…" : applyScore.isPending ? "Scoring…" : "Review scoring"}</button>{selectedRound.status === "draft" ? <button type="button" onClick={() => void reviewDelete()} disabled={reviewBusy || applyDelete.isPending} className="admin-action-danger"><Trash2 className="size-4" /> Review draft deletion</button> : null}</div> : null}
             </AdminCard>
           )}
         </>
@@ -411,6 +492,19 @@ function PredictionRoundAdmin() {
       />
 
       <AdminConfirmSheet
+        open={Boolean(pendingDeleteReview)}
+        onClose={() => !applyDelete.isPending && setPendingDeleteReview(null)}
+        onConfirm={applyDeleteReview}
+        title="Delete reviewed Prediction draft?"
+        description={pendingDeleteReview ? <div className="space-y-3 text-sm leading-6" data-v3-organizer-prediction-delete-review><p>Delete the exact draft for <strong className="text-foreground">{pendingDeleteReview.showName}</strong> in {pendingDeleteReview.editionLabel}.</p><div className="grid gap-2 sm:grid-cols-2"><ReviewFact label="Round status" value={humanize(pendingDeleteReview.roundStatus)} /><ReviewFact label="System revision" value={`v${pendingDeleteReview.operation.expectedRoundVersion}`} /><ReviewFact label="Opens" value={new Date(pendingDeleteReview.opensAt).toLocaleString()} /><ReviewFact label="Locks" value={new Date(pendingDeleteReview.locksAt).toLocaleString()} /><ReviewFact label="Prediction types" value={pendingDeleteReview.predictionTypes.map(humanize).join(", ")} /><ReviewFact label="Consensus minimum" value={String(pendingDeleteReview.consensusMinimum)} /></div><div className="rounded-xl border border-rose-200/15 bg-rose-200/[0.04] p-3"><p className="font-semibold text-foreground">Consequence</p><p className="mt-1 text-xs text-muted-foreground">This permanently removes this draft Prediction round. The authoritative command refuses deletion if protected player-entry evidence exists; an active or historical round must be cancelled instead.</p></div><p className="text-xs text-muted-foreground">The server revision and one operation/idempotency identity were frozen before this sheet opened. Any visible round drift closes this review, while the server rechecks the reviewed revision at commit.</p></div> : "Review the exact Prediction draft deletion."}
+        confirmLabel="Delete reviewed draft"
+        confirmationText={pendingDeleteReview?.showName}
+        confirmationHint={pendingDeleteReview ? `Type ${pendingDeleteReview.showName} to confirm permanent draft deletion` : undefined}
+        busy={applyDelete.isPending}
+        danger
+      />
+
+      <AdminConfirmSheet
         open={Boolean(pendingScoreReview)}
         onClose={() => !applyScore.isPending && setPendingScoreReview(null)}
         onConfirm={applyScoreReview}
@@ -422,8 +516,6 @@ function PredictionRoundAdmin() {
         busy={applyScore.isPending}
         danger
       />
-
-      <AdminConfirmSheet open={deleteOpen} onClose={() => !deleteRound.isPending && setDeleteOpen(false)} onConfirm={remove} title={`Delete ${selectedShow?.name ?? "prediction"} draft?`} description="This removes the draft prediction round. A round with saved player entries cannot be deleted and must be cancelled instead." confirmLabel="Delete draft" busy={deleteRound.isPending} danger />
     </AdminPage>
   );
 }
