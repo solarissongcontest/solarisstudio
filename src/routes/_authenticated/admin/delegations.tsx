@@ -24,6 +24,7 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { loadConfirmationRequirements } from "@/integrations/confirmations/admin";
+import { useAdminContext } from "@/components/admin/AdminContext";
 import { selectOrganizerEdition } from "@/lib/admin-edition-selection";
 import { verifyOrganizerConfirmationRead } from "@/integrations/confirmations/organizer-confirmation-read-authorization";
 import { editionLabel, useEditions } from "@/lib/data";
@@ -40,6 +41,7 @@ export const Route = createFileRoute("/_authenticated/admin/delegations")({
 });
 
 function OrganizerDelegationsPage() {
+  const { editionId, setEditionContext } = useAdminContext();
   const { id: actorId } = useAuthenticatedUser();
   const editionsQuery = useEditions();
   // The shared selector currently synthesizes a newest-edition fallback.
@@ -47,11 +49,14 @@ function OrganizerDelegationsPage() {
   // choice to the signed-in actor to avoid cross-account scope carryover.
   const [explicitChoice, setExplicitChoice] = useState<{ actorId: string; editionId: string } | null>(null);
   const explicitEditionId = explicitChoice?.actorId === actorId ? explicitChoice.editionId : "";
+  // Never hand off an edition-specific Confirmation link if NAV scope moved
+  // since the deliberate selection. A mismatch must be resolved explicitly.
+  const verifiedChoiceId = explicitEditionId && editionId === explicitEditionId ? explicitEditionId : "";
   // A failed refresh may retain cached edition rows. Those rows must not
   // authorize another private Confirmation request after verification fails.
   const selectedEdition =
     editionsQuery.isSuccess && !editionsQuery.error && !editionsQuery.isFetching
-      ? selectOrganizerEdition(editionsQuery.data ?? [], explicitEditionId)
+      ? selectOrganizerEdition(editionsQuery.data ?? [], verifiedChoiceId)
       : null;
   const resolvedEditionId = selectedEdition?.id ?? "";
   const selectedEditionLabel = selectedEdition ? editionLabel(selectedEdition) : null;
@@ -120,10 +125,14 @@ function OrganizerDelegationsPage() {
           </span>
           <select
             className="admin-input"
-            value={explicitEditionId}
+            value={verifiedChoiceId}
             disabled={!editionsQuery.isSuccess || Boolean(editionsQuery.error) || editionsQuery.isFetching}
             onChange={(event) => {
-              setExplicitChoice(event.target.value ? { actorId, editionId: event.target.value } : null);
+              const choice = (editionsQuery.data ?? []).find((edition) => edition.id === event.target.value);
+              setExplicitChoice(choice ? { actorId, editionId: choice.id } : null);
+              if (choice) {
+                setEditionContext({ id: choice.id, slug: choice.slug, label: editionLabel(choice) });
+              }
               setAttentionSearch("");
             }}
           >
@@ -136,7 +145,7 @@ function OrganizerDelegationsPage() {
             ))}
           </select>
           <span className="text-xs text-muted-foreground">
-            No edition is inferred from the Organizer shell. Private Confirmation obligations load only after you select an edition and its capability is verified.
+            No edition is inferred from the Organizer shell. The selected edition also scopes the linked Confirmation workspaces. Private obligations load only after your selection and its capability are verified.
           </span>
         </label>
       </AdminCard>
