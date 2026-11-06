@@ -38,7 +38,7 @@ Both manifest and original source are mandatory, and the actual source bytes mus
 }
 ```
 
-If title/sponsor/full text is known, provide the respective exact `title`, `sponsor`, `fullText` **plus** `titleSourceLocator`, `sponsorSourceLocator`, `fullTextSourceLocator`. Unknown outcomes must be explicit `null` or omitted; never infer outcome or sponsor from an abbreviation. An unavailable full text must remain absent/null. Exact identifiers are preserved; Unicode/case-equivalent collisions, extra fields, untraceable metadata and contradictory text states fail.
+If a historical **outcome** is known, provide both `outcome` and its precise `outcomeSourceLocator`; otherwise leave both null/omitted. If title/sponsor/full text is known, provide the respective exact `title`, `sponsor`, `fullText` **plus** `titleSourceLocator`, `sponsorSourceLocator`, `fullTextSourceLocator`. Do not infer outcome, title or sponsor from an abbreviation. An unavailable full text must remain absent/null. Verified full text can contain original paragraph breaks (`\\n`), carriage returns (`\\r`) and tabs (`\\t`), and must not be flattened or trimmed. Unverified control characters (such as NUL), whitespace-only documents, and unsourced metadata are rejected. Exact identifiers are preserved; Unicode/case-equivalent collisions, extra fields and contradictory text states fail.
 
 Limits: 2 MiB manifest, 32 MiB documentary file, 5,000 records. A report records checked source digest, manifest digest, source locators, known outcomes and factual presence flags without copying document body text into logs. Preflight does **not** verify historical truth beyond consistency with the submitted source bytes; a human must check the source and locator.
 
