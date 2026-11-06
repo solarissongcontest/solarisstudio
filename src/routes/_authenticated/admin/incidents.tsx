@@ -61,6 +61,16 @@ type IncidentSearch = {
   incident?: string;
 };
 
+type IncidentCreateCommand = {
+  editionId: string;
+  editionLabel: string;
+  title: string;
+  severity: IncidentSeverity;
+  category: IncidentCategory;
+  description: string;
+  affectedSystems: string[];
+};
+
 type PendingIncidentReview = {
   kind: 'crisis' | 'severity' | 'transition' | 'resolve';
   value?: string;
@@ -94,11 +104,12 @@ function IncidentCommandPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const qc = useQueryClient();
-  const { editionId } = useAdminContext();
+  const { editionId, editionLabel } = useAdminContext();
   const editionsQuery = useEditions();
   const editions = editionsQuery.data ?? [];
   const edition = selectOrganizerEdition(editions, editionId);
   const resolvedEditionId = edition?.id ?? '';
+  const resolvedEditionLabel = editionLabel ?? edition?.name ?? 'Selected edition';
 
   const [createOpen, setCreateOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -106,6 +117,7 @@ function IncidentCommandPage() {
   const [category, setCategory] = useState<IncidentCategory>('technical');
   const [description, setDescription] = useState('');
   const [systems, setSystems] = useState('');
+  const [pendingCreateReview, setPendingCreateReview] = useState<IncidentCreateCommand | null>(null);
 
   const featureQuery = useQuery({
     queryKey: ['studio2-incident-command-flag', resolvedEditionId || 'none'],
@@ -138,25 +150,53 @@ function IncidentCommandPage() {
   };
 
   const createIncident = useMutation({
-    mutationFn: () => {
-      if (!resolvedEditionId) {
-        throw new Error('Choose an edition before opening an incident.');
+    mutationFn: (command: IncidentCreateCommand) => {
+      if (
+        !editionId ||
+        !resolvedEditionId ||
+        command.editionId !== editionId ||
+        command.editionId !== resolvedEditionId
+      ) {
+        throw Object.assign(
+          new Error('Edition context changed before the incident was opened. Reload Incident Command before retrying.'),
+          { status: 409 },
+        );
       }
       return studio2Persistence.createIncidentFull({
-        editionId: resolvedEditionId,
-        title: title.trim(),
-        severity,
-        category,
-        description: description.trim(),
-        affectedSystems: parseSystems(systems),
+        editionId: command.editionId,
+        title: command.title,
+        severity: command.severity,
+        category: command.category,
+        description: command.description,
+        affectedSystems: command.affectedSystems,
       });
     },
     onSuccess: async (incident) => {
+      setPendingCreateReview(null);
       setTitle(''); setDescription(''); setSystems(''); setSeverity('sev3'); setCategory('technical'); setCreateOpen(false);
       await invalidate();
       void navigate({ search: { ...search, incident: incident.id }, replace: true });
     },
+    onError: () => setPendingCreateReview(null),
   });
+
+  const openIncident = () => {
+    if (!resolvedEditionId || !editionId || !title.trim()) return;
+    const command: IncidentCreateCommand = {
+      editionId: resolvedEditionId,
+      editionLabel: resolvedEditionLabel,
+      title: title.trim(),
+      severity,
+      category,
+      description: description.trim(),
+      affectedSystems: parseSystems(systems),
+    };
+    if (severity === 'sev1') {
+      setPendingCreateReview(command);
+      return;
+    }
+    createIncident.mutate(command);
+  };
 
   const model = useMemo(() => buildIncidentCommandModel(incidentsQuery.data ?? []), [incidentsQuery.data]);
   const filtered = useMemo(() => filterStudio2Incidents(model.incidents, {
@@ -227,7 +267,7 @@ function IncidentCommandPage() {
                 </div>
                 {createIncident.error ? <p className="mt-3 text-sm text-rose-200">{errorText(createIncident.error)}</p> : null}
                 <div className="mt-4 flex gap-2">
-                  <button type="button" disabled={!title.trim() || createIncident.isPending} onClick={() => createIncident.mutate()} className="admin-action-primary disabled:opacity-50">Open incident</button>
+                  <button type="button" disabled={!title.trim() || createIncident.isPending} onClick={openIncident} className="admin-action-primary disabled:opacity-50">{severity === 'sev1' ? 'Review SEV-1 incident' : 'Open incident'}</button>
                   <button type="button" onClick={() => setCreateOpen(false)} className="admin-action-secondary">Cancel</button>
                 </div>
               </AdminCard>
@@ -251,6 +291,35 @@ function IncidentCommandPage() {
           </>
         )}
       </div>
+
+      <AdminConfirmSheet
+        open={Boolean(pendingCreateReview)}
+        onClose={() => {
+          if (!createIncident.isPending) setPendingCreateReview(null);
+        }}
+        onConfirm={async () => {
+          if (!pendingCreateReview) return;
+          await createIncident.mutateAsync(pendingCreateReview);
+        }}
+        title={pendingCreateReview ? `Open “${pendingCreateReview.title}” as SEV-1?` : 'Review SEV-1 incident'}
+        description={pendingCreateReview ? (
+          <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+              <p className="font-semibold text-foreground">{pendingCreateReview.editionLabel} · {pendingCreateReview.title}</p>
+              <p className="mt-1">{incidentSeverityLabel(pendingCreateReview.severity)} · {humanize(pendingCreateReview.category)}</p>
+              <p className="mt-1">Edition ID: <span className="font-mono text-foreground">{pendingCreateReview.editionId}</span></p>
+              {pendingCreateReview.affectedSystems.length ? <p className="mt-2">Affected systems: {pendingCreateReview.affectedSystems.join(', ')}</p> : null}
+            </div>
+            <p>Opening an unresolved SEV-1 incident immediately activates crisis treatment in Incident Command and a persistent crisis warning in Control Room until the incident is resolved.</p>
+            <p>The reviewed Edition and incident payload are frozen now. Solaris rechecks the shell Edition immediately before the server-authorized create and refuses the command if context changed.</p>
+          </div>
+        ) : null}
+        confirmLabel="Open SEV-1 incident"
+        confirmationText={pendingCreateReview?.title}
+        confirmationHint={pendingCreateReview ? `Type ${pendingCreateReview.title} exactly to confirm this SEV-1 incident` : undefined}
+        busy={createIncident.isPending}
+        danger
+      />
 
       <IncidentDetailSheet
         incident={selected}

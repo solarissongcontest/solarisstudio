@@ -1,5 +1,4 @@
-import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
-import { televotingAdmin } from "@/integrations/televoting/client.server";
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 
 export type MergedTelevotingEditionLink = {
   solaris_id: string;
@@ -32,8 +31,13 @@ async function solarisDb() {
 export async function listMergedTelevotingEditionLinksServer(): Promise<
   MergedTelevotingEditionLink[]
 > {
-  await requireMergedTelevotingAdminServer();
-  const db = await solarisDb();
+  // Diagnostics span editions and must be capability-checked before either
+  // service-role client can be imported, never merely Organizer-role checked.
+  await requireSolarisCapabilityServer("voting.read", null);
+  const [db, { televotingAdmin }] = await Promise.all([
+    solarisDb(),
+    import("@/integrations/televoting/client.server"),
+  ]);
 
   const [solarisResult, linkResult, remoteResult] = await Promise.all([
     db

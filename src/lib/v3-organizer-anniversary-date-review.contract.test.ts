@@ -30,26 +30,23 @@ describe("V3 Organizer anniversary date review boundary", () => {
   });
 
   it("re-reads exact edition state immediately before apply and fails closed on drift", () => {
-    expect(route).toContain('.select("id, edition_number, name, event_date, year")');
+    expect(route).toContain('.select("id,edition_number,name,event_date,year,data_revision")');
     expect(route).toContain('(live.event_date ?? null) !== pendingReview.baselineDate');
     expect(route).toContain('(live.year ?? null) !== pendingReview.baselineYear');
     expect(route).toContain("changed while this review was open. Nothing was changed");
     expect(route).toContain('await qc.invalidateQueries({ queryKey: ["editions"] })');
   });
 
-  it("guards the legacy write against a race after the live read", () => {
-    expect(route).toContain('update.eq("event_date", pendingReview.baselineDate)');
-    expect(route).toContain('update.is("event_date", null)');
-    expect(route).toContain('update.eq("year", pendingReview.baselineYear)');
-    expect(route).toContain('update.is("year", null)');
-    expect(route).toContain('update.select("id").maybeSingle()');
-    expect(route).toContain("changed immediately before apply, so the reviewed date was not written");
+  it("uses the governed exact reviewed revision instead of raw table DML", () => {
+    expect(route).toContain("applyEditionMetadataChange({");
+    expect(route).toContain("expectedRevision: pendingReview.baselineRevision");
+    expect(route).toContain("Number(live.data_revision) !== pendingReview.baselineRevision");
+    expect(route).not.toContain('.update({');
+    expect(route).toContain("receipt.edition.data_revision");
   });
 
-  it("states the remaining System authority gap instead of claiming parity", () => {
-    expect(route).toContain("System #633 still owns the canonical versioned, idempotent");
-    expect(route).toContain("durable operation receipt");
-    expect(route).toContain("legacy table write");
-    expect(route).toContain("does not claim that parity");
+  it("keeps the larger edition writer cutover distinct from this command", () => {
+    expect(route).toContain("System #633");
+    expect(route).toContain("broader edition writer cutover remains incomplete");
   });
 });
