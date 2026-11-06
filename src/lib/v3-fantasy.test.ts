@@ -5,6 +5,7 @@ import {
   canShowV3FantasyTeamScore,
   fantasyBudgetUsed,
   fantasyRosterReady,
+  normalizeV3FantasyStandings,
   resolveV3FantasyState,
   restoreV3FantasyRoster,
   shouldRestoreV3FantasyRoster,
@@ -97,4 +98,41 @@ describe("V3 Fantasy projection", () => {
     expect(canEditV3FantasyRoster("live_scoring")).toBe(false);
     expect(canEditV3FantasyRoster("settled")).toBe(false);
   });
+  it("accepts valid versioned standings including tied ranks, numeric strings and zero points", () => {
+    const rows = [
+      { profileId: "fan-a", displayName: "Fan A", score: "26.50", position: "1" },
+      { profileId: "fan-b", displayName: "Fan B", score: 26.5, position: 1 },
+      { profileId: "fan-c", displayName: "Fan C", score: 0, position: 3 },
+    ];
+    expect(normalizeV3FantasyStandings(rows)).toEqual([
+      { profileId: "fan-a", displayName: "Fan A", score: 26.5, position: 1 },
+      { profileId: "fan-b", displayName: "Fan B", score: 26.5, position: 1 },
+      { profileId: "fan-c", displayName: "Fan C", score: 0, position: 3 },
+    ]);
+    expect(normalizeV3FantasyStandings([])).toEqual([]);
+  });
+
+  it("fails the entire standings projection closed when a ranking or identity is malformed", () => {
+    const good = { profileId: "fan-a", displayName: "Fan A", score: 24, position: 1 };
+    const malformed: unknown[] = [
+      null, undefined, {}, "unexpected", [good],
+      { ...good, score: "NaN" },
+      { ...good, score: "Infinity" },
+      { ...good, score: "0x10" },
+      { ...good, score: "" },
+      { ...good, score: -1 },
+      { ...good, score: Number.POSITIVE_INFINITY },
+      { ...good, position: 0 },
+      { ...good, position: "1.5" },
+      { ...good, position: Number.NaN },
+      { ...good, profileId: "" },
+      { ...good, displayName: "   " },
+    ];
+    for (const row of malformed) {
+      expect(() => normalizeV3FantasyStandings([good, row])).toThrow();
+    }
+    expect(() => normalizeV3FantasyStandings({ rows: [] })).toThrow();
+    expect(() => normalizeV3FantasyStandings([good, { ...good }])).toThrow();
+  });
+
 });
