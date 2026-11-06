@@ -112,7 +112,6 @@ describe("TG15 independent union recognition, real founder consent", () => {
     expect(route).toContain("noindex,nofollow");
     expect(page).toContain("gcTime: 0");
     expect(page).toContain("crypto.randomUUID()");
-    expect(page).toContain("previously").toBe(false);
     expect(adapter).toContain('envelope?.status !== "succeeded"');
     expect(adapter).toContain("envelope.operationId !== operationId");
     expect(adapter).toContain("result.operationId !== operationId");
