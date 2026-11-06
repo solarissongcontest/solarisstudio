@@ -88,8 +88,29 @@ create table private.world_space_access_grants (
   history_from timestamptz,
   updated_by uuid references auth.users(id) on delete set null,
   updated_at timestamptz not null default now(),
+  revision bigint not null default 1 check (revision >= 1),
   primary key (space_id, user_id),
   check (ends_at is null or ends_at > starts_at)
+);
+
+-- Durable role/invitation changes and idempotent replay receipts. The audit
+-- never leaves the private schema or public Archive.
+create table private.world_space_grant_audit (
+  id uuid primary key default gen_random_uuid(),
+  space_id uuid not null references public.world_spaces(id) on delete restrict,
+  target_user_id uuid not null references auth.users(id) on delete restrict,
+  actor_user_id uuid not null references auth.users(id) on delete restrict,
+  request_id uuid not null,
+  payload_fingerprint text not null,
+  prior_revision bigint not null,
+  new_revision bigint not null,
+  prior_role text,
+  new_role text,
+  previous_active boolean not null,
+  new_active boolean not null,
+  history_from timestamptz,
+  changed_at timestamptz not null default now(),
+  unique (actor_user_id, request_id)
 );
 
 create table private.world_space_messages (
@@ -145,12 +166,14 @@ create table private.world_space_attachments (
 
 alter table public.world_spaces enable row level security;
 alter table private.world_space_access_grants enable row level security;
+alter table private.world_space_grant_audit enable row level security;
 alter table private.world_space_messages enable row level security;
 alter table private.world_space_message_revisions enable row level security;
 alter table private.world_space_reactions enable row level security;
 alter table private.world_space_attachments enable row level security;
 
 revoke all on table public.world_spaces, private.world_space_access_grants,
+  private.world_space_grant_audit,
   private.world_space_messages, private.world_space_message_revisions,
   private.world_space_reactions, private.world_space_attachments
   from public, anon, authenticated;
@@ -163,35 +186,42 @@ revoke all on sequence private.world_space_message_revisions_id_seq from service
 
 -- Canonical live TG2 memberships are essential; former or suspended members
 -- and future-dated representatives cannot use an old room URL or saved token.
-create function private.world_space_member_since_v1(p_organization_id uuid)
-returns timestamptz
-language sql stable security definer set search_path = pg_catalog
-as $$
+-- A target-aware effective-date resolver supports both access checks and
+-- manager invitations. It deliberately consumes canonical TG2 authorities.
+-- Its parametric form is PRIVATE, never invocable by browser roles.
+create function private.world_space_member_since_for_v1(
+  p_organization_id uuid, p_user_id uuid
+)
+returns timestamptz language sql stable security definer set search_path = pg_catalog
+as $since$
   select min(q.since_at)
   from (
     select greatest(m.joined_at,coalesce(ct.started_at,a.created_at)) as since_at
       from public.world_organization_memberships m
-      join public.country_accounts a on a.country_id = m.country_id
+      join public.country_accounts a on a.country_id=m.country_id
       left join public.world_country_control_terms ct
         on ct.country_id=a.country_id and ct.user_id=a.user_id and ct.ended_at is null
-      where a.user_id = auth.uid() and a.status = 'active'
-        and m.organization_id = p_organization_id
+      where a.user_id=p_user_id and a.status='active'
+        and m.organization_id=p_organization_id
         and m.status in ('member','observer','associate')
-        and m.ended_at is null and m.joined_at <= now()
+        and m.ended_at is null and m.joined_at<=now()
     union all
-    select greatest(m.joined_at, r.starts_at) as since_at
+    select greatest(m.joined_at,r.starts_at) as since_at
       from public.world_organization_representations r
       join public.world_organization_memberships m
-        on m.organization_id = r.organization_id
-       and m.country_id = r.country_id
-      where r.user_id = auth.uid()
-        and r.organization_id = p_organization_id
-        and r.starts_at <= now()
-        and (r.ends_at is null or r.ends_at > now())
-        and m.joined_at <= now() and m.ended_at is null
+        on m.organization_id=r.organization_id and m.country_id=r.country_id
+      where r.user_id=p_user_id and r.organization_id=p_organization_id
+        and r.starts_at<=now() and (r.ends_at is null or r.ends_at>now())
+        and m.joined_at<=now() and m.ended_at is null
         and m.status in ('member','observer','associate')
   ) q
-$$;
+$since$;
+
+create function private.world_space_member_since_v1(p_organization_id uuid)
+returns timestamptz language sql stable security definer set search_path = pg_catalog
+as $self$
+  select private.world_space_member_since_for_v1(p_organization_id,auth.uid())
+$self$;
 
 -- NULL = denied; otherwise earliest readable chat instant. This function is
 -- evaluated fresh on EVERY RPC invocation, not copied to a client JWT/claim.
@@ -241,7 +271,9 @@ begin
     return '-infinity'::timestamptz;
   end if;
   if v_space.history_policy = 'custom' and v_grant.history_from is not null then
-    return v_grant.history_from;
+    -- Custom historical grants may narrow access but cannot bypass a member's
+    -- current admission date or expose old committee deliberations.
+    return greatest(v_grant.history_from,coalesce(v_member_since,now()));
   end if;
   return coalesce(v_member_since, now());
 end
@@ -359,37 +391,145 @@ begin
 end
 $$;
 
+-- Manager-only eligible participants. No email or public user-ID directory;
+-- only current institution-affiliated accounts, returned to a live manager.
+create function public.world_space_candidates_v1(p_space_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = pg_catalog
+as $candidates$
+declare v_space public.world_spaces%rowtype; v_result jsonb;
+begin
+  if auth.uid() is null or public.studio2_feature_enabled('terra_private_spaces',null) is distinct from true
+  then raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
+  select * into v_space from public.world_spaces where id=p_space_id;
+  if not found or v_space.status <> 'active'
+    or not (
+      public.world_access_allowed('world.space.manage',v_space.organization_id)
+      or public.world_access_allowed('world.organization.settings.manage',v_space.organization_id)
+    ) or (
+      private.world_space_member_since_v1(v_space.organization_id) is null
+      and not public.studio2_access_allowed('system.manage',null,false)
+    )
+  then raise exception using errcode='42501',message='AUTHORIZATION'; end if;
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'userId',actor.user_id,'name',actor.display_name,
+    'role',coalesce(g.role,'member'),
+    'invited', g.starts_at<=now() and (g.ends_at is null or g.ends_at>now()),
+    'revision',coalesce(g.revision,0)
+  ) order by actor.display_name,actor.user_id),'[]'::jsonb)
+  into v_result
+  from (
+    select distinct on (actor_list.user_id) actor_list.user_id,actor_list.display_name
+    from (
+      select a.user_id,c.name as display_name
+      from public.world_organization_memberships m
+      join public.country_accounts a
+        on a.country_id=m.country_id and a.status='active'
+      join public.countries c on c.id=a.country_id
+      where m.organization_id=v_space.organization_id
+        and m.status in ('member','observer','associate')
+        and m.ended_at is null and m.joined_at<=now()
+      union all
+      select r.user_id,coalesce(p.display_name,c.name)
+      from public.world_organization_representations r
+      join public.world_organization_memberships m
+        on m.organization_id=r.organization_id and m.country_id=r.country_id
+      join public.countries c on c.id=r.country_id
+      join public.delegation_people p on p.id=r.person_id
+      where r.organization_id=v_space.organization_id
+        and r.user_id is not null
+        and r.starts_at<=now() and (r.ends_at is null or r.ends_at>now())
+        and m.status in ('member','observer','associate')
+        and m.ended_at is null and m.joined_at<=now()
+    ) actor_list
+    where actor_list.user_id is not null
+      and private.world_space_member_since_for_v1(v_space.organization_id,actor_list.user_id) is not null
+    order by actor_list.user_id,actor_list.display_name
+    limit 100
+  ) actor
+  left join private.world_space_access_grants g
+    on g.space_id=p_space_id and g.user_id=actor.user_id;
+  return v_result;
+end
+$candidates$;
+
+-- Grants are serialized on the room row, checked against expected revision,
+-- and written with an append-only audit/receipt. A matching idempotent retry
+-- returns the same outcome; using the key with different args is refused.
 create function public.world_space_set_grant_v1(
   p_space_id uuid, p_user_id uuid, p_role text,
-  p_history_from timestamptz, p_active boolean
+  p_history_from timestamptz, p_active boolean,
+  p_expected_revision bigint, p_request_id uuid
 )
-returns boolean language plpgsql volatile security definer set search_path = pg_catalog
-as $$
-declare v_space public.world_spaces%rowtype;
+returns jsonb language plpgsql volatile security definer set search_path = pg_catalog
+as $grants$
+declare
+  v_space public.world_spaces%rowtype;
+  v_old private.world_space_access_grants%rowtype;
+  v_old_found boolean;
+  v_revision bigint;
+  v_receipt private.world_space_grant_audit%rowtype;
+  v_fingerprint text;
 begin
+  if auth.uid() is null or public.studio2_feature_enabled('terra_private_spaces',null) is distinct from true
+  then raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
   select * into v_space from public.world_spaces where id=p_space_id for update;
-  if not found or not public.world_access_allowed('world.space.manage',v_space.organization_id)
-  then raise exception using errcode='42501', message='AUTHORIZATION'; end if;
-  if public.studio2_feature_enabled('terra_private_spaces',null) is distinct from true then
-    raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
-  if private.world_space_member_since_v1(v_space.organization_id) is null
-     and not public.studio2_access_allowed('system.manage',null,false) then
-    raise exception using errcode='42501',message='MEMBERSHIP_REVOKED'; end if;
+  if not found or v_space.status <> 'active'
+    or not (
+      public.world_access_allowed('world.space.manage',v_space.organization_id)
+      or public.world_access_allowed('world.organization.settings.manage',v_space.organization_id)
+    ) or (
+      private.world_space_member_since_v1(v_space.organization_id) is null
+      and not public.studio2_access_allowed('system.manage',null,false)
+    ) then raise exception using errcode='42501',message='AUTHORIZATION'; end if;
   if p_user_id is null or p_role not in ('member','moderator')
-  then raise exception using errcode='22023', message='VALIDATION'; end if;
-  if p_active then
-    insert into private.world_space_access_grants(space_id,user_id,role,history_from,updated_by)
-      values(p_space_id,p_user_id,p_role,p_history_from,auth.uid())
-      on conflict (space_id,user_id) do update
-      set role=excluded.role, history_from=excluded.history_from,
-          starts_at=now(), ends_at=null, updated_by=auth.uid(), updated_at=now();
-  else
-    update private.world_space_access_grants set ends_at=now(), updated_at=now(),
-      updated_by=auth.uid() where space_id=p_space_id and user_id=p_user_id;
+    or p_active is null or p_expected_revision is null or p_expected_revision<0
+    or p_request_id is null then
+    raise exception using errcode='22023',message='VALIDATION'; end if;
+  v_fingerprint:=md5(concat_ws('|',p_space_id::text,p_user_id::text,p_role,
+    coalesce(p_history_from::text,'null'),p_active::text,p_expected_revision::text));
+  select * into v_receipt from private.world_space_grant_audit
+    where actor_user_id=auth.uid() and request_id=p_request_id;
+  if found then
+    if v_receipt.payload_fingerprint<>v_fingerprint then
+      raise exception using errcode='23514',message='IDEMPOTENCY_SCOPE'; end if;
+    return jsonb_build_object('revision',v_receipt.new_revision,
+      'requestId',p_request_id,'active',v_receipt.new_active);
   end if;
-  return true;
+  if p_active and private.world_space_member_since_for_v1(v_space.organization_id,p_user_id) is null then
+    raise exception using errcode='42501',message='TARGET_NOT_CURRENT_MEMBER'; end if;
+  select * into v_old from private.world_space_access_grants
+    where space_id=p_space_id and user_id=p_user_id for update;
+  v_old_found:=found;
+  if p_expected_revision<>case when v_old_found then v_old.revision else 0 end then
+    raise exception using errcode='40001',message='VERSION_CONFLICT'; end if;
+  if not v_old_found and not p_active then
+    raise exception using errcode='22023',message='GRANT_NOT_FOUND'; end if;
+  v_revision:=p_expected_revision+1;
+  if not v_old_found then
+    insert into private.world_space_access_grants(
+      space_id,user_id,role,starts_at,history_from,updated_by,revision
+    ) values(p_space_id,p_user_id,p_role,now(),p_history_from,auth.uid(),v_revision);
+  else
+    update private.world_space_access_grants
+    set role=p_role,starts_at=case when p_active and ends_at is not null then now() else starts_at end,
+      ends_at=case when p_active then null else now() end,
+      history_from=case when p_active then p_history_from else history_from end,
+      updated_by=auth.uid(),updated_at=now(),revision=v_revision
+    where space_id=p_space_id and user_id=p_user_id;
+  end if;
+  insert into private.world_space_grant_audit(
+    space_id,target_user_id,actor_user_id,request_id,payload_fingerprint,
+    prior_revision,new_revision,prior_role,new_role,previous_active,new_active,history_from
+  ) values (
+    p_space_id,p_user_id,auth.uid(),p_request_id,v_fingerprint,
+    p_expected_revision,v_revision,
+    case when v_old_found then v_old.role else null end,p_role,
+    coalesce(v_old_found and v_old.ends_at is null and v_old.starts_at<=now(),false),
+    p_active,p_history_from
+  );
+  return jsonb_build_object('revision',v_revision,'requestId',p_request_id,'active',p_active);
 end
-$$;
+$grants$;
 
 create function public.world_space_messages_v1(
   p_space_id uuid, p_before uuid default null, p_limit integer default 35
@@ -598,13 +738,15 @@ begin
 end
 $$;
 
-revoke all on function private.world_space_member_since_v1(uuid),
+revoke all on function private.world_space_member_since_for_v1(uuid,uuid),
+  private.world_space_member_since_v1(uuid),
   private.world_space_read_from_v1(uuid) from public, anon, authenticated;
 revoke all on function public.world_my_workspaces_v1(),
   public.world_workspace_context_v1(text),
   public.world_spaces_list_v1(text),
+  public.world_space_candidates_v1(uuid),
   public.world_space_create_v1(uuid,text,text,text,text,uuid,uuid),
-  public.world_space_set_grant_v1(uuid,uuid,text,timestamptz,boolean),
+  public.world_space_set_grant_v1(uuid,uuid,text,timestamptz,boolean,bigint,uuid),
   public.world_space_messages_v1(uuid,uuid,integer),
   public.world_space_search_v1(uuid,text,integer),
   public.world_space_send_v1(uuid,text,uuid,uuid),
@@ -615,8 +757,9 @@ revoke all on function public.world_my_workspaces_v1(),
 grant execute on function public.world_my_workspaces_v1(),
   public.world_workspace_context_v1(text),
   public.world_spaces_list_v1(text),
+  public.world_space_candidates_v1(uuid),
   public.world_space_create_v1(uuid,text,text,text,text,uuid,uuid),
-  public.world_space_set_grant_v1(uuid,uuid,text,timestamptz,boolean),
+  public.world_space_set_grant_v1(uuid,uuid,text,timestamptz,boolean,bigint,uuid),
   public.world_space_messages_v1(uuid,uuid,integer),
   public.world_space_search_v1(uuid,text,integer),
   public.world_space_send_v1(uuid,text,uuid,uuid),
