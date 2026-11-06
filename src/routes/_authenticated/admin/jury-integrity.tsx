@@ -168,6 +168,7 @@ function Metric({ label, value, icon: Icon }: { label: string; value: number; ic
 }
 
 function CaseCard({ row }: { row: JuryIntegrityCase }) {
+  const [showAllTargets, setShowAllTargets] = useState(false);
   const targetColumns = [
     {
       key: "target",
@@ -232,13 +233,27 @@ function CaseCard({ row }: { row: JuryIntegrityCase }) {
       </div>
 
       {row.targets.length ? (
-        <AdminDataView
-          className="mt-4"
-          rows={row.targets.slice(0, 8)}
-          columns={targetColumns}
-          rowKey={(target) => target.targetCountryId}
-          ariaLabel={`${row.countryCode} integrity evidence targets`}
-        />
+        <>
+          <AdminDataView
+            className="mt-4"
+            rows={showAllTargets ? row.targets : row.targets.slice(0, 8)}
+            columns={targetColumns}
+            rowKey={(target) => target.targetCountryId}
+            ariaLabel={`${row.countryCode} integrity evidence targets`}
+          />
+          {row.targets.length > 8 ? (
+            <button
+              type="button"
+              className="admin-action-secondary mt-3"
+              onClick={() => setShowAllTargets((current) => !current)}
+              aria-expanded={showAllTargets}
+            >
+              {showAllTargets
+                ? "Show top 8 targets"
+                : `Show all ${row.targets.length} scored targets`}
+            </button>
+          ) : null}
+        </>
       ) : null}
     </AdminCard>
   );
