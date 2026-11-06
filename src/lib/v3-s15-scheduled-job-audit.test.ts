@@ -85,4 +85,60 @@ describe("S15 scheduled-job ownership audit", () => {
     );
     expect(report).toEqual({ scheduledJobNames: ["real"], findings: [] });
   });
+
+  it("ignores inert dollar-quoted values masquerading as cron.schedule declarations", () => {
+    const report = inspectV3CronMigrations(
+      migration("select $example$cron.schedule('phantom', '* * * * *', 'select 1')$example$;"),
+      [{ name: "phantom", evidence: "2026_01.sql" }],
+    );
+    expect(report.scheduledJobNames).toEqual([]);
+    expect(report.findings).toContain(
+      "scheduled job evidence has no matching cron.schedule call: phantom -> 2026_01.sql",
+    );
+  });
+
+  it("does not certify a cron registration merely because CREATE FUNCTION stores that SQL", () => {
+    const sql = [
+      "create function deferred_cron() returns void",
+      "language plpgsql as $function$",
+      "begin",
+      "  perform cron.schedule('deferred', '* * * * *', 'select 1');",
+      "end;",
+      "$function$;",
+    ].join("\n");
+    const report = inspectV3CronMigrations(
+      migration(sql),
+      [{ name: "deferred", evidence: "2026_01.sql" }],
+    );
+    expect(report.scheduledJobNames).toEqual([]);
+    expect(report.findings).toContain(
+      "scheduled job evidence has no matching cron.schedule call: deferred -> 2026_01.sql",
+    );
+  });
+
+  it("still detects real registrations inside immediately executed DO dollar-quoted bodies", () => {
+    const sql = [
+      "do $do$",
+      "begin",
+      "  perform cron.schedule('real', '* * * * *', 'select 1');",
+      "  perform $literal$cron.schedule('phantom', '*', 'select 2')$literal$;",
+      "end $do$;",
+    ].join("\n");
+    const report = inspectV3CronMigrations(
+      migration(sql),
+      [{ name: "real", evidence: "2026_01.sql" }],
+    );
+    expect(report.scheduledJobNames).toEqual(["real"]);
+    expect(report.findings).toEqual([]);
+  });
+
+  it("can discover a live statement following an inert SQL literal", () => {
+    const sql = "select $$cron.schedule('fake', '*', 'select 1')$$;\n" +
+      "select cron.schedule('genuine', '* * * * *', 'select 1');";
+    const report = inspectV3CronMigrations(
+      migration(sql),
+      [{ name: "genuine", evidence: "2026_01.sql" }],
+    );
+    expect(report).toEqual({ scheduledJobNames: ["genuine"], findings: [] });
+  });
 });
