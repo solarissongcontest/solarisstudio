@@ -1,13 +1,13 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, LockKeyhole, MessageSquare, Pencil, Pin, Plus, RefreshCcw, Reply, Send, ShieldCheck } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import {
   PRIVATE_WORLD_QUERY_ROOT, WORLD_ROOM_PAGE_SIZE,
-  createWorldRoom, editWorldRoomMessage, getMyWorldWorkspaces,
+  createWorldRoom, editWorldRoomMessage, getMyWorldWorkspaces, getWorldWorkspaceContext,
   getWorldRoomMessages, getWorldRooms, isVisiblePrivateWorldQuery,
   moderateWorldRoomMessage, reactToWorldRoomMessage, sendWorldRoomMessage,
   type WorldChatMessage, type WorldPrivateRoom,
@@ -61,7 +61,7 @@ function AccessNotice({ message, retry }: { message: string; retry?: () => void 
     </button> : null}
   </div>;
 }
-function PrivateLayout({ children }: { children: React.ReactNode }) {
+function PrivateLayout({ children }: { children: ReactNode }) {
   return <AppShell><main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-5 sm:px-7 sm:pt-8">
     {children}
   </main></AppShell>;
@@ -138,6 +138,14 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
     refetchOnWindowFocus: "always",
   });
   const verifiedRooms = isVisiblePrivateWorldQuery(rooms, online) ? rooms.data : null;
+  const bootstrap = useQuery({
+    queryKey: [...PRIVATE_WORLD_QUERY_ROOT, identity.data, slug, "context"],
+    queryFn: ({ signal }) => getWorldWorkspaceContext(slug, signal),
+    enabled: Boolean(identity.data && online && rooms.isSuccess && rooms.data?.length === 0),
+    gcTime: 0, staleTime: 0, retry: false, refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+  });
+  const verifiedBootstrap = isVisiblePrivateWorldQuery(bootstrap, online) ? bootstrap.data : null;
   const requestedRoom = verifiedRooms?.find((room) => room.id === roomId);
   const selectedRoom = requestedRoom ?? (!roomId ? verifiedRooms?.[0] : undefined);
   const selectedId = selectedRoom?.id;
@@ -194,9 +202,10 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
   const createRoom = useMutation({
     mutationFn: async () => {
       const target = verifiedRooms?.find((room) => room.canManage);
-      if (!target) throw new Error("No current room-management authority.");
+      const organizationId = target?.organizationId ?? (verifiedBootstrap?.canManage ? verifiedBootstrap.organizationId : undefined);
+      if (!organizationId) throw new Error("No current room-management authority.");
       return createWorldRoom({
-        organizationId: target.organizationId, name: roomName,
+        organizationId, name: roomName,
         description: "", visibility: roomVisibility, history: historyPolicy,
         requestId: crypto.randomUUID(),
       });
@@ -204,6 +213,7 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
     onSuccess: async () => {
       setRoomName(""); setShowCreate(false);
       await queryClient.invalidateQueries({ queryKey: [...PRIVATE_WORLD_QUERY_ROOT, identity.data, slug, "rooms"] });
+      await queryClient.invalidateQueries({ queryKey: [...PRIVATE_WORLD_QUERY_ROOT, identity.data, "organizations"] });
     },
     onError: (error) => setActionError(error instanceof Error ? error.message : "Room creation failed."),
   });
@@ -215,7 +225,7 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
 
   const allMessages = useMemo(() => verifiedMessages ?? [], [verifiedMessages]);
   const replyTo = allMessages.find((m) => m.id === replyToId);
-  const canManage = Boolean(verifiedRooms?.some((room) => room.canManage));
+  const canManage = Boolean(verifiedRooms?.some((room) => room.canManage) || verifiedBootstrap?.canManage);
 
   return <PrivateLayout>
     <nav aria-label="Workspace breadcrumbs" className="mb-5">
@@ -230,7 +240,40 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
       !identity.data ? <SignInNotice /> :
       rooms.isPending || !rooms.isFetchedAfterMount ? <p role="status">Checking your room access…</p> :
       !verifiedRooms ? <AccessNotice message="Your room permissions could not be verified. Cached private content is hidden." retry={() => void rooms.refetch()} /> :
-      verifiedRooms.length === 0 ? <AccessNotice message="No private rooms are currently accessible in this institution. Your membership or invitation may have changed." retry={() => void rooms.refetch()} /> :
+      verifiedRooms.length === 0 ? <section className="max-w-xl border-t border-border pt-6">
+        {bootstrap.isPending ? <p role="status" className="text-sm text-muted-foreground">Checking workspace administration rights…</p> :
+          verifiedBootstrap?.canManage ? <>
+            <h2 className="text-xl font-semibold">Create your institution's first room</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">No rooms exist or are currently visible to you. Create a room with an explicit privacy and history policy.</p>
+            <form className="mt-5 space-y-4" onSubmit={(event) => { event.preventDefault(); createRoom.mutate(); }}>
+              <label className="block text-sm font-semibold">Room name
+                <input value={roomName} maxLength={100} required onChange={(event) => setRoomName(event.target.value)}
+                  className="mt-1 block min-h-11 w-full rounded-lg border border-border bg-background px-3" />
+              </label>
+              <label className="block text-sm font-semibold">Access policy
+                <select value={roomVisibility} onChange={(event) => setRoomVisibility(event.target.value as WorldPrivateRoom["visibility"])}
+                  className="mt-1 block min-h-11 w-full rounded-lg border border-border bg-background px-3">
+                  <option value="members">Current members</option>
+                  <option value="leadership">Leadership and invited members</option>
+                  <option value="custom">Explicit grants only</option>
+                </select>
+              </label>
+              <label className="block text-sm font-semibold">History policy
+                <select value={historyPolicy} onChange={(event) => setHistoryPolicy(event.target.value as WorldPrivateRoom["history"])}
+                  className="mt-1 block min-h-11 w-full rounded-lg border border-border bg-background px-3">
+                  <option value="from_join">Messages after membership starts</option>
+                  <option value="all_member_history">All member history</option>
+                  <option value="custom">Custom invitation history</option>
+                </select>
+              </label>
+              {actionError ? <p role="alert" className="text-sm text-destructive">{actionError}</p> : null}
+              <button type="submit" disabled={createRoom.isPending}
+                className="min-h-11 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+                Create first room
+              </button>
+            </form>
+          </> : <AccessNotice message="No private rooms are currently accessible in this institution. Your membership or invitation may have changed." retry={() => void rooms.refetch()} />}
+      </section> :
       roomId && !requestedRoom ? <AccessNotice message="This room is unavailable to your current account. Membership may have ended or your room role may have changed." retry={() => onRoomChange(undefined)} /> :
       <div className="min-h-[460px] overflow-hidden rounded-2xl border border-border md:grid md:grid-cols-[260px_minmax(0,1fr)] lg:grid-cols-[310px_minmax(0,1fr)]">
         <aside className={roomId ? "hidden border-r border-border md:block" : "border-r border-border"} aria-label="Private rooms">
@@ -242,7 +285,7 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
               <Plus className="size-5" />
             </button> : null}
           </div>
-          {showCreate && canManage ? <form onSubmit={(event) => { event.preventDefault(); void createRoom.mutateAsync(); }}
+          {showCreate && canManage ? <form onSubmit={(event) => { event.preventDefault(); createRoom.mutate(); }}
             className="space-y-3 border-b border-border p-4">
             <label className="block text-sm font-semibold">Room name
               <input value={roomName} maxLength={100} required onChange={(event) => setRoomName(event.target.value)}
@@ -361,7 +404,7 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
                   </article>)}
                 </>}
             </div>
-            <form className="border-t border-border p-4" onSubmit={(event) => { event.preventDefault(); void send.mutateAsync(); }}>
+            <form className="border-t border-border p-4" onSubmit={(event) => { event.preventDefault(); send.mutate(); }}>
               {replyTo ? <div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
                 <span>Replying to {replyTo.senderId === identity.data ? "your message" : replyTo.senderName}</span>
                 <button type="button" onClick={() => setReplyToId(null)} className="min-h-10 px-2 text-primary">Cancel reply</button>
