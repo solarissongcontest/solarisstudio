@@ -102,6 +102,15 @@ describe("MySolaris product consolidation", () => {
     expect(tasksModule).toContain("{isAppMode && !organizerInspection ? (");
   });
 
+  it("keys private task data by authenticated actor and evicts it on delegation context change", () => {
+    expect(tasksModule).toContain('queryKey: ["studio2-hod-editions", actorId, country?.id ?? "none"]');
+    expect(tasksModule).toContain('queryKey: ["studio2-hod-workspace", actorId, country?.id ?? "none", editionId || "none"]');
+    expect(tasksModule).toContain('"studio2-eligibility-overrides",\\n      actorId,');
+    expect(tasksModule).toContain('queryClient.cancelQueries({ queryKey })');
+    expect(tasksModule).toContain('queryClient.removeQueries({ queryKey })');
+    expect(tasksModule).toContain('Boolean(actorId && country?.id && editionId)');
+  });
+
   it("has real canonical route surfaces behind the remaining workspace destinations", () => {
     expect(tasksRoute).toContain('createFileRoute("/_authenticated/my-solaris/tasks")');
     expect(entryRoute).toContain('createFileRoute("/_authenticated/my-solaris/entry")');
