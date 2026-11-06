@@ -149,3 +149,20 @@ export async function createWorldRoom(input: {
     p_request_id: input.requestId,
   });
 }
+
+export type WorldWorkspaceContext = {
+  organizationId: string;
+  name: string;
+  canManage: boolean;
+};
+export async function getWorldWorkspaceContext(slug: string, signal?: AbortSignal): Promise<WorldWorkspaceContext | null> {
+  if (!safeWorldRoomSlug(slug)) throw new Error("Invalid organization.");
+  const response = await callWorldPrivateRpc("world_workspace_context_v1", { p_slug: slug }, signal);
+  if (!isRecord(response) || !isValidRoomId(response.organizationId) ||
+      typeof response.name !== "string" || typeof response.canManage !== "boolean") return null;
+  return {
+    organizationId: response.organizationId,
+    name: response.name,
+    canManage: response.canManage,
+  };
+}
