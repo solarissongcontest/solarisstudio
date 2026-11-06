@@ -29,7 +29,7 @@ describe("Integrated Terra Solaris public discovery chain", () => {
     expect(landing).toContain('to="/world/search"');
     expect(landing).toContain('to="/world/organizations"');
     expect(landing).toContain('to="/world/organizations/$slug/bodies/$bodySlug"');
-    expect(landing).toContain('to="/world/organizations/$slug/bodies/"');
+    expect(landing).toContain('to="/world/organizations/$slug/bodies"');
     expect(landing).toContain("verifiedProjection.organs");
     expect(existsSync(resolve(process.cwd(),
       "src/routes/world/organizations/$slug_/bodies/index.tsx"))).toBe(true);
