@@ -125,6 +125,7 @@ export function V3LiquidTabBar({
     begin: beginHold,
     move: moveHold,
     end: endHold,
+    isEngaged: isHoldEngaged,
   } = useSolarisPressHold();
 
   const dragging = held;
@@ -401,7 +402,7 @@ export function V3LiquidTabBar({
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
 
-    if (!drag.engaged) {
+    if (!isHoldEngaged(event.pointerId)) {
       moveHold(event.pointerId, event.clientX, event.clientY);
       if (
         holdMovementExceeded(
@@ -489,7 +490,7 @@ export function V3LiquidTabBar({
 
     // Pending presses are still ordinary taps. Navigation remains owned by the
     // semantic click path unless the hold threshold actually engaged the lens.
-    if (!drag.engaged) {
+    if (!isHoldEngaged(event.pointerId)) {
       clearDrag();
       return;
     }
@@ -534,7 +535,7 @@ export function V3LiquidTabBar({
   const cancelDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    suppressClick.current = drag.moved || drag.engaged;
+    suppressClick.current = true;
     clearDrag();
   };
 

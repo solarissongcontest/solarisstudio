@@ -65,6 +65,21 @@ describe("V3 installed dock interrupted gesture recovery", () => {
     expect(finish).toContain("suppressClick.current = true;");
   });
 
+  it("V3 Liquid gates drag on synchronous pointer engagement and consumes cancellations", () => {
+    expect(liquid).toContain("isEngaged: isHoldEngaged");
+    expect(liquid).toContain("const dragging = held;");
+    const move = liquid.slice(liquid.indexOf("const moveDrag ="), liquid.indexOf("const selectDestination ="));
+    expect(move).toContain("if (!isHoldEngaged(event.pointerId)) {");
+    expect(move).not.toContain("if (!drag.engaged)");
+    expect(move).toContain("moveHold(event.pointerId, event.clientX, event.clientY)");
+    const finish = liquid.slice(liquid.indexOf("const finishDrag ="), liquid.indexOf("const cancelDrag ="));
+    expect(finish).toContain("if (!isHoldEngaged(event.pointerId)) {");
+    expect(finish).toContain("suppressClick.current = true;");
+    const cancel = liquid.slice(liquid.indexOf("const cancelDrag ="), liquid.indexOf("return ("));
+    expect(cancel).toContain("suppressClick.current = true;");
+    expect(liquid).toContain("if (!drag || drag.engaged) return;");
+  });
+
   it("installed AppTabBar cancels and disposes every lifecycle interruption", () => {
     for (const event of ["blur", "resize", "orientationchange", "pagehide"]) {
       expect(installed).toContain('window.addEventListener("' + event + '", resetInterruptedGesture)');
