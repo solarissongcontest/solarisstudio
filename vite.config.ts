@@ -113,6 +113,9 @@ export default defineConfig({
                 name: "shared-cross-route",
                 minShareCount: 2,
                 minSize: 10000,
+                // Never concatenate every shared route dependency into an
+                // oversized download; Rolldown splits at module boundaries.
+                maxSize: 400000,
                 priority: -1,
               },
             ],
