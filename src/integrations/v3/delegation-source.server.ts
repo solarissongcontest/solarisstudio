@@ -51,6 +51,7 @@ type ParsedProfile = {
 };
 
 export type V3DelegationServerBundle = {
+  countryId: string;
   projection: V3CountryExploreProjection;
   activeEditionLabel: string | null;
   shell: {
@@ -239,6 +240,7 @@ export async function loadV3DelegationBundle(input: {
   });
 
   return {
+    countryId: profile.countryId,
     activeEditionLabel: currentEdition
       ? currentEdition.edition_number == null ? currentEdition.name : `SSC ${currentEdition.edition_number}`
       : null,
