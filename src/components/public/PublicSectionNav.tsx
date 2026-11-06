@@ -146,6 +146,15 @@ function AdvancedSectionNavigation({
       className="group mt-4 border-t border-border/55 pt-3"
       open={open}
       onToggle={(event) => setOpen(event.currentTarget.open)}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape" || !open) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setOpen(false);
+        // A disclosure closed from a nested link must return focus to its
+        // still-visible summary, not strand it in hidden content.
+        event.currentTarget.querySelector("summary")?.focus();
+      }}
     >
       <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-2 text-xs font-semibold text-muted-foreground hover:bg-surface/70 hover:text-foreground [&::-webkit-details-marker]:hidden">
         <span>{area === "results" ? "More result tools" : "Advanced"}</span>
