@@ -18,7 +18,15 @@ describe("V3 Following & Saved architecture", () => {
     expect(route()).toContain('content: "noindex, nofollow"');
   });
 
-  it("remounts the private screen when the authenticated viewer changes", () => {\n    expect(route()).toContain("key={rollout.data.userId}");\n    expect(route()).toContain("viewerId={rollout.data.userId}");\n    expect(screen()).toContain("useEffect(() => {");\n    expect(screen()).toContain("setMessage(null)");\n    expect(screen()).toContain("setSearch(\"\")");\n  });\n\n  it("keeps private reads scoped and fails closed on cross-profile rows", () => {
+  it("remounts the private screen when the authenticated viewer changes", () => {
+    expect(route()).toContain("key={rollout.data.userId}");
+    expect(route()).toContain("viewerId={rollout.data.userId}");
+    expect(screen()).toContain("useEffect(() => {");
+    expect(screen()).toContain("setMessage(null)");
+    expect(screen()).toContain('setSearch("")');
+  });
+
+  it("keeps private reads scoped and fails closed on cross-profile rows", () => {
     expect(screen()).toContain("useMyFollows(viewerId)");
     expect(engagement()).toContain('.from("fan_follows")');
     expect(engagement()).toContain('.eq("profile_id", profileId!)');
