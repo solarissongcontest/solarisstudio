@@ -6,6 +6,8 @@ const read = (file: string) => readFileSync(file, "utf8");
 const auth = read("src/integrations/televoting/private-analysis-auth.server.ts");
 const analytics = read("src/integrations/televoting/analytics.functions.ts");
 const intelligence = read("src/integrations/televoting/intelligence.functions.ts");
+const analyticsEngine = read("src/integrations/televoting/analytics.server.ts");
+const intelligenceEngine = read("src/integrations/televoting/intelligence.server.ts");
 
 function handlerBody(source: string, name: string) {
   const start = source.indexOf(`export const ${name}`);
@@ -49,6 +51,20 @@ describe("Organizer private cross-channel voting analysis", () => {
     ].map((needle) => code.indexOf(needle)).filter((x) => x >= 0);
     expect(privateActions.length).toBeGreaterThan(0);
     expect(gate).toBeLessThan(Math.min(...privateActions));
+  });
+
+  it.each([
+    [analyticsEngine, "getMergedScopedAnalyticsServer"],
+    [intelligenceEngine, "getMergedIntelligenceServer"],
+  ] as const)("guards direct privileged analysis service before legacy access", (service, method) => {
+    const start = service.indexOf(`export async function ${method}`);
+    expect(start).toBeGreaterThanOrEqual(0);
+    const end = service.indexOf("\nexport async function ", start + method.length);
+    const code = service.slice(start, end < 0 ? undefined : end);
+    const guard = code.indexOf("await requirePrivateVotingAnalysisServer()");
+    const admin = code.indexOf("await requireMergedTelevotingAdminServer()");
+    expect(guard).toBeGreaterThanOrEqual(0);
+    expect(admin).toBeGreaterThan(guard);
   });
 
   it("scopes cross-channel analytics private data by actor, with no automatic poll", () => {
