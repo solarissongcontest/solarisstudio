@@ -21,7 +21,10 @@ async function loadPublicParticipants(input: { editionId?: string; showId?: stri
     _show_id: input.showId ?? null,
   });
   if (error) throw error;
-  return Array.isArray(data) ? data.map(normalisePublicParticipant) : [];
+  // The SQL projection coalesces genuinely empty lineups to []. A null or
+  // malformed RPC payload is an unavailable dataset, never zero participants.
+  if (!Array.isArray(data)) throw new Error("Invalid public participants projection");
+  return data.map(normalisePublicParticipant);
 }
 
 export function usePublicEditionParticipants(editionId?: string) {
