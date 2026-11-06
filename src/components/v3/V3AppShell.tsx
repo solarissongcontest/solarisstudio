@@ -365,7 +365,6 @@ export function V3AppShell({
             />
             <V3DesktopPrimaryNavigation
               destinations={navigationDestinations}
-              onSelect={selectDestination}
               pathname={pathname}
             />
           </>

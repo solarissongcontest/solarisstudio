@@ -50,12 +50,14 @@ describe("V3 three-experience shell navigation cutover", () => {
     expect(desktop).toContain('aria-label="Solaris website sections"');
     expect(desktop).not.toContain('aria-label="Primary app navigation"');
     expect(desktop).toContain("to={destination.to as any}");
-    expect(desktop).toContain("event.metaKey");
-    expect(desktop).toContain("event.ctrlKey");
-    expect(desktop).toContain("event.shiftKey");
-    expect(desktop).toContain("event.altKey");
-    expect(desktop).toContain("event.preventDefault");
-    expect(desktop).toContain("onSelect(destination)");
+    // Website links must navigate their declared canonical roots. The
+    // installed dock alone owns viewer-scoped tab memory and press gestures.
+    expect(desktop).not.toContain("onClick={");
+    expect(desktop).not.toContain("onSelect(destination)");
+    expect(desktop).not.toContain("event.preventDefault()");
+    expect(shell).not.toContain("onSelect={selectDestination}");
+    expect(shell).toContain("onSelectV3Tab={(id) => {");
+    expect(shell).toContain("getV3PublicTabDestination");
   });
 
   it("removes installed-only scroll-end reserve on mobile web without weakening the installed safe zone", () => {

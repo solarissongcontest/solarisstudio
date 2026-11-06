@@ -9,14 +9,13 @@ function navigationItemLabel(label: string, badge: number) {
   return `${label}, ${badge} item${badge === 1 ? "" : "s"}`;
 }
 
-/** Desktop adaptation of the same canonical five-area information architecture. */
+/** Native desktop website navigation. The browser owns URL and history,
+ * never the installed app's per-tab restoration state. */
 export function V3DesktopPrimaryNavigation({
   destinations,
-  onSelect,
   pathname,
 }: {
   destinations: readonly V3LiquidTabDestination[];
-  onSelect: (destination: V3LiquidTabDestination) => void;
   pathname: string;
 }) {
   return (
@@ -33,21 +32,6 @@ export function V3DesktopPrimaryNavigation({
             aria-label={navigationItemLabel(destination.label, badge)}
             data-active={destination.active ? "true" : "false"}
             data-emphasis={destination.emphasis ? "true" : undefined}
-            onClick={(event) => {
-              // Preserve the browser's modified click, new-tab, keyboard and
-              // user-agent navigation behavior. Only ordinary primary clicks
-              // use the existing V3 per-tab restoration contract.
-              if (
-                event.defaultPrevented ||
-                event.button !== 0 ||
-                event.metaKey ||
-                event.ctrlKey ||
-                event.shiftKey ||
-                event.altKey
-              ) return;
-              event.preventDefault();
-              onSelect(destination);
-            }}
           >
             <span className="v3-desktop-primary-nav__icon" aria-hidden="true">
               <Icon />
