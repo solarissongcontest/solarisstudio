@@ -281,6 +281,21 @@ describe("TG3 public institution bodies", () => {
     expect(result?.bodies).toEqual([]);
     expect(body.range).toHaveBeenCalledWith(WORLD_BODIES_PAGE_SIZE, WORLD_BODIES_PAGE_SIZE * 2 - 1);
   });
+  it("rejects an incomplete nonfinal public directory page despite a valid exact count", async () => {
+    const org = chain({ data: parent, error: null });
+    const body = chain({ data: [organ], error: null, count: 30 });
+    mockFrom.mockImplementation((name: string) => name === "world_organizations" ? org : body);
+    await expect(readPublicWorldBodies("guard", 0)).rejects.toThrow("could not be verified");
+    expect(body.range).toHaveBeenCalledWith(0, WORLD_BODIES_PAGE_SIZE - 1);
+  });
+  it("accepts a correctly sized final public directory page", async () => {
+    const org = chain({ data: parent, error: null });
+    const body = chain({ data: [organ], error: null, count: WORLD_BODIES_PAGE_SIZE + 1 });
+    mockFrom.mockImplementation((name: string) => name === "world_organizations" ? org : body);
+    const result = await readPublicWorldBodies("guard", 1);
+    expect(result?.total).toBe(WORLD_BODIES_PAGE_SIZE + 1);
+    expect(result?.bodies).toHaveLength(1);
+  });
   it("fails closed when an in-range page is silently missing records", async () => {
     const org = chain({ data: parent, error: null });
     const body = chain({ data: [], error: null, count: 3 });
