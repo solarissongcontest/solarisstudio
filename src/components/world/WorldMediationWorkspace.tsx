@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Landmark, RefreshCw, Scale } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import {
@@ -16,6 +16,7 @@ import {
   type MediationOperation,
   type MediationState,
 } from "@/lib/world-mediation";
+import { useTg13PrivateActor } from "@/lib/world-tg13-private-session";
 
 type RetryEnvelope = { fingerprint: string; operation: MediationOperation };
 const labelState = (state: MediationState): string =>
@@ -42,11 +43,11 @@ function ErrorMessage({ error, retry }: { error: unknown; retry: () => void }) {
   );
 }
 
-function History({ caseId }: { caseId: string }) {
+function History({ caseId, actorId, actorEpoch }: { caseId: string; actorId: string; actorEpoch: number }) {
   const history = useQuery({
-    queryKey: ["world", "mediation", "history", caseId],
+    queryKey: ["world", "mediation", "history", actorId, actorEpoch, caseId],
     gcTime: 0,
-    queryFn: () => fetchMediationHistory(caseId),
+    queryFn: () => fetchMediationHistory(caseId, actorId),
     staleTime: 0,
     refetchOnMount: "always",
     retry: false,
@@ -73,9 +74,11 @@ function History({ caseId }: { caseId: string }) {
 }
 
 function CasePanel({
-  record, requesterCountryId, canManage, countryName, onChanged,
+  record, requesterCountryId, canManage, countryName, onChanged, actorId, actorEpoch,
 }: {
   record: MediationCase;
+  actorId: string;
+  actorEpoch: number;
   requesterCountryId: string | null;
   canManage: boolean;
   countryName: (countryId: string) => string;
@@ -181,16 +184,19 @@ function CasePanel({
       >
         {showHistory ? "Hide" : "View"} private case history
       </button>
-      {showHistory ? <History caseId={record.id} /> : null}
+      {showHistory ? <History caseId={record.id} actorId={actorId} actorEpoch={actorEpoch} /> : null}
     </article>
   );
 }
 
 export function WorldMediationWorkspace() {
+  const actor = useTg13PrivateActor();
+  const actorScope = actor.ready && actor.userId ? `${actor.userId}:${actor.epoch}` : null;
   const data = useQuery({
-    queryKey: ["world", "mediation", "workspace"],
+    queryKey: ["world", "mediation", "workspace", actor.userId, actor.epoch],
+    enabled: actor.ready && !!actor.userId,
     gcTime: 0,
-    queryFn: fetchMediationWorkspace,
+    queryFn: () => fetchMediationWorkspace(actor.userId!),
     staleTime: 0,
     refetchOnMount: "always",
     retry: false,
@@ -199,6 +205,20 @@ export function WorldMediationWorkspace() {
   const [summary, setSummary] = useState("");
   const retry = useRef<RetryEnvelope | null>(null);
   const [lastReceipt, setLastReceipt] = useState<string | null>(null);
+  const [draftScope, setDraftScope] = useState<string | null>(null);
+  const activeScope = useRef(actorScope);
+  activeScope.current = actorScope;
+  const operationScope = useRef<string | null>(null);
+  useEffect(() => {
+    // Do not let country A's unsent allegation or receipt paint under B.
+    setRespondentCountryId("");
+    setSummary("");
+    setLastReceipt(null);
+    retry.current = null;
+    operationScope.current = null;
+    setDraftScope(actorScope);
+  }, [actorScope]);
+  const showPrivate = actorScope !== null && actorScope === draftScope;
   const organizations = data.data?.organizations ?? [];
   const unity = organizations[0] ?? null;
   const ownCountry = data.data?.requesterCountryId ?? null;
@@ -207,7 +227,8 @@ export function WorldMediationWorkspace() {
   [data.data?.countries]);
   const request = useMutation({
     mutationFn: async () => {
-      if (!unity || !ownCountry || !respondentCountryId) throw new Error("VALIDATION");
+      operationScope.current = actorScope;
+      if (!actorScope || !unity || !ownCountry || !respondentCountryId) throw new Error("VALIDATION");
       const input = {
         organizationId: unity.id,
         requesterCountryId: ownCountry,
@@ -220,6 +241,7 @@ export function WorldMediationWorkspace() {
     },
     retry: false,
     onSuccess: (receipt) => {
+      if (operationScope.current !== activeScope.current) return;
       retry.current = null;
       setLastReceipt(`Case ${receipt.caseId} filed at revision ${receipt.revision}.`);
       setSummary("");
@@ -245,12 +267,14 @@ export function WorldMediationWorkspace() {
           Private, recorded mediation between Terra Solaris countries. Informal diplomacy remains freeform.
           A request begins only when the other country accepts. No mediator can accept for it.
         </p>
-        {(data.isPending || data.isFetching) ? <StateMessage>Checking your institutional access and cases…</StateMessage> : null}
-        {data.isError ? <div className="mt-6"><ErrorMessage error={data.error} retry={refresh} /></div> : null}
-        {data.isSuccess && !data.isFetching && !data.data.signedIn ? (
-          <div className="mt-7"><StateMessage>Sign in with your Solaris account to access mediation. Private case records are never available anonymously.</StateMessage></div>
+        {!actor.ready || (actor.userId && (!showPrivate || data.isPending || data.isFetching)) ? (
+          <StateMessage>Checking your institutional access and cases…</StateMessage>
         ) : null}
-        {data.isSuccess && !data.isFetching && data.data.signedIn ? (
+        {actor.ready && !actor.userId ? (
+          <StateMessage>Sign in with your Solaris account to access mediation. Private case records are never available anonymously.</StateMessage>
+        ) : null}
+        {actor.ready && actor.userId && showPrivate && data.isError ? <div className="mt-6"><ErrorMessage error={data.error} retry={refresh} /></div> : null}
+        {actor.ready && actor.userId && showPrivate && data.isSuccess && !data.isFetching && data.data.signedIn ? (
           <>
             <section className="mt-9 border-t border-border pt-6" aria-labelledby="mediation-request">
               <div className="flex flex-wrap items-center gap-3">
@@ -332,7 +356,9 @@ export function WorldMediationWorkspace() {
                 <div className="mt-3">
                   {data.data.cases.map((record) => (
                     <CasePanel
-                      key={record.id}
+                      key={`${actorScope}:${record.id}`}
+                      actorId={actor.userId}
+                      actorEpoch={actor.epoch}
                       record={record}
                       requesterCountryId={ownCountry}
                       canManage={data.data.managedOrganizations.includes(record.organizationId)}
