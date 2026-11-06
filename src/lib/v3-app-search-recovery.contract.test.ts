@@ -28,7 +28,7 @@ describe("V3 installed global Search recovery", () => {
     expect(app).toContain('role="alert"');
     expect(app).toContain("Published search could not load");
     expect(app).toContain("Nothing in Solaris Studio matches that search.");
-    expect(app).toContain("(normalized.length < 2 || awaitingRemote || remote.isError ? [] : remote.data ?? [])");
+    expect(app).toMatch(/normalized\.length\s*<\s*2\s*\|\|\s*awaitingRemote\s*\|\|\s*remote\.isError\s*\?\s*\[\]\s*:\s*remote\.data\s*\?\?\s*\[\]/);
   });
 
   it("debounces remote reads and prevents stale query results while local suggestions remain immediate", () => {
