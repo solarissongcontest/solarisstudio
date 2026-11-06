@@ -5,7 +5,7 @@ import { useRef, useState, type FormEvent } from "react";
 
 import {
   readWorldDomesticCountry, writeWorldDomesticCanon,
-  type DomesticCountry, type DomesticParty, type DomesticRecordKind,
+  type DomesticCountry, type DomesticParty, type DomesticElection, type DomesticRecordKind,
 } from "@/lib/terra-world-domestic";
 
 const field = "min-h-11 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
@@ -13,7 +13,7 @@ const button = "inline-flex min-h-11 items-center justify-center gap-2 rounded-x
 const secondary = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-primary";
 const subsection = "mt-8 border-t border-border pt-7";
 
-function dateToday() { return new Date().toISOString().slice(0, 10); }
+function dateToday() { return new Date().toLocaleDateString("sv-SE"); }
 
 type FormPayload = Record<string, string | boolean | number | null>;
 type PendingWrite = {
@@ -27,6 +27,7 @@ function DomesticEditor({ country }: { country: DomesticCountry }) {
   const priorAttempt = useRef<{ fingerprint: string; operationId: string } | null>(null);
   const [mode, setMode] = useState<DomesticRecordKind>("party");
   const [edit, setEdit] = useState<DomesticParty | null>(null);
+  const [editElection, setEditElection] = useState<DomesticElection | null>(null);
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [abbreviation, setAbbreviation] = useState("");
@@ -55,7 +56,7 @@ function DomesticEditor({ country }: { country: DomesticCountry }) {
     onSuccess: async (result) => {
       priorAttempt.current = null;
       setReceipt("Saved with authoritative receipt " + result.operationId.slice(0, 8) + "…");
-      setEdit(null); setTitle(""); setSummary(""); setAbbreviation(""); setIdeology("");
+      setEdit(null); setEditElection(null); setTitle(""); setSummary(""); setAbbreviation(""); setIdeology("");
       setWinnerPartyId(""); setPublished(false); setDissolved(false);
       await Promise.all([
         client.invalidateQueries({ queryKey: ["world", "domestic", country.countryCode] }),
@@ -64,15 +65,24 @@ function DomesticEditor({ country }: { country: DomesticCountry }) {
     },
   });
   function chooseMode(next: DomesticRecordKind) {
-    setMode(next); setEdit(null); setTitle(""); setSummary("");
+    setMode(next); setEdit(null); setEditElection(null); setTitle(""); setSummary("");
     setAbbreviation(""); setIdeology(""); setPublished(false);
     mutation.reset(); setReceipt(null);
   }
   function chooseParty(party: DomesticParty) {
-    setMode("party"); setEdit(party); setTitle(party.name);
+    setMode("party"); setEdit(party); setEditElection(null); setTitle(party.name);
     setAbbreviation(party.abbreviation ?? ""); setIdeology(party.ideology ?? "");
     setSummary(party.summary ?? ""); setDissolved(party.status === "dissolved");
     setPublished(party.published); setReceipt(null); mutation.reset();
+    document.getElementById("world-domestic-editor")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function chooseElection(election: DomesticElection) {
+    if (election.published) return;
+    setMode("election"); setEdit(null); setEditElection(election);
+    setTitle(election.title); setSummary(election.resultSummary);
+    setScope(election.scope); setHeldOn(election.heldOn);
+    setWinnerPartyId(election.winnerPartyId ?? "");
+    setPublished(false); setReceipt(null); mutation.reset();
     document.getElementById("world-domestic-editor")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -88,8 +98,10 @@ function DomesticEditor({ country }: { country: DomesticCountry }) {
       ? { title: text, resultSummary: description, heldOn, scope, winnerPartyId, published }
       : { title: text, summary: description,
           occurredAt: new Date(occurredAt + "T12:00:00Z").toISOString(), published: true };
-    mutation.mutate({ kind: mode, subjectId: mode === "party" ? edit?.id ?? null : null,
-      revision: mode === "party" ? edit?.revision ?? 0 : 0, payload });
+    mutation.mutate({ kind: mode,
+      subjectId: mode === "party" ? edit?.id ?? null : mode === "election" ? editElection?.id ?? null : null,
+      revision: mode === "party" ? edit?.revision ?? 0 : mode === "election" ? editElection?.revision ?? 0 : 0,
+      payload });
   }
   return (
     <section className={subsection} id="world-domestic-editor" aria-labelledby="world-domestic-manage-title">
@@ -109,7 +121,7 @@ function DomesticEditor({ country }: { country: DomesticCountry }) {
         ))}
       </div>
       <form className="mt-5 max-w-2xl space-y-4" onSubmit={submit}>
-        {edit ? <p className="text-sm text-muted-foreground">Editing {edit.name} · revision {edit.revision}</p> : null}
+        {edit || editElection ? <p className="text-sm text-muted-foreground">Editing {edit?.name ?? editElection?.title} · revision {edit?.revision ?? editElection?.revision}</p> : null}
         <label className="block space-y-2 text-sm font-medium">
           <span>{mode === "party" ? "Party name" : mode === "election" ? "Election title" : "Event title"}</span>
           <input className={field} required maxLength={mode === "party" ? 120 : 160}
@@ -162,13 +174,20 @@ function DomesticEditor({ country }: { country: DomesticCountry }) {
         ) : <p className="text-sm text-muted-foreground">History events publish immediately and remain permanent.</p>}
         <div className="flex flex-wrap items-center gap-3">
           <button className={button} type="submit" disabled={mutation.isPending}>
-            <Plus className="size-4" aria-hidden="true" />{mutation.isPending ? "Saving…" : edit ? "Save revision" : "Create record"}
+            <Plus className="size-4" aria-hidden="true" />{mutation.isPending ? "Saving…" : (edit || editElection) ? "Save revision" : "Create record"}
           </button>
-          {edit ? <button type="button" className={secondary} onClick={() => chooseMode("party")}>Cancel edit</button> : null}
+          {edit || editElection ? <button type="button" className={secondary} onClick={() => chooseMode(mode)}>Cancel edit</button> : null}
         </div>
         {mutation.isError ? <p role="alert" className="text-sm text-destructive">{mutation.error.message}</p> : null}
         {receipt ? <p role="status" className="text-sm text-foreground">{receipt}</p> : null}
       </form>
+      {country.elections.some(e => !e.published) ? <div className="mt-5">
+        <h3 className="font-semibold">Continue a draft election</h3>
+        <div className="mt-2 flex flex-wrap gap-2">{country.elections.filter(e => !e.published).map(e =>
+          <button type="button" key={e.id} className={secondary}
+            onClick={() => chooseElection(e)} disabled={mutation.isPending}>
+            <Pencil className="size-3" aria-hidden="true" /> {e.title}
+          </button>)}</div></div> : null}
       {country.parties.length ? <div className="mt-5">
         <h3 className="font-semibold">Edit an existing party</h3>
         <div className="mt-2 flex flex-wrap gap-2">{country.parties.map(p =>
@@ -183,17 +202,19 @@ function DomesticEditor({ country }: { country: DomesticCountry }) {
 export function WorldDomesticPolitics({ code }: { code: string }) {
   const query = useQuery({
     queryKey: ["world", "domestic", code], queryFn: ({ signal }) => readWorldDomesticCountry(code, signal),
-    retry: false, staleTime: 30_000,
+    retry: false, staleTime: 0, gcTime: 0, refetchOnMount: "always",
   });
-  const country = query.data;
+  // A cached response can include the previous controller's private drafts.
+  // Do not render it while the current mount is verifying fresh authority.
+  const country = query.isFetching || !query.isFetchedAfterMount || query.isError ? null : query.data;
   return <div className="mx-auto w-full max-w-5xl px-3 pb-28 pt-5 sm:px-6 sm:pt-8">
     <Link to="/world/countries/$code" params={{ code }} className={secondary}>
       <ArrowLeft className="size-4" aria-hidden="true" /> Country International
     </Link>
-    {query.isPending ? <div role="status" className="mt-8 animate-pulse motion-reduce:animate-none">Loading government…</div> : null}
+    {(query.isPending || query.isFetching) ? <div role="status" className="mt-8 animate-pulse motion-reduce:animate-none">Loading government…</div> : null}
     {query.isError ? <div role="alert" className="mt-8"><p>Government data could not be retrieved.</p>
       <button className={secondary} onClick={() => void query.refetch()}>Try again</button></div> : null}
-    {query.isSuccess && !country ? <div className="mt-8"><h1 className="text-2xl font-semibold">Country not found</h1>
+    {query.isSuccess && !query.isFetching && query.isFetchedAfterMount && !country ? <div className="mt-8"><h1 className="text-2xl font-semibold">Country not found</h1>
       <Link to="/world/countries" className={secondary}>Browse countries</Link></div> : null}
     {country ? <>
       <header className="mt-7 max-w-3xl">
@@ -222,7 +243,7 @@ export function WorldDomesticPolitics({ code }: { code: string }) {
         </section>
         <section aria-labelledby="domestic-elections-title">
           <div className="flex items-center gap-2"><Vote className="size-5" aria-hidden="true" />
-            <h2 id="domestic-elections-title" className="text-xl font-semibold">Elections</h2></div>
+            <h2 id="domestic-elections-title" className="text-xl font-semibold">Recent elections</h2></div>
           {country.elections.length ? <ol className="mt-4 divide-y divide-border">{country.elections.map(e =>
             <li key={e.id} className="py-4"><time className="text-xs text-muted-foreground" dateTime={e.heldOn}>{e.heldOn}</time>
               <h3 className="mt-1 font-semibold">{e.title}</h3>
