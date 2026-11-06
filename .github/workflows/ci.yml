@@ -68,6 +68,9 @@ jobs:
       - name: Verify V3 production isolation
         run: bun run scripts/check-v3-production-isolation.ts
 
+      - name: Regress independent Quality diagnostics (read-only)
+        run: node --test scripts/quality-independent-checks.contract.mjs
+
       - name: Enforce V3 capability status transitions on pull requests
         if: github.event_name == 'pull_request'
         shell: bash
@@ -177,6 +180,9 @@ jobs:
         run: bun run budget:client
 
       - name: Verify route tree was generated
+        # Preserve independent diagnostics even if the client budget fails.
+        # Never run after failed production build, failed preflight or cancellation.
+        if: ${{ !cancelled() && steps.production_build.outcome == 'success' }}
         id: route_tree_generated
         shell: bash
         run: |
@@ -188,6 +194,9 @@ jobs:
           echo "routeTree.gen.ts generated successfully."
 
       - name: Verify generated route tree is untracked
+        # Preserve independent diagnostics even if the client budget fails.
+        # Never run after failed production build, failed preflight or cancellation.
+        if: ${{ !cancelled() && steps.production_build.outcome == 'success' }}
         id: route_tree_untracked
         shell: bash
         run: |
@@ -203,11 +212,17 @@ jobs:
           echo "Generated route tree is correctly untracked and ignored."
 
       - name: TypeScript
+        # Preserve independent diagnostics even if the client budget fails.
+        # Never run after failed production build, failed preflight or cancellation.
+        if: ${{ !cancelled() && steps.production_build.outcome == 'success' }}
         id: typecheck
         continue-on-error: true
         run: bun run typecheck
 
       - name: Unit tests
+        # Preserve independent diagnostics even if the client budget fails.
+        # Never run after failed production build, failed preflight or cancellation.
+        if: ${{ !cancelled() && steps.production_build.outcome == 'success' }}
         id: unit_tests
         continue-on-error: true
         shell: bash
@@ -236,6 +251,9 @@ jobs:
           retention-days: 1
 
       - name: Lint
+        # Preserve independent diagnostics even if the client budget fails.
+        # Never run after failed production build, failed preflight or cancellation.
+        if: ${{ !cancelled() && steps.production_build.outcome == 'success' }}
         id: lint
         continue-on-error: true
         shell: bash
