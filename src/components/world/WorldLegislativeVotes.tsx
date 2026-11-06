@@ -318,3 +318,266 @@ export function WorldVoteDetail({voteId}:{voteId:string}){
     </section>}
   </main>;
 }
+
+export function WorldVoteOpenWorkspace(){
+  const actor=useActor();
+  const cache=useQueryClient();
+  const organizations=useQuery({
+    queryKey:["world","votes","open","organizations"],
+    queryFn:listWorldVoteOrganizations,retry:false,staleTime:90_000,
+  });
+  const [organizationId,setOrganizationId]=useState("");
+  const organization=organizations.data?.find(o=>o.id===organizationId)
+    ??organizations.data?.[0]??null;
+  const measures=useQuery({
+    queryKey:["world","votes","private","open-measures",actor.id,organization?.id],
+    queryFn:()=>getOpenableMeasures(organization!.id),
+    enabled:actor.ready&&Boolean(actor.id&&organization),retry:false,staleTime:0,gcTime:0,
+  });
+  const [measureId,setMeasureId]=useState("");
+  const measure=measures.data?.find(m=>m.id===measureId)??measures.data?.[0]??null;
+  const rules=useQuery({
+    queryKey:["world","votes","private","open-rules",actor.id,organization?.id,measure?.organId],
+    queryFn:()=>getOpenableRules(organization!.id,measure!.organId),
+    enabled:actor.ready&&Boolean(actor.id&&organization&&measure),
+    retry:false,staleTime:0,gcTime:0,
+  });
+  const [ruleId,setRuleId]=useState("");
+  const rule=rules.data?.find(x=>x.id===ruleId)??rules.data?.[0]??null;
+  const [closesLocal,setClosesLocal]=useState("");
+  const [review,setReview]=useState<OpenAttempt|null>(null);
+  const uncertain=useRef<OpenAttempt|null>(null);
+  const [busy,setBusy]=useState(false);
+  const [receipt,setReceipt]=useState<WorldVoteReceipt|null>(null);
+  const [problem,setProblem]=useState<string|null>(null);
+  useEffect(()=>{
+    setReview(null);uncertain.current=null;
+    setReceipt(null);setProblem(null);setBusy(false);
+  },[actor.generation]);
+  function prepare(event:FormEvent){
+    event.preventDefault();
+    if(!actor.id||!measure||!rule||!closesLocal||review||uncertain.current)return;
+    const date=new Date(closesLocal);
+    if(!Number.isFinite(date.getTime())||date.getTime()<=Date.now()+60_000){
+      setProblem("The vote must close at least one minute after it opens.");
+      return;
+    }
+    setReview({measureId:measure.id,expectedMeasureRevision:measure.revision,
+      ruleId:rule.id,closesAt:date.toISOString(),operationId:crypto.randomUUID()});
+    setProblem(null);
+  }
+  async function execute(action:OpenAttempt){
+    if(busy||!actor.id)return;
+    const submittingActor=actor.id;
+    uncertain.current=action;setReview(null);setBusy(true);setProblem(null);
+    try{
+      const result=await openWorldVote(action);
+      if(actor.liveIdentity.current!==submittingActor)return;
+      setReceipt(result);uncertain.current=null;
+      await cache.invalidateQueries({queryKey:["world","votes","private","open-measures",submittingActor]});
+    }catch(error){
+      if(actor.liveIdentity.current!==submittingActor)return;
+      setProblem(errorText(error));
+      if(finalError(error)) {
+        uncertain.current=null;
+        await cache.invalidateQueries({queryKey:["world","votes","private","open-measures",submittingActor]});
+      }
+    }finally{if(actor.liveIdentity.current===submittingActor)setBusy(false)}
+  }
+  const frozen=busy||!!review||!!uncertain.current||!!receipt;
+  return <main className="mx-auto w-full max-w-3xl px-4 pb-28 pt-5 sm:px-6 sm:pt-9">
+    <Link to="/world/votes" className="inline-flex min-h-11 items-center gap-2 text-sm">
+      <ArrowLeft className="size-4"/> Certified votes
+    </Link>
+    <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+      Terra Solaris · Authorized institution
+    </p>
+    <h1 className="mt-2 text-3xl font-semibold">Open a legislative vote</h1>
+    <p className="mt-3 text-sm leading-6 text-muted-foreground">
+      Only an officer with the exact institutional vote-opening capability can start
+      this irreversible process. The server freezes the measure version, voting rule,
+      member-country electorate and permitted representatives or proxies.
+      Secret elections are not supported by legislative voting.
+    </p>
+    {!actor.ready?<p role="status" className="mt-6">Verifying account authority…</p>:
+      !actor.id?<p className="mt-6 text-sm">Sign in as an authorized institution officer.</p>:null}
+    {receipt&&<><Receipt receipt={receipt}/>
+      <Link to="/world/votes/$voteId/manage" params={{voteId:receipt.voteId}}
+        className="mt-5 inline-flex min-h-11 items-center rounded-lg border px-4 text-sm font-semibold">
+        Open official vote management
+      </Link>
+      </>}
+    {problem&&<p role="alert" className="mt-5 rounded-lg border border-destructive/40 p-4 text-sm">{problem}</p>}
+    {review&&<section className="mt-6 rounded-xl border border-primary/40 p-5">
+      <h2 className="text-lg font-semibold">Confirm vote opening</h2>
+      <p className="mt-2 text-sm">{measure?.identifier} · {measure?.title}</p>
+      <p className="mt-2 text-sm">Rule: {rule?.label}, version {rule?.ruleRevision}</p>
+      <p className="mt-2 text-sm">Closes {new Date(review.closesAt).toLocaleString()}</p>
+      <p className="mt-3 text-sm text-muted-foreground">
+        The electorate is frozen on the server when this operation commits.
+        No current ballots or eligibility will be guessed by this form.
+      </p>
+      <code className="mt-2 block break-all text-xs">{review.operationId}</code>
+      <div className="mt-5 flex flex-wrap gap-3">
+        <button type="button" disabled={busy} onClick={()=>void execute(review)}
+          className="min-h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground">
+          Open governed vote
+        </button>
+        <button type="button" disabled={busy} onClick={()=>setReview(null)}
+          className="min-h-11 rounded-lg border px-4 text-sm">Cancel</button>
+      </div>
+    </section>}
+    {uncertain.current&&<section role="alert" className="mt-6 rounded-xl border p-5">
+      <h2 className="font-semibold">Vote-opening acknowledgement uncertain</h2>
+      <p className="mt-2 text-sm">A second vote may be a serious institutional error.
+        Reconcile the exact operation, not a new one.</p>
+      <code className="mt-2 block break-all text-xs">{uncertain.current.operationId}</code>
+      <button type="button" disabled={busy} onClick={()=>void execute(uncertain.current!)}
+        className="mt-4 min-h-11 rounded-lg border px-4 text-sm">Retry exact operation</button>
+    </section>}
+    <form className="mt-8 space-y-5" onSubmit={prepare}>
+      <label className="block text-sm font-medium">Organization
+        <select value={organization?.id??""} disabled={frozen||!actor.id}
+          onChange={e=>{setOrganizationId(e.target.value);setMeasureId("");setRuleId("")}}
+          className="mt-2 min-h-11 w-full rounded-lg border bg-background px-3">
+          {(organizations.data??[]).map(o=><option key={o.id} value={o.id}>{o.shortName}</option>)}
+        </select>
+      </label>
+      {organizations.isError&&<RetryError retry={()=>void organizations.refetch()}/>}
+      <label className="block text-sm font-medium">Registered measure
+        <select value={measure?.id??""} disabled={frozen||!actor.id||measures.isPending}
+          onChange={e=>{setMeasureId(e.target.value);setRuleId("")}}
+          className="mt-2 min-h-11 w-full rounded-lg border bg-background px-3">
+          {(measures.data??[]).map(m=><option key={m.id} value={m.id}>
+            {m.identifier} · {m.title}
+          </option>)}
+        </select>
+      </label>
+      {measures.isError&&<RetryError retry={()=>void measures.refetch()}/>}
+      {measures.isSuccess&&measures.data.length===0&&
+        <p className="text-sm text-muted-foreground">No eligible registered measures were found for your scoped authority.</p>}
+      <label className="block text-sm font-medium">Frozen legislative voting policy
+        <select value={rule?.id??""} disabled={frozen||!actor.id||!measure||rules.isPending}
+          onChange={e=>setRuleId(e.target.value)}
+          className="mt-2 min-h-11 w-full rounded-lg border bg-background px-3">
+          {(rules.data??[]).map(x=><option key={x.id} value={x.id}>
+            {x.label} · version {x.ruleRevision}
+          </option>)}
+        </select>
+      </label>
+      {rules.isError&&<RetryError retry={()=>void rules.refetch()}/>}
+      <label className="block text-sm font-medium">Local closing date and time
+        <input type="datetime-local" required value={closesLocal}
+          onChange={e=>setClosesLocal(e.target.value)}
+          disabled={frozen||!actor.id}
+          className="mt-2 min-h-11 w-full rounded-lg border bg-background px-3"/>
+      </label>
+      <button type="submit" disabled={frozen||!actor.id||!measure||!rule}
+        className="min-h-11 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-40">
+        Review official vote opening
+      </button>
+    </form>
+  </main>;
+}
+
+export function WorldVoteCertification({voteId}:{voteId:string}){
+  const actor=useActor();
+  const cache=useQueryClient();
+  const manager=useQuery({
+    queryKey:["world","votes","private","manage",actor.id,voteId],
+    queryFn:()=>getManagedWorldVote(voteId),
+    enabled:voteUuid(voteId)&&actor.ready&&Boolean(actor.id),
+    retry:false,staleTime:0,gcTime:0,refetchOnMount:"always",
+  });
+  const [review,setReview]=useState<CertificationAttempt|null>(null);
+  const uncertain=useRef<CertificationAttempt|null>(null);
+  const [busy,setBusy]=useState(false);
+  const [problem,setProblem]=useState<string|null>(null);
+  const [receipt,setReceipt]=useState<WorldVoteReceipt|null>(null);
+  useEffect(()=>{
+    setReview(null);uncertain.current=null;setBusy(false);
+    setProblem(null);setReceipt(null);
+  },[actor.generation,voteId]);
+  function prepare(){
+    if(!actor.id||!manager.data||!manager.data.canCertify||
+       manager.data.status!=="open"||review||uncertain.current)return;
+    setReview({voteId,expectedVoteRevision:manager.data.revision,
+      operationId:crypto.randomUUID()});
+  }
+  async function execute(action:CertificationAttempt){
+    if(busy||!actor.id)return;
+    const submittingActor=actor.id;
+    uncertain.current=action;setReview(null);setBusy(true);setProblem(null);
+    try{
+      const result=await certifyWorldVote(action);
+      if(actor.liveIdentity.current!==submittingActor)return;
+      setReceipt(result);uncertain.current=null;
+      await Promise.all([
+        cache.invalidateQueries({queryKey:["world","votes","private","manage",submittingActor,voteId]}),
+        cache.invalidateQueries({queryKey:["world","votes","public-detail",voteId]}),
+        cache.invalidateQueries({queryKey:["world","votes","published-list"]}),
+      ]);
+    }catch(error){
+      if(actor.liveIdentity.current!==submittingActor)return;
+      setProblem(errorText(error));
+      if(finalError(error)){
+        uncertain.current=null;
+        await manager.refetch();
+      }
+    }finally{if(actor.liveIdentity.current===submittingActor)setBusy(false)}
+  }
+  return <main className="mx-auto w-full max-w-3xl px-4 pb-28 pt-5 sm:px-6 sm:pt-9">
+    <Link to="/world/votes/$voteId" params={{voteId}}
+      className="inline-flex min-h-11 items-center gap-2 text-sm"><ArrowLeft className="size-4"/> Vote</Link>
+    <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+      Terra Solaris · Restricted officer control
+    </p>
+    <h1 className="mt-2 text-3xl font-semibold">Certify institutional vote</h1>
+    <p className="mt-3 text-sm text-muted-foreground">
+      Only the configured certifying office can certify after closing.
+      Certification locks the exact ballot count and rational quorum/threshold
+      calculation into a durable result. Do not certify from a client tally.
+    </p>
+    {!actor.ready||manager.isPending?<p role="status" className="mt-6">Verifying current authority…</p>:
+     manager.isError?<div className="mt-6"><RetryError retry={()=>void manager.refetch()}/></div>:
+     !manager.data?<p role="alert" className="mt-6">
+       No authorized certification record is available for this account.
+     </p>:<section className="mt-7 rounded-xl border p-5">
+       <h2 className="font-semibold">{manager.data.ruleKey}</h2>
+       <p className="mt-2 text-sm capitalize">State: {manager.data.status}</p>
+       <p className="mt-2 text-sm">Frozen eligible countries: {manager.data.eligibleElectorate}</p>
+       <p className="mt-2 text-sm">Closes: {new Date(manager.data.closesAt).toLocaleString()}</p>
+       {manager.data.status==="open"&&manager.data.canCertify&&
+         <button type="button" onClick={prepare} disabled={busy||!!uncertain.current}
+           className="mt-5 min-h-11 rounded-lg border px-5 text-sm font-semibold">
+           Review certification
+         </button>}
+     </section>}
+    {problem&&<p role="alert" className="mt-5 rounded-lg border border-destructive/40 p-4 text-sm">{problem}</p>}
+    {review&&<section className="mt-6 rounded-xl border border-primary/40 p-5">
+      <h2 className="font-semibold">Final certification confirmation</h2>
+      <p className="mt-2 text-sm">Frozen measure: {manager.data?.measureId}</p>
+      <p className="mt-2 text-sm">Expected vote revision: {review.expectedVoteRevision}</p>
+      <p className="mt-2 text-sm">All recorded votes become immutable official evidence.
+        The server determines quorum, approval, and outcome after the close time.</p>
+      <code className="mt-2 block break-all text-xs">{review.operationId}</code>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button type="button" disabled={busy} onClick={()=>void execute(review)}
+          className="min-h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground">
+          Certify with server authority
+        </button>
+        <button type="button" disabled={busy} onClick={()=>setReview(null)}
+          className="min-h-11 rounded-lg border px-4 text-sm">Cancel</button>
+      </div>
+    </section>}
+    {uncertain.current&&<section role="alert" className="mt-6 rounded-xl border p-5">
+      <h2 className="font-semibold">Certification acknowledgement uncertain</h2>
+      <p className="mt-2 text-sm">Do not initiate another certification.
+        Reconcile this identical operation ID.</p>
+      <code className="mt-2 block break-all text-xs">{uncertain.current.operationId}</code>
+      <button type="button" disabled={busy} onClick={()=>void execute(uncertain.current!)}
+        className="mt-4 min-h-11 rounded-lg border px-4 text-sm">Reconcile certification</button>
+    </section>}
+    {receipt&&<Receipt receipt={receipt}/>}
+  </main>;
+}
