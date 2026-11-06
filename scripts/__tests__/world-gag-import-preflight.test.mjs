@@ -27,7 +27,7 @@ test('verified source, unknown outcome and unavailable text remain explicit; no 
   assert.equal(report.status, 'source_checked_not_imported');
   assert.equal(report.recordCount, 1);
   assert.deepEqual(report.records[0], {
-    identifier: 'EXAMPLE 001', outcome: null, sourceLocator: 'example page 1', textAvailability: 'unavailable',
+    identifier: 'EXAMPLE 001', outcome: null, outcomeSourceLocator: null, sourceLocator: 'example page 1', textAvailability: 'unavailable',
     titleProvided: false, sponsorProvided: false, fullTextProvided: false,
   });
   assert.equal(report.source.documentSha256, digest);
@@ -69,6 +69,38 @@ test('no silent acceptance of unknown metadata, invalid UTC, empty records or fa
   fails(m => { m.source.verifiedAt = '2026-02-30T00:00:00Z'; }, /valid explicit UTC/);
   fails(m => { m.records = []; }, /1 to 5000/);
   fails(m => { m.records[0].outcome = '  adopted'; }, /unmodified source text/);
+});
+
+
+test('known historical outcomes require a specific verified source locator', () => {
+  fails(m => { m.records[0].outcome = 'adopted'; }, /outcomeSourceLocator/);
+  fails(m => { m.records[0].outcomeSourceLocator = 'page 3'; }, /has no outcome/);
+  const m = original();
+  m.records[0].outcome = 'adopted';
+  m.records[0].outcomeSourceLocator = 'page 3, vote summary';
+  const row = check(m).records[0];
+  assert.equal(row.outcome, 'adopted');
+  assert.equal(row.outcomeSourceLocator, 'page 3, vote summary');
+});
+
+test('multiline verified historical text is accepted without collapsing whitespace', () => {
+  const m = original();
+  m.records[0].textAvailability = 'available';
+  m.records[0].fullText = 'Section 1\n\tIndented evidence\r\n\r\nSection 2\n';
+  m.records[0].fullTextSourceLocator = 'pages 2-3';
+  const report = check(m);
+  assert.equal(report.records[0].fullTextProvided, true);
+  assert.equal(report.manifestSha256, createHash('sha256').update(JSON.stringify(m)).digest('hex'));
+  fails(n => {
+    n.records[0].textAvailability = 'available';
+    n.records[0].fullText = 'text\u0000unsafe';
+    n.records[0].fullTextSourceLocator = 'page 1';
+  }, /safe whitespace controls/);
+  fails(n => {
+    n.records[0].textAvailability = 'available';
+    n.records[0].fullText = '\n\t  ';
+    n.records[0].fullTextSourceLocator = 'page 1';
+  }, /safe whitespace controls/);
 });
 
 test('CLI writes a strict private local report and refuses overwrites', async () => {
