@@ -271,13 +271,39 @@ as $
     'slug',q.slug,'name',q.name,'rooms',q.rooms
   ) order by q.name), '[]'::jsonb)
   from (
-    select o.slug, o.short_name as name, count(*) as rooms
-      from public.world_spaces s
-      join public.world_organizations o on o.id=s.organization_id
-      where s.status='active'
-        and private.world_space_read_from_v1(s.id) is not null
-      group by o.slug,o.short_name
+    select o.slug, o.short_name as name,
+      (select count(*) from public.world_spaces s
+        where s.organization_id=o.id and s.status='active'
+          and private.world_space_read_from_v1(s.id) is not null) as rooms
+    from public.world_organizations o
+    where public.studio2_feature_enabled('terra_private_spaces',null)
+      and (
+        private.world_space_member_since_v1(o.id) is not null
+        or public.world_access_allowed('world.space.manage',o.id)
+        or public.world_access_allowed('world.organization.settings.manage',o.id)
+      )
+    limit 100
   ) q
+$;
+
+-- Allows an authorized manager to create the FIRST room. This exposes no
+-- institution metadata unless the caller is a current member/manager.
+create function public.world_workspace_context_v1(p_slug text)
+returns jsonb language plpgsql stable security definer set search_path = pg_catalog
+as $
+declare v_org public.world_organizations%rowtype; v_manage boolean;
+begin
+  if auth.uid() is null or not public.studio2_feature_enabled('terra_private_spaces',null)
+  then return null; end if;
+  select * into v_org from public.world_organizations where slug=p_slug;
+  if not found then return null; end if;
+  v_manage := public.world_access_allowed('world.space.manage',v_org.id)
+    or public.world_access_allowed('world.organization.settings.manage',v_org.id);
+  if private.world_space_member_since_v1(v_org.id) is null and not v_manage
+  then return null; end if;
+  return jsonb_build_object('organizationId',v_org.id,
+    'name',v_org.short_name,'canManage',v_manage);
+end
 $;
 
 create function public.world_space_create_v1(
@@ -522,6 +548,7 @@ $$;
 revoke all on function private.world_space_member_since_v1(uuid),
   private.world_space_read_from_v1(uuid) from public, anon, authenticated;
 revoke all on function public.world_my_workspaces_v1(),
+  public.world_workspace_context_v1(text),
   public.world_spaces_list_v1(text),
   public.world_space_create_v1(uuid,text,text,text,text,uuid,uuid),
   public.world_space_set_grant_v1(uuid,uuid,text,timestamptz,boolean),
@@ -532,6 +559,7 @@ revoke all on function public.world_my_workspaces_v1(),
   public.world_space_moderate_v1(uuid,text,bigint)
   from public, anon, authenticated;
 grant execute on function public.world_my_workspaces_v1(),
+  public.world_workspace_context_v1(text),
   public.world_spaces_list_v1(text),
   public.world_space_create_v1(uuid,text,text,text,text,uuid,uuid),
   public.world_space_set_grant_v1(uuid,uuid,text,timestamptz,boolean),
