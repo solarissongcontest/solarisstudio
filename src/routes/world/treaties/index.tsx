@@ -2,11 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
+import { AppShell } from "@/components/AppShell";
+import { WorldPublicGate } from "@/components/world/WorldPublic";
 import { parsePublishedTreaties } from "@/lib/world-treaties";
 
 const db = supabase as any;
 
-function TreatyDirectory() {
+function TreatyDirectoryContents() {
   const [filter, setFilter] = useState("");
   const treaties = useQuery({
     queryKey: ["tg4-published-treaties"],
@@ -104,6 +106,16 @@ function TreatyDirectory() {
           </ul>
         )}
     </main>
+  );
+}
+
+function TreatyDirectory() {
+  return (
+    <WorldPublicGate verifyOnMount>
+      <AppShell>
+        <TreatyDirectoryContents />
+      </AppShell>
+    </WorldPublicGate>
   );
 }
 
