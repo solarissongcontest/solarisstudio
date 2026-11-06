@@ -10,16 +10,20 @@ const sourceDir = fileURLToPath(new URL('.', import.meta.url));
 const runner = join(sourceDir, 'rehearse-v3-world-privilege-boundary.sh');
 const audit = readFileSync(join(sourceDir, 'rehearse-v3-world-privilege-boundary.sql'), 'utf8');
 
-function runStubbed(apiUrl, dbUrl) {
+function runStubbed(apiUrl, dbUrl, options = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'tg19-world-privileges-'));
   const marker = join(dir, 'psql-invoked');
   try {
     const cli = join(dir, 'supabase');
     const psql = join(dir, 'psql');
     // The fake CLI never makes a network request; attacker URLs remain test data.
+    const statusOutput = options.statusOutput ?? `API_URL="${apiUrl}"\nDB_URL="${dbUrl}"\n`;
+    // Single-quote the fake CLI response so injected shell text is *printed*
+    // verbatim, never executed by our synthetic Supabase stub.
+    const shellQuote = (value) => "'" + value.replaceAll("'", "'\\''") + "'";
     writeFileSync(cli, '#!/bin/sh\n' +
       '[ "$1" = status ] && [ "$2" = -o ] && [ "$3" = env ] || exit 2\n' +
-      'printf "%s\\n" "API_URL=' + apiUrl + '" "DB_URL=' + dbUrl + '"\n');
+      'printf %s ' + shellQuote(statusOutput) + '\n');
     writeFileSync(psql, '#!/bin/sh\n' +
       '[ -z "${PGHOSTADDR:-}" ] && [ -z "${PGSERVICE:-}" ] || exit 97\n' +
       'printf invoked > "$TG19_MARKER_FILE"\n');
@@ -37,7 +41,7 @@ function runStubbed(apiUrl, dbUrl) {
         DB_URL: 'postgresql://postgres@hosted.example.com/prod',
       },
     });
-    return { status: result.status, stderr: result.stderr, calledPsql: existsSync(marker) };
+    return { status: result.status, stderr: result.stderr, calledPsql: existsSync(marker), injectedCommandRan: existsSync(marker + ".pwned") };
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -81,4 +85,25 @@ test('TG19 SQL catalog audit is read only and checks every World persistent tabl
   assert.match(audit, /TG19_WORLD_PRIVILEGES_NO_WORLD_TABLES/);
   assert.match(audit, /rollback;/i);
   assert.doesNotMatch(audit, /\b(create|alter|drop|truncate|insert|update|delete)\s+(table|view|into|from|public\.)/i);
+});
+
+test('TG19 status parser treats extra CLI output as data, never executable shell', () => {
+  const statusOutput = `API_URL="${localApi}"\nDB_URL="${localDb}"\nEXTRA=$(touch "$TG19_MARKER_FILE.pwned")\n`;
+  const result = runStubbed(localApi, localDb, { statusOutput });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.calledPsql, true);
+  assert.equal(result.injectedCommandRan, false, 'status content must never execute shell substitutions');
+});
+
+test('TG19 status parser rejects conflicting duplicate target rows before psql', () => {
+  for (const statusOutput of [
+    `API_URL=${localApi}\nAPI_URL=https://remote.example\nDB_URL=${localDb}\n`,
+    `DB_URL=${localDb}\nDB_URL=${localDb}\nAPI_URL=${localApi}\n`,
+    `API_URL=${localApi}\n`,
+    `API_URL=${localApi}\nDB_URL=${localDb}?options=host%3Devil.example\n`,
+  ]) {
+    const result = runStubbed(localApi, localDb, { statusOutput });
+    assert.notEqual(result.status, 0, 'malformed status unexpectedly accepted');
+    assert.equal(result.calledPsql, false, 'psql must not be invoked on ambiguous or incomplete status');
+  }
 });
