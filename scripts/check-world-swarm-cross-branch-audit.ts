@@ -7,6 +7,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import {
   auditWorldSwarmCrossBranches,
+  isPotentialWorldSwarmPull,
   type WorldSwarmPull,
   type WorldSwarmSnapshot,
 } from "../src/lib/world-swarm-cross-branch-audit.ts";
@@ -78,8 +79,7 @@ type GithubPull = {
 type GithubFile = { filename: string; status: string; previous_filename?: string };
 
 function isWorld(pull: GithubPull): boolean {
-  return /(?:\[V3-WORLD|\[V3-WAVE2\]|\bTG(?:[0-9]|1[0-9])\b|Terra Solaris Governance)/i.test(pull.title) &&
-    (/world|terra|governance|tg[0-9]/i.test(`${pull.title} ${pull.head.ref}`));
+  return isPotentialWorldSwarmPull({ title: pull.title, branch: pull.head.ref });
 }
 
 async function liveSnapshot(): Promise<WorldSwarmSnapshot> {
@@ -115,6 +115,12 @@ async function liveSnapshot(): Promise<WorldSwarmSnapshot> {
     if (latest.head.sha !== candidate.headSha || latest.base.ref !== candidate.baseRef) {
       throw new Error(`PR #${candidate.number} moved during snapshot; retry`);
     }
+  }
+  // Main can advance while hundreds of PR heads are checked. Do not
+  // publish a clean snapshot tied to a main that has since moved.
+  const finalMain = (await branch()).commit.sha;
+  if (finalMain !== startMain) {
+    throw new Error(`main moved during PR-head validation (${startMain} -> ${finalMain}); retry`);
   }
   return {
     repository: REPO,
