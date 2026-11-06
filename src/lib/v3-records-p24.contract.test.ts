@@ -147,6 +147,24 @@ describe("Public V3 P24 Records", () => {
     expect(screen).toContain("Source: {holder.provenance.label}");
   });
 
+  it("allows a published Records category to be shared as sanitized URL state", () => {
+    const gate = read("src/components/v3/V3RecordsGate.tsx");
+    const screen = read("src/components/v3/V3RecordsScreen.tsx");
+    const contract = read("src/lib/v3-records.ts");
+    expect(gate).toContain("state.location.search");
+    expect(gate).toContain("categoryFromSearch(search)");
+    expect(gate).toContain('to: "/records"');
+    expect(gate).toContain('category: category === "career" ? undefined : category');
+    expect(gate).toContain("replace: true");
+    expect(screen).toContain("selectedCategory ?? localCategory");
+    expect(screen).toContain("onCategoryChange(nextCategory)");
+    expect(contract).toContain('FanRecordCategory | "all"');
+    // Versioned provenance, spoiler-safe derived records and official history links
+    // remain independent of the user's URL category selection.
+    expect(screen).toContain("holder.provenance.href");
+    expect(gate).toContain("resolveV3ResultsSpoilerProtection");
+  });
+
   it("does not expose a browser-controlled Records rollout escape hatch", () => {
     const combined = [
       read("src/components/v3/V3RecordsGate.tsx"),

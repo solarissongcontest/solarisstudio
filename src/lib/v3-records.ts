@@ -1,4 +1,6 @@
-import type { FanRecord, FanRecordHolder } from "./fan-records";
+import type { FanRecord, FanRecordCategory, FanRecordHolder } from "./fan-records";
+
+export type V3RecordCategoryFilter = FanRecordCategory | "all";
 
 export type V3RecordProvenance = {
   kind: "result" | "voting" | "edition";
