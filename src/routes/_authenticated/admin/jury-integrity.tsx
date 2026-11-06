@@ -39,6 +39,12 @@ function JuryIntegrityPage() {
       return result;
     },
     staleTime: 30_000,
+    // Private model evidence is expensive and can be permission-denied.
+    // Never repeat protected reads automatically on focus/reconnect/failure.
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: false,
   });
 
   const cases = useMemo(() => {
@@ -74,6 +80,17 @@ function JuryIntegrityPage() {
         eyebrow="Jury integrity"
         title="Jury Independence v5"
         description="Producer-only review of jury independence, peer-score deviation, historical relationships and corroborating evidence for the exact selected edition. Statistical evidence is for review, not an automatic misconduct finding."
+        actions={
+          <button
+            type="button"
+            className="admin-action-secondary"
+            onClick={() => void query.refetch()}
+            disabled={query.isFetching}
+            aria-busy={query.isFetching}
+          >
+            {query.isFetching ? "Refreshing…" : query.error ? "Retry integrity evidence" : "Refresh integrity evidence"}
+          </button>
+        }
       />
 
       {query.data && !query.error && !query.isLoading ? (
@@ -119,17 +136,8 @@ function JuryIntegrityPage() {
         <AdminCard>
           <div role="alert">
             <p className="text-sm font-semibold text-red-200">Jury integrity evidence could not be loaded</p>
-            <p className="mt-1 text-xs text-muted-foreground">No integrity conclusion can be drawn from an unavailable or unauthorized readback.</p>
+            <p className="mt-1 text-xs text-muted-foreground">No integrity conclusion can be drawn from an unavailable or unauthorized readback. Use Retry integrity evidence above after resolving the issue.</p>
           </div>
-          <button
-            type="button"
-            className="admin-action-secondary mt-4"
-            onClick={() => void query.refetch()}
-            disabled={query.isFetching}
-            aria-busy={query.isFetching}
-          >
-            {query.isFetching ? "Retrying…" : "Retry integrity evidence"}
-          </button>
         </AdminCard>
       ) : cases.length ? (
         <div className="space-y-3">
