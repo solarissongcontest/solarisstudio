@@ -20,23 +20,29 @@ export function PublicSectionNav({
   collapsible?: boolean;
 }) {
   const area = publicAreaForPath(pathname);
+  const items = publicDestinationsForArea(area, { includeContextual: false });
+  const activeTo = items
+    .filter((item) => publicPathMatches(pathname, item.to))
+    .sort((a, b) => b.to.length - a.to.length)[0]?.to;
+  const activeIsAdvanced = items.some(
+    (item) => item.visibility === "advanced" && item.to === activeTo,
+  );
   const [hydrated, setHydrated] = useState(false);
-  const [collapsed, setCollapsed] = useState(collapsible);
+  // A direct link to an Advanced tool must reveal its current-page destination,
+  // even when the surrounding data explorer normally starts collapsed.
+  const [collapsed, setCollapsed] = useState(collapsible && !activeIsAdvanced);
 
   useEffect(() => setHydrated(true), []);
+  useEffect(() => {
+    if (activeIsAdvanced) setCollapsed(false);
+  }, [activeIsAdvanced, activeTo]);
 
   if (!hasLocalNavigation(area)) return null;
 
   const interactiveCollapsed = hydrated && collapsible && collapsed;
-
-  const items = publicDestinationsForArea(area, { includeContextual: false });
   const primary = items.filter((item) => item.visibility === "primary");
   const secondary = items.filter((item) => item.visibility === "secondary");
   const advanced = items.filter((item) => item.visibility === "advanced");
-
-  const activeTo = items
-    .filter((item) => publicPathMatches(pathname, item.to))
-    .sort((a, b) => b.to.length - a.to.length)[0]?.to;
 
   return (
     <aside
