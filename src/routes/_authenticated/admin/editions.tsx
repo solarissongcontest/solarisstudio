@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -161,16 +161,19 @@ function AdminHome() {
 
   // Incomplete reads must never look like an empty contest or authorize editing.
   const editionReads = [editionsQuery, countriesQuery, showsQuery, participantsQuery, organizerQuery];
-  const readsUnavailable = editionReads.some((query) => query.isError);
-  const snapshotReady = editionReads.every((query) => query.isSuccess);
+  // Failed background refreshes may keep their last successful data. Never
+  // reclassify that cached data as a newly verified administration snapshot.
+  const readsUnavailable = editionReads.some((query) => query.isError || query.error != null);
+  const snapshotReady = editionReads.every((query) => query.isSuccess && query.error == null);
   const canManageEditions = snapshotReady && isOrganizer === true;
+  const verifiedAccessRef = useRef(canManageEditions);
 
   const retryFailedReads = () => {
-    if (editionsQuery.isError) void editionsQuery.refetch();
-    if (countriesQuery.isError) void countriesQuery.refetch();
-    if (showsQuery.isError) void showsQuery.refetch();
-    if (participantsQuery.isError) void participantsQuery.refetch();
-    if (organizerQuery.isError) void organizerQuery.refetch();
+    if (editionsQuery.isError || editionsQuery.error != null) void editionsQuery.refetch();
+    if (countriesQuery.isError || countriesQuery.error != null) void countriesQuery.refetch();
+    if (showsQuery.isError || showsQuery.error != null) void showsQuery.refetch();
+    if (participantsQuery.isError || participantsQuery.error != null) void participantsQuery.refetch();
+    if (organizerQuery.isError || organizerQuery.error != null) void organizerQuery.refetch();
   };
 
   const nextNumber = !editionsQuery.isSuccess
@@ -210,6 +213,7 @@ function AdminHome() {
   }, [participants]);
 
   useEffect(() => {
+    verifiedAccessRef.current = canManageEditions;
     if (!canManageEditions) {
       setLifecycleReview(null);
       setCreateOpen(false);
@@ -304,6 +308,10 @@ function AdminHome() {
 
     try {
       const controls = await loadShowPublicationControls(edition.id);
+      if (!verifiedAccessRef.current) {
+        setError("Organizer verification was lost while preparing the edition review. No review was opened.");
+        return;
+      }
       const editionShows = shows.filter((show) => show.edition_id === edition.id);
       const participantIds = sorted(
         participants
@@ -401,6 +409,9 @@ function AdminHome() {
 
     try {
       const fresh = await revalidateEditionLifecycleReview(review);
+      if (!verifiedAccessRef.current) {
+        throw new Error("Organizer verification was lost before the edition lifecycle action. No mutation was started.");
+      }
 
       if (review.kind === "private") {
         const showById = new Map(fresh.shows.map((show) => [show.id, show] as const));
@@ -417,6 +428,9 @@ function AdminHome() {
             scheduledFor: null,
           });
           if (preview.alreadyApplied) continue;
+          if (!verifiedAccessRef.current) {
+            throw new Error("Organizer verification was lost while hiding show publication. Reconcile any completed changes before retrying.");
+          }
 
           const operationId = crypto.randomUUID();
           await applyShowPublicationChange({
@@ -426,6 +440,9 @@ function AdminHome() {
           });
         }
 
+        if (!verifiedAccessRef.current) {
+          throw new Error("Organizer verification was lost during edition publication changes. Reconcile any completed show changes before retrying.");
+        }
         const { error: editionError } = await supabase
           .from("editions")
           .update({ published: false, status: "draft" })
@@ -445,6 +462,9 @@ function AdminHome() {
           `${review.editionLabel} is private. Its saved publication choices are still available.`,
         );
       } else {
+        if (!verifiedAccessRef.current) {
+          throw new Error("Organizer verification was lost before deletion. Nothing was deleted.");
+        }
         const { error: deleteError } = await supabase
           .from("editions")
           .delete()
