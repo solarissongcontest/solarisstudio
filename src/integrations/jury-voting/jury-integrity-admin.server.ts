@@ -2,6 +2,8 @@ import { getSolarisCapabilitiesServer } from "@/integrations/supabase/capabiliti
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertJuryIntegrityV5Evidence, numberValue, percentageValue, peerCountValue, proportionValue } from "./jury-integrity-readback";
 
+const EDITION_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export type JuryIntegrityTargetEvidence = {
   targetCountryId: string;
   targetName: string;
@@ -47,6 +49,7 @@ function asArray(value: unknown): unknown[] {
 export async function listJuryIntegrityCasesServer(editionId: string) {
   const scopedEditionId = String(editionId ?? "").trim();
   if (!scopedEditionId) throw new Error("Jury Integrity requires an explicit edition scope");
+  if (!EDITION_UUID.test(scopedEditionId)) throw new Error("Jury Integrity requires a valid edition id");
   // Private target-level scores require BOTH integrity and ballot access.
   // Resolve the exact-edition capability set only once to avoid repeating
   // authenticated permission queries on every Organizer read.
