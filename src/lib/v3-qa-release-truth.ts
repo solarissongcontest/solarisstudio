@@ -261,8 +261,12 @@ function s16CategoryEvidenceIssues(evidenceDir: string, categories: unknown, exp
       issues.push("S16 " + category.id + " source artifact is not a JSON object");
       continue;
     }
-    const sourceShaIssue = exactShaIssue(data.candidateSha ?? data.candidate_sha, expectedSha, "S16 " + category.id + " source");
-    if (sourceShaIssue) issues.push(sourceShaIssue);
+    // The hardening artifact binds its candidate SHA separately for each S10-S13
+    // phase; its top-level schema does not duplicate that identity.
+    if (filename !== HARDENING_FILE) {
+      const sourceShaIssue = exactShaIssue(data.candidateSha ?? data.candidate_sha, expectedSha, "S16 " + category.id + " source");
+      if (sourceShaIssue) issues.push(sourceShaIssue);
+    }
 
     if (filename === S14_FILE) {
       issues.push(...s14Truth(file, expectedSha).issues.map((issue) => "S16 full-contest: " + issue));
