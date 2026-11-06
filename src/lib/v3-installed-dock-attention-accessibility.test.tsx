@@ -14,21 +14,33 @@ import { AppTabBar } from "@/components/app/AppTabBar";
 async function renderInstalledDock({
   participateBadge,
   meBadge,
+  overlappingMounts = false,
 }: {
   participateBadge: number;
   meBadge: number;
+  overlappingMounts?: boolean;
 }) {
   const root = createRootRoute({ component: Outlet });
   const route = createRoute({
     getParentRoute: () => root,
     path: "/participate",
     component: () => (
-      <AppTabBar
-        pathname="/participate"
-        signedIn
-        participateBadge={participateBadge}
-        meBadge={meBadge}
-      />
+      <>
+        <AppTabBar
+          pathname="/participate"
+          signedIn
+          participateBadge={participateBadge}
+          meBadge={meBadge}
+        />
+        {overlappingMounts ? (
+          <AppTabBar
+            pathname="/participate"
+            signedIn
+            participateBadge={participateBadge}
+            meBadge={meBadge}
+          />
+        ) : null}
+      </>
     ),
   });
   const router = createRouter({
@@ -71,6 +83,20 @@ describe("V3 installed dock attention accessibility", () => {
     expect(html).toMatch(/class="solaris-app-tab-badge" aria-hidden="true">9\+<\/span>/);
     expect(html).toMatch(/class="solaris-app-tab-badge" aria-hidden="true">1<\/span>/);
     expect(html).toContain('aria-label="Solaris Studio"');
+  });
+
+  it("allocates different description IDs if old and new app shells temporarily overlap", async () => {
+    const html = await renderInstalledDock({
+      participateBadge: 2,
+      meBadge: 0,
+      overlappingMounts: true,
+    });
+    const ids = [...html.matchAll(/aria-describedby="([^"]+)"/g)].map((match) => match[1]);
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+    for (const id of ids) {
+      expect(html).toContain('id="' + id + '">2 items need attention</span>');
+    }
   });
 
   it("does not expose empty descriptions or phantom attention at zero", async () => {
