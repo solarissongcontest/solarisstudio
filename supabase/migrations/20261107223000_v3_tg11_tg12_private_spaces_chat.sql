@@ -266,7 +266,7 @@ $$;
 -- Member-facing private organization picker. Reveals only accessible rooms.
 create function public.world_my_workspaces_v1()
 returns jsonb language sql stable security definer set search_path = pg_catalog
-as $
+as $$
   select coalesce(jsonb_agg(jsonb_build_object(
     'slug',q.slug,'name',q.name,'rooms',q.rooms
   ) order by q.name), '[]'::jsonb)
@@ -290,7 +290,7 @@ $$;
 -- institution metadata unless the caller is a current member/manager.
 create function public.world_workspace_context_v1(p_slug text)
 returns jsonb language plpgsql stable security definer set search_path = pg_catalog
-as $
+as $$
 declare v_org public.world_organizations%rowtype; v_manage boolean;
 begin
   if auth.uid() is null or not public.studio2_feature_enabled('terra_private_spaces',null)
