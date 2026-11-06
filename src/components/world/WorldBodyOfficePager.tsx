@@ -22,7 +22,7 @@ export function WorldBodyOfficePager({
 }: {
   organization: PublicWorldInstitution;
   body: PublicWorldBody;
-  verificationVersion: number;
+  verificationVersion: string | number;
   online: boolean;
 }) {
   const [page, setPage] = useState(0);
