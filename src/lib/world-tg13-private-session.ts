@@ -28,6 +28,16 @@ export function resolveTg13PrivateActor(
   };
 }
 
+/** Reject a result obtained across an account switch, even if RLS authorized
+ * the HTTP request before a different account replaced the browser session. */
+export async function assertTg13CurrentActor(expectedUserId: string): Promise<void> {
+  if (!expectedUserId) throw new Error("AUTHORIZATION");
+  const { data, error } = await supabase.auth.getUser();
+  if (error || data.user?.id !== expectedUserId) {
+    throw new Error("AUTHORIZATION");
+  }
+}
+
 export function isTg13PrivateQuery(queryKey: readonly unknown[]): boolean {
   return queryKey[0] === "world"
     && (queryKey[1] === "mediation" || queryKey[1] === "ethics");
