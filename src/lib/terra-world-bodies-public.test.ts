@@ -29,6 +29,9 @@ const organ = {
 function chain(response: Record<string, unknown>) {
   const q = {
     select: vi.fn(), eq: vi.fn(), or: vi.fn(), abortSignal: vi.fn(), maybeSingle: vi.fn(), order: vi.fn(), range: vi.fn(), limit: vi.fn(),
+    // A HEAD-only count reads the PostgREST builder directly (no .range).
+    then: vi.fn((resolve: (result: Record<string, unknown>) => unknown,
+      reject?: (reason: unknown) => unknown) => Promise.resolve(response).then(resolve, reject)),
   };
   q.select.mockReturnValue(q);
   q.eq.mockReturnValue(q);
@@ -218,12 +221,38 @@ describe("TG3 public institution bodies", () => {
     expect(response?.bodies).toEqual([]);
     expect(response?.total).toBe(4);
     expect(organQueries).toBe(2);
-    expect(recount.select).toHaveBeenCalledWith("id", { count: "exact" });
+    expect(recount.select).toHaveBeenCalledWith("id", { count: "exact", head: true });
     expect(recount.eq).toHaveBeenCalledWith("organization_id", "org-1");
     expect(recount.eq).toHaveBeenCalledWith("visibility", "public");
     expect(recount.eq).toHaveBeenCalledWith("status", "active");
     expect(recount.or).toHaveBeenCalledWith("name.ilike.%General%,short_name.ilike.%General%");
-    expect(recount.range).toHaveBeenCalledWith(0, 0);
+    expect(recount.range).not.toHaveBeenCalled();
+    expect(recount.then).toHaveBeenCalled();
+  });
+  it("recovers when all published bodies have disappeared without requesting a nonexistent first row", async () => {
+    const org = chain({ data: parent, error: null });
+    const vanished = chain({ data: null, error: { code: "PGRST103" }, count: null });
+    const recount = chain({ data: null, error: null, count: 0 });
+    let organQueries = 0;
+    mockFrom.mockImplementation((name: string) =>
+      name === "world_organizations" ? org : ++organQueries === 1 ? vanished : recount);
+    const response = await readPublicWorldBodies("guard", 1);
+    expect(response?.total).toBe(0);
+    expect(response?.bodies).toEqual([]);
+    expect(recount.select).toHaveBeenCalledWith("id", { count: "exact", head: true });
+    expect(recount.range).not.toHaveBeenCalled();
+    expect(recount.then).toHaveBeenCalled();
+    expect(organQueries).toBe(2);
+  });
+  it("fails closed when the HEAD-only count cannot be verified", async () => {
+    const org = chain({ data: parent, error: null });
+    const vanished = chain({ data: null, error: { code: "PGRST103" }, count: null });
+    const recount = chain({ data: null, error: null, count: null });
+    let organQueries = 0;
+    mockFrom.mockImplementation((name: string) =>
+      name === "world_organizations" ? org : ++organQueries === 1 ? vanished : recount);
+    await expect(readPublicWorldBodies("guard", 1)).rejects.toThrow("could not be verified");
+    expect(recount.select).toHaveBeenCalledWith("id", { count: "exact", head: true });
   });
   it("fails closed if a PostgREST 416 recount leaves the requested page in range", async () => {
     const org = chain({ data: parent, error: null });
