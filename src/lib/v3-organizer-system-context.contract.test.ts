@@ -11,6 +11,10 @@ const privateAdminOps = readFileSync(
   resolve(process.cwd(), "src/lib/admin-ops.ts"),
   "utf8",
 );
+const privateSchedule = readFileSync(
+  resolve(process.cwd(), "src/lib/admin-schedule.ts"),
+  "utf8",
+);
 
 describe("Organizer System Settings exact edition context", () => {
   it("resolves edition-scoped content only after explicit actor-bound choice matching OrganizerContext", () => {
@@ -40,6 +44,8 @@ describe("Organizer System Settings exact edition context", () => {
     expect(privateAdminOps).toContain('queryKey: ["admin-deadlines", exactEditionId ?? "unscoped", actorId]');
     expect(privateAdminOps).toContain('queryKey: ["admin-deadlines", normalizedEditionId ?? "unscoped", actorId]');
     expect(privateAdminOps).toContain('queryKey: ["admin-audit", limit, actorId]');
+    expect(privateSchedule).toContain('const actorId = useAuthenticatedUser().id;');
+    expect(privateSchedule).toContain('queryKey: ["admin-operational-schedule", exactEditionId ?? "unscoped", slug ?? "", actorId]');
     expect(privateAdminOps).toContain('qc.invalidateQueries({ queryKey: ["admin-deadlines"] })');
   });
 
