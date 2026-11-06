@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Search } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
-  WORLD_BODIES_PAGE_SIZE, WORLD_BODY_OFFICE_LIMIT, readPublicWorldBodies, readPublicWorldBody, readPublicBodyOffices, validWorldSlug,
-  type PublicWorldInstitution,
+  WORLD_BODIES_PAGE_SIZE, WORLD_BODY_OFFICE_LIMIT, cleanWorldBodySearch, readPublicWorldBodies, readPublicWorldBody, readPublicBodyOffices, validWorldSlug,
+  type PublicWorldInstitution, type WorldBodyStatusFilter,
 } from "@/lib/terra-world-bodies-public";
 
 function Frame({ children }: { children: ReactNode }) {
@@ -49,11 +49,30 @@ function Unavailable({ retry, missing }: { retry?: () => void; missing?: boolean
 
 export function WorldBodiesDirectory({ slug }: { slug: string }) {
   const [page, setPage] = useState(0);
+  const [input, setInput] = useState("");
+  const [term, setTerm] = useState("");
+  const [status, setStatus] = useState<WorldBodyStatusFilter>("all");
   const valid = validWorldSlug(slug);
   const query = useQuery({
-    queryKey: ["world", "public", "bodies", slug, page],
-    queryFn: () => readPublicWorldBodies(slug, page), enabled: valid, staleTime: 90_000, retry: false,
+    queryKey: ["world", "public", "bodies", slug, term, status, page],
+    queryFn: () => readPublicWorldBodies(slug, page, { term, status }),
+    enabled: valid,
+    staleTime: 90_000,
+    retry: false,
   });
+  function applySearch(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const cleaned = cleanWorldBodySearch(input);
+    setInput(cleaned);
+    setTerm(cleaned);
+    setPage(0);
+  }
+  function clearFilters() {
+    setInput("");
+    setTerm("");
+    setStatus("all");
+    setPage(0);
+  }
   const result = query.data;
   return <Frame>
     <Back institution={result?.organization} />
@@ -67,9 +86,31 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
         <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-5xl">Institutional bodies</h1>
         <p className="mt-3 leading-7 text-muted-foreground">Public assemblies, committees and other organs of {result.organization.officialName}.</p>
       </header>
-      <section aria-label="Published institutional bodies" className="mt-8 max-w-4xl border-t border-border">
-        <p className="py-4 text-sm text-muted-foreground" aria-live="polite">{result.total} public bodies</p>
-        {result.bodies.length === 0 ? <p className="py-6 text-sm text-muted-foreground">No public bodies are recorded.</p> : null}
+      <form onSubmit={applySearch} className="mt-8 flex max-w-4xl flex-wrap items-stretch gap-3 border-y border-border py-5" role="search">
+        <label className="flex min-h-12 min-w-[12rem] flex-1 items-center gap-3 rounded-xl border border-border bg-background px-4 focus-within:ring-2 focus-within:ring-ring">
+          <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span className="sr-only">Search public bodies by name</span>
+          <input type="search" value={input} maxLength={64} onChange={(event) => setInput(event.target.value)}
+            placeholder="Search assemblies and committees" className="w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
+        </label>
+        <label className="min-w-[10rem] text-sm">
+          <span className="sr-only">Public body status</span>
+          <select value={status} onChange={(event) => { setStatus(event.target.value as WorldBodyStatusFilter); setPage(0); }}
+            className="min-h-12 w-full rounded-xl border border-border bg-background px-4 text-foreground focus-visible:outline focus-visible:outline-2">
+            <option value="all">All published</option>
+            <option value="active">Active bodies</option>
+            <option value="historical">Historical bodies</option>
+          </select>
+        </label>
+        <button type="submit" className="min-h-12 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground">Search</button>
+        {term || status !== "all" ? <button type="button" onClick={clearFilters}
+          className="min-h-12 rounded-xl border border-border px-4 text-sm font-medium">Clear</button> : null}
+      </form>
+      <section aria-label="Published institutional bodies" className="mt-4 max-w-4xl">
+        <p className="py-4 text-sm text-muted-foreground" aria-live="polite">{result.total} matching public {result.total === 1 ? "body" : "bodies"}</p>
+        {result.bodies.length === 0 ? <p className="py-6 text-sm text-muted-foreground">
+          {term || status !== "all" ? "No matching public bodies. Try another name or status." : "No public bodies are recorded."}
+        </p> : null}
         {result.bodies.map((body) => <Link key={body.id} to="/world/organizations/$slug/bodies/$bodySlug"
           params={{ slug, bodySlug: body.slug }}
           className="group flex min-h-20 items-center gap-4 border-b border-border py-4 focus-visible:rounded-md focus-visible:outline focus-visible:outline-2">
