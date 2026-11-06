@@ -12,6 +12,10 @@ describe("Organizer Integrity Evidence Tier 4 verified-read safety", () => {
     expect(source).toContain('queryKey: ["admin-integrity-evidence-expired-uploads", actorId]');
     expect((source.match(/enabled: Boolean\(actorId\)/g) ?? []).length).toBe(2);
     expect((source.match(/gcTime: 0,/g) ?? []).length).toBe(2);
+    for (const policy of ["retry: false", "refetchInterval: false", "refetchOnWindowFocus: false", "refetchOnReconnect: false"]) {
+      expect(source.split(policy).length - 1).toBe(2);
+    }
+    expect(source).not.toContain("refetchInterval: 60_000");
   });
 
   it("never presents a false clear or Tier 4 mutation if private reads are unverified", () => {

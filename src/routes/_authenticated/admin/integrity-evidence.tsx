@@ -47,7 +47,10 @@ function IntegrityEvidenceLifecycle({ actorId }: { actorId: string }) {
     gcTime: 0,
     refetchOnMount: "always",
     queryFn: listDueEvidenceDeletions,
-    refetchInterval: 60_000,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
   const expiredQuery = useQuery({
     queryKey: ["admin-integrity-evidence-expired-uploads", actorId],
@@ -56,7 +59,10 @@ function IntegrityEvidenceLifecycle({ actorId }: { actorId: string }) {
     gcTime: 0,
     refetchOnMount: "always",
     queryFn: listExpiredEvidenceUploads,
-    refetchInterval: 60_000,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
   // Zero means verified empty only when both private reads succeeded.
   // Do not expose cached evidence or destructive actions while refreshing.
