@@ -258,8 +258,11 @@ export async function readPublicBodyOffices(
       !validWorldSlug(organization.slug) || !validWorldSlug(body.slug)) {
     throw new Error("Institutional body identity is inconsistent.");
   }
+  // TG2 defines both organ_id -> organs(id) and a composite same-organization
+  // foreign key. PostgREST requires the explicit constraint hint or the embed
+  // is ambiguous (PGRST201), even though the SQL schema itself is valid.
   let request = (supabase as any).from("world_organization_offices")
-    .select("id,organization_id,organ_id,title,office_type,active,world_organizations!inner(id,public_visibility),world_organization_organs!inner(id,organization_id,visibility)")
+    .select("id,organization_id,organ_id,title,office_type,active,world_organizations!inner(id,public_visibility),world_organization_organs:world_organization_organs!world_offices_organ_same_organization_fk!inner(id,organization_id,visibility)")
     .eq("organization_id", organization.id)
     .eq("organ_id", body.id)
     .eq("active", true)

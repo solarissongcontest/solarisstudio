@@ -433,7 +433,9 @@ describe("TG3 institution body offices", () => {
     expect(query.eq).toHaveBeenCalledWith("active", true);
     expect(query.order).toHaveBeenCalledWith("id", { ascending: true });
     expect(query.limit).toHaveBeenCalledWith(WORLD_BODY_OFFICE_LIMIT);
-    expect(query.select).toHaveBeenCalledWith("id,organization_id,organ_id,title,office_type,active,world_organizations!inner(id,public_visibility),world_organization_organs!inner(id,organization_id,visibility)");
+    expect(query.select).toHaveBeenCalledWith("id,organization_id,organ_id,title,office_type,active,world_organizations!inner(id,public_visibility),world_organization_organs:world_organization_organs!world_offices_organ_same_organization_fk!inner(id,organization_id,visibility)");
+    // Keep the DTO join alias unchanged so public parent/organ verification
+    // still fails closed on mismatched or unpublished embedded records.
   });
 
   it("cancels bounded public office requests when their page unmounts", async () => {
