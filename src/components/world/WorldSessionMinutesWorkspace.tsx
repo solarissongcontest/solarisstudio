@@ -143,7 +143,7 @@ export function WorldSessionMinutesWorkspace({ sessionId }: { sessionId: string 
       if (deterministic(failure)) {
         retry.current = null;
         await queryClient.invalidateQueries({
-          queryKey: ["world","minutes","manage",sessionId],
+          queryKey: ["world","minutes","manage",actorId,sessionId],
         });
       }
     } finally {
