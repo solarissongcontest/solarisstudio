@@ -14,6 +14,36 @@ begin
   end if;
 end $contract$;
 
+
+-- A distinct, permanently default-disabled rollout gate prevents #2039
+-- settings availability from accidentally activating official ballot mutations.
+do $vote_rollout$
+declare v_predicate text;
+begin
+  select pg_catalog.pg_get_expr(c.conbin,c.conrelid) into v_predicate
+  from pg_catalog.pg_constraint c
+  join pg_catalog.pg_class t on t.oid=c.conrelid
+  join pg_catalog.pg_namespace ns on ns.oid=t.relnamespace
+  where ns.nspname='public' and t.relname='studio2_feature_flags'
+    and c.conname='studio2_feature_flags_key_check' and c.contype='c';
+  if v_predicate is null then
+    raise exception using errcode='23514',message='VOTING_ROLLOUT_CONSTRAINT_MISSING';
+  end if;
+  if pg_catalog.strpos(v_predicate,'terra_world_legislative_voting')=0 then
+    alter table public.studio2_feature_flags
+      drop constraint studio2_feature_flags_key_check;
+    execute pg_catalog.format(
+      'alter table public.studio2_feature_flags add constraint studio2_feature_flags_key_check check ((%s) or key = %L)',
+      v_predicate,'terra_world_legislative_voting'
+    );
+  end if;
+end $vote_rollout$;
+
+insert into public.studio2_feature_flags
+  (key,enabled,admins_only,user_ids,edition_ids)
+values ('terra_world_legislative_voting',false,false,'{}'::uuid[],'{}'::uuid[])
+on conflict(key) do nothing;
+
 insert into public.studio2_capabilities(key,domain,label,description,access_level)
 values
   ('world.vote.open','world','Open an institutional vote','Open a versioned measure for a governed legislative vote.','approve'),
