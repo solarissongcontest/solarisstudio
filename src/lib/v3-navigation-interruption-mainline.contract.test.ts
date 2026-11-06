@@ -75,7 +75,7 @@ describe("V3 installed dock interrupted gesture recovery", () => {
     const finish = liquid.slice(liquid.indexOf("const finishDrag ="), liquid.indexOf("const cancelDrag ="));
     expect(finish).toContain("if (!isHoldEngaged(event.pointerId)) {");
     expect(finish).toContain("suppressClick.current = true;");
-    const cancel = liquid.slice(liquid.indexOf("const cancelDrag ="), liquid.indexOf("return ("));
+    const cancel = liquid.slice(liquid.indexOf("const cancelDrag ="));
     expect(cancel).toContain("suppressClick.current = true;");
     expect(liquid).toContain("if (!drag || drag.engaged) return;");
   });
