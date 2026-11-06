@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { verifyOrganizerConfirmationRead } from './v3-organizer-confirmation-read-authorization';
-import type { OrganizerConfirmationReadClient } from './v3-organizer-confirmation-read-authorization';
+import { verifyOrganizerConfirmationRead } from '../integrations/confirmations/organizer-confirmation-read-authorization';
+import type { OrganizerConfirmationReadClient } from '../integrations/confirmations/organizer-confirmation-read-authorization';
 
 
-const authorityHelper = readFileSync('src/lib/v3-organizer-confirmation-read-authorization.ts', 'utf8');
+const authorityHelper = readFileSync('src/integrations/confirmations/organizer-confirmation-read-authorization.ts', 'utf8');
 const delegationsRoute = readFileSync(
   'src/routes/_authenticated/admin/delegations.tsx',
   'utf8',

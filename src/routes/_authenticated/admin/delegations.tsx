@@ -25,7 +25,7 @@ import {
 } from "@/components/admin/AdminUI";
 import { loadConfirmationRequirements } from "@/integrations/confirmations/admin";
 import { selectOrganizerEdition } from "@/lib/admin-edition-selection";
-import { verifyOrganizerConfirmationRead } from "@/lib/v3-organizer-confirmation-read-authorization";
+import { verifyOrganizerConfirmationRead } from "@/integrations/confirmations/organizer-confirmation-read-authorization";
 import { editionLabel, useEditions } from "@/lib/data";
 import { summarizeConfirmationRequirementAttention } from "@/lib/v3-organizer-confirmation-requirement-attention";
 
