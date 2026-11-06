@@ -65,6 +65,25 @@ describe("Public Terra Solaris World Search integration", () => {
     expect(landing).toContain("directory.isRefetchError");
   });
 
+  it("protects both institution routes with fresh rollout checks", () => {
+    const directory = source("src/routes/world/organizations/index.tsx");
+    const profile = source("src/routes/world/organizations/$slug.tsx");
+    expect(directory).toContain("<WorldPublicGate verifyOnMount>");
+    expect(profile).toContain("<WorldPublicGate verifyOnMount>");
+    expect(searchRoute).toContain("<WorldPublicGate verifyOnMount>");
+  });
+
+  it("does not show cached leadership or memberships after publication verification fails", () => {
+    const profile = landing.slice(landing.indexOf("export function WorldOrganizationPage("));
+    expect(profile).toContain("worldPublicQueryVerified(projection)");
+    expect(profile).toContain("worldPublicQueryVerified(countries)");
+    expect(profile).toContain("enabled: verifiedProjection !== null");
+    expect(profile).toContain("projection.isRefetchError");
+    expect(profile).toContain("countries.isRefetchError");
+    expect(profile).toContain("verifiedProjection.organization.shortName");
+    expect(profile).not.toContain("projection.data.organization.shortName");
+  });
+
   it("reuses the existing World capability instead of adding a competing rollout flag", () => {
     expect(registry).toContain('legacyRoutes: ["/world", "/world/*"]');
     expect(registry).toContain('sourceFeatureFlags: ["terra_world_public"]');
