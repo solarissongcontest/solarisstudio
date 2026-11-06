@@ -392,7 +392,7 @@ function EntryReviewCard({
 
   async function confirmReviewDecision() {
     const pending = pendingReviewDecision;
-    if (!pending || busy) return;
+    if (!pending || busy || !open) return;
     const currentReason = pending.status === "declined" ? correctionReason ?? "" : reason.trim();
     if (!isScopeCurrent() || !isOrganizerEntryReviewDecisionCurrent(pending, {
       entryId: entry.id,
@@ -743,7 +743,10 @@ function EntryReviewCard({
 
       <AdminSheet
         open={open}
-        onClose={busy ? () => undefined : () => setOpen(false)}
+        onClose={busy ? () => undefined : () => {
+          setPendingReviewDecision(null);
+          setOpen(false);
+        }}
         title={`${entry.artist ?? "Unknown artist"} — ${entry.song_title ?? "Unknown song"}`}
         description="Accept, decline, remove or reset the song. Winner changes and every negative/reset action require an organiser reason."
       >
@@ -925,7 +928,7 @@ function EntryReviewCard({
       </AdminSheet>
 
       <AdminConfirmSheet
-        open={Boolean(pendingReviewDecision)}
+        open={Boolean(pendingReviewDecision) && open && isScopeCurrent()}
         onClose={busy ? () => undefined : () => setPendingReviewDecision(null)}
         onConfirm={() => void confirmReviewDecision()}
         title={pendingReviewDecision?.status === "accepted"
@@ -978,7 +981,9 @@ function EntryReviewCard({
           ? (entry.song_title?.trim() || entry.id)
           : undefined}
         confirmationHint={pendingReviewDecision?.status === "removed"
-          ? "Type the displayed song title (or Entry ID) to confirm removal"
+          ? (entry.song_title?.trim()
+            ? "Type the displayed song title exactly to confirm removal"
+            : "Type the Entry ID exactly to confirm removal")
           : undefined}
         danger={pendingReviewDecision?.status === "removed"}
         busy={busy}

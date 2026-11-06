@@ -67,5 +67,8 @@ describe("Organizer Entry decision review sheet", () => {
     expect(route).toContain("unresolvedReviewOperationRef.current");
     expect(route).toContain("await review(pending.status)");
     expect(route).toContain("confirmationText=");
+    expect(route).toContain("Boolean(pendingReviewDecision) && open && isScopeCurrent()");
+    expect(route).toContain("setPendingReviewDecision(null)");
+    expect(route).toContain("if (!pending || busy || !open) return;");
   });
 });
