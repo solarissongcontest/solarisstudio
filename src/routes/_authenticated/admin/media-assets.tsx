@@ -93,6 +93,8 @@ function MediaAssetsPage() {
   const editions = editionsQuery.data ?? [];
   const selectedEdition = selectOrganizerEdition(editions, editionId);
   const resolvedEditionId = selectedEdition?.id ?? '';
+  const liveEditionRef = useRef(resolvedEditionId);
+  liveEditionRef.current = resolvedEditionId;
 
   useEffect(() => {
     setSelectedKeys(new Set());
@@ -104,6 +106,10 @@ function MediaAssetsPage() {
   useEffect(() => {
     queryClient.removeQueries({
       queryKey: ['studio2-media-asset-reviews'],
+      predicate: (query) => query.queryKey[1] !== actorId || query.queryKey[2] !== (resolvedEditionId || 'none'),
+    });
+    queryClient.removeQueries({
+      queryKey: ['studio2-country-cockpit'],
       predicate: (query) => query.queryKey[1] !== actorId || query.queryKey[2] !== (resolvedEditionId || 'none'),
     });
   }, [actorId, resolvedEditionId, queryClient]);
@@ -222,6 +228,9 @@ function MediaAssetsPage() {
       if (liveActorRef.current !== review.commandActorId) {
         throw new Error('Organizer account changed. Reload and review the current media sources again.');
       }
+      if (liveEditionRef.current !== review.commandEditionId) {
+        throw new Error('Organizer edition changed. Review the current media selection again.');
+      }
       if (!selectedEdition || selectedEdition.id !== review.commandEditionId || editionId !== review.commandEditionId) {
         throw new Error('Organizer edition changed. Review the current media selection again before applying a decision.');
       }
@@ -261,8 +270,10 @@ function MediaAssetsPage() {
       });
     },
     onSuccess: async (_rows, variables) => {
-      if (liveActorRef.current !== variables.commandActorId || editionId !== variables.commandEditionId) return;
+      if (liveActorRef.current !== variables.commandActorId || liveEditionRef.current !== variables.commandEditionId) return;
       await queryClient.invalidateQueries({ queryKey: ['studio2-media-asset-reviews', variables.commandActorId, variables.commandEditionId] });
+      // The account/edition may change while an invalidation is awaiting its readback.
+      if (liveActorRef.current !== variables.commandActorId || liveEditionRef.current !== variables.commandEditionId) return;
       toast.success(variables.decision === 'approved' ? 'Media assets approved.' : 'Media assets marked invalid.');
       setSelectedKeys(new Set());
       setReviewReason('');
@@ -420,7 +431,7 @@ function MediaAssetsPage() {
           // Force a new consent state for every asset/source and for closed → reopened.
           // React key remount also prevents A → B → A from restoring earlier consent.
           key={selectedAsset
-            ? [selectedAsset.editionId, selectedAsset.assetKey, selectedAsset.sourceFingerprint ?? 'no-source'].join(':')
+            ? [selectedAsset.editionId, selectedAsset.assetKey, selectedAsset.sourceFingerprint ?? 'no-source', selectedAsset.sourceUrl ?? 'no-url'].join(':')
             : 'closed'}
           asset={selectedAsset}
           reviews={(reviewsQuery.data ?? []).filter((review) => review.assetKey === selectedAsset?.assetKey)}
@@ -475,14 +486,16 @@ function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAsset
   // A newly selected or replaced asset must never inherit an earlier preview.
   const [previewTarget, setPreviewTarget] = useState<string | null>(null);
   const [failedPreviewTarget, setFailedPreviewTarget] = useState<string | null>(null);
+  const [previewAttempt, setPreviewAttempt] = useState(0);
   const source = asset ? resolveOrganizerMediaPreviewSource(asset.sourceUrl, asset.assetType) : null;
   const previewKey = asset
-    ? [asset.editionId, asset.assetKey, asset.sourceFingerprint ?? 'no-source'].join(':')
+    ? [asset.editionId, asset.assetKey, asset.sourceFingerprint ?? 'no-source', source?.url ?? 'no-url'].join(':')
     : null;
   const previewVisible = Boolean(source?.previewKind && previewKey && previewTarget === previewKey);
   const dismiss = () => {
     setPreviewTarget(null);
     setFailedPreviewTarget(null);
+    setPreviewAttempt(0);
     onClose();
   };
   return (
@@ -495,7 +508,7 @@ function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAsset
               <div className="flex items-center justify-between gap-3"><span className="text-xs text-muted-foreground">Current state</span><AdminStatus tone={stateTone(asset.state)}>{stateLabel(asset.state)}</AdminStatus></div>
               <p className="mt-3 break-all text-sm">{describeOrganizerMediaSource(asset.sourceUrl)}</p>
               {source ? (
-                <a href={source.url} target="_blank" rel="noopener noreferrer" className="admin-action-secondary mt-3 inline-flex">
+                <a href={source.url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" className="admin-action-secondary mt-3 inline-flex">
                   Open source <ExternalLink className="size-4" />
                 </a>
               ) : asset.sourceUrl ? (
@@ -515,17 +528,29 @@ function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAsset
                       className="admin-action-secondary"
                       onClick={() => {
                         setFailedPreviewTarget(null);
+                        setPreviewAttempt(0);
                         setPreviewTarget(previewKey);
                       }}
                     >
                       Load preview from {source.host}
                     </button>
                   ) : failedPreviewTarget === previewKey ? (
-                    <p role="status" className="text-xs text-amber-100">
-                      This source could not be previewed. Check its availability using Open source.
-                    </p>
+                    <div role="status" className="space-y-2 text-xs text-amber-100">
+                      <p>Preview could not be loaded. This source may be unavailable or restricted.</p>
+                      <button
+                        type="button"
+                        className="admin-action-secondary"
+                        onClick={() => {
+                          setFailedPreviewTarget(null);
+                          setPreviewAttempt((previous) => previous + 1);
+                        }}
+                      >
+                        Retry preview
+                      </button>
+                    </div>
                   ) : source.previewKind === 'image' ? (
                     <img
+                      key={`${previewKey}:${previewAttempt}`}
                       src={source.url}
                       alt={`Organizer preview of ${asset.title}`}
                       loading="lazy"
@@ -536,6 +561,7 @@ function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAsset
                     />
                   ) : source.previewKind === 'audio' ? (
                     <audio
+                      key={`${previewKey}:${previewAttempt}`}
                       src={source.url}
                       controls
                       preload="none"
@@ -545,6 +571,7 @@ function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAsset
                     />
                   ) : (
                     <video
+                      key={`${previewKey}:${previewAttempt}`}
                       src={source.url}
                       controls
                       preload="none"
@@ -554,6 +581,19 @@ function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAsset
                       aria-label={`Organizer video preview: ${asset.title}`}
                     />
                   )}
+                  {previewVisible ? (
+                    <button
+                      type="button"
+                      className="admin-action-secondary"
+                      onClick={() => {
+                        setPreviewTarget(null);
+                        setFailedPreviewTarget(null);
+                        setPreviewAttempt(0);
+                      }}
+                    >
+                      Unload preview
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
               {asset.sourceUpdatedAt ? <p className="mt-3 text-xs text-muted-foreground">Canonical entry updated {formatTimestamp(asset.sourceUpdatedAt)}</p> : null}

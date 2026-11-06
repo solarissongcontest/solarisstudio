@@ -50,10 +50,13 @@ describe('V3 Organizer exact-source media review preview', () => {
     expect(route).toContain("queryKey: ['studio2-media-asset-reviews', actorId, resolvedEditionId || 'none']");
     expect(route).toContain("queryKey: ['studio2-country-cockpit', actorId, resolvedEditionId || 'none']");
     expect(route).toContain("queryKey: ['studio2-media-asset-reviews'],");
+    expect(route).toContain("queryKey: ['studio2-country-cockpit'],");
     expect(route).toContain('queryClient.removeQueries({');
     expect(route).toContain('commandActorId: actorId');
     expect(route).toContain('liveActorRef.current !== review.commandActorId');
     expect(route).toContain('liveActorRef.current !== variables.commandActorId');
+    expect(route).toContain('liveEditionRef.current !== review.commandEditionId');
+    expect(route).toContain('liveEditionRef.current !== variables.commandEditionId');
     expect(route).toContain("queryKey: ['studio2-media-asset-reviews', variables.commandActorId, variables.commandEditionId]");
     expect(route).toContain('refetchOnWindowFocus: false');
     expect(route).toContain('refetchOnReconnect: false');

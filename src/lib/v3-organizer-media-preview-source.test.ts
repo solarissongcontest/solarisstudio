@@ -77,6 +77,7 @@ describe("Organizer Media Review opt-in external preview", () => {
     const route = readFileSync(resolve(process.cwd(), "src/routes/_authenticated/admin/media-assets.tsx"), "utf8");
     expect(route).toContain("key={selectedAsset");
     expect(route).toContain("selectedAsset.editionId, selectedAsset.assetKey, selectedAsset.sourceFingerprint");
+    expect(route).toContain("selectedAsset.sourceUrl ?? 'no-url'");
     expect(route).toContain(": 'closed'}");
     // The preview state is local to MediaAssetSheet, so changing its key
     // destroys the previous opt-in instead of reusing it after navigation.
@@ -93,6 +94,16 @@ describe("Organizer Media Review opt-in external preview", () => {
     expect(route).not.toContain("{item.sourceFingerprint}</p>");
     expect(route).not.toContain("href={asset.sourceUrl}");
     expect(route).not.toContain("{asset.sourceUrl ??");
+    expect(route).not.toContain("autoPlay");
+    expect(route).toContain('referrerPolicy="no-referrer"');
+  });
+  it("can retry a failed opt-in source and immediately unload media without automatic playback", () => {
+    const route = readFileSync(resolve(process.cwd(), "src/routes/_authenticated/admin/media-assets.tsx"), "utf8");
+    expect(route).toContain("setPreviewAttempt((previous) => previous + 1)");
+    expect(route).toContain("Retry preview");
+    expect(route).toContain("Unload preview");
+    expect(route).toContain("source?.url ?? 'no-url'");
+    expect(route).toContain('preload="none"');
     expect(route).not.toContain("autoPlay");
   });
 });
