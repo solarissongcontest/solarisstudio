@@ -31,7 +31,7 @@ describe("Prediction League canonical standings adapter", () => {
       { ...valid, position: "0" },
       { ...valid, position: "3.14" },
     ]) {
-      expect(() => normalizePredictionLeagueStandings([row])).toThrow("invalid canonical row");
+      expect(() => normalizePredictionLeagueStandings([row])).toThrow("Invalid canonical Prediction League standing.");
     }
   });
 
