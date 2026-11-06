@@ -104,6 +104,20 @@ test("rejects source evidence digests and preserves independent structural findi
   assert.throws(()=>assessS15ReleaseRisk({...t,releaseCertified:true},SHA));
 });
 
+test("forged derived S15 rows cannot change canonical lane, owner, capability or status", () => {
+  const t=triage();
+  for (const tampered of [
+    {...t.cutovers[0], owner:"Unknown lane"},
+    {...t.cutovers[0], lane:"organizer", owner:"Chat 3 / Organizer"},
+    {...t.cutovers[0], capabilityId:"wrong"},
+    {...t.cutovers[0], registryStatus:"verified"},
+  ]) {
+    const altered={...t,cutovers:[tampered,...t.cutovers.slice(1)]};
+    assert.throws(()=>assessS15ReleaseRisk(altered,SHA,null,SOURCE_RAW),
+      /cutover metadata contradicts canonical lane, owner or finding/);
+  }
+});
+
 test("source-bound triage cannot omit findings while retaining a valid original digest", () => {
   const t=triage();
   t.cutovers=t.cutovers.slice(1);

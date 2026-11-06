@@ -47,6 +47,14 @@ export function assessS15ReleaseRisk(triage, candidateSha, review = null, rawS15
         row.decision !== "unreviewed" || row.dispositionEvidence !== null) {
       throw new Error("Cutovers must preserve their canonical unreviewed owner and finding");
     }
+    const canonicalOwner = row.lane === "public" ? "Chat 2 / Public" : "Chat 3 / Organizer";
+    const canonicalFinding = (row.lane === "public" ? "PUBLIC" : "ORGANIZER") +
+      "_CUTOVER_UNRESOLVED " + row.capabilityId + ":" + row.registryStatus;
+    if (row.owner !== canonicalOwner ||
+        !/^[^:\\s]+$/.test(row.registryStatus) || /\\s/.test(row.capabilityId) ||
+        row.sourceFinding !== canonicalFinding) {
+      throw new Error("S15 cutover metadata contradicts canonical lane, owner or finding");
+    }
     const id = key(row.lane, row.capabilityId);
     if (current.has(id)) throw new Error("Duplicate S15 cutover: " + id);
     current.set(id, row);
