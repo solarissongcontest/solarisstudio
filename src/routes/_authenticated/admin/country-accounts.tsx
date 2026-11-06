@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, RefreshCw, ShieldCheck, UserRoundCog } from "lucide-react";
 
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { AdminCountryPasswordPanel } from "@/components/admin/AdminCountryPasswordPanel";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
@@ -37,6 +38,7 @@ export const Route = createFileRoute("/_authenticated/admin/country-accounts")({
 });
 
 type PendingAccountStatusReview = {
+  actorId: string;
   userId: string;
   countryId: string;
   countryName: string;
@@ -62,10 +64,12 @@ function reviewInvalidatingErrorCode(code: ReturnType<typeof systemErrorCodeFrom
 }
 
 function CountryAccountsAdminPage() {
+  const actorId = useAuthenticatedUser().id;
+  const currentActorRef = useRef(actorId);
   const countriesQuery = useCountries();
   const countries = countriesQuery.data ?? [];
   // Stale cached rows are not a verified country roster after a failed refetch.
-  const countriesReady = countriesQuery.isSuccess && !countriesQuery.error;
+  const countriesReady = countriesQuery.isSuccess && !countriesQuery.error && !countriesQuery.isFetching;
   const {
     data,
     isLoading: accountsLoading,
@@ -81,6 +85,17 @@ function CountryAccountsAdminPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [lastOperationId, setLastOperationId] = useState<string | null>(null);
   const [pendingReview, setPendingReview] = useState<PendingAccountStatusReview | null>(null);
+
+  useEffect(() => {
+    if (currentActorRef.current === actorId) return;
+    currentActorRef.current = actorId;
+    // No reviewed identity or private account details survive a login switch.
+    setTarget(null);
+    setPendingReview(null);
+    setReason("");
+    setMessage(null);
+    setLastOperationId(null);
+  }, [actorId]);
 
   const accountByCountry = useMemo(
     () => new Map((data?.accounts ?? []).map((account) => [account.country_id, account])),
@@ -121,6 +136,7 @@ function CountryAccountsAdminPage() {
     setMessage(null);
     setLastOperationId(null);
     setPendingReview({
+      actorId,
       userId: target.user_id,
       countryId: target.country_id,
       countryName: target.country_name,
@@ -136,8 +152,9 @@ function CountryAccountsAdminPage() {
   }
 
   async function confirmStatusReview() {
-    if (!pendingReview) return;
+    if (!pendingReview || currentActorRef.current !== actorId) return;
     const review = pendingReview;
+    if (review.actorId !== currentActorRef.current) return;
     if (!review.outcomeUnconfirmed && !countriesReady) {
       setPendingReview(null);
       setMessage("Country roster could not be verified before applying this review. Nothing was changed. Retry the country directory and open a new review.");
@@ -179,6 +196,7 @@ function CountryAccountsAdminPage() {
       }
     }
 
+    if (review.actorId !== currentActorRef.current) return;
     try {
       const receipt = await setStatus.mutateAsync({
         userId: review.userId,
@@ -188,6 +206,7 @@ function CountryAccountsAdminPage() {
         operationIdentity: review.operationIdentity,
         ...(review.targetStatus === "suspended" ? { reason: review.reason } : {}),
       });
+      if (review.actorId !== currentActorRef.current) return;
       setLastOperationId(receipt.operationId);
       setMessage(
         review.targetStatus === "suspended"
@@ -197,6 +216,7 @@ function CountryAccountsAdminPage() {
       setPendingReview(null);
       setTarget(null);
     } catch (error) {
+      if (review.actorId !== currentActorRef.current) return;
       const errorCode = systemErrorCodeFromUnknown(error);
       if (reviewInvalidatingErrorCode(errorCode)) {
         setPendingReview(null);
