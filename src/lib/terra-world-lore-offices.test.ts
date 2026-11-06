@@ -46,6 +46,11 @@ describe("TG16 fictional people, offices and historical terms",()=>{
     expect(SQL).toContain("holder_display_name text not null");
     expect(SQL).toContain("office_title text not null");
   });
+  it("keeps the direct lore and derived Archive APIs unpublished until the server World flag allows them",()=>{
+    expect(SQL.split("studio2_feature_enabled('terra_world_public'").length - 1).toBe(3);
+    expect(SQL).toContain("WORLD_NOT_PUBLISHED");
+    expect(SQL).toContain("from service_role;\ngrant select on public.world_lore_people");
+  });
   it("keeps office-history intervals non-overlapping and ends terms without deletion",()=>{
     expect(SQL).toContain("world_domestic_office_one_open_uidx");
     expect(SQL).toContain("OVERLAPPING_OFFICE_TERM");
