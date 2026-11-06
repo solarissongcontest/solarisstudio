@@ -143,6 +143,34 @@ describe("WORLD-05 TG8 canonical voting consumer",()=>{
     });
   });
 
+  it("guards exact vote-opening retries and local-only SQL rehearsal",()=>{
+    const commands=readFileSync(resolve(process.cwd(),
+      "supabase/migrations/20261107130100_v3_tg8_legislative_vote_commands.sql"),"utf8");
+    const open=commands.slice(commands.indexOf("create or replace function public.world_open_vote_v1("),
+      commands.indexOf("end $open_vote$;"));
+    expect(open.indexOf("v_claim:=private.studio2_claim_operation(")).toBeGreaterThan(0);
+    expect(open.indexOf("v_claim:=private.studio2_claim_operation("))
+      .toBeLessThan(open.indexOf("message='INVALID_VOTE_WINDOW'"));
+    expect(open).toContain("v_claim->>'replayed'");
+    const runner=readFileSync(resolve(process.cwd(),
+      "scripts/rehearse-v3-world-legislative-votes.sh"),"utf8");
+    const fixture=readFileSync(resolve(process.cwd(),
+      "scripts/rehearse-v3-world-legislative-votes.sql"),"utf8");
+    const checks=readFileSync(resolve(process.cwd(),
+      "scripts/rehearse-v3-world-legislative-votes-checks.sql"),"utf8");
+    expect(runner).toContain("Never accept caller-provided production URLs");
+    expect(runner).toContain("http://127.0.0.1:");
+    expect(runner).toContain("postgresql://postgres:postgres@127.0.0.1:");
+    expect(runner).toContain("rehearse-v3-world-legislative-votes-checks.sql");
+    expect(fixture).toContain("begin;");
+    expect(fixture).toContain("TG8_ROLLOUT_WAS_NOT_DISABLED");
+    expect(checks).toContain("TG8_OUTSIDER_BALLOT_ACCEPTED");
+    expect(checks).toContain("TG8_SECOND_BALLOT_ACCEPTED");
+    expect(checks).toContain("TG8_CERTIFICATION_REPLAY_FAILED");
+    expect(checks).toContain("TG8_SERVICE_ROLE_DIRECT_WRITER");
+    expect(checks).toContain("rollback;");
+  });
+
   it("keeps publication, proxy authorization and secret-election rejection in SQL",()=>{
     const schema=readFileSync(resolve(process.cwd(),
       "supabase/migrations/20261107130000_v3_tg8_legislative_votes.sql"),"utf8");
