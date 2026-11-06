@@ -133,6 +133,7 @@ describe("V3 Organizer candidate-level Entry Review worklist", () => {
     expect(code).toContain('mode !== "next_in_line" && responseCursor');
     expect(code).toContain("loadMoreResponses()");
     expect(code).toContain('data-v3-organizer-entry-worklist=""');
+    expect(code).toContain('hash={item.entryId ? `entry-${item.entryId}` : undefined}');
     expect(code).not.toContain("admin_all_entries");
   });
 });

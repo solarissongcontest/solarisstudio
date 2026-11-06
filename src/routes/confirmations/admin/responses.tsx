@@ -691,6 +691,7 @@ function ConfirmationResponsesList() {
                   ) : null}
                   <Link to="/confirmations/admin/responses/$id"
                     params={{ id: item.responseId }}
+                    hash={item.entryId ? `entry-${item.entryId}` : undefined}
                     className={item.status === "needs_review" ? "admin-action-primary mt-4 w-full" : "admin-action-secondary mt-4 w-full"}
                   >
                     {item.status === "needs_review" ? "Review current Entry" : "Inspect response and history"}
