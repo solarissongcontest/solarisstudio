@@ -304,6 +304,9 @@ export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundl
       wiki: "/wiki",
       encyclopedia: "/encyclopedia",
       archiveGames: "/archive-games",
+      // The public Prediction Arena already owns its own publication and
+      // authorization states. Explore only provides a navigation gateway.
+      predictions: "/predictions",
       advancedDiscovery: "/site-directory",
     },
   });

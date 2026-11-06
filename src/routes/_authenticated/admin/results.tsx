@@ -30,7 +30,7 @@ import {
   resolveSolarisV6OperationRecovery,
   type SolarisV6OperationRecovery,
 } from '@/lib/solaris-v6-operation-recovery';
-import { useEditions } from '@/lib/data';
+import { editionLabel as formatEditionLabel, useEditions } from '@/lib/data';
 import {
   availableStudio2ResultActions,
   executeStudio2ResultOperation,
@@ -56,7 +56,32 @@ type PendingOperation = {
   action: Studio2ResultAction;
   executionId: string;
   editionId: string;
+  editionLabel: string;
+  reviewFingerprint: string;
 };
+
+type ResultOperationCommit = {
+  operation: PendingOperation;
+  sameIdentityRetry: boolean;
+};
+
+function resultOperationReviewFingerprint(row: Studio2ResultOperationRow) {
+  return JSON.stringify({
+    showId: row.showId,
+    showName: row.showName,
+    showKind: row.showKind,
+    lifecycle: row.lifecycle,
+    calculationVersion: row.calculationVersion,
+    reviewedVersion: row.reviewedVersion,
+    lockedVersion: row.lockedVersion,
+    revealReadyVersion: row.revealReadyVersion,
+    preconditions: row.preconditions,
+  });
+}
+
+function staleResultReview(message: string) {
+  return Object.assign(new Error(message), { status: 409 });
+}
 
 function ResultsOperationsPage() {
   const { editionId } = useAdminContext();
@@ -71,6 +96,7 @@ function ResultsOperationsPage() {
   // because that edition happens to have result rows.
   const edition = selectOrganizerEdition(editions, editionId);
   const resolvedEditionId = editionId && edition ? edition.id : '';
+  const organizerEditionLabel = edition ? formatEditionLabel(edition) : null;
 
   const operationsQuery = useQuery({
     queryKey: ['studio2-results-operations', resolvedEditionId || 'none'],
@@ -82,7 +108,7 @@ function ResultsOperationsPage() {
   const summary = useMemo(() => summarizeStudio2ResultsOperations(rows), [rows]);
 
   const mutation = useMutation({
-    mutationFn: (operation: PendingOperation) => {
+    mutationFn: async ({ operation, sameIdentityRetry }: ResultOperationCommit) => {
       const scope = validateEditionCommandScope({
         routeEditionId: resolvedEditionId || null,
         commandEditionId: operation.editionId,
@@ -94,12 +120,33 @@ function ResultsOperationsPage() {
         const mismatch = !scope.ok && scope.mismatches.length
           ? ` (${scope.mismatches.join(", ")})`
           : "";
-        throw Object.assign(
-          new Error(
-            `Edition context changed before the result operation${mismatch}. Refresh canonical state before retrying.`,
-          ),
-          { status: 409 },
+        throw staleResultReview(
+          `Edition context changed before the result operation${mismatch}. Refresh canonical state before retrying.`,
         );
+      }
+
+      // A first commit must still represent the exact row the organizer
+      // reviewed. Never silently upgrade the command to fresher state. An
+      // uncertain same-operation retry is different: it must preserve the
+      // original execution id/payload so the server can replay its receipt.
+      if (!sameIdentityRetry) {
+        const liveRows = await loadStudio2ResultsOperations(operation.editionId);
+        const liveRow = liveRows.find((row) => row.showId === operation.row.showId);
+        if (!liveRow) {
+          throw staleResultReview(
+            'This show is no longer present in the selected edition. Nothing was applied.',
+          );
+        }
+
+        const actionStillAvailable = availableStudio2ResultActions(liveRow).includes(operation.action);
+        if (
+          !actionStillAvailable ||
+          resultOperationReviewFingerprint(liveRow) !== operation.reviewFingerprint
+        ) {
+          throw staleResultReview(
+            'Results state changed while this review was open. Nothing was applied. Review the current canonical state before creating another operation.',
+          );
+        }
       }
 
       return executeStudio2ResultOperation({
@@ -140,7 +187,7 @@ function ResultsOperationsPage() {
   });
 
   function requestOperation(row: Studio2ResultOperationRow, action: Studio2ResultAction) {
-    if (!resolvedEditionId) {
+    if (!resolvedEditionId || !organizerEditionLabel) {
       toast.error('Select an edition before opening a result operation.');
       return;
     }
@@ -151,6 +198,8 @@ function ResultsOperationsPage() {
       action,
       executionId: crypto.randomUUID(),
       editionId: resolvedEditionId,
+      editionLabel: organizerEditionLabel,
+      reviewFingerprint: resultOperationReviewFingerprint(row),
     });
   }
 
@@ -160,7 +209,10 @@ function ResultsOperationsPage() {
       toast.error('Add an audit reason of at least 5 characters.');
       return;
     }
-    await mutation.mutateAsync(pending);
+    await mutation.mutateAsync({
+      operation: pending,
+      sameIdentityRetry: recovery?.allowSameIdentityRetry === true,
+    });
   }
 
   const error = editionsQuery.error ?? operationsQuery.error;
@@ -170,7 +222,7 @@ function ResultsOperationsPage() {
     <AdminPage>
       <div className="mx-auto max-w-[1500px] space-y-4">
         <AdminPageHeader
-          eyebrow="Solaris Studio 2 · Results operations"
+          eyebrow={organizerEditionLabel ? `${organizerEditionLabel} · Results operations` : 'Solaris Studio 2 · Results operations'}
           title="Results operations"
           description="Operate the official result lifecycle without duplicating the scoring engine. Vote readiness, calculation, review, lock and reveal decisions are version-bound; publication remains authoritative in the existing publication system."
           actions={edition ? (
@@ -181,6 +233,16 @@ function ResultsOperationsPage() {
             </div>
           ) : undefined}
         />
+
+        {organizerEditionLabel ? (
+          <div
+            data-v3-organizer-context-lock="edition"
+            className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 py-2"
+          >
+            <span className="admin-section-label">Edition context</span>
+            <AdminStatus tone="info">{organizerEditionLabel}</AdminStatus>
+          </div>
+        ) : null}
 
         <SolarisSurfaceSwitch
           label="Results perspectives"
@@ -257,6 +319,13 @@ function ResultsOperationsPage() {
           title={pending ? resultActionLabel(pending.action, pending.row.calculationVersion) : 'Result operation'}
           description={pending ? (
             <div className="space-y-4">
+              <div
+                data-v3-organizer-confirmation-context="edition-show"
+                className="rounded-xl border border-sky-200/15 bg-sky-200/[0.045] p-3"
+              >
+                <p className="admin-section-label">Operation context</p>
+                <p className="mt-1 font-semibold text-foreground">{pending.editionLabel} · {pending.row.showName}</p>
+              </div>
               <p>{operationDescription(pending)}</p>
               {recovery ? (
                 <div
@@ -288,6 +357,11 @@ function ResultsOperationsPage() {
                     : ""}
                 </p>
               </div>
+              {!recovery?.allowSameIdentityRetry ? (
+                <p className="text-xs leading-5 text-muted-foreground">
+                  Before the first commit, Solaris re-reads this exact edition/show Results snapshot. If the reviewed lifecycle, version, readiness or reconciliation state changed, this review is rejected instead of silently applying a different operation.
+                </p>
+              ) : null}
               <label className="block">
                 <span className="admin-section-label">Audit reason</span>
                 <textarea

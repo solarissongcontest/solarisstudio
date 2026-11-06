@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 
+import { RefreshCcw } from "lucide-react";
+
 import { Switch } from "@/components/ui/switch";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
 import type { V3PublicShowState } from "@/lib/v3-live";
@@ -28,7 +30,15 @@ const WAKE_STATES = new Set<V3PublicShowState>([
   "results_pending",
 ]);
 
-function LiveBootSurface({ message }: { message: string }) {
+function LiveBootSurface({
+  message,
+  onRetry,
+  refreshing = false,
+}: {
+  message: string;
+  onRetry?: () => void;
+  refreshing?: boolean;
+}) {
   return (
     <V3FoundationShell>
       <V3Screen className="min-h-dvh">
@@ -38,6 +48,20 @@ function LiveBootSurface({ message }: { message: string }) {
           <p role="status" className="mt-2 text-sm text-white/55">
             {message}
           </p>
+          {onRetry ? (
+            <button
+              type="button"
+              onClick={onRetry}
+              disabled={refreshing}
+              className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/10 px-4 text-sm font-semibold text-white/80 transition hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:cursor-wait disabled:opacity-50"
+            >
+              <RefreshCcw
+                aria-hidden="true"
+                className={`size-4 ${refreshing ? "motion-safe:animate-spin" : ""}`}
+              />
+              {refreshing ? "Retrying Live…" : "Retry Live"}
+            </button>
+          ) : null}
         </V3Surface>
       </V3Screen>
     </V3FoundationShell>
@@ -132,9 +156,18 @@ export function V3LiveRouteGate({ fallback }: { fallback: ReactNode }) {
     return <LiveBootSurface message="Checking the live experience…" />;
   }
 
-  // A failed initial rollout read cannot safely opt the viewer into V3. A later
-  // rollout refetch failure with cached data is different: keep using the last
-  // authoritative server flag snapshot and mark the mounted V3 view degraded.
+  // A failed initial rollout probe cannot authorize either V3 or legacy. Do
+  // not mount legacy's archive-wide readers just because the network failed.
+  // Once a snapshot exists, later refetch errors preserve that cached authority.
+  if (rollout.isError && !rollout.data) {
+    return (
+      <LiveBootSurface
+        message="Couldn't verify the Live experience. Retry to check the current show state."
+        onRetry={() => { void rollout.refetch(); }}
+        refreshing={rollout.isFetching}
+      />
+    );
+  }
   if (!rollout.data || !v3Enabled) {
     return <>{fallback}</>;
   }
@@ -143,9 +176,20 @@ export function V3LiveRouteGate({ fallback }: { fallback: ReactNode }) {
     return <LiveBootSurface message="Opening authoritative show state…" />;
   }
 
-  // Legacy Show Mode is a reversible fallback only when the initial focused V3
-  // read has no authoritative snapshot. Refetch errors with cached data stay on
-  // V3 so the known-good state remains visible and explicitly stale.
+  // An actual failed initial Live read is an error, not a rollout decision:
+  // present a bounded manual retry instead of mounting legacy archive queries.
+  if (bundle.isError && !bundle.data) {
+    return (
+      <LiveBootSurface
+        message="Couldn't load the official Live snapshot. Retry to reconnect to show information."
+        onRetry={() => { void bundle.refetch(); }}
+        refreshing={bundle.isFetching}
+      />
+    );
+  }
+
+  // Keep the reversible fallback for genuinely absent initial data without a
+  // transport failure. Refetch errors with cached data stay on the V3 screen.
   if (!bundle.data) {
     return <>{fallback}</>;
   }
@@ -156,6 +200,7 @@ export function V3LiveRouteGate({ fallback }: { fallback: ReactNode }) {
   return (
     <V3FoundationShell>
       <V3LiveScreen
+        edition={bundle.data.edition}
         experience={bundle.data.experience}
         degraded={degraded}
         refreshing={refreshing}

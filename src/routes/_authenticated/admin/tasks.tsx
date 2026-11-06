@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
   ArrowRight,
@@ -9,6 +10,8 @@ import {
 } from "lucide-react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
+import { supabase } from "@/integrations/supabase/client";
 import { useOrganisationBackendContract } from "@/lib/organisation-backend-contract";
 import { SolarisMorphingSelection } from "@/components/interaction/SolarisMorphingSelection";
 import { AdminPage } from "@/components/admin/AdminShell";
@@ -19,14 +22,18 @@ import {
   AdminPageHeader,
   AdminStatus,
 } from "@/components/admin/AdminUI";
+import { selectOrganizerEdition } from "@/lib/admin-edition-selection";
 import {
+  hasCompleteOrganizerTaskOperationalEvidence,
   resolveOrganizerTaskOperationalState,
   useOrganizerTasksV5,
+  type OrganizerTaskClassification,
   type OrganizerTaskFilter,
   type OrganizerTaskOperationalState,
   type OrganizerTaskPriority,
   type OrganizerTaskV5,
 } from "@/lib/admin-tasks-v5";
+import { editionLabel as formatEditionLabel, useEditions } from "@/lib/data";
 
 const FILTERS = [
   "all",
@@ -47,7 +54,7 @@ type TasksSearch = {
 
 type ClassifiedTask = {
   task: OrganizerTaskV5;
-  operationalState: OrganizerTaskOperationalState;
+  operationalState: OrganizerTaskClassification;
 };
 
 export const Route = createFileRoute("/_authenticated/admin/tasks")({
@@ -67,51 +74,122 @@ export const Route = createFileRoute("/_authenticated/admin/tasks")({
 
 function OrganizerTasksPage() {
   const { editionId } = useAdminContext();
+  const { id: actorId } = useAuthenticatedUser();
   const { filter } = Route.useSearch();
   const navigate = Route.useNavigate();
+  const editionsQuery = useEditions();
+  const editions = editionsQuery.data ?? [];
+  const edition =
+    editionsQuery.isSuccess && !editionsQuery.error
+      ? selectOrganizerEdition(editions, editionId)
+      : null;
+  const resolvedEditionId = editionId && edition ? edition.id : "";
+  const organizerEditionLabel = edition ? formatEditionLabel(edition) : null;
+  // An edition returned by the public catalog does not prove task-read
+  // authority. This exact-scope preflight matches admin_organizer_tasks:
+  // edition.read for the selected edition OR global permissions.manage.
+  const taskAccessQuery = useQuery({
+    queryKey: ["v3-organizer", "tasks", "read-authority", actorId, resolvedEditionId || "none"],
+    queryFn: async () => {
+      const client = supabase as unknown as {
+        rpc: (
+          name: string,
+          args: Record<string, unknown>,
+        ) => PromiseLike<{ data: unknown; error: { message?: string } | null }>;
+      };
+      const editionAccess = await client.rpc("studio2_access_allowed", {
+        p_capability: "edition.read",
+        p_edition_id: resolvedEditionId,
+        p_strict_before_cutover: false,
+      });
+      if (editionAccess.error) throw editionAccess.error;
+      if (typeof editionAccess.data !== "boolean") {
+        throw new Error("Organizer edition-read access returned an invalid response.");
+      }
+      if (editionAccess.data) return true;
+
+      const globalAccess = await client.rpc("studio2_access_allowed", {
+        p_capability: "permissions.manage",
+        p_edition_id: null,
+        p_strict_before_cutover: false,
+      });
+      if (globalAccess.error) throw globalAccess.error;
+      if (typeof globalAccess.data !== "boolean") {
+        throw new Error("Organizer global task access returned an invalid response.");
+      }
+      return globalAccess.data;
+    },
+    enabled: editionsQuery.isSuccess && !editionsQuery.error && Boolean(resolvedEditionId),
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+  });
+  const taskReadPermitted =
+    taskAccessQuery.isSuccess &&
+    !taskAccessQuery.isFetching &&
+    !taskAccessQuery.error &&
+    taskAccessQuery.data === true;
   const backend = useOrganisationBackendContract();
+  const backendReady = backend.data?.ready === true;
   const tasksSupported = backend.data?.capabilities.organizerTasks === true;
   const backendFilter = backendFilterForView(filter);
-  const tasksQuery = useOrganizerTasksV5(editionId, backendFilter, tasksSupported);
+  const tasksQuery = useOrganizerTasksV5(
+    resolvedEditionId || null,
+    backendFilter,
+    backendReady &&
+      tasksSupported &&
+      Boolean(resolvedEditionId) &&
+      editionsQuery.isSuccess &&
+      !editionsQuery.error &&
+      taskReadPermitted,
+  );
   const rawTasks = tasksQuery.data ?? [];
-  const evaluatedAt = tasksQuery.dataUpdatedAt || Date.now();
   const classifiedTasks: ClassifiedTask[] = rawTasks.map((task) => ({
     task,
-    operationalState: resolveOrganizerTaskOperationalState(task, evaluatedAt),
+    operationalState: resolveOrganizerTaskOperationalState(task),
   }));
   const tasks = classifiedTasks.filter((item) => matchesViewFilter(item, filter));
-  const explicitOperationalEvidence = rawTasks.some((task) => task.operationalState !== null);
+  const completeOperationalEvidence = hasCompleteOrganizerTaskOperationalEvidence(rawTasks);
 
   const metricsAvailable =
+    Boolean(resolvedEditionId) &&
+    editionsQuery.isSuccess &&
+    !editionsQuery.error &&
+    taskReadPermitted &&
     backend.isSuccess &&
+    backendReady &&
     tasksSupported &&
     !tasksQuery.isLoading &&
     !tasksQuery.error;
-  const actionable = metricsAvailable
+  const richMetricsAvailable = metricsAvailable && completeOperationalEvidence;
+  const actionable = richMetricsAvailable
     ? countOperationalState(classifiedTasks, "actionable")
     : null;
-  const blocked = metricsAvailable && explicitOperationalEvidence
+  const blocked = richMetricsAvailable
     ? countOperationalState(classifiedTasks, "blocked")
     : null;
   const waiting = metricsAvailable
     ? countOperationalState(classifiedTasks, "waiting")
     : null;
-  const failed = metricsAvailable && explicitOperationalEvidence
+  const failed = richMetricsAvailable
     ? countOperationalState(classifiedTasks, "failed")
     : null;
-  const overdue = metricsAvailable
+  const overdue = richMetricsAvailable
     ? countOperationalState(classifiedTasks, "overdue")
     : null;
+  const filterRequiresRichState =
+    filter === "actionable" ||
+    filter === "blocked" ||
+    filter === "failed" ||
+    filter === "overdue";
   const classificationUnavailable =
-    (filter === "blocked" || filter === "failed") &&
-    metricsAvailable &&
-    !explicitOperationalEvidence;
+    filterRequiresRichState && metricsAvailable && !completeOperationalEvidence;
 
   return (
     <AdminPage>
       <div className="mx-auto max-w-6xl space-y-4">
         <AdminPageHeader
-          eyebrow="Organizer · Work"
+          eyebrow={organizerEditionLabel ? `${organizerEditionLabel} · Organizer work` : "Organizer · Work"}
           title="Tasks"
           description="One domain-backed queue for work that is genuinely unresolved. Reading a notification never completes a task; the authoritative source state does."
           actions={
@@ -124,25 +202,37 @@ function OrganizerTasksPage() {
           }
         />
 
-        <SolarisMorphingSelection
-          value={filter}
-          ariaLabel="Task filters"
-          options={FILTERS.map((value) => ({
-            value,
-            label: filterLabel(value),
-          }))}
-          onChange={(next) => {
-            if (!FILTERS.includes(next as OrganizerTaskViewFilter)) return;
-            void navigate({
-              search: { filter: next as OrganizerTaskViewFilter },
-              replace: true,
-            });
-          }}
-          className="border-white/[0.07] bg-white/[0.02]"
-        />
+        {organizerEditionLabel ? (
+          <div
+            data-v3-organizer-context-lock="edition"
+            className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 py-2"
+          >
+            <span className="admin-section-label">Edition context</span>
+            <AdminStatus tone="info">{organizerEditionLabel}</AdminStatus>
+          </div>
+        ) : null}
 
-        {filter !== "resolved" ? (
-          <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5 sm:gap-3">
+        {edition ? (
+          <SolarisMorphingSelection
+            value={filter}
+            ariaLabel="Task filters"
+            options={FILTERS.map((value) => ({
+              value,
+              label: filterLabel(value),
+            }))}
+            onChange={(next) => {
+              if (!FILTERS.includes(next as OrganizerTaskViewFilter)) return;
+              void navigate({
+                search: { filter: next as OrganizerTaskViewFilter },
+                replace: true,
+              });
+            }}
+            className="border-white/[0.07] bg-white/[0.02]"
+          />
+        ) : null}
+
+        {edition && filter !== "resolved" ? (
+          <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 xl:grid-cols-5">
             <Metric label="Actionable" value={actionable} tone="info" />
             <Metric label="Blocked" value={blocked} tone="blocked" />
             <Metric label="Waiting" value={waiting} tone="info" />
@@ -151,11 +241,86 @@ function OrganizerTasksPage() {
           </section>
         ) : null}
 
-        {backend.isLoading ? (
+        {editionsQuery.isLoading ? (
+          <AdminCard>
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              Resolving Organizer edition context…
+            </p>
+          </AdminCard>
+        ) : editionsQuery.error ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={AlertTriangle}
+              title="Edition context could not be resolved"
+              description={
+                editionsQuery.error instanceof Error
+                  ? editionsQuery.error.message
+                  : "Solaris could not verify the selected Organizer edition."
+              }
+              action={
+                <button type="button" onClick={() => void editionsQuery.refetch()} disabled={editionsQuery.isFetching} className="admin-action-secondary">
+                  Retry edition lookup
+                </button>
+              }
+            />
+          </AdminCard>
+        ) : !edition ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={AlertTriangle}
+              title="Choose an edition"
+              description="Select an edition that is currently available to your Organizer account before evaluating Tasks. Solaris will not query task state for a missing, stale or inaccessible edition context."
+            />
+          </AdminCard>
+        ) : taskAccessQuery.isPending || taskAccessQuery.isFetching ? (
+          <AdminCard>
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              Verifying exact-edition Organizer task permission…
+            </p>
+          </AdminCard>
+        ) : taskAccessQuery.isError ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={AlertTriangle}
+              title="Task access could not be verified"
+              description="Solaris cannot authorize task evaluation from public edition visibility alone. Task state remains unknown."
+              action={
+                <button type="button" onClick={() => void taskAccessQuery.refetch()} disabled={taskAccessQuery.isFetching} className="admin-action-secondary">
+                  Retry task access verification
+                </button>
+              }
+            />
+          </AdminCard>
+        ) : !taskReadPermitted ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={AlertTriangle}
+              title="Organizer task access required"
+              description="This account lacks edition.read for the selected edition and global permissions.manage. No task evaluation or reconciliation was requested."
+            />
+          </AdminCard>
+        ) : backend.isLoading ? (
           <AdminCard>
             <p className="py-12 text-center text-sm text-muted-foreground">
               Verifying Organizer backend compatibility…
             </p>
+          </AdminCard>
+        ) : backend.isError || backend.data?.available === false ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={AlertTriangle}
+              title="Organizer backend unavailable"
+              description={
+                backend.error instanceof Error
+                  ? backend.error.message
+                  : backend.data?.error ?? "Solaris could not verify the Organizer runtime contract. Task state remains unknown."
+              }
+              action={
+                <button type="button" onClick={() => void backend.refetch()} disabled={backend.isFetching} className="admin-action-secondary">
+                  Retry backend check
+                </button>
+              }
+            />
           </AdminCard>
         ) : !tasksSupported ? (
           <AdminCard>
@@ -163,6 +328,19 @@ function OrganizerTasksPage() {
               icon={AlertTriangle}
               title="Organizer Tasks backend update required"
               description="This frontend will not evaluate Tasks until the production database exposes the matching Organizer Task contract. No zero counts are inferred while task truth is unavailable."
+            />
+          </AdminCard>
+        ) : !backendReady ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={AlertTriangle}
+              title="Organizer backend not ready"
+              description="The backend recognizes Organizer Tasks but has not reported runtime readiness. Task evaluation and counts remain unavailable until it is ready."
+              action={
+                <button type="button" onClick={() => void backend.refetch()} disabled={backend.isFetching} className="admin-action-secondary">
+                  Recheck readiness
+                </button>
+              }
             />
           </AdminCard>
         ) : tasksQuery.isLoading ? (
@@ -181,6 +359,11 @@ function OrganizerTasksPage() {
                   ? tasksQuery.error.message
                   : "The Organizer Task Engine could not complete this request."
               }
+              action={
+                <button type="button" onClick={() => void tasksQuery.refetch()} disabled={tasksQuery.isFetching} className="admin-action-secondary">
+                  Retry task evaluation
+                </button>
+              }
             />
           </AdminCard>
         ) : classificationUnavailable ? (
@@ -188,7 +371,7 @@ function OrganizerTasksPage() {
             <AdminEmptyState
               icon={AlertTriangle}
               title={`${filterLabel(filter)} classification is not available yet`}
-              description="The current Organizer Task payload does not expose explicit blocked/failed evidence. Solaris will not infer workflow state from priority, title text or notification severity."
+              description="At least one unresolved task does not expose canonical rich-state evidence. Solaris will not infer actionable, blocked, failed or overdue workflow state from priority, notification severity, due timestamps or the browser clock."
             />
           </AdminCard>
         ) : tasks.length ? (
@@ -225,9 +408,11 @@ function OrganizerTasksPage() {
           </AdminCard>
         )}
 
-        <p className="px-1 text-[11px] leading-5 text-muted-foreground">
-          Task state is recalculated from confirmation requirements and reviews, entries, required media, voting, results, integrations, incidents, governed approvals, Integrity work and paused edition subsystems. Blocked and failed are shown only when canonical task evidence explicitly reports them; priority is severity, not workflow state. There is intentionally no generic “Mark resolved” button.
-        </p>
+        {edition ? (
+          <p className="px-1 text-[11px] leading-5 text-muted-foreground">
+            Task state is derived from canonical domain evidence. Legacy waiting and resolved states remain authoritative; actionable, blocked, failed and overdue require explicit rich-state evidence from the task projection. Due timestamps are display metadata only and the browser clock never upgrades them into workflow truth. Priority is severity, not workflow state. There is intentionally no generic “Mark resolved” button.
+          </p>
+        ) : null}
       </div>
     </AdminPage>
   );
@@ -238,7 +423,7 @@ function TaskRow({
   operationalState,
 }: {
   task: OrganizerTaskV5;
-  operationalState: OrganizerTaskOperationalState;
+  operationalState: OrganizerTaskClassification;
 }) {
   return (
     <Link
@@ -254,6 +439,8 @@ function TaskRow({
           operationalState === "failed" ||
           operationalState === "overdue" ? (
           <AlertTriangle className="size-4 text-amber-100" />
+        ) : operationalState === "unclassified" ? (
+          <AlertTriangle className="size-4 text-muted-foreground" />
         ) : task.assignedTo ? (
           <UserRound className="size-4 text-muted-foreground" />
         ) : (
@@ -329,9 +516,10 @@ function countOperationalState(
 }
 
 function taskTone(
-  operationalState: OrganizerTaskOperationalState,
+  operationalState: OrganizerTaskClassification,
   priority: OrganizerTaskPriority,
 ) {
+  if (operationalState === "unclassified") return "neutral" as const;
   if (operationalState === "resolved") return "ready" as const;
   if (operationalState === "blocked" || operationalState === "failed") {
     return "blocked" as const;
@@ -348,8 +536,9 @@ function priorityTone(priority: OrganizerTaskPriority) {
   return "neutral" as const;
 }
 
-function operationalStateLabel(state: OrganizerTaskOperationalState) {
+function operationalStateLabel(state: OrganizerTaskClassification) {
   if (state === "overdue") return "Overdue / expired";
+  if (state === "unclassified") return "State unavailable";
   return humanize(state);
 }
 
@@ -388,7 +577,7 @@ function emptyDescription(filter: OrganizerTaskViewFilter) {
   if (filter === "blocked") return "No canonical task is explicitly blocked.";
   if (filter === "waiting") return "No governed approval or dependency is currently waiting.";
   if (filter === "failed") return "No canonical task is explicitly in a failed operational state.";
-  if (filter === "overdue") return "No unresolved task has passed its authoritative due time.";
+  if (filter === "overdue") return "No canonical task is explicitly overdue or expired.";
   if (filter === "resolved") return "Resolved task history will appear here after domain conditions close.";
   return "The canonical task sources currently evaluate as resolved.";
 }
