@@ -45,8 +45,14 @@ function VotingAdminOverview() {
     enabled: Boolean(editionId),
     queryFn: () => getOverview({ data: { editionId: editionId! } }),
     staleTime: 10_000,
-    refetchInterval: 60_000,
+    // Avoid polling closed/idle rounds; live voting still refreshes at a
+    // deliberately bounded cadence. Operators can refresh explicitly.
+    refetchInterval: (query) =>
+      query.state.status === "success" && (query.state.data?.openRounds ?? 0) > 0
+        ? 60_000
+        : false,
     refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
   });
 
   const nextAction =
@@ -99,9 +105,22 @@ function VotingAdminOverview() {
         title="Voting"
         description="Jury, public voting, integrity and official results are operated from the exact edition selected in Solaris Organizer."
         actions={
-          <Link to="/televoting" target="_blank" className="admin-action-secondary">
-            <Globe2 className="size-4" /> Public voting
-          </Link>
+          <>
+            {editionId ? (
+              <button
+                type="button"
+                className="admin-action-secondary"
+                onClick={() => void refetch()}
+                disabled={isFetching}
+                aria-busy={isFetching}
+              >
+                {isFetching ? "Refreshing…" : "Refresh voting status"}
+              </button>
+            ) : null}
+            <Link to="/televoting" target="_blank" className="admin-action-secondary">
+              <Globe2 className="size-4" /> Public voting
+            </Link>
+          </>
         }
       />
 
