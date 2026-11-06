@@ -103,8 +103,13 @@ export async function writeWorldDomesticOfficial(x:OfficialMutation){
     if(error.code==="42501")throw new Error("Country control permission has changed.");
     throw new Error(error.message||"Cannot save office history");
   }
-  if(!obj(data)||data.ok!==true||!uuid.test(String(data.id))||
-    !uuid.test(String(data.operationId))||!rev(data.revision)||data.kind!==x.kind)
+  // S2 command RPCs return the canonical reconcile envelope, not the inner result.
+  if(!obj(data)||data.status!=="succeeded"||data.error!==null||
+    data.operationId!==x.operationId||!obj(data.result))
     throw new Error("Missing authoritative office operation receipt");
-  return{id:data.id as string,operationId:data.operationId as string,revision:data.revision as number};
+  const result=data.result;
+  if(result.ok!==true||!uuid.test(String(result.id))||
+    result.operationId!==x.operationId||!rev(result.revision)||result.kind!==x.kind)
+    throw new Error("Missing authoritative office operation receipt");
+  return{id:result.id as string,operationId:x.operationId,revision:result.revision as number};
 }
