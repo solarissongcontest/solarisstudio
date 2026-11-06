@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { BookOpenText, CheckCircle2, FileCheck2, LockKeyhole, ShieldCheck } from "lucide-react";
 
+import { useFanSession } from "@/lib/prediction-data";
 import {
   loadWorldManageMinutes,
   loadWorldPublicMinutes,
@@ -34,6 +35,8 @@ function message(error: unknown): string {
 
 export function WorldSessionMinutesWorkspace({ sessionId }: { sessionId: string }) {
   const queryClient = useQueryClient();
+  const session = useFanSession();
+  const actorId = session.data?.id ?? null;
   const published = useQuery({
     queryKey: ["world","minutes","public",sessionId],
     queryFn: () => loadWorldPublicMinutes(sessionId),
@@ -41,9 +44,9 @@ export function WorldSessionMinutesWorkspace({ sessionId }: { sessionId: string 
   });
   const [showManager, setShowManager] = useState(false);
   const management = useQuery({
-    queryKey: ["world","minutes","manage",sessionId],
+    queryKey: ["world","minutes","manage",actorId,sessionId],
     queryFn: () => loadWorldManageMinutes(sessionId),
-    enabled: showManager,
+    enabled: showManager && !!actorId,
     staleTime: 0, retry: false,
   });
   const [summary, setSummary] = useState("");
@@ -56,7 +59,33 @@ export function WorldSessionMinutesWorkspace({ sessionId }: { sessionId: string 
   const [receipt, setReceipt] = useState<WorldMinutesReceipt | null>(null);
 
   useEffect(() => {
-    if (!dirty && management.data) {
+    // Login changes must never reuse another actor's confidential draft.
+    void queryClient.removeQueries({ queryKey: ["world","minutes","manage"] });
+    setShowManager(false);
+    setSummary("");
+    setBody("");
+    setDirty(false);
+    setPending(null);
+    retry.current = null;
+    setReceipt(null);
+    setError(null);
+  }, [actorId, queryClient]);
+
+  useEffect(() => {
+    if (management.isError) {
+      // Denied or failed private revalidation must not retain stale content.
+      void queryClient.removeQueries({ queryKey: ["world","minutes","manage",actorId,sessionId] });
+      setShowManager(false);
+      setSummary("");
+      setBody("");
+      setDirty(false);
+      setPending(null);
+      retry.current = null;
+    }
+  }, [management.isError, actorId, sessionId, queryClient]);
+
+  useEffect(() => {
+    if (!dirty && management.data && !management.isError) {
       setSummary(management.data.summary);
       setBody(management.data.body);
     }
@@ -104,7 +133,7 @@ export function WorldSessionMinutesWorkspace({ sessionId }: { sessionId: string 
       setPending(null);
       setDirty(false);
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["world","minutes","manage",sessionId] }),
+        queryClient.invalidateQueries({ queryKey: ["world","minutes","manage",actorId,sessionId] }),
         queryClient.invalidateQueries({ queryKey: ["world","minutes","public",sessionId] }),
         queryClient.invalidateQueries({ queryKey: ["world","session","public",sessionId] }),
       ]);
@@ -175,7 +204,7 @@ export function WorldSessionMinutesWorkspace({ sessionId }: { sessionId: string 
         {!showManager && <button type="button" className="min-h-11 rounded-xl border px-4 text-sm font-semibold"
           onClick={() => setShowManager(true)}>Open authorized workspace</button>}
       </div>
-      {showManager && (management.isPending ? <p role="status">Checking institutional access…</p> :
+      {showManager && (!actorId ? <p role="status">Sign in to open the restricted institutional workspace.</p> : management.isPending ? <p role="status">Checking institutional access…</p> :
         management.isError || !state ? <div role="alert" className="space-y-3 rounded-xl border p-4">
           <p>Private minutes are unavailable. Your authority may have changed, or the meeting may be restricted.</p>
           <button type="button" className="min-h-11 rounded-lg border px-4"
