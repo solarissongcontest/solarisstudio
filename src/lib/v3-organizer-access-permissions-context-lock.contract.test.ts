@@ -10,6 +10,7 @@ const route = readFileSync(
 describe("V3 Organizer Access & Permissions context lock", () => {
   it("resolves edition-scoped access work through the verified Organizer edition set", () => {
     expect(route).toContain('const editionsQuery = useEditions();');
+    expect(route).toContain("editionsQuery.isSuccess && !editionsQuery.error");
     expect(route).toContain(
       'selectOrganizerEdition(editionsQuery.data ?? [], editionId)',
     );
@@ -23,6 +24,13 @@ describe("V3 Organizer Access & Permissions context lock", () => {
     expect(route).not.toContain(
       'const effectiveScope = scope === "edition" && editionId ? editionId : null;',
     );
+  });
+
+  it("does not offer stale cached edition identity as verified access scope after a failed refresh", () => {
+    expect(route).toContain("editionsQuery.isSuccess && !editionsQuery.error");
+    expect(route).toContain('const resolvedEditionId = editionId && organizerEdition ? organizerEdition.id : "";');
+    expect(route).toContain('editionAvailable={Boolean(resolvedEditionId)}');
+    expect(route).toContain('enabled: editionsQuery.isSuccess && (!editionId || Boolean(resolvedEditionId))');
   });
 
   it("does not reinterpret stale edition context as a global permission evaluation", () => {

@@ -107,7 +107,12 @@ function AccessPermissionsPage() {
   const queryClient = useQueryClient();
   const { editionId } = useAdminContext();
   const editionsQuery = useEditions();
-  const organizerEdition = selectOrganizerEdition(editionsQuery.data ?? [], editionId);
+  // A failed background refresh can retain cached edition rows. Do not
+  // promote that cached identity to verified permission scope.
+  const organizerEdition =
+    editionsQuery.isSuccess && !editionsQuery.error
+      ? selectOrganizerEdition(editionsQuery.data ?? [], editionId)
+      : null;
   const resolvedEditionId = editionId && organizerEdition ? organizerEdition.id : "";
   const organizerEditionLabel = organizerEdition ? formatEditionLabel(organizerEdition) : null;
   const editionLabels = useMemo(
