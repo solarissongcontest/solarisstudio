@@ -127,6 +127,35 @@ describe("Organizer single and bulk media review target selection", () => {
     )).toBe(1);
   });
 
+  it("revalidates the reviewed source set without silently collapsing duplicate inventory keys", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/_authenticated/admin/media-assets.tsx"), "utf8");
+    expect(route).toContain("const reviewedSources = new Map(review.items.map(");
+    expect(route).toContain("reviewedSources.size !== review.items.length");
+    expect(route).toContain("const exactItems = resolveOrganizerMediaReviewTargets(");
+    expect(route).toContain("inventory, reviewedSources, review.commandEditionId, review.decision");
+    expect(route).not.toContain("const currentByKey = new Map(inventory.map");
+  });
+
+  it("serializes media confirmations before React can render pending mutation state", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/_authenticated/admin/media-assets.tsx"), "utf8");
+    expect(route).toContain("const reviewCommitInFlightRef = useRef(false);");
+    expect(route).toContain("if (!reviewed || reviewCommitInFlightRef.current || reviewMutation.isPending) return;");
+    expect(route).toContain("reviewCommitInFlightRef.current = true;");
+    expect(route).toContain("await reviewMutation.mutateAsync(reviewed);");
+    expect(route).toContain("reviewCommitInFlightRef.current = false;");
+    expect(route).toContain("onConfirm={confirmPendingMediaReview}");
+    expect(route).toContain("if (!reviewMutation.isPending && !reviewCommitInFlightRef.current)");
+    const confirm = route.indexOf("async function confirmPendingMediaReview()");
+    const lock = route.indexOf("reviewCommitInFlightRef.current = true;", confirm);
+    const write = route.indexOf("await reviewMutation.mutateAsync(reviewed);", confirm);
+    const unlock = route.indexOf("reviewCommitInFlightRef.current = false;", confirm);
+    expect(lock).toBeGreaterThan(confirm);
+    expect(write).toBeGreaterThan(lock);
+    expect(unlock).toBeGreaterThan(write);
+  });
+
   it("retains the canonical receipted operation for both single and bulk actions", () => {
     const route = readFileSync(resolve(process.cwd(),
       "src/routes/_authenticated/admin/media-assets.tsx"), "utf8");
