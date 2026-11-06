@@ -355,6 +355,122 @@ revoke all on function public.world_domestic_measure_detail_v1(uuid)
 grant execute on function public.world_domestic_measure_detail_v1(uuid)
   to anon,authenticated,service_role;
 
+-- TG17 derives published domestic law enactment/repeal without copying law text.
+create or replace function public.world_history_timeline_v1(
+  p_page integer default 0, p_country_code text default null
+) returns jsonb language plpgsql stable security definer
+set search_path = pg_catalog, public
+as $history$
+declare
+  v_rows jsonb;
+  v_has_more boolean;
+begin
+  if p_page is null or p_page < 0 or p_page > 100
+     or (p_country_code is not null and (
+       length(btrim(p_country_code)) not between 2 and 12
+       or p_country_code !~ '^[[:alnum:]-]+begin
+  if to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is not null then
+    perform public.v3_register_migration_contract(
+      'v3.tg16.domestic-legislation',1,'forward_fix_only',false,null,
+      'Optional fictional country-controlled democratic/monarchical/decree measure workflow, version snapshots and durable law enactment/repeal. No institutional authenticated ballots or competing TG7 legal authority.'
+    );
+  end if;
+end
+$contract$;
+notify pgrst,'reload schema';
+commit;
+)) then
+    raise exception using errcode='22023',message='VALIDATION';
+  end if;
+  if not coalesce(public.studio2_feature_enabled('terra_world_public',null),false) then
+    raise exception using errcode='42501',message='WORLD_NOT_PUBLISHED';
+  end if;
+  select
+    coalesce(
+      jsonb_agg(to_jsonb(n) - 'rn'
+        order by n.occurred_at desc, n.id desc) filter (where n.rn <= 20),
+      '[]'::jsonb),
+    count(*) > 20
+  into v_rows, v_has_more
+  from (
+    select l.*, row_number() over (order by l.occurred_at desc,l.id desc) as rn
+    from (
+      select source_records.*
+      from (
+        select ('editorial:'||h.id::text) as id,h.occurred_at,
+          h.title,h.summary,'editorial'::text as source_type,
+          'world_history_events'::text as provenance,
+          c.short_code as country_code,null::text as organization_slug
+        from public.world_history_events h
+        join public.countries c on c.id=h.country_id
+        where h.visibility='public' and h.occurred_at<=now()
+          and (p_country_code is null or lower(c.short_code)=lower(p_country_code))
+        union all
+        select ('election:'||e.id::text),(e.held_on::timestamp at time zone 'UTC'),
+          e.title,e.result_summary,'domestic_election',
+          'world_domestic_elections',c.short_code,null::text
+        from public.world_domestic_elections e
+        join public.countries c on c.id=e.country_id
+        where e.visibility='public' and e.held_on<=current_date
+          and (p_country_code is null or lower(c.short_code)=lower(p_country_code))
+        union all
+        select ('office-start:'||t.id::text),t.started_at,
+          t.holder_display_name || ' appointed ' || t.office_title,
+          'A published domestic office term began.',
+          'domestic_office','world_domestic_office_terms',c.short_code,null::text
+        from public.world_domestic_office_terms t
+        join public.countries c on c.id=t.country_id
+        where t.visibility='public' and t.started_at<=now()
+          and (p_country_code is null or lower(c.short_code)=lower(p_country_code))
+        union all
+        select ('office-end:'||t.id::text),t.actual_end_at,
+          t.holder_display_name || ' left the office of ' || t.office_title,
+          'A published domestic office term concluded.',
+          'domestic_office','world_domestic_office_terms',c.short_code,null::text
+        from public.world_domestic_office_terms t
+        join public.countries c on c.id=t.country_id
+        where t.visibility='public' and t.actual_end_at is not null
+          and t.actual_end_at<=now()
+          and (p_country_code is null or lower(c.short_code)=lower(p_country_code))
+        union all
+        select ('law-enacted:'||l.id::text),l.enacted_at,
+          l.title_snapshot || ' enacted',
+          'A published domestic law entered force through the '
+            || l.enactment_method || ' process.',
+          'domestic_law','world_domestic_laws',c.short_code,null::text
+        from public.world_domestic_laws l
+        join public.countries c on c.id=l.country_id
+        where l.enacted_at<=now()
+          and (p_country_code is null or lower(c.short_code)=lower(p_country_code))
+        union all
+        select ('law-repealed:'||l.id::text),l.repealed_at,
+          l.title_snapshot || ' repealed',
+          'A published domestic law ceased to be in force.',
+          'domestic_law','world_domestic_laws',c.short_code,null::text
+        from public.world_domestic_laws l
+        join public.countries c on c.id=l.country_id
+        where l.repealed_at is not null and l.repealed_at<=now()
+          and (p_country_code is null or lower(c.short_code)=lower(p_country_code))
+        union all
+        select ('organization:'||o.id::text),o.recognized_at,
+          o.official_name || ' recognized',
+          coalesce(o.description,'Official institution of Terra Solaris.'),
+          'institutional','world_organizations',null::text,o.slug
+        from public.world_organizations o
+        where p_country_code is null and o.public_visibility='public'
+          and o.status in ('recognized','active','suspended','historical','dissolved')
+          and o.recognized_at is not null and o.recognized_at<=now()
+      ) source_records
+      order by source_records.occurred_at desc,source_records.id desc
+      limit 21 offset p_page*20
+    ) l
+  ) n;
+  return jsonb_build_object('events',v_rows,'page',p_page,
+    'pageSize',20,'hasMore',v_has_more);
+end
+$history$;
+
+
 do $contract$
 begin
   if to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is not null then
