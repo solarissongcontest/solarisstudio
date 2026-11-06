@@ -459,8 +459,9 @@ function GuardMembershipApplicationPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      if (requestRef.current && intake.data && countryId) {
+                      if (requestRef.current && intake.data && countryId && actorScope) {
                         submit.mutate({
+                          actorScope,
                           fields: requestRef.current.fields,
                           operation: requestRef.current.operation,
                           organizationId: intake.data.organizationId,
