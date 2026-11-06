@@ -901,7 +901,7 @@ function AdminSystemPage() {
                 setCreateOpen(false);
                 setCreateEditionId(null);
                 setForm({ label: "", due_at: "", notes: "" });
-              }
+              }}
               className="admin-action-secondary"
             >
               Cancel
