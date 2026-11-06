@@ -243,6 +243,19 @@ export function AppTabBar({
     setDragPreviewIndex(null);
   }, [endHold, resetDragDom]);
 
+  const navigationIdentity = `${pathname}|${searchStr}|${signedIn ? "signed-in" : "anonymous"}`;
+  const previousNavigationIdentity = useRef(navigationIdentity);
+
+  // React Router may change routes/auth while an active pointer still owns the
+  // tab. Teardown must end the press-hold state, not only release DOM capture.
+  // A layout effect runs before a late pointer click can commit the old route.
+  useLayoutEffect(() => {
+    if (previousNavigationIdentity.current === navigationIdentity) return;
+    previousNavigationIdentity.current = navigationIdentity;
+    if (dragState.current || held) suppressClick.current = true;
+    clearDrag();
+  }, [clearDrag, held, navigationIdentity]);
+
   useEffect(() => {
     const resetInterruptedGesture = () => {
       // A late synthetic click after interruption must not navigate.
