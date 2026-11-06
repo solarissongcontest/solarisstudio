@@ -23,6 +23,8 @@ describe("Prediction League canonical standings adapter", () => {
       { ...valid, score: "Infinity" },
       { ...valid, score: "" },
       { ...valid, score: "-1" },
+      { ...valid, score: null as unknown as string },
+      { ...valid, score: true as unknown as string },
       { ...valid, rounds: "0" },
       { ...valid, rounds: "-1" },
       { ...valid, rounds: "1.5" },
