@@ -11,7 +11,7 @@ import { V3RecordsScreen } from "./V3RecordsScreen";
 
 export function V3RecordsGate({ fallback }: { fallback: ReactNode }) {
   const { preferences } = useAppExperiencePreferences();
-  const [currentEditionRevealed, setCurrentEditionRevealed] = useState(false);
+  const [revealedScope, setRevealedScope] = useState<string | null>(null);
   const bundle = useV3RecordsBundle(true);
   const rolloutEditionSlug = bundle.data?.rolloutEditionSlug ?? "";
   const editionProbe = useV3EditionRolloutProbe(
@@ -24,9 +24,18 @@ export function V3RecordsGate({ fallback }: { fallback: ReactNode }) {
   const rollout = rolloutEditionSlug ? editionProbe : currentProbe;
   const serverPreferences = useNotificationPreferences(rollout.data?.userId ?? undefined);
 
+  // Deliberate reveal consent is bound to both the authenticated viewer and
+  // the exact edition. A viewer change must block results in that same render,
+  // not after an effect has a chance to clear a stale boolean.
+  const revealScope = JSON.stringify([
+    rollout.data?.userId ?? "anonymous",
+    bundle.data?.currentEditionId ?? "none",
+  ]);
+  const currentEditionRevealed = revealedScope === revealScope;
+
   useEffect(() => {
-    setCurrentEditionRevealed(false);
-  }, [bundle.data?.currentEditionId]);
+    setRevealedScope(null);
+  }, [rollout.data?.userId, bundle.data?.currentEditionId]);
 
   // Until canonical Records/publication authority can be verified, do not
   // launch legacy archive-wide readers just because a network request failed.
@@ -105,7 +114,7 @@ export function V3RecordsGate({ fallback }: { fallback: ReactNode }) {
         }
         generatedAt={bundle.data.generatedAt}
         spoilerProtected={spoilerProtected}
-        onRevealCurrentEdition={() => setCurrentEditionRevealed(true)}
+        onRevealCurrentEdition={() => setRevealedScope(revealScope)}
       />
     </V3AppShell>
   );
