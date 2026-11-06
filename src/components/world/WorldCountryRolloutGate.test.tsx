@@ -58,9 +58,14 @@ describe("World Country International publication boundary", () => {
     expect(html).not.toContain("International records sentinel");
   });
 
-  it("mounts the country reader only after the server flag is true", () => {
+  it("does not mount country readers from an old cached enabled flag", () => {
     const html = renderGate(true);
-    expect(html).toContain("International records sentinel");
-    expect(html).not.toContain("not yet available");
+    expect(html).toContain("Checking Terra Solaris availability");
+    expect(html).not.toContain("International records sentinel");
+  });
+
+  it("does not trust cached disabled data until the current-route check completes", () => {
+    const html = renderGate(false);
+    expect(html).not.toContain("International records sentinel");
   });
 });

@@ -41,17 +41,20 @@ export function WorldCountryRolloutGate({ children }: { children: ReactNode }) {
     staleTime: 45_000,
     retry: false,
     queryFn: fetchWorldCountryRollout,
+    // A cached enabled flag is insufficient when navigating from another World route.
+    refetchOnMount: "always",
   });
 
-  if (rollout.isPending) {
-    return <div className="mx-auto max-w-5xl px-4 py-8">
-      <ArchiveDataLoading label="Checking Terra Solaris availability…" />
-    </div>;
-  }
-  if (rollout.isError) {
+  if (rollout.isError || rollout.isRefetchError) {
     return <div className="mx-auto max-w-5xl px-4 py-8">
       <FailureState title="World availability could not be verified"
         retry={() => void rollout.refetch()} />
+    </div>;
+  }
+  // An old cached true must not bypass a fresh mount's publication check.
+  if (rollout.isPending || rollout.isFetching || !rollout.isFetchedAfterMount) {
+    return <div className="mx-auto max-w-5xl px-4 py-8">
+      <ArchiveDataLoading label="Checking Terra Solaris availability…" />
     </div>;
   }
   if (!rollout.data) {
