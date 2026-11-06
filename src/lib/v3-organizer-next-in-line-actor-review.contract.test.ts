@@ -19,7 +19,8 @@ describe("Organizer Next in Line actor-bound R2 review", () => {
     expect(source).toContain("actorIdRef.current !== operationActorId");
     expect(source).toContain("pendingWindowChange.editionId !== operationEditionId");
     expect(source).toContain("pendingWindowChange.preview.editionId !== operationEditionId");
-    expect(source).toContain("Organizer account or edition changed after this preview.");
+    expect(source).toContain("Organizer account changed after this preview.");
+    expect(source).toContain("Organizer edition changed after this preview.");
   });
 
   it("preserves server version, reviewed scope and idempotent apply", () => {

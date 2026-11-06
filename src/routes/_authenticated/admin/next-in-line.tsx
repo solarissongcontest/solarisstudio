@@ -259,13 +259,20 @@ function NextInLineAdminPage({ actorId }: { actorId: string }) {
     const operationActorId = actorId;
     if (
       pendingWindowChange.actorId !== operationActorId ||
-      actorIdRef.current !== operationActorId ||
+      actorIdRef.current !== operationActorId
+    ) {
+      setPendingWindowChange(null);
+      setChangeReason("");
+      setWindowError("Organizer account changed after this preview. Review the authenticated account before applying a window change.");
+      return;
+    }
+    if (
       pendingWindowChange.editionId !== operationEditionId ||
       pendingWindowChange.preview.editionId !== operationEditionId
     ) {
       setPendingWindowChange(null);
       setChangeReason("");
-      setWindowError("Organizer account or edition changed after this preview. Review the exact scope before applying a window change.");
+      setWindowError("Organizer edition changed after this preview. Review the current edition before applying a window change.");
       return;
     }
 
