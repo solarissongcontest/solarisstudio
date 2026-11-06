@@ -67,6 +67,14 @@ describe("Organizer Combined Results global capability preflight", () => {
     expect(legacyServer).toContain("Combined result not found in selected Organizer edition");
   });
 
+  it("does not silently turn invalid manual voting scores or source weights into zero", () => {
+    expect(adapter).toContain("Source weight must be a finite number");
+    expect(adapter).toContain("Source display order must be a valid nonnegative integer");
+    expect(adapter).toContain('if (!Number.isFinite(score)) throw new Error(`Invalid source value for ${key}`)');
+    expect(adapter).not.toContain("Number(value) || 0");
+    expect(adapter).not.toContain("Number(data.weight) || 0");
+  });
+
   it("retains truthful System S16 writer debt instead of mislabeling the adapter as canonical", () => {
     expect(legacyServer).toContain('from("televote_aggregations")');
     expect(legacyServer).toContain('requireMergedTelevotingAdminServer');

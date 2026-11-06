@@ -222,10 +222,13 @@ function CombinedResultsPage({ editionId }: { editionId: string }) {
         },
       }),
     onSuccess: async (result) => {
-      setSelectedId(result.id);
       setCreateOpen(false);
+      // The list must include the new aggregate *before* selection changes;
+      // otherwise the membership effect can reset selection to an older item.
+      await queryClient.invalidateQueries({ queryKey: ["merged-combined-aggregations", actorId, editionId] });
+      await queryClient.invalidateQueries({ queryKey: ["merged-televoting-audit", actorId] });
+      setSelectedId(result.id);
       toast.success("Combined result created");
-      await refresh();
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -700,7 +703,12 @@ function SourceCard({ source, resolved, participants, catalogMap, allRounds, all
       await valuesFn({ data: {
         aggregationId,
         sourceId: source.id,
-        values: Object.fromEntries(Object.entries(values).map(([key, value]) => [key, Number(value) || 0])),
+        values: Object.fromEntries(Object.entries(values).map(([key, value]) => {
+          if (!value.trim() || !Number.isFinite(Number(value))) {
+            throw new Error(`Enter a valid finite value for ${catalogMap.get(key)?.name ?? key}`);
+          }
+          return [key, Number(value)];
+        })),
       }});
       toast.success("Source values saved");
       await onRefresh();

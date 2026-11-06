@@ -124,7 +124,13 @@ export const upsertMergedCombinedSource = createServerFn({ method: "POST" })
   }) => {
     if (!data?.aggregationId) throw new Error("Missing aggregation id");
     if (!String(data.name ?? "").trim()) throw new Error("Source name is required");
-    return { ...data, name: String(data.name).trim(), weight: Number(data.weight) || 0, displayOrder: Math.max(0, Math.trunc(Number(data.displayOrder) || 0)) };
+    const weight = Number(data.weight);
+    if (!Number.isFinite(weight)) throw new Error("Source weight must be a finite number");
+    const order = Number(data.displayOrder);
+    if (!Number.isFinite(order) || order < 0 || !Number.isSafeInteger(Math.trunc(order))) {
+      throw new Error("Source display order must be a valid nonnegative integer");
+    }
+    return { ...data, name: String(data.name).trim(), weight, displayOrder: Math.trunc(order) };
   })
   .handler(async ({ data }) => {
     await requireCombinedCapability("voting.manage");
@@ -150,7 +156,14 @@ export const deleteMergedCombinedSource = createServerFn({ method: "POST" })
 export const saveMergedCombinedSourceValues = createServerFn({ method: "POST" })
   .inputValidator((data: { aggregationId: string; sourceId: string; values: Record<string, number> }) => {
     if (!data?.aggregationId || !data?.sourceId) throw new Error("Missing source");
-    const values = Object.fromEntries(Object.entries(data.values ?? {}).map(([key, value]) => [key, Number(value) || 0]));
+    const values = Object.fromEntries(Object.entries(data.values ?? {}).map(([key, value]) => {
+      if (!key.trim() || (typeof value === "string" && !value.trim())) {
+        throw new Error("Manual source value requires an entry and a number");
+      }
+      const score = Number(value);
+      if (!Number.isFinite(score)) throw new Error(`Invalid source value for ${key}`);
+      return [key, score];
+    }));
     return { aggregationId: data.aggregationId, sourceId: data.sourceId, values };
   })
   .handler(async ({ data }) => {

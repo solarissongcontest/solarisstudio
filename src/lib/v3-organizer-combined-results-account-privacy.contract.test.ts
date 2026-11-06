@@ -43,6 +43,12 @@ describe("Organizer Combined Results exact-edition private boundary", () => {
     expect(source).toContain("if (selectedId && !selectedAggregationVerified)");
     expect(source).toContain("detail && selectedAggregationVerified ? (");
     expect(source).toContain("key={selectedId}");
+    expect(source).toContain('await queryClient.invalidateQueries({ queryKey: ["merged-combined-aggregations", actorId, editionId] })');
+    expect(source.indexOf('await queryClient.invalidateQueries({ queryKey: ["merged-combined-aggregations", actorId, editionId] })')).toBeLessThan(
+      source.indexOf('setSelectedId(result.id)')
+    );
+    expect(source).toContain("Enter a valid finite value for");
+    expect(source).not.toContain("Number(value) || 0");
   });
 
   it("bounds the privileged list at the server query, not just the displayed table", () => {
