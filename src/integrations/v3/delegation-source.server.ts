@@ -145,7 +145,9 @@ function parseProfile(
       history: entries,
       geography: null,
       actions: {
-        wiki: { label: "Wiki", href: `/wiki/${code}` },
+        // The legacy detail URL redirects back to this same Country once Reference is enabled.
+        // The Wiki index performs the authorized Reference rollout redirect instead.
+        wiki: { label: "Reference", href: "/wiki" },
         compare: { label: "Compare", href: `/compare?a=${encodeURIComponent(code)}` },
       },
     },
