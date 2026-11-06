@@ -17,12 +17,12 @@ import {
   canShowV3FantasyTeamScore,
   fantasyBudgetUsed,
   fantasyRosterReady,
+  normalizeV3FantasyStandings,
   resolveV3FantasyState,
   restoreV3FantasyRoster,
   shouldRestoreV3FantasyRoster,
   type V3FantasyChoice,
   type V3FantasyGame,
-  type V3FantasyStanding,
   type V3FantasyTeam,
   type V3FantasyTeamEntry,
 } from "@/lib/v3-fantasy";
@@ -149,9 +149,16 @@ function FantasyPage() {
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc("fantasy_leaderboard", { _game_id: activeGame!.id });
       if (error) throw error;
-      return (data ?? []) as V3FantasyStanding[];
+      return normalizeV3FantasyStandings(data ?? []);
     },
   });
+
+  const standingsState =
+    activeGame?.status !== "scored" ? "unpublished"
+    : leaderboard.isError ? "error"
+    : leaderboard.isPending && leaderboard.isPaused ? "paused"
+    : leaderboard.isPending ? "loading"
+    : "ready";
 
   const submit = useMutation({
     mutationFn: async (intent: {
@@ -285,6 +292,9 @@ function FantasyPage() {
           state={fantasyState}
           team={myTeam.data ?? null}
           standings={activeGame.status === "scored" ? (leaderboard.data ?? []) : []}
+          standingsState={standingsState}
+          retryingStandings={leaderboard.isFetching}
+          onRetryStandings={() => void leaderboard.refetch()}
           viewerId={viewerId}
           submitting={submit.isPending}
           submitError={submit.isError && submit.variables?.scope === rosterScope ? (submit.error instanceof Error ? submit.error.message : "Roster could not be saved.") : null}
@@ -304,9 +314,21 @@ function FantasyPage() {
         description="Build one constrained roster before the server-side lock. Costs, eligibility, budget and scoring are enforced in the database rather than trusting a browser with a button."
       />
 
-      {feature.isLoading ? (
+      {feature.isError ? (
+        <Panel title="Fantasy availability could not be verified">
+          <p role="alert" className="text-sm text-muted-foreground">The rollout check failed. This does not mean Fantasy is disabled.</p>
+          <button type="button" disabled={feature.isFetching} onClick={() => void feature.refetch()}
+            className="mt-3 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold disabled:opacity-50">
+            {feature.isFetching ? "Retrying…" : "Retry availability"}
+          </button>
+        </Panel>
+      ) : feature.isPending && feature.isPaused ? (
+        <Panel title="Fantasy availability not verified">
+          <p role="status" className="text-sm text-muted-foreground">Reconnect to verify whether Fantasy SSC is available.</p>
+        </Panel>
+      ) : feature.isLoading ? (
         <Panel><p className="text-sm text-muted-foreground">Checking Fantasy rollout…</p></Panel>
-      ) : feature.isError || feature.data !== true ? (
+      ) : feature.data !== true ? (
         <Panel title="Fantasy SSC is not enabled yet"><p className="text-sm text-muted-foreground">The product is installed but remains behind its rollout flag until production verification is complete.</p></Panel>
       ) : loadingError ? (
         <Panel title="Fantasy data could not be loaded">
@@ -392,7 +414,22 @@ function FantasyPage() {
           </div>
 
           <Panel title="Leaderboard" className="mt-5">
-            {activeGame.status === "scored" && leaderboard.data?.length ? (
+            {standingsState === "unpublished" ? (
+              <p className="text-sm text-muted-foreground">Rankings appear after official Fantasy scoring is published.</p>
+            ) : standingsState === "error" ? (
+              <div role="alert" className="space-y-3">
+                <p className="text-sm text-destructive">Fantasy standings could not be verified. No rankings are shown.</p>
+                <button type="button" disabled={leaderboard.isFetching}
+                  onClick={() => void leaderboard.refetch()}
+                  className="min-h-11 rounded-xl border border-border px-4 text-sm font-semibold disabled:opacity-50">
+                  {leaderboard.isFetching ? "Retrying…" : "Retry standings"}
+                </button>
+              </div>
+            ) : standingsState === "paused" ? (
+              <p role="status" className="text-sm text-muted-foreground">Reconnect to verify Fantasy standings.</p>
+            ) : standingsState === "loading" ? (
+              <p role="status" className="text-sm text-muted-foreground">Loading Fantasy standings…</p>
+            ) : leaderboard.data?.length ? (
               <div className="space-y-2">
                 {leaderboard.data.slice(0, 25).map((row) => (
                   <div key={row.profileId} className="flex items-center gap-3 rounded-xl border border-border/70 bg-background/30 p-3 text-sm">
