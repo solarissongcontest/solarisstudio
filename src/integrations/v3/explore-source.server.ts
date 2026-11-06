@@ -17,7 +17,7 @@ import {
 import { resolveV3ExploreNextPublicEvent } from "@/lib/v3-explore-next-event";
 
 const EDITION_COLUMNS =
-  "id,edition_number,name,year,slug,description,host_country_id,host_city,logo,theme_id,artwork_url,status,published";
+  "id,edition_number,name,year,slug,host_city,logo,artwork_url,status,published";
 const CURRENT_SHOW_COLUMNS =
   "id,edition_id,name,kind,sort_order,status,published,publication_config,broadcast_config";
 const ARCHIVE_RESULT_SHOW_COLUMNS =
