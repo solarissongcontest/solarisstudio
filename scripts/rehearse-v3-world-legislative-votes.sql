@@ -93,8 +93,8 @@ begin
          encode(sha256(convert_to('Test proposal text','UTF8')),'hex'),'published'),
         (closed_version,closed_measure,1,'Closed test measure','Closed proposal text',
          encode(sha256(convert_to('Closed proposal text','UTF8')),'hex'),'published');
-  update public.world_measures set current_version_id=version, state='registered' where id=measure;
-  update public.world_measures set current_version_id=closed_version, state='voting' where id=closed_measure;
+  update public.world_measures set current_version_id=version, state='registered', revision=revision+1 where id=measure;
+  update public.world_measures set current_version_id=closed_version, state='voting', revision=revision+1 where id=closed_measure;
 
   -- A trusted already-closed fixture permits certification testing without
   -- sleeping or altering the server clock or mutating a frozen vote.
