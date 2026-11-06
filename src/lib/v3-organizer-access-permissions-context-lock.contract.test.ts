@@ -47,6 +47,8 @@ describe("V3 Organizer Access & Permissions context lock", () => {
     expect(route).toContain("actionsAvailable={editionContextVerified}");
     expect(route).toContain("actionsAvailable: boolean;");
     expect(route).toContain("disabled={!actionsAvailable}");
+    expect(route).toContain("busy={!editionContextVerified || previewChange.isPending || requestApproval.isPending || applyApproved.isPending}");
+    expect(route).toContain("disabled={busy}");
     expect(route).toContain("Scope verification required");
     expect(route).toContain("R3 approval actions are paused until the Organizer edition context can be verified.");
     expect(route).toContain("if (!editionContextVerified) return;");
