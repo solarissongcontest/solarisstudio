@@ -3,8 +3,11 @@ import { EyeOff } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { FlagChip } from "@/components/FlagChip";
-import type { FanRecordCategory } from "@/lib/fan-records";
-import type { V3Record, V3RecordHolder } from "@/lib/v3-records";
+import type {
+  FanRecord,
+  FanRecordCategory,
+  FanRecordHolder,
+} from "@/lib/fan-records";
 import {
   V3Screen,
   V3ScreenHeader,
@@ -41,7 +44,7 @@ export function V3RecordsScreen({
   spoilerProtected = false,
   onRevealCurrentEdition,
 }: {
-  records: readonly V3Record[];
+  records: readonly FanRecord[];
   archivedFinalEditions: number;
   generatedAt: string;
   spoilerProtected?: boolean;
@@ -95,9 +98,6 @@ export function V3RecordsScreen({
           {archivedFinalEditions === 1 ? "" : "s"} with published Grand Final
           results, plus voting and qualification data that is actually public.
           Missing archive data is excluded rather than treated as zero.
-        </p>
-        <p className="mt-2 text-xs leading-5 text-white/42">
-          Edition-specific holders link back to the published result, voting matrix or edition context used as provenance. Aggregate career and streak records intentionally do not invent a single source when no exact edition holder exists.
         </p>
       </V3Surface>
 
@@ -160,7 +160,7 @@ export function V3RecordsScreen({
   );
 }
 
-function RecordCard({ record }: { record: V3Record }) {
+function RecordCard({ record }: { record: FanRecord }) {
   const primaryHolders = record.holders.slice(0, 8);
   const remainingHolders = record.holders.slice(8);
 
@@ -205,7 +205,7 @@ function RecordCard({ record }: { record: V3Record }) {
   );
 }
 
-function RecordHolderRow({ holder }: { holder: V3RecordHolder }) {
+function RecordHolderRow({ holder }: { holder: FanRecordHolder }) {
   return (
     <div className="py-3 first:pt-2.5 last:pb-2.5">
       <div className="flex min-w-0 items-start gap-3">
@@ -237,15 +237,6 @@ function RecordHolderRow({ holder }: { holder: V3RecordHolder }) {
             <p className="mt-1 text-[0.68rem] leading-4 text-white/42">
               {holder.context}
             </p>
-          ) : null}
-          {holder.provenance ? (
-            <Link
-              to={holder.provenance.href as any}
-              className="mt-2 inline-flex min-h-8 items-center text-[0.68rem] font-semibold text-primary hover:underline"
-              data-v3-record-provenance={holder.provenance.kind}
-            >
-              Source: {holder.provenance.label}
-            </Link>
           ) : null}
         </div>
       </div>

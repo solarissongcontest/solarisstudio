@@ -10,7 +10,6 @@ import type {
   Show,
 } from "@/lib/data";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
-import { attachV3RecordProvenance } from "@/lib/v3-record-provenance";
 import type { V3RecordsBundle } from "@/lib/v3-records";
 
 const PAGE_SIZE = 1000;
@@ -119,11 +118,6 @@ function countFinalEditions(
  * buildCanonicalFanRecords, which applies the canonical public archive filter
  * again before calculating records.
  *
- * Record-holder provenance is attached only from those same publication-safe
- * result/jury rows, so an edition-specific record can point back to the exact
- * published result or voting matrix that substantiates it without exposing raw
- * archive tables to the browser.
- *
  * A second derived projection excludes the canonical current public edition.
  * Spoiler-free clients can therefore render career totals, streaks and record
  * holders without letting a freshly published result leak indirectly through
@@ -202,18 +196,11 @@ export async function loadV3RecordsBundle(): Promise<V3RecordsBundle> {
     .map(canonicalJuryVote)
     .filter((row) => Boolean(row.receiving_country_id));
 
-  const rawRecords = buildCanonicalFanRecords({
+  const records = buildCanonicalFanRecords({
     countries,
     editions,
     shows: publicShows,
     participants: canonicalParticipants,
-    results: canonicalResults,
-    jury: canonicalJury,
-  });
-  const records = attachV3RecordProvenance({
-    records: rawRecords,
-    editions,
-    shows: publicShows,
     results: canonicalResults,
     jury: canonicalJury,
   });
@@ -239,21 +226,12 @@ export async function loadV3RecordsBundle(): Promise<V3RecordsBundle> {
   const spoilerSafeJury = currentEditionId
     ? canonicalJury.filter((row) => row.edition_id !== currentEditionId)
     : canonicalJury;
-  const spoilerSafeRawRecords = currentEditionAffectsRecords
+  const spoilerSafeRecords = currentEditionAffectsRecords
     ? buildCanonicalFanRecords({
         countries,
         editions: spoilerSafeEditions,
         shows: spoilerSafeShows,
         participants: spoilerSafeParticipants,
-        results: spoilerSafeResults,
-        jury: spoilerSafeJury,
-      })
-    : rawRecords;
-  const spoilerSafeRecords = currentEditionAffectsRecords
-    ? attachV3RecordProvenance({
-        records: spoilerSafeRawRecords,
-        editions: spoilerSafeEditions,
-        shows: spoilerSafeShows,
         results: spoilerSafeResults,
         jury: spoilerSafeJury,
       })
