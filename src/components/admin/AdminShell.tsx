@@ -34,7 +34,12 @@ export function AdminShell({
   const screen = resolveOrganizerV6Screen(pathname);
   const morphProgress = useScrollMorphProgress({ resetKey: pathname });
   const organizerV3 = useV3RolloutProbe(true);
-  const organizerV3Enabled = organizerV3.data?.organizerEnabled === true;
+  // No legacy/app navigation can be selected until the server rollout probe
+  // confirms its own generation. An unknown feature state is not "V6".
+  const organizerModeResolved =
+    !organizerV3.isLoading && !organizerV3.isError && organizerV3.data != null;
+  const organizerV3Enabled =
+    organizerModeResolved && organizerV3.data.organizerEnabled === true;
   const { isAppMode, platformResolved } = useSolarisApp();
   const organizerToolbarStyle = {
     "--organizer-toolbar-title-scale": (1.035 - morphProgress * 0.035).toFixed(4),
@@ -122,6 +127,16 @@ export function AdminShell({
         </header>
 
         <div className="relative z-10">
+          {!organizerModeResolved ? (
+            <div className="mx-auto flex min-h-11 max-w-5xl items-center justify-between gap-3 px-3 py-2 text-xs text-muted-foreground" role="status" aria-live="polite">
+              <span>{organizerV3.isError ? "Organizer navigation could not be verified." : "Checking Organizer navigation…"}</span>
+              {organizerV3.isError ? (
+                <button type="button" onClick={() => void organizerV3.refetch()} className="min-h-11 rounded-lg border border-white/15 px-3 font-semibold text-foreground">
+                  Retry navigation
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           {organizerV3Enabled && platformResolved && !isAppMode ? (
             <OrganizerV3WebNavigation pathname={pathname} />
           ) : null}
@@ -131,9 +146,11 @@ export function AdminShell({
           >
             {children}
           </AdminEditionScopedWorkspace>
-          {organizerV3Enabled
-            ? platformResolved && isAppMode ? <OrganizerV3MobileChrome /> : null
-            : <OrganizerV6MobileChrome />}
+          {organizerModeResolved
+            ? organizerV3Enabled
+              ? platformResolved && isAppMode ? <OrganizerV3MobileChrome /> : null
+              : <OrganizerV6MobileChrome />
+            : null}
         </div>
       </div>
     </AdminContextProvider>
