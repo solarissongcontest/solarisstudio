@@ -140,8 +140,10 @@ begin
      or p_body is null or length(btrim(p_body)) not between 1 and 50000 then
     raise exception using errcode='22023',message='VALIDATION';
   end if;
+  -- Serialize official publication against changes to org publishability.
   select * into v_organization
-  from public.world_organizations where id=p_organization_id;
+  from public.world_organizations where id=p_organization_id
+  for share;
   if not found or v_organization.status not in ('recognized','active')
      or v_organization.public_visibility<>'public' then
     raise exception using errcode='23514',message='ORGANIZATION_NOT_PUBLISHABLE';
@@ -167,7 +169,7 @@ begin
     and term.holder_user_id=v_actor
     and term.status='active'
     and term.started_at<=now() and term.actual_end_at is null
-  limit 1;
+  limit 1 for share of term,office_row;
   if v_office_person is null then
     raise exception using errcode='42501',message='CURRENT_OFFICE_TERM_REQUIRED';
   end if;
