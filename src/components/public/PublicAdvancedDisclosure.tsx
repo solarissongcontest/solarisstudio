@@ -1,5 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
 
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
@@ -18,12 +18,25 @@ export function PublicAdvancedDisclosure({
   onOpen?: () => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const panelId = useId();
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   return (
-    <section className="public-advanced-disclosure">
+    <section
+      className="public-advanced-disclosure"
+      onKeyDown={(event) => {
+        if (event.key !== "Escape" || !open) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setOpen(false);
+        triggerRef.current?.focus();
+      }}
+    >
       <button
+        ref={triggerRef}
         type="button"
         aria-expanded={open}
+        aria-controls={panelId}
         onClick={() => {
           const next = !open;
           setOpen(next);
@@ -50,7 +63,11 @@ export function PublicAdvancedDisclosure({
           aria-hidden="true"
         />
       </button>
-      {open ? <div className="public-advanced-content">{children}</div> : null}
+      {/* The controlled region stays addressable while closed, but expensive
+          panel children still mount only on expansion. */}
+      <div id={panelId} className="public-advanced-content" hidden={!open}>
+        {open ? children : null}
+      </div>
     </section>
   );
 }

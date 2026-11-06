@@ -22,6 +22,7 @@ import {
   v3EditionOverviewHref,
   v3EditionViewHref,
 } from "@/lib/v3-edition-view";
+import { canOpenV3EditionResults } from "@/lib/v3-edition-results-navigation";
 import {
   V3ActionCard,
   V3Screen,
@@ -206,8 +207,12 @@ function SectionNav({
     {
       key: "results",
       label: "Results",
-      href: projection.results.showHref ?? base,
-      locked: globalSpoilerProtection || spoilerSafe || projection.results.state !== "available",
+      href: projection.results.showHref ?? "",
+      locked: globalSpoilerProtection || !canOpenV3EditionResults({
+        state: projection.results.state,
+        showHref: projection.results.showHref,
+        spoilerSafe,
+      }),
     },
   ];
 
@@ -285,11 +290,11 @@ export function V3EditionOverviewScreen({
       ) : (
         <V3Surface level="raised" className="overflow-hidden">
           {projection.hub.hero.artworkUrl ? (
-            <div className="relative aspect-[16/8] overflow-hidden border-b border-white/[0.06] bg-white/[0.025]">
+            <div className="relative border-b border-white/[0.06] bg-white/[0.025]">
               <img
                 src={projection.hub.hero.artworkUrl}
                 alt=""
-                className="h-full w-full object-cover"
+                className="block h-auto max-h-[34rem] w-full object-contain"
                 loading="lazy"
               />
               <div

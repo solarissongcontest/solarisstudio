@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildV3FollowingSavedProjection } from "./v3-following-saved";
+import { buildV3FollowingSavedProjection, searchV3FollowingSavedItems } from "./v3-following-saved";
 
 const follows = [
   {
@@ -80,4 +80,23 @@ describe("V3 Following and Saved projection", () => {
     expect(projection.scoped).toBe(false);
     expect(projection.items).toEqual([]);
   });
+  it("searches only already scoped saved items by name, context and category", () => {
+    const projection = buildV3FollowingSavedProjection({
+      viewerId: "viewer-1",
+      follows,
+      countries: [{ id: "country-1", name: "Solaria", short_code: "SOL" }],
+      editions: [{ id: "edition-1", name: "Solaris 22", slug: "solaris-22", edition_number: 22 }],
+      shows: [{ id: "show-1", name: "Grand Final", edition_id: "edition-1" }],
+    });
+
+    expect(searchV3FollowingSavedItems(projection.items, " SOLARIA ").map((x) => x.followId))
+      .toEqual(["follow-country"]);
+    expect(searchV3FollowingSavedItems(projection.items, "solarIS 22").map((x) => x.followId))
+      .toEqual(["follow-edition", "follow-show"]);
+    expect(searchV3FollowingSavedItems(projection.items, "show").map((x) => x.followId))
+      .toEqual(["follow-show"]);
+    expect(searchV3FollowingSavedItems(projection.items, "not saved")).toEqual([]);
+    expect(searchV3FollowingSavedItems(projection.items, " ")).toHaveLength(3);
+  });
+
 });

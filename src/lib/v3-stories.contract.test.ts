@@ -48,7 +48,9 @@ describe("Public V3 Stories contract", () => {
     expect(gates).toContain("useV3EditionRolloutProbe");
     expect(gates).toContain("rollout.data.exploreEnabled !== true");
     expect(gates).toContain("return <>{fallback}</>");
-    expect(indexRoute).toContain("<V3StoriesIndexGate fallback={<LegacyStoriesArchivePage />} />");
+    expect(indexRoute).toContain('<V3StoriesIndexGate fallback={<LegacyStoriesArchivePage presentation="installed-app" />} />');
+    expect(indexRoute).toContain("if (isAppMode)");
+    expect(indexRoute).toContain("return <LegacyStoriesArchivePage presentation={presentation} />;");
     expect(detailRoute).toContain("<V3StoryDetailGate");
     expect(detailRoute).toContain("fallback={<LegacyEditionStoryPage editionSlug={editionSlug} />}");
   });

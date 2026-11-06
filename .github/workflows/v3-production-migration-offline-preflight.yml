@@ -1,0 +1,69 @@
+name: V3 production migration offline preflight
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "scripts/v3-production-supabase-push.sh"
+      - "scripts/check-v3-production-migration-frontier.ts"
+      - "src/lib/v3-production-migration-frontier.ts"
+      - "src/lib/v3-production-migration-frontier.test.ts"
+      - "src/lib/v3-production-operator-gates.test.ts"
+      - "src/lib/v3-production-migration-race.test.ts"
+      - "docs/v3/production-frontier-preflight.md"
+      - ".github/workflows/v3-production-migration-offline-preflight.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-production-migration-offline-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  offline-preflight:
+    name: Exact-head offline migration and operator safety
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      V3_VERIFICATION_TARGET: local
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PROJECT_ID: local
+      SUPABASE_PROJECT_REF: local
+    steps:
+      - name: Checkout exact reviewed candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Assert exact-head checkout
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          [[ "$actual" == "$EXPECTED_SHA" ]] || { echo "::error::Candidate checkout mismatch: $actual != $EXPECTED_SHA"; exit 1; }
+          printf 'Offline production-preflight test candidate: %s\n' "$actual"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Install frozen dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify operator Bash syntax
+        run: bash -n scripts/v3-production-supabase-push.sh
+
+      - name: Run isolated migration frontier and operator approval regressions
+        run: bunx vitest run src/lib/v3-production-migration-frontier.test.ts src/lib/v3-production-operator-gates.test.ts src/lib/v3-production-migration-race.test.ts
+
+      - name: Confirm offline-only verification
+        run: |
+          echo "No hosted Supabase metadata or credentials were accessed."
+          echo "This is a focused code-safety check, not production schema or release certification."
