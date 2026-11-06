@@ -1,3 +1,17 @@
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The Organizer endpoint may never select the globally active edition implicitly. */
+export function requireTelevotingOverviewEditionId(value: unknown): string {
+  if (typeof value !== "string") {
+    throw new Error("Voting overview requires an explicit Organizer edition");
+  }
+  const id = value.trim();
+  if (!UUID.test(id)) {
+    throw new Error("Voting overview requires a valid Organizer edition id");
+  }
+  return id;
+}
+
 /**
  * Validate the canonical one-call Organizer voting projection.
  * A missing or malformed privileged readback must never become a believable
