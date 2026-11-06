@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { WorldPublicGate } from "@/components/world/WorldPublic";
 import { WorldBodiesDirectory } from "@/components/world/WorldBodiesPublic";
 
-export const Route = createFileRoute("/world/organizations/$slug/bodies/")({
+export const Route = createFileRoute("/world/organizations/$slug_/bodies/")({
   head: () => ({
     meta: [
       { title: "Institutional bodies - Terra Solaris" },

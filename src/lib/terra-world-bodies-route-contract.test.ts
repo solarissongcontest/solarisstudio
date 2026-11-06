@@ -34,7 +34,7 @@ describe("TG3 published body route ownership", () => {
     );
     const section = source.split('aria-labelledby="world-organs-title"')[1]?.split("</section>")[0];
     expect(section).toBeDefined();
-    expect(section).toContain('to="/world/organizations/$slug/bodies/"');
+    expect(section).toContain('to="/world/organizations/$slug/bodies"');
     expect(section).toContain("No public bodies have been recorded.");
     expect(section).not.toContain("projection.data.organs.length > 0 ? (");
   });
@@ -146,7 +146,7 @@ describe("TG3 published body route ownership", () => {
   it("keeps stable URL paths for both canonical public body screens", () => {
     const directory = readFileSync(resolve(bodyRoutes, "index.tsx"), "utf8");
     const detail = readFileSync(resolve(bodyRoutes, "$bodySlug.tsx"), "utf8");
-    expect(directory).toContain('createFileRoute("/world/organizations/$slug/bodies/")');
-    expect(detail).toContain('createFileRoute("/world/organizations/$slug/bodies/$bodySlug")');
+    expect(directory).toContain('createFileRoute("/world/organizations/$slug_/bodies/")');
+    expect(detail).toContain('createFileRoute("/world/organizations/$slug_/bodies/$bodySlug")');
   });
 });

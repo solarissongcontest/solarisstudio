@@ -230,7 +230,7 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
           <p className="mt-4 whitespace-pre-line leading-7 text-muted-foreground">
             {result.body.description || "An official description has not been published."}
           </p>
-          <Link to="/world/organizations/$slug/bodies/" params={{ slug }}
+          <Link to="/world/organizations/$slug/bodies" params={{ slug }}
             className="mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary">
             All public bodies <ArrowRight className="size-4" aria-hidden="true" /></Link>
         </section>
