@@ -123,11 +123,18 @@ export function parseWorldMeasureManager(value: unknown): WorldMeasureManager {
     versions, versionsTruncated: value.versionsTruncated, reviews, reviewsTruncated: value.reviewsTruncated };
 }
 export function parseWorldMeasureReceipt(value: unknown, expectedOperationId: string): WorldMeasureReceipt {
-  if (!obj(value) || value.ok !== true || !isWorldUuid(value.measureId) ||
-      value.operationId !== expectedOperationId || !rev(value.revision) ||
-      !str(value.state) || typeof value.replayed !== "boolean") return fail("receipt");
-  return { ok: true, measureId: value.measureId, operationId: expectedOperationId,
-    revision: value.revision, state: value.state, replayed: value.replayed };
+  // studio2_reconcile_operation returns an operation envelope. A completed
+  // command's domain receipt is nested under result, NOT the top-level JSON.
+  const envelope = obj(value) ? value : null;
+  const result = obj(envelope?.result) ? envelope.result : null;
+  if (!envelope || envelope.status !== "succeeded" ||
+      envelope.operationId !== expectedOperationId ||
+      typeof envelope.replayed !== "boolean" || !result ||
+      result.ok !== true || !isWorldUuid(result.measureId) ||
+      result.operationId !== expectedOperationId || !rev(result.revision) ||
+      !str(result.state)) return fail("receipt");
+  return { ok: true, measureId: result.measureId, operationId: expectedOperationId,
+    revision: result.revision, state: result.state, replayed: envelope.replayed };
 }
 async function rpc(name: string, args: RecordValue): Promise<unknown> {
   const { data, error } = await client.rpc(name, args);
