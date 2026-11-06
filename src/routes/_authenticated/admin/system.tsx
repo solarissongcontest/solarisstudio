@@ -10,9 +10,10 @@ import {
   Plus,
   ShieldAlert,
 } from "lucide-react";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminCard,
@@ -77,25 +78,59 @@ type PendingPlatformModeChange = {
 };
 
 function AdminSystemPage() {
-  const { editionId } = useAdminContext();
+  const { editionId, setEditionContext } = useAdminContext();
+  const actorId = useAuthenticatedUser().id;
+  const [explicitChoice, setExplicitChoice] = useState<{ actorId: string; editionId: string } | null>(null);
+  const explicitEditionId = explicitChoice?.actorId === actorId ? explicitChoice.editionId : "";
+  const verifiedChoiceId = explicitEditionId && editionId === explicitEditionId ? explicitEditionId : "";
   const queryClient = useQueryClient();
-  const { data: editions = [] } = useEditions();
+  const editionsQuery = useEditions();
+  const editions = editionsQuery.data ?? [];
+  const editionsLoading = editionsQuery.isLoading || editionsQuery.isFetching;
+  // Cached public edition rows are not verified on a failed or in-flight refresh.
+  // Do not read private schedule/reminder projections until context is current.
+  const editionsReady =
+    editionsQuery.isSuccess && !editionsQuery.error && !editionsQuery.isFetching;
+  const selectedEdition = useMemo(
+        () => (editionsReady && verifiedChoiceId ? editions.find((edition) => edition.id === verifiedChoiceId) ?? null : null),
+    [editions, verifiedChoiceId, editionsReady],
+  );
+  const editionContextMessage = editionsQuery.error
+    ? "Solaris could not verify the selected Organizer edition. Edition-scoped schedule and reminders are unavailable until the lookup succeeds."
+    : editionsLoading
+      ? "Resolving the Organizer edition before loading edition-scoped schedule data."
+      : !verifiedChoiceId
+        ? "Explicitly choose an Organizer edition below before viewing workflow dates or custom reminders. Solaris will not guess a newest edition."
+        : "The selected Organizer edition could not be resolved. Choose a valid edition before viewing or changing edition-scoped schedule data.";
+  const editionRetryAction = editionsQuery.error ? (
+    <button
+      type="button"
+      className="admin-action-primary"
+      onClick={() => void editionsQuery.refetch()}
+      disabled={editionsQuery.isFetching}
+    >
+      Retry edition lookup
+    </button>
+  ) : undefined;
 
-  const selectedEdition = useMemo(() => {
-    const ordered = [...editions].sort(
-      (a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1),
-    );
-    return ordered.find((edition) => edition.id === editionId) ?? ordered[0] ?? null;
-  }, [editions, editionId]);
-
-  const { data: deadlines = [] } = useAdminDeadlines(selectedEdition?.id ?? null);
+  const {
+    data: deadlines = [],
+    isError: deadlinesError,
+    refetch: refetchDeadlines,
+  } = useAdminDeadlines(selectedEdition?.id ?? null);
   const {
     data: operationalSchedule = [],
     isLoading: scheduleLoading,
     isError: scheduleError,
     refetch: refetchSchedule,
   } = useAdminOperationalSchedule(selectedEdition?.id ?? null, selectedEdition?.slug ?? null);
-  const { data: audit = [] } = useAdminAudit(80);
+  const {
+    data: audit = [],
+    isLoading: auditLoading,
+    isError: auditError,
+    error: auditReadError,
+    refetch: refetchAudit,
+  } = useAdminAudit(80);
   const createDeadline = useCreateAdminDeadline();
   const toggleDeadline = useToggleAdminDeadline();
 
@@ -117,6 +152,7 @@ function AdminSystemPage() {
   });
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [createEditionId, setCreateEditionId] = useState<string | null>(null);
   const [form, setForm] = useState({
     label: "",
     due_at: "",
@@ -133,6 +169,23 @@ function AdminSystemPage() {
     null,
   );
   const [platformPassword, setPlatformPassword] = useState("");
+
+  // Keep an unfinished reminder draft while the edition list revalidates.
+  // Only a real scope switch or a confirmed missing edition discards the draft.
+  // A background refresh/error must never silently erase typed Organizer work.
+  useEffect(() => {
+    if (
+      createOpen &&
+      createEditionId &&
+      (editionId !== createEditionId ||
+        verifiedChoiceId !== createEditionId ||
+        (editionsReady && selectedEdition?.id !== createEditionId))
+    ) {
+      setCreateOpen(false);
+      setCreateEditionId(null);
+      setForm({ label: "", due_at: "", notes: "" });
+    }
+  }, [createOpen, createEditionId, editionId, verifiedChoiceId, editionsReady, selectedEdition?.id]);
 
   const applyPlatformMode = useMutation({
     mutationFn: async ({
@@ -176,9 +229,20 @@ function AdminSystemPage() {
     (item) => new Date(item.due_at).getTime() < Date.now(),
   );
   const workflowSchedule = operationalSchedule.filter((item) => item.source !== "reminder");
-  const relevantSchedule = workflowSchedule.filter(
-    (item) => new Date(item.at).getTime() >= Date.now() - 24 * 60 * 60 * 1000,
-  );
+  const relevantSchedule = workflowSchedule.filter((item) => {
+    if (isEditionCalendarItem(item)) {
+      // The canonical edition event_date is a calendar DATE, not an event
+      // start time. Do not use the schedule adapter's placeholder noon as
+      // an instant for this list's past-date cutoff.
+      const calendarDate = parseEditionCalendarDate(item.at);
+      if (!calendarDate) return false;
+      const yesterday = new Date();
+      yesterday.setHours(0, 0, 0, 0);
+      yesterday.setDate(yesterday.getDate() - 1);
+      return calendarDate.getTime() >= yesterday.getTime();
+    }
+    return new Date(item.at).getTime() >= Date.now() - 24 * 60 * 60 * 1000;
+  });
 
   const allowedPlatformModes = platformQuery.data ? nextPlatformModes(platformQuery.data.mode) : [];
 
@@ -206,7 +270,7 @@ function AdminSystemPage() {
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!selectedEdition || !form.label.trim() || !form.due_at) return;
+    if (!selectedEdition || createEditionId !== selectedEdition.id || !form.label.trim() || !form.due_at) return;
 
     createDeadline.mutate(
       {
@@ -220,6 +284,7 @@ function AdminSystemPage() {
       {
         onSuccess: () => {
           setForm({ label: "", due_at: "", notes: "" });
+          setCreateEditionId(null);
           setCreateOpen(false);
         },
       },
@@ -234,19 +299,70 @@ function AdminSystemPage() {
         description={
           selectedEdition
             ? `Operational dates for ${editionLabel(selectedEdition)} come from the workflows that actually control them. Custom reminders are kept separate.`
-            : "Operational schedule and organizer change history."
+            : "Platform controls remain available globally. Edition-scoped schedule data requires an explicit Organizer edition."
         }
       />
 
-      <MetricStrip className="grid-cols-3 sm:grid-cols-3 xl:grid-cols-3">
-        <Metric label="Workflow dates" value={relevantSchedule.length} />
-        <Metric label="Custom reminders" value={openReminders.length} />
-        <Metric
-          label="Overdue reminders"
-          value={overdueReminders.length}
-          attention={overdueReminders.length > 0}
-        />
-      </MetricStrip>
+      <AdminCard className="mb-4">
+        <label className="flex flex-col gap-2">
+          <span className="text-xs font-semibold text-muted-foreground">
+            Choose the edition for this System review
+          </span>
+          <select
+            className="admin-input"
+            value={verifiedChoiceId}
+            disabled={!editionsReady}
+            onChange={(event) => {
+              const choice = editions.find((edition) => edition.id === event.target.value);
+              setExplicitChoice(choice ? { actorId, editionId: choice.id } : null);
+              if (choice) {
+                setEditionContext({ id: choice.id, slug: choice.slug, label: editionLabel(choice) });
+              }
+            }}
+          >
+            <option value="">Select an exact edition…</option>
+            {(editionsReady ? editions : []).map((edition) => (
+              <option key={edition.id} value={edition.id}>{editionLabel(edition)}</option>
+            ))}
+          </select>
+          <span className="text-xs text-muted-foreground">
+            The Organizer navigation may show a default edition, but scoped schedule and reminders require a deliberate selection here. The global platform mode remains separately governed.
+          </span>
+        </label>
+      </AdminCard>
+
+      {selectedEdition && !deadlinesError && !scheduleError ? (
+        <MetricStrip className="grid-cols-3 sm:grid-cols-3 xl:grid-cols-3">
+          <Metric label="Workflow dates" value={relevantSchedule.length} />
+          <Metric label="Custom reminders" value={openReminders.length} />
+          <Metric
+            label="Overdue reminders"
+            value={overdueReminders.length}
+            attention={overdueReminders.length > 0}
+          />
+        </MetricStrip>
+      ) : (
+        <AdminCard>
+          <AdminEmptyState
+            icon={CalendarClock}
+            title={
+              editionsQuery.error
+                ? "Edition lookup failed"
+                : deadlinesError || scheduleError
+                  ? "Operational metrics unavailable"
+                  : editionsLoading
+                    ? "Resolving Organizer edition"
+                    : "Organizer edition required"
+            }
+            description={
+              deadlinesError || scheduleError
+                ? "Solaris could not verify every schedule or reminder source, so it will not show misleading zero totals."
+                : editionContextMessage
+            }
+            action={editionRetryAction}
+          />
+        </AdminCard>
+      )}
 
       <AdminCard strong>
         <AdminCardHeader
@@ -434,12 +550,19 @@ function AdminSystemPage() {
 
       <AdminCard>
         <AdminCardHeader
-          eyebrow={selectedEdition ? editionLabel(selectedEdition) : "Current edition"}
+          eyebrow={selectedEdition ? editionLabel(selectedEdition) : "Edition context required"}
           title="Operational schedule"
           description="These dates come from the source workflow. Edit them there, and every Solaris surface sees the same date."
         />
 
-        {scheduleLoading ? (
+        {!selectedEdition ? (
+          <AdminEmptyState
+            icon={CalendarClock}
+            title={editionsLoading ? "Resolving Organizer edition" : "Select an Organizer edition"}
+            description={editionContextMessage}
+            action={editionRetryAction}
+          />
+        ) : scheduleLoading ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
             Verifying workflow dates…
           </p>
@@ -461,7 +584,11 @@ function AdminSystemPage() {
         ) : relevantSchedule.length ? (
           <div className="divide-y divide-white/[0.07]">
             {relevantSchedule.map((item) => {
-              const past = new Date(item.at).getTime() < Date.now();
+              const calendarDateOnly = isEditionCalendarItem(item);
+              const past = !calendarDateOnly && new Date(item.at).getTime() < Date.now();
+              const displayedDate = calendarDateOnly
+                ? parseEditionCalendarDate(item.at)?.toLocaleDateString() ?? "Date unavailable"
+                : new Date(item.at).toLocaleString();
               const content = (
                 <>
                   <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-sky-200/12 bg-sky-200/[0.045] text-sky-100">
@@ -472,12 +599,12 @@ function AdminSystemPage() {
                       {item.label}
                     </span>
                     <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                      {new Date(item.at).toLocaleString()} · {item.detail}
+                      {displayedDate} · {item.detail}
                       {!item.href ? " · Select an edition first" : ""}
                     </span>
                   </span>
-                  <AdminStatus tone={past ? "neutral" : "info"}>
-                    {past ? "Passed" : "Scheduled"}
+                  <AdminStatus tone={calendarDateOnly || past ? "neutral" : "info"}>
+                    {calendarDateOnly ? "Calendar date" : past ? "Passed" : "Scheduled"}
                   </AdminStatus>
                   <ArrowRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
                 </>
@@ -516,8 +643,11 @@ function AdminSystemPage() {
           action={
             <button
               type="button"
-              onClick={() => setCreateOpen(true)}
-              disabled={!selectedEdition}
+              onClick={() => {
+                setCreateEditionId(selectedEdition?.id ?? null);
+                setCreateOpen(true);
+              }}
+              disabled={!selectedEdition || deadlinesError}
               className="admin-action-secondary"
             >
               <Plus className="size-4" /> Add reminder
@@ -525,7 +655,29 @@ function AdminSystemPage() {
           }
         />
 
-        {!deadlines.length ? (
+        {!selectedEdition ? (
+          <AdminEmptyState
+            icon={CalendarClock}
+            title={editionsLoading ? "Resolving Organizer edition" : "Select an Organizer edition"}
+            description={editionContextMessage}
+            action={editionRetryAction}
+          />
+        ) : deadlinesError ? (
+          <AdminEmptyState
+            icon={CalendarClock}
+            title="Custom reminders could not be verified"
+            description="The reminder list is unavailable until Solaris can reread the selected Organizer edition. Existing records are not treated as empty."
+            action={
+              <button
+                type="button"
+                className="admin-action-primary"
+                onClick={() => void refetchDeadlines()}
+              >
+                Retry reminders
+              </button>
+            }
+          />
+        ) : !deadlines.length ? (
           <AdminEmptyState
             icon={CalendarClock}
             title="No custom reminders"
@@ -595,7 +747,30 @@ function AdminSystemPage() {
           description="Read-only history of significant changes across contest and country data."
         />
 
-        {!audit.length ? (
+        {auditLoading ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Verifying Organizer audit history…
+          </p>
+        ) : auditError ? (
+          <AdminEmptyState
+            icon={History}
+            title="Organizer audit history unavailable"
+            description={
+              auditReadError instanceof Error
+                ? auditReadError.message
+                : "Solaris could not verify the audit history. An unsuccessful read is not an empty history."
+            }
+            action={
+              <button
+                type="button"
+                className="admin-action-primary"
+                onClick={() => void refetchAudit()}
+              >
+                Retry audit history
+              </button>
+            }
+          />
+        ) : !audit.length ? (
           <AdminEmptyState
             icon={History}
             title="No audit rows yet"
@@ -758,7 +933,13 @@ function AdminSystemPage() {
 
       <AdminSheet
         open={createOpen}
-        onClose={() => !createDeadline.isPending && setCreateOpen(false)}
+        onClose={() => {
+          if (!createDeadline.isPending) {
+            setCreateOpen(false);
+            setCreateEditionId(null);
+            setForm({ label: "", due_at: "", notes: "" });
+          }
+        }}
         title="Add custom reminder"
         description={
           selectedEdition
@@ -801,7 +982,11 @@ function AdminSystemPage() {
             <button
               type="button"
               disabled={createDeadline.isPending}
-              onClick={() => setCreateOpen(false)}
+              onClick={() => {
+                setCreateOpen(false);
+                setCreateEditionId(null);
+                setForm({ label: "", due_at: "", notes: "" });
+              }}
               className="admin-action-secondary"
             >
               Cancel
@@ -869,6 +1054,28 @@ function platformTone(mode: PlatformOperationalMode): "ready" | "info" | "attent
     case "maintenance":
       return "blocked";
   }
+}
+
+/** The edition's event_date is a date-only fact, never a scheduled show start instant. */
+function isEditionCalendarItem(item: { id: string; source: string }) {
+  return item.source === "edition" && item.id.startsWith("edition-event:");
+}
+
+function parseEditionCalendarDate(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:T|$)/.exec(value);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  // Construct a LOCAL calendar date, not UTC midnight, to avoid an off-by-one
+  // day in time zones west of UTC.
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) return null;
+  return date;
 }
 
 function splitServices(value: string) {
