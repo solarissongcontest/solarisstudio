@@ -28,6 +28,8 @@ as $has_office$
           from public.world_country_control_terms controller_term
           where controller_term.country_id = p_country_id
             and controller_term.person_id = term_row.holder_person_id
+            and controller_term.started_at <= now()
+            and controller_term.ended_at is null
         )
         or exists (
           select 1
@@ -35,6 +37,8 @@ as $has_office$
           where representation_row.organization_id = p_organization_id
             and representation_row.country_id = p_country_id
             and representation_row.person_id = term_row.holder_person_id
+            and representation_row.starts_at <= now()
+            and representation_row.ends_at is null
         )
       )
   )
