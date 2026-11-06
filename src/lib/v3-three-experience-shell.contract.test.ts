@@ -56,6 +56,16 @@ describe("V3 three-experience shell navigation cutover", () => {
     expect(desktop).toContain("onSelect(destination)");
   });
 
+  it("removes installed-only scroll-end reserve on mobile web without weakening the installed safe zone", () => {
+    const appGeometry = read("src/styles/v3-navigation-fixed-geometry.css");
+    expect(css).toContain('html:not([data-solaris-app]) [data-solaris-v3]');
+    expect(css).toContain('[data-v3-shell-experience="web"] [data-v3-legacy-route-adapter]');
+    expect(css).toContain('> .v3-legacy-route-bottom-clearance');
+    expect(css).toContain("height: max(20px, env(safe-area-inset-bottom))");
+    expect(appGeometry).toContain("calc(106px + env(safe-area-inset-bottom))");
+    expect(appGeometry).toContain("calc(var(--v3-bottom-obstruction, 0px) + 24px)");
+  });
+
   it("keeps desktop browser navigation distinct and mobile web content in flow", () => {
     expect(shell).toContain("<V3DesktopPrimaryNavigation");
     // Keep canonical viewer-scoped N10 tab memory until the replacement
