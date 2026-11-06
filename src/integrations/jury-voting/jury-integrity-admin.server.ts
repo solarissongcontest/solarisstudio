@@ -1,5 +1,6 @@
 import { getSolarisCapabilitiesServer } from "@/integrations/supabase/capabilities.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { numberValue } from "./jury-integrity-readback";
 
 export type JuryIntegrityTargetEvidence = {
   targetCountryId: string;
@@ -41,11 +42,6 @@ function asObject(value: unknown): Record<string, unknown> {
 
 function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
-}
-
-function numberValue(value: unknown) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
 }
 
 export async function listJuryIntegrityCasesServer(editionId: string) {
