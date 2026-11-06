@@ -118,6 +118,9 @@ describe("Organizer Confirmation response queue page guards", () => {
     expect(code).toContain("function retryVisibleQueue()");
     expect(code).toContain("setNextReloadKey((current) => current + 1)");
     expect(code).toContain("Retry Next in Line");
+    expect(code).toContain("throw new Error(result.error.message)");
+    expect(code).toContain("Loading Next in Line for the selected edition");
+    expect(code).toContain("Next in Line could not be loaded safely");
     expect(code).not.toContain('setError((current) => current ?? result.error.message)');
   });
 

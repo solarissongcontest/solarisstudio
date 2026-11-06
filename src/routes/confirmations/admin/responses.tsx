@@ -355,7 +355,7 @@ function ConfirmationResponsesList() {
         });
         if (!alive || generation !== nextLoadGenerationRef.current ||
             activeEditionRef.current !== editionId) return;
-        if (result.error) throw result.error;
+        if (result.error) throw new Error(result.error.message);
         if (!Array.isArray(result.data)) {
           throw new Error("Next in Line returned an invalid response payload.");
         }
@@ -546,13 +546,17 @@ function ConfirmationResponsesList() {
       </AdminCard>
 
       {loading ? (
-        <AdminCard className="py-8 text-center text-sm text-muted-foreground">Loading exact-edition responses…</AdminCard>
+        <AdminCard className="py-8 text-center text-sm text-muted-foreground">
+          {mode === "next_in_line" ? "Loading Next in Line for the selected edition…" : "Loading exact-edition responses…"}
+        </AdminCard>
       ) : visibleError ? (
         <AdminCard className="mb-4 border-rose-200/20 bg-rose-200/[0.045]">
           <div className="flex items-start gap-3">
             <ShieldAlert className="mt-0.5 size-5 shrink-0 text-rose-200" />
             <div className="space-y-2">
-              <p className="font-semibold">Responses could not be loaded safely</p>
+              <p className="font-semibold">
+                {mode === "next_in_line" ? "Next in Line could not be loaded safely" : "Responses could not be loaded safely"}
+              </p>
               <p className="text-sm text-muted-foreground">{visibleError}</p>
               <button type="button" className="admin-action-secondary"
                 onClick={retryVisibleQueue}>
