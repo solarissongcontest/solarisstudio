@@ -1,0 +1,36 @@
+name: V3 Televote aggregate authorization rehearsal
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/migrations/*v3_televote_aggregate_command.sql"
+      - ".github/scripts/v3-televote-aggregate-authorization-rehearsal.sh"
+      - ".github/workflows/v3-televote-aggregate-authorization-rehearsal.yml"
+      - "src/lib/v3-televote-aggregate-command.integration.test.ts"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: v3-televote-aggregate-auth-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  unauthorized-caller:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Verify disposable local authorization boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase start
+          supabase db reset --local --no-seed
+          bash .github/scripts/v3-televote-aggregate-authorization-rehearsal.sh
+      - name: Stop isolated Supabase
+        if: always()
+        run: supabase stop --no-backup
