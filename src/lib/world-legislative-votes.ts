@@ -222,8 +222,9 @@ export async function openWorldVote(input:{
 }):Promise<WorldVoteReceipt> {
   if(!voteUuid(input.measureId)||!integer(input.expectedMeasureRevision)||
      input.expectedMeasureRevision<1||!voteUuid(input.ruleId)||!voteUuid(input.operationId)||
-     !Number.isFinite(Date.parse(input.closesAt))||
-     Date.parse(input.closesAt)<=Date.now()+60_000) throw new Error("Invalid vote opening scope or close date.");
+     !Number.isFinite(Date.parse(input.closesAt))) throw new Error("Invalid vote opening scope or close date.");
+  // An exact operation retry must reach the server even after close time.
+  // Fresh vote-open window validation stays in the canonical command.
   const data=await rpc("world_open_vote_v1",{
     p_measure_id:input.measureId,p_expected_measure_revision:input.expectedMeasureRevision,
     p_rule_id:input.ruleId,p_closes_at:input.closesAt,p_operation_id:input.operationId,
