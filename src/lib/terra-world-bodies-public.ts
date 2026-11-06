@@ -120,6 +120,7 @@ export async function readPublicWorldBodies(
   const { data, error, count } = await request
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true })
+    .order("slug", { ascending: true })
     .range(page * WORLD_BODIES_PAGE_SIZE, (page + 1) * WORLD_BODIES_PAGE_SIZE - 1);
   if (error) throw new Error("Public institutional bodies could not be loaded.");
   if (!Number.isSafeInteger(count) || count < 0 || !Array.isArray(data) ||
@@ -200,6 +201,7 @@ export async function readPublicBodyOffices(
     .eq("organ_id", body.id)
     .eq("active", true)
     .order("display_priority", { ascending: true })
+    .order("id", { ascending: true })
     .limit(WORLD_BODY_OFFICE_LIMIT);
   if (error || !Array.isArray(data) || data.length > WORLD_BODY_OFFICE_LIMIT) {
     throw new Error("Public institutional offices could not be verified.");
