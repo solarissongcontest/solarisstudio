@@ -23,7 +23,7 @@ describe("V3 Following & Saved read and mutation recovery", () => {
     expect(source).toContain('data-v3-following-saved-state="paused"');
     expect(source).toContain("const paused = !failed && (");
     expect(source).toContain("Solaris will not mistake an unverified list for an empty one.");
-    expect(source.indexOf("{paused ? (")).toBeLessThan(source.indexOf("{loading ? ("));
+    expect(source.indexOf("{paused ? (")).toBeLessThan(source.indexOf(": loading ? ("));
     expect(source.indexOf("{paused ? (")).toBeLessThan(source.indexOf("data-v3-following-saved-state=\"empty\""));
   });
 
