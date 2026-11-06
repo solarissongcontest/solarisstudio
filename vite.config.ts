@@ -93,6 +93,23 @@ export default defineConfig({
                 minSize: 5000,
                 priority: 1,
               },
+              // Reused public/V3 presentation widgets were scattered across
+              // many lazy route chunks. Group only genuine multi-route modules,
+              // never entire route screens or private/Server code.
+              {
+                name: "shared-public-presentation",
+                test: /[\\/]src[\\/]components[\\/]public[\\/]/,
+                minShareCount: 2,
+                minSize: 3000,
+                priority: 1,
+              },
+              {
+                name: "shared-v3-presentation",
+                test: /[\\/]src[\\/]components[\\/]v3[\\/]/,
+                minShareCount: 2,
+                minSize: 3000,
+                priority: 1,
+              },
               // Reused client-only domain modules were each carrying separate
               // chunk wrappers and gzip framing. Combine only modules actually
               // shared by multiple lazy entrypoints; preserve route-local code.
