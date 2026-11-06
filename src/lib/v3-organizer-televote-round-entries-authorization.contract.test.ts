@@ -45,8 +45,23 @@ describe("V3 Organizer Televote round-entry service permission boundary", () => 
   });
 
   it("keeps the browser adapter as a separate independently guarded boundary", () => {
-    expect(adapters).toContain('"@/integrations/televoting/entries.server"');
+    expect(adapters).toMatch(/import\(\s*"@\/integrations\/televoting\/entries\.server"\s*\)/);
     expect(adapters).not.toContain("televotingAdmin");
     expect(adapters).not.toContain("supabaseAdmin");
   });
+  it.each([
+    ["ensureCanonicalTelevotingEditionsServer", "voting.manage"],
+    ["getMergedRoundSolarisSourceServer", "voting.read"],
+    ["syncMergedRoundFromSolarisServer", "voting.manage"],
+  ] as const)("%s requires named %s capability before legacy admin access", (name, capability) => {
+    const solarisSync = readFileSync("src/integrations/televoting/solaris-sync.server.ts", "utf8");
+    const start = solarisSync.indexOf("export async function " + name);
+    expect(start).toBeGreaterThanOrEqual(0);
+    const next = solarisSync.indexOf("\nexport async function ", start + name.length);
+    const method = solarisSync.slice(start, next < 0 ? undefined : next);
+    const guard = `requireSolarisCapabilityServer("${capability}", null)`;
+    expect(method).toContain(guard);
+    expect(method.indexOf("requireMergedTelevotingAdminServer()")).toBeGreaterThan(method.indexOf(guard));
+  });
+
 });

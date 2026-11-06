@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
 import { supabase } from "@/integrations/supabase/client";
+import { publicWorldRolloutDisplay } from "@/lib/terra-world-rollout-gate";
 import {
   WORLD_DIRECTORY_PAGE_SIZE,
   currentWorldMemberships,
@@ -20,24 +21,32 @@ import {
 type WorldView = "overview" | "leadership" | "members";
 
 /** No public world projection mounts before the canonical rollout RPC permits it. */
-export function WorldPublicGate({ children }: { children: ReactNode }) {
+export function WorldPublicGate({
+  children, verifyOnMount = false,
+}: { children: ReactNode; verifyOnMount?: boolean }) {
   const rollout = useQuery({
     queryKey: ["world", "public", "rollout"],
     queryFn: fetchWorldPublicEnabled,
     staleTime: 45_000,
+    // The body routes opt into publication re-verification on navigation.
+    // Other World screens retain their previous cached-gate behavior.
+    refetchOnMount: verifyOnMount ? "always" : undefined,
     retry: false,
   });
-  if (rollout.isPending) {
-    return <PublicFrame><LoadingWorld label="Checking Terra Solaris availability" /></PublicFrame>;
-  }
-  if (rollout.isError) {
+  // A cached enabled flag is not proof that this route is still published.
+  // Keep the display decision independent from React rendering for regression tests.
+  const publication = publicWorldRolloutDisplay(rollout, verifyOnMount);
+  if (publication === "error") {
     return (
       <PublicFrame>
         <QueryFailure message="World availability could not be verified. No institutional records were loaded." retry={() => void rollout.refetch()} />
       </PublicFrame>
     );
   }
-  if (!rollout.data) {
+  if (publication === "checking") {
+    return <PublicFrame><LoadingWorld label="Checking Terra Solaris availability" /></PublicFrame>;
+  }
+  if (publication === "disabled") {
     return (
       <PublicFrame>
         <div className="max-w-2xl rounded-2xl border border-border p-6 sm:p-9">
@@ -381,13 +390,19 @@ export function WorldOrganizationPage({
                   {projection.data.organs.length ? (
                     <div className="mt-4 divide-y divide-border">
                       {projection.data.organs.slice(0, 5).map((organ) => (
-                        <div key={organ.id} className="flex flex-wrap items-center justify-between gap-2 py-4">
-                          <span className="font-medium">{organ.name}</span>
-                          <span className="text-xs capitalize text-muted-foreground">{organ.status}</span>
-                        </div>
+                        <Link key={organ.id} to="/world/organizations/$slug/bodies/$bodySlug"
+                          params={{ slug, bodySlug: organ.slug }}
+                          className="flex min-h-14 flex-wrap items-center justify-between gap-2 py-4 focus-visible:rounded-md focus-visible:outline focus-visible:outline-2">
+                          <span className="font-medium hover:underline">{organ.name}</span>
+                          <span className="text-xs capitalize text-muted-foreground">{organ.status} · View body</span>
+                        </Link>
                       ))}
                     </div>
                   ) : <p className="mt-4 text-sm text-muted-foreground">No public bodies have been recorded.</p>}
+                  <Link to="/world/organizations/$slug/bodies" params={{ slug }}
+                    className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary">
+                    Browse public bodies <ArrowRight className="size-4" aria-hidden="true" />
+                  </Link>
                 </section>
               </div>
               <aside className="border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-7 lg:pt-0" aria-label="Institution at a glance">

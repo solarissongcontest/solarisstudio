@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const state = vi.hoisted(() => ({
   selectedEdition: 'edition-22',
+  actorId: 'actor-1',
   editionRow: { id: 'edition-22', slug: 'ssc22', event_date: null } as Record<string, unknown> | null,
   fromCalls: [] as string[],
   remoteQueries: [] as string[][],
@@ -17,6 +18,10 @@ vi.mock('@tanstack/react-query', () => ({
 
 vi.mock('@/components/admin/AdminContext', () => ({
   useAdminContext: () => ({ editionId: state.selectedEdition }),
+}));
+
+vi.mock('@/components/auth/AuthenticatedUserContext', () => ({
+  useAuthenticatedUser: () => ({ id: state.actorId }),
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
@@ -62,6 +67,7 @@ vi.mock('@/integrations/supabase/client', () => ({
 import { useAdminOperationalSchedule, type AdminScheduleItem } from './admin-schedule';
 
 type HookConfig = {
+  queryKey: readonly unknown[];
   enabled: boolean;
   queryFn: () => Promise<AdminScheduleItem[]>;
 };
@@ -85,11 +91,20 @@ function schedule(editionId = 'edition-22', slug?: string | null): HookConfig {
 describe('Organizer operational schedule read scope', () => {
   beforeEach(() => {
     state.selectedEdition = 'edition-22';
+    state.actorId = 'actor-1';
     state.editionRow = { id: 'edition-22', slug: 'ssc22', event_date: null };
     state.fromCalls = [];
     state.remoteQueries = [];
     state.failureTable = null;
     state.tableRows = {};
+  });
+
+  it('isolates the exact-edition schedule cache by current authenticated actor', () => {
+    const first = schedule('edition-22', 'ssc22');
+    expect(first.queryKey).toEqual(['admin-operational-schedule', 'edition-22', 'ssc22', 'actor-1']);
+    state.actorId = 'actor-2';
+    expect(schedule('edition-22', 'ssc22').queryKey).toEqual(['admin-operational-schedule', 'edition-22', 'ssc22', 'actor-2']);
+    expect(state.fromCalls).toEqual([]);
   });
 
   it('rejects a stale deep-link slug after only the exact edition lookup', async () => {

@@ -21,7 +21,7 @@ import { listMergedAuditLog, type MergedAuditRow } from "@/integrations/televoti
 import type { AuditJson } from "@/integrations/televoting/audit.server";
 
 export const Route = createFileRoute("/televoting/admin/audit-log")({
-  head: () => ({ meta: [{ title: "Voting audit log — Solaris Organizer" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({ meta: [{ title: "Voting audit log — Solaris Organizer" }, { name: "robots", content: "noindex, nofollow" }] }),
   component: AuditLogPage,
 });
 
