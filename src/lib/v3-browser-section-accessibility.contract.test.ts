@@ -42,7 +42,11 @@ describe("V3 mobile-browser and desktop section-navigation accessibility", () =>
     expect(tablet).toContain(".public-site-sidebar > nav > details.mt-4.border-t {");
     expect(tablet).toContain(".public-site-sidebar details[open] > div");
     expect(tablet).toContain("min-height: 2.75rem;");
-    expect(desktop).toContain('<details className="group mt-4 border-t border-border/55 pt-3">');
+    expect(desktop).toContain("<AdvancedSectionNavigation area={area} items={advanced} activeTo={activeTo}");
+    expect(desktop).toContain("const activeIsAdvanced = items.some((item) => item.to === activeTo)");
+    expect(desktop).toContain("useState(activeIsAdvanced)");
+    expect(desktop).toContain("useEffect(() => setOpen(activeIsAdvanced), [activeIsAdvanced, activeTo])");
+    expect(desktop).toContain("onToggle={(event) => setOpen(event.currentTarget.open)}");
     expect(desktop).toContain("<summary");
     expect(css).toContain(".public-site-sidebar details > summary:focus-visible");
     expect(css).toContain(".public-mobile-section-link:focus-visible");
