@@ -402,7 +402,7 @@ function ShowPage() {
   if (archiveIsLoading(...archiveQueries)) return <AppShell><ArchiveDataLoading label="Loading show…" /></AppShell>;
   if (archiveHasError(...archiveQueries)) return <AppShell><ArchiveDataError /></AppShell>;
 
-  if (!show) {
+  if (!show || !showEdition) {
     return (
       <AppShell>
         <PageHeader title="Show unavailable" />
@@ -499,7 +499,7 @@ function ShowPage() {
         />
         <div className="solaris-app-entity-content">
       <PageHeader
-        eyebrow={`${editionLabel(showEdition!)} · ${show.kind.replace("-", " ")}`}
+        eyebrow={`${editionLabel(showEdition)} · ${show.kind.replace("-", " ")}`}
         title={show.name}
         description={
           winner && winnerStanding && publication.results
@@ -513,10 +513,10 @@ function ShowPage() {
             <FollowButton entityType="show" entityId={show.id} label={show.name} />
             <Link
               to="/editions/$slug"
-              params={{ slug: showEdition!.slug }}
+              params={{ slug: showEdition.slug }}
               className="rounded-xl border border-border px-4 py-2.5 text-sm"
             >
-              ← {editionLabel(showEdition!)}
+              ← {editionLabel(showEdition)}
             </Link>
           </div>
         }
