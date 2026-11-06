@@ -221,7 +221,7 @@ function usePublicationSafeRecents() {
     queryFn: async () => {
       const { data: rows, error } = await supabase
         .from("shows")
-        .select("id,edition_id,published,publication_config")
+        .select("id,edition_id,name,published,publication_config")
         .in("id", showIds);
       if (error) throw error;
       const publicRows = (rows ?? []).filter(isRecentShowPublic);
@@ -239,7 +239,7 @@ function usePublicationSafeRecents() {
       );
       return publicRows
         .filter((show) => publishedEditionIds.has(show.edition_id))
-        .map((show) => ({ id: show.id }));
+        .map((show) => ({ id: show.id, name: show.name?.trim() || "Show" }));
     },
   });
   const editionVisibility = useQuery({
