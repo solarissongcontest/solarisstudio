@@ -316,16 +316,50 @@ export async function runV3PrMainFreshnessCheck(): Promise<number> {
   writeSummary(prNumber, assessment);
   process.stdout.write(`${JSON.stringify(assessment, null, 2)}\n`);
 
+  // Never post a stale run's verdict to a newer, unassessed head.
+  if (pullAfter.head.sha !== pullBefore.head.sha) {
+    console.error(
+      `[v3-pr-main-freshness] PR #${prNumber} moved from ${pullBefore.head.sha} to ${pullAfter.head.sha}; no status published to the new head.`,
+    );
+    return 1;
+  }
+
   await publishFreshnessStatus(
     apiBase,
     repository,
     token,
-    pullAfter.head.sha,
+    pullBefore.head.sha,
     assessment.valid ? "success" : "failure",
     assessment.valid && assessment.currentMainSha
       ? freshDescription(assessment.currentMainSha)
       : `Stale or invalid: ${assessment.errors[0] ?? "freshness proof failed"}`,
   );
+
+  // Close the race in which a main-push invalidator runs BEFORE our success
+  // is published. If main or the PR moved in that window, revoke the just-
+  // published success on the SAME assessed head, never on a successor head.
+  if (assessment.valid) {
+    const [postPublicationMain, postPublicationPull] = await Promise.all([
+      githubRequest<BranchResponse>(`${apiBase}/branches/main`, token),
+      githubRequest<PullResponse>(`${apiBase}/pulls/${prNumber}`, token),
+    ]);
+    const mainStillCurrent = postPublicationMain.commit.sha === mainBefore.commit.sha;
+    const headStillCurrent = postPublicationPull.head.sha === pullBefore.head.sha;
+    if (!mainStillCurrent || !headStillCurrent) {
+      await publishFreshnessStatus(
+        apiBase,
+        repository,
+        token,
+        pullBefore.head.sha,
+        "failure",
+        `Stale: main or PR changed during status publication; rerun against latest main`,
+      );
+      console.error(
+        `[v3-pr-main-freshness] FAIL: main/head changed during success publication for PR #${prNumber}; revoked assessed-head success.`,
+      );
+      return 1;
+    }
+  }
 
   if (!assessment.valid) {
     console.error(
