@@ -1,9 +1,10 @@
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
+import { loadV3PublishedResultSnapshot } from "@/integrations/v3/public-result-snapshot.server";
 import {
   resolvePublicEditionState,
   type PublicContestPhase,
 } from "@/lib/current-contest-state";
-import type { Country, Edition, Participant, ResultRow, Show } from "@/lib/data";
+import type { Country, Edition, Participant, Show } from "@/lib/data";
 import { normalizeLegacyEditionStatus } from "@/lib/edition-state";
 import { canonicalEditionEntries } from "@/lib/entry-utils";
 import {
@@ -25,6 +26,7 @@ import type {
   V3EditionExperience,
   V3ExploreEditionInput,
 } from "@/lib/v3-explore";
+import type { V3PublicResultRow } from "@/lib/v3-public-result-snapshot";
 
 const EDITION_COLUMNS =
   "id,edition_number,name,year,slug,description,host_country_id,host_city,logo,theme_id,artwork_url,status,published";
@@ -34,8 +36,6 @@ const ENTITY_COLUMNS =
   "id,edition_id,entity_type,country_id,display_name,abbreviation,flag_image,region,historical_identity_override";
 const COUNTRY_COLUMNS =
   "id,name,native_name,short_code,flag_image,region,accent_color,description,first_participation";
-const RESULT_COLUMNS =
-  "id,edition_id,show_id,country_id,contest_entity_id,jury_points,televote_points,total_points,final_rank";
 
 type EditionSourceClient = {
   from(table: string): any;
@@ -181,7 +181,7 @@ function experienceFromPhase(phase: PublicContestPhase): V3EditionExperience {
 function editionExperience(
   edition: Edition,
   shows: readonly Show[],
-  results: readonly ResultRow[],
+  resultsPublished: boolean,
 ): { experience: V3EditionExperience; phaseLabel: string | null } {
   const lifecycle = normalizeLegacyEditionStatus(edition.status);
   if (lifecycle === "archived") {
@@ -191,7 +191,16 @@ function editionExperience(
     return { experience: "post-edition", phaseLabel: "Complete" };
   }
 
-  const state = resolvePublicEditionState({ edition, shows, results });
+  const state = resolvePublicEditionState({ edition, shows, results: [] });
+  if (state.phase === "live") {
+    return { experience: "live", phaseLabel: state.statusLabel };
+  }
+  if (resultsPublished) {
+    return { experience: "results", phaseLabel: "Results" };
+  }
+  if (state.phase === "results_published") {
+    return { experience: "show-day", phaseLabel: "Results pending" };
+  }
   return {
     experience: experienceFromPhase(state.phase),
     phaseLabel: state.statusLabel,
@@ -247,20 +256,19 @@ function publicEntries(
 }
 
 function publicResults(
-  rows: readonly ResultRow[],
+  rows: readonly V3PublicResultRow[],
   displayMap: Map<string, EntityDisplay>,
 ): V3EditionResult[] {
-  return rows
-    .filter((row) => row.final_rank != null)
-    .sort((a, b) => (a.final_rank ?? Number.MAX_SAFE_INTEGER) - (b.final_rank ?? Number.MAX_SAFE_INTEGER))
+  return [...rows]
+    .sort((a, b) => a.finalRank - b.finalRank)
     .flatMap((row) => {
-      const identity = row.contest_entity_id ?? row.country_id;
-      const display = displayMap.get(identity);
-      if (!display || row.final_rank == null) return [];
+      const identity = row.contestEntityId ?? row.countryId;
+      const display = identity ? displayMap.get(identity) : undefined;
+      if (!display) return [];
       return [{
         ...identityProjection(display),
-        rank: row.final_rank,
-        totalPoints: row.total_points,
+        rank: row.finalRank,
+        totalPoints: row.totalPoints,
       }];
     });
 }
@@ -273,10 +281,11 @@ function shellEditionLabel(edition: Edition) {
 
 /**
  * Publication-safe server source for one V3 Edition page. The browser supplies
- * only a slug. Participant rows always come from public_safe_participants;
- * result rows are not queried until the canonical Grand Final publication gate
- * says official results are public. Identity lookups are narrow and bounded to
- * this edition, avoiding the legacy page's archive-wide history fanout.
+ * only a slug. Participant rows always come from public_safe_participants. A
+ * Grand Final can expose its ranking only when the System-owned immutable
+ * published Result snapshot exists for that Show; publication metadata alone is
+ * insufficient and there is no mutable `public.results` fallback. Identity
+ * lookups remain narrow and bounded to this edition.
  */
 export async function loadV3EditionBundle(input: {
   slug: string;
@@ -331,17 +340,14 @@ export async function loadV3EditionBundle(input: {
         resolveShowPublication(show).results,
     ) ?? null;
 
-  let resultRows: ResultRow[] = [];
-  if (resultShow) {
-    const result = await client
-      .from("results")
-      .select(RESULT_COLUMNS)
-      .eq("show_id", resultShow.id)
-      .not("final_rank", "is", null)
-      .order("final_rank", { ascending: true });
-    throwIfError(result.error, "Could not load official published Edition result");
-    resultRows = (result.data ?? []) as ResultRow[];
+  const resultSnapshot = resultShow
+    ? await loadV3PublishedResultSnapshot(resultShow.id)
+    : null;
+  if (resultSnapshot && resultSnapshot.edition.id !== edition.id) {
+    throw new Error("Canonical Edition Result snapshot escaped the requested Edition scope");
   }
+  const resultRows = resultSnapshot?.rows ?? [];
+  const resultsPublished = resultSnapshot !== null;
 
   const countryIds = new Set<string>();
   for (const entity of entities) {
@@ -353,7 +359,7 @@ export async function loadV3EditionBundle(input: {
     else if (!participant.contest_entity_id && participant.country_id) countryIds.add(participant.country_id);
   }
   for (const row of resultRows) {
-    if (row.country_id) countryIds.add(row.country_id);
+    if (row.countryId) countryIds.add(row.countryId);
   }
 
   let countries: Country[] = [];
@@ -371,8 +377,7 @@ export async function loadV3EditionBundle(input: {
   const entryProjection = publicEntries(participants, displayMap);
   const resultProjection = publicResults(resultRows, displayMap);
   const story = parsePublicStory(storyResult.data);
-  const experience = editionExperience(edition, shows, resultRows);
-  const resultsPublished = Boolean(resultShow);
+  const experience = editionExperience(edition, shows, resultsPublished);
 
   const editionInput: V3ExploreEditionInput = {
     id: edition.id,
@@ -409,11 +414,13 @@ export async function loadV3EditionBundle(input: {
           ? participants.filter((participant) => participant.show_id === show.id).length
           : 0,
         runningOrderAvailable: publication.running_order,
-        resultsAvailable: publication.results,
+        resultsAvailable:
+          show.id === resultShow?.id ? resultsPublished : publication.results,
       };
     }),
     story,
-    resultShowHref: resultShow ? `/shows/${resultShow.id}?from=results` : null,
+    resultShowHref:
+      resultShow && resultsPublished ? `/shows/${resultShow.id}?from=results` : null,
     results: resultProjection,
   });
 
