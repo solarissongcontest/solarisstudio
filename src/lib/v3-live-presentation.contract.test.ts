@@ -43,7 +43,7 @@ describe("Public V3 Live presentation", () => {
     expect(screen).not.toContain("runningOrder[0]");
   });
 
-  it("shows server-owned timing deterministically without promoting timestamps into browser authority", () => {
+  it("shows server-owned timing without promoting timestamps into browser authority", () => {
     const screen = source();
 
     expect(screen).toContain('title="Show timing"');
@@ -81,15 +81,15 @@ describe("Public V3 Live presentation", () => {
     expect(screen).toContain('aria-live="polite"');
   });
 
-  it("fails closed instead of mounting legacy Show Mode after V3 rollout is known enabled", () => {
+  it("does not use legacy Show Mode when V3 rollout is enabled but initial Live authority is absent", () => {
     const routeGate = gate();
-
-    expect(routeGate).toContain('data-v3-live-initial-unavailable=""');
-    expect(routeGate).toContain("Live state unavailable");
-    expect(routeGate).toContain("rather than switching to a different legacy data path");
-    expect(routeGate).toContain("retrying={bundle.isFetching}");
-    expect(routeGate).toContain("void bundle.refetch()");
-    expect(routeGate).toContain("<LiveUnavailableSurface");
+    expect(routeGate).toContain("if (!bundle.data)");
+    expect(routeGate).toContain("Official Live state could not be verified");
+    expect(routeGate).toContain("onRetry={() => { void bundle.refetch(); }}");
+    expect(routeGate).toContain("refreshing={bundle.isFetching}");
+    // Legacy is an explicit server-rollout-off choice, never an undefined read fallback.
+    expect(routeGate.split("return <>{fallback}</>;").length - 1).toBe(1);
+    expect(routeGate).not.toContain("setInterval(");
   });
 
   it("surfaces stale authoritative snapshots instead of pretending they are current", () => {
@@ -101,6 +101,17 @@ describe("Public V3 Live presentation", () => {
     expect(screen).toContain("last authoritative Solaris snapshot");
     expect(screen).toContain("Refresh to reconcile with the current show state");
     expect(screen).toContain('degraded ? "Retry refresh" : "Refresh"');
+  });
+
+  it("never treats a stale open-voting snapshot as permission to advertise voting", () => {
+    const screen = source();
+
+    expect(screen).toContain('const voteActionAvailable = !degraded && experience.voting.state === "open"');
+    expect(screen).toContain("{voteActionAvailable ? (");
+    expect(screen).toContain('data-v3-live-voting-unverified=""');
+    expect(screen).toContain("Voting status unverified");
+    expect(screen).toContain('degraded ? "Last known" : presentation.label');
+    expect(screen).toContain("Voting availability cannot be confirmed");
   });
 
   it("also marks a cached empty snapshot stale when reconnect fails", () => {

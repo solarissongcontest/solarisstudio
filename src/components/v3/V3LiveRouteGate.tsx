@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 
+import { RefreshCcw } from "lucide-react";
+
 import { Switch } from "@/components/ui/switch";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
 import type { V3PublicShowState } from "@/lib/v3-live";
@@ -28,7 +30,15 @@ const WAKE_STATES = new Set<V3PublicShowState>([
   "results_pending",
 ]);
 
-function LiveBootSurface({ message }: { message: string }) {
+function LiveBootSurface({
+  message,
+  onRetry,
+  refreshing = false,
+}: {
+  message: string;
+  onRetry?: () => void;
+  refreshing?: boolean;
+}) {
   return (
     <V3FoundationShell>
       <V3Screen className="min-h-dvh">
@@ -38,43 +48,20 @@ function LiveBootSurface({ message }: { message: string }) {
           <p role="status" className="mt-2 text-sm text-white/55">
             {message}
           </p>
-        </V3Surface>
-      </V3Screen>
-    </V3FoundationShell>
-  );
-}
-
-function LiveUnavailableSurface({
-  retrying,
-  onRetry,
-}: {
-  retrying: boolean;
-  onRetry: () => void;
-}) {
-  return (
-    <V3FoundationShell>
-      <V3Screen className="min-h-dvh">
-        <V3Surface
-          level="raised"
-          className="border-amber-300/20 bg-amber-300/[0.055] p-5"
-          data-v3-live-initial-unavailable=""
-        >
-          <p className="v3-kicker">Live</p>
-          <h1 className="mt-2 text-2xl font-bold tracking-[-0.03em]">
-            Live state unavailable
-          </h1>
-          <p role="alert" className="mt-2 text-sm leading-6 text-white/55">
-            Solaris could not verify the current public show state. V3 Live stays
-            closed rather than switching to a different legacy data path.
-          </p>
-          <button
-            type="button"
-            onClick={onRetry}
-            disabled={retrying}
-            className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-white/10 px-4 text-sm font-semibold text-white/75 transition hover:bg-white/[0.05] disabled:cursor-wait disabled:opacity-50"
-          >
-            {retrying ? "Retrying…" : "Retry Live state"}
-          </button>
+          {onRetry ? (
+            <button
+              type="button"
+              onClick={onRetry}
+              disabled={refreshing}
+              className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/10 px-4 text-sm font-semibold text-white/80 transition hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:cursor-wait disabled:opacity-50"
+            >
+              <RefreshCcw
+                aria-hidden="true"
+                className={`size-4 ${refreshing ? "motion-safe:animate-spin" : ""}`}
+              />
+              {refreshing ? "Retrying Live…" : "Retry Live"}
+            </button>
+          ) : null}
         </V3Surface>
       </V3Screen>
     </V3FoundationShell>
@@ -169,9 +156,18 @@ export function V3LiveRouteGate({ fallback }: { fallback: ReactNode }) {
     return <LiveBootSurface message="Checking the live experience…" />;
   }
 
-  // A failed initial rollout read cannot safely opt the viewer into V3. A later
-  // rollout refetch failure with cached data is different: keep using the last
-  // authoritative server flag snapshot and mark the mounted V3 view degraded.
+  // A failed initial rollout probe cannot authorize either V3 or legacy. Do
+  // not mount legacy's archive-wide readers just because the network failed.
+  // Once a snapshot exists, later refetch errors preserve that cached authority.
+  if (rollout.isError && !rollout.data) {
+    return (
+      <LiveBootSurface
+        message="Couldn't verify the Live experience. Retry to check the current show state."
+        onRetry={() => { void rollout.refetch(); }}
+        refreshing={rollout.isFetching}
+      />
+    );
+  }
   if (!rollout.data || !v3Enabled) {
     return <>{fallback}</>;
   }
@@ -180,16 +176,27 @@ export function V3LiveRouteGate({ fallback }: { fallback: ReactNode }) {
     return <LiveBootSurface message="Opening authoritative show state…" />;
   }
 
-  // Once rollout authority has positively selected V3, an unavailable initial
-  // Live snapshot must not silently switch to the legacy archive-wide data path.
-  // Keep the V3 authority boundary visible and retryable instead.
+  // An actual failed initial Live read is an error, not a rollout decision:
+  // present a bounded manual retry instead of mounting legacy archive queries.
+  if (bundle.isError && !bundle.data) {
+    return (
+      <LiveBootSurface
+        message="Couldn't load the official Live snapshot. Retry to reconnect to show information."
+        onRetry={() => { void bundle.refetch(); }}
+        refreshing={bundle.isFetching}
+      />
+    );
+  }
+
+  // A missing first snapshot while the server explicitly enables V3 does not
+  // authorize archive-wide legacy queries. Keep the read boundary fail-closed.
+  // Legitimate empty show state is represented inside an authoritative bundle.
   if (!bundle.data) {
     return (
-      <LiveUnavailableSurface
-        retrying={bundle.isFetching}
-        onRetry={() => {
-          void bundle.refetch();
-        }}
+      <LiveBootSurface
+        message="Official Live state could not be verified. Retry to check the current show."
+        onRetry={() => { void bundle.refetch(); }}
+        refreshing={bundle.isFetching}
       />
     );
   }

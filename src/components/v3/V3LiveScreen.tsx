@@ -30,19 +30,6 @@ export type V3LiveScreenProps = {
   degraded?: boolean;
 };
 
-const liveFreshnessFormatter = new Intl.DateTimeFormat("en-GB", {
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: SOLARIS_TIME_ZONE,
-});
-
-const liveMomentFormatter = new Intl.DateTimeFormat("en-GB", {
-  weekday: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: SOLARIS_TIME_ZONE,
-});
-
 function showStatePresentation(
   state: V3PublicShowState,
 ): { label: string; tone: V3StatusTone } {
@@ -67,6 +54,21 @@ function showStatePresentation(
       return { label: "Upcoming", tone: "progress" };
   }
 }
+
+// Contest timestamps have one stable Solarian presentation independent of
+// browser locale, OS timezone, device migration, and hydration environment.
+const liveFreshnessFormatter = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: SOLARIS_TIME_ZONE,
+});
+
+const liveMomentFormatter = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: SOLARIS_TIME_ZONE,
+});
 
 function freshnessLabel(iso: string) {
   const date = new Date(iso);
@@ -178,6 +180,9 @@ export function V3LiveScreen({
   }
 
   const presentation = showStatePresentation(experience.state);
+  // A cached 'open' round is historical truth, not evidence that voting is
+  // still open after the authoritative refresh has failed.
+  const voteActionAvailable = !degraded && experience.voting.state === "open";
   const exactPerformanceKnown = Boolean(experience.currentPerformance);
   const timingRows = liveTimingRows(experience);
 
@@ -217,6 +222,7 @@ export function V3LiveScreen({
               Showing the last authoritative Solaris snapshot from {freshnessLabel(
                 experience.freshness.updatedAt,
               ).replace(/^Updated /, "")}. Refresh to reconcile with the current show state.
+              Voting availability cannot be confirmed while this snapshot is stale.
             </p>
           </div>
         </V3Surface>
@@ -227,17 +233,17 @@ export function V3LiveScreen({
           <div className="min-w-0">
             <p className="v3-kicker">Current show state</p>
             <p className="mt-2 text-xl font-bold tracking-[-0.03em]">
-              {experience.stateLabel}
+              {degraded ? `Last reported · ${experience.stateLabel}` : experience.stateLabel}
             </p>
           </div>
-          <V3StatusChip tone={presentation.tone}>
-            {presentation.label}
+          <V3StatusChip tone={degraded ? "warning" : presentation.tone}>
+            {degraded ? "Last known" : presentation.label}
           </V3StatusChip>
         </div>
 
         {exactPerformanceKnown && experience.currentPerformance ? (
           <div className="mt-5 rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
-            <p className="v3-kicker">Now performing</p>
+            <p className="v3-kicker">{degraded ? "Last reported performance" : "Now performing"}</p>
             <p className="mt-2 text-base font-semibold">
               {experience.currentPerformance.countryName}
             </p>
@@ -286,8 +292,18 @@ export function V3LiveScreen({
         </div>
       </V3Surface>
 
+      {degraded && experience.voting.state === "open" ? (
+        <V3Surface className="border-amber-300/20 p-4" data-v3-live-voting-unverified="">
+          <p className="text-sm font-semibold">Voting status unverified</p>
+          <p className="mt-1 text-xs leading-5 text-white/55">
+            Voting was open in the last snapshot, but it may have closed since then.
+            Refresh successfully before following a voting action.
+          </p>
+        </V3Surface>
+      ) : null}
+
       {experience.broadcast ||
-      experience.voting.state === "open" ||
+      voteActionAvailable ||
       experience.resultsPublished ? (
         <V3Section title="Do now">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -321,7 +337,7 @@ export function V3LiveScreen({
               </a>
             ) : null}
 
-            {experience.voting.state === "open" ? (
+            {voteActionAvailable ? (
               <V3ActionCard
                 title="Vote now"
                 description="Public voting is authoritatively open"
@@ -419,7 +435,7 @@ export function V3LiveScreen({
       </V3Section>
 
       {experience.nextPerformance ? (
-        <V3Section title="Next">
+        <V3Section title={degraded ? "Last reported next" : "Next"}>
           <V3Surface className="p-4">
             <p className="text-sm font-semibold">
               {experience.nextPerformance.countryName}
@@ -437,7 +453,7 @@ export function V3LiveScreen({
       ) : null}
 
       <p className="sr-only" aria-live="polite">
-        {experience.stateLabel}. {freshnessLabel(experience.freshness.updatedAt)}.
+        {degraded ? "Last known show state: " : ""}{experience.stateLabel}. {freshnessLabel(experience.freshness.updatedAt)}.
       </p>
     </V3Screen>
   );
