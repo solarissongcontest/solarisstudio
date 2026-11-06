@@ -6,6 +6,7 @@ import { TERRA_GOVERNANCE_TG4_MIGRATIONS } from "./terra-governance-domain-regis
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 const migration = source(`supabase/migrations/${TERRA_GOVERNANCE_TG4_MIGRATIONS[1]}`);
+const identityScopeMigration = source(`supabase/migrations/${TERRA_GOVERNANCE_TG4_MIGRATIONS[4]}`);
 
 describe("Terra Solaris Governance TG4 document commands", () => {
   it("exposes only authoritative generic document mutations", () => {
@@ -60,6 +61,31 @@ describe("Terra Solaris Governance TG4 document commands", () => {
     expect(actorResolver).toContain("control_row.ended_at is null");
     expect(actorResolver).toContain("control_row.started_at <= now()");
     expect(migration).toContain("'actorPersonId'");
+  });
+
+
+  it("keeps the later identity-scope override aligned with effective TG2 offices and live TG1 control", () => {
+    const resolverStart = identityScopeMigration.indexOf(
+      "create or replace function private.world_document_actor_person_v1",
+    );
+    const resolverEnd = identityScopeMigration.indexOf("$actor$;", resolverStart);
+    expect(resolverStart).toBeGreaterThan(-1);
+    expect(resolverEnd).toBeGreaterThan(resolverStart);
+    const actorResolver = identityScopeMigration.slice(resolverStart, resolverEnd);
+    expect(actorResolver).toContain("office_row.active");
+    expect(actorResolver).toContain("term_row.actual_end_at is null");
+    expect(actorResolver).toContain("term_row.started_at <= now()");
+    expect(actorResolver).toContain("order by term_row.started_at desc");
+    expect(actorResolver).not.toMatch(/term_row\.(starts_at|ends_at)\b/);
+    expect(actorResolver).toContain("representation_row.starts_at <= now()");
+    expect(actorResolver).toContain("representation_row.ends_at is null");
+    expect(actorResolver).toContain("join public.country_accounts account_row");
+    expect(actorResolver).toContain("account_row.country_id = control_row.country_id");
+    expect(actorResolver).toContain("account_row.user_id = auth.uid()");
+    expect(actorResolver).toContain("account_row.status = 'active'");
+    expect(actorResolver).toContain("control_row.started_at <= now()");
+    expect(actorResolver).toContain("control_row.ended_at is null");
+    expect(identityScopeMigration).toContain("representation_row.starts_at <= now()");
   });
 
   it("copies stable provisions forward without overwriting the source version", () => {
