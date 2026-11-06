@@ -544,7 +544,6 @@ function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAsset
                       controls
                       preload="none"
                       playsInline
-                      referrerPolicy="no-referrer"
                       onError={() => setFailedPreviewTarget(previewKey)}
                       className="max-h-80 w-full rounded-lg bg-black object-contain"
                       aria-label={`Organizer video preview: ${asset.title}`}
