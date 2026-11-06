@@ -284,7 +284,7 @@ as $
       )
     limit 100
   ) q
-$;
+$$;
 
 -- Allows an authorized manager to create the FIRST room. This exposes no
 -- institution metadata unless the caller is a current member/manager.
@@ -304,7 +304,7 @@ begin
   return jsonb_build_object('organizationId',v_org.id,
     'name',v_org.short_name,'canManage',v_manage);
 end
-$;
+$$;
 
 create function public.world_space_create_v1(
   p_organization_id uuid, p_name text, p_description text,
