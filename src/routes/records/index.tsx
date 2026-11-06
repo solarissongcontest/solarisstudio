@@ -75,6 +75,53 @@ function RecordsPage() {
   return <LegacyRecordsPage />;
 }
 
+function RecordsPageHeader({ mobileWeb, ready }: { mobileWeb: boolean; ready: boolean }) {
+  if (mobileWeb) {
+    return (
+      <header
+        className={`mb-5 border-b border-border/70 ${ready ? "pb-5" : "pb-4"}`}
+        data-records-mobile-web-header
+      >
+        <p className="text-[11px] font-bold uppercase tracking-[.16em] text-primary">Hall of records</p>
+        <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight">Records</h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {ready
+            ? "Achievements, streaks and unusual results from the published SSC archive. Tied countries share the record."
+            : "Verified records from the published archive."}
+        </p>
+        {ready ? (
+          <Link
+            to="/archive-games"
+            className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary"
+          >
+            Play Archive Games →
+          </Link>
+        ) : null}
+      </header>
+    );
+  }
+
+  return (
+    <PageHeader
+      eyebrow="Hall of records"
+      title="Records"
+      description={
+        ready
+          ? "The extreme, impressive and occasionally unfortunate corners of SSC history, with ties shown properly instead of quietly choosing one country and hoping nobody notices."
+          : "Verified records from the published archive."
+      }
+      actions={ready ? (
+        <Link
+          to="/archive-games"
+          className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm sm:w-auto"
+        >
+          Play Archive Games →
+        </Link>
+      ) : undefined}
+    />
+  );
+}
+
 function LegacyRecordsPage() {
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
@@ -137,43 +184,17 @@ function LegacyRecordsPage() {
     resultsQuery,
     juryQuery,
   ];
-  if (archiveIsLoading(...archiveQueries)) {
+  const loading = archiveIsLoading(...archiveQueries);
+  const failed = archiveHasError(...archiveQueries);
+  if (loading || failed) {
     return (
       <AppShell>
-        {mobileWeb ? (
-          <header className="mb-5 border-b border-border/70 pb-4" data-records-mobile-web-header>
-            <p className="text-[11px] font-bold uppercase tracking-[.16em] text-primary">Hall of records</p>
-            <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight">Records</h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Verified records from the published archive.</p>
-          </header>
+        <RecordsPageHeader mobileWeb={mobileWeb} ready={false} />
+        {loading ? (
+          <ArchiveDataLoading label="Calculating records from the archive…" />
         ) : (
-          <PageHeader
-            eyebrow="Hall of records"
-            title="Records"
-            description="Verified records from the published archive."
-          />
+          <ArchiveDataError />
         )}
-        <ArchiveDataLoading label="Calculating records from the archive…" />
-      </AppShell>
-    );
-  }
-  if (archiveHasError(...archiveQueries)) {
-    return (
-      <AppShell>
-        {mobileWeb ? (
-          <header className="mb-5 border-b border-border/70 pb-4" data-records-mobile-web-header>
-            <p className="text-[11px] font-bold uppercase tracking-[.16em] text-primary">Hall of records</p>
-            <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight">Records</h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Verified records from the published archive.</p>
-          </header>
-        ) : (
-          <PageHeader
-            eyebrow="Hall of records"
-            title="Records"
-            description="Verified records from the published archive."
-          />
-        )}
-        <ArchiveDataError />
       </AppShell>
     );
   }
@@ -181,30 +202,7 @@ function LegacyRecordsPage() {
   return (
     <AppShell>
       <div data-records-presentation={presentationMode}>
-        {mobileWeb ? (
-          <header className="mb-5 border-b border-border/70 pb-5" data-records-mobile-web-header>
-            <p className="text-[11px] font-bold uppercase tracking-[.16em] text-primary">Hall of records</p>
-            <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight">Records</h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Achievements, streaks and unusual results from the published SSC archive.
-              Tied countries share the record.
-            </p>
-            <Link to="/archive-games" className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary">
-              Play Archive Games →
-            </Link>
-          </header>
-        ) : (
-          <PageHeader
-            eyebrow="Hall of records"
-            title="Records"
-            description="The extreme, impressive and occasionally unfortunate corners of SSC history, with ties shown properly instead of quietly choosing one country and hoping nobody notices."
-            actions={
-              <Link to="/archive-games" className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm sm:w-auto">
-                Play Archive Games →
-              </Link>
-            }
-          />
-        )}
+        <RecordsPageHeader mobileWeb={mobileWeb} ready />
 
         {mobileWeb ? (
           <details className="mb-5 border-y border-border/70" data-records-mobile-web-coverage>
