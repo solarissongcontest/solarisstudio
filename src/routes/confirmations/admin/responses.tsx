@@ -19,6 +19,7 @@ import {
   classifyOrganizerEntryReview,
   deriveOrganizerResponseReviewState,
   hasCurrentOrganizerResponseReviewDecision,
+  hasCurrentOrganizerResponseSongSubmission,
   describeOrganizerNationalFinalQueue,
   hasOutdatedOrganizerResponseReview,
 } from "@/lib/v3-organizer-entry-review-status";
@@ -176,10 +177,7 @@ function hasDeclinedNf(row: ResponseRow) {
 }
 
 function songSubmitted(row: ResponseRow) {
-  if (!row.participating) return false;
-  if (row.selection_method === "internal") return Boolean(row.internal_entries?.song_title);
-  if (row.selection_method === "national_final") return activeNfEntries(row).length > 0;
-  return false;
+  return hasCurrentOrganizerResponseSongSubmission(row);
 }
 
 function responseCardState(row: ResponseRow): CardState {
