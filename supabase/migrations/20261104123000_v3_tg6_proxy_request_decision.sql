@@ -118,10 +118,6 @@ begin
   where id=p_representation_id for update;
 
   if v_rep.id is null
-     or v_rep.ends_at is not null
-     or v_rep.starts_at > now()
-     or v_rep.role <> 'representative'
-     or not v_rep.voting_authority
      or not (coalesce(v_rep.user_id = v_actor,false) or exists (
        select 1 from public.country_accounts account_row
        where account_row.country_id=v_rep.country_id
@@ -152,10 +148,6 @@ begin
      or p_valid_until - p_valid_from > interval '14 days'
      or length(v_reason) not between 5 and 500
      or p_proxy_person_id = v_rep.person_id
-     or (p_session_id is not null and (
-       p_valid_from < v_session.starts_at
-       or p_valid_until > v_session.ends_at
-     ))
   then
     raise exception using errcode='22023',message='VALIDATION';
   end if;
@@ -183,6 +175,19 @@ begin
     return public.studio2_reconcile_operation(v_operation_id)
       || jsonb_build_object('replayed',true);
   end if;
+
+  -- Only new requests re-evaluate the mutable authority and meeting time.
+  -- A successful operation must remain reconciliable even if the appointment
+  -- ends or the meeting is later rescheduled.
+  if v_rep.ends_at is not null
+     or v_rep.starts_at > now()
+     or v_rep.role <> 'representative'
+     or not v_rep.voting_authority
+     or (p_session_id is not null and (
+       p_valid_from < v_session.starts_at
+       or p_valid_until > v_session.ends_at
+     ))
+  then raise exception using errcode='23514',message='NOT_ELIGIBLE'; end if;
 
   -- Current-time/membership checks belong AFTER receipt claim so that a
   -- successful request can be safely replayed after its validity window.
@@ -304,6 +309,7 @@ declare
   v_rep public.world_organization_representations%rowtype;
   v_representation_id uuid;
   v_organ_id uuid;
+  v_session_status text;
   v_approver_person_id uuid;
   v_operation jsonb;
   v_operation_id uuid;
@@ -336,11 +342,13 @@ begin
   end if;
 
   if v_proxy.session_id is not null then
-    select session_row.organ_id into v_organ_id
+    -- Resolve immutable institutional scope before receipt claim, but do not
+    -- require a currently-open meeting until AFTER a successful replay check.
+    select session_row.organ_id,session_row.status
+    into v_organ_id,v_session_status
     from public.world_sessions session_row
     where session_row.id=v_proxy.session_id
-      and session_row.organization_id=v_rep.organization_id
-      and session_row.status in ('scheduled','open','recessed');
+      and session_row.organization_id=v_rep.organization_id;
   end if;
 
   if not public.world_access_allowed(
@@ -378,7 +386,10 @@ begin
        or v_rep.starts_at > now()
        or v_rep.role <> 'representative'
        or not v_rep.voting_authority
-       or (v_proxy.session_id is not null and v_organ_id is null)
+       or (v_proxy.session_id is not null and (
+         v_organ_id is null or
+         coalesce(v_session_status not in ('scheduled','open','recessed'),true)
+       ))
        or not exists (
          select 1 from public.world_organization_memberships member_row
          where member_row.organization_id=v_rep.organization_id
