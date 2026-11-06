@@ -141,6 +141,37 @@ describe('Organizer Control Room server incident verification', () => {
     });
   });
 
+  it('rejects string-valued health counts instead of reporting verified healthy', async () => {
+    arrange({ healthData: { status: 'ready', issues_count: '0', critical_count: 0 } });
+    const model = await loadControlRoomModelServer('ssc22');
+    expect(model.overallHealth).toBe('unknown');
+  });
+
+  it('requires a recognized authoritative health status', async () => {
+    arrange({ healthData: { status: 'everything is fine', issues_count: 0, critical_count: 0 } });
+    const model = await loadControlRoomModelServer('ssc22');
+    expect(model.overallHealth).toBe('unknown');
+  });
+
+  it('rejects inconsistent health counts that claim more critical than total issues', async () => {
+    arrange({ healthData: { status: 'ready', issues_count: 0, critical_count: 2 } });
+    const model = await loadControlRoomModelServer('ssc22');
+    expect(model.overallHealth).toBe('unknown');
+  });
+
+  it('preserves explicit blocked state even when health count evidence is malformed', async () => {
+    arrange({ healthData: { status: 'blocked', issues_count: 'bad', critical_count: null } });
+    const model = await loadControlRoomModelServer('ssc22');
+    expect(model.overallHealth).toBe('critical');
+  });
+
+  it('rejects contradictory incident counts instead of fabricating clean evidence', async () => {
+    arrange({ active: 1, critical: 2 });
+    const model = await loadControlRoomModelServer('ssc22');
+    expect(model.issues.incidents).toBeNull();
+    expect(model.overallHealth).toBe('unknown');
+  });
+
   it('uses the authoritative live Show rundown for current and next cue labels', async () => {
     const db = arrange({
       capabilities: ['edition.read', 'edition.manage'],
