@@ -13,6 +13,9 @@ create table public.world_domestic_measures (
   visibility text not null default 'draft'
     check (visibility in ('draft','public')),
   current_version bigint not null default 1 check (current_version > 0),
+  public_version_floor bigint
+    check (public_version_floor is null or
+      (public_version_floor>0 and public_version_floor<=current_version)),
   revision bigint not null default 1 check (revision > 0),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -218,6 +221,7 @@ begin
       end if;
       update public.world_domestic_measures
         set status=v_next_status,visibility='public',
+            public_version_floor=coalesce(public_version_floor,current_version),
             revision=revision+1,updated_at=now()
       where id=v_id returning revision,current_version into v_revision,v_version;
       insert into public.world_domestic_measure_transitions(
@@ -339,6 +343,10 @@ as $reader$
         order by h.version_number desc)
       from public.world_domestic_measure_versions h
       where h.measure_id=m.id
+        and (h.version_number>=m.public_version_floor or exists (
+          select 1 from public.country_accounts ca
+          where ca.country_id=m.country_id and ca.user_id=auth.uid()
+            and ca.status='active'))
     ),'[]'::jsonb)
   ) from public.world_domestic_measures m
   join public.world_domestic_measure_versions v
