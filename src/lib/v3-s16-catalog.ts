@@ -151,20 +151,36 @@ function withoutSqlComments(source: string, preserveQuoted: boolean): string {
 /** Match qualified relations exactly. Unqualified relations require search-path resolution. */
 export function potentialS16Write(definition: string, table: string, searchPath: string | null): boolean {
   const [schema, name] = table.includes(".") ? table.split(".") : ["public", table];
+  const matchesTarget = (raw: string): boolean => {
+    const parts = raw.replaceAll('"', "").replace(/\s/g, "").split(".");
+    if (parts.at(-1) !== name) return false;
+    if (parts.length === 2) return parts[0] === schema;
+    // Unknown resolution remains a candidate, never a clean bill of health.
+    const schemas = searchPath?.replaceAll('"', "").split(",").map((part) => part.trim());
+    return !schemas || schemas.includes(schema);
+  };
+  // TRUNCATE can change several relations in one statement. The ordinary
+  // one-target DML scanner must not silently miss targets after the first comma.
+  const identifier = '(?:"[^"]+"|[a-z_][\\w$]*)';
+  const relation = identifier + '(?:\\s*\\.\\s*' + identifier + ')?';
+  const truncateList = new RegExp(
+    '\\btruncate(?:\\s+table)?\\s+((?:only\\s+)?' + relation +
+    '\\s*(?:\\*\\s*)?(?:,\\s*(?:only\\s+)?' + relation + '\\s*(?:\\*\\s*)?)+)',
+    'gi',
+  );
+  const target = new RegExp('(?:^|,)\\s*(?:only\\s+)?(' + relation + ')', 'gi');
+
   // A quoted EXECUTE string may itself contain SQL comments; scanning both
   // forms cannot turn a possible writer into a false negative.
   for (const sql of [withoutSqlComments(definition, true), withoutSqlComments(definition, false)]) {
     const writes = sql.matchAll(/\b(?:insert\s+into|update|delete\s+from|merge\s+into|truncate(?:\s+table)?)\s+(?:only\s+)?((?:"[^"]+"|[a-z_][\w$]*)(?:\s*\.\s*(?:"[^"]+"|[a-z_][\w$]*))?)/gi);
     for (const match of writes) {
-      const parts = match[1].replaceAll('"', "").replace(/\s/g, "").split(".");
-      if (parts.at(-1) !== name) continue;
-      if (parts.length === 2) {
-        if (parts[0] === schema) return true;
-        continue;
+      if (matchesTarget(match[1])) return true;
+    }
+    for (const match of sql.matchAll(truncateList)) {
+      for (const relationMatch of match[1].matchAll(target)) {
+        if (matchesTarget(relationMatch[1])) return true;
       }
-      // Unknown resolution remains a candidate, never a clean bill of health.
-      const schemas = searchPath?.replaceAll('"', "").split(",").map((part) => part.trim());
-      if (!schemas || schemas.includes(schema)) return true;
     }
   }
   return false;
