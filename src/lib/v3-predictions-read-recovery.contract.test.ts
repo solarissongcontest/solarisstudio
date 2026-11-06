@@ -14,6 +14,7 @@ describe("V3 Predictions read recovery", () => {
     expect(source).toContain("disabled={rounds.isFetching || session.isFetching}");
     expect(source).toContain("if (rounds.isError) void rounds.refetch()");
     expect(source).toContain("if (session.isError) void session.refetch()");
+    expect(source).toContain("if (session.isError) void session.refetch();\\n              }}".replace("\\n", "\n"));
     expect(source).toContain("Retry prediction state");
   });
 
