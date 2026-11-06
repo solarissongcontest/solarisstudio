@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { V3AppShell } from "@/components/v3/V3AppShell";
-import { V3Screen, V3Surface } from "@/components/v3/V3Foundation";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
 import { useNotificationPreferences } from "@/lib/engagement-data";
 import { useV3BroadcastIntelligenceBundle } from "@/lib/v3-broadcast-intelligence-runtime";
@@ -13,7 +12,7 @@ import {
   useV3RolloutProbe,
 } from "@/lib/v3-primary-runtime";
 import { V3BroadcastIntelligenceScreen } from "./V3BroadcastIntelligenceScreen";
-import { V3AnalysisRevealScreen } from "./V3AnalysisRevealScreen";
+import { V3AnalysisReadState, V3AnalysisRevealScreen } from "./V3AnalysisRevealScreen";
 
 export function V3BroadcastIntelligenceGate({
   fallback,
@@ -35,30 +34,26 @@ export function V3BroadcastIntelligenceGate({
   const rollout = rolloutEditionSlug ? editionProbe : currentProbe;
   const serverPreferences = useNotificationPreferences(rollout.data?.userId ?? undefined);
 
-  if (bundle.isLoading || (bundle.isSuccess && rollout.isLoading)) {
+  const loading = bundle.isLoading || (bundle.isSuccess && rollout.isLoading);
+  const unavailable = bundle.isError || !bundle.data || rollout.isError || !rollout.data;
+  if (loading || unavailable) {
     return (
       <V3AppShell
         editionLabel={bundle.data?.shell.editionLabel ?? "Solaris Studio"}
         phaseLabel="Broadcast Intelligence"
         activeArea="results"
       >
-        <V3Screen>
-          <V3Surface className="p-5">
-            <h1 className="text-2xl font-bold">Replay the voting</h1>
-            <p
-              role="status"
-              className="mt-2 text-sm text-[var(--v3-text-secondary)]"
-            >
-              Preparing the published result replay…
-            </p>
-          </V3Surface>
-        </V3Screen>
+        <V3AnalysisReadState
+          title="Broadcast Intelligence"
+          loading={loading}
+          retrying={bundle.isFetching || rollout.isFetching}
+          onRetry={() => {
+            if (bundle.isError || !bundle.data) void bundle.refetch();
+            else void rollout.refetch();
+          }}
+        />
       </V3AppShell>
     );
-  }
-
-  if (bundle.isError || !bundle.data || rollout.isError || !rollout.data) {
-    return <>{fallback}</>;
   }
 
   if (rollout.data.enabled !== true || rollout.data.resultsEnabled !== true) {

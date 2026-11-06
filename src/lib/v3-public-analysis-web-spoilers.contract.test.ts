@@ -56,4 +56,35 @@ describe("Public Results analysis spoiler safety across browser presentations", 
       expect(source).not.toContain("isAppMode = window.innerWidth");
     });
   }
+
+  it("keeps installed analytics on canonical reads with bounded retry, not archive fallback", () => {
+    for (const path of [
+      "src/components/v3/V3ResultLabGate.tsx",
+      "src/components/v3/V3BroadcastIntelligenceGate.tsx",
+    ]) {
+      const source = read(path);
+      const failure = source.indexOf(
+        "const unavailable = bundle.isError || !bundle.data || rollout.isError || !rollout.data",
+      );
+      const retry = source.indexOf("if (loading || unavailable)");
+      const rolloutOff = source.indexOf(
+        "if (rollout.data.enabled !== true || rollout.data.resultsEnabled !== true)",
+      );
+      expect(failure).toBeGreaterThan(-1);
+      expect(retry).toBeGreaterThan(failure);
+      expect(rolloutOff).toBeGreaterThan(retry);
+      expect(source).toContain("retrying={bundle.isFetching || rollout.isFetching}");
+      expect(source).toContain("if (bundle.isError || !bundle.data) void bundle.refetch()");
+      expect(source).toContain("else void rollout.refetch()");
+      expect(source.split("return <>{fallback}</>;").length - 1).toBe(1);
+      expect(source).not.toContain("setInterval(");
+    }
+
+    const state = read("src/components/v3/V3AnalysisRevealScreen.tsx");
+    expect(state).toContain("data-v3-analysis-authority-unavailable={!loading ?");
+    expect(state).toContain("No results or simulation are shown");
+    expect(state).toContain("Retry official analysis");
+    expect(state).toContain("disabled={retrying}");
+  });
+
 });

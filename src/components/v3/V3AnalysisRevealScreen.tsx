@@ -49,3 +49,42 @@ export function V3AnalysisRevealScreen({
     </V3Screen>
   );
 }
+
+/** Canonical read failures are not permission to mount broad legacy analytics. */
+export function V3AnalysisReadState({
+  title,
+  loading,
+  retrying,
+  onRetry,
+}: {
+  title: "Result Lab" | "Broadcast Intelligence";
+  loading: boolean;
+  retrying: boolean;
+  onRetry: () => void;
+}) {
+  const replay = title === "Broadcast Intelligence";
+  return (
+    <V3Screen>
+      <V3Surface className="p-5" data-v3-analysis-authority-unavailable={!loading ? "" : undefined}>
+        <h1 className="text-2xl font-bold">{replay ? "Replay the voting" : title}</h1>
+        <p role="status" className="mt-2 text-sm text-[var(--v3-text-secondary)]">
+          {loading
+            ? replay
+              ? "Preparing the published result replay…"
+              : "Loading official inputs for a new simulation…"
+            : "Official published analysis cannot be verified. No results or simulation are shown until the authoritative service is reachable."}
+        </p>
+        {!loading ? (
+          <button
+            type="button"
+            onClick={onRetry}
+            disabled={retrying}
+            className="mt-4 min-h-11 rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:opacity-50"
+          >
+            {retrying ? "Retrying official analysis…" : "Retry official analysis"}
+          </button>
+        ) : null}
+      </V3Surface>
+    </V3Screen>
+  );
+}
