@@ -64,6 +64,7 @@ describe("TG3 Government fail-closed public rendering", () => {
     const html = render();
     expect(html).toContain("PUBLIC_GOVERNMENT_SENTINEL");
     expect(html).toContain("PUBLIC_ARTICLE_SENTINEL");
+    expect(html).toContain("International memberships");
     expect(html.match(/<main/g)).toHaveLength(1);
   });
 
@@ -100,6 +101,9 @@ describe("TG3 Government fail-closed public rendering", () => {
     const route = readFileSync(resolve(process.cwd(),
       "src/routes/world/countries/$code_.government.tsx"), "utf8");
     expect(route).toContain("WorldPublicGate verifyOnMount");
+    const international = readFileSync(resolve(process.cwd(),
+      "src/components/world/WorldCountryInternational.tsx"), "utf8");
+    expect(international).toContain('to="/world/countries/$code/government"');
     const reader = readFileSync(resolve(process.cwd(),
       "src/lib/world-country-government-data.ts"), "utf8");
     expect(reader).toContain("queryFn: ({ signal }) => loadCountryGovernment(code, signal)");
