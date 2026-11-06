@@ -152,12 +152,13 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
   const valid = validWorldSlug(slug) && validWorldSlug(bodySlug);
   const query = useQuery({
     queryKey: ["world", "public", "body", slug, bodySlug],
-    queryFn: () => readPublicWorldBody(slug, bodySlug), enabled: valid, staleTime: 90_000, retry: false,
+    queryFn: ({ signal }) => readPublicWorldBody(slug, bodySlug, signal),
+    enabled: valid, staleTime: 90_000, retry: false,
   });
   const result = query.isError ? undefined : query.data;
   const offices = useQuery({
     queryKey: ["world", "public", "body-offices", result?.organization.id, result?.body.id],
-    queryFn: () => readPublicBodyOffices(result!.organization, result!.body),
+    queryFn: ({ signal }) => readPublicBodyOffices(result!.organization, result!.body, signal),
     enabled: !!result,
     staleTime: 90_000,
     retry: false,
