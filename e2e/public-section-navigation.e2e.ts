@@ -37,6 +37,14 @@ test("mobile browser section navigation supports keyboard disclosure, Escape, an
   await scorechartsLink.click();
   await expect(page).toHaveURL(/\/scorecharts\/?(?:[?#].*)?$/);
   await expect(nav.locator(".public-mobile-section-trigger")).toHaveAttribute("aria-expanded", "false");
+
+  // Back/forward must not carry an expanded disclosure into another route.
+  await nav.locator(".public-mobile-section-trigger").click();
+  await expect(nav.locator(".public-mobile-section-trigger")).toHaveAttribute("aria-expanded", "true");
+  await page.goBack({ waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/\/results\/?(?:[?#].*)?$/);
+  await expect(nav.locator(".public-mobile-section-trigger")).toHaveAttribute("aria-expanded", "false");
+  await expect(panel).toBeHidden();
 });
 
 test("tablet browser keeps Advanced destinations keyboard-accessible with readable touch targets", async ({ page }, testInfo) => {
