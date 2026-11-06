@@ -17,8 +17,8 @@ insert into public.studio2_capability_grants(user_id,capability,edition_id,grant
  ('27271000-0000-4000-8000-000000000002','edition.manage','27271000-0000-4000-8000-000000000021','27271000-0000-4000-8000-000000000001');
 
 -- Parent rows are disposable fixtures; Show creation is a separate authority slice.
-insert into public.shows(id,edition_id,name,slug,kind,sort_order,status,broadcast_config)
- values ('27271000-0000-4000-8000-000000000031','27271000-0000-4000-8000-000000000021','Lock authority show','lock-authority-show','special',1,'scheduled','{}');
+insert into public.shows(id,edition_id,name,kind,sort_order,status,broadcast_config)
+ values ('27271000-0000-4000-8000-000000000031','27271000-0000-4000-8000-000000000021','Lock authority show','special',1,'scheduled','{}');
 select set_config('test.lock_show_id','27271000-0000-4000-8000-000000000031',true);
 select set_config('request.jwt.claims','{"role":"authenticated","sub":"27271000-0000-4000-8000-000000000001","session_id":"27271000-0000-4000-8000-000000000011"}',true);
 set local role authenticated;
@@ -124,8 +124,8 @@ set local role anon;
 do $test$
 begin
  begin
-  insert into public.shows(edition_id,name,slug,kind,broadcast_config)
-   values ('27271000-0000-4000-8000-000000000021','Anonymous cue','anonymous-cue','special','{"studio2Rundown":{"revision":99}}');
+  insert into public.shows(edition_id,name,kind,broadcast_config)
+   values ('27271000-0000-4000-8000-000000000021','Anonymous cue','special','{"studio2Rundown":{"revision":99}}');
   raise exception 'Raw anonymous cue INSERT succeeded';
  exception when insufficient_privilege then null; end;
 end $test$;
@@ -142,8 +142,8 @@ begin
   raise exception 'Raw service-role cue UPDATE succeeded';
  exception when insufficient_privilege then null; end;
  begin
-  insert into public.shows(edition_id,name,slug,kind,broadcast_config)
-   values ('27271000-0000-4000-8000-000000000021','Raw cue','raw-cue','special','{"studio2Rundown":{"revision":99}}');
+  insert into public.shows(edition_id,name,kind,broadcast_config)
+   values ('27271000-0000-4000-8000-000000000021','Raw cue','special','{"studio2Rundown":{"revision":99}}');
   raise exception 'Raw service-role cue INSERT succeeded';
  exception when insufficient_privilege then null; end;
  begin
