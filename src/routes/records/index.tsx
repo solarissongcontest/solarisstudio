@@ -159,6 +159,13 @@ function LegacyRecordsPage() {
     tab === "all"
       ? records
       : records.filter((record) => record.category === tab);
+  const coverageDescription = (
+    <>
+      These records use {archivedFinalEditions} edition{archivedFinalEditions === 1 ? "" : "s"} with archived
+      Grand Final results, plus the jury and qualification data that is actually stored.
+      Missing editions are excluded rather than treated as zeroes, so records can change when older archive data is added.
+    </>
+  );
   const archiveQueries = [
     countriesQuery,
     editionsQuery,
@@ -194,19 +201,13 @@ function LegacyRecordsPage() {
               <span className="text-xs font-medium text-muted-foreground">{archivedFinalEditions} final editions</span>
             </summary>
             <p className="pb-4 text-sm leading-6 text-muted-foreground">
-              These records use {archivedFinalEditions} edition{archivedFinalEditions === 1 ? "" : "s"} with archived
-              Grand Final results, plus the jury and qualification data that is actually stored.
-              Missing editions are excluded rather than treated as zeroes, so records can change when older archive data is added.
+              {coverageDescription}
             </p>
           </details>
         ) : (
           <Panel className="mb-5" title="Archive coverage">
             <p className="text-xs leading-relaxed text-muted-foreground">
-              These records currently use {archivedFinalEditions} edition
-              {archivedFinalEditions === 1 ? "" : "s"} with archived Grand Final
-              results, plus the jury and qualification data that is actually stored.
-              Missing editions are excluded rather than treated as zeroes, so a record
-              can change when older archive data is added.
+              {coverageDescription}
             </p>
           </Panel>
         )}
