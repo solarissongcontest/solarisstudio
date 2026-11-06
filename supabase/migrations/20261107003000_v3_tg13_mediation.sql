@@ -89,7 +89,22 @@ alter table public.world_mediation_history enable row level security;
 revoke all on public.world_mediation_cases, public.world_mediation_history
   from public, anon, authenticated;
 grant select on public.world_mediation_cases, public.world_mediation_history to authenticated;
-grant all on public.world_mediation_cases, public.world_mediation_history to service_role;
+-- service_role can inspect through its existing audited operational boundaries,
+-- but it has NO raw DML grant. Command functions execute with their owner authority.
+grant select on public.world_mediation_cases, public.world_mediation_history to service_role;
+
+-- An official transition log is append-only even for privileged internal callers.
+create function private.world_mediation_history_immutable()
+returns trigger language plpgsql security invoker set search_path = pg_catalog
+as $immutable$
+begin
+  raise exception using errcode = '42501', message = 'IMMUTABLE_HISTORY';
+end $immutable$;
+revoke all on function private.world_mediation_history_immutable()
+  from public,anon,authenticated,service_role;
+create trigger world_mediation_history_no_rewrite
+before update or delete on public.world_mediation_history
+for each row execute function private.world_mediation_history_immutable();
 
 create policy world_mediation_participant_read
 on public.world_mediation_cases for select to authenticated
