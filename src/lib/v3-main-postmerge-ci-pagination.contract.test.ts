@@ -11,7 +11,7 @@ import { describe, it } from "vitest";
  */
 describe("post-merge main CI evidence pagination", () => {
   it("passes its isolated Node contract suite", () => {
-    execFileSync(process.execPath, ["--test", "scripts/verify-v3-main-ci-evidence.test.mjs"], {
+    execFileSync("node", ["--test", "scripts/verify-v3-main-ci-evidence.test.mjs"], {
       cwd: process.cwd(),
       encoding: "utf8",
       timeout: 15_000,
