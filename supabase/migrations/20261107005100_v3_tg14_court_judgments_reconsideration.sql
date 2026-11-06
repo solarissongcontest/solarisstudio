@@ -362,6 +362,16 @@ begin
  ) then
   raise exception using errcode='23514',message='STATE_CHANGED';
  end if;
+ -- A previously public judgment cannot silently disappear behind a private
+ -- replacement while the public docket still presents the original as current.
+ if v_previous.id is not null and v_previous.publicly_listed and not p_publicly_listed then
+  raise exception using errcode='23514',message='PUBLICATION_CONTINUITY_REQUIRED';
+ end if;
+ -- Every related pleading is linked to the judgment. Reject instead of
+ -- silently dropping the newest source filings when the bounded limit is hit.
+ if (select count(*) from public.world_court_filings f where f.case_id=p_case_id)>100 then
+  raise exception using errcode='54000',message='TOO_MANY_RELATED_FILINGS';
+ end if;
  v_number:=coalesce(v_previous.judgment_number,0)+1;
  insert into public.world_court_judgments(
   case_id,judgment_number,kind,prior_judgment_id,
