@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Activity, FlaskConical, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { AdminDataView, type AdminDataColumn } from "@/components/admin/AdminDataView";
 import {
   AdminCard,
@@ -59,17 +60,27 @@ const attackColumns: readonly AdminDataColumn<AttackRow>[] = [
 ];
 
 export const Route = createFileRoute("/televoting/admin/backtest")({
-  component: TelevoteBacktestPage,
+  component: TelevoteBacktestRoute,
 });
 
 function pct(value: number) {
   return `${(value * 100).toFixed(1)}%`;
 }
 
-function TelevoteBacktestPage() {
+function TelevoteBacktestRoute() {
+  const actorId = useAuthenticatedUser().id;
+  // A private simulation response must not remain visible after an account
+  // switch. Keying the owner remounts its mutation state for each actor.
+  return <TelevoteBacktestPage key={actorId ?? "signed-out"} actorId={actorId} />;
+}
+
+function TelevoteBacktestPage({ actorId }: { actorId: string | null }) {
   const runBacktest = useServerFn(runHistoricalTelevoteBacktest);
   const mutation = useMutation({
-    mutationFn: () => runBacktest({ data: { limit: 40 } }),
+    mutationFn: () => {
+      if (!actorId) throw new Error("Sign in to inspect protected Televote ballots");
+      return runBacktest({ data: { limit: 40 } });
+    },
     onError: (caught) => toast.error(caught instanceof Error ? caught.message : "Backtest failed"),
   });
   const data = mutation.data;
@@ -83,7 +94,7 @@ function TelevoteBacktestPage() {
         actions={
           <div className="flex flex-wrap gap-2">
             <Link to="/televoting/admin/result-integrity" className="admin-action-secondary"><ShieldCheck className="size-4" /> Result integrity</Link>
-            <button type="button" className="admin-action-primary" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
+            <button type="button" className="admin-action-primary" disabled={!actorId || mutation.isPending} onClick={() => mutation.mutate()}>
               <FlaskConical className="size-4" /> {mutation.isPending ? "Running…" : "Run historical backtest"}
             </button>
           </div>
