@@ -16,6 +16,22 @@ const ALL_PUBLIC_PERSONAS = [
  */
 export const V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES = [
   {
+    id: "world-public-legal-document-reader",
+    sourceFeatureFlags: [],
+    legacyRoutes: ["/world/documents", "/world/documents/*"],
+    legacyComponents: [],
+    backendOwners: ["world_documents", "world_document_versions", "world_get_document_v1"],
+    personas: ALL_PUBLIC_PERSONAS,
+    authRequirement: "public",
+    classification: "redesign",
+    targetArea: "explore",
+    targetRoute: "/world/documents",
+    specificationStatus: "building",
+    acceptanceScenarioId: "public.terra-world-published-legal-document-print",
+    migrationEvidence:
+      "TG4 public library and historical reader from prerequisite #1939 plus publication-guarded version print/PDF and citation. Dependency #1888 -> #1890 -> #1939; exact-head CI and responsive browser verification pending.",
+  },
+  {
     id: "prediction-league",
     sourceFeatureFlags: [],
     legacyRoutes: ["/prediction-league", "/prediction-league/*"],
