@@ -98,6 +98,8 @@ alter table public.world_domestic_official_revisions enable row level security;
 revoke all on public.world_lore_people,public.world_domestic_offices,
   public.world_domestic_office_terms,public.world_domestic_official_revisions
   from public,anon,authenticated;
+revoke all on public.world_lore_people,public.world_domestic_offices,
+  public.world_domestic_office_terms,public.world_domestic_official_revisions from service_role;
 grant select on public.world_lore_people,public.world_domestic_offices,
   public.world_domestic_office_terms,public.world_domestic_official_revisions to service_role;
 
