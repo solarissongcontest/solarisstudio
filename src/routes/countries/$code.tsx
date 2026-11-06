@@ -439,17 +439,22 @@ function CountryProfilePage() {
     },
   };
 
-  const currentContext = resolveCountryCurrentContext(
-    buildCountryDiscovery({
-      countries: countries ?? [],
-      editions: publicArchive.editions,
-      currentParticipants: publicArchive.participants,
-    }),
-    country.id,
-    {
-      loading: !archiveEnabled || archiveIsLoading(editionsQuery, showsQuery, participantsQuery),
-      error: archiveHasError(editionsQuery, showsQuery, participantsQuery),
-    },
+  const countryDiscovery = buildCountryDiscovery({
+    countries: countries ?? [],
+    editions: publicArchive.editions,
+    currentParticipants: publicArchive.participants,
+  });
+  const currentContextLoading = !archiveEnabled || archiveIsLoading(editionsQuery, showsQuery, participantsQuery);
+  const currentContextError = archiveHasError(editionsQuery, showsQuery, participantsQuery);
+  const currentContext = resolveCountryCurrentContext(countryDiscovery, country.id, {
+    loading: currentContextLoading,
+    error: currentContextError,
+  });
+  const latestEntryIsCurrent = Boolean(
+    latestEntry &&
+    countryDiscovery.currentEdition?.id === latestEntry.edition_id &&
+    !currentContextLoading &&
+    !currentContextError,
   );
 
   const chartData =
@@ -599,8 +604,10 @@ function CountryProfilePage() {
                 </Panel>
 
                 <Panel
-                  title="Current entry"
-                  description="The latest published canonical entry for this delegation."
+                  title={latestEntryIsCurrent ? "Current published entry" : "Latest published entry"}
+                  description={latestEntryIsCurrent
+                    ? "Published entry for the active edition."
+                    : "Most recent published entry in this country's contest history."}
                 >
                   {latestEntry ? (
                     <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
