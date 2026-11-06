@@ -57,6 +57,7 @@ export function V3ExploreRouteGate({ legacy }: { legacy: ReactNode }) {
     queryFn: fetchWorldPublicEnabled,
     enabled: shouldLoadBundle,
     staleTime: 60_000,
+    refetchOnMount: "always",
     retry: false,
   });
 
@@ -115,7 +116,7 @@ export function V3ExploreRouteGate({ legacy }: { legacy: ReactNode }) {
       <V3ExploreScreen
         projection={bundle.projection}
         onOpenSearch={openCanonicalSearch}
-        showWorld={worldRollout.data === true}
+        showWorld={worldRollout.isSuccess && !worldRollout.isFetching && !worldRollout.isRefetchError && worldRollout.data === true}
       />
     </V3AppShell>
   );
