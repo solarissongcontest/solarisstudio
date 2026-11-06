@@ -129,7 +129,7 @@ begin
       gen_random_uuid(),'tg6-future-rep:'||gen_random_uuid()::text
     );
     raise exception 'TG6_PROXY_FUTURE_REP_REQUEST_ALLOWED';
-  exception when insufficient_privilege then null;
+  exception when check_violation then null;
   end;
 end
 $future_rep_negative$;
