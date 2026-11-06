@@ -10,5 +10,9 @@ export function isOrganizerEntryReviewResultForDisplayedVersion(
 ): boolean {
   const normalized = (version: string | null | undefined) =>
     typeof version === "string" && version.trim() ? version.trim() : null;
-  return normalized(attemptedVersion) === normalized(displayedVersion);
+  const attempted = normalized(attemptedVersion);
+  const displayed = normalized(displayedVersion);
+  // Two absent immutable IDs do NOT prove the settled review belongs to the
+  // latest Entry. A canonical receipt proves the operation, not version parity.
+  return Boolean(attempted && displayed && attempted === displayed);
 }
