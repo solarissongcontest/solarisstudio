@@ -571,7 +571,11 @@ test(
       isMobile: true,
       reducedMotion: "reduce",
     });
-    const { baseURL } = await prepareNavbarInstalledContext(context);
+    // Reuse the existing country-only isolated session; do not repeat the
+    // Organizer feature-flag setup or add unnecessary fixture mutations.
+    const session = await signInLocalCountry();
+    const { baseURL } = requiredLocalConfig();
+    await installSession(context, session);
     const page = await context.newPage();
     await page.goto(baseURL + "/my-solaris/account", { waitUntil: "domcontentloaded" });
     await applyNavbarInstalledCssEmulation(page);
