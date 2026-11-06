@@ -42,7 +42,7 @@ const institution = {
 function mockSelectResponse(response: { data: unknown; count?: number | null; error?: unknown }) {
   const calls: Array<{ method: string; args: unknown[] }> = [];
   const chain: Record<string, any> = {};
-  for (const method of ["select", "eq", "or", "order", "is", "not", "in", "ilike", "abortSignal"]) {
+  for (const method of ["select", "eq", "or", "order", "is", "not", "in", "ilike", "lte", "abortSignal"]) {
     chain[method] = vi.fn((...args: unknown[]) => {
       calls.push({ method, args });
       return chain;
@@ -186,6 +186,7 @@ describe("Country International public Supabase read contracts", () => {
     called(calls, "eq", "country_id", "country-1");
     called(calls, "is", "ended_at", null);
     called(calls, "in", "status", ["member", "observer", "associate", "suspended"]);
+    called(calls, "lte", "joined_at", "now");
     called(calls, "order", "joined_at", { ascending: false });
     called(calls, "order", "id", { ascending: true });
     called(calls, "range", 0, 11);
@@ -200,6 +201,7 @@ describe("Country International public Supabase read contracts", () => {
     called(calls, "eq", "country_id", "country-1");
     called(calls, "not", "ended_at", "is", null);
     called(calls, "in", "status", ["withdrawn", "expelled", "former"]);
+    expect(calls.some((entry) => entry.method === "lte")).toBe(false);
     called(calls, "order", "ended_at", { ascending: false });
     called(calls, "order", "id", { ascending: true });
     called(calls, "range", 12, 23);
