@@ -116,13 +116,16 @@ function AccessPermissionsPage() {
   // A failed background refresh can retain cached edition rows. Do not
   // promote that cached identity to verified permission scope.
   const organizerEdition =
-    editionsQuery.isSuccess && !editionsQuery.error
+    editionsQuery.isSuccess && !editionsQuery.error && !editionsQuery.isFetching
       ? selectOrganizerEdition(editionsQuery.data ?? [], editionId)
       : null;
   const resolvedEditionId = editionId && organizerEdition ? organizerEdition.id : "";
   const organizerEditionLabel = organizerEdition ? formatEditionLabel(organizerEdition) : null;
   const editionContextVerified =
-    editionsQuery.isSuccess && !editionsQuery.error && (!editionId || Boolean(resolvedEditionId));
+    editionsQuery.isSuccess &&
+    !editionsQuery.error &&
+    !editionsQuery.isFetching &&
+    (!editionId || Boolean(resolvedEditionId));
   // Ref keeps an in-flight R3 operation bound to live verification, not a stale closure.
   const verifiedEditionRef = useRef(editionContextVerified);
   const editionLabels = useMemo(
@@ -188,7 +191,7 @@ function AccessPermissionsPage() {
       });
       return true;
     },
-    enabled: editionsQuery.isSuccess && (!editionId || Boolean(resolvedEditionId)),
+    enabled: editionContextVerified,
     staleTime: Number.POSITIVE_INFINITY,
     retry: false,
   });
@@ -415,7 +418,7 @@ function AccessPermissionsPage() {
 
   const simulation = useMutation({
     mutationFn: ({ userId }: { userId: string }) => {
-      if (editionId && !resolvedEditionId) {
+      if (!editionContextVerified || (editionId && !resolvedEditionId)) {
         throw new Error(
           "The selected Organizer edition could not be verified. Access simulation will not fall back to global scope.",
         );
@@ -532,6 +535,7 @@ function AccessPermissionsPage() {
             permissionScopeLabel(approvalEditionId, editionLabels)
           }
           onApprove={(approval) => {
+            if (!editionContextVerified) return;
             setApprovalPassword("");
             setApprovalAction({
               approval,
@@ -541,6 +545,7 @@ function AccessPermissionsPage() {
             });
           }}
           onApply={(approval) => {
+            if (!editionContextVerified) return;
             setApprovalPassword("");
             setApprovalAction({
               approval,
