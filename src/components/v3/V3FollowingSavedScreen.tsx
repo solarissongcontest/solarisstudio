@@ -6,6 +6,7 @@ import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import { useMyFollows, useSetFanFollow } from "@/lib/engagement-data";
 import {
   buildV3FollowingSavedProjection,
+  searchV3FollowingSavedItems,
   type V3FollowingSavedItem,
   type V3FollowNotificationLevel,
 } from "@/lib/v3-following-saved";
@@ -108,9 +109,11 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const mutationInFlight = useRef(false);
   const [message, setMessage] = useState<{ viewerId: string; text: string } | null>(null);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     setMessage(null);
+    setSearch("");
   }, [viewerId]);
 
   const projection = useMemo(() => {
@@ -123,6 +126,10 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
       shows: shows.data ?? [],
     });
   }, [countries.data, editions.data, follows.data, shows.data, viewerId]);
+  const visibleItems = useMemo(
+    () => searchV3FollowingSavedItems(projection?.items ?? [], search),
+    [projection, search],
+  );
 
   const loading = follows.isLoading || countries.isLoading || editions.isLoading || shows.isLoading;
   const failed = follows.isError || countries.isError || editions.isError || shows.isError;
@@ -226,11 +233,38 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
           </V3Surface>
         ) : projection?.items.length ? (
           <>
+            <V3Surface className="mb-4 p-4">
+              <label className="grid gap-2 text-xs font-semibold text-[var(--v3-text-secondary)]">
+                Search saved items
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Country, edition or show"
+                  className="min-h-11 rounded-xl border border-[var(--v3-border)] bg-[var(--v3-bg-elevated)] px-3 text-sm text-[var(--v3-text-primary)]"
+                />
+              </label>
+              <p role="status" className="mt-2 text-xs text-[var(--v3-text-tertiary)]">
+                {visibleItems.length} of {projection.items.length} saved items
+              </p>
+            </V3Surface>
+            {search.trim() && visibleItems.length === 0 ? (
+              <V3Surface className="p-5" data-v3-following-saved-state="no-search-results">
+                <p className="text-sm font-semibold">No saved items match your search</p>
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="mt-3 min-h-11 rounded-xl border border-[var(--v3-border)] px-4 text-sm font-semibold"
+                >
+                  Clear search
+                </button>
+              </V3Surface>
+            ) : null}
             {(["country", "edition", "show"] as const).map((entityType) => {
-              const items = projection.items.filter((item) => item.entityType === entityType);
+              const items = visibleItems.filter((item) => item.entityType === entityType);
               if (!items.length) return null;
               return (
-                <V3Section key={entityType} title={typeLabel(entityType)} meta={`${items.length} saved`}>
+                <V3Section key={entityType} title={typeLabel(entityType)} meta={search.trim() ? `${items.length} matching` : `${items.length} saved`}>
                   <div className="grid gap-3">
                     {items.map((item) => (
                       <SavedItem
