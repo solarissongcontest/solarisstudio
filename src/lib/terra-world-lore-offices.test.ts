@@ -96,4 +96,13 @@ describe("TG16 fictional people, offices and historical terms",()=>{
     expect(()=>parseWorldDomesticOfficials({...officials,people:[{...officials.people[0],
       revision:0}]},"OL")).toThrow();
   });
+  it("derives published office appointments and conclusions into TG17 without editorial duplicates",()=>{
+    expect(SQL).toContain("create or replace function public.world_history_timeline_v1");
+    expect(SQL).toContain("from public.world_domestic_office_terms t");
+    expect(SQL).toContain("'domestic_office','world_domestic_office_terms'");
+    expect(SQL).toContain("t.visibility='public'");
+    expect(SQL).toContain("t.actual_end_at is not null");
+    expect(SQL).toContain("t.holder_display_name || ' appointed ' || t.office_title");
+    expect(SQL).not.toContain("insert into public.world_history_events");
+  });
 });
