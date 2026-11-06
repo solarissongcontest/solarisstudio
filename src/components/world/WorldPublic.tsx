@@ -149,7 +149,7 @@ export function WorldLanding() {
           Official leadership and membership appear only when they are recorded in Solaris.
         </p>
         <div className="mt-7 flex flex-wrap gap-3">
-          <Link to="/world/search" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+          <Link to="/world/search" search={{ q: "", c: 0, o: 0, type: "all" }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
             <Search className="size-4" aria-hidden="true" /> Search the world
           </Link>
           <Link to="/world/organizations" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-5 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
