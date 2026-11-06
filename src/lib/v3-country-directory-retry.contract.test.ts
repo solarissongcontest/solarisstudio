@@ -14,7 +14,7 @@ describe("V3 Country discovery recovery", () => {
   });
 
   it("keeps optional lineup errors separate from an unavailable country directory", () => {
-    expect(screen).toContain("if (participantsQuery.isError) setParticipatingOnly(false)");
+    expect(screen).toContain("if (participatingOnly && participantsQuery.isError) setParticipatingOnly(false)");
     expect(screen).toContain("const selectedParticipatingOnly = effectiveParticipatingScope(participatingOnly, currentLineupReady)");
     expect(screen).toContain("onClick={() => void participantsQuery.refetch()}");
     expect(screen).not.toContain("countriesQuery.isError || editionsQuery.isError");
