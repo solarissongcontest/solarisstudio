@@ -48,6 +48,14 @@ describe("TG3 published body route ownership", () => {
     expect(bodies).not.toContain("<AppShell><main");
   });
 
+  it("keeps AppShell mounted while app/platform detection resolves", () => {
+    const bodies = readFileSync(resolve(process.cwd(), "src/components/world/WorldBodiesPublic.tsx"), "utf8");
+    expect(bodies).toContain("<AppShell><div");
+    expect(bodies).toContain("platformResolved ? children");
+    expect(bodies).toContain('aria-label="Opening Terra Solaris"');
+    expect(bodies).not.toContain('if (!platformResolved) return');
+  });
+
   it("keeps stable URL paths for both canonical public body screens", () => {
     const directory = readFileSync(resolve(bodyRoutes, "index.tsx"), "utf8");
     const detail = readFileSync(resolve(bodyRoutes, "$bodySlug.tsx"), "utf8");
