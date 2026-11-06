@@ -93,6 +93,16 @@ export default defineConfig({
                 minSize: 5000,
                 priority: 1,
               },
+              // Reused client-only domain modules were each carrying separate
+              // chunk wrappers and gzip framing. Combine only modules actually
+              // shared by multiple lazy entrypoints; preserve route-local code.
+              {
+                name: "shared-client-helpers",
+                test: /[\\/]src[\\/]lib[\\/](?!.*(?:\.server\.|\.test\.|\.contract\.|\.spec\.))/,
+                minShareCount: 2,
+                minSize: 5000,
+                priority: 1,
+              },
             ],
           },
         },
