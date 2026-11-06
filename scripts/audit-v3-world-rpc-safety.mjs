@@ -12,6 +12,28 @@ import { fileURLToPath } from "node:url";
 const BROWSER_ROLES = new Set(["public", "anon", "authenticated"]);
 const DML_PRIVILEGE = /^(?:all(?: privileges)?|insert|update|delete|truncate|references|trigger)(?:\s*\([^)]*\))?$/;
 
+/** GRANT lists are comma-separated, but privilege column sets may contain commas too. */
+function splitGrantList(source) {
+  const parts = [];
+  let start = 0, depth = 0, quoted = false;
+  for (let i = 0; i < source.length; i += 1) {
+    const char = source[i];
+    if (char === '"') {
+      if (quoted && source[i + 1] === '"') { i += 1; continue; }
+      quoted = !quoted;
+    } else if (!quoted) {
+      if (char === "(") depth += 1;
+      else if (char === ")") depth = Math.max(0, depth - 1);
+      else if (char === "," && depth === 0) {
+        parts.push(source.slice(start, i).trim());
+        start = i + 1;
+      }
+    }
+  }
+  parts.push(source.slice(start).trim());
+  return parts.filter(Boolean);
+}
+
 /** Split top-level SQL, preserving lines; dollar bodies never become statements. */
 export function splitTopLevelSql(sql) {
   const statements = [];
@@ -72,7 +94,7 @@ function functionOptionsOutsideBody(statement) {
   if (end < 0) return statement.slice(0, asMatch.index);
   return `${statement.slice(0, asMatch.index)} ${statement.slice(end + asMatch[1].length)}`;
 }
-const WORLD_FUNCTION = /^create\s+(?:or\s+replace\s+)?function\s+(?:(?:public|private)\s*\.\s*)?"?(world_[a-z0-9_]+)"?\s*\(/i;
+const WORLD_ROUTINE = /^create\s+(?:or\s+replace\s+)?(?:function|procedure)\s+(?:(?:"(?:public|private)"|(?:public|private))\s*\.\s*)?"?(world_[a-z0-9_]+)"?\s*\(/i;
 const SAFE_SEARCH_PATH = /\bset\s+search_path\s*(?:=|to)\s*"?pg_catalog"?\s*(?=$|\b(?:language|security|strict|immutable|stable|volatile|parallel|cost|rows|leakproof|not|as|set)\b)/i;
 const ANY_SEARCH_PATH = /\bset\s+search_path\s*(?:=|to)\s*/i;
 function worldGrantFinding(statement) {
@@ -80,12 +102,21 @@ function worldGrantFinding(statement) {
   if (!match) return null;
   const [, privilegeSource, targetSource, roleSource] = match;
   if (/^(?:function|procedure|sequence|schema|database|type)\b/i.test(targetSource.trim())) return null;
-  const tables = [...targetSource.matchAll(/\b(?:(?:public|private)\s*\.\s*)?"?(world_[a-z0-9_]+)"?\b/gi)].map(m => m[1].toLowerCase());
-  const worldSchemaWide = /^all\s+tables\s+in\s+schema\s+(?:public|"public")\s*$/i.test(targetSource.trim());
+  // Only inspect complete table identifiers. Quoted schema/table names are valid SQL.
+  const worldTable = /^(?:(?:"(?:public|private)"|(?:public|private))\s*\.\s*)?"?(world_[a-z0-9_]+)"?$/i;
+  const tables = splitGrantList(targetSource).flatMap((target) => {
+    const match = worldTable.exec(target);
+    return match ? [match[1].toLowerCase()] : [];
+  });
+  const allSchemas = /^all\s+tables\s+in\s+schema\s+([\s\S]+)$/i.exec(targetSource.trim());
+  const worldSchemaWide = !!allSchemas && splitGrantList(allSchemas[1])
+    .some((schema) => /^"?public"?$/i.test(schema));
   if (tables.length === 0 && !worldSchemaWide) return null;
-  const roles = roleSource.toLowerCase().replaceAll('"', "").split(/\s*,\s*/).map(x => x.trim()).filter(x => BROWSER_ROLES.has(x));
+  const roles = splitGrantList(roleSource)
+    .map((role) => role.replace(/^"|"$/g, "").toLowerCase())
+    .filter((role) => BROWSER_ROLES.has(role));
   if (roles.length === 0) return null;
-  const dangerous = privilegeSource.toLowerCase().split(/\s*,\s*/).map(x => x.trim()).filter(p => DML_PRIVILEGE.test(p));
+  const dangerous = splitGrantList(privilegeSource.toLowerCase()).filter((privilege) => DML_PRIVILEGE.test(privilege));
   if (dangerous.length === 0) return null;
   return {
     code: worldSchemaWide ? "WORLD_BROWSER_SCHEMA_WIDE_DML_GRANT" : "WORLD_BROWSER_DIRECT_DML_GRANT",
@@ -97,7 +128,7 @@ export function auditWorldSqlSource(source, filename = "fixture.sql") {
   let functionsInspected = 0, grantsInspected = 0;
   for (const statement of splitTopLevelSql(source)) {
     const sql = statement.sql;
-    const name = WORLD_FUNCTION.exec(sql)?.[1];
+    const name = WORLD_ROUTINE.exec(sql)?.[1];
     if (name) {
       functionsInspected += 1;
       const options = functionOptionsOutsideBody(sql);
