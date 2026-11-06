@@ -135,6 +135,20 @@ describe("WORLD-06 TG9 certified resolutions", () => {
     });
   });
 
+  it("recovers after a thrown network exception using the SAME operation ID", async () => {
+    const args = {
+      voteId: vote, expectedMeasureRevision: 3,
+      operationId: operation, idempotencyKey: "same-command-retry-key",
+    };
+    mocks.rpc.mockRejectedValueOnce(new Error("Disconnected"))
+      .mockResolvedValueOnce({ data: { ...receiptEnvelope, replayed: undefined }, error: null });
+    await expect(materializeWorldCertifiedResolution(args)).resolves.toEqual({ ...receipt, replayed: true });
+    expect(mocks.rpc).toHaveBeenCalledTimes(2);
+    expect(mocks.rpc).toHaveBeenLastCalledWith("studio2_reconcile_operation", {
+      p_operation_id: operation,
+    });
+  });
+
   it("rejects unrelated or unresolved receipts and does not invent publication success", async () => {
     const args = {
       voteId: vote, expectedMeasureRevision: 3,
