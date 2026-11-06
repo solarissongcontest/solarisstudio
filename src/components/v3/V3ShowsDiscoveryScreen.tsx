@@ -442,31 +442,19 @@ function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: bool
 
 function ShowRow({ item, compact = false }: { item: ShowDiscoveryItem; compact?: boolean }) {
   return (
-    <div className="flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3">
-      <div className="min-w-0 flex-1">
+    <Link to="/shows/$showId" params={{ showId: item.show.id }}
+      className="flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+      <span className="min-w-0 flex-1">
         <ShowContext item={item} truncate />
-        <Link
-          to="/shows/$showId"
-          params={{ showId: item.show.id }}
-          className="mt-1 block truncate text-sm font-semibold"
-        >
-          {item.show.name}
-        </Link>
+        <strong className="mt-1 block truncate text-sm font-semibold">{item.show.name}</strong>
         {!compact ? (
           <span className="mt-0.5 block text-xs capitalize text-muted-foreground">
             <ShowKindAndTime item={item} />
           </span>
         ) : null}
-      </div>
-      <Link
-        to="/shows/$showId"
-        params={{ showId: item.show.id }}
-        aria-label={`Open ${item.show.name}`}
-        className="inline-flex min-h-11 min-w-11 items-center justify-center text-primary"
-      >
-        →
-      </Link>
-    </div>
+      </span>
+      <span aria-hidden="true" className="inline-flex min-h-11 min-w-11 items-center justify-center text-primary">→</span>
+    </Link>
   );
 }
 
