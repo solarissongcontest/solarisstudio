@@ -55,8 +55,9 @@ describe("TG13 actor-transition privacy", () => {
     expect(publish).toBeGreaterThan(evict);
     expect(source).toContain("data.subscription.unsubscribe()");
     expect(source).toContain("useFanSession()");
-    expect(source).toContain('"INITIAL_SESSION", "SIGNED_IN", "SIGNED_OUT"');
-    expect(source).toContain('"TOKEN_REFRESHED", "USER_UPDATED"');
+    expect(source).toContain("supabase.auth.onAuthStateChange((_event, next) => {");
+    expect(source).toContain("Handle *every* auth transition");
+    expect(source).not.toContain(".includes(event)) return;");
     expect(source).toContain("observed.userId === canonicalUserId");
     expect(source).toContain("assertTg13CurrentActor");
     expect(source).toContain("data.user?.id !== expectedUserId");
