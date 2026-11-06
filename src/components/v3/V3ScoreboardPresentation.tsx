@@ -13,6 +13,11 @@ export type V3ScoreboardPresentationProps = {
     Country & { entityType?: "global" | "custom" }
   >;
   participants?: ReadonlyMap<string, Participant>;
+  /**
+   * Retained for ScoreboardStage compatibility during strangler migration.
+   * V3 must not derive qualification from a numeric cutoff; only canonical
+   * participant qualification truth may produce qualification badges.
+   */
   qualifiers?: number | null;
 };
 
@@ -38,7 +43,6 @@ export function V3ScoreboardPresentation({
   standings,
   countries,
   participants,
-  qualifiers,
 }: V3ScoreboardPresentationProps) {
   const rows = [...standings].sort((a, b) => a.rank - b.rank);
   const rankCounts = rows.reduce((counts, row) => {
@@ -59,7 +63,6 @@ export function V3ScoreboardPresentation({
     ? participants?.get(winnerStanding.countryId)
     : undefined;
   const winnerSubtitle = entrySubtitle(winnerParticipant);
-  const hasQualifierCutoff = typeof qualifiers === "number" && qualifiers > 0;
 
   return (
     <section
@@ -139,14 +142,7 @@ export function V3ScoreboardPresentation({
                 const subtitle = entrySubtitle(participant);
                 const countryLabel = country?.name || UNAVAILABLE_COUNTRY_LABEL;
                 const isTied = tiedRanks.has(standing.rank);
-                const isQualified =
-                  participant?.qualified === true
-                    ? true
-                    : participant?.qualified === false
-                      ? false
-                      : hasQualifierCutoff
-                        ? standing.rank <= qualifiers!
-                        : null;
+                const isQualified = participant?.qualified ?? null;
 
                 const body = (
                   <>
