@@ -29,6 +29,7 @@ describe("Organizer Entry source inspection", () => {
       "javascript:alert(1)", "data:text/html,hello", "blob:https://example.test/a",
       "file:///etc/passwd", "not a link", "/uploads/song.mp3", "//example.test/a",
       "https://name:secret@example.test/song.mp3", "https://media.example.test/\n@attacker.test/a",
+      "https://media.example.test/song.mp3\n", "\thttps://media.example.test/song.mp3",
     ]) {
       expect(safeOrganizerEntrySourceUrl(value)).toBeNull();
     }
@@ -90,6 +91,10 @@ describe("Organizer Entry source inspection", () => {
         ...valid, review_status: status, reviewed_version_id: null,
       });
       expect(legacy.checks.find((check) => check.id === "review-version")?.status).toBe("attention");
+      const unboundCurrent = inspectOrganizerEntrySource({
+        ...valid, review_status: status, current_version_id: null,
+      });
+      expect(unboundCurrent.checks.find((check) => check.id === "review-version")?.status).toBe("attention");
     }
     expect(inspectOrganizerEntrySource({
       ...valid, review_status: "pending",
