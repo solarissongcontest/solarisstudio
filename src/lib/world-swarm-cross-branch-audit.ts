@@ -2,7 +2,7 @@
  * TG19 read-only cross-PR World migration preflight. Never certifies releases.
  * Checks migration filenames and pull-request metadata, not hosted Supabase.
  */
-export type WorldSwarmChangeStatus = "added" | "modified" | "removed" | "renamed" | "copied";
+export type WorldSwarmChangeStatus = "added" | "modified" | "changed" | "removed" | "renamed" | "copied";
 export interface WorldSwarmChangedFile {
   filename: string;
   status: WorldSwarmChangeStatus;
@@ -27,6 +27,7 @@ export interface WorldSwarmAuditIssue {
   severity: "error" | "warning";
   code:
     | "invalid_snapshot"
+    | "invalid_changed_file"
     | "duplicate_pr_number"
     | "main_migration_collision"
     | "main_migration_modified"
@@ -112,6 +113,7 @@ export function auditWorldSwarmCrossBranches(snapshot: WorldSwarmSnapshot): Worl
   if (!EXACT_SHA.test(snapshot.mainSha)) invalid("Main must have an exact 40-character SHA");
   if (snapshot.repository !== "solarissongcontest/solarisstudio") invalid("Unexpected repository");
   const mainPaths = new Set(snapshot.mainMigrations);
+  if (mainPaths.size !== snapshot.mainMigrations.length) invalid("Main migration snapshot contains duplicate paths");
   const mainByVersion = new Map<string, string>();
   for (const path of snapshot.mainMigrations) {
     const v = versionOf(path);
@@ -145,6 +147,15 @@ export function auditWorldSwarmCrossBranches(snapshot: WorldSwarmSnapshot): Worl
       prs: [pull.number], paths: [],
     });
     for (const file of pull.files) {
+      if (!["added", "modified", "changed", "removed", "renamed", "copied"].includes(file.status) ||
+        !file.filename || (file.status === "renamed" && !file.previousFilename)) {
+        addIssue(issues, {
+          severity: "error", code: "invalid_changed_file",
+          message: `PR #${pull.number} has an unrecognized changed-file status or incomplete rename metadata`,
+          prs: [pull.number], paths: [file.filename || ""],
+        });
+        continue;
+      }
       const isMigration = (path: string) =>
         path.startsWith("supabase/migrations/") && path.endsWith(".sql");
       const sourcePath = file.previousFilename;
