@@ -35,6 +35,16 @@ test("S14 diagnostic refuses false full-contest passes for partial, failed or st
       "grand-final-results", "grand-final-publication",
     ],
     pendingContestExtensions: [], blockedContestExtensions: [],
+    implementedInvariants: [
+      "confirmation-no-effective-duplicates", "entry-valid-revision", "media-accepted-revision",
+      "jury-single-final-ballot", "televote-canonical-ballot", "result-reproducible",
+      "publication-final-version", "tasks-canonical", "notifications-reconcilable",
+    ],
+    implementedFailureInjections: [
+      "network-after-commit", "db-timeout-before-commit", "duplicate-request",
+      "worker-crash", "realtime-disconnect", "stale-client", "two-organizers",
+      "supabase-outage",
+    ],
     runIdentity: { candidateSha, editionId: "disposable-edition", databaseFingerprint: "local-fixture" },
     seed: { editionCount: 1, delegationCount: 66, showCount: 3 },
   };
@@ -50,6 +60,9 @@ test("S14 diagnostic refuses false full-contest passes for partial, failed or st
     { ...evidence, completedContestExtensions: evidence.completedContestExtensions.slice(1) },
     { ...evidence, pendingContestExtensions: ["grand-final-results"] },
     { ...evidence, blockedContestExtensions: ["grand-final-publication"] },
+    { ...evidence, implementedInvariants: evidence.implementedInvariants.slice(1) },
+    { ...evidence, implementedFailureInjections: evidence.implementedFailureInjections.slice(0, -1) },
+    { ...evidence, implementedFailureInjections: [...evidence.implementedFailureInjections, "duplicate-request"] },
     { ...evidence, runIdentity: { ...evidence.runIdentity, candidateSha: "b".repeat(40) } },
     { ...evidence, runIdentity: { ...evidence.runIdentity, databaseFingerprint: "" } },
     { ...evidence, seed: { ...evidence.seed, showCount: 2 } },
