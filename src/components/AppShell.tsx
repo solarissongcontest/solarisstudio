@@ -1,16 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import {
-  ChevronDown,
-  Compass,
-  Home,
-  Menu,
-  Trophy,
-  User,
-  Vote,
-  X,
-  type LucideIcon,
-} from "lucide-react";
-import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import { ChevronDown, Compass, Menu, X } from "lucide-react";
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { AppAdaptiveWorkspace } from "@/components/app/AppAdaptiveWorkspace";
 import { AppMoreNavigation } from "@/components/app/AppMoreNavigation";
@@ -38,7 +28,7 @@ import {
 import { useAppAttentionSummary } from "@/lib/app-attention";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
 import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
-import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
+import { publicAreaForPath } from "@/lib/public-navigation";
 import {
   publicCanvasForArchetype,
   publicLayoutTokenForArchetype,
@@ -81,13 +71,24 @@ const EMPTY_ACCESS: AccountAccess = {
   schemaReady: true,
 };
 
-const GLOBAL_ICON_BY_AREA: Record<(typeof PUBLIC_GLOBAL_AREAS)[number]["id"], LucideIcon> = {
-  home: Home,
-  explore: Compass,
-  participate: Vote,
-  results: Trophy,
-  me: User,
-};
+type ShellAccessResolution = "resolving" | "ready" | "unavailable";
+
+function ShellAccessStatus({ state }: { state: Exclude<ShellAccessResolution, "ready"> }) {
+  const unavailable = state === "unavailable";
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      data-solaris-shell-access={state}
+      className="pointer-events-none fixed left-1/2 z-[65] w-[min(92vw,30rem)] -translate-x-1/2 rounded-full border border-border/70 bg-background/92 px-3 py-2 text-center text-[11px] font-semibold text-muted-foreground shadow-lg backdrop-blur-md"
+      style={{ top: "calc(var(--solaris-app-safe-top, env(safe-area-inset-top)) + var(--solaris-app-safe-top-comfort, 6px) + .65rem)" }}
+    >
+      {unavailable
+        ? "Solaris could not verify account access. Navigation stays limited until the session is checked again."
+        : "Checking Solaris account access…"}
+    </div>
+  );
+}
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { isAppMode } = useSolarisApp();
@@ -97,30 +98,86 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [email, setEmail] = useState<string | null>(null);
   const [access, setAccess] = useState<AccountAccess>(EMPTY_ACCESS);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [navigationReady, setNavigationReady] = useState(false);
-
-  useEffect(() => setNavigationReady(true), []);
+  const [accessResolution, setAccessResolution] = useState<ShellAccessResolution>("resolving");
+  const accessRequestRef = useRef(0);
+  const resolvedUserIdRef = useRef<string | null | undefined>(undefined);
   const appScreen = resolveSolarisAppScreen(pathname, searchStr);
+  const accessReady = accessResolution === "ready";
+  const navigationReady = accessReady;
 
   useEffect(() => {
     let alive = true;
 
+    const markUnavailable = (requestId: number, error: unknown) => {
+      if (!alive || requestId !== accessRequestRef.current) return;
+      console.warn("Could not resolve Solaris shell access", error);
+      setEmail(null);
+      setAccess(EMPTY_ACCESS);
+      resolvedUserIdRef.current = undefined;
+      setAccessResolution("unavailable");
+    };
+
     const refresh = async (userId?: string | null, userEmail?: string | null) => {
       if (!alive) return;
-      setEmail(userEmail ?? null);
+      const nextUserId = userId ?? null;
+      const requestId = ++accessRequestRef.current;
+      const identityChanged = resolvedUserIdRef.current !== nextUserId;
 
-      if (!userId) {
+      if (identityChanged) {
+        // Never retain the previous viewer's navigation capabilities while
+        // resolving a new identity. Route content itself remains mounted.
+        setEmail(null);
         setAccess(EMPTY_ACCESS);
+        setMenuOpen(false);
+        setAccessResolution("resolving");
+      }
+
+      if (!nextUserId) {
+        if (!alive || requestId !== accessRequestRef.current) return;
+        resolvedUserIdRef.current = null;
+        setEmail(null);
+        setAccess(EMPTY_ACCESS);
+        setAccessResolution("ready");
         return;
       }
 
-      const next = await getCurrentAccountAccess(userId);
-      if (alive) setAccess(next);
+      try {
+        const next = await getCurrentAccountAccess(nextUserId);
+        if (!alive || requestId !== accessRequestRef.current) return;
+        resolvedUserIdRef.current = nextUserId;
+        setEmail(userEmail ?? null);
+        setAccess(next);
+        setAccessResolution("ready");
+      } catch (error) {
+        // A failed refresh for the same verified viewer must not erase good
+        // access state; identity-changing failures stay fail-closed.
+        if (!identityChanged) {
+          if (alive && requestId === accessRequestRef.current) {
+            console.warn("Could not refresh Solaris shell access", error);
+          }
+          return;
+        }
+        markUnavailable(requestId, error);
+      }
     };
 
+    const bootstrapRequestId = ++accessRequestRef.current;
+    setAccessResolution("resolving");
     void supabase.auth
       .getUser()
-      .then(({ data }) => refresh(data.user?.id ?? null, data.user?.email ?? null));
+      .then(({ data, error }) => {
+        if (!alive || bootstrapRequestId !== accessRequestRef.current) return;
+        // No stored session is a normal anonymous visit, not an auth outage.
+        // Only AuthSessionMissingError with no user may resolve as anonymous;
+        // every other bootstrap error must keep permission-sensitive UI closed.
+        const missingSession = error?.name === "AuthSessionMissingError" && !data.user;
+        if (error && !missingSession) {
+          markUnavailable(bootstrapRequestId, error);
+          return;
+        }
+        void refresh(data.user?.id ?? null, data.user?.email ?? null);
+      })
+      .catch((error) => markUnavailable(bootstrapRequestId, error));
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
       window.setTimeout(
@@ -131,6 +188,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
     return () => {
       alive = false;
+      accessRequestRef.current += 1;
       subscription.subscription.unsubscribe();
     };
   }, []);
@@ -262,19 +320,15 @@ export function AppShell({ children }: { children: ReactNode }) {
       publicArea === "participate" ||
       publicArea === "results" ||
       publicArea === "help");
-  const quickNavigation = globalAreas.map((item) => ({
-    to: item.to,
-    label: item.label,
-    icon: GLOBAL_ICON_BY_AREA[item.id],
-    active: !pathname.startsWith("/site-directory") && publicArea === item.id,
-  }));
 
   return (
     <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
       <div className="relative isolate min-h-screen overflow-x-clip">
         <div aria-hidden="true" className="app-background" />
 
-        {isAppMode && appScreen.chrome.toolbar !== "hidden" ? (
+        {accessResolution !== "ready" ? <ShellAccessStatus state={accessResolution} /> : null}
+
+        {isAppMode && accessReady && appScreen.chrome.toolbar !== "hidden" ? (
           <AppToolbar pathname={pathname} searchStr={searchStr} access={access} />
         ) : null}
 
@@ -284,29 +338,50 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Brand />
 
               <nav className="ml-auto hidden items-center gap-1 lg:flex" aria-label="Main navigation">
-                <NewPublicDesktopNavigation
-                  pathname={pathname}
-                  publicArea={publicArea}
-                  globalAreas={globalAreas}
-                  access={access}
-                  email={email}
-                  visibleAccountEmail={visibleAccountEmail}
-                  signOut={signOut}
-                />
+                {accessReady ? (
+                  <NewPublicDesktopNavigation
+                    pathname={pathname}
+                    publicArea={publicArea}
+                    globalAreas={globalAreas}
+                    access={access}
+                    email={email}
+                    visibleAccountEmail={visibleAccountEmail}
+                    signOut={signOut}
+                  />
+                ) : (
+                  <span className="text-xs font-semibold text-muted-foreground" aria-hidden="true">
+                    Checking access…
+                  </span>
+                )}
               </nav>
 
-              <SheetTrigger asChild>
-                <button
-                  type="button"
-                  className="ml-auto grid h-11 w-11 place-items-center rounded-xl border border-border/75 bg-surface/70 transition-[background-color,transform] duration-150 ease-out active:scale-[0.96] motion-reduce:active:scale-100 lg:hidden"
-                  aria-label="Open navigation"
-                  disabled={!navigationReady}
-                  aria-busy={!navigationReady}
-                  aria-expanded={menuOpen}
+              <nav className="ml-auto flex shrink-0 items-center gap-1.5 lg:hidden" aria-label="Mobile website navigation">
+                <Link
+                  to="/explore"
+                  aria-label="Explore Solaris"
+                  aria-current={pathname === "/explore" ? "page" : undefined}
+                  onClick={() => trackPublicUxEvent("public_nav_clicked", {
+                    target: "/explore",
+                    metadata: { area: "explore", source: "mobile_web_header" },
+                  })}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
-                  <Menu className="h-5 w-5" />
-                </button>
-              </SheetTrigger>
+                  <Compass className="h-4 w-4" aria-hidden="true" />
+                  <span className="hidden min-[370px]:inline">Explore</span>
+                </Link>
+                <SheetTrigger asChild>
+                  <button
+                    type="button"
+                    className="grid h-11 w-11 place-items-center rounded-lg border border-border/75 bg-surface/70 transition-colors hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    aria-label="Open navigation"
+                    disabled={!navigationReady}
+                    aria-busy={!navigationReady}
+                    aria-expanded={menuOpen}
+                  >
+                    <Menu className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                </SheetTrigger>
+              </nav>
             </div>
           </header>
         ) : null}
@@ -316,11 +391,17 @@ export function AppShell({ children }: { children: ReactNode }) {
             aria-label="More Solaris Studio options"
             className="solaris-app-more-sheet !inset-x-2 !bottom-0 !max-h-[92dvh] !gap-0 !overflow-hidden !rounded-t-[1.55rem] !border !border-b-0"
           >
-            <AppMoreNavigation
-              signedIn={Boolean(access.userId)}
-              access={access}
-              onSignOut={() => void signOut()}
-            />
+            {accessReady ? (
+              <AppMoreNavigation
+                signedIn={Boolean(access.userId)}
+                access={access}
+                onSignOut={() => void signOut()}
+              />
+            ) : (
+              <div className="p-5 text-sm text-muted-foreground" role="status" aria-live="polite">
+                Checking account access…
+              </div>
+            )}
           </SolarisDraggableSheetContent>
         ) : (
           <SheetContent
@@ -401,7 +482,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               : undefined
           }
           className={cn(
-            "app-main relative z-10 mx-auto w-full min-w-0 px-3 pb-24 pt-4 sm:px-5 sm:pb-24 sm:pt-6 lg:px-8 lg:py-8 2xl:px-10",
+            "app-main relative z-10 mx-auto w-full min-w-0 px-3 pt-4 sm:px-5 sm:pt-6 lg:px-8 lg:py-8 2xl:px-10",
+            isAppMode ? "pb-24 sm:pb-24" : "pb-8 sm:pb-12",
             publicCanvasForArchetype(publicArchetype),
           )}
         >
@@ -479,7 +561,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <PublicFooter />
         ) : null}
 
-        {isAppMode && appChrome.tabBar !== "hidden" ? (
+        {isAppMode && accessReady && appChrome.tabBar !== "hidden" ? (
           <AppTabBar
             pathname={pathname}
             searchStr={searchStr}
@@ -489,44 +571,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           />
         ) : null}
 
-        {!isAppMode && !isMySolarisWorkspace && (
-          <nav
-            className="mobile-quick-nav fixed inset-x-0 bottom-0 z-50 border-t border-border/70 px-2 pt-1.5 lg:hidden"
-            style={{ paddingBottom: "max(.4rem, env(safe-area-inset-bottom))" }}
-            aria-label="Primary navigation"
-          >
-            <div className="mx-auto grid max-w-xl grid-cols-5 gap-1">
-              {quickNavigation.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.label}
-                    to={item.to as any}
-                    aria-current={item.active ? "page" : undefined}
-                    onClick={() =>
-                      trackPublicUxEvent("public_nav_clicked", {
-                        target: item.to,
-                        metadata: {
-                          area:
-                            globalAreas.find((area) => area.to === item.to)?.id ??
-                            (item.to === "/auth" ? "me" : "unknown"),
-                          source: "mobile_bottom",
-                        },
-                      })
-                    }
-                    className={cn(
-                      "flex min-h-13 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-semibold transition-colors",
-                      item.active ? "bg-surface-strong text-foreground" : "text-muted-foreground",
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
-        )}
+
       </div>
     </Sheet>
   );

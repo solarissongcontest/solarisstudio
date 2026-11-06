@@ -23,7 +23,10 @@ describe("auth subscriber lifecycle audit", () => {
     expect(accountCache).toContain('client.setQueryData(["fan-session"]');
     expect(accountCache).toContain("clearPrivateAccountQueries(client)");
     expect(appShell).toContain("if (!alive) return;");
-    expect(appShell).toContain("if (alive) setAccess(next);");
+    expect(appShell).toContain("const requestId = ++accessRequestRef.current");
+    expect(appShell).toContain("if (!alive || requestId !== accessRequestRef.current) return;");
+    expect(appShell).toContain("setAccess(next);");
+    expect(appShell).toContain("accessRequestRef.current += 1;");
     expect(settings).toContain("useFanSession");
     expect(settings).not.toContain("supabase.auth.onAuthStateChange");
     expect(settings).not.toContain("supabase.auth.getUser");
