@@ -19,6 +19,26 @@ describe("Public V3 Live route reconnect boundary", () => {
     expect(gate).toContain("reversible fallback only when the initial focused V3");
   });
 
+  it("fails closed with manual retry before an initial server read is available", () => {
+    const gate = gateSource();
+    const rolloutError = gate.indexOf("if (rollout.isError && !rollout.data)");
+    const rolloutFallback = gate.indexOf("if (!rollout.data || !v3Enabled)");
+    const bundleError = gate.indexOf("if (bundle.isError && !bundle.data)");
+    const bundleFallback = gate.indexOf("if (!bundle.data)");
+
+    expect(rolloutError).toBeGreaterThan(0);
+    expect(bundleError).toBeGreaterThan(0);
+    expect(rolloutError).toBeLessThan(rolloutFallback);
+    expect(bundleError).toBeLessThan(bundleFallback);
+    expect(gate).toContain('onRetry={() => { void rollout.refetch(); }}');
+    expect(gate).toContain('onRetry={() => { void bundle.refetch(); }}');
+    expect(gate).toContain('refreshing={rollout.isFetching}');
+    expect(gate).toContain('refreshing={bundle.isFetching}');
+    expect(gate).toContain('disabled={refreshing}');
+    expect(gate).toContain('refreshing ? "Retrying Live…" : "Retry Live"');
+    expect(gate).toContain("instead of mounting legacy archive queries");
+  });
+
   it("keeps cached rollout and Live authority mounted when a refetch fails", () => {
     const gate = gateSource();
 
