@@ -125,7 +125,7 @@ export default defineConfig({
                 name: "shared-cross-route",
                 minShareCount: 2,
                 minSize: 10000,
-                maxSize: 2250000,
+                maxSize: 1750000,
                 priority: -1,
               },
             ],
