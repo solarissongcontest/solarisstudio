@@ -12,6 +12,9 @@ describe("country page presentation ownership", () => {
     expect(resolveCountryLayoutMode(false, false)).toBe("desktop-web");
     expect(resolveCountryLayoutMode(true, true)).toBe("installed-app");
     expect(resolveCountryLayoutMode(true, false)).toBe("installed-app");
+    const countryLayout = read("src/lib/country-layout-mode.ts");
+    expect(countryLayout).toContain("resolveCountryDirectoryPresentation");
+    expect(countryLayout).toContain("COUNTRY_DIRECTORY_MOBILE_MEDIA");
   });
 
   it("keeps the installed-app route gated and the browser route separate", () => {
@@ -34,10 +37,13 @@ describe("country page presentation ownership", () => {
     const wiki = read("src/components/wiki/CountryWikiExperience.tsx");
     const css = read("src/wiki-mobile-web.css");
 
-    expect(hook).toContain("useSolarisApp()");
-    expect(hook).toContain("useState(matchesMobileWebViewport)");
-    expect(hook).toContain("resolveCountryLayoutMode(isAppMode, narrowViewport)");
-    expect(hook).toContain("media.addListener?.(update)");
+    const directoryHook = read("src/lib/use-country-directory-presentation.ts");
+    expect(hook).toContain("useCountryDirectoryPresentation()");
+    expect(hook).not.toContain("useEffect(");
+    expect(hook).not.toContain("matchMedia");
+    expect(directoryHook).toContain("useSolarisApp()");
+    expect(directoryHook).toContain("useSyncExternalStore(");
+    expect(directoryHook).toContain("COUNTRY_DIRECTORY_MOBILE_MEDIA");
     expect(wiki).toContain("const countryLayoutMode = useCountryLayoutMode()");
     expect(wiki).toContain("data-wiki-layout-mode={countryLayoutMode}");
     expect(wiki).toContain('countryLayoutMode === "mobile-web" ? (');
