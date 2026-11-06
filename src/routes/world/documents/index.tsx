@@ -27,11 +27,11 @@ function WorldDocumentsPage() {
   return (
     <WorldPublicGate>
       <WorldDocumentLibraryScreen
-      initialSearch={search.q}
-      initialOrganization={search.organization}
-      onApplySearch={(q, organization) => {
-        void navigate({ to: "/world/documents", search: { q, organization } });
-      }}
+        initialSearch={search.q}
+        initialOrganization={search.organization}
+        onApplySearch={(q, organization) => {
+          void navigate({ to: "/world/documents", search: { q, organization } });
+        }}
       />
     </WorldPublicGate>
   );
