@@ -25,7 +25,7 @@ import {
   useCountryDesignV2,
 } from "@/lib/country-design-v2";
 import { canonicalCountryPersonalityId } from "@/lib/country-personality-system";
-import { useCountryLayoutMode } from "@/lib/use-country-layout-mode";
+import { useCountryDirectoryPresentation } from "@/lib/use-country-directory-presentation";
 import { countryPersonalitySource } from "@/lib/country-personality-sources";
 import type { CountryIdentityModel } from "@/lib/country-semantic-model";
 import {
@@ -120,7 +120,7 @@ type Tab = (typeof TABS)[number]["value"];
 function CountryProfilePage() {
   const { code } = Route.useParams();
   const { isAppMode } = useSolarisApp();
-  const countryLayoutMode = useCountryLayoutMode();
+  const countryLayoutMode = useCountryDirectoryPresentation();
   const [archiveEnabled, setArchiveEnabled] = useState(!isAppMode);
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
