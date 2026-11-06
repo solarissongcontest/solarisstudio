@@ -35,6 +35,9 @@ export function V3FantasyScreen({
   state,
   team,
   standings,
+  standingsState,
+  retryingStandings,
+  onRetryStandings,
   viewerId,
   submitting,
   submitError,
@@ -54,6 +57,9 @@ export function V3FantasyScreen({
   state: V3FantasyState;
   team: V3FantasyTeam | null;
   standings: readonly V3FantasyStanding[];
+  standingsState: "unpublished" | "loading" | "paused" | "error" | "ready";
+  retryingStandings: boolean;
+  onRetryStandings: () => void;
   viewerId: string | null;
   submitting: boolean;
   submitError: string | null;
@@ -220,7 +226,27 @@ export function V3FantasyScreen({
 
         <V3Section title="Leaderboard" meta={state === "settled" ? "Published scoring" : "When available"}>
           <V3Surface className="overflow-hidden">
-            {standings.length ? standings.slice(0, 25).map((row, index) => {
+            {standingsState === "unpublished" ? (
+              <div className="p-5 text-sm text-[var(--v3-text-secondary)]">
+                Rankings appear after official Fantasy scoring is published.
+              </div>
+            ) : standingsState === "error" ? (
+              <div className="space-y-3 p-5" role="alert" data-v3-fantasy-standings-state="error">
+                <p className="text-sm text-[var(--v3-danger)]">Fantasy standings could not be verified. No rankings are shown.</p>
+                <button type="button" disabled={retryingStandings} onClick={onRetryStandings}
+                  className="min-h-11 rounded-xl border border-[var(--v3-border)] px-4 text-sm font-semibold disabled:opacity-50">
+                  {retryingStandings ? "Retrying…" : "Retry standings"}
+                </button>
+              </div>
+            ) : standingsState === "paused" ? (
+              <div role="status" className="p-5 text-sm text-[var(--v3-text-secondary)]">
+                Reconnect to verify Fantasy standings.
+              </div>
+            ) : standingsState === "loading" ? (
+              <div role="status" className="p-5 text-sm text-[var(--v3-text-secondary)]">
+                Loading Fantasy standings…
+              </div>
+            ) : standings.length ? standings.slice(0, 25).map((row, index) => {
               const isViewer = Boolean(viewerId && row.profileId === viewerId);
               return (
                 <div key={row.profileId} className={cn("flex items-center gap-3 p-4 text-sm", index > 0 && "border-t border-[var(--v3-border-subtle)]", isViewer && "bg-white/[0.045]")}>

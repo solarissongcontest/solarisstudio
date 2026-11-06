@@ -41,6 +41,57 @@ export type V3FantasyStanding = {
   profileId: string;
 };
 
+/** Validate an entire published leaderboard before rendering any ranking. */
+export function normalizeV3FantasyStandings(payload: unknown): V3FantasyStanding[] {
+  if (!Array.isArray(payload)) throw new Error("Invalid Fantasy leaderboard response.");
+
+  const identities = new Set<string>();
+  const standings = payload.map((value: unknown) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error("Invalid Fantasy standing.");
+    }
+
+    const row = value as Record<string, unknown>;
+    // PostgreSQL numeric columns can arrive as decimal strings through RPC.
+    const toNumber = (input: unknown): number => {
+      if (typeof input === "number") return input;
+      if (typeof input !== "string" ||
+          !/^-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(input.trim())) {
+        return Number.NaN;
+      }
+      return Number(input.trim());
+    };
+    const score = toNumber(row.score);
+    const position = toNumber(row.position);
+    const profileId = row.profileId;
+    const displayName = row.displayName;
+
+    if (
+      typeof profileId !== "string" || !profileId.trim() ||
+      typeof displayName !== "string" || !displayName.trim() ||
+      !Number.isFinite(score) || score < 0 ||
+      !Number.isSafeInteger(position) || position < 1 ||
+      identities.has(profileId)
+    ) {
+      throw new Error("Invalid Fantasy standing.");
+    }
+    identities.add(profileId);
+    return { profileId, displayName, score, position };
+  });
+
+  // The canonical SQL leaderboard orders by dense_rank(score DESC). A gap,
+  // reversed score, or rank mismatch means the whole payload is untrusted.
+  let previousScore = Number.POSITIVE_INFINITY;
+  let expectedPosition = 0;
+  for (const row of standings) {
+    if (row.score > previousScore) throw new Error("Invalid Fantasy ranking order.");
+    if (row.score !== previousScore) expectedPosition += 1;
+    if (row.position !== expectedPosition) throw new Error("Invalid Fantasy dense ranking.");
+    previousScore = row.score;
+  }
+  return standings;
+}
+
 export type V3FantasyState =
   | "unavailable"
   | "upcoming"
@@ -102,6 +153,30 @@ export function shouldRestoreV3FantasyRoster(input: {
   draftDirty: boolean;
 }) {
   return !input.draftDirty || input.rosterScope !== input.draftScope;
+}
+
+/** Confirm an RPC save from exact caller/game-scoped canonical team and entry rows. */
+export function v3FantasyRosterMatchesReadback(input: {
+  gameId: string;
+  viewerId: string;
+  teamId: string;
+  countryIds: readonly string[];
+  captainId: string | null;
+  team: V3FantasyTeam | null;
+  entries: readonly V3FantasyTeamEntry[] | null;
+}): boolean {
+  const { gameId, viewerId, teamId, countryIds, captainId, team, entries } = input;
+  if (!team || !entries || team.id !== teamId || team.game_id !== gameId ||
+      team.profile_id !== viewerId || team.captain_country_id !== captainId ||
+      entries.length !== countryIds.length ||
+      new Set(countryIds).size !== countryIds.length) return false;
+  const recordedIds = new Set<string>();
+  for (const entry of entries) {
+    if (entry.team_id !== teamId || !countryIds.includes(entry.country_id) ||
+        recordedIds.has(entry.country_id)) return false;
+    recordedIds.add(entry.country_id);
+  }
+  return recordedIds.size === countryIds.length;
 }
 
 export function restoreV3FantasyRoster(

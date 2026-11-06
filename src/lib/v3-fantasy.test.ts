@@ -5,6 +5,8 @@ import {
   canShowV3FantasyTeamScore,
   fantasyBudgetUsed,
   fantasyRosterReady,
+  v3FantasyRosterMatchesReadback,
+  normalizeV3FantasyStandings,
   resolveV3FantasyState,
   restoreV3FantasyRoster,
   shouldRestoreV3FantasyRoster,
@@ -73,6 +75,33 @@ describe("V3 Fantasy projection", () => {
     expect(shouldRestoreV3FantasyRoster({ rosterScope: "A:game-2", draftScope: "A:game-1", draftDirty: true })).toBe(true);
   });
 
+  it("confirms Fantasy save readback only with the same actor, game, captain and roster", () => {
+    const team = {
+      id: "team", game_id: game.id, profile_id: "viewer", state: "submitted",
+      captain_country_id: "country-b", score: null,
+    };
+    const entries = [
+      { team_id: "team", country_id: "country-a", cost_locked: 8 },
+      { team_id: "team", country_id: "country-b", cost_locked: 10 },
+    ];
+    const intent = {
+      gameId: game.id, viewerId: "viewer", teamId: "team",
+      countryIds: ["country-b", "country-a"], captainId: "country-b",
+      team, entries,
+    };
+    expect(v3FantasyRosterMatchesReadback(intent)).toBe(true);
+    expect(v3FantasyRosterMatchesReadback({ ...intent, viewerId: "other" })).toBe(false);
+    expect(v3FantasyRosterMatchesReadback({ ...intent, gameId: "other" })).toBe(false);
+    expect(v3FantasyRosterMatchesReadback({ ...intent, teamId: "other" })).toBe(false);
+    expect(v3FantasyRosterMatchesReadback({ ...intent, captainId: null })).toBe(false);
+    expect(v3FantasyRosterMatchesReadback({ ...intent, countryIds: ["country-a", "country-c"] })).toBe(false);
+    expect(v3FantasyRosterMatchesReadback({ ...intent, countryIds: ["country-a", "country-a"] })).toBe(false);
+    expect(v3FantasyRosterMatchesReadback({ ...intent, entries: entries.slice(0, 1) })).toBe(false);
+    expect(v3FantasyRosterMatchesReadback({ ...intent, entries: [{ ...entries[0], team_id: "other" }, entries[1]] })).toBe(false);
+    expect(v3FantasyRosterMatchesReadback({ ...intent, team: null })).toBe(false);
+    expect(v3FantasyRosterMatchesReadback({ ...intent, entries: null })).toBe(false);
+  });
+
   it("derives roster readiness from exact size and server-published costs", () => {
     const choices = [
       { game_id: game.id, country_id: "country-a", cost: 8, eligible: true },
@@ -97,4 +126,56 @@ describe("V3 Fantasy projection", () => {
     expect(canEditV3FantasyRoster("live_scoring")).toBe(false);
     expect(canEditV3FantasyRoster("settled")).toBe(false);
   });
+  it("accepts valid versioned standings including tied ranks, numeric strings and zero points", () => {
+    const rows = [
+      { profileId: "fan-a", displayName: "Fan A", score: "26.50", position: "1" },
+      { profileId: "fan-b", displayName: "Fan B", score: 26.5, position: 1 },
+      { profileId: "fan-c", displayName: "Fan C", score: 0, position: 2 },
+    ];
+    expect(normalizeV3FantasyStandings(rows)).toEqual([
+      { profileId: "fan-a", displayName: "Fan A", score: 26.5, position: 1 },
+      { profileId: "fan-b", displayName: "Fan B", score: 26.5, position: 1 },
+      { profileId: "fan-c", displayName: "Fan C", score: 0, position: 2 },
+    ]);
+    expect(normalizeV3FantasyStandings([])).toEqual([]);
+    // A missing RPC payload is not the same as a successfully returned empty array.
+    expect(() => normalizeV3FantasyStandings(null)).toThrow();
+    expect(() => normalizeV3FantasyStandings(undefined)).toThrow();
+  });
+
+  it("enforces the SQL dense_rank contract and rejects impossible published rank sequences", () => {
+    const a = { profileId: "a", displayName: "A", score: 20, position: 1 };
+    const b = { profileId: "b", displayName: "B", score: 20, position: 1 };
+    const c = { profileId: "c", displayName: "C", score: 10, position: 2 };
+    expect(normalizeV3FantasyStandings([a, b, c])).toEqual([a, b, c]);
+    expect(() => normalizeV3FantasyStandings([{ ...a, position: 2 }])).toThrow();
+    expect(() => normalizeV3FantasyStandings([a, { ...c, position: 3 }])).toThrow();
+    expect(() => normalizeV3FantasyStandings([a, { ...b, position: 2 }])).toThrow();
+    expect(() => normalizeV3FantasyStandings([a, { ...c, position: 1 }])).toThrow();
+    expect(() => normalizeV3FantasyStandings([c, { ...a, position: 2 }])).toThrow();
+  });
+
+  it("fails the entire standings projection closed when a ranking or identity is malformed", () => {
+    const good = { profileId: "fan-a", displayName: "Fan A", score: 24, position: 1 };
+    const malformed: unknown[] = [
+      null, undefined, {}, "unexpected", [good],
+      { ...good, score: "NaN" },
+      { ...good, score: "Infinity" },
+      { ...good, score: "0x10" },
+      { ...good, score: "" },
+      { ...good, score: -1 },
+      { ...good, score: Number.POSITIVE_INFINITY },
+      { ...good, position: 0 },
+      { ...good, position: "1.5" },
+      { ...good, position: Number.NaN },
+      { ...good, profileId: "" },
+      { ...good, displayName: "   " },
+    ];
+    for (const row of malformed) {
+      expect(() => normalizeV3FantasyStandings([good, row])).toThrow();
+    }
+    expect(() => normalizeV3FantasyStandings({ rows: [] })).toThrow();
+    expect(() => normalizeV3FantasyStandings([good, { ...good }])).toThrow();
+  });
+
 });

@@ -38,7 +38,7 @@ const projection = source("src/lib/v3-fantasy.ts");
   });
 
   it("does not present an unavailable or unauthorized game as a legitimate empty state", () => {
-    expect(route).toContain("const loadingError = session.isError || games.isError || choices.isError || myTeam.isError || myTeamEntries.isError");
+    expect(route).toContain("const loadingError = session.isError || countriesQuery.isError || games.isError || choices.isError || myTeam.isError || myTeamEntries.isError");
     expect(route).toContain("Fantasy data could not be loaded");
     expect(route).toContain("No roster changes have been submitted");
     expect(route).toContain("Retry loading");
@@ -55,6 +55,14 @@ const projection = source("src/lib/v3-fantasy.ts");
     expect(route).toContain("draftScope === rosterScope ? selected : []");
     expect(route).toContain("draftScope === rosterScope ? captain :");
     expect(route).toContain("viewerId={viewerId}");
+  });
+
+  it("does not restore an empty roster while a known team's entries are pending or offline", () => {
+    expect(route).toContain("session.isPending || myTeam.isPending");
+    expect(route).toContain("(myTeam.data?.id && myTeamEntries.isPending)");
+    expect(route).toContain("pending/offline entries are unverified, not empty");
+    expect(route).toContain("myTeamEntries.data, myTeamEntries.isPending");
+    expect(route).not.toContain("session.isLoading || myTeam.isLoading || myTeamEntries.isLoading || myTeam.isError");
   });
 
   it("retains unsaved local edits across background refetch without accepting a different account's draft", () => {
@@ -98,10 +106,47 @@ const projection = source("src/lib/v3-fantasy.ts");
     expect(route).toContain("auth.user?.id !== intent.viewerId");
     expect(route).toContain('queryKey: ["fantasy-my-team", intent.gameId, intent.viewerId]');
     expect(route).toContain('queryKey: ["fantasy-my-team-entries", intent.viewerId]');
-    expect(route).toContain("if (latestRosterScope.current === intent.scope) setDraftDirty(false)");
+    expect(route).toContain("if (latestRosterScope.current !== intent.scope) return;");
     expect(route).toContain("onSubmit={submitRoster}");
     expect(route).toContain("onClick={submitRoster}");
     expect(route).toContain("submit.variables?.scope === rosterScope");
+  });
+
+  it("fails closed when initial Fantasy country or account reads fail or pause", () => {
+    expect(route).toContain("const countriesQuery = useCountries()");
+    expect(route).toContain("const countries = countriesQuery.data ?? []");
+    expect(route).toContain("countriesQuery.isError");
+    expect(route).toContain("const initialReads = [session, countriesQuery, games, choices, myTeam, myTeamEntries]");
+    expect(route).toContain("query.isPending && query.isPaused");
+    expect(route).toContain("query.isLoading");
+    expect(route).toContain('data-v3-fantasy-initial-state="paused"');
+    expect(route).toContain('title="Fantasy connection paused"');
+    expect(route).toContain("Reconnect to verify the Fantasy game, country catalogue and your saved roster.");
+    expect(route.indexOf("if (loadingError) {", route.indexOf("if (v3Enabled) {"))).toBeLessThan(
+      route.indexOf("if (initialReadPaused) {", route.indexOf("if (v3Enabled) {")),
+    );
+    expect(route.indexOf("if (initialReadPaused) {", route.indexOf("if (v3Enabled) {"))).toBeLessThan(
+      route.indexOf("if (initialReadLoading) {", route.indexOf("if (v3Enabled) {")),
+    );
+  });
+
+  it("only clears the Fantasy draft after canonical account-scoped roster readback", () => {
+    expect(route).toContain("const { data: teamId, error }");
+    expect(route).toContain('rpc("submit_fantasy_team"');
+    expect(route).toContain('eq("profile_id", intent.viewerId)');
+    expect(route).toContain('eq("team_id", teamId)');
+    expect(route).toContain("v3FantasyRosterMatchesReadback({");
+    expect(route).toContain("confirmedActor.user?.id !== intent.viewerId");
+    expect(route).toContain("Your roster may have been saved, but Solaris could not confirm");
+    expect(route).toContain("onSettled: async (_result, _error, intent) => {");
+    expect(route).toContain("queryClient.setQueryData(");
+    expect(route).toContain('["fantasy-my-team", intent.gameId, intent.viewerId]');
+    expect(route).toContain('["fantasy-my-team-entries", intent.viewerId, verified.team.id]');
+    expect(route).toContain("verified.team,");
+    expect(route).toContain("verified.entries,");
+    expect(route.indexOf("queryClient.setQueryData(")).toBeLessThan(route.indexOf("setDraftDirty(false);", route.indexOf("onSuccess: (verified, intent) => {")));
+    expect(route).toContain("if (latestRosterScope.current !== intent.scope) return;");
+    expect(projection).toContain("export function v3FantasyRosterMatchesReadback(");
   });
 
   it("keeps V3 installed-app cutover reversible behind server-evaluated rollout", () => {
@@ -119,4 +164,41 @@ const projection = source("src/lib/v3-fantasy.ts");
     expect(projection).toContain("canEditV3FantasyRoster");
     expect(projection).not.toContain('"archived"');
   });
+  it("bounds repeatedly fetched Fantasy game rows and caller-specific team reads", () => {
+    expect(route).toContain('const FANTASY_GAME_FIELDS = "id,edition_id,show_id,name,opens_at,locks_at,status,roster_size,budget,captain_multiplier,scoring_version"');
+    expect(route).toContain('const FANTASY_TEAM_FIELDS = "id,game_id,profile_id,state,captain_country_id,score"');
+    expect(route).toContain('.from("fantasy_games").select(FANTASY_GAME_FIELDS)');
+    expect(route).toContain('.from("fantasy_teams").select(FANTASY_TEAM_FIELDS)');
+    expect(route).not.toContain('.from("fantasy_games").select("*")');
+    expect(route).not.toContain('.from("fantasy_teams").select("*")');
+  });
+
+  it("never presents failed, paused, pending or unpublished Fantasy leaderboard reads as empty scores", () => {
+    expect(projection).toContain("normalizeV3FantasyStandings(payload: unknown)");
+    expect(projection).toContain("Invalid Fantasy dense ranking.");
+    expect(projection).toContain("Invalid Fantasy ranking order.");
+    expect(route).toContain("return normalizeV3FantasyStandings(data);");
+    expect(route).not.toContain("normalizeV3FantasyStandings(data ?? [])");
+    expect(route).toContain('activeGame?.status !== "scored" ? "unpublished"');
+    expect(route).toContain('leaderboard.isError ? "error"');
+    expect(route).toContain('leaderboard.isPending && leaderboard.isPaused ? "paused"');
+    expect(route).toContain('leaderboard.isPending ? "loading"');
+    expect(route).toContain("standingsState={standingsState}");
+    expect(route).toContain("onRetryStandings={() => void leaderboard.refetch()}");
+    expect(screen).toContain('standingsState === "error" ? (');
+    expect(screen).toContain('standingsState === "paused" ? (');
+    expect(screen).toContain('standingsState === "loading" ? (');
+    expect(screen).toContain('data-v3-fantasy-standings-state="error"');
+    expect(screen).toContain("onClick={onRetryStandings}");
+    expect(route).toContain("Retry standings");
+  });
+
+  it("distinguishes rollout read failure from a feature explicitly disabled by the server", () => {
+    expect(route).toContain("Fantasy availability could not be verified");
+    expect(route).toContain("feature.isPending && feature.isPaused ? (");
+    expect(route).toContain("feature.refetch()");
+    expect(route).toContain("This does not mean Fantasy is disabled.");
+    expect(route.indexOf("{feature.isError ? (")).toBeLessThan(route.indexOf(") : feature.data !== true ? ("));
+  });
+
 });

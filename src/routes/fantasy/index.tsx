@@ -17,16 +17,20 @@ import {
   canShowV3FantasyTeamScore,
   fantasyBudgetUsed,
   fantasyRosterReady,
+  v3FantasyRosterMatchesReadback,
+  normalizeV3FantasyStandings,
   resolveV3FantasyState,
   restoreV3FantasyRoster,
   shouldRestoreV3FantasyRoster,
   type V3FantasyChoice,
   type V3FantasyGame,
-  type V3FantasyStanding,
   type V3FantasyTeam,
   type V3FantasyTeamEntry,
 } from "@/lib/v3-fantasy";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
+
+const FANTASY_GAME_FIELDS = "id,edition_id,show_id,name,opens_at,locks_at,status,roster_size,budget,captain_multiplier,scoring_version";
+const FANTASY_TEAM_FIELDS = "id,game_id,profile_id,state,captain_country_id,score";
 
 export const Route = createFileRoute("/fantasy/")({
   head: () => ({
@@ -48,7 +52,8 @@ function FantasyPage() {
     queryFn: () => isStudio2FeatureEnabled("fantasy_ssc"),
     staleTime: 30_000,
   });
-  const { data: countries = [] } = useCountries();
+  const countriesQuery = useCountries();
+  const countries = countriesQuery.data ?? [];
   const countryMap = useMemo(() => new Map(countries.map((country) => [country.id, country])), [countries]);
   const [gameId, setGameId] = useState<string>("");
   const [selected, setSelected] = useState<string[]>([]);
@@ -75,7 +80,7 @@ function FantasyPage() {
     enabled: feature.data === true,
     queryKey: ["fantasy-games"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("fantasy_games").select("*").neq("status", "cancelled").order("locks_at", { ascending: false });
+      const { data, error } = await (supabase as any).from("fantasy_games").select(FANTASY_GAME_FIELDS).neq("status", "cancelled").order("locks_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as V3FantasyGame[];
     },
@@ -110,7 +115,7 @@ function FantasyPage() {
       if (authError || !viewerId || auth.user?.id !== viewerId) {
         throw new Error("Fantasy account changed. Refresh your session before continuing.");
       }
-      const { data, error } = await (supabase as any).from("fantasy_teams").select("*").eq("game_id", activeGame!.id).eq("profile_id", viewerId).maybeSingle();
+      const { data, error } = await (supabase as any).from("fantasy_teams").select(FANTASY_TEAM_FIELDS).eq("game_id", activeGame!.id).eq("profile_id", viewerId).maybeSingle();
       if (error) throw error;
       return data as V3FantasyTeam | null;
     },
@@ -133,7 +138,11 @@ function FantasyPage() {
   });
 
   useEffect(() => {
-    if (session.isLoading || myTeam.isLoading || myTeamEntries.isLoading || myTeam.isError || myTeamEntries.isError) return;
+    // A disabled entries query is genuinely empty only when no team exists.
+    // When a team exists, pending/offline entries are unverified, not empty.
+    if (session.isPending || myTeam.isPending ||
+        (myTeam.data?.id && myTeamEntries.isPending) ||
+        myTeam.isError || myTeamEntries.isError) return;
     // A background refetch must never erase unsaved local changes. A different
     // game/account scope, however, must always restore its own canonical team.
     if (!shouldRestoreV3FantasyRoster({ rosterScope, draftScope, draftDirty })) return;
@@ -141,7 +150,7 @@ function FantasyPage() {
     setDraftScope(rosterScope);
     setSelected(restored.selected);
     setCaptain(restored.captain);
-  }, [rosterScope, draftScope, draftDirty, session.isLoading, myTeam.data, myTeam.isLoading, myTeam.isError, myTeamEntries.data, myTeamEntries.isLoading, myTeamEntries.isError]);
+  }, [rosterScope, draftScope, draftDirty, session.isPending, myTeam.data, myTeam.isPending, myTeam.isError, myTeamEntries.data, myTeamEntries.isPending, myTeamEntries.isError]);
 
   const leaderboard = useQuery({
     enabled: activeGame?.status === "scored",
@@ -149,9 +158,17 @@ function FantasyPage() {
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc("fantasy_leaderboard", { _game_id: activeGame!.id });
       if (error) throw error;
-      return (data ?? []) as V3FantasyStanding[];
+      // A null RPC payload is not a verified empty leaderboard. Fail closed.
+      return normalizeV3FantasyStandings(data);
     },
   });
+
+  const standingsState =
+    activeGame?.status !== "scored" ? "unpublished"
+    : leaderboard.isError ? "error"
+    : leaderboard.isPending && leaderboard.isPaused ? "paused"
+    : leaderboard.isPending ? "loading"
+    : "ready";
 
   const submit = useMutation({
     mutationFn: async (intent: {
@@ -173,18 +190,63 @@ function FantasyPage() {
       if (authError || auth.user?.id !== intent.viewerId || latestRosterScope.current !== intent.scope) {
         throw new Error("Fantasy account changed. Sign in again before saving.");
       }
-      const { error } = await (supabase as any).rpc("submit_fantasy_team", {
+      const { data: teamId, error } = await (supabase as any).rpc("submit_fantasy_team", {
         _game_id: intent.gameId,
         _country_ids: intent.countryIds,
         _captain_country_id: intent.captainId,
       });
       if (error) throw error;
+
+      // An RPC response alone cannot prove that a caller-specific draft is saved.
+      // A failed readback is uncertain, not proof that the RPC was rolled back.
+      const unconfirmed = new Error(
+        "Your roster may have been saved, but Solaris could not confirm the saved team. Refresh this game before retrying.",
+      );
+      if (typeof teamId !== "string" || !teamId.trim()) throw unconfirmed;
+      const [savedTeam, savedEntries] = await Promise.all([
+        (supabase as any).from("fantasy_teams").select(FANTASY_TEAM_FIELDS)
+          .eq("id", teamId).eq("game_id", intent.gameId)
+          .eq("profile_id", intent.viewerId).maybeSingle(),
+        (supabase as any).from("fantasy_team_entries")
+          .select("team_id,country_id,cost_locked").eq("team_id", teamId),
+      ]);
+      if (savedTeam.error || savedEntries.error ||
+          latestRosterScope.current !== intent.scope ||
+          !v3FantasyRosterMatchesReadback({
+            gameId: intent.gameId,
+            viewerId: intent.viewerId,
+            teamId,
+            countryIds: intent.countryIds,
+            captainId: intent.captainId,
+            team: savedTeam.data as V3FantasyTeam | null,
+            entries: savedEntries.data as V3FantasyTeamEntry[] | null,
+          })) throw unconfirmed;
+      const { data: confirmedActor, error: actorError } = await supabase.auth.getUser();
+      if (actorError || confirmedActor.user?.id !== intent.viewerId ||
+          latestRosterScope.current !== intent.scope) throw unconfirmed;
+      return {
+        team: savedTeam.data as V3FantasyTeam,
+        entries: savedEntries.data as V3FantasyTeamEntry[],
+      };
     },
-    onSuccess: async (_result, intent) => {
+    onSuccess: (verified, intent) => {
+      // Publish exact verified server rows before clearing the draft. Without
+      // this, a stale pre-save cache can temporarily replace the new roster.
+      if (latestRosterScope.current !== intent.scope) return;
+      queryClient.setQueryData(
+        ["fantasy-my-team", intent.gameId, intent.viewerId],
+        verified.team,
+      );
+      queryClient.setQueryData(
+        ["fantasy-my-team-entries", intent.viewerId, verified.team.id],
+        verified.entries,
+      );
+      setDraftDirty(false);
+    },
+    onSettled: async (_result, _error, intent) => {
+      // Even an unconfirmed write may have committed. Refresh the correct scope.
       await queryClient.invalidateQueries({ queryKey: ["fantasy-my-team", intent.gameId, intent.viewerId] });
       await queryClient.invalidateQueries({ queryKey: ["fantasy-my-team-entries", intent.viewerId] });
-      // Success for account/game A cannot mark account/game B's unsaved work clean.
-      if (latestRosterScope.current === intent.scope) setDraftDirty(false);
     },
   });
 
@@ -208,7 +270,10 @@ function FantasyPage() {
         choice.game_id === activeGame.id && choice.country_id === id && choice.eligible && Number.isFinite(choice.cost) && choice.cost >= 0,
       ))
     : [];
-  const loadingError = session.isError || games.isError || choices.isError || myTeam.isError || myTeamEntries.isError;
+  const loadingError = session.isError || countriesQuery.isError || games.isError || choices.isError || myTeam.isError || myTeamEntries.isError;
+  const initialReads = [session, countriesQuery, games, choices, myTeam, myTeamEntries];
+  const initialReadPaused = initialReads.some((query) => query.isPending && query.isPaused);
+  const initialReadLoading = initialReads.some((query) => query.isLoading);
   const fantasyState = resolveV3FantasyState({ game: activeGame, team: myTeam.data ?? null, nowMs });
   const editable = canEditV3FantasyRoster(fantasyState);
   const locked = !editable;
@@ -245,13 +310,6 @@ function FantasyPage() {
   }
 
   if (v3Enabled) {
-    if (session.isLoading || games.isLoading || choices.isLoading || myTeam.isLoading || myTeamEntries.isLoading) {
-      return (
-        <V3AppShell editionLabel="Solaris Studio" phaseLabel="Fantasy">
-          <V3Screen><V3Surface className="p-5"><p role="status">Loading Fantasy game…</p></V3Surface></V3Screen>
-        </V3AppShell>
-      );
-    }
     if (loadingError) {
       return (
         <V3AppShell editionLabel="Solaris Studio" phaseLabel="Fantasy">
@@ -260,6 +318,22 @@ function FantasyPage() {
             <p role="alert" className="mt-2 text-sm text-[var(--v3-text-secondary)]">Your account or Fantasy game could not be verified. No roster changes have been submitted.</p>
             <button type="button" className="mt-4 min-h-11 rounded-xl border px-4 text-sm font-semibold" onClick={() => window.location.reload()}>Retry loading</button>
           </V3Surface></V3Screen>
+        </V3AppShell>
+      );
+    }
+    if (initialReadPaused) {
+      return (
+        <V3AppShell editionLabel="Solaris Studio" phaseLabel="Fantasy">
+          <V3Screen><V3Surface className="p-5" data-v3-fantasy-initial-state="paused">
+            <p role="status" className="text-sm">Reconnect to verify the Fantasy game, country catalogue and your saved roster.</p>
+          </V3Surface></V3Screen>
+        </V3AppShell>
+      );
+    }
+    if (initialReadLoading) {
+      return (
+        <V3AppShell editionLabel="Solaris Studio" phaseLabel="Fantasy">
+          <V3Screen><V3Surface className="p-5"><p role="status">Loading Fantasy game…</p></V3Surface></V3Screen>
         </V3AppShell>
       );
     }
@@ -285,6 +359,9 @@ function FantasyPage() {
           state={fantasyState}
           team={myTeam.data ?? null}
           standings={activeGame.status === "scored" ? (leaderboard.data ?? []) : []}
+          standingsState={standingsState}
+          retryingStandings={leaderboard.isFetching}
+          onRetryStandings={() => void leaderboard.refetch()}
           viewerId={viewerId}
           submitting={submit.isPending}
           submitError={submit.isError && submit.variables?.scope === rosterScope ? (submit.error instanceof Error ? submit.error.message : "Roster could not be saved.") : null}
@@ -304,16 +381,30 @@ function FantasyPage() {
         description="Build one constrained roster before the server-side lock. Costs, eligibility, budget and scoring are enforced in the database rather than trusting a browser with a button."
       />
 
-      {feature.isLoading ? (
+      {feature.isError ? (
+        <Panel title="Fantasy availability could not be verified">
+          <p role="alert" className="text-sm text-muted-foreground">The rollout check failed. This does not mean Fantasy is disabled.</p>
+          <button type="button" disabled={feature.isFetching} onClick={() => void feature.refetch()}
+            className="mt-3 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold disabled:opacity-50">
+            {feature.isFetching ? "Retrying…" : "Retry availability"}
+          </button>
+        </Panel>
+      ) : feature.isPending && feature.isPaused ? (
+        <Panel title="Fantasy availability not verified">
+          <p role="status" className="text-sm text-muted-foreground">Reconnect to verify whether Fantasy SSC is available.</p>
+        </Panel>
+      ) : feature.isLoading ? (
         <Panel><p className="text-sm text-muted-foreground">Checking Fantasy rollout…</p></Panel>
-      ) : feature.isError || feature.data !== true ? (
+      ) : feature.data !== true ? (
         <Panel title="Fantasy SSC is not enabled yet"><p className="text-sm text-muted-foreground">The product is installed but remains behind its rollout flag until production verification is complete.</p></Panel>
       ) : loadingError ? (
         <Panel title="Fantasy data could not be loaded">
           <p role="alert" className="text-sm text-muted-foreground">Your account or Fantasy game could not be verified. No roster changes have been submitted.</p>
           <button type="button" className="mt-3 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold" onClick={() => window.location.reload()}>Retry loading</button>
         </Panel>
-      ) : session.isLoading || games.isLoading || choices.isLoading || myTeam.isLoading || myTeamEntries.isLoading ? (
+      ) : initialReadPaused ? (
+        <Panel title="Fantasy connection paused"><p role="status" className="text-sm text-muted-foreground">Reconnect to verify the Fantasy game, country catalogue and your saved roster.</p></Panel>
+      ) : initialReadLoading ? (
         <Panel><p role="status" className="text-sm text-muted-foreground">Loading Fantasy game and your saved roster…</p></Panel>
       ) : !activeGame ? (
         <Panel title="No Fantasy game is open"><p className="text-sm text-muted-foreground">An Organizer has not published a Fantasy roster window yet.</p></Panel>
@@ -392,7 +483,22 @@ function FantasyPage() {
           </div>
 
           <Panel title="Leaderboard" className="mt-5">
-            {activeGame.status === "scored" && leaderboard.data?.length ? (
+            {standingsState === "unpublished" ? (
+              <p className="text-sm text-muted-foreground">Rankings appear after official Fantasy scoring is published.</p>
+            ) : standingsState === "error" ? (
+              <div role="alert" className="space-y-3">
+                <p className="text-sm text-destructive">Fantasy standings could not be verified. No rankings are shown.</p>
+                <button type="button" disabled={leaderboard.isFetching}
+                  onClick={() => void leaderboard.refetch()}
+                  className="min-h-11 rounded-xl border border-border px-4 text-sm font-semibold disabled:opacity-50">
+                  {leaderboard.isFetching ? "Retrying…" : "Retry standings"}
+                </button>
+              </div>
+            ) : standingsState === "paused" ? (
+              <p role="status" className="text-sm text-muted-foreground">Reconnect to verify Fantasy standings.</p>
+            ) : standingsState === "loading" ? (
+              <p role="status" className="text-sm text-muted-foreground">Loading Fantasy standings…</p>
+            ) : leaderboard.data?.length ? (
               <div className="space-y-2">
                 {leaderboard.data.slice(0, 25).map((row) => (
                   <div key={row.profileId} className="flex items-center gap-3 rounded-xl border border-border/70 bg-background/30 p-3 text-sm">
