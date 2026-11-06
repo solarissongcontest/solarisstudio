@@ -159,4 +159,30 @@ describe("World institution publication revalidation", () => {
     expect(html).toContain("OLAND_COUNTRY_SENTINEL");
     expect(html).toContain("REPRESENTATIVE_SENTINEL");
   });
+
+  it("does not count or display a membership before its effective start", () => {
+    const previous = profile.memberships[0].joinedAt;
+    profile.memberships[0].joinedAt = "2099-01-01T00:00:00Z";
+    try {
+      const html = renderProfile("members", "verified", "verified");
+      expect(html).toContain("0 current memberships");
+      expect(html).not.toContain("OLAND_COUNTRY_SENTINEL");
+      expect(html).not.toContain("REPRESENTATIVE_SENTINEL");
+    } finally {
+      profile.memberships[0].joinedAt = previous;
+    }
+  });
+
+  it("does not label a future-effective representative as serving currently", () => {
+    const previous = profile.representatives[0].startsAt;
+    profile.representatives[0].startsAt = "2099-01-01T00:00:00Z";
+    try {
+      const html = renderProfile("members", "verified", "verified");
+      expect(html).toContain("OLAND_COUNTRY_SENTINEL");
+      expect(html).toContain("Representative not recorded");
+      expect(html).not.toContain("REPRESENTATIVE_SENTINEL");
+    } finally {
+      profile.representatives[0].startsAt = previous;
+    }
+  });
 });
