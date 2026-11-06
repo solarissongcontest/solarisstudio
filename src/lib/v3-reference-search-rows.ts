@@ -41,7 +41,11 @@ export function parseReferenceSearchRows(value: unknown): ReferenceSearchItem[] 
 
     // /wiki/$code is preserved for bookmarks, but rolled-out Reference links
     // directly to the same canonical country identity as /countries/$code.
-    const canonicalHref = legacyWiki ? href.replace(/^\/wiki\//, "/countries/") : href;
+    const canonicalHref = legacyWiki
+      ? `/countries/${href.slice("/wiki/".length).toUpperCase()}`
+      : sourceKind === "country"
+        ? `/countries/${href.slice("/countries/".length).toUpperCase()}`
+        : href;
     const kind: ReferenceResultKind = legacyWiki ? "country" : row.result_type as ReferenceResultKind;
     const key = kind === "country" ? `country:${canonicalHref}` : id;
     if (seen.has(key)) return [];
