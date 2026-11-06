@@ -36,7 +36,11 @@ describe("V3 public Show deep-link publication boundary", () => {
   it("requires exact Edition data before rendering a Show and offers the canonical Edition route", () => {
     const source = readFileSync(resolve(process.cwd(), "src/routes/shows/$showId.tsx"), "utf8");
     expect(source).toContain("useEditionById(showQuery.data?.edition_id)");
-    expect(source).toContain("isPublishedShowInPublishedEdition(show, showEdition)");
+    expect(source).toContain("isPublishedShowInPublishedEdition(showQuery.data, editionQuery.data)");
+    expect(source).toContain("const showIsPublic = publishedShowContext;");
+    expect(source).toContain("useAllResults({ enabled: canLoadPublishedResultHistory })");
+    expect(source).toContain("useAllShows({ enabled: publishedShowContext })");
+    expect(source).toContain("publishedShowContext && resolveShowPublication(showQuery.data).results");
     expect(source).toContain("const archiveQueries = [showQuery, editionQuery,");
     expect(source).toContain("if (!showIsPublic)");
     expect(source).toContain(">Show unavailable</h1>");
