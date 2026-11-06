@@ -14,6 +14,15 @@ describe("V3 publication-safe Search relevance", () => {
     expect(matchesV3PublicSearch("SSC 22", "SSC", 22)).toBe(true);
   });
 
+  it("recognizes compact SSC edition aliases without matching another edition number", () => {
+    expect(matchesV3PublicSearch("SSC22", "SSC 22")).toBe(true);
+    expect(matchesV3PublicSearch("SSC-22", "SSC 22")).toBe(true);
+    expect(matchesV3PublicSearch("SSC022", "SSC 22")).toBe(true);
+    expect(matchesV3PublicSearch("SSC22", "SSC 220")).toBe(false);
+    expect(matchesV3PublicSearch("SSC23", "SSC 22")).toBe(false);
+    expect(matchesV3PublicSearch("SSC22", "Other edition 22")).toBe(false);
+  });
+
   it("recovers one conservative human-name typo", () => {
     expect(matchesV3PublicSearch("Olnd", "Oland")).toBe(true); // insertion
     expect(matchesV3PublicSearch("Olnad", "Oland")).toBe(true); // transposition
@@ -46,6 +55,15 @@ describe("V3 publication-safe Search relevance", () => {
     ];
     expect(rankV3PublicSearchResults(input, "Oland").map((row) => row.id))
       .toEqual(["exact", "prefix", "word", "keyword", "description", "fuzzy"]);
+  });
+
+  it("prioritizes compact SSC-number labels over generic matches", () => {
+    const rows: PublicSearchResult[] = [
+      { id: "generic", label: "Browse editions", description: "SSC 22", href: "/editions", group: "Tools" },
+      { id: "edition", label: "SSC 22", description: "Published edition", href: "/editions/ssc22", group: "Editions" },
+    ];
+    expect(rankV3PublicSearchResults(rows, "SSC22").map((row) => row.id))
+      .toEqual(["edition", "generic"]);
   });
 
   it("preserves provider order for equally relevant matches, immutably", () => {
