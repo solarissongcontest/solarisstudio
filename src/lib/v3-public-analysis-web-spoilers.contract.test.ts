@@ -46,7 +46,7 @@ describe("Public Results analysis spoiler safety across browser presentations", 
         `<PublicResultsAnalysisSpoilerBoundary selectedShowId={selectedShow?.id ?? null} title="${title}">`,
       );
       expect(source).toContain("</PublicResultsAnalysisSpoilerBoundary>");
-      const stableShell = source.lastIndexOf("  return (\\n    <AppShell>\\n");
+      const stableShell = source.lastIndexOf("<AppShell>");
       const protectedContent = source.lastIndexOf("<PublicResultsAnalysisSpoilerBoundary");
       const shellClosing = source.lastIndexOf("</AppShell>");
       const protectionClosing = source.lastIndexOf("</PublicResultsAnalysisSpoilerBoundary>");
