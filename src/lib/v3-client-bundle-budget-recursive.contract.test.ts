@@ -16,7 +16,7 @@ describe("V3 fixed client bundle budget nested-asset regression", () => {
 
     expect(result.error).toBeUndefined();
     expect(result.status, [result.stdout, result.stderr].join("\n")).toBe(0);
-    expect(result.stdout).toContain("tests 4");
+    expect(result.stdout).toContain("tests 5");
     expect(result.stdout).toContain("fail 0");
   });
 });
