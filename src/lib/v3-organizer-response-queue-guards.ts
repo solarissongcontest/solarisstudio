@@ -46,6 +46,33 @@ export function assertOrganizerResponsePageDisjoint(
 }
 
 /**
+ * A final page is only final when every canonical response is accounted for.
+ * Otherwise the Organizer might mistake a truncated queue for a ready edition.
+ * Intermediate pages must not exceed the server's declared total either.
+ */
+export function assertOrganizerResponsePageCoverage(
+  alreadyLoaded: number,
+  incoming: number,
+  totalCount: number,
+  hasMore: boolean,
+): void {
+  if (![alreadyLoaded, incoming, totalCount].every((count) =>
+    Number.isSafeInteger(count) && count >= 0)) {
+    throw Object.assign(
+      new Error("Confirmation pagination returned invalid response counts. Reload the current edition."),
+      { status: 409 },
+    );
+  }
+  const loaded = alreadyLoaded + incoming;
+  if (loaded > totalCount || (hasMore ? loaded >= totalCount : loaded !== totalCount)) {
+    throw Object.assign(
+      new Error("Confirmation pagination does not match its canonical response count. Reload the current edition before reviewing."),
+      { status: 409 },
+    );
+  }
+}
+
+/**
  * Next-in-Line song URLs are participant supplied. Reject script/data/file,
  * malformed, relative, credentialed and control-character URLs. This is a
  * display-only guard, not authorization to fetch private media.
