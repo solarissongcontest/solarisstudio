@@ -75,16 +75,21 @@ function OrganizerTasksPage() {
   const navigate = Route.useNavigate();
   const editionsQuery = useEditions();
   const editions = editionsQuery.data ?? [];
-  const edition = selectOrganizerEdition(editions, editionId);
+  const edition =
+    editionsQuery.isSuccess && !editionsQuery.error
+      ? selectOrganizerEdition(editions, editionId)
+      : null;
   const resolvedEditionId = editionId && edition ? edition.id : "";
   const organizerEditionLabel = edition ? formatEditionLabel(edition) : null;
   const backend = useOrganisationBackendContract();
+  const backendReady = backend.data?.ready === true;
   const tasksSupported = backend.data?.capabilities.organizerTasks === true;
   const backendFilter = backendFilterForView(filter);
   const tasksQuery = useOrganizerTasksV5(
     resolvedEditionId || null,
     backendFilter,
-    tasksSupported &&
+    backendReady &&
+      tasksSupported &&
       Boolean(resolvedEditionId) &&
       editionsQuery.isSuccess &&
       !editionsQuery.error,
@@ -102,6 +107,7 @@ function OrganizerTasksPage() {
     editionsQuery.isSuccess &&
     !editionsQuery.error &&
     backend.isSuccess &&
+    backendReady &&
     tasksSupported &&
     !tasksQuery.isLoading &&
     !tasksQuery.error;
@@ -245,6 +251,19 @@ function OrganizerTasksPage() {
               icon={AlertTriangle}
               title="Organizer Tasks backend update required"
               description="This frontend will not evaluate Tasks until the production database exposes the matching Organizer Task contract. No zero counts are inferred while task truth is unavailable."
+            />
+          </AdminCard>
+        ) : !backendReady ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={AlertTriangle}
+              title="Organizer backend not ready"
+              description="The backend recognizes Organizer Tasks but has not reported runtime readiness. Task evaluation and counts remain unavailable until it is ready."
+              action={
+                <button type="button" onClick={() => void backend.refetch()} disabled={backend.isFetching} className="admin-action-secondary">
+                  Recheck readiness
+                </button>
+              }
             />
           </AdminCard>
         ) : tasksQuery.isLoading ? (

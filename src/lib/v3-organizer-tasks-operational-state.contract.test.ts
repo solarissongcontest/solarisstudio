@@ -83,6 +83,25 @@ describe("V3 Organizer Tasks operational state contract", () => {
     expect(route).toContain("tasksQuery.error ? (");
   });
 
+  it("requires runtime readiness as well as declared Tasks capability before reading the projection", () => {
+    expect(route).toContain("const backendReady = backend.data?.ready === true;");
+    expect(route).toContain("backendReady &&");
+    expect(route).toContain("tasksSupported &&");
+    expect(route).toContain('title="Organizer backend not ready"');
+    expect(route).toContain("Task evaluation and counts remain unavailable until it is ready.");
+    expect(route).toContain("Recheck readiness");
+    expect(route).toContain("void backend.refetch()");
+  });
+
+  it("does not leave stale edition filters visible after edition verification fails", () => {
+    expect(route).toContain("editionsQuery.isSuccess && !editionsQuery.error");
+    expect(route).toContain("selectOrganizerEdition(editions, editionId)");
+    expect(route).toContain("const resolvedEditionId = editionId && edition ? edition.id :");
+    expect(route).toContain('{edition ? (');
+    expect(route).toContain('{edition && filter !== "resolved" ? (');
+    expect(route).toContain('title="Edition context could not be resolved"');
+  });
+
   it("does not equate task priority with blocked workflow state", () => {
     expect(route).toContain("Priority is severity, not workflow state");
     expect(route).not.toContain('task.priority === "critical") return "blocked"');
