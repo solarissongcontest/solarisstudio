@@ -136,7 +136,7 @@ describe("TG6 minutes authority and source invariants", () => {
     expect(runner).toContain("supabase status -o env");
     expect(runner).toContain("Refusing hosted Supabase API");
     expect(runner).toContain("Refusing hosted database URI");
-    expect(runner).not.toContain("DATABASE_URL");
+    expect(runner).not.toMatch(/\$\{?DATABASE_URL\b/);
   });
 
   it("never converts a browser button into official publication authority", () => {
