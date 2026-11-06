@@ -20,7 +20,7 @@ describe("Public Terra Solaris World Search integration", () => {
   });
 
   it("preserves the publication gate around both the landing and the search route", () => {
-    expect(worldRoute).toContain("<WorldPublicGate><WorldLanding /></WorldPublicGate>");
+    expect(worldRoute).toContain("<WorldPublicGate verifyOnMount><WorldLanding /></WorldPublicGate>");
     expect(searchRoute).toContain("<WorldPublicGate verifyOnMount>");
     expect(landing).toContain("refetchOnMount: verifyOnMount");
     expect(landing).toContain("publicWorldRolloutDisplay(rollout, verifyOnMount)");
