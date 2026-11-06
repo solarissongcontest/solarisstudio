@@ -174,7 +174,7 @@ function CommunityModerationWorkspace({ actorId }: { actorId: string | null }) {
     },
   });
 
-  const profiles = actorId && profilesQuery.isSuccess ? profilesQuery.data : [];
+  const profiles = actorId && profilesQuery.isSuccess ? (profilesQuery.data ?? []) : [];
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return profiles;
