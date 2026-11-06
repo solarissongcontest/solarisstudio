@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight, Search, SlidersHorizontal, X } from "lucide-react";
 import type { V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import "@/styles/v3-shows-directory.css";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 
 import { AppEmptyState, AppSectionHeader } from "@/components/app/AppPrimitives";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
@@ -97,26 +97,21 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
   const activeFilterCount = Number(editionId !== "all") + Number(kind !== "all") + Number(state !== "all");
   // Shared fields render in the app filter sheet or desktop/mobile-web filter row,
   // avoiding duplicate controls, translation drift and client bundle cost.
-  const filterFields = (
-    <>
-      <ShowFilterSelect label="Edition" allLabel="All editions" value={editionId} onChange={setEditionId}>
-        {editions.map((edition) => (
-          <option key={edition.id} value={edition.id}>{editionLabel(edition)}</option>
-        ))}
-      </ShowFilterSelect>
-      <ShowFilterSelect label="Show type" allLabel="All show types" value={kind} onChange={setKind}>
-        {kinds.map((value) => (
-          <option key={value} value={value}>{showKindLabel(value)}</option>
-        ))}
-      </ShowFilterSelect>
-      <ShowFilterSelect label="State" allLabel="All states" value={state}
-        onChange={(value) => setState(value as ShowDiscoveryState | "all")}>
-        {STATE_ORDER.map((value) => (
-          <option key={value} value={value}>{stateFilterLabel(value)}</option>
-        ))}
-      </ShowFilterSelect>
-    </>
-  );
+  const filterFields = [
+    {
+      label: "Edition", allLabel: "All editions", value: editionId, onChange: setEditionId,
+      options: editions.map((edition) => ({ value: edition.id, label: editionLabel(edition) })),
+    },
+    {
+      label: "Show type", allLabel: "All show types", value: kind, onChange: setKind,
+      options: kinds.map((value) => ({ value, label: showKindLabel(value) })),
+    },
+    {
+      label: "State", allLabel: "All states", value: state,
+      onChange: (value: string) => setState(value as ShowDiscoveryState | "all"),
+      options: STATE_ORDER.map((value) => ({ value, label: stateFilterLabel(value) })),
+    },
+  ].map((field) => <ShowFilterSelect key={field.label} {...field} />);
 
   if (archiveIsLoading(editionsQuery, showsQuery)) {
     return <ArchiveDataLoading label="Loading show discovery…" />;
@@ -280,13 +275,13 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
 }
 
 function ShowFilterSelect({
-  label, allLabel, value, onChange, children,
+  label, allLabel, value, onChange, options,
 }: {
   label: string;
   allLabel: string;
   value: string;
   onChange: (value: string) => void;
-  children: ReactNode;
+  options: Array<{ value: string; label: string }>;
 }) {
   return (
     <label className="text-xs font-semibold text-muted-foreground">
@@ -294,7 +289,7 @@ function ShowFilterSelect({
       <select value={value} onChange={(event) => onChange(event.target.value)}
         className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground">
         <option value="all">{allLabel}</option>
-        {children}
+        {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
     </label>
   );
