@@ -160,6 +160,12 @@ export function WorldLanding() {
             <Globe2 className="size-4" aria-hidden="true" /> Discover countries
           </Link>
         </div>
+        <p className="mt-4 text-sm leading-6 text-muted-foreground">
+          Looking for country memberships and international history?{" "}
+          <Link to="/world/countries" className="font-semibold text-primary underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2">
+            Browse World country records
+          </Link>
+        </p>
       </div>
       <section className="mt-12 border-t border-border pt-8" aria-labelledby="world-institutions-title">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
