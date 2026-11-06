@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { PublicSearchResult } from "./public-search";
 import {
   matchesV3PublicSearch,
+  navigationV3PublicSearchResults,
   rankV3PublicSearchResults,
 } from "./v3-public-search-relevance";
 
@@ -37,6 +38,14 @@ describe("V3 publication-safe Search relevance", () => {
     expect(matchesV3PublicSearch("Olnd Dairia", "Oland Diaria")).toBe(false);
     expect(matchesV3PublicSearch("unknown", "Oland")).toBe(false);
     expect(matchesV3PublicSearch("one two three four fiev", "one two three four five")).toBe(false);
+  });
+
+  it("finds misspelled public navigation destinations without inventing routes", () => {
+    const exact = navigationV3PublicSearchResults("Predictions");
+    const typo = navigationV3PublicSearchResults("Predictins");
+    expect(exact.find((item) => item.href === "/predictions")?.label).toBe("Predictions");
+    expect(typo.find((item) => item.href === "/predictions")?.label).toBe("Predictions");
+    expect(navigationV3PublicSearchResults("zzzzzzzz")).toEqual([]);
   });
 
   it("allows one typo among other exact query terms", () => {
