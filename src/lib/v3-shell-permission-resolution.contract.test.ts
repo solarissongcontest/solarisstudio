@@ -13,7 +13,11 @@ describe("V3 shell permission resolution", () => {
     expect(source).toContain("const accessRequestRef = useRef(0)");
     expect(source).toContain("const resolvedUserIdRef = useRef<string | null | undefined>(undefined)");
     expect(source).toContain("const requestId = ++accessRequestRef.current");
-    expect(source).toContain("resolvedUserIdRef.current !== nextUserId");
+    expect(source).toContain('setAccessResolution("resolving")');
+    expect(source).toContain("// Revalidate permissions even when the identity is unchanged.");
+    expect(source).not.toContain("resolvedUserIdRef.current !== nextUserId");
+    expect(source).not.toContain('if (!identityChanged)');
+    expect(source).toContain("markUnavailable(requestId, error)");
     expect(source).toContain("requestId !== accessRequestRef.current");
     expect(source).toContain("setAccess(EMPTY_ACCESS)");
     expect(source).toContain('setAccessResolution("resolving")');

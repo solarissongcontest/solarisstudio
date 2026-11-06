@@ -139,16 +139,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (!alive) return;
       const nextUserId = userId ?? null;
       const requestId = ++accessRequestRef.current;
-      const identityChanged = resolvedUserIdRef.current !== nextUserId;
-
-      if (identityChanged) {
-        // Never retain the previous viewer's navigation capabilities while
-        // resolving a new identity. Route content itself remains mounted.
-        setEmail(null);
-        setAccess(EMPTY_ACCESS);
-        setMenuOpen(false);
-        setAccessResolution("resolving");
-      }
+      // Revalidate permissions even when the identity is unchanged. A stale
+      // successful response must never leave revoked capabilities in chrome
+      // while a newer access check is pending or has failed.
+      setEmail(null);
+      setAccess(EMPTY_ACCESS);
+      setMenuOpen(false);
+      setAccessResolution("resolving");
 
       if (!nextUserId) {
         if (!alive || requestId !== accessRequestRef.current) return;
@@ -167,14 +164,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         setAccess(next);
         setAccessResolution("ready");
       } catch (error) {
-        // A failed refresh for the same verified viewer must not erase good
-        // access state; identity-changing failures stay fail-closed.
-        if (!identityChanged) {
-          if (alive && requestId === accessRequestRef.current) {
-            console.warn("Could not refresh Solaris shell access", error);
-          }
-          return;
-        }
+        // Treat failures for the same user exactly like identity changes.
+        // Failed revalidation must not preserve revoked or unknown privileges.
         markUnavailable(requestId, error);
       }
     };
