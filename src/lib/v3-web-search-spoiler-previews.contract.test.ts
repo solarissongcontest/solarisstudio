@@ -21,7 +21,8 @@ describe("V3 global Search spoiler-safe web previews", () => {
 
   it("hides current final record inputs, not the published entity navigation", () => {
     expect(web).toContain("const spoilerSafeRecordArchive = useMemo(");
-    for (const field of ["editions", "shows", "participants", "results", "jury"]) {
+    expect(web).toContain("publicEditions.filter((edition) => edition.id !== spoilerScope.editionId)");
+    for (const field of ["shows", "participants", "results", "jury"]) {
       expect(web).toContain(`${field}: excludeSearchSpoilerEdition(`);
     }
     expect(web).toContain("...spoilerSafeRecordArchive,");
