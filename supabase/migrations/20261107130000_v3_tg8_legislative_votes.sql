@@ -86,7 +86,7 @@ create table public.world_votes (
   constraint world_vote_period_check check (closes_at > opened_at),
   constraint world_vote_status_check check (status in ('open','certified')),
   constraint world_vote_revision_check check (revision >= 1),
-  constraint world_vote_electorate_count_check check (electorate_count between 1 and 200),
+  constraint world_vote_eligibility_count_check check (electorate_count between 1 and 200),
   constraint world_vote_certification_pair_check check (
     (status='open' and certified_at is null and certified_by is null)
     or (status='certified' and certified_at is not null and certified_by is not null)
@@ -103,7 +103,7 @@ create index world_votes_org_date_idx on public.world_votes(organization_id,open
 
 -- Membership/repr/proxy versions at the instant the vote was opened.
 -- Auth user IDs intentionally absent from the public electorate history.
-create table public.world_vote_electorate (
+create table public.world_vote_eligibility (
   vote_id uuid not null references public.world_votes(id) on delete restrict,
   country_id uuid not null references public.countries(id) on delete restrict,
   membership_id uuid not null references public.world_organization_memberships(id) on delete restrict,
@@ -113,32 +113,40 @@ create table public.world_vote_electorate (
   representative_person_id uuid not null references public.delegation_people(id) on delete restrict,
   proxy_id uuid references public.world_representation_proxies(id) on delete restrict,
   proxy_revision bigint,
-  captured_at timestamptz not null,
+  eligible boolean not null default true,
+  reason text,
+  snapshotted_at timestamptz not null,
   primary key(vote_id,country_id),
+  unique(vote_id,country_id,representation_id),
   constraint world_vote_proxy_revision_pair_check check ((proxy_id is null)=(proxy_revision is null)),
-  constraint world_vote_electorate_version_check check (
+  constraint world_vote_eligibility_version_check check (
     membership_revision>=1 and representation_revision>=1 and
     (proxy_revision is null or proxy_revision>=1)
   )
 );
-create index world_vote_electorate_country_idx on public.world_vote_electorate(country_id,vote_id);
+create index world_vote_eligibility_country_idx on public.world_vote_eligibility(country_id,vote_id);
 
--- A private ballot MUST NOT be a public world_vote_electorate column.
+-- A private ballot MUST NOT be a public world_vote_eligibility column.
 -- This table is for recorded legislative votes ONLY, never secret elections.
-create table private.world_legislative_ballots (
+create table private.world_ballots (
+  id uuid primary key default pg_catalog.gen_random_uuid(),
   vote_id uuid not null references public.world_votes(id) on delete restrict,
   country_id uuid not null references public.countries(id) on delete restrict,
+  representation_id uuid not null references public.world_organization_representations(id)
+    on delete restrict,
   choice text not null check (choice in ('aye','nay','abstain')),
   cast_by_user_id uuid not null,
   cast_by_proxy_id uuid references public.world_representation_proxies(id) on delete restrict,
   operation_id uuid not null unique,
+  receipt_id uuid not null references public.studio2_operation_receipts(operation_id)
+    on delete restrict,
   cast_at timestamptz not null default now(),
-  primary key(vote_id,country_id),
-  foreign key(vote_id,country_id)
-    references public.world_vote_electorate(vote_id,country_id) on delete restrict
+  unique(vote_id,country_id),
+  foreign key(vote_id,country_id,representation_id)
+    references public.world_vote_eligibility(vote_id,country_id,representation_id) on delete restrict
 );
-create index world_legislative_ballots_vote_idx
-  on private.world_legislative_ballots(vote_id,choice);
+create index world_ballots_vote_idx
+  on private.world_ballots(vote_id,choice);
 
 -- Certification is a separate immutable object, not the latest browser tally.
 create table public.world_vote_results (
@@ -168,12 +176,12 @@ create table public.world_vote_results (
 );
 
 alter table public.world_votes enable row level security;
-alter table public.world_vote_electorate enable row level security;
-alter table private.world_legislative_ballots enable row level security;
+alter table public.world_vote_eligibility enable row level security;
+alter table private.world_ballots enable row level security;
 alter table public.world_vote_results enable row level security;
-revoke all on public.world_votes,public.world_vote_electorate,
+revoke all on public.world_votes,public.world_vote_eligibility,
   public.world_vote_results from public,anon,authenticated,service_role;
-revoke all on private.world_legislative_ballots from public,anon,authenticated,service_role;
+revoke all on private.world_ballots from public,anon,authenticated,service_role;
 
 -- Belt-and-suspenders append-only safeguards on critical historical evidence.
 create or replace function private.world_vote_immutable_row_v1()
@@ -182,11 +190,11 @@ as $immutable$
 begin
   raise exception using errcode='23514',message='IMMUTABLE_WORLD_VOTE_EVIDENCE';
 end $immutable$;
-create trigger world_vote_electorate_immutable
-  before update or delete on public.world_vote_electorate
+create trigger world_vote_eligibility_immutable
+  before update or delete on public.world_vote_eligibility
   for each row execute function private.world_vote_immutable_row_v1();
 create trigger world_legislative_ballot_immutable
-  before update or delete on private.world_legislative_ballots
+  before update or delete on private.world_ballots
   for each row execute function private.world_vote_immutable_row_v1();
 create trigger world_vote_result_immutable
   before update or delete on public.world_vote_results
