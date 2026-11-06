@@ -47,6 +47,15 @@ describe("V3 global Search relevance integration", () => {
     expect(palette).toContain("{normalized.length >= 2 ? (");
   });
 
+  it("cancels superseded hosted RPC reads while keeping the explicit retry path", () => {
+    expect(app).toContain("queryFn: async ({ signal }) => {");
+    expect(app).toContain(".abortSignal(signal)");
+    expect(app).toContain('queryKey: ["solaris-public-app-search", debouncedQuery.toLowerCase()]');
+    expect(app).toContain("retry: false");
+    expect(app).toContain("refetchOnWindowFocus: false");
+    expect(app).toContain("onClick={() => void remote.refetch()}");
+  });
+
   it("preserves canonical destinations and visible-result click telemetry", () => {
     expect(app).toContain("trackPublicUxEvent(\"search_result_clicked\"");
     expect(web).toContain("trackPublicUxEvent(\"search_result_clicked\"");
