@@ -715,6 +715,36 @@ begin
 end
 $revoked_state$;
 
+do $tg6_approval_closure_setup$
+declare v jsonb:=current_setting('solaris.tg6_proxy_fixture')::jsonb;
+begin
+ update public.world_sessions set status='concluded'
+ where id=(v->>'sessionId')::uuid;
+end
+$tg6_approval_closure_setup$;
+
+set local role authenticated;
+set local request.jwt.claim.role='authenticated';
+do $tg6_approval_closed_receipt_replay$
+declare
+ v jsonb:=current_setting('solaris.tg6_proxy_fixture')::jsonb;
+ v_op uuid:=(v->>'approvalOperationId')::uuid;
+ v_replay jsonb;
+begin
+ perform set_config('request.jwt.claim.sub',v->>'chair',true);
+ perform set_config('request.jwt.claims',
+   jsonb_build_object('sub',v->>'chair','role','authenticated')::text,true);
+ v_replay:=public.world_approve_proxy_v1(
+   (v->>'proxyId')::uuid,'approved',1,
+   v_op,'tg6-chair:'||v_op::text);
+ if coalesce((v_replay->>'replayed')::boolean,false) is not true
+    or v_replay #>> '{result,status}' <> 'approved'
+    or v_replay #>> '{result,revision}' <> '2'
+ then raise exception 'TG6_PROXY_APPROVAL_CLOSED_RECEIPT_LOST'; end if;
+end
+$tg6_approval_closed_receipt_replay$;
+reset role;
+
 rollback;
 do $rolled_back$
 begin
