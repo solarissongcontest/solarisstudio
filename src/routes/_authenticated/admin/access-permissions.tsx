@@ -107,8 +107,13 @@ const TABS: Array<{ id: AccessTab; label: string }> = [
 
 function AccessPermissionsPage() {
   const queryClient = useQueryClient();
-  const { editionId } = useAdminContext();
+  const { editionId, setEditionContext } = useAdminContext();
   const actorId = useAuthenticatedUser().id;
+  // The Organizer shell can silently select its newest public edition.
+  // Permission reviews require an affirmative choice by the current actor.
+  const [explicitChoice, setExplicitChoice] = useState<{ actorId: string; editionId: string } | null>(null);
+  const explicitEditionId = explicitChoice?.actorId === actorId ? explicitChoice.editionId : "";
+  const verifiedChoiceId = explicitEditionId && editionId === explicitEditionId ? explicitEditionId : "";
   const currentActorRef = useRef(actorId);
   // Tracks the committed Organizer context across an in-flight password step.
   const currentEditionRef = useRef<string | null>(editionId ?? null);
@@ -117,7 +122,7 @@ function AccessPermissionsPage() {
   // promote that cached identity to verified permission scope.
   const organizerEdition =
     editionsQuery.isSuccess && !editionsQuery.error && !editionsQuery.isFetching
-      ? selectOrganizerEdition(editionsQuery.data ?? [], editionId)
+      ? selectOrganizerEdition(editionsQuery.data ?? [], verifiedChoiceId)
       : null;
   const resolvedEditionId = editionId && organizerEdition ? organizerEdition.id : "";
   const organizerEditionLabel = organizerEdition ? formatEditionLabel(organizerEdition) : null;
@@ -125,7 +130,8 @@ function AccessPermissionsPage() {
     editionsQuery.isSuccess &&
     !editionsQuery.error &&
     !editionsQuery.isFetching &&
-    (!editionId || Boolean(resolvedEditionId));
+    Boolean(verifiedChoiceId) &&
+    Boolean(resolvedEditionId);
   // Ref keeps an in-flight R3 operation bound to live verification, not a stale closure.
   const verifiedEditionRef = useRef(editionContextVerified);
   const editionLabels = useMemo(
@@ -485,6 +491,37 @@ function AccessPermissionsPage() {
           <span className="font-bold">Capability enforcement is authoritative.</span> Route
           evaluations continue to be recorded for audit and operational review.
         </div>
+
+        <AdminCard>
+          <label className="flex flex-col gap-2">
+            <span className="text-xs font-semibold text-muted-foreground">
+              Choose the edition for this permission review
+            </span>
+            <select
+              className="admin-input"
+              value={verifiedChoiceId}
+              disabled={!editionsQuery.isSuccess || Boolean(editionsQuery.error) || editionsQuery.isFetching}
+              onChange={(event) => {
+                const choice = (editionsQuery.data ?? []).find((edition) => edition.id === event.target.value);
+                setExplicitChoice(choice ? { actorId, editionId: choice.id } : null);
+                if (choice) {
+                  setEditionContext({ id: choice.id, slug: choice.slug, label: formatEditionLabel(choice) });
+                }
+              }}
+            >
+              <option value="">Select an exact review edition…</option>
+              {(editionsQuery.isSuccess && !editionsQuery.error && !editionsQuery.isFetching
+                ? editionsQuery.data ?? []
+                : []
+              ).map((edition) => (
+                <option key={edition.id} value={edition.id}>{formatEditionLabel(edition)}</option>
+              ))}
+            </select>
+            <span className="text-xs text-muted-foreground">
+              NAV's default edition is not authorization. Deliberately select a review edition, even for globally scoped permission changes.
+            </span>
+          </label>
+        </AdminCard>
 
         <div
           data-v3-organizer-context-lock="permissions"
