@@ -225,6 +225,50 @@ $self$;
 
 -- NULL = denied; otherwise earliest readable chat instant. This function is
 -- evaluated fresh on EVERY RPC invocation, not copied to a client JWT/claim.
+-- Mutations lock the CURRENT TG2 affiliation rows, not merely test a stale
+-- client snapshot. Concurrent membership termination updates conflict with
+-- FOR SHARE and therefore cannot slip through an accepted write.
+create function private.world_space_lock_actor_membership_v1(p_organization_id uuid)
+returns void language plpgsql volatile security definer set search_path = pg_catalog
+as $memberlock$
+begin
+  if auth.uid() is null then
+    raise exception using errcode='42501',message='AUTHORIZATION'; end if;
+  if public.studio2_access_allowed('system.manage',null,false) then return; end if;
+  perform 1
+  from public.world_organization_memberships m
+  join public.country_accounts a on a.country_id=m.country_id
+  where m.organization_id=p_organization_id
+    and a.user_id=auth.uid() and a.status='active'
+    and m.status in ('member','observer','associate')
+    and m.ended_at is null and m.joined_at<=now()
+  limit 1 for share of m,a;
+  if found then return; end if;
+  perform 1
+  from public.world_organization_representations r
+  join public.world_organization_memberships m
+    on m.organization_id=r.organization_id and m.country_id=r.country_id
+  where r.organization_id=p_organization_id and r.user_id=auth.uid()
+    and r.starts_at<=now() and (r.ends_at is null or r.ends_at>now())
+    and m.status in ('member','observer','associate')
+    and m.ended_at is null and m.joined_at<=now()
+  limit 1 for share of r,m;
+  if not found then raise exception using errcode='42501',message='MEMBERSHIP_REVOKED'; end if;
+end
+$memberlock$;
+
+create function private.world_space_lock_member_for_space_v1(p_space_id uuid)
+returns void language plpgsql volatile security definer set search_path = pg_catalog
+as $spacelock$
+declare v_organization_id uuid;
+begin
+  select organization_id into v_organization_id
+  from public.world_spaces where id=p_space_id;
+  if not found then raise exception using errcode='42501',message='AUTHORIZATION'; end if;
+  perform private.world_space_lock_actor_membership_v1(v_organization_id);
+end
+$spacelock$;
+
 create function private.world_space_read_from_v1(p_space_id uuid)
 returns timestamptz
 language plpgsql stable security definer set search_path = pg_catalog
@@ -359,6 +403,7 @@ begin
   then raise exception using errcode='42501', message='AUTHORIZATION'; end if;
   if public.studio2_feature_enabled('terra_private_spaces',null) is distinct from true then
     raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
+  perform private.world_space_lock_actor_membership_v1(p_organization_id);
   if private.world_space_member_since_v1(p_organization_id) is null
      and not public.studio2_access_allowed('system.manage',null,false) then
     raise exception using errcode='42501',message='MEMBERSHIP_REVOKED'; end if;
@@ -489,6 +534,7 @@ begin
       private.world_space_member_since_v1(v_space.organization_id) is null
       and not public.studio2_access_allowed('system.manage',null,false)
     ) then raise exception using errcode='42501',message='AUTHORIZATION'; end if;
+  perform private.world_space_lock_member_for_space_v1(p_space_id);
   if p_user_id is null or p_role not in ('member','moderator')
     or p_active is null or p_expected_revision is null or p_expected_revision<0
     or p_request_id is null then
@@ -630,6 +676,7 @@ declare v_from timestamptz; v_message private.world_space_messages%rowtype;
 begin
   if public.studio2_feature_enabled('terra_chat',null) is distinct from true then
     raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
+  perform private.world_space_lock_member_for_space_v1(p_space_id);
   v_from:=private.world_space_read_from_v1(p_space_id);
   if v_from is null then raise exception using errcode='42501', message='AUTHORIZATION'; end if;
   if p_request_id is null or length(btrim(coalesce(p_body,''))) not between 1 and 4000
@@ -663,6 +710,7 @@ begin
     raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
   select * into v_message from private.world_space_messages
     where id=p_message_id for update;
+  perform private.world_space_lock_member_for_space_v1(v_message.space_id);
   if not found or private.world_space_read_from_v1(v_message.space_id) is null
      or v_message.sender_user_id <> auth.uid()
   then raise exception using errcode='42501', message='AUTHORIZATION'; end if;
@@ -691,6 +739,7 @@ begin
     raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
   select * into v_message from private.world_space_messages where id=p_message_id;
   if not found then raise exception using errcode='42501',message='AUTHORIZATION'; end if;
+  perform private.world_space_lock_member_for_space_v1(v_message.space_id);
   v_from:=private.world_space_read_from_v1(v_message.space_id);
   if v_from is null or v_message.created_at < v_from or v_message.redacted_at is not null
   then raise exception using errcode='42501',message='AUTHORIZATION'; end if;
@@ -717,6 +766,7 @@ begin
   if public.studio2_feature_enabled('terra_chat',null) is distinct from true then
     raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
   select * into v_message from private.world_space_messages where id=p_message_id for update;
+  perform private.world_space_lock_member_for_space_v1(v_message.space_id);
   if not found or private.world_space_read_from_v1(v_message.space_id) is null
   then raise exception using errcode='42501',message='AUTHORIZATION'; end if;
   select organization_id into v_org from public.world_spaces where id=v_message.space_id;
@@ -746,7 +796,9 @@ begin
 end
 $$;
 
-revoke all on function private.world_space_member_since_for_v1(uuid,uuid),
+revoke all on function private.world_space_lock_actor_membership_v1(uuid),
+  private.world_space_lock_member_for_space_v1(uuid),
+  private.world_space_member_since_for_v1(uuid,uuid),
   private.world_space_member_since_v1(uuid),
   private.world_space_read_from_v1(uuid) from public, anon, authenticated;
 revoke all on function public.world_my_workspaces_v1(),
