@@ -159,7 +159,7 @@ describe("WORLD-05 TG7 actual RPC consumers", () => {
     for (const route of [
       "src/routes/world/measures/index.tsx",
       "src/routes/world/measures/new.tsx",
-      "src/routes/world/measures/$measureId.tsx",
+      "src/routes/world/measures/$measureId/index.tsx",
       "src/routes/world/measures/$measureId/manage.tsx",
     ]) {
       const source = readFileSync(resolve(process.cwd(), route), "utf8");
