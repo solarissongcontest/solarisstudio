@@ -7,11 +7,12 @@ describe("TG4 public print rollout contract", () => {
   it("mounts the authorized public print reader only after World rollout", () => {
     const route = readFileSync(resolve(
       process.cwd(),
-      "src/routes/world/documents/$organization/$document/print.tsx",
+      "src/routes/world/documents/$organization/$document_/print.tsx",
     ), "utf8");
     expect(route).toContain('import { WorldPublicGate } from "@/components/world/WorldPublic"');
     expect(route).toMatch(/<WorldPublicGate verifyOnMount>\s*<WorldDocumentPrintPage/);
     expect(route).toContain("</WorldPublicGate>");
+    expect(route).toContain('createFileRoute("/world/documents/$organization/$document_/print")');
     expect(route).toContain("parseWorldDocumentVersionQuery(search.version)");
 
     const page = readFileSync(resolve(
