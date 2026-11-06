@@ -1,11 +1,62 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { requireSolarisOrganizerServer } from "@/integrations/supabase/organizer.server";
+import {
+  createSolarisAuthenticatedClientServer,
+  requireSolarisOrganizerServer,
+} from "@/integrations/supabase/organizer.server";
+
+export type ShowLineupOperationAction =
+  | "start_allocation"
+  | "save_allocation"
+  | "start_running_order"
+  | "save_running_order"
+  | "sync_confirmed_countries";
+
+export type ShowLineupMembershipAction =
+  | "member_add"
+  | "member_remove"
+  | "promote_qualifiers";
+
+export type ShowLineupMetadataAction =
+  | "member_metadata_update"
+  | "sync_entry_metadata";
+
+type ShowLineupOperationInput = {
+  editionId: string;
+  showId: string;
+  action: ShowLineupOperationAction;
+  payload?: Record<string, unknown>;
+  operationId?: string;
+  idempotencyKey?: string;
+  reason?: string;
+};
+
+type ShowLineupMembershipInput = {
+  editionId: string;
+  showId: string;
+  action: ShowLineupMembershipAction;
+  payload?: Record<string, unknown>;
+  operationId?: string;
+  idempotencyKey?: string;
+  reason?: string;
+};
+
+type ShowLineupMetadataInput = {
+  editionId: string;
+  showId: string;
+  action: ShowLineupMetadataAction;
+  payload?: Record<string, unknown>;
+  operationId?: string;
+  idempotencyKey?: string;
+  reason?: string;
+};
 
 type AddCountriesInput = {
   editionId: string;
   showId: string;
   countryIds?: string[];
+  operationId?: string;
+  idempotencyKey?: string;
 };
 
 type SyncTargetsInput = {
@@ -26,19 +77,362 @@ export type SolarisSyncTargets = {
   shows: SolarisSyncTarget[];
 };
 
-export type AddCountriesToShowResult = {
+export type ShowLineupOperationResult = {
   ok: true;
+  operationId: string;
   showId: string;
   showName: string;
+  action: string;
+  lineupStage: string | null;
+  stateVersion: string;
+  participantCount: number;
   added: number;
   refreshed: number;
   skipped: number;
+  changed: boolean;
+  replayed: boolean;
+};
+
+export type ShowLineupMembershipResult = {
+  ok: true;
+  operationId: string;
+  showId: string;
+  showName: string;
+  action: string;
+  lineupStage: string | null;
+  stateVersion: string;
+  participantCount: number;
+  changedCount: number;
+  dependencies: Record<string, unknown>;
+  sourceParticipantIds: string[];
+  replayed: boolean;
+};
+
+export type ShowLineupMetadataResult = {
+  ok: true;
+  operationId: string;
+  showId: string;
+  showName: string;
+  action: string;
+  stateVersion: string;
+  participantCount: number;
+  changedCount: number;
+  replayed: boolean;
+};
+
+export type AddCountriesToShowResult = ShowLineupOperationResult & {
   countryIds: string[];
 };
+
+type LineupPreflight = {
+  ok?: boolean;
+  stateVersion?: string;
+  blockers?: string[];
+};
+
+type LineupOperationEnvelope = {
+  operationId?: string;
+  replayed?: boolean;
+  status?: string;
+  result?: {
+    ok?: boolean;
+    operationId?: string;
+    showId?: string;
+    showName?: string;
+    action?: string;
+    lineupStage?: string | null;
+    stateVersion?: string;
+    participantCount?: number;
+    added?: number;
+    refreshed?: number;
+    skipped?: number;
+    changed?: boolean;
+    changedCount?: number;
+    dependencies?: Record<string, unknown>;
+    sourceParticipantIds?: string[];
+  } | null;
+};
+
+const lineupActions = new Set<ShowLineupOperationAction>([
+  "start_allocation",
+  "save_allocation",
+  "start_running_order",
+  "save_running_order",
+  "sync_confirmed_countries",
+]);
+
+const membershipActions = new Set<ShowLineupMembershipAction>([
+  "member_add",
+  "member_remove",
+  "promote_qualifiers",
+]);
+
+const metadataActions = new Set<ShowLineupMetadataAction>([
+  "member_metadata_update",
+  "sync_entry_metadata",
+]);
 
 function requireId(value: unknown, label: string) {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${label} is required`);
   return value.trim();
+}
+
+function optionalId(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function requireAction(value: unknown): ShowLineupOperationAction {
+  if (typeof value !== "string" || !lineupActions.has(value as ShowLineupOperationAction)) {
+    throw new Error("Choose a valid line-up operation");
+  }
+  return value as ShowLineupOperationAction;
+}
+
+function requireMembershipAction(value: unknown): ShowLineupMembershipAction {
+  if (typeof value !== "string" || !membershipActions.has(value as ShowLineupMembershipAction)) {
+    throw new Error("Choose a valid line-up membership operation");
+  }
+  return value as ShowLineupMembershipAction;
+}
+
+function requireMetadataAction(value: unknown): ShowLineupMetadataAction {
+  if (typeof value !== "string" || !metadataActions.has(value as ShowLineupMetadataAction)) {
+    throw new Error("Choose a valid line-up metadata operation");
+  }
+  return value as ShowLineupMetadataAction;
+}
+
+function describeBlockers(blockers: unknown) {
+  if (!Array.isArray(blockers) || blockers.length === 0) return "The line-up operation is currently blocked.";
+  return blockers.filter((value): value is string => typeof value === "string").join(", ");
+}
+
+function completedOperationResult(
+  envelope: LineupOperationEnvelope,
+  fallbackOperationId: string,
+  replayed: boolean,
+): ShowLineupOperationResult {
+  const result = envelope.result ?? {};
+  const canonicalOperationId = envelope.operationId ?? result.operationId ?? fallbackOperationId;
+  if (!result.ok || !result.showId || !result.showName || !result.stateVersion || !result.action) {
+    throw new Error("The canonical line-up command returned an incomplete receipt.");
+  }
+
+  return {
+    ok: true,
+    operationId: canonicalOperationId,
+    showId: result.showId,
+    showName: result.showName,
+    action: result.action,
+    lineupStage: result.lineupStage ?? null,
+    stateVersion: result.stateVersion,
+    participantCount: result.participantCount ?? 0,
+    added: result.added ?? 0,
+    refreshed: result.refreshed ?? 0,
+    skipped: result.skipped ?? 0,
+    changed: Boolean(result.changed),
+    replayed,
+  };
+}
+
+function completedMembershipResult(
+  envelope: LineupOperationEnvelope,
+  fallbackOperationId: string,
+  replayed: boolean,
+): ShowLineupMembershipResult {
+  const result = envelope.result ?? {};
+  const canonicalOperationId = envelope.operationId ?? result.operationId ?? fallbackOperationId;
+  if (!result.ok || !result.showId || !result.showName || !result.stateVersion || !result.action) {
+    throw new Error("The canonical line-up membership command returned an incomplete receipt.");
+  }
+
+  return {
+    ok: true,
+    operationId: canonicalOperationId,
+    showId: result.showId,
+    showName: result.showName,
+    action: result.action,
+    lineupStage: result.lineupStage ?? null,
+    stateVersion: result.stateVersion,
+    participantCount: result.participantCount ?? 0,
+    changedCount: result.changedCount ?? 0,
+    dependencies: result.dependencies ?? {},
+    sourceParticipantIds: Array.isArray(result.sourceParticipantIds) ? result.sourceParticipantIds : [],
+    replayed,
+  };
+}
+
+function completedMetadataResult(
+  envelope: LineupOperationEnvelope,
+  fallbackOperationId: string,
+  replayed: boolean,
+): ShowLineupMetadataResult {
+  const result = envelope.result ?? {};
+  const canonicalOperationId = envelope.operationId ?? result.operationId ?? fallbackOperationId;
+  if (!result.ok || !result.showId || !result.showName || !result.stateVersion || !result.action) {
+    throw new Error("The canonical line-up metadata command returned an incomplete receipt.");
+  }
+  return {
+    ok: true,
+    operationId: canonicalOperationId,
+    showId: result.showId,
+    showName: result.showName,
+    action: result.action,
+    stateVersion: result.stateVersion,
+    participantCount: result.participantCount ?? 0,
+    changedCount: result.changedCount ?? 0,
+    replayed,
+  };
+}
+
+async function reconcileExistingOperation(
+  client: any,
+  operationId: string,
+): Promise<LineupOperationEnvelope | null> {
+  const reconciliation = await client.rpc("studio2_reconcile_operation", {
+    p_operation_id: operationId,
+  });
+  if (!reconciliation.error) {
+    const envelope = (reconciliation.data ?? {}) as LineupOperationEnvelope;
+    if (envelope.status === "succeeded") return envelope;
+    throw new Error(`The existing line-up operation is ${envelope.status ?? "not complete"}. Reconcile it before starting another write.`);
+  }
+  if (reconciliation.error.code !== "P0002") {
+    throw new Error(reconciliation.error.message);
+  }
+  return null;
+}
+
+async function runShowLineupOperation(
+  data: ShowLineupOperationInput,
+): Promise<ShowLineupOperationResult> {
+  await requireSolarisOrganizerServer();
+  const client = createSolarisAuthenticatedClientServer() as any;
+  const payload = data.payload ?? {};
+  const operationId = data.operationId ?? crypto.randomUUID();
+  const idempotencyKey = data.idempotencyKey ?? `show-lineup:${data.action}:${operationId}`;
+
+  if (data.operationId) {
+    const envelope = await reconcileExistingOperation(client, operationId);
+    if (envelope) return completedOperationResult(envelope, operationId, true);
+  }
+
+  const preflightResponse = await client.rpc("v3_show_lineup_preflight", {
+    p_edition_id: data.editionId,
+    p_show_id: data.showId,
+    p_action: data.action,
+    p_payload: payload,
+  });
+  if (preflightResponse.error) throw new Error(preflightResponse.error.message);
+
+  const preflight = (preflightResponse.data ?? {}) as LineupPreflight;
+  if (!preflight.ok || !preflight.stateVersion) {
+    throw new Error(describeBlockers(preflight.blockers));
+  }
+
+  const operationResponse = await client.rpc("v3_execute_show_lineup_operation", {
+    p_edition_id: data.editionId,
+    p_show_id: data.showId,
+    p_action: data.action,
+    p_payload: payload,
+    p_operation_id: operationId,
+    p_idempotency_key: idempotencyKey,
+    p_expected_state_version: preflight.stateVersion,
+    p_reason: data.reason?.trim() || null,
+    p_correlation_id: operationId,
+  });
+  if (operationResponse.error) throw new Error(operationResponse.error.message);
+
+  const envelope = (operationResponse.data ?? {}) as LineupOperationEnvelope;
+  return completedOperationResult(envelope, operationId, Boolean(envelope.replayed));
+}
+
+async function runShowLineupMembershipOperation(
+  data: ShowLineupMembershipInput,
+): Promise<ShowLineupMembershipResult> {
+  await requireSolarisOrganizerServer();
+  const client = createSolarisAuthenticatedClientServer() as any;
+  const payload = data.payload ?? {};
+  const operationId = data.operationId ?? crypto.randomUUID();
+  const idempotencyKey = data.idempotencyKey ?? `show-lineup-membership:${data.action}:${operationId}`;
+
+  if (data.operationId) {
+    const envelope = await reconcileExistingOperation(client, operationId);
+    if (envelope) return completedMembershipResult(envelope, operationId, true);
+  }
+
+  const preflightResponse = await client.rpc("v3_show_lineup_membership_preflight", {
+    p_edition_id: data.editionId,
+    p_show_id: data.showId,
+    p_action: data.action,
+    p_payload: payload,
+  });
+  if (preflightResponse.error) throw new Error(preflightResponse.error.message);
+
+  const preflight = (preflightResponse.data ?? {}) as LineupPreflight;
+  if (!preflight.ok || !preflight.stateVersion) {
+    throw new Error(describeBlockers(preflight.blockers));
+  }
+
+  const operationResponse = await client.rpc("v3_execute_show_lineup_membership_operation", {
+    p_edition_id: data.editionId,
+    p_show_id: data.showId,
+    p_action: data.action,
+    p_payload: payload,
+    p_operation_id: operationId,
+    p_idempotency_key: idempotencyKey,
+    p_expected_state_version: preflight.stateVersion,
+    p_reason: data.reason?.trim() || null,
+    p_correlation_id: operationId,
+  });
+  if (operationResponse.error) throw new Error(operationResponse.error.message);
+
+  const envelope = (operationResponse.data ?? {}) as LineupOperationEnvelope;
+  return completedMembershipResult(envelope, operationId, Boolean(envelope.replayed));
+}
+
+async function runShowLineupMetadataOperation(
+  data: ShowLineupMetadataInput,
+): Promise<ShowLineupMetadataResult> {
+  await requireSolarisOrganizerServer();
+  const client = createSolarisAuthenticatedClientServer() as any;
+  const payload = data.payload ?? {};
+  const operationId = data.operationId ?? crypto.randomUUID();
+  const idempotencyKey = data.idempotencyKey ?? `show-lineup-metadata:${data.action}:${operationId}`;
+
+  if (data.operationId) {
+    const envelope = await reconcileExistingOperation(client, operationId);
+    if (envelope) return completedMetadataResult(envelope, operationId, true);
+  }
+
+  const preflightResponse = await client.rpc("v3_show_lineup_metadata_preflight", {
+    p_edition_id: data.editionId,
+    p_show_id: data.showId,
+    p_action: data.action,
+    p_payload: payload,
+  });
+  if (preflightResponse.error) throw new Error(preflightResponse.error.message);
+
+  const preflight = (preflightResponse.data ?? {}) as LineupPreflight;
+  if (!preflight.ok || !preflight.stateVersion) {
+    throw new Error(describeBlockers(preflight.blockers));
+  }
+
+  const operationResponse = await client.rpc("v3_execute_show_lineup_metadata_operation", {
+    p_edition_id: data.editionId,
+    p_show_id: data.showId,
+    p_action: data.action,
+    p_payload: payload,
+    p_operation_id: operationId,
+    p_idempotency_key: idempotencyKey,
+    p_expected_state_version: preflight.stateVersion,
+    p_reason: data.reason?.trim() || null,
+    p_correlation_id: operationId,
+  });
+  if (operationResponse.error) throw new Error(operationResponse.error.message);
+
+  const envelope = (operationResponse.data ?? {}) as LineupOperationEnvelope;
+  return completedMetadataResult(envelope, operationId, Boolean(envelope.replayed));
 }
 
 export const getSolarisEditionSyncTargets = createServerFn({ method: "POST" })
@@ -75,6 +469,42 @@ export const getSolarisEditionSyncTargets = createServerFn({ method: "POST" })
     };
   });
 
+export const executeShowLineupOperation = createServerFn({ method: "POST" })
+  .inputValidator((data: ShowLineupOperationInput) => ({
+    editionId: requireId(data?.editionId, "Edition"),
+    showId: requireId(data?.showId, "Show"),
+    action: requireAction(data?.action),
+    payload: data?.payload && typeof data.payload === "object" && !Array.isArray(data.payload) ? data.payload : {},
+    operationId: optionalId(data?.operationId),
+    idempotencyKey: optionalId(data?.idempotencyKey),
+    reason: typeof data?.reason === "string" ? data.reason : undefined,
+  }))
+  .handler(async ({ data }): Promise<ShowLineupOperationResult> => runShowLineupOperation(data));
+
+export const executeShowLineupMembershipOperation = createServerFn({ method: "POST" })
+  .inputValidator((data: ShowLineupMembershipInput) => ({
+    editionId: requireId(data?.editionId, "Edition"),
+    showId: requireId(data?.showId, "Show"),
+    action: requireMembershipAction(data?.action),
+    payload: data?.payload && typeof data.payload === "object" && !Array.isArray(data.payload) ? data.payload : {},
+    operationId: optionalId(data?.operationId),
+    idempotencyKey: optionalId(data?.idempotencyKey),
+    reason: typeof data?.reason === "string" ? data.reason : undefined,
+  }))
+  .handler(async ({ data }): Promise<ShowLineupMembershipResult> => runShowLineupMembershipOperation(data));
+
+export const executeShowLineupMetadataOperation = createServerFn({ method: "POST" })
+  .inputValidator((data: ShowLineupMetadataInput) => ({
+    editionId: requireId(data?.editionId, "Edition"),
+    showId: requireId(data?.showId, "Show"),
+    action: requireMetadataAction(data?.action),
+    payload: data?.payload && typeof data.payload === "object" && !Array.isArray(data.payload) ? data.payload : {},
+    operationId: optionalId(data?.operationId),
+    idempotencyKey: optionalId(data?.idempotencyKey),
+    reason: typeof data?.reason === "string" ? data.reason : undefined,
+  }))
+  .handler(async ({ data }): Promise<ShowLineupMetadataResult> => runShowLineupMetadataOperation(data));
+
 export const addCountriesToShow = createServerFn({ method: "POST" })
   .inputValidator((data: AddCountriesInput) => ({
     editionId: requireId(data?.editionId, "Edition"),
@@ -82,100 +512,18 @@ export const addCountriesToShow = createServerFn({ method: "POST" })
     countryIds: Array.isArray(data?.countryIds)
       ? [...new Set(data.countryIds.filter((value): value is string => typeof value === "string" && Boolean(value.trim())).map((value) => value.trim()))]
       : [],
+    operationId: optionalId(data?.operationId),
+    idempotencyKey: optionalId(data?.idempotencyKey),
   }))
   .handler(async ({ data }): Promise<AddCountriesToShowResult> => {
-    await requireSolarisOrganizerServer();
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const db = supabaseAdmin as any;
-
-    const showResult = await db
-      .from("shows")
-      .select("id,name,kind,edition_id")
-      .eq("id", data.showId)
-      .maybeSingle();
-    if (showResult.error) throw new Error(showResult.error.message);
-    const show = showResult.data;
-    if (!show || show.edition_id !== data.editionId) throw new Error("That show does not belong to this edition.");
-
-    let canonicalQuery = db
-      .from("participants")
-      .select(
-        "id,edition_id,country_id,contest_entity_id,artist,song,notes,participation_status,youtube_url,spotify_url,apple_music_url,publication_status,scheduled_publish_at,published_at,publication_source,publication_overridden",
-      )
-      .eq("edition_id", data.editionId)
-      .is("show_id", null)
-      .eq("participation_status", "confirmed")
-      .not("country_id", "is", null);
-
-    if (data.countryIds.length) canonicalQuery = canonicalQuery.in("country_id", data.countryIds);
-
-    const canonicalResult = await canonicalQuery.order("created_at");
-    if (canonicalResult.error) throw new Error(canonicalResult.error.message);
-    const canonicalRows = canonicalResult.data ?? [];
-
-    if (!canonicalRows.length) {
-      return { ok: true, showId: show.id, showName: show.name, added: 0, refreshed: 0, skipped: data.countryIds.length, countryIds: [] };
-    }
-
-    const wantedIds = canonicalRows.map((row: any) => row.country_id).filter(Boolean) as string[];
-    const existingResult = await db
-      .from("participants")
-      .select("id,country_id,running_order,running_order_allocation")
-      .eq("show_id", show.id)
-      .in("country_id", wantedIds);
-    if (existingResult.error) throw new Error(existingResult.error.message);
-
-    const existingByCountry = new Map<string, any>((existingResult.data ?? []).map((row: any) => [row.country_id, row]));
-    let added = 0;
-    let refreshed = 0;
-
-    for (const source of canonicalRows as any[]) {
-      const existing = existingByCountry.get(source.country_id);
-      const shared = {
-        country_id: source.country_id,
-        contest_entity_id: source.contest_entity_id,
-        artist: source.artist,
-        song: source.song,
-        notes: source.notes,
-        participation_status: source.participation_status,
-        youtube_url: source.youtube_url,
-        spotify_url: source.spotify_url,
-        apple_music_url: source.apple_music_url,
-        publication_status: source.publication_status,
-        scheduled_publish_at: source.scheduled_publish_at,
-        published_at: source.published_at,
-        publication_source: source.publication_source,
-        publication_overridden: source.publication_overridden,
-        semi_final: show.kind,
-      };
-
-      if (existing) {
-        // Refresh entry metadata only. Running-order and allocation work belongs to the
-        // show workflow and must never be overwritten by a confirmation sync.
-        const update = await db.from("participants").update(shared).eq("id", existing.id);
-        if (update.error) throw new Error(update.error.message);
-        refreshed += 1;
-      } else {
-        const insert = await db.from("participants").insert({
-          ...shared,
-          edition_id: data.editionId,
-          show_id: show.id,
-          running_order: null,
-          running_order_allocation: null,
-        });
-        if (insert.error) throw new Error(insert.error.message);
-        added += 1;
-      }
-    }
-
-    const requested = data.countryIds.length ? data.countryIds.length : canonicalRows.length;
-    return {
-      ok: true,
-      showId: show.id,
-      showName: show.name,
-      added,
-      refreshed,
-      skipped: Math.max(0, requested - canonicalRows.length),
-      countryIds: wantedIds,
-    };
+    const result = await runShowLineupOperation({
+      editionId: data.editionId,
+      showId: data.showId,
+      action: "sync_confirmed_countries",
+      payload: { countryIds: data.countryIds },
+      operationId: data.operationId,
+      idempotencyKey: data.idempotencyKey,
+      reason: "Synchronize canonical confirmed delegations into this show",
+    });
+    return { ...result, countryIds: data.countryIds };
   });
