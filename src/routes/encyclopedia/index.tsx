@@ -77,14 +77,11 @@ const RESULT_KINDS = new Set<ResultKind>([
   "show",
 ]);
 const BROWSE_DESTINATIONS = [
-  ["Editions", "Browse every published Solaris edition.", "/editions"],
-  [
-    "Countries",
-    "Open canonical country profiles and participation history.",
-    "/countries",
-  ],
-  ["Shows", "Find published shows and their edition context.", "/shows"],
-  ["Stories", "Continue into published Solaris editorial history.", "/stories"],
+  { kind: "edition", label: "Editions", description: "Browse every published Solaris edition.", href: "/editions" },
+  { kind: "country", label: "Countries", description: "Open canonical country profiles and participation history.", href: "/countries" },
+  { kind: "show", label: "Shows", description: "Find published shows and their edition context.", href: "/shows" },
+  { kind: "story", label: "Stories", description: "Continue into published Solaris editorial history.", href: "/stories" },
+  { kind: "rule", label: "Official rules", description: "Read the current published Rules and guidance.", href: "/rules" },
 ] as const;
 
 function parseSearchRows(value: unknown): ReferenceItem[] {
@@ -197,6 +194,12 @@ function ReferencePage() {
     },
   });
 
+  // Topic choices must also filter the idle browse index, not only typed search hits.
+  // Entries have no independent public directory yet: users search the published projection.
+  const browseDestinations = BROWSE_DESTINATIONS.filter((destination) =>
+    kind === "all" || destination.kind === kind,
+  );
+
   const filtered = useMemo(
     () =>
       kind === "all"
@@ -220,7 +223,26 @@ function ReferencePage() {
     );
   }
 
-  if (feature.isError || feature.data !== true) {
+  if (feature.isError) {
+    return (
+      <AppShell>
+        <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
+          <ReferenceDirectoryHeader presentation={presentation} />
+          <Panel title="Reference availability could not be checked">
+            <p className="text-sm text-muted-foreground">
+              Solaris could not verify whether the public Reference is enabled. No unpublished articles are shown.
+            </p>
+            <button type="button" onClick={() => void feature.refetch()}
+              className="mt-3 min-h-11 rounded-xl border border-border bg-surface px-4 text-sm font-semibold">
+              Retry availability check
+            </button>
+          </Panel>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (feature.data !== true) {
     return (
       <AppShell>
         <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
@@ -278,9 +300,13 @@ function ReferencePage() {
           <StatTile label="Stories" value={coverageValue(coverage?.stories)} />
         </div>
         {coverageQuery.isError ? (
-          <p className="mt-3 text-xs text-muted-foreground">
-            Archive totals are temporarily unavailable. Search and reference links still work.
-          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            <p>Archive totals are temporarily unavailable. Search and reference links still work.</p>
+            <button type="button" onClick={() => void coverageQuery.refetch()}
+              className="min-h-11 rounded-xl border border-border px-3 font-semibold text-foreground">
+              Retry archive totals
+            </button>
+          </div>
         ) : null}
       </Panel>
 
@@ -347,12 +373,13 @@ function ReferencePage() {
             <h2
               id="reference-browse-heading"
               className="mt-1 font-sans text-xl font-bold"
+              aria-live="polite"
             >
-              Browse published Solaris
+              {kind === "all" ? "Browse published Solaris" : `Browse ${KIND_LABELS[kind].toLowerCase()}`}
             </h2>
           </div>
           <div className={presentation === "mobile-web" ? "v3-directory-mobile-list" : presentation === "installed-app" ? "solaris-app-grouped-list" : "v3-directory-desktop-grid"}>
-            {BROWSE_DESTINATIONS.map(([label, description, href]) => (
+            {browseDestinations.map(({ label, description, href }) => (
               <Link
                 key={href}
                 to={href as any}
@@ -370,6 +397,11 @@ function ReferencePage() {
               </Link>
             ))}
           </div>
+          {browseDestinations.length === 0 ? (
+            <p className="mt-3 py-5 text-sm text-muted-foreground" role="status">
+              No standalone index exists for this topic. Search above to find published entries, songs and artists in their edition context.
+            </p>
+          ) : null}
         </section>
       ) : normalizedQuery.length < 2 ? (
         <div className="mt-5 rounded-2xl border border-border bg-surface p-7 text-center text-sm text-muted-foreground">
