@@ -166,6 +166,80 @@ begin
   raise notice 'PASS: one authoritative account, immutable historical lineage and updated public identity';
 end $history$;
 
+-- Supersede a scheduled open term BEFORE its future effective date. A naive
+-- ended_at=now() violates the historical (ended_at >= started_at) CHECK.
+-- Use the already authenticated owner and rebind the alternate durable person.
+update public.world_country_control_terms
+set started_at=now()+interval '1 day'
+where country_id=(current_setting('solaris.tg1_controller_cas_fixture')::jsonb->>'country')::uuid
+  and person_id=(current_setting('solaris.tg1_controller_cas_fixture')::jsonb->>'newPerson')::uuid
+  and ended_at is null;
+
+set local role authenticated;
+set local request.jwt.claim.role='authenticated';
+do $future_supersession$
+declare
+  v jsonb := current_setting('solaris.tg1_controller_cas_fixture')::jsonb;
+  v_response jsonb;
+begin
+  perform set_config('request.jwt.claim.sub',v->>'user',true);
+  perform set_config('request.jwt.claims',jsonb_build_object(
+    'sub',v->>'user','role','authenticated'
+  )::text,true);
+  v_response := public.world_bind_country_controller_person_v1(
+    (v->>'country')::uuid,
+    (v->>'oldPerson')::uuid,
+    'TG1 future term superseded before becoming effective',
+    gen_random_uuid(), 'tg1-future-supersession-' || gen_random_uuid()::text,
+    (v->>'user')::uuid
+  );
+  if v_response->>'status' <> 'succeeded'
+    or v_response#>>'{result,changed}' <> 'true'
+    or v_response#>>'{result,revision}' <> '3' then
+    raise exception 'TG1_CAS_FUTURE_SUPERSESSION_INVALID: %',v_response;
+  end if;
+end
+$future_supersession$;
+reset role;
+set local request.jwt.claim.role='';
+set local request.jwt.claim.sub='';
+set local request.jwt.claims='{}';
+
+do $future_history$
+declare
+  v jsonb := current_setting('solaris.tg1_controller_cas_fixture')::jsonb;
+  v_country uuid := (v->>'country')::uuid;
+  v_term record;
+  v_controller uuid;
+  v_current_person uuid;
+begin
+  select term.started_at,term.ended_at into v_term
+  from public.world_country_control_terms term
+  where term.country_id=v_country
+    and term.person_id=(v->>'newPerson')::uuid and term.revision=2;
+  if not found or v_term.ended_at is distinct from v_term.started_at then
+    raise exception 'TG1_CAS_FUTURE_SUPERSESSION_INVALID';
+  end if;
+  select ca.user_id into v_controller from public.country_accounts ca
+  where ca.country_id=v_country and ca.status='active';
+  if v_controller is distinct from (v->>'user')::uuid then
+    raise exception 'TG1_CAS_FUTURE_SUPERSESSION_OWNER_CHANGED';
+  end if;
+  select controller_person_id into v_current_person
+  from public.world_country_identity_v1(v_country);
+  if v_current_person is distinct from (v->>'oldPerson')::uuid
+     or not exists (
+       select 1 from public.world_country_control_terms term
+       where term.country_id=v_country and term.revision=3
+         and term.person_id=(v->>'oldPerson')::uuid
+         and term.ended_at is null
+     ) then
+    raise exception 'TG1_CAS_FUTURE_SUPERSESSION_IDENTITY_INVALID';
+  end if;
+  raise notice 'PASS: future-dated controller term superseded with a valid zero-length historical term';
+end
+$future_history$;
+
 rollback;
 
 do $cleanup$
