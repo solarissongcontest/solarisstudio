@@ -1,6 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
 import { applyNavbarInstalledCssEmulation } from "./navbar-local-rollout";
+import { readNavbarEvidenceProvenance } from "./navbar-evidence-provenance";
 
 import { V3_NAVIGATION_GEOMETRY } from "../../src/lib/v3-navigation-geometry";
 import type { V3NavigationReferenceGeometry } from "../../src/lib/v3-navigation-reference-baseline";
@@ -25,6 +26,16 @@ function config() {
   const parsed = new URL(supabaseUrl!);
   if (!["127.0.0.1", "localhost"].includes(parsed.hostname)) {
     throw new Error(`Refusing V3 geometry evidence against hosted Supabase: ${parsed.origin}`);
+  }
+  // A local Supabase fixture is insufficient if E2E_BASE_URL silently points
+  // at a deployed frontend. Never turn N14 automated measurements into hosted
+  // production browsing, even with read-only test accounts.
+  const appOrigin = new URL(baseURL);
+  if (
+    appOrigin.protocol !== "http:" ||
+    !["127.0.0.1", "localhost"].includes(appOrigin.hostname)
+  ) {
+    throw new Error(`Refusing V3 geometry evidence against non-local app: ${appOrigin.origin}`);
   }
   return {
     supabaseUrl: supabaseUrl!,
@@ -238,7 +249,7 @@ test("installed app shell survives representative navigation without duplicate c
     body: Buffer.from(
       JSON.stringify(
         {
-          candidateSha: process.env.GITHUB_SHA ?? null,
+          ...readNavbarEvidenceProvenance(),
           project: testInfo.project.name,
           measuredAt: new Date().toISOString(),
           referenceStatus: "awaiting-approved-instagram-baseline",

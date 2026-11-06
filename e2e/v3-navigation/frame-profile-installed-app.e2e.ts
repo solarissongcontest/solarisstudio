@@ -4,6 +4,7 @@ import {
   applyNavbarInstalledCssEmulation,
   prepareNavbarInstalledContext,
 } from "./navbar-local-rollout";
+import { readNavbarEvidenceProvenance } from "./navbar-evidence-provenance";
 
 type FrameProfile = {
   sampleCount: number;
@@ -141,12 +142,16 @@ test("installed app shell survives representative navigation without duplicate c
     body: Buffer.from(
       JSON.stringify(
         {
-          candidateSha: process.env.GITHUB_SHA ?? null,
+          ...readNavbarEvidenceProvenance(),
           project: testInfo.project.name,
           measuredAt: new Date().toISOString(),
           interaction: "active-lens-hold-drag-snapback",
           samplingQuality,
-          certificationEligible: cadenceSufficient,
+          // Headless CI cadence can catch regressions, never certify a
+          // physical iPhone's 60/120 Hz responsiveness or N0 parity.
+          automatedCadenceCheckEligible: cadenceSufficient,
+          certificationEligible: false,
+          physicalDeviceGate: "N14-required",
           profile,
         },
         null,
