@@ -343,8 +343,8 @@ function LegacyResultLabPage() {
   if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="What-if analytics" title="Result Lab" description="Build a scenario from a published result." /><ArchiveDataError /></AppShell>;
 
   return (
-    <PublicResultsAnalysisSpoilerBoundary selectedShowId={selectedShow?.id ?? null} title="Result Lab">
-      <AppShell>
+    <AppShell>
+      <PublicResultsAnalysisSpoilerBoundary selectedShowId={selectedShow?.id ?? null} title="Result Lab">
       <PageHeader
         eyebrow="What-if analytics"
         title="Result Lab"
@@ -631,7 +631,7 @@ function LegacyResultLabPage() {
         </div>
         </div>
       </DataStoryPage>
-      </AppShell>
-    </PublicResultsAnalysisSpoilerBoundary>
+      </PublicResultsAnalysisSpoilerBoundary>
+    </AppShell>
   );
 }
