@@ -241,7 +241,8 @@ export function collectDefectSweep({ root, evidenceDir, candidateSha, toolSha = 
   }
   let fullContestProof = "not-observed";
   if (final && checkSha(final, candidateSha, "s14-final", findings)) {
-    const valid = final.passed === true && final.partial === false && final.runtimeFailure === false &&
+    const valid = final.schemaVersion === 3 &&
+      final.passed === true && final.partial === false && final.runtimeFailure === false &&
       sameOrderedMembers(final.completedStages, STAGES) &&
       sameOrderedMembers(final.completedContestExtensions, EXTENSIONS) &&
       sameMembers(final.implementedInvariants, S14_INVARIANTS) &&
@@ -249,16 +250,27 @@ export function collectDefectSweep({ root, evidenceDir, candidateSha, toolSha = 
       final.seed?.editionCount === 1 && final.seed?.delegationCount === 66 &&
       Number.isSafeInteger(final.seed?.showCount) && final.seed.showCount >= 3 &&
       final.runIdentity?.candidateSha === candidateSha &&
+      presentString(final.runIdentity?.runId) &&
       presentString(final.runIdentity?.editionId) &&
       presentString(final.runIdentity?.databaseFingerprint) &&
       Array.isArray(final.pendingStages) && final.pendingStages.length === 0 &&
       Array.isArray(final.pendingContestExtensions) && final.pendingContestExtensions.length === 0 &&
       Array.isArray(final.blockedContestExtensions) && final.blockedContestExtensions.length === 0 &&
-      final.lifecycle?.finalState === "archived";
+      presentString(final.provenance?.resultEvidenceHash) &&
+      presentString(final.provenance?.publicationEvidenceHash) &&
+      Number.isSafeInteger(final.provenance?.retainedOperationReceiptCount) &&
+      final.provenance.retainedOperationReceiptCount > 0 &&
+      presentString(final.lifecycle?.resultsOperationId) &&
+      presentString(final.lifecycle?.postEditionOperationId) &&
+      presentString(final.lifecycle?.archiveOperationId) &&
+      final.lifecycle?.finalState === "archived" &&
+      presentString(final.archive?.eventId) &&
+      final.archive?.outboxId === `${final.archive.eventId}:edition.tasks` &&
+      final.archive?.consequenceConsumerReceiptCount === 1;
     fullContestProof = valid ? "complete-on-exact-sha" : "invalid";
     if (!valid) findings.push(finding(
       "S14_INVALID_FINAL_EVIDENCE", "evidence-integrity", "confirmed-blocker",
-      "Final evidence lacks ordered lifecycle, complete invariants/failure coverage, 66-delegation seed, exact-SHA persistent identity, or archived state.",
+      "Final evidence lacks ordered lifecycle, complete invariants/failure coverage, 66-delegation seed, exact-SHA run identity, Results/publication provenance, retained receipts, or bound Archive event/outbox/consumer proof.",
       "s14-full-contest.json",
     ));
   } else if (partial && checkSha(partial, candidateSha, "s14-partial", findings)) {
