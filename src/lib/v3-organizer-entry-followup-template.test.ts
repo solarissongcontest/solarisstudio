@@ -35,6 +35,20 @@ describe("Organizer manual Entry follow-up notices", () => {
     expect(next).toEqual(newOrganizerEntryFollowupTemplate());
   });
 
+  it("invalidates follow-up confirmation after an edition switch or concurrent notice operation", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/_authenticated/admin/communications.tsx"), "utf8");
+    expect(route).toContain("entryFollowupReviewEditionId !== editionId || busy");
+    expect(route).toContain("if (busy || !editionId) return;");
+    expect(route).toContain("setEntryFollowupReviewEditionId(editionId)");
+    expect(route).toContain("setEntryFollowupReviewEditionId(null)");
+    const preflight = route.indexOf("entryFollowupReviewEditionId !== editionId || busy");
+    const reset = route.indexOf("resetComposer();", preflight);
+    expect(preflight).toBeGreaterThan(-1);
+    expect(reset).toBeGreaterThan(preflight);
+    expect(route).toContain("Reopen the Entry follow-up review.");
+  });
+
   it("requires explicit confirmation before replacing a composer and never invokes a mutation", () => {
     const route = readFileSync(resolve(process.cwd(), "src/routes/_authenticated/admin/communications.tsx"), "utf8");
     expect(route).toContain("newOrganizerEntryFollowupTemplate()");
