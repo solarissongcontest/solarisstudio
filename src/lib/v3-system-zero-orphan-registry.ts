@@ -57,6 +57,8 @@ export const V3_SYSTEM_INTEGRATION_REGISTRY: readonly V3SystemIntegrationRegistr
   { path: "src/integrations/v3/rollout-probe.server.ts", coordinatorDomain: "feature-rollout", role: "rollout-probe" },
   { path: "src/integrations/v3/scorecharts-source.server.ts", coordinatorDomain: "results", role: "composite-read-adapter" },
   { path: "src/integrations/v3/stories-source.server.ts", coordinatorDomain: "story", role: "projection-adapter" },
+  // Public-only TG2 institution history reader: coordinating its UI does not grant mutation authority.
+  { path: "src/integrations/v3/terra-world-membership-chronicle.server.ts", coordinatorDomain: "public-ux", role: "composite-read-adapter" },
 ];
 
 export const V3_SYSTEM_EDGE_FUNCTION_REGISTRY: readonly V3SystemEdgeFunctionRegistration[] = [

@@ -23,6 +23,17 @@ describe("TG3 membership chronicle public rollout boundary", () => {
     expect(source).toContain("verifiedHistory.records.map");
     expect(source).not.toContain("history.data.records.map");
   });
+  it("registers the read-only World chronicle integration with one existing S15 coordinator", () => {
+    const registry = readFileSync(resolve(process.cwd(),
+      "src/lib/v3-system-zero-orphan-registry.ts"), "utf8");
+    const adapterPath = 'src/integrations/v3/terra-world-membership-chronicle.server.ts';
+    expect(registry.split('path: "' + adapterPath + '"')).toHaveLength(2);
+    expect(registry).toContain(
+      'path: "' + adapterPath + '", coordinatorDomain: "public-ux", role: "composite-read-adapter"'
+    );
+    expect(registry).not.toContain('src/integrations/v3/terra-world-membership-chronicle.server.test.ts');
+  });
+
   it("re-verifies the World rollout before mounting the public membership chronicle", () => {
     const route = readFileSync(resolve(process.cwd(),
       "src/routes/world/membership-history/index.tsx"), "utf8");
