@@ -220,6 +220,23 @@ as $$
     and private.world_space_read_from_v1(s.id) is not null
 $$;
 
+-- Member-facing private organization picker. Reveals only accessible rooms.
+create function public.world_my_workspaces_v1()
+returns jsonb language sql stable security definer set search_path = pg_catalog
+as $
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'slug',q.slug,'name',q.name,'rooms',q.rooms
+  ) order by q.name), '[]'::jsonb)
+  from (
+    select o.slug, o.short_name as name, count(*) as rooms
+      from public.world_spaces s
+      join public.world_organizations o on o.id=s.organization_id
+      where s.status='active'
+        and private.world_space_read_from_v1(s.id) is not null
+      group by o.slug,o.short_name
+  ) q
+$;
+
 create function public.world_space_create_v1(
   p_organization_id uuid, p_name text, p_description text,
   p_visibility text, p_history text, p_organ_id uuid,
@@ -446,7 +463,8 @@ $$;
 
 revoke all on function private.world_space_member_since_v1(uuid),
   private.world_space_read_from_v1(uuid) from public, anon, authenticated;
-revoke all on function public.world_spaces_list_v1(text),
+revoke all on function public.world_my_workspaces_v1(),
+  public.world_spaces_list_v1(text),
   public.world_space_create_v1(uuid,text,text,text,text,uuid,uuid),
   public.world_space_set_grant_v1(uuid,uuid,text,timestamptz,boolean),
   public.world_space_messages_v1(uuid,uuid,integer),
@@ -455,7 +473,8 @@ revoke all on function public.world_spaces_list_v1(text),
   public.world_space_set_reaction_v1(uuid,text,boolean),
   public.world_space_moderate_v1(uuid,text,bigint)
   from public, anon, authenticated;
-grant execute on function public.world_spaces_list_v1(text),
+grant execute on function public.world_my_workspaces_v1(),
+  public.world_spaces_list_v1(text),
   public.world_space_create_v1(uuid,text,text,text,text,uuid,uuid),
   public.world_space_set_grant_v1(uuid,uuid,text,timestamptz,boolean),
   public.world_space_messages_v1(uuid,uuid,integer),
