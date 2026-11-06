@@ -13,7 +13,7 @@ import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { usePublicPresentationMode } from "@/lib/use-public-presentation-mode";
 import { V3RecordsGate } from "@/components/v3/V3RecordsGate";
-import { buildCanonicalFanRecords } from "@/lib/canonical-fan-records";
+import { buildCanonicalFanRecordsWithCoverage } from "@/lib/canonical-fan-records";
 import {
   useAllJuryVotes,
   useAllParticipants,
@@ -142,9 +142,9 @@ function LegacyRecordsPage() {
   const presentationMode = usePublicPresentationMode();
   const mobileWeb = presentationMode === "mobile-web";
 
-  const records = useMemo(
+  const { records, archivedFinalEditions } = useMemo(
     () =>
-      buildCanonicalFanRecords({
+      buildCanonicalFanRecordsWithCoverage({
         countries: countries ?? [],
         editions: editions ?? [],
         shows: shows ?? [],
@@ -159,23 +159,6 @@ function LegacyRecordsPage() {
     tab === "all"
       ? records
       : records.filter((record) => record.category === tab);
-  const showById = useMemo(
-    () => new Map((shows ?? []).map((show) => [show.id, show])),
-    [shows],
-  );
-  const archivedFinalEditions = useMemo(
-    () =>
-      new Set(
-        (results ?? [])
-          .filter((result) => {
-            const kind = showById.get(result.show_id ?? "")?.kind;
-            return kind === "grand-final" || kind === "final";
-          })
-          .map((result) => result.edition_id),
-      ).size,
-    [results, showById],
-  );
-
   const archiveQueries = [
     countriesQuery,
     editionsQuery,
