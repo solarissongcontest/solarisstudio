@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => {
     in: vi.fn(),
     or: vi.fn(),
     range: vi.fn(),
+    abortSignal: vi.fn(),
   };
   return { chain, from: vi.fn(), rpc: vi.fn() };
 });
@@ -21,6 +22,7 @@ import {
   WORLD_PUBLIC_ROLLOUT_KEY,
   cleanWorldSearch,
   currentWorldMemberships,
+  currentWorldRepresentatives,
   fetchWorldDirectory,
   fetchFeaturedWorldOrganizations,
   fetchWorldPublicEnabled,
@@ -55,6 +57,51 @@ beforeEach(() => {
 });
 
 describe("TG3 world publication-safe projections", () => {
+  it("cancels already obsolete World reads before opening any Supabase request", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await expect(fetchWorldPublicEnabled({ signal: controller.signal }))
+      .rejects.toHaveProperty("name", "AbortError");
+    await expect(fetchFeaturedWorldOrganizations({ signal: controller.signal }))
+      .rejects.toHaveProperty("name", "AbortError");
+    await expect(fetchWorldDirectory({ term: "guard", filter: "all", page: 0, signal: controller.signal }))
+      .rejects.toHaveProperty("name", "AbortError");
+    await expect(fetchWorldProjection("guard", controller.signal))
+      .rejects.toHaveProperty("name", "AbortError");
+    expect(mocks.rpc).not.toHaveBeenCalled();
+    expect(mocks.from).not.toHaveBeenCalled();
+  });
+
+  it("forwards query cancellation to the bounded PostgREST directory request", async () => {
+    const controller = new AbortController();
+    mocks.chain.range.mockResolvedValueOnce({ data: [row], count: 1, error: null });
+    await fetchWorldDirectory({ term: "guard", filter: "all", page: 0, signal: controller.signal });
+    expect(mocks.chain.abortSignal).toHaveBeenCalledWith(controller.signal);
+  });
+
+  it("forwards cancellation to the featured public institution read", async () => {
+    const controller = new AbortController();
+    mocks.chain.abortSignal.mockResolvedValueOnce({ data: [row], error: null });
+    await expect(fetchFeaturedWorldOrganizations({ signal: controller.signal }))
+      .resolves.toHaveLength(1);
+    expect(mocks.chain.abortSignal).toHaveBeenCalledWith(controller.signal);
+  });
+
+  it("forwards cancellation to canonical World feature and projection RPCs", async () => {
+    const controller = new AbortController();
+    const featureRequest = { abortSignal: vi.fn().mockResolvedValue({ data: true, error: null }) };
+    const projectionRequest = { abortSignal: vi.fn().mockResolvedValue({
+      data: { organization, organs: [], memberships: [], offices: [] }, error: null,
+    }) };
+    mocks.rpc.mockReturnValueOnce(featureRequest).mockReturnValueOnce(projectionRequest);
+    await expect(fetchWorldPublicEnabled({ signal: controller.signal })).resolves.toBe(true);
+    await expect(fetchWorldProjection("guard", controller.signal)).resolves.toMatchObject({
+      organization: { slug: "guard" },
+    });
+    expect(featureRequest.abortSignal).toHaveBeenCalledWith(controller.signal);
+    expect(projectionRequest.abortSignal).toHaveBeenCalledWith(controller.signal);
+  });
+
   it("is unavailable until the canonical rollout RPC explicitly returns true", async () => {
     mocks.rpc.mockResolvedValueOnce({ data: false, error: null });
     await expect(fetchWorldPublicEnabled()).resolves.toBe(false);
@@ -138,16 +185,19 @@ describe("TG3 world publication-safe projections", () => {
       organization, organs: [], memberships: [], offices: [],
       representatives: [
         { id: "rep-a", countryId: "country-a", displayName: "Delegation A",
-          role: "representative", votingAuthority: true, endsAt: null,
+          role: "representative", votingAuthority: true,
+          startsAt: "2020-01-01T00:00:00Z", endsAt: null,
           userId: "private", personId: "private", votingToken: "private" },
         { id: "rep-b", countryId: "country-b", displayName: "Former delegate",
-          role: "representative", votingAuthority: false, endsAt: "2025-01-01" },
+          role: "representative", votingAuthority: false,
+          startsAt: "2020-01-01T00:00:00Z", endsAt: "2025-01-01" },
       ],
     }, "guard");
     expect(projection?.representatives).toHaveLength(2);
     expect(projection?.representatives[0]).toEqual({
       id: "rep-a", countryId: "country-a", displayName: "Delegation A",
-      role: "representative", votingAuthority: true, endsAt: null,
+      role: "representative", votingAuthority: true,
+          startsAt: "2020-01-01T00:00:00Z", endsAt: null,
     });
     expect(projection?.representatives[0]).not.toHaveProperty("votingToken");
     expect(projection?.representatives[0]).not.toHaveProperty("userId");
@@ -158,13 +208,32 @@ describe("TG3 world publication-safe projections", () => {
     const projection = parseWorldProjection({
       organization, organs: [], offices: [],
       memberships: [
-        { id: "a", countryId: "a", membershipType: "member", status: "member", endedAt: null },
-        { id: "b", countryId: "b", membershipType: "member", status: "suspended", endedAt: null },
-        { id: "c", countryId: "c", membershipType: "member", status: "former", endedAt: "2026-01-01" },
-        { id: "d", countryId: "d", membershipType: "member", status: "former", endedAt: null },
+        { id: "a", countryId: "a", joinedAt: "2020-01-01T00:00:00Z", membershipType: "member", status: "member", endedAt: null },
+        { id: "b", countryId: "b", joinedAt: "2020-01-01T00:00:00Z", membershipType: "member", status: "suspended", endedAt: null },
+        { id: "c", countryId: "c", joinedAt: "2020-01-01T00:00:00Z", membershipType: "member", status: "former", endedAt: "2026-01-01" },
+        { id: "d", countryId: "d", joinedAt: "2020-01-01T00:00:00Z", membershipType: "member", status: "former", endedAt: null },
+        { id: "e", countryId: "e", joinedAt: "2099-01-01T00:00:00Z", membershipType: "member", status: "member", endedAt: null },
+        { id: "f", countryId: "f", membershipType: "member", status: "member", endedAt: null },
       ],
     }, "guard");
-    expect(currentWorldMemberships(projection!).map((member) => member.countryId)).toEqual(["a", "b"]);
+    expect(currentWorldMemberships(projection!, new Date("2026-11-07T00:00:00Z"))
+      .map((member) => member.countryId)).toEqual(["a", "b"]);
+  });
+
+  it("hides future or undated representatives from the current roster", () => {
+    const projection = parseWorldProjection({
+      organization, organs: [], memberships: [], offices: [],
+      representatives: [
+        { id: "current", countryId: "a", displayName: "Current", role: "representative",
+          votingAuthority: true, startsAt: "2020-01-01T00:00:00Z", endsAt: null },
+        { id: "future", countryId: "b", displayName: "Future", role: "representative",
+          votingAuthority: true, startsAt: "2099-01-01T00:00:00Z", endsAt: null },
+        { id: "undated", countryId: "c", displayName: "Undated", role: "representative",
+          votingAuthority: true, endsAt: null },
+      ],
+    }, "guard");
+    expect(currentWorldRepresentatives(projection!, new Date("2026-11-07T00:00:00Z"))
+      .map((representative) => representative.id)).toEqual(["current"]);
   });
 
   it("does not invent an officeholder where a term is not active", () => {
