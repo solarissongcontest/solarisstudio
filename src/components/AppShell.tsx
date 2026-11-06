@@ -160,7 +160,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       }
 
       try {
-        const next = await getCurrentAccountAccess(nextUserId);
+        const next = await getCurrentAccountAccess(nextUserId, { requireVerified: true });
         if (!alive || requestId !== accessRequestRef.current) return;
         resolvedUserIdRef.current = nextUserId;
         setEmail(userEmail ?? null);

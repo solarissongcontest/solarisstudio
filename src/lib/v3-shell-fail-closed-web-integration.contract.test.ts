@@ -30,6 +30,18 @@ describe("V3 shell fail-closed access and browser header integration", () => {
     expect(shell).not.toContain('className="mobile-quick-nav');
     expect(shell).not.toContain("useEffect(() => setNavigationReady(true), [])");
   });
+  it("never announces permission resolution as ready after a swallowed Supabase access error", () => {
+    const shell = src();
+    const account = readFileSync(resolve(process.cwd(), "src/lib/country-account.ts"), "utf8");
+    expect(shell).toContain("getCurrentAccountAccess(nextUserId, { requireVerified: true })");
+    expect(shell).toContain("markUnavailable(requestId, error)");
+    expect(account).toContain("options: { requireVerified?: boolean } = {}");
+    expect(account).toContain("if (options.requireVerified)");
+    expect(account).toContain("assertVerifiedAccountAccessChecks(organizerResult.error, countryResult.error)");
+    expect(account).toContain('error.name !== "AuthSessionMissingError"');
+    expect(account).toContain("if (organizerError != null) throw organizerError");
+    expect(account).toContain("if (countryError != null) throw countryError");
+  });
   it("treats missing anonymous sessions differently from auth outages", () => {
     const shell = src();
     expect(shell).toContain('error?.name === "AuthSessionMissingError" && !data.user');
