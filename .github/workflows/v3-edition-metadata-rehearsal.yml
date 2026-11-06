@@ -1,0 +1,37 @@
+name: V3 governed historical edition metadata acceptance
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "src/routes/_authenticated/admin/anniversary-dates.tsx"
+      - "src/lib/edition-authority*"
+      - ".github/scripts/v3-edition-metadata*"
+      - ".github/workflows/v3-edition-metadata-rehearsal.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: edition-metadata-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  acceptance:
+    name: Isolated governed edition metadata command acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Start disposable local database
+        run: bash .github/scripts/v3-start-disposable-supabase.sh
+      - name: Replay candidate migrations locally
+        run: supabase db reset --local --no-seed
+      - name: Verify governed editorial lifecycle and negative authorization
+        run: bash .github/scripts/v3-edition-metadata-rehearsal.sh
+      - name: Stop this disposable stack
+        if: always()
+        run: supabase stop --no-backup || true

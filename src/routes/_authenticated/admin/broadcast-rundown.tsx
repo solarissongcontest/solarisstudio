@@ -310,7 +310,7 @@ function BroadcastRundownPage() {
     {
       key: 'finish',
       header: 'Finish',
-      render: (segment) => <span className="tabular-nums">{formatClock(segment.plannedCompletedAt)}</span>,
+      render: (segment) => <span className="tabular-nums">{formatClock(segment.estimatedCompletedAt)}</span>,
     },
     {
       key: 'drift',

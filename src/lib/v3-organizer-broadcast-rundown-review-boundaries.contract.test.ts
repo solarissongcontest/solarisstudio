@@ -97,6 +97,13 @@ describe("V3 Organizer Broadcast Rundown production review boundaries", () => {
     expect(adapter).toContain("if (mode === 'rehearsal') return rehearseStudio2BroadcastTransition");
   });
 
+  it("uses observed/projection-aware cue completion for the Finish column", () => {
+    expect(route).toContain("key: 'finish'");
+    expect(route).toContain("formatClock(segment.estimatedCompletedAt)");
+    expect(route).not.toContain("formatClock(segment.plannedCompletedAt)");
+    expect(route).toContain("formatClock(calculated.estimatedFinishAt)");
+  });
+
   it("discards pending production reviews when show or mode context changes", () => {
     expect(route).toContain("setPendingStructureReview(null)");
     expect(route).toContain("setPendingLockReview(null)");
