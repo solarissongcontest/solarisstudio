@@ -180,3 +180,128 @@ describe("Jury integrity bounded canonical evidence completeness", () => {
     expect(fixture.privilegedFrom).not.toHaveBeenCalled();
   });
 });
+
+describe("Jury integrity full authorized private evidence projection", () => {
+  const showId = "00000000-0000-4000-8000-00000000b791";
+  const targetCountryId = "00000000-0000-4000-8000-00000000c791";
+
+  function validPreflight() {
+    return {
+      id: "00000000-0000-4000-8000-00000000d791",
+      show_id: showId,
+      canonical_edition_id: editionId,
+      country_code: "TST",
+      hod_person_id: null,
+      risk_score: 55,
+      relationship_risk: 40,
+      confidence: 70,
+      intervention_level: "review",
+      model_version: "jury-integrity-model-v5",
+      admin_evidence: {
+        juryIndependence: {
+          modelVersion: "jury-integrity-model-v5",
+          risk: 55,
+          confidence: 70,
+          independenceScore: 45,
+          peerDeviationRisk: 25,
+          peerBallots: 3,
+          evidenceFamilies: ["historical_relationship", "peer_deviation"],
+          targets: [{
+            targetCountryId,
+            score: 12,
+            expectedNormalizedScore: 0.5,
+            positiveDeviation: 0.5,
+            zScore: 2.25,
+            risk: 60,
+          }],
+        },
+      },
+      attested_at: null,
+      submitted_at: null,
+      created_at: "2026-11-06T12:00:00Z",
+    };
+  }
+
+  it("returns scoped v5 risk and private target scores only after both permissions and complete readback", async () => {
+    allowBothEvidencePermissions();
+    const { preflightQuery } = mockProtectedPreflightReadback({
+      data: [validPreflight()],
+      count: 1,
+    });
+
+    const showsQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      in: vi.fn().mockResolvedValue({
+        data: [{ id: showId, name: "Fixture Semi-final", edition_id: editionId }],
+        error: null,
+      }),
+    };
+    const editionQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: { id: editionId, edition_number: 22, name: "Fixture Edition" },
+        error: null,
+      }),
+    };
+    const countriesQuery = {
+      select: vi.fn().mockReturnThis(),
+      in: vi.fn().mockResolvedValue({
+        data: [{ id: targetCountryId, name: "Fixture Country", short_code: "FCT" }],
+        error: null,
+      }),
+    };
+    fixture.privilegedFrom.mockImplementation((table: string) => {
+      if (table === "shows") return showsQuery;
+      if (table === "editions") return editionQuery;
+      if (table === "countries") return countriesQuery;
+      throw new Error(`Unexpected protected lookup: ${table}`);
+    });
+
+    const result = await listJuryIntegrityCasesServer(editionId);
+
+    expect(result.stats).toEqual({
+      total: 1, reviewOrHigher: 1, declarationOrHigher: 0, highOrHigher: 0,
+    });
+    expect(result.cases).toHaveLength(1);
+    expect(result.cases[0]).toMatchObject({
+      editionId,
+      showId,
+      showName: "Fixture Semi-final",
+      countryCode: "TST",
+      risk: 55,
+      confidence: 70,
+      relationshipRisk: 40,
+      peerBallots: 3,
+      targets: [{
+        targetCountryId,
+        targetName: "Fixture Country",
+        score: 12,
+        expectedNormalizedScore: 0.5,
+        positiveDeviation: 0.5,
+        zScore: 2.25,
+        risk: 60,
+      }],
+    });
+    expect(preflightQuery.select).toHaveBeenCalledWith(expect.any(String), { count: "exact" });
+    expect(preflightQuery.limit).toHaveBeenCalledWith(1000);
+    expect(showsQuery.eq).toHaveBeenCalledWith("edition_id", editionId);
+    expect(showsQuery.in).toHaveBeenCalledWith("id", [showId]);
+    expect(editionQuery.eq).toHaveBeenCalledWith("id", editionId);
+    expect(countriesQuery.in).toHaveBeenCalledWith("id", [targetCountryId]);
+    expect(fixture.privilegedFrom).toHaveBeenCalledTimes(3);
+    expect(fixture.getCapabilities).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects mismatched embedded risk before querying show or country metadata", async () => {
+    allowBothEvidencePermissions();
+    const stale = validPreflight();
+    stale.admin_evidence.juryIndependence.risk = 50;
+    mockProtectedPreflightReadback({ data: [stale], count: 1 });
+    await expect(listJuryIntegrityCasesServer(editionId)).rejects.toThrow(
+      "Jury integrity evidence disagrees with the canonical preflight",
+    );
+    expect(fixture.privilegedFrom).not.toHaveBeenCalled();
+  });
+});
