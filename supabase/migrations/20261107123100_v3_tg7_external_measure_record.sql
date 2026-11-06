@@ -24,12 +24,14 @@ declare
   v_result jsonb;
   v_hash text;
   v_attachments jsonb:=coalesce(p_raw_attachments,'[]'::jsonb);
+  v_reference text:=nullif(btrim(coalesce(p_source_reference,'')),'');
+  v_note text:=nullif(btrim(coalesce(p_source_note,'')),'');
 begin
   if auth.uid() is null or p_organization_id is null or
      not public.world_access_allowed(
        'world.measure.register_external',p_organization_id,null,null,null,null)
   then raise exception using errcode='42501',message='EXTERNAL_INTAKE_AUTHORIZATION'; end if;
-  if p_source_channel not in ('dm','instagram','other')
+  if p_source_channel is null or p_source_channel not in ('dm','instagram','other')
      or nullif(btrim(coalesce(p_raw_title,'')),'') is null
      or length(btrim(p_raw_title))>180
      or nullif(btrim(coalesce(p_raw_text,'')),'') is null
@@ -38,6 +40,7 @@ begin
      or length(coalesce(p_source_note,''))>2000
      or jsonb_typeof(v_attachments)<>'array'
      or jsonb_array_length(v_attachments)>20
+     or octet_length(v_attachments::text)>32768
      or p_operation_id is null or nullif(btrim(coalesce(p_idempotency_key,'')),'') is null
   then raise exception using errcode='22023',message='INVALID_EXTERNAL_INTAKE'; end if;
   perform 1 from public.world_organizations org
@@ -48,9 +51,9 @@ begin
 
   v_hash:=encode(pg_catalog.sha256(pg_catalog.convert_to(
     p_organization_id::text||E'\n'||p_submitted_by_country_id::text||E'\n'||
-    p_source_channel||E'\n'||coalesce(p_source_reference,'')||E'\n'||
+    p_source_channel||E'\n'||coalesce(v_reference,'')||E'\n'||
     btrim(p_raw_title)||E'\n'||btrim(p_raw_text)||E'\n'||
-    coalesce(p_source_note,'')||E'\n'||v_attachments::text,'UTF8'
+    coalesce(v_note,'')||E'\n'||v_attachments::text,'UTF8'
   )),'hex');
 
   v_claim:=private.studio2_claim_operation(
@@ -59,8 +62,8 @@ begin
     jsonb_build_object('subjectType','world_measure_intake',
       'organizationId',p_organization_id,'countryId',p_submitted_by_country_id),
     jsonb_build_object('sourceChannel',p_source_channel,
-      'sourceReference',p_source_reference,'rawTitle',btrim(p_raw_title),
-      'rawText',btrim(p_raw_text),'sourceNote',p_source_note,
+      'sourceReference',v_reference,'rawTitle',btrim(p_raw_title),
+      'rawText',btrim(p_raw_text),'sourceNote',v_note,
       'attachments',v_attachments,'sourceHash',v_hash)
   );
   v_operation_id:=(v_claim->>'operationId')::uuid;
@@ -75,9 +78,9 @@ begin
     raw_attachments,source_note,content_hash
   ) values(
     p_organization_id,p_submitted_by_country_id,p_source_channel,
-    nullif(btrim(coalesce(p_source_reference,'')),''),
+    v_reference,
     auth.uid(),btrim(p_raw_title),btrim(p_raw_text),
-    v_attachments,nullif(btrim(coalesce(p_source_note,'')),''),v_hash
+    v_attachments,v_note,v_hash
   ) returning id into v_id;
 
   -- No raw DM text, URLs, attachments or private actor ID in event payload.
