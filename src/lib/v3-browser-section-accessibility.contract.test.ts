@@ -62,7 +62,7 @@ describe("V3 mobile-browser and desktop section-navigation accessibility", () =>
     expect(desktop).toContain("aria-expanded={!interactiveCollapsed}");
     expect(css).toContain(".public-section-nav-toggle:focus-visible");
     expect(css).toContain(".public-drawer-page-link:focus-visible");
-    expect(css).toContain(".public-site-sidebar-link {\\n  display: flex;\\n  min-height: 2.75rem;");
+    expect(css).toContain(".public-site-sidebar-link {\n  display: flex;\n  min-height: 2.75rem;");
     expect(css).toContain("min-height: 2.75rem;");
   });
 });
