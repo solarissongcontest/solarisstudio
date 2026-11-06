@@ -20,7 +20,7 @@ export function V3DesktopPrimaryNavigation({
   pathname: string;
 }) {
   return (
-    <nav className="v3-desktop-primary-nav" aria-label="Primary app navigation">
+    <nav className="v3-desktop-primary-nav" aria-label="Solaris website sections">
       {destinations.map((destination) => {
         const Icon = destination.icon;
         const badge = destination.badge ?? 0;
