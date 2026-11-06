@@ -58,6 +58,7 @@ type PendingOperation = {
   editionId: string;
   editionLabel: string;
   reviewFingerprint: string;
+  commandReason: string | null;
 };
 
 type ResultOperationCommit = {
@@ -125,6 +126,12 @@ function ResultsOperationsPage() {
         );
       }
 
+      if (!operation.commandReason || operation.commandReason.length < 5) {
+        throw staleResultReview(
+          'The reviewed Results operation does not have a frozen audit reason. Close it and start a new review.',
+        );
+      }
+
       // A first commit must still represent the exact row the organizer
       // reviewed. Never silently upgrade the command to fresher state. An
       // uncertain same-operation retry is different: it must preserve the
@@ -152,7 +159,7 @@ function ResultsOperationsPage() {
       return executeStudio2ResultOperation({
         showId: operation.row.showId,
         action: operation.action,
-        reason,
+        reason: operation.commandReason,
         executionId: operation.executionId,
         expectedVersion: operation.row.calculationVersion,
       });
@@ -200,17 +207,29 @@ function ResultsOperationsPage() {
       editionId: resolvedEditionId,
       editionLabel: organizerEditionLabel,
       reviewFingerprint: resultOperationReviewFingerprint(row),
+      commandReason: null,
     });
   }
 
   async function confirmOperation() {
     if (!pending) return;
-    if (reason.trim().length < 5) {
+    const commandReason = pending.commandReason ?? reason.trim();
+    if (commandReason.length < 5) {
       toast.error('Add an audit reason of at least 5 characters.');
       return;
     }
+
+    const reviewedOperation = pending.commandReason
+      ? pending
+      : { ...pending, commandReason };
+
+    if (!pending.commandReason) {
+      setPending(reviewedOperation);
+      setReason(commandReason);
+    }
+
     await mutation.mutateAsync({
-      operation: pending,
+      operation: reviewedOperation,
       sameIdentityRetry: recovery?.allowSameIdentityRetry === true,
     });
   }
@@ -361,17 +380,25 @@ function ResultsOperationsPage() {
                 <p className="text-xs leading-5 text-muted-foreground">
                   Before the first commit, Solaris re-reads this exact edition/show Results snapshot. If the reviewed lifecycle, version, readiness or reconciliation state changed, this review is rejected instead of silently applying a different operation.
                 </p>
-              ) : null}
+              ) : (
+                <p className="text-xs leading-5 text-muted-foreground">
+                  This retry keeps the original execution identity and exact frozen audit reason. Close this review and start a new operation if the reason needs to change.
+                </p>
+              )}
               <label className="block">
                 <span className="admin-section-label">Audit reason</span>
                 <textarea
-                  value={reason}
+                  value={pending.commandReason ?? reason}
                   onChange={(event) => setReason(event.target.value)}
                   className="admin-input mt-2 min-h-24 w-full resize-y"
                   placeholder="Why is this operation being performed?"
-                  disabled={mutation.isPending}
+                  disabled={mutation.isPending || pending.commandReason !== null}
                 />
-                <span className="mt-1 block text-xs text-muted-foreground">Required. It is stored with the immutable execution receipt and contest event.</span>
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  {pending.commandReason
+                    ? 'Frozen for this execution identity. Same-operation recovery reuses this exact reason.'
+                    : 'Required. It is frozen at the first commit attempt and stored with the immutable execution receipt and contest event.'}
+                </span>
               </label>
             </div>
           ) : null}

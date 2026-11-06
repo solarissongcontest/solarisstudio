@@ -50,6 +50,25 @@ describe("V3 Organizer Results reviewed-state freshness", () => {
     expect(route).not.toContain("executionId: crypto.randomUUID(),\n        expectedVersion");
   });
 
+  it("freezes the semantic audit reason before the first operation attempt", () => {
+    expect(route).toContain("commandReason: string | null");
+    expect(route).toContain("commandReason: null");
+    expect(route).toContain("const commandReason = pending.commandReason ?? reason.trim()");
+    expect(route).toContain("const reviewedOperation = pending.commandReason");
+    expect(route).toContain("{ ...pending, commandReason }");
+    expect(route).toContain("setPending(reviewedOperation)");
+    expect(route).toContain("reason: operation.commandReason");
+    expect(route).not.toContain("reason,\n        executionId: operation.executionId");
+  });
+
+  it("locks the audit reason while the same execution identity can be recovered", () => {
+    expect(route).toContain("value={pending.commandReason ?? reason}");
+    expect(route).toContain("disabled={mutation.isPending || pending.commandReason !== null}");
+    expect(route).toContain("Same-operation recovery reuses this exact reason");
+    expect(route).toContain("This retry keeps the original execution identity and exact frozen audit reason");
+    expect(route).toContain("Close this review and start a new operation if the reason needs to change");
+  });
+
   it("makes edition scope explicit and freezes edition plus show in the critical review", () => {
     expect(route).toContain("editionLabel as formatEditionLabel");
     expect(route).toContain("const organizerEditionLabel = edition ? formatEditionLabel(edition) : null");
