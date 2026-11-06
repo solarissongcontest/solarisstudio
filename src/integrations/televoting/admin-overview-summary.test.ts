@@ -45,8 +45,20 @@ describe("Organizer voting overview canonical readback", () => {
     { remoteEditionId: null },
     { activeEdition: "" },
     { remoteEditionId: " " },
+    { linked: false, remoteEditionId: null, rounds: 1 },
   ])("rejects inconsistent status identities: %o", (patch) => {
     expect(() => parseTelevotingOverviewSummary({ ...valid, ...patch })).toThrow();
+  });
+});
+
+describe("Organizer voting overview cross-field consistency", () => {
+  it("refuses submitted/blocked ballot counts without a configured round", () => {
+    for (const field of ["submissions", "blocked"] as const) {
+      expect(() => parseTelevotingOverviewSummary({
+        ...valid, rounds: 0, openRounds: 0, submissions: 0, blocked: 0,
+        [field]: 1,
+      })).toThrow();
+    }
   });
 });
 
