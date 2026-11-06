@@ -47,7 +47,10 @@ const response = {
   organizationTotal: 24,
 };
 
-function renderWorldSearch(countryPage: number, organizationPage: number, term = "land", status = "active") {
+function renderWorldSearch(
+  countryPage: number, organizationPage: number, term = "land", status = "active",
+  category: "all" | "countries" | "organizations" = "all",
+) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const organization = { ...response.organizations[0], status };
   client.setQueryData(["world", "public", "featured"], [organization]);
@@ -66,7 +69,9 @@ function renderWorldSearch(countryPage: number, organizationPage: number, term =
           term={term}
           countryPage={countryPage}
           organizationPage={organizationPage}
+          category={category}
           onSearch={() => {}}
+          onCategoryChange={() => {}}
           onPagesChange={() => {}}
         />
       </QueryClientProvider>,
@@ -98,6 +103,18 @@ describe("Unified World Search public rendering", () => {
     expect(html).toContain("Page 1 of 2");
     expect(html).toContain("13");
     expect(html).toContain("24 of 37");
+  });
+
+  it("shows the correct category and omits the unused category", () => {
+    const countries = renderWorldSearch(0, 0, "land", "active", "countries");
+    expect(countries).toContain("Oland");
+    expect(countries).not.toContain("Global Union for Allied Resilience and Defence");
+    expect(countries).not.toContain('aria-labelledby="world-search-organizations"');
+    expect(countries).toContain('aria-pressed="true"');
+    const organizations = renderWorldSearch(0, 0, "land", "active", "organizations");
+    expect(organizations).toContain("GUARD");
+    expect(organizations).not.toContain("Oland");
+    expect(organizations).not.toContain('aria-labelledby="world-search-countries"');
   });
 
   it("shows published featured institutions without searching when the term is too short", () => {
