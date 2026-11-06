@@ -6,8 +6,12 @@ begin;
 create table public.world_lore_people (
   id uuid primary key default gen_random_uuid(),
   country_id uuid not null references public.countries(id) on delete restrict,
-  display_name text not null check (length(btrim(display_name)) between 1 and 160),
+  name text not null check (length(btrim(name)) between 1 and 160),
+  native_name text check (native_name is null or length(native_name) <= 160),
   biography text check (biography is null or length(biography) <= 4000),
+  public_summary text check (public_summary is null or length(public_summary) <= 600),
+  status text not null default 'unknown'
+    check (status in ('active','deceased','historical','unknown')),
   born_on date,
   died_on date,
   visibility text not null default 'draft' check (visibility in ('draft','public')),
@@ -18,7 +22,7 @@ create table public.world_lore_people (
   unique (id,country_id)
 );
 create index world_lore_people_country_idx
-  on public.world_lore_people(country_id,display_name,id);
+  on public.world_lore_people(country_id,name,id);
 
 create table public.world_domestic_offices (
   id uuid primary key default gen_random_uuid(),
@@ -110,6 +114,11 @@ declare
   v_record uuid;
   v_revision bigint;
   v_name text := nullif(btrim(p_payload ->> 'name'),'');
+  v_native_name text := nullif(btrim(p_payload ->> 'nativeName'),'');
+  v_public_summary text := nullif(btrim(p_payload ->> 'publicSummary'),'');
+  v_person_status text := coalesce(nullif(p_payload ->> 'status',''),'unknown');
+  v_born_on date;
+  v_died_on date;
   v_description text := nullif(btrim(p_payload ->> 'description'),'');
   v_title text := nullif(btrim(p_payload ->> 'title'),'');
   v_visible boolean;
@@ -162,8 +171,16 @@ begin
   end if;
 
   if p_kind='lore_person' then
-    if v_name is null or length(v_name)>160 then
+    if v_name is null or length(v_name)>160
+      or length(coalesce(v_native_name,''))>160
+      or length(coalesce(v_public_summary,''))>600
+      or v_person_status not in ('active','deceased','historical','unknown') then
       raise exception using errcode='22023',message='VALIDATION';
+    end if;
+    v_born_on := nullif(p_payload ->> 'bornOn','')::date;
+    v_died_on := nullif(p_payload ->> 'diedOn','')::date;
+    if v_born_on is not null and v_died_on is not null and v_died_on<v_born_on then
+      raise exception using errcode='22023',message='INVALID_LORE_LIFESPAN';
     end if;
     if p_subject_id is null then
       if p_expected_revision<>0 or
@@ -171,9 +188,11 @@ begin
         raise exception using errcode='22023',message='PERSON_LIMIT_OR_REVISION';
       end if;
       insert into public.world_lore_people(
-        country_id,display_name,biography,visibility
+        country_id,name,native_name,biography,public_summary,status,
+        born_on,died_on,visibility
       ) values(
-        p_country_id,v_name,v_description,
+        p_country_id,v_name,v_native_name,v_description,v_public_summary,
+        v_person_status,v_born_on,v_died_on,
         case when v_visible then 'public' else 'draft' end
       ) returning id,revision into v_record,v_revision;
     else
@@ -185,7 +204,9 @@ begin
         raise exception using errcode='23514',message='PUBLISHED_TERM_REQUIRES_PERSON';
       end if;
       update public.world_lore_people set
-        display_name=v_name,biography=v_description,
+        name=v_name,native_name=v_native_name,biography=v_description,
+        public_summary=v_public_summary,status=v_person_status,
+        born_on=v_born_on,died_on=v_died_on,
         visibility=case when v_visible then 'public' else 'draft' end,
         revision=revision+1,updated_at=now()
       where id=p_subject_id and country_id=p_country_id
@@ -252,7 +273,7 @@ begin
     select o.title into v_office_title from public.world_domestic_offices o
       where o.id=v_office and o.country_id=p_country_id
         and (not v_visible or o.visibility='public');
-    select p.display_name into v_holder_name from public.world_lore_people p
+    select p.name into v_holder_name from public.world_lore_people p
       where p.id=v_holder and p.country_id=p_country_id
         and (not v_visible or p.visibility='public');
     if v_office_title is null or v_holder_name is null then
@@ -360,9 +381,11 @@ as $reader$
       where ca.country_id=c.id and ca.user_id=auth.uid() and ca.status='active'),
     'people',coalesce((
       select jsonb_agg(jsonb_build_object(
-        'id',p.id,'displayName',p.display_name,'biography',p.biography,
+        'id',p.id,'displayName',p.name,'nativeName',p.native_name,
+        'biography',p.biography,'publicSummary',p.public_summary,
+        'status',p.status,'bornOn',p.born_on,'diedOn',p.died_on,
         'published',p.visibility='public','revision',p.revision)
-        order by p.display_name,p.id)
+        order by p.name,p.id)
       from public.world_lore_people p where p.country_id=c.id
       and (p.visibility='public' or exists(
         select 1 from public.country_accounts ca where ca.user_id=auth.uid()
