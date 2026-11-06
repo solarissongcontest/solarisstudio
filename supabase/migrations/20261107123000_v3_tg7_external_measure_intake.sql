@@ -126,7 +126,8 @@ create or replace function public.world_external_intakes_manage_v1(
 set search_path=pg_catalog
 as $private_intakes$
   select case
-    when auth.uid() is null
+    when not coalesce(public.studio2_feature_enabled('terra_world_public',null),false)
+      or auth.uid() is null
       or p_organization_id is null
       or not public.world_access_allowed(
         'world.measure.register_external',p_organization_id,null,null,null,null)
@@ -171,7 +172,8 @@ as $intake_institutions$
   from (
     select org.id,org.slug,org.short_name
     from public.world_organizations org
-    where auth.uid() is not null and org.status='active'
+    where coalesce(public.studio2_feature_enabled('terra_world_public',null),false)
+      and auth.uid() is not null and org.status='active'
       and public.world_access_allowed(
         'world.measure.register_external',org.id,null,null,null,null)
     order by org.short_name,org.id limit 30
@@ -186,7 +188,8 @@ create or replace function public.world_external_intake_options_v1(
   p_organization_id uuid
 ) returns jsonb language sql stable security definer set search_path=pg_catalog
 as $intake_options$
-  select case when auth.uid() is null or p_organization_id is null or
+  select case when not coalesce(public.studio2_feature_enabled('terra_world_public',null),false)
+    or auth.uid() is null or p_organization_id is null or
     not public.world_access_allowed(
       'world.measure.register_external',p_organization_id,null,null,null,null)
     then null else jsonb_build_object(
