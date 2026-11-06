@@ -194,7 +194,8 @@ declare
   v_result jsonb;
   v_external jsonb;
   v_external_id uuid;
-  v_review_count integer;
+  v_external_operation uuid := gen_random_uuid();
+  v_external_key text := 'tg5-external:' || gen_random_uuid()::text;
 begin
   perform set_config('request.jwt.claim.sub',v->>'chair',true);
   perform set_config('request.jwt.claims',
@@ -224,7 +225,7 @@ begin
     'The country offered technical and diplomatic cooperation.',
     'The submitted message pledges to respect GUARD obligations.',
     'DM from country delegation received 2026-11-07, source confirmed',
-    gen_random_uuid(),'tg5-external:' || gen_random_uuid()::text
+    v_external_operation,v_external_key
   );
   if v_external->>'status'<>'succeeded'
      or v_external#>>'{result,status}'<>'submitted'
@@ -233,6 +234,19 @@ begin
   end if;
   v_external_id := (v_external#>>'{result,applicationId}')::uuid;
   perform set_config('solaris.tg5_external_application',v_external_id::text,true);
+  v_external := public.world_register_external_guard_application_v1(
+    (v->>'organization')::uuid,(v->>'external_country')::uuid,
+    'Republic of TG5 External', 'Representative democracy',
+    'The country sent a direct message requesting admission to GUARD.',
+    'The country offered technical and diplomatic cooperation.',
+    'The submitted message pledges to respect GUARD obligations.',
+    'DM from country delegation received 2026-11-07, source confirmed',
+    v_external_operation,v_external_key
+  );
+  if v_external->>'replayed'<>'true'
+     or v_external#>>'{result,applicationId}'<>v_external_id::text then
+    raise exception 'TG5_REVIEW_EXTERNAL_IDEMPOTENCY_FAILED: %',v_external;
+  end if;
   if not exists(
     select 1 from public.world_membership_applications a
     where a.id=v_external_id and a.country_id=(v->>'external_country')::uuid
@@ -262,7 +276,26 @@ begin
   exception when sqlstate '23505' then
     if sqlerrm <> 'APPLICATION_ALREADY_PENDING' then raise; end if;
   end;
-  raise notice 'PASS: external intake, private provenance and one-active constraint';
+  -- The registered country cannot magically authorize an unrelated account,
+  -- and the unrelated account cannot impersonate the Chairperson by calling RPC.
+  perform set_config('request.jwt.claim.sub',v->>'outsider',true);
+  perform set_config('request.jwt.claims',
+    jsonb_build_object('sub',v->>'outsider','role','authenticated')::text,true);
+  begin
+    perform public.world_register_external_guard_application_v1(
+      (v->>'organization')::uuid,(v->>'external_country')::uuid,
+      'Republic of TG5 External','Representative democracy',
+      'A forged request pretending to be Chairperson.',
+      'A forged list of international contributions.',
+      'A forged commitment to GUARD obligations.',
+      'Forged private record 2026-11-07',
+      gen_random_uuid(),'tg5-external-forged:' || gen_random_uuid()::text
+    );
+    raise exception 'TG5_REVIEW_EXTERNAL_UNAUTHORIZED_ACTOR_ACCEPTED';
+  exception when sqlstate '42501' then
+    if sqlerrm <> 'AUTHORIZATION' then raise; end if;
+  end;
+  raise notice 'PASS: external intake, private provenance, one-active constraint and authorization';
 end
 $chair$;
 
