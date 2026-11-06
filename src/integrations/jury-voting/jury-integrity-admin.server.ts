@@ -51,7 +51,11 @@ function numberValue(value: unknown) {
 export async function listJuryIntegrityCasesServer(editionId: string) {
   const scopedEditionId = String(editionId ?? "").trim();
   if (!scopedEditionId) throw new Error("Jury Integrity requires an explicit edition scope");
+  // Integrity analysis includes private target-level jury scores in
+  // admin_evidence. Integrity visibility alone must not grant ballot access.
+  // Both checks are edition-scoped and must pass before privileged reads.
   await requireSolarisCapabilityServer("integrity.read", scopedEditionId);
+  await requireSolarisCapabilityServer("jury.ballots.read", scopedEditionId);
 
   const db = supabaseAdmin as any;
   const tv = db.schema("televoting");
