@@ -31,6 +31,14 @@ describe("V3 global Search relevance integration", () => {
     expect(web).not.toContain("useAllParticipants()");
   });
 
+  it("searches canonical SSC-number labels across editions, shows and entries", () => {
+    expect(web).toContain("edition.edition_number == null ? null : `SSC ${edition.edition_number}`");
+    expect(web).toContain("edition?.edition_number == null ? null : `SSC ${edition.edition_number}`");
+    expect(web).toContain('group: "Editions"');
+    expect(web).toContain('group: "Shows"');
+    expect(web).toContain('group: "Entries"');
+  });
+
   it("retains server RPC authority and request-budget protection", () => {
     expect(app).toContain('rpc("solaris_public_search"');
     expect(app).toContain("result_limit: 30");
