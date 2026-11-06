@@ -777,6 +777,7 @@ function EntryReviewCard({
               entryId={entry.id}
               targetType={targetType}
               currentVersionId={entry.current_version_id ?? null}
+              isScopeCurrent={isScopeCurrent}
             />
           ) : null}
 
