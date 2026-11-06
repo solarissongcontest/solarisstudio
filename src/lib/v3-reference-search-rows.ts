@@ -12,6 +12,14 @@ export type ReferenceSearchItem = {
 };
 
 const VISIBLE_KINDS = new Set<ReferenceResultKind>(["edition", "country", "entry", "show"]);
+const PATH_ROOT: Record<ReferenceResultKind | "wiki", string> = {
+  country: "countries",
+  entry: "countries",
+  wiki: "wiki",
+  edition: "editions",
+  show: "shows",
+};
+const SAFE_ROUTE = /^\/([a-z]+)\/[A-Za-z0-9_-]+$/;
 
 export function parseReferenceSearchRows(value: unknown): ReferenceSearchItem[] {
   if (!Array.isArray(value)) throw new Error("Invalid public search projection");
@@ -26,14 +34,18 @@ export function parseReferenceSearchRows(value: unknown): ReferenceSearchItem[] 
     const id = typeof row.result_id === "string" ? row.result_id.trim() : "";
     const title = typeof row.title === "string" ? row.title.trim() : "";
     const href = typeof row.href === "string" ? row.href.trim() : "";
-    if (!id || !title || !href.startsWith("/") || href.startsWith("//") ||
-      (legacyWiki && !/^\/wiki\/[A-Za-z0-9_-]+$/.test(href))) {
+    const sourceKind = legacyWiki ? "wiki" : row.result_type as ReferenceResultKind;
+    if (!id || !title || SAFE_ROUTE.exec(href)?.[1] !== PATH_ROOT[sourceKind]) {
       throw new Error("Invalid public Reference result");
     }
 
     // /wiki/$code is preserved for bookmarks, but rolled-out Reference links
     // directly to the same canonical country identity as /countries/$code.
-    const canonicalHref = legacyWiki ? href.replace(/^\/wiki\//, "/countries/") : href;
+    const canonicalHref = legacyWiki
+      ? `/countries/${href.slice("/wiki/".length).toUpperCase()}`
+      : sourceKind === "country"
+        ? `/countries/${href.slice("/countries/".length).toUpperCase()}`
+        : href;
     const kind: ReferenceResultKind = legacyWiki ? "country" : row.result_type as ReferenceResultKind;
     const key = kind === "country" ? `country:${canonicalHref}` : id;
     if (seen.has(key)) return [];

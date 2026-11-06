@@ -47,9 +47,11 @@ export function V3CountriesDiscoveryScreen({
       buildCountryDiscovery({
         countries: countriesQuery.data ?? [],
         editions: editionsQuery.data ?? [],
-        currentParticipants: participantsQuery.data ?? [],
+        // Cached participant rows may outlive a failed refetch. Only a successful
+        // current-edition read can assert participation or movement status.
+        currentParticipants: participantsQuery.isSuccess ? participantsQuery.data ?? [] : [],
       }),
-    [countriesQuery.data, editionsQuery.data, participantsQuery.data],
+    [countriesQuery.data, editionsQuery.data, participantsQuery.data, participantsQuery.isSuccess],
   );
 
   const participatingCountryIds = useMemo(
@@ -73,6 +75,8 @@ export function V3CountriesDiscoveryScreen({
   const collectionCount = selectedParticipatingOnly
     ? discovery.participating.length
     : countriesQuery.data?.length ?? 0;
+  const noPublishedCountries = countriesQuery.data?.length === 0;
+  const editionContextLoading = editionsQuery.isLoading && !editionsQuery.data;
   const filtered = useMemo(
     () =>
       filterCountryDirectory(countriesQuery.data ?? [], {
@@ -126,7 +130,7 @@ export function V3CountriesDiscoveryScreen({
         <p className="v3-countries-kicker">
           {discovery.currentEdition
             ? `SSC ${discovery.currentEdition.edition_number ?? "current"} · CURRENT EDITION`
-            : "TERRA SOLARIS · COUNTRY ARCHIVE"}
+            : editionContextLoading ? "CURRENT EDITION · LOADING" : "TERRA SOLARIS · COUNTRY ARCHIVE"}
         </p>
         <h2 id="countries-page-title" className="v3-countries-title">
           {presentation === "installed-app" ? "Countries" : "Country explorer"}
@@ -134,7 +138,9 @@ export function V3CountriesDiscoveryScreen({
         <p className="v3-countries-lead">
           {discovery.currentEdition
             ? `Browse the current SSC ${discovery.currentEdition.edition_number ?? ""} lineup or discover all Terra Solaris countries.`
-            : "Discover the countries of Terra Solaris, their regions and their histories."}
+            : editionContextLoading
+              ? "Discover Terra Solaris countries while current-edition context loads."
+              : "Discover the countries of Terra Solaris, their regions and their histories."}
         </p>
       </header>
       )}
@@ -144,6 +150,15 @@ export function V3CountriesDiscoveryScreen({
         aria-labelledby="countries-page-title"
         className="v3-countries-browser scroll-mt-24"
       >
+        {editionsQuery.isError ? (
+          <div className="mb-3 flex flex-wrap items-center gap-3 text-sm text-muted-foreground" role="status">
+            <span>Current-edition context could not be refreshed. All published countries remain available.</span>
+            <button type="button" className="min-h-11 rounded-lg border border-border px-3 font-semibold text-foreground"
+              disabled={editionsQuery.isFetching} onClick={() => void editionsQuery.refetch()}>
+              {editionsQuery.isFetching ? "Retrying…" : "Retry edition context"}
+            </button>
+          </div>
+        ) : null}
         {discovery.currentEdition ? (
           <div className="v3-countries-collections grid grid-cols-2 gap-2" role="group" aria-label="Country collections">
             <button
@@ -183,7 +198,10 @@ export function V3CountriesDiscoveryScreen({
           <div className="mb-3 flex flex-wrap items-center gap-3 text-sm text-muted-foreground" role="status">
             <span>Current-edition lineup unavailable. You can still browse all countries.</span>
             <button type="button" className="min-h-11 rounded-lg border border-border px-3 font-semibold text-foreground"
-              onClick={() => void participantsQuery.refetch()}>Retry lineup</button>
+              disabled={participantsQuery.isFetching}
+              onClick={() => void participantsQuery.refetch()}>
+              {participantsQuery.isFetching ? "Retrying…" : "Retry lineup"}
+            </button>
           </div>
         ) : null}
         <div className={presentation === "desktop-web" ? "v3-countries-workspace v3-countries-workspace--desktop" : "v3-countries-workspace"}>
@@ -291,9 +309,17 @@ export function V3CountriesDiscoveryScreen({
         {!filtered.length ? (
           <AppEmptyState
             className="my-3"
-            title="No countries found"
-            description="No country matches the current search and region filters."
-            action={
+            title={noPublishedCountries
+              ? "No countries published yet"
+              : selectedParticipatingOnly && collectionCount === 0
+                ? "No published participants yet"
+                : "No matching countries"}
+            description={noPublishedCountries
+              ? "The published country directory is currently empty."
+              : selectedParticipatingOnly && collectionCount === 0
+                ? "The current edition has no published participating countries."
+                : "Try another search or region, or clear your filters."}
+            action={noPublishedCountries ? undefined : (
               <button
                 type="button"
                 onClick={() => {
@@ -306,7 +332,7 @@ export function V3CountriesDiscoveryScreen({
               >
                 Clear filters
               </button>
-            }
+            )}
           />
         ) : null}
 
