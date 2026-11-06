@@ -56,7 +56,7 @@ export function normalizeV3FantasyStandings(payload: unknown): V3FantasyStanding
     const toNumber = (input: unknown): number => {
       if (typeof input === "number") return input;
       if (typeof input !== "string" ||
-          !/^-?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$/.test(input.trim())) {
+          !/^-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(input.trim())) {
         return Number.NaN;
       }
       return Number(input.trim());
