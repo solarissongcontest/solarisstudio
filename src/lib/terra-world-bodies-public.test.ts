@@ -25,6 +25,7 @@ const organ = {
   id: "body-1", organization_id: "org-1", slug: "gag", name: "General Assembly",
   short_name: "GAG", type: "general_assembly", description: "Public assembly",
   status: "active", visibility: "public", sort_order: 10, private_notes: "never-return-this",
+  world_organizations: { id: "org-1", public_visibility: "public" },
 };
 function chain(response: Record<string, unknown>) {
   const q = {
@@ -96,7 +97,7 @@ describe("TG3 public institution bodies", () => {
     expect(body.eq).toHaveBeenCalledWith("status", "active");
     expect(body.or).toHaveBeenCalledWith("name.ilike.%GAG%,short_name.ilike.%GAG%");
     expect(body.select).toHaveBeenCalledWith(
-      "id,organization_id,slug,name,short_name,type,status,visibility,sort_order,world_organizations!inner(id)",
+      "id,organization_id,slug,name,short_name,type,status,visibility,sort_order,world_organizations!inner(id,public_visibility)",
       { count: "exact" },
     );
     expect(body.order).toHaveBeenCalledWith("slug", { ascending: true });
@@ -185,7 +186,7 @@ describe("TG3 public institution bodies", () => {
     mockFrom.mockImplementation((name: string) => name === "world_organizations" ? org : body);
     await readPublicWorldBody("guard", "gag");
     expect(body.select).toHaveBeenCalledWith(
-      "id,organization_id,slug,name,short_name,type,description,status,visibility,sort_order,world_organizations!inner(id)",
+      "id,organization_id,slug,name,short_name,type,description,status,visibility,sort_order,world_organizations!inner(id,public_visibility)",
     );
     expect(body.eq).toHaveBeenCalledWith("world_organizations.public_visibility", "public");
   });
@@ -239,7 +240,7 @@ describe("TG3 public institution bodies", () => {
     expect(response?.bodies).toEqual([]);
     expect(response?.total).toBe(4);
     expect(organQueries).toBe(2);
-    expect(recount.select).toHaveBeenCalledWith("id,world_organizations!inner(id)", { count: "exact", head: true });
+    expect(recount.select).toHaveBeenCalledWith("id,world_organizations!inner(id,public_visibility)", { count: "exact", head: true });
     expect(recount.eq).toHaveBeenCalledWith("organization_id", "org-1");
     expect(recount.eq).toHaveBeenCalledWith("visibility", "public");
     expect(recount.eq).toHaveBeenCalledWith("status", "active");
@@ -257,7 +258,7 @@ describe("TG3 public institution bodies", () => {
     const response = await readPublicWorldBodies("guard", 1);
     expect(response?.total).toBe(0);
     expect(response?.bodies).toEqual([]);
-    expect(recount.select).toHaveBeenCalledWith("id,world_organizations!inner(id)", { count: "exact", head: true });
+    expect(recount.select).toHaveBeenCalledWith("id,world_organizations!inner(id,public_visibility)", { count: "exact", head: true });
     expect(recount.range).not.toHaveBeenCalled();
     expect(recount.then).toHaveBeenCalled();
     expect(organQueries).toBe(2);
@@ -270,7 +271,7 @@ describe("TG3 public institution bodies", () => {
     mockFrom.mockImplementation((name: string) =>
       name === "world_organizations" ? org : ++organQueries === 1 ? vanished : recount);
     await expect(readPublicWorldBodies("guard", 1)).rejects.toThrow("could not be verified");
-    expect(recount.select).toHaveBeenCalledWith("id,world_organizations!inner(id)", { count: "exact", head: true });
+    expect(recount.select).toHaveBeenCalledWith("id,world_organizations!inner(id,public_visibility)", { count: "exact", head: true });
   });
   it("fails closed if a PostgREST 416 recount leaves the requested page in range", async () => {
     const org = chain({ data: parent, error: null });
@@ -350,6 +351,8 @@ describe("TG3 institution body offices", () => {
   const office = {
     id: "office-1", organization_id: "org-1", organ_id: "body-1",
     title: "Assembly Chair", office_type: "leadership", active: true,
+    world_organizations: { id: "org-1", public_visibility: "public" },
+    world_organization_organs: { id: "body-1", organization_id: "org-1", visibility: "public" },
     holder_user_id: "must-not-leak", current_term: { private: "must-not-leak" },
   };
 
@@ -393,7 +396,7 @@ describe("TG3 institution body offices", () => {
     expect(query.eq).toHaveBeenCalledWith("active", true);
     expect(query.order).toHaveBeenCalledWith("id", { ascending: true });
     expect(query.limit).toHaveBeenCalledWith(WORLD_BODY_OFFICE_LIMIT);
-    expect(query.select).toHaveBeenCalledWith("id,organization_id,organ_id,title,office_type,active,world_organizations!inner(id),world_organization_organs!inner(id)");
+    expect(query.select).toHaveBeenCalledWith("id,organization_id,organ_id,title,office_type,active,world_organizations!inner(id,public_visibility),world_organization_organs!inner(id,organization_id,visibility)");
   });
 
   it("cancels bounded public office requests when their page unmounts", async () => {
