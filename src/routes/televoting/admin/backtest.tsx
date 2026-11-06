@@ -90,6 +90,18 @@ function TelevoteBacktestPage() {
         }
       />
 
+      <div
+        role="note"
+        aria-label="Simulation is not official"
+        data-v3-backtest-simulation="not-official"
+        className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-200/25 bg-amber-200/[0.065] px-4 py-3"
+      >
+        <AdminStatus tone="attention">SIMULATION · NOT OFFICIAL</AdminStatus>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Historical comparisons and simulated attacks are evidence only. They cannot change or publish official Results.
+        </p>
+      </div>
+
       {!data ? (
         <AdminCard>
           <AdminEmptyState

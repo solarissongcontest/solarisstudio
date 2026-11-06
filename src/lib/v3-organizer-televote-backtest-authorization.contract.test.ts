@@ -34,6 +34,19 @@ describe("V3 Organizer historical Televote backtest least privilege", () => {
     expect(adapter).not.toMatch(/supabaseAdmin|televotingAdmin|\.from\(|\.rpc\(/);
   });
 
+  it("keeps a visible simulation and not-official warning before and after a run", () => {
+    expect(page).toContain('role="note"');
+    expect(page).toContain('aria-label="Simulation is not official"');
+    expect(page).toContain('data-v3-backtest-simulation="not-official"');
+    expect(page).toContain("SIMULATION · NOT OFFICIAL");
+    expect(page).toContain("They cannot change or publish official Results.");
+    const warning = page.indexOf('data-v3-backtest-simulation="not-official"');
+    const conditionalOutput = page.indexOf("{!data ? (");
+    expect(warning).toBeGreaterThan(-1);
+    expect(conditionalOutput).toBeGreaterThan(warning);
+    expect(page).not.toContain("Apply to production");
+  });
+
   it("does not mutate official Results, voting rounds or ballots", () => {
     expect(page).toContain("No official result is changed");
     expect(page).toContain("read-only simulation");
