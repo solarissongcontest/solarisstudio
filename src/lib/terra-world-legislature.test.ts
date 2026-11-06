@@ -79,8 +79,8 @@ describe("TG16 legislature and chamber contracts",()=>{
     expect(aborted).toHaveBeenCalledTimes(1);
   });
   it("requires a server-confirmed receipt for write success",async()=>{
-    rpc.mockResolvedValueOnce({data:{ok:true,id:legislatureId,kind:"legislature",
-      operationId,revision:1},error:null});
+    rpc.mockResolvedValueOnce({data:{operationId,status:"succeeded",error:null,
+      result:{ok:true,id:legislatureId,kind:"legislature",operationId,revision:1}},error:null});
     await expect(writeWorldLegislature({
       countryId,kind:"legislature",subjectId:null,
       payload:{title:"National Assembly",description:"",electionCycleMonths:48,published:true},
@@ -89,6 +89,11 @@ describe("TG16 legislature and chamber contracts",()=>{
     expect(rpc).toHaveBeenCalledWith("world_write_domestic_structure_v1",expect.objectContaining({
       p_country_id:countryId,p_kind:"legislature",p_expected_revision:0,
     }));
+    rpc.mockResolvedValueOnce({data:{operationId,status:"processing",error:null,
+      result:{ok:true,id:legislatureId,kind:"legislature",operationId,revision:1}},error:null});
+    await expect(writeWorldLegislature({countryId,kind:"legislature",subjectId:legislatureId,
+      payload:{title:"Attempted",published:true},expectedRevision:1,operationId,
+      idempotencyKey:operationId})).rejects.toThrow("receipt");
     rpc.mockResolvedValueOnce({data:null,error:{code:"40001",message:"VERSION_CONFLICT"}});
     await expect(writeWorldLegislature({
       countryId,kind:"legislature",subjectId:legislatureId,
