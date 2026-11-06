@@ -390,12 +390,10 @@ export function WorldOrganizationPage({
                       ))}
                     </div>
                   ) : <p className="mt-4 text-sm text-muted-foreground">No public bodies have been recorded.</p>}
-                  {projection.data.organs.length > 0 ? (
-                    <Link to="/world/organizations/$slug/bodies/" params={{ slug }}
-                      className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary">
-                      Browse all public bodies <ArrowRight className="size-4" aria-hidden="true" />
-                    </Link>
-                  ) : null}
+                  <Link to="/world/organizations/$slug/bodies/" params={{ slug }}
+                    className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary">
+                    Browse public bodies <ArrowRight className="size-4" aria-hidden="true" />
+                  </Link>
                 </section>
               </div>
               <aside className="border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-7 lg:pt-0" aria-label="Institution at a glance">
