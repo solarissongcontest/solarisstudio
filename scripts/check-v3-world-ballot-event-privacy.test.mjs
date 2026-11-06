@@ -6,14 +6,19 @@ import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { auditWorldBallotEventSql, sqlCallArguments, stripSqlComments } from "./check-v3-world-ballot-event-privacy.mjs";
 
-const safe = `begin;
+const safe = `create or replace function public.world_cast_ballot_v1(
+  p_vote_id uuid
+) returns jsonb language plpgsql security definer set search_path=pg_catalog
+as $cast_vote$
+begin;
   perform private.v3_emit_domain_event(
     'world.vote.ballot_cast','world_vote',p_vote_id::text,1,
     v_operation_id,null,null,
     jsonb_build_object('voteId',p_vote_id),
     1,array[]::text[]
   );
-end;`;
+end;
+$cast_vote$;`;
 const source = (content = safe) => [{ name: "tg8_commands.sql", content }];
 
 test("accepts only the canonical vote-ID event without a network call", () => {
@@ -58,7 +63,7 @@ test("strictly allowlists metadata and event version, not just private field nam
 
 test("fails closed on absent, duplicate, and malformed emission contracts", () => {
   assert.throws(() => auditWorldBallotEventSql(source("select 1;")), /found 0/);
-  assert.throws(() => auditWorldBallotEventSql(source(safe + safe)), /found 2/);
+  assert.throws(() => auditWorldBallotEventSql(source(safe + safe)), /exactly one canonical/);
   assert.throws(() => auditWorldBallotEventSql([]), /sources required/);
   assert.throws(() => auditWorldBallotEventSql(source(
     safe.replace("'world_vote'", "'country'")
@@ -68,12 +73,34 @@ test("fails closed on absent, duplicate, and malformed emission contracts", () =
 test("does not mistake fake event calls in SQL comments for published producers", () => {
   assert.throws(() => auditWorldBallotEventSql(source(
     "-- " + safe.trim().replace(/\n/g, "\n-- ") + "\n"
-  )), /found 0/);
+  )), /found 0|exactly one canonical/);
   assert.equal(stripSqlComments("select '--still text'; -- comment\nselect 1;")
     .includes("'--still text'"), true);
   assert.equal(sqlCallArguments("f('vote,a', func(1,2),3)", 1).args.length, 3);
 });
 
+
+test("rejects event-shaped strings and PostgreSQL nested comments as fake evidence", () => {
+  const invocation = safe.slice(safe.indexOf("perform private.v3_emit_domain_event("),
+    safe.indexOf("\nend;"));
+  const bodyStart = safe.indexOf("begin;") + "begin;".length;
+  const bodyEnd = safe.indexOf("\nend;", bodyStart);
+  const fakeBodies = [
+    `\n/* outer /* inner */ ${invocation} */`,
+    `\nperform do_something($fake${invocation}$fake$);`,
+    `\nperform do_something('${invocation.replaceAll("\'", "\'\'")}');`,
+  ];
+  for (const fake of fakeBodies) {
+    const sql = safe.slice(0, bodyStart) + fake + safe.slice(bodyEnd);
+    assert.throws(() => auditWorldBallotEventSql(source(sql)), /found 0/);
+  }
+  for (const sourceSql of [
+    `/* outer /* inner */ ${invocation} */`,
+    `select $fake${invocation}$fake$;`,
+  ]) {
+    assert.throws(() => auditWorldBallotEventSql(source(sourceSql)), /found 0/);
+  }
+});
 test("CLI verifies fixture locally, refuses unsafe input and never invokes Supabase", () => {
   const dir = mkdtempSync(join(tmpdir(), "world-event-privacy-"));
   const filename = join(dir, "sample.sql");
