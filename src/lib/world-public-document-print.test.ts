@@ -10,7 +10,7 @@ const item: WorldDocumentDetail = {
     versionNumber:2, title:"Revised Charter", publicationState:"published",
     plainText:"  PREAMBLE\nText  ", publishedAt:"2026-11-01T00:00:00Z",
     effectiveFrom:"2026-11-03T00:00:00Z",effectiveTo:null,
-    provisions: [{provisionId:"p-1",displayLabel:"Article 5",heading:"Membership",
+    provisions: [{provisionId:"p-1",status:"active",semanticKey:"membership",targetId:"world-provision-membership",displayLabel:"Article 5",heading:"Membership",
       bodyPlainText:"  Original words\nsecond line  ",anchor:"membership",parentSemanticKey:null}],
   },
   history: [],
@@ -21,7 +21,7 @@ describe("TG4 public legal-document archival printing", () => {
     const result=buildWorldPublicPrintModel(item,{organization:"guard",document:"charter"})!;
     expect(result.versionNumber).toBe(2);
     expect(result.plainText).toBe("  PREAMBLE\nText  ");
-    expect(result.articles[0]).toEqual({id:"p-1",label:"Article 5",heading:"Membership",text:"  Original words\nsecond line  "});
+    expect(result.articles[0]).toEqual({id:"p-1",status:"active",label:"Article 5",heading:"Membership",text:"  Original words\nsecond line  "});
     expect(result.citation).toContain("/world/documents/guard/charter?version=2");
   });
   it("renders the authoritative UTC effective date without inventing one", () => {
@@ -35,6 +35,15 @@ describe("TG4 public legal-document archival printing", () => {
     expect(buildWorldPublicPrintModel({...item,version:{...item.version,publicationState:"historical_source"}},{organization:"guard",document:"charter"})).toBeNull();
     expect(buildWorldPublicPrintModel(null,{organization:"guard",document:"charter"})).toBeNull();
   });
+  it("preserves repealed and omitted statuses without presenting them as active law", () => {
+    const repealed = { ...item.version.provisions[0], provisionId: "p-2", semanticKey: "former-article", status: "repealed" as const };
+    const omitted = { ...item.version.provisions[0], provisionId: "p-3", semanticKey: "omitted-article", status: "omitted" as const, bodyPlainText: "" };
+    const result = buildWorldPublicPrintModel({
+      ...item, version: { ...item.version, provisions: [item.version.provisions[0], repealed, omitted] },
+    }, { organization: "guard", document: "charter" });
+    expect(result?.articles.map((article) => article.status)).toEqual(["active", "repealed", "omitted"]);
+    expect(result?.articles[1].text).toBe("  Original words\nsecond line  ");
+  });
   it("supports superseded immutable versions and rejects foreign or stale version responses", () => {
     const old={...item,version:{...item.version,versionNumber:1,publicationState:"superseded" as const}};
     expect(buildWorldPublicPrintModel(old,{organization:"guard",document:"charter",version:1})?.publicationState).toBe("superseded");
@@ -44,6 +53,7 @@ describe("TG4 public legal-document archival printing", () => {
   it("rejects path traversal, missing provision identities and invalid version identifiers", () => {
     expect(()=>buildWorldPublicPrintModel(item,{organization:"../guard",document:"charter"})).toThrow();
     expect(()=>buildWorldPublicPrintModel(item,{organization:"guard",document:"charter",version:-1})).toThrow();
+    expect(()=>buildWorldPublicPrintModel({...item,version:{...item.version,provisions:[{...item.version.provisions[0],status:"pending" as any}]}},{organization:"guard",document:"charter"})).toThrow(/status/);
     expect(()=>buildWorldPublicPrintModel({...item,version:{...item.version,provisions:[item.version.provisions[0],item.version.provisions[0]]}},{organization:"guard",document:"charter"})).toThrow(/Duplicate/);
   });
 });
