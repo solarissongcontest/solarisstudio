@@ -87,14 +87,22 @@ function SignInNotice() {
 export function WorldWorkspacesDirectory() {
   const identity = useWorldPrivateIdentity();
   const online = useOnline();
+  const queryClient = useQueryClient();
+  const [accessUncertain, setAccessUncertain] = useState(false);
+  useEffect(() => setAccessUncertain(false), [identity.data]);
   const organizations = useQuery({
     queryKey: [...PRIVATE_WORLD_QUERY_ROOT, identity.data, "organizations"],
     queryFn: ({ signal }) => getMyWorldWorkspaces(signal),
-    enabled: Boolean(identity.data) && online,
+    enabled: Boolean(identity.data) && online && !accessUncertain,
     staleTime: 0, gcTime: 0, retry: false, refetchOnMount: "always",
     refetchOnWindowFocus: "always",
   });
-  const visible = isVisiblePrivateWorldQuery(organizations, online);
+  useEffect(() => {
+    if (!organizations.isError && !organizations.isRefetchError) return;
+    setAccessUncertain(true);
+    queryClient.removeQueries({ queryKey: PRIVATE_WORLD_QUERY_ROOT });
+  }, [organizations.isError, organizations.isRefetchError, queryClient]);
+  const visible = !accessUncertain && isVisiblePrivateWorldQuery(organizations, online);
   return <PrivateLayout>
     <PrivateHeader title="Institutional workspaces" context="Member area" />
     <nav aria-label="World navigation" className="mb-5">
@@ -106,6 +114,9 @@ export function WorldWorkspacesDirectory() {
       identity.isPending ? <p role="status">Verifying your account…</p> :
       identity.isError ? <AccessNotice message="Your session could not be verified." retry={() => void identity.refetch()} /> :
       !identity.data ? <SignInNotice /> :
+      accessUncertain ? <AccessNotice message="Your institutional access could not be confirmed. Previously loaded private data was erased." retry={() => {
+        setAccessUncertain(false); void organizations.refetch();
+      }} /> :
       organizations.isPending || !organizations.isFetchedAfterMount ? <p role="status">Checking current institutional access…</p> :
       !visible ? <AccessNotice message="Institutional access could not be verified. Previously cached private rooms are hidden." retry={() => void organizations.refetch()} /> :
       !organizations.data?.length ? <AccessNotice message="No private institutional rooms are currently accessible to this account. A membership, office or room invitation may be required." /> :
@@ -133,10 +144,12 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
   const identity = useWorldPrivateIdentity();
   const online = useOnline();
   const queryClient = useQueryClient();
+  const [accessUncertain, setAccessUncertain] = useState(false);
+  useEffect(() => setAccessUncertain(false), [identity.data, slug]);
   const rooms = useQuery({
     queryKey: [...PRIVATE_WORLD_QUERY_ROOT, identity.data, slug, "rooms"],
     queryFn: ({ signal }) => getWorldRooms(slug, signal),
-    enabled: Boolean(identity.data) && online,
+    enabled: Boolean(identity.data) && online && !accessUncertain,
     staleTime: 0, gcTime: 0, retry: false, refetchOnMount: "always",
     refetchOnWindowFocus: "always",
   });
@@ -144,7 +157,7 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
   const bootstrap = useQuery({
     queryKey: [...PRIVATE_WORLD_QUERY_ROOT, identity.data, slug, "context"],
     queryFn: ({ signal }) => getWorldWorkspaceContext(slug, signal),
-    enabled: Boolean(identity.data && online && rooms.isSuccess && rooms.data?.length === 0),
+    enabled: Boolean(identity.data && online && !accessUncertain && rooms.isSuccess && rooms.data?.length === 0),
     gcTime: 0, staleTime: 0, retry: false, refetchOnMount: "always",
     refetchOnWindowFocus: "always",
   });
@@ -176,7 +189,7 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
     queryFn: ({ pageParam, signal }) => getWorldRoomMessages(selectedId!, pageParam, signal),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.length === WORLD_ROOM_PAGE_SIZE ? last[0].id : undefined,
-    enabled: Boolean(identity.data && selectedId && verifiedRooms && online),
+    enabled: Boolean(identity.data && selectedId && verifiedRooms && online && !accessUncertain),
     retry: false, staleTime: 0, gcTime: 0, refetchOnMount: "always",
     refetchOnWindowFocus: "always",
     // Bounded, single-active-room refresh. No cross-room subscription fanout.
@@ -190,7 +203,7 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
   const search = useQuery({
     queryKey: [...PRIVATE_WORLD_QUERY_ROOT, identity.data, slug, selectedId, "search", activeSearch],
     queryFn: ({ signal }) => searchWorldRoomMessages(selectedId!, activeSearch, signal),
-    enabled: Boolean(identity.data && selectedId && verifiedRooms && online && activeSearch),
+    enabled: Boolean(identity.data && selectedId && verifiedRooms && online && activeSearch && !accessUncertain),
     gcTime: 0, staleTime: 0, retry: false, refetchOnMount: "always",
     refetchOnWindowFocus: "always",
   });
@@ -238,6 +251,17 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
     catch (error) { setActionError(error instanceof Error ? error.message : "Action could not be verified."); }
   }
 
+  useEffect(() => {
+    if (!rooms.isError && !rooms.isRefetchError &&
+        !messages.isError && !messages.isRefetchError &&
+        !search.isError && !search.isRefetchError) return;
+    // Confidential projections are removed from memory, not merely obscured
+    // by a stale error overlay. A user must explicitly revalidate after denial.
+    setAccessUncertain(true);
+    queryClient.removeQueries({ queryKey: PRIVATE_WORLD_QUERY_ROOT });
+  }, [rooms.isError, rooms.isRefetchError, messages.isError, messages.isRefetchError,
+      search.isError, search.isRefetchError, queryClient]);
+
   const allMessages = useMemo(() => verifiedMessages ?? [], [verifiedMessages]);
   const replyTo = allMessages.find((m) => m.id === replyToId);
   const canManage = Boolean(verifiedRooms?.some((room) => room.canManage) || verifiedBootstrap?.canManage);
@@ -253,6 +277,9 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
       identity.isPending ? <p role="status">Verifying your account…</p> :
       identity.isError ? <AccessNotice message="Session verification failed." retry={() => void identity.refetch()} /> :
       !identity.data ? <SignInNotice /> :
+      accessUncertain ? <AccessNotice message="Membership or room permissions could not be verified. Private messages and search caches were cleared." retry={() => {
+        setAccessUncertain(false); void rooms.refetch();
+      }} /> :
       rooms.isPending || !rooms.isFetchedAfterMount ? <p role="status">Checking your room access…</p> :
       !verifiedRooms ? <AccessNotice message="Your room permissions could not be verified. Cached private content is hidden." retry={() => void rooms.refetch()} /> :
       verifiedRooms.length === 0 ? <section className="max-w-xl border-t border-border pt-6">
