@@ -29,6 +29,11 @@ function requiredLocalConfig() {
     throw new Error(`Refusing V3 navigation E2E against non-local Supabase: ${url.origin}`);
   }
 
+  const appOrigin = new URL(baseURL);
+  if (appOrigin.hostname !== "127.0.0.1" && appOrigin.hostname !== "localhost") {
+    throw new Error(`Refusing V3 navigation E2E against non-local app origin: ${appOrigin.origin}`);
+  }
+
   return {
     supabaseUrl: supabaseUrl!,
     publishableKey: publishableKey!,
@@ -374,5 +379,152 @@ test("installed app shell survives representative navigation without duplicate c
     "ltr",
   );
 
+  await context.close();
+});
+
+
+test("installed Liquid dock cancels held gestures on overlay/keyboard and restores tap and keyboard navigation", async ({
+  browser,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "ios-pwa-portrait",
+    "The isolated installed-iOS fixture owns this focused gesture interruption contract.",
+  );
+
+  // This helper refuses hosted Supabase and non-loopback app origins.
+  const session = await signInLocalCountry();
+  const { baseURL } = requiredLocalConfig();
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    reducedMotion: "no-preference",
+  });
+  await installSession(context, session);
+  const page = await context.newPage();
+  await page.goto(baseURL + "/my-solaris/account", { waitUntil: "domcontentloaded" });
+  await expect(page.locator('[data-v3-account-settings-screen="account"]')).toBeVisible();
+
+  const nav = page.locator("[data-v3-liquid-tabbar]");
+  const material = nav.locator(".v3-liquid-tabbar__material");
+  await expect(nav).toBeVisible();
+  const me = nav.getByRole("link", { name: accessibleLabel("Me") });
+  await expect(me).toHaveAttribute("aria-current", "page");
+
+  async function holdActiveLens() {
+    // Route/scroll restoration can leave the dock collapsed. Its first pointer
+    // down merely expands it, by design, so the deliberate hold probe must
+    // first request the expanded state without starting an anchor gesture.
+    if ((await nav.getAttribute("data-collapsed")) === "true") {
+      await nav.dispatchEvent("pointerdown", {
+        pointerId: 179,
+        pointerType: "mouse",
+        button: 0,
+      });
+    }
+    await expect(nav).toHaveAttribute("data-collapsed", "false");
+    await expect(nav).toBeVisible();
+    const current = nav.locator('[data-v3-tab-index][aria-current="page"]');
+    // Page transitions can briefly paint a layer above the dock. Unlike
+    // locator.click(), raw page.mouse.down() does not wait for actionability.
+    // Do not start a hold until the tab is really the pointer hit target.
+    await expect
+      .poll(async () =>
+        current.evaluate((link) => {
+          const rect = link.getBoundingClientRect();
+          const target = document.elementFromPoint(
+            rect.left + rect.width / 2,
+            rect.top + rect.height / 2,
+          );
+          return target === link || (target != null && link.contains(target));
+        }),
+      )
+      .toBe(true);
+    const bounds = await current.boundingBox();
+    expect(bounds).not.toBeNull();
+    if (!bounds) throw new Error("The selected tab must remain measurable");
+    await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    await page.mouse.down();
+    const eligibility = await page.evaluate(() => ({
+      reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      keyboardOpen: document.documentElement.hasAttribute("data-solaris-keyboard-open"),
+      overlayOpen: document.documentElement.hasAttribute("data-solaris-feature-overlay-open"),
+    }));
+    expect(eligibility).toEqual({
+      reducedMotion: false,
+      keyboardOpen: false,
+      overlayOpen: false,
+    });
+    await expect(material).toHaveAttribute("data-held", "true", { timeout: 3000 });
+  }
+
+  await holdActiveLens();
+  await page.evaluate(() =>
+    document.documentElement.setAttribute("data-solaris-feature-overlay-open", "true"),
+  );
+  await expect(material).toHaveAttribute("data-held", "false");
+  await page.evaluate(() =>
+    document.documentElement.removeAttribute("data-solaris-feature-overlay-open"),
+  );
+  await page.mouse.up();
+  await expect(page).toHaveURL(/\/my-solaris\/account(?:[?#]|$)/);
+
+  // The interrupted pointer must not swallow the next legitimate tab tap.
+  await nav.getByRole("link", { name: accessibleLabel("Home") }).click();
+  await expect(page).toHaveURL(/\/(?:\?.*)?$/);
+
+  await holdActiveLens();
+  await page.evaluate(() =>
+    document.documentElement.setAttribute("data-solaris-keyboard-open", "true"),
+  );
+  await expect(material).toHaveAttribute("data-held", "false");
+  await page.evaluate(() =>
+    document.documentElement.removeAttribute("data-solaris-keyboard-open"),
+  );
+  await page.mouse.up();
+  await expect(page).toHaveURL(/\/(?:\?.*)?$/);
+
+  // Keyboard activation after a cancelled touch must remain a first-class path.
+  const meReturn = nav.getByRole("link", { name: accessibleLabel("Me") });
+  await meReturn.focus();
+  await page.keyboard.press("Enter");
+  await expect(meReturn).toHaveAttribute("aria-current", "page");
+  await expect(page).toHaveURL(/\/my-solaris(?:[/?#]|$)/);
+
+  // A screen reader can dispatch a click without pointerdown or keydown.
+  // Abort the held pointer while the cursor subsequently releases outside
+  // the link; no click should arrive to clear the stale suppression flag.
+  await holdActiveLens();
+  await page.evaluate(() =>
+    document.documentElement.setAttribute("data-solaris-feature-overlay-open", "true"),
+  );
+  await expect(material).toHaveAttribute("data-held", "false");
+  await page.mouse.move(1, 1);
+  await page.mouse.up();
+  await page.evaluate(() =>
+    document.documentElement.removeAttribute("data-solaris-feature-overlay-open"),
+  );
+  await expect(page).toHaveURL(/\/my-solaris(?:[/?#]|$)/);
+
+  // VoiceOver's detail=0 activation must work the first time, not the second.
+  await nav.getByRole("link", { name: accessibleLabel("Home") }).dispatchEvent("click", {
+    detail: 0,
+  });
+  await expect(page).toHaveURL(/\/(?:\?.*)?$/);
+
+  // A client-side redirect can replace the route while the active tab is
+  // physically held. Route teardown must end hold, clear the update blocker,
+  // and leave the next pointer navigation usable without a second tap.
+  await nav.getByRole("link", { name: accessibleLabel("Me") }).click();
+  await expect(page).toHaveURL(/\/my-solaris(?:[/?#]|$)/);
+  await holdActiveLens();
+  await nav.getByRole("link", { name: accessibleLabel("Home") }).dispatchEvent("click", {
+    detail: 0,
+  });
+  await expect(page).toHaveURL(/\/(?:\?.*)?$/);
+  await expect(material).toHaveAttribute("data-held", "false");
+  await page.mouse.move(1, 1);
+  await page.mouse.up();
+  await expect(page).toHaveURL(/\/(?:\?.*)?$/);
+  await nav.getByRole("link", { name: accessibleLabel("Explore") }).click();
+  await expect(page).toHaveURL(/\/explore(?:[?#]|$)/);
   await context.close();
 });
