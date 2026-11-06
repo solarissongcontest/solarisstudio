@@ -1,0 +1,58 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderToStaticMarkup } from "react-dom/server";
+import type { ReactNode } from "react";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/components/AppShell", () => ({
+  AppShell: ({ children }: { children: ReactNode }) => <div data-testid="shell">{children}</div>,
+}));
+vi.mock("@/components/FlagChip", () => ({
+  FlagChip: () => <span>flag</span>,
+}));
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ to, children }: { to: string; children: ReactNode }) =>
+    <a href={to}>{children}</a>,
+}));
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: {
+    rpc: vi.fn(() => Promise.reject(new Error("Unexpected real Supabase request"))),
+    from: vi.fn(() => { throw new Error("Unexpected real Supabase table request"); }),
+  },
+}));
+
+import { WorldPublicGate } from "./WorldPublic";
+
+/**
+ * This is a real React rendering test. It models a resolved authoritative
+ * rollout decision through React Query's public cache, without any Supabase.
+ */
+function renderWorldGate(rollout: boolean) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  client.setQueryData(["world", "public", "rollout"], rollout);
+  try {
+    return renderToStaticMarkup(
+      <QueryClientProvider client={client}>
+        <WorldPublicGate><section>Published world profile sentinel</section></WorldPublicGate>
+      </QueryClientProvider>,
+    );
+  } finally {
+    client.clear();
+  }
+}
+
+describe("World public rollout gate", () => {
+  it("does not render institutional content while the feature is disabled", () => {
+    const html = renderWorldGate(false);
+    expect(html).toContain("World is not yet available");
+    expect(html).toContain("Return to Explore");
+    expect(html).not.toContain("Published world profile sentinel");
+  });
+
+  it("mounts the reader only after the server-approved decision is true", () => {
+    const html = renderWorldGate(true);
+    expect(html).toContain("Published world profile sentinel");
+    expect(html).not.toContain("World is not yet available");
+  });
+});

@@ -1,6 +1,11 @@
 import { Download, Share } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import {
+  optionalBrowserStorage,
+  readOptionalStorage,
+  writeOptionalStorage,
+} from "@/lib/app-optional-browser-storage";
 import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import { useHydrationSafeRouterLocation } from "@/lib/hydration-safe-router-location";
 
@@ -9,15 +14,24 @@ type InstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
+type AppleMobileNavigatorHints = Pick<Navigator, "userAgent" | "platform" | "maxTouchPoints">;
+
 const DISMISSED_KEY = "solaris:pwa-install-dismissed";
 const VISIT_COUNT_KEY = "solaris:pwa-install-visits:v1";
 const SESSION_COUNTED_KEY = "solaris:pwa-install-session-counted:v1";
 const MIN_VISITS = 2;
 const REVEAL_DELAY_MS = 8_000;
 
-function isIOSBrowser() {
-  if (typeof navigator === "undefined") return false;
-  return /iP(?:hone|ad|od)/.test(navigator.userAgent);
+export function isIOSLikeBrowser(hints?: AppleMobileNavigatorHints) {
+  const browser =
+    hints ?? (typeof navigator === "undefined" ? null : (navigator as AppleMobileNavigatorHints));
+  if (!browser) return false;
+
+  if (/iP(?:hone|ad|od)/.test(browser.userAgent)) return true;
+
+  // iPadOS can request desktop-class sites and identify as MacIntel. A real
+  // desktop Mac does not expose the iPad-style multi-touch point profile.
+  return browser.platform === "MacIntel" && browser.maxTouchPoints > 1;
 }
 
 export function installPromptAllowedOnPath(pathname: string) {
@@ -38,34 +52,68 @@ export function AppInstallPrompt({ isAppMode }: { isAppMode: boolean }) {
   const [installEvent, setInstallEvent] = useState<InstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(true);
   const [eligible, setEligible] = useState(false);
-  const ios = isIOSBrowser();
+  const ios = isIOSLikeBrowser();
 
   useEffect(() => {
     if (typeof window === "undefined" || isAppMode) return;
 
-    let visits = Number(window.localStorage.getItem(VISIT_COUNT_KEY) ?? "0");
-    if (window.sessionStorage.getItem(SESSION_COUNTED_KEY) !== "1") {
-      visits = Number.isFinite(visits) ? visits + 1 : 1;
-      window.localStorage.setItem(VISIT_COUNT_KEY, String(visits));
-      window.sessionStorage.setItem(SESSION_COUNTED_KEY, "1");
+    const localStorage = optionalBrowserStorage("localStorage");
+    const sessionStorage = optionalBrowserStorage("sessionStorage");
+    const storedVisits = readOptionalStorage(localStorage, VISIT_COUNT_KEY);
+    const sessionCounted = readOptionalStorage(sessionStorage, SESSION_COUNTED_KEY);
+    const storedDismissed = readOptionalStorage(localStorage, DISMISSED_KEY);
+
+    // Installation promotion is optional. If preference persistence cannot be
+    // trusted, ordinary browsing wins instead of repeatedly resurfacing a prompt.
+    if (
+      storedVisits === undefined ||
+      sessionCounted === undefined ||
+      storedDismissed === undefined
+    ) {
+      setInstallEvent(null);
+      setDismissed(true);
+      setEligible(false);
+      return;
     }
 
-    const wasDismissed = window.localStorage.getItem(DISMISSED_KEY) === "1";
+    let visits = Number(storedVisits ?? "0");
+    if (sessionCounted !== "1") {
+      visits = Number.isFinite(visits) ? visits + 1 : 1;
+      const visitStored = writeOptionalStorage(localStorage, VISIT_COUNT_KEY, String(visits));
+      const sessionStored = writeOptionalStorage(sessionStorage, SESSION_COUNTED_KEY, "1");
+      if (!visitStored || !sessionStored) {
+        setInstallEvent(null);
+        setDismissed(true);
+        setEligible(false);
+        return;
+      }
+    }
+
+    const wasDismissed = storedDismissed === "1";
     setDismissed(wasDismissed);
 
     const timer = window.setTimeout(() => {
       setEligible(!wasDismissed && visits >= MIN_VISITS);
     }, REVEAL_DELAY_MS);
 
-    const handler = (event: Event) => {
+    const beforeInstallHandler = (event: Event) => {
       event.preventDefault();
       setInstallEvent(event as InstallPromptEvent);
     };
-    window.addEventListener("beforeinstallprompt", handler);
+    const installedHandler = () => {
+      writeOptionalStorage(localStorage, DISMISSED_KEY, "1");
+      setInstallEvent(null);
+      setDismissed(true);
+      setEligible(false);
+    };
+
+    window.addEventListener("beforeinstallprompt", beforeInstallHandler);
+    window.addEventListener("appinstalled", installedHandler);
 
     return () => {
       window.clearTimeout(timer);
-      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("beforeinstallprompt", beforeInstallHandler);
+      window.removeEventListener("appinstalled", installedHandler);
     };
   }, [isAppMode]);
 
@@ -80,14 +128,22 @@ export function AppInstallPrompt({ isAppMode }: { isAppMode: boolean }) {
   }
 
   const dismiss = () => {
-    window.localStorage.setItem(DISMISSED_KEY, "1");
+    writeOptionalStorage(optionalBrowserStorage("localStorage"), DISMISSED_KEY, "1");
+    setInstallEvent(null);
     setDismissed(true);
+    setEligible(false);
   };
 
   const install = async () => {
     if (!installEvent) return;
     await installEvent.prompt();
     const choice = await installEvent.userChoice;
+
+    // beforeinstallprompt is single-use. Clear the consumed event after either
+    // native outcome so a dismissed browser prompt cannot leave a dead action.
+    setInstallEvent(null);
+    setEligible(false);
+
     if (choice.outcome === "accepted") dismiss();
   };
 
