@@ -60,6 +60,26 @@ describe("Chat 5 V3 System phase readiness", () => {
     expect(missing.every((row) => row.certificationClaim === false)).toBe(true);
   });
 
+  it("samples each file once so concurrent changes cannot produce contradictory presence evidence", () => {
+    const observations = new Map<string, number>();
+    const rows = assessV3QaSystemPhaseReadiness((path) => {
+      observations.set(path, (observations.get(path) ?? 0) + 1);
+      // A repeated read would flip and contradict the first observation.
+      return observations.get(path) === 1;
+    });
+    expect([...observations.values()].every((count) => count === 1)).toBe(true);
+    for (const row of rows) {
+      const present = [...row.presentImplementationFiles, ...row.presentVerificationFiles];
+      const missing = [...row.missingImplementationFiles, ...row.missingVerificationFiles];
+      expect(missing).toEqual([]);
+      expect(new Set([...present, ...missing]).size).toBe(
+        new Set([...row.implementationFiles, ...row.verificationFiles]).size,
+      );
+      expect(row.staticReadiness).toBe("wired");
+      expect(row.certificationClaim).toBe(false);
+    }
+  });
+
   it("finds repository-side wiring for every final phase without pretending the active CI failures passed", () => {
     const rows = assessV3QaSystemPhaseReadiness(existsSync);
     expect(rows.every((row) => row.staticReadiness !== "missing")).toBe(true);

@@ -168,11 +168,18 @@ export const V3_QA_SYSTEM_PHASE_MANIFEST: readonly V3QaSystemPhaseManifestRow[] 
 export function assessV3QaSystemPhaseReadiness(
   exists: (path: string) => boolean,
 ): V3QaSystemPhaseReadinessRow[] {
+  // One observation per path per report. Concurrent filesystem changes must not
+  // make the same file both present and missing in an exact-source snapshot.
+  const observedPresence = new Map<string, boolean>();
+  const observed = (path: string): boolean => {
+    if (!observedPresence.has(path)) observedPresence.set(path, exists(path));
+    return observedPresence.get(path)!;
+  };
   return V3_QA_SYSTEM_PHASE_MANIFEST.map((phase) => {
-    const presentImplementationFiles = phase.implementationFiles.filter(exists);
-    const missingImplementationFiles = phase.implementationFiles.filter((path) => !exists(path));
-    const presentVerificationFiles = phase.verificationFiles.filter(exists);
-    const missingVerificationFiles = phase.verificationFiles.filter((path) => !exists(path));
+    const presentImplementationFiles = phase.implementationFiles.filter(observed);
+    const missingImplementationFiles = phase.implementationFiles.filter((path) => !observed(path));
+    const presentVerificationFiles = phase.verificationFiles.filter(observed);
+    const missingVerificationFiles = phase.verificationFiles.filter((path) => !observed(path));
 
     const presentCount = presentImplementationFiles.length + presentVerificationFiles.length;
     const expectedCount = phase.implementationFiles.length + phase.verificationFiles.length;
