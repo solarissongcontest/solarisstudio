@@ -26,11 +26,20 @@ describe("V3 Following & Saved read and mutation recovery", () => {
 
   it("disables every preference control during a single pending mutation", () => {
     const source = screen();
-    expect(source).toContain("if (pendingKey) return;");
+    expect(source).toContain("if (mutationInFlight.current) return;");
+    expect(source).toContain("mutationInFlight.current = true;");
+    expect(source).toContain("mutationInFlight.current = false;");
     expect(source).toContain("pending={Boolean(pendingKey)}");
     expect(source).toContain("disabled={pending}");
     expect(source).toContain("Saving your preference…");
     expect(source).toContain("await setFollow.mutateAsync({");
     expect(source).toContain("setPendingKey(null)");
+  });
+
+  it("does not claim failure means the server definitely rejected a write", () => {
+    const source = screen();
+    expect(source).toContain("Update not confirmed. Check your saved items before trying again.");
+    expect(source).not.toContain("Nothing else was changed.");
+    expect(source).toContain("} finally {");
   });
 });
