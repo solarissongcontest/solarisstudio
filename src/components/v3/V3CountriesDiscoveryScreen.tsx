@@ -1,19 +1,21 @@
 import { Link } from "@tanstack/react-router";
 import { Check, ChevronRight, SlidersHorizontal } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   AppEmptyState,
   AppSectionHeader,
 } from "@/components/app/AppPrimitives";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
-import { ArchiveDataError, ArchiveDataLoading } from "@/components/ArchiveDataState";
+import { ArchiveDataLoading } from "@/components/ArchiveDataState";
+import { PublicDataState } from "@/components/public/PublicDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { FlagFrame } from "@/components/FlagMedia";
 import type { CountryDirectoryPresentation } from "@/lib/country-directory-presentation";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { type Country, useCountries, useEditions } from "@/lib/data";
-import { countryDirectoryRegionOptions, filterCountryDirectory } from "@/lib/v3-country-directory-filters";
+import { countryDirectoryRegionOptions, effectiveParticipatingScope, filterCountryDirectory } from "@/lib/v3-country-directory-filters";
+import { publishedCountryStatusMap, type PublishedCountryStatus } from "@/lib/v3-country-published-status";
 import { directoryCountLabel } from "@/lib/v3-directory-count";
 import { usePublicEditionParticipants } from "@/lib/public-participants";
 import {
@@ -46,47 +48,78 @@ export function V3CountriesDiscoveryScreen({
       buildCountryDiscovery({
         countries: countriesQuery.data ?? [],
         editions: editionsQuery.data ?? [],
-        currentParticipants: participantsQuery.data ?? [],
+        // Cached participant rows may outlive a failed refetch. Only a successful
+        // current-edition read can assert participation or movement status.
+        currentParticipants: participantsQuery.isSuccess ? participantsQuery.data ?? [] : [],
       }),
-    [countriesQuery.data, editionsQuery.data, participantsQuery.data],
+    [countriesQuery.data, editionsQuery.data, participantsQuery.data, participantsQuery.isSuccess],
   );
 
   const participatingCountryIds = useMemo(
     () => new Set(discovery.participating.map((country) => country.id)),
     [discovery.participating],
   );
+  const pendingCurrentParticipants = Boolean(activeEdition?.id) && participantsQuery.isLoading;
+  const currentLineupReady = Boolean(activeEdition?.id) && participantsQuery.isSuccess;
+  // An unavailable optional lineup must never strand the visitor on its selected scope.
+  const selectedParticipatingOnly = effectiveParticipatingScope(participatingOnly, currentLineupReady);
+  const publishedStatuses = useMemo(
+    () => publishedCountryStatusMap(discovery, currentLineupReady),
+    [discovery, currentLineupReady],
+  );
+  useEffect(() => {
+    if (participatingOnly && participantsQuery.isError) setParticipatingOnly(false);
+  }, [participatingOnly, participantsQuery.isError]);
   const regionOptions = useMemo(
     () => countryDirectoryRegionOptions(countriesQuery.data ?? [], {
-      participatingOnly: participatingOnly && Boolean(activeEdition),
+      participatingOnly: selectedParticipatingOnly,
       participatingCountryIds,
     }),
-    [countriesQuery.data, participatingOnly, activeEdition, participatingCountryIds],
+    [countriesQuery.data, selectedParticipatingOnly, participatingCountryIds],
   );
-  const collectionCount = participatingOnly && activeEdition
+  const collectionCount = selectedParticipatingOnly
     ? discovery.participating.length
     : countriesQuery.data?.length ?? 0;
+  const noPublishedCountries = countriesQuery.data?.length === 0;
+  const editionContextLoading = editionsQuery.isLoading && !editionsQuery.data;
   const filtered = useMemo(
     () =>
       filterCountryDirectory(countriesQuery.data ?? [], {
         search,
         region,
-        participatingOnly: participatingOnly && Boolean(activeEdition),
+        participatingOnly: selectedParticipatingOnly,
         participatingCountryIds,
       }),
-    [countriesQuery.data, region, search, participatingOnly, participatingCountryIds, activeEdition],
+    [countriesQuery.data, region, search, selectedParticipatingOnly, participatingCountryIds],
   );
 
-  const pendingCurrentParticipants = Boolean(activeEdition?.id) && participantsQuery.isLoading;
-  if (countriesQuery.isLoading || editionsQuery.isLoading || pendingCurrentParticipants) {
+  // All-country browsing remains available even if the optional lineup is loading or fails.
+  if (countriesQuery.isLoading) {
     return <ArchiveDataLoading label="Loading country discovery…" />;
   }
-  if (countriesQuery.isError || editionsQuery.isError || participantsQuery.isError) {
-    return <ArchiveDataError />;
+  if (countriesQuery.isError) {
+    return (
+      <PublicDataState
+        kind="error"
+        title="Country directory unavailable"
+        description="Published country information could not be loaded. Retry without changing your filters."
+        action={
+          <button
+            type="button"
+            className="min-h-11 rounded-xl border border-border bg-surface px-4 text-sm font-semibold"
+            onClick={() => void countriesQuery.refetch()}
+            disabled={countriesQuery.isFetching}
+          >
+            {countriesQuery.isFetching ? "Retrying…" : "Retry countries"}
+          </button>
+        }
+      />
+    );
   }
 
   // The active contest is a small, finite lineup: show every published participant.
   // Keep progressive loading only for the larger all-country archive.
-  const visible = participatingOnly && activeEdition ? filtered : filtered.slice(0, visibleCount);
+  const visible = selectedParticipatingOnly ? filtered : filtered.slice(0, visibleCount);
   const movementGroups = [
     { label: "Debuting", countries: discovery.debuting },
     { label: "Withdrawn", countries: discovery.withdrawn },
@@ -102,7 +135,7 @@ export function V3CountriesDiscoveryScreen({
         <p className="v3-countries-kicker">
           {discovery.currentEdition
             ? `SSC ${discovery.currentEdition.edition_number ?? "current"} · CURRENT EDITION`
-            : "TERRA SOLARIS · COUNTRY ARCHIVE"}
+            : editionContextLoading ? "CURRENT EDITION · LOADING" : "TERRA SOLARIS · COUNTRY ARCHIVE"}
         </p>
         <h2 id="countries-page-title" className="v3-countries-title">
           {presentation === "installed-app" ? "Countries" : "Country explorer"}
@@ -110,7 +143,9 @@ export function V3CountriesDiscoveryScreen({
         <p className="v3-countries-lead">
           {discovery.currentEdition
             ? `Browse the current SSC ${discovery.currentEdition.edition_number ?? ""} lineup or discover all Terra Solaris countries.`
-            : "Discover the countries of Terra Solaris, their regions and their histories."}
+            : editionContextLoading
+              ? "Discover Terra Solaris countries while current-edition context loads."
+              : "Discover the countries of Terra Solaris, their regions and their histories."}
         </p>
       </header>
       )}
@@ -120,35 +155,57 @@ export function V3CountriesDiscoveryScreen({
         aria-labelledby="countries-page-title"
         className="v3-countries-browser scroll-mt-24"
       >
+        {editionsQuery.isError ? (
+          <div className="mb-3 flex flex-wrap items-center gap-3 text-sm text-muted-foreground" role="status">
+            <span>Current-edition context could not be refreshed. All published countries remain available.</span>
+            <button type="button" className="min-h-11 rounded-lg border border-border px-3 font-semibold text-foreground"
+              disabled={editionsQuery.isFetching} onClick={() => void editionsQuery.refetch()}>
+              {editionsQuery.isFetching ? "Retrying…" : "Retry edition context"}
+            </button>
+          </div>
+        ) : null}
         {discovery.currentEdition ? (
           <div className="v3-countries-collections grid grid-cols-2 gap-2" role="group" aria-label="Country collections">
             <button
               type="button"
-              aria-pressed={participatingOnly}
-              aria-label={`SSC ${discovery.currentEdition.edition_number ?? "current"}: ${discovery.participating.length} participating countries`}
+              aria-pressed={selectedParticipatingOnly}
+              aria-label={currentLineupReady
+                ? `SSC ${discovery.currentEdition.edition_number ?? "current"}: ${discovery.participating.length} participating countries`
+                : `SSC ${discovery.currentEdition.edition_number ?? "current"} lineup ${pendingCurrentParticipants ? "loading" : "unavailable"}`}
+              disabled={!currentLineupReady}
               onClick={() => {
                 setParticipatingOnly(true);
                 setRegion("all");
                 setVisibleCount(BROWSE_PAGE_SIZE);
               }}
-              className={`v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors ${participatingOnly ? "is-selected" : ""}`}
+              className={`v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors ${selectedParticipatingOnly ? "is-selected" : ""}`}
             >
-              {participatingOnly ? <Check size={16} aria-hidden="true" /> : null}
-              <span>SSC {discovery.currentEdition.edition_number ?? "current"} · {discovery.participating.length}</span>
+              {selectedParticipatingOnly ? <Check size={16} aria-hidden="true" /> : null}
+              <span>SSC {discovery.currentEdition.edition_number ?? "current"} · {currentLineupReady ? discovery.participating.length : pendingCurrentParticipants ? "Loading…" : "Unavailable"}</span>
             </button>
             <button
               type="button"
-              aria-pressed={!participatingOnly}
+              aria-pressed={!selectedParticipatingOnly}
               aria-label={`All ${countriesQuery.data?.length ?? 0} countries`}
               onClick={() => {
                 setParticipatingOnly(false);
                 setRegion("all");
                 setVisibleCount(BROWSE_PAGE_SIZE);
               }}
-              className={`v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors ${!participatingOnly ? "is-selected" : ""}`}
+              className={`v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors ${!selectedParticipatingOnly ? "is-selected" : ""}`}
             >
-              {!participatingOnly ? <Check size={16} aria-hidden="true" /> : null}
+              {!selectedParticipatingOnly ? <Check size={16} aria-hidden="true" /> : null}
               <span>All countries · {countriesQuery.data?.length ?? 0}</span>
+            </button>
+          </div>
+        ) : null}
+        {activeEdition && participantsQuery.isError ? (
+          <div className="mb-3 flex flex-wrap items-center gap-3 text-sm text-muted-foreground" role="status">
+            <span>Current-edition lineup unavailable. You can still browse all countries.</span>
+            <button type="button" className="min-h-11 rounded-lg border border-border px-3 font-semibold text-foreground"
+              disabled={participantsQuery.isFetching}
+              onClick={() => void participantsQuery.refetch()}>
+              {participantsQuery.isFetching ? "Retrying…" : "Retry lineup"}
             </button>
           </div>
         ) : null}
@@ -250,16 +307,25 @@ export function V3CountriesDiscoveryScreen({
           aria-label="Countries"
         >
           {visible.map((country) => (
-            <CountryTile key={country.id} country={country} presentation={presentation} />
+            <CountryTile key={country.id} country={country} presentation={presentation}
+              status={selectedParticipatingOnly ? undefined : publishedStatuses.get(country.id)} />
           ))}
         </div>
 
         {!filtered.length ? (
           <AppEmptyState
             className="my-3"
-            title="No countries found"
-            description="No country matches the current search and region filters."
-            action={
+            title={noPublishedCountries
+              ? "No countries published yet"
+              : selectedParticipatingOnly && collectionCount === 0
+                ? "No published participants yet"
+                : "No matching countries"}
+            description={noPublishedCountries
+              ? "The published country directory is currently empty."
+              : selectedParticipatingOnly && collectionCount === 0
+                ? "The current edition has no published participating countries."
+                : "Try another search or region, or clear your filters."}
+            action={noPublishedCountries ? undefined : (
               <button
                 type="button"
                 onClick={() => {
@@ -272,7 +338,7 @@ export function V3CountriesDiscoveryScreen({
               >
                 Clear filters
               </button>
-            }
+            )}
           />
         ) : null}
 
@@ -365,9 +431,11 @@ export function V3CountriesDiscoveryScreen({
 function CountryTile({
   country,
   presentation,
+  status,
 }: {
   country: Country;
   presentation: CountryDirectoryPresentation;
+  status?: PublishedCountryStatus;
 }) {
   if (presentation === "mobile-web") {
     return (
@@ -382,6 +450,7 @@ function CountryTile({
             <span className="mt-0.5 block truncate text-xs text-muted-foreground">{country.native_name}</span>
           ) : null}
           <span className="mt-1 block truncate text-xs text-muted-foreground">{country.region || country.short_code}</span>
+          {status ? <CountryStatusNote status={status} /> : null}
         </span>
         <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </Link>
@@ -399,6 +468,7 @@ function CountryTile({
           <span className="min-w-0">
             <span className="block break-words text-sm font-bold leading-5">{country.name}</span>
             <span className="mt-1 block truncate text-xs text-muted-foreground">{country.region || country.short_code}</span>
+            {status ? <CountryStatusNote status={status} /> : null}
           </span>
           <ChevronRight className="mt-1 size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-1" aria-hidden="true" />
         </span>
@@ -413,8 +483,23 @@ function CountryTile({
       <span className="block min-w-0 pr-3">
         <span className="block break-words text-sm font-semibold leading-5">{country.name}</span>
         <span className="mt-0.5 block truncate text-xs text-muted-foreground">{country.region || country.short_code}</span>
+        {status ? <CountryStatusNote status={status} /> : null}
       </span>
       <ChevronRight className="absolute bottom-4 right-2.5 size-4 text-muted-foreground/70 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
     </Link>
+  );
+}
+
+const PUBLISHED_STATUS_LABELS: Record<PublishedCountryStatus, string> = {
+  participating: "Participating",
+  withdrawn: "Withdrawn",
+  disqualified: "Disqualified",
+};
+
+function CountryStatusNote({ status }: { status: PublishedCountryStatus }) {
+  return (
+    <span data-country-current-status={status} className="mt-1 block text-xs font-medium text-muted-foreground">
+      Current edition · {PUBLISHED_STATUS_LABELS[status]}
+    </span>
   );
 }

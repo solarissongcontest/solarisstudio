@@ -40,8 +40,8 @@ describe("Solaris V3 universal directory visual foundation", () => {
     expect(countries).toContain("setParticipatingOnly(false)");
     expect(countries).toContain("usePublicEditionParticipants");
     expect(countries).toContain("directoryCountLabel(");
-    expect(countries).toContain('aria-pressed={!participatingOnly}');
-    expect(countries).toContain('aria-pressed={participatingOnly}');
+    expect(countries).toContain('aria-pressed={!selectedParticipatingOnly}');
+    expect(countries).toContain('aria-pressed={selectedParticipatingOnly}');
     expect(countries).toContain('className={`v3-countries-scope-button');
     expect(countries).toContain("<Check size={16}");
     expect(css).toContain(".v3-countries-scope-button.is-selected");

@@ -93,8 +93,10 @@ describe("Public V3 P24 Records", () => {
     expect(gate).toContain("serverSpoilerFree: serverPreferences.data?.spoiler_free ?? null");
     expect(gate).toContain("bundle.data.currentEditionAffectsRecords");
     expect(gate).toContain("bundle.data.spoilerSafeRecords");
-    expect(gate).toContain("setCurrentEditionRevealed(true)");
-    expect(gate).toContain("setCurrentEditionRevealed(false)");
+    expect(gate).toContain("setRevealedScope(revealScope)");
+    expect(gate).toContain("setRevealedScope(null)");
+    expect(gate).toContain('rollout.data?.userId ?? "anonymous"');
+    expect(gate).toContain("revealedScope === revealScope");
     expect(screen).toContain('data-v3-records-spoilers="protected"');
     expect(screen).toContain("Reveal current-edition records");
   });
