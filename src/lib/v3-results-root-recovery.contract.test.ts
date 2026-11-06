@@ -12,13 +12,14 @@ describe("Public Results root authoritative recovery boundary", () => {
   it("does not mount the old result readers when snapshot or rollout verification fails", () => {
     const source = gate();
     const unreadable = source.indexOf(
-      "if (bundle.isError || !bundle.data || rollout.isError || !rollout.data)",
+      "const cannotVerify = bundle.isError || !bundle.data || rollout.isError || !rollout.data",
     );
     const disabled = source.indexOf("if (!v3Enabled) return <>{fallback}</>");
 
     expect(unreadable).toBeGreaterThan(-1);
     expect(disabled).toBeGreaterThan(unreadable);
-    expect(source).toContain('data-v3-results-authority-unavailable=""');
+    expect(source).toContain("data-v3-results-authority-unavailable={!loading ?");
+    expect(source).toContain("if (loading || cannotVerify)");
     expect(source).toContain("No outcome");
     expect(source).toContain("is shown until the authoritative Results service");
     expect(source).not.toContain(
