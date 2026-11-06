@@ -300,6 +300,7 @@ export function V3LiquidTabBar({
     });
     window.addEventListener("blur", resetInterruptedGesture);
     window.addEventListener("resize", resetInterruptedGesture);
+    window.visualViewport?.addEventListener("resize", resetInterruptedGesture);
     window.addEventListener("orientationchange", resetInterruptedGesture);
     window.addEventListener("pagehide", resetInterruptedGesture);
     window.addEventListener(APP_RESUME_EVENT, resetInterruptedGesture);
@@ -309,6 +310,7 @@ export function V3LiquidTabBar({
       rootInterruptionObserver?.disconnect();
       window.removeEventListener("blur", resetInterruptedGesture);
       window.removeEventListener("resize", resetInterruptedGesture);
+      window.visualViewport?.removeEventListener("resize", resetInterruptedGesture);
       window.removeEventListener("orientationchange", resetInterruptedGesture);
       window.removeEventListener("pagehide", resetInterruptedGesture);
       window.removeEventListener(APP_RESUME_EVENT, resetInterruptedGesture);
