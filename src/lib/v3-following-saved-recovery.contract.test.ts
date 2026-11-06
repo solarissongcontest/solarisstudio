@@ -15,6 +15,17 @@ describe("V3 Following & Saved read and mutation recovery", () => {
     expect(source).toContain("Retry saved items");
   });
 
+  it("shows a paused connection instead of a false empty state when initial reads are offline", () => {
+    const source = screen();
+    for (const query of ["follows", "countries", "editions", "shows"]) {
+      expect(source).toContain(`(${query}.isPending && ${query}.isPaused)`);
+    }
+    expect(source).toContain('data-v3-following-saved-state="paused"');
+    expect(source).toContain("Solaris will not mistake an unverified list for an empty one.");
+    expect(source.indexOf("{paused ? (")).toBeLessThan(source.indexOf("{loading ? ("));
+    expect(source.indexOf("{paused ? (")).toBeLessThan(source.indexOf("data-v3-following-saved-state=\"empty\""));
+  });
+
   it("only retries queries that actually failed, avoiding redundant public reads", () => {
     const source = screen();
     expect(source).toContain("if (follows.isError) void follows.refetch()");
