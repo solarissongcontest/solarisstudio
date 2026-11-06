@@ -8,6 +8,7 @@ import {
 } from "./world-membership-history";
 
 const original = {
+  effectiveAt: "2026-11-06T22:00:00+00:00",
   organization: {
     id: "organization-1",
     slug: "guard",
@@ -71,16 +72,50 @@ const original = {
   privateGrant: { capability: "world.office.manage" },
 };
 
+describe("TG3 server-effective membership and representation history", () => {
+  it("keeps future entries in history but never labels them currently effective", () => {
+    const future = readWorldCountryMembership({
+      ...original,
+      memberships: [{
+        ...original.memberships[1],
+        id: "future-membership",
+        joinedAt: "2099-01-01T00:00:00Z",
+        endedAt: null,
+      }],
+      representatives: [{
+        ...original.representatives[1],
+        id: "future-representative",
+        startsAt: "2099-01-01T00:00:00Z",
+        endsAt: null,
+      }],
+      offices: [],
+    }, "guard", "country-a")!;
+    expect(future.membership).toHaveLength(1);
+    expect(future.representations).toHaveLength(1);
+    expect(currentMembershipPeriod(future.membership,future.effectiveAt)).toBeNull();
+    expect(currentRepresentativePeriods(future.representations,future.effectiveAt)).toEqual([]);
+  });
+
+  it("requires server time for public current-state claims", () => {
+    expect(() => readWorldCountryMembership({
+      ...original, effectiveAt: undefined,
+    }, "guard", "country-a")).toThrow("effectiveAt");
+    expect(() => readWorldCountryMembership({
+      ...original, effectiveAt: "tomorrow",
+    }, "guard", "country-a")).toThrow("effectiveAt");
+  });
+});
+
 describe("institution/country public membership history", () => {
   it("preserves current and concluded membership from one exact country only", () => {
     const result = readWorldCountryMembership(original, "guard", "country-a")!;
     expect(result.organizationName).toBe("GUARD");
     expect(result.membership.map((period) => period.id)).toEqual(["present", "past"]);
-    expect(currentMembershipPeriod(result.membership)?.status).toBe("observer");
+    expect(currentMembershipPeriod(result.membership, result.effectiveAt)?.status).toBe("observer");
     expect(result.representations.map((period) => period.id)).toEqual([
       "current-representative", "former-representative",
     ]);
-    expect(currentRepresentativePeriods(result.representations).map((row) => row.id))
+    expect(currentRepresentativePeriods(result.representations, result.effectiveAt).map((row) => row.id))
       .toEqual(["current-representative"]);
     expect(result.currentOffices).toEqual([{
       id: "guard-chair",
@@ -104,7 +139,7 @@ describe("institution/country public membership history", () => {
     expect(result.membership).toEqual([]);
     expect(result.representations).toEqual([]);
     expect(result.currentOffices).toEqual([]);
-    expect(currentMembershipPeriod(result.membership)).toBeNull();
+    expect(currentMembershipPeriod(result.membership, result.effectiveAt)).toBeNull();
   });
 
   it("fails closed if the country-scoped RPC returns another country's records", () => {
@@ -227,7 +262,7 @@ describe("institution/country public membership history", () => {
       ...original,
       representatives: [original.representatives[0]],
     }, "guard", "country-a")!;
-    expect(currentRepresentativePeriods(result.representations)).toEqual([]);
+    expect(currentRepresentativePeriods(result.representations, result.effectiveAt)).toEqual([]);
   });
 
   it("rejects malformed routes without creating a backend request", () => {
