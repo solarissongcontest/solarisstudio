@@ -8,14 +8,26 @@ const route = readFileSync(
 );
 
 describe("Organizer System Settings exact edition context", () => {
-  it("resolves edition-scoped content only from shell-owned OrganizerContext", () => {
-    expect(route).toContain("const { editionId } = useAdminContext()");
+  it("resolves edition-scoped content only after explicit actor-bound choice matching OrganizerContext", () => {
+    expect(route).toContain("const { editionId, setEditionContext } = useAdminContext()");
     expect(route).toContain(
-      "() => (editionsReady && editionId ? editions.find((edition) => edition.id === editionId) ?? null : null)",
+      "() => (editionsReady && verifiedChoiceId ? editions.find((edition) => edition.id === verifiedChoiceId) ?? null : null)",
     );
     expect(route).not.toContain("ordered[0]");
     expect(route).not.toContain("[...editions].sort(");
     expect(route).toContain("Solaris will not guess a newest edition");
+  });
+
+  it("refuses shell-inferred default editions and resets user/account scope independently of platform mode", () => {
+    expect(route).toContain("const actorId = useAuthenticatedUser().id;");
+    expect(route).toContain('const explicitEditionId = explicitChoice?.actorId === actorId ? explicitChoice.editionId : "";');
+    expect(route).toContain('const verifiedChoiceId = explicitEditionId && editionId === explicitEditionId ? explicitEditionId : "";');
+    expect(route).toContain("Choose the edition for this System review");
+    expect(route).toContain("disabled={!editionsReady}");
+    expect(route).toContain("setExplicitChoice(choice ? { actorId, editionId: choice.id } : null)");
+    expect(route).toContain("setEditionContext({ id: choice.id, slug: choice.slug, label: editionLabel(choice) })");
+    expect(route).toContain("verifiedChoiceId !== createEditionId ||");
+    expect(route).toContain("The Organizer navigation may show a default edition");
   });
 
   it("passes null rather than an inferred edition into schedule/reminder projections", () => {
@@ -57,7 +69,7 @@ describe("Organizer System Settings exact edition context", () => {
   });
   it("does not treat failed or in-flight edition refreshes as valid private read context", () => {
     expect(route).toContain("editionsQuery.isSuccess && !editionsQuery.error && !editionsQuery.isFetching");
-    expect(route).toContain("editionsReady && editionId");
+    expect(route).toContain("editionsReady && verifiedChoiceId");
     expect(route).toContain("Retry edition lookup");
     expect(route).toContain("void editionsQuery.refetch()");
     expect(route).toContain("Edition lookup failed");
