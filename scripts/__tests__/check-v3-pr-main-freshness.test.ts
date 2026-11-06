@@ -1,10 +1,11 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   assessV3PrMainFreshness,
   FRESHNESS_STATUS_CONTEXT,
   isV3PullForFreshness,
   selectFreshnessHeadsToInvalidate,
+  runV3PrMainFreshnessCheck,
 } from "../check-v3-pr-main-freshness";
 
 const MAIN = "1111111111111111111111111111111111111111";
@@ -298,5 +299,77 @@ describe("V3 PR current-main freshness guard", () => {
     expect(workflow).toContain(
       "No Supabase, browser, load or production-application traffic is generated.",
     );
+  });
+});
+
+describe("live GitHub freshness publication race", () => {
+  async function scenario(options: { changedHead?: boolean; mainAfterSuccess?: string }) {
+    const previous = Object.fromEntries(
+      ["GITHUB_REPOSITORY", "GITHUB_TOKEN", "V3_CURRENT_PR", "V3_EXPECTED_HEAD_SHA", "GITHUB_STEP_SUMMARY"].map((key) => [key, process.env[key]]),
+    );
+    process.env.GITHUB_REPOSITORY = "example/repo";
+    process.env.GITHUB_TOKEN = "local-test-only";
+    process.env.V3_CURRENT_PR = "123";
+    process.env.V3_EXPECTED_HEAD_SHA = HEAD;
+    delete process.env.GITHUB_STEP_SUMMARY;
+
+    const posts: Array<{ sha: string; state: string; description: string }> = [];
+    let mainReads = 0;
+    let pullReads = 0;
+
+    vi.stubGlobal("fetch", async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      let payload: unknown;
+      if (method === "POST" && url.includes("/statuses/")) {
+        const body = JSON.parse(String(init?.body)) as { state: string; description: string };
+        posts.push({ sha: url.split("/").pop()!, ...body });
+        payload = {};
+      } else if (url.endsWith("/pulls/123")) {
+        pullReads += 1;
+        payload = { number: 123, title: "[V3-QA] Verify freshness", base: { ref: "main" }, head: { ref: "v3/qa-example", sha: options.changedHead && pullReads > 1 ? OTHER_HEAD : HEAD } };
+      } else if (url.endsWith("/branches/main")) {
+        mainReads += 1;
+        payload = { commit: { sha: options.mainAfterSuccess && mainReads > 2 ? options.mainAfterSuccess : MAIN } };
+      } else if (url.includes("/compare/")) {
+        payload = { status: "ahead", merge_base_commit: { sha: MAIN } };
+      } else {
+        throw new Error("Unexpected local fake GitHub request: " + method + " " + url);
+      }
+      return new Response(JSON.stringify(payload), { status: 200, headers: { "Content-Type": "application/json" } });
+    });
+
+    try {
+      const exitCode = await runV3PrMainFreshnessCheck();
+      return { exitCode, posts };
+    } finally {
+      vi.unstubAllGlobals();
+      for (const [key, value] of Object.entries(previous)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  }
+
+  it("never posts a superseded A-run failure onto a newer head B", async () => {
+    const result = await scenario({ changedHead: true });
+    expect(result.exitCode).toBe(1);
+    expect(result.posts).toEqual([]);
+  });
+
+  it("revokes its own success when main advances after initial assessment", async () => {
+    const result = await scenario({ mainAfterSuccess: OLD_MAIN });
+    expect(result.exitCode).toBe(1);
+    expect(result.posts.map((post) => [post.sha, post.state])).toEqual([
+      [HEAD, "success"],
+      [HEAD, "failure"],
+    ]);
+    expect(result.posts[1]?.description).toContain("during status publication");
+  });
+
+  it("retains success only when main and head stay unchanged through publication", async () => {
+    const result = await scenario({});
+    expect(result.exitCode).toBe(0);
+    expect(result.posts.map((post) => [post.sha, post.state])).toEqual([[HEAD, "success"]]);
   });
 });
