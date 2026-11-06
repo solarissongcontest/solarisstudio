@@ -95,6 +95,10 @@ describe("Organizer Entry source inspection", () => {
         ...valid, review_status: status, reviewed_version_id: null,
       });
       expect(legacy.checks.find((check) => check.id === "review-version")?.status).toBe("attention");
+      const unboundCurrent = inspectOrganizerEntrySource({
+        ...valid, review_status: status, current_version_id: null,
+      });
+      expect(unboundCurrent.checks.find((check) => check.id === "review-version")?.status).toBe("attention");
     }
     expect(inspectOrganizerEntrySource({
       ...valid, review_status: "pending",
