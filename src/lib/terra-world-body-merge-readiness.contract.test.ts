@@ -43,6 +43,8 @@ describe("TG3 institutional body standalone merge contract", () => {
       const route = readFileSync(resolve(process.cwd(), path), "utf8");
       expect(route).toContain("<WorldPublicGate verifyOnMount>");
     }
-    expect(gate).toContain("verifyOnMount && (!state.isFetchedAfterMount || state.isFetching)");
+    expect(gate).toContain("state.isPending || state.isFetching");
+    expect(gate).toContain("verifyOnMount && !state.isFetchedAfterMount");
+    expect(gate).toContain("state.isError || state.isRefetchError");
   });
 });
