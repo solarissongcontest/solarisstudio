@@ -9,9 +9,10 @@ import {
   ShieldEllipsis,
   UserRoundCog,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { AccessSimulationPanel } from "@/components/admin/AccessSimulationPanel";
 import { AdminPage } from "@/components/admin/AdminShell";
 import { PermissionCutoverReadinessPanel } from "@/components/admin/PermissionCutoverReadinessPanel";
@@ -24,6 +25,9 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { WorkspaceTabs } from "@/components/admin/AdminWorkspacePrimitives";
+import { selectOrganizerEdition } from "@/lib/admin-edition-selection";
+import { verifyOrganizerPermissionRead } from "@/integrations/permissions/organizer-permission-read-authorization";
+import { editionLabel as formatEditionLabel, useEditions } from "@/lib/data";
 import {
   applyPermissionChange,
   approvePermissionChangeApproval,
@@ -89,6 +93,10 @@ type PendingAccessChange = {
   preview: PermissionChangePreview;
   operationId: string;
   idempotencyKey: string;
+  reviewContextEditionId: string | null;
+  reviewContextActorId: string;
+  reviewContextEpoch: number;
+  scopeLabel: string;
 };
 
 const TABS: Array<{ id: AccessTab; label: string }> = [
@@ -101,7 +109,61 @@ const TABS: Array<{ id: AccessTab; label: string }> = [
 
 function AccessPermissionsPage() {
   const queryClient = useQueryClient();
-  const { editionId } = useAdminContext();
+  const { editionId, setEditionContext } = useAdminContext();
+  const actorId = useAuthenticatedUser().id;
+  // The Organizer shell can silently select its newest public edition.
+  // Permission reviews require an affirmative choice by the current actor.
+  const [explicitChoice, setExplicitChoice] = useState<{ actorId: string; editionId: string } | null>(null);
+  const explicitEditionId = explicitChoice?.actorId === actorId ? explicitChoice.editionId : "";
+  const verifiedChoiceId = explicitEditionId && editionId === explicitEditionId ? explicitEditionId : "";
+  const currentActorRef = useRef(actorId);
+  // Tracks the committed Organizer context across an in-flight password step.
+  const currentEditionRef = useRef<string | null>(editionId ?? null);
+  // A→B→A must not revive a review opened before the intervening context change.
+  const reviewContextEpochRef = useRef(0);
+  const editionsQuery = useEditions();
+  // A failed background refresh can retain cached edition rows. Do not
+  // promote that cached identity to verified permission scope.
+  const organizerEdition =
+    editionsQuery.isSuccess && !editionsQuery.error && !editionsQuery.isFetching
+      ? selectOrganizerEdition(editionsQuery.data ?? [], verifiedChoiceId)
+      : null;
+  const resolvedEditionId = editionId && organizerEdition ? organizerEdition.id : "";
+  const organizerEditionLabel = organizerEdition ? formatEditionLabel(organizerEdition) : null;
+  // A published edition row only proves public visibility. It does not establish
+  // permission to inspect private access grants for this exact edition.
+  const permissionReadQuery = useQuery({
+    queryKey: ["permission-engine-context-read", actorId, resolvedEditionId || "none"],
+    queryFn: () => verifyOrganizerPermissionRead(resolvedEditionId),
+    enabled:
+      editionsQuery.isSuccess &&
+      !editionsQuery.error &&
+      !editionsQuery.isFetching &&
+      Boolean(verifiedChoiceId) &&
+      Boolean(resolvedEditionId),
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+  });
+  const editionContextVerified =
+    editionsQuery.isSuccess &&
+    !editionsQuery.error &&
+    !editionsQuery.isFetching &&
+    Boolean(verifiedChoiceId) &&
+    Boolean(resolvedEditionId) &&
+    permissionReadQuery.isSuccess &&
+    !permissionReadQuery.isFetching &&
+    !permissionReadQuery.error &&
+    permissionReadQuery.data === true;
+  // Ref keeps an in-flight R3 operation bound to live verification, not a stale closure.
+  const verifiedEditionRef = useRef(editionContextVerified);
+  const editionLabels = useMemo(
+    () =>
+      new Map(
+        (editionsQuery.data ?? []).map((edition) => [edition.id, formatEditionLabel(edition)] as const),
+      ),
+    [editionsQuery.data],
+  );
   const [tab, setTab] = useState<AccessTab>("users");
   const [search, setSearch] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -115,48 +177,75 @@ function AccessPermissionsPage() {
   const [approvalAction, setApprovalAction] = useState<{
     approval: PermissionChangeApproval;
     mode: "approve" | "apply";
+    reviewContextEditionId: string | null;
+    reviewContextActorId: string;
+    reviewContextEpoch: number;
   } | null>(null);
   const [approvalPassword, setApprovalPassword] = useState("");
 
   const catalogQuery = useQuery({
-    queryKey: ["permission-engine-catalog"],
+    queryKey: ["permission-engine-catalog", actorId],
     queryFn: loadPermissionCatalog,
+    enabled: editionContextVerified,
   });
   const usersQuery = useQuery({
-    queryKey: ["permission-engine-users"],
+    queryKey: ["permission-engine-users", actorId],
     queryFn: loadAccessUsers,
+    enabled: editionContextVerified,
   });
   const summaryQuery = useQuery({
-    queryKey: ["permission-engine-summary"],
+    queryKey: ["permission-engine-summary", actorId],
     queryFn: loadPermissionSummary,
+    enabled: editionContextVerified,
   });
   const eventsQuery = useQuery({
-    queryKey: ["permission-engine-events", mismatchesOnly],
+    queryKey: ["permission-engine-events", mismatchesOnly, actorId],
     queryFn: () => loadPermissionEvents(mismatchesOnly),
+    enabled: editionContextVerified,
   });
   const approvalsQuery = useQuery({
-    queryKey: ["permission-engine-approvals"],
+    queryKey: ["permission-engine-approvals", actorId],
     queryFn: loadPermissionChangeApprovals,
+    enabled: editionContextVerified,
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,
   });
   useQuery({
-    queryKey: ["permission-engine-evaluation", "permissions.read", editionId],
+    queryKey: [
+      "permission-engine-evaluation",
+      "permissions.read",
+      editionId ? (resolvedEditionId || "unverified") : "global",
+      actorId,
+    ],
     queryFn: async () => {
       await recordPermissionEvaluation({
         capability: "permissions.read",
-        editionId: editionId || null,
+        editionId: resolvedEditionId || null,
         action: "permissions.workspace.view",
         route: "/admin/access-permissions",
       });
       return true;
     },
+    enabled: editionContextVerified,
     staleTime: Number.POSITIVE_INFINITY,
     retry: false,
   });
 
-  const users = useMemo(() => usersQuery.data ?? [], [usersQuery.data]);
-  const catalog = catalogQuery.data;
+  // Failed or refreshing permission-directory reads must not become false empty
+  // metrics or leave a previous actor's cached directory visible.
+  const directoryVerified =
+    editionContextVerified &&
+    catalogQuery.isSuccess &&
+    usersQuery.isSuccess &&
+    !catalogQuery.error &&
+    !usersQuery.error &&
+    !catalogQuery.isFetching &&
+    !usersQuery.isFetching;
+  const users = useMemo(
+    () => (directoryVerified ? usersQuery.data ?? [] : []),
+    [directoryVerified, usersQuery.data],
+  );
+  const catalog = directoryVerified ? catalogQuery.data : undefined;
   const selectedUser = users.find((user) => user.userId === selectedUserId) ?? null;
   const filteredUsers = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -178,8 +267,23 @@ function AccessPermissionsPage() {
 
   const previewChange = useMutation({
     mutationFn: async (change: AccessChange): Promise<PendingAccessChange> => {
+      if (!verifiedEditionRef.current) {
+        throw new Error("Organizer edition context is not verified. No access change was previewed.");
+      }
+      const reviewContextEditionId = editionId ?? null;
+      const reviewContextActorId = actorId;
+      const reviewContextEpoch = reviewContextEpochRef.current;
       const command = permissionCommand(change);
       const preview = await previewPermissionChange(command);
+      if (reviewContextEpochRef.current !== reviewContextEpoch) {
+        throw new Error("Organizer review context changed while the R3 preview was loading. Nothing was requested.");
+      }
+      if (currentActorRef.current !== reviewContextActorId) {
+        throw new Error("Organizer account changed while the R3 preview was loading. Nothing was requested.");
+      }
+      if (!verifiedEditionRef.current || currentEditionRef.current !== reviewContextEditionId) {
+        throw new Error("Organizer edition context changed or became unverified while the R3 preview was loading. Start again from the current edition.");
+      }
       const operation = createOrganisationCommand({
         command: "permissions.access_change",
         riskClass: "R3",
@@ -201,9 +305,16 @@ function AccessPermissionsPage() {
         preview,
         operationId: operation.operationId,
         idempotencyKey: operation.idempotencyKey,
+        reviewContextEditionId,
+        reviewContextActorId,
+        reviewContextEpoch,
+        scopeLabel: permissionScopeLabel(preview.editionId, editionLabels),
       };
     },
     onSuccess: (pending) => {
+      if (reviewContextEpochRef.current !== pending.reviewContextEpoch) return;
+      if (currentActorRef.current !== pending.reviewContextActorId) return;
+      if (!verifiedEditionRef.current || currentEditionRef.current !== pending.reviewContextEditionId) return;
       if (pending.preview.alreadyApplied) {
         setPendingChange(null);
         setMessage("That access state is already current.");
@@ -223,7 +334,27 @@ function AccessPermissionsPage() {
       pending: PendingAccessChange;
       password: string;
     }) => {
+      if (reviewContextEpochRef.current !== pending.reviewContextEpoch) {
+        throw new Error("Organizer review context changed after the R3 review opened. Nothing was requested.");
+      }
+      if (currentActorRef.current !== pending.reviewContextActorId) {
+        throw new Error("Organizer account changed after the R3 review opened. Nothing was requested.");
+      }
+      if (!verifiedEditionRef.current || (editionId ?? null) !== pending.reviewContextEditionId) {
+        throw new Error(
+          "Organizer edition context changed after this R3 review opened or could not be verified. Nothing was requested. Close the review and start again from the current context.",
+        );
+      }
       await reauthenticatePermissionR3(password);
+      if (reviewContextEpochRef.current !== pending.reviewContextEpoch) {
+        throw new Error("Organizer review context changed during reauthentication. Nothing was requested.");
+      }
+      if (currentActorRef.current !== pending.reviewContextActorId) {
+        throw new Error("Organizer account changed during reauthentication. Nothing was requested.");
+      }
+      if (!verifiedEditionRef.current || currentEditionRef.current !== pending.reviewContextEditionId) {
+        throw new Error("Organizer edition context changed during reauthentication or became unverified. Nothing was requested.");
+      }
       return requestPermissionChangeApproval({
         ...pending.command,
         operationId: pending.operationId,
@@ -231,10 +362,12 @@ function AccessPermissionsPage() {
         expectedVersion: pending.preview.expectedVersion,
       });
     },
-    onSuccess: async () => {
-      setPendingChange(null);
-      setReauthPassword("");
-      setMessage("Second-operator approval requested. Another authorized organizer must approve it before the change can be applied.");
+    onSuccess: async (_receipt, variables) => {
+      if (reviewContextEpochRef.current === variables.pending.reviewContextEpoch && currentActorRef.current === variables.pending.reviewContextActorId && currentEditionRef.current === variables.pending.reviewContextEditionId) {
+        setPendingChange(null);
+        setReauthPassword("");
+        setMessage("Second-operator approval requested. Another authorized organizer must approve it before the change can be applied.");
+      }
       await queryClient.invalidateQueries({
         queryKey: ["permission-engine-approvals"],
       });
@@ -245,17 +378,43 @@ function AccessPermissionsPage() {
     mutationFn: async ({
       approval,
       password,
+      reviewContextEditionId,
+      reviewContextActorId,
+      reviewContextEpoch,
     }: {
       approval: PermissionChangeApproval;
       password: string;
+      reviewContextEditionId: string | null;
+      reviewContextActorId: string;
+      reviewContextEpoch: number;
     }) => {
+      if (reviewContextEpochRef.current !== reviewContextEpoch) {
+        throw new Error("Organizer review context changed during the R3 operation. Nothing was applied.");
+      }
+      if (currentActorRef.current !== reviewContextActorId) {
+        throw new Error("Organizer account changed after this R3 review opened. Nothing was applied.");
+      }
+      if (!verifiedEditionRef.current || currentEditionRef.current !== reviewContextEditionId) {
+        throw new Error("Organizer edition context changed after this R3 review opened or could not be verified. Nothing was approved.");
+      }
       await reauthenticatePermissionR3(password);
+      if (reviewContextEpochRef.current !== reviewContextEpoch) {
+        throw new Error("Organizer review context changed during the R3 operation. Nothing was applied.");
+      }
+      if (currentActorRef.current !== reviewContextActorId) {
+        throw new Error("Organizer account changed during reauthentication. Nothing was applied.");
+      }
+      if (!verifiedEditionRef.current || currentEditionRef.current !== reviewContextEditionId) {
+        throw new Error("Organizer edition context changed during reauthentication or became unverified. Nothing was approved.");
+      }
       return approvePermissionChangeApproval(approval.id);
     },
-    onSuccess: async () => {
-      setApprovalAction(null);
-      setApprovalPassword("");
-      setMessage("R3 permission change approved. The original requester can now apply it.");
+    onSuccess: async (_receipt, variables) => {
+      if (reviewContextEpochRef.current === variables.reviewContextEpoch && currentActorRef.current === variables.reviewContextActorId && currentEditionRef.current === variables.reviewContextEditionId) {
+        setApprovalAction(null);
+        setApprovalPassword("");
+        setMessage("R3 permission change approved. The original requester can now apply it.");
+      }
       await queryClient.invalidateQueries({
         queryKey: ["permission-engine-approvals"],
       });
@@ -266,14 +425,38 @@ function AccessPermissionsPage() {
     mutationFn: async ({
       approval,
       password,
+      reviewContextEditionId,
+      reviewContextActorId,
+      reviewContextEpoch,
     }: {
       approval: PermissionChangeApproval;
       password: string;
+      reviewContextEditionId: string | null;
+      reviewContextActorId: string;
+      reviewContextEpoch: number;
     }) => {
+      if (reviewContextEpochRef.current !== reviewContextEpoch) {
+        throw new Error("Organizer review context changed during the R3 operation. Nothing was applied.");
+      }
+      if (currentActorRef.current !== reviewContextActorId) {
+        throw new Error("Organizer account changed after this R3 review opened. Nothing was applied.");
+      }
+      if (!verifiedEditionRef.current || currentEditionRef.current !== reviewContextEditionId) {
+        throw new Error("Organizer edition context changed after this R3 review opened or could not be verified. Nothing was applied.");
+      }
       if (!approval.targetUserId || !approval.idempotencyKey) {
         throw new Error("This approval is not actionable by the current organizer.");
       }
       await reauthenticatePermissionR3(password);
+      if (reviewContextEpochRef.current !== reviewContextEpoch) {
+        throw new Error("Organizer review context changed during the R3 operation. Nothing was applied.");
+      }
+      if (currentActorRef.current !== reviewContextActorId) {
+        throw new Error("Organizer account changed during reauthentication. Nothing was applied.");
+      }
+      if (!verifiedEditionRef.current || currentEditionRef.current !== reviewContextEditionId) {
+        throw new Error("Organizer edition context changed during reauthentication or became unverified. Nothing was applied.");
+      }
       return applyPermissionChange({
         userId: approval.targetUserId,
         kind: approval.changeKind,
@@ -286,10 +469,12 @@ function AccessPermissionsPage() {
         approvalRequestId: approval.id,
       });
     },
-    onSuccess: async () => {
-      setApprovalAction(null);
-      setApprovalPassword("");
-      setMessage("Access change applied with fresh authentication and second-operator approval.");
+    onSuccess: async (_receipt, variables) => {
+      if (reviewContextEpochRef.current === variables.reviewContextEpoch && currentActorRef.current === variables.reviewContextActorId && currentEditionRef.current === variables.reviewContextEditionId) {
+        setApprovalAction(null);
+        setApprovalPassword("");
+        setMessage("Access change applied with fresh authentication and second-operator approval.");
+      }
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["permission-engine-users"],
@@ -308,12 +493,51 @@ function AccessPermissionsPage() {
   });
 
   const simulation = useMutation({
-    mutationFn: ({ userId }: { userId: string }) => viewAccessAs(userId, editionId || null),
+    mutationFn: ({ userId }: { userId: string }) => {
+      if (!editionContextVerified || (editionId && !resolvedEditionId)) {
+        throw new Error(
+          "The selected Organizer edition could not be verified. Access simulation will not fall back to global scope.",
+        );
+      }
+      return viewAccessAs(userId, resolvedEditionId || null);
+    },
   });
+  const resetSimulation = simulation.reset;
 
-  const effectiveScope = scope === "edition" && editionId ? editionId : null;
-  const summary = summaryQuery.data;
-  const loading = catalogQuery.isLoading || usersQuery.isLoading;
+  // A refresh, revocation, actor switch or A→B→A scope round-trip invalidates every pending R3 review.
+  useEffect(() => {
+    reviewContextEpochRef.current += 1;
+  }, [actorId, editionId, editionContextVerified]);
+
+  useEffect(() => {
+    currentActorRef.current = actorId;
+    currentEditionRef.current = editionId ?? null;
+    setPendingChange(null);
+    setReauthPassword("");
+    setApprovalAction(null);
+    setApprovalPassword("");
+    setMessage(null);
+    resetSimulation();
+  }, [actorId, editionId, resetSimulation]);
+
+  useEffect(() => {
+    verifiedEditionRef.current = editionContextVerified;
+    if (!editionContextVerified) {
+      setPendingChange(null);
+      setReauthPassword("");
+      setApprovalAction(null);
+      setApprovalPassword("");
+      resetSimulation();
+    }
+  }, [editionContextVerified, resetSimulation]);
+
+  const effectiveScope = scope === "edition" ? (resolvedEditionId || null) : null;
+  const summary = editionContextVerified && summaryQuery.isSuccess ? summaryQuery.data : undefined;
+  const loading =
+    catalogQuery.isLoading ||
+    usersQuery.isLoading ||
+    catalogQuery.isFetching ||
+    usersQuery.isFetching;
   const pageError = catalogQuery.error ?? usersQuery.error;
 
   return (
@@ -331,6 +555,82 @@ function AccessPermissionsPage() {
           evaluations continue to be recorded for audit and operational review.
         </div>
 
+        <AdminCard>
+          <label className="flex flex-col gap-2">
+            <span className="text-xs font-semibold text-muted-foreground">
+              Choose the edition for this permission review
+            </span>
+            <select
+              className="admin-input"
+              value={verifiedChoiceId}
+              disabled={!editionsQuery.isSuccess || Boolean(editionsQuery.error) || editionsQuery.isFetching}
+              onChange={(event) => {
+                const choice = (editionsQuery.data ?? []).find((edition) => edition.id === event.target.value);
+                setExplicitChoice(choice ? { actorId, editionId: choice.id } : null);
+                if (choice) {
+                  setEditionContext({ id: choice.id, slug: choice.slug, label: formatEditionLabel(choice) });
+                }
+              }}
+            >
+              <option value="">Select an exact review edition…</option>
+              {(editionsQuery.isSuccess && !editionsQuery.error && !editionsQuery.isFetching
+                ? editionsQuery.data ?? []
+                : []
+              ).map((edition) => (
+                <option key={edition.id} value={edition.id}>{formatEditionLabel(edition)}</option>
+              ))}
+            </select>
+            <span className="text-xs text-muted-foreground">
+              NAV's default edition is not authorization. Deliberately select a review edition, even for globally scoped permission changes.
+            </span>
+          </label>
+        </AdminCard>
+
+        <div
+          data-v3-organizer-context-lock="permissions"
+          className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 py-2"
+        >
+          <span className="admin-section-label">Edition context</span>
+          <AdminStatus tone={organizerEditionLabel ? "info" : "neutral"}>
+            {(editionContextVerified ? organizerEditionLabel : null) ?? "No verified edition selected"}
+          </AdminStatus>
+          <span className="text-xs text-muted-foreground">
+            Edition-scoped grants use only this verified Organizer context. Global changes remain explicitly labeled as every edition.
+          </span>
+        </div>
+
+        {!editionContextVerified ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={ShieldEllipsis}
+              title={editionsQuery.isError
+                ? "Edition access unavailable"
+                : permissionReadQuery.isError
+                  ? "Permission verification unavailable"
+                  : permissionReadQuery.isSuccess && permissionReadQuery.data === false
+                    ? "Permission access denied"
+                    : "Verifying edition access"}
+              description={permissionReadQuery.isSuccess && permissionReadQuery.data === false
+                ? "This Organizer account does not currently have permissions.read for the selected edition. Public edition visibility does not authorize private access reviews."
+                : permissionReadQuery.isError
+                  ? "Solaris could not verify this edition-scoped permission. Access reviews remain unavailable; retry the server authorization check."
+                  : "Permission changes are paused until both Organizer edition context and server-side permissions.read are verified, including for global changes."}
+              action={
+                permissionReadQuery.isError ? (
+                  <button type="button" onClick={() => void permissionReadQuery.refetch()} disabled={permissionReadQuery.isFetching} className="admin-action-secondary">
+                    Retry permission verification
+                  </button>
+                ) : editionsQuery.isError ? (
+                  <button type="button" onClick={() => void editionsQuery.refetch()} disabled={editionsQuery.isFetching} className="admin-action-secondary">
+                    Retry edition lookup
+                  </button>
+                ) : undefined
+              }
+            />
+          </AdminCard>
+        ) : null}
+
+        {directoryVerified ? (
         <section
           className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
           aria-label="Permission engine summary"
@@ -357,18 +657,37 @@ function AccessPermissionsPage() {
             attention={Boolean(summary?.mismatched)}
           />
         </section>
+        ) : null}
 
         <PermissionApprovalQueue
-          approvals={approvalsQuery.data ?? []}
+          approvals={editionContextVerified && approvalsQuery.isSuccess && !approvalsQuery.isFetching ? approvalsQuery.data ?? [] : []}
           loading={approvalsQuery.isLoading}
           error={approvalsQuery.error}
+          actionsAvailable={editionContextVerified}
+          scopeLabelForEdition={(approvalEditionId) =>
+            permissionScopeLabel(approvalEditionId, editionLabels)
+          }
           onApprove={(approval) => {
+            if (!editionContextVerified) return;
             setApprovalPassword("");
-            setApprovalAction({ approval, mode: "approve" });
+            setApprovalAction({
+              approval,
+              mode: "approve",
+              reviewContextEditionId: editionId ?? null,
+              reviewContextActorId: actorId,
+              reviewContextEpoch: reviewContextEpochRef.current,
+            });
           }}
           onApply={(approval) => {
+            if (!editionContextVerified) return;
             setApprovalPassword("");
-            setApprovalAction({ approval, mode: "apply" });
+            setApprovalAction({
+              approval,
+              mode: "apply",
+              reviewContextEditionId: editionId ?? null,
+              reviewContextActorId: actorId,
+              reviewContextEpoch: reviewContextEpochRef.current,
+            });
           }}
         />
 
@@ -410,7 +729,22 @@ function AccessPermissionsPage() {
               icon={ShieldEllipsis}
               title="Permission data unavailable"
               description={errorText(pageError)}
+              action={
+                <button
+                  type="button"
+                  className="admin-action-primary"
+                  onClick={() => void Promise.all([catalogQuery.refetch(), usersQuery.refetch()])}
+                >
+                  Retry permission directory
+                </button>
+              }
             />
+          </AdminCard>
+        ) : !directoryVerified ? (
+          <AdminCard>
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Verifying permission directory…
+            </p>
           </AdminCard>
         ) : tab === "users" ? (
           <UsersTab
@@ -428,13 +762,14 @@ function AccessPermissionsPage() {
             capabilities={catalog?.capabilities ?? []}
             scope={scope}
             onScope={setScope}
-            editionAvailable={Boolean(editionId)}
+            editionAvailable={Boolean(resolvedEditionId)}
+            editionScopeLabel={organizerEditionLabel}
             roleKey={roleKey}
             onRoleKey={setRoleKey}
             capabilityKey={capabilityKey}
             onCapabilityKey={setCapabilityKey}
             effectiveScope={effectiveScope}
-            busy={previewChange.isPending || requestApproval.isPending || applyApproved.isPending}
+            busy={!editionContextVerified || previewChange.isPending || requestApproval.isPending || applyApproved.isPending}
             onChange={(input) => previewChange.mutate(input)}
             onSimulate={(userId) => simulation.mutate({ userId })}
             simulation={simulation.data ?? null}
@@ -507,15 +842,35 @@ function AccessPermissionsPage() {
           }}
           onConfirm={async () => {
             if (!approvalAction) return;
+            if (currentActorRef.current !== approvalAction.reviewContextActorId) {
+              setApprovalAction(null);
+              setApprovalPassword("");
+              setMessage("Organizer account changed after this R3 review opened. Nothing was applied.");
+              return;
+            }
+            if ((editionId ?? null) !== approvalAction.reviewContextEditionId) {
+              setApprovalAction(null);
+              setApprovalPassword("");
+              setMessage(
+                "Organizer edition context changed after this R3 review opened. Nothing was applied. Open the approval again from the current context.",
+              );
+              return;
+            }
             if (approvalAction.mode === "approve") {
               await approveR3.mutateAsync({
                 approval: approvalAction.approval,
                 password: approvalPassword,
+                reviewContextEditionId: approvalAction.reviewContextEditionId,
+                reviewContextActorId: approvalAction.reviewContextActorId,
+                reviewContextEpoch: approvalAction.reviewContextEpoch,
               });
             } else {
               await applyApproved.mutateAsync({
                 approval: approvalAction.approval,
                 password: approvalPassword,
+                reviewContextEditionId: approvalAction.reviewContextEditionId,
+                reviewContextActorId: approvalAction.reviewContextActorId,
+                reviewContextEpoch: approvalAction.reviewContextEpoch,
               });
             }
           }}
@@ -531,6 +886,7 @@ function AccessPermissionsPage() {
                 mode={approvalAction.mode}
                 password={approvalPassword}
                 onPassword={setApprovalPassword}
+                scopeLabel={permissionScopeLabel(approvalAction.approval.editionId, editionLabels)}
               />
             ) : (
               "Review the bound R3 operation before continuing."
@@ -623,7 +979,7 @@ function PermissionImpactPreview({
             Scope
           </span>
           <strong className="mt-1 block text-sm text-foreground">
-            {pending.preview.globalScope ? "Every edition" : "Selected edition"}
+            {pending.scopeLabel}
           </strong>
         </div>
         <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3">
@@ -701,12 +1057,16 @@ function PermissionApprovalQueue({
   approvals,
   loading,
   error,
+  actionsAvailable,
+  scopeLabelForEdition,
   onApprove,
   onApply,
 }: {
   approvals: PermissionChangeApproval[];
   loading: boolean;
   error: Error | null;
+  actionsAvailable: boolean;
+  scopeLabelForEdition: (editionId: string | null) => string;
   onApprove: (approval: PermissionChangeApproval) => void;
   onApply: (approval: PermissionChangeApproval) => void;
 }) {
@@ -719,12 +1079,17 @@ function PermissionApprovalQueue({
         title="Second-operator approvals"
         description="Permission mutations are bound to one reviewed operation. The requester cannot approve their own request, and approved requests expire before they can become stale standing authority."
         action={
-          <AdminStatus tone={actionable ? "attention" : "ready"}>
-            {actionable ? `${actionable} actionable` : "No action"}
+          <AdminStatus tone={!actionsAvailable ? "neutral" : actionable ? "attention" : "ready"}>
+            {!actionsAvailable ? "Scope verification required" : actionable ? `${actionable} actionable` : "No action"}
           </AdminStatus>
         }
       />
 
+      {!actionsAvailable ? (
+        <p className="mt-2 text-xs text-muted-foreground" role="status">
+          R3 approval actions are paused until the Organizer edition context can be verified.
+        </p>
+      ) : null}
       {loading ? (
         <p className="py-6 text-center text-sm text-muted-foreground">
           Loading R3 approval queue…
@@ -768,7 +1133,7 @@ function PermissionApprovalQueue({
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {humanize(approval.changeKind)} · {approval.key} ·{" "}
-                    {approval.editionId ? "Selected edition" : "Every edition"}
+                    {scopeLabelForEdition(approval.editionId)}
                   </p>
                   <p className="mt-1 text-[11px] text-muted-foreground">
                     Requested by {approval.requesterDisplayName} · expires{" "}
@@ -785,6 +1150,7 @@ function PermissionApprovalQueue({
                   <button
                     type="button"
                     className="admin-action-secondary shrink-0"
+                    disabled={!actionsAvailable}
                     onClick={() => onApprove(approval)}
                   >
                     Approve as second operator
@@ -793,6 +1159,7 @@ function PermissionApprovalQueue({
                   <button
                     type="button"
                     className="admin-action-primary shrink-0"
+                    disabled={!actionsAvailable}
                     onClick={() => onApply(approval)}
                   >
                     Apply approved change
@@ -817,11 +1184,13 @@ function PermissionApprovalActionPreview({
   mode,
   password,
   onPassword,
+  scopeLabel,
 }: {
   approval: PermissionChangeApproval;
   mode: "approve" | "apply";
   password: string;
   onPassword: (value: string) => void;
+  scopeLabel: string;
 }) {
   return (
     <div className="space-y-3">
@@ -870,8 +1239,7 @@ function PermissionApprovalActionPreview({
           <code className="text-sky-100">{approval.key}</code>
         </p>
         <p className="mt-1 text-muted-foreground">
-          Scope: {approval.editionId ? "selected edition" : "every edition"} · approval expires{" "}
-          {formatDateTime(approval.approvalExpiresAt)}
+          Scope: {scopeLabel} · approval expires {formatDateTime(approval.approvalExpiresAt)}
         </p>
       </div>
 
@@ -913,6 +1281,7 @@ function UsersTab({
   scope,
   onScope,
   editionAvailable,
+  editionScopeLabel,
   roleKey,
   onRoleKey,
   capabilityKey,
@@ -934,6 +1303,7 @@ function UsersTab({
   scope: "edition" | "global";
   onScope: (scope: "edition" | "global") => void;
   editionAvailable: boolean;
+  editionScopeLabel: string | null;
   roleKey: string;
   onRoleKey: (value: string) => void;
   capabilityKey: SolarisCapability | "";
@@ -1005,7 +1375,8 @@ function UsersTab({
                 <button
                   type="button"
                   onClick={() => onSimulate(selectedUser.userId)}
-                  className="admin-action-secondary"
+                  disabled={busy}
+                  className="admin-action-secondary disabled:opacity-45"
                 >
                   <Eye className="size-4" /> View access as
                 </button>
@@ -1042,7 +1413,11 @@ function UsersTab({
                   Scope
                 </p>
                 <p className="mt-1 text-sm font-bold">
-                  {effectiveScope ? "Current edition" : "Global"}
+                  {scope === "edition"
+            ? editionAvailable
+              ? (editionScopeLabel ?? "Selected edition")
+              : "Edition unverified"
+            : "Every edition"}
                 </p>
               </div>
             </div>
@@ -1485,6 +1860,11 @@ function EmptyLine({ children }: { children: string }) {
 
 function scopeLabel(editionName: string | null, editionId: string | null) {
   return editionId ? (editionName ?? "One edition") : "Every edition";
+}
+
+function permissionScopeLabel(editionId: string | null, editionLabels: Map<string, string>) {
+  if (!editionId) return "Every edition";
+  return editionLabels.get(editionId) ?? `Edition ${editionId.slice(0, 8)}…`;
 }
 
 function changeMessage(change: AccessChange) {
