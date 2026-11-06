@@ -8,6 +8,13 @@ const cli = source("scripts/check-v3-qa-release-truth.ts");
 const truth = source("src/lib/v3-qa-release-truth.ts");
 
 describe("V3 QA release-truth preflight integration", () => {
+  it("preserves the reviewed dispatch-SHA binding instead of checking out arbitrary input", () => {
+    expect(workflow).toContain("DISPATCH_SHA: ${{ github.sha }}");
+    expect(workflow).toContain("ref: ${{ github.sha }}");
+    expect(workflow).toContain('if [[ "${CANDIDATE_SHA,,}" != "${DISPATCH_SHA,,}" ]]');
+    expect(workflow).not.toContain("ref: ${{ inputs.candidate_sha }}");
+  });
+
   it("binds the generated truth artifact to the exact requested candidate SHA", () => {
     expect(workflow).toContain("V3_CANDIDATE_SHA=$actual");
     expect(workflow).toContain("scripts/check-v3-qa-release-truth.ts");
