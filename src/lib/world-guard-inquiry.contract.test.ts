@@ -115,6 +115,20 @@ describe("WORLD-08 TG13 governed GUARD noncompliance inquiry",()=>{
     expect(s).not.toMatch(/office\.slug='deputy-chairperson'/);
   });
 
+  it("replays an identical successful opening after its original deadline passes",()=>{
+    const source=sql();
+    const command=source.slice(
+      source.indexOf("create function public.world_open_guard_inquiry_v1"),
+      source.indexOf("create function public.world_respond_guard_inquiry_v1"),
+    );
+    const replay=command.indexOf("if coalesce((v_claim->>'replayed')::boolean,false)");
+    const deadline=command.indexOf("if p_response_due_at <= now()");
+    expect(replay).toBeGreaterThan(0);
+    expect(deadline).toBeGreaterThan(replay);
+    expect(command.slice(0,replay)).not.toContain("or p_response_due_at <= now()");
+    expect(command).toContain("public.studio2_reconcile_operation(v_op)");
+  });
+
   it("protects private rows with RLS, row locks, immutable history and no API raw writes",()=>{
     const s=sql();
     for(const marker of [
