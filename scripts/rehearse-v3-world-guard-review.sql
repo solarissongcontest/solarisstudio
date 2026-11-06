@@ -238,12 +238,6 @@ begin
     where a.id=v_external_id and a.country_id=(v->>'external_country')::uuid
       and a.submitted_by is null and a.submitted_by_person_id is null
       and a.intake_source='external'
-      and exists(
-        select 1 from public.world_membership_application_external_provenance p
-        where p.application_id=a.id
-          and p.registered_by_user_id=(v->>'chair')::uuid
-          and p.source_reference like 'DM from country delegation%'
-      )
   ) then
     raise exception 'TG5_REVIEW_EXTERNAL_IMPERSONATION_OR_PROVENANCE_ERROR';
   end if;
@@ -303,6 +297,14 @@ begin
   end if;
   if (select status from public.world_membership_applications where id=v_app) <> 'introduced' then
     raise exception 'TG5_REVIEW_FINAL_APPLICATION_STATE_WRONG';
+  end if;
+  if not exists (
+    select 1 from public.world_membership_application_external_provenance provenance
+    where provenance.application_id=current_setting('solaris.tg5_external_application')::uuid
+      and provenance.registered_by_user_id=(v->>'chair')::uuid
+      and provenance.source_reference like 'DM from country delegation%'
+  ) then
+    raise exception 'TG5_REVIEW_PRIVATE_PROVENANCE_LOST';
   end if;
   if exists(
     select 1 from public.world_organization_memberships
