@@ -54,4 +54,16 @@ describe("Organizer Jury Integrity protected ballot boundary", () => {
     expect(page).toContain("Retry integrity evidence");
   });
 
+  it("bounds private evidence traffic and preserves an explicit operator refresh path", () => {
+    expect(page).toContain("retry: false");
+    expect(page).toContain("refetchOnWindowFocus: false");
+    expect(page).toContain("refetchOnReconnect: false");
+    expect(page).toContain("refetchInterval: false");
+    expect(page).toContain("Refresh integrity evidence");
+    expect(page).toContain("Retry integrity evidence");
+    expect(page).toContain("onClick={() => void query.refetch()}");
+    expect(page).toContain("disabled={query.isFetching}");
+    expect(page).toContain("aria-busy={query.isFetching}");
+  });
+
 });
