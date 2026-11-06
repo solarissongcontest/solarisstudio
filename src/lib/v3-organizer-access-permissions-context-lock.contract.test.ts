@@ -43,6 +43,20 @@ describe("V3 Organizer Access & Permissions context lock", () => {
     expect(route).toContain("if (!editionContextVerified) {");
   });
 
+  it("withholds private directory metrics and user details when a read fails or refreshes", () => {
+    expect(route).toContain("const directoryVerified =");
+    expect(route).toContain("catalogQuery.isSuccess &&");
+    expect(route).toContain("usersQuery.isSuccess &&");
+    expect(route).toContain("!catalogQuery.isFetching &&");
+    expect(route).toContain("!usersQuery.isFetching;");
+    expect(route).toContain("directoryVerified ? usersQuery.data ?? [] : []");
+    expect(route).toContain("const catalog = directoryVerified ? catalogQuery.data : undefined;");
+    expect(route).toContain("{directoryVerified ? (");
+    expect(route).toContain("Retry permission directory");
+    expect(route).toContain("Promise.all([catalogQuery.refetch(), usersQuery.refetch()])");
+    expect(route).toContain("!directoryVerified ? (");
+  });
+
   it("visibly disables the R3 approvals queue on unverified or refreshing edition context", () => {
     expect(route).toContain("actionsAvailable={editionContextVerified}");
     expect(route).toContain("actionsAvailable: boolean;");
