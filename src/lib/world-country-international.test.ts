@@ -106,6 +106,7 @@ describe("World country International public read boundaries", () => {
     const safe = parseWorldPublicInstitutions([organization], ["org-1"]);
     expect(safe).toMatchObject([{ name: "GUARD" }]);
     expect(() => parseWorldPublicInstitutions([{ ...organization, public_visibility: "private" }], ["org-1"])).toThrow();
+    expect(() => parseWorldPublicInstitutions([{ ...organization, status: "proposed" }], ["org-1"])).toThrow("Unrecognized institution");
     expect(() => parseWorldPublicInstitutions([organization], ["org-foreign"])).toThrow();
     expect(() => parseWorldPublicInstitutions([organization, organization], ["org-1"])).toThrow();
   });

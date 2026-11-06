@@ -7,6 +7,7 @@ import {
   parseWorldCountryIdentity,
   parseWorldPublicCountries,
   parseWorldPublicInstitutions,
+  WORLD_RECOGNIZED_INSTITUTION_STATUSES,
   parseWorldPublicRollout,
   validWorldCountryCode,
   verifiedWorldCount,
@@ -128,6 +129,7 @@ export async function fetchWorldPublicCountryInstitutions(
   const { data, error } = await (supabase as any).from("world_organizations")
     .select(ORGANIZATION_COLUMNS)
     .eq("public_visibility", "public")
+    .in("status", [...WORLD_RECOGNIZED_INSTITUTION_STATUSES])
     .in("id", organizationIds);
   if (error) throw error;
   return parseWorldPublicInstitutions(data, organizationIds);

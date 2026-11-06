@@ -173,6 +173,7 @@ describe("Country International public Supabase read contracts", () => {
     expect(client.from).toHaveBeenCalledWith("world_organizations");
     called(calls, "select", "id,slug,short_name,official_name,status,public_visibility");
     called(calls, "eq", "public_visibility", "public");
+    called(calls, "in", "status", ["recognized", "active", "suspended", "historical", "dissolved"]);
     called(calls, "in", "id", ["org-1"]);
     expect(JSON.stringify(calls)).not.toContain("delegation_people");
   });

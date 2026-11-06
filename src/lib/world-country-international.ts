@@ -42,6 +42,12 @@ export type WorldCountryAffiliation = {
   endedAt: string | null;
 };
 
+// A proposed organization is not yet an official publicly recognized institution.
+export const WORLD_RECOGNIZED_INSTITUTION_STATUSES = [
+  "recognized", "active", "suspended", "historical", "dissolved",
+] as const;
+const RECOGNIZED_INSTITUTION_STATES = new Set<string>(WORLD_RECOGNIZED_INSTITUTION_STATUSES);
+
 const CURRENT_STATES = new Set(["member", "observer", "associate", "suspended"]);
 const HISTORICAL_STATES = new Set(["withdrawn", "expelled", "former"]);
 const MEMBER_TYPES = new Set(["member", "observer", "associate"]);
@@ -221,13 +227,17 @@ export function parseWorldPublicInstitutions(
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
       throw new Error("Invalid institutional slug");
     }
+    const status = requiredString(data.status, "institution status");
+    if (!RECOGNIZED_INSTITUTION_STATES.has(status)) {
+      throw new Error("Unrecognized institution cannot appear in the public International view");
+    }
     ids.add(id);
     return {
       id,
       slug,
       name: requiredString(data.short_name, "institution name"),
       officialName: requiredString(data.official_name, "institution official name"),
-      status: requiredString(data.status, "institution status"),
+      status,
     };
   });
 }
