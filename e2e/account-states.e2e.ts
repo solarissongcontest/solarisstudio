@@ -406,7 +406,7 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
           const style = getComputedStyle(ancestor);
           if (ancestor.scrollHeight > ancestor.clientHeight + 1) {
             scrollChain.push({
-              element: ancestor.tagName.toLowerCase() + (ancestor.className && typeof ancestor.className === "string" ? "." + ancestor.className.split(/\\s+/).slice(0, 2).join(".") : ""),
+              element: ancestor.tagName.toLowerCase() + (ancestor.className && typeof ancestor.className === "string" ? "." + ancestor.className.split(/\s+/).slice(0, 2).join(".") : ""),
               overflowY: style.overflowY,
               scrollTop: ancestor.scrollTop,
               scrollHeight: ancestor.scrollHeight,
