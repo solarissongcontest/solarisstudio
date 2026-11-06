@@ -21,7 +21,9 @@ begin
   if v_document.id is null then
     return false;
   end if;
-  if v_document.visibility = 'public' then
+  -- Raw public visibility is not publication authority. Reuse the exact
+  -- versioned-document guard applied to all direct Data API read policies.
+  if public.world_document_publicly_available_v1(v_document.id) then
     return true;
   end if;
   if auth.uid() is null then
