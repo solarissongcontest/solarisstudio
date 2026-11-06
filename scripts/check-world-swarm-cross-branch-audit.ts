@@ -91,7 +91,7 @@ async function liveSnapshot(): Promise<WorldSwarmSnapshot> {
   const mainFiles = await github<Array<{ path: string; type: string }>>(
     "/contents/supabase/migrations?ref=main", token,
   );
-  if (!Array.isArray(mainFiles) || mainFiles.length >= 1000) {
+  if (!Array.isArray(mainFiles) || mainFiles.length === 0 || mainFiles.length >= 1000) {
     throw new Error("Main migration contents listing unavailable or incomplete");
   }
   const pulls = (await pages<GithubPull>("/pulls?state=open", token)).filter(isWorld);
