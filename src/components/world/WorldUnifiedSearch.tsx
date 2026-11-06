@@ -19,7 +19,7 @@ type Props = {
   countryPage: number;
   organizationPage: number;
   onSearch: (term: string) => void;
-  onPagesChange: (countryPage: number, organizationPage: number) => void;
+  onPagesChange: (countryPage: number, organizationPage: number, replace?: boolean) => void;
 };
 
 function CountryRow({ country }: { country: WorldSearchCountry }) {
@@ -119,6 +119,7 @@ export function WorldUnifiedSearchPage({
       onPagesChange(
         Math.min(countryPage, lastCountryPage),
         Math.min(organizationPage, lastOrganizationPage),
+        true,
       );
     }
   }, [visible, countryPage, organizationPage, onPagesChange]);
