@@ -28,6 +28,17 @@ describe("TG3 published body route ownership", () => {
     expect(detail).toContain("WorldBodyDetails");
   });
 
+  it("keeps public body directory discovery available with zero preview records", () => {
+    const source = readFileSync(
+      resolve(process.cwd(), "src/components/world/WorldPublic.tsx"), "utf8",
+    );
+    const section = source.split('aria-labelledby="world-organs-title"')[1]?.split("</section>")[0];
+    expect(section).toBeDefined();
+    expect(section).toContain('to="/world/organizations/$slug/bodies/"');
+    expect(section).toContain("No public bodies have been recorded.");
+    expect(section).not.toContain("projection.data.organs.length > 0 ? (");
+  });
+
   it("keeps stable URL paths for both canonical public body screens", () => {
     const directory = readFileSync(resolve(bodyRoutes, "index.tsx"), "utf8");
     const detail = readFileSync(resolve(bodyRoutes, "$bodySlug.tsx"), "utf8");
