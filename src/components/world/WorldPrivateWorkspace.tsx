@@ -164,7 +164,7 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
   const [showAccess, setShowAccess] = useState(false);
   const [roomName, setRoomName] = useState("");
   const [roomVisibility, setRoomVisibility] = useState<WorldPrivateRoom["visibility"]>("members");
-  const [historyPolicy, setHistoryPolicy] = useState<WorldPrivateRoom["history"]>("from_join");
+  const [historyPolicy, setHistoryPolicy] = useState<WorldPrivateRoom["history"]>("all_member_history");
 
   useEffect(() => {
     setDraft(""); setSearchInput(""); setActiveSearch(""); setShowAccess(false); setReplyToId(null); setEditingId(null); setActionError(null);
@@ -266,7 +266,11 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
                   className="mt-1 block min-h-11 w-full rounded-lg border border-border bg-background px-3" />
               </label>
               <label className="block text-sm font-semibold">Access policy
-                <select value={roomVisibility} onChange={(event) => setRoomVisibility(event.target.value as WorldPrivateRoom["visibility"])}
+                <select value={roomVisibility} onChange={(event) => {
+                  const next = event.target.value as WorldPrivateRoom["visibility"];
+                  setRoomVisibility(next);
+                  setHistoryPolicy(next === "members" ? "all_member_history" : "from_join");
+                }}
                   className="mt-1 block min-h-11 w-full rounded-lg border border-border bg-background px-3">
                   <option value="members">Current members</option>
                   <option value="leadership">Leadership and invited members</option>
@@ -307,7 +311,11 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
                 className="mt-1 min-h-11 w-full rounded-lg border border-border bg-background px-3" />
             </label>
             <label className="block text-sm">Access policy
-              <select value={roomVisibility} onChange={(event) => setRoomVisibility(event.target.value as WorldPrivateRoom["visibility"])}
+              <select value={roomVisibility} onChange={(event) => {
+                  const next = event.target.value as WorldPrivateRoom["visibility"];
+                  setRoomVisibility(next);
+                  setHistoryPolicy(next === "members" ? "all_member_history" : "from_join");
+                }}
                 className="mt-1 min-h-11 w-full rounded-lg border border-border bg-background px-3">
                 <option value="members">All current members</option>
                 <option value="leadership">Leadership and invited members</option>
