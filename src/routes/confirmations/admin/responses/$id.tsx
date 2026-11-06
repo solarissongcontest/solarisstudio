@@ -690,12 +690,10 @@ function ResponseDetailPage() {
 
     await loadTechnical();
 
-    try {
-      await syncSnapshot(detail);
-    } catch {
-      // The review screen stays usable even if the canonical sync is temporarily unavailable.
-    }
-  }, [id, loadTechnical, navigate, syncSnapshot]);
+    // Opening a Confirmation response is a read-only review action.
+    // Never reconcile or mutate official Solaris state as a side effect of loading.
+    // The existing explicit "Sync with Solaris Studio" menu action remains available.
+  }, [id, loadTechnical, navigate]);
 
   useEffect(() => {
     void load();
