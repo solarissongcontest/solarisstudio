@@ -89,7 +89,13 @@ describe("Governance OS v5 contract", () => {
     expect(home).toContain('to="/rules/chapters"');
     expect(chapter).not.toContain("overflow-x-auto");
     expect(journey).not.toContain("min-w-[58rem]");
-    expect(search).toContain("findGovernanceQuickAnswer");
+    expect(search).toContain("findRuleSearchQuickAnswer(q)");
+    expect(search).not.toContain("findGovernanceQuickAnswer");
+    // The replacement combines official Governance/Roleplay curated answers
+    // instead of guessing from generic terms with a fuzzy substring match.
+    const quickAnswers = source("src/lib/v3-rules-quick-answer-search.ts");
+    expect(quickAnswers).toContain("GOVERNANCE_QUICK_ANSWERS");
+    expect(quickAnswers).toContain("ROLEPLAY_QUICK_ANSWERS");
   });
 
   it("uses a five-step sensitive Integrity service with review-before-submit and explicit anonymous recovery", () => {
