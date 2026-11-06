@@ -73,9 +73,12 @@ describe("System V3 public published result snapshot", () => {
   it("has a fail-closed local-only rehearsal for immutable publication, hiding and correction", () => {
     const script = rehearsal();
 
-    expect(script).toContain('case "$API_URL" in http://127.0.0.1:*|http://localhost:*');
-    expect(script).toContain("Refusing hosted Supabase rehearsal");
-    expect(script).toContain("Refusing non-local database rehearsal");
+    expect(script).toContain('status_env="$(supabase status -o env)" || fail "No local Supabase stack"');
+    expect(script).toContain('node - "$API_URL" "$DB_URL"');
+    expect(script).toContain('!localhost(api.hostname)');
+    expect(script).toContain('!localhost(db.hostname)');
+    expect(script).toContain('db.search || db.hash');
+    expect(script).toContain("Refusing hosted/non-loopback rehearsal endpoints");
     expect(script).not.toContain("ALLOW_NONLOCAL_REHEARSAL");
     expect(script).toContain("set local role anon");
     expect(script).toContain("private show exposed a result snapshot");
