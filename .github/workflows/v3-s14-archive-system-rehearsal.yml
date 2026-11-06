@@ -7,8 +7,6 @@ on:
     paths:
       - "supabase/migrations/**"
       - ".github/scripts/v3-s14-archive-system-rehearsal.sh"
-      - ".github/scripts/v3-start-disposable-supabase.sh"
-      - ".github/scripts/prepare-archive-local-config.py"
       - ".github/scripts/v3-s14-archive-guard-rehearsal.sh"
       - ".github/scripts/v3-s14-archive-delete-guard-rehearsal.sh"
       - ".github/scripts/v3-s14-edition-event-vocabulary-rehearsal.sh"
@@ -70,7 +68,7 @@ jobs:
           version: 2.113.0
 
       - name: Start isolated local Supabase
-        run: bash .github/scripts/v3-start-disposable-supabase.sh
+        run: supabase start
 
       - name: Rebuild from complete migration chain
         run: supabase db reset --local --no-seed
@@ -162,7 +160,7 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/solaris-s14-main
-          bash "$GITHUB_WORKSPACE/.github/scripts/v3-start-disposable-supabase.sh"
+          supabase start
           supabase db reset --local --no-seed
 
       - name: Apply only the S14 feature migration delta

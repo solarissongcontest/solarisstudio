@@ -171,14 +171,7 @@ export function projectV3Attention(
   actions: readonly V3ActionProjection[],
 ): V3AttentionProjection {
   const actionable = actions
-    .filter(
-      (action) =>
-        action.deliveryClass !== "optional" &&
-        action.actionRequired &&
-        !action.completed &&
-        action.sourceState !== "waiting" &&
-        action.sourceState !== "upcoming",
-    )
+    .filter((action) => action.actionRequired && !action.completed)
     .sort((a, b) => attentionScore(b) - attentionScore(a));
 
   const primary = actionable[0] ?? null;
