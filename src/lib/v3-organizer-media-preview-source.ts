@@ -28,6 +28,7 @@ export function resolveOrganizerMediaPreviewSource(
   sourceUrl: string | null | undefined,
   assetType: MediaAssetType,
 ): OrganizerMediaPreviewSource | null {
+  if (sourceUrl && /[\u0000-\u001f\u007f]/.test(sourceUrl)) return null;
   const trimmed = sourceUrl?.trim();
   if (!trimmed) return null;
   try {
@@ -49,5 +50,28 @@ export function resolveOrganizerMediaPreviewSource(
     return { url: parsed.href, host: parsed.host, previewKind };
   } catch {
     return null;
+  }
+}
+
+/**
+ * Source fingerprints in the current media inventory can contain a complete
+ * signed URL. The Organizer's visible label must NEVER repeat the path,
+ * query string, fragments or embedded access tokens. The full identity stays
+ * available only to the canonical review operation and guarded preview link.
+ */
+export function describeOrganizerMediaSource(
+  sourceUrl: string | null | undefined,
+): string {
+  if (!sourceUrl?.trim()) return "No source supplied";
+  if (/[\u0000-\u001f\u007f]/.test(sourceUrl)) return "Source link requires inspection";
+  try {
+    const source = new URL(sourceUrl.trim());
+    if ((source.protocol !== "http:" && source.protocol !== "https:") ||
+        !source.hostname || source.username || source.password) {
+      return "Source link requires inspection";
+    }
+    return `External source · ${source.host}`;
+  } catch {
+    return "Source link requires inspection";
   }
 }

@@ -11,7 +11,7 @@ import { AdminCard, AdminConfirmSheet, AdminEmptyState, AdminPageHeader, AdminSh
 import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useCountries, useEditions } from '@/lib/data';
 import { MEDIA_ASSET_TYPES, type MediaAssetType } from '@/lib/media-asset-vault';
-import { resolveOrganizerMediaPreviewSource } from '@/lib/v3-organizer-media-preview-source';
+import { describeOrganizerMediaSource, resolveOrganizerMediaPreviewSource } from '@/lib/v3-organizer-media-preview-source';
 import { loadStudio2CountryCockpit } from '@/lib/studio2-country-cockpit';
 import {
   STUDIO2_MEDIA_ASSET_STATES,
@@ -160,7 +160,7 @@ function MediaAssetsPage() {
         <div className="min-w-0">
           <p>{item.title}</p>
           <p className="mt-1 truncate text-xs font-normal text-muted-foreground">
-            {item.sourceUrl ?? (item.required ? 'Required source not supplied' : 'No source supplied')}
+            {item.sourceUrl ? describeOrganizerMediaSource(item.sourceUrl) : (item.required ? 'Required source not supplied' : 'No source supplied')}
           </p>
         </div>
       ),
@@ -422,7 +422,7 @@ function MediaAssetsPage() {
                       </div>
                       <AdminStatus tone={stateTone(item.state)}>{stateLabel(item.state)}</AdminStatus>
                     </div>
-                    <p className="mt-2 break-all font-mono text-[10px] text-muted-foreground">Source fingerprint: {item.sourceFingerprint}</p>
+                    <p className="mt-2 text-[10px] text-muted-foreground">Review is bound to the exact source identity currently loaded for this asset.</p>
                   </div>
                 ))}
               </div>
@@ -443,14 +443,16 @@ function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAsset
   // A newly selected or replaced asset must never inherit an earlier preview.
   const [previewTarget, setPreviewTarget] = useState<string | null>(null);
   const [failedPreviewTarget, setFailedPreviewTarget] = useState<string | null>(null);
+  const [previewAttempt, setPreviewAttempt] = useState(0);
   const source = asset ? resolveOrganizerMediaPreviewSource(asset.sourceUrl, asset.assetType) : null;
   const previewKey = asset
-    ? [asset.editionId, asset.assetKey, asset.sourceFingerprint ?? 'no-source'].join(':')
+    ? [asset.editionId, asset.assetKey, asset.sourceFingerprint ?? 'no-source', source?.url ?? 'no-url'].join(':')
     : null;
   const previewVisible = Boolean(source?.previewKind && previewKey && previewTarget === previewKey);
   const dismiss = () => {
     setPreviewTarget(null);
     setFailedPreviewTarget(null);
+    setPreviewAttempt(0);
     onClose();
   };
   return (
@@ -461,9 +463,9 @@ function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAsset
             <h3 className="text-sm font-semibold">Canonical source</h3>
             <div className="mt-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
               <div className="flex items-center justify-between gap-3"><span className="text-xs text-muted-foreground">Current state</span><AdminStatus tone={stateTone(asset.state)}>{stateLabel(asset.state)}</AdminStatus></div>
-              <p className="mt-3 break-all text-sm">{asset.sourceUrl ?? 'No source supplied.'}</p>
+              <p className="mt-3 text-sm">{describeOrganizerMediaSource(asset.sourceUrl)}</p>
               {source ? (
-                <a href={source.url} target="_blank" rel="noopener noreferrer" className="admin-action-secondary mt-3 inline-flex">
+                <a href={source.url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" className="admin-action-secondary mt-3 inline-flex">
                   Open source <ExternalLink className="size-4" />
                 </a>
               ) : asset.sourceUrl ? (
@@ -483,17 +485,29 @@ function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAsset
                       className="admin-action-secondary"
                       onClick={() => {
                         setFailedPreviewTarget(null);
+                        setPreviewAttempt(0);
                         setPreviewTarget(previewKey);
                       }}
                     >
                       Load preview from {source.host}
                     </button>
                   ) : failedPreviewTarget === previewKey ? (
-                    <p role="status" className="text-xs text-amber-100">
-                      This source could not be previewed. Check its availability using Open source.
-                    </p>
+                    <div role="status" className="space-y-2 text-xs text-amber-100">
+                      <p>Preview could not be loaded. This source may be unavailable or restricted.</p>
+                      <button
+                        type="button"
+                        className="admin-action-secondary"
+                        onClick={() => {
+                          setFailedPreviewTarget(null);
+                          setPreviewAttempt((previous) => previous + 1);
+                        }}
+                      >
+                        Retry preview
+                      </button>
+                    </div>
                   ) : source.previewKind === 'image' ? (
                     <img
+                      key={`${previewKey}:${previewAttempt}`}
                       src={source.url}
                       alt={`Organizer preview of ${asset.title}`}
                       loading="lazy"
@@ -504,6 +518,7 @@ function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAsset
                     />
                   ) : source.previewKind === 'audio' ? (
                     <audio
+                      key={`${previewKey}:${previewAttempt}`}
                       src={source.url}
                       controls
                       preload="none"
@@ -513,6 +528,7 @@ function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAsset
                     />
                   ) : (
                     <video
+                      key={`${previewKey}:${previewAttempt}`}
                       src={source.url}
                       controls
                       preload="none"
@@ -522,6 +538,19 @@ function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAsset
                       aria-label={`Organizer video preview: ${asset.title}`}
                     />
                   )}
+                  {previewVisible ? (
+                    <button
+                      type="button"
+                      className="admin-action-secondary"
+                      onClick={() => {
+                        setPreviewTarget(null);
+                        setFailedPreviewTarget(null);
+                        setPreviewAttempt(0);
+                      }}
+                    >
+                      Unload preview
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
               {asset.sourceUpdatedAt ? <p className="mt-3 text-xs text-muted-foreground">Canonical entry updated {formatTimestamp(asset.sourceUpdatedAt)}</p> : null}

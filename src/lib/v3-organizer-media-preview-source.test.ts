@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { resolveOrganizerMediaPreviewSource } from "./v3-organizer-media-preview-source";
+import { describeOrganizerMediaSource, resolveOrganizerMediaPreviewSource } from "./v3-organizer-media-preview-source";
 
 describe("Organizer Media Review opt-in external preview", () => {
   it("allows direct image previews only for image asset types", () => {
@@ -62,4 +62,37 @@ describe("Organizer Media Review opt-in external preview", () => {
     expect(route).toContain('rel="noopener noreferrer"');
     expect(route).toContain("setPreviewTarget(null)");
   });
+  it("rejects control characters before URL normalization", () => {
+    for (const url of [
+      "https://cdn.example.test/a\\n@attacker.test/image.jpg",
+      "https://cdn.example.test/a\\t.jpg",
+      "https://cdn.example.test/image.jpg\\r",
+    ]) {
+      expect(resolveOrganizerMediaPreviewSource(url, "artist_photo")).toBeNull();
+    }
+  });
+
+  it("never prints signed source paths, query tokens or fingerprints in Organizer markup", () => {
+    const source = "https://cdn.example.test/private/secret-name/song.mp3?X-Amz-Signature=SECRETVALUE#fragment";
+    expect(describeOrganizerMediaSource(source)).toBe("External source · cdn.example.test");
+    expect(describeOrganizerMediaSource(source)).not.toContain("SECRETVALUE");
+    expect(describeOrganizerMediaSource(source)).not.toContain("secret-name");
+    expect(describeOrganizerMediaSource("https://u:p@example.test/a.mp3")).toBe("Source link requires inspection");
+    const route = readFileSync(resolve(process.cwd(), "src/routes/_authenticated/admin/media-assets.tsx"), "utf8");
+    expect(route).toContain("describeOrganizerMediaSource(item.sourceUrl)");
+    expect(route).toContain("describeOrganizerMediaSource(asset.sourceUrl)");
+    expect(route).not.toContain("{item.sourceFingerprint}</p>");
+    expect(route).not.toContain("{asset.sourceUrl ??");
+    expect(route).not.toContain("{item.sourceUrl ??");
+  });
+
+  it("offers explicit retry and unload, never automatic media playback", () => {
+    const route = readFileSync(resolve(process.cwd(), "src/routes/_authenticated/admin/media-assets.tsx"), "utf8");
+    expect(route).toContain("setPreviewAttempt((previous) => previous + 1)");
+    expect(route).toContain("Retry preview");
+    expect(route).toContain("Unload preview");
+    expect(route).toContain('preload="none"');
+    expect(route).not.toContain("autoPlay");
+  });
+
 });
