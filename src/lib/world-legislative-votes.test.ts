@@ -138,9 +138,9 @@ describe("WORLD-05 TG8 canonical voting consumer",()=>{
       "supabase/migrations/20261107130200_v3_tg8_legislative_vote_projections.sql"),"utf8");
     const service=readFileSync(resolve(process.cwd(),"src/lib/world-legislative-votes.ts"),"utf8");
     expect(schema).toContain("terra_world_legislative_voting',false");
-    expect(schema).toContain("create table private.world_legislative_ballots");
-    expect(schema).toContain("before update or delete on private.world_legislative_ballots");
-    expect(schema).toContain("revoke all on private.world_legislative_ballots");
+    expect(schema).toContain("create table private.world_ballots");
+    expect(schema).toContain("before update or delete on private.world_ballots");
+    expect(schema).toContain("revoke all on private.world_ballots");
     expect(mutations).toContain("private.world_legislative_tally_v1(");
     expect(mutations).toContain("world_vote_cast_authorized_v1");
     expect(mutations).toContain("p_country_id uuid");
@@ -150,7 +150,7 @@ describe("WORLD-05 TG8 canonical voting consumer",()=>{
     expect(projections).toContain("vote.rule_snapshot->>'publicationMode'<>'withheld'");
     expect(projections).toContain("vote.rule_snapshot->>'ballotType'='recorded_roll_call'");
     expect(projections).toContain("private.world_vote_cast_authorized_v1");
-    expect(service).not.toMatch(/\.from\(["'](?:world_votes|world_vote_results|world_vote_electorate|world_legislative_ballots)["']\)/);
+    expect(service).not.toMatch(/\.from\(["'](?:world_votes|world_vote_results|world_vote_eligibility|world_ballots)["']\)/);
     for(const path of [
       "src/routes/world/votes/index.tsx","src/routes/world/votes/new.tsx",
       "src/routes/world/votes/$voteId/index.tsx","src/routes/world/votes/$voteId/manage.tsx",
