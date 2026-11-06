@@ -1,7 +1,7 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle2, Clock3, ShieldCheck } from "lucide-react";
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { useMyCountryAccount } from "@/lib/country-account";
@@ -82,12 +82,19 @@ function GuardMembershipApplicationPage() {
   const account = useMyCountryAccount();
   const queryClient = useQueryClient();
   const countryId = account.data?.access.countryId ?? null;
+  const userId = account.data?.access.userId ?? null;
+  const actorScope = userId && countryId ? userId + ":" + countryId : null;
+  const activeActorRef = useRef(actorScope);
+  activeActorRef.current = actorScope;
   const isActiveController = account.data?.access.countryStatus === "active";
   const intake = useQuery({
-    queryKey: ["world", "guard", "membership-intake", countryId],
+    queryKey: ["world", "guard", "membership-intake", userId, countryId],
     queryFn: () => loadGuardIntake(countryId!),
-    enabled: Boolean(countryId && isActiveController),
-    staleTime: 60_000,
+    enabled: Boolean(userId && countryId && isActiveController),
+    // A country controller can lose authority between views; never cache a
+    // previous actor's private request status through a session transition.
+    staleTime: 0,
+    gcTime: 0,
     retry: 1,
   });
   const [fields, setFields] = useState<GuardApplicationFields>({ ...EMPTY_GUARD_APPLICATION });
@@ -101,29 +108,62 @@ function GuardMembershipApplicationPage() {
   } | null>(null);
   const [withdrawReviewId, setWithdrawReviewId] = useState<string | null>(null);
   const withdraw = useMutation({
-    mutationFn: withdrawGuardApplication,
-    onSuccess: async () => {
+    mutationFn: (input: {
+      actorScope: string;
+      countryId: string;
+      organizationId: string;
+      applicationId: string;
+      revision: number;
+      operation: GuardIntakeOperation;
+    }) => withdrawGuardApplication({
+      countryId: input.countryId,
+      organizationId: input.organizationId,
+      applicationId: input.applicationId,
+      revision: input.revision,
+      operation: input.operation,
+    }),
+    onSuccess: async (_result, variables) => {
+      if (variables.actorScope !== activeActorRef.current) return;
       withdrawRef.current = null;
       setWithdrawReviewId(null);
       setConfirmation(null);
       await queryClient.invalidateQueries({
-        queryKey: ["world", "guard", "membership-intake", countryId],
+        queryKey: ["world", "guard", "membership-intake", userId, countryId],
       });
     },
   });
   const submit = useMutation({
-    mutationFn: async (input: {
+    mutationFn: (input: {
+      actorScope: string;
       fields: GuardApplicationFields;
       operation: GuardIntakeOperation;
       organizationId: string;
       countryId: string;
-    }) => submitGuardApplication(input),
-    onSuccess: async (result) => {
+    }) => submitGuardApplication({
+      fields: input.fields,
+      operation: input.operation,
+      organizationId: input.organizationId,
+      countryId: input.countryId,
+    }),
+    onSuccess: async (result, variables) => {
+      if (variables.actorScope !== activeActorRef.current) return;
       setConfirmation({ applicationId: result.applicationId, operationId: result.operationId });
       requestRef.current = null;
-      await queryClient.invalidateQueries({ queryKey: ["world", "guard", "membership-intake", countryId] });
+      await queryClient.invalidateQueries({
+        queryKey: ["world", "guard", "membership-intake", userId, countryId],
+      });
     },
   });
+  useEffect(() => {
+    // Reset uncertain operation identities and private draft state whenever
+    // the authenticated actor or controlled country changes.
+    requestRef.current = null;
+    withdrawRef.current = null;
+    setFields({ ...EMPTY_GUARD_APPLICATION });
+    setErrors({});
+    setConfirmation(null);
+    setWithdrawReviewId(null);
+  }, [actorScope]);
   const pendingApplication = intake.data?.applications.find((application) =>
     ["submitted", "under_review", "introduced", "approved"].includes(application.status),
   ) ?? null;
@@ -134,7 +174,7 @@ function GuardMembershipApplicationPage() {
   );
 
   function onWithdrawApplication(applicationId: string, revision: number) {
-    if (!countryId || !intake.data || withdraw.isPending ||
+    if (!actorScope || !countryId || !intake.data || withdraw.isPending ||
       !pendingApplication || pendingApplication.id !== applicationId ||
       pendingApplication.revision !== revision ||
       !["submitted", "under_review"].includes(pendingApplication.status)) return;
@@ -144,6 +184,7 @@ function GuardMembershipApplicationPage() {
       ? previous.operation : newGuardWithdrawalOperation();
     withdrawRef.current = { applicationId, revision, operation };
     withdraw.mutate({
+      actorScope,
       countryId,
       organizationId: intake.data.organizationId,
       applicationId,
@@ -161,7 +202,7 @@ function GuardMembershipApplicationPage() {
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canSubmit || !intake.data || !countryId) return;
+    if (!canSubmit || !intake.data || !countryId || !actorScope) return;
     const normalized = normalizeGuardApplication(fields);
     const nextErrors = validateGuardApplication(normalized);
     setErrors(nextErrors);
@@ -174,6 +215,7 @@ function GuardMembershipApplicationPage() {
     requestRef.current = { fields: normalized, operation };
     setConfirmation(null);
     submit.mutate({
+      actorScope,
       fields: normalized,
       operation,
       organizationId: intake.data.organizationId,
