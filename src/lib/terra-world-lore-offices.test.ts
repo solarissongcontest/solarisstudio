@@ -116,10 +116,10 @@ describe("TG16 fictional people, offices and historical terms",()=>{
     expect(functionBody).toContain("limit 21 offset p_page*20");
     expect(functionBody).toContain("count(*) > 20");
     expect(functionBody).toContain("filter (where n.rn <= 20)");
-    expect(functionBody.match(/\\$history\\$/g)).toHaveLength(2);
+    expect(functionBody.split("$history$").length - 1).toBe(2);
     expect(functionBody).not.toContain("do $contract$");
     expect(functionBody).not.toContain("notify pgrst");
-    expect(SQL.match(/do \\$contract\\$/g)).toHaveLength(1);
+    expect(SQL.split("do $contract$").length - 1).toBe(1);
   });
   it("derives published office appointments and conclusions into TG17 without editorial duplicates",()=>{
     expect(SQL).toContain("create or replace function public.world_history_timeline_v1");
