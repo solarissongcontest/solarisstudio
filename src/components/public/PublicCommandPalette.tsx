@@ -248,12 +248,12 @@ function usePublicationSafeRecents() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("editions")
-        .select("slug,published")
+        .select("slug,published,name")
         .in("slug", editionSlugs);
       if (error) throw error;
       return (data ?? [])
-        .filter((edition) => edition.published === true)
-        .map((edition) => edition.slug);
+        .filter((edition) => edition.published === true && Boolean(edition.name?.trim()))
+        .map((edition) => ({ slug: edition.slug, label: edition.name }));
     },
   });
   const storyVisibility = useQuery({
@@ -272,8 +272,9 @@ function usePublicationSafeRecents() {
       );
       return checked.flatMap((result, index) =>
         result.status === "fulfilled" &&
-        result.value?.editionSlug === storySlugs[index]
-          ? [storySlugs[index]]
+        result.value?.editionSlug === storySlugs[index] &&
+        Boolean(result.value?.title?.trim())
+          ? [{ slug: storySlugs[index], label: result.value.title }]
           : [],
       );
     },
@@ -286,13 +287,13 @@ function usePublicationSafeRecents() {
       !showVisibility.isFetching
         ? showVisibility.data
         : [];
-    const allowedEditionSlugs =
+    const allowedEditionLabels =
       editionVisibility.isSuccess &&
       editionVisibility.isFetchedAfterMount &&
       !editionVisibility.isFetching
         ? editionVisibility.data
         : [];
-    const allowedStorySlugs =
+    const allowedStoryLabels =
       storyVisibility.isSuccess &&
       storyVisibility.isFetchedAfterMount &&
       !storyVisibility.isFetching
@@ -301,8 +302,8 @@ function usePublicationSafeRecents() {
     return visiblePublicationVerifiedRecents(
       visibleRecentShowDestinations(recents, allowedShows),
       {
-        publishedEditionSlugs: new Set(allowedEditionSlugs),
-        publishedStorySlugs: new Set(allowedStorySlugs),
+        publishedEditionLabels: new Map(allowedEditionLabels.map((row) => [row.slug, row.label])),
+        publishedStoryLabels: new Map(allowedStoryLabels.map((row) => [row.slug, row.label])),
       },
     );
   }, [
