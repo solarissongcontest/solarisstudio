@@ -12,7 +12,7 @@ import {
   Users,
   Vote,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { CountryPicker } from "@/components/CountryPicker";
@@ -266,6 +266,19 @@ function JuryWorkspace() {
     useState<PendingBallotReview | null>(null);
   const [pendingDnvChange, setPendingDnvChange] = useState<PendingDnvChange | null>(null);
   const [lifecycleReason, setLifecycleReason] = useState("");
+
+  // Never revive a prepared destructive review after its canonical evidence
+  // became unavailable and then recovered, even within the same show.
+  useEffect(() => {
+    if (!loadingVoters && !loadingVotes && !loadingStatuses && !loadingSubmittedBallots &&
+        !votersError && !votesError && !statusesError && !submissionsError) return;
+    setPendingBallotReview(null);
+    setPendingDnvChange(null);
+    setDeleteTarget(null);
+    setEditDraft(null);
+    setAddOpen(false);
+    setLifecycleReason("");
+  }, [loadingVoters, loadingVotes, loadingStatuses, loadingSubmittedBallots, votersError, votesError, statusesError, submissionsError]);
 
   const neededPerBallot = voting.juryPoints.length;
   const ballotCounts = useMemo(() => {
