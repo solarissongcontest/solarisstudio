@@ -1,7 +1,8 @@
-import { useRef, useState, type FormEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ClipboardCheck, ShieldCheck } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   getMyWorldControlledCountry, listWorldMeasureCategories, listWorldMeasureOrganizations,
   submitWorldMeasure, validateWorldMeasureSubmit,
@@ -34,13 +35,20 @@ function definitive(error: unknown): boolean {
 }
 
 export function WorldMeasureSubmitPage() {
+  const cache = useQueryClient();
+  const [actorId, setActorId] = useState<string | null>(null);
+  const [actorReady, setActorReady] = useState(false);
+  const actorRef = useRef<string | null>(null);
+  const authRevision = useRef(0);
   const organizations = useQuery({
     queryKey: ["world", "measures", "form-organizations"],
     queryFn: listWorldMeasureOrganizations, retry: false,
   });
   const country = useQuery({
-    queryKey: ["world", "measures", "current-controlled-country"],
-    queryFn: getMyWorldControlledCountry, retry: false, staleTime: 0,
+    queryKey: ["world", "measures", "current-controlled-country", actorId],
+    queryFn: getMyWorldControlledCountry,
+    enabled: actorReady && Boolean(actorId),
+    retry: false, staleTime: 0, gcTime: 0, refetchOnMount: "always",
   });
   const [organizationId, setOrganizationId] = useState("");
   const [organId, setOrganId] = useState("");
@@ -66,9 +74,42 @@ export function WorldMeasureSubmitPage() {
   const [receipt, setReceipt] = useState<WorldMeasureReceipt | null>(null);
   const locked = busy || Boolean(prepared.current) || Boolean(review) || Boolean(receipt);
 
+  // Country control is user-scoped. A cached country from another account must
+  // never appear in an official submission form or survive sign-out.
+  useEffect(() => {
+    let live = true;
+    let version = 0;
+    const apply = (id: string | null) => {
+      if (!live) return;
+      if (actorRef.current !== id) {
+        actorRef.current = id;
+        ++authRevision.current;
+        cache.removeQueries({ queryKey: ["world", "measures", "current-controlled-country"] });
+        prepared.current = null;
+        setReview(null);
+        setReceipt(null);
+        setProblem(null);
+        setBusy(false);
+        setTitle("");
+        setFullText("");
+        setSummary("");
+      }
+      setActorId(id);
+      setActorReady(true);
+    };
+    void supabase.auth.getUser().then(({ data, error }) => {
+      if (version === 0) apply(error ? null : data.user?.id ?? null);
+    }).catch(() => { if (version === 0) apply(null); });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      ++version;
+      apply(session?.user.id ?? null);
+    });
+    return () => { live = false; subscription.unsubscribe(); };
+  }, [cache]);
+
   function prepare(event: FormEvent) {
     event.preventDefault();
-    if (prepared.current || review || busy || receipt || !organization || !organ ||
+    if (!actorReady || !actorId || prepared.current || review || busy || receipt || !organization || !organ ||
         !country.data || !categories.data || categories.isError) {
       setProblem("Your country, institution and active categories must be verified before submission.");
       return;
@@ -84,19 +125,26 @@ export function WorldMeasureSubmitPage() {
     setReview(action);
   }
   async function execute(action: WorldMeasureSubmitInput) {
-    if (busy || receipt) return;
+    if (busy || receipt || !actorReady || !actorId) return;
+    const submittingActor = actorId;
+    const submittingRevision = authRevision.current;
     prepared.current = action;
     setBusy(true);
     setProblem(null);
     try {
-      setReceipt(await submitWorldMeasure(action));
+      const result = await submitWorldMeasure(action);
+      if (authRevision.current !== submittingRevision || actorRef.current !== submittingActor) return;
+      setReceipt(result);
       setReview(null);
       prepared.current = null;
     } catch (error) {
+      if (authRevision.current !== submittingRevision || actorRef.current !== submittingActor) return;
       setReview(null);
       setProblem(errorMessage(error));
       if (definitive(error)) prepared.current = null;
-    } finally { setBusy(false); }
+    } finally {
+      if (authRevision.current === submittingRevision) setBusy(false);
+    }
   }
 
   return <main className="mx-auto w-full max-w-3xl px-4 pb-28 pt-5 sm:px-6 sm:pt-9">
@@ -112,7 +160,9 @@ export function WorldMeasureSubmitPage() {
       proposal, or parliamentary vote until the institution formally registers it.
       The server verifies current country control and membership before accepting it.
     </p>
-    {country.isPending ? <p role="status" className="mt-5">Verifying your currently controlled country…</p> :
+    {!actorReady ? <p role="status" className="mt-5">Verifying the signed-in account…</p> :
+      !actorId ? <p role="status" className="mt-5 rounded-xl border p-5 text-sm">Sign in to submit an official measure.</p> :
+      country.isPending ? <p role="status" className="mt-5">Verifying your currently controlled country…</p> :
       country.isError ? <p role="alert" className="mt-5 text-sm">Country authority could not be verified.
         <button type="button" className="ml-2 underline" onClick={() => void country.refetch()}>Retry</button>
       </p> : !country.data ? <p role="status" className="mt-5 rounded-xl border p-5 text-sm">
@@ -166,7 +216,7 @@ export function WorldMeasureSubmitPage() {
     </section> : null}
     <form onSubmit={prepare} className="mt-8 space-y-5">
       <label className="block text-sm font-medium">Institution
-        <select value={organization?.id ?? ""} disabled={locked || organizations.isPending || !country.data}
+        <select value={organization?.id ?? ""} disabled={locked || organizations.isPending || !actorReady || !actorId || !country.data}
           onChange={(e) => { setOrganizationId(e.target.value); setOrganId(""); setCategory(""); }}
           className="mt-2 min-h-11 w-full rounded-lg border bg-background px-3">
           {(organizations.data ?? []).map((o) => <option key={o.id} value={o.id}>{o.shortName}</option>)}
@@ -216,7 +266,7 @@ export function WorldMeasureSubmitPage() {
           maxLength={25000} rows={13} required disabled={locked || !country.data}
           className="mt-2 w-full rounded-lg border bg-background p-3" />
       </label>
-      <button type="submit" disabled={locked || !organization || !organ || !country.data ||
+      <button type="submit" disabled={locked || !actorReady || !actorId || !organization || !organ || !country.data ||
           categories.isPending || categories.isError}
         className="min-h-11 rounded-lg bg-primary px-6 text-sm font-semibold text-primary-foreground disabled:opacity-50">
         Review submission
