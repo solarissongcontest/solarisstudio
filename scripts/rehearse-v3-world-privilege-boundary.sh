@@ -9,34 +9,50 @@ command -v supabase >/dev/null 2>&1 || fail "Supabase CLI unavailable; refusing 
 command -v psql >/dev/null 2>&1 || fail "psql unavailable; refusing hosted fallback"
 command -v node >/dev/null 2>&1 || fail "Node unavailable for strict URL verification"
 
-# Never trust URLs inherited from a production shell if local Supabase omits them.
-unset API_URL DB_URL
+# Read the CLI report strictly as inert data. Never eval shell-syntax emitted by
+# local tooling: additional keys or a malformed URL must not execute commands.
 status_env="$(supabase status -o env)" || fail "A local Supabase stack is not running"
-eval "$status_env"
-[[ -n "${API_URL:-}" && -n "${DB_URL:-}" ]] || fail "Local Supabase status did not return both API_URL and DB_URL"
-
-node --input-type=module - "$API_URL" "$DB_URL" <<'NODE' || fail "Supabase API/database targets are not unambiguously loopback-only"
-import { URL } from 'node:url';
-const [apiRaw, dbRaw] = process.argv.slice(2);
-const localHosts = new Set(['localhost', '127.0.0.1', '[::1]']);
-function verify(raw, allowedProtocols, label) {
-  let url;
-  try { url = new URL(raw); } catch { throw new Error(label + ' is not a URL'); }
-  if (!allowedProtocols.has(url.protocol)) throw new Error(label + ' uses unsupported protocol');
-  if (!localHosts.has(url.hostname.toLowerCase()) || !url.port) {
-    throw new Error(label + ' must use an explicit-port loopback host');
+verified_urls="$(node --input-type=module -e '
+import { readFileSync } from "node:fs";
+const lines = readFileSync(0, "utf8").split(/\r?\n/);
+const values = new Map();
+for (const line of lines) {
+  const pair = /^([A-Z][A-Z0-9_]*)=(.*)$/.exec(line);
+  if (!pair || !["API_URL", "DB_URL"].includes(pair[1])) continue;
+  const key = pair[1];
+  if (values.has(key)) throw new Error("Duplicate " + key + " in local Supabase status");
+  let value = pair[2].trim();
+  const quote = value[0];
+  if (quote === "\"" || quote?.charCodeAt(0) === 39) {
+    if (value.at(-1) !== quote) throw new Error("Malformed quoted " + key);
+    value = value.slice(1, -1);
   }
-  for (const [key] of url.searchParams) {
-    if (['host', 'hostaddr', 'service', 'servicefile'].includes(key.toLowerCase())) {
-      throw new Error(label + ' contains a libpq authority override');
-    }
-  }
-  return url;
+  if (/[\x00-\x1f\x7f]/.test(value)) throw new Error("Control character in " + key);
+  values.set(key, value);
 }
-const api = verify(apiRaw, new Set(['http:']), 'API_URL');
-if (api.username || api.password) throw new Error('API_URL cannot contain credentials');
-verify(dbRaw, new Set(['postgres:', 'postgresql:']), 'DB_URL');
-NODE
+const localHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
+function verify(key, protocols) {
+  const raw = values.get(key);
+  if (!raw) throw new Error("Missing " + key + " in local Supabase status");
+  let url;
+  try { url = new URL(raw); } catch { throw new Error(key + " is not a valid URL"); }
+  if (!protocols.includes(url.protocol) || !localHosts.has(url.hostname.toLowerCase()) || !url.port) {
+    throw new Error(key + " must have an exact loopback host and explicit port");
+  }
+  // In particular, libpq can redirect hosts through URI query parameters.
+  if (url.search || url.hash) throw new Error(key + " has unexpected URL options");
+  if (key === "API_URL" && (url.username || url.password || (url.pathname !== "/" && url.pathname !== ""))) {
+    throw new Error("API_URL must be the bare local Supabase API origin");
+  }
+  return raw;
+}
+const api = verify("API_URL", ["http:"]);
+const db = verify("DB_URL", ["postgres:", "postgresql:"]);
+process.stdout.write(api + "\n" + db + "\n");
+' <<<"$status_env")" || fail "Supabase status API/database targets are not unambiguously loopback-only"
+mapfile -t urls <<< "$verified_urls"
+[[ "${#urls[@]}" -eq 2 && -n "${urls[0]}" && -n "${urls[1]}" ]] || fail "Local Supabase returned an invalid target pair"
+DB_URL="${urls[1]}"
 
 # libpq environment variables can override a URL host (especially PGHOSTADDR).
 # Refuse inherited client authority and use only the verified explicit DB_URL.
