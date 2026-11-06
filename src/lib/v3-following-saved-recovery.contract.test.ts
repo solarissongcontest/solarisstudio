@@ -71,7 +71,7 @@ describe("V3 Following & Saved read and mutation recovery", () => {
 
   it("never shows an old account's delayed mutation message to a different viewer", () => {
     const source = screen();
-    expect(source).toContain('useEffect(() => {\n    setMessage(null);\n  }, [viewerId])');
+    expect(source).toContain('useEffect(() => {\n    setMessage(null);\n    setSearch("");\n  }, [viewerId]);');
     expect(source).toContain("setMessage({ viewerId, text: following ?");
     expect(source).toContain("setMessage({ viewerId, text: \"Update not confirmed.");
     expect(source).toContain("message?.viewerId === viewerId");
