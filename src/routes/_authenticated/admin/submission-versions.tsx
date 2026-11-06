@@ -8,9 +8,6 @@ import { ConfirmationVersionHistory } from '@/components/admin/ConfirmationVersi
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
 import { confirmationsSupabase } from '@/integrations/confirmations/client';
-import { isConfirmationDetailInOrganizerScope } from '@/lib/confirmation-detail-edition-guard';
-import { loadAllConfirmationResponsesForEdition } from '@/integrations/confirmations/v3-projections';
-import { loadConfirmationVersionSummariesForEdition } from '@/integrations/confirmations/v3-version-summary';
 import type { SubmissionSnapshot } from '@/lib/submission-versioning';
 
 export const Route = createFileRoute('/_authenticated/admin/submission-versions')({
@@ -49,6 +46,12 @@ type ResponseRow = {
   submission_rounds: { id: string; name: string; edition_id: string } | null;
 };
 
+type VersionSummaryRow = {
+  submission_id: string;
+  version_count: number;
+  latest_created_at: string | null;
+};
+
 type VersionedResponseRow = ResponseRow & {
   versionCount: number;
   latestVersionAt: string | null;
@@ -56,7 +59,6 @@ type VersionedResponseRow = ResponseRow & {
 
 type ResponseDetail = {
   id: string;
-  edition: { id: string } | null;
   participating: boolean;
   selection_method: string | null;
   entry_unknown: boolean;
@@ -81,40 +83,42 @@ type ResponseDetail = {
 };
 
 async function loadResponses(editionId: string): Promise<VersionedResponseRow[]> {
-  // Both queries are server-scoped. The summary RPC validates the exact
-  // edition and every submission id before returning even aggregate metadata.
-  const batch = await loadAllConfirmationResponsesForEdition<ResponseRow>(editionId);
-  const summaries = await loadConfirmationVersionSummariesForEdition(
-    editionId,
-    batch.rows.map((row) => row.id),
+  const [responsesResult, summaryResult] = await Promise.all([
+    confirmationsSupabase.rpc('admin_confirmation_responses'),
+    confirmationsSupabase.rpc('admin_confirmation_version_summary'),
+  ]);
+
+  if (responsesResult.error) throw responsesResult.error;
+  if (summaryResult.error) throw summaryResult.error;
+
+  const responses = Array.isArray(responsesResult.data)
+    ? responsesResult.data as unknown as ResponseRow[]
+    : [];
+  const summaries = Array.isArray(summaryResult.data)
+    ? summaryResult.data as unknown as VersionSummaryRow[]
+    : [];
+  const bySubmission = new Map(
+    summaries.map((item) => [item.submission_id, item] as const),
   );
 
-  return batch.rows.map((row) => {
-    const summary = summaries.get(row.id);
-    return {
-      ...row,
-      versionCount: summary?.version_count ?? 0,
-      latestVersionAt: summary?.latest_created_at ?? null,
-    };
-  });
+  return responses
+    .filter((row) => row.editions?.id === editionId)
+    .map((row) => {
+      const summary = bySubmission.get(row.id);
+      return {
+        ...row,
+        versionCount: Number(summary?.version_count ?? 0),
+        latestVersionAt: summary?.latest_created_at ?? null,
+      };
+    });
 }
 
-async function loadResponse(id: string, editionId: string): Promise<ResponseDetail> {
-  if (!editionId || !id) {
-    throw new Error('Submission History requires an exact Organizer edition and response.');
-  }
-  const { data, error } = await confirmationsSupabase.rpc('admin_confirmation_response_for_edition', {
-    _edition_id: editionId,
+async function loadResponse(id: string): Promise<ResponseDetail> {
+  const { data, error } = await confirmationsSupabase.rpc('admin_confirmation_response', {
     _submission_id: id,
   });
   if (error) throw error;
-  const detail = data as unknown as ResponseDetail | null;
-  if (!isConfirmationDetailInOrganizerScope(detail, id, editionId)) {
-    throw new Error(
-      'The Confirmation detail did not match the selected Organizer edition. History was not opened.',
-    );
-  }
-  return detail;
+  return data as unknown as ResponseDetail;
 }
 
 function currentSnapshot(detail: ResponseDetail): SubmissionSnapshot {
@@ -192,7 +196,7 @@ function SubmissionVersionsPage() {
   const detailQuery = useQuery({
     queryKey: ['confirmation-response-version-current', editionId ?? 'unscoped', activeId],
     enabled: Boolean(editionId && activeId),
-    queryFn: () => loadResponse(activeId, editionId),
+    queryFn: () => loadResponse(activeId),
   });
 
   const restoreScopeLabel = selected

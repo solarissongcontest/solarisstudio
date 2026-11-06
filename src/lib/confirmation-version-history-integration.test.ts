@@ -21,11 +21,7 @@ describe('confirmation version history integration', () => {
   });
 
   it('uses organizer bridge RPCs instead of direct legacy table access', () => {
-    expect(route).toContain("loadConfirmationVersionSummariesForEdition");
-    const versionSummary = source("src/integrations/confirmations/v3-version-summary.ts");
-    expect(versionSummary).toContain('"admin_confirmation_version_summary_v2"');
-    expect(versionSummary).toContain("p_edition_id: editionId");
-    expect(versionSummary).not.toContain('"admin_confirmation_version_summary"');
+    expect(route).toContain("admin_confirmation_version_summary");
     expect(history).toContain("admin_confirmation_versions");
     expect(history).toContain("admin_restore_confirmation_version");
     expect(history).not.toContain(".from('submission_versions')");
