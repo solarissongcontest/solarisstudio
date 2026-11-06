@@ -240,7 +240,7 @@ function ControlRoomV2() {
     transition: NonNullable<ReturnType<typeof getEditionTransition>>,
     approvalRequestId?: string | null,
   ) => {
-    if (!snapshot || !editionId) return;
+    if (!snapshot || !editionId || snapshot.editionId !== editionId) return;
     const reviewedApproval = approvalRequestId
       ? approvals.find((approval) => approval.id === approvalRequestId) ?? null
       : null;
@@ -251,7 +251,7 @@ function ControlRoomV2() {
     setReviewError(null);
     setPendingReview({
       kind: 'edition-transition',
-      editionId,
+      editionId: snapshot.editionId,
       editionLabel: selectedEdition?.name ?? editionId,
       from: transition.from,
       to: transition.to,
@@ -264,11 +264,11 @@ function ControlRoomV2() {
   };
 
   const openApprovalReview = (approval: (typeof approvals)[number]) => {
-    if (!snapshot || !editionId) return;
+    if (!snapshot || !editionId || snapshot.editionId !== editionId) return;
     setReviewError(null);
     setPendingReview({
       kind: 'approve-transition',
-      editionId,
+      editionId: snapshot.editionId,
       editionLabel: selectedEdition?.name ?? editionId,
       requestId: approval.id,
       from: approval.from,
@@ -283,11 +283,11 @@ function ControlRoomV2() {
     incident: Studio2ControlRoomSnapshot['incidents'][number],
     to: IncidentStatus,
   ) => {
-    if (!editionId) return;
+    if (!snapshot || !editionId || snapshot.editionId !== editionId) return;
     setReviewError(null);
     setPendingReview({
       kind: 'incident-transition',
-      editionId,
+      editionId: snapshot.editionId,
       editionLabel: selectedEdition?.name ?? editionId,
       incidentId: incident.id,
       title: incident.title,
