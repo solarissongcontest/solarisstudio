@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, Scale, ShieldAlert, Users } from "lucide-r
 import { useMemo, useState } from "react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { AdminDataView, type AdminDataColumn } from "@/components/admin/AdminDataView";
 import { AdminCard, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { getJuryIntegrityCases } from "@/integrations/jury-voting/jury-integrity-admin.functions";
@@ -22,12 +23,14 @@ export const Route = createFileRoute("/_authenticated/admin/jury-integrity")({
 
 function JuryIntegrityPage() {
   const { editionId } = useAdminContext();
+  const actorId = useAuthenticatedUser().id;
   const loadCases = useServerFn(getJuryIntegrityCases);
   const [minimumRisk, setMinimumRisk] = useState(0);
   const [search, setSearch] = useState("");
 
   const query = useQuery({
-    queryKey: ["jury-integrity-v5", editionId ?? "unscoped"],
+    // Never reuse producer-only ballot evidence across authenticated identities.
+    queryKey: ["jury-integrity-v5", actorId, editionId ?? "unscoped"],
     enabled: Boolean(editionId),
     queryFn: async () => {
       if (!editionId) throw new Error("Jury Integrity requires an explicit Organizer edition scope");
@@ -39,6 +42,8 @@ function JuryIntegrityPage() {
       return result;
     },
     staleTime: 30_000,
+    // Confidential evidence is dropped when this actor/edition query is unused.
+    gcTime: 0,
     // Private model evidence is expensive and can be permission-denied.
     // Never repeat protected reads automatically on focus/reconnect/failure.
     retry: false,
