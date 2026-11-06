@@ -64,4 +64,25 @@ describe("V3 local-only verification: ambient libpq connection routing", () => {
     expect(() => assertV3ProductionIsolation({ PGHOSTADDR: "db.production.example" }))
       .toThrow(/PGHOSTADDR is not an explicit loopback PostgreSQL host/);
   });
+
+  it("rejects noncanonical URL protocols even when they name localhost", () => {
+    for (const environment of [
+      { API_URL: "ftp://localhost:54321/data" },
+      { DB_URL: "ftp://localhost:54322/postgres" },
+      { DB_URL: "http://localhost:54322/postgres" },
+      { API_URL: "postgresql://localhost:54321/postgres" },
+    ]) {
+      expect(() => assertV3ProductionIsolation(environment))
+        .toThrow(/uses an unsupported URL protocol/);
+    }
+  });
+
+  it("accepts normal local API and PostgreSQL protocols", () => {
+    for (const API_URL of ["http://localhost:54321", "https://localhost:54321"]) {
+      expect(assertV3ProductionIsolation({ API_URL }).loopbackOnly).toBe(true);
+    }
+    for (const DB_URL of ["postgres://localhost:54322/postgres", "postgresql://localhost:54322/postgres"]) {
+      expect(assertV3ProductionIsolation({ DB_URL }).loopbackOnly).toBe(true);
+    }
+  });
 });
