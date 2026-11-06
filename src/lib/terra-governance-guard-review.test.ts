@@ -7,6 +7,9 @@ import {
   nextGuardReviewPhase,
   parseGuardReviewInbox,
   parseGuardReviewReceipt,
+  parseGuardExternalIntakeReceipt,
+  parseGuardReviewCountries,
+  validateGuardExternalIntake,
 } from "./terra-governance-guard-review";
 
 const migration = readFileSync(
@@ -15,6 +18,10 @@ const migration = readFileSync(
 );
 const route = readFileSync(
   resolve(process.cwd(), "src/routes/_authenticated/world/membership/review.tsx"),
+  "utf8",
+);
+const externalForm = readFileSync(
+  resolve(process.cwd(), "src/components/world/GuardExternalApplicationForm.tsx"),
   "utf8",
 );
 
@@ -34,6 +41,8 @@ const application = {
   motivation: "Our country seeks to cooperate internationally.",
   contributions: "We offer logistical and technical support.",
   commitment: "We undertake to respect all GUARD international obligations.",
+  intakeSource: "solaris",
+  sourceReference: null,
   status: "submitted",
   submittedAt: timestamp,
   revision: 1,
@@ -95,6 +104,72 @@ describe("WORLD-03 TG5B GUARD application review", () => {
     expect(migration).not.toMatch(/insert into public\.world_organization_memberships/i);
     expect(migration).not.toMatch(/update public\.world_organization_memberships/i);
     expect(migration).not.toMatch(/insert into public\.world_organization_representations/i);
+  });
+
+
+  it("preserves private external provenance without impersonating a country controller", () => {
+    expect(migration).toContain("add column intake_source text not null default 'solaris'");
+    expect(migration).toContain("registered_by_user_id uuid references auth.users(id)");
+    expect(migration).toContain("add constraint world_membership_application_external_provenance_check");
+    expect(migration).toContain("submitted_by is null");
+    expect(migration).toContain("create or replace function public.world_register_external_guard_application_v1(");
+    expect(migration).toContain("'world.membership.application.registered_external'");
+    expect(migration).toContain("'world.membership.introduce',p_organization_id,null");
+    expect(migration).toContain("'world.membership.review',p_organization_id,null");
+    expect(migration).toContain("revoke all on function public.world_register_external_guard_application_v1(");
+    expect(migration).not.toMatch(/grant (insert|update|delete) on public\.world_membership_applications to authenticated/i);
+    expect(() => parseGuardReviewInbox({
+      ...inbox,
+      items: [{ ...application, intakeSource: "external", sourceReference: "external message 2026-11-07" }],
+    }, "submitted")).not.toThrow();
+    expect(() => parseGuardReviewInbox({
+      ...inbox,
+      items: [{ ...application, intakeSource: "external", sourceReference: null }],
+    }, "submitted")).toThrow();
+    expect(() => parseGuardReviewInbox({
+      ...inbox,
+      items: [{ ...application, intakeSource: "made-up-source" }],
+    }, "submitted")).toThrow();
+  });
+
+  it("requires verified country selection, full canonical application fields and exact external receipt", () => {
+    const countries = [{ id: countryId, name: "Example", short_code: "EX" }];
+    expect(parseGuardReviewCountries(countries)).toEqual(countries);
+    expect(() => parseGuardReviewCountries(Array(201).fill(countries[0]))).toThrow();
+    expect(() => parseGuardReviewCountries([countries[0], countries[0]])).toThrow();
+    expect(validateGuardExternalIntake({
+      officialDesignation: "Republic of Example",
+      governmentSystem: "Democratic republic",
+      motivation: "Seeking to join GUARD to support peace.",
+      contributions: "Technical and logistical support.",
+      commitment: "We pledge to follow all GUARD obligations.",
+    }, "private message received Nov 7")).toEqual({});
+    expect(validateGuardExternalIntake({
+      officialDesignation: "",
+      governmentSystem: "",
+      motivation: "",
+      contributions: "",
+      commitment: "",
+    }, "short").sourceReference).toContain("8 and 500");
+    const expected = { organizationId: orgId, countryId, operationId: opId };
+    const data = {
+      status: "succeeded", operationId: opId,
+      result: {
+        ok: true, applicationId: appId, organizationId: orgId,
+        countryId, status: "submitted", intakeSource: "external", operationId: opId,
+      },
+    };
+    expect(parseGuardExternalIntakeReceipt(data, expected).applicationId).toBe(appId);
+    expect(() => parseGuardExternalIntakeReceipt({
+      ...data, result: { ...data.result, intakeSource: "solaris" },
+    }, expected)).toThrow();
+    expect(externalForm).toContain("loadGuardReviewCountries");
+    expect(externalForm).toContain("registerExternalGuardApplication");
+    expect(externalForm).toContain("Review registration");
+    expect(externalForm).toContain("Confirm official registration");
+    expect(externalForm).toContain('key: "commitment"');
+    expect(route).toContain("<GuardExternalApplicationForm");
+    expect(route).toContain('application.intakeSource === "external"');
   });
 
   it("rejects incomplete, scope-mismatched, stale or non-succeeded receipts", () => {
