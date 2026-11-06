@@ -29,6 +29,8 @@ describe("Public Results analysis spoiler safety across browser presentations", 
     expect(boundary).toContain("min-h-11");
     expect(boundary).not.toContain("display: none");
     expect(boundary).not.toContain("localStorage");
+    // The route owns a stable shell through preference and account changes.
+    expect(boundary).not.toContain("<AppShell>");
   });
 
   for (const [route, title] of [
@@ -43,6 +45,14 @@ describe("Public Results analysis spoiler safety across browser presentations", 
         `<PublicResultsAnalysisSpoilerBoundary selectedShowId={selectedShow?.id ?? null} title="${title}">`,
       );
       expect(source).toContain("</PublicResultsAnalysisSpoilerBoundary>");
+      const shellStart = source.lastIndexOf("<AppShell>");
+      const guardStart = source.lastIndexOf("<PublicResultsAnalysisSpoilerBoundary");
+      const guardEnd = source.lastIndexOf("</PublicResultsAnalysisSpoilerBoundary>");
+      const shellEnd = source.lastIndexOf("</AppShell>");
+      expect(shellStart).toBeGreaterThan(-1);
+      expect(guardStart).toBeGreaterThan(shellStart);
+      expect(guardEnd).toBeGreaterThan(guardStart);
+      expect(shellEnd).toBeGreaterThan(guardEnd);
       expect(source).not.toContain("isAppMode = window.innerWidth");
     });
   }
