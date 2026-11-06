@@ -2,11 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { WorldPublicGate } from "@/components/world/WorldPublic";
 import { WorldUnifiedSearchPage } from "@/components/world/WorldUnifiedSearch";
-import { verifiedWorldSearchTerm } from "@/lib/terra-world-unified-search";
+import { parseWorldSearchPage, verifiedWorldSearchTerm } from "@/lib/terra-world-unified-search";
 
 export const Route = createFileRoute("/world/search/")({
-  validateSearch: (search: Record<string, unknown>): { q: string } => ({
+  validateSearch: (search: Record<string, unknown>): { q: string; c: number; o: number } => ({
     q: typeof search.q === "string" ? verifiedWorldSearchTerm(search.q) : "",
+    c: parseWorldSearchPage(search.c),
+    o: parseWorldSearchPage(search.o),
   }),
   head: () => ({
     meta: [
@@ -19,15 +21,21 @@ export const Route = createFileRoute("/world/search/")({
 });
 
 function WorldSearchRoute() {
-  const { q } = Route.useSearch();
+  const { q, c, o } = Route.useSearch();
   const navigate = Route.useNavigate();
   return (
     <WorldPublicGate>
       <WorldUnifiedSearchPage
         term={q}
+        countryPage={c}
+        organizationPage={o}
         onSearch={(next) => void navigate({
-          search: { q: verifiedWorldSearchTerm(next) },
+          search: { q: verifiedWorldSearchTerm(next), c: 0, o: 0 },
           replace: false,
+        })}
+        onPagesChange={(nextCountryPage, nextOrganizationPage) => void navigate({
+          search: { q, c: nextCountryPage, o: nextOrganizationPage },
+          replace: true,
         })}
       />
     </WorldPublicGate>
