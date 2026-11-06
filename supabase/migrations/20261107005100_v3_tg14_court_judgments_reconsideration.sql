@@ -185,6 +185,7 @@ as $public_judgments$
   and c.public_metadata @> '{"listed":true}'::jsonb
   and o.slug='unity' and o.public_visibility='public'
   and o.status in ('active','recognized')
+  and public.studio2_feature_enabled('terra_world_public',null) is true
 $public_judgments$;
 revoke all on function public.world_court_public_judgments_v1(uuid)
  from public,anon,authenticated;
@@ -352,6 +353,11 @@ begin
      join public.world_court_reconsideration_decisions d on d.request_id=r.id
      where r.case_id=p_case_id and r.judgment_id=v_previous.id
        and d.decision='accepted'
+    ) and not exists (
+     select 1 from public.world_court_reconsiderations pending
+     where pending.case_id=p_case_id and pending.judgment_id=v_previous.id
+      and not exists (select 1 from public.world_court_reconsideration_decisions decided
+       where decided.request_id=pending.id)
     ))
  ) then
   raise exception using errcode='23514',message='STATE_CHANGED';
@@ -452,6 +458,11 @@ begin
   operation_id,case_revision
  ) values(p_case_id,p_judgment_id,v_country,v_grounds,auth.uid(),
   v_op,v_case.revision+1) returning id into v_id;
+ insert into public.world_court_filings(
+   case_id,party_country_id,filing_type,body,filed_by_user_id,operation_id,case_revision
+ ) values (
+   p_case_id,v_country,'reconsideration_request',v_grounds,auth.uid(),v_op,v_case.revision+1
+ );
  update public.world_court_cases
  set status='reconsideration_requested',revision=revision+1,updated_at=now()
  where id=p_case_id;
@@ -483,7 +494,7 @@ begin
  if auth.uid() is null or p_request_id is null then
   raise exception using errcode='42501',message='AUTHORIZATION';
  end if;
- if p_decision not in ('accepted','rejected')
+ if p_decision is null or p_decision not in ('accepted','rejected')
   or v_reason is null or length(v_reason) not between 10 and 12000
   or p_expected_revision is null or p_expected_revision<1 or p_operation_id is null
   or nullif(btrim(coalesce(p_idempotency_key,'')),'') is null then
@@ -524,7 +535,7 @@ begin
   'world.court.judge',v_case.organization_id,null,null,null,null) then
   raise exception using errcode='42501',message='AUTHORIZATION';
  end if;
- if v_case.status <> 'reconsideration_requested'
+ if v_case.status not in ('reconsideration_requested','reconsideration')
   or exists(select 1 from public.world_court_reconsideration_decisions d
     where d.request_id=p_request_id)
   or not exists(select 1 from public.world_court_judgments j
@@ -536,7 +547,7 @@ begin
   operation_id,case_revision
  ) values(p_request_id,v_case.id,p_decision,v_reason,v_person,auth.uid(),
   v_op,v_case.revision+1);
- if p_decision='accepted' then
+ if p_decision='accepted' or v_case.status='reconsideration' then
   v_status:='reconsideration';
  elsif exists(
   select 1 from public.world_court_reconsiderations r
@@ -580,6 +591,36 @@ grant execute on function public.world_request_court_reconsideration_v1(uuid,uui
  to authenticated,service_role;
 grant execute on function public.world_decide_court_reconsideration_v1(uuid,text,text,bigint,uuid,text,uuid)
  to authenticated,service_role;
+
+
+-- Harden the inherited public docket when World public rollout is disabled;
+-- public listed metadata alone is not a deployed rollout authorization.
+create or replace function public.world_court_public_docket_v1(p_limit integer default 20)
+returns jsonb language sql stable security definer set search_path=pg_catalog
+as $court_docket$
+ select coalesce(jsonb_agg(jsonb_build_object(
+   'id',listed.id,'identifier',listed.identifier,
+   'applicantCountryId',listed.applicant_country_id,
+   'respondentCountryId',listed.respondent_country_id,
+   'status',listed.status,'filedAt',listed.filed_at
+ ) order by listed.filed_at desc),'[]'::jsonb)
+ from (
+  select c.id,c.identifier,c.applicant_country_id,c.respondent_country_id,
+   c.status,c.filed_at
+  from public.world_court_cases c
+  join public.world_organizations o on o.id=c.organization_id
+  where o.slug='unity' and o.public_visibility='public'
+   and o.status in ('active','recognized')
+   and c.public_metadata @> '{"listed":true}'::jsonb
+   and public.studio2_feature_enabled('terra_world_public',null) is true
+  order by c.filed_at desc,c.id
+  limit least(greatest(coalesce(p_limit,20),1),50)
+ ) listed
+$court_docket$;
+revoke all on function public.world_court_public_docket_v1(integer)
+ from public,anon,authenticated;
+grant execute on function public.world_court_public_docket_v1(integer)
+ to anon,authenticated,service_role;
 
 notify pgrst,'reload schema';
 commit;
