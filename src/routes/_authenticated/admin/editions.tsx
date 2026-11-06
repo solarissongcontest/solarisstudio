@@ -147,14 +147,33 @@ function publicationControlFingerprint(control: PublicationControlSummary) {
 }
 
 function AdminHome() {
-  const { data: editions = [], isLoading: editionsLoading } = useEditions();
-  const { data: countries = [] } = useCountries();
-  const { data: shows = [] } = useAllShows();
-  const { data: participants = [] } = useAllParticipants();
-  const { data: isOrganizer } = useIsOrganizer();
+  const editionsQuery = useEditions();
+  const countriesQuery = useCountries();
+  const showsQuery = useAllShows();
+  const participantsQuery = useAllParticipants();
+  const organizerQuery = useIsOrganizer();
+  const { data: editions = [] } = editionsQuery;
+  const { data: countries = [] } = countriesQuery;
+  const { data: shows = [] } = showsQuery;
+  const { data: participants = [] } = participantsQuery;
+  const { data: isOrganizer } = organizerQuery;
   const qc = useQueryClient();
 
-  const nextNumber = editionsLoading
+  // Incomplete reads must never look like an empty contest or authorize editing.
+  const editionReads = [editionsQuery, countriesQuery, showsQuery, participantsQuery, organizerQuery];
+  const readsUnavailable = editionReads.some((query) => query.isError);
+  const snapshotReady = editionReads.every((query) => query.isSuccess);
+  const canManageEditions = snapshotReady && isOrganizer === true;
+
+  const retryFailedReads = () => {
+    if (editionsQuery.isError) void editionsQuery.refetch();
+    if (countriesQuery.isError) void countriesQuery.refetch();
+    if (showsQuery.isError) void showsQuery.refetch();
+    if (participantsQuery.isError) void participantsQuery.refetch();
+    if (organizerQuery.isError) void organizerQuery.refetch();
+  };
+
+  const nextNumber = !editionsQuery.isSuccess
     ? null
     : Math.max(0, ...editions.map((edition) => edition.edition_number ?? 0)) + 1;
 
@@ -191,6 +210,13 @@ function AdminHome() {
   }, [participants]);
 
   useEffect(() => {
+    if (!canManageEditions) {
+      setLifecycleReview(null);
+      setCreateOpen(false);
+    }
+  }, [canManageEditions]);
+
+  useEffect(() => {
     if (nextNumber !== null && !numberTouched && form.edition_number === "") {
       setForm((current) => ({ ...current, edition_number: nextNumber }));
     }
@@ -205,6 +231,10 @@ function AdminHome() {
   const createEdition = async (event: FormEvent) => {
     event.preventDefault();
     if (saving) return;
+    if (!canManageEditions) {
+      setError("Edition administration requires verified Organizer access and complete edition data. Retry failed reads before proceeding.");
+      return;
+    }
 
     setMsg(null);
     setError(null);
@@ -262,6 +292,10 @@ function AdminHome() {
     edition: Edition,
     kind: EditionLifecycleReviewKind,
   ) => {
+    if (!canManageEditions) {
+      setError("Cannot review an edition while Organizer access or required edition data is unverified.");
+      return;
+    }
     const actionKey = `review:${kind}:${edition.id}`;
     if (busyAction) return;
     setBusyAction(actionKey);
@@ -353,6 +387,11 @@ function AdminHome() {
   const applyEditionLifecycleReview = async () => {
     const review = lifecycleReview;
     if (!review || busyAction) return;
+    if (!canManageEditions) {
+      setLifecycleReview(null);
+      setError("Edition state is no longer fully verified. No change was applied; reload the workspace and start a new review.");
+      return;
+    }
     if (review.kind === "delete" && review.reason.trim().length < 5) return;
 
     const actionKey = `${review.kind}:${review.editionId}`;
@@ -447,18 +486,12 @@ function AdminHome() {
             <Link to="/admin/anniversary-dates" className="admin-action-secondary">
               <CalendarDays className="size-4" /> Edition dates
             </Link>
-            <button type="button" onClick={() => setCreateOpen(true)} className="admin-action-primary">
+            <button type="button" disabled={!canManageEditions} onClick={() => setCreateOpen(true)} className="admin-action-primary">
               <Plus className="size-4" /> New edition
             </button>
           </div>
         }
       />
-
-      {isOrganizer === false ? (
-        <div className="mb-4 rounded-xl border border-rose-200/15 bg-rose-200/[0.055] p-3 text-sm leading-relaxed text-rose-100">
-          This account does not have organizer access, so changes will be rejected.
-        </div>
-      ) : null}
 
       {error ? (
         <div className="mb-4 rounded-xl border border-rose-200/15 bg-rose-200/[0.055] p-3 text-sm text-rose-100">
@@ -472,6 +505,31 @@ function AdminHome() {
         </div>
       ) : null}
 
+      {!snapshotReady ? (
+        <AdminCard>
+          <AdminEmptyState
+            icon={Trophy}
+            title={readsUnavailable ? "Edition data unavailable" : "Verifying edition administration"}
+            description={readsUnavailable
+              ? "Solaris could not verify all edition, country, show, participant and Organizer access reads. Missing data is not treated as an empty contest. Management is disabled until these reads succeed."
+              : "Checking the authoritative data needed to display and manage editions."}
+            action={readsUnavailable ? (
+              <button type="button" className="admin-action-secondary" onClick={retryFailedReads}>
+                Retry failed reads
+              </button>
+            ) : undefined}
+          />
+        </AdminCard>
+      ) : isOrganizer !== true ? (
+        <AdminCard>
+          <AdminEmptyState
+            icon={Trophy}
+            title="Organizer access required"
+            description="Edition administration is unavailable for this account. No edition data or management actions are shown."
+          />
+        </AdminCard>
+      ) : (
+        <>
       <MetricStrip className="mb-4 grid-cols-3 sm:grid-cols-3 xl:grid-cols-3">
         <MiniMetric label="Editions" value={editions.length} />
         <MiniMetric label="Public" value={publicEditionCount} />
@@ -651,6 +709,8 @@ function AdminHome() {
           />
         </AdminCard>
       )}
+        </>
+      )}
 
       <AdminSheet
         open={createOpen}
@@ -661,13 +721,13 @@ function AdminHome() {
         <form onSubmit={createEdition} className="space-y-4">
           <Field
             label="Edition number"
-            hint={editionsLoading ? "Loading existing editions…" : "Suggested from the latest edition"}
+            hint={!canManageEditions ? "Verify Organizer access and existing editions before proceeding" : "Suggested from the latest edition"}
           >
             <TextInput
               type="number"
               min={1}
               required
-              disabled={editionsLoading}
+              disabled={!canManageEditions}
               className="numeric"
               value={form.edition_number}
               onChange={(event) => {
@@ -748,7 +808,7 @@ function AdminHome() {
             </button>
             <button
               type="submit"
-              disabled={saving || editionsLoading}
+              disabled={saving || !canManageEditions}
               className="admin-action-primary w-full"
             >
               {saving ? "Creating…" : "Create private edition"}
