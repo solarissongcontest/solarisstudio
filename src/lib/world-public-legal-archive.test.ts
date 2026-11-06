@@ -119,6 +119,7 @@ describe("TG4 official legal Archive public projection", () => {
     expect(sql).toContain("set search_path = pg_catalog");
     expect(sql).toContain("organization_row.public_visibility = 'public'");
     expect(sql).toContain("document_row.visibility = 'public'");
+    expect(sql).toContain("public.world_document_publicly_available_v1(document_row.id)");
     expect(sql).toContain("version_row.publication_state in ('published','superseded','historical_source')");
     expect(sql).toContain("version_row.version_number < p_before_version");
     expect(sql).toContain("limit p_limit + 1");

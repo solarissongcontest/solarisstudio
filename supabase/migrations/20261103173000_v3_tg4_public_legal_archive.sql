@@ -52,6 +52,10 @@ begin
     and organization_row.slug = p_organization_slug
     and organization_row.public_visibility = 'public'
     and document_row.visibility = 'public'
+    -- This SECURITY DEFINER RPC is independently callable without the UI.
+    -- Share the canonical TG4 read gate with direct Data API and treaty RLS:
+    -- feature rollout, public/recognized organization, immutable legal Version.
+    and public.world_document_publicly_available_v1(document_row.id)
   limit 1;
 
   if v_document_id is null then
