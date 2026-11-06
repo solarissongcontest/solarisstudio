@@ -4,6 +4,7 @@ import { ArrowLeft, LockKeyhole, MessageSquare, Pencil, Pin, Plus, RefreshCcw, R
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { AppShell } from "@/components/AppShell";
+import { WorldRoomAccessManager } from "@/components/world/WorldRoomAccessManager";
 import { supabase } from "@/integrations/supabase/client";
 import {
   PRIVATE_WORLD_QUERY_ROOT, WORLD_ROOM_PAGE_SIZE,
@@ -160,12 +161,13 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
   const [actionError, setActionError] = useState<string | null>(null);
   const pendingRequest = useRef<{ id: string; body: string; reply: string | null } | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showAccess, setShowAccess] = useState(false);
   const [roomName, setRoomName] = useState("");
   const [roomVisibility, setRoomVisibility] = useState<WorldPrivateRoom["visibility"]>("members");
   const [historyPolicy, setHistoryPolicy] = useState<WorldPrivateRoom["history"]>("from_join");
 
   useEffect(() => {
-    setDraft(""); setSearchInput(""); setActiveSearch(""); setReplyToId(null); setEditingId(null); setActionError(null);
+    setDraft(""); setSearchInput(""); setActiveSearch(""); setShowAccess(false); setReplyToId(null); setEditingId(null); setActionError(null);
     pendingRequest.current = null;
   }, [selectedId, identity.data]);
 
@@ -346,11 +348,20 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
                 <h2 className="truncate font-semibold">{selectedRoom.name}</h2>
                 <p className="mt-0.5 text-xs text-muted-foreground">{selectedRoom.description || "Private institutional discussion"}</p>
               </div>
+              {selectedRoom.canManage ? <button type="button" aria-expanded={showAccess}
+                onClick={() => setShowAccess((current) => !current)}
+                className="min-h-11 rounded-lg border border-border px-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                {showAccess ? "Hide members" : "Manage access"}
+              </button> : null}
               <button type="button" onClick={() => void messages.refetch()} aria-label="Refresh messages"
                 className="grid size-11 place-items-center rounded-lg hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                 <RefreshCcw className="size-4" />
               </button>
             </div>
+            {showAccess && selectedRoom.canManage && identity.data ? <WorldRoomAccessManager
+              roomId={selectedRoom.id} actorId={identity.data} online={online}
+              onClose={() => setShowAccess(false)}
+            /> : null}
             <form className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2" onSubmit={(event) => {
               event.preventDefault();
               const term = searchInput.trim();
