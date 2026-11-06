@@ -1,12 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Bell, BellOff, BookmarkCheck, ChevronRight, Radio, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import { WorldOrganizationFollowControl } from "@/components/world/WorldOrganizationFollowControl";
 import { setWorldOrganizationFollow } from "@/lib/world-organization-follows";
-import { fetchPublishedFollowingOrganizations } from "@/lib/v3-world-following-public";
+import { usePublishedWorldFollowing } from "@/lib/use-world-following-public";
 import { useMyFollows, useSetFanFollow } from "@/lib/engagement-data";
 import {
   buildV3FollowingSavedProjection,
@@ -129,28 +129,12 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
   const [search, setSearch] = useState("");
   const [expandedWorldFollow, setExpandedWorldFollow] = useState<string | null>(null);
 
-  // Private follow IDs may seed this bounded public-name lookup ONLY when the
-  // complete follow result is verified to belong to the current actor.
-  const accountScopedFollows = follows.data?.schemaReady === true &&
-    follows.data.follows.every((follow) => follow.profile_id === viewerId);
-  const organizationIds = useMemo(() => {
-    if (!accountScopedFollows) return [];
-    return [...new Set((follows.data?.follows ?? [])
-      .filter((follow) => String(follow.entity_type) === "organization")
-      .map((follow) => follow.entity_id))].sort();
-  }, [accountScopedFollows, follows.data]);
-  const publishedOrganizations = useQuery({
-    queryKey: ["v3-world-following-public", viewerId, organizationIds],
-    enabled: accountScopedFollows && organizationIds.length > 0,
-    queryFn: () => fetchPublishedFollowingOrganizations(organizationIds),
-    staleTime: 0,
-    gcTime: 0,
-    retry: false,
-    refetchOnWindowFocus: true,
+  const worldFollowing = usePublishedWorldFollowing({
+    viewerId,
+    follows: follows.data?.schemaReady === true ? follows.data.follows : undefined,
   });
-  const verifiedOrganizations = publishedOrganizations.isSuccess &&
-    publishedOrganizations.isFetchedAfterMount && !publishedOrganizations.isFetching
-    ? publishedOrganizations.data : [];
+  const organizationIds = worldFollowing.ids;
+  const verifiedOrganizations = worldFollowing.organizations;
 
   useEffect(() => {
     setMessage(null);
@@ -253,7 +237,7 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
           </p>
         ) : null}
 
-        {organizationIds.length > 0 && publishedOrganizations.isError ? (
+        {organizationIds.length > 0 && worldFollowing.isError ? (
           <p role="status" className="mb-4 text-sm text-[var(--v3-text-secondary)]">
             Institution names cannot currently be verified. Your private follows remain manageable.
           </p>
