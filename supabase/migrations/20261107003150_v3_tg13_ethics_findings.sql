@@ -113,8 +113,10 @@ declare
   v_evidence_count integer;
   v_result jsonb;
 begin
-  if auth.uid() is null or p_case_id is null
-    or not public.world_ethics_can_prepare_findings_v1(p_case_id) then
+  -- A retry of a successful operation must still reconcile after the
+  -- case has advanced to findings_prepared; never use the create-only
+  -- status gate before checking the exact previously claimed operation.
+  if auth.uid() is null or p_case_id is null then
     raise exception using errcode='42501',message='AUTHORIZATION';
   end if;
   if v_findings is null or length(v_findings) not between 20 and 12000
@@ -134,7 +136,18 @@ begin
   end if;
 
   select * into v_case from public.world_ethics_cases where id=p_case_id;
-  if not found then
+  if not found or not exists (
+    select 1 from public.world_ethics_case_assignments a
+    join public.world_ethics_committee_memberships m on m.id=a.member_id
+    where a.case_id=v_case.id and a.ended_at is null
+      and m.organ_id=v_case.organ_id
+      and m.organization_id=v_case.organization_id
+      and m.user_id=auth.uid() and m.started_at<=now() and m.ended_at is null
+      and public.world_access_allowed(
+        'world.ethics.findings.record',
+        v_case.organization_id,null,v_case.organ_id,'ethics',v_case.id
+      )
+  ) then
     raise exception using errcode='42501',message='AUTHORIZATION';
   end if;
 
