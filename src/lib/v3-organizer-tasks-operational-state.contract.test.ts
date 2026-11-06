@@ -51,8 +51,26 @@ describe("V3 Organizer Tasks operational state contract", () => {
   it("stops task polling when edition verification fails even if cached edition data remains", () => {
     expect(route).toContain("tasksSupported &&");
     expect(route).toContain("editionsQuery.isSuccess &&");
-    expect(route).toContain("!editionsQuery.error,");
     expect(route).toContain("!editionsQuery.error &&");
+    expect(route).toContain("taskReadPermitted,");
+    expect(route).toContain("!editionsQuery.error &&");
+  });
+
+  it("verifies the exact task RPC authorization policy before polling or showing counts", () => {
+    expect(route).toContain('p_capability: "edition.read"');
+    expect(route).toContain('p_edition_id: resolvedEditionId');
+    expect(route).toContain('p_capability: "permissions.manage"');
+    expect(route).toContain('p_edition_id: null');
+    expect(route).toContain('client.rpc("studio2_access_allowed"');
+    expect(route).toContain("taskReadPermitted,");
+    expect(route).toContain("taskReadPermitted &&");
+    expect(route).toContain("taskAccessQuery.data === true");
+    expect(route).toContain('title="Organizer task access required"');
+    expect(route).toContain('title="Task access could not be verified"');
+    expect(route).toContain("No task evaluation or reconciliation was requested.");
+    expect(route).toContain('actorId, resolvedEditionId || "none"');
+    expect(route).toContain('gcTime: 0');
+    expect(route).not.toContain("enabled: Boolean(resolvedEditionId)");
   });
 
   it("makes the edition scope visible and fails closed for missing or stale context", () => {

@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
   ArrowRight,
@@ -9,6 +10,8 @@ import {
 } from "lucide-react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
+import { supabase } from "@/integrations/supabase/client";
 import { useOrganisationBackendContract } from "@/lib/organisation-backend-contract";
 import { SolarisMorphingSelection } from "@/components/interaction/SolarisMorphingSelection";
 import { AdminPage } from "@/components/admin/AdminShell";
@@ -71,6 +74,7 @@ export const Route = createFileRoute("/_authenticated/admin/tasks")({
 
 function OrganizerTasksPage() {
   const { editionId } = useAdminContext();
+  const { id: actorId } = useAuthenticatedUser();
   const { filter } = Route.useSearch();
   const navigate = Route.useNavigate();
   const editionsQuery = useEditions();
@@ -81,6 +85,50 @@ function OrganizerTasksPage() {
       : null;
   const resolvedEditionId = editionId && edition ? edition.id : "";
   const organizerEditionLabel = edition ? formatEditionLabel(edition) : null;
+  // An edition returned by the public catalog does not prove task-read
+  // authority. This exact-scope preflight matches admin_organizer_tasks:
+  // edition.read for the selected edition OR global permissions.manage.
+  const taskAccessQuery = useQuery({
+    queryKey: ["v3-organizer", "tasks", "read-authority", actorId, resolvedEditionId || "none"],
+    queryFn: async () => {
+      const client = supabase as unknown as {
+        rpc: (
+          name: string,
+          args: Record<string, unknown>,
+        ) => PromiseLike<{ data: unknown; error: { message?: string } | null }>;
+      };
+      const editionAccess = await client.rpc("studio2_access_allowed", {
+        p_capability: "edition.read",
+        p_edition_id: resolvedEditionId,
+        p_strict_before_cutover: false,
+      });
+      if (editionAccess.error) throw editionAccess.error;
+      if (typeof editionAccess.data !== "boolean") {
+        throw new Error("Organizer edition-read access returned an invalid response.");
+      }
+      if (editionAccess.data) return true;
+
+      const globalAccess = await client.rpc("studio2_access_allowed", {
+        p_capability: "permissions.manage",
+        p_edition_id: null,
+        p_strict_before_cutover: false,
+      });
+      if (globalAccess.error) throw globalAccess.error;
+      if (typeof globalAccess.data !== "boolean") {
+        throw new Error("Organizer global task access returned an invalid response.");
+      }
+      return globalAccess.data;
+    },
+    enabled: editionsQuery.isSuccess && !editionsQuery.error && Boolean(resolvedEditionId),
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+  });
+  const taskReadPermitted =
+    taskAccessQuery.isSuccess &&
+    !taskAccessQuery.isFetching &&
+    !taskAccessQuery.error &&
+    taskAccessQuery.data === true;
   const backend = useOrganisationBackendContract();
   const backendReady = backend.data?.ready === true;
   const tasksSupported = backend.data?.capabilities.organizerTasks === true;
@@ -92,7 +140,8 @@ function OrganizerTasksPage() {
       tasksSupported &&
       Boolean(resolvedEditionId) &&
       editionsQuery.isSuccess &&
-      !editionsQuery.error,
+      !editionsQuery.error &&
+      taskReadPermitted,
   );
   const rawTasks = tasksQuery.data ?? [];
   const classifiedTasks: ClassifiedTask[] = rawTasks.map((task) => ({
@@ -106,6 +155,7 @@ function OrganizerTasksPage() {
     Boolean(resolvedEditionId) &&
     editionsQuery.isSuccess &&
     !editionsQuery.error &&
+    taskReadPermitted &&
     backend.isSuccess &&
     backendReady &&
     tasksSupported &&
@@ -220,6 +270,33 @@ function OrganizerTasksPage() {
               icon={AlertTriangle}
               title="Choose an edition"
               description="Select an edition that is currently available to your Organizer account before evaluating Tasks. Solaris will not query task state for a missing, stale or inaccessible edition context."
+            />
+          </AdminCard>
+        ) : taskAccessQuery.isPending || taskAccessQuery.isFetching ? (
+          <AdminCard>
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              Verifying exact-edition Organizer task permission…
+            </p>
+          </AdminCard>
+        ) : taskAccessQuery.isError ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={AlertTriangle}
+              title="Task access could not be verified"
+              description="Solaris cannot authorize task evaluation from public edition visibility alone. Task state remains unknown."
+              action={
+                <button type="button" onClick={() => void taskAccessQuery.refetch()} disabled={taskAccessQuery.isFetching} className="admin-action-secondary">
+                  Retry task access verification
+                </button>
+              }
+            />
+          </AdminCard>
+        ) : !taskReadPermitted ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={AlertTriangle}
+              title="Organizer task access required"
+              description="This account lacks edition.read for the selected edition and global permissions.manage. No task evaluation or reconciliation was requested."
             />
           </AdminCard>
         ) : backend.isLoading ? (
