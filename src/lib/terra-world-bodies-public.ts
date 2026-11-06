@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { isPublicWorldInstitutionStatus, WORLD_PUBLIC_INSTITUTION_STATUSES } from "./terra-world-public";
 
 /**
  * Public TG3 institution-body reader. TG2 remains the sole source of organ
@@ -33,7 +34,8 @@ const nonempty = (value: unknown): value is string =>
 // unexpected join payload as a public identity.
 function hasPublicOrganizationJoin(input: unknown, organizationId: string): boolean {
   const parent = record(record(input)?.world_organizations);
-  return parent?.id === organizationId && parent.public_visibility === "public";
+  return parent?.id === organizationId && parent.public_visibility === "public" &&
+    isPublicWorldInstitutionStatus(String(parent.status ?? ""));
 }
 
 function hasPublicBodyJoin(input: unknown, organizationId: string, bodyId: string): boolean {
@@ -67,7 +69,8 @@ export function decodePublicWorldInstitution(input: unknown, slug: string): Publ
   if (!row || !validWorldSlug(slug) || row.slug !== slug ||
       row.public_visibility !== "public" ||
       !nonempty(row.id) || !nonempty(row.short_name) ||
-      !nonempty(row.official_name) || !nonempty(row.status)) return null;
+      !nonempty(row.official_name) || !nonempty(row.status) ||
+      !isPublicWorldInstitutionStatus(row.status)) return null;
   return {
     id: row.id,
     slug,
@@ -104,7 +107,8 @@ export async function readPublicWorldInstitution(
   if (!validWorldSlug(slug)) return null;
   let request = (supabase as any).from("world_organizations")
     .select("id,slug,short_name,official_name,status,public_visibility")
-    .eq("slug", slug).eq("public_visibility", "public");
+    .eq("slug", slug).eq("public_visibility", "public")
+    .in("status", [...WORLD_PUBLIC_INSTITUTION_STATUSES]);
   if (signal) request = request.abortSignal(signal);
   const { data, error } = await request.maybeSingle();
   if (error) throw new Error("This institution could not be checked.");
@@ -128,11 +132,12 @@ export async function readPublicWorldBodies(
     ? Math.max(0, Math.min(WORLD_BODIES_MAX_PAGE, requestedPage)) : 0;
   const term = cleanWorldBodySearch(options.term ?? "");
   let request = (supabase as any).from("world_organization_organs")
-    .select("id,organization_id,slug,name,short_name,type,status,visibility,sort_order,world_organizations!inner(id,public_visibility)", { count: "exact" })
+    .select("id,organization_id,slug,name,short_name,type,status,visibility,sort_order,world_organizations!inner(id,public_visibility,status)", { count: "exact" })
     .eq("organization_id", organization.id).eq("visibility", "public")
     // A signed-in manager can have additional private RLS permissions.
     // Require a public parent in this SAME read, not just the earlier lookup.
-    .eq("world_organizations.public_visibility", "public");
+    .eq("world_organizations.public_visibility", "public")
+    .in("world_organizations.status", [...WORLD_PUBLIC_INSTITUTION_STATUSES]);
   if (options.status === "active" || options.status === "inactive" || options.status === "historical") {
     request = request.eq("status", options.status);
   }
@@ -155,9 +160,10 @@ export async function readPublicWorldBodies(
       throw new Error("Public institutional bodies could not be loaded.");
     }
     let recount = (supabase as any).from("world_organization_organs")
-      .select("id,world_organizations!inner(id,public_visibility)", { count: "exact", head: true })
+      .select("id,world_organizations!inner(id,public_visibility,status)", { count: "exact", head: true })
       .eq("organization_id", organization.id).eq("visibility", "public")
-      .eq("world_organizations.public_visibility", "public");
+      .eq("world_organizations.public_visibility", "public")
+    .in("world_organizations.status", [...WORLD_PUBLIC_INSTITUTION_STATUSES]);
     if (options.status === "active" || options.status === "inactive" || options.status === "historical") {
       recount = recount.eq("status", options.status);
     }
@@ -204,10 +210,11 @@ export async function readPublicWorldBody(
   const organization = await readPublicWorldInstitution(slug, signal);
   if (!organization) return null;
   let request = (supabase as any).from("world_organization_organs")
-    .select("id,organization_id,slug,name,short_name,type,description,status,visibility,sort_order,world_organizations!inner(id,public_visibility)")
+    .select("id,organization_id,slug,name,short_name,type,description,status,visibility,sort_order,world_organizations!inner(id,public_visibility,status)")
     .eq("organization_id", organization.id)
     .eq("slug", bodySlug).eq("visibility", "public")
-    .eq("world_organizations.public_visibility", "public");
+    .eq("world_organizations.public_visibility", "public")
+    .in("world_organizations.status", [...WORLD_PUBLIC_INSTITUTION_STATUSES]);
   if (signal) request = request.abortSignal(signal);
   const { data, error } = await request.maybeSingle();
   if (error) throw new Error("This institutional body could not be checked.");
@@ -262,13 +269,14 @@ export async function readPublicBodyOffices(
   // foreign key. PostgREST requires the explicit constraint hint or the embed
   // is ambiguous (PGRST201), even though the SQL schema itself is valid.
   let request = (supabase as any).from("world_organization_offices")
-    .select("id,organization_id,organ_id,title,office_type,active,world_organizations!inner(id,public_visibility),world_organization_organs:world_organization_organs!world_offices_organ_same_organization_fk!inner(id,organization_id,visibility)")
+    .select("id,organization_id,organ_id,title,office_type,active,world_organizations!inner(id,public_visibility,status),world_organization_organs:world_organization_organs!world_offices_organ_same_organization_fk!inner(id,organization_id,visibility)")
     .eq("organization_id", organization.id)
     .eq("organ_id", body.id)
     .eq("active", true)
     // TG2 grants scoped private-manager reads too. Explicit inner-join public
     // predicates prevent those grants from broadening a public detail screen.
     .eq("world_organizations.public_visibility", "public")
+    .in("world_organizations.status", [...WORLD_PUBLIC_INSTITUTION_STATUSES])
     .eq("world_organization_organs.organization_id", organization.id)
     .eq("world_organization_organs.visibility", "public")
     .order("display_priority", { ascending: true })
