@@ -13,12 +13,12 @@ const engagement = () => read("src/lib/engagement-data.ts");
 describe("V3 Following & Saved architecture", () => {
   it("keeps installed-app cutover reversible behind the Me rollout", () => {
     expect(route()).toContain("rollout.data.meEnabled === true");
-    expect(route()).toContain("<V3FollowingSavedScreen viewerId={rollout.data.userId} />");
+    expect(route()).toContain("<V3FollowingSavedScreen key={rollout.data.userId} viewerId={rollout.data.userId} />");
     expect(route()).toContain('<MySolarisPersonalPage view="saved" />');
     expect(route()).toContain('content: "noindex, nofollow"');
   });
 
-  it("keeps private reads scoped and fails closed on cross-profile rows", () => {
+  it("remounts the private screen when the authenticated viewer changes", () => {\n    expect(route()).toContain("key={rollout.data.userId}");\n    expect(route()).toContain("viewerId={rollout.data.userId}");\n    expect(screen()).toContain("useEffect(() => {");\n    expect(screen()).toContain("setMessage(null)");\n    expect(screen()).toContain("setSearch(\"\")");\n  });\n\n  it("keeps private reads scoped and fails closed on cross-profile rows", () => {
     expect(screen()).toContain("useMyFollows(viewerId)");
     expect(engagement()).toContain('.from("fan_follows")');
     expect(engagement()).toContain('.eq("profile_id", profileId!)');
