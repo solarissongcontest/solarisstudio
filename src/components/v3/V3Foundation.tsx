@@ -188,6 +188,7 @@ export function V3ActionCard({
   trailing?: boolean;
 }) {
   const Icon = icon ?? actionIcon(tone);
+  const actionable = Boolean(to || onClick);
   const contents = (
     <>
       <span className="v3-action-card__icon" aria-hidden="true">
@@ -198,7 +199,7 @@ export function V3ActionCard({
         <span className="v3-action-card__description">{description}</span>
         {meta ? <span className="v3-action-card__meta">{meta}</span> : null}
       </span>
-      {trailing ? (
+      {trailing && actionable ? (
         <ChevronRight className="mt-2 size-4 shrink-0 text-white/35" aria-hidden="true" />
       ) : null}
     </>
@@ -206,16 +207,25 @@ export function V3ActionCard({
 
   if (to) {
     return (
-      <Link to={to as any} className="v3-action-card" data-tone={tone}>
+      <Link to={to as any} className="v3-action-card" data-tone={tone} data-interactive="true">
         {contents}
       </Link>
     );
   }
 
+  if (onClick) {
+    return (
+      <button type="button" className="v3-action-card" data-tone={tone} data-interactive="true" onClick={onClick}>
+        {contents}
+      </button>
+    );
+  }
+
+  // An information-only card must not enter the tab order or promise an action.
   return (
-    <button type="button" className="v3-action-card" data-tone={tone} onClick={onClick}>
+    <div className="v3-action-card" data-tone={tone} data-interactive="false">
       {contents}
-    </button>
+    </div>
   );
 }
 
