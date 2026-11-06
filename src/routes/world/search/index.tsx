@@ -25,7 +25,7 @@ function WorldSearchRoute() {
   const { q, c, o, type } = Route.useSearch();
   const navigate = Route.useNavigate();
   return (
-    <WorldPublicGate>
+    <WorldPublicGate verifyOnMount>
       <WorldUnifiedSearchPage
         term={q}
         countryPage={c}
