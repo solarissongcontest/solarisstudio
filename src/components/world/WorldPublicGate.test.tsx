@@ -26,7 +26,7 @@ import { WorldPublicGate } from "./WorldPublic";
  * This is a real React rendering test. It models a resolved authoritative
  * rollout decision through React Query's public cache, without any Supabase.
  */
-function renderWorldGate(rollout: boolean) {
+function renderWorldGate(rollout: boolean, verifyOnMount = false) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -47,6 +47,60 @@ describe("World public rollout gate", () => {
     const html = renderWorldGate(false);
     expect(html).toContain("World is not yet available");
     expect(html).toContain("Return to Explore");
+    expect(html).not.toContain("Published world profile sentinel");
+  });
+
+  it("hides a cached enabled flag when its subsequent revalidation fails", () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const key = ["world", "public", "rollout"];
+    client.setQueryData(key, true);
+    // A previous successful read does not authorize continued publication
+    // after a failed refetch. No hosted Supabase call is made in this test.
+    const query = client.getQueryCache().find({ queryKey: key, exact: true });
+    expect(query).toBeDefined();
+    query!.setState({
+      status: "error",
+      error: new Error("World publication recheck failed"),
+      fetchStatus: "idle",
+    });
+    try {
+      const html = renderToStaticMarkup(
+        <QueryClientProvider client={client}>
+          <WorldPublicGate><section>Published world profile sentinel</section></WorldPublicGate>
+        </QueryClientProvider>,
+      );
+      expect(html).toContain("World availability could not be verified");
+      expect(html).not.toContain("Published world profile sentinel");
+    } finally {
+      client.clear();
+    }
+  });
+
+  it("does not display cached World content while the feature flag is being rechecked", () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const key = ["world", "public", "rollout"];
+    client.setQueryData(key, true);
+    const query = client.getQueryCache().find({ queryKey: key, exact: true });
+    expect(query).toBeDefined();
+    query!.setState({ fetchStatus: "fetching" });
+    try {
+      const html = renderToStaticMarkup(
+        <QueryClientProvider client={client}>
+          <WorldPublicGate><section>Published world profile sentinel</section></WorldPublicGate>
+        </QueryClientProvider>,
+      );
+      expect(html).toContain("Checking Terra Solaris availability");
+      expect(html).not.toContain("Published world profile sentinel");
+    } finally {
+      client.clear();
+    }
+  });
+
+  it("does not trust cached enabled data before a strict-route mount re-verifies it", () => {
+    const html = renderWorldGate(true, true);
+    expect(html).toContain("Checking Terra Solaris availability");
     expect(html).not.toContain("Published world profile sentinel");
   });
 

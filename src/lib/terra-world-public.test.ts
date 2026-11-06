@@ -81,9 +81,33 @@ describe("TG3 world publication-safe projections", () => {
   });
 
 
+  it("excludes unrecognized and unrelated featured institutions even when upstream leaks rows", async () => {
+    mocks.chain.order.mockResolvedValueOnce({
+      data: [
+        row,
+        { ...row, id: "secret-proposal", slug: "unity", status: "proposed" },
+        { ...row, id: "unrelated", slug: "other", status: "active" },
+      ],
+      error: null,
+    });
+    const featured = await fetchFeaturedWorldOrganizations();
+    expect(mocks.chain.in).toHaveBeenCalledWith("status",
+      ["recognized", "active", "suspended", "historical", "dissolved"]);
+    expect(featured.map((item) => item.slug)).toEqual(["guard"]);
+  });
+
   it("rejects unpublished directory records even if a broken upstream reader returned them", () => {
     expect(parseWorldDirectoryRows([row, { ...row, slug: "secret", public_visibility: "private" }]))
       .toHaveLength(1);
+  });
+
+  it("does not classify proposed institutions as official public organizations", () => {
+    expect(parseWorldDirectoryRows([{ ...row, id: "proposal", slug: "proposal", status: "proposed" }]))
+      .toEqual([]);
+    expect(parseWorldProjection({
+      organization: { ...organization, slug: "unity", status: "proposed" },
+      organs: [], memberships: [], offices: [],
+    }, "unity")).toBeNull();
   });
 
   it("rejects invalid public identity instead of producing navigable broken links", () => {
@@ -157,19 +181,45 @@ describe("TG3 world publication-safe projections", () => {
   });
 
   it("requests only public organizations and bounded pages", async () => {
+    mocks.chain.range.mockResolvedValueOnce({ data: [row], count: 25, error: null });
     const result = await fetchWorldDirectory({ term: "", filter: "all", page: 2 });
     expect(mocks.from).toHaveBeenCalledWith("world_organizations");
     expect(mocks.chain.select).toHaveBeenCalledWith(
       "id,slug,official_name,short_name,type,description,status,public_visibility", { count: "exact" });
     expect(mocks.chain.eq).toHaveBeenCalledWith("public_visibility", "public");
+    expect(mocks.chain.in).toHaveBeenCalledWith("status",
+      ["recognized", "active", "suspended", "historical", "dissolved"]);
     expect(mocks.chain.range).toHaveBeenCalledWith(2 * WORLD_DIRECTORY_PAGE_SIZE, 3 * WORLD_DIRECTORY_PAGE_SIZE - 1);
     expect(result.organizations).toHaveLength(1);
+  });
+
+  it("fails closed when an unrecognized organization escapes upstream status filtering", async () => {
+    mocks.chain.range.mockResolvedValueOnce({
+      data: [row, { ...row, id: "proposal", slug: "proposal", status: "proposed" }],
+      count: 2, error: null,
+    });
+    await expect(fetchWorldDirectory({ term: "", filter: "all", page: 0 }))
+      .rejects.toThrow("World organization publication could not be verified");
   });
 
   it("rejects missing count proof instead of displaying a false zero", async () => {
     mocks.chain.range.mockResolvedValueOnce({ data: [row], count: null, error: null });
     await expect(fetchWorldDirectory({ term: "", filter: "all", page: 0 }))
       .rejects.toThrow("count could not be verified");
+  });
+
+  it("rejects a directory page that contradicts its authoritative total", async () => {
+    mocks.chain.range.mockResolvedValueOnce({ data: [row], count: 12, error: null });
+    await expect(fetchWorldDirectory({ term: "", filter: "all", page: 1 }))
+      .rejects.toThrow("World directory page count could not be verified");
+    mocks.chain.range.mockResolvedValueOnce({ data: [], count: 3, error: null });
+    await expect(fetchWorldDirectory({ term: "", filter: "all", page: 0 }))
+      .rejects.toThrow("World directory page count could not be verified");
+    // A previously valid page can empty out after an organization is removed.
+    mocks.chain.range.mockResolvedValueOnce({ data: [], count: 1, error: null });
+    const empty = await fetchWorldDirectory({ term: "", filter: "all", page: 2 });
+    expect(empty.total).toBe(1);
+    expect(empty.organizations).toEqual([]);
   });
 
   it("filters current state without broadening public visibility", async () => {
