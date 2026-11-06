@@ -15,7 +15,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-import { useAdminContext } from "@/components/admin/AdminContext";
+
 import {
   AdminCard,
   AdminCardHeader,
@@ -40,14 +40,18 @@ export const Route = createFileRoute("/_authenticated/admin/delegations")({
 });
 
 function OrganizerDelegationsPage() {
-  const { editionId } = useAdminContext();
   const { id: actorId } = useAuthenticatedUser();
   const editionsQuery = useEditions();
+  // The shared selector currently synthesizes a newest-edition fallback.
+  // Delegations must instead require an affirmative in-page choice; bind the
+  // choice to the signed-in actor to avoid cross-account scope carryover.
+  const [explicitChoice, setExplicitChoice] = useState<{ actorId: string; editionId: string } | null>(null);
+  const explicitEditionId = explicitChoice?.actorId === actorId ? explicitChoice.editionId : "";
   // A failed refresh may retain cached edition rows. Those rows must not
   // authorize another private Confirmation request after verification fails.
   const selectedEdition =
-    editionsQuery.isSuccess && !editionsQuery.error
-      ? selectOrganizerEdition(editionsQuery.data ?? [], editionId)
+    editionsQuery.isSuccess && !editionsQuery.error && !editionsQuery.isFetching
+      ? selectOrganizerEdition(editionsQuery.data ?? [], explicitEditionId)
       : null;
   const resolvedEditionId = selectedEdition?.id ?? "";
   const selectedEditionLabel = selectedEdition ? editionLabel(selectedEdition) : null;
@@ -58,7 +62,7 @@ function OrganizerDelegationsPage() {
   const capabilityQuery = useQuery({
     queryKey: ["v3-organizer", "delegations", "confirmation-read", actorId, resolvedEditionId || "none"],
     queryFn: () => verifyOrganizerConfirmationRead(resolvedEditionId),
-    enabled: editionsQuery.isSuccess && !editionsQuery.error && Boolean(resolvedEditionId),
+    enabled: editionsQuery.isSuccess && !editionsQuery.error && !editionsQuery.isFetching && Boolean(resolvedEditionId),
     // Do not reuse a previously-authorized actor/edition scope on a later visit.
     staleTime: 0,
     gcTime: 0,
@@ -109,7 +113,35 @@ function OrganizerDelegationsPage() {
         ) : undefined}
       />
 
-      {editionsQuery.isLoading ? (
+      <AdminCard className="mb-4">
+        <label className="flex flex-col gap-2">
+          <span className="text-xs font-semibold text-muted-foreground">
+            Choose an edition for this Delegations review
+          </span>
+          <select
+            className="admin-input"
+            value={explicitEditionId}
+            disabled={!editionsQuery.isSuccess || Boolean(editionsQuery.error) || editionsQuery.isFetching}
+            onChange={(event) => {
+              setExplicitChoice(event.target.value ? { actorId, editionId: event.target.value } : null);
+              setAttentionSearch("");
+            }}
+          >
+            <option value="">Select an exact edition…</option>
+            {(editionsQuery.isSuccess && !editionsQuery.error && !editionsQuery.isFetching
+              ? editionsQuery.data ?? []
+              : []
+            ).map((edition) => (
+              <option key={edition.id} value={edition.id}>{editionLabel(edition)}</option>
+            ))}
+          </select>
+          <span className="text-xs text-muted-foreground">
+            No edition is inferred from the Organizer shell. Private Confirmation obligations load only after you select an edition and its capability is verified.
+          </span>
+        </label>
+      </AdminCard>
+
+      {editionsQuery.isLoading || editionsQuery.isFetching ? (
         <AdminCard>
           <p className="py-8 text-center text-sm text-muted-foreground">
             Verifying Organizer edition context…
@@ -138,7 +170,7 @@ function OrganizerDelegationsPage() {
           <AdminEmptyState
             icon={Flag}
             title="Edition context required"
-            description="Select an exact accessible Organizer edition before opening Delegations. Solaris will not substitute another edition or a globally active Confirmation edition for missing, stale or revoked context."
+            description="Explicitly select an exact edition above before opening Delegations. Solaris will not substitute another edition or a globally active Confirmation edition for missing, stale or revoked context."
           />
         </AdminCard>
       ) : capabilityQuery.isPending || capabilityQuery.isFetching ? (
