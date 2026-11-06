@@ -138,7 +138,11 @@ function FantasyPage() {
   });
 
   useEffect(() => {
-    if (session.isLoading || myTeam.isLoading || myTeamEntries.isLoading || myTeam.isError || myTeamEntries.isError) return;
+    // A disabled entries query is genuinely empty only when no team exists.
+    // When a team exists, pending/offline entries are unverified, not empty.
+    if (session.isPending || myTeam.isPending ||
+        (myTeam.data?.id && myTeamEntries.isPending) ||
+        myTeam.isError || myTeamEntries.isError) return;
     // A background refetch must never erase unsaved local changes. A different
     // game/account scope, however, must always restore its own canonical team.
     if (!shouldRestoreV3FantasyRoster({ rosterScope, draftScope, draftDirty })) return;
@@ -146,7 +150,7 @@ function FantasyPage() {
     setDraftScope(rosterScope);
     setSelected(restored.selected);
     setCaptain(restored.captain);
-  }, [rosterScope, draftScope, draftDirty, session.isLoading, myTeam.data, myTeam.isLoading, myTeam.isError, myTeamEntries.data, myTeamEntries.isLoading, myTeamEntries.isError]);
+  }, [rosterScope, draftScope, draftDirty, session.isPending, myTeam.data, myTeam.isPending, myTeam.isError, myTeamEntries.data, myTeamEntries.isPending, myTeamEntries.isError]);
 
   const leaderboard = useQuery({
     enabled: activeGame?.status === "scored",

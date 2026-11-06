@@ -57,6 +57,14 @@ const projection = source("src/lib/v3-fantasy.ts");
     expect(route).toContain("viewerId={viewerId}");
   });
 
+  it("does not restore an empty roster while a known team's entries are pending or offline", () => {
+    expect(route).toContain("session.isPending || myTeam.isPending");
+    expect(route).toContain("(myTeam.data?.id && myTeamEntries.isPending)");
+    expect(route).toContain("pending/offline entries are unverified, not empty");
+    expect(route).toContain("myTeamEntries.data, myTeamEntries.isPending");
+    expect(route).not.toContain("session.isLoading || myTeam.isLoading || myTeamEntries.isLoading || myTeam.isError");
+  });
+
   it("retains unsaved local edits across background refetch without accepting a different account's draft", () => {
     expect(route).toContain("shouldRestoreV3FantasyRoster({ rosterScope, draftScope, draftDirty })");
     expect(route).toContain("setDraftDirty(true)");
