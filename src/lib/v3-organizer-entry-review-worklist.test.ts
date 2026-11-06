@@ -42,6 +42,34 @@ describe("V3 Organizer candidate-level Entry Review worklist", () => {
       expect(matchesOrganizerEntryWorkFilter(item,"revised")).toBe(true);
     }
   });
+  it("does not list a blank-title Entry as verified even with historical acceptance", () => {
+    for (const title of [null, "", "   "]) {
+      const internal = work([row({ internal_entries: {
+        ...entry(), song_title: title,
+      } })])[0];
+      expect(internal.status).toBe("needs_review");
+      expect(matchesOrganizerEntryWorkFilter(internal, "accepted")).toBe(false);
+      expect(matchesOrganizerEntryWorkFilter(internal, "needs_review")).toBe(true);
+      const nf = work([row({
+        selection_method: "national_final",
+        national_finals: {
+          winning_entry_id: "nf-1",
+          national_final_entries: [{ ...entry("nf-1"), song_title: title }],
+        },
+      })])[0];
+      expect(nf.status).toBe("needs_review");
+    }
+  });
+
+  it("preserves missing-title current declines as actionable correction work", () => {
+    const item = work([row({ internal_entries: {
+      ...entry(), song_title: " ", review_status: "declined",
+      review_reason: "Missing title",
+    } })])[0];
+    expect(item.status).toBe("changes_required");
+    expect(item.note).toBe("Missing title");
+  });
+
   it("keeps current changes-required separate from pending or accepted", () => {
     const item=work([row({internal_entries:{
       ...entry(),review_status:"declined",review_reason:"Correct title",
