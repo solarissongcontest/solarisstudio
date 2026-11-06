@@ -1,0 +1,237 @@
+import { supabase } from "@/integrations/supabase/client";
+
+/**
+ * TG11/TG12 browser adapter. Every result comes from a SECURITY DEFINER RPC
+ * that checks current world membership. Never read the private tables directly.
+ * Do not persist these projections or use a cross-account query cache key.
+ */
+export type WorldPrivateOrganization = {
+  slug: string;
+  name: string;
+  rooms: number;
+};
+export type WorldPrivateRoom = {
+  id: string;
+  organizationId: string;
+  canManage: boolean;
+  canModerate: boolean;
+  name: string;
+  description: string;
+  visibility: "members" | "leadership" | "organ" | "custom";
+  history: "from_join" | "all_member_history" | "custom";
+  status: "active" | "archived";
+  revision: number;
+};
+export type WorldChatReaction = { emoji: string; mine: boolean };
+export type WorldChatMessage = {
+  id: string;
+  spaceId: string;
+  mine: boolean;
+  senderName: string;
+  body: string;
+  revision: number;
+  replyToId: string | null;
+  createdAt: string;
+  editedAt: string | null;
+  redacted: boolean;
+  pinned: boolean;
+  reactions: WorldChatReaction[];
+};
+
+export const WORLD_ROOM_PAGE_SIZE = 35;
+export const PRIVATE_WORLD_QUERY_ROOT = ["world", "private"] as const;
+export const isValidRoomId = (value: unknown): value is string =>
+  typeof value === "string" &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+export const safeWorldRoomSlug = (value: string): string =>
+  /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value) && value.length <= 80 ? value : "";
+
+function asList<T>(raw: unknown, valid: (entry: unknown) => entry is T): T[] {
+  return Array.isArray(raw) ? raw.filter(valid) : [];
+}
+function isRecord(x: unknown): x is Record<string, unknown> {
+  return !!x && typeof x === "object" && !Array.isArray(x);
+}
+const isOrganization = (x: unknown): x is WorldPrivateOrganization =>
+  isRecord(x) && typeof x.slug === "string" &&
+  typeof x.name === "string" && typeof x.rooms === "number";
+const isRoom = (x: unknown): x is WorldPrivateRoom =>
+  isRecord(x) && isValidRoomId(x.id) && isValidRoomId(x.organizationId) &&
+  typeof x.canManage === "boolean" && typeof x.canModerate === "boolean" &&
+  typeof x.name === "string" && typeof x.description === "string" &&
+  typeof x.history === "string" && typeof x.visibility === "string" &&
+  x.status === "active" && typeof x.revision === "number";
+const isMessage = (x: unknown): x is WorldChatMessage =>
+  isRecord(x) && isValidRoomId(x.id) && isValidRoomId(x.spaceId) &&
+  typeof x.mine === "boolean" && typeof x.senderName === "string" &&
+  typeof x.body === "string" && typeof x.createdAt === "string" &&
+  typeof x.revision === "number" && Array.isArray(x.reactions);
+
+async function callWorldPrivateRpc(name: string, args: Record<string, unknown> = {}, signal?: AbortSignal) {
+  // Generated database types are updated after the additive migration is
+  // deployed. Runtime RPC validation is server-owned, never cast to success.
+  const builder = (supabase as any).rpc(name, args);
+  const { data, error } = await (signal ? builder.abortSignal(signal) : builder);
+  if (error) throw error;
+  return data as unknown;
+}
+
+export async function getMyWorldWorkspaces(signal?: AbortSignal): Promise<WorldPrivateOrganization[]> {
+  return asList(await callWorldPrivateRpc("world_my_workspaces_v1", {}, signal), isOrganization);
+}
+export async function getWorldRooms(slug: string, signal?: AbortSignal): Promise<WorldPrivateRoom[]> {
+  if (!safeWorldRoomSlug(slug)) throw new Error("Invalid organization.");
+  return asList(await callWorldPrivateRpc("world_spaces_list_v1", { p_slug: slug }, signal), isRoom);
+}
+export async function getWorldRoomMessages(roomId: string, before: string | null = null, signal?: AbortSignal):
+  Promise<WorldChatMessage[]> {
+  if (!isValidRoomId(roomId) || (before !== null && !isValidRoomId(before))) throw new Error("Invalid room or cursor.");
+  return asList(await callWorldPrivateRpc("world_space_messages_v1", {
+    p_space_id: roomId, p_before: before, p_limit: WORLD_ROOM_PAGE_SIZE,
+  }, signal), isMessage);
+}
+
+export async function sendWorldRoomMessage(roomId: string, body: string, requestId: string, replyToId: string | null) {
+  if (!isValidRoomId(roomId) || !isValidRoomId(requestId) ||
+      (replyToId !== null && !isValidRoomId(replyToId)) ||
+      body.trim().length < 1 || body.trim().length > 4000)
+    throw new Error("Messages must be between 1 and 4,000 characters.");
+  return callWorldPrivateRpc("world_space_send_v1", {
+    p_space_id: roomId, p_body: body, p_reply_to_id: replyToId, p_request_id: requestId,
+  });
+}
+export async function editWorldRoomMessage(messageId: string, revision: number, body: string) {
+  if (!isValidRoomId(messageId) || body.trim().length < 1 || body.trim().length > 4000)
+    throw new Error("Invalid message or edited content.");
+  return callWorldPrivateRpc("world_space_edit_v1", {
+    p_message_id: messageId, p_expected_revision: revision, p_body: body,
+  });
+}
+export async function reactToWorldRoomMessage(messageId: string, emoji: string, present: boolean) {
+  if (!isValidRoomId(messageId) || emoji.length < 1 || emoji.length > 12)
+    throw new Error("Invalid reaction.");
+  return callWorldPrivateRpc("world_space_set_reaction_v1", {
+    p_message_id: messageId, p_emoji: emoji, p_present: present,
+  });
+}
+export async function moderateWorldRoomMessage(messageId: string, revision: number, action: "pin" | "unpin" | "redact") {
+  if (!isValidRoomId(messageId)) throw new Error("Invalid message.");
+  return callWorldPrivateRpc("world_space_moderate_v1", {
+    p_message_id: messageId, p_expected_revision: revision, p_action: action,
+  });
+}
+
+export function isVisiblePrivateWorldQuery(state: {
+  isSuccess: boolean; isError: boolean; isRefetchError?: boolean;
+  isFetchedAfterMount: boolean; isPending: boolean; isFetching?: boolean;
+}, online: boolean): boolean {
+  // Never show stale private data from another mount, after failed permission
+  // revalidation, or offline. Auth changes also remove the query root.
+  return online && state.isSuccess && !state.isError &&
+    !state.isRefetchError && !state.isPending && !state.isFetching && state.isFetchedAfterMount;
+}
+
+export async function createWorldRoom(input: {
+  organizationId: string; name: string; description: string;
+  visibility: WorldPrivateRoom["visibility"];
+  history: WorldPrivateRoom["history"];
+  organId?: string | null;
+  requestId: string;
+}) {
+  if (!isValidRoomId(input.organizationId) || !isValidRoomId(input.requestId) ||
+      input.name.trim().length < 1 || input.name.trim().length > 100) {
+    throw new Error("Room name must be between 1 and 100 characters.");
+  }
+  return callWorldPrivateRpc("world_space_create_v1", {
+    p_organization_id: input.organizationId, p_name: input.name,
+    p_description: input.description, p_visibility: input.visibility,
+    p_history: input.history, p_organ_id: input.organId ?? null,
+    p_request_id: input.requestId,
+  });
+}
+
+export type WorldWorkspaceContext = {
+  organizationId: string;
+  name: string;
+  canManage: boolean;
+};
+export async function getWorldWorkspaceContext(slug: string, signal?: AbortSignal): Promise<WorldWorkspaceContext | null> {
+  if (!safeWorldRoomSlug(slug)) throw new Error("Invalid organization.");
+  const response = await callWorldPrivateRpc("world_workspace_context_v1", { p_slug: slug }, signal);
+  if (!isRecord(response) || !isValidRoomId(response.organizationId) ||
+      typeof response.name !== "string" || typeof response.canManage !== "boolean") return null;
+  return {
+    organizationId: response.organizationId,
+    name: response.name,
+    canManage: response.canManage,
+  };
+}
+
+export type WorldChatSearchResult = {
+  id: string;
+  spaceId: string;
+  mine: boolean;
+  body: string;
+  revision: number;
+  createdAt: string;
+  editedAt: string | null;
+  redacted: boolean;
+};
+const isSearchResult = (x: unknown): x is WorldChatSearchResult =>
+  isRecord(x) && isValidRoomId(x.id) && isValidRoomId(x.spaceId) &&
+  typeof x.mine === "boolean" && typeof x.body === "string" &&
+  typeof x.createdAt === "string";
+
+/** Explicit submit-only private search, never sent to public global Search. */
+export async function searchWorldRoomMessages(spaceId: string, term: string, signal?: AbortSignal): Promise<WorldChatSearchResult[]> {
+  if (!isValidRoomId(spaceId) || term.trim().length < 2 || term.trim().length > 80) {
+    throw new Error("Search requires 2–80 characters and a valid room.");
+  }
+  return asList(await callWorldPrivateRpc("world_space_search_v1", {
+    p_space_id: spaceId, p_query: term.trim(), p_limit: WORLD_ROOM_PAGE_SIZE,
+  }, signal), isSearchResult);
+}
+
+/** Only a live room manager may obtain these identities, via scoped RPC. */
+export type WorldRoomCandidate = {
+  userId: string;
+  name: string;
+  role: "member" | "moderator";
+  invited: boolean;
+  revision: number;
+};
+const isRoomCandidate = (x: unknown): x is WorldRoomCandidate =>
+  isRecord(x) && isValidRoomId(x.userId) && typeof x.name === "string" &&
+  (x.role === "member" || x.role === "moderator") &&
+  typeof x.invited === "boolean" && Number.isSafeInteger(x.revision) && (x.revision as number) >= 0;
+
+export async function getWorldRoomCandidates(roomId: string, signal?: AbortSignal): Promise<WorldRoomCandidate[]> {
+  if (!isValidRoomId(roomId)) throw new Error("Invalid room.");
+  return asList(await callWorldPrivateRpc("world_space_candidates_v1", { p_space_id: roomId }, signal), isRoomCandidate);
+}
+
+export type WorldRoomGrantReceipt = { revision: number; requestId: string; active: boolean };
+export async function changeWorldRoomGrant(input: {
+  spaceId: string; userId: string; role: WorldRoomCandidate["role"];
+  active: boolean; expectedRevision: number; requestId: string;
+  historyFrom?: string | null;
+}): Promise<WorldRoomGrantReceipt> {
+  if (![input.spaceId, input.userId, input.requestId].every(isValidRoomId) ||
+      !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0 ||
+      !["member", "moderator"].includes(input.role)) throw new Error("Invalid room grant operation.");
+  const data = await callWorldPrivateRpc("world_space_set_grant_v1", {
+    p_space_id: input.spaceId, p_user_id: input.userId, p_role: input.role,
+    p_history_from: input.historyFrom ?? null, p_active: input.active,
+    p_expected_revision: input.expectedRevision, p_request_id: input.requestId,
+  });
+  if (!isRecord(data) || !isValidRoomId(data.requestId) ||
+      data.requestId !== input.requestId || typeof data.active !== "boolean" ||
+      !Number.isSafeInteger(data.revision) || (data.revision as number) <= input.expectedRevision) {
+    throw new Error("Room grant receipt could not be verified.");
+  }
+  return {
+    revision: data.revision as number,
+    requestId: data.requestId,
+    active: data.active,
+  };
+}
