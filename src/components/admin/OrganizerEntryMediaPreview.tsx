@@ -14,6 +14,7 @@ type EntryPreviewField = {
 function EntryMediaSourcePlayer({ role, label, sourceUrl }: EntryPreviewField) {
   const preview = resolveOrganizerEntryMediaPreview(sourceUrl, role);
   const [loadRequested, setLoadRequested] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   return (
     <div className="rounded-xl border border-white/[0.08] bg-black/10 p-3">
@@ -34,10 +35,30 @@ function EntryMediaSourcePlayer({ role, label, sourceUrl }: EntryPreviewField) {
             <button
               type="button"
               className="admin-action-secondary"
-              onClick={() => setLoadRequested(true)}
+              onClick={() => {
+                setFailed(false);
+                setLoadRequested(true);
+              }}
             >
               Load {preview.kind} preview
             </button>
+          ) : failed ? (
+            <div className="space-y-2" role="status">
+              <p className="text-xs text-amber-100">
+                Media could not be loaded from this source. The file may be unavailable,
+                unsupported by this browser, or access-restricted.
+              </p>
+              <button
+                type="button"
+                className="admin-action-secondary"
+                onClick={() => {
+                  setFailed(false);
+                  setLoadRequested(false);
+                }}
+              >
+                Retry preview
+              </button>
+            </div>
           ) : (
             <div className="space-y-2">
               {preview.kind === "audio" ? (
@@ -45,6 +66,7 @@ function EntryMediaSourcePlayer({ role, label, sourceUrl }: EntryPreviewField) {
                   controls
                   preload="none"
                   src={preview.url}
+                  onError={() => setFailed(true)}
                   className="w-full"
                   aria-label={`${label} audio preview`}
                 />
@@ -54,6 +76,7 @@ function EntryMediaSourcePlayer({ role, label, sourceUrl }: EntryPreviewField) {
                   preload="none"
                   playsInline
                   src={preview.url}
+                  onError={() => setFailed(true)}
                   className="max-h-72 w-full rounded-lg bg-black object-contain"
                   aria-label={`${label} video preview`}
                 />
@@ -61,7 +84,10 @@ function EntryMediaSourcePlayer({ role, label, sourceUrl }: EntryPreviewField) {
               <button
                 type="button"
                 className="admin-action-secondary"
-                onClick={() => setLoadRequested(false)}
+                onClick={() => {
+                  setLoadRequested(false);
+                  setFailed(false);
+                }}
               >
                 Unload preview
               </button>

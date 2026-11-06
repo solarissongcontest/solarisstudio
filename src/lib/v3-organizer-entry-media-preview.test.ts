@@ -67,6 +67,15 @@ describe("Organizer Entry Review opt-in media inspection", () => {
     expect(code).not.toContain("<iframe");
   });
 
+  it("offers honest error and retry state for unavailable or unsupported sources", () => {
+    const code = readFileSync(resolve(process.cwd(),
+      "src/components/admin/OrganizerEntryMediaPreview.tsx"), "utf8");
+    expect(code).toContain("const [failed, setFailed] = useState(false)");
+    expect(code).toContain("onError={() => setFailed(true)}");
+    expect(code).toContain("Retry preview");
+    expect(code).toContain("access-restricted");
+  });
+
   it("shows media only while the exact review sheet is open", () => {
     const route = readFileSync(resolve(process.cwd(),
       "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
