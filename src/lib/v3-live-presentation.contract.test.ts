@@ -83,6 +83,9 @@ describe("Public V3 Live presentation", () => {
 
   it("does not use legacy Show Mode when V3 rollout is enabled but initial Live authority is absent", () => {
     const routeGate = gate();
+    expect(routeGate).toContain("if (!rollout.data)");
+    expect(routeGate).toContain("if (!v3Enabled)");
+    expect(routeGate).not.toContain("if (!rollout.data || !v3Enabled)");
     expect(routeGate).toContain("if (!bundle.data)");
     expect(routeGate).toContain("Official Live state could not be verified");
     expect(routeGate).toContain("onRetry={() => { void bundle.refetch(); }}");

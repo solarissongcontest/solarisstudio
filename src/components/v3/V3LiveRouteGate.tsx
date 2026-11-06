@@ -168,7 +168,18 @@ export function V3LiveRouteGate({ fallback }: { fallback: ReactNode }) {
       />
     );
   }
-  if (!rollout.data || !v3Enabled) {
+  // A confirmed server-disabled rollout may use legacy; an absent rollout
+  // snapshot is unknown authority and must not launch archive-wide queries.
+  if (!rollout.data) {
+    return (
+      <LiveBootSurface
+        message="Official Live rollout state could not be verified. Retry to check availability."
+        onRetry={() => { void rollout.refetch(); }}
+        refreshing={rollout.isFetching}
+      />
+    );
+  }
+  if (!v3Enabled) {
     return <>{fallback}</>;
   }
 
