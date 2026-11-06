@@ -80,6 +80,24 @@ describe("Organizer immutable Entry version evidence", () => {
     expect(exact[0].reviews).toHaveLength(1);
   });
 
+  it("refuses incomplete or truncated credit audit evidence", () => {
+    const withCredits = (credits: unknown) => ({
+      ...payload,
+      versions: [{ ...payload.versions[0], content: { ...payload.versions[0].content, credits } }],
+    });
+    expect(() => parseOrganizerEntryRevisions(withCredits({ name: "A", role: "writer" }),
+      "entry-1", "submission-1")).toThrow(/malformed or oversized credit/);
+    expect(() => parseOrganizerEntryRevisions(withCredits(
+      Array.from({ length: 101 }, (_, i) => ({ name: `Writer ${i}`, role: "composer" })),
+    ), "entry-1", "submission-1")).toThrow(/malformed or oversized credit/);
+    expect(() => parseOrganizerEntryRevisions(withCredits([{ name: "A" }]),
+      "entry-1", "submission-1")).toThrow(/incomplete credit/);
+    expect(parseOrganizerEntryRevisions(withCredits([
+      { name: "Composer", role: "music" },
+    ]), "entry-1", "submission-1")[0].credits)
+      .toEqual([{ name: "Composer", role: "music" }]);
+  });
+
   it("never silently hides an overlapping or incorrectly ordered revision page", () => {
     const [newer, older] = parseOrganizerEntryRevisions(payload, "entry-1", "submission-1");
     expect(appendOrganizerEntryRevisionPage([newer], [older], 2))
