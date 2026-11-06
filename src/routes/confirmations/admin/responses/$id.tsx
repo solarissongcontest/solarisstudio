@@ -1790,6 +1790,10 @@ function ResponseDetailPage() {
         onClose={() => setSettingsOpen(false)}
         onApplied={load}
         submissionId={data.id}
+        editionId={organizerEditionId}
+        roundId={data.round?.id ?? ""}
+        responseUpdatedAt={data.updated_at}
+        isScopeCurrent={isDisplayedResponseCurrent}
         country={data.country}
         editionLabel={
           data.edition

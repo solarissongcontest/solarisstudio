@@ -7,6 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { AdminConfirmSheet, AdminSheet, AdminStatus } from "./AdminUI";
+import {
+  assertOrganizerConfirmationAccessScope,
+  type OrganizerConfirmationAccessScope,
+} from "@/lib/v3-organizer-confirmation-access-scope";
 
 type ConfirmationAccessSnapshot = {
   editingAllowed: boolean;
@@ -17,6 +21,7 @@ type ConfirmationAccessSnapshot = {
 type PendingAccessReview = {
   baseline: ConfirmationAccessSnapshot;
   next: ConfirmationAccessSnapshot;
+  scope: OrganizerConfirmationAccessScope;
 };
 
 export function ConfirmationAccessSettingsSheet({
@@ -24,6 +29,10 @@ export function ConfirmationAccessSettingsSheet({
   onClose,
   onApplied,
   submissionId,
+  editionId,
+  roundId,
+  responseUpdatedAt,
+  isScopeCurrent,
   country,
   editionLabel,
   roundName,
@@ -35,6 +44,10 @@ export function ConfirmationAccessSettingsSheet({
   onClose: () => void;
   onApplied: () => Promise<void> | void;
   submissionId: string;
+  editionId: string;
+  roundId: string;
+  responseUpdatedAt: string;
+  isScopeCurrent: () => boolean;
   country: string;
   editionLabel: string;
   roundName: string;
@@ -82,6 +95,10 @@ export function ConfirmationAccessSettingsSheet({
     notesChanged;
 
   const openReview = () => {
+    if (!isScopeCurrent() || !editionId || !roundId || !responseUpdatedAt) {
+      toast.error("Confirmation edition or response changed. Reload before reviewing access controls.");
+      return;
+    }
     if (!controlsChanged) {
       toast.message("No response-setting changes to review.");
       return;
@@ -89,6 +106,7 @@ export function ConfirmationAccessSettingsSheet({
     setPendingReview({
       baseline: currentSnapshot,
       next: draftSnapshot,
+      scope: { submissionId, editionId, roundId, updatedAt: responseUpdatedAt },
     });
   };
 
@@ -102,6 +120,12 @@ export function ConfirmationAccessSettingsSheet({
 
     setSaving(true);
     try {
+      if (!isScopeCurrent()) {
+        throw new Error("Organizer response context changed. No Confirmation controls were applied.");
+      }
+      assertOrganizerConfirmationAccessScope(pendingReview.scope, {
+        submissionId, editionId, roundId, updatedAt: responseUpdatedAt,
+      });
       const { data: liveData, error: liveError } = await confirmationsSupabase.rpc(
         "admin_confirmation_response",
         { _submission_id: submissionId },
@@ -109,6 +133,10 @@ export function ConfirmationAccessSettingsSheet({
       if (liveError) throw liveError;
 
       const live = liveData as unknown as {
+        id?: string;
+        edition?: { id?: string | null } | null;
+        round?: { id?: string | null } | null;
+        updated_at?: string | null;
         editing_allowed?: boolean;
         locked?: boolean;
         admin_notes?: string | null;
@@ -117,6 +145,15 @@ export function ConfirmationAccessSettingsSheet({
         throw new Error("The Confirmation response is no longer available. Nothing was changed.");
       }
 
+      if (!isScopeCurrent()) {
+        throw new Error("Organizer response context changed while checking Confirmation access. Nothing was changed.");
+      }
+      assertOrganizerConfirmationAccessScope(pendingReview.scope, {
+        submissionId: live.id ?? "",
+        editionId: live.edition?.id ?? "",
+        roundId: live.round?.id ?? "",
+        updatedAt: live.updated_at ?? "",
+      });
       const liveNotes = live.admin_notes ?? "";
       if (
         live.editing_allowed !== pendingReview.baseline.editingAllowed ||
@@ -128,6 +165,9 @@ export function ConfirmationAccessSettingsSheet({
         );
       }
 
+      if (!isScopeCurrent()) {
+        throw new Error("Organizer response context changed before Confirmation settings apply. Nothing was changed.");
+      }
       const { error: updateError } = await confirmationsSupabase.rpc(
         "admin_update_confirmation_controls",
         {
@@ -138,6 +178,10 @@ export function ConfirmationAccessSettingsSheet({
         },
       );
       if (updateError) throw updateError;
+      if (!isScopeCurrent()) {
+        toast.warning("Response settings may have changed for a previously displayed edition. Verify its canonical state.");
+        return;
+      }
 
       setPendingReview(null);
       toast.success("Response settings saved");
@@ -146,7 +190,7 @@ export function ConfirmationAccessSettingsSheet({
     } catch (caught) {
       setPendingReview(null);
       toast.error(caught instanceof Error ? caught.message : "Could not save response settings.");
-      await onApplied();
+      if (isScopeCurrent()) await onApplied();
     } finally {
       setSaving(false);
     }
@@ -287,7 +331,7 @@ export function ConfirmationAccessSettingsSheet({
               Private organiser notes: {reviewedNotesChanged ? "changed" : "unchanged"}. Their contents are intentionally not repeated here.
             </p>
             <p className="text-xs text-muted-foreground">
-              Organizer re-fetches the live Confirmation response immediately before apply and fails closed if editing access, lock state or notes changed. The underlying legacy control RPC still does not provide canonical expected-version/CAS, idempotency or operation-receipt parity.
+              Organizer re-fetches the exact Confirmation submission, edition, round and updated timestamp immediately before apply, rejecting any changed review baseline. The underlying legacy control RPC still does not provide atomic expected-version/CAS, idempotency or operation-receipt parity; a concurrent write after preflight remains a System-owned risk.
             </p>
           </div>
         }
