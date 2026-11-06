@@ -9,6 +9,17 @@ import { describe, expect, it } from "vitest";
  * This test reads source without rendering or issuing any Supabase traffic.
  */
 describe("TG4 public document rollout boundaries", () => {
+  it("requires fresh verified legal-document reads and hides cached revalidation failures", () => {
+    const reader = readFileSync(resolve(process.cwd(),
+      "src/components/v3/V3WorldDocumentLibrary.tsx"), "utf8");
+    expect(reader.split('refetchOnMount: "always"')).toHaveLength(3);
+    expect(reader).toContain("const verifiedIndex = query.isSuccess && query.isFetchedAfterMount");
+    expect(reader).toContain("!query.isFetching && !query.isRefetchError ? query.data : undefined");
+    expect(reader).toContain("const detail = query.isSuccess && query.isFetchedAfterMount");
+    expect(reader).toContain("query.isError || query.isRefetchError");
+    expect(reader).toContain('label="Verifying the published document…"');
+    expect(reader).toContain('label="Verifying published institutional records…"');
+  });
   for (const path of [
     "src/routes/world/documents/index.tsx",
     "src/routes/world/documents/$organization/$document.tsx",
