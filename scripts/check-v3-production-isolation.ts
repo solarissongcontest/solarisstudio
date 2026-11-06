@@ -60,6 +60,17 @@ function assertLocalUrl(key: string, rawValue: string) {
     throw new Error(`${key} is set but is not a valid URL; refusing automated V3 verification`);
   }
 
+  // Checking a hostname alone would classify e.g. ftp://localhost as a
+  // safe Supabase/database target. Require the protocol appropriate to the
+  // connection class before certifying any configured target as loopback.
+  const databaseUrl = DATABASE_URL_KEYS.some((name) => name === key);
+  const expectedProtocols = databaseUrl ? ["postgres:", "postgresql:"] : ["http:", "https:"];
+  if (!expectedProtocols.includes(parsed.protocol.toLowerCase())) {
+    throw new Error(
+      `${key} uses an unsupported URL protocol; refusing ambiguous Supabase/database routing in automated V3 verification`,
+    );
+  }
+
   // A libpq URI's query parameters can redirect a loopback-looking DB URL.
   // Deny all explicit connection-authority overrides before any test traffic.
   const overrideKeys = new Set(["host", "hostaddr", "service"]);
