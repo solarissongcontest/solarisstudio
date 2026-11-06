@@ -48,11 +48,12 @@ import {
 } from "@/lib/public-search";
 import { isRecentShowPublic } from "@/lib/public-recent-show-publication";
 import { readPublicRecents } from "@/lib/public-recents";
+import { recentPublicationSlugs, visiblePublicationVerifiedRecents } from "@/lib/v3-search-recent-publication";
 import { visibleRecentShowDestinations } from "@/lib/v3-show-public-discovery";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { searchGovernanceLibrary } from "@/lib/public-library-governance";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
-import { loadPublicStorylines } from "@/lib/studio2-storytelling";
+import { loadPublicStoryline, loadPublicStorylines } from "@/lib/studio2-storytelling";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
@@ -205,6 +206,8 @@ function publicRecentShowIds(recents: readonly { path: string }[]): string[] {
 function usePublicationSafeRecents() {
   const recents = useMemo(() => readPublicRecents(), []);
   const showIds = useMemo(() => publicRecentShowIds(recents), [recents]);
+  const publicationSlugs = useMemo(() => recentPublicationSlugs(recents), [recents]);
+  const { editionSlugs, storySlugs } = publicationSlugs;
   const showVisibility = useQuery({
     queryKey: ["public-command-palette-recent-show-visibility", showIds],
     enabled: showIds.length > 0,
@@ -238,18 +241,91 @@ function usePublicationSafeRecents() {
         .map((show) => ({ id: show.id }));
     },
   });
-  return useMemo(
-    () =>
-      visibleRecentShowDestinations(
-        recents,
-        showVisibility.isSuccess &&
-          showVisibility.isFetchedAfterMount &&
-          !showVisibility.isFetching
-          ? showVisibility.data
+  const editionVisibility = useQuery({
+    queryKey: ["public-command-palette-recent-edition-visibility", editionSlugs],
+    enabled: editionSlugs.length > 0,
+    // A previously public Edition can become unpublished while its title
+    // remains in shared-device storage. Require a new read on every opening.
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+    retry: false,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("editions")
+        .select("slug,published,name")
+        .in("slug", editionSlugs);
+      if (error) throw error;
+      return (data ?? [])
+        .filter((edition) => edition.published === true && Boolean(edition.name?.trim()))
+        .map((edition) => ({ slug: edition.slug, label: edition.name }));
+    },
+  });
+  const storyVisibility = useQuery({
+    queryKey: ["public-command-palette-recent-story-visibility", storySlugs],
+    enabled: storySlugs.length > 0,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+    retry: false,
+    queryFn: async () => {
+      // No cheap per-slug published-story metadata RPC exists. Use the
+      // existing server-authoritative publication-gated detail function only
+      // for the at-most-eight remembered Story URLs. Errors fail closed.
+      const checked = await Promise.allSettled(
+        storySlugs.map((slug) => loadPublicStoryline(slug)),
+      );
+      return checked.flatMap((result, index) =>
+        result.status === "fulfilled" &&
+        result.value?.editionSlug === storySlugs[index] &&
+        Boolean(result.value?.title?.trim())
+          ? [{ slug: storySlugs[index], label: result.value.title }]
           : [],
-      ),
-    [recents, showVisibility.isSuccess, showVisibility.isFetchedAfterMount, showVisibility.isFetching, showVisibility.data],
-  );
+      );
+    },
+  });
+
+  return useMemo(() => {
+    const allowedShows =
+      showVisibility.isSuccess &&
+      showVisibility.isFetchedAfterMount &&
+      !showVisibility.isFetching
+        ? showVisibility.data
+        : [];
+    const allowedEditionLabels =
+      editionVisibility.isSuccess &&
+      editionVisibility.isFetchedAfterMount &&
+      !editionVisibility.isFetching
+        ? editionVisibility.data
+        : [];
+    const allowedStoryLabels =
+      storyVisibility.isSuccess &&
+      storyVisibility.isFetchedAfterMount &&
+      !storyVisibility.isFetching
+        ? storyVisibility.data
+        : [];
+    return visiblePublicationVerifiedRecents(
+      visibleRecentShowDestinations(recents, allowedShows),
+      {
+        publishedEditionLabels: new Map(allowedEditionLabels.map((row) => [row.slug, row.label])),
+        publishedStoryLabels: new Map(allowedStoryLabels.map((row) => [row.slug, row.label])),
+      },
+    );
+  }, [
+    recents,
+    showVisibility.isSuccess,
+    showVisibility.isFetchedAfterMount,
+    showVisibility.isFetching,
+    showVisibility.data,
+    editionVisibility.isSuccess,
+    editionVisibility.isFetchedAfterMount,
+    editionVisibility.isFetching,
+    editionVisibility.data,
+    storyVisibility.isSuccess,
+    storyVisibility.isFetchedAfterMount,
+    storyVisibility.isFetching,
+    storyVisibility.data,
+  ]);
 }
 
 function AppPublicPaletteDialog({
