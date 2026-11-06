@@ -60,6 +60,12 @@ const attackColumns: readonly AdminDataColumn<AttackRow>[] = [
 ];
 
 export const Route = createFileRoute("/televoting/admin/backtest")({
+  head: () => ({
+    meta: [
+      { title: "Televote Backtest — Solaris Organizer" },
+      { name: "robots", content: "noindex, nofollow" },
+    ],
+  }),
   component: TelevoteBacktestRoute,
 });
 
