@@ -39,7 +39,21 @@ test("refuses payload additions carrying a ballot choice or account identity", (
 test("refuses private actor fields even outside the main JSON payload", () => {
   assert.throws(() => auditWorldBallotEventSql(source(
     safe.replace("v_operation_id,null,null", "v_operation_id,p_choice,null")
-  )), /private vote/);
+  )), /envelope field 6/);
+});
+
+test("strictly allowlists metadata and event version, not just private field names", () => {
+  const replacements = [
+    ["v_operation_id,null,null", "v_operation_id,p_secret_email,null"],
+    ["v_operation_id,null,null", "v_operation_id,null,p_audit_context"],
+    ["v_operation_id,null,null", "auth.uid(),null,null"],
+    ["1,array[]::text[]", "1,array['userId']::text[]"],
+    ["1,array[]::text[]", "2,array[]::text[]"],
+  ];
+  for (const [original, unsafe] of replacements) {
+    assert.throws(() => auditWorldBallotEventSql(source(safe.replace(original, unsafe))),
+      /envelope field/);
+  }
 });
 
 test("fails closed on absent, duplicate, and malformed emission contracts", () => {
@@ -48,7 +62,7 @@ test("fails closed on absent, duplicate, and malformed emission contracts", () =
   assert.throws(() => auditWorldBallotEventSql([]), /sources required/);
   assert.throws(() => auditWorldBallotEventSql(source(
     safe.replace("'world_vote'", "'country'")
-  )), /entity authority/);
+  )), /envelope field 2/);
 });
 
 test("does not mistake fake event calls in SQL comments for published producers", () => {
