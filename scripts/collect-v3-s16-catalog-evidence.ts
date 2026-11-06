@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { resolveS16CandidateSha, requireS16CleanTree } from "../src/lib/v3-s16-candidate-sha";
+import { requireV3S16CatalogTableCoverage } from "../src/lib/v3-s16-catalog-coverage";
 import { V3_S16_CRITICAL_DOMAINS, type V3S16CatalogEvidence, type V3S16CatalogFunctionEvidence } from "../src/lib/v3-s16-mutation-authority";
 import { requireS16LocalDatabase, S16_FUNCTION_CATALOG_SQL, S16_ROLE_AND_DEFAULT_CATALOG_SQL, s16TableCatalogSql, potentialS16Write, s16PsqlEnvironment } from "../src/lib/v3-s16-catalog";
 
@@ -16,10 +17,11 @@ function query<T>(sql: string): T {
   return JSON.parse(text) as T;
 }
 const criticalTables = [...new Set(V3_S16_CRITICAL_DOMAINS.flatMap(d => d.canonicalTables))].sort();
-const tables = criticalTables.flatMap(table => {
-  const row = query<V3S16CatalogEvidence["tables"][number] | null>(s16TableCatalogSql(table));
-  return row ? [row] : [];
-});
+const tableRows = criticalTables.map(table =>
+  query<V3S16CatalogEvidence["tables"][number] | null>(s16TableCatalogSql(table))
+);
+// Missing catalog rows are blockers, not optional values to silently drop.
+const tables = requireV3S16CatalogTableCoverage(criticalTables, tableRows);
 const roles = query<{ roles: {name: string}[]; memberships: unknown[]; functionDefaults: unknown[] }>(S16_ROLE_AND_DEFAULT_CATALOG_SQL);
 for (const role of ["anon", "authenticated", "service_role"]) {
   if (!roles.roles.some(r => r.name === role)) throw new Error(`Disposable Supabase role ${role} is missing; refusing incomplete evidence`);
