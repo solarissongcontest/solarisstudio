@@ -30,11 +30,16 @@ describe("country page presentation ownership", () => {
     expect(route).toContain("<ResponsiveTabs");
     expect(route).toContain("<CountryDesignV2Hero");
     expect(route).toContain("<CountryIdentityHero");
-    // When Reference is published, /wiki/$code redirects to /countries/$code.
-    // Country links must open the index, not navigate back to themselves.
+    // Reference-enabled viewers browse the Reference index, never a link
+    // that redirects to the same Country. Legacy viewers keep their precise article.
     expect(route.split('<Link to="/wiki">Reference</Link>')).toHaveLength(3);
     expect(route).toContain('wiki: { label: "Reference", href: "/wiki" }');
-    expect(route).not.toContain('to="/wiki/$code"');
+    expect(route).toContain('label: "Wiki article", href: `/wiki/${country.short_code}`');
+    expect(route).toContain('legacyWikiArticleAvailable ? (');
+    expect(route).toContain('to="/wiki/$code"');
+    expect(route).toContain('queryKey: ["studio2-feature", "public_encyclopedia"]');
+    expect(route).toContain('enabled: platformResolved');
+    expect(route).toContain('referenceRollout.isSuccess && referenceRollout.data === false');
   });
 
   it("shares runtime-first layout selection with Wiki while keeping its browser article intact", () => {
@@ -114,10 +119,11 @@ describe("country page presentation ownership", () => {
     expect(css).not.toContain(":root {");
     expect(masthead).toContain("aspect-[3/2]");
     expect(masthead).toContain("FlagFrame");
-    // The legacy detail alias redirects back to the canonical Country page
-    // when Reference is enabled; navigation must go to the Reference index.
+    // Exact legacy Wiki articles remain reachable while the Reference flag is off.
     expect(masthead).toContain('<Link to="/wiki" className={COUNTRY_MOBILE_LINK_CLASS}>');
-    expect(masthead).not.toContain('to="/wiki/$code"');
+    expect(masthead).toContain('legacyWikiCode ? (');
+    expect(masthead).toContain('to="/wiki/$code" params={{ code: legacyWikiCode }}');
+    expect(masthead).toContain('legacyWikiCode: string | null');
     expect(masthead).toContain("hasLongDescription");
     expect(masthead).toContain("aria-controls={descriptionId}");
     expect(masthead).toContain("aria-expanded={descriptionExpanded}");
