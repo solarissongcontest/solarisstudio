@@ -431,7 +431,7 @@ function CountryProfilePage() {
     })),
     geography: null,
     actions: {
-      wiki: { label: "Wiki", href: `/wiki/${country.short_code}` },
+      wiki: { label: "Reference", href: "/wiki" },
       compare: { label: "Compare", href: `/compare?a=${country.short_code}` },
       follow: { label: "Follow", href: `/countries/${country.short_code}` },
     },
@@ -490,7 +490,7 @@ function CountryProfilePage() {
             actions={
               <>
                 <div className="country-v2-hero-secondary-actions">
-                  <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
+                  <Link to="/wiki">Reference</Link>
                   <Link to="/compare" search={{ a: country.short_code }}>Compare</Link>
                   <Link to="/voting-dna/$code" params={{ code: country.short_code }}>Voting DNA</Link>
                 </div>
@@ -513,7 +513,7 @@ function CountryProfilePage() {
             className="mb-6"
             actions={
               <>
-                <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
+                <Link to="/wiki">Reference</Link>
                 <Link to="/compare" search={{ a: country.short_code }}>Compare</Link>
                 <Link to="/voting-dna/$code" params={{ code: country.short_code }}>Voting DNA</Link>
                 <FollowButton entityType="country" entityId={country.id} label={country.name} />
