@@ -52,13 +52,21 @@ const journey: V3JourneyStepProjection[] = [
 ];
 
 describe("projectV3Participate", () => {
-  it("keeps required attention, future responsibilities, waiting work, optional participation and history separate", () => {
+  it("keeps required attention, blocked problems, future responsibilities, waiting work, optional participation and history separate", () => {
     const required = action("required-jury", {
       actionRequired: true,
       deliveryClass: "required",
       impact: "blocking",
       urgency: "high",
       sourceState: "needs_attention",
+    });
+    const blocked = action("entry-changes-locked", {
+      kind: "entry",
+      deliveryClass: "required",
+      impact: "blocking",
+      urgency: "none",
+      sourceState: "problem",
+      actionRequired: false,
     });
     const next = action("next-entry", {
       kind: "entry",
@@ -86,17 +94,45 @@ describe("projectV3Participate", () => {
     });
 
     const projection = projectV3Participate({
-      actions: [required, next, waiting, optional, done],
+      actions: [required, blocked, next, waiting, optional, done],
       journey,
     });
 
     expect(projection.needsAttention.map((item) => item.id)).toEqual(["required-jury"]);
+    expect(projection.blocked.map((item) => item.id)).toEqual(["entry-changes-locked"]);
     expect(projection.next.map((item) => item.id)).toEqual(["next-entry"]);
     expect(projection.waiting.map((item) => item.id)).toEqual(["waiting-confirmation"]);
     expect(projection.optionalNow.map((item) => item.id)).toEqual(["public-vote"]);
     expect(projection.completed.map((item) => item.id)).toEqual(["confirmation-done"]);
     expect(projection.journeyCompleteCount).toBe(1);
     expect(projection.journeyTotalCount).toBe(2);
+  });
+
+  it("keeps a non-actionable problem blocked instead of implying it is the user's Next task", () => {
+    const lockedChanges = action("locked-entry-correction", {
+      kind: "entry",
+      sourceState: "problem",
+      deliveryClass: "required",
+      impact: "blocking",
+      actionRequired: false,
+    });
+    const editableChanges = action("editable-entry-correction", {
+      kind: "entry",
+      sourceState: "problem",
+      deliveryClass: "required",
+      impact: "blocking",
+      actionRequired: true,
+      urgency: "high",
+    });
+
+    const projection = projectV3Participate({
+      actions: [lockedChanges, editableChanges],
+      journey: [],
+    });
+
+    expect(projection.blocked.map((item) => item.id)).toEqual(["locked-entry-correction"]);
+    expect(projection.needsAttention.map((item) => item.id)).toEqual(["editable-entry-correction"]);
+    expect(projection.next).toEqual([]);
   });
 
   it("keeps optional waiting actions in Waiting until canonical state becomes actionable", () => {
@@ -163,6 +199,30 @@ describe("projectV3Participate", () => {
 
     expect(projection.voting.jury?.id).toBe("jury-current");
     expect(projection.voting.currentCount).toBe(1);
+  });
+
+  it("keeps completed voting cards as context without counting them as current", () => {
+    const completedJury = action("jury-submitted", {
+      kind: "jury",
+      completed: true,
+      sourceState: "completed",
+      deliveryClass: "required",
+    });
+    const finishedTelevote = action("televote-finished", {
+      kind: "televote",
+      completed: true,
+      sourceState: "finished",
+      deliveryClass: "optional",
+    });
+
+    const projection = projectV3Participate({
+      actions: [completedJury, finishedTelevote],
+      journey: [],
+    });
+
+    expect(projection.voting.jury?.id).toBe("jury-submitted");
+    expect(projection.voting.televote?.id).toBe("televote-finished");
+    expect(projection.voting.currentCount).toBe(0);
   });
 
   it("does not invent closed or unavailable voting truth when no canonical action exists", () => {
