@@ -16,7 +16,7 @@ describe("TG4 public document rollout boundaries", () => {
     it(`${path} defers mounting the public reader until World is enabled`, () => {
       const source = readFileSync(resolve(process.cwd(), path), "utf8");
       expect(source).toContain('import { WorldPublicGate } from "@/components/world/WorldPublic"');
-      expect(source).toMatch(/<WorldPublicGate>\s*<WorldDocument(?:Library|Reader)Screen/);
+      expect(source).toMatch(/<WorldPublicGate verifyOnMount>\s*<WorldDocument(?:Library|Reader)Screen/);
       expect(source).toContain("</WorldPublicGate>");
     });
   }
