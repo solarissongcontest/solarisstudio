@@ -100,7 +100,8 @@ async function liveSnapshot(): Promise<WorldSwarmSnapshot> {
     candidates.push({
       number: pull.number, title: pull.title, branch: pull.head.ref,
       baseRef: pull.base.ref, headSha: pull.head.sha, draft: pull.draft,
-      files: files.filter((file) => file.filename.startsWith("supabase/migrations/") && file.filename.endsWith(".sql"))
+      files: files.filter((file) => [file.filename, file.previous_filename ?? ""]
+        .some((name) => name.startsWith("supabase/migrations/") && name.endsWith(".sql")))
         .map((file) => ({
           filename: file.filename,
           status: file.status as WorldSwarmPull["files"][number]["status"],
