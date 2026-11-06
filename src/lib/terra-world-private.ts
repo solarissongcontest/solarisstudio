@@ -123,12 +123,12 @@ export async function moderateWorldRoomMessage(messageId: string, revision: numb
 
 export function isVisiblePrivateWorldQuery(state: {
   isSuccess: boolean; isError: boolean; isRefetchError?: boolean;
-  isFetchedAfterMount: boolean; isPending: boolean;
+  isFetchedAfterMount: boolean; isPending: boolean; isFetching?: boolean;
 }, online: boolean): boolean {
   // Never show stale private data from another mount, after failed permission
   // revalidation, or offline. Auth changes also remove the query root.
   return online && state.isSuccess && !state.isError &&
-    !state.isRefetchError && !state.isPending && state.isFetchedAfterMount;
+    !state.isRefetchError && !state.isPending && !state.isFetching && state.isFetchedAfterMount;
 }
 
 export async function createWorldRoom(input: {
