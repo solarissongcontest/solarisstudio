@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import {
   AdminCard,
   AdminEmptyState,
@@ -12,6 +13,9 @@ import {
   AdminSheet,
   AdminStatus,
 } from "@/components/admin/AdminUI";
+import { supabase } from "@/integrations/supabase/client";
+import { verifyOrganizerConfirmationRead } from "@/integrations/confirmations/organizer-confirmation-read-authorization";
+import { verifyFreshConfirmationRequirementReview } from "@/lib/v3-organizer-confirmation-requirements-r2-review";
 import {
   ensureConfirmationRequirements,
   loadConfirmationRequirements,
@@ -26,8 +30,8 @@ import {
 
 type RequirementFilter = "all" | "required" | "satisfied" | "waived";
 type PendingAction =
-  | { kind: "reconfirm"; requirement: ConfirmationRequirement }
-  | { kind: "waive"; requirement: ConfirmationRequirement }
+  | { kind: "reconfirm"; requirement: ConfirmationRequirement; actorId: string }
+  | { kind: "waive"; requirement: ConfirmationRequirement; actorId: string }
   | null;
 
 const RISK = "R2" as const;
@@ -47,16 +51,32 @@ export const Route = createFileRoute("/confirmations/admin/requirements")({
 function ConfirmationRequirementsPage() {
   const queryClient = useQueryClient();
   const { editionId } = useAdminContext();
+  const { id: actorId } = useAuthenticatedUser();
   const [filter, setFilter] = useState<RequirementFilter>("all");
   const [pending, setPending] = useState<PendingAction>(null);
   const [reason, setReason] = useState("");
 
-  const requirementsQuery = useQuery({
-    queryKey: ["confirmation-requirements", editionId || "none"],
+  const readAccessQuery = useQuery({
+    queryKey: ["confirmation-requirements-read-access", actorId, editionId || "none"],
+    queryFn: () => verifyOrganizerConfirmationRead(editionId),
     enabled: Boolean(editionId),
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+  });
+  const hasReadAccess = readAccessQuery.isSuccess &&
+    !readAccessQuery.isFetching && !readAccessQuery.error && readAccessQuery.data === true;
+
+  const requirementsQuery = useQuery({
+    queryKey: ["confirmation-requirements", editionId || "none", actorId],
+    enabled: Boolean(editionId) && hasReadAccess,
     queryFn: () => loadConfirmationRequirements(editionId),
     staleTime: 10_000,
-    refetchOnWindowFocus: true,
+    gcTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
   });
 
   const ensure = useMutation({
@@ -84,11 +104,26 @@ function ConfirmationRequirementsPage() {
       kind: "reconfirm" | "waive";
       requirement: ConfirmationRequirement;
       organizerEditionId: string;
+      organizerActorId: string;
       actionReason: string;
     }) => {
-      if (input.requirement.editionId !== input.organizerEditionId) {
+      if (input.requirement.editionId !== input.organizerEditionId || !input.organizerActorId) {
         throw new Error(STALE_CONTEXT_ERROR);
       }
+
+      await verifyFreshConfirmationRequirementReview({
+        actorId: input.organizerActorId,
+        editionId: input.organizerEditionId,
+        requirement: input.requirement,
+      }, {
+        getActorId: async () => {
+          const { data, error } = await supabase.auth.getUser();
+          if (error) throw error;
+          return data.user?.id ?? null;
+        },
+        verifyRead: verifyOrganizerConfirmationRead,
+        loadRequirements: loadConfirmationRequirements,
+      });
 
       const command = createOrganisationCommand({
         command:
@@ -150,7 +185,23 @@ function ConfirmationRequirementsPage() {
     setReason("");
   }, [editionId]);
 
-  const requirements = requirementsQuery.data ?? [];
+  useEffect(() => {
+    // A private R2 sheet cannot survive a different signed-in actor.
+    setPending(null);
+    setReason("");
+  }, [actorId]);
+
+  const requirementsVerified = hasReadAccess &&
+    requirementsQuery.isSuccess && !requirementsQuery.isFetching && !requirementsQuery.error;
+
+  useEffect(() => {
+    if (!requirementsVerified) {
+      setPending(null);
+      setReason("");
+    }
+  }, [requirementsVerified]);
+
+  const requirements = requirementsVerified ? requirementsQuery.data ?? [] : [];
   const counts = useMemo(
     () => ({
       required: requirements.filter((item) => item.status === "required").length,
@@ -167,19 +218,23 @@ function ConfirmationRequirementsPage() {
     [filter, requirements],
   );
 
-  function start(next: Exclude<PendingAction, null>) {
-    if (!editionId || next.requirement.editionId !== editionId) {
+  function start(next: { kind: "reconfirm" | "waive"; requirement: ConfirmationRequirement }) {
+    if (!requirementsVerified || !editionId || next.requirement.editionId !== editionId) {
       toast.error(STALE_CONTEXT_ERROR);
       return;
     }
     action.reset();
     setReason("");
-    setPending(next);
+    setPending(
+      next.kind === "reconfirm"
+        ? { kind: "reconfirm", requirement: next.requirement, actorId }
+        : { kind: "waive", requirement: next.requirement, actorId },
+    );
   }
 
   function submitAction() {
-    if (!pending || reason.trim().length < 5) return;
-    if (!editionId || pending.requirement.editionId !== editionId) {
+    if (!pending || !requirementsVerified || reason.trim().length < 5) return;
+    if (!editionId || pending.requirement.editionId !== editionId || pending.actorId !== actorId) {
       setPending(null);
       setReason("");
       toast.error(STALE_CONTEXT_ERROR);
@@ -189,6 +244,7 @@ function ConfirmationRequirementsPage() {
       kind: pending.kind,
       requirement: pending.requirement,
       organizerEditionId: editionId,
+      organizerActorId: actorId,
       actionReason: reason.trim(),
     });
   }
@@ -204,9 +260,9 @@ function ConfirmationRequirementsPage() {
             <button
               type="button"
               className="admin-action-secondary"
-              disabled={!editionId || ensure.isPending}
+              disabled={!editionId || !requirementsVerified || ensure.isPending}
               onClick={() => {
-                if (editionId) ensure.mutate(editionId);
+                if (editionId && requirementsVerified) ensure.mutate(editionId);
               }}
             >
               <RefreshCw className={ensure.isPending ? "size-4 animate-spin" : "size-4"} />
@@ -225,6 +281,38 @@ function ConfirmationRequirementsPage() {
             icon={CircleAlert}
             title="Choose an edition"
             description="Select an Organizer edition before managing its confirmation requirements. Solaris will not retain a pending requirement decision from another edition."
+          />
+        </AdminCard>
+      ) : !requirementsVerified ? (
+        <AdminCard>
+          <AdminEmptyState
+            icon={CircleAlert}
+            title={
+              readAccessQuery.isPending || readAccessQuery.isFetching
+                ? "Verifying Confirmation access…"
+                : readAccessQuery.isError
+                  ? "Confirmation access could not be verified"
+                  : !hasReadAccess
+                    ? "Confirmation access required"
+                    : requirementsQuery.isPending || requirementsQuery.isFetching
+                      ? "Loading confirmation obligations…"
+                      : "Confirmation requirements are unavailable"
+            }
+            description="Required, satisfied and waived counts are unknown until the selected Organizer account and edition have a fresh authorized requirement projection. No zero totals or prior-account rows are displayed."
+            action={
+              readAccessQuery.isError || requirementsQuery.isError ? (
+                <button
+                  type="button"
+                  className="admin-action-secondary"
+                  onClick={() => {
+                    if (readAccessQuery.isError) void readAccessQuery.refetch();
+                    else void requirementsQuery.refetch();
+                  }}
+                >
+                  Retry verification
+                </button>
+              ) : undefined
+            }
           />
         </AdminCard>
       ) : (
@@ -345,7 +433,7 @@ function ConfirmationRequirementsPage() {
       )}
 
       <AdminSheet
-        open={Boolean(pending)}
+        open={Boolean(pending && requirementsVerified)}
         onClose={() => {
           if (action.isPending) return;
           setPending(null);
@@ -420,7 +508,7 @@ function ConfirmationRequirementsPage() {
               <button
                 type="button"
                 className={pending.kind === "reconfirm" ? "admin-action-danger w-full" : "admin-action-primary w-full"}
-                disabled={action.isPending || reason.trim().length < 5}
+                disabled={!requirementsVerified || action.isPending || reason.trim().length < 5}
                 onClick={submitAction}
               >
                 {action.isPending
