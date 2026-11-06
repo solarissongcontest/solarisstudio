@@ -36,6 +36,15 @@ describe("V3 Following & Saved read and mutation recovery", () => {
     expect(source).toContain("setPendingKey(null)");
   });
 
+  it("never shows an old account's delayed mutation message to a different viewer", () => {
+    const source = screen();
+    expect(source).toContain('useEffect(() => {\n    setMessage(null);\n  }, [viewerId])');
+    expect(source).toContain("setMessage({ viewerId, text: following ?");
+    expect(source).toContain("setMessage({ viewerId, text: \"Update not confirmed.");
+    expect(source).toContain("message?.viewerId === viewerId");
+    expect(source).toContain("{message.text}");
+  });
+
   it("does not claim failure means the server definitely rejected a write", () => {
     const source = screen();
     expect(source).toContain("Update not confirmed. Check your saved items before trying again.");
