@@ -13,7 +13,10 @@ describe("V3 Organizer Result Integrity edition scope", () => {
     expect(route).toContain('<ResultIntegrityPage key={editionId} editionId={editionId} />');
     expect(route).toContain("getMergedTelevotingRoundsPage");
     expect(route).toContain("getRoundsPage({ data: { editionId } })");
-    expect(route).toContain('["v3-organizer-result-integrity-rounds", editionId]');
+    // Preserve edition-level scoping while preventing another Organizer actor
+    // from inheriting private integrity evidence from the previous cache.
+    expect(route).toContain("useAuthenticatedUser().id");
+    expect(route).toContain('["v3-organizer-result-integrity-rounds", actorId, editionId]');
     expect(route).not.toContain("useServerFn(getMergedTelevotingRounds);");
     expect(route).not.toContain('queryKey: ["merged-televoting-rounds"]');
   });
@@ -23,7 +26,7 @@ describe("V3 Organizer Result Integrity edition scope", () => {
     expect(route).toContain("result.round.id !== effectiveRoundId");
     expect(route).toContain("returned evidence for a different voting round");
     expect(route).toContain("outside the selected Organizer edition");
-    expect(route).toContain('["televoting-result-integrity", editionId, effectiveRoundId]');
+    expect(route).toContain('["televoting-result-integrity", actorId, editionId, effectiveRoundId]');
   });
 
   it("fails closed without explicit Organizer edition context", () => {

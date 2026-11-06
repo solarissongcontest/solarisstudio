@@ -11,6 +11,7 @@ import {
 
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
+import { LiveRundownCueSummary } from "@/components/admin/LiveRundownCueSummary";
 import {
   AdminCard,
   AdminCardHeader,
@@ -25,6 +26,7 @@ import type {
   V3OrganizerReadinessFactor,
 } from "@/lib/v3-organizer-projection";
 import { useV3OrganizerProjection } from "@/lib/v3-organizer-projection.query";
+import { organizerIncidentEscalation, organizerOverviewEmptyAttention, organizerOverviewStatus } from "@/lib/organizer-overview-status";
 
 export const Route = createFileRoute("/_authenticated/admin/operations")({
   head: () => ({
@@ -45,6 +47,18 @@ function OrganizerOverview() {
   const { editionId } = useAdminContext();
   const projectionQuery = useV3OrganizerProjection(editionId || null);
   const projection = projectionQuery.data ?? null;
+  const overviewStatus = projection
+    ? organizerOverviewStatus(projection.risk, projection.systemHealth.state)
+    : { tone: "neutral" as const, label: "Status unverified" };
+  const emptyAttention = projection
+    ? organizerOverviewEmptyAttention(projection.risk, projection.systemHealth.state)
+    : null;
+  const incidentEscalation = projection
+    ? organizerIncidentEscalation(
+        projection.live.issues.incidents,
+        projection.live.issues.criticalIncidents,
+      )
+    : null;
 
   return (
     <AdminPage>
@@ -100,20 +114,8 @@ function OrganizerOverview() {
                   {projection.edition.name} · state {humanize(projection.live.editionState)}
                 </p>
               </div>
-              <AdminStatus
-                tone={
-                  projection.risk === "critical"
-                    ? "blocked"
-                    : projection.risk === "elevated"
-                      ? "attention"
-                      : "ready"
-                }
-              >
-                {projection.risk === "critical"
-                  ? "Critical attention"
-                  : projection.risk === "elevated"
-                    ? "Needs attention"
-                    : "On track"}
+              <AdminStatus tone={overviewStatus.tone}>
+                {overviewStatus.label}
               </AdminStatus>
             </section>
 
@@ -124,12 +126,12 @@ function OrganizerOverview() {
                   title={
                     projection.attention.length
                       ? `${projection.tasks.total} ${projection.tasks.total === 1 ? "item needs" : "items need"} attention`
-                      : "No organizer action required"
+                      : emptyAttention?.heading ?? "Operational status not verified"
                   }
                   description={
                     projection.attention.length
                       ? "Only the highest-priority unresolved canonical conditions are shown here."
-                      : "Solaris currently has no unresolved Organizer Task for this edition."
+                      : emptyAttention?.description ?? "Operational evidence is unavailable."
                   }
                   action={
                     <Link
@@ -149,13 +151,28 @@ function OrganizerOverview() {
                     ))}
                   </div>
                 ) : (
-                  <div className="flex items-start gap-3 rounded-xl border border-emerald-200/10 bg-emerald-200/[0.045] p-4">
-                    <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-200" />
+                  <div className={`flex items-start gap-3 rounded-xl border p-4 ${
+                    emptyAttention?.verifiedClear
+                      ? "border-emerald-200/10 bg-emerald-200/[0.045]"
+                      : "border-amber-200/15 bg-amber-200/[0.045]"
+                  }`}>
+                    {emptyAttention?.verifiedClear ? (
+                      <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-200" />
+                    ) : (
+                      <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-100" />
+                    )}
                     <div>
-                      <p className="text-sm font-semibold text-foreground">Nothing is asking for intervention</p>
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                        Normal state stays quiet. The next scheduled operation is shown beside this card.
+                      <p className="text-sm font-semibold text-foreground">
+                        {emptyAttention?.heading ?? "Operational status not verified"}
                       </p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        {emptyAttention?.description ?? "Operational evidence is unavailable."}
+                      </p>
+                      {!emptyAttention?.verifiedClear ? (
+                        <Link to="/admin/control-room" className="mt-2 inline-block text-xs font-semibold text-sky-100">
+                          Review Control Room →
+                        </Link>
+                      ) : null}
                     </div>
                   </div>
                 )}
@@ -187,6 +204,48 @@ function OrganizerOverview() {
                 )}
               </AdminCard>
             </section>
+
+            {incidentEscalation ? (
+              <section className="mt-4" aria-label="Active production incidents">
+                <AdminCard>
+                  <AdminCardHeader
+                    eyebrow="Production incidents"
+                    title={incidentEscalation.title}
+                    description={incidentEscalation.description}
+                    action={
+                      <Link
+                        to="/admin/incidents"
+                        search={{ status: "active" }}
+                        className="text-xs font-semibold text-sky-100"
+                      >
+                        Open Incident Command →
+                      </Link>
+                    }
+                  />
+                </AdminCard>
+              </section>
+            ) : null}
+
+            {(projection.live.currentSegment || projection.live.nextSegment) ? (
+              <section className="mt-4" aria-label="Show-day production">
+                <AdminCard>
+                  <AdminCardHeader
+                    eyebrow="Live production"
+                    title="Broadcast rundown"
+                    description="Read-only now and next cues from the governed active-show rundown. Open the rundown to review or operate it with the appropriate permission."
+                    action={
+                      <Link to="/admin/broadcast-rundown" className="text-xs font-semibold text-sky-100">
+                        Open Rundown →
+                      </Link>
+                    }
+                  />
+                  <LiveRundownCueSummary
+                    current={projection.live.currentSegment}
+                    next={projection.live.nextSegment}
+                  />
+                </AdminCard>
+              </section>
+            ) : null}
 
             <section className="mt-4" aria-label="Edition readiness">
               <AdminCard>
