@@ -20,8 +20,8 @@ export const PRIVATE_WORLD_COMPONENTS = Object.freeze([
 
 // The identity bootstrap resolves the actor; it has no private payload itself.
 const IDENTITY_BOOTSTRAP = /^\[\s*["']world-private-identity["']\s*\]$/;
-const ACTOR_PARTITION = /\b(?:identity\.data|identity\.actorId|actorId|actorScope|actorEpoch|authGeneration|authEpoch|userId|viewerId|sessionUserId|sessionEpoch)\b/;
-const AUTH_TRANSITION = /\b(?:onAuthStateChange|useWorldPrivateIdentity|useWorldPrivateActor)\b/;
+const ACTOR_PARTITION = /\b(?:identity\.data|identity\.actorId|actor\.userId|actor\.epoch|actorId|actorScope|actorEpoch|authGeneration|authEpoch|userId|viewerId|sessionUserId|sessionEpoch)\b/;
+const AUTH_TRANSITION = /\b(?:onAuthStateChange|useWorldPrivateIdentity|useWorldPrivateActor|useTg13PrivateActor|useTg14PrivateActor)\b/;
 const STALE_FALLBACK = /\b(?:placeholderData|initialData)\s*:/;
 
 /**
