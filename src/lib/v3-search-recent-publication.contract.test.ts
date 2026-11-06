@@ -50,7 +50,7 @@ describe("Global Search Edition and Story publication boundary", () => {
     expect(recentGuard).toContain("recentPublicationSlugs(recents)");
     expect(recentGuard).toContain("enabled: editionSlugs.length > 0");
     expect(recentGuard).toContain("enabled: storySlugs.length > 0");
-    expect(recentGuard).toContain('.select("slug,published")');
+    expect(recentGuard).toContain('.select("slug,published,name")');
     expect(recentGuard).toContain('.in("slug", editionSlugs)');
     expect(recentGuard).toContain("storySlugs.map((slug) => loadPublicStoryline(slug))");
     expect(recentGuard).not.toContain("loadPublicStorylines(");
@@ -74,7 +74,9 @@ describe("Global Search Edition and Story publication boundary", () => {
     expect(recentGuard.match(/refetchOnMount: "always"/g)).toHaveLength(3);
     expect(recentGuard).toContain("visibleRecentShowDestinations(recents, allowedShows)");
     expect(recentGuard).toContain("visiblePublicationVerifiedRecents(");
-    expect(recentGuard).toContain("publishedEditionSlugs: new Set(allowedEditionSlugs)");
-    expect(recentGuard).toContain("publishedStorySlugs: new Set(allowedStorySlugs)");
+    expect(recentGuard).toContain("publishedEditionLabels: new Map(allowedEditionLabels.map(");
+    expect(recentGuard).toContain("publishedStoryLabels: new Map(allowedStoryLabels.map(");
+    expect(recentGuard).toContain("edition.name?.trim()");
+    expect(recentGuard).toContain("result.value?.title?.trim()");
   });
 });
