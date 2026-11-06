@@ -54,6 +54,11 @@ function OrganizationRow({ organization }: { organization: WorldOrganization }) 
       <span className="min-w-0 flex-1">
         <span className="block font-semibold text-foreground group-hover:underline">{organization.shortName}</span>
         <span className="block text-xs leading-5 text-muted-foreground">{organization.officialName}</span>
+        {["historical", "dissolved", "suspended"].includes(organization.status) ? (
+          <span className="mt-1 inline-block rounded-full border border-border px-2 py-0.5 text-xs capitalize text-muted-foreground">
+            {organization.status}
+          </span>
+        ) : null}
       </span>
       <ArrowRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
     </Link>
