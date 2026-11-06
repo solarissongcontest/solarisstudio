@@ -42,10 +42,12 @@ function Unavailable({ retry, missing }: { retry?: () => void; missing?: boolean
   const { connectivity } = useSolarisApp();
   const offline = !missing && connectivity.status === "offline";
   const restricted = !missing && connectivity.status === "service-restricted";
-  const retryBlocked = offline || restricted;
+  const degraded = !missing && connectivity.status === "degraded";
+  const retryBlocked = offline || restricted || degraded;
   const heading = missing ? "Public record not found"
     : offline ? "Public records unavailable offline"
     : restricted ? "Institutional service temporarily restricted"
+    : degraded ? "Connectivity cannot be verified"
     : "Cannot verify public records";
   return <section role={missing ? undefined : "alert"} className="max-w-2xl border-t border-border pt-7">
     <h1 className="text-2xl font-semibold">{heading}</h1>
@@ -54,18 +56,20 @@ function Unavailable({ retry, missing }: { retry?: () => void; missing?: boolean
         ? "Reconnect to verify the latest published institutional records. Unverified cached records are not displayed."
         : restricted
           ? "The institutional data service is temporarily restricted. Published records cannot be verified right now."
-          : "This institution or body may not exist, may be unpublished, or may be temporarily unavailable. Restricted institutional information is never displayed."}
+          : degraded
+            ? "The app cannot reach Solaris right now. Published institutional records remain hidden until connectivity is verified."
+            : "This institution or body may not exist, may be unpublished, or may be temporarily unavailable. Restricted institutional information is never displayed."}
     </p>
     {retry ? <button type="button" onClick={retry} disabled={retryBlocked}
       className="mt-5 min-h-11 rounded-xl border border-border px-5 font-semibold disabled:cursor-not-allowed disabled:opacity-50">
-      {offline ? "Reconnect to retry" : restricted ? "Retry when service returns" : "Try again"}
+      {offline ? "Reconnect to retry" : restricted ? "Retry when service returns" : degraded ? "Waiting for connection" : "Try again"}
     </button> : null}
   </section>;
 }
 
 export function WorldBodiesDirectory({ slug }: { slug: string }) {
   const { connectivity } = useSolarisApp();
-  const publicationBlocked = connectivity.status === "offline" || connectivity.status === "service-restricted";
+  const publicationBlocked = connectivity.status !== "online";
   const [page, setPage] = useState(0);
   const [input, setInput] = useState("");
   const [term, setTerm] = useState("");
@@ -174,7 +178,7 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
 
 export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: string }) {
   const { connectivity } = useSolarisApp();
-  const officeNetworkBlocked = connectivity.status === "offline" || connectivity.status === "service-restricted";
+  const officeNetworkBlocked = connectivity.status !== "online";
   const valid = validWorldSlug(slug) && validWorldSlug(bodySlug);
   const query = useQuery({
     queryKey: ["world", "public", "body", slug, bodySlug, connectivity.checkedAt],
@@ -223,7 +227,9 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
               ? "Reconnect to verify current public offices."
               : connectivity.status === "service-restricted"
                 ? "The institutional service is temporarily restricted."
-                : "Office records could not be verified."}</p>
+                : connectivity.status === "degraded"
+                  ? "Waiting for verified connectivity before loading offices."
+                  : "Office records could not be verified."}</p>
             <button type="button" onClick={() => void offices.refetch()} disabled={officeNetworkBlocked}
               className="mt-2 min-h-11 rounded-xl border border-border px-4 font-semibold disabled:cursor-not-allowed disabled:opacity-50">
               Retry offices
