@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import {
   AlertTriangle,
   Check,
@@ -110,17 +110,20 @@ export function V3Section({
   );
 }
 
+type V3SurfaceProps = Omit<HTMLAttributes<HTMLDivElement>, "children"> & {
+  children: ReactNode;
+  level?: "base" | "raised" | "glass";
+};
+
 export function V3Surface({
   children,
   level = "base",
   className,
-}: {
-  children: ReactNode;
-  level?: "base" | "raised" | "glass";
-  className?: string;
-}) {
+  ...props
+}: V3SurfaceProps) {
   return (
     <div
+      {...props}
       className={cn(
         "v3-surface",
         level === "raised" && "v3-surface--raised",
@@ -185,6 +188,7 @@ export function V3ActionCard({
   trailing?: boolean;
 }) {
   const Icon = icon ?? actionIcon(tone);
+  const actionable = Boolean(to || onClick);
   const contents = (
     <>
       <span className="v3-action-card__icon" aria-hidden="true">
@@ -195,7 +199,7 @@ export function V3ActionCard({
         <span className="v3-action-card__description">{description}</span>
         {meta ? <span className="v3-action-card__meta">{meta}</span> : null}
       </span>
-      {trailing ? (
+      {trailing && actionable ? (
         <ChevronRight className="mt-2 size-4 shrink-0 text-white/35" aria-hidden="true" />
       ) : null}
     </>
@@ -203,16 +207,25 @@ export function V3ActionCard({
 
   if (to) {
     return (
-      <Link to={to as any} className="v3-action-card" data-tone={tone}>
+      <Link to={to as any} className="v3-action-card" data-tone={tone} data-interactive="true">
         {contents}
       </Link>
     );
   }
 
+  if (onClick) {
+    return (
+      <button type="button" className="v3-action-card" data-tone={tone} data-interactive="true" onClick={onClick}>
+        {contents}
+      </button>
+    );
+  }
+
+  // An information-only card must not enter the tab order or promise an action.
   return (
-    <button type="button" className="v3-action-card" data-tone={tone} onClick={onClick}>
+    <div className="v3-action-card" data-tone={tone} data-interactive="false">
       {contents}
-    </button>
+    </div>
   );
 }
 
@@ -231,13 +244,17 @@ export function V3StatusChip({
 }
 
 export function V3Progress({ value, label }: { value: number; label?: string }) {
-  const clamped = Math.max(0, Math.min(100, value));
+  // Derived values can be temporarily non-finite while remote counts resolve.
+  // An unavailable value is not zero progress: keep those states distinct.
+  const clamped = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : null;
+  const percentage = clamped == null ? null : Math.round(clamped);
+
   return (
     <div>
-      {label ? (
+      {label || percentage == null ? (
         <div className="mb-1.5 flex items-center justify-between gap-2 text-[0.68rem] text-white/48">
-          <span>{label}</span>
-          <span className="tabular-nums">{Math.round(clamped)}%</span>
+          <span>{label ?? "Progress"}</span>
+          <span className="tabular-nums">{percentage == null ? "Unavailable" : `${percentage}%`}</span>
         </div>
       ) : null}
       <div
@@ -245,10 +262,12 @@ export function V3Progress({ value, label }: { value: number; label?: string }) 
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-valuenow={Math.round(clamped)}
+        aria-valuenow={percentage ?? undefined}
+        aria-valuetext={percentage == null ? "Progress unavailable" : undefined}
         aria-label={label ?? "Progress"}
+        data-state={percentage == null ? "unavailable" : "known"}
       >
-        <div className="v3-progress__fill" style={{ width: `${clamped}%` }} />
+        <div className="v3-progress__fill" style={{ width: `${clamped ?? 0}%` }} />
       </div>
     </div>
   );
@@ -261,6 +280,14 @@ function journeyIcon(state: V3JourneyState): LucideIcon {
   if (state === "active") return Radio;
   return Clock3;
 }
+
+const JOURNEY_STATE_LABELS: Record<V3JourneyState, string> = {
+  complete: "Complete",
+  active: "Action available",
+  waiting: "Waiting",
+  locked: "Locked",
+  problem: "Action needed",
+};
 
 export function V3JourneyStep({
   title,
@@ -275,12 +302,13 @@ export function V3JourneyStep({
 }) {
   const Icon = journeyIcon(state);
   return (
-    <div className="v3-journey-step" data-state={state}>
+    <div className="v3-journey-step" data-state={state} role="listitem">
       <span className="v3-journey-step__marker" aria-hidden="true">
         <Icon className="size-3.5" />
       </span>
       <span className="min-w-0">
         <span className="v3-journey-step__title">{title}</span>
+        <span className="sr-only">Status: {JOURNEY_STATE_LABELS[state]}</span>
         {detail ? <span className="v3-journey-step__detail">{detail}</span> : null}
       </span>
       {trailing ? <span className="v3-journey-step__trailing">{trailing}</span> : null}
@@ -289,5 +317,5 @@ export function V3JourneyStep({
 }
 
 export function V3Journey({ children }: { children: ReactNode }) {
-  return <div className="v3-journey">{children}</div>;
+  return <div className="v3-journey" role="list">{children}</div>;
 }

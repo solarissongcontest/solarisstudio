@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
+import { publicPushEnvelope } from "../_shared/world-private-push.ts";
 
 type Delivery = {
   id: string;
@@ -453,6 +454,9 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Redact before JSON serialization, encryption and provider handoff.
+    // The service worker also enforces a defensive lock-screen boundary.
+    const displayEnvelope = publicPushEnvelope(delivery);
     let delivered = false;
     let lastError = "No active push subscriptions";
 
@@ -467,10 +471,11 @@ Deno.serve(async (req) => {
             },
           },
           JSON.stringify({
-            title: delivery.title,
-            body: delivery.body,
+            title: displayEnvelope.title,
+            body: displayEnvelope.body,
             route: delivery.route,
-            tag: delivery.dedupe_key,
+            tag: displayEnvelope.tag,
+            sensitivity: displayEnvelope.sensitivity,
             deliveryId: delivery.id,
             receiptToken,
             receiptUrl: receiptToken
