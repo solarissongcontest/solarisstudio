@@ -52,15 +52,36 @@ do $test$ begin
 end $test$;
 reset role;
 
--- Compatibility may create only private drafts, with the same canonical receipt.
+-- Confirmation can assert the existing canonical row; it cannot create one
+-- or become an alternate metadata/publication command.
 select set_config('request.jwt.claims','{"role":"authenticated","sub":"27270000-0000-4000-8000-000000000001","session_id":"27270000-0000-4000-8000-000000000011"}',true);
 set local role authenticated;
-select public.admin_confirmation_save_edition('{"edition_number":272705,"name":"Compatibility draft","description":"Retained description","editing_enabled":false,"status":"draft"}'::jsonb);
-do $test$ begin
+do $test$
+declare v_payload jsonb; v_id uuid;
+begin
+ foreach v_payload in array array[
+  '{"edition_number":272705,"name":"Forbidden missing ID","status":"draft"}'::jsonb,
+  '{"id":null,"edition_number":272705,"name":"Forbidden null ID","status":"draft"}'::jsonb,
+  '{"edition_number":272706,"name":"Forbidden publication","status":"active","published":true}'::jsonb
+ ] loop
+  begin
+   perform public.admin_confirmation_save_edition(v_payload);
+   raise exception 'Confirmation created a canonical Edition';
+  exception when object_not_in_prerequisite_state then null; end;
+ end loop;
+ select id into v_id from public.editions where edition_number=272703;
+ v_payload:=jsonb_build_object('id',v_id,'edition_number',272703,'name','Created through authority','description',null,'status','draft');
+ if public.admin_confirmation_save_edition(v_payload) is distinct from v_id then
+  raise exception 'Confirmation lost its authorized existing-Edition assertion';
+ end if;
  begin
-  perform public.admin_confirmation_save_edition('{"edition_number":272706,"name":"Unsafe legacy publication","status":"active"}'::jsonb);
-  raise exception 'Legacy creation prematurely published an Edition';
- exception when invalid_parameter_value then null; end;
+  perform public.admin_confirmation_save_edition(v_payload||'{"name":"Unauthorized metadata replacement"}'::jsonb);
+  raise exception 'Confirmation changed canonical metadata';
+ exception when object_not_in_prerequisite_state then null; end;
+ begin
+  perform public.admin_confirmation_save_edition(v_payload||'{"status":"active","published":true}'::jsonb);
+  raise exception 'Confirmation changed lifecycle/publication state';
+ exception when object_not_in_prerequisite_state then null; end;
  begin
   perform public.v3_create_edition(272703,'Competing intent',2027,null,null,'Must not overwrite existing Edition');
   raise exception 'A competing creation overwrote the original Edition';
@@ -128,10 +149,7 @@ do $test$ begin
     (select name from public.editions where edition_number=272703)<>'Created through authority' then
   raise exception 'Original Edition state was not preserved';
  end if;
- if not exists(select 1 from public.editions where edition_number=272705 and description='Retained description' and not editing_enabled and not published and status='draft') then
-  raise exception 'Compatibility creation lost description/editing/private-state semantics';
- end if;
- if exists(select 1 from public.editions where edition_number in (272704,272706,272707,272708,272709)) then
+ if exists(select 1 from public.editions where edition_number in (272704,272705,272706,272707,272708,272709)) then
   raise exception 'Rejected creation persisted canonical state';
  end if;
  if (select count(*) from public.studio2_operation_receipts where command='edition.create' and scope->>'editionNumber'='272703')<>1 then

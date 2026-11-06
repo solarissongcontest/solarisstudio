@@ -69,4 +69,13 @@ describe("governed Edition creation", () => {
       '"v3_apply_edition_metadata_change"',
     );
   });
+  it("preserves the restrictive Confirmation contract instead of patching an obsolete INSERT", () => {
+    const migration = readFileSync("supabase/migrations/20261105201914_v3_edition_creation_authority.sql", "utf8");
+    const boundary = migration.split("create or replace function public.admin_confirmation_save_edition")[1].split("$save$;")[0];
+    expect(boundary).toContain("Confirmations cannot create canonical editions");
+    expect(boundary).toContain("Canonical edition metadata is managed by Organizer edition management");
+    expect(boundary).not.toMatch(/insert\s+into|update\s+public\.editions/i);
+    expect(migration).not.toContain("position(v_old in v_definition)");
+  });
+
 });
