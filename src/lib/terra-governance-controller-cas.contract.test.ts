@@ -16,12 +16,16 @@ const projection = migration.split(
 )[1]?.split("$projection$;")[0];
 
 describe("WORLD-01 TG1 controller-person CAS and effective identity", () => {
-  it("requires a non-null expected controller before any operation is claimed", () => {
+  it("requires an expected actor for new writes, while retaining old exact receipt replays", () => {
     expect(bind).toBeDefined();
     expect(bind).toContain("if p_expected_current_user_id is null then");
     expect(bind).toContain("message = 'EXPECTED_CONTROLLER_REQUIRED'");
     expect(bind!.indexOf("EXPECTED_CONTROLLER_REQUIRED"))
-      .toBeLessThan(bind!.indexOf("v_claim := private.studio2_claim_operation("));
+      .toBeGreaterThan(bind!.indexOf("v_claim := private.studio2_claim_operation("));
+    expect(bind!.indexOf("EXPECTED_CONTROLLER_REQUIRED"))
+      .toBeGreaterThan(bind!.indexOf("if coalesce((v_claim ->> 'replayed')::boolean, false) then"));
+    expect(bind!.indexOf("EXPECTED_CONTROLLER_REQUIRED"))
+      .toBeLessThan(bind!.indexOf("select ca.user_id into v_current_user_id"));
     expect(bind).not.toContain("p_expected_current_user_id is not null and");
   });
 
