@@ -70,4 +70,19 @@ describe("V3 shared action card semantics", () => {
     expect(css).toContain('.v3-action-card[data-interactive="true"]:focus-visible');
     expect(css).not.toContain(".v3-action-card:hover {");
   });
+
+  it("preserves clear controls and progress under forced-colors accessibility settings", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const css = readFileSync(resolve(process.cwd(), "src/styles/v3-foundations.css"), "utf8");
+    const contrast = css.split("@media (forced-colors: active) {")[1];
+
+    expect(contrast).toBeTruthy();
+    expect(contrast).toContain('.v3-action-card[data-interactive="true"]:focus-visible');
+    expect(contrast).toContain('outline: 2px solid Highlight;');
+    expect(contrast).toContain('border-color: CanvasText;');
+    expect(contrast).toContain('text-decoration: underline;');
+    expect(contrast).toContain('.v3-progress__fill');
+    expect(contrast).toContain('background: Highlight;');
+  });
 });
