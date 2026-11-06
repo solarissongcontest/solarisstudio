@@ -171,6 +171,17 @@ revoke all on function public.world_guard_inquiry_can_open_v1(uuid)
 grant execute on function public.world_guard_inquiry_can_open_v1(uuid)
  to authenticated,service_role;
 
+create function public.world_guard_inquiry_can_review_v1(p_organization_id uuid)
+returns boolean language sql stable security definer set search_path=pg_catalog
+as $canreview$
+ select coalesce(private.world_current_guard_inquiry_chair(
+  p_organization_id,'world.inquiry.review') is not null,false)
+$canreview$;
+revoke all on function public.world_guard_inquiry_can_review_v1(uuid)
+ from public,anon,authenticated;
+grant execute on function public.world_guard_inquiry_can_review_v1(uuid)
+ to authenticated,service_role;
+
 create policy world_guard_inquiry_private_read on public.world_guard_inquiries
 for select to authenticated using (
  exists (select 1 from public.country_accounts ca
