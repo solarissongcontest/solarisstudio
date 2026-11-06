@@ -51,6 +51,15 @@ function isOneEditAway(query: string, candidate: string): boolean {
   return query.slice(index) === candidate.slice(index + 1);
 }
 
+/** Permit the common SSC22 / SSC-22 shorthand for published SSC 22 labels. */
+function matchesEditionCode(query: string, values: Array<string | number | null | undefined>): boolean {
+  const code = /^ssc[\\s_-]*0*(\\d{1,3})$/.exec(fold(query.trim()));
+  if (!code) return false;
+  const editionNumber = Number(code[1]);
+  const haystack = fold(values.filter((value) => value != null).join(" "));
+  return new RegExp(`\\\\bssc[\\\\s_-]*0*${editionNumber}\\\\b`).test(haystack);
+}
+
 /**
  * Preserve the canonical substring/diacritic matching rules first.
  * Fuzzy matching is intentionally conservative: one typo total, only on
@@ -60,7 +69,7 @@ export function matchesV3PublicSearch(
   query: string,
   ...values: Array<string | number | null | undefined>
 ): boolean {
-  if (matchesPublicSearch(query, ...values)) return true;
+  if (matchesPublicSearch(query, ...values) || matchesEditionCode(query, values)) return true;
 
   const terms = queryTokens(query);
   if (!terms.length || terms.length > 4) return false;
@@ -80,8 +89,8 @@ export function matchesV3PublicSearch(
 }
 
 function relevanceScore(result: PublicSearchResult, query: string): number {
-  const q = fold(query.trim());
-  const label = fold(result.label);
+  const q = fold(query.trim()).replace(/\\bssc[\\s_-]+(?=\\d)/g, "ssc");
+  const label = fold(result.label).replace(/\\bssc[\\s_-]+(?=\\d)/g, "ssc");
   const keywords = fold(result.keywords ?? "");
   const description = fold(result.description);
   if (label === q) return 0;
