@@ -88,7 +88,7 @@ describe("V3 Scoreboard cutover", () => {
     const route = read("src/routes/shows/$showId.tsx");
     expect(route).toContain('tab === "scoreboard" && publication.results');
     expect(route).toContain("<ScoreboardStage");
-    expect(route).not.toContain('{standings.length ? (\\n            <ScoreboardStage');
+    expect(route).not.toMatch(/\{standings\.length\s*\?\s*\(\s*<ScoreboardStage/);
     expect(stage()).toContain("if (!rows.length)");
     expect(stage()).toContain('title="No published ranking yet"');
   });
