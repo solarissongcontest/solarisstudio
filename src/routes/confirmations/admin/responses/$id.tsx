@@ -445,8 +445,8 @@ function EntryReviewCard({
       pending?.expectedEntryVersion, displayedEntryVersionRef.current,
     )) {
       setReceipt(null);
-      setError("Earlier Entry review settled for another version. The current Entry still requires its own review.");
-      toast.warning("Earlier Entry review settled for another version. Review the latest submission separately.");
+      setError("The settled review is not bound to the displayed immutable Entry version. Reload to verify the canonical review state.");
+      toast.warning("This review receipt does not prove the displayed Entry version is reviewed. Reload and verify current status.");
       setOpen(false);
       await onChanged();
       return true;
@@ -592,8 +592,8 @@ function EntryReviewCard({
         entry.current_version_id, displayedEntryVersionRef.current,
       )) {
         setReceipt(null);
-        setError("Earlier Entry review settled for another version. The current Entry still requires its own review.");
-        toast.warning("Earlier Entry review settled for another version. Review the latest submission separately.");
+        setError("The settled review is not bound to the displayed immutable Entry version. Reload to verify the canonical review state.");
+        toast.warning("This review receipt does not prove the displayed Entry version is reviewed. Reload and verify current status.");
         setOpen(false);
         await onChanged();
         return;
