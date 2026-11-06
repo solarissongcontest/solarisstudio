@@ -76,12 +76,14 @@ function JuryIntegrityPage() {
         description="Producer-only review of jury independence, peer-score deviation, historical relationships and corroborating evidence for the exact selected edition. Statistical evidence is for review, not an automatic misconduct finding."
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Checked ballots" value={query.data?.stats.total ?? 0} icon={Scale} />
-        <Metric label="Review 50+" value={query.data?.stats.reviewOrHigher ?? 0} icon={Users} />
-        <Metric label="Declaration 65+" value={query.data?.stats.declarationOrHigher ?? 0} icon={AlertTriangle} />
-        <Metric label="High 80+" value={query.data?.stats.highOrHigher ?? 0} icon={ShieldAlert} />
-      </div>
+      {query.data && !query.error && !query.isLoading ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Metric label="Checked ballots" value={query.data.stats.total} icon={Scale} />
+          <Metric label="Review 50+" value={query.data.stats.reviewOrHigher} icon={Users} />
+          <Metric label="Declaration 65+" value={query.data.stats.declarationOrHigher} icon={AlertTriangle} />
+          <Metric label="High 80+" value={query.data.stats.highOrHigher} icon={ShieldAlert} />
+        </div>
+      ) : null}
 
       <AdminCard>
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
