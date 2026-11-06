@@ -29,7 +29,7 @@ import { usePublicSearchParticipants } from "@/lib/public-participants";
 import { publicSearchPublicationScope, publicSearchRowsForPublishedShows } from "@/lib/public-search-published-scope";
 import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
 import { canSuggestDelegationSearchActions } from "@/lib/public-search-action-visibility";
-import { matchesV3PublicSearch, navigationV3PublicSearchResults, rankV3PublicSearchResults } from "@/lib/v3-public-search-relevance";
+import { limitV3PublicSearchGroups, matchesV3PublicSearch, navigationV3PublicSearchResults, rankV3PublicSearchResults } from "@/lib/v3-public-search-relevance";
 import {
   editionLabel,
   useAllJuryVotes,
@@ -371,7 +371,7 @@ function AppPublicPaletteDialog({
       })),
     ];
 
-    return rankV3PublicSearchResults(dedupePublicSearchResults([...local, ...remoteResults]), normalized).slice(0, 50);
+    return limitV3PublicSearchGroups(rankV3PublicSearchResults(dedupePublicSearchResults([...local, ...remoteResults]), normalized));
   }, [actionResults, normalized, awaitingRemote, remote.data, remote.isError]);
 
   const grouped = useMemo(() => {
@@ -977,7 +977,7 @@ function WebSearchArchiveResults({
       })),
     ];
 
-    return rankV3PublicSearchResults(dedupePublicSearchResults(values), normalized).slice(0, 50);
+    return limitV3PublicSearchGroups(rankV3PublicSearchResults(dedupePublicSearchResults(values), normalized));
   }, [
     actionResults,
     countries,
