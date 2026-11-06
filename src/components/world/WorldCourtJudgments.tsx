@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, BookOpenCheck, FileClock, RefreshCw, Scale } from "lucide-react";
@@ -35,6 +35,7 @@ type ActionFormProps = {
 function CourtActionForm({
   title, description, submitLabel, fields, execute, onSuccess, confirmCase,
 }: ActionFormProps) {
+  const formId = useId();
   const [values, setValues] = useState<ActionValues>(() => Object.fromEntries(
     fields.map((field) => [field.name, field.initial ?? (field.kind === "checkbox" ? false : "")]),
   ));
@@ -69,12 +70,12 @@ function CourtActionForm({
       <p className="text-sm leading-6 text-muted-foreground">{description}</p>
       {fields.map((field) => (
         <div key={field.name}>
-          <label className="mb-1 block text-sm font-semibold" htmlFor={`court-form-${title}-${field.name}`}>
+          <label className="mb-1 block text-sm font-semibold" htmlFor={`${formId}-${field.name}`}>
             {field.label}
           </label>
           {field.kind === "textarea" ? (
             <textarea
-              id={`court-form-${title}-${field.name}`}
+              id={`${formId}-${field.name}`}
               className="min-h-28 w-full rounded-lg border border-border bg-background p-3 text-sm"
               value={String(values[field.name] ?? "")}
               minLength={field.minLength} maxLength={field.maxLength}
@@ -84,7 +85,7 @@ function CourtActionForm({
             />
           ) : field.kind === "select" ? (
             <select
-              id={`court-form-${title}-${field.name}`}
+              id={`${formId}-${field.name}`}
               value={String(values[field.name] ?? "")}
               required={field.required}
               disabled={locked}
@@ -99,7 +100,7 @@ function CourtActionForm({
           ) : field.kind === "checkbox" ? (
             <input
               type="checkbox"
-              id={`court-form-${title}-${field.name}`}
+              id={`${formId}-${field.name}`}
               className="size-5 accent-primary"
               checked={values[field.name] === true}
               disabled={locked}
@@ -108,7 +109,7 @@ function CourtActionForm({
           ) : (
             <input
               type="text"
-              id={`court-form-${title}-${field.name}`}
+              id={`${formId}-${field.name}`}
               value={String(values[field.name] ?? "")}
               required={field.required}
               minLength={field.minLength} maxLength={field.maxLength}
@@ -121,11 +122,11 @@ function CourtActionForm({
       ))}
       {confirmCase ? (
         <div>
-          <label htmlFor={`court-confirm-${title}`} className="mb-2 block text-sm font-semibold">
+          <label htmlFor={`${formId}-confirm`} className="mb-2 block text-sm font-semibold">
             Confirm official case identifier: {confirmCase}
           </label>
           <input
-            id={`court-confirm-${title}`}
+            id={`${formId}-confirm`}
             value={reviewedCase}
             onChange={(event) => setReviewedCase(event.target.value)}
             required
