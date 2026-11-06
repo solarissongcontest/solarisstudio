@@ -36,10 +36,12 @@ describe("V3 Public completion Chat 3 discovery roots", () => {
     const screen = source("src/components/v3/V3ShowsDiscoveryScreen.tsx");
 
     expect(route).toContain("V3ShowsDiscoveryScreen");
-    expect(screen).toContain('eyebrow="Live now"');
-    expect(screen).toContain('eyebrow="Up next"');
-    expect(screen).toContain('eyebrow="Recent"');
-    expect(screen).toContain('eyebrow="Current edition"');
+    expect(screen).toContain('eyebrow: "Live now"');
+    expect(screen).toContain('eyebrow: "Up next"');
+    expect(screen).toContain('eyebrow: "Recent"');
+    expect(screen).toContain('eyebrow: "Current edition"');
+    expect(screen).toContain("collection.items.length > 0");
+    expect(screen).toContain('<ShowCollection key={collection.id} presentation={presentation} {...collection} />');
     expect(screen).toContain('id="shows-browse-title"');
     expect(screen).toContain("All public shows");
     expect(screen).toContain('aria-labelledby="shows-browse-title"');
