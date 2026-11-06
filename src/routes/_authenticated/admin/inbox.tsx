@@ -44,7 +44,11 @@ export const Route = createFileRoute("/_authenticated/admin/inbox")({
 type InboxFilter = "needs-attention" | "unread" | "all" | "resolved";
 
 function OrganizerInbox() {
-  const { data: notifications = [], isLoading, isError, refetch } = useAdminNotifications();
+  const { data, isLoading, isFetching, isError, refetch } = useAdminNotifications();
+  // An old cached inbox is not proof that the current actor has no new work.
+  // Hide read and action surfaces while an authenticated refresh is underway.
+  const inboxVerified = !isLoading && !isFetching && !isError;
+  const notifications = inboxVerified ? (data ?? []) : [];
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
   const resolveItem = useResolveAdminNotification();
@@ -112,7 +116,9 @@ function OrganizerInbox() {
         <AdminCard className="mt-4">
           <AdminCardHeader
             title={
-              filter === "needs-attention"
+              !inboxVerified
+                ? (isError && !isFetching ? "Inbox unavailable" : "Verifying Inbox")
+                : filter === "needs-attention"
                 ? needsAttention.length
                   ? `${needsAttention.length} ${needsAttention.length === 1 ? "item" : "items"} need attention`
                   : "Inbox clear"
@@ -127,9 +133,9 @@ function OrganizerInbox() {
             description="Opening an item takes you directly to the workflow where it can be handled."
           />
 
-          {isLoading ? (
+          {isLoading || isFetching ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              Checking the Organizer Inbox…
+              Verifying current Organizer Inbox work…
             </p>
           ) : isError ? (
             <AdminEmptyState
