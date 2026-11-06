@@ -163,6 +163,7 @@ function PredictionBuilderPage() {
   const { data: consensus } = usePredictionConsensus(round?.id, canSeeConsensus);
 
   const toggleQualifier = (countryId: string) => {
+    if (submitPrediction.isPending) return;
     setDraftDirty(true);
     setQualifiers((current) => {
       if (current.includes(countryId)) {
@@ -179,6 +180,7 @@ function PredictionBuilderPage() {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (submitPrediction.isPending) return;
     setMessage(null);
     if (hasSavedRevisionConflict) {
       setMessage("A newer saved prediction is available. Load that version before submitting. Your unsaved picks have not been overwritten.");
@@ -441,7 +443,7 @@ function PredictionBuilderPage() {
                     }
                   }}
                   options={options}
-                  disabled={locked}
+                  disabled={locked || submitPrediction.isPending}
                 />
               )}
 
@@ -464,7 +466,7 @@ function PredictionBuilderPage() {
                           if (index === 0 && types.has("winner")) setWinner(value);
                         }}
                         options={options}
-                        disabled={locked}
+                        disabled={locked || submitPrediction.isPending}
                         compact
                       />
                     ))}
@@ -480,7 +482,7 @@ function PredictionBuilderPage() {
                       value={juryWinner}
                       onChange={(value) => { setDraftDirty(true); setJuryWinner(value); }}
                       options={options}
-                      disabled={locked}
+                      disabled={locked || submitPrediction.isPending}
                     />
                   )}
                   {types.has("televote_winner") && (
@@ -489,7 +491,7 @@ function PredictionBuilderPage() {
                       value={televoteWinner}
                       onChange={(value) => { setDraftDirty(true); setTelevoteWinner(value); }}
                       options={options}
-                      disabled={locked}
+                      disabled={locked || submitPrediction.isPending}
                     />
                   )}
                 </div>
@@ -514,7 +516,7 @@ function PredictionBuilderPage() {
                         <input
                           type="checkbox"
                           checked={qualifiers.includes(option.id)}
-                          disabled={locked}
+                          disabled={locked || submitPrediction.isPending}
                           onChange={() => toggleQualifier(option.id)}
                         />
                         {option.display && (
