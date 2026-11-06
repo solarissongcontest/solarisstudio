@@ -112,6 +112,33 @@ describe("TG6 institutional acting-proxy authorization", () => {
     expect(fixture).toContain("TG6_PROXY_FUTURE_MEMBER_APPROVAL_ALLOWED");
   });
 
+  it("reconciles completed requests after representation closure and session rescheduling", () => {
+    const claim = request.indexOf("private.studio2_claim_operation");
+    const replay = request.indexOf("if coalesce((v_operation->>'replayed')::boolean,false)");
+    const effective = request.indexOf("if v_rep.ends_at is not null", replay);
+    const window = request.indexOf("p_valid_from < v_session.starts_at", replay);
+    expect(claim).toBeGreaterThan(0);
+    expect(replay).toBeGreaterThan(claim);
+    expect(effective).toBeGreaterThan(replay);
+    expect(window).toBeGreaterThan(replay);
+    expect(request.slice(0,claim)).not.toContain("v_rep.ends_at is not null");
+    expect(request.slice(0,claim)).not.toContain("p_valid_from < v_session.starts_at");
+    expect(fixture).toContain("TG6_PROXY_ENDED_REP_RECEIPT_LOST");
+    expect(fixture).toContain("TG6_PROXY_RESCHEDULED_SESSION_RECEIPT_LOST");
+  });
+
+  it("preserves approval receipts after the meeting closes or an approved proxy is revoked", () => {
+    const claim = approval.indexOf("private.studio2_claim_operation");
+    const replay = approval.indexOf("if coalesce((v_operation->>'replayed')::boolean,false)");
+    const eligibility = approval.indexOf("if p_target_status='approved'");
+    expect(approval).toContain("into v_organ_id,v_session_status");
+    expect(approval).toContain("coalesce(v_session_status not in ('scheduled','open','recessed'),true)");
+    expect(approval.slice(0,claim)).not.toContain("session_row.status in");
+    expect(replay).toBeGreaterThan(claim);
+    expect(eligibility).toBeGreaterThan(replay);
+    expect(fixture).toContain("TG6_PROXY_APPROVAL_CLOSED_RECEIPT_LOST");
+  });
+
   it("allows approval only by institutional world proxy approvers and exactly once", () => {
     expect(approval).toContain("'world.proxy.approve'");
     expect(approval).toContain("'proxy',v_proxy.id");
