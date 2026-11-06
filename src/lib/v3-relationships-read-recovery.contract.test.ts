@@ -16,7 +16,7 @@ describe("Public Relationships read recovery", () => {
         /const unavailable = bundle.isError \|\| !bundle.data \|\| rollout.isError \|\| !rollout.data/g,
       ),
     ).toHaveLength(2);
-    expect(source.match(/if \(loading \|\| unavailable\)/g)).toHaveLength(2);
+    expect(source.match(/if \(loading \|\| unavailable(?: \|\| !bundle\.data \|\| !rollout\.data)?\)/g)).toHaveLength(2);
     expect(source).toContain("data-v3-relationships-authority-unavailable={unavailable ?");
     expect(source).toContain("No analysis is shown until the official service is reachable");
     expect(source.match(/return <>{fallback}<\/>;/g)).toHaveLength(2);
@@ -41,7 +41,7 @@ describe("Public Relationships read recovery", () => {
     const detail = source.slice(detailStart);
     expect(detail).toContain("if (bundle.isSuccess && bundle.data === null)");
     expect(detail.indexOf("if (bundle.isSuccess && bundle.data === null)")).toBeLessThan(
-      detail.indexOf("if (loading || unavailable)"),
+      detail.indexOf("if (loading || unavailable || !bundle.data || !rollout.data)"),
     );
     expect(detail).toContain("<V3RelationshipsLoading notFound />");
     expect(source).toContain("No published relationship matches this country pair");
