@@ -74,6 +74,12 @@ export const syncMergedRoundFromSolaris = createServerFn({ method: "POST" })
     };
   })
   .handler(async ({ data }) => {
+    // The legacy sync may update countries and round entries. Enforce its
+    // global management capability before importing or mutating either store.
+    const { requireSolarisCapabilityServer } = await import(
+      "@/integrations/supabase/capabilities.server"
+    );
+    await requireSolarisCapabilityServer("voting.manage", null);
     const { syncMergedRoundFromSolarisServer } = await import(
       "@/integrations/televoting/solaris-sync.server"
     );
