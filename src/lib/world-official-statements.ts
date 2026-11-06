@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { fetchWorldPublicEnabled } from "@/lib/terra-world-public";
+import { recoverWorldOfficialOperationEnvelope } from "@/lib/world-official-operation-receipt";
 
 export type WorldOfficialStatement = {
   id: string;
@@ -169,10 +170,14 @@ export async function issueWorldOfficialStatement(input: WorldIssueStatementInpu
     p_idempotency_key: idempotencyKey,
     p_correlation_id: operationId,
   });
-  if (error) throw new Error(error.message || "The statement was not published.");
+  const reconciled = await recoverWorldOfficialOperationEnvelope(
+    { data, error },
+    operationId,
+    statementId === null ? "world.statement.publish" : "world.statement.correct",
+  );
   // Existing S2 reconcile_operation returns an *envelope* with status and
   // result; the replay marker is on the envelope, not inside result.
-  const envelope = record(data);
+  const envelope = record(reconciled);
   const row = record(envelope?.result);
   if (envelope?.status !== "succeeded" || row?.ok !== true ||
       !nonempty(row.statementId) || !nonempty(row.versionId) ||
