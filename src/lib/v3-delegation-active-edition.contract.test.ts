@@ -41,6 +41,23 @@ describe("Public Delegation current-edition authority", () => {
     expect(screen).toContain("No public entry yet{activeEditionLabel");
   });
 
+  it("uses the canonical public Country ID for the installed-app follow control", () => {
+    const source = readFileSync("src/integrations/v3/delegation-source.server.ts", "utf8");
+    const gate = readFileSync("src/components/v3/V3DelegationRouteGate.tsx", "utf8");
+    const screen = readFileSync("src/components/v3/V3DelegationScreen.tsx", "utf8");
+    const follow = readFileSync("src/components/FollowButton.tsx", "utf8");
+
+    expect(source).toContain("const countryId = requiredString(country.id");
+    expect(source).toContain("countryId: profile.countryId");
+    expect(gate).toContain("countryId={bundle.countryId}");
+    expect(screen).toContain('entityType="country" entityId={countryId} label={projection.name}');
+    expect(screen).not.toContain("entityId={projection.code}");
+    expect(follow).toContain("useSetFanFollow(user?.id)");
+    expect(follow).toContain("aria-pressed={following}");
+    expect(follow).toContain('to="/auth"');
+    expect(follow).toContain("setFollow.mutateAsync({ entityType, entityId, following: !following })");
+  });
+
   it("uses the same authoritative active edition for published current entry and result slots", () => {
     const source = readFileSync("src/integrations/v3/delegation-source.server.ts", "utf8");
     expect(source).toContain("import { resolveActivePublicEdition }");
