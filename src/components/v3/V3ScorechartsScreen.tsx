@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { Table2 } from "lucide-react";
 
 import type { V3ScorechartIndexItem } from "@/lib/v3-scorecharts";
@@ -16,6 +17,7 @@ export function V3ScorechartsScreen({
   items: readonly V3ScorechartIndexItem[];
   generatedAt: string;
 }) {
+  const [visibleEditionCount, setVisibleEditionCount] = useState(4);
   const groups = new Map<
     string,
     { editionName: string; items: V3ScorechartIndexItem[] }
@@ -29,6 +31,9 @@ export function V3ScorechartsScreen({
       groups.set(item.editionId, { editionName: item.editionName, items: [item] });
     }
   }
+
+  const orderedGroups = [...groups.entries()];
+  const remainingEditionCount = Math.max(0, orderedGroups.length - visibleEditionCount);
 
   return (
     <V3Screen>
@@ -78,7 +83,7 @@ export function V3ScorechartsScreen({
           </V3Surface>
         ) : (
           <div className="grid gap-5">
-            {[...groups.entries()].map(([editionId, group]) => (
+            {orderedGroups.slice(0, visibleEditionCount).map(([editionId, group]) => (
               <section key={editionId} aria-labelledby={`scorecharts-${editionId}`}>
                 <h3
                   id={`scorecharts-${editionId}`}
@@ -116,6 +121,16 @@ export function V3ScorechartsScreen({
                 </div>
               </section>
             ))}
+            {remainingEditionCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => setVisibleEditionCount((count) => count + 4)}
+                className="min-h-11 w-full rounded-xl border border-[var(--v3-border-subtle)] px-4 py-3 text-sm font-semibold text-[var(--v3-text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+                aria-label={`Show older published scorecharts, ${remainingEditionCount} editions remaining`}
+              >
+                Show older editions ({remainingEditionCount} remaining)
+              </button>
+            ) : null}
           </div>
         )}
       </V3Section>

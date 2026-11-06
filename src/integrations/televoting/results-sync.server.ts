@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 
@@ -24,16 +22,6 @@ type ImportRow = {
   points: number;
 };
 
-type ResultState = {
-  id?: string;
-  countryId: string;
-  contestEntityId: string | null;
-  runningOrder: number | null;
-  juryPoints: number;
-  televotePoints: number;
-  totalPoints: number;
-  oldRank: number | null;
-};
 
 function errorMessage(value: unknown) {
   return value instanceof Error ? value.message : String(value ?? "Unknown error");
@@ -66,264 +54,50 @@ function combinedSourceContributions(value: unknown) {
   );
 }
 
-async function recordResultSyncEvent(
-  db: any,
-  outcome: SolarisResultSyncOutcome,
-  payload: Record<string, unknown>,
-  error?: string,
-) {
-  const payloadHash = createHash("sha256")
-    .update(JSON.stringify({ outcome, payload }))
-    .digest("hex");
-  const now = new Date().toISOString();
-  const { error: eventError } = await db.from("integration_events").upsert(
-    {
-      service: "televoting",
-      event_type: outcome.sourceType === "combined" ? "combined.results.imported" : "round.results.imported",
-      entity_type: "show",
-      entity_id: outcome.showId ?? null,
-      remote_id: outcome.sourceId,
-      payload: { ...payload, outcome },
-      payload_hash: payloadHash,
-      status: error ? "failed" : outcome.ok ? "completed" : "skipped",
-      attempts: 1,
-      last_error: error ?? null,
-      completed_at: outcome.ok ? now : null,
-      updated_at: now,
-    },
-    { onConflict: "service,event_type,payload_hash" },
-  );
-  if (eventError) console.error("[Televoting result sync] Could not record integration event", eventError);
-}
-
-function compareResultStates(
-  a: ResultState,
-  b: ResultState,
-  tieBreak: string[],
-  juryPointCounts: Map<string, Map<number, number>>,
-  juryScale: number[],
-) {
-  if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-
-  for (const rawRule of tieBreak) {
-    const rule = String(rawRule).toLowerCase();
-    if (rule === "jury" && b.juryPoints !== a.juryPoints) return b.juryPoints - a.juryPoints;
-    if (rule === "televote" && b.televotePoints !== a.televotePoints) return b.televotePoints - a.televotePoints;
-    if (rule === "twelves") {
-      const maxScore = juryScale[0] ?? 12;
-      const aCount = juryPointCounts.get(a.countryId)?.get(maxScore) ?? 0;
-      const bCount = juryPointCounts.get(b.countryId)?.get(maxScore) ?? 0;
-      if (bCount !== aCount) return bCount - aCount;
-    }
-    if (rule === "countback") {
-      for (const score of juryScale) {
-        const aCount = juryPointCounts.get(a.countryId)?.get(score) ?? 0;
-        const bCount = juryPointCounts.get(b.countryId)?.get(score) ?? 0;
-        if (bCount !== aCount) return bCount - aCount;
-      }
-    }
-    if (rule === "runningorder") {
-      const aOrder = a.runningOrder ?? Number.MAX_SAFE_INTEGER;
-      const bOrder = b.runningOrder ?? Number.MAX_SAFE_INTEGER;
-      if (aOrder !== bOrder) return aOrder - bOrder;
-    }
-  }
-
-  // Preserve an already-established official order when the configured rules
-  // still cannot split the tie. This keeps historical/manual tie decisions
-  // stable while new shows fall back to running order and then identity.
-  const aOld = a.oldRank ?? Number.MAX_SAFE_INTEGER;
-  const bOld = b.oldRank ?? Number.MAX_SAFE_INTEGER;
-  if (aOld !== bOld) return aOld - bOld;
-  const aOrder = a.runningOrder ?? Number.MAX_SAFE_INTEGER;
-  const bOrder = b.runningOrder ?? Number.MAX_SAFE_INTEGER;
-  if (aOrder !== bOrder) return aOrder - bOrder;
-  return a.countryId.localeCompare(b.countryId);
-}
-
+// The official Televote-to-Results mutation belongs in one governed database
+// transaction. No application-side ranking or per-row public.results writes.
 async function writeCanonicalShowTelevote(data: {
   editionId: string;
   showId: string;
   sourceType: "round" | "combined";
   sourceId: string;
   rows: ImportRow[];
-  freezeRoundIds?: string[];
 }): Promise<SolarisResultSyncOutcome> {
+  // The database RPC is explicitly service_role-only. Do not silently fall
+  // back to an Organizer/RLS client and partially synchronize results.
+  if (!process.env["SUPABASE_SERVICE_ROLE_KEY"]) {
+    throw new Error("Server-only Supabase service-role access is required for canonical Televote synchronization");
+  }
+
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const db = supabaseAdmin as any;
-
-  const { data: show, error: showError } = await db
-    .from("shows")
-    .select("id,edition_id,name,voting_config")
-    .eq("id", data.showId)
-    .maybeSingle();
-  if (showError) throw new Error(showError.message);
-  if (!show || show.edition_id !== data.editionId) {
-    const outcome: SolarisResultSyncOutcome = {
-      ok: false,
-      status: "unbound_show",
-      sourceType: data.sourceType,
-      sourceId: data.sourceId,
-      editionId: data.editionId,
-      showId: data.showId,
-      message: "The linked Solaris show no longer belongs to this edition.",
-    };
-    await recordResultSyncEvent(db, outcome, { row_count: data.rows.length }, outcome.message);
-    return outcome;
-  }
-
-  const { data: participants, error: participantError } = await db
-    .from("participants")
-    .select("country_id,contest_entity_id,running_order,participation_status")
-    .eq("show_id", data.showId);
-  if (participantError) throw new Error(participantError.message);
-
-  const activeParticipants = (participants ?? []).filter(
-    (row: any) => !row.participation_status || row.participation_status === "confirmed",
+  const { data: response, error } = await (supabaseAdmin as any).rpc(
+    "v3_reconcile_published_televote",
+    {
+      p_source_type: data.sourceType,
+      p_source_id: data.sourceId,
+    },
   );
-  const countryIds = [...new Set(activeParticipants.map((row: any) => row.country_id).filter(Boolean))];
-  const { data: countries, error: countryError } = countryIds.length
-    ? await db.from("countries").select("id,short_code,name").in("id", countryIds)
-    : { data: [], error: null };
-  if (countryError) throw new Error(countryError.message);
-
-  const countryByCode = new Map<string, any>(
-    (countries ?? []).map((country: any) => [normaliseCode(country.short_code), country]),
-  );
-  const participantByCountry = new Map<string, any>(
-    activeParticipants.map((participant: any) => [participant.country_id, participant]),
-  );
-
-  const remoteCodes = data.rows.map((row) => normaliseCode(row.countryCode));
-  const duplicateCodes = remoteCodes.filter((code, index) => remoteCodes.indexOf(code) !== index);
-  const unmatchedRemote = remoteCodes.filter((code) => !countryByCode.has(code));
-  const expectedCodes = (countries ?? []).map((country: any) => normaliseCode(country.short_code));
-  const missingRemote = expectedCodes.filter((code: string) => !remoteCodes.includes(code));
-
-  if (duplicateCodes.length || unmatchedRemote.length || missingRemote.length || data.rows.length !== activeParticipants.length) {
-    const pieces = [
-      duplicateCodes.length ? `duplicate codes: ${[...new Set(duplicateCodes)].join(", ")}` : null,
-      unmatchedRemote.length ? `not in Solaris show: ${[...new Set(unmatchedRemote)].join(", ")}` : null,
-      missingRemote.length ? `missing from Televoting result: ${missingRemote.join(", ")}` : null,
-    ].filter(Boolean);
-    const outcome: SolarisResultSyncOutcome = {
-      ok: false,
-      status: "lineup_mismatch",
-      sourceType: data.sourceType,
-      sourceId: data.sourceId,
-      editionId: data.editionId,
-      showId: data.showId,
-      message: `Published Televoting result does not exactly match the Solaris show${pieces.length ? ` (${pieces.join("; ")})` : ""}.`,
-    };
-    await recordResultSyncEvent(db, outcome, { remote_codes: remoteCodes, expected_codes: expectedCodes }, outcome.message);
-    return outcome;
+  if (error) throw new Error(`Atomic Televote reconciliation failed: ${error.message}`);
+  if (!response || typeof response !== "object" || response.ok !== true) {
+    throw new Error("Atomic Televote reconciliation did not return a successful receipt");
   }
-
-  const { data: existing, error: existingError } = await db
-    .from("results")
-    .select("id,country_id,contest_entity_id,jury_points,televote_points,total_points,final_rank")
-    .eq("show_id", data.showId);
-  if (existingError) throw new Error(existingError.message);
-  const existingByCountry = new Map((existing ?? []).map((row: any) => [row.country_id, row]));
-
-  const incomingByCountry = new Map<string, number>();
-  for (const row of data.rows) {
-    const country = countryByCode.get(normaliseCode(row.countryCode));
-    if (!country) continue;
-    incomingByCountry.set(country.id, Math.trunc(Number(row.points) || 0));
+  if (response.showId !== data.showId || response.editionId !== data.editionId) {
+    throw new Error("Canonical Televote synchronization resolved a different show or edition");
   }
-
-  const states: ResultState[] = activeParticipants.map((participant: any) => {
-    const previous = existingByCountry.get(participant.country_id) as any;
-    const juryPoints = Math.trunc(Number(previous?.jury_points ?? 0));
-    const televotePoints = incomingByCountry.get(participant.country_id) ?? 0;
-    return {
-      id: previous?.id,
-      countryId: participant.country_id,
-      contestEntityId: participant.contest_entity_id ?? previous?.contest_entity_id ?? null,
-      runningOrder: participant.running_order == null ? null : Number(participant.running_order),
-      juryPoints,
-      televotePoints,
-      totalPoints: juryPoints + televotePoints,
-      oldRank: previous?.final_rank == null ? null : Number(previous.final_rank),
-    };
-  });
-
-  // Tie-break metadata already lives on the canonical show. Jury countback can
-  // be reproduced locally; Televoting aggregate points remain the authority for
-  // the televote component itself.
-  const votingConfig = (show.voting_config ?? {}) as Record<string, unknown>;
-  const tieBreak = Array.isArray(votingConfig.tieBreak)
-    ? votingConfig.tieBreak.map(String)
-    : ["televote", "jury", "runningOrder"];
-  const juryScale = Array.isArray(votingConfig.juryPoints)
-    ? [...new Set(votingConfig.juryPoints.map(Number).filter(Number.isFinite))].sort((a, b) => b - a)
-    : [12, 10, 8, 7, 6, 5, 4, 3, 2, 1];
-
-  const { data: juryVotes, error: juryError } = await db
-    .from("jury_votes")
-    .select("receiving_country_id,receiving_entity_id,points")
-    .eq("show_id", data.showId);
-  if (juryError) throw new Error(juryError.message);
-  const juryPointCounts = new Map<string, Map<number, number>>();
-  for (const vote of juryVotes ?? []) {
-    const countryId = vote.receiving_country_id ?? vote.receiving_entity_id;
-    if (!countryId) continue;
-    const bucket = juryPointCounts.get(countryId) ?? new Map<number, number>();
-    const score = Number(vote.points ?? 0);
-    bucket.set(score, (bucket.get(score) ?? 0) + 1);
-    juryPointCounts.set(countryId, bucket);
+  const imported = Number(response.rowCount);
+  if (!Number.isSafeInteger(imported) || imported < 1) {
+    throw new Error("Canonical Televote reconciliation returned an invalid participant count");
   }
-
-  const ranked = [...states].sort((a, b) => compareResultStates(a, b, tieBreak, juryPointCounts, juryScale));
-  const rankByCountry = new Map(ranked.map((state, index) => [state.countryId, index + 1]));
-
-  for (const state of states) {
-    const values = {
-      edition_id: data.editionId,
-      show_id: data.showId,
-      country_id: state.countryId,
-      contest_entity_id: state.contestEntityId,
-      jury_points: state.juryPoints,
-      televote_points: state.televotePoints,
-      total_points: state.totalPoints,
-      final_rank: rankByCountry.get(state.countryId) ?? null,
-      updated_at: new Date().toISOString(),
-    };
-    if (state.id) {
-      const { error } = await db.from("results").update(values).eq("id", state.id);
-      if (error) throw new Error(error.message);
-    } else {
-      const { error } = await db.from("results").insert(values);
-      if (error) throw new Error(error.message);
-    }
-  }
-
-  const freezeIds = [...new Set(data.freezeRoundIds ?? [])];
-  if (freezeIds.length) {
-    const { error: freezeError } = await db
-      .from("televoting_round_bindings")
-      .update({ frozen_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .in("remote_round_id", freezeIds);
-    if (freezeError) throw new Error(freezeError.message);
-  }
-
-  const outcome: SolarisResultSyncOutcome = {
+  return {
     ok: true,
     status: "synced",
     sourceType: data.sourceType,
     sourceId: data.sourceId,
-    editionId: data.editionId,
-    showId: data.showId,
-    imported: states.length,
-    message: `${states.length} Televoting results synced to ${show.name}.`,
+    editionId: response.editionId,
+    showId: response.showId,
+    imported,
+    message: `${imported} Televoting results synchronized through canonical Solaris Results authority.`,
   };
-  await recordResultSyncEvent(db, outcome, {
-    row_count: states.length,
-    tie_break: tieBreak,
-    source_points_total: data.rows.reduce((sum, row) => sum + (Number(row.points) || 0), 0),
-  });
-  return outcome;
 }
 
 export async function syncPublishedRoundResultsToSolarisServer(
@@ -335,11 +109,11 @@ export async function syncPublishedRoundResultsToSolarisServer(
 
   const { data: round, error: roundError } = await televotingAdmin
     .from("rounds")
-    .select("id,name,results_status,broadcast_display_mode,calculation_version,public_advanced_transparency")
+    .select("id,name,results_status,results_outdated,broadcast_display_mode,calculation_version,public_advanced_transparency")
     .eq("id", roundId)
     .maybeSingle();
   if (roundError) throw new Error(roundError.message);
-  if (!round || round.results_status !== "published") {
+  if (!round || round.results_status !== "published" || round.results_outdated || Number(round.calculation_version) < 1) {
     return {
       ok: false,
       status: "source_not_published",
@@ -389,7 +163,6 @@ export async function syncPublishedRoundResultsToSolarisServer(
     sourceType: "round",
     sourceId: roundId,
     rows: (rows ?? []).map((row) => ({ countryCode: String(row.country_code ?? ""), points: Number(row.final_points ?? 0) })),
-    freezeRoundIds: [roundId],
   });
 
   if (outcome.ok && round.public_advanced_transparency) {
@@ -525,7 +298,6 @@ export async function syncPublishedCombinedResultsToSolarisServer(
       countryCode: String(row.country_code ?? ""),
       points: Number(row.final_combined_points ?? 0),
     })),
-    freezeRoundIds: sourceRoundIds,
   });
 
   if (outcome.ok) {
