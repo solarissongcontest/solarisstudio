@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
-  WORLD_BODIES_PAGE_SIZE, readPublicWorldBodies, readPublicWorldBody, validWorldSlug,
+  WORLD_BODIES_PAGE_SIZE, WORLD_BODY_OFFICE_LIMIT, readPublicWorldBodies, readPublicWorldBody, readPublicBodyOffices, validWorldSlug,
   type PublicWorldInstitution,
 } from "@/lib/terra-world-bodies-public";
 
@@ -55,6 +55,13 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
     queryFn: () => readPublicWorldBodies(slug, page), enabled: valid, staleTime: 90_000, retry: false,
   });
   const result = query.data;
+  const offices = useQuery({
+    queryKey: ["world", "public", "body-offices", result?.organization.id, result?.body.id],
+    queryFn: () => readPublicBodyOffices(result!.organization, result!.body),
+    enabled: !!result,
+    staleTime: 90_000,
+    retry: false,
+  });
   return <Frame>
     <Back institution={result?.organization} />
     {!valid ? <Unavailable missing /> : null}
@@ -118,11 +125,37 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
             All public bodies <ArrowRight className="size-4" aria-hidden="true" /></Link>
         </section>
         <aside className="border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+          <h2 className="font-semibold">Offices of this body</h2>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+            Public institutional offices only. Private terms and unpublished appointments are excluded.
+          </p>
+          {offices.isPending ? <p role="status" className="mt-4 text-sm text-muted-foreground">Checking offices…</p> : null}
+          {offices.isError ? <div role="alert" className="mt-4 text-sm">
+            <p>Office records could not be verified.</p>
+            <button type="button" onClick={() => void offices.refetch()}
+              className="mt-2 min-h-11 rounded-xl border border-border px-4 font-semibold">Retry offices</button>
+          </div> : null}
+          {offices.isSuccess && offices.data.length === 0 ? (
+            <p className="mt-4 text-sm text-muted-foreground">No public offices recorded.</p>
+          ) : null}
+          {offices.isSuccess && offices.data.length > 0 ? (
+            <ul className="mt-3 divide-y divide-border">
+              {offices.data.map((office) => <li key={office.id} className="py-3">
+                <p className="text-sm font-semibold">{office.title}</p>
+                <p className="mt-1 text-xs capitalize text-muted-foreground">{office.officeType.replace(/_/g, " ")}</p>
+              </li>)}
+            </ul>
+          ) : null}
+          {offices.isSuccess && offices.data.length === WORLD_BODY_OFFICE_LIMIT ? (
+            <p className="mt-2 text-xs text-muted-foreground">Showing the first {WORLD_BODY_OFFICE_LIMIT} offices.</p>
+          ) : null}
+          <div className="mt-7 border-t border-border pt-6">
           <h2 className="font-semibold">Parent institution</h2>
           <p className="mt-2 text-sm text-muted-foreground">{result.organization.officialName}</p>
           <Link to="/world/organizations/$slug" params={{ slug }} search={{ tab: "overview" }}
             className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary">
             View institution <ArrowRight className="ml-2 size-4" aria-hidden="true" /></Link>
+          </div>
         </aside>
       </div>
     </> : null}
