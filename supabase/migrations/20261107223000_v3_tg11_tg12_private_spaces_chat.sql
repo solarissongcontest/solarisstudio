@@ -413,7 +413,7 @@ begin
   select coalesce(jsonb_agg(jsonb_build_object(
     'userId',actor.user_id,'name',actor.display_name,
     'role',coalesce(g.role,'member'),
-    'invited', g.starts_at<=now() and (g.ends_at is null or g.ends_at>now()),
+    'invited', coalesce(g.starts_at<=now() and (g.ends_at is null or g.ends_at>now()),false),
     'revision',coalesce(g.revision,0)
   ) order by actor.display_name,actor.user_id),'[]'::jsonb)
   into v_result
