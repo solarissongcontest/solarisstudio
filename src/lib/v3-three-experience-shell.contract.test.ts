@@ -47,6 +47,8 @@ describe("V3 three-experience shell navigation cutover", () => {
     expect(sections).toContain('window.removeEventListener("resize", keepActiveVisible)');
     expect(css).not.toContain("position: fixed");
     const desktop = read("src/components/v3/V3DesktopPrimaryNavigation.tsx");
+    expect(desktop).toContain('aria-label="Solaris website sections"');
+    expect(desktop).not.toContain('aria-label="Primary app navigation"');
     expect(desktop).toContain("to={destination.to as any}");
     expect(desktop).toContain("event.metaKey");
     expect(desktop).toContain("event.ctrlKey");
