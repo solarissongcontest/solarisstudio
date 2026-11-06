@@ -20,7 +20,7 @@ export const Route = createFileRoute("/confirmations/recover")({
   head: () => ({
     meta: [
       { title: "Recover Confirmation — Solaris Studio" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   loader: () => getPublicRounds(),
