@@ -32,13 +32,15 @@ describe("confirmation response review routing", () => {
     expect(listRoute).toContain('value: "nf_declined"');
     expect(listRoute).not.toContain("All editions");
     expect(listRoute).toContain('<option value="">Select edition…</option>');
-    expect(listRoute).toContain("All rounds");
+    expect(listRoute).toContain("All loaded rounds");
     expect(listRoute).toContain("Next in Line");
     expect(listRoute).toContain("admin_confirmation_next_in_line");
     expect(listRoute).toContain("_edition_id: editionId");
     expect(listRoute).toContain(
       'editionId ? rows.filter((row) => row.editions?.id === editionId) : []',
     );
+    expect(listRoute).toContain("assertOrganizerResponseRowsInEdition(page.rows, editionId)");
+    expect(listRoute).toContain("assertOrganizerResponseRowsInEdition(page.rows, requestedEditionId)");
     expect(listRoute).toContain(
       "Solaris will not combine historical response queues or substitute a globally active or newest edition.",
     );
@@ -50,7 +52,8 @@ describe("confirmation response review routing", () => {
     expect(listRoute).toContain('type CardState = "review" | "issue" | "ready" | "neutral"');
     expect(listRoute).toContain("Needs review");
     expect(listRoute).toContain("Needs fixing");
-    expect(listRoute).toContain("waiting for winner");
+    const statusSource = source("src/lib/v3-organizer-entry-review-status.ts");
+    expect(statusSource).toContain("waiting for National Final winner");
     expect(listRoute).toContain("rgba(251,113,133");
     expect(listRoute).toContain("rgba(252,211,77");
     expect(listRoute).toContain("rgba(110,231,183");
