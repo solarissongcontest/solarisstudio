@@ -101,6 +101,57 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
     [browseItems, browseFilterKey, browseWindowState],
   );
   const activeFilterCount = [editionId !== "all", kind !== "all", state !== "all"].filter(Boolean).length;
+  // Shared fields render in the app filter sheet or desktop/mobile-web filter row,
+  // avoiding duplicate controls, translation drift and client bundle cost.
+  const filterFields = (
+    <>
+      <label className="text-xs font-semibold text-muted-foreground">
+            Edition
+            <select
+              value={editionId}
+              onChange={(event) => setEditionId(event.target.value)}
+              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
+            >
+              <option value="all">All editions</option>
+              {editions.map((edition) => (
+                <option key={edition.id} value={edition.id}>
+                  {editionLabel(edition)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-semibold text-muted-foreground">
+            Show type
+            <select
+              value={kind}
+              onChange={(event) => setKind(event.target.value)}
+              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
+            >
+              <option value="all">All show types</option>
+              {kinds.map((value) => (
+                <option key={value} value={value}>
+                  {showKindLabel(value)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-semibold text-muted-foreground">
+            State
+            <select
+              value={state}
+              onChange={(event) => setState(event.target.value as ShowDiscoveryState | "all")}
+              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
+            >
+              <option value="all">All states</option>
+              {STATE_ORDER.map((value) => (
+                <option key={value} value={value}>
+                  {stateFilterLabel(value)}
+                </option>
+              ))}
+            </select>
+          </label>
+    </>
+  );
 
   if (archiveIsLoading(editionsQuery, showsQuery)) {
     return <ArchiveDataLoading label="Loading show discovery…" />;
@@ -187,51 +238,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
                   className="max-h-[85dvh] overflow-y-auto pb-[max(1.25rem,env(safe-area-inset-bottom))]">
                   <h2 className="mb-3 text-lg font-bold">Filter public shows</h2>
                   <div className="grid gap-3">
-          <label className="text-xs font-semibold text-muted-foreground">
-            Edition
-            <select
-              value={editionId}
-              onChange={(event) => setEditionId(event.target.value)}
-              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
-            >
-              <option value="all">All editions</option>
-              {editions.map((edition) => (
-                <option key={edition.id} value={edition.id}>
-                  {editionLabel(edition)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs font-semibold text-muted-foreground">
-            Show type
-            <select
-              value={kind}
-              onChange={(event) => setKind(event.target.value)}
-              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
-            >
-              <option value="all">All show types</option>
-              {kinds.map((value) => (
-                <option key={value} value={value}>
-                  {showKindLabel(value)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs font-semibold text-muted-foreground">
-            State
-            <select
-              value={state}
-              onChange={(event) => setState(event.target.value as ShowDiscoveryState | "all")}
-              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
-            >
-              <option value="all">All states</option>
-              {STATE_ORDER.map((value) => (
-                <option key={value} value={value}>
-                  {stateFilterLabel(value)}
-                </option>
-              ))}
-            </select>
-          </label>
+          {filterFields}
                   </div>
                   <SheetClose asChild>
                     <button type="button" className="mt-4 min-h-11 w-full rounded-xl border border-primary bg-primary/10 px-4 text-sm font-semibold">
@@ -252,51 +259,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
                     onClick={() => setSearch("")}><X size={16} aria-hidden="true" /></button>
                 ) : null}
               </div>
-          <label className="text-xs font-semibold text-muted-foreground">
-            Edition
-            <select
-              value={editionId}
-              onChange={(event) => setEditionId(event.target.value)}
-              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
-            >
-              <option value="all">All editions</option>
-              {editions.map((edition) => (
-                <option key={edition.id} value={edition.id}>
-                  {editionLabel(edition)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs font-semibold text-muted-foreground">
-            Show type
-            <select
-              value={kind}
-              onChange={(event) => setKind(event.target.value)}
-              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
-            >
-              <option value="all">All show types</option>
-              {kinds.map((value) => (
-                <option key={value} value={value}>
-                  {showKindLabel(value)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs font-semibold text-muted-foreground">
-            State
-            <select
-              value={state}
-              onChange={(event) => setState(event.target.value as ShowDiscoveryState | "all")}
-              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
-            >
-              <option value="all">All states</option>
-              {STATE_ORDER.map((value) => (
-                <option key={value} value={value}>
-                  {stateFilterLabel(value)}
-                </option>
-              ))}
-            </select>
-          </label>
+          {filterFields}
             </>
           )}
         </div>
