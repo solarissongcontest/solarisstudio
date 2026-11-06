@@ -26,6 +26,13 @@ describe("V3 installed dock interrupted gesture recovery", () => {
       expect(source).toMatch(/if \(suppressClick\.current\) \{[\s\S]*?suppressClick\.current = false;[\s\S]*?event\.preventDefault\(\);/);
     });
 
+    it(name + " lets assistive detail-zero clicks bypass stale pointer suppression", () => {
+      const click = source.slice(source.indexOf("onClick={(event) => {"));
+      expect(click).toMatch(
+        /if \(suppressClick\.current\) \{[\s\S]*?suppressClick\.current = false;[\s\S]*?if \(event\.detail > 0\) \{[\s\S]*?event\.preventDefault\(\);/,
+      );
+    });
+
     it(name + " rejects drag initiation behind keyboard or feature overlays", () => {
       const start = source.slice(source.indexOf("const startDrag ="), source.indexOf("const moveDrag ="));
       expect(start).toContain("data-solaris-keyboard-open");
