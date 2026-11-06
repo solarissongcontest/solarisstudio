@@ -73,6 +73,8 @@ begin
       || jsonb_build_object('replayed', true);
   end if;
 
+  perform private.studio2_require_fresh_auth(300);
+
   -- Both the document and its version are locked. A simultaneous new
   -- published version cannot change the effective predecessor unnoticed.
   select * into v_document
@@ -83,6 +85,15 @@ begin
   from public.world_document_versions
   where id = p_version_id and document_id = v_document.id
   for update;
+
+  -- Re-evaluate mutable capability and durable actor after taking locks.
+  -- Initial identity validation alone cannot authorize a stale prepared action.
+  if not public.world_access_allowed(
+      'world.document.manage', v_document.organization_id, null, null,
+      'document', v_document.id
+    ) or private.world_document_actor_person_v1(v_document.organization_id) is null then
+    raise exception using errcode = '42501', message = 'AUTHORIZATION';
+  end if;
 
   if v_version.id is null or v_version.publication_state <> 'draft'
      or v_version.effective_to is not null then
@@ -135,5 +146,9 @@ revoke all on function public.world_set_document_draft_effective_date_v1(
 grant execute on function public.world_set_document_draft_effective_date_v1(
   uuid,timestamptz,bigint,uuid,text,uuid
 ) to authenticated;
+
+comment on function public.world_set_document_draft_effective_date_v1(
+  uuid,timestamptz,bigint,uuid,text,uuid
+) is 'TG4 R2 governed effective-instant preparation; updates only an authorized mutable draft with version CAS and durable operation receipt.';
 
 commit;
