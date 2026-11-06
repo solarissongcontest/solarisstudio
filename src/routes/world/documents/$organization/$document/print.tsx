@@ -1,17 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { WorldDocumentPrintPage } from "@/components/world/WorldDocumentPrintPage";
 import { WorldPublicGate } from "@/components/world/WorldPublic";
-
-function versionOrInvalid(input: unknown): number | undefined {
-  if (input === undefined || input === null || input === "") return undefined;
-  const number = typeof input === "string" && /^\d+$/.test(input)
-    ? Number(input) : typeof input === "number" ? input : Number.NaN;
-  return Number.isSafeInteger(number) && number > 0 ? number : -1;
-}
+import { parseWorldDocumentVersionQuery } from "@/lib/world-public-documents";
 
 export const Route = createFileRoute("/world/documents/$organization/$document/print")({
   validateSearch: (search: Record<string, unknown>) => ({
-    version: versionOrInvalid(search.version),
+    version: parseWorldDocumentVersionQuery(search.version),
   }),
   head: () => ({
     meta: [
@@ -27,7 +21,7 @@ function PrintWorldDocumentRoute() {
   const { organization, document } = Route.useParams();
   const { version } = Route.useSearch();
   return (
-    <WorldPublicGate>
+    <WorldPublicGate verifyOnMount>
       <WorldDocumentPrintPage organization={organization} document={document} version={version} />
     </WorldPublicGate>
   );
