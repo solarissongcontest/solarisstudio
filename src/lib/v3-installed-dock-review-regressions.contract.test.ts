@@ -32,6 +32,9 @@ describe("V3 installed dock review regressions", () => {
     expect(tab).toContain('window.addEventListener("pagehide", resetInterruptedGesture)');
     expect(tab).toContain("window.addEventListener(APP_RESUME_EVENT, resetInterruptedGesture)");
     expect(tab).toContain('window.addEventListener("resize", resetInterruptedGesture)');
+    expect(tab).toContain("new MutationObserver(updateMetrics)");
+    expect(tab).toContain("keyboardObserver?.disconnect()");
+    expect(tab).toContain('attributeFilter: ["data-solaris-keyboard-open"]');
     expect(tab).toContain("interruptionObserver?.disconnect()");
     expect(tab).toContain("onKeyDown={() => {");
   });

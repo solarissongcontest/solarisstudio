@@ -144,11 +144,22 @@ export function AppTabBar({
         ? new ResizeObserver(updateMetrics)
         : null;
     if (observer && bar) observer.observe(bar as Element);
+    // A keyboard-state attribute can change without a visualViewport resize.
+    // Recompute scroll clearance on both transitions, not only physical resize.
+    const keyboardObserver =
+      typeof MutationObserver !== "undefined"
+        ? new MutationObserver(updateMetrics)
+        : null;
+    keyboardObserver?.observe(root, {
+      attributes: true,
+      attributeFilter: ["data-solaris-keyboard-open"],
+    });
     window.addEventListener("resize", updateMetrics);
     window.visualViewport?.addEventListener("resize", updateMetrics);
 
     return () => {
       observer?.disconnect();
+      keyboardObserver?.disconnect();
       window.removeEventListener("resize", updateMetrics);
       window.visualViewport?.removeEventListener("resize", updateMetrics);
       // Do not zero the obstruction here. Dependency changes immediately
