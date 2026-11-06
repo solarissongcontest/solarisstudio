@@ -16,7 +16,14 @@ describe("Public V3 Live route reconnect boundary", () => {
     expect(gate).toContain("if (!bundle.data)");
     expect(gate).not.toContain("rollout.isError || !rollout.data");
     expect(gate).not.toContain("bundle.isError || !bundle.data");
-    expect(gate).toContain("reversible fallback only when the initial focused V3");
+    // The intentional rollout-off fallback stays, but read failures must
+    // take the retry branch before either fallback can mount legacy queries.
+    expect(gate.indexOf("if (rollout.isError && !rollout.data)")).toBeLessThan(
+      gate.indexOf("if (!rollout.data || !v3Enabled)"),
+    );
+    expect(gate.indexOf("if (bundle.isError && !bundle.data)")).toBeLessThan(
+      gate.indexOf("if (!bundle.data)"),
+    );
   });
 
   it("fails closed with manual retry before an initial server read is available", () => {
