@@ -47,11 +47,22 @@ describe("Public Records authoritative-read recovery", () => {
     expect(gate).toContain("serverPending: serverPreferences.isPending");
     expect(gate).toContain("serverError: serverPreferences.isError");
     expect(gate).toContain("bundle.data.spoilerSafeRecords");
-    expect(gate).toContain("setCurrentEditionRevealed(false)");
-    expect(gate).toContain("setCurrentEditionRevealed(true)");
+    expect(gate).toContain("setRevealedScope(null)");
+    expect(gate).toContain("setRevealedScope(revealScope)");
     expect(gate).toContain("rollout.data.resultsEnabled !== true");
     expect(gate).toContain("return <>{fallback}</>");
     expect(route).toContain("isAppMode");
     expect(route).toContain("LegacyRecordsPage");
+  });
+
+  it("never transfers revealed results to another viewer on the same edition", () => {
+    const gate = read("src/components/v3/V3RecordsGate.tsx");
+    expect(gate).toContain("const revealScope = JSON.stringify([");
+    expect(gate).toContain('rollout.data?.userId ?? "anonymous"');
+    expect(gate).toContain('bundle.data?.currentEditionId ?? "none"');
+    expect(gate).toContain("const currentEditionRevealed = revealedScope === revealScope");
+    expect(gate).toContain("[rollout.data?.userId, bundle.data?.currentEditionId]");
+    expect(gate).toContain("!currentEditionRevealed");
+    expect(gate).not.toContain("useState(false)");
   });
 });
