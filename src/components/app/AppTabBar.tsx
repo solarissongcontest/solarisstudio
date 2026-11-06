@@ -14,6 +14,7 @@ import {
 import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
 import {
+  holdMovementExceeded,
   prefersReducedMotion,
   resolveElasticDrag,
   resolveTabDragTargetIndex,
@@ -38,6 +39,7 @@ type DragState = {
   pointerId: number;
   captureTarget: HTMLAnchorElement;
   startX: number;
+  startY: number;
   originIndex: number;
   moved: boolean;
 };
@@ -86,6 +88,7 @@ export function AppTabBar({
     begin: beginHold,
     move: moveHold,
     end: endHold,
+    isEngaged: isHoldEngaged,
   } = useSolarisPressHold();
 
   useEffect(() => {
@@ -326,6 +329,7 @@ export function AppTabBar({
       pointerId: event.pointerId,
       captureTarget: event.currentTarget,
       startX: event.clientX,
+      startY: event.clientY,
       originIndex: index,
       moved: false,
     };
@@ -337,7 +341,18 @@ export function AppTabBar({
   const moveDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    moveHold(event.pointerId, event.clientX, event.clientY);
+    // Until the hold timer has engaged, movement belongs to scrolling and
+    // other gesture owners. A quick swipe over the dock must never change tabs.
+    if (!isHoldEngaged(event.pointerId)) {
+      moveHold(event.pointerId, event.clientX, event.clientY);
+      if (
+        holdMovementExceeded(drag.startX, drag.startY, event.clientX, event.clientY)
+      ) {
+        suppressClick.current = true;
+        clearDrag();
+      }
+      return;
+    }
 
     const rects = tabRects();
     const origin = rects[drag.originIndex];
@@ -379,6 +394,13 @@ export function AppTabBar({
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
 
+    // Ordinary pointer taps must remain semantic clicks. Only the engaged
+    // hold gesture can commit a drag navigation on pointer release.
+    if (!isHoldEngaged(event.pointerId)) {
+      clearDrag();
+      return;
+    }
+
     const rects = tabRects();
     const origin = rects[drag.originIndex];
     const targetIndex = resolveTabDragTargetIndex({
@@ -389,7 +411,9 @@ export function AppTabBar({
       activationRatio: 0.72,
     });
     const moved = drag.moved;
-    suppressClick.current = moved;
+    // An engaged long press consumes its generated pointer click, even if
+    // it settled on the same tab without crossing a drag threshold.
+    suppressClick.current = true;
 
     try {
       event.currentTarget.releasePointerCapture?.(event.pointerId);
