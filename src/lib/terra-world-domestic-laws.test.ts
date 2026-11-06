@@ -50,6 +50,13 @@ describe("WORLD-09 TG16 country-controlled domestic laws",()=>{
     expect(SQL).toContain("body_snapshot");
     expect(SQL).not.toMatch(/delete from public\.world_domestic_measure_versions/i);
   });
+  it("does not reveal pre-public version metadata to anonymous readers after first publication",()=>{
+    expect(SQL).toContain("public_version_floor bigint");
+    expect(SQL).toContain("public_version_floor=coalesce(public_version_floor,current_version)");
+    expect(SQL).toContain("h.version_number>=m.public_version_floor");
+    expect(SQL).toContain("ca.country_id=m.country_id and ca.user_id=auth.uid()");
+    expect(SQL).toContain("ca.status='active'");
+  });
   it("enforces configurable state machines and no fictional voting masquerading as certified ballots",()=>{
     expect(DOMESTIC_TRANSITIONS.democratic).toMatchObject({
       draft:["introduced"],introduced:["debated","rejected","withdrawn"],
