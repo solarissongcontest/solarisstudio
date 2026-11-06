@@ -150,4 +150,20 @@ $document$;
 comment on function public.world_get_document_v1(text,text,integer) is
   'TG4 canonical document projection; full structured legal body is publication-gated and source provenance is exposed only to authorized institution document managers.';
 
+do $contract$
+begin
+  if to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is not null then
+    perform public.v3_register_migration_contract(
+      'v3.tg4.world-document-manager-provenance',
+      1,
+      'forward_fix_only',
+      false,
+      null,
+      'Expose lossless draft provenance exclusively to authorized document managers while public readers receive redacted null fields.'
+    );
+  end if;
+end
+$contract$;
+
+notify pgrst, 'reload schema';
 commit;
