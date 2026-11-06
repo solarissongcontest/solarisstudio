@@ -11,8 +11,8 @@ export type WorldBodyStatusFilter = "all" | "active" | "historical";
 export function cleanWorldBodySearch(term: string): string {
   // Remove PostgREST filter grammar and LIKE wildcards before constructing a bounded name search.
   return term.normalize("NFC")
-    .replace(/[^\\p{L}\\p{N} -]/gu, "")
-    .replace(/\\s+/g, " ").trim().slice(0, 64);
+    .replace(/[^\p{L}\p{N} -]/gu, "")
+    .replace(/\s+/g, " ").trim().slice(0, 64);
 }
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
