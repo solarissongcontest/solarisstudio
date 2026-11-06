@@ -110,7 +110,11 @@ describe("WORLD-03 TG5B GUARD application review", () => {
   it("preserves private external provenance without impersonating a country controller", () => {
     expect(migration).toContain("add column intake_source text not null default 'solaris'");
     expect(migration).toContain("registered_by_user_id uuid references auth.users(id)");
-    expect(migration).toContain("add constraint world_membership_application_external_provenance_check");
+    expect(migration).toContain("add constraint world_membership_application_external_controller_check");
+    expect(migration).toContain("create table public.world_membership_application_external_provenance");
+    expect(migration).toContain("alter table public.world_membership_application_external_provenance enable row level security");
+    expect(migration).toContain("revoke all on public.world_membership_application_external_provenance");
+    expect(migration).not.toContain("add column external_source_reference");
     expect(migration).toContain("submitted_by is null");
     expect(migration).toContain("create or replace function public.world_register_external_guard_application_v1(");
     expect(migration).toContain("'world.membership.application.registered_external'");
