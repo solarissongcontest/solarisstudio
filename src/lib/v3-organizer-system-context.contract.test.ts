@@ -59,6 +59,17 @@ describe("Organizer System Settings exact edition context", () => {
     expect(route).toContain("Schedule could not be verified");
   });
 
+  it("shows audit read failures as unavailable with an explicit retry instead of reporting no history", () => {
+    expect(route).toContain("isLoading: auditLoading");
+    expect(route).toContain("isError: auditError");
+    expect(route).toContain("error: auditReadError");
+    expect(route).toContain("refetch: refetchAudit");
+    expect(route).toContain("Organizer audit history unavailable");
+    expect(route).toContain("Retry audit history");
+    expect(route).toContain("void refetchAudit()");
+    expect(route).toContain("auditError ? (");
+  });
+
   it("locks unfinished reminder drafts to their original edition and closes on context loss", () => {
     expect(route).toContain("const [createEditionId, setCreateEditionId]");
     expect(route).toContain("createOpen && createEditionId && createEditionId !== selectedEdition?.id");
