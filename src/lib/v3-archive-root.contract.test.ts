@@ -25,6 +25,11 @@ describe("V3 P34 Archive root", () => {
 
     expect(source).toContain('to: "/editions"');
     expect(source).toContain('to: "/countries"');
+    // Until the durable Music directory lands, the historical songs/artist
+    // discovery entry uses the already-published Reference search, not a dead route.
+    expect(source).toContain('title: "Songs & artists"');
+    expect(source).toContain('to: "/encyclopedia", group: "history"');
+    expect(source).not.toContain('to: "/music"');
     expect(source).toContain('to: "/shows"');
     expect(source).toContain('to: "/stories"');
     // Archive links into the existing Results-owned records view, without
