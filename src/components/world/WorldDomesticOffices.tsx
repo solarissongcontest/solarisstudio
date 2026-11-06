@@ -234,7 +234,18 @@ export function WorldDomesticOffices({code}:{code:string}){
           </p>
         </li>)}</ul>
       </details>:null}
-      {!active.length&&!previous.length&&!item.isController?
+      {item.people.length&&!active.length&&!previous.length?
+        <div className="mt-5">
+          <h3 className="text-sm font-semibold">Fictional political figures</h3>
+          <ul className="mt-2 space-y-3">{item.people.map(person=>
+            <li key={person.id} className="border-b border-border pb-3">
+              <p className="font-medium">{person.displayName}</p>
+              {person.nativeName?<p className="text-xs text-muted-foreground">{person.nativeName}</p>:null}
+              {person.publicSummary?<p className="mt-1 text-sm text-muted-foreground">{person.publicSummary}</p>:null}
+              {!person.published?<p className="mt-1 text-xs text-muted-foreground">Private draft</p>:null}
+            </li>)}</ul>
+        </div>:null}
+      {!active.length&&!previous.length&&!item.people.length&&!item.isController?
         <p className="mt-4 text-sm text-muted-foreground">No published officeholder records are available.</p>:null}
       {item.isController?<OfficialEditor item={item} onSaved={()=>void qc.invalidateQueries({
         queryKey:["world","domestic","officials",code]
