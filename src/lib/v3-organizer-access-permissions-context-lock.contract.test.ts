@@ -60,7 +60,7 @@ describe("V3 Organizer Access & Permissions context lock", () => {
     expect(route).toContain('reviewContextEditionId: string | null');
     expect(route).toContain('reviewContextEditionId: editionId ?? null');
     expect(route).toContain(
-      'if ((editionId ?? null) !== pending.reviewContextEditionId)',
+      'if (!verifiedEditionRef.current || (editionId ?? null) !== pending.reviewContextEditionId)',
     );
     expect(route).toContain(
       'Organizer edition context changed after this R3 review opened or could not be verified. Nothing was requested.',
