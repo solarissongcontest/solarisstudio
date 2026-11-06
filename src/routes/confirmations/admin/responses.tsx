@@ -418,6 +418,11 @@ function ConfirmationResponsesList() {
       if (page.page.hasMore && !page.page.nextCursor) {
         throw new Error("Confirmation projection returned an incomplete continuation cursor.");
       }
+      if (page.page.hasMore && page.page.nextCursor &&
+          page.page.nextCursor.submittedAt === requestedCursor.submittedAt &&
+          page.page.nextCursor.submissionId === requestedCursor.submissionId) {
+        throw new Error("Confirmation pagination repeated its continuation cursor. Reload the current edition.");
+      }
       if (page.page.hasMore && newRows.length === 0) {
         throw new Error("Confirmation response pagination returned an empty continuation page. Reload the current edition.");
       }
