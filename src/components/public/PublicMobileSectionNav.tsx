@@ -15,9 +15,25 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
   const area = publicAreaForPath(pathname);
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const navigationRef = useRef<HTMLElement>(null);
 
   // Browser history and direct links must not carry an expanded menu to a new page.
   useEffect(() => setOpen(false), [pathname]);
+
+  // Inline browser menus should also dismiss when the user taps elsewhere,
+  // without stealing focus or swallowing the outside pointer interaction.
+  useEffect(() => {
+    if (!open) return;
+
+    const onOutsidePointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && !navigationRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", onOutsidePointerDown);
+    return () => document.removeEventListener("pointerdown", onOutsidePointerDown);
+  }, [open]);
 
   if (!hasLocalNavigation(area)) return null;
   // Entity pages already have a breadcrumb and global Explore navigation.
@@ -34,6 +50,7 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
 
   return (
     <nav
+      ref={navigationRef}
       className="public-mobile-section-nav"
       aria-label={sectionLabel(area) + " navigation"}
       onKeyDown={(event) => {
