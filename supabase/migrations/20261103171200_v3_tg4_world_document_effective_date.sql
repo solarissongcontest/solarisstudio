@@ -151,4 +151,20 @@ comment on function public.world_set_document_draft_effective_date_v1(
   uuid,timestamptz,bigint,uuid,text,uuid
 ) is 'TG4 R2 governed effective-instant preparation; updates only an authorized mutable draft with version CAS and durable operation receipt.';
 
+do $contract$
+begin
+  if to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is not null then
+    perform public.v3_register_migration_contract(
+      'v3.tg4.world-document-effective-date',
+      1,
+      'forward_fix_only',
+      false,
+      null,
+      'Prepare effective dates of authorized drafts through R2 canonical operations, exact revision checks, locks and durable receipts.'
+    );
+  end if;
+end
+$contract$;
+
+notify pgrst, 'reload schema';
 commit;
