@@ -390,7 +390,7 @@ create function public.world_space_messages_v1(
 )
 returns jsonb language plpgsql stable security definer set search_path = pg_catalog
 as $$
-declare v_from timestamptz; v_anchor record; v_result jsonb;
+declare v_from timestamptz; v_cursor_at timestamptz; v_cursor_id uuid; v_result jsonb;
 begin
   if not public.studio2_feature_enabled('terra_chat',null) then
     raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
@@ -399,7 +399,7 @@ begin
   if p_limit is null or p_limit < 1 or p_limit > 50
   then raise exception using errcode='22023', message='INVALID_LIMIT'; end if;
   if p_before is not null then
-    select created_at,id into v_anchor from private.world_space_messages
+    select created_at,id into v_cursor_at,v_cursor_id from private.world_space_messages
       where id=p_before and space_id=p_space_id and created_at >= v_from;
     if not found then raise exception using errcode='22023', message='INVALID_CURSOR'; end if;
   end if;
@@ -426,12 +426,46 @@ begin
   from (
     select * from private.world_space_messages m
     where m.space_id=p_space_id and m.created_at >= v_from
-      and (p_before is null or (m.created_at,m.id) < (v_anchor.created_at,v_anchor.id))
+      and (p_before is null or (m.created_at,m.id) < (v_cursor_at,v_cursor_id))
     order by m.created_at desc,m.id desc limit p_limit
   ) m;
   return v_result;
 end
 $$;
+
+-- Bounded search is evaluated under the very same live membership and
+-- history authorization as paging. The private message table is never
+-- queried directly by the browser or indexed into global public Search.
+create function public.world_space_search_v1(
+  p_space_id uuid, p_query text, p_limit integer default 35
+)
+returns jsonb language plpgsql stable security definer set search_path = pg_catalog
+as $
+declare v_from timestamptz; v_result jsonb; v_term text;
+begin
+  if not public.studio2_feature_enabled('terra_chat',null)
+  then raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
+  v_from := private.world_space_read_from_v1(p_space_id);
+  if v_from is null then raise exception using errcode='42501',message='AUTHORIZATION'; end if;
+  v_term := btrim(coalesce(p_query,''));
+  if length(v_term) < 2 or length(v_term) > 80 or p_limit not between 1 and 50
+  then raise exception using errcode='22023',message='INVALID_SEARCH'; end if;
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id',m.id, 'spaceId',m.space_id, 'mine',m.sender_user_id=auth.uid(),
+    'body',m.body, 'revision',m.revision, 'createdAt',m.created_at,
+    'editedAt',m.edited_at, 'redacted',false
+  ) order by m.created_at desc,m.id desc), '[]'::jsonb)
+  into v_result
+  from (
+    select * from private.world_space_messages msg
+    where msg.space_id=p_space_id and msg.created_at >= v_from
+      and msg.redacted_at is null
+      and strpos(lower(msg.body), lower(v_term)) > 0
+    order by msg.created_at desc,msg.id desc limit p_limit
+  ) m;
+  return v_result;
+end
+$;
 
 create function public.world_space_send_v1(
   p_space_id uuid, p_body text, p_reply_to_id uuid, p_request_id uuid
@@ -564,6 +598,7 @@ revoke all on function public.world_my_workspaces_v1(),
   public.world_space_create_v1(uuid,text,text,text,text,uuid,uuid),
   public.world_space_set_grant_v1(uuid,uuid,text,timestamptz,boolean),
   public.world_space_messages_v1(uuid,uuid,integer),
+  public.world_space_search_v1(uuid,text,integer),
   public.world_space_send_v1(uuid,text,uuid,uuid),
   public.world_space_edit_v1(uuid,bigint,text),
   public.world_space_set_reaction_v1(uuid,text,boolean),
