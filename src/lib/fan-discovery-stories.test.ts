@@ -147,4 +147,60 @@ describe("fan discovery story patterns", () => {
 
     expect(stories.some((story) => splitVoteStoryIds.has(story.id))).toBe(false);
   });
+  it("uses official tie-break placements instead of array order for the winning country", () => {
+    const stories = buildFanDiscovery({
+      countries,
+      editions: editions.slice(0, 1),
+      shows: shows.slice(0, 1),
+      participants: participants.filter((row) => row.edition_id === "e1"),
+      jury: [],
+      results: [
+        result("runner", "e1", "s1", "b", 90, 110, 200, 2),
+        result("winner", "e1", "s1", "a", 100, 100, 200, 1),
+        result("third", "e1", "s1", "c", 75, 75, 150, 3),
+      ],
+    });
+
+    const closest = stories.find((story) => story.id === "closest-win");
+    expect(closest?.countryId).toBe("a");
+    expect(closest?.value).toBe("Tie-break");
+    expect(closest?.description).toContain("official win");
+    expect(closest?.description).not.toContain("won by only 0 points");
+    expect(stories.find((story) => story.id === "landslide")?.countryId).not.toBe("b");
+  });
+
+  it("does not invent a winner from tied totals without official positions", () => {
+    const unresolved = [
+      { ...result("a", "e1", "s1", "a", 90, 110, 200, 1), final_rank: null },
+      { ...result("b", "e1", "s1", "b", 100, 100, 200, 2), final_rank: null },
+    ];
+    const stories = buildFanDiscovery({
+      countries,
+      editions: editions.slice(0, 1),
+      shows: shows.slice(0, 1),
+      participants,
+      jury: [],
+      results: unresolved,
+    });
+
+    expect(stories.some((story) => story.id === "closest-win" || story.id === "landslide")).toBe(false);
+  });
+
+  it("does not publish a false winning margin for incomplete or inconsistent placements", () => {
+    const stories = buildFanDiscovery({
+      countries,
+      editions: editions.slice(0, 1),
+      shows: shows.slice(0, 1),
+      participants,
+      jury: [],
+      results: [
+        result("one", "e1", "s1", "a", 90, 90, 180, 1),
+        result("another-winner", "e1", "s1", "b", 100, 100, 200, 1),
+        result("second", "e1", "s1", "c", 80, 80, 160, 2),
+      ],
+    });
+
+    expect(stories.some((story) => story.id === "closest-win" || story.id === "landslide")).toBe(false);
+  });
+
 });

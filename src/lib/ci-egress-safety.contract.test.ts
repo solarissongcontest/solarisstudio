@@ -53,15 +53,20 @@ describe("CI egress safety contracts", () => {
     expect(workflow).toContain('echo "CONFIRMATIONS_SUPABASE_URL=$local_url"');
   });
 
-  it("runs browser regression protection after main changes and keeps the recovery branch exhaustive", () => {
+  it("runs browser regression protection after main changes and makes exhaustive capture explicit", () => {
     const workflow = source(".github/workflows/browser-audit.yml");
 
     expect(workflow).toContain("push:");
     expect(workflow).toContain("branches: [main]");
-    expect(workflow).toContain("as do main pushes");
-    const fullAuditSetting = workflow.split("E2E_FULL_AUDIT:")[1]?.split("\n")[0];
-    expect(fullAuditSetting).not.toContain("github.ref == 'refs/heads/main'");
-    expect(workflow).toContain("github.head_ref == 'recovery/canonical-main-v6-20261004'");
+    expect(workflow).toContain("Pull requests and main pushes run the representative smoke set");
+
+    const fullAuditSetting = workflow.split("E2E_FULL_AUDIT:")[1]?.split("\n")[0] ?? "";
+    const visualCaptureSetting = workflow.split("E2E_VISUAL_CAPTURE:")[1]?.split("\n")[0] ?? "";
+    for (const setting of [fullAuditSetting, visualCaptureSetting]) {
+      expect(setting).toContain("github.event_name == 'workflow_dispatch'");
+      expect(setting).not.toContain("github.head_ref");
+      expect(setting).not.toMatch(/2026\d{4}/);
+    }
   });
 
   it("keeps the client bundle budget as a blocking Quality gate", () => {

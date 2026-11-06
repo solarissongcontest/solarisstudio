@@ -90,14 +90,23 @@ const DOMAIN_REPAIR_CONTRACTS: Readonly<Record<string, V3ProjectionRepairContrac
   confirmation: {
     state: "foundation",
     scope: "edition",
-    incrementalPath: "confirmation.submitted/window_changed drive task and notification reconciliation.",
-    rebuildPath: null,
-    verificationPath: "Re-read canonical Confirmation requirements/submissions for the edition.",
-    boundedBy: "edition-scoped rebuild contract still required",
-    explicitFailureState: "reconciliation_required",
+    incrementalPath:
+      "Canonical submission writes invoke private.studio2_reconcile_confirmation_requirement; confirmation.submitted/window_changed drive downstream task and notification reconciliation.",
+    rebuildPath:
+      "public.studio2_reconcile_confirmation_requirements(edition_id,offset,limit)",
+    verificationPath:
+      "public.studio2_verify_confirmation_requirements(edition_id,limit)",
+    boundedBy:
+      "one edition per wave; at most 50 country invariants per repair invocation and 500 candidates per repair/verification boundary",
+    explicitFailureState: "canonical_confirmation_recovery_required",
     evidence: [
+      "supabase/migrations/20261002235000_organisation_os_v5_confirmation_requirements.sql",
       "supabase/migrations/20261015183000_v3_s5_confirmation_consequences.sql",
+      "supabase/migrations/20261018053000_v3_s6_confirmation_requirement_reconciliation.sql",
+      "src/lib/v3-s6-confirmation-requirement-reconciliation.contract.test.ts",
+      "supabase/migrations/20261024200300_v3_s6_confirmation_requirement_bounded_repair.sql",
       ".github/scripts/v3-s5-confirmation-consequences-rehearsal.sh",
+      "src/lib/v3-s6-confirmation-requirement-repair.contract.test.ts",
     ],
   },
   notification: {

@@ -26,6 +26,17 @@ describe("show line-up lifecycle", () => {
     expect(workspace).toContain('producer_choice: "Producer choice"');
   });
 
+  it("preserves a deep-linked show while the show list is loading", () => {
+    expect(workspace).toContain('const [showId, setShowId] = useState(initialShow ?? "");');
+    expect(workspace).toContain("if (!orderedShows.length) return;");
+    expect(workspace).not.toContain(
+      'if (!orderedShows.length) {\\n      setShowId("");',
+    );
+    expect(workspace).toContain(
+      "initialShow && orderedShows.some((show) => show.id === initialShow)",
+    );
+  });
+
   it("keeps pre-order stages alphabetical and position-free", () => {
     expect(workspace).toContain("stage === \"running_order\" ? runningDraftParticipants : alphaParticipants");
     expect(workspace).toContain("Position numbers are intentionally hidden.");

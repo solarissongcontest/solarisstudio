@@ -37,14 +37,21 @@ export function computeStandings(
   const juryPoints = new Map<string, number>();
   const telePoints = new Map<string, number>();
   const topScores = new Map<string, number>();
+  // Countback compares award frequencies from the highest configured jury
+  // score downward. This is not equivalent to comparing top awards alone.
+  const juryScale = [...new Set(cfg?.juryPoints?.length ? cfg.juryPoints : [12, 10, 8, 7, 6, 5, 4, 3, 2, 1])]
+    .filter((score) => Number.isFinite(score) && score > 0)
+    .sort((a, b) => b - a);
+  const juryAwardCounts = new Map<string, Map<number, number>>();
 
   countryIds.forEach((id) => {
     juryPoints.set(id, 0);
     telePoints.set(id, 0);
     topScores.set(id, 0);
+    juryAwardCounts.set(id, new Map());
   });
 
-  const top = cfg?.juryPoints?.[0] ?? DEFAULT_TOP_SCORE;
+  const top = juryScale[0] ?? DEFAULT_TOP_SCORE;
 
   jury.forEach((vote) => {
     juryPoints.set(
@@ -57,6 +64,11 @@ export function computeStandings(
         vote.receiving_country_id,
         (topScores.get(vote.receiving_country_id) ?? 0) + 1,
       );
+    }
+
+    const counts = juryAwardCounts.get(vote.receiving_country_id);
+    if (counts && juryScale.includes(vote.points)) {
+      counts.set(vote.points, (counts.get(vote.points) ?? 0) + 1);
     }
   });
 
@@ -103,11 +115,18 @@ export function computeStandings(
         return b.jury - a.jury;
       }
 
-      if (
-        (rule === "twelves" || rule === "countback") &&
-        b.topPoints !== a.topPoints
-      ) {
+      if (rule === "twelves" && b.topPoints !== a.topPoints) {
         return b.topPoints - a.topPoints;
+      }
+
+      if (rule === "countback") {
+        const aCounts = juryAwardCounts.get(a.countryId);
+        const bCounts = juryAwardCounts.get(b.countryId);
+        for (const score of juryScale) {
+          const difference =
+            (bCounts?.get(score) ?? 0) - (aCounts?.get(score) ?? 0);
+          if (difference !== 0) return difference;
+        }
       }
 
       if (rule === "runningOrder" && runningOrder) {

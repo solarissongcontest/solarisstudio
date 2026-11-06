@@ -38,6 +38,26 @@ describe("System V3 S15 physical ownership", () => {
     }
   });
 
+  it("fails closed when a physical inventory domain is absent from the canonical System registry", () => {
+    const findings = validateV3PhysicalTableOwnership({
+      ...V3_VERIFIED_DOMAIN_TABLES,
+      "shadow-writer": ["private.unregistered_table"],
+    });
+    expect(findings).toContain("physical domain is not a registered System owner: shadow-writer");
+    // A unique table must also fail. Looking for overlaps alone would miss it.
+    expect(findings.filter((finding) => finding.includes("shadow-writer"))).toHaveLength(1);
+  });
+
+  it("rejects unqualified or ambiguous table identities", () => {
+    const findings = validateV3PhysicalTableOwnership({
+      ...V3_VERIFIED_DOMAIN_TABLES,
+      edition: [...V3_VERIFIED_DOMAIN_TABLES.edition, "editions"],
+      account: [...V3_VERIFIED_DOMAIN_TABLES.account, "public .account"],
+    });
+    expect(findings).toContain("physical table is not schema-qualified: edition -> editions");
+    expect(findings).toContain("physical table is not schema-qualified: account -> public .account");
+  });
+
   it("rejects undocumented overlap by construction", () => {
     const owners = physicalOwners();
     const contracts = new Set(V3_SHARED_PHYSICAL_TABLE_CONTRACTS.map((item) => item.table));

@@ -33,21 +33,48 @@ function task(overrides: Partial<SolarisTask> = {}): SolarisTask {
 }
 
 describe("V3 experience projections", () => {
-  it("keeps urgency separate from whether an action is required", () => {
+  it("keeps optional deadline urgency independent from required attention", () => {
     expect(v3Urgency(task(), NOW)).toBe("high");
+
+    const optionalVote = task({
+      id: "televote:sf1",
+      kind: "televote",
+      state: "available",
+      importance: "optional",
+      blocking: false,
+      actionRequired: false,
+      deadline: "2026-10-11T18:30:00.000Z",
+    });
+    const action = projectV3Action(optionalVote, NOW);
+    expect(action.urgency).toBe("immediate");
+    expect(action.deliveryClass).toBe("optional");
+    expect(action.actionRequired).toBe(false);
+    expect(projectV3Attention([action]).badgeCount).toBe(0);
+
     expect(
-      v3Urgency(
-        task({
-          id: "televote:sf1",
-          kind: "televote",
-          importance: "optional",
-          blocking: false,
-          actionRequired: false,
-          deadline: "2026-10-11T18:30:00.000Z",
-        }),
-        NOW,
-      ),
-    ).toBe("none");
+      v3Urgency(task({ ...optionalVote, deadline: "2026-10-11T20:00:00.000Z" }), NOW),
+    ).toBe("high");
+  });
+
+  it("never makes upcoming, waiting or resolved optional windows urgent", () => {
+    const optionalWindow = task({
+      id: "next-in-line:22",
+      kind: "deadline",
+      importance: "optional",
+      blocking: false,
+      actionRequired: false,
+      deadline: "2026-10-11T18:30:00.000Z",
+    });
+
+    expect(v3Urgency({ ...optionalWindow, state: "upcoming" }, NOW)).toBe("none");
+    expect(v3Urgency({ ...optionalWindow, state: "waiting" }, NOW)).toBe("none");
+    expect(v3Urgency({ ...optionalWindow, state: "completed" }, NOW)).toBe("none");
+    expect(v3Urgency({ ...optionalWindow, state: "finished" }, NOW)).toBe("none");
+    expect(v3Urgency({ ...optionalWindow, state: "available", deadline: null }, NOW)).toBe("none");
+
+    // A required integrity problem without a deadline remains high-impact
+    // and needs prompt attention, unlike a non-deadlined optional activity.
+    expect(v3Urgency(task({ state: "problem", deadline: null }), NOW)).toBe("high");
   });
 
   it("keeps delivery class separate from impact", () => {
@@ -113,6 +140,39 @@ describe("V3 experience projections", () => {
     expect(attention.badgeCount).toBe(4);
     expect(attention.immediateCount).toBe(1);
     expect(attention.hasBlockingAction).toBe(true);
+  });
+
+  it("does not count optional, waiting or upcoming work as required Home attention", () => {
+    const inconsistentOptional = projectV3Action(
+      task({
+        id: "optional-next-in-line",
+        kind: "deadline",
+        importance: "optional",
+        state: "available",
+        blocking: false,
+        actionRequired: true,
+        deadline: "2026-10-11T18:10:00.000Z",
+      }),
+      NOW,
+    );
+    const waitingRequired = projectV3Action(
+      task({ id: "waiting-confirmation", state: "waiting", actionRequired: true }),
+      NOW,
+    );
+    const upcomingRequired = projectV3Action(
+      task({ id: "upcoming-jury", state: "upcoming", actionRequired: true }),
+      NOW,
+    );
+
+    expect(inconsistentOptional.urgency).toBe("immediate");
+    expect(projectV3Attention([inconsistentOptional, waitingRequired, upcomingRequired])).toEqual({
+      primary: null,
+      secondary: [],
+      remainingCount: 0,
+      badgeCount: 0,
+      immediateCount: 0,
+      hasBlockingAction: false,
+    });
   });
 
   it("does not surface completed required work as active attention", () => {

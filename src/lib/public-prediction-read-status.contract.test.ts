@@ -1,0 +1,85 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+const arena = readFileSync("src/routes/predictions/index.tsx", "utf8");
+const detail = readFileSync("src/routes/predictions/$showId.tsx", "utf8");
+const installed = readFileSync("src/components/v3/V3PredictionsRouteContent.tsx", "utf8");
+const shared = readFileSync("src/routes/predictions/share/$token.tsx", "utf8");
+
+describe("Public legacy Prediction Arena failure and recovery wiring", () => {
+  it("renders round-query errors before the empty and unpublished fallbacks", () => {
+    expect(arena).toContain("predictionReadStatus(roundsQuery)");
+    expect(arena).toContain('readStatus === "error"');
+    expect(arena).toContain('onClick={() => void roundsQuery.refetch()}');
+    expect(arena.indexOf('readStatus === "error"')).toBeLessThan(
+      arena.indexOf("roundData?.schemaReady === false"),
+    );
+    expect(arena.indexOf('readStatus === "error"')).toBeLessThan(
+      arena.indexOf("rounds.length ?"),
+    );
+  });
+
+  it("checks public round, fan session and saved entry before rendering an editable form", () => {
+    expect(detail).toContain("round ? sessionQuery : undefined");
+    expect(detail).toContain("round && user ? savedPredictionQuery : undefined");
+    expect(detail).toContain('readStatus === "loading"');
+    expect(detail).toContain('readStatus === "error"');
+    expect(detail).toContain("savedPredictionQuery.refetch()");
+    expect(detail.indexOf('readStatus === "error"')).toBeLessThan(
+      detail.indexOf("<form onSubmit={submit}"),
+    );
+    expect(detail).toContain("Submission is paused until Solaris can verify");
+  });
+  it("fails closed when a published show or its entrant choices cannot be verified", () => {
+    for (const query of ["showQuery", "participantsQuery", "countriesQuery", "entitiesQuery"]) {
+      expect(detail).toContain(query + " = use");
+      expect(detail).toContain(query + ".isError");
+      expect(detail).toContain(query + ".refetch()");
+      expect(detail).toContain(query + ".isFetching");
+    }
+    expect(detail).toContain("round && user ? showQuery : undefined");
+    expect(detail).toContain("round && user ? participantsQuery : undefined");
+    expect(detail).toContain("round && user ? countriesQuery : undefined");
+    expect(detail).toContain("round && user && show?.edition_id ? entitiesQuery : undefined");
+    expect(detail).toContain("(!show || !participants || !countries || !entities || options.length === 0)");
+    expect(detail).toContain("Prediction choices unavailable");
+    expect(detail).toContain("Retry published choices");
+    expect(detail.indexOf("Prediction choices unavailable")).toBeLessThan(
+      detail.indexOf("<form onSubmit={submit}"),
+    );
+  });
+
+  it("offers a targeted retry instead of trapping installed viewers after private-state failures", () => {
+    expect(installed).toContain('data-v3-predictions-private-state="error"');
+    expect(installed).toContain("privateStateRetrying");
+    expect(installed).toContain("if (session.isError) void session.refetch()");
+    expect(installed).toContain("if (viewerId && history.isError) void history.refetch()");
+    expect(installed).toContain("disabled={privateStateRetrying}");
+    expect(installed).toContain("Retry prediction history");
+  });
+  it("does not confuse a failed public shared-result RPC with a revoked or invalid link", () => {
+    expect(shared).toContain("const predictionQuery = useSharedPrediction(token)");
+    expect(shared).toContain("if (isError)");
+    expect(shared).toContain("if (!prediction)");
+    expect(shared.indexOf("if (isError)")).toBeLessThan(
+      shared.indexOf("if (!prediction)"),
+    );
+    expect(shared).toContain("onClick={() => void predictionQuery.refetch()}");
+    expect(shared).toContain("disabled={predictionQuery.isFetching}");
+    expect(shared).toContain("This prediction result is not currently shared.");
+  });
+
+  it("hides old fan drafts while the editor clears picks on account or round changes", () => {
+    expect(detail).toContain("predictionDraftScope(round?.id, user?.id)");
+    expect(detail).toContain("const draftScopeChanged = draftScope !== activeDraftScope");
+    expect(detail).toContain('if (readStatus === "loading" || draftScopeChanged)');
+    expect(detail).toContain('setWinner("")');
+    expect(detail).toContain('setJuryWinner("")');
+    expect(detail).toContain('setTelevoteWinner("")');
+    expect(detail).toContain('setTopThree(["", "", ""])');
+    expect(detail).toContain("setQualifiers([])");
+    expect(detail.indexOf('if (readStatus === "loading" || draftScopeChanged)')).toBeLessThan(
+      detail.indexOf("<form onSubmit={submit}"),
+    );
+  });
+});

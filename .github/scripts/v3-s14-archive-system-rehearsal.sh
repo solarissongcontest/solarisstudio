@@ -124,11 +124,20 @@ values ('$EDITION_ID','submissions',private.studio2_default_subsystems('submissi
 on conflict (edition_id) do update
 set state='submissions',subsystems=private.studio2_default_subsystems('submissions'),version=7,updated_by=null;
 
+-- Immutable publication evidence must belong to a confirmed show participant.
+-- Participant synchronization may already create the result identity below.
+insert into public.participants(edition_id,show_id,country_id,participation_status)
+values ('$EDITION_ID','$SHOW_ID','$COUNTRY_ID','confirmed')
+on conflict (show_id,country_id) where show_id is not null do update
+set edition_id=excluded.edition_id,participation_status=excluded.participation_status;
+
 insert into public.results(
  id,edition_id,show_id,country_id,jury_points,televote_points,total_points,final_rank
 ) values ('$RESULT_ID','$EDITION_ID','$SHOW_ID','$COUNTRY_ID',12,10,22,1)
-on conflict (id) do update
-set jury_points=12,televote_points=10,total_points=22,final_rank=1;
+on conflict (show_id,country_id) where show_id is not null do update
+set id=excluded.id,jury_points=excluded.jury_points,
+    televote_points=excluded.televote_points,total_points=excluded.total_points,
+    final_rank=excluded.final_rank;
 
 insert into public.studio2_result_operations(
  show_id,edition_id,calculation_version,last_calculated_at,

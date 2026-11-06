@@ -8,20 +8,24 @@ function source(path: string) {
 }
 
 describe("V3 Liquid navigation update interruption safety", () => {
-  it("blocks replacement reloads for the direct lens lifecycle", () => {
+  it("blocks replacement reloads only once the direct lens gesture is engaged", () => {
     const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
-    const start = tabs.indexOf("const startDrag =");
-    const move = tabs.indexOf("const moveDrag =", start);
+    const blockerCall = tabs.indexOf("setAppUpdateBlocker(");
+    const holdEffectStart = tabs.lastIndexOf("useEffect", blockerCall);
+    const nextEffect = tabs.indexOf("useEffect", blockerCall + 1);
+    const holdBlock = tabs.slice(holdEffectStart, nextEffect);
     const reset = tabs.indexOf("const resetDragDom =");
     const clear = tabs.indexOf("const clearDrag =", reset);
-    const startBlock = tabs.slice(start, move);
     const resetBlock = tabs.slice(reset, clear);
 
     expect(tabs).toContain(
       'const V3_LIQUID_LENS_UPDATE_BLOCKER = "v3-liquid-lens-drag"',
     );
-    expect(startBlock).toContain("setAppUpdateBlocker(");
-    expect(startBlock).toContain("V3_LIQUID_LENS_UPDATE_BLOCKER");
+    expect(holdBlock).toContain("if (!held) return;");
+    expect(holdBlock).toContain("if (!drag || drag.engaged) return;");
+    expect(holdBlock).toContain("drag.engaged = true;");
+    expect(holdBlock).toContain("setAppUpdateBlocker(");
+    expect(holdBlock).toContain("V3_LIQUID_LENS_UPDATE_BLOCKER");
     expect(resetBlock).toContain(
       "clearAppUpdateBlocker(V3_LIQUID_LENS_UPDATE_BLOCKER)",
     );
@@ -31,7 +35,17 @@ describe("V3 Liquid navigation update interruption safety", () => {
     const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
     expect(tabs).toContain("const clearDrag = useCallback");
     expect(tabs).toContain("resetDragDom();");
-    expect(tabs).toContain("const resetInterruptedGesture = () => clearDrag()");
+    const interruptionStart = tabs.indexOf("const resetInterruptedGesture =");
+    const interruptionEnd = tabs.indexOf("const resetWhenHidden =", interruptionStart);
+    const interruptionBlock = tabs.slice(interruptionStart, interruptionEnd);
+    expect(interruptionStart).toBeGreaterThanOrEqual(0);
+    expect(interruptionBlock).toContain("if (dragState.current) suppressClick.current = true;");
+    expect(interruptionBlock).toContain("clearDrag();");
+    // Late synthetic clicks from interrupted drags cannot commit a route
+    // change, but the following real pointer/keyboard activation still can.
+    expect(tabs).toContain("onKeyDown={() => {");
+    expect(tabs).toContain("suppressClick.current = false;");
+    expect(tabs).toContain("resetInterruptedGesture();");
     expect(tabs).toContain("onPointerCancel={cancelDrag}");
     expect(tabs).toContain("onLostPointerCapture={cancelDrag}");
     expect(tabs.match(/maxSteps: 1/g)?.length ?? 0).toBeGreaterThanOrEqual(2);

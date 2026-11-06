@@ -20,23 +20,29 @@ export function PublicSectionNav({
   collapsible?: boolean;
 }) {
   const area = publicAreaForPath(pathname);
+  const items = publicDestinationsForArea(area, { includeContextual: false });
+  const activeTo = items
+    .filter((item) => publicPathMatches(pathname, item.to))
+    .sort((a, b) => b.to.length - a.to.length)[0]?.to;
+  const activeIsAdvanced = items.some(
+    (item) => item.visibility === "advanced" && item.to === activeTo,
+  );
   const [hydrated, setHydrated] = useState(false);
-  const [collapsed, setCollapsed] = useState(collapsible);
+  // A direct link to an Advanced tool must reveal its current-page destination,
+  // even when the surrounding data explorer normally starts collapsed.
+  const [collapsed, setCollapsed] = useState(collapsible && !activeIsAdvanced);
 
   useEffect(() => setHydrated(true), []);
+  useEffect(() => {
+    if (activeIsAdvanced) setCollapsed(false);
+  }, [activeIsAdvanced, activeTo]);
 
   if (!hasLocalNavigation(area)) return null;
 
   const interactiveCollapsed = hydrated && collapsible && collapsed;
-
-  const items = publicDestinationsForArea(area, { includeContextual: false });
   const primary = items.filter((item) => item.visibility === "primary");
   const secondary = items.filter((item) => item.visibility === "secondary");
   const advanced = items.filter((item) => item.visibility === "advanced");
-
-  const activeTo = items
-    .filter((item) => publicPathMatches(pathname, item.to))
-    .sort((a, b) => b.to.length - a.to.length)[0]?.to;
 
   return (
     <aside
@@ -53,6 +59,7 @@ export function PublicSectionNav({
           className="public-section-nav-toggle"
           onClick={() => setCollapsed((value) => !value)}
           aria-expanded={!interactiveCollapsed}
+          aria-controls={`public-section-nav-links-${area}`}
           aria-label={interactiveCollapsed ? `Expand ${sectionLabel(area)} navigation` : `Collapse ${sectionLabel(area)} navigation`}
           title={interactiveCollapsed ? "Expand navigation" : "Collapse navigation"}
         >
@@ -65,7 +72,11 @@ export function PublicSectionNav({
         </button>
       ) : null}
 
-      <nav className="public-section-nav-body">
+      <nav
+        id={`public-section-nav-links-${area}`}
+        className="public-section-nav-body"
+        aria-label={`${sectionLabel(area)} section links`}
+      >
         <div className="px-2">
           <p className="public-site-sidebar-label">{sectionLabel(area)}</p>
           <p className="mt-1 text-[11px] leading-4 text-muted-foreground/70">
@@ -93,17 +104,7 @@ export function PublicSectionNav({
         ) : null}
 
         {advanced.length ? (
-          <details className="group mt-4 border-t border-border/55 pt-3">
-            <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-2 text-xs font-semibold text-muted-foreground hover:bg-surface/70 hover:text-foreground [&::-webkit-details-marker]:hidden">
-              <span>{area === "results" ? "More result tools" : "Advanced"}</span>
-              <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" />
-            </summary>
-            <div className="mt-1 space-y-0.5">
-              {advanced.map((item) => (
-                <SectionLink key={item.id} item={item} active={item.to === activeTo} area={area} />
-              ))}
-            </div>
-          </details>
+          <AdvancedSectionNavigation area={area} items={advanced} activeTo={activeTo} />
         ) : null}
 
         <div className="mt-4 border-t border-border/55 pt-3">
@@ -122,6 +123,49 @@ export function PublicSectionNav({
         </div>
       </nav>
     </aside>
+  );
+}
+
+/** Keep the current advanced destination discoverable on browser back/forward. */
+function AdvancedSectionNavigation({
+  area,
+  items,
+  activeTo,
+}: {
+  area: PublicArea;
+  items: PublicDestination[];
+  activeTo?: string;
+}) {
+  const activeIsAdvanced = items.some((item) => item.to === activeTo);
+  const [open, setOpen] = useState(activeIsAdvanced);
+
+  useEffect(() => setOpen(activeIsAdvanced), [activeIsAdvanced, activeTo]);
+
+  return (
+    <details
+      className="group mt-4 border-t border-border/55 pt-3"
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape" || !open) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setOpen(false);
+        // A disclosure closed from a nested link must return focus to its
+        // still-visible summary, not strand it in hidden content.
+        event.currentTarget.querySelector("summary")?.focus();
+      }}
+    >
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-2 text-xs font-semibold text-muted-foreground hover:bg-surface/70 hover:text-foreground [&::-webkit-details-marker]:hidden">
+        <span>{area === "results" ? "More result tools" : "Advanced"}</span>
+        <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" aria-hidden="true" />
+      </summary>
+      <div className="mt-1 space-y-0.5">
+        {items.map((item) => (
+          <SectionLink key={item.id} item={item} active={item.to === activeTo} area={area} />
+        ))}
+      </div>
+    </details>
   );
 }
 

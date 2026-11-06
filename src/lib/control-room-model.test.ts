@@ -58,4 +58,56 @@ describe('control room model', () => {
     expect(model.editionState).toBe('vote_verification');
     expect(model.actions.map((item) => item.id)).toEqual(['verify-results', 'reopen-televote']);
   });
+
+  it('does not claim healthy status when incident or health evidence is unavailable', () => {
+    const base = {
+      editionId: 'ssc22',
+      editionName: 'SSC 22',
+      healthStatus: 'ready' as const,
+      healthIssues: 0,
+      criticalIssues: 0,
+    };
+    expect(buildControlRoomModel(base).overallHealth).toBe('unknown');
+    expect(buildControlRoomModel({
+      ...base, activeIncidents: 0, criticalIncidents: 0,
+    }).overallHealth).toBe('healthy');
+    expect(buildControlRoomModel({
+      ...base, healthStatus: null, activeIncidents: 0, criticalIncidents: 0,
+    }).overallHealth).toBe('unknown');
+  });
+
+  it('prioritizes verified operational incident severity over otherwise healthy edition status', () => {
+    const base = {
+      editionId: 'ssc22',
+      editionName: 'SSC 22',
+      healthStatus: 'ready' as const,
+      healthIssues: 0,
+      criticalIssues: 0,
+      activeIncidents: 2,
+      criticalIncidents: 1,
+    };
+    expect(buildControlRoomModel(base).overallHealth).toBe('critical');
+    expect(buildControlRoomModel({
+      ...base, criticalIncidents: 0,
+    }).overallHealth).toBe('attention');
+  });
+
+  it('does not present unreadable incident counts as verified zero', () => {
+    const unknown = buildControlRoomModel({
+      editionId: 'ssc22', editionName: 'SSC22',
+      healthStatus: 'ready', healthIssues: 0, criticalIssues: 0,
+    });
+    expect(unknown.issues.incidents).toBeNull();
+    expect(unknown.issues.criticalIncidents).toBeNull();
+    expect(unknown.overallHealth).toBe('unknown');
+
+    const verifiedClean = buildControlRoomModel({
+      editionId: 'ssc22', editionName: 'SSC22',
+      healthStatus: 'ready', healthIssues: 0, criticalIssues: 0,
+      activeIncidents: 0, criticalIncidents: 0,
+    });
+    expect(verifiedClean.issues.incidents).toBe(0);
+    expect(verifiedClean.issues.criticalIncidents).toBe(0);
+    expect(verifiedClean.overallHealth).toBe('healthy');
+  });
 });

@@ -27,6 +27,7 @@ export type V3EditionShow = {
   name: string;
   kind: string;
   href: string;
+  startsAt?: string | null;
   participantCount: number;
   runningOrderAvailable: boolean;
   resultsAvailable: boolean;

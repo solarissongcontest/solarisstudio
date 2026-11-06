@@ -1,87 +1,63 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Search } from "lucide-react";
+import { Search } from "lucide-react";
 
 import { RulesRouteShell } from "@/components/rules/RulesRouteShell";
-import {
-  GovernanceStatusStrip,
-  SolarisDepthEyebrow,
-  SolarisDepthPage,
-  SolarisDepthSafeZone,
-  SolarisDepthSurface,
-} from "@/components/SolarisDepth";
-import { RULE_CHAPTER_GROUPS } from "@/lib/governance-v5";
-import { SSC_RULE_CHAPTERS } from "@/lib/ssc-rules-v4";
+import { GovernanceStatusStrip, SolarisDepthPage, SolarisDepthSafeZone } from "@/components/SolarisDepth";
+import { V3DirectoryFamilyIndex, type V3DirectoryGroup } from "@/components/v3/V3DirectoryFamilyIndex";
+import { filterRuleChapterDirectory } from "@/lib/v3-rule-chapter-directory";
+import "@/styles/v3-rulebook-directory.css";
 
 export const Route = createFileRoute("/rules/chapters/")({
   head: () => ({
     meta: [
       { title: "Rulebook Chapters — Solaris Song Contest" },
-      { name: "description", content: "Browse all 21 chapters of the official SSC General Regulations." },
+      { name: "description", content: "Browse all 22 chapters of the official SSC General Regulations." },
     ],
   }),
   component: RuleChaptersPage,
 });
 
+// The directory is a view of the canonical rules, not another Rules authority.
+const CHAPTER_GROUPS: V3DirectoryGroup[] = filterRuleChapterDirectory("").map((group) => ({
+  id: group.title.toLowerCase().replace(/[^a-z]+/g, "-"),
+  label: group.title,
+  items: group.chapters.map((chapter) => ({
+    id: String(chapter.number),
+    title: `${chapter.number}. ${chapter.title}`,
+    description: chapter.description,
+    eyebrow: `${chapter.rules.length} official rules`,
+    to: "/rules/chapters/$chapter",
+    params: { chapter: chapter.slug },
+    searchText: String(chapter.number),
+  })),
+}));
+
 function RuleChaptersPage() {
   return (
     <RulesRouteShell resolvingTitle="Opening Rulebook chapters">
       <SolarisDepthPage tone="rules">
+        <GovernanceStatusStrip context="rules" />
         <SolarisDepthSafeZone>
-          <header>
-            <SolarisDepthEyebrow tone="primary">Official rulebook</SolarisDepthEyebrow>
-            <div className="mt-2 flex flex-wrap items-baseline gap-2">
-              <h1 className="text-2xl font-bold tracking-[-0.025em]">21 chapters</h1>
-              <span className="text-xs text-muted-foreground">General Regulations · current edition</span>
-            </div>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Browse by what the rules control. Official chapter numbering stays unchanged.
-            </p>
-            <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-              <Search className="size-3.5 text-primary" />
-              <Link to="/rules/search" search={{ q: "" }} className="font-semibold text-primary">
-                Search chapters or rules
-              </Link>
-            </div>
-            <GovernanceStatusStrip context="rules" className="mt-3" />
-          </header>
-        </SolarisDepthSafeZone>
-
-        <SolarisDepthSafeZone className="mt-5">
-          <SolarisDepthSurface variant="reading">
-            <div className="solaris-depth-rule-index">
-              {RULE_CHAPTER_GROUPS.map((group) => (
-                <section key={group.title} className="solaris-depth-rule-index-group">
-                  <SolarisDepthEyebrow>{group.title}</SolarisDepthEyebrow>
-                  <div className="mt-2">
-                    {group.chapters.map((number) => {
-                      const chapter = SSC_RULE_CHAPTERS.find((item) => item.number === number);
-                      if (!chapter) return null;
-                      return (
-                        <Link
-                          key={chapter.number}
-                          to="/rules/chapters/$chapter"
-                          params={{ chapter: chapter.slug }}
-                          className="solaris-depth-row"
-                        >
-                          <span className="w-9 shrink-0 font-mono text-xs font-black text-primary">
-                            {String(chapter.number).padStart(2, "0")}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-sm font-semibold">{chapter.title}</span>
-                            <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-muted-foreground">
-                              {chapter.description}
-                            </span>
-                          </span>
-                          <span className="text-[11px] text-muted-foreground">{chapter.rules.length}</span>
-                          <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </section>
-              ))}
-            </div>
-          </SolarisDepthSurface>
+          <div className="v3-rule-chapters-directory">
+          <V3DirectoryFamilyIndex
+            noShell
+            title="22 chapters"
+            eyebrow="OFFICIAL RULEBOOK"
+            intro="Browse official chapters by title, topic or number."
+            browserIntro="Find any of the 22 official chapters by topic, title or number."
+            searchLabel="Search Rulebook chapters"
+            searchPlaceholder="Search chapters by number or topic…"
+            scopeLabel="All chapters"
+            itemNoun="chapters"
+            emptyText="Try another title or chapter number. The official Rulebook remains unchanged."
+            groups={CHAPTER_GROUPS}
+          />
+          <Link to="/rules/search" search={{ q: "" }}
+            className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl border border-border bg-surface px-4 text-sm font-semibold text-foreground transition-colors hover:border-primary">
+            <Search size={18} aria-hidden="true" />
+            Search full rule text
+          </Link>
+          </div>
         </SolarisDepthSafeZone>
       </SolarisDepthPage>
     </RulesRouteShell>

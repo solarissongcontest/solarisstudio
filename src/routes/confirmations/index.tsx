@@ -23,6 +23,7 @@ import {
 } from "@/lib/confirmation-country-account";
 import {
   preferredCountryConfirmationResponse,
+  countryConfirmationOverviewMessage,
   resolveCountryConfirmationRoundState,
 } from "@/lib/confirmation-country-account-state";
 import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.functions";
@@ -156,12 +157,27 @@ function ConfirmationsPage() {
   const accountAccess = accountAccessQuery.data;
   const accountResponses = accountAccess?.responses ?? [];
   const accountRequirements = accountAccess?.requirements ?? [];
-  const preferredAccountResponse = preferredCountryConfirmationResponse(accountResponses);
-  const preferredRequirement = preferredAccountResponse
+  // Keep the overview anchored to the edition being viewed, never to the
+  // first editable response returned for a different historical edition.
+  const overviewRound = selected ?? rounds.reduce<PublicRound | null>(
+    (latest, round) =>
+      !latest || round.edition_number > latest.edition_number ? round : latest,
+    null,
+  );
+  const overviewEditionId = overviewRound?.edition_id ?? accountRequirements[0]?.edition_id ?? accountResponses[0]?.edition_id ?? null;
+  const preferredAccountResponse = preferredCountryConfirmationResponse(
+    accountResponses,
+    overviewEditionId,
+  );
+  const preferredRequirement = overviewEditionId
     ? accountRequirements.find(
-        (requirement) => requirement.edition_id === preferredAccountResponse.edition_id,
+        (requirement) => requirement.edition_id === overviewEditionId,
       ) ?? null
     : null;
+  const hasOtherEditionResponse = Boolean(
+    overviewEditionId &&
+      accountResponses.some((response) => response.edition_id !== overviewEditionId),
+  );
   const selectedRequirement = selected
     ? accountRequirements.find((requirement) => requirement.edition_id === selected.edition_id) ?? null
     : null;
@@ -220,11 +236,13 @@ function ConfirmationsPage() {
         { to: "/confirmations/next-in-line", label: "Next in Line" },
       ]}
       maxWidth="max-w-6xl"
-      editionLabel={selected?.edition_name ?? rounds[0]?.edition_name ?? "Solaris Song Contest"}
+      editionLabel={overviewRound?.edition_name ?? "Solaris Song Contest"}
       phaseLabel={selected ? "Confirmation task" : "Confirmations"}
     >
       <div className="confirmations-theme">
-        {accountAccess?.authenticated && accountAccess.country && preferredAccountResponse ? (
+        {accountAccess?.authenticated &&
+        accountAccess.country &&
+        (preferredAccountResponse || preferredRequirement || hasOtherEditionResponse) ? (
           <section className="data-panel mb-5 border-primary/20 p-4 sm:p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
@@ -238,34 +256,42 @@ function ConfirmationsPage() {
                   Signed in as {accountAccess.country.name}
                 </h2>
                 <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                  {preferredRequirement?.status === "required"
-                    ? "TSBC has explicitly requested a new confirmation generation. Your earlier response remains in history; update it or use an open submission window to satisfy the current requirement."
-                    : "Solaris Studio found your completed edition confirmation automatically. A later submission round does not require you to confirm again."}
+                  {countryConfirmationOverviewMessage(
+                    preferredRequirement?.status ?? null,
+                    Boolean(preferredAccountResponse),
+                    hasOtherEditionResponse,
+                  )}
                 </p>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  SSC {preferredAccountResponse.edition_number} · {preferredAccountResponse.round_name}
+                  {overviewRound
+                    ? `SSC ${overviewRound.edition_number} · ${overviewRound.edition_name}`
+                    : preferredAccountResponse
+                      ? `SSC ${preferredAccountResponse.edition_number} · ${preferredAccountResponse.round_name}`
+                      : "Confirmation overview"}
                 </p>
               </div>
 
-              <Button
-                type="button"
-                disabled={!preferredAccountResponse.can_edit || openingRoundId !== null}
-                onClick={() => void editCountryAccountResponse(preferredAccountResponse)}
-                className="shrink-0"
-              >
-                {preferredAccountResponse.can_edit ? (
-                  <>
-                    <PencilLine className="size-4" />
-                    {openingRoundId === preferredAccountResponse.round_id
-                      ? "Opening…"
-                      : "Edit your response"}
-                  </>
-                ) : (
-                  <>
-                    <LockKeyhole className="size-4" /> Editing closed
-                  </>
-                )}
-              </Button>
+              {preferredAccountResponse ? (
+                <Button
+                  type="button"
+                  disabled={!preferredAccountResponse.can_edit || openingRoundId !== null}
+                  onClick={() => void editCountryAccountResponse(preferredAccountResponse)}
+                  className="shrink-0"
+                >
+                  {preferredAccountResponse.can_edit ? (
+                    <>
+                      <PencilLine className="size-4" />
+                      {openingRoundId === preferredAccountResponse.round_id
+                        ? "Opening…"
+                        : "Edit your response"}
+                    </>
+                  ) : (
+                    <>
+                      <LockKeyhole className="size-4" /> Editing closed
+                    </>
+                  )}
+                </Button>
+              ) : null}
             </div>
 
             {accountEditError ? (

@@ -48,6 +48,23 @@ describe("V3 public navigation memory", () => {
     );
   });
 
+  it("never copies the scroll offset from another page in the same tab", () => {
+    const storage = memoryStorage();
+    rememberV3PublicLocation("/countries/oland", "", 425, storage, "viewer-a");
+
+    // Navigation effects may not know the new route's scroll position yet.
+    rememberV3PublicLocation("/countries/aotea", "", undefined, storage, "viewer-a");
+    expect(getV3PublicTabDestination("explore", storage, "viewer-a").scrollY).toBe(0);
+
+    // Returning to a previously visited URL restores only that URL's scroll.
+    rememberV3PublicLocation("/countries/oland", "", undefined, storage, "viewer-a");
+    expect(getV3PublicTabDestination("explore", storage, "viewer-a").scrollY).toBe(425);
+
+    // Search parameters represent independent destinations.
+    rememberV3PublicLocation("/countries/oland", "?view=history", undefined, storage, "viewer-a");
+    expect(getV3PublicTabDestination("explore", storage, "viewer-a").scrollY).toBe(0);
+  });
+
   it("uses route context when a show belongs to Results instead of Explore", () => {
     const storage = memoryStorage();
     rememberV3PublicLocation("/shows/grand-final", "?from=results", 90, storage, "viewer-a");

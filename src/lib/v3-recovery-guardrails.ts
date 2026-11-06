@@ -146,7 +146,9 @@ export function planV3ProjectionRecovery(
   if (!scopeValue || !UUID_RE.test(scopeValue)) {
     return blockedProjectionPlan(projection, "invalid_scope_id", repair);
   }
-  const boundedScope = normalizedRecoveryScope(repair.scope, scopeValue);
+  // PostgreSQL UUID identity is case-insensitive. Normalize before comparing
+  // batched scopes so aliases cannot schedule duplicate recovery operations.
+  const boundedScope = normalizedRecoveryScope(repair.scope, scopeValue.toLowerCase());
 
   return {
     status: "ready",

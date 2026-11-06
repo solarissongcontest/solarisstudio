@@ -6,6 +6,7 @@ import { Activity, AlertTriangle, Network, RefreshCw, ShieldCheck, Users } from 
 import { toast } from "sonner";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import {
   AdminCard,
   AdminCardHeader,
@@ -47,6 +48,7 @@ function ResultIntegrityRoute() {
 }
 
 function ResultIntegrityPage({ editionId }: { editionId: string }) {
+  const actorId = useAuthenticatedUser().id;
   const queryClient = useQueryClient();
   const getRoundsPage = useServerFn(getMergedTelevotingRoundsPage);
   const getIntegrity = useServerFn(getResultIntegrity);
@@ -54,9 +56,15 @@ function ResultIntegrityPage({ editionId }: { editionId: string }) {
   const [roundId, setRoundId] = useState("");
 
   const { data: page, isLoading: loadingRounds, error: roundsError } = useQuery({
-    queryKey: ["v3-organizer-result-integrity-rounds", editionId],
+    queryKey: ["v3-organizer-result-integrity-rounds", actorId, editionId],
     queryFn: () => getRoundsPage({ data: { editionId } }),
-    staleTime: 10_000,
+    enabled: Boolean(actorId),
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
   const rounds = useMemo(
     () => (page?.edition?.rounds ?? []).map((round) => ({
@@ -68,7 +76,7 @@ function ResultIntegrityPage({ editionId }: { editionId: string }) {
   const effectiveRoundId = roundId || rounds.find((round) => round.status === "closed")?.id || rounds[0]?.id || "";
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["televoting-result-integrity", editionId, effectiveRoundId],
+    queryKey: ["televoting-result-integrity", actorId, editionId, effectiveRoundId],
     queryFn: async () => {
       if (!rounds.some((round) => round.id === effectiveRoundId)) {
         throw new Error("Result Integrity round is outside the selected edition scope");
@@ -79,7 +87,12 @@ function ResultIntegrityPage({ editionId }: { editionId: string }) {
       }
       return result;
     },
-    enabled: Boolean(effectiveRoundId && rounds.some((round) => round.id === effectiveRoundId)),
+    enabled: Boolean(actorId && effectiveRoundId && rounds.some((round) => round.id === effectiveRoundId)),
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const recomputeMutation = useMutation({
@@ -94,7 +107,7 @@ function ResultIntegrityPage({ editionId }: { editionId: string }) {
     },
     onSuccess: async (result) => {
       toast.success(`Integrity analysis refreshed · ${result.clustersAnalysed} current cluster${result.clustersAnalysed === 1 ? "" : "s"} analysed`);
-      await queryClient.invalidateQueries({ queryKey: ["televoting-result-integrity", editionId, effectiveRoundId] });
+      await queryClient.invalidateQueries({ queryKey: ["televoting-result-integrity", actorId, editionId, effectiveRoundId] });
     },
     onError: (caught) => toast.error(caught instanceof Error ? caught.message : "Integrity analysis failed"),
   });
