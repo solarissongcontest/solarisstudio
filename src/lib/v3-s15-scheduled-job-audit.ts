@@ -82,6 +82,51 @@ function withoutSqlComments(source: string): string {
 }
 
 /**
+ * A dollar-quoted value is SQL *data* unless it is the body of an anonymous
+ * DO statement. Function definitions are also not executed by their creation.
+ *
+ * Keep source offsets/newlines stable for diagnostic line numbers. Ordinary
+ * single/double SQL quoted values have already been blanked by
+ * outsideSqlStrings(), so only actual dollar delimiters remain here.
+ */
+function withoutInertDollarQuotes(code: string): string {
+  const result = code.split("");
+  const tokens = /\\$([A-Za-z_][A-Za-z0-9_]*)?\\$/g;
+  let doEnd: string | null = null;
+  let maskedUntil = 0;
+
+  for (const token of code.matchAll(tokens)) {
+    const start = token.index ?? 0;
+    if (start < maskedUntil) continue;
+    const delimiter = token[0];
+
+    if (doEnd === delimiter) {
+      doEnd = null;
+      continue;
+    }
+
+    // Only an anonymous DO body executes its statements immediately when a
+    // migration is applied. A CREATE FUNCTION ... AS $tag$ body does not.
+    if (
+      doEnd === null &&
+      /(?:^|;)\\s*do(?:\\s+language\\s+[A-Za-z_][A-Za-z0-9_]*)?\\s*$/i.test(code.slice(0, start))
+    ) {
+      doEnd = delimiter;
+      continue;
+    }
+
+    const closingAt = code.indexOf(delimiter, start + delimiter.length);
+    const end = closingAt < 0 ? code.length : closingAt + delimiter.length;
+    for (let i = start; i < end; i += 1) {
+      if (result[i] !== "\\n") result[i] = " ";
+    }
+    maskedUntil = end;
+  }
+
+  return result.join("");
+}
+
+/**
  * Locate calls only in SQL code, not in a SQL string containing an example.
  * Dollar-quoted DO/function bodies remain code for this source audit.
  */
@@ -127,7 +172,7 @@ export function inspectV3CronMigrations(
   for (const migration of [...migrations].sort((a, b) => a.path.localeCompare(b.path))) {
     const source = withoutSqlComments(migration.sql);
     // Preserve offsets while normalizing PostgreSQL's quoted function identifiers.
-    const code = outsideSqlStrings(source.replace(/"cron"/g, " cron ").replace(/"schedule"/g, " schedule "));
+    const code = withoutInertDollarQuotes(outsideSqlStrings(source.replace(/"cron"/g, " cron ").replace(/"schedule"/g, " schedule ")));
     for (const call of code.matchAll(/\bcron\s*\.\s*schedule\s*\(/gi)) {
       const afterCall = source.slice((call.index ?? 0) + call[0].length);
       // Only an explicit literal first argument gives a verifiable job identity.
