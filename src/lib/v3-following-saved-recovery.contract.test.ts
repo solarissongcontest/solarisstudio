@@ -27,6 +27,27 @@ describe("V3 Following & Saved read and mutation recovery", () => {
     expect(source.indexOf("{paused ? (")).toBeLessThan(source.indexOf("data-v3-following-saved-state=\"empty\""));
   });
 
+  it("filters only a verified saved projection without extra Supabase requests", () => {
+    const source = screen();
+    expect(source).toContain('searchV3FollowingSavedItems(projection?.items ?? [], search)');
+    expect(source).toContain('Search saved items');
+    expect(source).toContain('type="search"');
+    expect(source).toContain('value={search}');
+    expect(source).toContain('visibleItems.filter((item) => item.entityType === entityType)');
+    expect(source).toContain('setSearch("");');
+  });
+
+  it("distinguishes no search matches from a genuinely empty saved account", () => {
+    const source = screen();
+    expect(source).toContain('data-v3-following-saved-state="no-search-results"');
+    expect(source).toContain('No saved items match your search');
+    expect(source).toContain('Clear search');
+    expect(source.indexOf('data-v3-following-saved-state="no-search-results"')).toBeLessThan(
+      source.indexOf('data-v3-following-saved-state="empty"'),
+    );
+    expect(source).toContain(') : projection?.items.length ? (');
+  });
+
   it("only retries queries that actually failed, avoiding redundant public reads", () => {
     const source = screen();
     expect(source).toContain("if (follows.isError) void follows.refetch()");
