@@ -852,6 +852,7 @@ function AdminSystemPage() {
           if (!createDeadline.isPending) {
             setCreateOpen(false);
             setCreateEditionId(null);
+            setForm({ label: "", due_at: "", notes: "" });
           }
         }
         title="Add custom reminder"
@@ -896,7 +897,11 @@ function AdminSystemPage() {
             <button
               type="button"
               disabled={createDeadline.isPending}
-              onClick={() => setCreateOpen(false)}
+              onClick={() => {
+                setCreateOpen(false);
+                setCreateEditionId(null);
+                setForm({ label: "", due_at: "", notes: "" });
+              }
               className="admin-action-secondary"
             >
               Cancel
