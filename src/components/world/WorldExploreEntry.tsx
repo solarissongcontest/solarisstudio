@@ -37,10 +37,10 @@ export function WorldExploreEntry() {
         <span className="min-w-0 flex-1">
           <span className="block font-semibold">Explore the world</span>
           <span className="mt-1 block text-sm text-muted-foreground">
-            Discover GUARD, UNITY, countries and international organizations
+            Discover GUARD, UNITY and countries
           </span>
         </span>
-        <span aria-hidden="true" className="text-muted-foreground group-hover:text-foreground">›</span>
+        <span aria-hidden="true">›</span>
       </Link>
     </section>
   );
