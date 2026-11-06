@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { requireSolarisOrganizerServer } from "@/integrations/supabase/organizer.server";
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import type { AdvancedFriendVotingConfig } from "@/integrations/televoting/advanced-friend-voting";
 import { DEFAULT_ADVANCED_FRIEND_VOTING_CONFIG } from "@/integrations/televoting/advanced-friend-voting";
 import type { FriendVotingRiskConfig } from "@/integrations/televoting/friend-voting-math";
@@ -49,13 +49,16 @@ function rowToSettings(row: any): FriendVotingSettings {
   };
 }
 export async function loadFriendVotingSettingsServer(): Promise<FriendVotingSettings> { const db = supabaseAdmin as any; const { data, error } = await db.from("friend_voting_settings").select("*").eq("id", "default").maybeSingle(); if (error) throw new Error(error.message); return rowToSettings(data); }
-export async function getFriendVotingSettingsServer() { await requireSolarisOrganizerServer(); return loadFriendVotingSettingsServer(); }
+export async function getFriendVotingSettingsServer() {
+  await requireSolarisCapabilityServer("voting.read", null);
+  return loadFriendVotingSettingsServer();
+}
 export async function updateFriendVotingSettingsServer(input: FriendVotingSettings) {
-  const organizer = await requireSolarisOrganizerServer(); const db = supabaseAdmin as any;
+  const capability = await requireSolarisCapabilityServer("voting.manage", null); const db = supabaseAdmin as any;
   const values = {
     min_independent_editions: Math.max(1, Math.trunc(input.minIndependentEditions)), full_confidence_editions: Math.max(1, Math.trunc(input.fullConfidenceEditions)), support_edition_threshold: input.supportEditionThreshold, maximum_edition_threshold: input.maximumEditionThreshold, reciprocal_edition_threshold: input.reciprocalEditionThreshold, intensity_threshold: input.intensityThreshold, cross_channel_min_editions: Math.max(1, Math.trunc(input.crossChannelMinEditions)), base_confidence_weight: input.baseConfidenceWeight, support_weight: input.supportWeight, maximum_weight: input.maximumWeight, reciprocity_weight: input.reciprocityWeight, intensity_weight: input.intensityWeight, cross_channel_weight: input.crossChannelWeight, cross_channel_per_edition_weight: input.crossChannelPerEditionWeight, one_edition_cap: Math.round(input.oneEditionCap), two_edition_cap: Math.round(input.twoEditionCap), clique_min_edge_risk: Math.round(input.cliqueMinEdgeRisk), clique_internal_share_threshold: input.cliqueInternalShareThreshold, clique_min_members: Math.max(2, Math.trunc(input.cliqueMinMembers)), clique_min_density: input.cliqueMinDensity, risk_notable: Math.round(input.riskNotable), risk_review: Math.round(input.riskReview), risk_strong: Math.round(input.riskStrong), risk_high: Math.round(input.riskHigh), risk_critical: Math.round(input.riskCritical), advanced_model_config: input.advancedModel,
   };
-  const { data, error } = await db.rpc("update_friend_voting_settings_with_audit", { p_actor_id: organizer.id, p_values: values });
+  const { data, error } = await db.rpc("update_friend_voting_settings_with_audit", { p_actor_id: capability.userId, p_values: values });
   if (error) throw new Error(error.message); return rowToSettings(data);
 }
 export { DEFAULTS as DEFAULT_FRIEND_VOTING_SETTINGS };

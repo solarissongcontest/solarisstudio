@@ -8,6 +8,10 @@ const migrationName = readdirSync(resolve(process.cwd(), "supabase/migrations"))
 if (!migrationName) throw new Error("televoting integrity wrapper cutover migration missing");
 
 const migration = readFileSync(resolve(process.cwd(), "supabase/migrations", migrationName), "utf8");
+const adapter = readFileSync(
+  resolve(process.cwd(), "src/integrations/televoting/integrity-moderation.server.ts"),
+  "utf8",
+);
 
 function normalized(value: string) {
   return value.replace(/\s+/g, " ").trim();
@@ -52,6 +56,29 @@ describe("televoting integrity wrapper Permission Engine cutover", () => {
       expect(block(name)).toContain("if auth.uid() is null then");
       expect(block(name)).toContain("raise exception 'Organizer access required' using errcode = '42501';");
     }
+  });
+
+  it("keeps the server adapter on the hardened capability wrappers instead of a generic Organizer gate", () => {
+    expect(adapter).not.toContain("requireMergedTelevotingAdminServer");
+    expect(adapter).not.toContain("requireSolarisOrganizerServer");
+    expect(adapter).toContain('rpc("organizer_record_integrity_decision"');
+    expect(adapter).toContain('rpc("organizer_exclude_integrity_ballot"');
+    expect(adapter).toContain('rpc("organizer_create_integrity_sanction"');
+    expect(adapter).toContain('rpc("organizer_revoke_integrity_sanction"');
+  });
+
+  it("requires edition-scoped integrity.read before service-role moderation reads", () => {
+    const editionValidation = adapter.indexOf(
+      "Choose an edition before loading integrity moderation.",
+    );
+    const guard = adapter.indexOf(
+      'await requireSolarisCapabilityServer("integrity.read", editionId);',
+    );
+    const serviceRoleRead = adapter.indexOf('.schema("televoting")');
+
+    expect(editionValidation).toBeGreaterThan(-1);
+    expect(guard).toBeGreaterThan(editionValidation);
+    expect(serviceRoleRead).toBeGreaterThan(guard);
   });
 
   it("resolves the canonical Solaris edition without changing underlying not-found validation order", () => {

@@ -23,6 +23,21 @@ describe("V3 Organizer voting declaration edition scope", () => {
     expect(serverFn).toContain("listIntegrityDeclarationsServer(data)");
   });
 
+  it("requires edition-scoped integrity.read before service-role declaration queries", () => {
+    const scopeValidation = server.indexOf(
+      "Voting integrity declarations require an explicit edition scope",
+    );
+    const guard = server.indexOf(
+      'await requireSolarisCapabilityServer("integrity.read", scopedEditionId);',
+    );
+    const serviceRoleQuery = server.indexOf('.schema("televoting")');
+
+    expect(scopeValidation).toBeGreaterThan(-1);
+    expect(guard).toBeGreaterThan(scopeValidation);
+    expect(serviceRoleQuery).toBeGreaterThan(guard);
+    expect(server).not.toContain("requireMergedTelevotingAdminServer");
+  });
+
   it("filters preflights and verifies every round binding server-side", () => {
     expect(server).toContain('.eq("canonical_edition_id", scopedEditionId)');
     expect(server).toContain("Voting integrity declarations returned data outside the selected edition scope");

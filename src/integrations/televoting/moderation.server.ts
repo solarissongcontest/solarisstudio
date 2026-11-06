@@ -1,3 +1,4 @@
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 
@@ -33,6 +34,17 @@ export type MergedModerationSubmission = {
   }>;
 };
 
+async function requireBallotRead() {
+  return requireSolarisCapabilityServer("televote.ballots.read", null);
+}
+
+async function requireBallotManageActor() {
+  await requireSolarisCapabilityServer("televote.ballots.manage", null);
+  // Preserve the compatibility Televoting audit identity only after the
+  // authoritative named capability has allowed this ballot mutation.
+  return requireMergedTelevotingAdminServer();
+}
+
 async function audit(
   actor: { id: string; username: string },
   action: string,
@@ -57,7 +69,7 @@ async function audit(
 }
 
 export async function listMergedModerationSubmissionsServer(roundId?: string | null): Promise<MergedModerationSubmission[]> {
-  await requireMergedTelevotingAdminServer();
+  await requireBallotRead();
 
   let query = televotingAdmin
     .from("vote_submissions")
@@ -152,7 +164,7 @@ export async function setMergedSubmissionStatusServer(data: {
   status: "active" | "suspicious" | "verified";
   reason?: string;
 }) {
-  const actor = await requireMergedTelevotingAdminServer();
+  const actor = await requireBallotManageActor();
   const { data: before, error: readError } = await televotingAdmin
     .from("vote_submissions")
     .select("id,status,verified_at,verified_by")
@@ -184,7 +196,7 @@ export async function setMergedSubmissionStatusServer(data: {
 }
 
 export async function softDeleteMergedSubmissionServer(data: { id: string; reason: string }) {
-  const actor = await requireMergedTelevotingAdminServer();
+  const actor = await requireBallotManageActor();
   const { data: before, error: readError } = await televotingAdmin
     .from("vote_submissions")
     .select("id,status,moderator_note")
@@ -215,7 +227,7 @@ export async function softDeleteMergedSubmissionServer(data: { id: string; reaso
 }
 
 export async function restoreMergedSubmissionServer(data: { id: string; reason?: string }) {
-  const actor = await requireMergedTelevotingAdminServer();
+  const actor = await requireBallotManageActor();
   const { data: before, error: readError } = await televotingAdmin
     .from("vote_submissions")
     .select("id,status,deleted_at,deleted_by")
@@ -241,7 +253,7 @@ export async function restoreMergedSubmissionServer(data: { id: string; reason?:
 }
 
 export async function updateMergedSubmissionNoteServer(data: { id: string; note: string }) {
-  const actor = await requireMergedTelevotingAdminServer();
+  const actor = await requireBallotManageActor();
   const { data: before, error: readError } = await televotingAdmin
     .from("vote_submissions")
     .select("moderator_note")
@@ -270,7 +282,7 @@ export async function editMergedSubmissionEntriesServer(data: {
   entries: Array<{ target_country_code: string; points: number }>;
   reason: string;
 }) {
-  const actor = await requireMergedTelevotingAdminServer();
+  const actor = await requireBallotManageActor();
 
   const { data: submission, error: submissionError } = await televotingAdmin
     .from("vote_submissions")
@@ -324,7 +336,7 @@ export async function editMergedSubmissionEntriesServer(data: {
 }
 
 export async function getMergedModerationAlertsCountServer() {
-  await requireMergedTelevotingAdminServer();
+  await requireBallotRead();
   const [suspicious, events] = await Promise.all([
     televotingAdmin
       .from("vote_submissions")
