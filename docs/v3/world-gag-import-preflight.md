@@ -14,7 +14,7 @@ node scripts/world-gag-import-preflight.mjs \
 node --test scripts/__tests__/world-gag-import-preflight.test.mjs
 ```
 
-Both manifest and original source are mandatory, and the actual source bytes must match `source.documentSha256` exactly. No network requests or database connections are made. The report file is created with owner-only permissions where supported and **never overwritten**. Keep curated source documents and reports outside public assets until WORLD-05/09 explicitly approve their publication scope.
+Both manifest and original source are mandatory, and the actual source bytes must match `source.documentSha256` exactly. Manifest bytes must be valid UTF-8 JSON with **no duplicate object keys**, including escaped spellings of the same key. The parsed object validated by the library must match the original manifest bytes, so later in-memory edits cannot borrow another manifest's digest. No network requests or database connections are made. The report file is created with owner-only permissions where supported and **never overwritten**. Keep curated source documents and reports outside public assets until WORLD-05/09 explicitly approve their publication scope.
 
 ## Manifest schema (illustrative fixture only, NOT real history)
 
