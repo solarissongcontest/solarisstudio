@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   recentPublicationSlugs,
+  spoilerSafePublicRecents,
   visiblePublicationVerifiedRecents,
 } from "./v3-search-recent-publication";
 
@@ -15,6 +16,26 @@ const saved = [
 ];
 
 describe("V3 Search shared-device recent publication", () => {
+  it("never replays shared-device Story headlines while spoiler-free", () => {
+    const sensitive = [
+      { path: "/stories/ssc22", label: "Oland wins SSC22" },
+      { path: "/stories?story=ssc22", label: "Aotea takes first" },
+      { path: "/records/ssc22", label: "Winner: Oland" },
+      { path: "/results", label: "Oland 500 points" },
+      { path: "/editions/ssc22", label: "SSC 22" },
+      { path: "/stories-archive", label: "Story archive" },
+    ];
+    const hidden = spoilerSafePublicRecents(sensitive, true);
+    expect(hidden.map((item) => [item.path, item.label])).toEqual([
+      ["/records/ssc22", "Records"],
+      ["/results", "Results"],
+      ["/editions/ssc22", "SSC 22"],
+      ["/stories-archive", "Story archive"],
+    ]);
+    expect(spoilerSafePublicRecents(sensitive, false)).toEqual(sensitive);
+    expect(sensitive[0].label).toBe("Oland wins SSC22");
+  });
+
   it("extracts only bounded single-segment editions and stories", () => {
     expect(recentPublicationSlugs(saved)).toEqual({
       editionSlugs: ["ssc22", "ssc21"],
