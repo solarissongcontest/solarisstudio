@@ -50,23 +50,16 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
     [editionsQuery.data, showsQuery.data],
   );
 
-  const allItems = useMemo(() => {
-    const byId = new Map<string, ShowDiscoveryItem>();
-    for (const item of [
-      ...discovery.currentEditionShows,
-      ...discovery.archive,
-      ...discovery.liveNow,
-      ...discovery.upNext,
-      ...discovery.recent,
-    ]) {
-      byId.set(item.show.id, item);
-    }
-    return [...byId.values()].sort((left, right) => {
+  // Current-edition and archive are disjoint and together cover every
+  // published Show; live/up-next/recent are previews of those same rows.
+  const allItems = useMemo(
+    () => [...discovery.currentEditionShows, ...discovery.archive].sort((left, right) => {
       const editionDifference =
         (right.edition.edition_number ?? -1) - (left.edition.edition_number ?? -1);
       return editionDifference || left.show.sort_order - right.show.sort_order;
-    });
-  }, [discovery]);
+    }),
+    [discovery],
+  );
 
   const kinds = useMemo(
     () => [...new Set(allItems.map((item) => item.show.kind).filter(Boolean))].sort(),
