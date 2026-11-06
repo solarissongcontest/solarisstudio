@@ -394,7 +394,7 @@ begin
   end if;
   select coalesce(jsonb_agg(
     jsonb_build_object(
-      'id',m.id, 'spaceId',m.space_id,'senderId',m.sender_user_id,
+      'id',m.id, 'spaceId',m.space_id,'mine',m.sender_user_id = auth.uid(),
       'senderName', coalesce((
         select p.display_name
         from public.world_organization_representations r
@@ -407,7 +407,7 @@ begin
       'createdAt',m.created_at,'editedAt',m.edited_at,
       'redacted',m.redacted_at is not null,'pinned',m.pinned_at is not null,
       'reactions',coalesce((
-        select jsonb_agg(jsonb_build_object('emoji',rx.emoji,'userId',rx.user_id))
+        select jsonb_agg(jsonb_build_object('emoji',rx.emoji,'mine',rx.user_id = auth.uid()))
         from private.world_space_reactions rx where rx.message_id=m.id
       ),'[]'::jsonb)
     ) order by m.created_at asc,m.id asc
