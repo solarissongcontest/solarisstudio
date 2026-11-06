@@ -51,6 +51,7 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
     const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
     const start = tabs.slice(tabs.indexOf("const startDrag ="), tabs.indexOf("const moveDrag ="));
     expect(start).toMatch(/suppressClick\.current = false;[\s\S]*?if \(/);
+    expect(tabs).toContain("if (dragState.current) suppressClick.current = true;");
     expect(tabs).toContain("onKeyDown={() => {");
     expect(tabs).toContain("onPointerCancel={cancelDrag}");
     expect(tabs).toContain("onLostPointerCapture={cancelDrag}");
