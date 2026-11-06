@@ -1,8 +1,35 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+// A static render cannot complete refetchOnMount. Inject already-verified
+// responses explicitly; the tested page still decides which publication-safe
+// result family is allowed to render.
+const queryState = vi.hoisted(() => ({ status: "active" }));
+vi.mock("@tanstack/react-query", () => ({
+  useQuery: ({ queryKey }: { queryKey: readonly unknown[] }) => {
+    const organization = { ...response.organizations[0], status: queryState.status };
+    let data: unknown;
+    if (queryKey[2] === "featured") {
+      data = [organization];
+    } else if (queryKey[2] === "country-search") {
+      data = { countries: response.countries, countryTotal: response.countryTotal };
+    } else if (queryKey[2] === "organization-search") {
+      data = { organizations: [organization], organizationTotal: response.organizationTotal };
+    } else {
+      throw new Error("Unexpected World search query");
+    }
+    return {
+      data,
+      isSuccess: true,
+      isPending: false,
+      isError: false,
+      isRefetchError: false,
+      isFetching: false,
+      refetch: vi.fn(),
+    };
+  },
+}));
 vi.mock("@/components/AppShell", () => ({
   AppShell: ({ children }: { children: ReactNode }) => <div data-testid="app-shell">{children}</div>,
 }));
@@ -51,33 +78,21 @@ function renderWorldSearch(
   countryPage: number, organizationPage: number, term = "land", status = "active",
   category: "all" | "countries" | "organizations" = "all",
 ) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const organization = { ...response.organizations[0], status };
-  client.setQueryData(["world", "public", "featured"], [organization]);
-  client.setQueryData(
-    ["world", "public", "country-search", term, countryPage],
-    { countries: response.countries, countryTotal: response.countryTotal },
-  );
-  client.setQueryData(
-    ["world", "public", "organization-search", term, organizationPage],
-    { organizations: [organization], organizationTotal: response.organizationTotal },
-  );
+  queryState.status = status;
   try {
     return renderToStaticMarkup(
-      <QueryClientProvider client={client}>
-        <WorldUnifiedSearchPage
-          term={term}
-          countryPage={countryPage}
-          organizationPage={organizationPage}
-          category={category}
-          onSearch={() => {}}
-          onCategoryChange={() => {}}
-          onPagesChange={() => {}}
-        />
-      </QueryClientProvider>,
+      <WorldUnifiedSearchPage
+        term={term}
+        countryPage={countryPage}
+        organizationPage={organizationPage}
+        category={category}
+        onSearch={() => {}}
+        onCategoryChange={() => {}}
+        onPagesChange={() => {}}
+      />,
     );
   } finally {
-    client.clear();
+    queryState.status = "active";
   }
 }
 
