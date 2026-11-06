@@ -116,6 +116,16 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
     refetchOnReconnect: false,
   });
 
+  // Refreshed or failed protected reads invalidate any already-prepared
+  // publish/recalculation confirmation. A fresh read needs a fresh decision.
+  useEffect(() => {
+    if (adminFetching || conversionFetching || adminError || error) {
+      setReadiness(null);
+      setPublishOpen(false);
+      setProtectedRecalcOpen(false);
+    }
+  }, [adminFetching, conversionFetching, adminError, error]);
+
   useEffect(() => {
     if (!data?.round) return;
     setTotalPoints(String(data.round.total_points_to_distribute ?? 0));

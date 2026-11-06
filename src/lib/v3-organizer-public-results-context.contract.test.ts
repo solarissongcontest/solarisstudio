@@ -48,6 +48,9 @@ describe("V3 Organizer public voting results scope", () => {
     expect(resultsView).toContain("const privateReadError = adminError ?? (admin && effectiveRoundId ? error : null)");
     expect(resultsView).toContain("Official Televote result unavailable");
     expect(resultsView).toContain("Retry protected result read");
+    expect(resultsView).toContain("if (adminFetching || conversionFetching || adminError || error)");
+    expect(resultsView).toContain("setProtectedRecalcOpen(false)");
+    expect(resultsView).toContain("setPublishOpen(false)");
     expect(resultsView).toContain("Publication and recalculation are disabled.");
     expect(workspace).toContain("if (!actorId || !editionId || isLoading || isFetching)");
 

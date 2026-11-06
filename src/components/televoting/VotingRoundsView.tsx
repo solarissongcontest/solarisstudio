@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Edit3, Layers3, Lock, Plus, Radio, Trash2 } from "lucide-react";
@@ -75,6 +75,15 @@ export function VotingRoundsView() {
   const remoteEditionId = edition?.id ?? "";
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: ["merged-televoting-rounds-page", actorId, editionId] });
+
+  // A stale impact preview or deletion confirmation must not survive a
+  // failed/restarted private read even within the same actor and edition.
+  useEffect(() => {
+    if (isFetching || error) {
+      setPendingStatus(null);
+      setDeleteTarget(null);
+    }
+  }, [isFetching, error]);
 
   const createMutation = useMutation({
     mutationFn: () => createRound({ data: { editionId: remoteEditionId, name: newName.trim() } }),

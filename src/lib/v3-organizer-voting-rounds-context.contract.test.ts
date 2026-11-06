@@ -39,6 +39,9 @@ describe("V3 Organizer Voting Rounds edition boundary", () => {
     expect(view).toContain("open={privateReadVerified && Boolean(deleteTarget)}");
     expect(view).toContain("if (!pendingStatus || !privateReadVerified) return");
     expect(view).toContain("if (!deleteTarget || !privateReadVerified) return");
+    expect(view).toContain("if (isFetching || error) {");
+    expect(view).toContain("setPendingStatus(null)");
+    expect(view).toContain("setDeleteTarget(null)");
 
     expect(route).toContain("authenticated actor changes");
   });
