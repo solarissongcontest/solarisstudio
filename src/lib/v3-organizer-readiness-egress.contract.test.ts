@@ -48,8 +48,14 @@ describe("Organizer Control Room readiness egress contract", () => {
     expect(source).toContain('.eq("edition_id", editionId)');
     expect(source).toContain('.order("id", { ascending: true })');
     expect(source).toContain(".range(from, from + PAGE_SIZE - 1)");
-    expect(source).toContain("enabled: !!editionId");
-    expect(source).toContain('["admin-readiness-data", editionId ?? "pending"]');
+    expect(source).toContain("enabled: Boolean(actorId && editionId)");
+    expect(source).toContain('["admin-readiness-data", actorId, editionId ?? "pending"]');
+  });
+
+  it("partitions privileged readiness by authenticated actor without focus refetch fanout", () => {
+    expect(source).toContain("useAuthenticatedUser().id");
+    expect(source).toContain("gcTime: 0");
+    expect(source).toContain("refetchOnWindowFocus: false");
   });
 
   it("does not turn readiness into a polling or realtime traffic source", () => {

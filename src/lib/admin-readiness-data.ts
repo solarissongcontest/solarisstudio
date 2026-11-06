@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { supabase } from "@/integrations/supabase/client";
 import type {
   JuryVote,
@@ -87,9 +88,10 @@ export type AdminReadinessData = {
  * stays disabled. It must never be interpreted as "load all historical contests".
  */
 export function useAdminReadinessData(editionId?: string | null) {
+  const actorId = useAuthenticatedUser().id;
   return useQuery({
-    enabled: !!editionId,
-    queryKey: ["admin-readiness-data", editionId ?? "pending"],
+    enabled: Boolean(actorId && editionId),
+    queryKey: ["admin-readiness-data", actorId, editionId ?? "pending"],
     queryFn: async (): Promise<AdminReadinessData> => {
       if (!editionId) {
         return {
@@ -121,6 +123,8 @@ export function useAdminReadinessData(editionId?: string | null) {
       };
     },
     staleTime: 30_000,
-    gcTime: 5 * 60 * 1000,
+    // This is privileged readiness evidence. Never share it with another actor.
+    gcTime: 0,
+    refetchOnWindowFocus: false,
   });
 }
