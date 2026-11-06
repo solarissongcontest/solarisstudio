@@ -93,16 +93,23 @@ export default defineConfig({
                 minSize: 5000,
                 priority: 1,
               },
-              // Reused public/V3 presentation widgets were scattered across
-              // many lazy route chunks. Group only genuine multi-route modules,
-              // never entire route screens or private/Server code.
+              // Reused public-browser presentation primitives are shared across
+              // the section rails, hubs and data explorers. Consolidate only
+              // components referenced from multiple route chunks; preserve
+              // route-only modules and installed-app boundaries.
               {
-                name: "shared-public-presentation",
-                test: /[\\/]src[\\/]components[\\/]public[\\/]/,
+                name: "shared-cross-page-primitives",
+                // Preserve existing app, control, Organizer and V3 shell
+                // boundaries. Only reused cross-page presentation modules
+                // can join the group; route-specific modules remain lazy.
+                test: /[\\/]src[\\/]components[\\/](?!(?:app|ui|admin|v3)[\\/])/,
                 minShareCount: 2,
                 minSize: 3000,
                 priority: 1,
               },
+              // V3 presentation modules shared by multiple lazy routes are
+              // grouped separately from the mainline cross-page/public adapters,
+              // preserving the existing installed-app route and shell boundaries.
               {
                 name: "shared-v3-presentation",
                 test: /[\\/]src[\\/]components[\\/]v3[\\/]/,
