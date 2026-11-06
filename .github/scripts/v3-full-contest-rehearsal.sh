@@ -8,6 +8,72 @@ cd "$REPO_ROOT"
 # The driver is intentionally modular but stateful: every stage is sourced into
 # this process and operates on the same local Supabase contest. No stage may
 # reset the database or substitute a focused isolated rehearsal.
+# Early local-Supabase discovery occurs while sourcing v3-s14-lib.sh. If
+# it fails, the normal stage-aware EXIT trap has not been installed yet.
+# Preserve negative bootstrap evidence rather than letting a missing local
+# stack silently become missing S14 evidence. This trap is replaced once
+# the full runtime is initialized.
+S14_BOOTSTRAP_EVIDENCE_DIR="${V3_RELEASE_EVIDENCE_DIR:-v3-release-evidence}"
+s14_bootstrap_failure() {
+  local exit_code="$?"
+  if (( exit_code == 0 )); then
+    return 0
+  fi
+  local checked_out_sha
+  checked_out_sha="$(git rev-parse HEAD 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
+  mkdir -p "$S14_BOOTSTRAP_EVIDENCE_DIR" || return 0
+  python3 - "$S14_BOOTSTRAP_EVIDENCE_DIR/s14-full-contest.partial.json" "$checked_out_sha" "$exit_code" <<'PY' || true
+import json
+import sys
+
+path, sha, exit_code = sys.argv[1:]
+stages = [
+    "stage-1-setup",
+    "stage-2-delegation-onboarding",
+    "stage-3-confirmations",
+    "stage-4-entries",
+    "stage-5-running-orders",
+    "stage-6-jury",
+    "stage-7-public-voting",
+    "stage-8-results",
+    "stage-9-publication",
+    "stage-10-archive",
+]
+extensions = [
+    "grand-final-qualifier-bridge",
+    "grand-final-voting",
+    "grand-final-results",
+    "grand-final-publication",
+]
+payload = {
+    "schemaVersion": 3,
+    "candidateSha": sha,
+    "passed": False,
+    "partial": True,
+    "runtimeFailure": True,
+    "failurePhase": "bootstrap",
+    "failureStage": "bootstrap:local-supabase-initialization",
+    "exitCode": int(exit_code),
+    "completedStages": [],
+    "completedContestExtensions": [],
+    "pendingStages": stages,
+    "pendingContestExtensions": extensions,
+    "blockedContestExtensions": [],
+    "seed": {"editionCount": 1, "delegationCount": 66, "showCount": 3},
+    "runIdentity": {
+        "runId": "s14-" + sha,
+        "editionId": None,
+        "databaseFingerprint": None,
+        "candidateSha": sha,
+    },
+}
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(payload, handle, indent=2)
+    handle.write("\n")
+PY
+}
+trap s14_bootstrap_failure EXIT
+
 source "$SCRIPT_DIR/v3-s14-lib.sh"
 source "$SCRIPT_DIR/v3-s14-stage-1-setup.sh"
 source "$SCRIPT_DIR/v3-s14-stage-2-onboarding.sh"
