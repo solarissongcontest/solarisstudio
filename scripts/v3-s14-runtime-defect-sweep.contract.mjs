@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  collectDefectSweep, hasRuntimeCleanProof, STAGES, EXTENSIONS, S14_INVARIANTS, S14_FAILURES,
+  collectDefectSweep, hasRuntimeCleanProof, STAGES, EXTENSIONS, LANES, S14_INVARIANTS, S14_FAILURES,
 } from "./v3-s14-runtime-defect-sweep.mjs";
 
 const SHA = "a".repeat(40);
@@ -56,7 +56,7 @@ test("groups S15 cutover inventory without turning every item into a hard blocke
 });
 test("does not accept success without complete same-SHA Archive evidence", () => {
   fixture(({ root, evidenceDir, put }) => {
-    put("runtime-full-contest.json", { candidateSha: SHA, status: "passed", exitCode: 0 });
+    put("runtime-full-contest.json", { candidateSha: SHA, lane: "full-contest", status: "passed", exitCode: 0 });
     const result = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
     assert.equal(result.exactShaFullContestProof, "not-observed");
     assert.ok(result.findings.some((f) => f.id === "S14_RUNTIME_EVIDENCE_GAP"));
@@ -64,7 +64,7 @@ test("does not accept success without complete same-SHA Archive evidence", () =>
 });
 test("accepts valid S14 proof only for its exact commit", () => {
   fixture(({ root, evidenceDir, put }) => {
-    put("runtime-full-contest.json", { candidateSha: SHA, status: "passed", exitCode: 0 });
+    put("runtime-full-contest.json", { candidateSha: SHA, lane: "full-contest", status: "passed", exitCode: 0 });
     put("s14-full-contest.json", completeS14Proof());
     const result = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
     assert.equal(result.exactShaFullContestProof, "complete-on-exact-sha");
@@ -76,6 +76,42 @@ test("accepts valid S14 proof only for its exact commit", () => {
     assert.notEqual(stale.exactShaFullContestProof, "complete-on-exact-sha");
   });
 });
+test("swapped or unlabeled S14 runtime evidence cannot impersonate a passing independent lane", () => {
+  fixture(({ root, evidenceDir, put }) => {
+    for (const lane of LANES) {
+      put("runtime-" + lane + ".json", {
+        candidateSha: SHA, lane, status: "passed", exitCode: 0,
+      });
+    }
+    put("s14-full-contest.json", completeS14Proof());
+    put("checks-static.json", {
+      candidateSha: SHA,
+      checks: ["s14-readiness", "s15-inventory", "sweep-contracts"]
+        .map((id) => ({ id, exitCode: 0 })),
+    });
+    put("s14-readiness.json", { ready: true, blockers: [] });
+    put("s15-readiness.json", {
+      zeroOrphans: false, findings: [],
+      physicalOwnership: { zeroOwnershipConflicts: true },
+    });
+    const baseline = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
+    assert.equal(hasRuntimeCleanProof(baseline), true);
+
+    for (const badLane of ["full-contest", undefined]) {
+      const altered = { candidateSha: SHA, status: "passed", exitCode: 0 };
+      if (badLane) altered.lane = badLane;
+      put("runtime-archive.json", altered);
+      const result = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
+      assert.equal(result.checks.localRuntimeLanes.archive, "invalid-evidence");
+      assert.ok(result.findings.some((f) =>
+        f.id === "EVIDENCE_LANE_MISMATCH_ARCHIVE" &&
+        f.group === "evidence-integrity" && f.status === "confirmed-blocker"));
+      assert.equal(hasRuntimeCleanProof(result), false,
+        "one successful runtime must not masquerade as multiple independent lanes");
+    }
+  });
+});
+
 test("rejects reordered lifecycle and incomplete success coverage on the exact SHA", () => {
   fixture(({ root, evidenceDir, put }) => {
     const invalidCases = [
@@ -102,7 +138,7 @@ test("rejects reordered lifecycle and incomplete success coverage on the exact S
 
 test("failed stage does not imply that unexecuted later stages passed", () => {
   fixture(({ root, evidenceDir, put }) => {
-    put("runtime-full-contest.json", { candidateSha: SHA, status: "failed", exitCode: 1 });
+    put("runtime-full-contest.json", { candidateSha: SHA, lane: "full-contest", status: "failed", exitCode: 1 });
     put("s14-full-contest.partial.json", {
       candidateSha: SHA, passed: false, partial: true,
       failurePhase: "stage-8-results", failureStage: "stage-8-results",
