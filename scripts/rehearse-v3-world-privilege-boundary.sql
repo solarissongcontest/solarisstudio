@@ -7,6 +7,7 @@ set transaction read only;
 do $audit$
 declare
   world_table record;
+  world_column record;
   actor_name text;
   privilege_name text;
   world_table_count integer := 0;
@@ -48,6 +49,26 @@ begin
             format('RAW_%s_GRANTED role=%s table=public.%I', privilege_name,
               actor_name, world_table.relname));
         end if;
+      end loop;
+      -- Column-only grants can allow INSERT/UPDATE even when the table-wide
+      -- has_table_privilege result is false. Check effective inherited roles.
+      for world_column in
+        select a.attnum, a.attname
+          from pg_catalog.pg_attribute a
+         where a.attrelid = world_table.oid
+           and a.attnum > 0 and not a.attisdropped
+      loop
+        foreach privilege_name in array array['INSERT', 'UPDATE'] loop
+          if pg_catalog.has_column_privilege(
+               actor_name::name, world_table.oid, world_column.attnum, privilege_name
+             ) and not pg_catalog.has_table_privilege(
+               actor_name::name, world_table.oid, privilege_name
+             ) then
+            violations := array_append(violations,
+              format('RAW_COLUMN_%s_GRANTED role=%s column=public.%I.%I', privilege_name,
+                actor_name, world_table.relname, world_column.attname));
+          end if;
+        end loop;
       end loop;
     end loop;
   end loop;
