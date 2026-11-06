@@ -22,13 +22,6 @@
   /* Real country data can contain long localized labels and non-numeric values.
      Keep the compact three-stat strip readable at 320px and at increased text
      sizes without making the entire browser page horizontally scroll. */
-  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-description[data-collapsed="true"] {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
-    overflow: hidden;
-  }
-
   .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-masthead dd {
     font-size: clamp(.875rem, 4.5vw, 1.25rem);
     line-height: 1.3;
