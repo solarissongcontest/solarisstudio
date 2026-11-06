@@ -1,16 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { AlertTriangle, ExternalLink, Images, Search } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
+import { useAuthenticatedUser } from '@/components/auth/AuthenticatedUserContext';
 import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminConfirmSheet, AdminEmptyState, AdminPageHeader, AdminSheet, AdminStatus } from '@/components/admin/AdminUI';
 import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useCountries, useEditions } from '@/lib/data';
 import { MEDIA_ASSET_TYPES, type MediaAssetType } from '@/lib/media-asset-vault';
+import { describeOrganizerMediaSource, resolveOrganizerMediaPreviewSource } from '@/lib/v3-organizer-media-preview-source';
 import { loadStudio2CountryCockpit } from '@/lib/studio2-country-cockpit';
 import {
   STUDIO2_MEDIA_ASSET_STATES,
@@ -37,6 +39,7 @@ type PendingMediaReviewItem = {
   countryId: string | null;
   entryId: string | null;
   sourceFingerprint: string;
+  sourceUrl: string | null;
   title: string;
   countryName: string | null;
   entryLabel: string | null;
@@ -46,6 +49,7 @@ type PendingMediaReviewItem = {
 type PendingMediaReview = {
   decision: Studio2MediaReviewDecision;
   commandEditionId: string;
+  commandActorId: string;
   editionLabel: string;
   reason: string;
   items: PendingMediaReviewItem[];
@@ -74,6 +78,9 @@ export const Route = createFileRoute('/_authenticated/admin/media-assets')({
 
 function MediaAssetsPage() {
   const { editionId } = useAdminContext();
+  const actorId = useAuthenticatedUser().id;
+  const liveActorRef = useRef(actorId);
+  liveActorRef.current = actorId;
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const queryClient = useQueryClient();
@@ -86,21 +93,37 @@ function MediaAssetsPage() {
   const editions = editionsQuery.data ?? [];
   const selectedEdition = selectOrganizerEdition(editions, editionId);
   const resolvedEditionId = selectedEdition?.id ?? '';
+  const liveEditionRef = useRef(resolvedEditionId);
+  liveEditionRef.current = resolvedEditionId;
 
   useEffect(() => {
     setSelectedKeys(new Set());
     setReviewReason('');
     setPendingReview(null);
-  }, [resolvedEditionId]);
+  }, [resolvedEditionId, actorId]);
+
+  // Private review history must not remain reachable after account/edition changes.
+  useEffect(() => {
+    queryClient.removeQueries({
+      queryKey: ['studio2-media-asset-reviews'],
+      predicate: (query) => query.queryKey[1] !== actorId || query.queryKey[2] !== (resolvedEditionId || 'none'),
+    });
+    queryClient.removeQueries({
+      queryKey: ['studio2-country-cockpit'],
+      predicate: (query) => query.queryKey[1] !== actorId || query.queryKey[2] !== (resolvedEditionId || 'none'),
+    });
+  }, [actorId, resolvedEditionId, queryClient]);
 
   const cockpitQuery = useQuery({
-    queryKey: ['studio2-country-cockpit', resolvedEditionId || 'none'],
+    queryKey: ['studio2-country-cockpit', actorId, resolvedEditionId || 'none'],
     enabled: Boolean(resolvedEditionId),
     queryFn: () => loadStudio2CountryCockpit(resolvedEditionId),
     staleTime: 20_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
   const reviewsQuery = useQuery({
-    queryKey: ['studio2-media-asset-reviews', resolvedEditionId || 'none'],
+    queryKey: ['studio2-media-asset-reviews', actorId, resolvedEditionId || 'none'],
     enabled: Boolean(resolvedEditionId),
     queryFn: async () => {
       const reviews = await listStudio2MediaAssetReviews(resolvedEditionId);
@@ -110,6 +133,8 @@ function MediaAssetsPage() {
       return reviews;
     },
     staleTime: 10_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const inventory = useMemo(() => selectedEdition ? buildStudio2MediaAssetInventory({
@@ -159,7 +184,7 @@ function MediaAssetsPage() {
         <div className="min-w-0">
           <p>{item.title}</p>
           <p className="mt-1 truncate text-xs font-normal text-muted-foreground">
-            {item.sourceUrl ?? (item.required ? 'Required source not supplied' : 'No source supplied')}
+            {item.sourceUrl ? describeOrganizerMediaSource(item.sourceUrl) : (item.required ? 'Required source not supplied' : 'No source supplied')}
           </p>
         </div>
       ),
@@ -200,6 +225,12 @@ function MediaAssetsPage() {
 
   const reviewMutation = useMutation({
     mutationFn: async (review: PendingMediaReview) => {
+      if (liveActorRef.current !== review.commandActorId) {
+        throw new Error('Organizer account changed. Reload and review the current media sources again.');
+      }
+      if (liveEditionRef.current !== review.commandEditionId) {
+        throw new Error('Organizer edition changed. Review the current media selection again.');
+      }
       if (!selectedEdition || selectedEdition.id !== review.commandEditionId || editionId !== review.commandEditionId) {
         throw new Error('Organizer edition changed. Review the current media selection again before applying a decision.');
       }
@@ -239,8 +270,10 @@ function MediaAssetsPage() {
       });
     },
     onSuccess: async (_rows, variables) => {
-      await queryClient.invalidateQueries({ queryKey: ['studio2-media-asset-reviews', variables.commandEditionId] });
-      if (editionId !== variables.commandEditionId) return;
+      if (liveActorRef.current !== variables.commandActorId || liveEditionRef.current !== variables.commandEditionId) return;
+      await queryClient.invalidateQueries({ queryKey: ['studio2-media-asset-reviews', variables.commandActorId, variables.commandEditionId] });
+      // The account/edition may change while an invalidation is awaiting its readback.
+      if (liveActorRef.current !== variables.commandActorId || liveEditionRef.current !== variables.commandEditionId) return;
       toast.success(variables.decision === 'approved' ? 'Media assets approved.' : 'Media assets marked invalid.');
       setSelectedKeys(new Set());
       setReviewReason('');
@@ -289,6 +322,7 @@ function MediaAssetsPage() {
     }
     setPendingReview({
       decision,
+      commandActorId: actorId,
       commandEditionId: selectedEdition.id,
       editionLabel: `${selectedEdition.edition_number ? `SSC ${selectedEdition.edition_number} · ` : ''}${selectedEdition.name}`,
       reason: reviewReason.trim(),
@@ -298,6 +332,7 @@ function MediaAssetsPage() {
         countryId: item.countryId,
         entryId: item.entryId,
         sourceFingerprint: item.sourceFingerprint!,
+        sourceUrl: item.sourceUrl ?? null,
         title: item.title,
         countryName: item.countryName,
         entryLabel: item.entryLabel,
@@ -392,7 +427,16 @@ function MediaAssetsPage() {
           </>
         )}
 
-        <MediaAssetSheet asset={selectedAsset} reviews={(reviewsQuery.data ?? []).filter((review) => review.assetKey === selectedAsset?.assetKey)} onClose={() => updateSearch({ asset: undefined })} />
+        <MediaAssetSheet
+          // Force a new consent state for every asset/source and for closed → reopened.
+          // React key remount also prevents A → B → A from restoring earlier consent.
+          key={selectedAsset
+            ? [selectedAsset.editionId, selectedAsset.assetKey, selectedAsset.sourceFingerprint ?? 'no-source', selectedAsset.sourceUrl ?? 'no-url'].join(':')
+            : 'closed'}
+          asset={selectedAsset}
+          reviews={(reviewsQuery.data ?? []).filter((review) => review.assetKey === selectedAsset?.assetKey)}
+          onClose={() => updateSearch({ asset: undefined })}
+        />
 
         <AdminConfirmSheet
           open={Boolean(pendingReview)}
@@ -421,7 +465,7 @@ function MediaAssetsPage() {
                       </div>
                       <AdminStatus tone={stateTone(item.state)}>{stateLabel(item.state)}</AdminStatus>
                     </div>
-                    <p className="mt-2 break-all font-mono text-[10px] text-muted-foreground">Source fingerprint: {item.sourceFingerprint}</p>
+                    <p className="mt-2 break-all font-mono text-[10px] text-muted-foreground">Source identity: {describeOrganizerMediaSource(item.sourceUrl)}</p>
                   </div>
                 ))}
               </div>
@@ -439,16 +483,119 @@ function MediaAssetsPage() {
 }
 
 function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAssetItem | null; reviews: Awaited<ReturnType<typeof listStudio2MediaAssetReviews>>; onClose: () => void }) {
+  // A newly selected or replaced asset must never inherit an earlier preview.
+  const [previewTarget, setPreviewTarget] = useState<string | null>(null);
+  const [failedPreviewTarget, setFailedPreviewTarget] = useState<string | null>(null);
+  const [previewAttempt, setPreviewAttempt] = useState(0);
+  const source = asset ? resolveOrganizerMediaPreviewSource(asset.sourceUrl, asset.assetType) : null;
+  const previewKey = asset
+    ? [asset.editionId, asset.assetKey, asset.sourceFingerprint ?? 'no-source', source?.url ?? 'no-url'].join(':')
+    : null;
+  const previewVisible = Boolean(source?.previewKind && previewKey && previewTarget === previewKey);
+  const dismiss = () => {
+    setPreviewTarget(null);
+    setFailedPreviewTarget(null);
+    setPreviewAttempt(0);
+    onClose();
+  };
   return (
-    <AdminSheet open={Boolean(asset)} onClose={onClose} title={asset?.title ?? 'Media asset'} description={asset ? `${assetTypeLabel(asset.assetType)} · ${stateLabel(asset.state)}` : undefined}>
+    <AdminSheet open={Boolean(asset)} onClose={dismiss} title={asset?.title ?? 'Media asset'} description={asset ? `${assetTypeLabel(asset.assetType)} · ${stateLabel(asset.state)}` : undefined}>
       {asset ? (
         <div className="space-y-5">
           <section>
             <h3 className="text-sm font-semibold">Canonical source</h3>
             <div className="mt-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
               <div className="flex items-center justify-between gap-3"><span className="text-xs text-muted-foreground">Current state</span><AdminStatus tone={stateTone(asset.state)}>{stateLabel(asset.state)}</AdminStatus></div>
-              <p className="mt-3 break-all text-sm">{asset.sourceUrl ?? 'No source supplied.'}</p>
-              {asset.sourceUrl ? <a href={asset.sourceUrl} target="_blank" rel="noreferrer" className="admin-action-secondary mt-3 inline-flex">Open source <ExternalLink className="size-4" /></a> : null}
+              <p className="mt-3 break-all text-sm">{describeOrganizerMediaSource(asset.sourceUrl)}</p>
+              {source ? (
+                <a href={source.url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" className="admin-action-secondary mt-3 inline-flex">
+                  Open source <ExternalLink className="size-4" />
+                </a>
+              ) : asset.sourceUrl ? (
+                <p className="mt-2 text-xs text-amber-100">
+                  This source is not a safe HTTP(S) link. Direct opening and preview are disabled.
+                </p>
+              ) : null}
+              {source?.previewKind && previewKey ? (
+                <div className="mt-3 space-y-2 rounded-xl border border-white/[0.08] bg-black/10 p-3">
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    External {source.previewKind} from {source.host}. Media is loaded only if you choose to preview it.
+                    Large files may consume data. This preview is not an editorial approval.
+                  </p>
+                  {!previewVisible ? (
+                    <button
+                      type="button"
+                      className="admin-action-secondary"
+                      onClick={() => {
+                        setFailedPreviewTarget(null);
+                        setPreviewAttempt(0);
+                        setPreviewTarget(previewKey);
+                      }}
+                    >
+                      Load preview from {source.host}
+                    </button>
+                  ) : failedPreviewTarget === previewKey ? (
+                    <div role="status" className="space-y-2 text-xs text-amber-100">
+                      <p>Preview could not be loaded. This source may be unavailable or restricted.</p>
+                      <button
+                        type="button"
+                        className="admin-action-secondary"
+                        onClick={() => {
+                          setFailedPreviewTarget(null);
+                          setPreviewAttempt((previous) => previous + 1);
+                        }}
+                      >
+                        Retry preview
+                      </button>
+                    </div>
+                  ) : source.previewKind === 'image' ? (
+                    <img
+                      key={`${previewKey}:${previewAttempt}`}
+                      src={source.url}
+                      alt={`Organizer preview of ${asset.title}`}
+                      loading="lazy"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                      onError={() => setFailedPreviewTarget(previewKey)}
+                      className="max-h-80 w-full rounded-lg object-contain"
+                    />
+                  ) : source.previewKind === 'audio' ? (
+                    <audio
+                      key={`${previewKey}:${previewAttempt}`}
+                      src={source.url}
+                      controls
+                      preload="none"
+                      onError={() => setFailedPreviewTarget(previewKey)}
+                      className="w-full"
+                      aria-label={`Organizer audio preview: ${asset.title}`}
+                    />
+                  ) : (
+                    <video
+                      key={`${previewKey}:${previewAttempt}`}
+                      src={source.url}
+                      controls
+                      preload="none"
+                      playsInline
+                      onError={() => setFailedPreviewTarget(previewKey)}
+                      className="max-h-80 w-full rounded-lg bg-black object-contain"
+                      aria-label={`Organizer video preview: ${asset.title}`}
+                    />
+                  )}
+                  {previewVisible ? (
+                    <button
+                      type="button"
+                      className="admin-action-secondary"
+                      onClick={() => {
+                        setPreviewTarget(null);
+                        setFailedPreviewTarget(null);
+                        setPreviewAttempt(0);
+                      }}
+                    >
+                      Unload preview
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
               {asset.sourceUpdatedAt ? <p className="mt-3 text-xs text-muted-foreground">Canonical entry updated {formatTimestamp(asset.sourceUpdatedAt)}</p> : null}
             </div>
           </section>

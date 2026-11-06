@@ -22,7 +22,8 @@ describe('V3 Organizer exact-source media review preview', () => {
     expect(route).toContain('reason: reviewReason.trim()');
     expect(route).toContain('assetKey: item.assetKey');
     expect(route).toContain('sourceFingerprint: item.sourceFingerprint!');
-    expect(route).toContain('Source fingerprint: {item.sourceFingerprint}');
+    expect(route).toContain('Source identity: {describeOrganizerMediaSource(item.sourceUrl)}');
+    expect(route).not.toContain('Source fingerprint: {item.sourceFingerprint}');
   });
 
   it('fails closed when a reviewed source changes before apply', () => {
@@ -41,6 +42,23 @@ describe('V3 Organizer exact-source media review preview', () => {
 
   it('clears pending review when Organizer edition context changes', () => {
     expect(route).toContain('setPendingReview(null)');
-    expect(route).toContain('}, [resolvedEditionId]);');
+    expect(route).toContain('}, [resolvedEditionId, actorId]);');
+  });
+
+  it('isolates private media review caches and pending decisions by account and edition', () => {
+    expect(route).toContain('const actorId = useAuthenticatedUser().id');
+    expect(route).toContain("queryKey: ['studio2-media-asset-reviews', actorId, resolvedEditionId || 'none']");
+    expect(route).toContain("queryKey: ['studio2-country-cockpit', actorId, resolvedEditionId || 'none']");
+    expect(route).toContain("queryKey: ['studio2-media-asset-reviews'],");
+    expect(route).toContain("queryKey: ['studio2-country-cockpit'],");
+    expect(route).toContain('queryClient.removeQueries({');
+    expect(route).toContain('commandActorId: actorId');
+    expect(route).toContain('liveActorRef.current !== review.commandActorId');
+    expect(route).toContain('liveActorRef.current !== variables.commandActorId');
+    expect(route).toContain('liveEditionRef.current !== review.commandEditionId');
+    expect(route).toContain('liveEditionRef.current !== variables.commandEditionId');
+    expect(route).toContain("queryKey: ['studio2-media-asset-reviews', variables.commandActorId, variables.commandEditionId]");
+    expect(route).toContain('refetchOnWindowFocus: false');
+    expect(route).toContain('refetchOnReconnect: false');
   });
 });
