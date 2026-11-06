@@ -99,6 +99,7 @@ describe("V3 official delegation notices", () => {
 
     expect(errorBoundary).toBeGreaterThan(-1);
     expect(errorBoundary).toBeLessThan(accessGuard);
+    expect(workflow).toContain("account.isPending || account.isLoading");
     expect(workflow).toContain("No private notices or actions were loaded.");
     expect(workflow).toContain("void account.refetch()");
     expect(workflow).toContain("Retry access check");
