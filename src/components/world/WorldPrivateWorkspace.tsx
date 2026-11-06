@@ -348,7 +348,7 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
                     className="min-h-11 w-full rounded-lg border border-border text-sm">Load earlier messages</button> : null}
                   {allMessages.map((message) => <article key={message.id} className="group border-b border-border/50 pb-4 last:border-0">
                     <div className="flex flex-wrap items-baseline gap-2">
-                      <strong className="text-sm">{message.senderId === identity.data ? "You" : message.senderName}</strong>
+                      <strong className="text-sm">{message.mine ? "You" : message.senderName}</strong>
                       <time dateTime={message.createdAt} className="text-xs text-muted-foreground">
                         {new Date(message.createdAt).toLocaleString()}
                       </time>
@@ -374,13 +374,13 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
                     {!message.redacted ? <div className="mt-2 flex flex-wrap items-center gap-1">
                       <button type="button" onClick={() => setReplyToId(message.id)} aria-label="Reply to message"
                         className="inline-flex min-h-10 items-center gap-1 rounded-lg px-3 text-xs text-muted-foreground hover:bg-muted"><Reply className="size-3.5" /> Reply</button>
-                      {message.senderId === identity.data ? <button type="button"
+                      {message.mine ? <button type="button"
                         onClick={() => { setEditingId(message.id); setEditBody(message.body); }}
                         className="inline-flex min-h-10 items-center gap-1 rounded-lg px-3 text-xs text-muted-foreground hover:bg-muted">
                         <Pencil className="size-3.5" /> Edit
                       </button> : null}
                       {["👍", "❤️", "👀"].map((emoji) => {
-                        const mine = message.reactions.some((reaction) => reaction.userId === identity.data && reaction.emoji === emoji);
+                        const mine = message.reactions.some((reaction) => reaction.mine && reaction.emoji === emoji);
                         const count = message.reactions.filter((reaction) => reaction.emoji === emoji).length;
                         return <button type="button" key={emoji} aria-label={emoji + (mine ? " remove reaction" : " react")}
                           aria-pressed={mine} className={"min-h-10 rounded-lg px-2 text-xs " + (mine ? "bg-primary/20" : "hover:bg-muted")}
@@ -406,7 +406,7 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
             </div>
             <form className="border-t border-border p-4" onSubmit={(event) => { event.preventDefault(); send.mutate(); }}>
               {replyTo ? <div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                <span>Replying to {replyTo.senderId === identity.data ? "your message" : replyTo.senderName}</span>
+                <span>Replying to {replyTo.mine ? "your message" : replyTo.senderName}</span>
                 <button type="button" onClick={() => setReplyToId(null)} className="min-h-10 px-2 text-primary">Cancel reply</button>
               </div> : null}
               {actionError ? <p role="alert" className="mb-2 text-sm text-destructive">{actionError}</p> : null}
