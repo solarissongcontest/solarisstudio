@@ -15,6 +15,7 @@ const requirement: ConfirmationRequirement = {
 const review: RequirementActionReview = { actorId: "organizer-a", editionId, requirement };
 function deps(rows: readonly ConfirmationRequirement[] = [requirement]) {
   return {
+    isCurrentScope: vi.fn(() => true),
     getActorId: vi.fn(async (): Promise<string | null> => "organizer-a"),
     verifyRead: vi.fn(async () => true),
     loadRequirements: vi.fn(async () => rows),
@@ -70,6 +71,25 @@ describe("Organizer Confirmation Requirements R2 fresh actor/revision preflight"
     await expect(verifyFreshConfirmationRequirementReview({
       ...review, editionId: "different",
     }, deps())).rejects.toThrow(/requirement changed/);
+  });
+
+  it("rejects a review whose actor/edition context is no longer current", async () => {
+    const hooks = deps();
+    hooks.isCurrentScope.mockReturnValue(false);
+    await expect(verifyFreshConfirmationRequirementReview(review, hooks)).rejects.toThrow(/review context changed/);
+    expect(hooks.getActorId).not.toHaveBeenCalled();
+    expect(hooks.loadRequirements).not.toHaveBeenCalled();
+  });
+
+  it("rejects an A→B→A edition context transition that occurs while loading", async () => {
+    let current = true;
+    const hooks = deps();
+    hooks.loadRequirements.mockImplementation(async () => {
+      current = false;
+      return [requirement];
+    });
+    hooks.isCurrentScope.mockImplementation(() => current);
+    await expect(verifyFreshConfirmationRequirementReview(review, hooks)).rejects.toThrow(/review context changed/);
   });
 
   it("refuses an unavailable requirement read rather than continuing as a zero-row list", async () => {

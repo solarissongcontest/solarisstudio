@@ -7,6 +7,7 @@ export type RequirementActionReview = {
 };
 
 export type RequirementReviewDependencies = {
+  isCurrentScope: () => boolean;
   getActorId: () => Promise<string | null>;
   verifyRead: (editionId: string) => Promise<boolean>;
   loadRequirements: (editionId: string) => Promise<readonly ConfirmationRequirement[]>;
@@ -14,6 +15,7 @@ export type RequirementReviewDependencies = {
 
 const changed = "Confirmation requirement changed during review. No command was submitted. Reload this edition and review the requirement again.";
 const actorChanged = "Organizer identity changed during review. No command was submitted.";
+const scopeChanged = "Organizer review context changed during verification. No command was submitted.";
 
 /**
  * Verify the exact actor, edition and reviewed requirement before R2 submission.
@@ -27,12 +29,16 @@ export async function verifyFreshConfirmationRequirementReview(
   if (!review.actorId || !review.editionId || review.requirement.editionId !== review.editionId) {
     throw new Error(changed);
   }
+  if (!deps.isCurrentScope()) throw new Error(scopeChanged);
   if (await deps.getActorId() !== review.actorId) throw new Error(actorChanged);
+  if (!deps.isCurrentScope()) throw new Error(scopeChanged);
 
   if (await deps.verifyRead(review.editionId) !== true) {
     throw new Error("Confirmation read authorization changed. No command was submitted.");
   }
+  if (!deps.isCurrentScope()) throw new Error(scopeChanged);
   const candidates = await deps.loadRequirements(review.editionId);
+  if (!deps.isCurrentScope()) throw new Error(scopeChanged);
   if (!Array.isArray(candidates)) throw new Error(changed);
   const matching = candidates.filter((row) => row.id === review.requirement.id);
   if (matching.length !== 1) throw new Error(changed);
@@ -50,4 +56,5 @@ export async function verifyFreshConfirmationRequirementReview(
   }
 
   if (await deps.getActorId() !== review.actorId) throw new Error(actorChanged);
+  if (!deps.isCurrentScope()) throw new Error(scopeChanged);
 }

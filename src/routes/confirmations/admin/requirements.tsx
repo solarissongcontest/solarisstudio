@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckCircle2, CircleAlert, RefreshCw, RotateCcw, ShieldCheck } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
@@ -55,6 +55,12 @@ function ConfirmationRequirementsPage() {
   const [filter, setFilter] = useState<RequirementFilter>("all");
   const [pending, setPending] = useState<PendingAction>(null);
   const [reason, setReason] = useState("");
+  // This monotonic epoch invalidates reviews even across A→B→A or edition
+  // A→B→A transitions while a network request is in flight.
+  const reviewScopeRef = useRef({ actorId, editionId, epoch: 0 });
+  if (reviewScopeRef.current.actorId !== actorId || reviewScopeRef.current.editionId !== editionId) {
+    reviewScopeRef.current = { actorId, editionId, epoch: reviewScopeRef.current.epoch + 1 };
+  }
 
   const readAccessQuery = useQuery({
     queryKey: ["confirmation-requirements-read-access", actorId, editionId || "none"],
@@ -105,6 +111,7 @@ function ConfirmationRequirementsPage() {
       requirement: ConfirmationRequirement;
       organizerEditionId: string;
       organizerActorId: string;
+      reviewEpoch: number;
       actionReason: string;
     }) => {
       if (input.requirement.editionId !== input.organizerEditionId || !input.organizerActorId) {
@@ -116,6 +123,10 @@ function ConfirmationRequirementsPage() {
         editionId: input.organizerEditionId,
         requirement: input.requirement,
       }, {
+        isCurrentScope: () =>
+          reviewScopeRef.current.epoch === input.reviewEpoch &&
+          reviewScopeRef.current.actorId === input.organizerActorId &&
+          reviewScopeRef.current.editionId === input.organizerEditionId,
         getActorId: async () => {
           const { data, error } = await supabase.auth.getUser();
           if (error) throw error;
@@ -157,6 +168,16 @@ function ConfirmationRequirementsPage() {
           });
     },
     onSuccess: async (_, variables) => {
+      if (
+        reviewScopeRef.current.epoch !== variables.reviewEpoch ||
+        reviewScopeRef.current.actorId !== variables.organizerActorId ||
+        reviewScopeRef.current.editionId !== variables.organizerEditionId
+      ) {
+        // Server action may already have committed. Do not claim it affects
+        // the newly selected edition, and never restore the old review.
+        toast.message("Confirmation action completed after Organizer context changed. Review the current edition.");
+        return;
+      }
       toast.success(
         variables.kind === "reconfirm"
           ? variables.requirement.countryName + " now requires confirmation again"
@@ -245,6 +266,7 @@ function ConfirmationRequirementsPage() {
       requirement: pending.requirement,
       organizerEditionId: editionId,
       organizerActorId: actorId,
+      reviewEpoch: reviewScopeRef.current.epoch,
       actionReason: reason.trim(),
     });
   }
