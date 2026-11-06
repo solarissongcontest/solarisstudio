@@ -5,7 +5,7 @@
  * Canonical TG7/TG9 owners decide how a validated source maps to live tables.
  */
 import { createHash } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, stat, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
 const MAX_MANIFEST_BYTES = 2 * 1024 * 1024;
@@ -139,10 +139,19 @@ export async function runCli(args) {
     options.set(key, args[i + 1]);
   }
   if (!options.has('--manifest') || !options.has('--source')) throw new Error(usage());
+  // Check actual file sizes before allocating memory; also reject special files.
+  const [manifestInfo, sourceInfo] = await Promise.all([
+    stat(options.get('--manifest')),
+    stat(options.get('--source')),
+  ]);
+  if (!manifestInfo.isFile() || !manifestInfo.size || manifestInfo.size > MAX_MANIFEST_BYTES) {
+    throw new Error('manifest must be a regular nonempty file no larger than 2 MiB');
+  }
+  if (!sourceInfo.isFile() || !sourceInfo.size || sourceInfo.size > MAX_SOURCE_BYTES) {
+    throw new Error('source must be a regular nonempty file no larger than 32 MiB');
+  }
   const manifestBytes = await readFile(options.get('--manifest'));
-  if (manifestBytes.length > MAX_MANIFEST_BYTES) throw new Error('manifest file exceeds 2 MiB');
   const sourceBytes = await readFile(options.get('--source'));
-  if (sourceBytes.length > MAX_SOURCE_BYTES) throw new Error('source file exceeds 32 MiB');
   const manifest = JSON.parse(manifestBytes.toString('utf8'));
   const report = validateGagManifest(manifest, sourceBytes, manifestBytes);
   if (options.has('--output')) await writeFile(options.get('--output'), `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
