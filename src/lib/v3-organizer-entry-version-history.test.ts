@@ -95,6 +95,22 @@ describe("Organizer immutable Entry version evidence", () => {
     expect(code).not.toContain("version.replacementVideoSource}");
   });
 
+  it("does not start or display a history read after the Organizer response scope changes", () => {
+    const component = readFileSync(resolve(process.cwd(),
+      "src/components/admin/OrganizerEntryVersionHistory.tsx"), "utf8");
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
+    expect(component).toContain("isScopeCurrent: () => boolean;");
+    expect(component).toContain("if (!isScopeCurrent()) {");
+    expect(component).toContain("generation === requestGeneration.current && activeScope.current === requestedScope &&");
+    expect(component).toContain("isScopeCurrent();");
+    const beforeRead = component.indexOf("if (!isScopeCurrent()) {");
+    const rpc = component.indexOf('"v3_confirmation_entry_versions"');
+    expect(beforeRead).toBeGreaterThan(-1);
+    expect(rpc).toBeGreaterThan(beforeRead);
+    expect(route).toContain("isScopeCurrent={isScopeCurrent}");
+  });
+
   it("mounts scoped history only from an open Entry Review sheet", () => {
     const route = readFileSync(resolve(process.cwd(),
       "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
