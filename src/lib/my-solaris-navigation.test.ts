@@ -20,7 +20,6 @@ describe("MySolaris final information architecture", () => {
     const items = mySolarisNavigationItems();
     expect(items.map((item) => item.label)).toEqual([
       "Home",
-      "Tasks",
       "Entry",
       "Voting",
       "Notices",
@@ -35,10 +34,9 @@ describe("MySolaris final information architecture", () => {
     expect(new Set(items.map((item) => item.id)).size).toBe(items.length);
   });
 
-  it("keeps the compact mobile navigation focused on four tasks plus More", () => {
-    expect(MY_SOLARIS_MOBILE_PRIMARY_IDS).toEqual(["home", "tasks", "entry", "voting"]);
+  it("keeps the compact mobile navigation focused on four personal sections plus More", () => {
+    expect(MY_SOLARIS_MOBILE_PRIMARY_IDS).toEqual(["home", "entry", "voting", "notices"]);
     expect(mySolarisMoreItems().map((item) => item.label)).toEqual([
-      "Notices",
       "Country",
       "Page & media",
       "History",
