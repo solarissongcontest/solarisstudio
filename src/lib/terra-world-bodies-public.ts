@@ -137,3 +137,64 @@ export async function readPublicWorldBody(
   if (!body || body.slug !== bodySlug) return null;
   return { organization, body };
 }
+
+
+/**
+ * A separate, narrow public-only office lookup for an already verified organ.
+ * This reads office definitions, not private terms or officeholder login data.
+ * TG2's office RLS additionally excludes private/members-only organs.
+ */
+export type PublicWorldBodyOffice = {
+  id: string;
+  organizationId: string;
+  organId: string;
+  title: string;
+  officeType: string;
+};
+
+export const WORLD_BODY_OFFICE_LIMIT = 20;
+
+export function decodePublicBodyOffice(
+  input: unknown, organizationId: string, organId: string,
+): PublicWorldBodyOffice | null {
+  const row = record(input);
+  if (!row || row.organization_id !== organizationId || row.organ_id !== organId ||
+      row.active !== true || !nonempty(row.id) || !nonempty(row.title) ||
+      !nonempty(row.office_type)) return null;
+  return {
+    id: row.id,
+    organizationId,
+    organId,
+    title: row.title,
+    officeType: row.office_type,
+  };
+}
+
+export async function readPublicBodyOffices(
+  organization: PublicWorldInstitution, body: PublicWorldBody,
+): Promise<PublicWorldBodyOffice[]> {
+  if (body.organizationId !== organization.id ||
+      !validWorldSlug(organization.slug) || !validWorldSlug(body.slug)) {
+    throw new Error("Institutional body identity is inconsistent.");
+  }
+  const { data, error } = await (supabase as any).from("world_organization_offices")
+    .select("id,organization_id,organ_id,title,office_type,active")
+    .eq("organization_id", organization.id)
+    .eq("organ_id", body.id)
+    .eq("active", true)
+    .order("display_priority", { ascending: true })
+    .limit(WORLD_BODY_OFFICE_LIMIT);
+  if (error || !Array.isArray(data) || data.length > WORLD_BODY_OFFICE_LIMIT) {
+    throw new Error("Public institutional offices could not be verified.");
+  }
+  const offices = data.map((row: unknown) =>
+    decodePublicBodyOffice(row, organization.id, body.id));
+  if (offices.some((office: PublicWorldBodyOffice | null) => office === null)) {
+    throw new Error("An institutional office had an invalid public identity.");
+  }
+  const ids = offices.map((office: PublicWorldBodyOffice | null) => office!.id);
+  if (new Set(ids).size !== ids.length) {
+    throw new Error("Duplicate institutional offices were returned.");
+  }
+  return offices as PublicWorldBodyOffice[];
+}
