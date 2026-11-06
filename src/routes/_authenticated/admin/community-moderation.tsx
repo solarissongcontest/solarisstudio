@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { EyeOff, RotateCcw, Search, ShieldCheck } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AdminPage } from "@/components/admin/AdminShell";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import {
   AdminCard,
   AdminEmptyState,
@@ -78,6 +79,19 @@ async function loadExactModerationProfile(reviewed: FanProfileModerationRow) {
 }
 
 function CommunityModerationPage() {
+  const actorId = useAuthenticatedUser().id;
+  // Re-mount the entire review workspace on account changes. An in-progress
+  // decision must never be recycled for another signed-in Organizer.
+  return <CommunityModerationWorkspace key={actorId ?? "signed-out"} actorId={actorId} />;
+}
+
+function CommunityModerationWorkspace({ actorId }: { actorId: string | null }) {
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => { alive.current = false; };
+  }, []);
+
   const [query, setQuery] = useState("");
   const [pendingModeration, setPendingModeration] = useState<PendingModeration | null>(null);
   const [moderationReason, setModerationReason] = useState("");
@@ -87,15 +101,25 @@ function CommunityModerationPage() {
   const queryClient = useQueryClient();
 
   const profilesQuery = useQuery({
-    queryKey: ["admin-fan-profile-moderation"],
+    queryKey: ["admin-fan-profile-moderation", actorId ?? "signed-out"],
+    enabled: Boolean(actorId),
     queryFn: async () => {
+      if (!actorId) throw new Error("An authenticated Organizer is required.");
       const { data, error } = await (supabase as any).rpc("admin_fan_profile_moderation", {
         p_limit: 200,
         p_query: null,
       });
       if (error) throw error;
-      return (Array.isArray(data) ? data : []) as FanProfileModerationRow[];
+      // An invalid protected projection is not an empty moderation inbox.
+      if (!Array.isArray(data)) throw new Error("Invalid private moderation projection.");
+      if (!alive.current) throw new Error("Moderation account changed during read.");
+      return data as FanProfileModerationRow[];
     },
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const moderate = useMutation({
@@ -130,7 +154,7 @@ function CommunityModerationPage() {
       setModerationReason("");
       setReviewError(null);
       setRecovery(null);
-      await queryClient.invalidateQueries({ queryKey: ["admin-fan-profile-moderation"] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-fan-profile-moderation", actorId] });
     },
     onError: async (error, variables) => {
       const next = resolveSolarisV6OperationRecovery(error, {
@@ -140,7 +164,7 @@ function CommunityModerationPage() {
       setRecovery(next);
       if (next.shouldRefreshCanonical) {
         await queryClient.invalidateQueries({
-          queryKey: ["admin-fan-profile-moderation"],
+          queryKey: ["admin-fan-profile-moderation", actorId],
         });
       }
       if (!next.keepOperationOpen) {
@@ -150,7 +174,7 @@ function CommunityModerationPage() {
     },
   });
 
-  const profiles = profilesQuery.data ?? [];
+  const profiles = actorId && profilesQuery.isSuccess ? profilesQuery.data : [];
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return profiles;
@@ -209,6 +233,9 @@ function CommunityModerationPage() {
       setReviewError(null);
       try {
         const live = await loadExactModerationProfile(reviewed.profile);
+        // Account changes unmount the old workspace. Never dispatch an old
+        // reviewed command after its authenticated owner is gone.
+        if (!alive.current) return;
         if (
           !live ||
           moderationReviewFingerprint(live) !== reviewed.profileFingerprint
@@ -221,7 +248,7 @@ function CommunityModerationPage() {
             `${reviewed.profile.displayName} changed while this moderation decision was being reviewed. Nothing was changed. Reload the current profile state and review the decision again.`,
           );
           await queryClient.invalidateQueries({
-            queryKey: ["admin-fan-profile-moderation"],
+            queryKey: ["admin-fan-profile-moderation", actorId],
           });
           return;
         }
@@ -275,9 +302,9 @@ function CommunityModerationPage() {
         ) : null}
 
         <section className="grid gap-3 sm:grid-cols-3">
-          <Metric label="Profiles" value={profiles.length} />
-          <Metric label="Public leaderboard opt-ins" value={publicCount} />
-          <Metric label="Hidden identities" value={hiddenCount} attention={hiddenCount > 0} />
+          <Metric label="Profiles" value={profilesQuery.isSuccess ? profiles.length : "—"} />
+          <Metric label="Public leaderboard opt-ins" value={profilesQuery.isSuccess ? publicCount : "—"} />
+          <Metric label="Hidden identities" value={profilesQuery.isSuccess ? hiddenCount : "—"} attention={profilesQuery.isSuccess && hiddenCount > 0} />
         </section>
 
         <AdminCard>
@@ -532,7 +559,7 @@ function Metric({
   attention = false,
 }: {
   label: string;
-  value: number;
+  value: number | string;
   attention?: boolean;
 }) {
   return (
