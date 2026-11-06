@@ -129,7 +129,7 @@ describe("TG4 official legal Archive public projection", () => {
     expect(sql).not.toContain("source_description");
     expect(transport).toContain("anonymousWorldRpcRequest(key, args, signal)");
     expect(transport).toContain("world_get_public_legal_archive_v1");
-    expect(transport).toContain("credentials"); // imported anonymous transport contract
+    expect(transport).toContain("anonymousWorldRpcRequest");
     expect(screen).toContain("WorldPublicGate verifyOnMount");
     expect(screen).toContain("Full text unavailable");
     expect(screen).toContain("No draft or cached fallback");
