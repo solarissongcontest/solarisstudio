@@ -7,11 +7,12 @@ const entries = readFileSync("src/routes/televoting/admin/rounds/$id/entries.tsx
 
 describe("V3 Organizer voting round child scope", () => {
   it("verifies the URL round against the exact Organizer edition before mounting children", () => {
-    expect(guard).toContain("const { editionId } = useAdminContext();");
+    expect(guard).toContain("const { editionId, editionLabel } = useAdminContext();");
     expect(guard).toContain('getRoundsPage({ data: { editionId } })');
     expect(guard).toContain("scopeEdition.solaris_id === editionId");
-    expect(guard).toContain("scopeEdition?.rounds.some((round) => round.id === roundId)");
-    expect(guard).toContain("return <Outlet />;");
+    expect(guard).toContain("scopeEdition?.rounds.find((round) => round.id === roundId)");
+    expect(guard).toContain('data-v3-organizer-context-lock="edition-round"');
+    expect(guard).toContain("<Outlet />");
   });
 
   it("fails closed for missing, unverifiable or mismatched scope", () => {
