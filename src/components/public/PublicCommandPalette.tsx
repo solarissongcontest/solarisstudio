@@ -57,9 +57,12 @@ import { cn } from "@/lib/utils";
 export function PublicCommandPalette({
   compact = false,
   access,
+  keyboardShortcut = true,
 }: {
   compact?: boolean;
   access?: AccountAccess;
+  /** Mobile Home may share palette while leaving global shortcut ownership to AppShell. */
+  keyboardShortcut?: boolean;
 }) {
   const { isAppMode } = useSolarisApp();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -69,6 +72,7 @@ export function PublicCommandPalette({
   const wasOpen = useRef(false);
 
   useEffect(() => {
+    if (!keyboardShortcut) return;
     const handler = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -79,7 +83,7 @@ export function PublicCommandPalette({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [keyboardShortcut]);
 
   useEffect(() => {
     if (!isAppMode) return;
