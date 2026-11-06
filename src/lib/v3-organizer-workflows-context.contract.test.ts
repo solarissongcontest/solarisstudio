@@ -19,7 +19,7 @@ describe("V3 Organizer Workflows exact-edition safety", () => {
     expect(workflows).toContain("useEditionAdminDeadlines(resolvedEditionId || null)");
     expect(adminOps).toContain("export function useEditionAdminDeadlines");
     expect(adminOps).toContain("enabled: Boolean(normalizedEditionId)");
-    expect(adminOps).toContain('["admin-deadlines", normalizedEditionId ?? "unscoped"]');
+    expect(adminOps).toContain('["admin-deadlines", normalizedEditionId ?? "unscoped", actorId]');
     expect(adminOps).toContain("Edition deadlines require an explicit Organizer edition scope.");
     expect(adminOps).toContain("loadAdminDeadlines(normalizedEditionId)");
   });
