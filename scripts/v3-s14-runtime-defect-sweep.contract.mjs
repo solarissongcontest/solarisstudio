@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { collectDefectSweep, STAGES, EXTENSIONS } from "./v3-s14-runtime-defect-sweep.mjs";
+import { collectDefectSweep, hasRuntimeCleanProof, STAGES, EXTENSIONS } from "./v3-s14-runtime-defect-sweep.mjs";
 
 const SHA = "a".repeat(40);
 function fixture(run) {
@@ -297,4 +297,56 @@ test("updated PR heads cancel obsolete four-lane sweeps without canceling main e
   assert.ok(workflow.includes("cancel-in-progress: ${{ github.event_name == 'pull_request' }}"));
   assert.ok(!workflow.includes("cancel-in-progress: false"));
   assert.ok(workflow.includes("ref: ${{ github.event.pull_request.head.sha || github.sha }}"));
+});
+
+test("a complete S14 runtime is not clean without exact-SHA static audit and readiness proof", () => {
+  fixture(({ root, evidenceDir, put }) => {
+    for (const lane of ["full-contest", "archive", "deadline", "televote-truth"]) {
+      put("runtime-" + lane + ".json", { candidateSha: SHA, lane, status: "passed", exitCode: 0 });
+    }
+    put("s14-full-contest.json", {
+      candidateSha: SHA, passed: true, partial: false, runtimeFailure: false,
+      completedStages: STAGES, completedContestExtensions: EXTENSIONS,
+      pendingStages: [], pendingContestExtensions: [], blockedContestExtensions: [],
+      lifecycle: { finalState: "archived" },
+    });
+    const evidence = {
+      candidateSha: SHA,
+      checks: ["s14-readiness", "s15-inventory", "sweep-contracts"]
+        .map((id) => ({ id, exitCode: 0 })),
+    };
+    let report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
+    assert.equal(report.confirmedBlockerCount, 0);
+    assert.equal(report.exactShaFullContestProof, "complete-on-exact-sha");
+    assert.equal(report.checks.staticEvidence.complete, false);
+    assert.equal(hasRuntimeCleanProof(report), false, "runtime-only proof must fail closed");
+
+    put("checks-static.json", evidence);
+    put("s14-readiness.json", { ready: true, blockers: [] });
+    put("s15-readiness.json", {
+      zeroOrphans: false,
+      findings: ["PUBLIC_CUTOVER_UNRESOLVED results:building"],
+      physicalOwnership: { zeroOwnershipConflicts: true },
+    });
+    report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
+    assert.equal(report.checks.staticEvidence.complete, true);
+    assert.equal(hasRuntimeCleanProof(report), true, "unresolved S15 cutovers remain triage, not automatic runtime failures");
+
+    put("checks-static.json", { ...evidence, candidateSha: "b".repeat(40) });
+    report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
+    assert.equal(hasRuntimeCleanProof(report), false, "stale static SHA cannot be accepted");
+    put("checks-static.json", evidence);
+    put("s14-readiness.json", { ready: false, blockers: [] });
+    report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
+    assert.equal(hasRuntimeCleanProof(report), false, "an unready S14 inventory blocks a clean sweep");
+
+    put("s14-readiness.json", { ready: true, blockers: [] });
+    put("checks-static.json", {
+      candidateSha: SHA,
+      checks: [{ id: "s14-readiness", exitCode: 0 },
+        { id: "s15-inventory", exitCode: 0 }, { id: "s15-inventory", exitCode: 0 }],
+    });
+    report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
+    assert.equal(hasRuntimeCleanProof(report), false, "duplicate/missing static checks cannot pass");
+  });
 });

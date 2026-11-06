@@ -144,6 +144,9 @@ export function collectDefectSweep({ root, evidenceDir, candidateSha, toolSha = 
   }
 
   const staticResults = loadJson(join(dir, "checks-static.json"));
+  // A clean runtime cannot substitute for absent or stale static evidence.
+  // The S15 inventory can contain unresolved cutovers, but its audit must run.
+  const requiredStaticIds = ["s14-readiness", "s15-inventory", "sweep-contracts"];
   checks.static = {};
   if (staticResults) {
     checkSha(staticResults, candidateSha, "static-checks", findings);
@@ -157,6 +160,23 @@ export function collectDefectSweep({ root, evidenceDir, candidateSha, toolSha = 
       ));
     }
   }
+
+  const recordedStaticChecks = Array.isArray(staticResults?.checks) ? staticResults.checks : [];
+  checks.staticEvidence = {
+    complete:
+      staticResults?.candidateSha === candidateSha &&
+      recordedStaticChecks.length === requiredStaticIds.length &&
+      requiredStaticIds.every((id) =>
+        recordedStaticChecks.filter((check) => check?.id === id && check.exitCode === 0).length === 1
+      ) &&
+      s14Readiness?.ready === true &&
+      Array.isArray(s14Readiness?.blockers) &&
+      s14Readiness.blockers.length === 0 &&
+      typeof s15?.zeroOrphans === "boolean" &&
+      Array.isArray(s15?.findings) &&
+      typeof s15?.physicalOwnership?.zeroOwnershipConflicts === "boolean",
+    requiredChecks: requiredStaticIds,
+  };
 
   const laneStatuses = {};
   for (const lane of LANES) {
@@ -255,6 +275,13 @@ export function collectDefectSweep({ root, evidenceDir, candidateSha, toolSha = 
   };
 }
 
+export function hasRuntimeCleanProof(report) {
+  return report.confirmedBlockerCount === 0 &&
+    report.unexecutedLanes.length === 0 &&
+    report.exactShaFullContestProof === "complete-on-exact-sha" &&
+    report.checks.staticEvidence?.complete === true;
+}
+
 export function renderMarkdown(report) {
   const lines = [
     "# V3 S14 cross-system defect sweep",
@@ -264,6 +291,7 @@ export function renderMarkdown(report) {
     "**Status:** " + report.conclusion + " (diagnostic only; NOT release certification)",
     "**Full S14 proof:** " + report.exactShaFullContestProof,
     "**Confirmed failures/source defects:** " + report.confirmedBlockerCount,
+    "**Static exact-SHA evidence:** " + (report.checks.staticEvidence.complete ? "complete" : "missing, stale, or failed"),
     "",
     "## Independent verification lanes",
     "",
@@ -305,9 +333,7 @@ async function cli() {
     writeFileSync(path, text);
   }
   process.stdout.write(renderMarkdown(report) + "\n");
-  if (process.argv.includes("--require-runtime-clean") &&
-    (report.confirmedBlockerCount > 0 || report.unexecutedLanes.length > 0 ||
-     report.exactShaFullContestProof !== "complete-on-exact-sha")) process.exitCode = 1;
+  if (process.argv.includes("--require-runtime-clean") && !hasRuntimeCleanProof(report)) process.exitCode = 1;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   cli().catch((error) => {
