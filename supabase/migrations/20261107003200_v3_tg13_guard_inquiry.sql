@@ -187,8 +187,7 @@ for select to authenticated using (
  exists (select 1 from public.country_accounts ca
   where ca.user_id=auth.uid() and ca.status='active'
    and ca.country_id=target_country_id)
- or private.world_current_guard_inquiry_chair(
-  organization_id,'world.inquiry.review') is not null
+ or public.world_guard_inquiry_can_review_v1(organization_id)
 );
 create policy world_guard_inquiry_responses_private_read on public.world_guard_inquiry_responses
 for select to authenticated using (
