@@ -150,5 +150,15 @@ describe("TG9 procedural decisions: canonical authority and correction fidelity"
     expect(sql.split("public.studio2_feature_enabled('terra_world_public',null)")).toHaveLength(5);
     expect(sql).not.toMatch(/grant all on public.world_decisions/i);
     expect(sql).not.toMatch(/create table (?:public\.)?world_tasks\b/i);
+    expect(sql).toContain("for share of term,office_row");
+    expect(sql).toContain("from public.world_organizations where id=p_organization_id");
+    const rehearsal = readFileSync("scripts/rehearse-v3-world-procedural-decisions.sql","utf8");
+    const runner = readFileSync("scripts/rehearse-v3-world-procedural-decisions.sh","utf8");
+    for (const marker of ["TG9_DECISION_DIRECT_WRITER_PRESENT","TG9_DECISION_DARK_ROLLOUT_LEAK",
+      "TG9_DECISION_SILENT_HISTORY_REWRITE","rollback;"]) {
+      expect(rehearsal).toContain(marker);
+    }
+    expect(runner).toContain("Refusing hosted API");
+    expect(runner).toContain("Refusing non-loopback database");
   });
 });
