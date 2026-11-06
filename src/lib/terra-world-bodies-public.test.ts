@@ -202,6 +202,22 @@ describe("TG3 public institution bodies", () => {
     expect(body.eq).toHaveBeenCalledWith("visibility", "public");
     expect(result?.body).not.toHaveProperty("private_notes");
   });
+  it("refuses a body detail whose embedded parent was withdrawn or is inconsistent", async () => {
+    const org = chain({ data: parent, error: null });
+    const body = chain({ data: organ, error: null });
+    mockFrom.mockImplementation((name: string) =>
+      name === "world_organizations" ? org : body);
+    for (const joinedParent of [
+      null,
+      { id: "org-1", public_visibility: "private" },
+      { id: "another-org", public_visibility: "public" },
+    ]) {
+      body.maybeSingle.mockResolvedValue({
+        data: { ...organ, world_organizations: joinedParent }, error: null,
+      });
+      await expect(readPublicWorldBody("guard", "gag")).rejects.toThrow("public parent");
+    }
+  });
   it("never returns a mismatched or unverified body from a successful server response", async () => {
     mockFrom.mockImplementation((name: string) => name === "world_organizations"
       ? chain({ data: parent, error: null })
@@ -327,6 +343,27 @@ describe("TG3 public institution bodies", () => {
     mockFrom.mockImplementation((name: string) => name === "world_organizations" ? org : body);
     await expect(readPublicWorldBodies("guard", 1)).rejects.toThrow("could not be verified");
   });
+  it("refuses directory rows with missing, private or mismatched embedded parent identity", async () => {
+    const parentQuery = chain({ data: parent, error: null });
+    const bodyQuery = chain({ data: [], error: null, count: 1 });
+    mockFrom.mockImplementation((name: string) =>
+      name === "world_organizations" ? parentQuery : bodyQuery);
+    const invalidRows = [
+      { ...organ, world_organizations: undefined },
+      { ...organ, world_organizations: { id: "org-1", public_visibility: "private" } },
+      { ...organ, world_organizations: { id: "org-2", public_visibility: "public" } },
+      { ...organ, world_organizations: [{ id: "org-1", public_visibility: "public" }] },
+    ];
+    for (const row of invalidRows) {
+      bodyQuery.range.mockResolvedValue({ data: [row], error: null, count: 1 });
+      await expect(readPublicWorldBodies("guard", 0)).rejects.toThrow("invalid public identity");
+    }
+  });
+  it("strips embedded relationship data from public DTOs", () => {
+    const row = decodePublicWorldBody(organ, "org-1");
+    expect(row).not.toHaveProperty("world_organizations");
+    expect(row).not.toHaveProperty("private_notes");
+  });
   it("fails closed for a missing count, duplicate identity or foreign data", async () => {
     const org = chain({ data: parent, error: null });
     const body = chain({ data: [organ], error: null, count: null });
@@ -407,6 +444,20 @@ describe("TG3 institution body offices", () => {
     const rows = await readPublicBodyOffices(publicParent, publicBody, controller.signal);
     expect(rows).toHaveLength(1);
     expect(query.abortSignal).toHaveBeenCalledWith(controller.signal);
+  });
+  it("refuses offices when either embedded institution or organ publication fails", async () => {
+    const q = chain({});
+    mockFrom.mockReturnValue(q);
+    for (const invalid of [
+      { ...office, world_organizations: null },
+      { ...office, world_organizations: { id: "org-1", public_visibility: "private" } },
+      { ...office, world_organization_organs: { id: "body-1", organization_id: "org-1", visibility: "private" } },
+      { ...office, world_organization_organs: { id: "different-body", organization_id: "org-1", visibility: "public" } },
+      { ...office, world_organization_organs: { id: "body-1", organization_id: "different-org", visibility: "public" } },
+    ]) {
+      q.limit.mockResolvedValue({ data: [invalid], error: null });
+      await expect(readPublicBodyOffices(publicParent, publicBody)).rejects.toThrow("invalid public identity");
+    }
   });
   it("fails closed on foreign office payloads or malformed arrays", async () => {
     const query = chain({});
