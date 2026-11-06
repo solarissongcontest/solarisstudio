@@ -106,7 +106,9 @@ describe("TG14 private International Terra Solaris Court intake", () => {
     expect(adapter).toContain('world_court_public_docket_v1');
     expect(adapter).toContain('world_file_court_case_v1');
     expect(adapter).toContain('world_respond_to_court_case_v1');
-    expect(adapter).toContain("input.ok !== true");
+    expect(adapter).toContain('receipt?.status !== "succeeded"');
+    expect(adapter).toContain("receipt.operationId !== expectedOperationId");
+    expect(adapter).toContain("result.operationId !== expectedOperationId");
     expect(ui).toContain("crypto.randomUUID()");
     expect(ui).toContain("previous?.payload === payload");
     expect(ui).toContain("Request");
