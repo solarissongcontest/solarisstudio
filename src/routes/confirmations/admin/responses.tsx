@@ -16,6 +16,11 @@ import {
 } from "@/integrations/confirmations/admin";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
 import {
+  classifyOrganizerEntryReview,
+  deriveOrganizerResponseReviewState,
+  hasOutdatedOrganizerEntryReview,
+} from "@/lib/v3-organizer-entry-review-status";
+import {
   loadConfirmationResponsesPage,
   type ConfirmationProjectionCursor,
 } from "@/integrations/confirmations/v3-projections";
@@ -130,19 +135,27 @@ function activeNfEntries(row: ResponseRow) {
 }
 
 function hasAcceptedInternal(row: ResponseRow) {
-  return row.selection_method === "internal" && row.internal_entries?.review_status === "accepted";
+  return row.selection_method === "internal" && Boolean(
+    row.internal_entries && classifyOrganizerEntryReview(row.internal_entries) === "accepted",
+  );
 }
 
 function hasDeclinedInternal(row: ResponseRow) {
-  return row.selection_method === "internal" && row.internal_entries?.review_status === "declined";
+  return row.selection_method === "internal" && Boolean(
+    row.internal_entries && classifyOrganizerEntryReview(row.internal_entries) === "declined",
+  );
 }
 
 function hasAcceptedNf(row: ResponseRow) {
-  return row.selection_method === "national_final" && activeNfEntries(row).some((entry) => entry.review_status === "accepted");
+  return row.selection_method === "national_final" && activeNfEntries(row).some(
+    (entry) => classifyOrganizerEntryReview(entry) === "accepted",
+  );
 }
 
 function hasDeclinedNf(row: ResponseRow) {
-  return row.selection_method === "national_final" && activeNfEntries(row).some((entry) => entry.review_status === "declined");
+  return row.selection_method === "national_final" && activeNfEntries(row).some(
+    (entry) => classifyOrganizerEntryReview(entry) === "declined",
+  );
 }
 
 function songSubmitted(row: ResponseRow) {
@@ -153,22 +166,7 @@ function songSubmitted(row: ResponseRow) {
 }
 
 function responseCardState(row: ResponseRow): CardState {
-  if (!row.participating) return "neutral";
-  if (row.selection_method === "internal") {
-    const entry = row.internal_entries;
-    if (!entry?.song_title || row.entry_unknown) return "neutral";
-    if (entry.review_status === "declined" || entry.review_status === "removed") return "issue";
-    if (!entry.review_status || entry.review_status === "pending") return "review";
-    return entry.review_status === "accepted" ? "ready" : "neutral";
-  }
-  if (row.selection_method === "national_final") {
-    const entries = activeNfEntries(row);
-    if (!entries.length || row.nf_entries_unknown) return "neutral";
-    if (entries.some((entry) => entry.review_status === "declined")) return "issue";
-    if (entries.some((entry) => !entry.review_status || entry.review_status === "pending")) return "review";
-    return row.national_finals?.winning_entry_id ? "ready" : "neutral";
-  }
-  return "neutral";
+  return deriveOrganizerResponseReviewState(row);
 }
 
 function statePriority(state: CardState) {
@@ -520,7 +518,14 @@ function ConfirmationResponsesList() {
             return (
               <AdminCard key={row.id} className={`!p-4 transition-shadow ${cardGlow(state)}`}>
                 <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="admin-section-label">{row.editions ? `SSC ${row.editions.edition_number}` : "SSC"} · {row.submission_rounds?.name ?? "Confirmation"}</p><h2 className="mt-1 truncate text-lg font-bold tracking-[-.02em]">{row.country}</h2><p className="mt-1 truncate text-xs text-muted-foreground">@{row.instagram_username.replace(/^@/, "")}</p></div><StateBadge state={state} /></div>
-                <div className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.022] p-3"><p className="text-sm font-semibold leading-snug">{entrySummary}</p>{row.selection_method === "national_final" && activeEntries.length > 0 ? <p className="mt-1 text-xs text-muted-foreground">{nf?.winning_entry_id ? "National Final winner selected" : activeEntries.every((entry) => entry.review_status === "accepted") ? "All songs reviewed · waiting for winner" : "National Final songs still need review"}</p> : null}</div>
+                <div className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.022] p-3"><p className="text-sm font-semibold leading-snug">{entrySummary}</p>
+                  {(internal && hasOutdatedOrganizerEntryReview(internal)) ||
+                    activeEntries.some(hasOutdatedOrganizerEntryReview) ? (
+                    <p className="mt-1 text-xs text-amber-100">
+                      Earlier review evidence is stale or lacks a current Entry-version binding.
+                      Review the latest submission before counting it as accepted.
+                    </p>
+                  ) : null}{row.selection_method === "national_final" && activeEntries.length > 0 ? <p className="mt-1 text-xs text-muted-foreground">{nf?.winning_entry_id ? "National Final winner selected" : activeEntries.every((entry) => classifyOrganizerEntryReview(entry) === "accepted") ? "All songs reviewed · waiting for winner" : "National Final songs still need review"}</p> : null}</div>
                 <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground"><span>{new Date(row.submitted_at).toLocaleDateString()}</span><span>{row.locked ? "Locked" : row.editing_allowed ? "Editing allowed" : "Editing closed"}</span></div>
                 <Link to="/confirmations/admin/responses/$id" params={{ id: row.id }} className={state === "review" || state === "issue" ? "admin-action-primary mt-4 w-full" : "admin-action-secondary mt-4 w-full"}>{state === "review" ? "Review response" : state === "issue" ? "Fix response" : "Open response"}</Link>
               </AdminCard>
