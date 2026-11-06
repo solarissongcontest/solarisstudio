@@ -60,26 +60,32 @@ export async function fetchWorldCountryRollout(): Promise<boolean> {
 export async function fetchWorldCountryDirectory(
   search: string,
   page: number,
+  signal?: AbortSignal,
 ): Promise<{ countries: WorldPublicCountry[]; count: number }> {
   const offset = checkedPage(page) * WORLD_COUNTRY_PAGE_SIZE;
   const safeSearch = normalizeWorldCountrySearch(search);
+  if (signal?.aborted) throw new DOMException("World lookup cancelled.", "AbortError");
   let request = (supabase as any).from("countries").select(COUNTRY_COLUMNS, { count: "exact" });
   const filter = worldCountrySearchFilter(safeSearch);
   if (filter) request = request.or(filter);
-  const { data, count, error } = await request
+  request = request
     .order("name", { ascending: true })
     .order("short_code", { ascending: true })
-    .order("id", { ascending: true })
-    .range(offset, offset + WORLD_COUNTRY_PAGE_SIZE - 1);
+    .order("id", { ascending: true });
+  if (signal) request = request.abortSignal(signal);
+  const { data, count, error } = await request.range(offset, offset + WORLD_COUNTRY_PAGE_SIZE - 1);
   if (error) throw error;
   const pageResult = checkedPageResult(parseWorldPublicCountries(data), count, page, WORLD_COUNTRY_PAGE_SIZE);
   return { countries: pageResult.rows, count: pageResult.count };
 }
 
-export async function fetchWorldCountryIdentity(code: string): Promise<WorldPublicCountry | null> {
+export async function fetchWorldCountryIdentity(code: string, signal?: AbortSignal): Promise<WorldPublicCountry | null> {
   if (!validWorldCountryCode(code)) throw new Error("Invalid requested country code");
-  const { data, error } = await (supabase as any).from("countries")
-    .select(COUNTRY_COLUMNS).ilike("short_code", code).maybeSingle();
+  if (signal?.aborted) throw new DOMException("World lookup cancelled.", "AbortError");
+  let request = (supabase as any).from("countries")
+    .select(COUNTRY_COLUMNS).ilike("short_code", code);
+  if (signal) request = request.abortSignal(signal);
+  const { data, error } = await request.maybeSingle();
   if (error) throw error;
   return parseWorldCountryIdentity(data, code);
 }
@@ -88,6 +94,7 @@ export async function fetchWorldCountryMembershipPage(
   countryId: string,
   phase: Phase,
   page: number,
+  signal?: AbortSignal,
 ): Promise<{ rows: WorldCountryAffiliation[]; count: number }> {
   const offset = checkedPage(page) * WORLD_AFFILIATION_PAGE_SIZE;
   if (typeof countryId !== "string" || countryId.trim().length === 0 || countryId.length > 80) {
@@ -96,6 +103,7 @@ export async function fetchWorldCountryMembershipPage(
   if (phase !== "current" && phase !== "historical") {
     throw new Error("Invalid World affiliation phase");
   }
+  if (signal?.aborted) throw new DOMException("World lookup cancelled.", "AbortError");
   // No organization-wide or unscoped membership scan is allowed.
   let request = (supabase as any).from("world_organization_memberships")
     .select(MEMBERSHIP_COLUMNS, { count: "exact" }).eq("country_id", countryId);
@@ -104,10 +112,11 @@ export async function fetchWorldCountryMembershipPage(
   } else {
     request = request.not("ended_at", "is", null).in("status", ["withdrawn", "expelled", "former"]);
   }
-  const { data, count, error } = await request
+  request = request
     .order(phase === "current" ? "joined_at" : "ended_at", { ascending: false })
-    .order("id", { ascending: true })
-    .range(offset, offset + WORLD_AFFILIATION_PAGE_SIZE - 1);
+    .order("id", { ascending: true });
+  if (signal) request = request.abortSignal(signal);
+  const { data, count, error } = await request.range(offset, offset + WORLD_AFFILIATION_PAGE_SIZE - 1);
   if (error) throw error;
   return checkedPageResult(
     parseWorldCountryAffiliations(data, countryId, phase),
@@ -117,6 +126,7 @@ export async function fetchWorldCountryMembershipPage(
 
 export async function fetchWorldPublicCountryInstitutions(
   organizationIds: readonly string[],
+  signal?: AbortSignal,
 ): Promise<WorldPublicInstitution[]> {
   if (!Array.isArray(organizationIds) || organizationIds.length > MAX_VISIBLE_ORGANIZATION_IDS ||
       organizationIds.some((id) => typeof id !== "string" || !id.trim() || id.length > 80) ||
@@ -124,13 +134,16 @@ export async function fetchWorldPublicCountryInstitutions(
     throw new Error("Invalid public World organization scope");
   }
   if (organizationIds.length === 0) return [];
+  if (signal?.aborted) throw new DOMException("World lookup cancelled.", "AbortError");
   // A second live publication check guards against a visibility change
   // between the membership fetch and this institution-name lookup.
-  const { data, error } = await (supabase as any).from("world_organizations")
+  let request = (supabase as any).from("world_organizations")
     .select(ORGANIZATION_COLUMNS)
     .eq("public_visibility", "public")
     .in("status", [...WORLD_RECOGNIZED_INSTITUTION_STATUSES])
     .in("id", organizationIds);
+  if (signal) request = request.abortSignal(signal);
+  const { data, error } = await request;
   if (error) throw error;
   return parseWorldPublicInstitutions(data, organizationIds);
 }
