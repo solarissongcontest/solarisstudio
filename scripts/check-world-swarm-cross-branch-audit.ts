@@ -8,6 +8,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import {
   auditWorldSwarmCrossBranches,
   isPotentialWorldSwarmPull,
+  sameWorldSwarmPullSet,
   type WorldSwarmPull,
   type WorldSwarmSnapshot,
 } from "../src/lib/world-swarm-cross-branch-audit.ts";
@@ -111,17 +112,21 @@ async function liveSnapshot(): Promise<WorldSwarmSnapshot> {
   }
   const endMain = (await branch()).commit.sha;
   if (startMain !== endMain) throw new Error(`main moved during live read (${startMain} -> ${endMain}); retry`);
-  for (const candidate of candidates) {
-    const latest = await github<GithubPull>(`/pulls/${candidate.number}`, token);
-    if (latest.head.sha !== candidate.headSha || latest.base.ref !== candidate.baseRef) {
-      throw new Error(`PR #${candidate.number} moved during snapshot; retry`);
-    }
+  // Re-list ALL open World PRs instead of N individual PR calls. Besides
+  // improving API efficiency this catches PRs created or closed mid-audit.
+  const finalPulls = (await pages<GithubPull>("/pulls?state=open", token)).filter(isWorld);
+  const identity = (pull: GithubPull) => ({
+    number: pull.number, title: pull.title,
+    headSha: pull.head.sha, baseRef: pull.base.ref,
+  });
+  if (!sameWorldSwarmPullSet(pulls.map(identity), finalPulls.map(identity))) {
+    throw new Error("World PR inventory, head, or base changed during snapshot; retry");
   }
-  // Main can advance while hundreds of PR heads are checked. Do not
+  // Main can advance while World PR file lists are checked. Do not
   // publish a clean snapshot tied to a main that has since moved.
   const finalMain = (await branch()).commit.sha;
   if (finalMain !== startMain) {
-    throw new Error(`main moved during PR-head validation (${startMain} -> ${finalMain}); retry`);
+    throw new Error(`main moved during final PR-inventory validation (${startMain} -> ${finalMain}); retry`);
   }
   return {
     repository: REPO,
