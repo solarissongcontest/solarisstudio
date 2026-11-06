@@ -48,6 +48,14 @@ export interface WorldSwarmAuditReport {
   issues: WorldSwarmAuditIssue[];
   caveat: string;
 }
+/** Include World-scope branches even when PR titles omit "WORLD"/"TG". */
+export function isPotentialWorldSwarmPull(pull: { title: string; branch: string }): boolean {
+  const branch = pull.branch.trim().toLowerCase();
+  const title = pull.title.trim().toLowerCase();
+  return /^v3\/(?:world(?:\/|-)|sys-terra-governance(?:\/|-|$)|swarm-wave2\/tg\d)/.test(branch)
+    || /\b(?:terra solaris|terra governance|world(?:-swarm)?|tg(?:[0-9]|1[0-9]))\b/.test(title);
+}
+
 const EXACT_SHA = /^[0-9a-f]{40}$/i;
 const MIGRATION = /^supabase\/migrations\/(\d{14})_([a-z0-9][a-z0-9_-]*)\.sql$/;
 const NEW_DATE_FLOOR = "20261101000000";
@@ -108,8 +116,8 @@ export function auditWorldSwarmCrossBranches(snapshot: WorldSwarmSnapshot): Worl
   let migrationsChecked = 0;
   for (const pull of snapshot.pulls) {
     if (pull.baseRef !== "main" && !byBranch.has(pull.baseRef)) addIssue(issues, {
-      severity: "warning", code: "unresolved_stacked_parent",
-      message: `PR #${pull.number} targets ${pull.baseRef}, which is not a listed open World PR; inspect the dependency before merging`,
+      severity: "error", code: "unresolved_stacked_parent",
+      message: `PR #${pull.number} targets ${pull.baseRef}, which is absent from this snapshot; cannot verify inherited migration ancestry`,
       prs: [pull.number], paths: [],
     });
     for (const file of pull.files) {
