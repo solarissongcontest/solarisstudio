@@ -48,6 +48,9 @@ describe("Organizer Jury Integrity protected ballot boundary", () => {
     expect(server).toContain('.eq("canonical_edition_id", scopedEditionId)');
     expect(server).toContain('.eq("model_version", "jury-integrity-model-v5")');
     expect(server).toContain('.limit(1000)');
+    expect(server).toContain('{ count: "exact" }');
+    expect(server).toContain("assertCompleteJuryIntegrityReadback(exactCount, preflights.length)");
+    expect(server.indexOf("assertCompleteJuryIntegrityReadback(exactCount, preflights.length)")).toBeLessThan(server.indexOf("const showIds"));
     expect(server).toContain("mismatchedPreflight");
     expect(server).toContain("assertJuryIntegrityV5Evidence(");
     expect(server.indexOf("assertJuryIntegrityV5Evidence(")).toBeLessThan(server.indexOf("const showIds"));
