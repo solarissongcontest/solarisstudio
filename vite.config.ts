@@ -93,6 +93,17 @@ export default defineConfig({
                 minSize: 5000,
                 priority: 1,
               },
+              // Reused public-browser presentation primitives are shared across
+              // the section rails, hubs and data explorers. Consolidate only
+              // components referenced from multiple route chunks; preserve
+              // route-only modules and installed-app boundaries.
+              {
+                name: "shared-public-primitives",
+                test: /[\\/]src[\\/]components[\\/]public[\\/]/,
+                minShareCount: 2,
+                minSize: 3000,
+                priority: 1,
+              },
               // Reused client-only domain modules were each carrying separate
               // chunk wrappers and gzip framing. Combine only modules actually
               // shared by multiple lazy entrypoints; preserve route-local code.
