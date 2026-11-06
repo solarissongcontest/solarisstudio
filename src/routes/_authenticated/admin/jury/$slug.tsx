@@ -182,11 +182,11 @@ function JuryWorkspace() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const qc = useQueryClient();
-  const { data: edition, isLoading: loadingEdition } = useEdition(slug);
-  const { data: shows = [], isLoading: loadingShows } = useShows(edition?.id);
-  const { data: allParticipants = [] } = useParticipants(edition?.id);
-  const { data: countries = [] } = useCountries();
-  const { data: entities = [] } = useContestEntities(edition?.id);
+  const { data: edition, isLoading: loadingEdition, error: editionError, refetch: retryEdition } = useEdition(slug);
+  const { data: shows = [], isLoading: loadingShows, error: showsError, refetch: retryShows } = useShows(edition?.id);
+  const { data: allParticipants = [], isLoading: loadingParticipants, error: participantsError, refetch: retryParticipants } = useParticipants(edition?.id);
+  const { data: countries = [], isLoading: loadingCountries, error: countriesError, refetch: retryCountries } = useCountries();
+  const { data: entities = [], isLoading: loadingEntities, error: entitiesError, refetch: retryEntities } = useContestEntities(edition?.id);
 
   const orderedShows = useMemo(() => [...shows].sort((a, b) => a.sort_order - b.sort_order), [shows]);
   const selectedShow = orderedShows.find((show) => show.id === search.show) ?? orderedShows[0] ?? null;
@@ -271,14 +271,14 @@ function JuryWorkspace() {
   // became unavailable and then recovered, even within the same show.
   useEffect(() => {
     if (!loadingVoters && !loadingVotes && !loadingStatuses && !loadingSubmittedBallots &&
-        !votersError && !votesError && !statusesError && !submissionsError) return;
+        !editionError && !showsError && !participantsError && !countriesError && !entitiesError && !votersError && !votesError && !statusesError && !submissionsError) return;
     setPendingBallotReview(null);
     setPendingDnvChange(null);
     setDeleteTarget(null);
     setEditDraft(null);
     setAddOpen(false);
     setLifecycleReason("");
-  }, [loadingVoters, loadingVotes, loadingStatuses, loadingSubmittedBallots, votersError, votesError, statusesError, submissionsError]);
+  }, [loadingVoters, loadingVotes, loadingStatuses, loadingSubmittedBallots, editionError, showsError, participantsError, countriesError, entitiesError, votersError, votesError, statusesError, submissionsError]);
 
   const neededPerBallot = voting.juryPoints.length;
   const ballotCounts = useMemo(() => {
@@ -707,19 +707,18 @@ function JuryWorkspace() {
     return { label: "Pending", tone: "neutral" as const };
   };
 
-  if (loadingEdition || loadingShows) return <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading jury workspace…</p></AdminCard>;
-  if (!edition) return <AdminCard><AdminEmptyState icon={Vote} title="Edition not found" description="Choose another edition from the organizer workspace." action={<Link to="/admin" className="admin-action-secondary">Back to editions</Link>} /></AdminCard>;
-  if (!orderedShows.length) return <AdminPage><AdminPageHeader eyebrow={editionLabel(edition)} title="Jury voting" description="Create a show before configuring its juries and ballots." /><AdminCard><AdminEmptyState icon={Users} title="No shows yet" description="Juries belong to a show." action={<Link to="/admin/shows/$slug" params={{ slug }} className="admin-action-primary">Create a show</Link>} /></AdminCard></AdminPage>;
-  // An empty response is not the same as an unread or failed private Jury projection.
-  // Do not show completeness metrics, roster mutations or lifecycle reviews without it.
-  if (loadingVoters || loadingVotes || loadingStatuses || loadingSubmittedBallots) {
+  // Source read failures are not "zero juries", "zero entries" or "no shows".
+  // Protect completion and moderation actions until the full show projection is verified.
+  if (loadingEdition || loadingShows || loadingParticipants || loadingCountries || loadingEntities ||
+      loadingVoters || loadingVotes || loadingStatuses || loadingSubmittedBallots) {
     return <AdminPage><AdminCard><p className="py-8 text-center text-sm text-muted-foreground" role="status">Verifying jury voting evidence…</p></AdminCard></AdminPage>;
   }
-  const evidenceError = votersError ?? votesError ?? statusesError ?? submissionsError;
+  const evidenceError = editionError ?? showsError ?? participantsError ?? countriesError ?? entitiesError ??
+    votersError ?? votesError ?? statusesError ?? submissionsError;
   if (evidenceError) {
     return (
       <AdminPage>
-        <AdminPageHeader eyebrow={editionLabel(edition)} title="Jury evidence unavailable" description="The selected show was not changed. An unverified ballot is never treated as did-not-vote or complete." />
+        <AdminPageHeader eyebrow={edition ? editionLabel(edition) : "Jury voting"} title="Jury evidence unavailable" description="The selected edition and show were not changed. Unverified rosters, votes or ballot statuses are never treated as empty or complete." />
         <AdminCard>
           <p className="text-sm text-rose-100" role="alert">
             {evidenceError instanceof Error ? evidenceError.message : "Private Jury evidence could not be verified."}
@@ -727,7 +726,12 @@ function JuryWorkspace() {
           <button
             type="button"
             className="admin-action-secondary mt-3 min-h-11"
-            onClick={() => void Promise.all([retryVoters(), retryVotes(), retryStatuses(), retrySubmissions()])}
+            onClick={() => void Promise.all([
+              retryEdition(),
+              retryCountries(),
+              ...(edition?.id ? [retryShows(), retryParticipants(), retryEntities()] : []),
+              ...(selectedShow?.id ? [retryVoters(), retryVotes(), retryStatuses(), retrySubmissions()] : []),
+            ])}
           >
             Retry jury evidence
           </button>
@@ -735,6 +739,8 @@ function JuryWorkspace() {
       </AdminPage>
     );
   }
+  if (!edition) return <AdminCard><AdminEmptyState icon={Vote} title="Edition not found" description="Choose another edition from the organizer workspace." action={<Link to="/admin" className="admin-action-secondary">Back to editions</Link>} /></AdminCard>;
+  if (!orderedShows.length) return <AdminPage><AdminPageHeader eyebrow={editionLabel(edition)} title="Jury voting" description="Create a show before configuring its juries and ballots." /><AdminCard><AdminEmptyState icon={Users} title="No shows yet" description="Juries belong to a show." action={<Link to="/admin/shows/$slug" params={{ slug }} className="admin-action-primary">Create a show</Link>} /></AdminCard></AdminPage>;
 
   return (
     <AdminPage>
