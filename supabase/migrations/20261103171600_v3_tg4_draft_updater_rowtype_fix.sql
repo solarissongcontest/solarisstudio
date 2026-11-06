@@ -132,4 +132,20 @@ comment on function public.world_update_document_version_draft_v1(
   uuid,text,jsonb,text,timestamptz,timestamptz,text,jsonb,jsonb,bigint,uuid,text,uuid
 ) is 'TG4 R2 canonical revision-safe document draft replacement; lossless manager-only source provenance, fresh institutional authorization, immutable published history.';
 
+do $contract$
+begin
+  if to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is not null then
+    perform public.v3_register_migration_contract(
+      'v3.tg4.world-document-draft-updater-guard',
+      1,
+      'forward_fix_only',
+      false,
+      null,
+      'Repair the canonical draft updater row type and revalidate fresh institutional authority under a version lock.'
+    );
+  end if;
+end
+$contract$;
+
+notify pgrst, 'reload schema';
 commit;
