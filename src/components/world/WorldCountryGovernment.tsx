@@ -107,6 +107,7 @@ export function WorldCountryGovernmentScreen({ code }: { code: string }) {
                   <div className="mt-3 flex flex-col gap-2 text-sm">
                     <Link to="/countries/$code" params={{ code: data.country.code }} className="inline-flex min-h-10 items-center text-primary hover:underline">Country overview</Link>
                     <Link to="/wiki/$code" params={{ code: data.country.code }} className="inline-flex min-h-10 items-center text-primary hover:underline">Country Wiki</Link>
+                    <Link to="/world/countries/$code" params={{ code: data.country.code }} className="inline-flex min-h-10 items-center text-primary hover:underline">International memberships</Link>
                   </div>
                 </section>
               </aside>
