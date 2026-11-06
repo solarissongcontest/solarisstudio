@@ -105,6 +105,7 @@ describe("TG10 organization follows: same authority, private recipient scope", (
     expect(sql).toContain("create or replace function public.set_fan_follow(");
     expect(sql).toContain("private.v3_fan_follow_operation_id(");
     expect(sql).toContain("public.studio2_feature_enabled('terra_world_public', null)");
+    expect(fixture).toContain("TG10_DARK_ROLLOUT_FOLLOW_ALLOWED");
     expect(sql).toContain("organization_row.public_visibility = 'public'");
     expect(sql).toContain("public.fan_follow_categories");
     expect(sql).toContain("follow_row.profile_id=v_actor");
