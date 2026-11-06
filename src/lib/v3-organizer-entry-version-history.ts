@@ -76,17 +76,33 @@ export function parseOrganizerEntryRevisions(
     }
     knownIds.add(id);
     lastRevision = revision as number;
-    const reviewRows = Array.isArray(row.reviews) ? row.reviews : [];
-    const reviews = reviewRows.slice(0, 25).flatMap((value) => {
+    // Do not silently truncate or discard immutable review/audit evidence.
+    // A partial ledger is more dangerous than an explicit reload error.
+    if (row.reviews != null && !Array.isArray(row.reviews)) {
+      throw new Error("Entry history returned malformed review evidence.");
+    }
+    const reviewRows = (row.reviews ?? []) as unknown[];
+    if (reviewRows.length > 25) {
+      throw new Error("Entry history exceeded the bounded review-evidence page.");
+    }
+    const reviewIds = new Set<string>();
+    const reviews = reviewRows.map((value) => {
       const item = record(value);
       const decision = text(item?.decision);
-      if (!item || !decision) return [];
-      return [{
-        id: text(item.id) ?? `${id}:${decision}:${text(item.reviewed_at) ?? ""}`,
+      if (!item || !decision) {
+        throw new Error("Entry history contains an invalid review decision.");
+      }
+      const reviewId = text(item.id) ?? `${id}:${decision}:${text(item.reviewed_at) ?? ""}`;
+      if (reviewIds.has(reviewId)) {
+        throw new Error("Entry history contains duplicate review evidence.");
+      }
+      reviewIds.add(reviewId);
+      return {
+        id: reviewId,
         decision,
         reason: text(item.reason),
         reviewedAt: text(item.reviewed_at),
-      }];
+      };
     });
     return {
       id,
@@ -107,6 +123,30 @@ export function parseOrganizerEntryRevisions(
       reviews,
     };
   });
+}
+
+/**
+ * Earlier immutable revision pages must append without losing evidence.
+ * Reject repeated version identities, even if the server assigns a different
+ * revision number, instead of silently de-duplicating the audit history.
+ */
+export function appendOrganizerEntryRevisionPage(
+  existing: readonly OrganizerEntryRevision[],
+  incoming: readonly OrganizerEntryRevision[],
+  beforeRevision: number,
+): OrganizerEntryRevision[] {
+  if (!Number.isSafeInteger(beforeRevision) || beforeRevision < 1 ||
+      (existing.length > 0 && existing[existing.length - 1].revision !== beforeRevision)) {
+    throw new Error("Entry history continuation cursor no longer matches the displayed revisions.");
+  }
+  const seen = new Set(existing.map((version) => version.id));
+  for (const version of incoming) {
+    if (version.revision >= beforeRevision || seen.has(version.id)) {
+      throw new Error("Entry history repeated or reordered an already displayed revision. Reload its history.");
+    }
+    seen.add(version.id);
+  }
+  return [...existing, ...incoming];
 }
 
 /**
