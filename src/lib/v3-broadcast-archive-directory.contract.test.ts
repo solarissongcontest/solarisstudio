@@ -14,7 +14,8 @@ describe("V3 broadcast and historical directories: three experiences", () => {
     expect(route).toContain("data-directory-experience={presentation}");
     expect(screen).toContain('data-show-directory-experience={presentation}');
     expect(screen).toContain("buildShowDiscovery");
-    expect(screen).toContain("ShowWebRow");
+    expect(screen).toContain("function ShowRow(");
+    expect(screen).toContain("<ShowRow key={item.show.id} item={item} web />");
     expect(screen).toContain("v3-shows-filter-fields");
     expect(screen).toContain("v3-shows-browse-results");
     expect(screen).toContain("SolarisSearchField");
@@ -23,9 +24,10 @@ describe("V3 broadcast and historical directories: three experiences", () => {
     expect(screen).toContain("activeFilterCount");
     expect(screen).toContain('role="status" aria-live="polite"');
     expect(screen).toContain('aria-label="Clear search"');
-    expect(screen).toContain('eyebrow="Live now"');
-    expect(screen).toContain('eyebrow="Up next"');
-    expect(screen).toContain('eyebrow="Recent"');
+    expect(screen).toContain('eyebrow: "Live now"');
+    expect(screen).toContain("items: discovery.liveNow");
+    expect(screen).toContain('eyebrow: "Up next"');
+    expect(screen).toContain('eyebrow: "Recent"');
     expect(screen).toContain('eyebrow="Archive"');
     expect(screen).toContain("showPublishesResults(item.show)");
     expect(screen).toContain("item.broadcastUrl");
