@@ -28,6 +28,20 @@ const record = (value: unknown): UnknownRecord | null =>
 const nonempty = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
+// A PostgREST inner join is the first publication barrier. Verify the
+// returned relationship as well, instead of treating a malformed or
+// unexpected join payload as a public identity.
+function hasPublicOrganizationJoin(input: unknown, organizationId: string): boolean {
+  const parent = record(record(input)?.world_organizations);
+  return parent?.id === organizationId && parent.public_visibility === "public";
+}
+
+function hasPublicBodyJoin(input: unknown, organizationId: string, bodyId: string): boolean {
+  const organ = record(record(input)?.world_organization_organs);
+  return organ?.id === bodyId && organ.organization_id === organizationId &&
+    organ.visibility === "public";
+}
+
 export type PublicWorldInstitution = {
   id: string;
   slug: string;
@@ -114,7 +128,7 @@ export async function readPublicWorldBodies(
     ? Math.max(0, Math.min(WORLD_BODIES_MAX_PAGE, requestedPage)) : 0;
   const term = cleanWorldBodySearch(options.term ?? "");
   let request = (supabase as any).from("world_organization_organs")
-    .select("id,organization_id,slug,name,short_name,type,status,visibility,sort_order,world_organizations!inner(id)", { count: "exact" })
+    .select("id,organization_id,slug,name,short_name,type,status,visibility,sort_order,world_organizations!inner(id,public_visibility)", { count: "exact" })
     .eq("organization_id", organization.id).eq("visibility", "public")
     // A signed-in manager can have additional private RLS permissions.
     // Require a public parent in this SAME read, not just the earlier lookup.
@@ -141,7 +155,7 @@ export async function readPublicWorldBodies(
       throw new Error("Public institutional bodies could not be loaded.");
     }
     let recount = (supabase as any).from("world_organization_organs")
-      .select("id,world_organizations!inner(id)", { count: "exact", head: true })
+      .select("id,world_organizations!inner(id,public_visibility)", { count: "exact", head: true })
       .eq("organization_id", organization.id).eq("visibility", "public")
       .eq("world_organizations.public_visibility", "public");
     if (options.status === "active" || options.status === "inactive" || options.status === "historical") {
@@ -169,7 +183,9 @@ export async function readPublicWorldBodies(
   if (data.length !== expectedRows) {
     throw new Error("Public institutional bodies could not be verified.");
   }
-  const bodies = data.map((row: unknown) => decodePublicWorldBody(row, organization.id));
+  const bodies = data.map((row: unknown) =>
+    hasPublicOrganizationJoin(row, organization.id)
+      ? decodePublicWorldBody(row, organization.id) : null);
   if (bodies.some((body: PublicWorldBody | null) => !body)) {
     throw new Error("An institutional body had an invalid public identity.");
   }
@@ -188,13 +204,16 @@ export async function readPublicWorldBody(
   const organization = await readPublicWorldInstitution(slug, signal);
   if (!organization) return null;
   let request = (supabase as any).from("world_organization_organs")
-    .select("id,organization_id,slug,name,short_name,type,description,status,visibility,sort_order,world_organizations!inner(id)")
+    .select("id,organization_id,slug,name,short_name,type,description,status,visibility,sort_order,world_organizations!inner(id,public_visibility)")
     .eq("organization_id", organization.id)
     .eq("slug", bodySlug).eq("visibility", "public")
     .eq("world_organizations.public_visibility", "public");
   if (signal) request = request.abortSignal(signal);
   const { data, error } = await request.maybeSingle();
   if (error) throw new Error("This institutional body could not be checked.");
+  if (data && !hasPublicOrganizationJoin(data, organization.id)) {
+    throw new Error("This institutional body's public parent could not be verified.");
+  }
   const body = decodePublicWorldBody(data, organization.id);
   if (!body || body.slug !== bodySlug) return null;
   return { organization, body };
@@ -240,7 +259,7 @@ export async function readPublicBodyOffices(
     throw new Error("Institutional body identity is inconsistent.");
   }
   let request = (supabase as any).from("world_organization_offices")
-    .select("id,organization_id,organ_id,title,office_type,active,world_organizations!inner(id),world_organization_organs!inner(id)")
+    .select("id,organization_id,organ_id,title,office_type,active,world_organizations!inner(id,public_visibility),world_organization_organs!inner(id,organization_id,visibility)")
     .eq("organization_id", organization.id)
     .eq("organ_id", body.id)
     .eq("active", true)
@@ -257,7 +276,9 @@ export async function readPublicBodyOffices(
     throw new Error("Public institutional offices could not be verified.");
   }
   const offices = data.map((row: unknown) =>
-    decodePublicBodyOffice(row, organization.id, body.id));
+    hasPublicOrganizationJoin(row, organization.id) &&
+    hasPublicBodyJoin(row, organization.id, body.id)
+      ? decodePublicBodyOffice(row, organization.id, body.id) : null);
   if (offices.some((office: PublicWorldBodyOffice | null) => office === null)) {
     throw new Error("An institutional office had an invalid public identity.");
   }
