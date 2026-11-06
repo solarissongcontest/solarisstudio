@@ -57,7 +57,7 @@ async function main() {
 
   const { data: round, error: roundError } = await tv
     .from("rounds")
-    .select("id,status,total_points_to_distribute,rank_exponent,televote_engine_version,ballot_exponent,breadth_floor,breadth_exponent,support_exponent,rank_boost_strength,rank_boost_shape,calculation_version,results_status")
+    .select("id,edition_id,status,total_points_to_distribute,rank_exponent,televote_engine_version,ballot_exponent,breadth_floor,breadth_exponent,support_exponent,rank_boost_strength,rank_boost_shape,calculation_version,results_status")
     .eq("id", roundId)
     .maybeSingle();
   if (roundError) fail(roundError.message);
@@ -84,11 +84,18 @@ async function main() {
   // unique show identity when two shows share the same participant roster.
   const { data: binding, error: bindingError } = await db
     .from("televoting_round_bindings")
-    .select("remote_round_id,show_id,edition_id,frozen_at")
+    .select("remote_round_id,remote_edition_id,edition_id,show_id,source_mode,frozen_at")
     .eq("remote_round_id", roundId)
     .maybeSingle();
   if (bindingError) fail(bindingError.message);
-  if (!binding || String(binding.show_id) !== showId || String(binding.edition_id) !== editionId || !binding.frozen_at) {
+  if (
+    !binding || String(binding.remote_round_id) !== roundId
+    || String(binding.remote_edition_id) !== String(round.edition_id)
+    || binding.source_mode !== "show"
+    || String(binding.show_id) !== showId
+    || String(binding.edition_id) !== editionId
+    || !binding.frozen_at
+  ) {
     fail(`round ${roundId} must have an exact frozen binding to Solaris show ${showId} in edition ${editionId}`);
   }
 
