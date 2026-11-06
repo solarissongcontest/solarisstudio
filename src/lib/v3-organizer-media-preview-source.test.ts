@@ -47,6 +47,16 @@ describe("Organizer Media Review opt-in external preview", () => {
     }
   });
 
+  it("rejects leading and trailing control characters before trimming", () => {
+    for (const url of [
+      "\nhttps://cdn.example.test/image.jpg",
+      "\thttps://cdn.example.test/image.jpg",
+      "https://cdn.example.test/image.jpg\r",
+    ]) {
+      expect(resolveOrganizerMediaPreviewSource(url, "artist_photo")).toBeNull();
+    }
+  });
+
   it("rejects relative, protocol-relative and credential-bearing links", () => {
     for (const url of ["/media/artist.jpg", "//cdn.example.test/artist.jpg", "https://user:pass@cdn.example.test/a.jpg"]) {
       expect(resolveOrganizerMediaPreviewSource(url, "artist_photo")).toBeNull();

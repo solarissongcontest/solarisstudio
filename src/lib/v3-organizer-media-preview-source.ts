@@ -28,8 +28,9 @@ export function resolveOrganizerMediaPreviewSource(
   sourceUrl: string | null | undefined,
   assetType: MediaAssetType,
 ): OrganizerMediaPreviewSource | null {
+  if (sourceUrl && /[\u0000-\u001f\u007f]/.test(sourceUrl)) return null;
   const trimmed = sourceUrl?.trim();
-  if (!trimmed || /[\u0000-\u001f\u007f]/.test(trimmed)) return null;
+  if (!trimmed) return null;
   try {
     const parsed = new URL(trimmed);
     if (
