@@ -34,6 +34,10 @@
   padding: .72rem .85rem;
 }
 
+.public-mobile-section-panel[hidden] {
+  display: none;
+}
+
 .public-mobile-section-panel {
   display: grid;
   gap: .65rem;
@@ -51,6 +55,16 @@
   border-radius: .75rem;
   padding: .55rem .65rem;
   color: var(--foreground);
+}
+
+.public-mobile-section-trigger:focus-visible,
+.public-mobile-section-link:focus-visible,
+.public-site-sidebar-link:focus-visible,
+.public-drawer-page-link:focus-visible,
+.public-section-nav-toggle:focus-visible,
+.public-site-sidebar details > summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
 }
 
 .public-mobile-section-link.is-active {
@@ -74,7 +88,7 @@
 
 .public-site-sidebar-link {
   display: flex;
-  min-height: 2.5rem;
+  min-height: 2.75rem;
   align-items: center;
   border-radius: .65rem;
   padding: .45rem .65rem;
@@ -176,12 +190,31 @@
     padding: 0;
   }
 
-  .public-site-sidebar details {
-    display: none;
+  /* The tablet web rail must not silently hide Advanced destinations.
+     Expand them within the existing scrollable web navigation instead. */
+  .public-site-sidebar > nav > details.mt-4.border-t {
+    display: block;
+    margin: 0;
+    border: 0;
+    padding: 0;
+  }
+
+  .public-site-sidebar details > summary {
+    min-height: 2.75rem;
+    white-space: nowrap;
+    padding-inline: .65rem;
+  }
+
+  .public-site-sidebar details[open] > div {
+    display: flex;
+    align-items: center;
+    gap: .2rem;
+    margin: 0;
+    white-space: nowrap;
   }
 
   .public-site-sidebar-link {
-    min-height: 2.4rem;
+    min-height: 2.75rem;
     white-space: nowrap;
   }
 }
@@ -216,7 +249,7 @@
 
   .public-section-navigation.is-collapsible .public-section-nav-toggle {
     display: flex;
-    min-height: 2.5rem;
+    min-height: 2.75rem;
     width: 100%;
     align-items: center;
     gap: .55rem;
@@ -257,5 +290,46 @@
 
   .public-section-navigation.is-collapsed .public-section-nav-body {
     display: none;
+  }
+}
+
+/* System high-contrast palettes can suppress gradients and translucent fills.
+   Preserve visible focus, active-route identity and section boundaries there. */
+@media (forced-colors: active) {
+  .public-mobile-section-nav,
+  .public-site-sidebar {
+    border-color: CanvasText;
+  }
+
+  .public-mobile-section-trigger:focus-visible,
+  .public-mobile-section-link:focus-visible,
+  .public-site-sidebar-link:focus-visible,
+  .public-drawer-page-link:focus-visible,
+  .public-section-nav-toggle:focus-visible,
+  .public-site-sidebar details > summary:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  .public-mobile-section-link.is-active,
+  .public-site-sidebar-link.is-active {
+    color: HighlightText;
+    background: Highlight;
+    box-shadow: none;
+    border-inline-start: 3px solid HighlightText;
+  }
+}
+
+/* Avoid animated disclosures and collapsing rails when the user requests
+   reduced motion, while leaving layout and navigation semantics unchanged. */
+@media (prefers-reduced-motion: reduce) {
+  .public-mobile-section-nav .transition-transform,
+  .public-section-navigation .transition-transform,
+  .public-site-sidebar,
+  .public-site-sidebar-link,
+  .public-drawer-page-link,
+  .public-section-nav-toggle {
+    transition: none !important;
+    animation: none !important;
   }
 }

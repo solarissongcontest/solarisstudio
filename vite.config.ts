@@ -25,6 +25,10 @@ export default defineConfig({
     build: {
       rolldownOptions: {
         output: {
+          // Keep Oxc's safe private-binding minification without the broad
+          // shared-cross-route group that broke Organizer browser hydration.
+          // This exact option passed the isolated Browser Audit in #2190.
+          minify: { compress: true, mangle: { toplevel: true } },
           // Production evidence showed repeated gzip framing across hundreds of
           // tiny Lucide chunks and several TanStack Router helper chunks. Keep
           // package behavior unchanged while consolidating only those vendor
@@ -89,6 +93,30 @@ export default defineConfig({
               {
                 name: "shared-controls",
                 test: /[\\/]src[\\/]components[\\/]ui[\\/]/,
+                minShareCount: 2,
+                minSize: 5000,
+                priority: 1,
+              },
+              // Reused public-browser presentation primitives are shared across
+              // the section rails, hubs and data explorers. Consolidate only
+              // components referenced from multiple route chunks; preserve
+              // route-only modules and installed-app boundaries.
+              {
+                name: "shared-cross-page-primitives",
+                // Preserve existing app, control, Organizer and V3 shell
+                // boundaries. Only reused cross-page presentation modules
+                // can join the group; route-specific modules remain lazy.
+                test: /[\\/]src[\\/]components[\\/](?!(?:app|ui|admin|v3)[\\/])/,
+                minShareCount: 2,
+                minSize: 5000,
+                priority: 1,
+              },
+              // Reused client-only domain modules were each carrying separate
+              // chunk wrappers and gzip framing. Combine only modules actually
+              // shared by multiple lazy entrypoints; preserve route-local code.
+              {
+                name: "shared-client-helpers",
+                test: /[\\/]src[\\/]lib[\\/](?!.*(?:\.server\.|\.test\.|\.contract\.|\.spec\.))/,
                 minShareCount: 2,
                 minSize: 5000,
                 priority: 1,

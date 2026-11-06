@@ -28,9 +28,10 @@ const GROUPS: V3DirectoryGroup[] = PUBLIC_TOOL_GROUPS.map((group) => ({
 function ToolsPage() {
   return (
     <V3DirectoryFamilyIndex
+      variant="tools"
       title="Tools"
-      eyebrow="SOLARIS TOOLKIT"
-      intro="Scorecharts, predictions, result tests, comparisons and archive tools in one searchable collection."
+      eyebrow="DISCOVER & ANALYSE"
+      intro="Find useful ways to follow, explore and analyse Solaris."
       browserIntro="Find the right way to explore results, predictions or history."
       searchLabel="Search Solaris tools"
       searchPlaceholder="Search tools and topics…"

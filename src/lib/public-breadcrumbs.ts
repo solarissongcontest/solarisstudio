@@ -59,7 +59,7 @@ function detailBreadcrumbs(
 ): PublicBreadcrumb[] {
   const countryMatch = pathname.match(/^\/countries\/([^/]+)\/?$/i);
   if (countryMatch) {
-    const code = decodeURIComponent(countryMatch[1]);
+    const code = decodeBreadcrumbSegment(countryMatch[1]);
     const country = context.countries?.find(
       (item) => item.short_code.toLowerCase() === code.toLowerCase(),
     );
@@ -68,7 +68,7 @@ function detailBreadcrumbs(
 
   const wikiMatch = pathname.match(/^\/wiki\/([^/]+)\/?$/i);
   if (wikiMatch) {
-    const code = decodeURIComponent(wikiMatch[1]);
+    const code = decodeBreadcrumbSegment(wikiMatch[1]);
     const country = context.countries?.find(
       (item) => item.short_code.toLowerCase() === code.toLowerCase(),
     );
@@ -77,21 +77,21 @@ function detailBreadcrumbs(
 
   const editionMatch = pathname.match(/^\/editions\/([^/]+)\/?$/i);
   if (editionMatch) {
-    const slug = decodeURIComponent(editionMatch[1]);
+    const slug = decodeBreadcrumbSegment(editionMatch[1]);
     const edition = context.editions?.find((item) => item.slug === slug);
     return [{ label: edition ? editionCrumbLabel(edition) : humanize(slug) }];
   }
 
   const storyMatch = pathname.match(/^\/stories\/([^/]+)\/?$/i);
   if (storyMatch) {
-    const slug = decodeURIComponent(storyMatch[1]);
+    const slug = decodeBreadcrumbSegment(storyMatch[1]);
     const edition = context.editions?.find((item) => item.slug === slug);
     return [{ label: edition ? editionCrumbLabel(edition) : humanize(slug) }];
   }
 
   const showMatch = pathname.match(/^\/shows\/([^/]+)\/?$/i);
   if (showMatch) {
-    const showId = decodeURIComponent(showMatch[1]);
+    const showId = decodeBreadcrumbSegment(showMatch[1]);
     const show = context.shows?.find((item) => item.id === showId);
     if (!show) return [{ label: "Show" }];
 
@@ -111,7 +111,7 @@ function detailBreadcrumbs(
 
   const ruleMatch = pathname.match(/^\/rules\/([^/]+)\/?$/i);
   if (ruleMatch) {
-    return [{ label: `Rule ${decodeURIComponent(ruleMatch[1])}` }];
+    return [{ label: `Rule ${decodeBreadcrumbSegment(ruleMatch[1])}` }];
   }
 
   if (/^\/integrity\/appeal\.[^/]+\/?$/i.test(pathname)) {
@@ -119,6 +119,16 @@ function detailBreadcrumbs(
   }
 
   return [];
+}
+
+/** Invalid percent escapes must not break public browser navigation. */
+function decodeBreadcrumbSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    // Preserve the literal URL segment rather than crashing the breadcrumb.
+    return segment;
+  }
 }
 
 function editionCrumbLabel(

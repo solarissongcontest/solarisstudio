@@ -1,4 +1,5 @@
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
+import { requirePrivateVotingAnalysisServer } from "@/integrations/televoting/private-analysis-auth.server";
 import { loadCanonicalVotingContextServer, canonicalEditionForRound } from "@/integrations/televoting/canonical-context.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 
@@ -83,6 +84,8 @@ async function resolveScope(scopeInput: MergedAnalysisScope) {
 }
 
 export async function getMergedScopedAnalyticsServer(scopeInput: MergedAnalysisScope, options: MergedAnalyticsOptions = {}) {
+  // Raw analytics reads remain privileged even if called without a browser adapter.
+  await requirePrivateVotingAnalysisServer();
   await requireMergedTelevotingAdminServer();
   const [resolved, canonical] = await Promise.all([resolveScope(scopeInput), loadCanonicalVotingContextServer()]);
   const roundIds = resolved.rounds.map((round) => round.id);

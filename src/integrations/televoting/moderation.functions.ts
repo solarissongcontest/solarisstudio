@@ -32,9 +32,19 @@ export type MergedModerationSubmission = {
   }>;
 };
 
+async function requireModerationCapability(capability: "integrity.read" | "integrity.manage") {
+  // Browser-facing adapters must authorize BEFORE loading the module that
+  // owns privileged Televote clients. Direct server callers are also guarded.
+  const { requireSolarisCapabilityServer } = await import(
+    "@/integrations/supabase/capabilities.server"
+  );
+  await requireSolarisCapabilityServer(capability, null);
+}
+
 export const listMergedModerationSubmissions = createServerFn({ method: "POST" })
   .inputValidator((data: { roundId?: string | null } = {}) => ({ roundId: data?.roundId ?? null }))
   .handler(async ({ data }) => {
+    await requireModerationCapability("integrity.read");
     const { listMergedModerationSubmissionsServer } = await import(
       "@/integrations/televoting/moderation.server"
     );
@@ -48,6 +58,7 @@ export const setMergedSubmissionStatus = createServerFn({ method: "POST" })
     return { ...data, reason: data.reason?.trim() || undefined };
   })
   .handler(async ({ data }) => {
+    await requireModerationCapability("integrity.manage");
     const { setMergedSubmissionStatusServer } = await import(
       "@/integrations/televoting/moderation.server"
     );
@@ -63,6 +74,7 @@ export const softDeleteMergedSubmission = createServerFn({ method: "POST" })
     return { id: data.id, reason };
   })
   .handler(async ({ data }) => {
+    await requireModerationCapability("integrity.manage");
     const { softDeleteMergedSubmissionServer } = await import(
       "@/integrations/televoting/moderation.server"
     );
@@ -75,6 +87,7 @@ export const restoreMergedSubmission = createServerFn({ method: "POST" })
     return { id: data.id, reason: data.reason?.trim() || undefined };
   })
   .handler(async ({ data }) => {
+    await requireModerationCapability("integrity.manage");
     const { restoreMergedSubmissionServer } = await import(
       "@/integrations/televoting/moderation.server"
     );
@@ -87,6 +100,7 @@ export const updateMergedSubmissionNote = createServerFn({ method: "POST" })
     return { id: data.id, note: String(data.note ?? "").slice(0, 2000) };
   })
   .handler(async ({ data }) => {
+    await requireModerationCapability("integrity.manage");
     const { updateMergedSubmissionNoteServer } = await import(
       "@/integrations/televoting/moderation.server"
     );
@@ -118,6 +132,7 @@ export const editMergedSubmissionEntries = createServerFn({ method: "POST" })
     return { id: data.id, entries: data.entries, reason };
   })
   .handler(async ({ data }) => {
+    await requireModerationCapability("integrity.manage");
     const { editMergedSubmissionEntriesServer } = await import(
       "@/integrations/televoting/moderation.server"
     );
@@ -125,12 +140,10 @@ export const editMergedSubmissionEntries = createServerFn({ method: "POST" })
   });
 
 export const getMergedModerationAlertsCount = createServerFn({ method: "GET" }).handler(async () => {
-  try {
-    const { getMergedModerationAlertsCountServer } = await import(
-      "@/integrations/televoting/moderation.server"
-    );
-    return await getMergedModerationAlertsCountServer();
-  } catch {
-    return 0;
-  }
+  await requireModerationCapability("integrity.read");
+  const { getMergedModerationAlertsCountServer } = await import(
+    "@/integrations/televoting/moderation.server"
+  );
+  // Unauthorized and unavailable evidence must not be disguised as zero alerts.
+  return getMergedModerationAlertsCountServer();
 });

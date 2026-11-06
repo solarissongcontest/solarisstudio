@@ -14,6 +14,8 @@ export type ScheduledRundownSegment = RundownSegment & {
   plannedStartedAt: string;
   estimatedStartedAt: string;
   plannedCompletedAt: string;
+  /** Projected cue end after observed overrun, early finish or pre-air skip. */
+  estimatedCompletedAt: string;
   driftSeconds: number;
 };
 
@@ -61,21 +63,30 @@ export function buildBroadcastRundown(
       latestDrift = secondsBetween(plannedStartedAt, estimatedStartedAt);
     }
 
-    let segmentEnd = plusSeconds(estimatedStartedAt, segment.plannedDurationSeconds);
+    // A cue skipped before going live never occupies airtime. The skip command
+    // may record when the operator clicked Skip, which is not a broadcast end
+    // timestamp and must not pull the schedule backwards or into the future.
+    // A cue skipped *after* going live still uses its observed completion time.
+    const skippedBeforeAir = segment.status === 'skipped' && !segment.actualStartedAt;
+    let segmentEnd = skippedBeforeAir
+      ? estimatedStartedAt
+      : plusSeconds(estimatedStartedAt, segment.plannedDurationSeconds);
     if (segment.actualCompletedAt) {
       const actualEndMs = new Date(segment.actualCompletedAt).getTime();
       if (!Number.isFinite(actualEndMs)) throw new Error(`Invalid actual completion time for segment: ${segment.id}`);
-      segmentEnd = new Date(actualEndMs).toISOString();
-      latestDrift = secondsBetween(plannedCompletedAt, segmentEnd);
-    } else {
-      latestDrift = secondsBetween(plannedStartedAt, estimatedStartedAt);
+      if (segment.actualStartedAt && actualEndMs < new Date(segment.actualStartedAt).getTime()) {
+        throw new Error(`Actual completion precedes start for segment: ${segment.id}`);
+      }
+      if (!skippedBeforeAir) segmentEnd = new Date(actualEndMs).toISOString();
     }
+    latestDrift = secondsBetween(plannedCompletedAt, segmentEnd);
 
     const scheduledSegment: ScheduledRundownSegment = {
       ...segment,
       plannedStartedAt,
       estimatedStartedAt,
       plannedCompletedAt,
+      estimatedCompletedAt: segmentEnd,
       driftSeconds: latestDrift,
     };
 

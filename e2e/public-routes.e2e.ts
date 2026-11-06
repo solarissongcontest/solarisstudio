@@ -7,6 +7,7 @@ const fullAudit = process.env.E2E_FULL_AUDIT === "1";
 const PR_SMOKE_PUBLIC_ROUTES = [
   "/",
   "/auth",
+  "/archive",
   "/confirmations",
   "/countries",
   "/editions",
@@ -16,7 +17,10 @@ const PR_SMOKE_PUBLIC_ROUTES = [
   "/pulse",
   "/result-lab",
   "/rules",
+  "/encyclopedia",
   "/site-directory",
+  "/shows",
+  "/stories",
   "/tools",
   "/televoting",
   "/wiki",
@@ -93,6 +97,11 @@ test("Country directory renders the correct mobile-web and desktop browse compos
     await expect(directory.locator(".v3-countries-region-rail")).toBeVisible();
     await expect(directory.locator(".v3-countries-desktop-grid")).toBeVisible();
     await expect(page.locator("[data-country-directory-web-header]")).toHaveCount(0);
+    await expect(directory.locator(".v3-countries-intro")).toHaveCount(0);
+    const font = await page.locator(".countries-library-hero h1").evaluate(
+      (heading) => getComputedStyle(heading).fontFamily,
+    );
+    expect(font, "Countries should use the ordinary Solaris UI typeface").not.toMatch(/Classica Crastao/i);
   }
   await expect(directory.getByRole("searchbox", { name: "Search countries" })).toBeVisible();
   await expect(directory.locator('a[href^="/countries/"]').first()).toBeVisible();
@@ -109,7 +118,7 @@ test("Country directory renders the correct mobile-web and desktop browse compos
   }
   const search = directory.getByRole("searchbox", { name: "Search countries" });
   await search.fill("zz-no-such-solaris-country");
-  await expect(directory.getByText("No countries found")).toBeVisible();
+  await expect(directory.getByText("No matching countries", { exact: true })).toBeVisible();
   await search.fill("");
   const overflow = await page.evaluate(() =>
     Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
@@ -148,6 +157,10 @@ test("Public directory family distinguishes mobile website from desktop explorer
       await expect(page.locator("[data-directory-mobile-header]")).toHaveCount(0);
       await expect(directory.locator(".v3-directory-desktop-rail")).toBeVisible();
       await expect(directory.locator(".v3-directory-desktop-grid").first()).toBeVisible();
+      const font = await directory.locator(".page-header h1").evaluate(
+        (heading) => getComputedStyle(heading).fontFamily,
+      );
+      expect(font, `${route} should use Solaris UI typography`).not.toMatch(/Classica Crastao/i);
     }
 
     const search = directory.getByRole("searchbox", {
@@ -200,6 +213,105 @@ test("Editions archive keeps distinct mobile-browser and desktop browse layouts"
   await testInfo.attach(`directory-family-editions-${testInfo.project.name}.png`, {
     body: await page.screenshot({ fullPage: true }),
     contentType: "image/png",
+  });
+});
+
+test("Shows and Archive preserve three deliberate website directory layouts", async ({ page }, testInfo) => {
+  test.skip(!["public-390", "public-1440"].includes(testInfo.project.name));
+  const mobile = testInfo.project.name === "public-390";
+  for (const route of ["/shows", "/archive"]) {
+    await page.goto(route, { waitUntil: "domcontentloaded" });
+    const directory = page.locator("[data-directory-experience]");
+    await expect(directory).toHaveAttribute(
+      "data-directory-experience", mobile ? "mobile-web" : "desktop-web",
+      { timeout: 15_000 },
+    );
+    await expect(page.getByRole("heading", { level: 1, name: route === "/archive" ? "Archive" : "Shows" })).toHaveCount(1);
+    if (mobile) {
+      await expect(page.locator("[data-directory-mobile-header]")).toBeVisible();
+    } else {
+      await expect(page.locator("[data-directory-mobile-header]")).toHaveCount(0);
+    }
+
+    if (route === "/archive") {
+      const search = directory.getByRole("searchbox", { name: "Search archive" });
+      await expect(search).toBeVisible();
+      await search.fill("unfindable-solaris-archive");
+      await expect(directory.getByText("No matching archive topics")).toBeVisible();
+      await search.fill("");
+      await expect(directory.locator('a[href="/editions"]')).toBeVisible();
+      if (mobile) {
+        await expect(directory.locator(".v3-directory-mobile-list").first()).toBeVisible();
+      } else {
+        await expect(directory.locator(".v3-directory-desktop-rail")).toBeVisible();
+      }
+    } else {
+      await expect(directory.locator("[data-show-directory-experience]")).toHaveAttribute(
+        "data-show-directory-experience", mobile ? "mobile-web" : "desktop-web",
+      );
+    }
+
+    const overflow = await page.evaluate(() =>
+      Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+    );
+    expect(overflow, `${route} should not horizontally overflow`).toBeLessThanOrEqual(2);
+    await testInfo.attach(`directory-family-${route.slice(1)}-${testInfo.project.name}.png`, {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png",
+    });
+  }
+});
+
+test("Stories and Reference preserve editorial mobile-web and desktop discovery", async ({ page }, testInfo) => {
+  test.skip(!["public-390", "public-1440"].includes(testInfo.project.name));
+  const mobile = testInfo.project.name === "public-390";
+
+  await page.goto("/stories", { waitUntil: "domcontentloaded" });
+  const stories = page.locator(".v3-stories-directory");
+  await expect(stories).toHaveAttribute("data-directory-experience", mobile ? "mobile-web" : "desktop-web");
+  await expect(stories.getByRole("searchbox", { name: "Search published stories" })).toBeVisible();
+  if (mobile) {
+    await expect(stories.locator("[data-directory-mobile-header]")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Stories" })).toBeVisible();
+  } else {
+    await expect(stories.locator("[data-directory-mobile-header]")).toHaveCount(0);
+    await expect(stories.getByRole("heading", { level: 1, name: "Stories", exact: true })).toBeVisible();
+  }
+
+  await testInfo.attach(`directory-family-stories-${testInfo.project.name}.png`, {
+    body: await page.screenshot({ fullPage: true }), contentType: "image/png",
+  });
+
+  await page.goto("/encyclopedia", { waitUntil: "domcontentloaded" });
+  const reference = page.locator(".v3-reference-directory");
+  const disabled = reference.getByText("Reference is not enabled yet");
+  const referenceSearch = reference.getByRole("searchbox", { name: "Search Reference" });
+  await expect(reference).toHaveAttribute("data-directory-experience", mobile ? "mobile-web" : "desktop-web");
+  // The wrapper is deliberately present for both server-owned rollout states.
+  // Wait for the actual enabled control or disabled explanation, not just the wrapper.
+  await expect.poll(async () => (await disabled.isVisible()) || (await referenceSearch.isVisible())).toBe(true);
+  if (!(await disabled.isVisible())) {
+    await expect(referenceSearch).toBeVisible();
+    if (mobile) {
+      await expect(reference.locator("[data-directory-mobile-header]")).toBeVisible();
+      await expect(reference.getByRole("combobox", { name: "Filter Reference" })).toBeVisible();
+    } else {
+      await expect(reference.locator("[data-directory-mobile-header]")).toHaveCount(0);
+      await expect(reference.locator(".v3-directory-desktop-rail")).toBeVisible();
+    }
+  } else {
+    // Rollout-off is a valid, explicitly tested public state, not enabled-layout evidence.
+    await expect(disabled).toBeVisible();
+    await expect(reference.getByText(/its rollout flag is still off/)).toBeVisible();
+    await expect(referenceSearch).toHaveCount(0);
+    await expect(reference.locator(".v3-directory-desktop-rail")).toHaveCount(0);
+  }
+  const overflow = await page.evaluate(() =>
+    Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+  );
+  expect(overflow, "Reference must not overflow its browser viewport").toBeLessThanOrEqual(2);
+  await testInfo.attach(`directory-family-reference-${testInfo.project.name}.png`, {
+    body: await page.screenshot({ fullPage: true }), contentType: "image/png",
   });
 });
 
@@ -311,7 +423,7 @@ test("representative page families remain usable at 200% text size", async ({ pa
   );
 
   const context = page.context();
-  for (const route of ["/countries", "/site-directory", "/tools", "/editions", "/pulse", "/prediction-league", "/result-lab", "/rules", "/integrity"]) {
+  for (const route of ["/countries", "/site-directory", "/tools", "/editions", "/shows", "/archive", "/stories", "/encyclopedia", "/pulse", "/prediction-league", "/result-lab", "/rules", "/integrity"]) {
     const routePage = await context.newPage();
     try {
       await routePage.goto(route, { waitUntil: "domcontentloaded" });
@@ -325,7 +437,7 @@ test("representative page families remain usable at 200% text size", async ({ pa
           "Countries runtime boot must finish before accessibility verification",
         ).toHaveCount(0, { timeout: 15_000 });
       }
-      if (route === "/site-directory" || route === "/tools" || route === "/editions") {
+      if (route === "/site-directory" || route === "/tools" || route === "/editions" || route === "/archive" || route === "/shows") {
         await expect(
           routePage.locator("[data-directory-boot]"),
           `${route} runtime boot must finish before accessibility verification`,
@@ -389,4 +501,61 @@ test("captures the final visual archetypes for review", async ({ page }, testInf
       await routePage.close();
     }
   }
+});
+
+test("Rulebook chapter directory preserves all 22 links across mobile web and desktop", async ({ page }, testInfo) => {
+  test.skip(!["public-390", "public-1440"].includes(testInfo.project.name));
+  const mobileWeb = testInfo.project.name === "public-390";
+  await page.goto("/rules/chapters", { waitUntil: "domcontentloaded" });
+  const directory = page.locator("[data-directory-experience]");
+  await expect(directory).toHaveAttribute(
+    "data-directory-experience", mobileWeb ? "mobile-web" : "desktop-web",
+    { timeout: 15_000 },
+  );
+  await expect(directory.getByRole("heading", { level: 1, name: "22 chapters" })).toBeVisible();
+  await expect(directory.locator('a[href^="/rules/chapters/"]')).toHaveCount(22);
+  if (mobileWeb) {
+    await expect(directory.locator("[data-directory-mobile-header]")).toBeVisible();
+    await expect(directory.locator(".v3-directory-mobile-list").first()).toBeVisible();
+    await expect(directory.getByRole("combobox", { name: "Browse chapters by category" })).toBeVisible();
+    await expect(directory.locator(".v3-directory-desktop-rail")).toHaveCount(0);
+  } else {
+    await expect(directory.locator(".v3-directory-desktop-rail")).toBeVisible();
+    await expect(directory.locator(".v3-directory-desktop-grid").first()).toBeVisible();
+    await expect(directory.locator("[data-directory-mobile-header]")).toHaveCount(0);
+  }
+
+  const search = directory.getByRole("searchbox", { name: "Search Rulebook chapters" });
+  await search.fill("22");
+  await expect(directory.locator('a[href^="/rules/chapters/"]')).toHaveCount(1);
+  await search.fill("");
+  await expect(directory.locator('a[href^="/rules/chapters/"]')).toHaveCount(22);
+  await search.fill("no-such-rulebook-chapter-solaris");
+  await expect(directory.getByText("No matching chapters")).toBeVisible();
+  await search.fill("");
+
+  // Separate normal-density visual evidence from the deliberate 200% stress capture.
+  // A successful overflow test at high zoom does not certify the ordinary layout.
+  await testInfo.attach(`rule-chapters-default-${testInfo.project.name}.png`, {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: "image/png",
+  });
+  await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+  await expect(directory.getByRole("heading", { level: 1, name: "22 chapters" })).toBeVisible();
+  const overflow = await page.evaluate(() =>
+    Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+  );
+  expect(overflow, "Chapter directory must fit at 200% text size").toBeLessThanOrEqual(2);
+  if (!mobileWeb) {
+    // Horizontal overflow alone misses unreadable grid slivers within an embedded shell.
+    // The chapter card must remain usefully readable when the root font is doubled.
+    const cardWidth = await directory.locator(".v3-directory-desktop-card").first().evaluate(
+      (element) => element.getBoundingClientRect().width,
+    );
+    expect(cardWidth, "Desktop chapter cards must not collapse at 200% text").toBeGreaterThanOrEqual(220);
+  }
+  await testInfo.attach(`rule-chapters-${testInfo.project.name}.png`, {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: "image/png",
+  });
 });
