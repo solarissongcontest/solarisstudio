@@ -1,10 +1,11 @@
 export type V3FollowNotificationLevel = "all" | "important" | "none";
-export type V3FollowEntityType = "country" | "edition" | "show";
+export type V3FollowEntityType = "country" | "edition" | "show" | "organization" | "unsupported";
 
 export type V3FollowRecord = {
   id: string;
   profile_id: string;
-  entity_type: V3FollowEntityType;
+  // The DB may introduce new follow types before this consumer is migrated.
+  entity_type: string;
   entity_id: string;
   notification_level: V3FollowNotificationLevel;
   created_at: string;
@@ -14,6 +15,7 @@ export type V3FollowRecord = {
 type CountryLike = { id: string; name: string; short_code: string };
 type EditionLike = { id: string; name: string; slug: string; edition_number: number | null };
 type ShowLike = { id: string; name: string; edition_id: string };
+type OrganizationLike = { id: string; slug: string; officialName: string };
 
 export type V3FollowingSavedItem = {
   followId: string;
@@ -61,25 +63,28 @@ export function buildV3FollowingSavedProjection({
   countries,
   editions,
   shows,
+  organizations = [],
 }: {
   viewerId: string;
   follows: readonly V3FollowRecord[];
   countries: readonly CountryLike[];
   editions: readonly EditionLike[];
   shows: readonly ShowLike[];
+  organizations?: readonly OrganizationLike[];
 }): V3FollowingSavedProjection {
   const scoped = follows.every((follow) => follow.profile_id === viewerId);
   if (!scoped) {
     return {
       scoped: false,
       items: [],
-      counts: { country: 0, edition: 0, show: 0 },
+      counts: { country: 0, edition: 0, show: 0, organization: 0, unsupported: 0 },
     };
   }
 
   const countryById = new Map(countries.map((country) => [country.id, country]));
   const editionById = new Map(editions.map((edition) => [edition.id, edition]));
   const showById = new Map(shows.map((show) => [show.id, show]));
+  const organizationById = new Map(organizations.map((organization) => [organization.id, organization]));
 
   const items = follows.map((follow): V3FollowingSavedItem => {
     if (follow.entity_type === "country") {
@@ -110,6 +115,34 @@ export function buildV3FollowingSavedProjection({
       };
     }
 
+    if (follow.entity_type === "organization") {
+      const organization = organizationById.get(follow.entity_id);
+      return {
+        followId: follow.id,
+        entityType: "organization",
+        entityId: follow.entity_id,
+        title: organization?.officialName ?? "Unavailable institution",
+        context: "Institution",
+        href: organization ? `/world/organizations/${encodeURIComponent(organization.slug)}` : null,
+        notificationLevel: follow.notification_level,
+        resolved: Boolean(organization),
+      };
+    }
+
+    // Never silently classify a future follow kind as a Show.
+    if (follow.entity_type !== "show") {
+      return {
+        followId: follow.id,
+        entityType: "unsupported",
+        entityId: follow.entity_id,
+        title: "Unsupported saved item",
+        context: "Saved item",
+        href: null,
+        notificationLevel: follow.notification_level,
+        resolved: false,
+      };
+    }
+
     const show = showById.get(follow.entity_id);
     const edition = show ? editionById.get(show.edition_id) : null;
     return {
@@ -131,6 +164,8 @@ export function buildV3FollowingSavedProjection({
       country: items.filter((item) => item.entityType === "country").length,
       edition: items.filter((item) => item.entityType === "edition").length,
       show: items.filter((item) => item.entityType === "show").length,
+      organization: items.filter((item) => item.entityType === "organization").length,
+      unsupported: items.filter((item) => item.entityType === "unsupported").length,
     },
   };
 }
