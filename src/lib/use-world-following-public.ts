@@ -41,7 +41,8 @@ export function usePublishedWorldFollowing({
     retry: false,
     refetchOnWindowFocus: true,
   });
-  const verified = lookup.isSuccess && lookup.isFetchedAfterMount && !lookup.isFetching;
+  const verified = enabled && scoped && ids.length > 0 &&
+    lookup.isSuccess && lookup.isFetchedAfterMount && !lookup.isFetching;
   return {
     scoped,
     ids,
