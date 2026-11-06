@@ -21,14 +21,17 @@ describe("Organizer Jury Integrity protected ballot boundary", () => {
     expect(server).toContain("if (!scopedEditionId) throw new Error");
   });
 
-  it("requires BOTH integrity and jury ballot read permission for the same selected edition", () => {
-    const integrity = 'requireSolarisCapabilityServer("integrity.read", scopedEditionId)';
-    const ballots = 'requireSolarisCapabilityServer("jury.ballots.read", scopedEditionId)';
-    expect(server).toContain(integrity);
-    expect(server).toContain(ballots);
-    expect(server.indexOf(integrity)).toBeLessThan(server.indexOf(ballots));
-    expect(server.indexOf(ballots)).toBeLessThan(server.indexOf('const db = supabaseAdmin'));
-    expect(server.indexOf(ballots)).toBeLessThan(server.indexOf('.from("vote_preflight_checks")'));
+  it("resolves the exact edition capability set once and checks BOTH permissions before private reads", () => {
+    const resolve = "getSolarisCapabilitiesServer(scopedEditionId)";
+    const capabilities = '["integrity.read", "jury.ballots.read"]';
+    expect(server).toContain(resolve);
+    expect(server).toContain(capabilities);
+    expect(server.match(/getSolarisCapabilitiesServer\(scopedEditionId\)/g)).toHaveLength(1);
+    expect(server).toContain("!access.capabilities.includes(capability)");
+    expect(server).not.toContain("requireSolarisCapabilityServer");
+    expect(server.indexOf(resolve)).toBeLessThan(server.indexOf(capabilities));
+    expect(server.indexOf(capabilities)).toBeLessThan(server.indexOf("const db = supabaseAdmin"));
+    expect(server.indexOf(capabilities)).toBeLessThan(server.indexOf('.from("vote_preflight_checks")'));
   });
 
   it("does not silently discard the private evidence that justifies the extra permission", () => {
