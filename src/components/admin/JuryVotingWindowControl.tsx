@@ -89,7 +89,7 @@ export function JuryVotingWindowControl() {
 
   const { data: windows, isLoading, isError, isRefetchError, refetch } = useQuery<WindowRow[]>({
     enabled: Boolean(actorId && edition?.id && slug),
-    // Private voting operations must not reuse a prior organizer\'s cached status.
+    // Private voting operations must not reuse a prior organizer's cached status.
     queryKey: ["jury-voting-windows", actorId, edition?.id],
     queryFn: async () => {
       const { data, error } = await supabase
