@@ -354,13 +354,48 @@ grant all on table public.world_documents,
   public.world_document_version_provisions,
   public.world_document_artifacts to service_role;
 
+
+-- One shared, owner-executed boolean gate covers direct PostgREST SELECT as
+-- well as SECURITY DEFINER document projections. Neither public visibility
+-- alone nor a browser WorldPublicGate constitutes publication authority.
+-- Requiring immutable legal history excludes draft-only Works from discovery.
+create or replace function public.world_document_publicly_available_v1(p_document_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog
+as $public_read$
+  select coalesce(
+    public.studio2_feature_enabled('terra_world_public', null)
+    and exists (
+      select 1
+      from public.world_documents doc
+      join public.world_organizations org on org.id = doc.organization_id
+      where doc.id = p_document_id
+        and doc.visibility = 'public'
+        and org.public_visibility = 'public'
+        and org.status in ('recognized','active','suspended','dissolved','historical')
+        and exists (
+          select 1 from public.world_document_versions ver
+          where ver.document_id = doc.id
+            and ver.publication_state in ('published','superseded','historical_source')
+        )
+    ), false
+  )
+$public_read$;
+revoke all on function public.world_document_publicly_available_v1(uuid)
+  from public, anon, authenticated;
+grant execute on function public.world_document_publicly_available_v1(uuid)
+  to anon, authenticated, service_role;
+
 create policy world_documents_anon_read on public.world_documents
 for select to anon
-using (visibility = 'public');
+using (public.world_document_publicly_available_v1(id));
 create policy world_documents_authenticated_read on public.world_documents
 for select to authenticated
 using (
-  visibility = 'public'
+  public.world_document_publicly_available_v1(id)
   or (visibility = 'members' and public.world_document_member_allowed_v1(organization_id))
   or public.world_access_allowed('world.document.manage', organization_id, null, null, 'document', id)
   or public.world_access_allowed('world.document.publish', organization_id, null, null, 'document', id)
@@ -373,7 +408,7 @@ using (
   publication_state in ('published','superseded','historical_source')
   and exists (
     select 1 from public.world_documents document_row
-    where document_row.id = document_id and document_row.visibility = 'public'
+    where document_row.id = document_id and public.world_document_publicly_available_v1(document_row.id)
   )
 );
 create policy world_document_versions_authenticated_read on public.world_document_versions
@@ -386,7 +421,7 @@ using (
         (
           publication_state in ('published','superseded','historical_source')
           and (
-            document_row.visibility = 'public'
+            public.world_document_publicly_available_v1(document_row.id)
             or (document_row.visibility = 'members' and public.world_document_member_allowed_v1(document_row.organization_id))
           )
         )
@@ -405,7 +440,7 @@ using (exists (
   join public.world_documents document_row on document_row.id = version_row.document_id
   where version_provision.provision_id = world_document_provisions.id
     and version_row.publication_state in ('published','superseded','historical_source')
-    and document_row.visibility = 'public'
+    and public.world_document_publicly_available_v1(document_row.id)
 ));
 create policy world_document_provisions_authenticated_read on public.world_document_provisions
 for select to authenticated
@@ -427,7 +462,7 @@ using (
     where version_provision.provision_id = world_document_provisions.id
       and version_row.publication_state in ('published','superseded','historical_source')
       and (
-        document_row.visibility = 'public'
+        public.world_document_publicly_available_v1(document_row.id)
         or (document_row.visibility = 'members' and public.world_document_member_allowed_v1(document_row.organization_id))
       )
   )
@@ -441,7 +476,7 @@ using (exists (
   join public.world_documents document_row on document_row.id = version_row.document_id
   where version_row.id = document_version_id
     and version_row.publication_state in ('published','superseded','historical_source')
-    and document_row.visibility = 'public'
+    and public.world_document_publicly_available_v1(document_row.id)
 ));
 create policy world_document_version_provisions_authenticated_read on public.world_document_version_provisions
 for select to authenticated
@@ -454,7 +489,7 @@ using (exists (
       (
         version_row.publication_state in ('published','superseded','historical_source')
         and (
-          document_row.visibility = 'public'
+          public.world_document_publicly_available_v1(document_row.id)
           or (document_row.visibility = 'members' and public.world_document_member_allowed_v1(document_row.organization_id))
         )
       )
@@ -473,7 +508,7 @@ using (
     join public.world_documents document_row on document_row.id = version_row.document_id
     where version_row.id = document_version_id
       and version_row.publication_state in ('published','superseded','historical_source')
-      and document_row.visibility = 'public'
+      and public.world_document_publicly_available_v1(document_row.id)
   )
 );
 create policy world_document_artifacts_authenticated_read on public.world_document_artifacts
@@ -488,7 +523,7 @@ using (exists (
         status = 'ready'
         and version_row.publication_state in ('published','superseded','historical_source')
         and (
-          document_row.visibility = 'public'
+          public.world_document_publicly_available_v1(document_row.id)
           or (document_row.visibility = 'members' and public.world_document_member_allowed_v1(document_row.organization_id))
         )
       )
