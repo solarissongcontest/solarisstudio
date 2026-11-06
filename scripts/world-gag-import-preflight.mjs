@@ -14,7 +14,7 @@ const MAX_RECORDS = 5000;
 const MANIFEST_KEYS = new Set(['schemaVersion', 'source', 'records']);
 const SOURCE_KEYS = new Set(['documentId', 'documentSha256', 'citation', 'verifiedAt']);
 const RECORD_KEYS = new Set([
-  'identifier', 'outcome', 'sourceLocator', 'textAvailability', 'fullText',
+  'identifier', 'outcome', 'outcomeSourceLocator', 'sourceLocator', 'textAvailability', 'fullText',
   'fullTextSourceLocator', 'title', 'titleSourceLocator', 'sponsor', 'sponsorSourceLocator',
 ]);
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -36,6 +36,19 @@ function exactText(value, context, max = 500) {
   }
   return value;
 }
+/**
+ * Historical full text may contain real paragraph breaks, carriage returns
+ * and indentation. Do not normalize, trim or collapse source content.
+ * Refuse NUL and other unsafe controls, and all-whitespace documents.
+ */
+function exactDocumentText(value, context) {
+  if (typeof value !== 'string' || value.length > 100_000 || !value.trim() ||
+      /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value)) {
+    throw new Error(`${context}: expected sourced document text with only safe whitespace controls`);
+  }
+  return value;
+}
+
 function optionalSourcedText(record, field, locatorField, context) {
   const text = record[field] ?? null;
   const locator = record[locatorField] ?? null;
@@ -43,7 +56,8 @@ function optionalSourcedText(record, field, locatorField, context) {
     throw new Error(`${context}: ${locatorField} has no ${field}`);
   }
   if (text !== null) {
-    exactText(text, `${context}.${field}`, field === 'fullText' ? 100_000 : 500);
+    if (field === 'fullText') exactDocumentText(text, `${context}.${field}`);
+    else exactText(text, `${context}.${field}`, 500);
     exactText(locator, `${context}.${locatorField}`, 500);
   }
   return text !== null;
@@ -95,8 +109,12 @@ export function validateGagManifest(manifest, sourceBytes, manifestBytes) {
     if (seen.has(collisionKey)) throw new Error(`${context}.identifier: duplicate or ambiguous identifier`);
     seen.add(collisionKey);
     const sourceLocator = exactText(record.sourceLocator, `${context}.sourceLocator`);
+    const outcomeSourceLocator = record.outcomeSourceLocator ?? null;
     if (record.outcome !== null && record.outcome !== undefined) {
       exactText(record.outcome, `${context}.outcome`, 160);
+      exactText(outcomeSourceLocator, `${context}.outcomeSourceLocator`);
+    } else if (outcomeSourceLocator !== null) {
+      throw new Error(`${context}: outcomeSourceLocator has no outcome`);
     }
     const titleProvided = optionalSourcedText(record, 'title', 'titleSourceLocator', context);
     const sponsorProvided = optionalSourcedText(record, 'sponsor', 'sponsorSourceLocator', context);
@@ -108,7 +126,7 @@ export function validateGagManifest(manifest, sourceBytes, manifestBytes) {
       throw new Error(`${context}: available text requires sourced fullText; unavailable text must be null`);
     }
     return {
-      identifier, outcome: record.outcome ?? null, sourceLocator, textAvailability: record.textAvailability,
+      identifier, outcome: record.outcome ?? null, outcomeSourceLocator, sourceLocator, textAvailability: record.textAvailability,
       titleProvided, sponsorProvided, fullTextProvided,
     };
   });
