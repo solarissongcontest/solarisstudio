@@ -2,13 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { WorldPublicGate } from "@/components/world/WorldPublic";
 import { WorldUnifiedSearchPage } from "@/components/world/WorldUnifiedSearch";
-import { parseWorldSearchPage, verifiedWorldSearchTerm } from "@/lib/terra-world-unified-search";
+import { parseWorldSearchCategory, parseWorldSearchPage, verifiedWorldSearchTerm } from "@/lib/terra-world-unified-search";
 
 export const Route = createFileRoute("/world/search/")({
-  validateSearch: (search: Record<string, unknown>): { q: string; c: number; o: number } => ({
+  validateSearch: (search: Record<string, unknown>): { q: string; c: number; o: number; type: "all" | "countries" | "organizations" } => ({
     q: typeof search.q === "string" ? verifiedWorldSearchTerm(search.q) : "",
     c: parseWorldSearchPage(search.c),
     o: parseWorldSearchPage(search.o),
+    type: parseWorldSearchCategory(search.type),
   }),
   head: () => ({
     meta: [
@@ -21,7 +22,7 @@ export const Route = createFileRoute("/world/search/")({
 });
 
 function WorldSearchRoute() {
-  const { q, c, o } = Route.useSearch();
+  const { q, c, o, type } = Route.useSearch();
   const navigate = Route.useNavigate();
   return (
     <WorldPublicGate>
@@ -29,12 +30,17 @@ function WorldSearchRoute() {
         term={q}
         countryPage={c}
         organizationPage={o}
+        category={type}
         onSearch={(next) => void navigate({
-          search: { q: verifiedWorldSearchTerm(next), c: 0, o: 0 },
+          search: { q: verifiedWorldSearchTerm(next), c: 0, o: 0, type },
+          replace: false,
+        })}
+        onCategoryChange={(next) => void navigate({
+          search: { q, c: 0, o: 0, type: parseWorldSearchCategory(next) },
           replace: false,
         })}
         onPagesChange={(nextCountryPage, nextOrganizationPage, replace = false) => void navigate({
-          search: { q, c: nextCountryPage, o: nextOrganizationPage },
+          search: { q, c: nextCountryPage, o: nextOrganizationPage, type },
           replace,
         })}
       />
