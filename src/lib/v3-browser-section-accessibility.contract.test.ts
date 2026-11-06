@@ -39,6 +39,7 @@ describe("V3 mobile-browser and desktop section-navigation accessibility", () =>
 
     expect(tablet).toBeTruthy();
     expect(tablet).not.toContain(".public-site-sidebar details {\n    display: none;");
+    expect(tablet).toContain(".public-site-sidebar > nav > details.mt-4.border-t {");
     expect(tablet).toContain(".public-site-sidebar details[open] > div");
     expect(tablet).toContain("min-height: 2.75rem;");
     expect(desktop).toContain('<details className="group mt-4 border-t border-border/55 pt-3">');
