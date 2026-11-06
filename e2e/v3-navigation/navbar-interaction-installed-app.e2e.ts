@@ -105,6 +105,29 @@ test(
       contentType: "image/png",
     });
 
+    // A soft keyboard or feature sheet can interrupt a held pointer without
+    // dispatching pointerup on its original link. The dock must release capture,
+    // cancel the lens and allow the next tap/keyboard activation.
+    const activeResults = nav.getByRole("link", { name: /^Results(?:,|$)/ });
+    const resultBox = await activeResults.boundingBox();
+    expect(resultBox).not.toBeNull();
+    if (resultBox) {
+      await page.mouse.move(resultBox.x + resultBox.width / 2, resultBox.y + resultBox.height / 2);
+      await page.mouse.down();
+      await page.waitForTimeout(420);
+      await expect(material).toHaveAttribute("data-held", "true");
+
+      await page.evaluate(() => document.documentElement.setAttribute("data-solaris-keyboard-open", "true"));
+      await expect(material).toHaveAttribute("data-held", "false");
+      await page.evaluate(() => document.documentElement.removeAttribute("data-solaris-keyboard-open"));
+      await page.mouse.up();
+      await expect(page).toHaveURL(/\/results(?:[/?#]|$)/);
+
+      // A cancelled drag must never eat a later legitimate tab click.
+      await nav.getByRole("link", { name: /^Explore(?:,|$)/ }).click();
+      await expect(page).toHaveURL(/\/explore(?:[/?#]|$)/);
+    }
+
     await context.close();
   },
 );
