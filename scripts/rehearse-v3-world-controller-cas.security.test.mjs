@@ -137,7 +137,7 @@ test("inherited libpq routing and auth overrides are scrubbed before psql", () =
 test("CLI output never executes injected shell syntax", () => {
   const injectedFile = join(root, "unexpected-command-substitution");
   rmSync(injectedFile, { force: true });
-  const raw = 'API_URL="' + apiLocal + '"\\n' +
+  const raw = 'API_URL="' + apiLocal + '"\n' +
     'DB_URL="$(touch ' + injectedFile + ')"';
   const result = run({ raw });
   assert.notEqual(result.status, 0);
@@ -149,8 +149,8 @@ test("missing and duplicate URL status keys fail closed", () => {
   for (const raw of [
     'API_URL="' + apiLocal + '"',
     'DB_URL="' + dbLocal + '"',
-    'API_URL="' + apiLocal + '"\\nDB_URL="' + dbLocal + '"\\nDB_URL="' + dbLocal + '"',
-    'API_URL="' + apiLocal + '"\\nAPI_URL="http://evil.example:54321"\\nDB_URL="' + dbLocal + '"',
+    'API_URL="' + apiLocal + '"\nDB_URL="' + dbLocal + '"\nDB_URL="' + dbLocal + '"',
+    'API_URL="' + apiLocal + '"\nAPI_URL="http://evil.example:54321"\nDB_URL="' + dbLocal + '"',
   ]) {
     const result = run({ raw });
     assert.notEqual(result.status, 0);
