@@ -67,6 +67,15 @@ export function V3MeScreen({ projection }: V3MeScreenProps) {
             </div>
           </div>
         </V3Surface>
+        <div className="mt-3">
+          <V3ActionCard
+            title="Public fan identity"
+            description="Control the display name and visibility used in fan-facing Solaris features"
+            icon={UserRound}
+            tone="neutral"
+            to="/my-solaris/profile"
+          />
+        </div>
       </V3Section>
 
       <V3Section title="Current">
