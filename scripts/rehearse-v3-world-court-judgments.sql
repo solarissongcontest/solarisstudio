@@ -238,25 +238,6 @@ begin
  if r #>> '{result,revision}'<>'7' then
   raise exception 'TG14_FIRST_RECONSIDERATION_INVALID';
  end if;
- perform set_config('request.jwt.claim.sub',v->>'respondent',true);
- perform set_config('request.jwt.claims',
-  jsonb_build_object('sub',v->>'respondent','role','authenticated')::text,true);
- op:=gen_random_uuid();
- r:=public.world_request_court_reconsideration_v1(
-  cid,judgment,'The original legal reasoning omitted a newly material constitutional section.',
-  7,op,'tg14-respondent-reconsider-'||op::text
- );
- if r #>> '{result,revision}'<>'8' then
-  raise exception 'TG14_SECOND_RECONSIDERATION_INVALID';
- end if;
- -- Third request from the same country for the same judgment is always denied.
- begin
-  perform public.world_request_court_reconsideration_v1(
-   cid,judgment,'The duplicate request must not be admitted as a second review.',
-   8,gen_random_uuid(),'tg14-duplicate-'||gen_random_uuid()::text);
-  raise exception 'TG14_DUPLICATE_COUNTRY_RECONSIDERATION_ALLOWED';
- exception when unique_violation then null;
- end;
 end $parties$;
 
 do $decide$
@@ -268,20 +249,46 @@ declare
 begin
  select id into first_id from public.world_court_reconsiderations
  where case_id=cid and party_country_id=(v->>'applicantCountry')::uuid;
- select id into second_id from public.world_court_reconsiderations
- where case_id=cid and party_country_id=(v->>'respondentCountry')::uuid;
  perform set_config('request.jwt.claim.sub',v->>'judge',true);
  perform set_config('request.jwt.claims',
   jsonb_build_object('sub',v->>'judge','role','authenticated')::text,true);
  op:=gen_random_uuid();
  r:=public.world_decide_court_reconsideration_v1(
   first_id,'accepted','The applicant identified a material overlooked official record.',
-  8,op,'tg14-first-review-'||op::text
+  7,op,'tg14-first-review-'||op::text
  );
  if r #>> '{result,status}'<>'reconsideration'
-   or r #>> '{result,revision}'<>'9' then
+   or r #>> '{result,revision}'<>'8' then
   raise exception 'TG14_FIRST_REVIEW_DECISION_INVALID: %',r;
  end if;
+ -- The second country's right survives an accepted reconsideration:
+ -- file its own specific grounds AFTER the first request has been accepted.
+ perform set_config('request.jwt.claim.sub',v->>'respondent',true);
+ perform set_config('request.jwt.claims',
+  jsonb_build_object('sub',v->>'respondent','role','authenticated')::text,true);
+ op:=gen_random_uuid();
+ r:=public.world_request_court_reconsideration_v1(
+  cid,original,'The original legal reasoning omitted a newly material constitutional section.',
+  8,op,'tg14-respondent-reconsider-'||op::text
+ );
+ if r #>> '{result,status}'<>'reconsideration'
+    or r #>> '{result,revision}'<>'9' then
+  raise exception 'TG14_SECOND_RECONSIDERATION_INVALID_AFTER_ACCEPTANCE';
+ end if;
+ -- No party may bypass the one-request-per-judgment uniqueness guarantee.
+ begin
+  perform public.world_request_court_reconsideration_v1(
+   cid,original,'The duplicate request must not be admitted as a second review.',
+   9,gen_random_uuid(),'tg14-duplicate-'||gen_random_uuid()::text
+  );
+  raise exception 'TG14_DUPLICATE_COUNTRY_RECONSIDERATION_ALLOWED';
+ exception when unique_violation then null;
+ end;
+ perform set_config('request.jwt.claim.sub',v->>'judge',true);
+ perform set_config('request.jwt.claims',
+  jsonb_build_object('sub',v->>'judge','role','authenticated')::text,true);
+ select id into second_id from public.world_court_reconsiderations
+ where case_id=cid and party_country_id=(v->>'respondentCountry')::uuid;
  -- No revised judgment while the other party has a still-pending request.
  begin
   perform public.world_issue_court_judgment_v1(
