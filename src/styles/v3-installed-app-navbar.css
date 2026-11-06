@@ -11,7 +11,7 @@
  * V3LiquidTabBar. Keep this file after app-shell.css in the cascade.
  */
 
-@media (max-width: 899px) {
+@media (max-width: 899px), (max-height: 599px) {
   html[data-solaris-app] .solaris-app-tabbar {
     left: 50%;
     right: auto;
@@ -256,7 +256,7 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) and (max-width: 899px) {
+@media (prefers-reduced-motion: reduce) and (max-width: 899px), (prefers-reduced-motion: reduce) and (max-height: 599px) {
   html[data-solaris-app] .solaris-app-tab-indicator {
     transition: none;
   }

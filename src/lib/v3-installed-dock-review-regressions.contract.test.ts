@@ -53,4 +53,17 @@ describe("V3 installed dock review regressions", () => {
     expect(css).toContain('html[data-solaris-app] [data-solaris-v3] .v3-installed-app-layout');
     expect(css).toContain("padding-left: calc(7.35rem + env(safe-area-inset-left))");
   });
+
+  it("retains the phone dock instead of the tablet rail on wide short landscape installed viewports", () => {
+    const appShell = source("src/styles/app-shell.css");
+    const dock = source("src/styles/v3-installed-app-navbar.css");
+    expect(tab).toContain('window.matchMedia("(min-width: 900px) and (min-height: 600px)")');
+    expect(dock).toContain("@media (max-width: 899px), (max-height: 599px)");
+    expect(dock).toContain("(prefers-reduced-motion: reduce) and (max-height: 599px)");
+    expect(appShell).toContain("(display-mode: standalone) and (max-height: 599px)");
+    expect(appShell).toContain("(display-mode: standalone) and (min-width: 900px) and (min-height: 600px)");
+    expect(appShell).toContain("@media (max-width: 899px), (max-height: 599px)");
+    expect(css).toContain("@media (min-width: 900px) and (min-height: 600px)");
+  });
+
 });

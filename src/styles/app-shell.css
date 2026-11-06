@@ -918,7 +918,7 @@ html[data-solaris-app-boot] body::before {
 }
 
 /* Installed iPad / large-screen rail --------------------------------------- */
-@media (display-mode: standalone) and (min-width: 900px), (display-mode: window-controls-overlay) and (min-width: 900px) {
+@media (display-mode: standalone) and (min-width: 900px) and (min-height: 600px), (display-mode: window-controls-overlay) and (min-width: 900px) and (min-height: 600px) {
   html {
     scroll-padding-bottom: 1.5rem;
     scroll-padding-left: 7.35rem;
@@ -1108,7 +1108,7 @@ html[data-solaris-app-boot] body::before {
   }
 }
 
-@media (display-mode: standalone) and (max-width: 899px), (display-mode: window-controls-overlay) and (max-width: 899px) {
+@media (display-mode: standalone) and (max-width: 899px), (display-mode: standalone) and (max-height: 599px), (display-mode: window-controls-overlay) and (max-width: 899px), (display-mode: window-controls-overlay) and (max-height: 599px) {
   html[data-solaris-keyboard-open] .solaris-app-tabbar {
     opacity: 0;
     transform: translateY(calc(100% + 2rem));
@@ -1121,7 +1121,7 @@ html[data-solaris-app-boot] body::before {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  @media (display-mode: standalone) and (max-width: 899px), (display-mode: window-controls-overlay) and (max-width: 899px) {
+  @media (display-mode: standalone) and (max-width: 899px), (display-mode: standalone) and (max-height: 599px), (display-mode: window-controls-overlay) and (max-width: 899px), (display-mode: window-controls-overlay) and (max-height: 599px) {
     html[data-solaris-keyboard-open] .solaris-app-tabbar {
       transition: none;
     }
@@ -1801,7 +1801,7 @@ html[data-solaris-app][data-solaris-keyboard-open]
   min-width: 0;
 }
 
-@media (display-mode: standalone) and (min-width: 900px), (display-mode: window-controls-overlay) and (min-width: 900px) {
+@media (display-mode: standalone) and (min-width: 900px) and (min-height: 600px), (display-mode: window-controls-overlay) and (min-width: 900px) and (min-height: 600px) {
   .solaris-app-entity-workspace {
     display: grid;
     grid-template-columns: minmax(13.5rem, 15.5rem) minmax(0, 1fr);
@@ -1966,7 +1966,7 @@ html[data-solaris-app][data-solaris-keyboard-open]
   display: none;
 }
 
-@media (display-mode: standalone) and (min-width: 900px), (display-mode: window-controls-overlay) and (min-width: 900px) {
+@media (display-mode: standalone) and (min-width: 900px) and (min-height: 600px), (display-mode: window-controls-overlay) and (min-width: 900px) and (min-height: 600px) {
   .solaris-app-adaptive-workspace {
     display: grid;
     grid-template-columns: minmax(13.5rem, 16rem) minmax(0, 1fr);
@@ -2240,7 +2240,7 @@ html[data-solaris-app] .solaris-app-first-run-continue {
   }
 }
 
-@media (min-width: 900px) {
+@media (min-width: 900px) and (min-height: 600px) {
   html[data-solaris-app] .solaris-app-tabbar.is-minimal {
     left: max(.8rem, env(safe-area-inset-left));
     right: auto;
@@ -3434,7 +3434,7 @@ html[data-solaris-app] .solaris-app-bottom-spacer {
 
 /* Shell-owned scroll-end clearance: a temporary zero measurement during iOS
    resume must not put the last actionable row under floating navigation. */
-@media (max-width: 899px) {
+@media (max-width: 899px), (max-height: 599px) {
   html[data-solaris-app]
     .app-main[data-solaris-app-mode="true"]
     > .solaris-app-bottom-spacer {

@@ -102,7 +102,7 @@ export function AppTabBar({
   const dragging = held;
 
   useEffect(() => {
-    const media = window.matchMedia("(min-width: 900px)");
+    const media = window.matchMedia("(min-width: 900px) and (min-height: 600px)");
     const refresh = () => {
       setRailMode(media.matches);
       if (media.matches) expandTabBar();

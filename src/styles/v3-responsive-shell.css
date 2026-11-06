@@ -171,7 +171,7 @@
 }
 
 /* Keep installed iPad tab rail clear of V3 page content, never ordinary web. */
-@media (min-width: 900px) {
+@media (min-width: 900px) and (min-height: 600px) {
   html[data-solaris-app] [data-solaris-v3] .v3-installed-app-layout {
     padding-left: calc(7.35rem + env(safe-area-inset-left));
   }
