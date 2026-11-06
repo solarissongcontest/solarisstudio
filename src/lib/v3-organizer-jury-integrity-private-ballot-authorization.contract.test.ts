@@ -10,6 +10,11 @@ const endpoint = readFileSync(
   "utf8",
 );
 
+const page = readFileSync(
+  new URL("../routes/_authenticated/admin/jury-integrity.tsx", import.meta.url),
+  "utf8",
+);
+
 describe("Organizer Jury Integrity protected ballot boundary", () => {
   it("requires an explicit valid edition before querying private evidence", () => {
     expect(endpoint).toContain("if (!UUID.test(editionId))");
@@ -35,4 +40,13 @@ describe("Organizer Jury Integrity protected ballot boundary", () => {
     expect(server).toContain("mismatchedPreflight");
     expect(server).toContain("missingShow");
   });
+  it("renders failed authorized reads as errors with an explicit accessible retry", () => {
+    expect(page).toContain('role="alert"');
+    expect(page).toContain("No integrity conclusion can be drawn");
+    expect(page).toContain("onClick={() => void query.refetch()}");
+    expect(page).toContain("disabled={query.isFetching}");
+    expect(page).toContain("aria-busy={query.isFetching}");
+    expect(page).toContain("Retry integrity evidence");
+  });
+
 });
