@@ -8,7 +8,7 @@ describe("TG11/TG12 client privacy contract", () => {
   it("does not trust stale, failed, offline or never-reverified private responses", () => {
     const good = {
       isSuccess: true, isError: false, isRefetchError: false,
-      isFetchedAfterMount: true, isPending: false,
+      isFetchedAfterMount: true, isPending: false, isFetching: false,
     };
     expect(isVisiblePrivateWorldQuery(good, true)).toBe(true);
     expect(isVisiblePrivateWorldQuery(good, false)).toBe(false);
@@ -16,6 +16,7 @@ describe("TG11/TG12 client privacy contract", () => {
     expect(isVisiblePrivateWorldQuery({ ...good, isRefetchError: true }, true)).toBe(false);
     expect(isVisiblePrivateWorldQuery({ ...good, isError: true }, true)).toBe(false);
     expect(isVisiblePrivateWorldQuery({ ...good, isPending: true }, true)).toBe(false);
+    expect(isVisiblePrivateWorldQuery({ ...good, isFetching: true }, true)).toBe(false);
   });
 
   it("accepts only canonical UUID room identities and bounded slugs", () => {
