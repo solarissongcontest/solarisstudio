@@ -53,9 +53,12 @@ describe("Public Delegation current-edition authority", () => {
     // Use the public Wiki index, which resolves to Reference only when enabled.
     expect(source).toContain('wiki: { label: "Reference", href: "/wiki" }');
     expect(source).not.toContain('href: `/wiki/${code}`');
-    expect(gate).toContain("countryId={bundle.countryId}");
-    expect(screen).toContain('entityType="country" entityId={countryId} label={projection.name}');
-    expect(screen).not.toContain("entityId={projection.code}");
+    expect(gate).toContain("followControl={<FollowButton");
+    expect(gate).toContain('entityType="country" entityId={bundle.countryId} label={bundle.projection.name}');
+    expect(screen).toContain("followControl: ReactNode");
+    expect(screen).toContain("{followControl}");
+    expect(screen).not.toContain("FollowButton");
+    expect(gate).not.toContain("entityId={bundle.projection.code}");
     expect(follow).toContain("useSetFanFollow(user?.id)");
     expect(follow).toContain("aria-pressed={following}");
     expect(follow).toContain('to="/auth"');
