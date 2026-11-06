@@ -54,6 +54,12 @@ describe("Organizer Jury Integrity protected ballot boundary", () => {
     expect(server).toContain("Jury integrity target evidence is missing a country identity");
     expect(server).toContain("targetIds.add(id)");
   });
+  it("does not mislabel preflight records as submitted jury ballots", () => {
+    expect(page).toContain('label="Integrity checks" value={query.data.stats.total}');
+    expect(page).not.toContain('label="Checked ballots"');
+    expect(server).toContain('from("vote_preflight_checks")');
+  });
+
   it("renders failed authorized reads as errors with an explicit accessible retry", () => {
     expect(page).toContain('role="alert"');
     expect(page).toContain("No integrity conclusion can be drawn");
