@@ -94,6 +94,8 @@ describe("TG4 treaty registration and publication-safe index", () => {
     expect(sql).toContain("ver.publication_state='published'");
     expect(sql).toContain("doc.visibility='public'");
     expect(sql).toContain("org.public_visibility='public'");
+    expect(sql).toContain("public.world_document_publicly_available_v1(doc.id)");
+    expect(sql).toContain("and org.status in ('recognized','active','historical')");
     expect(sql).toContain("world_get_treaty_manager_v1");
     expect(sql).toContain("world_access_allowed");
     expect(sql).toContain("v3.tg4.world-treaty-register");

@@ -219,6 +219,9 @@ as $public_treaties$
     join public.world_organizations org on org.id=doc.organization_id
     join public.world_document_versions ver on ver.id=doc.current_version_id
     where doc.document_type='treaty' and doc.visibility='public'
+      -- SQL projection is called directly by anonymous clients. It must use
+      -- the same feature-flag/recognition/public-Version gate as raw TG4 RLS.
+      and public.world_document_publicly_available_v1(doc.id)
       and org.public_visibility='public'
       and org.status in ('recognized','active','historical')
       and doc.status in ('active','historical')
