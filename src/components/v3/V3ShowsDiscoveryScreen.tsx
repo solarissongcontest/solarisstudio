@@ -25,6 +25,7 @@ const STATE_ORDER: ShowDiscoveryState[] = [
   "scheduled",
   "ended",
   "cancelled",
+  "archived",
   "other",
 ];
 
