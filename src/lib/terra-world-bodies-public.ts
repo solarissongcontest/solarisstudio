@@ -132,12 +132,13 @@ export async function readPublicWorldBodies(
     // PostgREST may return HTTP 416 (PGRST103) instead of [] when a previously
     // published page vanishes. Never trust the error text or old query-cache
     // total. Recount precisely the same public, organization-scoped filter
-    // with a single id-row probe before recovering from this exceptional case.
+    // via HEAD only, returning no row data and avoiding a second out-of-range
+    // error when zero public bodies remain.
     if (record(error)?.code !== "PGRST103") {
       throw new Error("Public institutional bodies could not be loaded.");
     }
     let recount = (supabase as any).from("world_organization_organs")
-      .select("id", { count: "exact" })
+      .select("id", { count: "exact", head: true })
       .eq("organization_id", organization.id).eq("visibility", "public");
     if (options.status === "active" || options.status === "inactive" || options.status === "historical") {
       recount = recount.eq("status", options.status);
@@ -146,7 +147,7 @@ export async function readPublicWorldBodies(
       recount = recount.or("name.ilike.%" + term + "%,short_name.ilike.%" + term + "%");
     }
     if (options.signal) recount = recount.abortSignal(options.signal);
-    const { error: countError, count: verifiedCount } = await recount.range(0, 0);
+    const { error: countError, count: verifiedCount } = await recount;
     if (countError || !Number.isSafeInteger(verifiedCount) || verifiedCount < 0 ||
         page * WORLD_BODIES_PAGE_SIZE < verifiedCount) {
       throw new Error("Public institutional bodies could not be verified.");
