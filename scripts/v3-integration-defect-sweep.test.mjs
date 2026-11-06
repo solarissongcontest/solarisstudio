@@ -65,6 +65,8 @@ test("S14 diagnostic refuses false full-contest passes for partial, failed or st
     { ...evidence, implementedFailureInjections: [...evidence.implementedFailureInjections, "duplicate-request"] },
     { ...evidence, runIdentity: { ...evidence.runIdentity, candidateSha: "b".repeat(40) } },
     { ...evidence, runIdentity: { ...evidence.runIdentity, databaseFingerprint: "" } },
+    { ...evidence, runIdentity: { ...evidence.runIdentity, editionId: { forged: true } } },
+    { ...evidence, runIdentity: { ...evidence.runIdentity, databaseFingerprint: "   " } },
     { ...evidence, seed: { ...evidence.seed, showCount: 2 } },
     { ...evidence, seed: { ...evidence.seed, delegationCount: 65 } },
   ];
