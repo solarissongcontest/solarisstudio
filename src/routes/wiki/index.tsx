@@ -247,12 +247,12 @@ function WebWikiIndexPage() {
         </label>
         </div>
 
-        <div className="scroll-slim mt-3 flex gap-1 overflow-x-auto pb-1" aria-label="Filter Wiki by first letter">
+        <div className="scroll-slim mt-3 flex gap-1 overflow-x-auto pb-1" role="group" aria-label="Filter Wiki by first letter">
           <button
             type="button"
             onClick={() => setLetter("all")}
             aria-pressed={letter === "all"}
-            className={`min-h-9 shrink-0 rounded-lg px-3 text-xs font-semibold ${letter === "all" ? "bg-primary/12 text-primary" : "bg-background/35 text-muted-foreground"}`}
+            className={`min-h-11 shrink-0 rounded-lg px-3 text-xs font-semibold ${letter === "all" ? "bg-primary/12 text-primary" : "bg-background/35 text-muted-foreground"}`}
           >
             All
           </button>
@@ -262,7 +262,7 @@ function WebWikiIndexPage() {
               type="button"
               onClick={() => setLetter(item)}
               aria-pressed={letter === item}
-              className={`min-h-9 min-w-9 shrink-0 rounded-lg px-2 text-xs font-semibold ${letter === item ? "bg-primary/12 text-primary" : "bg-background/35 text-muted-foreground"}`}
+              className={`min-h-11 min-w-11 shrink-0 rounded-lg px-2 text-xs font-semibold ${letter === item ? "bg-primary/12 text-primary" : "bg-background/35 text-muted-foreground"}`}
             >
               {item}
             </button>
