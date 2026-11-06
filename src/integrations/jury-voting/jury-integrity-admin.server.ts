@@ -122,8 +122,9 @@ export async function listJuryIntegrityCasesServer(editionId: string) {
   for (const row of preflights) {
     const evidence = asObject(asObject(row.admin_evidence).juryIndependence);
     for (const target of asArray(evidence.targets)) {
-      const id = String(asObject(target).targetCountryId ?? "");
-      if (id) targetIds.add(id);
+      const id = String(asObject(target).targetCountryId ?? "").trim();
+      if (!id) throw new Error("Jury integrity target evidence is missing a country identity");
+      targetIds.add(id);
     }
   }
   const countriesResult = targetIds.size
@@ -141,7 +142,7 @@ export async function listJuryIntegrityCasesServer(editionId: string) {
     const evidence = asObject(asObject(row.admin_evidence).juryIndependence);
     const targets = asArray(evidence.targets).map((target): JuryIntegrityTargetEvidence => {
       const item = asObject(target);
-      const targetCountryId = String(item.targetCountryId ?? "");
+      const targetCountryId = String(item.targetCountryId ?? "").trim();
       return {
         targetCountryId,
         targetName: countryNames.get(targetCountryId) ?? targetCountryId,
