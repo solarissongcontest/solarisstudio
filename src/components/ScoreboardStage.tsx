@@ -131,6 +131,19 @@ export function ScoreboardStage({
     );
   }
 
+  // The installed V3 snapshot is resolved above, independently of legacy
+  // mutable rankings. Keep the original empty-state UX for V2/web only.
+  if (!rows.length) {
+    return (
+      <PublicDataState
+        kind="empty"
+        title="No published ranking yet"
+        description="The overall result will appear here when a published ranking is available."
+        compact
+      />
+    );
+  }
+
   const baseResolved =
     theme.scoreboardConfig ??
     resolveScoreboard(null, {

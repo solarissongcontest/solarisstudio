@@ -589,22 +589,13 @@ function ShowPage() {
           >
             <p className="text-xs text-muted-foreground">{overallHelp}</p>
           </Panel>
-          {standings.length ? (
-            <ScoreboardStage
-              theme={publicTheme}
-              standings={standings}
-              countries={displayMap}
-              participants={participantMap}
-              qualifiers={publication.qualifiers ? show.qualifier_count : null}
-            />
-          ) : (
-            <PublicDataState
-              kind="empty"
-              title="No published ranking yet"
-              description="The overall result will appear here when a published ranking is available."
-              compact
-            />
-          )}
+          <ScoreboardStage
+            theme={publicTheme}
+            standings={standings}
+            countries={displayMap}
+            participants={participantMap}
+            qualifiers={publication.qualifiers ? show.qualifier_count : null}
+          />
         </>
       )}
 
