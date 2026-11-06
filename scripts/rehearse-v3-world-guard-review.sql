@@ -9,6 +9,7 @@ declare
   v_chair uuid := gen_random_uuid();
   v_outsider uuid := gen_random_uuid();
   v_country uuid := gen_random_uuid();
+  v_external_country uuid := gen_random_uuid();
   v_guard uuid;
   v_review_office uuid := gen_random_uuid();
   v_chair_office uuid := gen_random_uuid();
@@ -37,7 +38,9 @@ begin
     (v_chair,'authenticated','authenticated',v_chair::text || '@tg5-review.invalid',now(),now()),
     (v_outsider,'authenticated','authenticated',v_outsider::text || '@tg5-review.invalid',now(),now());
   insert into public.countries(id,name,short_code)
-  values(v_country,'TG5 Review Test Country','TRZ');
+  values
+    (v_country,'TG5 Review Test Country','TRZ'),
+    (v_external_country,'TG5 External Application Country','TEZ');
   insert into public.country_accounts(user_id,country_id,status)
   values(v_applicant,v_country,'active');
   insert into public.delegation_people(id,display_name,identity_key)
@@ -65,7 +68,8 @@ begin
     jsonb_build_object(
       'applicant',v_applicant,'reviewer',v_reviewer,
       'chair',v_chair,'outsider',v_outsider,
-      'country',v_country,'organization',v_guard
+      'country',v_country,'external_country',v_external_country,
+      'organization',v_guard
     )::text,true);
 end
 $seed$;
@@ -184,6 +188,9 @@ declare
   v jsonb := current_setting('solaris.tg5_review_fixture')::jsonb;
   v_inbox jsonb;
   v_result jsonb;
+  v_external jsonb;
+  v_external_id uuid;
+  v_review_count integer;
 begin
   perform set_config('request.jwt.claim.sub',v->>'chair',true);
   perform set_config('request.jwt.claims',
@@ -203,6 +210,57 @@ begin
     raise exception 'TG5_REVIEW_INTRODUCTION_RECEIPT_INVALID: %',v_result;
   end if;
   raise notice 'PASS: authorized Chair introduced after review without admission';
+
+  -- Country has no active controller; registering an actual message does
+  -- not pretend that the Chair is the applicant or assign its authority.
+  v_external := public.world_register_external_guard_application_v1(
+    (v->>'organization')::uuid,(v->>'external_country')::uuid,
+    'Republic of TG5 External', 'Representative democracy',
+    'The country sent a direct message requesting admission to GUARD.',
+    'The country offered technical and diplomatic cooperation.',
+    'The submitted message pledges to respect GUARD obligations.',
+    'DM from country delegation received 2026-11-07, source confirmed',
+    gen_random_uuid(),'tg5-external:' || gen_random_uuid()::text
+  );
+  if v_external->>'status'<>'succeeded'
+     or v_external#>>'{result,status}'<>'submitted'
+     or v_external#>>'{result,intakeSource}'<>'external' then
+    raise exception 'TG5_REVIEW_EXTERNAL_RECEIPT_INVALID: %',v_external;
+  end if;
+  v_external_id := (v_external#>>'{result,applicationId}')::uuid;
+  perform set_config('solaris.tg5_external_application',v_external_id::text,true);
+  if not exists(
+    select 1 from public.world_membership_applications a
+    where a.id=v_external_id and a.country_id=(v->>'external_country')::uuid
+      and a.submitted_by is null and a.submitted_by_person_id is null
+      and a.registered_by_user_id=(v->>'chair')::uuid
+      and a.intake_source='external'
+      and a.external_source_reference like 'DM from country delegation%'
+  ) then
+    raise exception 'TG5_REVIEW_EXTERNAL_IMPERSONATION_OR_PROVENANCE_ERROR';
+  end if;
+  v_inbox := public.world_guard_review_inbox_v1('submitted',null,null);
+  if jsonb_array_length(v_inbox->'items')<>1
+     or v_inbox#>>'{items,0,intakeSource}'<>'external'
+     or v_inbox#>>'{items,0,sourceReference}' not like 'DM from country delegation%' then
+    raise exception 'TG5_REVIEW_EXTERNAL_PRIVATE_PROJECTION_MISSING: %',v_inbox;
+  end if;
+
+  begin
+    perform public.world_register_external_guard_application_v1(
+      (v->>'organization')::uuid,(v->>'external_country')::uuid,
+      'Republic of TG5 External','Representative democracy',
+      'Another unverified duplicate from same country.',
+      'Another description of technical resources.',
+      'Another description of international obligations.',
+      'Duplicate DM 2026-11-07',
+      gen_random_uuid(),'tg5-external-duplicate:' || gen_random_uuid()::text
+    );
+    raise exception 'TG5_REVIEW_DUPLICATE_EXTERNAL_APPLICATION_ACCEPTED';
+  exception when sqlstate '23505' then
+    if sqlerrm <> 'APPLICATION_ALREADY_PENDING' then raise; end if;
+  end;
+  raise notice 'PASS: external intake, private provenance and one-active constraint';
 end
 $chair$;
 
@@ -241,7 +299,7 @@ begin
   if exists(
     select 1 from public.world_organization_memberships
     where organization_id=(v->>'organization')::uuid
-      and country_id=(v->>'country')::uuid
+      and country_id in ((v->>'country')::uuid,(v->>'external_country')::uuid)
   ) then
     raise exception 'TG5_REVIEW_UNAUTHORIZED_MEMBERSHIP_ACTIVATION';
   end if;
