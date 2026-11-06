@@ -26,6 +26,7 @@ export type ShowDiscoveryState =
   | "scheduled"
   | "ended"
   | "cancelled"
+  | "archived"
   | "other";
 
 export type ShowDiscoveryItem = {
@@ -162,6 +163,8 @@ function stateLabel(state: ShowDiscoveryState) {
       return "Ended";
     case "cancelled":
       return "Cancelled";
+    case "archived":
+      return "Archived";
     case "other":
       return "Show";
   }
@@ -203,7 +206,14 @@ export function buildShowDiscovery(input: {
     const edition = editionById.get(show.edition_id);
     if (!edition) return [];
     const config = showModeConfig(show);
-    const state = canonicalShowState(show);
+    const rawState = canonicalShowState(show);
+    // A terminal Edition is never "on air" or "coming soon". Preserve
+    // explicit completed/cancelled Show states, but neutralize stale active
+    // status labels from historical records without inventing a completion.
+    const staleHistoricalState = isTerminalEdition(edition) &&
+      (rawState === "live" || rawState === "paused" || rawState === "delayed" ||
+        rawState === "preparing" || rawState === "scheduled");
+    const state: ShowDiscoveryState = staleHistoricalState ? "archived" : rawState;
     let broadcastUrl: string | null = null;
     try {
       const raw = config.youtubeUrl?.trim();
