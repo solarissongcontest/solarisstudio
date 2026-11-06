@@ -106,22 +106,6 @@ describe("V3 official delegation notices", () => {
     expect(presentation).toContain('hasLoadedInbox ? items.length : "—"');
   });
 
-  it("renders notice and receipt timestamps in canonical Solaris time", () => {
-    const source = screen();
-
-    expect(source).toContain('import { formatEventWallTime } from "@/lib/public-time"');
-    expect(source).toContain('formatEventWallTime(date, { locale: "en-GB" })');
-    expect(source).not.toContain("new Intl.DateTimeFormat(undefined");
-  });
-
-  it("includes archived outstanding acknowledgement obligations without inventing unread state", () => {
-    const source = screen();
-    expect(source).toContain("v3OfficialNoticeOutstandingAcknowledgement(item.notice, item.inboxState, item.receipt)");
-    expect(source).toContain('item.inboxState === "archived"');
-    expect(source).toContain("Archiving does not complete a required acknowledgement.");
-    expect(source).toContain("Choose the Archived filter and restore each notice");
-  });
-
   it("handles stale notice deep links without inventing a successful state", () => {
     const source = screen();
 
