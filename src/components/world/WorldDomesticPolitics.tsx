@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, BookOpen, Landmark, Pencil, Plus, Vote } from "lucide-react";
+import { ArrowLeft, BookOpen, Landmark, Pencil, Plus, Scale, Vote } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 
 import { WorldDomesticLegislature } from "@/components/world/WorldDomesticLegislature";
@@ -226,9 +226,14 @@ export function WorldDomesticPolitics({ code }: { code: string }) {
         <p className="mt-3 text-base text-muted-foreground">{country.governmentType ?? "Government system not yet described"}</p>
         {(country.leaderName || country.leaderTitle) ? <p className="mt-2 text-sm">
           {country.leaderTitle ? country.leaderTitle + ": " : ""}{country.leaderName ?? "Not recorded"}</p> : null}
-        <div className="mt-5"><Link to="/world/archive" search={{ code: country.countryCode }} className={secondary}>
-          <BookOpen className="size-4" aria-hidden="true" /> Country history
-        </Link></div>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Link to="/world/archive" search={{ code: country.countryCode }} className={secondary}>
+            <BookOpen className="size-4" aria-hidden="true" /> Country history
+          </Link>
+          <Link to="/world/domestic-laws/$code" params={{ code }} className={secondary}>
+            <Scale className="size-4" aria-hidden="true" /> Domestic legislation
+          </Link>
+        </div>
       </header>
       <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(250px,0.6fr)]">
         <section aria-labelledby="domestic-parties-title">
