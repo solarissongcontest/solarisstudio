@@ -57,12 +57,13 @@ async function main() {
 
   const { data: round, error: roundError } = await tv
     .from("rounds")
-    .select("id,edition_id,status,total_points_to_distribute,rank_exponent,televote_engine_version,ballot_exponent,breadth_floor,breadth_exponent,support_exponent,rank_boost_strength,rank_boost_shape,calculation_version,results_status")
+    .select("id,edition_id,status,participant_mode,total_points_to_distribute,rank_exponent,televote_engine_version,ballot_exponent,breadth_floor,breadth_exponent,support_exponent,rank_boost_strength,rank_boost_shape,calculation_version,results_status")
     .eq("id", roundId)
     .maybeSingle();
   if (roundError) fail(roundError.message);
   if (!round) fail(`round ${roundId} not found`);
   if (round.status !== "closed") fail(`round ${roundId} must be closed before calculation`);
+  if (round.participant_mode !== "countries") fail(`round ${roundId} must use canonical country entries for S14`);
 
   const engineVersion = round.televote_engine_version ?? CALC_ENGINE_VERSION;
   if (![CALC_ENGINE_VERSION, ROBUST_TELEVOTE_ENGINE_VERSION].includes(engineVersion)) {
@@ -71,11 +72,16 @@ async function main() {
 
   const { data: entries, error: entryError } = await tv
     .from("round_entries")
-    .select("country_code,entry_key,display_order")
+    .select("entry_type,country_code,display_order")
     .eq("round_id", roundId)
     .order("display_order", { ascending: true });
   if (entryError) fail(entryError.message);
-  const participants = (entries ?? []).map((row) => String(row.country_code ?? row.entry_key ?? "").trim().toUpperCase());
+  const participants = (entries ?? []).map((row) => {
+    if (row.entry_type !== "country" || typeof row.country_code !== "string" || !row.country_code.trim()) {
+      fail(`round ${roundId} contains an unsupported non-country Televote entry`);
+    }
+    return row.country_code.trim().toUpperCase();
+  });
   if (!participants.length || participants.some((code) => !code)) fail(`round ${roundId} has invalid participant codes`);
   if (new Set(participants).size !== participants.length) fail(`round ${roundId} has duplicate participant codes`);
 
