@@ -17,6 +17,7 @@ describe("TG19 World privilege-rehearsal safety", () => {
     expect(sql).toContain("set transaction read only;");
     expect(sql).toContain("TG19_WORLD_PRIVILEGES_NO_WORLD_TABLES");
     expect(sql).toContain("TG19_WORLD_PRIVILEGES_FAILED");
+    expect(sql).toContain("has_column_privilege");
     expect(sql).toMatch(/\brollback\s*;/i);
   });
 
