@@ -8,6 +8,10 @@ import {
   signInSolarisAccount,
 } from "@/lib/country-auth";
 import { getCurrentAccountAccess, useAvailableCountryClaims } from "@/lib/country-account";
+import {
+  resolveV3AuthReturnPath,
+  v3AuthReturnRequiresOrganizer,
+} from "@/lib/v3-auth-return-intent";
 
 export const Route = createFileRoute("/auth/")({
   validateSearch: (search: Record<string, unknown>): { redirect?: string } => {
@@ -28,7 +32,7 @@ export const Route = createFileRoute("/auth/")({
 
 function AuthPage() {
   const { redirect } = Route.useSearch();
-  const safeRedirect = redirect?.startsWith("/") && !redirect.startsWith("//") ? redirect : null;
+  const safeRedirect = resolveV3AuthReturnPath(redirect);
 
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [identifier, setIdentifier] = useState("");
@@ -43,7 +47,7 @@ function AuthPage() {
 
   const destinationFor = async (userId: string) => {
     const access = await getCurrentAccountAccess(userId);
-    if (safeRedirect && (!safeRedirect.startsWith("/admin") || access.isOrganizer)) {
+    if (safeRedirect && (!v3AuthReturnRequiresOrganizer(safeRedirect) || access.isOrganizer)) {
       return safeRedirect;
     }
     if (access.isOrganizer) return "/admin";

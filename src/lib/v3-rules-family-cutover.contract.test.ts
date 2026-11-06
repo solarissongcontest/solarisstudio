@@ -49,7 +49,8 @@ describe("Public V3 Rules family cutover", () => {
     expect(home).toContain("hash={answer.id}");
     expect(search).toContain('validateSearch: (search: Record<string, unknown>)');
     expect(answers).toContain("id={answer.id}");
-    expect(chapters).toContain('to="/rules/chapters/$chapter"');
+    expect(chapters).toContain('to: "/rules/chapters/$chapter"');
+    expect(chapters).toContain("params: { chapter: chapter.slug }");
     expect(chapter).toContain('to="/rules/$ruleId"');
   });
 
