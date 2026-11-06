@@ -28,9 +28,11 @@ describe("V3 global Search relevance integration", () => {
   });
 
 
-  it("ranks both app and web results before applying the 50-result budget", () => {
-    expect(app).toContain("rankV3PublicSearchResults(dedupePublicSearchResults([...local, ...remoteResults]), normalized).slice(0, 50)");
-    expect(web).toContain("rankV3PublicSearchResults(dedupePublicSearchResults(values), normalized).slice(0, 50)");
+  it("ranks app and web results before balancing categories within the 50-result budget", () => {
+    expect(app).toContain("limitV3PublicSearchGroups(rankV3PublicSearchResults(dedupePublicSearchResults([...local, ...remoteResults]), normalized))");
+    expect(web).toContain("limitV3PublicSearchGroups(rankV3PublicSearchResults(dedupePublicSearchResults(values), normalized))");
+    expect(app).not.toContain("slice(0, 50)");
+    expect(web).not.toContain("slice(0, 50)");
   });
 
   it("uses typo-aware matching only on existing source records and navigation results", () => {
