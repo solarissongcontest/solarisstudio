@@ -8,6 +8,36 @@
  */
 export const V3_PRODUCTION_BOOTSTRAP_CUTOVER = "20261014020000";
 
+/**
+ * An offline comparison can run diagnostically without an expected SHA, but
+ * a strict release preflight must never claim exact-candidate proof without it.
+ */
+export function assessV3ProductionMigrationCandidateIdentity(
+  candidateSha: string,
+  expectedSha: string | null,
+  requireReconciled: boolean,
+): { matchesExpected: boolean; acceptable: boolean; error: string | null } {
+  const exactSha = /^[0-9a-f]{40}$/;
+  const matchesExpected = expectedSha !== null &&
+    exactSha.test(expectedSha) && candidateSha === expectedSha;
+  if (!exactSha.test(candidateSha)) {
+    return { matchesExpected: false, acceptable: false, error: "checked-out candidate SHA is invalid" };
+  }
+  if (expectedSha === null) {
+    return requireReconciled
+      ? { matchesExpected: false, acceptable: false, error: "strict reconciliation requires --expected-sha" }
+      : { matchesExpected: false, acceptable: true, error: null };
+  }
+  if (!exactSha.test(expectedSha)) {
+    return { matchesExpected: false, acceptable: false, error: "--expected-sha must be an exact lowercase 40-character SHA" };
+  }
+  if (!matchesExpected) {
+    return { matchesExpected: false, acceptable: false, error: "checked-out candidate does not match --expected-sha" };
+  }
+  return { matchesExpected: true, acceptable: true, error: null };
+}
+
+
 export type HostedMigration = { version: string; name?: string };
 export type RepoMigration = { version: string; name: string; filename: string };
 
