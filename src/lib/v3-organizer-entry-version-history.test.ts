@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  appendOrganizerEntryRevisionPage,
   compareOrganizerEntryRevisions,
   hasEarlierOrganizerEntryVersions,
   parseOrganizerEntryRevisions,
@@ -57,6 +58,42 @@ describe("Organizer immutable Entry version evidence", () => {
     expect(() => parseOrganizerEntryRevisions({ ...payload, versions: [payload.versions[0], { ...payload.versions[1], id: "v2" }] }, "entry-1", "submission-1")).toThrow();
   });
 
+  it("refuses truncation, malformed decisions and duplicate immutable review evidence", () => {
+    const make = (reviews: unknown) => ({
+      ...payload,
+      versions: [{ ...payload.versions[0], reviews }],
+    });
+    expect(() => parseOrganizerEntryRevisions(make(Array.from({ length: 26 }, (_, i) => ({
+      id: `review-${i}`, decision: "accepted",
+    }))), "entry-1", "submission-1")).toThrow(/bounded review-evidence/);
+    expect(() => parseOrganizerEntryRevisions(make({ decision: "accepted" }),
+      "entry-1", "submission-1")).toThrow(/malformed review evidence/);
+    expect(() => parseOrganizerEntryRevisions(make([{}]),
+      "entry-1", "submission-1")).toThrow(/invalid review decision/);
+    expect(() => parseOrganizerEntryRevisions(make([
+      { id: "same", decision: "accepted" },
+      { id: "same", decision: "declined" },
+    ]), "entry-1", "submission-1")).toThrow(/duplicate review evidence/);
+    const exact = parseOrganizerEntryRevisions(make(
+      [{ id: "only", decision: "accepted" }],
+    ), "entry-1", "submission-1");
+    expect(exact[0].reviews).toHaveLength(1);
+  });
+
+  it("never silently hides an overlapping or incorrectly ordered revision page", () => {
+    const [newer, older] = parseOrganizerEntryRevisions(payload, "entry-1", "submission-1");
+    expect(appendOrganizerEntryRevisionPage([newer], [older], 2))
+      .toEqual([newer, older]);
+    expect(() => appendOrganizerEntryRevisionPage([newer], [
+      { ...older, id: newer.id },
+    ], 2)).toThrow(/repeated or reordered/);
+    expect(() => appendOrganizerEntryRevisionPage([newer], [
+      { ...older, revision: newer.revision },
+    ], 2)).toThrow(/repeated or reordered/);
+    expect(() => appendOrganizerEntryRevisionPage([newer], [older], 3))
+      .toThrow(/continuation cursor/);
+  });
+
   it("compares the full inspected field set without returning private source URLs", () => {
     const [newer, older] = parseOrganizerEntryRevisions(payload, "entry-1", "submission-1");
     const changes = compareOrganizerEntryRevisions(newer, older);
@@ -89,6 +126,8 @@ describe("Organizer immutable Entry version evidence", () => {
     expect(code).toContain("onClick={() => void loadPage(false)}");
     expect(code).toContain("p_before_revision: cursor");
     expect(code).toContain("parseOrganizerEntryRevisions(data, entryId, submissionId)");
+    expect(code).toContain("appendOrganizerEntryRevisionPage(versions, page, cursor)");
+    expect(code).not.toContain("page.filter((item) => !seen.has(item.id))");
     expect(code).toContain("generation === requestGeneration.current");
     expect(code).toContain("activeScope.current === requestedScope");
     expect(code).not.toContain("version.songSource}");
