@@ -27,7 +27,7 @@ describe("V3 publication-safe Search relevance", () => {
     expect(matchesV3PublicSearch("Olxxd", "Oland")).toBe(false);
     expect(matchesV3PublicSearch("Olnd Dairia", "Oland Diaria")).toBe(false);
     expect(matchesV3PublicSearch("unknown", "Oland")).toBe(false);
-    expect(matchesV3PublicSearch("one two three four five", "one two three four fives")).toBe(false);
+    expect(matchesV3PublicSearch("one two three four fiev", "one two three four five")).toBe(false);
   });
 
   it("allows one typo among other exact query terms", () => {
