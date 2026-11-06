@@ -1,5 +1,6 @@
 import { Archive, Compass, Search, Sparkles } from "lucide-react";
 
+import { EventTime } from "@/components/public/EventTime";
 import type {
   V3EditionExperience,
   V3ExploreCollection,
@@ -120,10 +121,19 @@ function CurrentEditionCard({ edition }: { edition: V3ExploreEditionCard }) {
         </div>
 
         {edition.nextEvent ? (
-          <div className="mt-3">
+          <div className="mt-3" data-v3-explore-next-event="">
             <V3ActionCard
               title={edition.nextEvent.title}
-              description={edition.nextEvent.startsAt ?? "Time to be announced"}
+              description={
+                edition.nextEvent.startsAt
+                  ? "Next published show event"
+                  : "Time to be announced"
+              }
+              meta={
+                edition.nextEvent.startsAt ? (
+                  <EventTime value={edition.nextEvent.startsAt} showLocalTime />
+                ) : undefined
+              }
               tone="neutral"
               to={edition.nextEvent.href}
             />
