@@ -86,7 +86,10 @@ describe("Organizer System Settings exact edition context", () => {
 
   it("locks unfinished reminder drafts to their original edition and closes on context loss", () => {
     expect(route).toContain("const [createEditionId, setCreateEditionId]");
-    expect(route).toContain("createOpen && createEditionId && createEditionId !== selectedEdition?.id");
+    expect(route).toContain("editionId !== createEditionId ||");
+    expect(route).toContain("(editionsReady && selectedEdition?.id !== createEditionId)");
+    expect(route).toContain("Only a real scope switch or a confirmed missing edition discards the draft.");
+    expect(route).toContain("A background refresh/error must never silently erase typed Organizer work.");
     expect(route).toContain("createEditionId !== selectedEdition.id");
     expect(route).toContain("setCreateEditionId(selectedEdition?.id ?? null)");
     expect(route).toContain("setCreateEditionId(null)");
