@@ -145,6 +145,28 @@ describe("TG19 private World actor cache-source guard", () => {
     expect(result.report.proof).toBe("SOURCE_ONLY_NOT_RUNTIME_AUTHORIZATION_OR_RELEASE_CERTIFICATION");
   });
 
+  it("ignores auth-boundary cache invalidations while checking actual data reads", () => {
+    const result = runFixture({
+      [privateRoom]: `
+        function PrivateWorkspace({ identity }) {
+          supabase.auth.onAuthStateChange(() => {
+            queryClient.removeQueries({ queryKey: PRIVATE_WORLD_QUERY_ROOT });
+          });
+          queryClient.invalidateQueries({
+            queryKey: [...PRIVATE_WORLD_QUERY_ROOT, "organizations"],
+          });
+          return useInfiniteQuery({
+            queryKey: [...PRIVATE_WORLD_QUERY_ROOT, identity.data, "messages"],
+            enabled: Boolean(identity.data),
+            queryFn: fetchPrivateMessages,
+          });
+        }
+      `,
+    });
+    expect(result.status).toBe(0);
+    expect(result.report.violations).toEqual([]);
+  });
+
   it("rejects stale placeholder data that could retain another actor's private records", () => {
     const result = runFixture({
       [mediation]: `
