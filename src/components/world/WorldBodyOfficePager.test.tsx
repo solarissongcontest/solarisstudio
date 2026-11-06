@@ -27,7 +27,7 @@ function render(online = true) {
   return renderToStaticMarkup(
     <WorldBodyOfficePager
       organization={organization} body={body}
-      verificationVersion={123} online={online}
+      verificationVersion="123:456" online={online}
     />,
   );
 }
@@ -52,7 +52,7 @@ describe("TG3 published body-office pager UI", () => {
     expect(html).toContain(">Next</button>");
     expect(html).toContain(">Previous</button>");
     const key = queryMock.mock.calls[0][0].queryKey;
-    expect(key).toEqual(["world", "public", "body-offices-paged", "org-1", "body-1", 123, 0]);
+    expect(key).toEqual(["world", "public", "body-offices-paged", "org-1", "body-1", "123:456", 0]);
     expect(queryMock.mock.calls[0][0].refetchOnMount).toBe("always");
     expect(queryMock.mock.calls[0][0].retry).toBe(false);
   });
