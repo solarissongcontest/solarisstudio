@@ -2,7 +2,7 @@ import { resolveCurrentPublicEdition } from "./current-contest-state";
 import type { Country, Edition, Participant, Show } from "./data";
 import { normalizeLegacyEditionStatus } from "./edition-state";
 import { isShowPublic } from "./publication";
-import { showModeConfig } from "./show-mode";
+import { safeShowModeYoutubeUrl, showModeConfig } from "./show-mode";
 
 type PublicParticipant = Participant & {
   participation_status?: "confirmed" | "withdrawn" | "disqualified" | null;
@@ -214,22 +214,7 @@ export function buildShowDiscovery(input: {
       (rawState === "live" || rawState === "paused" || rawState === "delayed" ||
         rawState === "preparing" || rawState === "scheduled");
     const state: ShowDiscoveryState = staleHistoricalState ? "archived" : rawState;
-    let broadcastUrl: string | null = null;
-    try {
-      const raw = config.youtubeUrl?.trim();
-      if (raw) {
-        const url = new URL(raw);
-        const host = url.hostname.toLowerCase().replace(/^www\./, "");
-        if (
-          url.protocol === "https:" &&
-          (host === "youtube.com" || host.endsWith(".youtube.com") || host === "youtu.be")
-        ) {
-          broadcastUrl = url.toString();
-        }
-      }
-    } catch {
-      broadcastUrl = null;
-    }
+    const broadcastUrl = safeShowModeYoutubeUrl(config.youtubeUrl);
 
     return [{
       show,
