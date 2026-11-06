@@ -360,7 +360,11 @@ function AppPublicPaletteDialog({
   const remote = useQuery({
     queryKey: ["solaris-public-app-search", debouncedQuery.toLowerCase()],
     enabled: normalized.length >= 2 && !awaitingRemote,
-    staleTime: 60_000,
+    // A cached result was public when fetched, not necessarily now.
+    // Never replay previously published entries on a new Search opening
+    // before the current mounted request confirms their publication state.
+    staleTime: 0,
+    refetchOnMount: "always",
     // A failed search must be recoverable without automatically repeating
     // hosted read traffic. Explicit Retry remains under the visitor's control.
     retry: false,
@@ -432,9 +436,16 @@ function AppPublicPaletteDialog({
   const searchResults = useMemo<PublicSearchResult[]>(() => {
     if (!normalized) return [];
 
-    const remoteResults = (
-      normalized.length < 2 || awaitingRemote || remote.isError ? [] : remote.data ?? []
-    ).map((item) => ({
+    const verifiedRemoteRows =
+      normalized.length < 2 ||
+      awaitingRemote ||
+      !remote.isSuccess ||
+      !remote.isFetchedAfterMount ||
+      remote.isFetching ||
+      remote.isError
+        ? []
+        : remote.data ?? [];
+    const remoteResults = verifiedRemoteRows.map((item) => ({
       id: item.result_id,
       label: item.title,
       description: item.subtitle ?? "",
@@ -458,7 +469,16 @@ function AppPublicPaletteDialog({
     ];
 
     return limitV3PublicSearchGroups(rankV3PublicSearchResults(dedupePublicSearchResults([...local, ...remoteResults]), normalized));
-  }, [actionResults, normalized, awaitingRemote, remote.data, remote.isError]);
+  }, [
+    actionResults,
+    normalized,
+    awaitingRemote,
+    remote.data,
+    remote.isSuccess,
+    remote.isFetchedAfterMount,
+    remote.isFetching,
+    remote.isError,
+  ]);
 
   const grouped = useMemo(() => {
     const source = normalized ? searchResults : [...recentResults, ...actionResults];

@@ -28,7 +28,13 @@ describe("V3 installed global Search recovery", () => {
     expect(app).toContain('role="alert"');
     expect(app).toContain("Published search could not load");
     expect(app).toContain("Nothing in Solaris Studio matches that search.");
-    expect(app).toMatch(/normalized\.length\s*<\s*2\s*\|\|\s*awaitingRemote\s*\|\|\s*remote\.isError\s*\?\s*\[\]\s*:\s*remote\.data\s*\?\?\s*\[\]/);
+    expect(app).toContain("const verifiedRemoteRows =");
+    expect(app).toContain("awaitingRemote ||");
+    expect(app).toContain("!remote.isSuccess");
+    expect(app).toContain("!remote.isFetchedAfterMount");
+    expect(app).toContain("remote.isFetching ||");
+    expect(app).toContain("remote.isError");
+    expect(app).toContain("const remoteResults = verifiedRemoteRows.map");
   });
 
   it("debounces remote reads and prevents stale query results while local suggestions remain immediate", () => {
@@ -37,9 +43,20 @@ describe("V3 installed global Search recovery", () => {
     expect(app).toContain("enabled: normalized.length >= 2 && !awaitingRemote");
     expect(app).toContain('queryKey: ["solaris-public-app-search", debouncedQuery.toLowerCase()]');
     expect(app).toContain("search_query: debouncedQuery");
-    expect(app).toContain("normalized.length < 2 || awaitingRemote || remote.isError");
+    expect(app).toContain("normalized.length < 2 ||");
+    expect(app).toContain("!remote.isFetchedAfterMount");
     expect(app).toContain("navigationV3PublicSearchResults(normalized)");
     expect(app).toContain("(awaitingRemote || remote.isFetching)");
+  });
+
+  it("requires fresh server publication proof before redisplaying cached search rows", () => {
+    expect(app).toContain("staleTime: 0");
+    expect(app).toContain('refetchOnMount: "always"');
+    expect(app).toContain("!remote.isSuccess");
+    expect(app).toContain("!remote.isFetchedAfterMount");
+    expect(app).toContain("remote.isFetching");
+    expect(app).toContain("remote.isError");
+    expect(app).toContain("refetchOnWindowFocus: false");
   });
 
   it("offers explicit accessible retry without automated failure loops", () => {
