@@ -84,11 +84,14 @@ describe("V3 Show detail public query scope", () => {
     expect(televoteOnly.televoteDetailId).toBe(show.id);
   });
 
-  it("retains explicit legacy Show publication compatibility", () => {
+  it("preserves legacy aggregate results without inferring individual ballot publication", () => {
     const read = publishedShowReadAccess({ ...show, publication_config: null }, edition);
     expect(read.showId).toBe(show.id);
     expect(read.resultsId).toBe(show.id);
-    expect(read.juryVotesId).toBe(show.id);
+    expect(read.juryVotesId).toBeUndefined();
+    expect(read.televoteVotesId).toBeUndefined();
+    expect(read.votersId).toBeUndefined();
+    expect(read.televoteDetailId).toBeUndefined();
   });
 
   it("wires existing Show detail hooks to exact public query IDs", () => {
