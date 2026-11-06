@@ -38,7 +38,29 @@ describe("V3 Organizer Community moderation fresh-review compatibility", () => {
     expect(route).toContain(
       "changed while this moderation decision was being reviewed. Nothing was changed.",
     );
-    expect(route).toContain('queryKey: ["admin-fan-profile-moderation"]');
+    expect(route).toContain('queryKey: ["admin-fan-profile-moderation", actorId ?? "signed-out"]');
+  });
+
+  it("isolates private moderation projection and pending decisions across authenticated actors", () => {
+    expect(route).toContain('import { useAuthenticatedUser }');
+    expect(route).toContain('const actorId = useAuthenticatedUser().id;');
+    expect(route).toContain('return <CommunityModerationWorkspace key={actorId ?? "signed-out"} actorId={actorId} />');
+    expect(route).toContain('enabled: Boolean(actorId)');
+    expect(route).toContain('queryKey: ["admin-fan-profile-moderation", actorId ?? "signed-out"]');
+    expect(route).toContain('queryKey: ["admin-fan-profile-moderation", actorId]');
+    expect(route).toContain('gcTime: 0');
+    expect(route).toContain('retry: false');
+    expect(route).toContain('refetchOnWindowFocus: false');
+    expect(route).toContain('refetchOnReconnect: false');
+    expect(route).toContain('if (!Array.isArray(data)) throw new Error("Invalid private moderation projection.");');
+    expect(route).toContain('if (!alive.current) throw new Error("Moderation account changed during read.");');
+
+    const reread = route.indexOf('const live = await loadExactModerationProfile(reviewed.profile);');
+    const unmounted = route.indexOf('if (!alive.current) return;', reread);
+    const mutation = route.indexOf('moderate.mutate({', reread);
+    expect(reread).toBeGreaterThan(-1);
+    expect(unmounted).toBeGreaterThan(reread);
+    expect(mutation).toBeGreaterThan(unmounted);
   });
 
   it("freezes moderation reason before the command boundary", () => {
