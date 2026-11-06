@@ -19,6 +19,9 @@ function arrange({
   critical = 0,
   incidentError = null as { message: string } | null,
   healthData = { status: 'ready', issues_count: 0, critical_count: 0 } as Record<string, unknown> | null,
+  shows = [] as Array<{ id: string; status: string }>,
+  broadcastData = null as Record<string, unknown> | null,
+  broadcastError = null as { message?: string; code?: string } | null,
 } = {}) {
   const incidentSelections: Array<{ select: string; head: boolean; count: string }> = [];
   const from = vi.fn((table: string) => {
@@ -34,6 +37,26 @@ function arrange({
     }
     if (table === 'edition_subsystem_states') {
       return { select: () => ({ eq: async () => ({ data: [], error: null }) }) };
+    }
+    if (table === 'shows') {
+      return {
+        select: () => ({
+          eq: (field: string, value: string) => {
+            expect(field).toBe('edition_id');
+            expect(value).toBe('ssc22');
+            return {
+              in: (column: string, statuses: string[]) => {
+                expect(column).toBe('status');
+                expect(statuses).toContain('live');
+                return { limit: async (n: number) => {
+                  expect(n).toBe(2);
+                  return { data: shows.slice(0, n), error: null };
+                } };
+              },
+            };
+          },
+        }),
+      };
     }
     if (table === 'studio2_incidents') {
       const query = {
@@ -56,7 +79,14 @@ function arrange({
   mocked.requireCapability.mockResolvedValue({
     userId: 'operator-1', capabilities, authoritative: true,
   });
-  const rpc = vi.fn(async () => ({ data: healthData, error: null }));
+  const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
+    if (name === 'admin_edition_health_summary') return { data: healthData, error: null };
+    if (name === 'studio2_broadcast_rundown') {
+      expect(args).toEqual({ p_show_id: shows[0]?.id });
+      return { data: broadcastData, error: broadcastError };
+    }
+    throw new Error('Unexpected RPC: ' + name);
+  });
   mocked.createClient.mockReturnValue({ from, rpc });
   return { from, rpc, incidentSelections };
 }
@@ -109,5 +139,79 @@ describe('Organizer Control Room server incident verification', () => {
     await expect(loadControlRoomModelServer('ssc22')).rejects.toEqual({
       message: 'Database unavailable',
     });
+  });
+
+  it('uses the authoritative live Show rundown for current and next cue labels', async () => {
+    const db = arrange({
+      capabilities: ['edition.read', 'edition.manage'],
+      shows: [{ id: 'show-live', status: 'live' }],
+      broadcastData: {
+        version: 2, revision: 4, startAt: '2026-11-06T18:00:00Z',
+        lockedAt: '2026-11-06T17:00:00Z', lockedBy: 'organizer', lockReason: 'Show ready',
+        updatedAt: null, updatedBy: null,
+        segments: [
+          { id: 'opening', label: 'Opening', status: 'completed', plannedDurationSeconds: 60 },
+          { id: 'performance', label: 'Performance 12 · Oland', status: 'live', plannedDurationSeconds: 180,
+            actualStartedAt: '2026-11-06T18:01:00Z' },
+          { id: 'next', label: 'Performance 13 · Vendia', status: 'ready', plannedDurationSeconds: 180 },
+        ],
+      },
+    });
+    const model = await loadControlRoomModelServer('ssc22');
+    expect(model.currentSegment).toBe('Performance 12 · Oland');
+    expect(model.nextSegment).toBe('Performance 13 · Vendia');
+    expect(db.rpc).toHaveBeenCalledWith('studio2_broadcast_rundown', { p_show_id: 'show-live' });
+  });
+
+  it('never reads broadcast state for edition readers without manage permission', async () => {
+    const db = arrange({ capabilities: ['edition.read', 'incident.read'] });
+    const model = await loadControlRoomModelServer('ssc22');
+    expect(model.currentSegment).toBeNull();
+    expect(model.nextSegment).toBeNull();
+    expect(db.from.mock.calls.some(([table]) => table === 'shows')).toBe(false);
+    expect(db.rpc.mock.calls.some(([name]) => name === 'studio2_broadcast_rundown')).toBe(false);
+  });
+
+  it('does not invent current or next cue when live Show selection is ambiguous', async () => {
+    const db = arrange({
+      capabilities: ['edition.read', 'edition.manage'],
+      shows: [{ id: 'show-a', status: 'live' }, { id: 'show-b', status: 'live' }],
+    });
+    const model = await loadControlRoomModelServer('ssc22');
+    expect(model.currentSegment).toBeNull();
+    expect(model.nextSegment).toBeNull();
+    expect(db.rpc.mock.calls.some(([name]) => name === 'studio2_broadcast_rundown')).toBe(false);
+  });
+
+  it('omits the live cue projection for missing or invalid rundown evidence', async () => {
+    const db = arrange({
+      capabilities: ['edition.read', 'edition.manage'],
+      shows: [{ id: 'show-live', status: 'live' }],
+      broadcastData: { version: 2, revision: 1, startAt: 'bad time', segments: [] },
+    });
+    const model = await loadControlRoomModelServer('ssc22');
+    expect(model.currentSegment).toBeNull();
+    expect(model.nextSegment).toBeNull();
+    expect(db.rpc).toHaveBeenCalledWith('studio2_broadcast_rundown', { p_show_id: 'show-live' });
+  });
+
+  it('does not leak broadcast data when the canonical broadcast RPC denies access', async () => {
+    arrange({
+      capabilities: ['edition.read', 'edition.manage'],
+      shows: [{ id: 'show-live', status: 'live' }],
+      broadcastError: { message: 'Organizer or edition.manage required', code: '42501' },
+    });
+    const model = await loadControlRoomModelServer('ssc22');
+    expect(model.currentSegment).toBeNull();
+    expect(model.nextSegment).toBeNull();
+  });
+
+  it('propagates unexpected rundown errors rather than substituting a fabricated cue', async () => {
+    arrange({
+      capabilities: ['edition.read', 'edition.manage'],
+      shows: [{ id: 'show-live', status: 'live' }],
+      broadcastError: { message: 'Network unavailable' },
+    });
+    await expect(loadControlRoomModelServer('ssc22')).rejects.toEqual({ message: 'Network unavailable' });
   });
 });

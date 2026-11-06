@@ -4,6 +4,8 @@ import { runtimeStateFromRows, type EditionRuntimeStateRow, type EditionSubsyste
 
 import { requireSolarisCapabilityServer } from '@/integrations/supabase/capabilities.server';
 import { createSolarisAuthenticatedClientServer } from '@/integrations/supabase/organizer.server';
+import { buildBroadcastRundown } from './broadcast-rundown';
+import { parseStudio2BroadcastRundown } from './studio2-broadcast-rundown';
 
 function missingSchema(error: unknown) {
   const text = String((error as { message?: string })?.message ?? error ?? '').toLowerCase();
@@ -97,12 +99,61 @@ async function loadIncidentSignals(
   return { active: active.count, critical: critical.count };
 }
 
+type LiveCueLabels = { current: string | null; next: string | null };
+
+/**
+ * Surface only the existing, server-authorized production rundown. Avoid
+ * guessing a live Show if zero or multiple Shows have an active status.
+ * This projection never performs an operational command or changes a cue.
+ */
+async function loadLiveRundownCueLabels(
+  db: ReturnType<typeof createSolarisAuthenticatedClientServer>,
+  editionId: string,
+  canManageEdition: boolean,
+): Promise<LiveCueLabels | null> {
+  if (!canManageEdition) return null;
+
+  const { data: shows, error: showsError } = await (db as any)
+    .from('shows')
+    .select('id,status')
+    .eq('edition_id', editionId)
+    .in('status', ['live', 'active', 'open', 'in_progress'])
+    .limit(2);
+
+  if (showsError) {
+    if (missingSchema(showsError)) return null;
+    throw showsError;
+  }
+  // The query is deliberately bounded at two: ambiguous simultaneous live
+  // candidates are not permission to invent an "active" show.
+  if (!Array.isArray(shows) || shows.length !== 1 || typeof shows[0]?.id !== 'string') return null;
+
+  // This RPC itself checks authoritative broadcast-management permission.
+  // Edition scope is already constrained by the filtered Show query.
+  const { data, error } = await (db as any).rpc('studio2_broadcast_rundown', {
+    p_show_id: shows[0].id,
+  });
+  if (error) {
+    if (missingSchema(error) || (error as { code?: string }).code === '42501') return null;
+    throw error;
+  }
+  const config = parseStudio2BroadcastRundown({ studio2Rundown: data });
+  if (!config) return null;
+
+  const rundown = buildBroadcastRundown(config.startAt, config.segments);
+  return {
+    current: rundown.currentSegment?.label ?? null,
+    next: rundown.nextSegment?.label ?? null,
+  };
+}
+
 export async function loadControlRoomModelServer(editionId: string): Promise<ControlRoomModel> {
   if (!editionId) throw new Error('Edition id is required');
   const viewer = await requireSolarisCapabilityServer('edition.read', editionId);
   const canReadIncidents =
     viewer.capabilities.includes('incident.read') ||
     viewer.capabilities.includes('integrity.read');
+  const canManageEdition = viewer.capabilities.includes('edition.manage');
 
   const db = createSolarisAuthenticatedClientServer();
   const [{ data: edition, error: editionError }, runtimeState] = await Promise.all([
@@ -115,9 +166,11 @@ export async function loadControlRoomModelServer(editionId: string): Promise<Con
   const [
     { data: healthData, error: healthError },
     incidentCounts,
+    liveCues,
   ] = await Promise.all([
     (db as any).rpc('admin_edition_health_summary', { _edition_id: editionId }),
     loadIncidentSignals(db, editionId, canReadIncidents),
+    loadLiveRundownCueLabels(db, editionId, canManageEdition),
   ]);
 
   const health = healthError && missingSchema(healthError) ? null : healthData;
@@ -133,5 +186,7 @@ export async function loadControlRoomModelServer(editionId: string): Promise<Con
     criticalIssues: health?.critical_count ?? null,
     activeIncidents: incidentCounts?.active ?? null,
     criticalIncidents: incidentCounts?.critical ?? null,
+    currentSegment: liveCues?.current ?? null,
+    nextSegment: liveCues?.next ?? null,
   });
 }
