@@ -72,11 +72,15 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
   const [status, setStatus] = useState<WorldBodyStatusFilter>("all");
   const valid = validWorldSlug(slug);
   const query = useQuery({
-    queryKey: ["world", "public", "bodies", slug, term, status, page],
+    // A new verified connectivity probe gets a distinct publication snapshot.
+    // This survives unmounts caused by the outer rollout gate.
+    queryKey: ["world", "public", "bodies", slug, term, status, page, connectivity.checkedAt],
     queryFn: ({ signal }) => readPublicWorldBodies(slug, page, { term, status, signal }),
     enabled: valid && !publicationBlocked,
     // Preserve the verified parent and search controls while the next filtered page loads.
-    placeholderData: (previous) => previous?.organization.slug === slug ? previous : undefined,
+    placeholderData: (previous, priorQuery) =>
+      priorQuery?.queryKey[7] === connectivity.checkedAt && previous?.organization.slug === slug
+        ? previous : undefined,
     staleTime: 90_000,
     retry: false,
   });
@@ -173,13 +177,13 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
   const officeNetworkBlocked = connectivity.status === "offline" || connectivity.status === "service-restricted";
   const valid = validWorldSlug(slug) && validWorldSlug(bodySlug);
   const query = useQuery({
-    queryKey: ["world", "public", "body", slug, bodySlug],
+    queryKey: ["world", "public", "body", slug, bodySlug, connectivity.checkedAt],
     queryFn: ({ signal }) => readPublicWorldBody(slug, bodySlug, signal),
     enabled: valid && !officeNetworkBlocked, staleTime: 90_000, retry: false,
   });
   const result = officeNetworkBlocked || query.isError ? undefined : query.data;
   const offices = useQuery({
-    queryKey: ["world", "public", "body-offices", result?.organization.id, result?.body.id],
+    queryKey: ["world", "public", "body-offices", result?.organization.id, result?.body.id, connectivity.checkedAt],
     queryFn: ({ signal }) => readPublicBodyOffices(result!.organization, result!.body, signal),
     enabled: !!result && !officeNetworkBlocked,
     staleTime: 90_000,
