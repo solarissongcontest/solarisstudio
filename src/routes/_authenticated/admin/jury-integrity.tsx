@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, Scale, ShieldAlert, Users } from "lucide-r
 import { useMemo, useState } from "react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { AdminDataView, type AdminDataColumn } from "@/components/admin/AdminDataView";
 import { AdminCard, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { getJuryIntegrityCases } from "@/integrations/jury-voting/jury-integrity-admin.functions";
@@ -22,12 +23,14 @@ export const Route = createFileRoute("/_authenticated/admin/jury-integrity")({
 
 function JuryIntegrityPage() {
   const { editionId } = useAdminContext();
+  const actorId = useAuthenticatedUser().id;
   const loadCases = useServerFn(getJuryIntegrityCases);
   const [minimumRisk, setMinimumRisk] = useState(0);
   const [search, setSearch] = useState("");
 
   const query = useQuery({
-    queryKey: ["jury-integrity-v5", editionId ?? "unscoped"],
+    // Never reuse producer-only ballot evidence across authenticated identities.
+    queryKey: ["jury-integrity-v5", actorId, editionId ?? "unscoped"],
     enabled: Boolean(editionId),
     queryFn: async () => {
       if (!editionId) throw new Error("Jury Integrity requires an explicit Organizer edition scope");
@@ -39,6 +42,14 @@ function JuryIntegrityPage() {
       return result;
     },
     staleTime: 30_000,
+    // Confidential evidence is dropped when this actor/edition query is unused.
+    gcTime: 0,
+    // Private model evidence is expensive and can be permission-denied.
+    // Never repeat protected reads automatically on focus/reconnect/failure.
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: false,
   });
 
   const cases = useMemo(() => {
@@ -74,14 +85,27 @@ function JuryIntegrityPage() {
         eyebrow="Jury integrity"
         title="Jury Independence v5"
         description="Producer-only review of jury independence, peer-score deviation, historical relationships and corroborating evidence for the exact selected edition. Statistical evidence is for review, not an automatic misconduct finding."
+        actions={
+          <button
+            type="button"
+            className="admin-action-secondary"
+            onClick={() => void query.refetch()}
+            disabled={query.isFetching}
+            aria-busy={query.isFetching}
+          >
+            {query.isFetching ? "Refreshing…" : query.error ? "Retry integrity evidence" : "Refresh integrity evidence"}
+          </button>
+        }
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Checked ballots" value={query.data?.stats.total ?? 0} icon={Scale} />
-        <Metric label="Review 50+" value={query.data?.stats.reviewOrHigher ?? 0} icon={Users} />
-        <Metric label="Declaration 65+" value={query.data?.stats.declarationOrHigher ?? 0} icon={AlertTriangle} />
-        <Metric label="High 80+" value={query.data?.stats.highOrHigher ?? 0} icon={ShieldAlert} />
-      </div>
+      {query.data && !query.error && !query.isLoading ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Metric label="Integrity checks" value={query.data.stats.total} icon={Scale} />
+          <Metric label="Review 50+" value={query.data.stats.reviewOrHigher} icon={Users} />
+          <Metric label="Declaration 65+" value={query.data.stats.declarationOrHigher} icon={AlertTriangle} />
+          <Metric label="High 80+" value={query.data.stats.highOrHigher} icon={ShieldAlert} />
+        </div>
+      ) : null}
 
       <AdminCard>
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
@@ -114,7 +138,17 @@ function JuryIntegrityPage() {
       {query.isLoading ? (
         <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading jury integrity evidence…</p></AdminCard>
       ) : query.error ? (
-        <AdminCard><p className="text-sm text-red-200">{query.error instanceof Error ? query.error.message : "Could not load jury integrity evidence."}</p></AdminCard>
+        <AdminCard>
+          <div role="alert">
+            <p className="text-sm font-semibold text-red-200">Jury integrity evidence could not be loaded</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              No integrity conclusion can be drawn from an unavailable or unauthorized readback.
+              {query.error instanceof Error && query.error.message.includes("Jury integrity evidence is incomplete")
+                ? " The bounded read could not verify all cases. Review pagination or service health before trusting risk totals."
+                : " Use Retry integrity evidence above after resolving the issue."}
+            </p>
+          </div>
+        </AdminCard>
       ) : cases.length ? (
         <div className="space-y-3">
           {cases.map((row) => <CaseCard key={row.id} row={row} />)}
@@ -144,6 +178,7 @@ function Metric({ label, value, icon: Icon }: { label: string; value: number; ic
 }
 
 function CaseCard({ row }: { row: JuryIntegrityCase }) {
+  const [showAllTargets, setShowAllTargets] = useState(false);
   const targetColumns = [
     {
       key: "target",
@@ -208,13 +243,27 @@ function CaseCard({ row }: { row: JuryIntegrityCase }) {
       </div>
 
       {row.targets.length ? (
-        <AdminDataView
-          className="mt-4"
-          rows={row.targets.slice(0, 8)}
-          columns={targetColumns}
-          rowKey={(target) => target.targetCountryId}
-          ariaLabel={`${row.countryCode} integrity evidence targets`}
-        />
+        <>
+          <AdminDataView
+            className="mt-4"
+            rows={showAllTargets ? row.targets : row.targets.slice(0, 8)}
+            columns={targetColumns}
+            rowKey={(target) => target.targetCountryId}
+            ariaLabel={`${row.countryCode} integrity evidence targets`}
+          />
+          {row.targets.length > 8 ? (
+            <button
+              type="button"
+              className="admin-action-secondary mt-3"
+              onClick={() => setShowAllTargets((current) => !current)}
+              aria-expanded={showAllTargets}
+            >
+              {showAllTargets
+                ? "Show top 8 targets"
+                : `Show all ${row.targets.length} scored targets`}
+            </button>
+          ) : null}
+        </>
       ) : null}
     </AdminCard>
   );

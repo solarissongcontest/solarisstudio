@@ -13,6 +13,7 @@ import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { ArchiveDataLoading } from "@/components/ArchiveDataState";
 import { supabase } from "@/integrations/supabase/client";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
+import { parseReferenceSearchRows } from "@/lib/v3-reference-search-rows";
 
 export const Route = createFileRoute("/encyclopedia/")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -39,14 +40,7 @@ export const Route = createFileRoute("/encyclopedia/")({
 });
 
 type ResultKind = "edition" | "country" | "entry" | "show";
-type Kind = "all" | ResultKind;
-type ReferenceItem = {
-  id: string;
-  kind: ResultKind;
-  title: string;
-  subtitle: string;
-  href: string;
-};
+type Kind = "all" | ResultKind | "story" | "rule";
 type Coverage = {
   countries: number;
   entries: number;
@@ -60,6 +54,8 @@ const KIND_LABELS: Record<Kind, string> = {
   country: "Countries",
   entry: "Entries",
   show: "Shows",
+  story: "Stories",
+  rule: "Official rules",
 };
 const RESULT_LABELS: Record<ResultKind, string> = {
   edition: "Edition",
@@ -70,56 +66,15 @@ const RESULT_LABELS: Record<ResultKind, string> = {
 const KINDS = Object.keys(KIND_LABELS) as Kind[];
 const REFERENCE_SEARCH_DELAY_MS = 300;
 const MAX_REFERENCE_QUERY_LENGTH = 120;
-const RESULT_KINDS = new Set<ResultKind>([
-  "edition",
-  "country",
-  "entry",
-  "show",
-]);
 const BROWSE_DESTINATIONS = [
-  ["Editions", "Browse every published Solaris edition.", "/editions"],
-  [
-    "Countries",
-    "Open canonical country profiles and participation history.",
-    "/countries",
-  ],
-  ["Shows", "Find published shows and their edition context.", "/shows"],
-  ["Stories", "Continue into published Solaris editorial history.", "/stories"],
+  { kind: "edition", label: "Editions", description: "Browse every published Solaris edition.", href: "/editions" },
+  { kind: "country", label: "Countries", description: "Open canonical country profiles and participation history.", href: "/countries" },
+  { kind: "show", label: "Shows", description: "Find published shows and their edition context.", href: "/shows" },
+  { kind: "story", label: "Stories", description: "Continue into published Solaris editorial history.", href: "/stories" },
+  { kind: "rule", label: "Official rules", description: "Read the current published Rules and guidance.", href: "/rules" },
 ] as const;
 
-function parseSearchRows(value: unknown): ReferenceItem[] {
-  if (!Array.isArray(value)) throw new Error("Invalid public search projection");
-
-  const seen = new Set<string>();
-  return value.flatMap((raw) => {
-    if (!raw || typeof raw !== "object") {
-      throw new Error("Invalid public search row");
-    }
-
-    const row = raw as Record<string, unknown>;
-    if (!RESULT_KINDS.has(row.result_type as ResultKind)) return [];
-
-    const id = typeof row.result_id === "string" ? row.result_id.trim() : "";
-    const title = typeof row.title === "string" ? row.title.trim() : "";
-    const href = typeof row.href === "string" ? row.href.trim() : "";
-
-    if (!id || !title || !href.startsWith("/") || href.startsWith("//")) {
-      throw new Error("Invalid public Reference result");
-    }
-    if (seen.has(id)) return [];
-    seen.add(id);
-
-    return [
-      {
-        id,
-        kind: row.result_type as ResultKind,
-        title,
-        subtitle: typeof row.subtitle === "string" ? row.subtitle : "",
-        href,
-      },
-    ];
-  });
-}
+const parseSearchRows = parseReferenceSearchRows;
 
 function parseCoverage(value: unknown): Coverage {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -154,6 +109,7 @@ function ReferencePage() {
     return () => window.clearTimeout(timeoutId);
   }, [normalizedQuery, settledQuery]);
   const searchPending = settledQuery !== normalizedQuery;
+  const dedicatedTopicOnly = kind === "story" || kind === "rule";
 
   const feature = useQuery({
     queryKey: ["studio2-feature", "public_encyclopedia"],
@@ -181,7 +137,7 @@ function ReferencePage() {
       "search",
       settledQuery.toLocaleLowerCase(),
     ],
-    enabled: feature.data === true && normalizedQuery.length >= 2 &&
+    enabled: feature.data === true && !dedicatedTopicOnly && normalizedQuery.length >= 2 &&
       normalizedQuery.length <= MAX_REFERENCE_QUERY_LENGTH && !searchPending,
     staleTime: 60_000,
     queryFn: async () => {
@@ -196,6 +152,12 @@ function ReferencePage() {
       return parseSearchRows(data);
     },
   });
+
+  // Topic choices must also filter the idle browse index, not only typed search hits.
+  // Entries have no independent public directory yet: users search the published projection.
+  const browseDestinations = BROWSE_DESTINATIONS.filter((destination) =>
+    kind === "all" || destination.kind === kind,
+  );
 
   const filtered = useMemo(
     () =>
@@ -220,7 +182,26 @@ function ReferencePage() {
     );
   }
 
-  if (feature.isError || feature.data !== true) {
+  if (feature.isError) {
+    return (
+      <AppShell>
+        <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
+          <ReferenceDirectoryHeader presentation={presentation} />
+          <Panel title="Reference availability could not be checked">
+            <p className="text-sm text-muted-foreground">
+              Solaris could not verify whether the public Reference is enabled. No unpublished articles are shown.
+            </p>
+            <button type="button" onClick={() => void feature.refetch()}
+              className="mt-3 min-h-11 rounded-xl border border-border bg-surface px-4 text-sm font-semibold">
+              Retry availability check
+            </button>
+          </Panel>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (feature.data !== true) {
     return (
       <AppShell>
         <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
@@ -278,9 +259,13 @@ function ReferencePage() {
           <StatTile label="Stories" value={coverageValue(coverage?.stories)} />
         </div>
         {coverageQuery.isError ? (
-          <p className="mt-3 text-xs text-muted-foreground">
-            Archive totals are temporarily unavailable. Search and reference links still work.
-          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            <p>Archive totals are temporarily unavailable. Search and reference links still work.</p>
+            <button type="button" onClick={() => void coverageQuery.refetch()}
+              className="min-h-11 rounded-xl border border-border px-3 font-semibold text-foreground">
+              Retry archive totals
+            </button>
+          </div>
         ) : null}
       </Panel>
 
@@ -338,7 +323,7 @@ function ReferencePage() {
         ) : null}
       </section>
 
-      {normalizedQuery.length === 0 ? (
+      {normalizedQuery.length === 0 || dedicatedTopicOnly ? (
         <section className="mt-5" aria-labelledby="reference-browse-heading">
           <div className="mb-3 border-b border-border/60 pb-3">
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
@@ -347,12 +332,18 @@ function ReferencePage() {
             <h2
               id="reference-browse-heading"
               className="mt-1 font-sans text-xl font-bold"
+              aria-live="polite"
             >
-              Browse published Solaris
+              {kind === "all" ? "Browse published Solaris" : `Browse ${KIND_LABELS[kind].toLowerCase()}`}
             </h2>
           </div>
+          {dedicatedTopicOnly && normalizedQuery.length > 0 ? (
+            <p className="mb-3 text-sm leading-6 text-muted-foreground" role="status">
+              {KIND_LABELS[kind]} has a dedicated published index. The bounded Reference record search does not index this topic; open its public index below.
+            </p>
+          ) : null}
           <div className={presentation === "mobile-web" ? "v3-directory-mobile-list" : presentation === "installed-app" ? "solaris-app-grouped-list" : "v3-directory-desktop-grid"}>
-            {BROWSE_DESTINATIONS.map(([label, description, href]) => (
+            {browseDestinations.map(({ label, description, href }) => (
               <Link
                 key={href}
                 to={href as any}
@@ -370,6 +361,11 @@ function ReferencePage() {
               </Link>
             ))}
           </div>
+          {browseDestinations.length === 0 ? (
+            <p className="mt-3 py-5 text-sm text-muted-foreground" role="status">
+              No standalone index exists for this topic. Search above to find published entries, songs and artists in their edition context.
+            </p>
+          ) : null}
         </section>
       ) : normalizedQuery.length < 2 ? (
         <div className="mt-5 rounded-2xl border border-border bg-surface p-7 text-center text-sm text-muted-foreground">

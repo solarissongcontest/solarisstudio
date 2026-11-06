@@ -20,6 +20,35 @@ type PredictionLeagueStandingRow = Omit<
   position: number | string;
 };
 
+export function normalizePredictionLeagueStandings(
+  rows: readonly PredictionLeagueStandingRow[],
+): PredictionLeagueStanding[] {
+  return rows.map((row) => {
+    const result = {
+      ...row,
+      score: Number(row.score),
+      rounds: Number(row.rounds),
+      position: Number(row.position),
+    };
+    if (
+      !row.profileId ||
+      !row.displayName?.trim() ||
+      [row.score, row.rounds, row.position].some(
+        (value) => typeof value !== "number" && (typeof value !== "string" || !value.trim()),
+      ) ||
+      !Number.isFinite(result.score) ||
+      result.score < 0 ||
+      !Number.isSafeInteger(result.rounds) ||
+      result.rounds < 1 ||
+      !Number.isSafeInteger(result.position) ||
+      result.position < 1
+    ) {
+      throw Error("Invalid canonical Prediction League standing.");
+    }
+    return result;
+  });
+}
+
 export function usePredictionLeagueStandings(
   enabled: boolean,
   editionId: string | null = null,
@@ -33,12 +62,7 @@ export function usePredictionLeagueStandings(
       });
       if (error) throw error;
 
-      return ((data ?? []) as PredictionLeagueStandingRow[]).map((row) => ({
-        ...row,
-        score: Number(row.score),
-        rounds: Number(row.rounds),
-        position: Number(row.position),
-      }));
+      return normalizePredictionLeagueStandings((data ?? []) as PredictionLeagueStandingRow[]);
     },
     staleTime: 30_000,
     retry: false,

@@ -165,11 +165,12 @@ const representativeCiProjects = [
     use: { viewport: { width: 1440, height: 1000 } },
   },
   {
-    // One installed-app shell path proves the mobile chrome without running the
-    // exhaustive PWA launch/geometry certification suite on every pull request.
+    // Representative installed-app geometry and interrupted-lens recovery run
+    // against isolated loopback Supabase on every PR. The exhaustive launch,
+    // geometry and visual certification remains a separate explicit audit.
     name: "ios-pwa-portrait",
     testMatch: /installed-app\.e2e\.ts/,
-    grep: /installed app shell survives representative navigation without duplicate chrome/,
+    grep: /installed app shell survives representative navigation without duplicate chrome|installed Liquid dock cancels held gestures/,
     use: {
       ...devices["iPhone 13"],
       browserName: "webkit" as const,
