@@ -13,8 +13,8 @@ describe("Preclearance case isolation", () => {
   });
 
   it("does not retain a removed, unauthorized, or out-of-date selected question", () => {
-    expect(source).toContain("resolvePrivateRuleQuestionSelection(casesQuery.data, selectedCase, casesQuery.isSuccess)");
-    expect(source).toContain('disabled={!casesQuery.isSuccess}');
+    expect(source).toContain("resolvePrivateRuleQuestionSelection(casesQuery.data, selectedCase, casesVerified)");
+    expect(source).toContain('disabled={!casesVerified}');
     expect(source).toContain('detailQuery.data?.case.id === caseId');
     expect(source).toContain('detailQuery.data.case.case_kind === "rule_question"');
   });
@@ -25,8 +25,8 @@ describe("Preclearance case isolation", () => {
     expect(source).toContain('rulingsQuery.isError ? (');
     expect(source).toContain("Ruling history could not be verified");
     expect(source).toContain("The private rule-question queue could not be verified");
-    expect(source).toContain('value={casesQuery.isSuccess ? questions.length : null}');
-    expect(source).toContain('caseId && rulingsQuery.isSuccess ? rulingsQuery.data.length : null');
+    expect(source).toContain('value={casesVerified ? questions.length : null}');
+    expect(source).toContain('caseId && rulingsVerified ? rulingsQuery.data.length : null');
     expect(source).toContain('value === null ? "Not verified"');
   });
 });
