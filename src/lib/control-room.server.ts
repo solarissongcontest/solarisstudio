@@ -82,7 +82,7 @@ function verifyHealthSummary(value: unknown): VerifiedHealthSummary {
   return { status, issues, critical };
 }
 
-type IncidentSignalCounts = { active: number; critical: number };
+type IncidentSignalCounts = { active: number | null; critical: number };
 
 /**
  * Only callers with canonical incident or integrity read capability may
@@ -125,7 +125,9 @@ async function loadIncidentSignals(
   ) {
     return null;
   }
-  if (critical.count > active.count) return null;
+  // Concurrent incident changes can make two HEAD snapshots disagree. Keep
+  // the confirmed critical signal; only the inconsistent total is unverified.
+  if (critical.count > active.count) return { active: null, critical: critical.count };
   return { active: active.count, critical: critical.count };
 }
 
