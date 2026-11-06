@@ -167,6 +167,24 @@ describe("TG19 private World actor cache-source guard", () => {
     expect(result.report.violations).toEqual([]);
   });
 
+  it("accepts the actual WORLD-08 TG13 current-actor/epoch hook and scoped query", () => {
+    const result = runFixture({
+      [mediation]: `
+        import { useTg13PrivateActor } from "@/lib/world-tg13-private-session";
+        function Workspace() {
+          const actor = useTg13PrivateActor();
+          return useQuery({
+            queryKey: ["world", "mediation", "workspace", actor.userId, actor.epoch],
+            enabled: actor.ready && !!actor.userId,
+            queryFn: () => fetchMediationWorkspace(actor.userId),
+          });
+        }
+      `,
+    });
+    expect(result.status).toBe(0);
+    expect(result.report.violations).toEqual([]);
+  });
+
   it("rejects stale placeholder data that could retain another actor's private records", () => {
     const result = runFixture({
       [mediation]: `
