@@ -431,8 +431,8 @@ test("installed Liquid dock cancels held gestures on overlay/keyboard and restor
   await expect(page).toHaveURL(/\/my-solaris\/account(?:[?#]|$)/);
 
   // The interrupted pointer must not swallow the next legitimate tab tap.
-  await nav.getByRole("link", { name: accessibleLabel("Explore") }).click();
-  await expect(page).toHaveURL(/\/explore(?:[?#]|$)/);
+  await nav.getByRole("link", { name: accessibleLabel("Home") }).click();
+  await expect(page).toHaveURL(/\/(?:\?.*)?$/);
 
   await holdActiveLens();
   await page.evaluate(() =>
@@ -443,13 +443,13 @@ test("installed Liquid dock cancels held gestures on overlay/keyboard and restor
     document.documentElement.removeAttribute("data-solaris-keyboard-open"),
   );
   await page.mouse.up();
-  await expect(page).toHaveURL(/\/explore(?:[?#]|$)/);
+  await expect(page).toHaveURL(/\/(?:\?.*)?$/);
 
   // Keyboard activation after a cancelled touch must remain a first-class path.
-  const home = nav.getByRole("link", { name: accessibleLabel("Home") });
-  await home.focus();
+  const meReturn = nav.getByRole("link", { name: accessibleLabel("Me") });
+  await meReturn.focus();
   await page.keyboard.press("Enter");
-  await expect(home).toHaveAttribute("aria-current", "page");
-  await expect(page).toHaveURL(/\/(?:\?.*)?$/);
+  await expect(meReturn).toHaveAttribute("aria-current", "page");
+  await expect(page).toHaveURL(/\/my-solaris(?:[/?#]|$)/);
   await context.close();
 });
