@@ -440,7 +440,7 @@ create function public.world_space_search_v1(
   p_space_id uuid, p_query text, p_limit integer default 35
 )
 returns jsonb language plpgsql stable security definer set search_path = pg_catalog
-as $
+as $$
 declare v_from timestamptz; v_result jsonb; v_term text;
 begin
   if not public.studio2_feature_enabled('terra_chat',null)
@@ -465,7 +465,7 @@ begin
   ) m;
   return v_result;
 end
-$;
+$$;
 
 create function public.world_space_send_v1(
   p_space_id uuid, p_body text, p_reply_to_id uuid, p_request_id uuid
