@@ -173,9 +173,12 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
     onSuccess: async (result, target) => {
       setProtectedRecalcOpen(false);
       const completedQueryKey = ["merged-televoting-conversion", target.actorId, target.editionId, target.roundId] as const;
-      if (result.state.round.id === target.roundId) {
+      // A mutation may finish after the operator switches accounts or editions.
+      // Never re-create inactive private evidence in React Query for a departed actor.
+      const activeTargetQuery = queryClient.getQueryCache().find({ queryKey: completedQueryKey, exact: true });
+      if (result.state.round.id === target.roundId && activeTargetQuery?.getObserversCount()) {
         queryClient.setQueryData(completedQueryKey, result.state);
-      } else {
+      } else if (result.state.round.id !== target.roundId) {
         toast.error("Calculation readback returned another round; refreshing canonical results");
       }
       toast.success(`Calculation v${result.version} stored · ${result.distributedTotal}/${result.totalPoints} points distributed`);
