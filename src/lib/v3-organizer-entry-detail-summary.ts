@@ -26,6 +26,18 @@ export type OrganizerEntryDetailSummary = {
 };
 
 /**
+ * A green Organizer readiness display requires both canonical current-version
+ * acceptance and minimally present song identity. This never changes the
+ * stored review decision or replaces the authoritative server checks.
+ */
+export function isOrganizerEntryReadyForWinner(
+  entry: OrganizerEntrySourceInput & { removed?: boolean | null },
+): boolean {
+  return Boolean(entry.song_title?.trim()) &&
+    effectiveOrganizerEntryReviewStatus(entry) === "accepted";
+}
+
+/**
  * Presentation-only Organizer detail summary. Historical review statuses
  * remain visible in audit history but cannot count as accepted current
  * immutable Entry versions or imply an approved National Final winner.
@@ -47,17 +59,13 @@ export function summarizeOrganizerEntryDetail(input: {
       ? (input.internalEntry && !input.internalEntry.removed &&
           input.internalEntry.review_status !== "removed" ? [input.internalEntry] : [])
       : input.selectionMethod === "national_final" ? active : [];
-  const currentAcceptedCount = entries.filter((entry) =>
-    effectiveOrganizerEntryReviewStatus(entry) === "accepted",
-  ).length;
+  const currentAcceptedCount = entries.filter(isOrganizerEntryReadyForWinner).length;
 
   let banner: OrganizerNationalFinalReviewBanner | null = null;
   if (nf) {
     const winnerId = nf.winning_entry_id;
     const winnerIsActive = Boolean(winnerId && active.some((entry) => entry.id === winnerId));
-    const allCurrentAccepted = active.length > 0 && active.every((entry) =>
-      effectiveOrganizerEntryReviewStatus(entry) === "accepted",
-    );
+    const allCurrentAccepted = active.length > 0 && active.every(isOrganizerEntryReadyForWinner);
 
     if (!input.participating || input.selectionMethod !== "national_final") {
       banner = {
@@ -81,7 +89,7 @@ export function summarizeOrganizerEntryDetail(input: {
       banner = {
         label: winnerIsActive ? "Winner selected · review incomplete" : "Review in progress",
         tone: "attention",
-        description: "One or more active candidates have no accepted review bound to their current Entry version.",
+        description: "One or more active candidates lack a current-version accepted review or a submitted song title.",
       };
     } else if (!winnerId) {
       banner = {
