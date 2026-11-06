@@ -637,7 +637,7 @@ function WebPublicPaletteDialog({
           onValueChange={setQuery}
           placeholder="Search Solaris Studio…"
           aria-label="Search Solaris Studio"
-          className={query ? "pr-12" : undefined}
+          className={query ? "pr-28" : "pr-14"}
         />
         {query ? (
           <button
@@ -647,7 +647,7 @@ function WebPublicPaletteDialog({
               setQuery("");
               webSearchInputRef.current?.focus();
             }}
-            className="absolute right-2 top-1/2 inline-flex size-10 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            className="absolute right-16 top-1/2 inline-flex size-10 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
           >
             <X className="size-4" aria-hidden="true" />
           </button>
@@ -769,17 +769,22 @@ function WebSearchArchiveResults({
       ),
     [publicShows],
   );
+  // Record rankings require a verified participant projection so withdrawn or
+  // disqualified countries cannot reappear during a failed background refetch.
+  // An unavailable source is not an empty participant list.
   const records = useMemo(
     () =>
-      buildCanonicalFanRecords({
-        countries,
-        editions: publicEditions,
-        shows: publicShows,
-        participants,
-        results: visibleResults,
-        jury: visibleJury,
-      }),
-    [countries, publicEditions, visibleJury, participants, visibleResults, publicShows],
+      participantsQuery.isSuccess && !participantsQuery.isError
+        ? buildCanonicalFanRecords({
+            countries,
+            editions: publicEditions,
+            shows: publicShows,
+            participants,
+            results: visibleResults,
+            jury: visibleJury,
+          })
+        : [],
+    [countries, publicEditions, visibleJury, participants, visibleResults, publicShows, participantsQuery.isSuccess, participantsQuery.isError],
   );
 
   const searchResults = useMemo(() => {
