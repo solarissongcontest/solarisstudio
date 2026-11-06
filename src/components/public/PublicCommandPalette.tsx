@@ -675,7 +675,7 @@ function WebPublicPaletteDialog({
           {renderSearchGroups(idleGroups, openIdleResult)}
           {!recentResults.length ? (
             <CommandGroup heading="Start here">
-              {navigationSearchResults("")
+              {navigationV3PublicSearchResults("")
                 .filter((item) =>
                   ["/explore", "/participate", "/results", "/guide", "/rules"].includes(item.href),
                 )
