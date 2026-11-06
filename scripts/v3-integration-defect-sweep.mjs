@@ -155,6 +155,21 @@ const S14_DIAGNOSTIC_EXTENSIONS = [
   "grand-final-qualifier-bridge", "grand-final-voting",
   "grand-final-results", "grand-final-publication",
 ];
+const S14_DIAGNOSTIC_INVARIANTS = [
+  "confirmation-no-effective-duplicates", "entry-valid-revision", "media-accepted-revision",
+  "jury-single-final-ballot", "televote-canonical-ballot", "result-reproducible",
+  "publication-final-version", "tasks-canonical", "notifications-reconcilable",
+];
+const S14_DIAGNOSTIC_FAILURES = [
+  "network-after-commit", "db-timeout-before-commit", "duplicate-request",
+  "worker-crash", "realtime-disconnect", "stale-client", "two-organizers",
+  "supabase-outage",
+];
+function includesEachOnce(actual, required) {
+  if (!Array.isArray(actual) || !actual.every((x) => typeof x === "string" && x.trim())) return false;
+  const unique = new Set(actual);
+  return unique.size === actual.length && required.every((x) => unique.has(x));
+}
 function matchesOrderedStages(actual, expected) {
   return Array.isArray(actual) &&
     actual.length === expected.length &&
@@ -171,7 +186,9 @@ export function hasCompleteS14DiagnosticClaim(data, candidateSha) {
       !matchesOrderedStages(data.pendingStages, []) ||
       !matchesOrderedStages(data.completedContestExtensions, S14_DIAGNOSTIC_EXTENSIONS) ||
       !matchesOrderedStages(data.pendingContestExtensions, []) ||
-      !matchesOrderedStages(data.blockedContestExtensions, [])) return false;
+      !matchesOrderedStages(data.blockedContestExtensions, []) ||
+      !includesEachOnce(data.implementedInvariants, S14_DIAGNOSTIC_INVARIANTS) ||
+      !includesEachOnce(data.implementedFailureInjections, S14_DIAGNOSTIC_FAILURES)) return false;
   if (data.runIdentity?.candidateSha !== candidateSha ||
       !data.runIdentity.editionId || !data.runIdentity.databaseFingerprint ||
       data.seed?.editionCount !== 1 || data.seed?.delegationCount !== 66 ||
