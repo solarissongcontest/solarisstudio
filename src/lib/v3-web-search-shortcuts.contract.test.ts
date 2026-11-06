@@ -62,6 +62,7 @@ describe("V3 web Search canonical discovery shortcuts", () => {
       expect(archive).toContain(`if (${name}Query.isError) void ${name}Query.refetch()`);
     }
     expect(archive).toContain("hasArchiveError");
+    expect(archive).toContain("storiesQuery.isError ? [] : storiesQuery.data ?? []");
     expect(archive).toContain("!isFetching && !hasArchiveError && !searchResults.length");
     expect(archive).toContain('role="alert"');
     expect(archive).toContain("Retry unavailable sources");
