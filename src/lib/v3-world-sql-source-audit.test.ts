@@ -115,6 +115,59 @@ test("TG19 World SQL: unrelated definer is not misreported as World source", () 
   expect(fixtureRun(sql, true).report.findings).toEqual([]);
 });
 
+
+test("TG19 World SQL: multi-column DML cannot disappear behind inner commas", () => {
+  const sql = `grant select, update (status, "second,name") on table public.world_organizations to authenticated;
+grant insert (region_id, status), select on table public.world_memberships to anon;`;
+  const { report, status } = fixtureRun(sql, true);
+  expect(status).toBe(1);
+  expect(report.findings.map((f) => f.code)).toEqual([
+    "WORLD_BROWSER_DIRECT_DML_GRANT",
+    "WORLD_BROWSER_DIRECT_DML_GRANT",
+  ]);
+  expect(report.findings[0].detail).toContain("update (status, \\"second,name\\")");
+  expect(report.findings[1].detail).toContain("insert (region_id, status)");
+});
+
+test("TG19 World SQL: quoted schema/table and role identifiers remain visible", () => {
+  const sql = `grant update ("last,name", "a""b") on table "public"."world_office_terms" to "authenticated";
+grant delete on table "private"."world_sensitive_state" to "anon";`;
+  const { report } = fixtureRun(sql);
+  expect(report.findings).toHaveLength(2);
+  expect(report.findings[0].detail).toContain("world_office_terms");
+  expect(report.findings[1].detail).toContain("world_sensitive_state");
+});
+
+test("TG19 World SQL: public within multi-schema ALL TABLES grants is flagged", () => {
+  const sql = `grant all on all tables in schema private, "public" to anon;
+grant all on all tables in schema private to anon;`;
+  const { report, status } = fixtureRun(sql, true);
+  expect(status).toBe(1);
+  expect(report.findings.map((f) => f.code)).toEqual([
+    "WORLD_BROWSER_SCHEMA_WIDE_DML_GRANT",
+  ]);
+});
+
+test("TG19 World SQL: quoted World SECURITY DEFINER function/procedure are inspected", () => {
+  const sql = `create or replace function "private"."world_check_v1"() returns integer
+language sql security definer as $select 1$;
+create procedure "public"."world_mutate_v1"() language plpgsql security definer
+set search_path = public as $ begin null; end $;`;
+  const { report, status } = fixtureRun(sql, true);
+  expect(status).toBe(1);
+  expect(report.worldFunctionsInspected).toBe(2);
+  expect(report.findings.map((f) => f.code)).toEqual([
+    "WORLD_DEFINER_MISSING_SEARCH_PATH",
+    "WORLD_DEFINER_UNSAFE_SEARCH_PATH",
+  ]);
+});
+
+test("TG19 World SQL: unrelated quoted SQL identities do not become World findings", () => {
+  const sql = `grant update (status) on table "public"."not_world_organizations" to authenticated;
+grant select on table "public"."world_memberships" to "anon";`;
+  expect(fixtureRun(sql, true).report.findings).toEqual([]);
+});
+
 test("TG19 World SQL: wrong command-line parameters fail closed", () => {
   const result = spawnSync(process.execPath, [auditScript, "--bogus"], { encoding: "utf8", timeout: 5000 });
   expect(result.status).toBe(2);
