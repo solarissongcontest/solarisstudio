@@ -292,3 +292,30 @@
     display: none;
   }
 }
+
+/* System high-contrast palettes can suppress gradients and translucent fills.
+   Preserve visible focus, active-route identity and section boundaries there. */
+@media (forced-colors: active) {
+  .public-mobile-section-nav,
+  .public-site-sidebar {
+    border-color: CanvasText;
+  }
+
+  .public-mobile-section-trigger:focus-visible,
+  .public-mobile-section-link:focus-visible,
+  .public-site-sidebar-link:focus-visible,
+  .public-drawer-page-link:focus-visible,
+  .public-section-nav-toggle:focus-visible,
+  .public-site-sidebar details > summary:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  .public-mobile-section-link.is-active,
+  .public-site-sidebar-link.is-active {
+    color: HighlightText;
+    background: Highlight;
+    box-shadow: none;
+    border-inline-start: 3px solid HighlightText;
+  }
+}
