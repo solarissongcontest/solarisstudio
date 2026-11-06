@@ -34,6 +34,15 @@ test("mobile browser section navigation supports keyboard disclosure, Escape, an
   await expect(panel).toBeHidden();
 
   await trigger.click();
+  await expect(panel).toBeVisible();
+
+  // An outside tap dismisses the browser disclosure without navigating.
+  await page.mouse.click(2, 2);
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect(panel).toBeHidden();
+  await expect(page).toHaveURL(/\/results\/?(?:[?#].*)?$/);
+
+  await trigger.click();
   await scorechartsLink.click();
   await expect(page).toHaveURL(/\/scorecharts\/?(?:[?#].*)?$/);
   await expect(nav.locator(".public-mobile-section-trigger")).toHaveAttribute("aria-expanded", "false");
