@@ -8,7 +8,10 @@ describe("Public V3 country current-entry semantics", () => {
   it("resolves the canonical current public edition instead of treating newest history as current", () => {
     const source = read("src/integrations/v3/delegation-source.server.ts");
 
-    expect(source).toContain("resolveCurrentPublicEdition");
+    // An archived edition is public history, but it is not an active current edition.
+    // Country discovery already supplies the canonical active-edition selector.
+    expect(source).toContain("resolveActivePublicEdition");
+    expect(source).not.toContain("resolveCurrentPublicEdition");
     expect(source).toContain('.from("editions")');
     expect(source).toContain('.eq("published", true)');
     expect(source).toContain("currentEdition?.id ?? null");

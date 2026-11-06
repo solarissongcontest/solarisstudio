@@ -1,11 +1,16 @@
 import { Link } from "@tanstack/react-router";
-import { ExternalLink } from "lucide-react";
+import { ChevronRight, Search, SlidersHorizontal, X } from "lucide-react";
+import type { V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
+import "@/styles/v3-shows-directory.css";
 import { useMemo, useState } from "react";
 
 import { AppEmptyState, AppSectionHeader } from "@/components/app/AppPrimitives";
+import { SolarisSearchField } from "@/components/app/SolarisSearchField";
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import { showPublishesResults } from "@/lib/publication";
+import { getV3ShowBrowsePage, V3_SHOW_BROWSE_PAGE_SIZE } from "@/lib/v3-show-browse-page";
 import {
   buildShowDiscovery,
   type ShowDiscoveryItem,
@@ -23,12 +28,17 @@ const STATE_ORDER: ShowDiscoveryState[] = [
   "other",
 ];
 
-export function V3ShowsDiscoveryScreen() {
+export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { presentation?: V3DirectoryPresentation }) {
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
+  const [search, setSearch] = useState("");
   const [editionId, setEditionId] = useState("all");
   const [kind, setKind] = useState("all");
   const [state, setState] = useState<ShowDiscoveryState | "all">("all");
+  // Keyed pagination resets synchronously with any filter change, without a
+  // render/effect cycle that could briefly reveal a stale historical window.
+  const browseFilterKey = JSON.stringify([search.trim(), editionId, kind, state]);
+  const [browseWindowState, setBrowseWindowState] = useState({ key: "", page: 1 });
 
   const discovery = useMemo(
     () =>
@@ -71,12 +81,25 @@ export function V3ShowsDiscoveryScreen() {
     () =>
       allItems.filter(
         (item) =>
+          (!search.trim() || [
+            item.show.name, editionLabel(item.edition),
+            showKindLabel(item.show.kind), item.stateLabel,
+          ].join(" ").toLowerCase().includes(search.trim().toLowerCase())) &&
           (editionId === "all" || item.edition.id === editionId) &&
           (kind === "all" || item.show.kind === kind) &&
           (state === "all" || item.state === state),
       ),
-    [allItems, editionId, kind, state],
+    [allItems, editionId, kind, state, search],
   );
+
+  const browseWindow = useMemo(
+    () => getV3ShowBrowsePage(
+      browseItems,
+      browseWindowState.key === browseFilterKey ? browseWindowState.page : 1,
+    ),
+    [browseItems, browseFilterKey, browseWindowState],
+  );
+  const activeFilterCount = [editionId !== "all", kind !== "all", state !== "all"].filter(Boolean).length;
 
   if (archiveIsLoading(editionsQuery, showsQuery)) {
     return <ArchiveDataLoading label="Loading show discovery…" />;
@@ -100,9 +123,10 @@ export function V3ShowsDiscoveryScreen() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="v3-shows-directory space-y-8" data-show-directory-experience={presentation}>
       {discovery.liveNow.length > 0 ? (
         <ShowCollection
+          presentation={presentation}
           id="shows-live-now"
           eyebrow="Live now"
           title="On air"
@@ -113,6 +137,7 @@ export function V3ShowsDiscoveryScreen() {
 
       {discovery.upNext.length > 0 ? (
         <ShowCollection
+          presentation={presentation}
           id="shows-up-next"
           eyebrow="Up next"
           title="Coming shows"
@@ -122,15 +147,17 @@ export function V3ShowsDiscoveryScreen() {
 
       {discovery.recent.length > 0 ? (
         <ShowCollection
+          presentation={presentation}
           id="shows-recent"
           eyebrow="Recent"
-          title="Recently completed"
+          title="Latest completed"
           items={discovery.recent}
         />
       ) : null}
 
       {discovery.currentEdition && discovery.currentEditionShows.length > 0 ? (
         <ShowCollection
+          presentation={presentation}
           id="shows-current-edition"
           eyebrow="Current edition"
           title={editionLabel(discovery.currentEdition)}
@@ -139,8 +166,26 @@ export function V3ShowsDiscoveryScreen() {
       ) : null}
 
       <section id="shows-browse" aria-labelledby="shows-browse-title" className="scroll-mt-24">
-        <AppSectionHeader eyebrow="Browse" title="All public shows" id="shows-browse-title" />
-        <div className="grid gap-2 sm:grid-cols-3">
+        <h2 id="shows-browse-title" className="v3-shows-browse-heading">All public shows</h2>
+        <div className={presentation === "installed-app"
+          ? "v3-shows-filter-fields v3-shows-filter-fields--app"
+          : "v3-shows-filter-fields grid gap-2 sm:grid-cols-3"}>
+          {presentation === "installed-app" ? (
+            <>
+              <SolarisSearchField value={search} onChange={setSearch}
+                label="Search shows" placeholder="Search shows…" />
+              <Sheet>
+                <SheetTrigger asChild>
+                  <button type="button" className="v3-shows-sheet-trigger"
+                    aria-label={`Filter shows, ${activeFilterCount} active`}>
+                    <SlidersHorizontal size={17} aria-hidden="true" />
+                    <span>Filters{activeFilterCount ? ` · ${activeFilterCount}` : ""}</span>
+                  </button>
+                </SheetTrigger>
+                <SheetContent side="bottom" aria-label="Filter public shows"
+                  className="max-h-[85dvh] overflow-y-auto pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+                  <h2 className="mb-3 text-lg font-bold">Filter public shows</h2>
+                  <div className="grid gap-3">
           <label className="text-xs font-semibold text-muted-foreground">
             Edition
             <select
@@ -186,13 +231,101 @@ export function V3ShowsDiscoveryScreen() {
               ))}
             </select>
           </label>
+                  </div>
+                  <SheetClose asChild>
+                    <button type="button" className="mt-4 min-h-11 w-full rounded-xl border border-primary bg-primary/10 px-4 text-sm font-semibold">
+                      Show {browseItems.length} matching shows
+                    </button>
+                  </SheetClose>
+                </SheetContent>
+              </Sheet>
+            </>
+          ) : (
+            <>
+              <div className="v3-directory-search" role="search">
+                <Search size={18} aria-hidden="true" />
+                <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
+                  aria-label="Search shows" placeholder="Search show name, edition or type…" />
+                {search ? (
+                  <button type="button" className="v3-directory-search-clear" aria-label="Clear search"
+                    onClick={() => setSearch("")}><X size={16} aria-hidden="true" /></button>
+                ) : null}
+              </div>
+          <label className="text-xs font-semibold text-muted-foreground">
+            Edition
+            <select
+              value={editionId}
+              onChange={(event) => setEditionId(event.target.value)}
+              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
+            >
+              <option value="all">All editions</option>
+              {editions.map((edition) => (
+                <option key={edition.id} value={edition.id}>
+                  {editionLabel(edition)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-semibold text-muted-foreground">
+            Show type
+            <select
+              value={kind}
+              onChange={(event) => setKind(event.target.value)}
+              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
+            >
+              <option value="all">All show types</option>
+              {kinds.map((value) => (
+                <option key={value} value={value}>
+                  {showKindLabel(value)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-semibold text-muted-foreground">
+            State
+            <select
+              value={state}
+              onChange={(event) => setState(event.target.value as ShowDiscoveryState | "all")}
+              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
+            >
+              <option value="all">All states</option>
+              {STATE_ORDER.map((value) => (
+                <option key={value} value={value}>
+                  {stateFilterLabel(value)}
+                </option>
+              ))}
+            </select>
+          </label>
+            </>
+          )}
         </div>
-
-        <div className="mt-3 space-y-2">
-          {browseItems.map((item) => (
-            <ShowRow key={item.show.id} item={item} />
-          ))}
+        <p className="v3-directory-results-count" role="status" aria-live="polite">
+          Showing {browseWindow.visible.length} of {browseItems.length} matching shows · {allItems.length} published
+        </p>
+        <div id="v3-shows-browse-results" className="v3-shows-browse-results">
+          {browseWindow.visible.map((item) =>
+            presentation === "mobile-web" ? (
+              <ShowWebRow key={item.show.id} item={item} />
+            ) : presentation === "desktop-web" ? (
+              <ShowCard key={item.show.id} item={item} />
+            ) : (
+              <ShowRow key={item.show.id} item={item} />
+            ),
+          )}
         </div>
+        {browseWindow.hasMore ? (
+          <button
+            type="button"
+            className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-5 text-sm font-semibold text-primary hover:bg-primary/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            aria-controls="v3-shows-browse-results"
+            onClick={() => setBrowseWindowState((previous) => ({
+              key: browseFilterKey,
+              page: previous.key === browseFilterKey ? previous.page + 1 : 2,
+            }))}
+          >
+            Show {Math.min(V3_SHOW_BROWSE_PAGE_SIZE, browseWindow.remaining)} more shows
+          </button>
+        ) : null}
         {!browseItems.length ? (
           <AppEmptyState
             className="mt-3"
@@ -202,6 +335,7 @@ export function V3ShowsDiscoveryScreen() {
               <button
                 type="button"
                 onClick={() => {
+                  setSearch("");
                   setEditionId("all");
                   setKind("all");
                   setState("all");
@@ -226,9 +360,11 @@ export function V3ShowsDiscoveryScreen() {
             Historical show pages stay locked to their published edition context.
           </p>
           <div className="space-y-2">
-            {discovery.archive.slice(0, 8).map((item) => (
-              <ShowRow key={item.show.id} item={item} compact />
-            ))}
+            {discovery.archive.slice(0, 8).map((item) =>
+              presentation === "mobile-web"
+                ? <ShowWebRow key={item.show.id} item={item} />
+                : <ShowRow key={item.show.id} item={item} compact />,
+            )}
           </div>
           {discovery.archive.length > 8 ? (
             <a href="#shows-browse" className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary">
@@ -242,12 +378,14 @@ export function V3ShowsDiscoveryScreen() {
 }
 
 function ShowCollection({
+  presentation,
   id,
   eyebrow,
   title,
   items,
   emphasis = "normal",
 }: {
+  presentation: V3DirectoryPresentation;
   id: string;
   eyebrow: string;
   title: string;
@@ -257,12 +395,38 @@ function ShowCollection({
   return (
     <section aria-labelledby={id}>
       <AppSectionHeader eyebrow={eyebrow} title={title} id={id} />
-      <div className={emphasis === "live" ? "grid gap-3" : "grid gap-2 sm:grid-cols-2"}>
-        {items.map((item) => (
-          <ShowCard key={item.show.id} item={item} live={emphasis === "live"} />
-        ))}
+      <div className={presentation === "mobile-web" ? "v3-shows-web-list" : emphasis === "live" ? "grid gap-3" : "grid gap-2 sm:grid-cols-2"}>
+        {items.map((item) =>
+          presentation === "mobile-web"
+            ? <ShowWebRow key={item.show.id} item={item} />
+            : <ShowCard key={item.show.id} item={item} live={emphasis === "live"} />,
+        )}
       </div>
     </section>
+  );
+}
+
+function ShowWebRow({ item }: { item: ShowDiscoveryItem }) {
+  return (
+    <Link
+      to="/shows/$showId"
+      params={{ showId: item.show.id }}
+      className="v3-show-web-row flex min-h-20 items-center gap-3 border-b border-border py-3"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-center gap-2">
+          <ShowStateBadge item={item} />
+          <span className="text-xs text-muted-foreground">{editionLabel(item.edition)}</span>
+        </span>
+        <strong className="mt-1.5 block text-sm font-semibold">{item.show.name}</strong>
+        <span className="mt-1 block text-xs capitalize text-muted-foreground">
+          {showKindLabel(item.show.kind)}
+          {item.scheduledStart ? ` · ${formatShowTime(item.scheduledStart)}` : ""}
+          {showPublishesResults(item.show) ? " · Results published" : ""}
+        </span>
+      </span>
+      <ChevronRight size={20} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+    </Link>
   );
 }
 
@@ -305,7 +469,7 @@ function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: bool
             rel="noreferrer"
             className="inline-flex min-h-11 items-center gap-1 font-semibold text-primary"
           >
-            Broadcast <ExternalLink className="size-3.5" aria-hidden="true" />
+            Broadcast <span aria-hidden="true">↗</span>
           </a>
         ) : null}
       </div>
