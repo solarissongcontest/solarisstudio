@@ -24,6 +24,10 @@ import {
   loadConfirmationResponsesPage,
   type ConfirmationProjectionCursor,
 } from "@/integrations/confirmations/v3-projections";
+import {
+  assertOrganizerResponsePageContinuity,
+  safeOrganizerResponseSongUrl,
+} from "@/lib/v3-organizer-response-queue-guards";
 
 export const Route = createFileRoute("/confirmations/admin/responses")({
   head: () => ({
@@ -244,6 +248,9 @@ function ConfirmationResponsesList() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ResponseFilter>("all");
+  const [responseReloadKey, setResponseReloadKey] = useState(0);
+  const responseLoadGenerationRef = useRef(0);
+  const loadMoreInFlightRef = useRef(false);
   const [mode, setMode] = useState<"confirmations" | "next_in_line">("confirmations");
   const [editionId, setEditionId] = useState(organizerEditionId);
   const [roundId, setRoundId] = useState("all");
@@ -284,6 +291,9 @@ function ConfirmationResponsesList() {
 
   useEffect(() => {
     let alive = true;
+    const generation = ++responseLoadGenerationRef.current;
+    loadMoreInFlightRef.current = false;
+    setLoadingMoreResponses(false);
     setRows([]);
     setResponseCursor(null);
     setResponseTotalCount(0);
@@ -299,22 +309,28 @@ function ConfirmationResponsesList() {
     void (async () => {
       try {
         const page = await loadConfirmationResponsesPage<ResponseRow>(editionId);
-        if (!alive) return;
+        if (!alive || generation !== responseLoadGenerationRef.current) return;
+        if (page.page.hasMore && !page.page.nextCursor) {
+          throw new Error("Confirmation projection returned an incomplete page cursor.");
+        }
         setRows(page.rows);
         setResponseCursor(page.page.hasMore ? page.page.nextCursor : null);
         setResponseTotalCount(page.totalCount);
         setResponseStateVersion(page.stateVersion);
       } catch (caught) {
-        if (!alive) return;
+        if (!alive || generation !== responseLoadGenerationRef.current) return;
         setError(caught instanceof Error ? caught.message : "Responses could not be loaded.");
         setRows([]);
       } finally {
-        if (alive) setLoadingResponses(false);
+        if (alive && generation === responseLoadGenerationRef.current) setLoadingResponses(false);
       }
     })();
 
-    return () => { alive = false; };
-  }, [editionId]);
+    return () => {
+      alive = false;
+      if (generation === responseLoadGenerationRef.current) responseLoadGenerationRef.current += 1;
+    };
+  }, [editionId, responseReloadKey]);
 
   useEffect(() => {
     let alive = true;
@@ -334,16 +350,24 @@ function ConfirmationResponsesList() {
     })();
 
     return () => { alive = false; };
-  }, [editionId]);
+  }, [editionId, responseReloadKey]);
 
   async function loadMoreResponses() {
-    if (!editionId || !responseCursor || loadingMoreResponses) return;
+    if (!editionId || !responseCursor || loadingMoreResponses || loadMoreInFlightRef.current) return;
     const requestedEditionId = editionId;
     const requestedCursor = responseCursor;
+    const requestedGeneration = responseLoadGenerationRef.current;
+    const baseline = { stateVersion: responseStateVersion, totalCount: responseTotalCount };
+    loadMoreInFlightRef.current = true;
     setLoadingMoreResponses(true);
     try {
       const page = await loadConfirmationResponsesPage<ResponseRow>(requestedEditionId, requestedCursor);
-      if (activeEditionRef.current !== requestedEditionId) return;
+      if (activeEditionRef.current !== requestedEditionId ||
+          requestedGeneration !== responseLoadGenerationRef.current) return;
+      assertOrganizerResponsePageContinuity(baseline, page);
+      if (page.page.hasMore && !page.page.nextCursor) {
+        throw new Error("Confirmation projection returned an incomplete continuation cursor.");
+      }
       setRows((current) => {
         const byId = new Map(current.map((row) => [row.id, row]));
         page.rows.forEach((row) => byId.set(row.id, row));
@@ -353,11 +377,15 @@ function ConfirmationResponsesList() {
       setResponseTotalCount(page.totalCount);
       setResponseStateVersion(page.stateVersion);
     } catch (caught) {
-      if (activeEditionRef.current === requestedEditionId) {
+      if (activeEditionRef.current === requestedEditionId &&
+          requestedGeneration === responseLoadGenerationRef.current) {
         setError(caught instanceof Error ? caught.message : "More responses could not be loaded.");
       }
     } finally {
-      if (activeEditionRef.current === requestedEditionId) setLoadingMoreResponses(false);
+      if (requestedGeneration === responseLoadGenerationRef.current) {
+        loadMoreInFlightRef.current = false;
+        setLoadingMoreResponses(false);
+      }
     }
   }
 
@@ -486,7 +514,17 @@ function ConfirmationResponsesList() {
         <AdminCard className="py-8 text-center text-sm text-muted-foreground">Loading exact-edition responses…</AdminCard>
       ) : error ? (
         <AdminCard className="mb-4 border-rose-200/20 bg-rose-200/[0.045]">
-          <div className="flex items-start gap-3"><ShieldAlert className="mt-0.5 size-5 shrink-0 text-rose-200" /><div><p className="font-semibold">Responses could not be loaded</p><p className="mt-1 text-sm text-muted-foreground">{error}</p></div></div>
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="mt-0.5 size-5 shrink-0 text-rose-200" />
+            <div className="space-y-2">
+              <p className="font-semibold">Responses could not be loaded safely</p>
+              <p className="text-sm text-muted-foreground">{error}</p>
+              <button type="button" className="admin-action-secondary"
+                onClick={() => setResponseReloadKey((current) => current + 1)}>
+                Reload current edition
+              </button>
+            </div>
+          </div>
         </AdminCard>
       ) : !editionId ? (
         <AdminCard><AdminEmptyState icon={CircleAlert} title="Select an edition" description="Entry Review is edition-scoped. Solaris will not combine historical response queues or substitute a globally active or newest edition." /></AdminCard>
@@ -496,7 +534,7 @@ function ConfirmationResponsesList() {
             {filteredNext.map((row) => (
               <AdminCard key={row.id} className="!p-4">
                 <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="admin-section-label">{row.edition ? `SSC ${row.edition.edition_number}` : "Next in Line"}</p><h2 className="mt-1 text-lg font-bold">{row.country}</h2></div><AdminStatus tone={row.participating ? "ready" : "neutral"}>{row.participating ? "Would participate" : "Would not participate"}</AdminStatus></div>
-                {row.participating ? <div className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.022] p-3 text-sm"><p className="font-semibold">{row.entry_unknown ? "Entry not known yet" : row.song_title ? `${row.artist || "Unknown artist"} — ${row.song_title}` : "Entry details not submitted"}</p><p className="mt-1 text-xs capitalize text-muted-foreground">{row.selection_type.replaceAll("_", " ")}{row.preview_start ? ` · preview ${row.preview_start}${row.preview_end ? `–${row.preview_end}` : ""}` : ""}</p>{row.song_url ? <a href={row.song_url} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs text-sky-100/75 underline">Open song</a> : null}</div> : null}
+                {row.participating ? <div className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.022] p-3 text-sm"><p className="font-semibold">{row.entry_unknown ? "Entry not known yet" : row.song_title ? `${row.artist || "Unknown artist"} — ${row.song_title}` : "Entry details not submitted"}</p><p className="mt-1 text-xs capitalize text-muted-foreground">{row.selection_type.replaceAll("_", " ")}{row.preview_start ? ` · preview ${row.preview_start}${row.preview_end ? `–${row.preview_end}` : ""}` : ""}</p><OrganizerNextInLineSongLink sourceUrl={row.song_url} /></div> : null}
               </AdminCard>
             ))}
           </section>
@@ -542,6 +580,21 @@ function ConfirmationResponsesList() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+function OrganizerNextInLineSongLink({ sourceUrl }: { sourceUrl: string | null }) {
+  const href = safeOrganizerResponseSongUrl(sourceUrl);
+  if (!href) {
+    return sourceUrl?.trim() ? (
+      <span className="mt-2 block text-xs text-amber-100">Song link needs inspection</span>
+    ) : null;
+  }
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer"
+      className="mt-2 inline-block text-xs text-sky-100/75 underline">
+      Open song
+    </a>
   );
 }
 
