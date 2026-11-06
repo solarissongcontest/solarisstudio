@@ -211,6 +211,7 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
   }, [filter, query, rows]);
 
   if (!readVerified) {
+    const unavailableError = adminError ?? error;
     return (
       <div className="mx-auto max-w-5xl space-y-4" data-v3-organizer-declaration-edition={editionId}>
         <AdminPageHeader
@@ -222,9 +223,9 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
           <p role="status" className="text-sm font-semibold">
             {adminLoading || adminFetching || isLoading || isFetching ? "Verifying integrity declarations…" : "Integrity declarations unavailable"}
           </p>
-          {(adminError || error) ? (
+          {unavailableError ? (
             <p role="alert" className="mt-2 text-sm text-rose-100">
-              {(adminError || error) instanceof Error ? (adminError || error).message : "Private declaration read failed."}
+              {unavailableError instanceof Error ? unavailableError.message : "Private declaration read failed."}
             </p>
           ) : null}
           <button
