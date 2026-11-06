@@ -974,9 +974,12 @@ export function useVoters(
 export function useShowVoters(
   showId?:
     string,
+  actorId?: string,
 ) {
   return useQuery({
     ...solarisQueryPolicy("warm"),
+    // Organizer callers explicitly partition private roster evidence by actor.
+    ...(actorId ? { gcTime: 0, retry: false, refetchInterval: false, refetchOnWindowFocus: false, refetchOnReconnect: false } : {}),
     enabled:
       !!showId,
 
@@ -984,6 +987,7 @@ export function useShowVoters(
       "voters",
       "show",
       showId,
+      ...(actorId ? ["actor", actorId] : []),
     ],
 
     queryFn:
@@ -1106,9 +1110,11 @@ export function matchVoterKey(
 export function useJuryVotes(
   showId?:
     string,
+  actorId?: string,
 ) {
   return useQuery({
     ...solarisQueryPolicy("live"),
+    ...(actorId ? { gcTime: 0, retry: false, refetchInterval: false, refetchOnWindowFocus: false, refetchOnReconnect: false } : {}),
     enabled:
       !!showId,
 
@@ -1116,6 +1122,7 @@ export function useJuryVotes(
       "jury_votes",
       "show",
       showId,
+      ...(actorId ? ["actor", actorId] : []),
     ],
 
     queryFn:
