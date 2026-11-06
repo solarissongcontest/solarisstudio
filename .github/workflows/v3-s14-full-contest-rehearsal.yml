@@ -7,11 +7,17 @@ on:
     paths:
       - "supabase/migrations/**"
       - ".github/scripts/v3-s14-*.sh"
+      - ".github/scripts/v3-s14-*.sql"
       - ".github/scripts/v3-full-contest-rehearsal.sh"
       - ".github/workflows/v3-s14-full-contest-rehearsal.yml"
       - "scripts/v3-s14-full-contest-spec.ts"
+      - "scripts/v3-s14-*.ts"
+      - "scripts/v3-s14-*.mjs"
+      - "scripts/__tests__/v3-s14-workflow-path-coverage.test.mjs"
       - "scripts/check-v3-s14-rehearsal-readiness.ts"
       - "src/lib/v3-s14-*.test.ts"
+      - "src/lib/v3-s14-*.ts"
+      - "e2e/v3-s14-*.e2e.ts"
   workflow_dispatch:
 
 permissions:
@@ -55,6 +61,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          node --test scripts/__tests__/v3-s14-workflow-path-coverage.test.mjs
           bunx vitest run \
             src/lib/ci-egress-safety.contract.test.ts \
             src/lib/v3-s14-stage7-deadline-command-identity.contract.test.ts \
