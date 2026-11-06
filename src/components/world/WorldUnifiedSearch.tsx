@@ -12,6 +12,7 @@ import {
   WORLD_UNIFIED_SEARCH_LIMIT,
   WORLD_UNIFIED_SEARCH_MAX_PAGE,
   type WorldSearchCountry,
+  type WorldSearchCategory,
 } from "@/lib/terra-world-unified-search";
 import { fetchFeaturedWorldOrganizations, type WorldOrganization } from "@/lib/terra-world-public";
 
@@ -19,7 +20,9 @@ type Props = {
   term: string;
   countryPage: number;
   organizationPage: number;
+  category: WorldSearchCategory;
   onSearch: (term: string) => void;
+  onCategoryChange: (category: WorldSearchCategory) => void;
   onPagesChange: (countryPage: number, organizationPage: number, replace?: boolean) => void;
 };
 
@@ -96,7 +99,7 @@ function ResultPager({
 }
 
 export function WorldUnifiedSearchPage({
-  term, countryPage, organizationPage, onSearch, onPagesChange,
+  term, countryPage, organizationPage, category, onSearch, onCategoryChange, onPagesChange,
 }: Props) {
   const [draft, setDraft] = useState(term);
 
@@ -106,6 +109,8 @@ export function WorldUnifiedSearchPage({
 
   const normalized = verifiedWorldSearchTerm(term);
   const canSearch = normalized.length >= 2;
+  const showCountries = category !== "organizations";
+  const showOrganizations = category !== "countries";
   // Reuse World Landing's same featured query cache; only load it while
   // browsing an empty search. This avoids another copy of the GUARD/UNITY list.
   const featured = useQuery({
@@ -120,19 +125,27 @@ export function WorldUnifiedSearchPage({
   const countryQuery = useQuery({
     queryKey: ["world", "public", "country-search", normalized, countryPage],
     queryFn: () => fetchWorldCountrySearchPage(normalized, countryPage),
-    enabled: canSearch,
+    enabled: canSearch && showCountries,
     staleTime: 90_000,
     retry: false,
   });
   const organizationQuery = useQuery({
     queryKey: ["world", "public", "organization-search", normalized, organizationPage],
     queryFn: () => fetchWorldOrganizationSearchPage(normalized, organizationPage),
-    enabled: canSearch,
+    enabled: canSearch && showOrganizations,
     staleTime: 90_000,
     retry: false,
   });
-  const visible = canSearch && countryQuery.isSuccess && organizationQuery.isSuccess
-    ? { term: normalized, ...countryQuery.data, ...organizationQuery.data }
+  const visible = canSearch &&
+    (!showCountries || countryQuery.isSuccess) &&
+    (!showOrganizations || organizationQuery.isSuccess)
+    ? {
+      term: normalized,
+      countries: showCountries ? countryQuery.data!.countries : [],
+      countryTotal: showCountries ? countryQuery.data!.countryTotal : 0,
+      organizations: showOrganizations ? organizationQuery.data!.organizations : [],
+      organizationTotal: showOrganizations ? organizationQuery.data!.organizationTotal : 0,
+    }
     : null;
 
   // Recover both page positions in a single navigation when search results
@@ -202,6 +215,23 @@ export function WorldUnifiedSearchPage({
           </button>
         </form>
 
+        <nav className="mt-4 flex flex-wrap gap-2" aria-label="World search categories">
+          {([
+            ["all", "All results"],
+            ["countries", "Countries"],
+            ["organizations", "Organizations"],
+          ] as const).map(([value, label]) => (
+            <button type="button" key={value}
+              aria-pressed={category === value}
+              onClick={() => onCategoryChange(value)}
+              className={category === value
+                ? "min-h-11 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2"
+                : "min-h-11 rounded-full border border-border px-5 text-sm font-semibold text-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2"}>
+              {label}
+            </button>
+          ))}
+        </nav>
+
         {!canSearch ? (
           <section className="py-10">
             <h2 className="text-xl font-semibold">Explore the world</h2>
@@ -245,20 +275,20 @@ export function WorldUnifiedSearchPage({
           </section>
         ) : null}
 
-        {canSearch && (countryQuery.isPending || organizationQuery.isPending) ? (
+        {canSearch && ((showCountries && countryQuery.isPending) || (showOrganizations && organizationQuery.isPending)) ? (
           <p role="status" aria-live="polite" className="py-8 text-sm text-muted-foreground">
             Searching published World records…
           </p>
         ) : null}
-        {canSearch && (countryQuery.isError || organizationQuery.isError) ? (
+        {canSearch && ((showCountries && countryQuery.isError) || (showOrganizations && organizationQuery.isError)) ? (
           <div role="alert" className="mt-8 border-y border-border py-6">
             <h2 className="text-lg font-semibold">World search is unavailable</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               Official results could not be verified. No cached or assumed results are being shown.
             </p>
             <button type="button" onClick={() => {
-              if (countryQuery.isError) void countryQuery.refetch();
-              if (organizationQuery.isError) void organizationQuery.refetch();
+              if (showCountries && countryQuery.isError) void countryQuery.refetch();
+              if (showOrganizations && organizationQuery.isError) void organizationQuery.refetch();
             }}
               className="mt-4 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold">
               Try again
@@ -272,7 +302,7 @@ export function WorldUnifiedSearchPage({
               Search results for <strong className="text-foreground">{visible.term}</strong>
             </p>
 
-            <section className="mt-7" aria-labelledby="world-search-countries">
+            {showCountries ? <section className="mt-7" aria-labelledby="world-search-countries">
               <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border pb-3">
                 <h2 id="world-search-countries" className="text-xl font-semibold">
                   Countries <span className="text-sm font-normal text-muted-foreground">({visible.countryTotal})</span>
@@ -288,9 +318,9 @@ export function WorldUnifiedSearchPage({
               )}
               <ResultPager label="Country" page={countryPage} total={visible.countryTotal}
                 onPageChange={(next) => onPagesChange(next, organizationPage)} />
-            </section>
+            </section> : null}
 
-            <section className="mt-9" aria-labelledby="world-search-organizations">
+            {showOrganizations ? <section className="mt-9" aria-labelledby="world-search-organizations">
               <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border pb-3">
                 <h2 id="world-search-organizations" className="text-xl font-semibold">
                   Organizations <span className="text-sm font-normal text-muted-foreground">({visible.organizationTotal})</span>
@@ -306,7 +336,7 @@ export function WorldUnifiedSearchPage({
               )}
               <ResultPager label="Organization" page={organizationPage} total={visible.organizationTotal}
                 onPageChange={(next) => onPagesChange(countryPage, next)} />
-            </section>
+            </section> : null}
           </div>
         ) : null}
       </main>
