@@ -101,4 +101,32 @@ describe("World TG19 publication-boundary rehearsal isolation", () => {
     expect(sql).toContain("TG19_WORLD_DARK_ROLLOUT_REQUIRED");
     expect(sql).not.toMatch(/\bdblink\b|\bhttp_post\b/i);
   });
+
+  it("keeps merged TG2 public RPC filtering aligned with direct office RLS", () => {
+    const privacyMigration = readFileSync(resolve(
+      root, "supabase/migrations/20261104120800_v3_tg2_nonpublic_organ_office_privacy.sql",
+    ), "utf8");
+
+    const policyStart = privacyMigration.indexOf("create policy world_offices_public_read");
+    const policyEnd = privacyMigration.indexOf("create policy world_offices_private_scoped_read", policyStart);
+    expect(policyStart).toBeGreaterThan(-1);
+    expect(policyEnd).toBeGreaterThan(policyStart);
+    const directPolicy = privacyMigration.slice(policyStart, policyEnd);
+    expect(directPolicy).toContain("organization_row.public_visibility = 'public'");
+    expect(directPolicy).toContain("visible_organ.visibility = 'public'");
+
+    const rpcStart = privacyMigration.indexOf(
+      "create or replace function public.world_organization_projection_v1",
+    );
+    const rpcEnd = privacyMigration.indexOf("$projection$;", rpcStart);
+    expect(rpcStart).toBeGreaterThan(-1);
+    expect(rpcEnd).toBeGreaterThan(rpcStart);
+    const publicRpc = privacyMigration.slice(rpcStart, rpcEnd);
+    expect(publicRpc).toContain("organization_row.public_visibility = 'public'");
+    expect(publicRpc).toContain("organ_row.visibility = 'public'");
+    expect(publicRpc).toContain("visible_organ.visibility = 'public'");
+    expect(publicRpc).not.toContain("'userId'");
+    expect(publicRpc).not.toContain("'email'");
+  });
+
 });
