@@ -26,6 +26,7 @@ import {
 import type { AccountAccess } from "@/lib/country-account";
 import { buildCanonicalFanRecords } from "@/lib/canonical-fan-records";
 import { usePublicSearchParticipants } from "@/lib/public-participants";
+import { publicSearchPublicationScope, publicSearchRowsForPublishedShows } from "@/lib/public-search-published-scope";
 import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
 import { canSuggestDelegationSearchActions } from "@/lib/public-search-action-visibility";
 import {
@@ -49,7 +50,7 @@ import { readPublicRecents } from "@/lib/public-recents";
 import { visibleRecentShowDestinations } from "@/lib/v3-show-public-discovery";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { searchGovernanceLibrary } from "@/lib/public-library-governance";
-import { isShowPublic, resolveShowPublication, showPublishesResults } from "@/lib/publication";
+import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 import { loadPublicStorylines } from "@/lib/studio2-storytelling";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
@@ -698,43 +699,24 @@ function WebSearchArchiveResults({
     staleTime: 5 * 60 * 1000,
   });
 
-  // Search is a public surface even when the viewer is a signed-in
-  // delegation member. Never promote private edition/show/result rows into
-  // the public discovery results just because the session can read them.
-  const publicEditions = useMemo(
-    () => editions.filter((edition) => edition.published === true),
-    [editions],
-  );
-  const publicEditionIds = useMemo(
-    () => new Set(publicEditions.map((edition) => edition.id)),
-    [publicEditions],
-  );
-  const publicShows = useMemo(
-    () => shows.filter((show) =>
-      publicEditionIds.has(show.edition_id) && isShowPublic(show),
-    ),
-    [publicEditionIds, shows],
-  );
-  const publishedResultShowIds = useMemo(
-    () => new Set(publicShows.filter(showPublishesResults).map((show) => show.id)),
-    [publicShows],
+  // The same published-data projection must apply to anonymous visitors and
+  // signed-in delegation users, even when their database read scope differs.
+  const {
+    publicEditions,
+    publicEditionIds,
+    publicShows,
+    publishedResultShowIds,
+    detailedVotingShowIds,
+  } = useMemo(
+    () => publicSearchPublicationScope(editions, shows),
+    [editions, shows],
   );
   const visibleResults = useMemo(
-    () => results.filter((row) =>
-      row.show_id != null && publishedResultShowIds.has(row.show_id),
-    ),
+    () => publicSearchRowsForPublishedShows(results, publishedResultShowIds),
     [results, publishedResultShowIds],
   );
-  const detailedVotingShowIds = useMemo(
-    () => new Set(publicShows
-      .filter((show) => resolveShowPublication(show).detailed_voting)
-      .map((show) => show.id)),
-    [publicShows],
-  );
   const visibleJury = useMemo(
-    () => jury.filter((row) =>
-      row.show_id != null && detailedVotingShowIds.has(row.show_id),
-    ),
+    () => publicSearchRowsForPublishedShows(jury, detailedVotingShowIds),
     [jury, detailedVotingShowIds],
   );
 
