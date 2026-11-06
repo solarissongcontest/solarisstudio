@@ -296,11 +296,16 @@ begin
     or v_result.outcome<>'passed' or not v_result.quorum_met or not v_result.threshold_met
     or v_result.organization_id<>v_vote.organization_id
     or v_result.measure_id<>v_vote.measure_id
+    or v_result.certified_at is distinct from v_vote.certified_at
     or v_measure.id is null or v_measure.state<>'adopted'
+    or v_measure.organization_id<>v_vote.organization_id
+    or v_measure.organ_id<>v_vote.organ_id
     or v_measure.current_version_id<>v_vote.measure_version_id
     or v_measure.visibility<>'public' or v_measure.identifier is null
+    or v_measure.registered_at is null
     or v_measure.measure_type not in ('draft_resolution','proposal','bill','motion')
-    or v_version.id is null or v_version.publication_state<>'published'
+    or v_version.id is null or v_version.measure_id<>v_measure.id
+    or v_version.publication_state<>'published'
     or exists(select 1 from public.world_resolutions r where r.vote_id=v_vote.id)
     or not exists (
        select 1 from public.world_organizations org
