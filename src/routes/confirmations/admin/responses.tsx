@@ -28,6 +28,7 @@ import {
 } from "@/integrations/confirmations/v3-projections";
 import {
   assertOrganizerResponsePageContinuity,
+  assertOrganizerResponsePageDisjoint,
   safeOrganizerResponseSongUrl,
   assertOrganizerNextInLineRowsInScope,
   assertOrganizerResponseRowsInEdition,
@@ -414,11 +415,11 @@ function ConfirmationResponsesList() {
       if (page.page.hasMore && !page.page.nextCursor) {
         throw new Error("Confirmation projection returned an incomplete continuation cursor.");
       }
-      setRows((current) => {
-        const byId = new Map(current.map((row) => [row.id, row]));
-        newRows.forEach((row) => byId.set(row.id, row));
-        return [...byId.values()];
-      });
+      if (page.page.hasMore && newRows.length === 0) {
+        throw new Error("Confirmation response pagination returned an empty continuation page. Reload the current edition.");
+      }
+      assertOrganizerResponsePageDisjoint(rows, newRows);
+      setRows((current) => [...current, ...newRows]);
       setResponseCursor(page.page.hasMore ? page.page.nextCursor : null);
       setResponseTotalCount(page.totalCount);
       setResponseStateVersion(page.stateVersion);
