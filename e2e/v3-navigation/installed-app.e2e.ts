@@ -219,7 +219,7 @@ test("installed app shell survives representative navigation without duplicate c
   await applyNavbarInstalledCssEmulation(page);
   await expect(page.locator('[data-v3-account-settings-screen="account"]')).toBeVisible();
   await expect(page.locator(".solaris-app-tabbar")).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Solaris Studio" })).toHaveCount(1);
+  await expect(page.getByRole("navigation", { name: "Primary app navigation" })).toHaveCount(1);
   await expect(page.locator('.solaris-app-tabbar [aria-current="page"]')).toHaveCount(1);
 
   for (const label of ["Home", "Explore", "Participate", "Results", "Me"]) {

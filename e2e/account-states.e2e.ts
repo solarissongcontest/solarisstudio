@@ -373,8 +373,19 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     expect(countryLayout!.rowGap).toBeGreaterThanOrEqual(12);
     expect(countryLayout!.filterGap).toBeGreaterThanOrEqual(12);
 
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-    await page.waitForTimeout(100);
+    // Global CSS may request smooth scrolling; a fixed 100ms delay can
+    // measure content hundreds of pixels below the dock mid-animation.
+    // Reach the real scroll end first, then sample settled final-control clearance.
+    await page.evaluate(() => {
+      const scroller = document.scrollingElement ?? document.documentElement;
+      scroller.scrollTo({ top: scroller.scrollHeight, behavior: "instant" });
+    });
+    await expect
+      .poll(() => page.evaluate(() => {
+        const scroller = document.scrollingElement ?? document.documentElement;
+        return Math.max(0, scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop);
+      }))
+      .toBeLessThanOrEqual(2);
     const dockClearance = await page.evaluate(() => {
       // Installed V3 now owns one canonical AppTabBar, never the legacy LiquidTabBar.
       const dock = document.querySelector<HTMLElement>(".solaris-app-tabbar[data-layout='bar']");

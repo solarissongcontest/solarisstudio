@@ -10,6 +10,29 @@ const NAVBAR_V3_INSTALLED_GEOMETRY = readFileSync(
   "utf8",
 );
 
+// Playwright's desktop WebKit engine can emulate navigator.standalone and a
+// coarse iPhone viewport but still report CSS.supports(-webkit-touch-callout)
+// false. Real iOS Safari supports this feature query. The isolated test must
+// exercise the *exact production fallback declarations*, rather than invent
+// new safe-area pixel values or silently skip iOS layout verification.
+const IOS_SAFE_ZONE_SOURCE = readFileSync(
+  "src/styles/v3-shared-public-shell-completion.css",
+  "utf8",
+);
+const IOS_SUPPORT_START = IOS_SAFE_ZONE_SOURCE.indexOf(
+  "@supports (-webkit-touch-callout: none) {",
+);
+const IOS_SUPPORT_END = IOS_SAFE_ZONE_SOURCE.indexOf(
+  "/* Keep the physical system exclusion region",
+  IOS_SUPPORT_START,
+);
+if (IOS_SUPPORT_START < 0 || IOS_SUPPORT_END <= IOS_SUPPORT_START) {
+  throw new Error("Installed iOS safe-area fallback source block missing");
+}
+const IOS_WEBKIT_FEATURE_QUERY_EMULATION = IOS_SAFE_ZONE_SOURCE
+  .slice(IOS_SUPPORT_START, IOS_SUPPORT_END)
+  .replace("@supports (-webkit-touch-callout: none)", "@supports (display: block)");
+
 export async function applyNavbarInstalledCssEmulation(page: Page) {
   // app-shell.css is linked before V3's component CSS in production. Re-inject
   // the V3 installed-nav owner after the display-mode emulation so the audit
@@ -17,6 +40,18 @@ export async function applyNavbarInstalledCssEmulation(page: Page) {
   // old AppTabBar geometry at the end of <head>.
   await page.addStyleTag({ content: NAVBAR_INSTALLED_APP_CSS_EMULATION });
   await page.addStyleTag({ content: NAVBAR_V3_INSTALLED_GEOMETRY });
+
+  // Only the WebKit desktop runner needs this source-extracted feature-query
+  // shim; normal Safari keeps its unmodified production @supports condition.
+  // All selectors, viewport media rules and fallback tokens stay unchanged.
+  const emulateIOSWebKit = await page.evaluate(
+    () =>
+      navigator.userAgent.includes("AppleWebKit") &&
+      !CSS.supports("-webkit-touch-callout", "none"),
+  );
+  if (emulateIOSWebKit) {
+    await page.addStyleTag({ content: IOS_WEBKIT_FEATURE_QUERY_EMULATION });
+  }
 }
 
 export type NavbarE2ESession = {
