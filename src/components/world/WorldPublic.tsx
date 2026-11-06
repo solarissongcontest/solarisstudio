@@ -42,7 +42,7 @@ export function WorldPublicGate({
       </PublicFrame>
     );
   }
-  if (rollout.isPending || (verifyOnMount && rollout.isFetching)) {
+  if (rollout.isPending || rollout.isFetching) {
     return <PublicFrame><LoadingWorld label="Checking Terra Solaris availability" /></PublicFrame>;
   }
   if (!rollout.data) {
