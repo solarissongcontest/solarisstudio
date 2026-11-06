@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { summarizeOrganizerEntryDetail } from "./v3-organizer-entry-detail-summary";
+import { isOrganizerEntryReadyForWinner, summarizeOrganizerEntryDetail } from "./v3-organizer-entry-detail-summary";
 
 const accepted = (id = "entry-1", version = "v2") => ({
-  id, review_status: "accepted", current_version_id: version,
+  id, song_title: "Song", review_status: "accepted", current_version_id: version,
   reviewed_version_id: version,
 });
 const stale = (id = "entry-2") => ({
@@ -106,6 +106,31 @@ describe("Organizer Entry Review detail summary", () => {
     });
   });
 
+  it("never makes a blank-title Entry or National Final appear ready", () => {
+    const blank = { ...accepted(), song_title: "  " };
+    expect(isOrganizerEntryReadyForWinner(accepted())).toBe(true);
+    expect(isOrganizerEntryReadyForWinner(blank)).toBe(false);
+    expect(isOrganizerEntryReadyForWinner({ ...accepted(), song_title: null })).toBe(false);
+    expect(isOrganizerEntryReadyForWinner({ ...accepted(), reviewed_version_id: "older" })).toBe(false);
+    expect(summary({ internalEntry: blank }))
+      .toMatchObject({ entryCount: 1, currentAcceptedCount: 0 });
+    const nf = summary({
+      nationalFinal: { entries: [accepted(), { ...blank, id: "entry-2" }], winning_entry_id: "entry-1" },
+    });
+    expect(nf.currentAcceptedCount).toBe(1);
+    expect(nf.nationalFinal).toMatchObject({
+      label: "Winner selected · review incomplete", tone: "attention",
+    });
+    expect(nf.nationalFinal?.description).toMatch(/submitted song title/);
+  });
+
+  it("gates the response detail ready glow on known, complete Entry title", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
+    expect(route).toContain('if (!entry.song_title?.trim() || status === "pending") return "review";');
+    expect(route).toContain("!entries.every(isOrganizerEntryReadyForWinner)");
+  });
+
   it("does not render actions for inactive or withdrawn Entry selections", () => {
     const route = readFileSync(resolve(process.cwd(),
       "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
@@ -120,7 +145,7 @@ describe("Organizer Entry Review detail summary", () => {
       "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
     expect(route).toContain("Stored winner is inactive");
     expect(route).toContain("storedWinner={data.national_final?.winning_entry_id === entry.id}");
-    expect(route).toContain('effectiveOrganizerEntryReviewStatus(entry) === "accepted"');
+    expect(route).toContain("isOrganizerEntryReadyForWinner(entry)");
     expect(route).toContain("Stored winner needs current-version review");
     expect(route).toContain('entry.removed || entry.review_status === "removed"');
     expect(route).toContain("storedWinner && !winner");
@@ -135,10 +160,10 @@ describe("Organizer Entry Review detail summary", () => {
       "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
     const choose = route.slice(route.indexOf("async function chooseWinner()"),
       route.indexOf("async function clearWinner()"));
-    expect(choose).toContain('effectiveOrganizerEntryReviewStatus(entry) !== "accepted"');
-    expect(choose).toContain("Accept this candidate on its current Entry version");
-    expect(route).toContain('disabled={busy || !reason.trim() || effectiveOrganizerEntryReviewStatus(entry) !== "accepted"}');
-    expect(route).toContain("Review and accept this candidate's current Entry version");
+    expect(choose).toContain('!isOrganizerEntryReadyForWinner(entry)');
+    expect(choose).toContain("A complete song title and current-version accepted review are required");
+    expect(route).toContain('disabled={busy || !reason.trim() || !isOrganizerEntryReadyForWinner(entry)}');
+    expect(route).toContain("A complete song title and current-version accepted review are required before selecting a winner.");
     expect(route).toContain("storedWinner && onClearWinner");
   });
 
