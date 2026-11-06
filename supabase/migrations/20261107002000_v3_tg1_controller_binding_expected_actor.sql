@@ -150,8 +150,14 @@ begin
   from public.world_country_control_terms term where term.country_id = p_country_id;
 
   if v_existing.id is not null then
+    -- A future-dated open historical term can be replaced before it starts.
+    -- Ending it at now() would violate world_country_control_terms_time_order
+    -- (ended_at >= started_at) and turn an authorized CAS into an error.
+    -- A zero-duration cancelled term preserves the original scheduled start
+    -- while immediately removing it from the one-open-term authority.
     update public.world_country_control_terms
-    set ended_at = now(), reason_ended = 'Superseded by explicit durable controller-person binding.'
+    set ended_at = greatest(now(), v_existing.started_at),
+        reason_ended = 'Superseded by explicit durable controller-person binding.'
     where id = v_existing.id;
   end if;
 
