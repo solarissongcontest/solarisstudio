@@ -27,6 +27,16 @@ function config() {
   if (!["127.0.0.1", "localhost"].includes(parsed.hostname)) {
     throw new Error(`Refusing V3 geometry evidence against hosted Supabase: ${parsed.origin}`);
   }
+  // A local Supabase fixture is insufficient if E2E_BASE_URL silently points
+  // at a deployed frontend. Never turn N14 automated measurements into hosted
+  // production browsing, even with read-only test accounts.
+  const appOrigin = new URL(baseURL);
+  if (
+    appOrigin.protocol !== "http:" ||
+    !["127.0.0.1", "localhost"].includes(appOrigin.hostname)
+  ) {
+    throw new Error(`Refusing V3 geometry evidence against non-local app: ${appOrigin.origin}`);
+  }
   return {
     supabaseUrl: supabaseUrl!,
     publishableKey: publishableKey!,
