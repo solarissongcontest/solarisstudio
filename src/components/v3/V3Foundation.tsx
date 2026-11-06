@@ -283,7 +283,7 @@ function journeyIcon(state: V3JourneyState): LucideIcon {
 
 const JOURNEY_STATE_LABELS: Record<V3JourneyState, string> = {
   complete: "Complete",
-  active: "In progress",
+  active: "Action available",
   waiting: "Waiting",
   locked: "Locked",
   problem: "Action needed",
