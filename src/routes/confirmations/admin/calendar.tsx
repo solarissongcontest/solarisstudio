@@ -1,17 +1,19 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { CalendarDays, Clock3 } from "lucide-react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
-  loadConfirmationCalendar,
   loadConfirmationEditions,
-  requireConfirmationsAdmin,
   type ConfirmationCalendarRow,
   type ConfirmationEdition,
 } from "@/integrations/confirmations/admin";
+import { verifyOrganizerConfirmationRead } from "@/integrations/confirmations/organizer-confirmation-read-authorization";
+import { loadExactOrganizerConfirmationCalendar } from "@/integrations/confirmations/organizer-calendar-read";
 
 export const Route = createFileRoute("/confirmations/admin/calendar")({
   head: () => ({ meta: [{ title: "Delegation Calendar — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
@@ -50,66 +52,66 @@ function kindLabel(kind: CalendarItem["kind"]) {
   return "Reveal";
 }
 
+type CalendarRoundChoice = { actorId: string; editionId: string; roundId: string };
+
 function CalendarPage() {
-  const navigate = useNavigate();
+  const { id: actorId } = useAuthenticatedUser();
   const { editionId: organizerEditionId, setEditionId: setOrganizerEditionId } = useAdminContext();
-  const [editions, setEditions] = useState<ConfirmationEdition[]>([]);
-  const [editionId, setEditionId] = useState("");
-  const [roundId, setRoundId] = useState("");
-  const [rows, setRows] = useState<ConfirmationCalendarRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [roundChoice, setRoundChoice] = useState<CalendarRoundChoice | null>(null);
 
-  useEffect(() => {
-    let alive = true;
-    void (async () => {
-      try {
-        const admin = await requireConfirmationsAdmin();
-        if (!admin) {
-          await navigate({ to: "/confirmations/admin/sign-in" });
-          return;
-        }
-        const editionRows = await loadConfirmationEditions();
-        if (!alive) return;
-        const selected = editionRows.find((item) => item.id === organizerEditionId)?.id ?? "";
-        setEditions(editionRows);
-        setEditionId(selected);
-        setRows(selected ? await loadConfirmationCalendar(selected) : []);
-      } catch (caught) {
-        if (alive) setError(caught instanceof Error ? caught.message : "Could not load delegation calendar.");
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, [navigate]);
+  // Identity + scope are part of every private cache key. Never reuse the
+  // previous Organizer's editions or calendar data while a new actor loads.
+  const editionsQuery = useQuery({
+    queryKey: ["v3-organizer", "confirmation-calendar-editions", actorId],
+    queryFn: loadConfirmationEditions,
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+  });
+  const editionRows = editionsQuery.isSuccess && !editionsQuery.isFetching && !editionsQuery.error
+    ? editionsQuery.data
+    : [];
+  const editionId = editionRows.find((item) => item.id === organizerEditionId)?.id ?? "";
+  const selectedEdition = editionRows.find((edition) => edition.id === editionId) ?? null;
+  const roundId = roundChoice?.actorId === actorId && roundChoice.editionId === editionId
+    && selectedEdition?.rounds.some((round) => round.id === roundChoice.roundId)
+      ? roundChoice.roundId
+      : "";
 
-  const selectedEdition = editions.find((edition) => edition.id === editionId) ?? null;
+  // Public catalogue visibility is not private Calendar read authorization.
+  const readAccessQuery = useQuery({
+    queryKey: ["v3-organizer", "confirmation-calendar-access", actorId, editionId || "none"],
+    queryFn: () => verifyOrganizerConfirmationRead(editionId),
+    enabled: Boolean(editionId) && editionsQuery.isSuccess && !editionsQuery.isFetching,
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+  });
+  const hasReadAccess = readAccessQuery.isSuccess && !readAccessQuery.isFetching
+    && !readAccessQuery.error && readAccessQuery.data === true;
 
-  useEffect(() => {
-    const nextEditionId = editions.find((item) => item.id === organizerEditionId)?.id ?? "";
-    if (nextEditionId !== editionId) {
-      setEditionId(nextEditionId);
-      setRoundId("");
-      void changeScope(nextEditionId, "");
-    }
-  }, [editionId, editions, organizerEditionId]);
+  const calendarQuery = useQuery({
+    queryKey: ["v3-organizer", "confirmation-calendar", actorId, editionId || "none", roundId || "all"],
+    queryFn: () => loadExactOrganizerConfirmationCalendar({ editionId, roundId }),
+    enabled: Boolean(editionId) && hasReadAccess,
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+  });
 
-  async function changeScope(nextEditionId: string, nextRoundId: string) {
-    setLoading(true);
-    setError(null);
-    try {
-      if (!nextEditionId) {
-        setRows([]);
-        return;
-      }
-      setRows(await loadConfirmationCalendar(nextEditionId, nextRoundId || undefined));
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not load calendar data.");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const loading = editionsQuery.isPending || editionsQuery.isFetching || (
+    Boolean(editionId) && (
+      readAccessQuery.isPending || readAccessQuery.isFetching ||
+      (hasReadAccess && (calendarQuery.isPending || calendarQuery.isFetching))
+    )
+  );
+  const error = editionsQuery.error || readAccessQuery.error || calendarQuery.error;
+  const verifiedRows = Boolean(editionId) && hasReadAccess && calendarQuery.isSuccess
+    && !calendarQuery.isFetching && !calendarQuery.error;
+  const rows = verifiedRows ? calendarQuery.data : [];
 
   const { dated, undated } = useMemo(() => {
     const items = buildItems(rows);
@@ -133,14 +135,14 @@ function CalendarPage() {
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
               <span className="admin-section-label">Edition</span>
-              <select value={editionId} onChange={(event) => { const next = event.target.value; setEditionId(next); setOrganizerEditionId(next); setRoundId(""); void changeScope(next, ""); }} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30">
+              <select disabled={editionsQuery.isFetching || !editionsQuery.isSuccess} value={editionId} onChange={(event) => { const next = editionRows.find((item) => item.id === event.target.value)?.id ?? ""; setRoundChoice(null); setOrganizerEditionId(next); }} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30">
                 <option value="">Select edition…</option>
-                {editions.map((edition) => <option key={edition.id} value={edition.id}>{`SSC ${edition.edition_number} · ${edition.name}`}</option>)}
+                {editionRows.map((edition) => <option key={edition.id} value={edition.id}>{`SSC ${edition.edition_number} · ${edition.name}`}</option>)}
               </select>
             </label>
             <label className="block">
               <span className="admin-section-label">Submission round</span>
-              <select disabled={!editionId} value={roundId} onChange={(event) => { const next = event.target.value; setRoundId(next); void changeScope(editionId, next); }} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30 disabled:opacity-45">
+              <select disabled={!editionId || !hasReadAccess || loading} value={roundId} onChange={(event) => { const next = selectedEdition?.rounds.find((round) => round.id === event.target.value)?.id ?? ""; setRoundChoice({ actorId, editionId, roundId: next }); }} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30 disabled:opacity-45">
                 <option value="">All rounds</option>
                 {(selectedEdition?.rounds ?? []).map((round) => <option key={round.id} value={round.id}>{round.name}</option>)}
               </select>
@@ -156,7 +158,7 @@ function CalendarPage() {
               description="Delegation Calendar is edition-scoped operational state. Solaris will not load a globally active or first edition when Organizer context is missing or stale."
             />
           </AdminCard>
-        ) : !loading && !error ? (
+        ) : !loading && !error && verifiedRows ? (
           <div className="mb-4 grid grid-cols-3 gap-2">
             <AdminCard className="!p-3"><p className="admin-section-label">Exact dates</p><p className="mt-2 text-2xl font-bold tracking-tight">{dated.length}</p></AdminCard>
             <AdminCard className="!p-3"><p className="admin-section-label">Upcoming</p><p className="mt-2 text-2xl font-bold tracking-tight">{upcoming}</p></AdminCard>
@@ -168,7 +170,11 @@ function CalendarPage() {
           loading ? (
             <AdminCard><p className="py-6 text-center text-sm text-muted-foreground">Loading calendar…</p></AdminCard>
           ) : error ? (
-            <AdminCard><p className="text-sm text-rose-200">{error}</p></AdminCard>
+            <AdminCard><p className="text-sm text-rose-200">{error instanceof Error ? error.message : "Calendar could not be verified."}</p></AdminCard>
+          ) : !hasReadAccess ? (
+            <AdminCard><AdminEmptyState icon={CalendarDays} title="Confirmation access required" description="Your account does not have verified confirmation.read permission for this edition. No private calendar data was requested." /></AdminCard>
+          ) : !verifiedRows ? (
+            <AdminCard><AdminEmptyState icon={CalendarDays} title="Calendar unavailable" description="Calendar totals and dates remain unknown until the exact current Organizer scope can be verified." /></AdminCard>
           ) : (
             <div className="space-y-4">
               {Object.entries(groups).map(([month, items]) => (
