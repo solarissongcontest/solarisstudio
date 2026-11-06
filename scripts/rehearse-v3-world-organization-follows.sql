@@ -62,7 +62,11 @@ set enabled=true,admins_only=false,user_ids='{}'::uuid[],edition_ids='{}'::uuid[
 where key='terra_world_public';
 do $flag$
 begin
- if not found then
+ if not exists (
+   select 1 from public.studio2_feature_flags
+   where key='terra_world_public' and enabled=true
+     and admins_only=false
+ ) then
    raise exception 'TG10_WORLD_ROLLOUT_FLAG_MISSING';
  end if;
 end $flag$;
