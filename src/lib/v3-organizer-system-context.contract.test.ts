@@ -7,6 +7,11 @@ const route = readFileSync(
   "utf8",
 );
 
+const privateAdminOps = readFileSync(
+  resolve(process.cwd(), "src/lib/admin-ops.ts"),
+  "utf8",
+);
+
 describe("Organizer System Settings exact edition context", () => {
   it("resolves edition-scoped content only after explicit actor-bound choice matching OrganizerContext", () => {
     expect(route).toContain("const { editionId, setEditionContext } = useAdminContext()");
@@ -28,6 +33,14 @@ describe("Organizer System Settings exact edition context", () => {
     expect(route).toContain("setEditionContext({ id: choice.id, slug: choice.slug, label: editionLabel(choice) })");
     expect(route).toContain("verifiedChoiceId !== createEditionId ||");
     expect(route).toContain("The Organizer navigation may show a default edition");
+  });
+
+  it("segregates private reminder and audit projections by signed-in Organizer account", () => {
+    expect(privateAdminOps).toContain('const actorId = useAuthenticatedUser().id;');
+    expect(privateAdminOps).toContain('queryKey: ["admin-deadlines", exactEditionId ?? "unscoped", actorId]');
+    expect(privateAdminOps).toContain('queryKey: ["admin-deadlines", normalizedEditionId ?? "unscoped", actorId]');
+    expect(privateAdminOps).toContain('queryKey: ["admin-audit", limit, actorId]');
+    expect(privateAdminOps).toContain('qc.invalidateQueries({ queryKey: ["admin-deadlines"] })');
   });
 
   it("passes null rather than an inferred edition into schedule/reminder projections", () => {
