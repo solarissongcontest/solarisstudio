@@ -49,7 +49,8 @@ describe("V3 installed dock review regressions", () => {
 
   it("keeps the iPad rail from obstructing V3 and avoids duplicate installed desktop nav", () => {
     expect(shell).toContain('isAppMode && "v3-installed-app-layout"');
-    expect(shell).toContain("{!isAppMode ? (");
+    expect(shell).toContain("platformResolved && !isAppMode ? (");
+    expect(shell).toContain("platformResolved && isAppMode ? (");
     expect(css).toContain('html[data-solaris-app] [data-solaris-v3] .v3-installed-app-layout');
     expect(css).toContain("padding-left: calc(7.35rem + env(safe-area-inset-left))");
   });
