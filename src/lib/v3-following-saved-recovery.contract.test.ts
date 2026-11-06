@@ -25,7 +25,7 @@ describe("V3 Following & Saved read and mutation recovery", () => {
     expect(source).toContain("Solaris will not mistake an unverified list for an empty one.");
     expect(source.indexOf("{failed ? (")).toBeLessThan(source.indexOf(") : paused ? ("));
     expect(source.indexOf(") : paused ? (")).toBeLessThan(source.indexOf(") : loading ? ("));
-    expect(source.indexOf("{paused ? (")).toBeLessThan(source.indexOf("data-v3-following-saved-state=\"empty\""));
+    expect(source.indexOf(") : paused ? (")).toBeLessThan(source.indexOf("data-v3-following-saved-state=\"empty\""));
   });
 
   it("keeps a failed query recoverable even while another query is still loading", () => {
@@ -84,14 +84,14 @@ describe("V3 Following & Saved read and mutation recovery", () => {
     const source = screen();
     expect(source).toContain('useEffect(() => {\n    setMessage(null);\n    setSearch("");\n  }, [viewerId]);');
     expect(source).toContain("setMessage({ viewerId, text: confirmed");
-    expect(source).toContain("setMessage({ viewerId, text: \"Update not confirmed.");
+    expect(source).toContain("Update not confirmed. Solaris could not confirm whether that preference was saved.");
     expect(source).toContain("message?.viewerId === viewerId");
     expect(source).toContain("{message.text}");
   });
 
   it("does not claim failure means the server definitely rejected a write", () => {
     const source = screen();
-    expect(source).toContain("Update not confirmed. Check your saved items before trying again.");
+    expect(source).toContain("Update not confirmed. Solaris could not confirm whether that preference was saved.");
     expect(source).not.toContain("Nothing else was changed.");
     expect(source).toContain("} finally {");
   });
