@@ -133,17 +133,21 @@ describe("Jury integrity bounded canonical evidence completeness", () => {
       cases: [],
       stats: { total: 0, reviewOrHigher: 0, declarationOrHigher: 0, highOrHigher: 0 },
     });
-    expect(preflightFrom).toHaveBeenCalledExactlyOnceWith("vote_preflight_checks");
+    expect(preflightFrom).toHaveBeenCalledTimes(1);
+    expect(preflightFrom).toHaveBeenCalledWith("vote_preflight_checks");
     expect(preflightQuery.select).toHaveBeenCalledWith(
       expect.any(String),
       { count: "exact" },
     );
     expect(preflightQuery.eq).toHaveBeenCalledWith("canonical_edition_id", editionId);
     expect(preflightQuery.eq).toHaveBeenCalledWith("model_version", "jury-integrity-model-v5");
-    expect(preflightQuery.limit).toHaveBeenCalledExactlyOnceWith(1000);
-    expect(fixture.privilegedFrom).toHaveBeenCalledExactlyOnceWith("editions");
+    expect(preflightQuery.limit).toHaveBeenCalledTimes(1);
+    expect(preflightQuery.limit).toHaveBeenCalledWith(1000);
+    expect(fixture.privilegedFrom).toHaveBeenCalledTimes(1);
+    expect(fixture.privilegedFrom).toHaveBeenCalledWith("editions");
     expect(editionQuery.eq).toHaveBeenCalledWith("id", editionId);
-    expect(fixture.getCapabilities).toHaveBeenCalledExactlyOnceWith(editionId);
+    expect(fixture.getCapabilities).toHaveBeenCalledTimes(1);
+    expect(fixture.getCapabilities).toHaveBeenCalledWith(editionId);
   });
 
   it.each([
@@ -158,7 +162,8 @@ describe("Jury integrity bounded canonical evidence completeness", () => {
     await expect(listJuryIntegrityCasesServer(editionId)).rejects.toThrow(
       /Jury integrity evidence is incomplete|Jury Integrity returned no valid protected preflight evidence/,
     );
-    expect(preflightQuery.limit).toHaveBeenCalledExactlyOnceWith(1000);
+    expect(preflightQuery.limit).toHaveBeenCalledTimes(1);
+    expect(preflightQuery.limit).toHaveBeenCalledWith(1000);
     expect(fixture.privilegedFrom).not.toHaveBeenCalled();
   });
 
