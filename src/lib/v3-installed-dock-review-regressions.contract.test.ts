@@ -77,14 +77,19 @@ describe("V3 installed dock review regressions", () => {
     expect(tab).toContain('root.style.setProperty("--solaris-bottom-obstruction", "0px")');
   });
 
-  it("removes overlay-obscured installed tabs from keyboard and assistive focus", () => {
+  it("removes overlay-obscured installed tabs from keyboard and assistive focus immediately", () => {
     const appCss = source("src/styles/app-shell.css");
-    const overlayRule = appCss.match(
-      /html\\[data-solaris-app\\]\\[data-solaris-feature-overlay-open\\] \\.solaris-app-tabbar,[\\s\\S]*?html\\[data-solaris-app\\]:has\\(\\[data-solaris-dialog\\]\\[data-state="open"\\]\\) \\.solaris-app-tabbar \\{([\\s\\S]*?)\\}/,
+    const start = appCss.indexOf(
+      "html[data-solaris-app][data-solaris-feature-overlay-open] .solaris-app-tabbar,",
     );
-    expect(overlayRule?.[1]).toContain("visibility: hidden;");
-    expect(overlayRule?.[1]).toContain("pointer-events: none;");
-    expect(overlayRule?.[1]).toContain("opacity: 0;");
+    expect(start).toBeGreaterThanOrEqual(0);
+    const rule = appCss.slice(start, appCss.indexOf("}", start) + 1);
+    expect(rule).toContain('[data-solaris-sheet][data-state="open"]');
+    expect(rule).toContain('[data-solaris-dialog][data-state="open"]');
+    expect(rule).toContain("visibility: hidden;");
+    expect(rule).toContain("pointer-events: none;");
+    expect(rule).toContain("opacity: 0;");
+    expect(rule).not.toContain("visibility 0s");
   });
 
   it("names the installed V3 landmark without relabeling legacy tab bars", () => {

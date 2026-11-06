@@ -2271,7 +2271,7 @@ html[data-solaris-app]:has([data-solaris-dialog][data-state="open"]) .solaris-ap
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 120ms ease, visibility 0s linear 120ms;
+  transition: opacity 120ms ease;
 }
 
 html[data-solaris-app] [data-solaris-sheet][data-side="bottom"],
