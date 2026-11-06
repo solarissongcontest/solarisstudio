@@ -149,6 +149,7 @@ describe("TG9 procedural decisions: canonical authority and correction fidelity"
     ]) expect(sql).toContain(token);
     expect(sql.split("public.studio2_feature_enabled('terra_world_public',null)")).toHaveLength(5);
     expect(sql).not.toMatch(/grant all on public.world_decisions/i);
+    expect(sql).toContain("length(btrim(coalesce(correction_reason,''))) between 5 and 2000");
     expect(sql).not.toMatch(/create table (?:public\.)?world_tasks\b/i);
     expect(sql).toContain("for share of term,office_row");
     expect(sql).toContain("from public.world_organizations where id=p_organization_id");
