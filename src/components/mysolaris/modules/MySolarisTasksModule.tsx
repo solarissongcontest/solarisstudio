@@ -267,7 +267,7 @@ export function MySolarisTasksModule() {
           </Panel>
         ) : snapshot ? (
           <>
-            {isAppMode ? (
+            {isAppMode && !organizerInspection ? (
               <AppTaskCenter
                 editionLabel={`${snapshot.context.editionName} · ${snapshot.context.countryName}`}
                 tasks={tasksFromHodWorkspace(snapshot)}
