@@ -11,18 +11,44 @@ import { loadEnv } from "vite";
 
 import { shouldOmitDisabledV3Preview } from "./scripts/v3-disabled-preview-build-policy";
 
-const isProduction = process.env.NODE_ENV === "production";
+// Match Vite's production mode, including ordinary `vite build` invocation
+// when the wrapper evaluates this config before NODE_ENV is initialized.
+const isProduction = process.env.NODE_ENV === "production" ||
+  (process.env.NODE_ENV === undefined && process.argv.includes("build"));
 // An explicitly enabled private preview must remain available in production.
 // Respect exported variables first, then the repository's production env files.
 const previewFlag = process.env.VITE_SOLARIS_V3_PREVIEW ??
   loadEnv(isProduction ? "production" : "development", process.cwd(), "VITE_").VITE_SOLARIS_V3_PREVIEW;
 const omitDisabledV3Preview = shouldOmitDisabledV3Preview(isProduction, previewFlag);
+if (process.env.GITHUB_ACTIONS === "true") {
+  console.info(`[v3-preview-build] production=${isProduction} previewOptIn=${previewFlag === "1"} omit=${omitDisabledV3Preview}`);
+}
 
 
 const browserAudit = process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1";
 
 export default defineConfig({
   vite: {
+    // Resolve the private route import before the TS-paths resolver can turn
+    // its @/ specifier into an absolute source path. A normal production build
+    // never renders this route because its existing beforeLoad redirects.
+    plugins: [
+      {
+        name: "v3-disabled-preview-build-elision",
+        enforce: "pre" as const,
+        resolveId(source: string) {
+          if (!omitDisabledV3Preview || source !== "@/components/v3/V3FoundationPreview") {
+            return null;
+          }
+          if (process.env.GITHUB_ACTIONS === "true") {
+            console.info("[v3-preview-build] substituting inaccessible production preview");
+          }
+          return fileURLToPath(
+            new URL("./src/components/v3/V3FoundationPreview.disabled.tsx", import.meta.url),
+          );
+        },
+      },
+    ],
     resolve: {
       // Broadcast uses only canvas-confetti's one-shot default function. Keep
       // that narrow decorative effect local instead of shipping the general
@@ -31,13 +57,7 @@ export default defineConfig({
         "canvas-confetti": fileURLToPath(
           new URL("./src/lib/lightweight-confetti.ts", import.meta.url),
         ),
-        ...(omitDisabledV3Preview
-          ? {
-              "@/components/v3/V3FoundationPreview": fileURLToPath(
-                new URL("./src/components/v3/V3FoundationPreview.disabled.tsx", import.meta.url),
-              ),
-            }
-          : {}),
+
       },
     },
     build: {
