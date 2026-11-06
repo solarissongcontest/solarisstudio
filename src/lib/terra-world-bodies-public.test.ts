@@ -6,6 +6,7 @@ vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: mockFrom } 
 import {
   WORLD_BODIES_PAGE_SIZE,
   WORLD_BODY_OFFICE_LIMIT,
+  cleanWorldBodySearch,
   decodePublicBodyOffice,
   readPublicBodyOffices,
   decodePublicWorldBody,
@@ -26,10 +27,11 @@ const organ = {
 };
 function chain(response: Record<string, unknown>) {
   const q = {
-    select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn(), order: vi.fn(), range: vi.fn(), limit: vi.fn(),
+    select: vi.fn(), eq: vi.fn(), or: vi.fn(), maybeSingle: vi.fn(), order: vi.fn(), range: vi.fn(), limit: vi.fn(),
   };
   q.select.mockReturnValue(q);
   q.eq.mockReturnValue(q);
+  q.or.mockReturnValue(q);
   q.order.mockReturnValue(q);
   q.maybeSingle.mockResolvedValue(response);
   q.range.mockResolvedValue(response);
@@ -63,6 +65,37 @@ describe("TG3 public institution bodies", () => {
     expect(row?.name).toBe("General Assembly");
     expect(row).not.toHaveProperty("private_notes");
     expect(decodePublicWorldInstitution(parent, "guard")).not.toHaveProperty("auth_user_id");
+  });
+  it("normalizes Unicode and removes LIKE/filter grammar from submitted body searches", () => {
+    expect(cleanWorldBodySearch("  GAG   Assembly  ")).toBe("GAG Assembly");
+    expect(cleanWorldBodySearch("Ethics%Committee,secret")).toBe("EthicsCommitteesecret");
+    expect(cleanWorldBodySearch("Ålanti → UNITY")).toBe("Ålanti UNITY");
+    expect(cleanWorldBodySearch("A".repeat(100))).toHaveLength(64);
+  });
+  it("searches the entire published body set, never only the current page", async () => {
+    const org = chain({ data: parent, error: null });
+    const body = chain({ data: [organ], error: null, count: 1 });
+    mockFrom.mockImplementation((name: string) => name === "world_organizations" ? org : body);
+    const result = await readPublicWorldBodies("guard", 0, { term: " GAG% ", status: "active" });
+    expect(result?.bodies).toHaveLength(1);
+    expect(body.eq).toHaveBeenCalledWith("organization_id", "org-1");
+    expect(body.eq).toHaveBeenCalledWith("visibility", "public");
+    expect(body.eq).toHaveBeenCalledWith("status", "active");
+    expect(body.or).toHaveBeenCalledWith("name.ilike.%GAG%,short_name.ilike.%GAG%");
+    expect(body.select).toHaveBeenCalledWith(
+      "id,organization_id,slug,name,short_name,type,status,visibility,sort_order",
+      { count: "exact" },
+    );
+    expect(body.range).toHaveBeenCalledWith(0, WORLD_BODIES_PAGE_SIZE - 1);
+  });
+  it("preserves public-only predicates for historical filtering without search", async () => {
+    const org = chain({ data: parent, error: null });
+    const body = chain({ data: [], error: null, count: 0 });
+    mockFrom.mockImplementation((name: string) => name === "world_organizations" ? org : body);
+    const result = await readPublicWorldBodies("guard", 0, { status: "historical" });
+    expect(result?.total).toBe(0);
+    expect(body.eq).toHaveBeenCalledWith("status", "historical");
+    expect(body.or).not.toHaveBeenCalled();
   });
   it("does not make any query for invalid deep links", async () => {
     expect(await readPublicWorldBody("GUARD", "gag")).toBeNull();
