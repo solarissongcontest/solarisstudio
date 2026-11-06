@@ -19,7 +19,7 @@ export type WorldDomesticOfficials={
   countryId:string;countryCode:string;isController:boolean;
   people:WorldLorePerson[];offices:WorldDomesticOffice[];terms:WorldDomesticOfficeTerm[];
 };
-export type OfficialMutationKind="lore_person"|"office"|"term_start"|"term_end";
+export type OfficialMutationKind="lore_person"|"office"|"term_start"|"term_end"|"term_publish";
 export type OfficialMutation={
   countryId:string;kind:OfficialMutationKind;subjectId:string|null;
   payload:Record<string,string|boolean|number|null>;
@@ -76,7 +76,7 @@ export async function writeWorldDomesticOfficial(x:OfficialMutation){
      (x.subjectId!==null&&!uuid.test(x.subjectId))||
      !Number.isSafeInteger(x.expectedRevision)||x.expectedRevision<0||
      x.idempotencyKey.length<8||x.idempotencyKey.length>200||
-     !["lore_person","office","term_start","term_end"].includes(x.kind))
+     !["lore_person","office","term_start","term_end","term_publish"].includes(x.kind))
     throw new Error("Invalid office history command");
   const {data,error}=await(supabase as any).rpc("world_write_domestic_official_v1",{
     p_country_id:x.countryId,p_kind:x.kind,p_subject_id:x.subjectId,
