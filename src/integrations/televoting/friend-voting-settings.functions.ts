@@ -67,6 +67,8 @@ const advanced = (data: FriendVotingSettings): FriendVotingSettings["advancedMod
 };
 
 export const getFriendVotingSettings = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireSolarisCapabilityServer } = await import("@/integrations/supabase/capabilities.server");
+  await requireSolarisCapabilityServer("voting.read", null);
   const { getFriendVotingSettingsServer } = await import("@/integrations/televoting/friend-voting-settings.server");
   return getFriendVotingSettingsServer();
 });
@@ -110,6 +112,9 @@ export const updateFriendVotingSettings = createServerFn({ method: "POST" })
     return parsed;
   })
   .handler(async ({ data }) => {
+    // A protected before-snapshot is itself privileged. Authorize before importing it.
+    const { requireSolarisCapabilityServer } = await import("@/integrations/supabase/capabilities.server");
+    await requireSolarisCapabilityServer("voting.manage", null);
     const [
       { loadFriendVotingSettingsServer, updateFriendVotingSettingsServer },
       { writeAdminAuditServer },
