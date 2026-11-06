@@ -102,6 +102,13 @@ describe("Integrated Terra Solaris public discovery chain", () => {
     expect(search).not.toContain('<main className="mx-auto w-full max-w-5xl');
   });
 
+  it("keeps real app Tailwind sources but excludes unused third-party upstream references", () => {
+    const css = source("src/styles.css");
+    expect(css).toContain('@source "../src";');
+    expect(css).toContain('@source not "../src/styles/personality-sources/**/upstream/**";');
+    expect(source("tsconfig.json")).toContain("src/styles/personality-sources/**/upstream/**/*");
+  });
+
   it("retains the dark-by-default canonical rollout and source registration", () => {
     const flags = source("src/lib/feature-flags.ts");
     const registry = source("src/lib/v3-public-capability-registry.ts");
