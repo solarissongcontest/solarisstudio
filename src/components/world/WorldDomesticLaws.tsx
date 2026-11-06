@@ -177,7 +177,9 @@ export function WorldDomesticLaws({code}:{code:string}){
   });
   // Never show a cached controller-private draft before fresh authority checks.
   const data=overview.isFetching||!overview.isFetchedAfterMount||overview.isError?null:overview.data;
-  const current=selected&&!detail.isFetching&&detail.isFetchedAfterMount&&!detail.isError?detail.data:null;
+  const candidate=selected&&!detail.isFetching&&detail.isFetchedAfterMount&&!detail.isError?detail.data:null;
+  // A route transition must never render a prior country's selected text.
+  const current=candidate?.countryId===data?.countryId?candidate:null;
   return <div className="mx-auto w-full max-w-5xl px-3 pb-28 pt-5 sm:px-6 sm:pt-8">
     <Link to="/world/domestic/$code" params={{code}} className={secondary}>
       <ArrowLeft className="size-4" aria-hidden="true"/> Country government
