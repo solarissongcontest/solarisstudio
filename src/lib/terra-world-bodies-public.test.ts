@@ -5,6 +5,9 @@ vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: mockFrom } 
 
 import {
   WORLD_BODIES_PAGE_SIZE,
+  WORLD_BODY_OFFICE_LIMIT,
+  decodePublicBodyOffice,
+  readPublicBodyOffices,
   decodePublicWorldBody,
   decodePublicWorldInstitution,
   readPublicWorldBody,
@@ -110,5 +113,65 @@ describe("TG3 public institution bodies", () => {
     await expect(readPublicWorldBodies("guard", 0)).rejects.toThrow("Conflicting");
     body.range.mockResolvedValue({ data: [{ ...organ, visibility: "private" }], error: null, count: 1 });
     await expect(readPublicWorldBodies("guard", 0)).rejects.toThrow("invalid public identity");
+  });
+});
+
+describe("TG3 institution body offices", () => {
+  const publicParent = {
+    id: "org-1", slug: "guard", shortName: "GUARD", officialName: "Global Union", status: "active",
+  };
+  const publicBody = {
+    id: "body-1", organizationId: "org-1", slug: "gag", name: "General Assembly",
+    shortName: "GAG", type: "general_assembly", description: null,
+    status: "active" as const, sortOrder: 10,
+  };
+  const office = {
+    id: "office-1", organization_id: "org-1", organ_id: "body-1",
+    title: "Assembly Chair", office_type: "leadership", active: true,
+    holder_user_id: "must-not-leak", current_term: { private: "must-not-leak" },
+  };
+
+  it("keeps public office DTOs free from holder/login/term data", () => {
+    const row = decodePublicBodyOffice(office, "org-1", "body-1");
+    expect(row?.title).toBe("Assembly Chair");
+    expect(row).not.toHaveProperty("holder_user_id");
+    expect(row).not.toHaveProperty("current_term");
+  });
+
+  it("rejects private/mismatched or inactive office identity", () => {
+    expect(decodePublicBodyOffice({ ...office, organization_id: "org-2" }, "org-1", "body-1")).toBeNull();
+    expect(decodePublicBodyOffice({ ...office, organ_id: "private" }, "org-1", "body-1")).toBeNull();
+    expect(decodePublicBodyOffice({ ...office, active: false }, "org-1", "body-1")).toBeNull();
+  });
+
+  it("never requests office data on inconsistent public parent and organ", async () => {
+    await expect(readPublicBodyOffices(publicParent, { ...publicBody, organizationId: "org-2" }))
+      .rejects.toThrow("inconsistent");
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it("queries only current organ office definitions and limits the rows", async () => {
+    const query = chain({});
+    query.limit = vi.fn().mockResolvedValue({ data: [office], error: null });
+    mockFrom.mockReturnValue(query);
+    const rows = await readPublicBodyOffices(publicParent, publicBody);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).not.toHaveProperty("holder_user_id");
+    expect(query.eq).toHaveBeenCalledWith("organization_id", "org-1");
+    expect(query.eq).toHaveBeenCalledWith("organ_id", "body-1");
+    expect(query.eq).toHaveBeenCalledWith("active", true);
+    expect(query.limit).toHaveBeenCalledWith(WORLD_BODY_OFFICE_LIMIT);
+    expect(query.select).toHaveBeenCalledWith("id,organization_id,organ_id,title,office_type,active");
+  });
+
+  it("fails closed on foreign office payloads or malformed arrays", async () => {
+    const query = chain({});
+    query.limit = vi.fn().mockResolvedValue({ data: [{ ...office, organ_id: "secret" }], error: null });
+    mockFrom.mockReturnValue(query);
+    await expect(readPublicBodyOffices(publicParent, publicBody)).rejects.toThrow("invalid public identity");
+    query.limit.mockResolvedValue({ data: {}, error: null });
+    await expect(readPublicBodyOffices(publicParent, publicBody)).rejects.toThrow("could not be verified");
+    query.limit.mockResolvedValue({ data: [office, office], error: null });
+    await expect(readPublicBodyOffices(publicParent, publicBody)).rejects.toThrow("Duplicate");
   });
 });
