@@ -38,7 +38,7 @@ export function V3OfficialNoticesRouteContent({
   const access = account.data?.access;
   const country = account.data?.country;
 
-  if (account.isLoading) {
+  if (account.isPending || account.isLoading) {
     return (
       <V3AppShell editionLabel="Solaris Studio" phaseLabel="Official notices" activeArea="me">
         <V3Screen>
