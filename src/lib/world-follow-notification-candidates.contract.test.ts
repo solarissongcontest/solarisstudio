@@ -19,7 +19,7 @@ describe("TG10 private institutional statement notification candidates", () => {
     ]) {
       expect(migration).toContain(source);
     }
-    expect(migration).not.toMatch(/create\\s+table\\s+(?:if\\s+not\\s+exists\\s+)?(?:public\\.)?(?:world_notifications|world_follows)/i);
+    expect(migration).not.toMatch(/create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?(?:world_notifications|world_follows)/i);
   });
 
   it("cannot project statements before canonical publication or outside the public World rollout", () => {
@@ -59,8 +59,8 @@ describe("TG10 private institutional statement notification candidates", () => {
   it("never authorizes a browser, writes a notification, or starts a dispatch", () => {
     expect(migration).toContain("security definer");
     expect(migration).toContain("set search_path = pg_catalog");
-    expect(migration).toMatch(/revoke all on function private\\.world_statement_follow_notification_candidates_v1\\(uuid,uuid,integer\\)\\s+from public, anon, authenticated, service_role/i);
-    expect(migration).toMatch(/grant execute on function private\\.world_statement_follow_notification_candidates_v1\\(uuid,uuid,integer\\)\\s+to service_role/i);
-    expect(migration).not.toMatch(/(?:insert\\s+into|update|delete\\s+from)\\s+public\\.notification_deliveries\\b/i);
+    expect(migration).toMatch(/revoke all on function private\.world_statement_follow_notification_candidates_v1\(uuid,uuid,integer\)\s+from public, anon, authenticated, service_role/i);
+    expect(migration).toMatch(/grant execute on function private\.world_statement_follow_notification_candidates_v1\(uuid,uuid,integer\)\s+to service_role/i);
+    expect(migration).not.toMatch(/(?:insert\s+into|update|delete\s+from)\s+public\.notification_deliveries\b/i);
   });
 });
