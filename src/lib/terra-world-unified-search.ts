@@ -135,7 +135,7 @@ export async function fetchWorldCountrySearchPage(
 
   const { data, error, count } = await (supabase as any).from("countries")
     .select(COUNTRY_FIELDS, { count: "exact" })
-    .or("name.ilike.%" + term + "%,short_code.ilike.%" + term + "%")
+    .or("name.ilike.%" + term + "%,short_code.ilike.%" + term + "%,region.ilike.%" + term + "%")
     .order("name", { ascending: true })
     .order("short_code", { ascending: true })
     .order("id", { ascending: true })
