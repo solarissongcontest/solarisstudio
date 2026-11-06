@@ -33,7 +33,8 @@ describe("Jury integrity evidence service-role authorization", () => {
   it("does not access protected evidence when the identity lookup fails", async () => {
     fixture.getCapabilities.mockRejectedValue(new Error("Not authenticated"));
     await expect(listJuryIntegrityCasesServer(editionId)).rejects.toThrow("Not authenticated");
-    expect(fixture.getCapabilities).toHaveBeenCalledExactlyOnceWith(editionId);
+    expect(fixture.getCapabilities).toHaveBeenCalledTimes(1);
+    expect(fixture.getCapabilities).toHaveBeenCalledWith(editionId);
     expect(fixture.privilegedSchema).not.toHaveBeenCalled();
   });
 
@@ -46,7 +47,8 @@ describe("Jury integrity evidence service-role authorization", () => {
     await expect(listJuryIntegrityCasesServer(editionId)).rejects.toThrow(
       `Solaris capability required: ${missing}`,
     );
-    expect(fixture.getCapabilities).toHaveBeenCalledExactlyOnceWith(editionId);
+    expect(fixture.getCapabilities).toHaveBeenCalledTimes(1);
+    expect(fixture.getCapabilities).toHaveBeenCalledWith(editionId);
     expect(fixture.privilegedSchema).not.toHaveBeenCalled();
   });
 
@@ -57,7 +59,8 @@ describe("Jury integrity evidence service-role authorization", () => {
       capabilities: ["integrity.read", "jury.ballots.read"],
     });
     fixture.privilegedSchema.mockImplementation(() => {
-      expect(fixture.getCapabilities).toHaveBeenCalledExactlyOnceWith(editionId);
+      expect(fixture.getCapabilities).toHaveBeenCalledTimes(1);
+    expect(fixture.getCapabilities).toHaveBeenCalledWith(editionId);
       throw new Error("CONTROLLED_PRIVILEGED_READ_REACHED");
     });
     await expect(listJuryIntegrityCasesServer(` ${editionId} `)).rejects.toThrow(
