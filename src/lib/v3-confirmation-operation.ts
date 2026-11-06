@@ -23,6 +23,10 @@ function requireIsoDate(value: string, label: string) {
 }
 
 function validate(operation: V3ConfirmationOperation) {
+  if (operation.version !== 1) throw new Error("unsupported confirmation operation version");
+  if (!["ready", "dispatched", "uncertain"].includes(operation.status)) {
+    throw new Error("invalid confirmation operation status");
+  }
   requireNonEmpty(operation.roundId, "roundId");
   requireNonEmpty(operation.browserSessionId, "browserSessionId");
   requireNonEmpty(operation.idempotencyKey, "idempotencyKey");
@@ -113,19 +117,23 @@ export function markV3ConfirmationUncertain(
   return { ...operation, status: "uncertain", updatedAt: now };
 }
 
-const operationStorageKey = (roundId: string) =>
-  `ssc.v3.confirmation.operation.${roundId}`;
+// A round alone is not an identity: different browser sessions can submit to
+// the same Confirmation round. Never resurrect the old round-only storage key.
+// Recovery remains a hint; only the server can confirm an uncertain operation.
+const operationStorageKey = (roundId: string, browserSessionId: string) =>
+  `ssc.v3.confirmation.operation.v2.${encodeURIComponent(roundId)}.${encodeURIComponent(browserSessionId)}`;
 
 export function readV3ConfirmationOperation(
   roundId: string,
+  browserSessionId: string,
 ): V3ConfirmationOperation | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined" || !roundId.trim() || !browserSessionId.trim()) return null;
   try {
-    const raw = window.localStorage.getItem(operationStorageKey(roundId));
+    const raw = window.localStorage.getItem(operationStorageKey(roundId, browserSessionId));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as V3ConfirmationOperation;
-    if (parsed.version !== 1 || parsed.roundId !== roundId) return null;
     validate(parsed);
+    if (parsed.roundId !== roundId || parsed.browserSessionId !== browserSessionId) return null;
     return parsed;
   } catch {
     return null;
@@ -137,7 +145,7 @@ export function writeV3ConfirmationOperation(operation: V3ConfirmationOperation)
   validate(operation);
   try {
     window.localStorage.setItem(
-      operationStorageKey(operation.roundId),
+      operationStorageKey(operation.roundId, operation.browserSessionId),
       JSON.stringify(operation),
     );
   } catch {
@@ -146,10 +154,10 @@ export function writeV3ConfirmationOperation(operation: V3ConfirmationOperation)
   }
 }
 
-export function clearV3ConfirmationOperation(roundId: string) {
-  if (typeof window === "undefined") return;
+export function clearV3ConfirmationOperation(roundId: string, browserSessionId: string) {
+  if (typeof window === "undefined" || !roundId.trim() || !browserSessionId.trim()) return;
   try {
-    window.localStorage.removeItem(operationStorageKey(roundId));
+    window.localStorage.removeItem(operationStorageKey(roundId, browserSessionId));
   } catch {
     // Best effort cleanup only; a confirmed receipt still remains authoritative.
   }
