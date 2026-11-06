@@ -98,6 +98,10 @@ begin
   lock table public.world_organization_memberships in share mode;
   lock table public.world_organization_representations in share mode;
   lock table public.world_representation_proxies in share mode;
+  v_at:=clock_timestamp();
+  if p_closes_at < v_at + interval '1 minute' then
+    raise exception using errcode='22023',message='VOTE_WINDOW_EXPIRED_DURING_OPEN';
+  end if;
 
   select count(*) into v_member_count
   from public.world_organization_memberships m
@@ -225,7 +229,7 @@ revoke all on function private.world_vote_cast_authorized_v1(uuid,uuid,uuid,time
   from public,anon,authenticated,service_role;
 
 create or replace function public.world_cast_ballot_v1(
-  p_vote_id uuid,p_expected_vote_revision bigint,p_choice text,
+  p_vote_id uuid,p_country_id uuid,p_expected_vote_revision bigint,p_choice text,
   p_operation_id uuid,p_idempotency_key text,p_correlation_id uuid default null
 ) returns jsonb language plpgsql security definer set search_path=pg_catalog
 as $cast_vote$
@@ -238,7 +242,7 @@ declare
   v_at timestamptz:=clock_timestamp();
   v_actor uuid:=auth.uid();
 begin
-  if v_actor is null or p_vote_id is null or p_operation_id is null
+  if v_actor is null or p_vote_id is null or p_country_id is null or p_operation_id is null
      or p_expected_vote_revision is null
      or p_choice not in ('aye','nay','abstain') or p_choice is null
      or not coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
@@ -248,14 +252,23 @@ begin
   select * into v_vote from public.world_votes where id=p_vote_id for share;
   if v_vote.id is null then raise exception using errcode='42501',message='BALLOT_UNAVAILABLE'; end if;
   select * into v_seat from public.world_vote_electorate
-  where vote_id=p_vote_id and country_id in (
-    select e.country_id from public.world_vote_electorate e
-    join public.world_organization_representations r on r.id=e.representation_id
-    left join public.world_representation_proxies p on p.id=e.proxy_id
-    where e.vote_id=p_vote_id
-      and ((e.proxy_id is null and r.user_id=v_actor)
-        or (e.proxy_id is not null and p.proxy_user_id=v_actor))
-  );
+  where vote_id=p_vote_id and country_id=p_country_id;
+  if v_seat.vote_id is null then
+    raise exception using errcode='42501',message='NOT_ELIGIBLE';
+  end if;
+  -- The same current representation/membership/proxy rows used by the
+  -- predicate are held against revocation until this ballot transaction ends.
+  perform 1 from public.world_organization_memberships membership
+    join public.world_organization_representations rep
+      on rep.id=v_seat.representation_id
+   where membership.id=v_seat.membership_id
+     for share of membership,rep;
+  if not found then raise exception using errcode='42501',message='NOT_ELIGIBLE'; end if;
+  if v_seat.proxy_id is not null then
+    perform 1 from public.world_representation_proxies proxy
+      where proxy.id=v_seat.proxy_id for share;
+    if not found then raise exception using errcode='42501',message='NOT_ELIGIBLE'; end if;
+  end if;
   if v_seat.vote_id is null or not private.world_vote_cast_authorized_v1(
      p_vote_id,v_seat.country_id,v_actor,v_at)
   then raise exception using errcode='42501',message='NOT_ELIGIBLE'; end if;
@@ -264,7 +277,7 @@ begin
     p_operation_id,p_idempotency_key,coalesce(p_correlation_id,p_operation_id),
     'world.vote.ballot_cast','R2',
     jsonb_build_object('subjectType','world_vote','voteId',p_vote_id,
-      'countryId',v_seat.country_id,'organizationId',v_vote.organization_id),
+      'countryId',p_country_id,'organizationId',v_vote.organization_id),
     jsonb_build_object('choice',p_choice,'expectedVoteRevision',p_expected_vote_revision)
   );
   v_operation_id:=(v_claim->>'operationId')::uuid;
@@ -419,9 +432,9 @@ revoke all on function public.world_open_vote_v1(uuid,bigint,uuid,timestamptz,uu
   from public,anon,authenticated,service_role;
 grant execute on function public.world_open_vote_v1(uuid,bigint,uuid,timestamptz,uuid,text,uuid)
   to authenticated,service_role;
-revoke all on function public.world_cast_ballot_v1(uuid,bigint,text,uuid,text,uuid)
+revoke all on function public.world_cast_ballot_v1(uuid,uuid,bigint,text,uuid,text,uuid)
   from public,anon,authenticated,service_role;
-grant execute on function public.world_cast_ballot_v1(uuid,bigint,text,uuid,text,uuid)
+grant execute on function public.world_cast_ballot_v1(uuid,uuid,bigint,text,uuid,text,uuid)
   to authenticated,service_role;
 revoke all on function public.world_certify_vote_v1(uuid,bigint,uuid,text,uuid)
   from public,anon,authenticated,service_role;
