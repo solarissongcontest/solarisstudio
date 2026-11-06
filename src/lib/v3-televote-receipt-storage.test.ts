@@ -98,7 +98,7 @@ describe("anonymous Televote local receipt privacy", () => {
     const recovery = readFileSync(resolve(process.cwd(), "src/components/televoting/TelevotingBoothWithReceipt.tsx"), "utf8");
     expect(booth).toContain("writeTelevoteReceipt(window.localStorage, roundId, governance)");
     expect(booth).toContain("readTelevoteReceipt(window.localStorage, roundId)");
-    expect(recovery).toContain("scrubTelevoteReceipts(window.localStorage)");
+    expect(recovery).toContain("scrubTelevoteReceipts(storage)");
     expect(recovery).toContain("writeTelevoteReceipt(window.localStorage, roundId, governance)");
     expect(booth).not.toMatch(/localStorage\.setItem\(\s*receiptKey/);
     expect(recovery).not.toMatch(/localStorage\.setItem\(\s*receiptKey/);
