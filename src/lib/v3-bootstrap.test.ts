@@ -147,4 +147,76 @@ describe("V3 bootstrap projection", () => {
       "V3 bootstrap requires a valid serverTime timestamp.",
     );
   });
+
+  it("never revives cancelled edition actions from stale current-edition tasks", () => {
+    const bootstrap = projectV3Bootstrap(source({
+      domain: {
+        ...source().domain,
+        edition: "cancelled",
+        show: "live",
+        jury: "open",
+        televote: "open",
+      },
+      tasks: [
+        task(),
+        task({
+          id: "entry:revision",
+          kind: "entry",
+          state: "problem",
+          route: "/my-solaris/entry",
+        }),
+      ],
+    }));
+    expect(bootstrap.actions).toEqual([]);
+    expect(bootstrap.journey).toEqual([]);
+    expect(bootstrap.attention.badgeCount).toBe(0);
+    expect(bootstrap.home.primaryMode).toBe("cancelled");
+  });
+
+  it("preserves globally scoped work and same-edition completed history on terminal editions", () => {
+    for (const edition of ["cancelled", "archived"] as const) {
+      const bootstrap = projectV3Bootstrap(source({
+        domain: { ...source().domain, edition },
+        tasks: [
+          task(),
+          task({
+            id: "complete:confirmation",
+            editionId: "22",
+            kind: "confirmation",
+            state: "completed",
+            actionRequired: false,
+            blocking: false,
+          }),
+          task({ id: "stale-foreign-completion", editionId: "21", state: "completed" }),
+          task({ id: "global:notice", editionId: null, kind: "notice", state: "waiting",
+            actionRequired: false, blocking: false }),
+        ],
+      }));
+      expect(bootstrap.actions.map((action) => action.id)).toEqual([
+        "global:notice",
+        "complete:confirmation",
+      ]);
+      expect(bootstrap.journey).toEqual([
+        expect.objectContaining({ id: "complete:confirmation", state: "complete" }),
+      ]);
+      expect(bootstrap.attention.badgeCount).toBe(0);
+      expect(bootstrap.home.primaryMode).toBe(
+        edition === "cancelled" ? "cancelled" : "post-edition",
+      );
+    }
+  });
+
+  it("retains genuine global action attention without reopening cancelled-edition duties", () => {
+    const bootstrap = projectV3Bootstrap(source({
+      domain: { ...source().domain, edition: "cancelled" },
+      tasks: [
+        task(),
+        task({ id: "global:request", editionId: null, kind: "organizer-request" }),
+      ],
+    }));
+    expect(bootstrap.actions.map((action) => action.id)).toEqual(["global:request"]);
+    expect(bootstrap.attention.primary?.id).toBe("global:request");
+    expect(bootstrap.home.primaryMode).toBe("attention");
+  });
+
 });

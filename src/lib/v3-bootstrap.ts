@@ -46,9 +46,24 @@ export function projectV3Bootstrap(source: V3BootstrapSource) {
   }
 
   const experience = projectV3Experience(source.domain);
-  const actions = projectV3Actions(source.tasks, serverNow);
+
+  // Domain cancellation/archive is terminal authority. Stale scoped tasks
+  // must not resurrect participant obligations or override terminal Home.
+  // Preserve global work and real completed history for this exact edition.
+  const terminalEdition =
+    source.domain.edition === "cancelled" || source.domain.edition === "archived";
+  const tasks = terminalEdition
+    ? source.tasks.filter(
+        (task) =>
+          task.editionId === null ||
+          (task.editionId === source.context.editionId &&
+            (task.state === "completed" || task.state === "finished")),
+      )
+    : source.tasks;
+
+  const actions = projectV3Actions(tasks, serverNow);
   const attention = projectV3Attention(actions);
-  const journey = projectV3Journey(source.tasks);
+  const journey = projectV3Journey(tasks);
   const home = projectV3Home({
     experience,
     attention,
