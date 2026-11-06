@@ -45,7 +45,7 @@ export function WorldPublicLegalArchive({
     void navigate({
       to: "/world/documents/$organization/$document/archive",
       params: { organization, document },
-      search: { before: next === null ? undefined : next },
+      search: { before: next },
     });
 
   return (
