@@ -20,7 +20,7 @@ function OfficialEditor({item,onSaved}:{item:WorldDomesticOfficials;onSaved:()=>
   const [officeType,setOfficeType]=useState("other");
   const [officeId,setOfficeId]=useState("");
   const [personId,setPersonId]=useState("");
-  const [startedAt,setStartedAt]=useState(new Date().toISOString().slice(0,10));
+  const [startedAt,setStartedAt]=useState(new Date().toLocaleDateString("sv-SE"));
   const [endedAt,setEndedAt]=useState("");
   const [reason,setReason]=useState("");
   const [termId,setTermId]=useState("");
@@ -41,7 +41,10 @@ function OfficialEditor({item,onSaved}:{item:WorldDomesticOfficials;onSaved:()=>
         endedAt:endedAt?new Date(endedAt+"T12:00:00Z").toISOString():"",
         appointmentMethod:"",reasonStarted:reason.trim(),published,
       };
-      else {
+      else if(kind==="term_publish"){
+        subjectId=termId;expectedRevision=termRevision;
+        payload={published:true};
+      }else {
         subjectId=termId;expectedRevision=termRevision;
         payload={status:endStatus,reasonEnded:reason.trim(),published};
       }
@@ -68,6 +71,7 @@ function OfficialEditor({item,onSaved}:{item:WorldDomesticOfficials;onSaved:()=>
     document.getElementById("world-official-editor")?.scrollIntoView({block:"start",behavior:"smooth"});
   }
   const activeTerms=item.terms.filter(t=>t.status==="active");
+  const draftTerms=item.terms.filter(t=>!t.published);
   function onSubmit(e:FormEvent<HTMLFormElement>){e.preventDefault();setReceipt("");saving.mutate();}
   return <section className="mt-8 border-t border-border pt-6" id="world-official-editor">
     <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Country controller</p>
@@ -77,11 +81,11 @@ function OfficialEditor({item,onSaved}:{item:WorldDomesticOfficials;onSaved:()=>
       Ending a term produces historical evidence rather than deleting it.
     </p>
     <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Official record type">
-      {(["lore_person","office","term_start","term_end"] as const).map(k=>
+      {(["lore_person","office","term_start","term_publish","term_end"] as const).map(k=>
         <button type="button" key={k} className={kind===k?button:secondary}
           disabled={saving.isPending} aria-pressed={kind===k}
           onClick={()=>{clear(k);setReceipt("");}}>
-          {k==="lore_person"?"Person":k==="office"?"Office":k==="term_start"?"Appoint":"End term"}
+          {k==="lore_person"?"Person":k==="office"?"Office":k==="term_start"?"Appoint":k==="term_publish"?"Publish term":"End term"}
         </button>)}
     </div>
     <form onSubmit={onSubmit} className="mt-5 grid max-w-xl gap-4">
@@ -111,37 +115,37 @@ function OfficialEditor({item,onSaved}:{item:WorldDomesticOfficials;onSaved:()=>
             {item.people.map(p=><option key={p.id} value={p.id}>{p.displayName}{p.published?"":" (draft)"}</option>)}
           </select></label>
         <label className="grid gap-2 text-sm font-medium"><span>Term start</span>
-          <input className={field} type="date" required max={new Date().toISOString().slice(0,10)}
+          <input className={field} type="date" required max={new Date().toLocaleDateString("sv-SE")}
             value={startedAt} onChange={e=>setStartedAt(e.target.value)}/></label>
         <label className="grid gap-2 text-sm font-medium"><span>Historical term end (optional)</span>
           <input className={field} type="date" min={startedAt} max={new Date().toISOString().slice(0,10)}
             value={endedAt} onChange={e=>setEndedAt(e.target.value)}/></label>
       </>:null}
-      {kind==="term_end"?<>
-        <label className="grid gap-2 text-sm font-medium"><span>Active term</span>
+      {kind==="term_end"||kind==="term_publish"?<>
+        <label className="grid gap-2 text-sm font-medium"><span>{kind==="term_publish"?"Draft term":"Active term"}</span>
           <select className={field} required value={termId}
             onChange={e=>{setTermId(e.target.value);setTermRevision(activeTerms.find(t=>t.id===e.target.value)?.revision??0);}}>
-            <option value="">Choose an active term</option>
-            {activeTerms.map(t=><option key={t.id} value={t.id}>{t.officeTitle} · {t.holderDisplayName}</option>)}
+            <option value="">Choose {kind==="term_publish"?"a draft term":"an active term"}</option>
+            {(kind==="term_publish"?draftTerms:activeTerms).map(t=><option key={t.id} value={t.id}>{t.officeTitle} · {t.holderDisplayName}</option>)}
           </select></label>
-        <label className="grid gap-2 text-sm font-medium"><span>Reason for ending</span>
+        {kind==="term_end"?<label className="grid gap-2 text-sm font-medium"><span>Reason for ending</span>
           <select className={field} value={endStatus} onChange={e=>setEndStatus(e.target.value)}>
             <option value="ended">Term concluded</option><option value="resigned">Resignation</option>
             <option value="removed">Removal</option>
-          </select></label>
+          </select></label>:null}
       </>:null}
       {kind==="term_start"||kind==="term_end"?
         <label className="grid gap-2 text-sm font-medium"><span>{kind==="term_start"?"Appointment context":"Reason (optional)"}</span>
           <input className={field} maxLength={500} value={reason} onChange={e=>setReason(e.target.value)}/></label>:null}
-      {kind!=="term_end"?<label className="flex min-h-11 items-center gap-3 text-sm">
+      {kind!=="term_end"&&kind!=="term_publish"?<label className="flex min-h-11 items-center gap-3 text-sm">
         <input type="checkbox" checked={published} onChange={e=>setPublished(e.target.checked)}/>
         Publish record
       </label>:null}
       {editing?<p className="text-sm text-muted-foreground">Editing revision {editing.revision}</p>:null}
       <div className="flex flex-wrap gap-2">
-        <button type="submit" className={button} disabled={saving.isPending||(kind==="term_end"&&!termId)}>
+        <button type="submit" className={button} disabled={saving.isPending||((kind==="term_end"||kind==="term_publish")&&!termId)}>
           <Plus className="size-4" aria-hidden="true"/>
-          {saving.isPending?"Saving…":kind==="term_end"?"End term":editing?"Save revision":"Record "+kind.replace("_"," ")}
+          {saving.isPending?"Saving…":kind==="term_end"?"End term":kind==="term_publish"?"Publish term":editing?"Save revision":"Record "+kind.replace("_"," ")}
         </button>
         {editing?<button type="button" className={secondary} onClick={()=>clear(kind)}>Cancel edit</button>:null}
       </div>
