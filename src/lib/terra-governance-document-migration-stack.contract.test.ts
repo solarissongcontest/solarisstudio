@@ -20,11 +20,15 @@ describe("Terra Solaris Governance TG4 migration stack", () => {
       "20261102171600_v3_tg2_world_institution_access.sql",
       "20261102171700_v3_tg2_world_office_term_canonical_alignment.sql",
       "20261102171800_v3_tg2_world_office_term_dependents.sql",
+      "20261104115831_v3_tg2_world_identity_linkage_privacy.sql",
     ]);
 
-    const lastFoundation = versionOf(TERRA_GOVERNANCE_FOUNDATION_MIGRATIONS.at(-1)!);
+    // The initial TG1/TG2 contract precedes TG4. Later additive TG2
+    // security hardening may come after existing TG4 migrations, so treating
+    // the last TG2 patch as a prerequisite for historical TG4 IDs is wrong.
+    const initialFoundation = versionOf("20261102171800_v3_tg2_world_office_term_dependents.sql");
     for (const migration of TERRA_GOVERNANCE_TG4_MIGRATIONS) {
-      expect(versionOf(migration) > lastFoundation).toBe(true);
+      expect(versionOf(migration) > initialFoundation).toBe(true);
     }
   });
 
@@ -54,6 +58,9 @@ describe("Terra Solaris Governance TG4 migration stack", () => {
       "v3.tg4.world-document-hierarchy-cycles",
       "v3.tg4.world-document-published-provision-guard",
       "v3.tg4.world-document-provenance-privacy",
+      "v3.tg4.world-document-effective-date",
+      "v3.tg4.world-document-manager-provenance",
+      "v3.tg4.world-document-draft-updater-guard",
     ];
 
     expect(TERRA_GOVERNANCE_TG4_MIGRATIONS).toHaveLength(expectedContracts.length);
