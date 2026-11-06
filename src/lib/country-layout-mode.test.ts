@@ -78,6 +78,10 @@ describe("country page presentation ownership", () => {
     expect(route).toContain("currentParticipants: publicArchive.participants");
     expect(route).toContain("archiveHasError(editionsQuery, showsQuery, participantsQuery)");
     expect(route).toContain("currentContext={currentContext}");
+    expect(route).toContain("isPublishedCurrentCountryEntry(");
+    expect(route).toContain('title={latestEntryIsCurrent ? "Current published entry" : "Latest published entry"}');
+    expect(route).toContain("currentContextError");
+    expect(route).toContain("currentContextLoading");
     expect(route).toContain('countryLayoutMode !== "mobile-web" ? (');
     expect(route).toContain('aria-label="Current-edition participation"');
     expect(masthead).toContain("currentContext: CountryCurrentContext");
