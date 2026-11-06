@@ -757,7 +757,9 @@ function WebSearchArchiveResults({
   );
   const spoilerSafeRecordArchive = useMemo(
     () => ({
-      editions: excludeSearchSpoilerEdition(publicEditions, spoilerScope.editionId),
+      editions: spoilerScope.editionId
+        ? publicEditions.filter((edition) => edition.id !== spoilerScope.editionId)
+        : publicEditions,
       shows: excludeSearchSpoilerEdition(publicShows, spoilerScope.editionId),
       participants: excludeSearchSpoilerEdition(participants, spoilerScope.editionId),
       results: excludeSearchSpoilerEdition(visibleResults, spoilerScope.editionId),
