@@ -72,16 +72,34 @@ create index world_history_events_published_idx
 create index world_history_events_country_idx
   on public.world_history_events(country_id, occurred_at desc);
 
+-- Append-only snapshots preserve former party/election truth and revisions.
+create table public.world_domestic_record_revisions (
+  id uuid primary key default gen_random_uuid(),
+  record_type text not null check (record_type in ('party','election')),
+  record_id uuid not null,
+  country_id uuid not null references public.countries(id) on delete restrict,
+  revision bigint not null check (revision > 0),
+  snapshot jsonb not null,
+  operation_id uuid not null unique,
+  changed_by uuid references auth.users(id) on delete set null,
+  changed_at timestamptz not null default now(),
+  unique(record_type,record_id,revision)
+);
+create index world_domestic_revisions_country_idx
+  on public.world_domestic_record_revisions(country_id,changed_at desc);
+
 -- No browser-side writes, even for a controller; consequential mutations use
 -- the governed command below with CAS, operation receipts and domain events.
 alter table public.world_domestic_parties enable row level security;
 alter table public.world_domestic_elections enable row level security;
 alter table public.world_history_events enable row level security;
+alter table public.world_domestic_record_revisions enable row level security;
 revoke all on public.world_domestic_parties from public, anon, authenticated;
 revoke all on public.world_domestic_elections from public, anon, authenticated;
 revoke all on public.world_history_events from public, anon, authenticated;
+revoke all on public.world_domestic_record_revisions from public,anon,authenticated;
 grant all on public.world_domestic_parties, public.world_domestic_elections,
-  public.world_history_events to service_role;
+  public.world_history_events, public.world_domestic_record_revisions to service_role;
 
 -- The only authorised user mutation boundary for TG16/TG17.
 create function public.world_write_domestic_canon_v1(
@@ -193,8 +211,10 @@ begin
       end if;
     end if;
   elsif p_kind = 'election' then
-    if p_subject_id is not null or p_expected_revision <> 0 then
-      -- Official history is append-only. Corrections are separate records.
+    -- Draft elections may be corrected and published with CAS.
+    -- Once published, an election is immutable; corrected official outcomes
+    -- must be recorded as a separate sourced historical record.
+    if p_subject_id is null and p_expected_revision <> 0 then
       raise exception using errcode = '40001', message = 'VERSION_CONFLICT';
     end if;
     if coalesce(p_payload ->> 'scope','general') not in
@@ -211,18 +231,34 @@ begin
       if not exists (
         select 1 from public.world_domestic_parties
          where id=v_winner and country_id=p_country_id
+           and (not v_published or visibility='public')
       ) then
         raise exception using errcode = '23503', message = 'VALIDATION';
       end if;
     end if;
-    insert into public.world_domestic_elections(
-      country_id,title,scope,held_on,turnout_percent,winner_party_id,
-      result_summary,visibility
-    ) values (
-      p_country_id,v_title,coalesce(p_payload ->> 'scope','general'),v_held,
-      nullif(p_payload ->> 'turnoutPercent','')::numeric,v_winner,v_summary,
-      case when v_published then 'public' else 'draft' end
-    ) returning id,revision into v_id,v_revision;
+    if p_subject_id is null then
+      insert into public.world_domestic_elections(
+        country_id,title,scope,held_on,turnout_percent,winner_party_id,
+        result_summary,visibility
+      ) values (
+        p_country_id,v_title,coalesce(p_payload ->> 'scope','general'),v_held,
+        nullif(p_payload ->> 'turnoutPercent','')::numeric,v_winner,v_summary,
+        case when v_published then 'public' else 'draft' end
+      ) returning id,revision into v_id,v_revision;
+    else
+      update public.world_domestic_elections
+         set title=v_title,scope=coalesce(p_payload ->> 'scope','general'),
+             held_on=v_held,turnout_percent=nullif(p_payload ->> 'turnoutPercent','')::numeric,
+             winner_party_id=v_winner,result_summary=v_summary,
+             visibility=case when v_published then 'public' else 'draft' end,
+             revision=revision+1,updated_at=now()
+       where id=p_subject_id and country_id=p_country_id
+         and revision=p_expected_revision and visibility='draft'
+       returning id,revision into v_id,v_revision;
+      if v_id is null then
+        raise exception using errcode='40001',message='VERSION_CONFLICT';
+      end if;
+    end if;
   else
     if p_subject_id is not null or p_expected_revision <> 0
        or not v_published or nullif(p_payload ->> 'occurredAt','') is null then
@@ -241,6 +277,18 @@ begin
       jsonb_build_object('recordedVia','world_write_domestic_canon_v1',
                          'operationId',v_operation)
     ) returning id,revision into v_id,v_revision;
+  end if;
+
+  if p_kind in ('party','election') then
+    insert into public.world_domestic_record_revisions(
+      record_type,record_id,country_id,revision,snapshot,operation_id,changed_by
+    ) values (
+      p_kind,v_id,p_country_id,v_revision,
+      case p_kind when 'party' then
+        (select to_jsonb(p) from public.world_domestic_parties p where p.id=v_id)
+      else (select to_jsonb(e) from public.world_domestic_elections e where e.id=v_id)
+      end,v_operation,v_actor
+    );
   end if;
 
   perform private.v3_emit_domain_event(
