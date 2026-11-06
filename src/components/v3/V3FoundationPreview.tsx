@@ -278,29 +278,21 @@ function urgencyTone(action: V3ActionProjection | null) {
     : ("required" as const);
 }
 
+const EXPERIENCE_LABELS: Record<V3BootstrapProjection["experience"]["mode"], string> = {
+  "show-day": "Show day",
+  live: "Live",
+  "live-voting": "Live voting",
+  voting: "Voting open",
+  results: "Results",
+  "post-edition": "Edition complete",
+  planning: "Planning",
+  archived: "Archived",
+  cancelled: "Cancelled",
+  active: "Pre-show",
+};
+
 function experienceLabel(mode: V3BootstrapProjection["experience"]["mode"]) {
-  switch (mode) {
-    case "show-day":
-      return "Show day";
-    case "live":
-      return "Live";
-    case "live-voting":
-      return "Live voting";
-    case "voting":
-      return "Voting open";
-    case "results":
-      return "Results";
-    case "post-edition":
-      return "Edition complete";
-    case "planning":
-      return "Planning";
-    case "archived":
-      return "Archived";
-    case "cancelled":
-      return "Cancelled";
-    case "active":
-      return "Pre-show";
-  }
+  return EXPERIENCE_LABELS[mode];
 }
 
 export function V3FoundationPreview() {
@@ -384,104 +376,54 @@ function HomePreview({ bootstrap }: { bootstrap: V3BootstrapProjection }) {
     : "You're all caught up";
 
   const now = (() => {
-    switch (bootstrap.home.primaryMode) {
-      case "attention":
-        return {
-          eyebrow: "Right now",
-          title: attentionTitle,
-          count: bootstrap.attention.badgeCount as number | "✓",
-          child: primary ? (
-            <V3ActionCard
-              title={primary.title}
-              description={primary.description}
-              tone={urgencyTone(primary)}
-              meta={
-                <>
-                  <span>8 / 15 ranked</span>
-                  <span>Closes in 3h 12m</span>
-                </>
-              }
-            />
-          ) : null,
-        };
-      case "live-voting":
-        return {
-          eyebrow: "Live now",
-          title: "Semi-final 1 is live",
-          count: "✓" as const,
-          child: (
-            <V3ActionCard
-              title="Voting is open"
-              description="Follow the live show or open the optional public vote."
-              icon={Radio}
-              tone="neutral"
-            />
-          ),
-        };
-      case "live":
-        return {
-          eyebrow: "Live now",
-          title: "Semi-final 1 is live",
-          count: "✓" as const,
-          child: null,
-        };
-      case "results":
-        return {
-          eyebrow: "Results",
-          title: "SSC 22 results are in",
-          count: "✓" as const,
-          child: null,
-        };
-      case "results-hidden":
-        return {
-          eyebrow: "Results",
-          title: "SSC 22 results are available",
-          count: "✓" as const,
-          child: null,
-        };
-      case "show-day":
-        return {
-          eyebrow: "Tonight",
-          title: "Semi-final 1 starts soon",
-          count: "✓" as const,
-          child: null,
-        };
-      case "voting":
-        return {
-          eyebrow: "Right now",
-          title: "Voting is open",
-          count: "✓" as const,
-          child: null,
-        };
-      case "post-edition":
-        return {
-          eyebrow: "Edition complete",
-          title: "SSC 22 is complete",
-          count: "✓" as const,
-          child: null,
-        };
-      case "planning":
-        return {
-          eyebrow: "Coming next",
-          title: "A new Solaris edition is taking shape",
-          count: "✓" as const,
-          child: null,
-        };
-      case "cancelled":
-        return {
-          eyebrow: "Edition update",
-          title: "This edition is not continuing",
-          count: "✓" as const,
-          child: null,
-        };
-      case "calm":
-        return {
-          eyebrow: "Right now",
-          title: "You're all caught up",
-          count: "✓" as const,
-          child: null,
-        };
+    const mode = bootstrap.home.primaryMode;
+    if (mode === "attention") {
+      return {
+        eyebrow: "Right now",
+        title: attentionTitle,
+        count: bootstrap.attention.badgeCount as number | "✓",
+        child: primary ? (
+          <V3ActionCard
+            title={primary.title}
+            description={primary.description}
+            tone={urgencyTone(primary)}
+            meta={
+              <>
+                <span>8 / 15 ranked</span>
+                <span>Closes in 3h 12m</span>
+              </>
+            }
+          />
+        ) : null,
+      };
     }
+    if (mode === "live-voting") {
+      return {
+        eyebrow: "Live now",
+        title: "Semi-final 1 is live",
+        count: "✓" as const,
+        child: (
+          <V3ActionCard
+            title="Voting is open"
+            description="Follow the live show or open the optional public vote."
+            icon={Radio}
+            tone="neutral"
+          />
+        ),
+      };
+    }
+    const [eyebrow, title] = ({
+      live: ["Live now", "Semi-final 1 is live"],
+      results: ["Results", "SSC 22 results are in"],
+      "results-hidden": ["Results", "SSC 22 results are available"],
+      "show-day": ["Tonight", "Semi-final 1 starts soon"],
+      voting: ["Right now", "Voting is open"],
+      "post-edition": ["Edition complete", "SSC 22 is complete"],
+      planning: ["Coming next", "A new Solaris edition is taking shape"],
+      cancelled: ["Edition update", "This edition is not continuing"],
+      calm: ["Right now", "You're all caught up"],
+    } as const)[mode];
+    return { eyebrow, title, count: "✓" as const, child: null };
   })();
 
   const contestStatus = bootstrap.experience.resultsPublic
