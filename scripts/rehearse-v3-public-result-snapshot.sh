@@ -4,11 +4,41 @@ set -euo pipefail
 log() { printf '\n[v3-public-result-snapshot] %s\n' "$*"; }
 fail() { printf '\n[v3-public-result-snapshot] FAIL: %s\n' "$*" >&2; exit 1; }
 
-eval "$(supabase status -o env)"
+# Fail closed when the local Supabase CLI is unavailable.
+status_env="$(supabase status -o env)" || fail "No local Supabase stack"
+eval "$status_env"
 : "${API_URL:?missing local Supabase API_URL}"
 : "${DB_URL:?missing local Supabase DB_URL}"
-case "$API_URL" in http://127.0.0.1:*|http://localhost:*) ;; *) fail "Refusing hosted Supabase rehearsal ($API_URL)" ;; esac
-case "$DB_URL" in postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;; *) fail "Refusing non-local database rehearsal" ;; esac
+
+# Prefix checks misread 'localhost:54321@remote.example' as loopback;
+# libpq query-string host overrides are equally dangerous.
+# Parse whole authorities before making ANY SQL connection.
+command -v node >/dev/null 2>&1 || fail "Node is required for the local-only URL safety check"
+node - "$API_URL" "$DB_URL" <<'NODE' || fail "Refusing hosted/non-loopback rehearsal endpoints"
+const [apiRaw, dbRaw] = process.argv.slice(2);
+const localhost = (host) => host === "127.0.0.1" || host === "localhost" || host === "[::1]";
+const parsed = (raw) => {
+  if (!raw || /[\\s\\\\]/.test(raw)) throw new Error("Malformed endpoint");
+  return new URL(raw);
+};
+try {
+  const api = parsed(apiRaw);
+  if (
+    api.protocol !== "http:" || !localhost(api.hostname) || !api.port ||
+    api.username || api.password || api.search || api.hash || api.pathname !== "/"
+  ) throw new Error("API URL must be a bare loopback HTTP origin with an explicit port");
+  const db = parsed(dbRaw);
+  if (
+    !["postgres:", "postgresql:"].includes(db.protocol) ||
+    !localhost(db.hostname) || !db.port ||
+    db.username !== "postgres" || db.password !== "postgres" ||
+    db.pathname !== "/postgres" || db.search || db.hash
+  ) throw new Error("Database URL must identify local PostgreSQL without overrides");
+} catch (error) {
+  process.stderr.write("Local-only URL preflight rejected endpoint: " + error.message + "\\n");
+  process.exit(1);
+}
+NODE
 
 db_exec() { psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "$1" >/dev/null; }
 db_value() { psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "$1"; }
