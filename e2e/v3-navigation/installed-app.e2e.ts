@@ -260,6 +260,32 @@ test("installed app shell survives representative navigation without duplicate c
   // Focusing an inactive tab must not navigate or turn it into the active tab.
   await expect(page.locator('.solaris-app-tabbar [aria-current="page"]'))
     .toHaveAttribute("aria-label", "Me");
+
+  // Forced-colors needs a system-color focus indicator, not a faint glass tint.
+  // Use the repository's established Playwright media emulation and compare to
+  // the system Highlight color rather than assuming a platform-specific RGB.
+  await page.emulateMedia({ forcedColors: "active" });
+  expect(await page.evaluate(() => matchMedia("(forced-colors: active)").matches)).toBe(true);
+  const contrastFocus = await focusedExplore.evaluate((element) => {
+    const reference = document.createElement("span");
+    reference.style.color = "Highlight";
+    document.body.appendChild(reference);
+    const highlight = getComputedStyle(reference).color;
+    reference.remove();
+    const focus = getComputedStyle(element);
+    return {
+      matchesFocusVisible: element.matches(":focus-visible"),
+      outlineStyle: focus.outlineStyle,
+      outlineWidth: Number.parseFloat(focus.outlineWidth),
+      outlineColor: focus.outlineColor,
+      highlight,
+    };
+  });
+  expect(contrastFocus.matchesFocusVisible).toBe(true);
+  expect(contrastFocus.outlineStyle).toBe("solid");
+  expect(contrastFocus.outlineWidth).toBeGreaterThanOrEqual(2);
+  expect(contrastFocus.outlineColor).toBe(contrastFocus.highlight);
+  await page.emulateMedia({ forcedColors: "none" });
   await focusedExplore.evaluate((element) => element.blur());
 
   const initial = await readGeometry(page);
