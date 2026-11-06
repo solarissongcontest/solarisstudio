@@ -1,5 +1,4 @@
 import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
-import { televotingAdmin } from "@/integrations/televoting/client.server";
 
 export type AuditJson =
   | string
@@ -28,10 +27,10 @@ export async function listMergedAuditLogServer(filters: {
   targetType?: string | null;
   limit?: number;
 }): Promise<MergedAuditRow[]> {
-  // The audit log spans voting operations across editions. Its legacy storage
-  // is read through a privileged server client, so prove the canonical global
-  // Voting read capability before touching that store.
-  await requireSolarisCapabilityServer("voting.read");
+  // This history spans editions and may contain private vote-operation details.
+  // Require a global canonical Voting read grant before opening the service client.
+  await requireSolarisCapabilityServer("voting.read", null);
+  const { televotingAdmin } = await import("@/integrations/televoting/client.server");
 
   let query = televotingAdmin
     .from("admin_audit_log")
