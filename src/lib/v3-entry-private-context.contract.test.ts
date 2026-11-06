@@ -29,6 +29,15 @@ describe("V3 MySolaris Entry private context", () => {
     expect(source).toContain("}, [queryClient, actorId, country?.id, ownCountry?.id])");
   });
 
+  it("refuses stale edit-token handoffs after the viewer context changes", () => {
+    expect(source).toContain("advanceConfirmationEditScope(editScopeRef.current, editScopeInput)");
+    expect(source).toContain("canUseConfirmationEditToken(scope, editScopeRef.current)");
+    expect(source).toContain("return { token: result.token, scope };");
+    expect(source).toContain("scope: { ...editScopeRef.current }");
+    expect(source).toContain("Your account or submission changed while opening the editor");
+    expect(source).toContain("editScopeInput.authorized");
+  });
+
   it("distinguishes failed access from an empty entry", () => {
     expect(source).toContain("if (account.isError || featureQuery.isError)");
     expect(source).toContain("Entry access could not be verified");
