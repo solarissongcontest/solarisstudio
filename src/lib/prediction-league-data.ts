@@ -36,7 +36,10 @@ export function normalizePredictionLeagueStandings(
       !row.profileId ||
       typeof row.displayName !== "string" ||
       !row.displayName.trim() ||
+      (typeof row.score !== "string" && typeof row.score !== "number") ||
       (typeof row.score === "string" && !row.score.trim()) ||
+      (typeof row.rounds !== "string" && typeof row.rounds !== "number") ||
+      (typeof row.position !== "string" && typeof row.position !== "number") ||
       !Number.isFinite(score) ||
       score < 0 ||
       !Number.isSafeInteger(rounds) ||
