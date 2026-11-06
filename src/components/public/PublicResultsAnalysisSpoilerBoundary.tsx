@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 
-import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { PageHeader, Panel } from "@/components/AppShell";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
 import { useNotificationPreferences } from "@/lib/engagement-data";
 import { useFanSession } from "@/lib/prediction-data";
@@ -50,9 +50,10 @@ export function PublicResultsAnalysisSpoilerBoundary({
   if (!gate.protected) return <>{children}</>;
 
   const replay = title === "Broadcast Intelligence";
+  // Keep one stable route-owned AppShell across session/pref changes; replacing
+  // the entire shell can strand keyboard focus mid-navigation.
   return (
-    <AppShell>
-      <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:py-9" data-v3-public-analysis-web-spoiler-protected="">
+    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:py-9" data-v3-public-analysis-web-spoiler-protected="">
         <PageHeader
           eyebrow="Spoiler-free"
           title={title}
@@ -73,7 +74,6 @@ export function PublicResultsAnalysisSpoilerBoundary({
             {replay ? "Reveal this replay" : "Reveal this simulation"}
           </button>
         </Panel>
-      </div>
-    </AppShell>
+    </div>
   );
 }
