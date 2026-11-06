@@ -1,5 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
+import { requireLoopbackBrowserTarget } from "./e2e/browser-target-isolation";
 import { GLOBAL_MAINTENANCE_MODE } from "./src/lib/maintenance";
 
 const REQUIRED_TEST_SUPABASE_URL_VARS = [
@@ -94,7 +95,7 @@ const personalityViewportMatrix = fullAudit
       { width: 390, height: 844 },
       { width: 1440, height: 900 },
     ] as const);
-const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:4173";
+const baseURL = requireLoopbackBrowserTarget(process.env.E2E_BASE_URL ?? "http://127.0.0.1:4173");
 const maintenanceAuditBypass = process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1";
 const appAuditStorageState = maintenanceAuditBypass
   ? {
