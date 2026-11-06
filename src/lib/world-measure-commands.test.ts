@@ -96,11 +96,16 @@ describe("WORLD-05 TG7 actual RPC consumers", () => {
   });
 
   it("validates receipts against exact operation IDs and revision", () => {
-    const valid = { ok: true, measureId: id, operationId, revision: 1,
-      state: "submitted", replayed: false };
-    expect(parseWorldMeasureReceipt(valid, operationId)).toEqual(valid);
-    expect(() => parseWorldMeasureReceipt(valid, "77777777-7777-4777-8777-777777777777")).toThrow();
-    expect(() => parseWorldMeasureReceipt({ ...valid, replayed: null }, operationId)).toThrow();
+    const result = { ok: true, measureId: id, operationId, revision: 1,
+      state: "submitted" };
+    const envelope = { status: "succeeded", operationId, replayed: false, result };
+    expect(parseWorldMeasureReceipt(envelope, operationId)).toEqual({ ...result, replayed: false });
+    expect(() => parseWorldMeasureReceipt(result, operationId)).toThrow();
+    expect(() => parseWorldMeasureReceipt(envelope, "77777777-7777-4777-8777-777777777777")).toThrow();
+    expect(() => parseWorldMeasureReceipt({ ...envelope, replayed: null }, operationId)).toThrow();
+    expect(() => parseWorldMeasureReceipt({
+      ...envelope, result: { ...result, operationId: "77777777-7777-4777-8777-777777777777" },
+    }, operationId)).toThrow();
   });
 
   it("fetches a bounded public projection only through the publication-safe RPC", async () => {
@@ -139,8 +144,8 @@ describe("WORLD-05 TG7 actual RPC consumers", () => {
       measureType: "proposal", title: "New proposal", fullText: "Formal body",
       summary: "", categoryCode: null, operationId };
     rpcMock.mockResolvedValueOnce({ data: {
-      ok: true, measureId: id, operationId, revision: 1,
-      state: "submitted", replayed: false,
+      status: "succeeded", operationId, replayed: false,
+      result: { ok: true, measureId: id, operationId, revision: 1, state: "submitted" },
     }, error: null });
     const result = await submitWorldMeasure(valid);
     expect(result.measureId).toBe(id);
