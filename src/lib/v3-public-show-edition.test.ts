@@ -2,13 +2,14 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { DEFAULT_PUBLICATION_CONFIG } from "./publication";
 import { isPublishedShowInPublishedEdition } from "./v3-public-show-edition";
 
 describe("V3 public Show deep-link publication boundary", () => {
   const publicShow = {
     edition_id: "ssc-22-id",
     published: true,
-    publication_config: { participants: true },
+    publication_config: { ...DEFAULT_PUBLICATION_CONFIG, participants: true },
   };
   const publicEdition = { id: "ssc-22-id", published: true };
 
@@ -26,7 +27,10 @@ describe("V3 public Show deep-link publication boundary", () => {
 
   it("preserves the Show's own publication layer", () => {
     expect(isPublishedShowInPublishedEdition({ ...publicShow, published: false }, publicEdition)).toBe(false);
-    expect(isPublishedShowInPublishedEdition({ ...publicShow, publication_config: null }, publicEdition)).toBe(false);
+    expect(isPublishedShowInPublishedEdition({ ...publicShow, publication_config: DEFAULT_PUBLICATION_CONFIG }, publicEdition)).toBe(false);
+    // Legacy published Shows without a config intentionally retain publication
+    // compatibility; the new Edition guard must not silently change that rule.
+    expect(isPublishedShowInPublishedEdition({ ...publicShow, publication_config: null }, publicEdition)).toBe(true);
   });
 
   it("requires exact Edition data before rendering a Show and offers the canonical Edition route", () => {
