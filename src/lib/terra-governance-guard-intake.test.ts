@@ -202,8 +202,11 @@ describe("TG5A GUARD voluntary membership intake", () => {
 
   it("loads country-scoped bounded application history and relies on canonical RPC for writes", () => {
     expect(route).toContain('useMyCountryAccount()');
-    expect(route).toContain('enabled: Boolean(countryId && isActiveController)');
-    expect(route).toContain('submitGuardApplication(input)');
+    expect(route).toContain('enabled: Boolean(userId && countryId && isActiveController)');
+    expect(route).toContain('}) => submitGuardApplication({');
+    expect(route).toContain('fields: input.fields');
+    expect(route).toContain('operation: input.operation');
+    expect(route).toContain('actorScope,');
     expect(route).toContain("requestRef.current = { fields: normalized, operation }");
     expect(route).toContain("Retry same operation");
     expect(route).toContain("Check server status");
