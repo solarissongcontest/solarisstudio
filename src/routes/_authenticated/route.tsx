@@ -11,6 +11,7 @@ import { HistoricalNationalFinalManager } from "@/components/HistoricalNationalF
 import { NationalFinalResultOrderAddon } from "@/components/NationalFinalResultOrderAddon";
 import { supabase } from "@/integrations/supabase/client";
 import { useMyCountryAccount } from "@/lib/country-account";
+import { useFanSession } from "@/lib/prediction-data";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -19,13 +20,24 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedIdentityGate({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const session = useFanSession();
+  // `fan-session` is updated by the single global auth subscriber. It is only
+  // a reconciliation trigger here: `getUser()` remains the verified authority
+  // for entering protected routes. A remote sign-out or account swap changes
+  // this key and therefore forces a fresh verified identity read.
+  const sessionIdentityKey = session.isPending
+    ? "pending"
+    : session.isError
+      ? "error"
+      : session.data?.id ?? "signed-out";
   const identity = useQuery<User | null>({
-    queryKey: ["authenticated-identity-gate"],
+    queryKey: ["authenticated-identity-gate", sessionIdentityKey],
     queryFn: async () => {
       const { data, error } = await supabase.auth.getUser();
       return error || !data.user ? null : data.user;
     },
     retry: false,
+    gcTime: 0,
   });
 
   useEffect(() => {
@@ -68,6 +80,33 @@ function MySolarisAccessGate({ children }: { children: ReactNode }) {
     return (
       <AppShell>
         <p className="text-sm text-muted-foreground">Opening MySolaris…</p>
+      </AppShell>
+    );
+  }
+
+  if (account.isError || account.data?.access.schemaReady === false) {
+    return (
+      <AppShell>
+        <PageHeader
+          eyebrow="MySolaris"
+          title="Account access unavailable"
+          description="Solaris could not verify your current delegation access, so protected participation tools stay closed."
+        />
+        <Panel title="Try again before continuing">
+          <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+            <p>
+              Your account has not been treated as signed out or unassigned. Solaris needs a fresh access check before it can open delegation tools.
+            </p>
+            <button
+              type="button"
+              onClick={() => void account.refetch()}
+              disabled={account.isFetching}
+              className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 font-semibold text-foreground disabled:opacity-50"
+            >
+              {account.isFetching ? "Checking access…" : "Retry access check"}
+            </button>
+          </div>
+        </Panel>
       </AppShell>
     );
   }
