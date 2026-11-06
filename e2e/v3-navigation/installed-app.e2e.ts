@@ -485,9 +485,16 @@ test("installed AppTabBar cancels held gestures on overlay/keyboard and restores
     document.documentElement.setAttribute("data-solaris-feature-overlay-open", "true"),
   );
   await expect(material).toHaveAttribute("data-held", "false");
+  // CSS-only opacity would leave invisible links keyboard-focusable.
+  // A real computed visibility assertion protects the overlay focus boundary.
+  await expect(nav).toBeHidden();
+  await expect
+    .poll(() => nav.evaluate((element) => getComputedStyle(element).visibility))
+    .toBe("hidden");
   await page.evaluate(() =>
     document.documentElement.removeAttribute("data-solaris-feature-overlay-open"),
   );
+  await expect(nav).toBeVisible();
   await page.mouse.up();
   await expect(page).toHaveURL(/\/my-solaris\/account(?:[?#]|$)/);
 
