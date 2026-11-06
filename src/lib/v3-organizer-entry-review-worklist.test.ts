@@ -124,6 +124,9 @@ describe("V3 Organizer candidate-level Entry Review worklist", () => {
   it("reuses the existing bounded response projection and cursor", () => {
     const code=readFileSync(resolve(process.cwd(),"src/routes/confirmations/admin/responses.tsx"),"utf8");
     expect(code).toContain('setMode("entry_review")');
+    expect(code).toContain('validateSearch: (search: Record<string, unknown>)');
+    expect(code).toContain('const { view: mode } = Route.useSearch()');
+    expect(code).toContain('void navigate({ search: { view }, replace: true })');
     expect(code).toContain("buildOrganizerEntryReviewWorklist(rows, editionId)");
     expect(code).toContain("matchesOrganizerEntryWorkFilter");
     expect(code).toContain("matchesOrganizerEntryWorkSearch");

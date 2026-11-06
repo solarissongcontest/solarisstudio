@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, CircleAlert, Search, ShieldAlert, XCircle } from "lucide-react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
@@ -38,7 +38,14 @@ import {
   type OrganizerEntryWorkFilter,
 } from "@/lib/v3-organizer-entry-review-worklist";
 
+type OrganizerResponsesView = "confirmations" | "entry_review" | "next_in_line";
+
 export const Route = createFileRoute("/confirmations/admin/responses")({
+  validateSearch: (search: Record<string, unknown>): { view: OrganizerResponsesView } => ({
+    view: search.view === "entry_review" || search.view === "next_in_line"
+      ? search.view
+      : "confirmations",
+  }),
   head: () => ({
     meta: [
       { title: "Delegation responses — Solaris Studio" },
@@ -242,6 +249,11 @@ function ConfirmationResponsesPage() {
 
 function ConfirmationResponsesList() {
   const { editionId: organizerEditionId, setEditionId: setOrganizerEditionId } = useAdminContext();
+  const { view: mode } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const setMode = useCallback((view: OrganizerResponsesView) => {
+    void navigate({ search: { view }, replace: true });
+  }, [navigate]);
   const activeEditionRef = useRef(organizerEditionId);
   const [editions, setEditions] = useState<ConfirmationEdition[]>([]);
   const [rows, setRows] = useState<ResponseRow[]>([]);
@@ -260,7 +272,6 @@ function ConfirmationResponsesList() {
   const [nextReloadKey, setNextReloadKey] = useState(0);
   const responseLoadGenerationRef = useRef(0);
   const loadMoreInFlightRef = useRef(false);
-  const [mode, setMode] = useState<"confirmations" | "entry_review" | "next_in_line">("confirmations");
   const [editionId, setEditionId] = useState(organizerEditionId);
   const [roundId, setRoundId] = useState("all");
   const [responseCursor, setResponseCursor] = useState<ConfirmationProjectionCursor | null>(null);
@@ -296,7 +307,7 @@ function ConfirmationResponsesList() {
       setRoundId("all");
       setMode("confirmations");
     }
-  }, [editionId, editions, organizerEditionId]);
+  }, [editionId, editions, organizerEditionId, setMode]);
 
   useEffect(() => {
     let alive = true;
