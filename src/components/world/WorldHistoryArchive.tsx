@@ -10,6 +10,7 @@ const origin = (event: WorldHistoryEvent) =>
   event.sourceType === "editorial" ? "Editorial history" :
   event.sourceType === "domestic_election" ? "Official domestic election" :
   event.sourceType === "domestic_office" ? "Official domestic office term" :
+  event.sourceType === "domestic_law" ? "Official domestic law" :
   "Recorded institution recognition";
 
 export function WorldHistoryArchive({ countryCode }: { countryCode: string | null }) {
