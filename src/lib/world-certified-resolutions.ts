@@ -187,19 +187,28 @@ export async function materializeWorldCertifiedResolution(input: {
       !text(input.idempotencyKey) || input.idempotencyKey.length < 8)
     throw new Error("The certified vote and operation identity are required.");
 
-  const { data, error } = await (supabase as any).rpc("world_materialize_certified_resolution_v1", {
-    p_vote_id: input.voteId,
-    p_expected_measure_revision: input.expectedMeasureRevision,
-    p_operation_id: input.operationId,
-    p_idempotency_key: input.idempotencyKey,
-    p_correlation_id: input.operationId,
-  });
-  let canonicalResponse: unknown = data;
-  if (error) {
+  let canonicalResponse: unknown = null;
+  let originalError: string | null = null;
+  try {
+    const response = await (supabase as any).rpc("world_materialize_certified_resolution_v1", {
+      p_vote_id: input.voteId,
+      p_expected_measure_revision: input.expectedMeasureRevision,
+      p_operation_id: input.operationId,
+      p_idempotency_key: input.idempotencyKey,
+      p_correlation_id: input.operationId,
+    });
+    canonicalResponse = response.data;
+    originalError = response.error?.message ?? null;
+  } catch (cause) {
+    originalError = cause instanceof Error ? cause.message : "Connection failed.";
+  }
+  // A transport exception and an RPC error can both arrive *after* commit.
+  // Check the exact actor-owned S2 operation, never issue a new mutation ID.
+  if (originalError !== null) {
     try {
       canonicalResponse = await recoverWorldResolutionReceipt(input.operationId);
     } catch {
-      throw new Error(error.message || "Resolution publication was not confirmed.");
+      throw new Error(originalError || "Resolution publication was not confirmed.");
     }
   }
   const receipt = parseWorldResolutionReceipt(canonicalResponse);
