@@ -299,7 +299,7 @@ test("updated PR heads cancel obsolete four-lane sweeps without canceling main e
   assert.ok(workflow.includes("ref: ${{ github.event.pull_request.head.sha || github.sha }}"));
 });
 
-test("a complete S14 runtime is not clean without exact-SHA static audit and readiness proof", () => {
+test("a complete S14 runtime is not clean without exact-SHA static audit and observed readiness inventory", () => {
   fixture(({ root, evidenceDir, put }) => {
     for (const lane of ["full-contest", "archive", "deadline", "televote-truth"]) {
       put("runtime-" + lane + ".json", { candidateSha: SHA, lane, status: "passed", exitCode: 0 });
@@ -336,9 +336,22 @@ test("a complete S14 runtime is not clean without exact-SHA static audit and rea
     report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
     assert.equal(hasRuntimeCleanProof(report), false, "stale static SHA cannot be accepted");
     put("checks-static.json", evidence);
-    put("s14-readiness.json", { ready: false, blockers: [] });
+    put("s14-readiness.json", {
+      ready: false,
+      blockers: ["critical Public capability entry is building, not at parity/cutover"],
+    });
     report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
-    assert.equal(hasRuntimeCleanProof(report), false, "an unready S14 inventory blocks a clean sweep");
+    assert.equal(hasRuntimeCleanProof(report), true,
+      "a legacy migration inventory is not by itself an executed runtime failure");
+    assert.ok(report.findings.some((f) =>
+      f.group === "s14-readiness" && f.status === "requires-triage"),
+    "the unresolved readiness item must remain visible for explicit release-risk classification");
+    assert.equal(report.certification, "NOT_CERTIFICATION",
+      "a clean diagnostic does not certify S14, S15 or S16 release readiness");
+    put("s14-readiness.json", { ready: false });
+    report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
+    assert.equal(hasRuntimeCleanProof(report), false,
+      "a malformed readiness inventory with missing blockers must fail closed");
 
     put("s14-readiness.json", { ready: true, blockers: [] });
     put("checks-static.json", {

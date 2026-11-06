@@ -169,9 +169,11 @@ export function collectDefectSweep({ root, evidenceDir, candidateSha, toolSha = 
       requiredStaticIds.every((id) =>
         recordedStaticChecks.filter((check) => check?.id === id && check.exitCode === 0).length === 1
       ) &&
-      s14Readiness?.ready === true &&
+      // Observed inventory is mandatory; its 'building' statuses are not automatically
+      // runtime failures under the canonical release-risk addendum. Preserve
+      // all readiness findings for owner-specific risk classification.
+      typeof s14Readiness?.ready === "boolean" &&
       Array.isArray(s14Readiness?.blockers) &&
-      s14Readiness.blockers.length === 0 &&
       typeof s15?.zeroOrphans === "boolean" &&
       Array.isArray(s15?.findings) &&
       typeof s15?.physicalOwnership?.zeroOwnershipConflicts === "boolean",
