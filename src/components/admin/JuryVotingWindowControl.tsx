@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AdminCard, AdminConfirmSheet, AdminStatus } from "@/components/admin/AdminUI";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import { useEdition, useShows } from "@/lib/data";
 import { resolveVoting } from "@/lib/voting";
@@ -44,6 +45,7 @@ type JuryWindowPreview = {
 };
 
 type PendingWindowChange = {
+  actorId: string;
   status: "open" | "closed";
   preview: JuryWindowPreview;
   operationId: string;
@@ -51,6 +53,7 @@ type PendingWindowChange = {
 };
 
 export function JuryVotingWindowControl() {
+  const actorId = useAuthenticatedUser().id;
   const location = useRouterState({
     select: (state) => ({ pathname: state.location.pathname, search: state.location.search }),
   });
@@ -82,11 +85,12 @@ export function JuryVotingWindowControl() {
   // its confirmation across a context switch, even within the same route.
   useEffect(() => {
     setPendingChange(null);
-  }, [edition?.id, selectedShow?.id]);
+  }, [actorId, edition?.id, selectedShow?.id]);
 
   const { data: windows, isLoading, isError, isRefetchError, refetch } = useQuery<WindowRow[]>({
-    enabled: Boolean(edition?.id && slug),
-    queryKey: ["jury-voting-windows", edition?.id],
+    enabled: Boolean(actorId && edition?.id && slug),
+    // Private voting operations must not reuse a prior organizer\'s cached status.
+    queryKey: ["jury-voting-windows", actorId, edition?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("jury_voting_windows")
@@ -96,6 +100,8 @@ export function JuryVotingWindowControl() {
       return (data ?? []) as WindowRow[];
     },
     staleTime: 5_000,
+    gcTime: 0,
+    retry: false,
   });
 
   const windowState = resolveJuryWindowReadState({
@@ -108,6 +114,7 @@ export function JuryVotingWindowControl() {
   const windowReady = windowState === "open" || windowState === "closed";
   const currentPendingChange =
     windowReady &&
+    pendingChange?.actorId === actorId &&
     isJuryWindowReviewScopeCurrent(pendingChange?.preview, {
       editionId: edition?.id,
       showId: selectedShow?.id,
@@ -142,6 +149,7 @@ export function JuryVotingWindowControl() {
         throw new Error("The jury-window preview did not match the selected edition, show or action.");
       }
       return {
+        actorId,
         status,
         preview,
         operationId: crypto.randomUUID(),
@@ -150,6 +158,7 @@ export function JuryVotingWindowControl() {
     },
     onSuccess: (pending) => {
       if (
+        pending.actorId !== actorId ||
         !isJuryWindowReviewScopeCurrent(pending.preview, {
           editionId: edition?.id,
           showId: selectedShow?.id,
@@ -178,6 +187,7 @@ export function JuryVotingWindowControl() {
   const setStatus = useMutation({
     mutationFn: async (pending: PendingWindowChange) => {
       if (
+        pending.actorId !== actorId ||
         !windowReady ||
         !isJuryWindowReviewScopeCurrent(pending.preview, {
           editionId: edition?.id,
