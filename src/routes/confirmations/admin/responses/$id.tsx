@@ -705,11 +705,13 @@ function ResponseDetailPage() {
   const [solarisSync, setSolarisSync] = useState<ConfirmationSolarisSyncResult | null>(null);
   const [solarisSyncError, setSolarisSyncError] = useState<string | null>(null);
   const [syncingSolaris, setSyncingSolaris] = useState(false);
+  const [syncReviewBusy, setSyncReviewBusy] = useState(false);
   const [linkType, setLinkType] = useState<"reusable" | "one_time">("reusable");
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [creatingLink, setCreatingLink] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const responseLoadGenerationRef = useRef(0);
+  const lastLoadedResponseScopeRef = useRef<{ responseId: string; editionId: string } | null>(null);
   const syncInFlightRef = useRef(false);
   const winnerInFlightRef = useRef(false);
   const unresolvedWinnerOperationRef = useRef<{
@@ -724,6 +726,7 @@ function ResponseDetailPage() {
   useEffect(() => {
     currentScopeRef.current = { responseId: id, editionId: organizerEditionId };
     // Purge private data immediately when the Organizer context changes.
+    lastLoadedResponseScopeRef.current = null;
     setData(null);
     setTechnical(null);
     setGeneratedLink(null);
@@ -791,6 +794,11 @@ function ResponseDetailPage() {
   }, [id, organizerEditionId]);
 
   const load = useCallback(async () => {
+    // Late review callbacks from another edition must not invalidate a newer load.
+    if (currentScopeRef.current.responseId !== id ||
+        currentScopeRef.current.editionId !== organizerEditionId) return;
+    const alreadyLoadedInScope = lastLoadedResponseScopeRef.current?.responseId === id &&
+      lastLoadedResponseScopeRef.current.editionId === organizerEditionId;
     const generation = ++responseLoadGenerationRef.current;
     const isCurrent = () =>
       responseLoadGenerationRef.current === generation &&
@@ -798,9 +806,12 @@ function ResponseDetailPage() {
       currentScopeRef.current.editionId === organizerEditionId;
     setError(null);
     setTechnicalError(null);
-    setData(null);
-    setTechnical(null);
-    setLoading(Boolean(organizerEditionId));
+    // Keep review cards mounted on same-response refreshes so operation receipts survive.
+    if (!alreadyLoadedInScope) {
+      setData(null);
+      setTechnical(null);
+    }
+    setLoading(Boolean(organizerEditionId) && !alreadyLoadedInScope);
 
     if (!organizerEditionId) return;
 
@@ -826,6 +837,7 @@ function ResponseDetailPage() {
         );
       }
 
+      lastLoadedResponseScopeRef.current = { responseId: id, editionId: organizerEditionId };
       setData(detail);
       setLoading(false);
       await loadTechnical(generation);
@@ -833,6 +845,7 @@ function ResponseDetailPage() {
       // reconciliation path without an explicit Organizer decision.
     } catch (caught) {
       if (!isCurrent()) return;
+      lastLoadedResponseScopeRef.current = null;
       setData(null);
       setTechnical(null);
       setError(caught instanceof Error ? caught.message : "Could not load this response.");
@@ -1017,6 +1030,8 @@ function ResponseDetailPage() {
       return;
     }
     syncInFlightRef.current = true;
+    // Busy covers the entire fresh-read preflight as well as the mutation.
+    setSyncReviewBusy(true);
     const requestedGeneration = responseLoadGenerationRef.current;
     const reviewedSnapshot = JSON.stringify(data);
     let mutationStarted = false;
@@ -1064,6 +1079,7 @@ function ResponseDetailPage() {
       }
     } finally {
       syncInFlightRef.current = false;
+      setSyncReviewBusy(false);
       setSyncReviewOpen(false);
     }
   }
@@ -1618,7 +1634,7 @@ function ResponseDetailPage() {
 
       <AdminConfirmSheet
         open={syncReviewOpen && isConfirmationDetailInOrganizerScope(data, id, organizerEditionId)}
-        onClose={syncingSolaris ? () => undefined : () => setSyncReviewOpen(false)}
+        onClose={() => { if (!syncInFlightRef.current) setSyncReviewOpen(false); }}
         onConfirm={() => void manualSync()}
         title="Reconcile this Confirmation with Solaris?"
         description={
@@ -1642,7 +1658,7 @@ function ResponseDetailPage() {
         confirmLabel="Apply reviewed Solaris reconciliation"
         confirmationText={data.country}
         confirmationHint={`Type ${data.country} to confirm this official-state change`}
-        busy={syncingSolaris}
+        busy={syncReviewBusy || syncingSolaris}
         danger
       />
 
