@@ -111,6 +111,17 @@ export default defineConfig({
                 minSize: 5000,
                 priority: 1,
               },
+              // Shared, pure client domain helpers are reused across many lazy
+              // routes. Keeping these in a single common helper chunk avoids
+              // the per-file gzip framing and repeated Rolldown module glue,
+              // while minShareCount keeps one-off feature pages route-local.
+              {
+                name: "shared-client-helpers",
+                test: /[\\/]src[\\/]lib[\\/](?!.*(?:\.server\.|\.test\.|\.contract\.|\.spec\.))/,
+                minShareCount: 2,
+                minSize: 5000,
+                priority: 1,
+              },
             ],
           },
         },
