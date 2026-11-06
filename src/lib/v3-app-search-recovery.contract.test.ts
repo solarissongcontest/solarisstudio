@@ -38,7 +38,7 @@ describe("V3 installed global Search recovery", () => {
     expect(app).toContain('queryKey: ["solaris-public-app-search", debouncedQuery.toLowerCase()]');
     expect(app).toContain("search_query: debouncedQuery");
     expect(app).toContain("normalized.length < 2 || awaitingRemote || remote.isError");
-    expect(app).toContain("navigationSearchResults(normalized)");
+    expect(app).toContain("navigationV3PublicSearchResults(normalized)");
     expect(app).toContain("(awaitingRemote || remote.isFetching)");
   });
 
@@ -50,7 +50,7 @@ describe("V3 installed global Search recovery", () => {
   });
 
   it("keeps local navigation available while remote search is broken", () => {
-    expect(app).toContain("navigationSearchResults(normalized)");
+    expect(app).toContain("navigationV3PublicSearchResults(normalized)");
     expect(app).toContain("dedupePublicSearchResults([...local, ...remoteResults])");
     expect(app).toContain("renderSearchGroups(grouped, openResult)");
     expect(app).toContain("rememberAppSearchReturn(originPath, normalized, result.href)");
