@@ -228,6 +228,66 @@ test("installed app shell survives representative navigation without duplicate c
     ).toHaveCount(1);
   }
 
+  // Keyboard focus must be visibly distinct from the selected glass lens.
+  // Start with a real keyboard event so WebKit uses :focus-visible modality;
+  // programmatic focus alone can follow pointer heuristics instead.
+  await page.keyboard.press("Tab");
+  const focusedExplore = page.locator(".solaris-app-tabbar")
+    .getByRole("link", { name: "Explore", exact: true });
+  const beforeFocusBounds = await focusedExplore.boundingBox();
+  expect(beforeFocusBounds).not.toBeNull();
+  await focusedExplore.focus();
+  await expect(focusedExplore).toBeFocused();
+  const afterFocusBounds = await focusedExplore.boundingBox();
+  expect(afterFocusBounds).not.toBeNull();
+  if (beforeFocusBounds && afterFocusBounds) {
+    expect(Math.abs(afterFocusBounds.x - beforeFocusBounds.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(afterFocusBounds.y - beforeFocusBounds.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs(afterFocusBounds.width - beforeFocusBounds.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(afterFocusBounds.height - beforeFocusBounds.height)).toBeLessThanOrEqual(1);
+  }
+  await expect.poll(() =>
+    focusedExplore.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return (
+        element.matches(":focus-visible") &&
+        style.outlineStyle === "solid" &&
+        Number.parseFloat(style.outlineWidth) >= 2 &&
+        Number.parseFloat(style.outlineOffset) <= -3
+      );
+    }),
+  ).toBe(true);
+  // Focusing an inactive tab must not navigate or turn it into the active tab.
+  await expect(page.locator('.solaris-app-tabbar [aria-current="page"]'))
+    .toHaveAttribute("aria-label", "Me");
+
+  // Forced-colors needs a system-color focus indicator, not a faint glass tint.
+  // Use the repository's established Playwright media emulation and compare to
+  // the system Highlight color rather than assuming a platform-specific RGB.
+  await page.emulateMedia({ forcedColors: "active" });
+  expect(await page.evaluate(() => matchMedia("(forced-colors: active)").matches)).toBe(true);
+  const contrastFocus = await focusedExplore.evaluate((element) => {
+    const reference = document.createElement("span");
+    reference.style.color = "Highlight";
+    document.body.appendChild(reference);
+    const highlight = getComputedStyle(reference).color;
+    reference.remove();
+    const focus = getComputedStyle(element);
+    return {
+      matchesFocusVisible: element.matches(":focus-visible"),
+      outlineStyle: focus.outlineStyle,
+      outlineWidth: Number.parseFloat(focus.outlineWidth),
+      outlineColor: focus.outlineColor,
+      highlight,
+    };
+  });
+  expect(contrastFocus.matchesFocusVisible).toBe(true);
+  expect(contrastFocus.outlineStyle).toBe("solid");
+  expect(contrastFocus.outlineWidth).toBeGreaterThanOrEqual(2);
+  expect(contrastFocus.outlineColor).toBe(contrastFocus.highlight);
+  await page.emulateMedia({ forcedColors: "none" });
+  await focusedExplore.evaluate((element) => element.blur());
+
   const initial = await readGeometry(page);
   expect(initial).not.toBeNull();
   if (!initial) return;
