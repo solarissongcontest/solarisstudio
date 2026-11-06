@@ -38,3 +38,23 @@ for (const [name, environment, diagnostic] of [
     assert.throws(() => assertV3ProductionIsolation(environment), diagnostic);
   });
 }
+
+test("accepts canonical loopback API and database protocols", () => {
+  for (const API_URL of ["http://localhost:54321", "https://localhost:54321"]) {
+    assert.equal(assertV3ProductionIsolation({ API_URL }).loopbackOnly, true);
+  }
+  for (const DB_URL of ["postgres://localhost:54322/postgres", "postgresql://localhost:54322/postgres"]) {
+    assert.equal(assertV3ProductionIsolation({ DB_URL }).loopbackOnly, true);
+  }
+});
+
+test("rejects unsupported protocol despite apparently local hostname", () => {
+  for (const environment of [
+    { API_URL: "ftp://localhost:54321/data" },
+    { DB_URL: "ftp://localhost:54322/postgres" },
+    { DB_URL: "http://localhost:54322/postgres" },
+    { API_URL: "postgresql://localhost:54321/postgres" },
+  ]) {
+    assert.throws(() => assertV3ProductionIsolation(environment), /uses an unsupported URL protocol/);
+  }
+});
