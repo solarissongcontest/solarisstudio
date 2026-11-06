@@ -42,8 +42,8 @@ export default defineConfig({
           // both the original @/ request and its exact resolved file identity.
           const originalFile = fileURLToPath(
             new URL("./src/components/v3/V3FoundationPreview.tsx", import.meta.url),
-          ).replaceAll("\\\\", "/");
-          const normalizedSource = source.replaceAll("\\\\", "/");
+          ).replaceAll("\\", "/");
+          const normalizedSource = source.replaceAll("\\", "/");
           const matches =
             source === "@/components/v3/V3FoundationPreview" ||
             normalizedSource === originalFile ||
