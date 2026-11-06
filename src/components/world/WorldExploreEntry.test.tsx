@@ -1,8 +1,29 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+// Server rendering does not mount a query. Model a completed authoritative
+// recheck explicitly instead of treating seeded cache data as newly verified.
+const rolloutState = vi.hoisted(() => ({
+  enabled: false,
+  mode: "ready" as "ready" | "fetching" | "failed",
+}));
+vi.mock("@tanstack/react-query", () => ({
+  useQuery: ({ queryKey }: { queryKey: readonly unknown[] }) => {
+    if (JSON.stringify(queryKey) !== JSON.stringify(["world", "public", "rollout"])) {
+      throw new Error("Explore unexpectedly mounted an institutional reader");
+    }
+    return {
+      data: rolloutState.enabled,
+      isSuccess: rolloutState.mode !== "failed",
+      isError: rolloutState.mode === "failed",
+      isRefetchError: rolloutState.mode === "failed",
+      isFetching: rolloutState.mode === "fetching",
+      isPending: false,
+      refetch: vi.fn(),
+    };
+  },
+}));
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ to, children }: { to: string; children: ReactNode }) =>
     <a href={to}>{children}</a>,
@@ -22,21 +43,13 @@ vi.mock("@/integrations/supabase/client", () => ({
 import { WorldExploreEntry, WorldV3ExploreEntry } from "./WorldExploreEntry";
 
 function renderLegacy(flag: boolean, mode: "ready" | "fetching" | "failed" = "ready") {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const key = ["world", "public", "rollout"];
-  client.setQueryData(key, flag);
-  const query = client.getQueryCache().find({ queryKey: key, exact: true });
-  if (!query) throw new Error("Missing isolated rollout query");
-  if (mode === "fetching") query.setState({ fetchStatus: "fetching" });
-  if (mode === "failed") query.setState({
-    status: "error", error: new Error("Rollout recheck failed"), fetchStatus: "idle",
-  });
+  rolloutState.enabled = flag;
+  rolloutState.mode = mode;
   try {
-    return renderToStaticMarkup(
-      <QueryClientProvider client={client}><WorldExploreEntry /></QueryClientProvider>,
-    );
+    return renderToStaticMarkup(<WorldExploreEntry />);
   } finally {
-    client.clear();
+    rolloutState.enabled = false;
+    rolloutState.mode = "ready";
   }
 }
 
