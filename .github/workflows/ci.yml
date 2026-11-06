@@ -68,6 +68,11 @@ jobs:
       - name: Verify V3 production isolation
         run: bun run scripts/check-v3-production-isolation.ts
 
+      - name: Guard changed tests against implementation lock-in
+        if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000')
+        env:
+          TEST_INTEGRITY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: node scripts/check-test-integrity.mjs
       - name: Regress cross-system sweep classifier (no database or network)
         run: node --test scripts/v3-s14-runtime-defect-sweep.contract.mjs
 

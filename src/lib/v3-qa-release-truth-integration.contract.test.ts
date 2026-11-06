@@ -1,3 +1,4 @@
+// test-integrity: allow-static-source-contract [release] -- explicitly checks fail-closed exact-SHA release workflow and source contract wiring
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
