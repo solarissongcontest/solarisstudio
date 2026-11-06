@@ -8,7 +8,7 @@ import {
   type OrganizerEntryDecisionIntent,
   type OrganizerEntryDecisionStatus,
 } from "@/lib/v3-organizer-entry-review-decision";
-import { summarizeOrganizerEntryDetail } from "@/lib/v3-organizer-entry-detail-summary";
+import { isOrganizerEntryReadyForWinner, summarizeOrganizerEntryDetail } from "@/lib/v3-organizer-entry-detail-summary";
 import {
   buildOrganizerEntryCorrectionReason,
   ORGANIZER_ENTRY_CORRECTION_CATEGORIES,
@@ -184,10 +184,10 @@ function detailState(data: ResponseDetail): DetailState {
 
   if (data.selection_method === "internal") {
     const entry = data.internal_entry;
-    if (!entry?.song_title || data.entry_unknown) return "neutral";
+    if (!entry || data.entry_unknown) return "neutral";
     const status = reviewLabel(entry);
     if (status === "declined" || status === "removed") return "issue";
-    if (status === "pending") return "review";
+    if (!entry.song_title?.trim() || status === "pending") return "review";
     if (status === "accepted") return "ready";
     return "neutral";
   }
@@ -199,7 +199,8 @@ function detailState(data: ResponseDetail): DetailState {
     if (!entries.length || data.nf_entries_unknown) return "neutral";
     const reviewStates = entries.map(reviewLabel);
     if (reviewStates.includes("declined")) return "issue";
-    if (reviewStates.some((status) => status !== "accepted")) return "review";
+    if (reviewStates.some((status) => status !== "accepted") ||
+        !entries.every(isOrganizerEntryReadyForWinner)) return "review";
     // A missing, removed or foreign winner does not make an accepted NF ready.
     const winnerId = data.national_final?.winning_entry_id;
     return winnerId && entries.some((entry) => entry.id === winnerId) ? "ready" : "neutral";
@@ -623,8 +624,8 @@ function EntryReviewCard({
 
   async function chooseWinner() {
     if (mutationInFlightRef.current || !onWinner || !isScopeCurrent()) return;
-    if (effectiveOrganizerEntryReviewStatus(entry) !== "accepted") {
-      setError("Accept this candidate on its current Entry version before selecting the National Final winner.");
+    if (!isOrganizerEntryReadyForWinner(entry)) {
+      setError("A complete song title and current-version accepted review are required before selecting the National Final winner.");
       return;
     }
     if (!reason.trim()) {
@@ -890,16 +891,16 @@ function EntryReviewCard({
             {onWinner && !storedWinner ? (
               <button
                 type="button"
-                disabled={busy || !reason.trim() || effectiveOrganizerEntryReviewStatus(entry) !== "accepted"}
+                disabled={busy || !reason.trim() || !isOrganizerEntryReadyForWinner(entry)}
                 onClick={() => void chooseWinner()}
                 className="admin-action-secondary w-full"
               >
                 <Trophy className="size-4" /> Select as NF winner
               </button>
             ) : null}
-            {onWinner && !storedWinner && effectiveOrganizerEntryReviewStatus(entry) !== "accepted" ? (
+            {onWinner && !storedWinner && !isOrganizerEntryReadyForWinner(entry) ? (
               <p className="text-xs text-amber-100">
-                Review and accept this candidate's current Entry version before selecting a winner.
+                A complete song title and current-version accepted review are required before selecting a winner.
               </p>
             ) : null}
 
@@ -1736,7 +1737,7 @@ function ResponseDetailPage() {
                   submissionId={data.id}
                   storedWinner={data.national_final?.winning_entry_id === entry.id}
                   winner={data.national_final?.winning_entry_id === entry.id &&
-                    effectiveOrganizerEntryReviewStatus(entry) === "accepted"}
+                    isOrganizerEntryReadyForWinner(entry)}
                   onChanged={load}
                   isScopeCurrent={isDisplayedResponseCurrent}
                   onWinner={(reason) => setWinner(entry, reason)}
