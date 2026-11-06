@@ -1,8 +1,8 @@
 begin;
 
 -- WORLD-01 TG1 forward fix. A durable-person binding is an R2 operation:
--- the caller MUST identify the canonical country controller it observed.
--- Null used to bypass the original optimistic concurrency check.
+-- every NEW write MUST identify the canonical controller it observed.
+-- Exact receipt replay remains possible for historical requests with NULL.
 -- This does not transfer ownership; country_accounts remains sole authority.
 do $contract$
 begin
@@ -92,11 +92,6 @@ begin
   if p_country_id is null or p_person_id is null or v_reason is null or length(v_reason) > 500 then
     raise exception using errcode = '22023', message = 'VALIDATION';
   end if;
-  -- R2 requires an explicit caller-observed current account, not a blind
-  -- durable-person relink that can race a country ownership transfer.
-  if p_expected_current_user_id is null then
-    raise exception using errcode = '22023', message = 'EXPECTED_CONTROLLER_REQUIRED';
-  end if;
 
   v_claim := private.studio2_claim_operation(
     p_operation_id,
@@ -111,6 +106,12 @@ begin
   v_operation_id := (v_claim ->> 'operationId')::uuid;
   if coalesce((v_claim ->> 'replayed')::boolean, false) then
     return public.studio2_reconcile_operation(v_operation_id) || jsonb_build_object('replayed', true);
+  end if;
+  -- Preserve exact reconciliation for previously successful legacy operations
+  -- with a null expected actor. New blind writes still fail atomically before
+  -- any canonical country/person/history mutation.
+  if p_expected_current_user_id is null then
+    raise exception using errcode = '22023', message = 'EXPECTED_CONTROLLER_REQUIRED';
   end if;
 
   -- country_accounts remains sole current controller authority. A
