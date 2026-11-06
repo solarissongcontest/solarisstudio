@@ -36,6 +36,7 @@ describe("V3 official delegation notices", () => {
     const source = content();
     expect(source).toContain('key={`${userId}:${country.id}:${editionId ?? "current"}`}');
     expect(source).toContain("countryId={country.id}");
+    expect(source).toContain('queryKey: ["studio2-feature", "official_communications", userId, countryId, editionId ?? "current"]');
     expect(source).toContain("queryClient.cancelQueries({ queryKey, exact: true })");
     expect(source).toContain("queryClient.removeQueries({ queryKey, exact: true })");
     expect(source).toContain("}, [queryClient, userId, countryId, editionId])");

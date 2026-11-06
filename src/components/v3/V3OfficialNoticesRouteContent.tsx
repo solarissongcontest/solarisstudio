@@ -132,7 +132,7 @@ function V3OfficialNoticesBoundInbox({
   const filter = parseV3OfficialNoticeFilter(locationSearch.state);
 
   const feature = useQuery({
-    queryKey: ["studio2-feature", "official_communications", editionId ?? "current"],
+    queryKey: ["studio2-feature", "official_communications", userId, countryId, editionId ?? "current"],
     queryFn: () => isStudio2FeatureEnabled("official_communications", editionId),
     staleTime: 30_000,
     refetchOnWindowFocus: true,
