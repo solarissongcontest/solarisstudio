@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { OperationalNotice } from "./official-communications";
 import {
   parseV3OfficialNoticeFilter,
+  v3OfficialNoticeAcknowledgementState,
   v3OfficialNoticeNeedsAction,
   v3OfficialNoticeReason,
   v3OfficialNoticeResolved,
@@ -52,6 +53,22 @@ describe("V3 official notice presentation model", () => {
     expect(v3OfficialNoticeNeedsAction(required, "unread")).toBe(true);
     expect(v3OfficialNoticeNeedsAction(required, "acknowledged")).toBe(false);
     expect(v3OfficialNoticeNeedsAction(informational, "unread")).toBe(false);
+  });
+
+  it("keeps acknowledged receipt truth when a notice is archived", () => {
+    const required = notice({ acknowledgementRequired: true });
+    const acknowledgedAt = "2026-10-17T13:00:00Z";
+
+    expect(v3OfficialNoticeAcknowledgementState(required, "archived", { acknowledgedAt }))
+      .toBe("recorded");
+    expect(v3OfficialNoticeAcknowledgementState(required, "archived", { acknowledgedAt: null }))
+      .toBe("archived-unacknowledged");
+    expect(v3OfficialNoticeAcknowledgementState(required, "acknowledgement_required", null))
+      .toBe("required");
+    expect(v3OfficialNoticeAcknowledgementState(required, "acknowledged", { acknowledgedAt }))
+      .toBe("recorded");
+    expect(v3OfficialNoticeAcknowledgementState(notice(), "archived", null))
+      .toBe("not-required");
   });
 
   it("derives recipient explanation from canonical audience metadata", () => {
