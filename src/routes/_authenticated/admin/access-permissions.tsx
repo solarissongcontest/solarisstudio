@@ -117,6 +117,10 @@ function AccessPermissionsPage() {
       : null;
   const resolvedEditionId = editionId && organizerEdition ? organizerEdition.id : "";
   const organizerEditionLabel = organizerEdition ? formatEditionLabel(organizerEdition) : null;
+  const editionContextVerified =
+    editionsQuery.isSuccess && !editionsQuery.error && (!editionId || Boolean(resolvedEditionId));
+  // Ref keeps an in-flight R3 operation bound to live verification, not a stale closure.
+  const verifiedEditionRef = useRef(editionContextVerified);
   const editionLabels = useMemo(
     () =>
       new Map(
@@ -206,11 +210,14 @@ function AccessPermissionsPage() {
 
   const previewChange = useMutation({
     mutationFn: async (change: AccessChange): Promise<PendingAccessChange> => {
+      if (!verifiedEditionRef.current) {
+        throw new Error("Organizer edition context is not verified. No access change was previewed.");
+      }
       const reviewContextEditionId = editionId ?? null;
       const command = permissionCommand(change);
       const preview = await previewPermissionChange(command);
-      if (currentEditionRef.current !== reviewContextEditionId) {
-        throw new Error("Organizer edition context changed while the R3 preview was loading. Start again from the current edition.");
+      if (!verifiedEditionRef.current || currentEditionRef.current !== reviewContextEditionId) {
+        throw new Error("Organizer edition context changed or became unverified while the R3 preview was loading. Start again from the current edition.");
       }
       const operation = createOrganisationCommand({
         command: "permissions.access_change",
@@ -238,7 +245,7 @@ function AccessPermissionsPage() {
       };
     },
     onSuccess: (pending) => {
-      if (currentEditionRef.current !== pending.reviewContextEditionId) return;
+      if (!verifiedEditionRef.current || currentEditionRef.current !== pending.reviewContextEditionId) return;
       if (pending.preview.alreadyApplied) {
         setPendingChange(null);
         setMessage("That access state is already current.");
@@ -258,14 +265,14 @@ function AccessPermissionsPage() {
       pending: PendingAccessChange;
       password: string;
     }) => {
-      if ((editionId ?? null) !== pending.reviewContextEditionId) {
+      if (!verifiedEditionRef.current || (editionId ?? null) !== pending.reviewContextEditionId) {
         throw new Error(
-          "Organizer edition context changed after this R3 review opened. Nothing was requested. Close the review and start again from the current context.",
+          "Organizer edition context changed after this R3 review opened or could not be verified. Nothing was requested. Close the review and start again from the current context.",
         );
       }
       await reauthenticatePermissionR3(password);
-      if (currentEditionRef.current !== pending.reviewContextEditionId) {
-        throw new Error("Organizer edition context changed during reauthentication. Nothing was requested.");
+      if (!verifiedEditionRef.current || currentEditionRef.current !== pending.reviewContextEditionId) {
+        throw new Error("Organizer edition context changed during reauthentication or became unverified. Nothing was requested.");
       }
       return requestPermissionChangeApproval({
         ...pending.command,
@@ -296,12 +303,12 @@ function AccessPermissionsPage() {
       password: string;
       reviewContextEditionId: string | null;
     }) => {
-      if (currentEditionRef.current !== reviewContextEditionId) {
-        throw new Error("Organizer edition context changed after this R3 review opened. Nothing was approved.");
+      if (!verifiedEditionRef.current || currentEditionRef.current !== reviewContextEditionId) {
+        throw new Error("Organizer edition context changed after this R3 review opened or could not be verified. Nothing was approved.");
       }
       await reauthenticatePermissionR3(password);
-      if (currentEditionRef.current !== reviewContextEditionId) {
-        throw new Error("Organizer edition context changed during reauthentication. Nothing was approved.");
+      if (!verifiedEditionRef.current || currentEditionRef.current !== reviewContextEditionId) {
+        throw new Error("Organizer edition context changed during reauthentication or became unverified. Nothing was approved.");
       }
       return approvePermissionChangeApproval(approval.id);
     },
@@ -327,15 +334,15 @@ function AccessPermissionsPage() {
       password: string;
       reviewContextEditionId: string | null;
     }) => {
-      if (currentEditionRef.current !== reviewContextEditionId) {
-        throw new Error("Organizer edition context changed after this R3 review opened. Nothing was applied.");
+      if (!verifiedEditionRef.current || currentEditionRef.current !== reviewContextEditionId) {
+        throw new Error("Organizer edition context changed after this R3 review opened or could not be verified. Nothing was applied.");
       }
       if (!approval.targetUserId || !approval.idempotencyKey) {
         throw new Error("This approval is not actionable by the current organizer.");
       }
       await reauthenticatePermissionR3(password);
-      if (currentEditionRef.current !== reviewContextEditionId) {
-        throw new Error("Organizer edition context changed during reauthentication. Nothing was applied.");
+      if (!verifiedEditionRef.current || currentEditionRef.current !== reviewContextEditionId) {
+        throw new Error("Organizer edition context changed during reauthentication or became unverified. Nothing was applied.");
       }
       return applyPermissionChange({
         userId: approval.targetUserId,
@@ -394,6 +401,17 @@ function AccessPermissionsPage() {
     resetSimulation();
   }, [editionId, resetSimulation]);
 
+  useEffect(() => {
+    verifiedEditionRef.current = editionContextVerified;
+    if (!editionContextVerified) {
+      setPendingChange(null);
+      setReauthPassword("");
+      setApprovalAction(null);
+      setApprovalPassword("");
+      resetSimulation();
+    }
+  }, [editionContextVerified, resetSimulation]);
+
   const effectiveScope = scope === "edition" ? (resolvedEditionId || null) : null;
   const summary = summaryQuery.data;
   const loading = catalogQuery.isLoading || usersQuery.isLoading;
@@ -426,6 +444,23 @@ function AccessPermissionsPage() {
             Edition-scoped grants use only this verified Organizer context. Global changes remain explicitly labeled as every edition.
           </span>
         </div>
+
+        {!editionContextVerified ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={ShieldEllipsis}
+              title={editionsQuery.isError ? "Edition access unavailable" : "Verifying edition access"}
+              description="Permission changes are paused until the Organizer edition registry is verified. Global changes must also have an explicit, verified review context."
+              action={
+                editionsQuery.isError ? (
+                  <button type="button" onClick={() => void editionsQuery.refetch()} disabled={editionsQuery.isFetching} className="admin-action-secondary">
+                    Retry edition lookup
+                  </button>
+                ) : undefined
+              }
+            />
+          </AdminCard>
+        ) : null}
 
         <section
           className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
@@ -1166,7 +1201,11 @@ function UsersTab({
                   Scope
                 </p>
                 <p className="mt-1 text-sm font-bold">
-                  {effectiveScope ? (editionScopeLabel ?? "Selected edition") : "Global"}
+                  {scope === "edition"
+            ? editionAvailable
+              ? (editionScopeLabel ?? "Selected edition")
+              : "Edition unverified"
+            : "Every edition"}
                 </p>
               </div>
             </div>

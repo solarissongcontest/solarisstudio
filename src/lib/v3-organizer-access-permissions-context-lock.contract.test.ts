@@ -63,7 +63,7 @@ describe("V3 Organizer Access & Permissions context lock", () => {
       'if ((editionId ?? null) !== pending.reviewContextEditionId)',
     );
     expect(route).toContain(
-      'Organizer edition context changed after this R3 review opened. Nothing was requested.',
+      'Organizer edition context changed after this R3 review opened or could not be verified. Nothing was requested.',
     );
     expect(route).toContain(
       'if ((editionId ?? null) !== approvalAction.reviewContextEditionId)',
@@ -77,15 +77,31 @@ describe("V3 Organizer Access & Permissions context lock", () => {
     expect(route).toContain("const currentEditionRef = useRef<string | null>(editionId ?? null);");
     expect(route).toContain("currentEditionRef.current = editionId ?? null;");
     expect(route).toContain("currentEditionRef.current !== pending.reviewContextEditionId");
-    expect(route).toContain("Organizer edition context changed while the R3 preview was loading.");
-    expect(route).toContain("Organizer edition context changed during reauthentication. Nothing was requested.");
-    expect(route).toContain("Organizer edition context changed during reauthentication. Nothing was approved.");
-    expect(route).toContain("Organizer edition context changed during reauthentication. Nothing was applied.");
+    expect(route).toContain("Organizer edition context changed or became unverified while the R3 preview was loading.");
+    expect(route).toContain("Organizer edition context changed during reauthentication or became unverified. Nothing was requested.");
+    expect(route).toContain("Organizer edition context changed during reauthentication or became unverified. Nothing was approved.");
+    expect(route).toContain("Organizer edition context changed during reauthentication or became unverified. Nothing was applied.");
     expect(route).toContain("reviewContextEditionId: approvalAction.reviewContextEditionId");
     expect(route).toContain("currentEditionRef.current === variables.pending.reviewContextEditionId");
     expect(route).toContain("currentEditionRef.current === variables.reviewContextEditionId");
     expect(route).toContain("approvePermissionChangeApproval(approval.id)");
     expect(route).toContain("approvalRequestId: approval.id");
+  });
+
+  it("pauses R3 review and manual controls when live edition verification fails", () => {
+    expect(route).toContain("const editionContextVerified =");
+    expect(route).toContain("const verifiedEditionRef = useRef(editionContextVerified);");
+    expect(route).toContain("verifiedEditionRef.current = editionContextVerified;");
+    expect(route).toContain("if (!editionContextVerified) {");
+    expect(route).toContain('title={editionsQuery.isError ? "Edition access unavailable" : "Verifying edition access"}');
+    expect(route).toContain("Retry edition lookup");
+    expect(route).toContain("Organizer edition context is not verified. No access change was previewed.");
+    expect(route).toContain('scope === "edition"');
+    expect(route).toContain('"Edition unverified"');
+    expect(route).toContain('"Every edition"');
+    for (const action of ["requested", "approved", "applied"]) {
+      expect(route).toContain(`or became unverified. Nothing was ${action}.`);
+    }
   });
 
   it("cancels unfinished local R3 review state only from edition-context changes", () => {
