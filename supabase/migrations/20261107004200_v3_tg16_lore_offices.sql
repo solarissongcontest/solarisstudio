@@ -348,7 +348,7 @@ begin
   insert into public.world_domestic_official_revisions(
     record_type,record_id,country_id,revision,snapshot,operation_id,changed_by
   ) values (
-    case when p_kind in ('term_start','term_end') then 'term' else p_kind end,
+    case when p_kind in ('term_start','term_end','term_publish') then 'term' else p_kind end,
     v_record,p_country_id,v_revision,
     case p_kind when 'lore_person' then
       (select to_jsonb(p) from public.world_lore_people p where p.id=v_record)
