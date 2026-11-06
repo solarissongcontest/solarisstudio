@@ -86,9 +86,12 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
       priorQuery?.queryKey[7] === connectivity.checkedAt && previous?.organization.slug === slug
         ? previous : undefined,
     staleTime: 90_000,
+    // Revalidate when opening the directory again, even within its cache TTL.
+    // Do not render the old rows while that publication check is in flight.
+    refetchOnMount: "always",
     retry: false,
   });
-  const verifiedTotal = query.isSuccess && !query.isPlaceholderData
+  const verifiedTotal = query.isSuccess && !query.isPlaceholderData && !query.isFetching
     ? query.data?.total : undefined;
   useEffect(() => {
     if (verifiedTotal === undefined) return;
@@ -111,14 +114,15 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
   }
   // A background refresh can fail while TanStack retains previously cached data.
   // Never show that stale publication snapshot after a failed verification.
-  const result = publicationBlocked || query.isError ? undefined : query.data;
+  const result = publicationBlocked || query.isError ||
+    (query.isFetching && !query.isPlaceholderData) ? undefined : query.data;
   return <Frame>
     <Back institution={result?.organization} />
     {!valid ? <Unavailable missing /> : null}
     {valid && publicationBlocked ? <Unavailable retry={() => void query.refetch()} /> : null}
-    {valid && !publicationBlocked && query.isPending ? <Loading /> : null}
+    {valid && !publicationBlocked && (query.isPending || (query.isFetching && !query.isPlaceholderData)) ? <Loading /> : null}
     {valid && !publicationBlocked && query.isError ? <Unavailable retry={() => void query.refetch()} /> : null}
-    {valid && !publicationBlocked && query.isSuccess && !result ? <Unavailable missing /> : null}
+    {valid && !publicationBlocked && query.isSuccess && !query.isFetching && !result ? <Unavailable missing /> : null}
     {result ? <>
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{result.organization.shortName} · Governance</p>
@@ -183,23 +187,26 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
   const query = useQuery({
     queryKey: ["world", "public", "body", slug, bodySlug, connectivity.checkedAt],
     queryFn: ({ signal }) => readPublicWorldBody(slug, bodySlug, signal),
-    enabled: valid && !officeNetworkBlocked, staleTime: 90_000, retry: false,
+    enabled: valid && !officeNetworkBlocked, staleTime: 90_000,
+    refetchOnMount: "always", retry: false,
   });
-  const result = officeNetworkBlocked || query.isError ? undefined : query.data;
+  const result = officeNetworkBlocked || query.isError || query.isFetching
+    ? undefined : query.data;
   const offices = useQuery({
     queryKey: ["world", "public", "body-offices", result?.organization.id, result?.body.id, connectivity.checkedAt],
     queryFn: ({ signal }) => readPublicBodyOffices(result!.organization, result!.body, signal),
     enabled: !!result && !officeNetworkBlocked,
     staleTime: 90_000,
+    refetchOnMount: "always",
     retry: false,
   });
   return <Frame>
     <Back institution={result?.organization} />
     {!valid ? <Unavailable missing /> : null}
     {valid && officeNetworkBlocked ? <Unavailable retry={() => void query.refetch()} /> : null}
-    {valid && !officeNetworkBlocked && query.isPending ? <Loading /> : null}
+    {valid && !officeNetworkBlocked && (query.isPending || query.isFetching) ? <Loading /> : null}
     {valid && !officeNetworkBlocked && query.isError ? <Unavailable retry={() => void query.refetch()} /> : null}
-    {valid && !officeNetworkBlocked && query.isSuccess && !result ? <Unavailable missing /> : null}
+    {valid && !officeNetworkBlocked && query.isSuccess && !query.isFetching && !result ? <Unavailable missing /> : null}
     {result ? <>
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{result.organization.shortName} · Institutional body</p>
@@ -221,7 +228,7 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
             Currently active public office definitions only. This is not a historical office roster;
             private terms and unpublished appointments are excluded.
           </p>
-          {offices.isPending ? <p role="status" className="mt-4 text-sm text-muted-foreground">Checking offices…</p> : null}
+          {offices.isPending || offices.isFetching ? <p role="status" className="mt-4 text-sm text-muted-foreground">Checking offices…</p> : null}
           {offices.isError ? <div role="alert" className="mt-4 text-sm">
             <p>{connectivity.status === "offline"
               ? "Reconnect to verify current public offices."
@@ -235,10 +242,10 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
               Retry offices
             </button>
           </div> : null}
-          {offices.isSuccess && offices.data.length === 0 ? (
+          {offices.isSuccess && !offices.isFetching && offices.data.length === 0 ? (
             <p className="mt-4 text-sm text-muted-foreground">No active public offices are assigned to this body.</p>
           ) : null}
-          {offices.isSuccess && offices.data.length > 0 ? (
+          {offices.isSuccess && !offices.isFetching && offices.data.length > 0 ? (
             <ul className="mt-3 divide-y divide-border">
               {offices.data.map((office) => <li key={office.id} className="py-3">
                 <p className="text-sm font-semibold">{office.title}</p>
@@ -246,7 +253,7 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
               </li>)}
             </ul>
           ) : null}
-          {offices.isSuccess && offices.data.length === WORLD_BODY_OFFICE_LIMIT ? (
+          {offices.isSuccess && !offices.isFetching && offices.data.length === WORLD_BODY_OFFICE_LIMIT ? (
             <p className="mt-2 text-xs text-muted-foreground">Showing the first {WORLD_BODY_OFFICE_LIMIT} active public offices.</p>
           ) : null}
           <div className="mt-7 border-t border-border pt-6">
