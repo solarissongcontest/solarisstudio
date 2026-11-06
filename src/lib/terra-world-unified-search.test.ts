@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   from: vi.fn(),
   countries: {
-    select: vi.fn(), or: vi.fn(), order: vi.fn(), range: vi.fn(),
+    select: vi.fn(), or: vi.fn(), order: vi.fn(), abortSignal: vi.fn(), range: vi.fn(),
   },
   organizations: {
-    select: vi.fn(), eq: vi.fn(), in: vi.fn(), or: vi.fn(), order: vi.fn(), range: vi.fn(),
+    select: vi.fn(), eq: vi.fn(), in: vi.fn(), or: vi.fn(), order: vi.fn(), abortSignal: vi.fn(), range: vi.fn(),
   },
 }));
 
@@ -47,16 +47,42 @@ beforeEach(() => {
   mocks.countries.select.mockReturnValue(mocks.countries);
   mocks.countries.or.mockReturnValue(mocks.countries);
   mocks.countries.order.mockReturnValue(mocks.countries);
+  mocks.countries.abortSignal.mockReturnValue(mocks.countries);
   mocks.countries.range.mockResolvedValue({ data: [country], count: 1, error: null });
   mocks.organizations.select.mockReturnValue(mocks.organizations);
   mocks.organizations.eq.mockReturnValue(mocks.organizations);
   mocks.organizations.in.mockReturnValue(mocks.organizations);
   mocks.organizations.or.mockReturnValue(mocks.organizations);
   mocks.organizations.order.mockReturnValue(mocks.organizations);
+  mocks.organizations.abortSignal.mockReturnValue(mocks.organizations);
   mocks.organizations.range.mockResolvedValue({ data: [organization], count: 1, error: null });
 });
 
 describe("Terra Solaris unified public World search", () => {
+  it("cancels obsolete country and institution searches through the same AbortSignal", async () => {
+    const controller = new AbortController();
+    await fetchWorldUnifiedSearch("GUARD", 0, 0, controller.signal);
+    expect(mocks.countries.abortSignal).toHaveBeenCalledExactlyOnceWith(controller.signal);
+    expect(mocks.organizations.abortSignal).toHaveBeenCalledExactlyOnceWith(controller.signal);
+    expect(mocks.countries.range).toHaveBeenCalledOnce();
+    expect(mocks.organizations.range).toHaveBeenCalledOnce();
+  });
+
+  it("never contacts Supabase when navigation already cancelled its search", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await expect(fetchWorldUnifiedSearch("GUARD", 0, 0, controller.signal))
+      .rejects.toMatchObject({ name: "AbortError" });
+    expect(mocks.from).not.toHaveBeenCalled();
+  });
+
+  it("preserves existing callers that do not supply an AbortSignal", async () => {
+    const result = await fetchWorldCountrySearchPage("Hydra");
+    expect(result.countryTotal).toBe(1);
+    expect(mocks.countries.abortSignal).not.toHaveBeenCalled();
+    expect(mocks.organizations.abortSignal).not.toHaveBeenCalled();
+  });
+
   it("fails closed when a successful cached query is being rechecked or refetch failed", () => {
     const valid = { isSuccess: true, isError: false, isRefetchError: false, isFetching: false };
     expect(worldPublicQueryVerified(valid)).toBe(true);
