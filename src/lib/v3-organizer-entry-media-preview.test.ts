@@ -60,8 +60,10 @@ describe("Organizer Entry Review opt-in media inspection", () => {
       "src/components/admin/OrganizerEntryMediaPreview.tsx"), "utf8");
     expect(code).toContain("const [loadRequested, setLoadRequested] = useState(false)");
     expect(code).toContain("!loadRequested ? (");
-    expect(code).toContain("onClick={() => setLoadRequested(true)}");
-    expect(code).toContain("onClick={() => setLoadRequested(false)}");
+    // Both handlers deliberately reset failure state as well as opt-in state.
+    // A one-line JSX source assertion incorrectly fails on these safe blocks.
+    expect(code).toMatch(/onClick=\{\(\) => \{\s*setFailed\(false\);\s*setLoadRequested\(true\);/);
+    expect(code).toMatch(/onClick=\{\(\) => \{\s*setLoadRequested\(false\);\s*setFailed\(false\);/);
     expect(code).toContain('preload="none"');
     expect(code).not.toContain("autoPlay");
     expect(code).not.toContain("<iframe");
