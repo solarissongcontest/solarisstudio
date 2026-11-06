@@ -191,3 +191,47 @@ export async function searchWorldRoomMessages(spaceId: string, term: string, sig
     p_space_id: spaceId, p_query: term.trim(), p_limit: WORLD_ROOM_PAGE_SIZE,
   }, signal), isSearchResult);
 }
+
+/** Only a live room manager may obtain these identities, via scoped RPC. */
+export type WorldRoomCandidate = {
+  userId: string;
+  name: string;
+  role: "member" | "moderator";
+  invited: boolean;
+  revision: number;
+};
+const isRoomCandidate = (x: unknown): x is WorldRoomCandidate =>
+  isRecord(x) && isValidRoomId(x.userId) && typeof x.name === "string" &&
+  (x.role === "member" || x.role === "moderator") &&
+  typeof x.invited === "boolean" && Number.isSafeInteger(x.revision) && (x.revision as number) >= 0;
+
+export async function getWorldRoomCandidates(roomId: string, signal?: AbortSignal): Promise<WorldRoomCandidate[]> {
+  if (!isValidRoomId(roomId)) throw new Error("Invalid room.");
+  return asList(await callWorldPrivateRpc("world_space_candidates_v1", { p_space_id: roomId }, signal), isRoomCandidate);
+}
+
+export type WorldRoomGrantReceipt = { revision: number; requestId: string; active: boolean };
+export async function changeWorldRoomGrant(input: {
+  spaceId: string; userId: string; role: WorldRoomCandidate["role"];
+  active: boolean; expectedRevision: number; requestId: string;
+  historyFrom?: string | null;
+}): Promise<WorldRoomGrantReceipt> {
+  if (![input.spaceId, input.userId, input.requestId].every(isValidRoomId) ||
+      !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0 ||
+      !["member", "moderator"].includes(input.role)) throw new Error("Invalid room grant operation.");
+  const data = await callWorldPrivateRpc("world_space_set_grant_v1", {
+    p_space_id: input.spaceId, p_user_id: input.userId, p_role: input.role,
+    p_history_from: input.historyFrom ?? null, p_active: input.active,
+    p_expected_revision: input.expectedRevision, p_request_id: input.requestId,
+  });
+  if (!isRecord(data) || !isValidRoomId(data.requestId) ||
+      data.requestId !== input.requestId || typeof data.active !== "boolean" ||
+      !Number.isSafeInteger(data.revision) || (data.revision as number) <= input.expectedRevision) {
+    throw new Error("Room grant receipt could not be verified.");
+  }
+  return {
+    revision: data.revision as number,
+    requestId: data.requestId,
+    active: data.active,
+  };
+}
