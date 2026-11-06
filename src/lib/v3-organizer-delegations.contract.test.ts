@@ -1,6 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { verifyOrganizerConfirmationRead } from './v3-organizer-confirmation-read-authorization';
+import type { OrganizerConfirmationReadClient } from './v3-organizer-confirmation-read-authorization';
 
+
+const authorityHelper = readFileSync('src/lib/v3-organizer-confirmation-read-authorization.ts', 'utf8');
 const delegationsRoute = readFileSync(
   'src/routes/_authenticated/admin/delegations.tsx',
   'utf8',
@@ -15,6 +19,32 @@ const countryDetail = readFileSync(
 );
 
 describe('V3 Organizer Delegations context boundary', () => {
+  it('verifies exact scoped read authorization without performing direct RPCs in the read-only route', async () => {
+    const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
+    const client: OrganizerConfirmationReadClient = {
+      rpc: async (name, args) => {
+        calls.push({ name, args });
+        return { data: true, error: null };
+      },
+    };
+    expect(await verifyOrganizerConfirmationRead('edition-test-id', client)).toBe(true);
+    expect(calls).toEqual([{
+      name: 'studio2_access_allowed',
+      args: { p_capability: 'confirmation.read', p_edition_id: 'edition-test-id', p_strict_before_cutover: false },
+    }]);
+    expect(delegationsRoute).not.toContain('.rpc(');
+  });
+
+  it('fails closed on denied, unknown, missing and failed Confirmation read probes', async () => {
+    const denied: OrganizerConfirmationReadClient = { rpc: async () => ({ data: false, error: null }) };
+    const malformed: OrganizerConfirmationReadClient = { rpc: async () => ({ data: null, error: null }) };
+    const failure: OrganizerConfirmationReadClient = { rpc: async () => ({ data: null, error: { message: 'Unavailable' } }) };
+    expect(await verifyOrganizerConfirmationRead('edition-test-id', denied)).toBe(false);
+    await expect(verifyOrganizerConfirmationRead('edition-test-id', malformed)).rejects.toThrow(/invalid response/);
+    await expect(verifyOrganizerConfirmationRead('edition-test-id', failure)).rejects.toMatchObject({ message: 'Unavailable' });
+    await expect(verifyOrganizerConfirmationRead('', denied)).rejects.toThrow(/explicit Organizer edition/);
+  });
+
   it('resolves the Delegations overview against the exact accessible Organizer edition before querying requirements', () => {
     expect(delegationsRoute).toContain('editionsQuery.isSuccess && !editionsQuery.error');
     expect(delegationsRoute).toContain(
@@ -23,9 +53,10 @@ describe('V3 Organizer Delegations context boundary', () => {
     expect(delegationsRoute).toContain('const resolvedEditionId = selectedEdition?.id ?? "";');
     expect(delegationsRoute).toContain('queryFn: () => loadConfirmationRequirements(resolvedEditionId)');
     expect(delegationsRoute).toContain('enabled: editionsQuery.isSuccess && !editionsQuery.error && Boolean(resolvedEditionId)');
-    expect(delegationsRoute).toContain('p_capability: "confirmation.read"');
-    expect(delegationsRoute).toContain('p_edition_id: resolvedEditionId');
-    expect(delegationsRoute).toContain('client.rpc("studio2_access_allowed"');
+    expect(delegationsRoute).toContain('verifyOrganizerConfirmationRead(resolvedEditionId)');
+    expect(authorityHelper).toContain('p_capability: "confirmation.read"');
+    expect(authorityHelper).toContain('p_edition_id: editionId');
+    expect(authorityHelper).toContain('client.rpc("studio2_access_allowed"');
     expect(delegationsRoute).toContain('enabled: hasConfirmationRead');
     expect(delegationsRoute).toContain('!capabilityQuery.isFetching');
     expect(delegationsRoute).toContain('capabilityQuery.data === true');

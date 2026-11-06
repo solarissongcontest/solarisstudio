@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
-import { supabase } from "@/integrations/supabase/client";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {
@@ -26,6 +25,7 @@ import {
 } from "@/components/admin/AdminUI";
 import { loadConfirmationRequirements } from "@/integrations/confirmations/admin";
 import { selectOrganizerEdition } from "@/lib/admin-edition-selection";
+import { verifyOrganizerConfirmationRead } from "@/lib/v3-organizer-confirmation-read-authorization";
 import { editionLabel, useEditions } from "@/lib/data";
 import { summarizeConfirmationRequirementAttention } from "@/lib/v3-organizer-confirmation-requirement-attention";
 
@@ -57,24 +57,7 @@ function OrganizerDelegationsPage() {
   // server authorization before accessing private requirement data.
   const capabilityQuery = useQuery({
     queryKey: ["v3-organizer", "delegations", "confirmation-read", actorId, resolvedEditionId || "none"],
-    queryFn: async () => {
-      const client = supabase as unknown as {
-        rpc: (
-          name: string,
-          args: Record<string, unknown>,
-        ) => PromiseLike<{ data: unknown; error: { message?: string } | null }>;
-      };
-      const { data, error } = await client.rpc("studio2_access_allowed", {
-        p_capability: "confirmation.read",
-        p_edition_id: resolvedEditionId,
-        p_strict_before_cutover: false,
-      });
-      if (error) throw error;
-      if (typeof data !== "boolean") {
-        throw new Error("Confirmation access verification returned an invalid response.");
-      }
-      return data;
-    },
+    queryFn: () => verifyOrganizerConfirmationRead(resolvedEditionId),
     enabled: editionsQuery.isSuccess && !editionsQuery.error && Boolean(resolvedEditionId),
     // Do not reuse a previously-authorized actor/edition scope on a later visit.
     staleTime: 0,
