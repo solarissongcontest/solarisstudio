@@ -69,15 +69,15 @@
   [data-solaris-v3] [data-v3-shell-experience="web"] .v3-screen {
     padding-bottom: max(2rem, env(safe-area-inset-bottom));
   }
+}
 
-  /* V3-wrapped legacy web pages suppress duplicate AppShell chrome, but do
-   * not mount the installed dock. Do not leave its 106px scroll-end reserve
-   * on a normal website. The app-mode geometry owner remains untouched. */
-  html:not([data-solaris-app]) [data-solaris-v3]
-    [data-v3-shell-experience="web"] [data-v3-legacy-route-adapter]
-    > .v3-legacy-route-bottom-clearance {
-    height: max(20px, env(safe-area-inset-bottom));
-  }
+/* A normal website never has an installed dock, including a wide laptop
+ * window compressed vertically or a landscape tablet browser. The app-mode
+ * geometry and keyboard safeguards remain owned by their existing rules. */
+html:not([data-solaris-app]) [data-solaris-v3]
+  [data-v3-shell-experience="web"] [data-v3-legacy-route-adapter]
+  > .v3-legacy-route-bottom-clearance {
+  height: max(20px, env(safe-area-inset-bottom));
 }
 @media (min-width: 1024px) {
   [data-solaris-v3] .v3-mobile-web-primary-nav {
