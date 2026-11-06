@@ -66,6 +66,20 @@ describe("World TG19 RLS rehearsal never tests hosted Supabase", () => {
     expect(result.stdout).not.toContain("MOCK_PSQL_CALLED");
   });
 
+  it("rejects localhost-prefixed remote API authority spoofing", () => {
+    const result = runWithFakeLocalCli("http://127.0.0.1:54321@evil.example", localDb);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("Refusing hosted/non-loopback API");
+    expect(result.stdout).not.toContain("MOCK_PSQL_CALLED");
+  });
+
+  it("rejects localhost-prefixed remote DB authority spoofing", () => {
+    const result = runWithFakeLocalCli(localApi, "postgresql://postgres:postgres@127.0.0.1:54322@evil.example/postgres");
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("Refusing hosted/non-loopback database");
+    expect(result.stdout).not.toContain("MOCK_PSQL_CALLED");
+  });
+
   it("treats shell-looking status values as data rather than evaluating them", () => {
     const result = runWithFakeLocalCli('http://127.0.0.1:54321"; touch /tmp/world-recognition-unsafe"', localDb);
     expect(result.status).not.toBe(0);
