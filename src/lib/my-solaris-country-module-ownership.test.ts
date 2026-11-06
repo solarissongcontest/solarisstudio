@@ -43,7 +43,7 @@ describe("native MySolaris country ownership", () => {
     expect(legacyPage).toContain("NAV_TARGETS.mySolarisPageBuilder, search, replace: true");
     expect(legacyAppearance).toContain("NAV_TARGETS.mySolarisTheme, search, replace: true");
     for (const route of [legacyCountry, legacyPage, legacyAppearance]) {
-      expect(route).toContain("component: () => null");
+      expect(route).not.toContain("component: () => null");
       expect(route).not.toContain("useMyCountryAccount");
     }
   });

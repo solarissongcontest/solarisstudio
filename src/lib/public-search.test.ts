@@ -22,6 +22,17 @@ describe("public search", () => {
     expect(matchesPublicSearch("ssc vendia", "Oland", "SSC 21")).toBe(false);
   });
 
+  it("finds country and artist names with or without diacritics", () => {
+    expect(matchesPublicSearch("ornadal", "Ørnådal")).toBe(true);
+    expect(matchesPublicSearch("Ørnådal", "Ornadal")).toBe(true);
+    expect(matchesPublicSearch("alanti", "Ålanti")).toBe(true);
+    expect(matchesPublicSearch("aethelgardia", "Æthelgardia")).toBe(true);
+    expect(matchesPublicSearch("thoren", "Þoren")).toBe(true);
+    expect(matchesPublicSearch("muller", "Müller")).toBe(true);
+    expect(matchesPublicSearch("ornadal ssc", "Ørnådal", "SSC 22")).toBe(true);
+    expect(matchesPublicSearch("vendia ssc", "Ørnådal", "SSC 22")).toBe(false);
+  });
+
   it("deduplicates identical destinations", () => {
     const value = {
       id: "a",
