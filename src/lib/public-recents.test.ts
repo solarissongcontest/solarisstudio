@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   PUBLIC_RECENTS_KEY,
+  clearPublicRecents,
   readPublicRecents,
   rememberPublicRecent,
   shouldRememberPublicPath,
@@ -29,6 +30,18 @@ describe("public recents", () => {
       "/integrity/report/category",
       "/show-mode",
       "/broadcast/grand-final",
+      "/me",
+      "/me/receipts",
+      "/my-solaris/history",
+      "/my-solaris/notifications",
+      "/settings",
+      "/country-hub/country",
+      "/integrity/cases",
+      "/fantasy/my-roster",
+      "/predictions/my-draft",
+      "/countries/oland/edit",
+      "/not-a-registered-public-route",
+      "/administer/countries",
     ]) {
       expect(shouldRememberPublicPath(path), path).toBe(false);
     }
@@ -43,8 +56,20 @@ describe("public recents", () => {
     for (const path of [
       "https://example.com/path",
       "//example.com/path",
-      "/\\example.com/path",
-      "/countries/oland\n/unsafe",
+      "/\\\\example.com/path",
+      "/countries/oland\\n/unsafe",
+      "/countries/../auth",
+      "/countries/oland?token=private",
+      "/countries/oland#private",
+      "/countries/%2fauth",
+      "/countries/%E0%A4%A",
+      "/countries/%2e%2e",
+      "/countries/%252e%252e",
+      "/countries/a%252fb",
+      "/countries/a%253fb",
+      "/countries/a%2523b",
+      `/countries/${"a".repeat(2048)}`,
+      "/countries/oland//edit",
     ]) {
       expect(shouldRememberPublicPath(path), path).toBe(false);
     }
@@ -53,6 +78,14 @@ describe("public recents", () => {
   it("keeps ordinary public destinations, including non-critical voting results", () => {
     expect(shouldRememberPublicPath("/countries/oland")).toBe(true);
     expect(shouldRememberPublicPath("/televoting/results")).toBe(true);
+    expect(shouldRememberPublicPath("/editions/ssc-22")).toBe(true);
+    expect(shouldRememberPublicPath("/shows/public-show-id")).toBe(true);
+    expect(shouldRememberPublicPath("/rules/chapters/roleplay-worldbuilding")).toBe(true);
+    expect(shouldRememberPublicPath("/rules/22.1")).toBe(true);
+    expect(shouldRememberPublicPath("/rules/invade-country")).toBe(true);
+    expect(shouldRememberPublicPath("/rules/admin")).toBe(false);
+    expect(shouldRememberPublicPath("/rules/manage")).toBe(false);
+    expect(shouldRememberPublicPath("/rules/edit/private")).toBe(false);
   });
 
   it("filters old hub, utility, critical and malformed entries already stored on the device", () => {
@@ -66,6 +99,9 @@ describe("public recents", () => {
         { path: "//example.com/escape", label: "External", visitedAt: 6 },
         { path: "/\\example.com/escape", label: "Backslash", visitedAt: 5 },
         { path: "/guide", label: "How to use Solaris Studio", visitedAt: 4 },
+        { path: "/me/receipts", label: "Private receipt", visitedAt: 4 },
+        { path: "/my-solaris/history", label: "Previous delegation", visitedAt: 4 },
+        { path: "/not-a-registered-public-route", label: "Unknown", visitedAt: 4 },
         { path: "/countries/oland", label: "Oland", visitedAt: 3 },
       ]),
     );
@@ -75,15 +111,60 @@ describe("public recents", () => {
     ]);
   });
 
+  it("fails closed without a browser window and when storage is blocked", () => {
+    // Vitest uses Node for this repository; an SSR render has no window.
+    expect(readPublicRecents()).toEqual([]);
+    expect(() => rememberPublicRecent("/countries/oland", "Oland")).not.toThrow();
+    expect(() => clearPublicRecents()).not.toThrow();
+
+    const blockedStorage = {
+      getItem: () => {
+        throw new Error("Storage denied");
+      },
+      setItem: () => {
+        throw new Error("Storage denied");
+      },
+    };
+    expect(readPublicRecents(blockedStorage)).toEqual([]);
+    expect(() => rememberPublicRecent("/countries/oland", "Oland", blockedStorage)).not.toThrow();
+    expect(() => clearPublicRecents(blockedStorage)).not.toThrow();
+  });
+
+  it("does not add private routes to already stored public history", () => {
+    const storage = memoryStorage();
+    rememberPublicRecent("/countries/oland", "Oland", storage);
+    rememberPublicRecent("/my-solaris/history", "Private history", storage);
+    rememberPublicRecent("/integrity/cases", "Confidential case", storage);
+    expect(readPublicRecents(storage).map((item) => item.label)).toEqual(["Oland"]);
+  });
+
+  it("rejects invalid titles from both legacy storage and new writes", () => {
+    const storage = memoryStorage();
+    // Use an actual ASCII control, not the two printable characters backslash and n.
+    const injectedLineBreak = `Private${String.fromCharCode(10)}secret`;
+    storage.setItem(PUBLIC_RECENTS_KEY, JSON.stringify([
+      { path: "/countries/oland", label: "Oland", visitedAt: 10 },
+      { path: "/countries/vendia", label: "", visitedAt: 9 },
+      { path: "/countries/fennek", label: injectedLineBreak, visitedAt: 8 },
+      { path: "/countries/asteria", label: "x".repeat(251), visitedAt: 7 },
+      { path: "/countries/jaudia", label: "Jaudia", visitedAt: null },
+    ]));
+    expect(readPublicRecents(storage).map((item) => item.label)).toEqual(["Oland"]);
+    rememberPublicRecent("/countries/vendia", "", storage);
+    rememberPublicRecent("/countries/vendia", injectedLineBreak, storage);
+    rememberPublicRecent("/countries/vendia", "x".repeat(251), storage);
+    expect(readPublicRecents(storage).map((item) => item.path)).toEqual(["/countries/oland"]);
+  });
+
   it("keeps the newest eight unique destinations", () => {
     const storage = memoryStorage();
     for (let index = 0; index < 10; index += 1) {
-      rememberPublicRecent(`/path-${index}`, `Path ${index}`, storage);
+      rememberPublicRecent(`/countries/country-${index}`, `Path ${index}`, storage);
     }
-    rememberPublicRecent("/path-5", "Path five again", storage);
+    rememberPublicRecent("/countries/country-5", "Path five again", storage);
     const recents = readPublicRecents(storage);
     expect(recents).toHaveLength(8);
-    expect(recents[0]?.path).toBe("/path-5");
+    expect(recents[0]?.path).toBe("/countries/country-5");
     expect(storage.getItem(PUBLIC_RECENTS_KEY)).toBeTruthy();
   });
 });

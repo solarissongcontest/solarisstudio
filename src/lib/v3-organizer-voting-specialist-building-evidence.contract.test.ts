@@ -64,12 +64,10 @@ describe("V3 Organizer read-only voting specialist building evidence", () => {
     expect(auditLog).not.toContain("useMutation(");
   });
 
-  it("keeps historical backtesting capability-gated and read-only", () => {
+  it("keeps historical backtesting an authenticated read-only simulation", () => {
     expect(backtest).toContain("No official result is changed");
     expect(backtest).toContain("read-only simulation");
-    expect(backtestServer).toContain(
-      'requireSolarisCapabilityServer("televote.ballots.read")',
-    );
+    expect(backtestServer).toContain('requireSolarisCapabilityServer("televote.ballots.read", null)');
     expect(backtestServer).not.toContain("requireMergedTelevotingAdminServer");
     expect(backtestServer).toContain('.from("rounds")');
     expect(backtestServer).not.toContain(".insert(");

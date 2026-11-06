@@ -1,22 +1,22 @@
 import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import { backtestRound } from "@/integrations/televoting/backtest-math";
-import { televotingAdmin } from "@/integrations/televoting/client.server";
-import {
-  loadMergedConversionParticipants,
-  loadMergedConversionRound,
-  loadMergedRobustBallots,
-} from "@/integrations/televoting/conversion.server";
 import { DEFAULT_ROBUST_TELEVOTE_CONFIG } from "@/integrations/televoting/robust-televote-math";
 
 export async function runHistoricalTelevoteBacktestServer(input: {
   roundId?: string | null;
   limit?: number;
 }) {
-  // This workspace can inspect stored ballots across editions. Require the
-  // canonical global read capability before any service-role backed Televote
-  // query is reachable; broad Organizer membership alone is not sufficient.
-  await requireSolarisCapabilityServer("televote.ballots.read");
-
+  // Cross-edition historical simulation consumes protected raw Televote
+  // ballots. Prove the global ballot-read right BEFORE loading privileged
+  // data clients, even though the simulation never updates official state.
+  await requireSolarisCapabilityServer("televote.ballots.read", null);
+  const [
+    { televotingAdmin },
+    { loadMergedConversionParticipants, loadMergedConversionRound, loadMergedRobustBallots },
+  ] = await Promise.all([
+    import("@/integrations/televoting/client.server"),
+    import("@/integrations/televoting/conversion.server"),
+  ]);
   let query = televotingAdmin
     .from("rounds")
     .select("id,name,edition_id,status,created_at")

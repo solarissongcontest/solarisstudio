@@ -15,5 +15,4 @@ export const Route = createFileRoute("/_authenticated/country-hub/hod")({
   beforeLoad: ({ search }) => {
     throw redirect({ to: NAV_TARGETS.mySolarisTasks, search, replace: true });
   },
-  component: () => null,
 });
