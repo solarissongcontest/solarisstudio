@@ -1,5 +1,14 @@
 import { EntryVersionEvidence } from "@/components/ConfirmationReviewStatus";
 import { OrganizerEntryVersionHistory } from "@/components/admin/OrganizerEntryVersionHistory";
+import { OrganizerEntryMediaPreview } from "@/components/admin/OrganizerEntryMediaPreview";
+import { isOrganizerEntryReviewResultForDisplayedVersion } from "@/lib/v3-organizer-entry-operation-version";
+import {
+  prepareOrganizerEntryReviewDecision,
+  isOrganizerEntryReviewDecisionCurrent,
+  type OrganizerEntryDecisionIntent,
+  type OrganizerEntryDecisionStatus,
+} from "@/lib/v3-organizer-entry-review-decision";
+import { isOrganizerEntryReadyForWinner, summarizeOrganizerEntryDetail } from "@/lib/v3-organizer-entry-detail-summary";
 import {
   buildOrganizerEntryCorrectionReason,
   ORGANIZER_ENTRY_CORRECTION_CATEGORIES,
@@ -175,10 +184,10 @@ function detailState(data: ResponseDetail): DetailState {
 
   if (data.selection_method === "internal") {
     const entry = data.internal_entry;
-    if (!entry?.song_title || data.entry_unknown) return "neutral";
+    if (!entry || data.entry_unknown) return "neutral";
     const status = reviewLabel(entry);
     if (status === "declined" || status === "removed") return "issue";
-    if (status === "pending") return "review";
+    if (!entry.song_title?.trim() || status === "pending") return "review";
     if (status === "accepted") return "ready";
     return "neutral";
   }
@@ -190,7 +199,8 @@ function detailState(data: ResponseDetail): DetailState {
     if (!entries.length || data.nf_entries_unknown) return "neutral";
     const reviewStates = entries.map(reviewLabel);
     if (reviewStates.includes("declined")) return "issue";
-    if (reviewStates.some((status) => status !== "accepted")) return "review";
+    if (reviewStates.some((status) => status !== "accepted") ||
+        !entries.every(isOrganizerEntryReadyForWinner)) return "review";
     // A missing, removed or foreign winner does not make an accepted NF ready.
     const winnerId = data.national_final?.winning_entry_id;
     return winnerId && entries.some((entry) => entry.id === winnerId) ? "ready" : "neutral";
@@ -219,6 +229,9 @@ function entryCardClass(entry: ReviewEntry, winner?: boolean) {
   }
   if (status === "declined") {
     return "border-amber-300/35 bg-amber-300/[0.035] shadow-[0_0_16px_rgba(252,211,77,0.10)]";
+  }
+  if (status === "accepted" && !entry.song_title?.trim()) {
+    return "border-amber-300/35 bg-amber-300/[0.035]";
   }
   if (status === "accepted") {
     return winner
@@ -306,6 +319,7 @@ function EntryReviewCard({
   editionId,
   submissionId,
   winner,
+  storedWinner,
   onChanged,
   onWinner,
   onClearWinner,
@@ -316,12 +330,14 @@ function EntryReviewCard({
   editionId?: string | null;
   submissionId: string;
   winner?: boolean;
+  storedWinner?: boolean;
   onChanged: () => Promise<void>;
   isScopeCurrent: () => boolean;
   onWinner?: (reason: string) => Promise<void>;
   onClearWinner?: (reason: string) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
+  const [pendingReviewDecision, setPendingReviewDecision] = useState<OrganizerEntryDecisionIntent | null>(null);
   const [reason, setReason] = useState(entry.review_reason ?? "");
   const [correctionNotes, setCorrectionNotes] = useState<
     Partial<Record<OrganizerEntryCorrectionCategory, string>>
@@ -331,6 +347,8 @@ function EntryReviewCard({
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<SystemReceipt | null>(null);
   const mutationInFlightRef = useRef(false);
+  const displayedEntryVersionRef = useRef<string | null>(entry.current_version_id ?? null);
+  displayedEntryVersionRef.current = entry.current_version_id ?? null;
   const unresolvedReviewOperationRef = useRef<{
     operationId: string;
     entryId: string;
@@ -338,6 +356,7 @@ function EntryReviewCard({
     editionId: string | null;
     targetType: "internal" | "national_final";
     nextStatus: "pending" | "accepted" | "declined" | "removed";
+    expectedEntryVersion: string | null;
   } | null>(null);
   const reconcileOperation = useServerFn(reconcileSystemOperation);
   const status = reviewLabel(entry);
@@ -348,13 +367,52 @@ function EntryReviewCard({
     .map((item) => ({ category: item.id, explanation: correctionNotes[item.id] ?? "" }));
   const correctionReason = buildOrganizerEntryCorrectionReason(selectedCorrectionIssues, correctionMessage);
 
-  // A new immutable submission is a fresh review. Never carry earlier issue
-  // selections into a later Entry version, even when the card stays mounted.
+  // New immutable content requires a fresh review. Keep any unresolved
+  // operation ID for same-operation reconciliation, but never carry visible
+  // reasons, issue drafts or a previous version's receipt into this version.
   useEffect(() => {
+    setReason(entry.review_reason ?? "");
     setCorrectionNotes({});
     setCorrectionMessage("");
+    setReceipt(null);
     setError(null);
-  }, [entry.current_version_id]);
+    setPendingReviewDecision(null);
+    setOpen(false);
+  }, [editionId, submissionId, targetType, entry.id, entry.current_version_id]);
+
+  function requestReviewDecision(status: OrganizerEntryDecisionStatus) {
+    if (busy || mutationInFlightRef.current || !isScopeCurrent()) return;
+    const reviewedReason = status === "declined" ? correctionReason ?? "" : reason.trim();
+    try {
+      setPendingReviewDecision(prepareOrganizerEntryReviewDecision({
+        entryId: entry.id,
+        submissionId,
+        editionId: editionId ?? "",
+        currentVersionId: entry.current_version_id ?? null,
+      }, status, reviewedReason));
+      setError(null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Review this Entry decision again.");
+    }
+  }
+
+  async function confirmReviewDecision() {
+    const pending = pendingReviewDecision;
+    if (!pending || busy || !open) return;
+    const currentReason = pending.status === "declined" ? correctionReason ?? "" : reason.trim();
+    if (!isScopeCurrent() || !isOrganizerEntryReviewDecisionCurrent(pending, {
+      entryId: entry.id,
+      submissionId,
+      editionId: editionId ?? "",
+      currentVersionId: entry.current_version_id ?? null,
+    }, currentReason)) {
+      setPendingReviewDecision(null);
+      setError("The Entry version, edition or reviewed reason changed. Review the current decision again.");
+      return;
+    }
+    setPendingReviewDecision(null);
+    await review(pending.status);
+  }
 
   function toggleCorrectionCategory(category: OrganizerEntryCorrectionCategory) {
     setCorrectionNotes((current) => {
@@ -370,6 +428,7 @@ function EntryReviewCard({
 
   async function recoverReview(operationId: string) {
     if (!isScopeCurrent()) return false;
+    const pending = unresolvedReviewOperationRef.current;
     const reconciliation = await reconcileOperation({ data: { operationId } });
     if (!isScopeCurrent()) return false;
     if (!reconciliation.ok || reconciliation.receipt.operationId !== operationId) return false;
@@ -386,6 +445,16 @@ function EntryReviewCard({
       );
     }
     unresolvedReviewOperationRef.current = null;
+    if (!isOrganizerEntryReviewResultForDisplayedVersion(
+      pending?.expectedEntryVersion, displayedEntryVersionRef.current,
+    )) {
+      setReceipt(null);
+      setError("The settled review is not bound to the displayed immutable Entry version. Reload to verify the canonical review state.");
+      toast.warning("This review receipt does not prove the displayed Entry version is reviewed. Reload and verify current status.");
+      setOpen(false);
+      await onChanged();
+      return true;
+    }
     setReceipt(reconciliation.receipt);
     toast.success("Entry review confirmed after reconnecting");
     setOpen(false);
@@ -485,6 +554,7 @@ function EntryReviewCard({
         editionId: editionId ?? null,
         targetType,
         nextStatus,
+        expectedEntryVersion: entry.current_version_id ?? null,
       };
       let mutation;
       try {
@@ -522,6 +592,16 @@ function EntryReviewCard({
         toast.warning("Entry review completed for a previous edition. Verify its canonical receipt before retrying.");
         return;
       }
+      if (!isOrganizerEntryReviewResultForDisplayedVersion(
+        entry.current_version_id, displayedEntryVersionRef.current,
+      )) {
+        setReceipt(null);
+        setError("The settled review is not bound to the displayed immutable Entry version. Reload to verify the canonical review state.");
+        toast.warning("This review receipt does not prove the displayed Entry version is reviewed. Reload and verify current status.");
+        setOpen(false);
+        await onChanged();
+        return;
+      }
       setReceipt(canonicalReceipt);
       toast.success(
         nextStatus === "accepted"
@@ -547,6 +627,10 @@ function EntryReviewCard({
 
   async function chooseWinner() {
     if (mutationInFlightRef.current || !onWinner || !isScopeCurrent()) return;
+    if (!isOrganizerEntryReadyForWinner(entry)) {
+      setError("A complete song title and current-version accepted review are required before selecting the National Final winner.");
+      return;
+    }
     if (!reason.trim()) {
       setError("Add an organiser reason before selecting the winner.");
       return;
@@ -591,7 +675,8 @@ function EntryReviewCard({
 
   return (
     <>
-      <AdminCard className={`!p-4 ${entryCardClass(entry, winner)}`}>
+      <div id={`entry-${entry.id}`} className="scroll-mt-24">
+        <AdminCard className={`!p-4 ${entryCardClass(entry, winner)}`}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
@@ -620,7 +705,17 @@ function EntryReviewCard({
           </div>
           <div className="flex flex-wrap justify-end gap-2">
             <AdminStatus tone={reviewTone(status)}>{status}</AdminStatus>
+            {status === "accepted" && !entry.song_title?.trim() ? (
+              <AdminStatus tone="attention">Missing song title · inspect</AdminStatus>
+            ) : null}
             {winner ? <AdminStatus tone="ready">Winner</AdminStatus> : null}
+            {storedWinner && !winner ? (
+              <AdminStatus tone="attention">
+                {entry.removed || entry.review_status === "removed"
+                  ? "Stored winner is inactive"
+                  : "Stored winner needs current-version review"}
+              </AdminStatus>
+            ) : null}
           </div>
         </div>
 
@@ -665,11 +760,15 @@ function EntryReviewCard({
         >
           {status === "pending" ? "Review entry" : "Review actions"}
         </button>
-      </AdminCard>
+        </AdminCard>
+      </div>
 
       <AdminSheet
         open={open}
-        onClose={busy ? () => undefined : () => setOpen(false)}
+        onClose={busy ? () => undefined : () => {
+          setPendingReviewDecision(null);
+          setOpen(false);
+        }}
         title={`${entry.artist ?? "Unknown artist"} — ${entry.song_title ?? "Unknown song"}`}
         description="Accept, decline, remove or reset the song. Winner changes and every negative/reset action require an organiser reason."
       >
@@ -683,6 +782,14 @@ function EntryReviewCard({
           <EntryVersionEvidence entry={entry} />
           <EntrySourceInspection entry={entry} />
           {open && editionId ? (
+            <OrganizerEntryMediaPreview
+              key={`${editionId}:${submissionId}:${targetType}:${entry.id}:${entry.current_version_id ?? "unbound"}:${entry.song_url ?? "no-song"}:${entry.replacement_video_url ?? "no-video"}`}
+              songUrl={entry.song_url}
+              replacementVideoUrl={entry.replacement_video_url}
+              replacementVideoRequired={entry.replacement_video_required}
+            />
+          ) : null}
+          {open && editionId ? (
             <OrganizerEntryVersionHistory
               key={`${editionId}:${submissionId}:${targetType}:${entry.id}:${entry.current_version_id ?? "unbound"}`}
               editionId={editionId}
@@ -690,6 +797,7 @@ function EntryReviewCard({
               entryId={entry.id}
               targetType={targetType}
               currentVersionId={entry.current_version_id ?? null}
+              isScopeCurrent={isScopeCurrent}
             />
           ) : null}
 
@@ -780,24 +888,29 @@ function EntryReviewCard({
             <button
               type="button"
               disabled={busy}
-              onClick={() => void review("accepted")}
+              onClick={() => requestReviewDecision("accepted")}
               className="admin-action-primary w-full"
             >
               <CheckCircle2 className="size-4" /> {busy ? "Working…" : "Accept entry"}
             </button>
 
-            {onWinner && !winner ? (
+            {onWinner && !storedWinner ? (
               <button
                 type="button"
-                disabled={busy || !reason.trim() || entry.removed}
+                disabled={busy || !reason.trim() || !isOrganizerEntryReadyForWinner(entry)}
                 onClick={() => void chooseWinner()}
                 className="admin-action-secondary w-full"
               >
                 <Trophy className="size-4" /> Select as NF winner
               </button>
             ) : null}
+            {onWinner && !storedWinner && !isOrganizerEntryReadyForWinner(entry) ? (
+              <p className="text-xs text-amber-100">
+                A complete song title and current-version accepted review are required before selecting a winner.
+              </p>
+            ) : null}
 
-            {winner && onClearWinner ? (
+            {storedWinner && onClearWinner ? (
               <button
                 type="button"
                 disabled={busy || !reason.trim()}
@@ -811,7 +924,7 @@ function EntryReviewCard({
             <button
               type="button"
               disabled={busy || !correctionReason}
-              onClick={() => void review("declined")}
+              onClick={() => requestReviewDecision("declined")}
               className="admin-action-secondary w-full"
             >
               <XCircle className="size-4" /> Request changes
@@ -821,7 +934,7 @@ function EntryReviewCard({
               <button
                 type="button"
                 disabled={busy || !reason.trim()}
-                onClick={() => void review("pending")}
+                onClick={() => requestReviewDecision("pending")}
                 className="admin-action-secondary w-full"
               >
                 <RotateCcw className="size-4" /> Reset to pending
@@ -832,7 +945,7 @@ function EntryReviewCard({
               <button
                 type="button"
                 disabled={busy || !reason.trim()}
-                onClick={() => void review("removed")}
+                onClick={() => requestReviewDecision("removed")}
                 className="admin-action-danger w-full"
               >
                 Remove from National Final
@@ -841,6 +954,68 @@ function EntryReviewCard({
           </div>
         </div>
       </AdminSheet>
+
+      <AdminConfirmSheet
+        open={Boolean(pendingReviewDecision) && open && isScopeCurrent()}
+        onClose={busy ? () => undefined : () => setPendingReviewDecision(null)}
+        onConfirm={() => void confirmReviewDecision()}
+        title={pendingReviewDecision?.status === "accepted"
+          ? "Accept this exact Entry revision?"
+          : pendingReviewDecision?.status === "declined"
+            ? "Request these Entry changes?"
+            : pendingReviewDecision?.status === "removed"
+              ? "Remove this National Final candidate?"
+              : "Reset this Entry review to pending?"}
+        description={pendingReviewDecision ? (
+          <div className="space-y-3 text-sm">
+            <p className="font-semibold">
+              Review current Entry version {entry.content_revision ?? "unavailable"}
+            </p>
+            <p>
+              {entry.artist ?? "Unknown artist"} · {entry.song_title ?? "Unknown song"}
+            </p>
+            <p className="break-all text-xs text-muted-foreground">
+              Entry: {pendingReviewDecision.entryId} · Version: {pendingReviewDecision.currentVersionId ?? "unbound"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              The canonical server checks the latest immutable version, permissions and
+              operation preflight before applying this decision. The current review is not
+              accepted until a matching authoritative receipt confirms it.
+            </p>
+            {sourceIssues && pendingReviewDecision.status === "accepted" ? (
+              <p className="text-xs text-amber-100">
+                {sourceIssues} metadata items require organizer inspection. This display-only
+                checklist is not an authoritative eligibility gate.
+              </p>
+            ) : null}
+            {pendingReviewDecision.reason ? (
+              <div className="max-h-48 overflow-y-auto rounded-lg border border-white/[0.09] p-3">
+                <p className="text-xs font-semibold">Exact reviewed reason</p>
+                <p className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">
+                  {pendingReviewDecision.reason}
+                </p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        confirmLabel={pendingReviewDecision?.status === "accepted"
+          ? "Confirm accepted Entry review"
+          : pendingReviewDecision?.status === "declined"
+            ? "Send canonical changes request"
+            : pendingReviewDecision?.status === "removed"
+              ? "Remove reviewed Entry"
+              : "Confirm review reset"}
+        confirmationText={pendingReviewDecision?.status === "removed"
+          ? (entry.song_title?.trim() || entry.id)
+          : undefined}
+        confirmationHint={pendingReviewDecision?.status === "removed"
+          ? (entry.song_title?.trim()
+            ? "Type the displayed song title exactly to confirm removal"
+            : "Type the Entry ID exactly to confirm removal")
+          : undefined}
+        danger={pendingReviewDecision?.status === "removed"}
+        busy={busy}
+      />
     </>
   );
 }
@@ -852,6 +1027,16 @@ function ResponseDetailPage() {
   const syncToSolaris = useServerFn(syncConfirmationSnapshotToSolaris);
   const reconcileWinnerOperation = useServerFn(reconcileSystemOperation);
   const [data, setData] = useState<ResponseDetail | null>(null);
+
+  // The candidate-level Entry Review worklist links directly to a specific
+  // Entry. Wait until the authorized response has loaded and its card exists
+  // before scrolling; this does not open or authorize a review operation.
+  useEffect(() => {
+    if (!data || data.id !== id || typeof window === "undefined") return;
+    const match = /^#entry-([0-9a-f-]{36})$/i.exec(window.location.hash);
+    if (!match) return;
+    document.getElementById(`entry-${match[1]}`)?.scrollIntoView({ block: "start" });
+  }, [data?.id, id]);
   const [technical, setTechnical] = useState<TechnicalData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1364,11 +1549,14 @@ function ResponseDetailPage() {
   const activeNfEntries = (data.national_final?.entries ?? []).filter(
     (entry) => !entry.removed && entry.review_status !== "removed",
   );
-  const entryCount = data.internal_entry ? 1 : activeNfEntries.length;
-  const acceptedCount = [data.internal_entry, ...activeNfEntries].filter(
-    (entry): entry is ReviewEntry =>
-      Boolean(entry && !entry.removed && entry.review_status === "accepted"),
-  ).length;
+  const entrySummary = summarizeOrganizerEntryDetail({
+    participating: data.participating,
+    selectionMethod: data.selection_method,
+    internalEntry: data.internal_entry,
+    nationalFinal: data.national_final,
+  });
+  const entryCount = entrySummary.entryCount;
+  const acceptedCount = entrySummary.currentAcceptedCount;
   const state = detailState(data);
   const copyArtists = activeNfEntries.map((entry) => entry.artist ?? "Unknown artist").join("\n");
   const copySongs = activeNfEntries.map((entry) => entry.song_title ?? "Unknown song").join("\n");
@@ -1469,7 +1657,7 @@ function ResponseDetailPage() {
               <p className="mt-1 text-2xl font-bold">{entryCount}</p>
             </div>
             <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
-              <p className="text-[11px] font-semibold text-muted-foreground">Accepted</p>
+              <p className="text-[11px] font-semibold text-muted-foreground">Accepted current versions</p>
               <p className="mt-1 text-2xl font-bold">{acceptedCount}</p>
             </div>
             <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
@@ -1485,7 +1673,17 @@ function ResponseDetailPage() {
           </div>
         </AdminCard>
 
-        {data.internal_entry ? (
+        {!data.participating || (data.selection_method !== "internal" && data.selection_method !== "national_final") ? (
+          <AdminCard>
+            <p className="text-sm font-semibold">No active Entry review target</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              The current Confirmation does not identify a participating internal or National Final selection.
+              Previous decisions remain available in review history, but there are no current Entry review actions here.
+            </p>
+          </AdminCard>
+        ) : null}
+
+        {data.participating && data.selection_method === "internal" && data.internal_entry ? (
           <section>
             <div className="mb-2 flex items-end justify-between gap-3 px-1">
               <div>
@@ -1507,21 +1705,18 @@ function ResponseDetailPage() {
           </section>
         ) : null}
 
-        {data.national_final ? (
+        {data.participating && data.selection_method === "national_final" && data.national_final ? (
           <AdminCard>
             <AdminCardHeader
               eyebrow="Entry review"
               title={data.national_final.nf_name || "National Final"}
-              description={`${activeNfEntries.length} active ${activeNfEntries.length === 1 ? "entry" : "entries"}${data.national_final.winning_entry_id ? " · winner selected" : " · winner not selected"}`}
+              description={`${activeNfEntries.length} active ${activeNfEntries.length === 1 ? "entry" : "entries"} · ${entrySummary.nationalFinal?.description ?? "Review state unavailable"}`}
               action={
-                data.national_final.winning_entry_id ? (
-                  <AdminStatus tone="ready">Winner set</AdminStatus>
-                ) : activeNfEntries.length &&
-                  activeNfEntries.every((entry) => entry.review_status === "accepted") ? (
-                  <AdminStatus tone="neutral">Waiting for winner</AdminStatus>
-                ) : (
-                  <AdminStatus tone="attention">Review in progress</AdminStatus>
-                )
+                entrySummary.nationalFinal ? (
+                  <AdminStatus tone={entrySummary.nationalFinal.tone}>
+                    {entrySummary.nationalFinal?.label}
+                  </AdminStatus>
+                ) : null
               }
             />
 
@@ -1562,7 +1757,9 @@ function ResponseDetailPage() {
                   targetType="national_final"
                   editionId={data.edition?.id}
                   submissionId={data.id}
-                  winner={data.national_final?.winning_entry_id === entry.id}
+                  storedWinner={data.national_final?.winning_entry_id === entry.id}
+                  winner={data.national_final?.winning_entry_id === entry.id &&
+                    isOrganizerEntryReadyForWinner(entry)}
                   onChanged={load}
                   isScopeCurrent={isDisplayedResponseCurrent}
                   onWinner={(reason) => setWinner(entry, reason)}
@@ -1777,6 +1974,10 @@ function ResponseDetailPage() {
         onClose={() => setSettingsOpen(false)}
         onApplied={load}
         submissionId={data.id}
+        editionId={organizerEditionId}
+        roundId={data.round?.id ?? ""}
+        responseUpdatedAt={data.updated_at}
+        isScopeCurrent={isDisplayedResponseCurrent}
         country={data.country}
         editionLabel={
           data.edition

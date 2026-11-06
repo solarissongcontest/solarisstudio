@@ -1,5 +1,5 @@
 import { LockKeyhole, ShieldAlert } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
@@ -7,6 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { AdminConfirmSheet, AdminSheet, AdminStatus } from "./AdminUI";
+import {
+  assertOrganizerConfirmationAccessScope,
+  type OrganizerConfirmationAccessScope,
+} from "@/lib/v3-organizer-confirmation-access-scope";
 
 type ConfirmationAccessSnapshot = {
   editingAllowed: boolean;
@@ -17,6 +21,7 @@ type ConfirmationAccessSnapshot = {
 type PendingAccessReview = {
   baseline: ConfirmationAccessSnapshot;
   next: ConfirmationAccessSnapshot;
+  scope: OrganizerConfirmationAccessScope;
 };
 
 export function ConfirmationAccessSettingsSheet({
@@ -24,6 +29,10 @@ export function ConfirmationAccessSettingsSheet({
   onClose,
   onApplied,
   submissionId,
+  editionId,
+  roundId,
+  responseUpdatedAt,
+  isScopeCurrent,
   country,
   editionLabel,
   roundName,
@@ -35,6 +44,10 @@ export function ConfirmationAccessSettingsSheet({
   onClose: () => void;
   onApplied: () => Promise<void> | void;
   submissionId: string;
+  editionId: string;
+  roundId: string;
+  responseUpdatedAt: string;
+  isScopeCurrent: () => boolean;
   country: string;
   editionLabel: string;
   roundName: string;
@@ -47,6 +60,7 @@ export function ConfirmationAccessSettingsSheet({
   const [draftNotes, setDraftNotes] = useState(adminNotes ?? "");
   const [pendingReview, setPendingReview] = useState<PendingAccessReview | null>(null);
   const [saving, setSaving] = useState(false);
+  const saveInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!open || pendingReview || saving) return;
@@ -82,6 +96,11 @@ export function ConfirmationAccessSettingsSheet({
     notesChanged;
 
   const openReview = () => {
+    if (saveInFlightRef.current || saving) return;
+    if (!isScopeCurrent() || !editionId || !roundId || !responseUpdatedAt) {
+      toast.error("Confirmation edition or response changed. Reload before reviewing access controls.");
+      return;
+    }
     if (!controlsChanged) {
       toast.message("No response-setting changes to review.");
       return;
@@ -89,26 +108,52 @@ export function ConfirmationAccessSettingsSheet({
     setPendingReview({
       baseline: currentSnapshot,
       next: draftSnapshot,
+      scope: { submissionId, editionId, roundId, updatedAt: responseUpdatedAt },
     });
   };
 
+  const closeSettingsSafely = () => {
+    if (saving || saveInFlightRef.current) return;
+    // A previously reviewed access change must not survive dismissal.
+    setPendingReview(null);
+    onClose();
+  };
+
   const closeReview = () => {
-    if (saving) return;
+    if (saving || saveInFlightRef.current) return;
     setPendingReview(null);
   };
 
   const applyReviewedSettings = async () => {
-    if (!pendingReview || saving) return;
+    if (!pendingReview || saving || saveInFlightRef.current) return;
 
+    // A synchronous lock is essential for this legacy non-receipted RPC:
+    // rapid confirmations must not dispatch concurrent access mutations.
+    saveInFlightRef.current = true;
     setSaving(true);
     try {
+      if (!isScopeCurrent()) {
+        throw new Error("Organizer response context changed. No Confirmation controls were applied.");
+      }
+      assertOrganizerConfirmationAccessScope(pendingReview.scope, {
+        submissionId, editionId, roundId, updatedAt: responseUpdatedAt,
+      });
+      // The legacy id-only detail RPC may return private cross-edition data
+      // before a client-side guard can run. Scope the read at the server.
       const { data: liveData, error: liveError } = await confirmationsSupabase.rpc(
-        "admin_confirmation_response",
-        { _submission_id: submissionId },
+        "admin_confirmation_response_for_edition",
+        {
+          _edition_id: pendingReview.scope.editionId,
+          _submission_id: pendingReview.scope.submissionId,
+        },
       );
       if (liveError) throw liveError;
 
       const live = liveData as unknown as {
+        id?: string;
+        edition?: { id?: string | null } | null;
+        round?: { id?: string | null } | null;
+        updated_at?: string | null;
         editing_allowed?: boolean;
         locked?: boolean;
         admin_notes?: string | null;
@@ -117,6 +162,15 @@ export function ConfirmationAccessSettingsSheet({
         throw new Error("The Confirmation response is no longer available. Nothing was changed.");
       }
 
+      if (!isScopeCurrent()) {
+        throw new Error("Organizer response context changed while checking Confirmation access. Nothing was changed.");
+      }
+      assertOrganizerConfirmationAccessScope(pendingReview.scope, {
+        submissionId: live.id ?? "",
+        editionId: live.edition?.id ?? "",
+        roundId: live.round?.id ?? "",
+        updatedAt: live.updated_at ?? "",
+      });
       const liveNotes = live.admin_notes ?? "";
       if (
         live.editing_allowed !== pendingReview.baseline.editingAllowed ||
@@ -128,6 +182,9 @@ export function ConfirmationAccessSettingsSheet({
         );
       }
 
+      if (!isScopeCurrent()) {
+        throw new Error("Organizer response context changed before Confirmation settings apply. Nothing was changed.");
+      }
       const { error: updateError } = await confirmationsSupabase.rpc(
         "admin_update_confirmation_controls",
         {
@@ -138,6 +195,10 @@ export function ConfirmationAccessSettingsSheet({
         },
       );
       if (updateError) throw updateError;
+      if (!isScopeCurrent()) {
+        toast.warning("Response settings may have changed for a previously displayed edition. Verify its canonical state.");
+        return;
+      }
 
       setPendingReview(null);
       toast.success("Response settings saved");
@@ -146,8 +207,9 @@ export function ConfirmationAccessSettingsSheet({
     } catch (caught) {
       setPendingReview(null);
       toast.error(caught instanceof Error ? caught.message : "Could not save response settings.");
-      await onApplied();
+      if (isScopeCurrent()) await onApplied();
     } finally {
+      saveInFlightRef.current = false;
       setSaving(false);
     }
   };
@@ -167,7 +229,7 @@ export function ConfirmationAccessSettingsSheet({
     <>
       <AdminSheet
         open={open}
-        onClose={saving ? () => undefined : onClose}
+        onClose={closeSettingsSafely}
         title="Response settings"
         description="These controls affect delegation access. Review consequential access changes before applying them."
       >
@@ -230,7 +292,7 @@ export function ConfirmationAccessSettingsSheet({
             <button
               type="button"
               disabled={saving}
-              onClick={onClose}
+              onClick={closeSettingsSafely}
               className="admin-action-secondary"
             >
               Cancel
@@ -287,7 +349,7 @@ export function ConfirmationAccessSettingsSheet({
               Private organiser notes: {reviewedNotesChanged ? "changed" : "unchanged"}. Their contents are intentionally not repeated here.
             </p>
             <p className="text-xs text-muted-foreground">
-              Organizer re-fetches the live Confirmation response immediately before apply and fails closed if editing access, lock state or notes changed. The underlying legacy control RPC still does not provide canonical expected-version/CAS, idempotency or operation-receipt parity.
+              Organizer re-fetches the exact Confirmation submission, edition, round and updated timestamp immediately before apply, rejecting any changed review baseline. The underlying legacy control RPC still does not provide atomic expected-version/CAS, idempotency or operation-receipt parity; a concurrent write after preflight remains a System-owned risk.
             </p>
           </div>
         }

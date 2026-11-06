@@ -1,0 +1,190 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+import { isOrganizerEntryReadyForWinner, summarizeOrganizerEntryDetail } from "./v3-organizer-entry-detail-summary";
+
+const accepted = (id = "entry-1", version = "v2") => ({
+  id, song_title: "Song", review_status: "accepted", current_version_id: version,
+  reviewed_version_id: version,
+});
+const stale = (id = "entry-2") => ({
+  ...accepted(id), reviewed_version_id: "v1",
+});
+
+const summary = (input: {
+  internalEntry?: Parameters<typeof summarizeOrganizerEntryDetail>[0]["internalEntry"];
+  nationalFinal?: Parameters<typeof summarizeOrganizerEntryDetail>[0]["nationalFinal"];
+  selectionMethod?: string | null;
+  participating?: boolean;
+}) => summarizeOrganizerEntryDetail({
+  participating: input.participating ?? true,
+  selectionMethod: input.selectionMethod ?? (input.nationalFinal ? "national_final" : "internal"),
+  internalEntry: input.internalEntry,
+  nationalFinal: input.nationalFinal,
+});
+
+describe("Organizer Entry Review detail summary", () => {
+  it("counts only current-version accepted entries", () => {
+    expect(summary({
+      internalEntry: accepted(),
+      nationalFinal: { entries: [accepted("entry-2"), stale("entry-3")], winning_entry_id: "entry-2" },
+    })).toMatchObject({ entryCount: 2, currentAcceptedCount: 1 });
+  });
+
+  it("never marks a stale-version National Final ready, even with a stored winner", () => {
+    const result = summary({
+      nationalFinal: { entries: [accepted(), stale()], winning_entry_id: "entry-1" },
+    });
+    expect(result.nationalFinal).toMatchObject({
+      label: "Winner selected · review incomplete", tone: "attention",
+    });
+    expect(result.currentAcceptedCount).toBe(1);
+  });
+
+  it("rejects a missing or removed stored winner from ready display", () => {
+    for (const entries of [
+      [accepted()],
+      [accepted(), { ...accepted("winner"), removed: true }],
+    ]) {
+      const result = summary({
+        nationalFinal: { entries, winning_entry_id: "winner" },
+      });
+      expect(result.nationalFinal).toMatchObject({
+        label: "Winner needs review", tone: "attention",
+      });
+    }
+  });
+
+  it("requires a winner and accepted exact versions for a ready National Final", () => {
+    const entries = [accepted(), accepted("entry-2")];
+    expect(summary({
+      nationalFinal: { entries, winning_entry_id: null },
+    }).nationalFinal).toMatchObject({
+      label: "Waiting for winner", tone: "neutral",
+    });
+    expect(summary({
+      nationalFinal: { entries, winning_entry_id: "entry-2" },
+    }).nationalFinal).toMatchObject({
+      label: "Winner set", tone: "ready",
+    });
+  });
+
+  it("ignores entries retained from an inactive selection", () => {
+    expect(summary({
+      internalEntry: accepted(),
+      nationalFinal: { entries: [accepted("nf")], winning_entry_id: "nf" },
+      selectionMethod: "internal",
+    })).toMatchObject({ entryCount: 1, currentAcceptedCount: 1,
+      nationalFinal: { label: "Historical selection", tone: "neutral" } });
+  });
+
+  it("never counts an unselected or withdrawn delegation as ready", () => {
+    expect(summary({ internalEntry: accepted(), participating: false }))
+      .toMatchObject({ entryCount: 0, currentAcceptedCount: 0 });
+    expect(summary({ internalEntry: accepted(), selectionMethod: "unknown" }))
+      .toMatchObject({ entryCount: 0, currentAcceptedCount: 0 });
+  });
+
+  it("does not count removed or unbound legacy decisions as accepted", () => {
+    expect(summary({
+      internalEntry: { ...accepted(), removed: true },
+      nationalFinal: {
+        entries: [
+          { ...accepted("entry-2"), current_version_id: null },
+          { ...accepted("entry-3"), reviewed_version_id: null },
+          { ...accepted("entry-4"), review_status: "removed" },
+        ],
+      },
+    })).toMatchObject({ entryCount: 2, currentAcceptedCount: 0 });
+  });
+
+  it("reports an empty NF as needing attention rather than a chosen winner", () => {
+    expect(summary({
+      nationalFinal: { entries: [], winning_entry_id: "stale-id" },
+    }).nationalFinal).toMatchObject({
+      label: "No active entries", tone: "attention",
+    });
+  });
+
+  it("never makes a blank-title Entry or National Final appear ready", () => {
+    const blank = { ...accepted(), song_title: "  " };
+    expect(isOrganizerEntryReadyForWinner(accepted())).toBe(true);
+    expect(isOrganizerEntryReadyForWinner(blank)).toBe(false);
+    expect(isOrganizerEntryReadyForWinner({ ...accepted(), song_title: null })).toBe(false);
+    expect(isOrganizerEntryReadyForWinner({ ...accepted(), reviewed_version_id: "older" })).toBe(false);
+    expect(summary({ internalEntry: blank }))
+      .toMatchObject({ entryCount: 1, currentAcceptedCount: 0 });
+    const nf = summary({
+      nationalFinal: { entries: [accepted(), { ...blank, id: "entry-2" }], winning_entry_id: "entry-1" },
+    });
+    expect(nf.currentAcceptedCount).toBe(1);
+    expect(nf.nationalFinal).toMatchObject({
+      label: "Winner selected · review incomplete", tone: "attention",
+    });
+    expect(nf.nationalFinal?.description).toMatch(/submitted song title/);
+  });
+
+  it("gates the response detail ready glow on known, complete Entry title", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
+    expect(route).toContain('if (!entry.song_title?.trim() || status === "pending") return "review";');
+    expect(route).toContain("!entries.every(isOrganizerEntryReadyForWinner)");
+  });
+
+  it("does not render actions for inactive or withdrawn Entry selections", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
+    expect(route).toContain('data.participating && data.selection_method === "internal" && data.internal_entry');
+    expect(route).toContain('data.participating && data.selection_method === "national_final" && data.national_final');
+    expect(route).toContain("No active Entry review target");
+    expect(route).toContain("Previous decisions remain available in review history");
+  });
+
+  it("does not badge a removed National Final candidate as an active winner", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
+    expect(route).toContain("Stored winner is inactive");
+    expect(route).toContain("storedWinner={data.national_final?.winning_entry_id === entry.id}");
+    expect(route).toContain("isOrganizerEntryReadyForWinner(entry)");
+    expect(route).toContain("Stored winner needs current-version review");
+    expect(route).toContain('entry.removed || entry.review_status === "removed"');
+    expect(route).toContain("storedWinner && !winner");
+    expect(route).toContain("storedWinner && onClearWinner");
+    expect(route).toContain("onWinner && !storedWinner");
+    expect(route).toContain("entry.review_status === \"removed\"");
+    expect(route).not.toContain("winner={data.national_final?.winning_entry_id === entry.id}");
+  });
+
+  it("only offers National Final winner selection for an accepted current Entry version", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
+    const choose = route.slice(route.indexOf("async function chooseWinner()"),
+      route.indexOf("async function clearWinner()"));
+    expect(choose).toContain('!isOrganizerEntryReadyForWinner(entry)');
+    expect(choose).toContain("A complete song title and current-version accepted review are required");
+    expect(route).toContain('disabled={busy || !reason.trim() || !isOrganizerEntryReadyForWinner(entry)}');
+    expect(route).toContain("A complete song title and current-version accepted review are required before selecting a winner.");
+    expect(route).toContain("storedWinner && onClearWinner");
+  });
+
+  it("marks accepted-but-blank song cards as requiring metadata inspection", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
+    expect(route).toContain('if (status === "accepted" && !entry.song_title?.trim())');
+    expect(route).toContain('Missing song title · inspect');
+    expect(route).toContain('<AdminStatus tone={reviewTone(status)}>{status}</AdminStatus>');
+    expect(route).toContain('return "border-amber-300/35 bg-amber-300/[0.035]";');
+  });
+
+  it("keeps the dashboard summary on the same current-version interpretation", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
+    expect(route).toContain("summarizeOrganizerEntryDetail({");
+    expect(route).toContain("selectionMethod: data.selection_method");
+    expect(route).toContain("const acceptedCount = entrySummary.currentAcceptedCount;");
+    expect(route).toContain("entrySummary.nationalFinal?.label");
+    expect(route).toContain("entrySummary.nationalFinal?.description");
+    expect(route).not.toContain('entry.review_status === "accepted"),');
+    expect(route).not.toContain('activeNfEntries.every((entry) => entry.review_status === "accepted")');
+  });
+});

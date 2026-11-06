@@ -4,7 +4,12 @@
  */
 export function safeOrganizerEntrySourceUrl(source: string | null | undefined): string | null {
   // Check the original bytes before trim can discard leading/trailing controls.
-  if (!source || /[\u0000-\u001f\u007f]/.test(source)) return null;
+  if (!source) return null;
+  // Inspect original characters before URL normalization can discard them.
+  for (let index = 0; index < source.length; index += 1) {
+    const code = source.charCodeAt(index);
+    if (code <= 0x1f || code === 0x7f) return null;
+  }
   const value = source.trim();
   if (!value) return null;
   try {
