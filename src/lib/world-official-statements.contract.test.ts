@@ -150,6 +150,7 @@ describe("TG9 public statements: privacy and historical fidelity", () => {
     expect(sql).toContain("for update;");
     expect(sql).toContain("world_statements_published_public_read");
     expect(sql).toContain("world_statement_versions_published_public_read");
+    expect(sql).toContain("length(btrim(coalesce(correction_reason, ''))) between 5 and 2000");
     expect(sql).toContain("grant select on public.world_statements, public.world_statement_versions to service_role");
     expect(sql).not.toContain("grant all on public.world_statements");
     // Both RLS policies and both public RPC projections must fail closed when rollout is dark.
