@@ -40,7 +40,7 @@ function VotingAdminOverview() {
   const { editionId, editionSlug } = useAdminContext();
   const getOverview = useServerFn(getMergedTelevotingOverview);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, isFetching, refetch } = useQuery({
     queryKey: ["merged-televoting-admin-overview", editionId ?? "none"],
     enabled: Boolean(editionId),
     queryFn: () => getOverview({ data: { editionId: editionId! } }),
@@ -124,6 +124,15 @@ function VotingAdminOverview() {
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
               The selected edition was not changed. Retry this page or check System health if the problem continues.
             </p>
+            <button
+              type="button"
+              className="admin-action-secondary mt-4"
+              onClick={() => void refetch()}
+              disabled={isFetching}
+              aria-busy={isFetching}
+            >
+              {isFetching ? "Retrying…" : "Retry voting status"}
+            </button>
             {error instanceof Error && error.message ? (
               <details className="mt-3 text-[11px] text-muted-foreground">
                 <summary className="cursor-pointer font-semibold text-rose-100/80">Technical details</summary>
@@ -308,6 +317,17 @@ function VotingAdminOverview() {
             icon={PlayCircle}
             title="Voting state unavailable"
             description="Solaris did not receive an authoritative voting overview for the selected edition. It will not infer zero rounds or a healthy state from missing data."
+            action={
+              <button
+                type="button"
+                className="admin-action-secondary"
+                onClick={() => void refetch()}
+                disabled={isFetching}
+                aria-busy={isFetching}
+              >
+                {isFetching ? "Retrying…" : "Retry voting status"}
+              </button>
+            }
           />
         </AdminCard>
       )}
