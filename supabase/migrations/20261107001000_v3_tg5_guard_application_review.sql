@@ -7,18 +7,25 @@ begin;
 alter table public.world_membership_applications
   add column intake_source text not null default 'solaris'
     check (intake_source in ('solaris','external')),
-  add column external_source_reference text,
-  add column registered_by_user_id uuid references auth.users(id) on delete set null,
-  add constraint world_membership_application_external_provenance_check check (
-    (intake_source = 'solaris'
-      and external_source_reference is null
-      and registered_by_user_id is null)
-    or
-    (intake_source = 'external'
-      and length(btrim(coalesce(external_source_reference,''))) between 8 and 500
-      and registered_by_user_id is not null
-      and submitted_by is null)
+  add constraint world_membership_application_external_controller_check check (
+    intake_source <> 'external' or submitted_by is null
   );
+
+-- Critical: world_membership_applications already grants country controllers
+-- authenticated SELECT to the whole row. Message/source provenance must NOT
+-- live in that table, even with column-level REVOKE (table grants win).
+create table public.world_membership_application_external_provenance (
+  application_id uuid primary key references public.world_membership_applications(id) on delete restrict,
+  source_reference text not null
+    check (length(btrim(source_reference)) between 8 and 500),
+  registered_by_user_id uuid references auth.users(id) on delete set null,
+  recorded_at timestamptz not null default now()
+);
+alter table public.world_membership_application_external_provenance enable row level security;
+revoke all on public.world_membership_application_external_provenance
+  from public,anon,authenticated,service_role;
+comment on table public.world_membership_application_external_provenance is
+  'TG5 restricted Chairperson external message provenance. No direct authenticated SELECT; only authorized reviewer RPC projects it.';
 
 create table public.world_membership_application_review_history (
   application_id uuid not null references public.world_membership_applications(id) on delete restrict,
@@ -100,10 +107,13 @@ begin
       application.official_state_designation,application.government_system,
       application.motivation,application.contributions,
       application.international_commitment,
-      application.intake_source,application.external_source_reference,
+      application.intake_source,
+      provenance.source_reference as external_source_reference,
       application.status,application.submitted_at,application.revision
     from public.world_membership_applications application
     join public.countries country on country.id=application.country_id
+    left join public.world_membership_application_external_provenance provenance
+      on provenance.application_id=application.id
     where application.organization_id=v_org_id
       and application.status=p_status
       and (
@@ -388,13 +398,16 @@ begin
     organization_id,country_id,
     official_state_designation,government_system,
     motivation,contributions,international_commitment,
-    intake_source,external_source_reference,registered_by_user_id,
-    operation_id
+    intake_source,operation_id
   ) values (
     p_organization_id,p_country_id,
     v_designation,v_government,v_motivation,v_contributions,v_commitment,
-    'external',v_reference,v_actor,v_operation_id
+    'external',v_operation_id
   ) returning id into v_application_id;
+
+  insert into public.world_membership_application_external_provenance (
+    application_id,source_reference,registered_by_user_id
+  ) values (v_application_id,v_reference,v_actor);
 
   perform private.v3_emit_domain_event(
     'world.membership.application.registered_external',
