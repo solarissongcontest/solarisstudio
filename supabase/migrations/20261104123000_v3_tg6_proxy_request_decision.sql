@@ -119,6 +119,8 @@ begin
 
   if v_rep.id is null
      or v_rep.ends_at is not null
+     or v_rep.starts_at > now()
+     or v_rep.role <> 'representative'
      or not v_rep.voting_authority
      or not (coalesce(v_rep.user_id = v_actor,false) or exists (
        select 1 from public.country_accounts account_row
@@ -209,6 +211,7 @@ begin
        where member_row.organization_id=v_rep.organization_id
          and member_row.country_id=v_rep.country_id
          and member_row.ended_at is null
+         and member_row.joined_at <= now()
          and member_row.status='member'
      )
   then
@@ -238,7 +241,8 @@ begin
     on account_row.country_id=term_row.country_id
    and account_row.user_id=term_row.user_id
    and account_row.status='active'
-  where term_row.person_id=p_proxy_person_id
+  where term_row.started_at <= now()
+    and term_row.person_id=p_proxy_person_id
     and term_row.ended_at is null
     and term_row.user_id is not null
   order by term_row.started_at desc, term_row.id desc
@@ -249,6 +253,7 @@ begin
   where term_row.country_id=v_rep.country_id
     and term_row.user_id=v_actor
     and term_row.ended_at is null
+    and term_row.started_at <= now()
   limit 1;
   if v_actor_person_id is null and v_rep.user_id=v_actor then
     v_actor_person_id := v_rep.person_id;
@@ -370,6 +375,8 @@ begin
   if p_target_status='approved' then
     if v_proxy.valid_until <= now()
        or v_rep.ends_at is not null
+       or v_rep.starts_at > now()
+       or v_rep.role <> 'representative'
        or not v_rep.voting_authority
        or (v_proxy.session_id is not null and v_organ_id is null)
        or not exists (
@@ -377,6 +384,7 @@ begin
          where member_row.organization_id=v_rep.organization_id
            and member_row.country_id=v_rep.country_id
            and member_row.status='member' and member_row.ended_at is null
+           and member_row.joined_at <= now()
        )
     then
       raise exception using errcode='23514',message='NOT_ELIGIBLE';
@@ -405,6 +413,7 @@ begin
    and permission_row.capability='world.proxy.approve'
   where holder.holder_user_id=v_actor
     and holder.status='active' and holder.actual_end_at is null
+    and holder.started_at <= now()
   order by holder.started_at desc,holder.id desc
   limit 1;
 
@@ -721,6 +730,7 @@ begin
   from public.world_organization_representations
   where id=p_representation_id
     and ends_at is null
+    and starts_at <= now()
     and voting_authority
     and role='representative';
 
@@ -744,6 +754,7 @@ begin
        where member_row.organization_id=v_rep.organization_id
          and member_row.country_id=v_rep.country_id
          and member_row.ended_at is null
+         and member_row.joined_at <= now()
          and member_row.status='member'
      )
   then

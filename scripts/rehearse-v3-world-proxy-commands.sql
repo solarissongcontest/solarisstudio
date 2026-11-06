@@ -98,6 +98,91 @@ begin
 end
 $seed$;
 
+-- A future-dated appointment or admission is not presently authoritative.
+-- Restore the fixture after every negative so the normal proxy lifecycle
+-- below can still exercise successful same-country nominations.
+do $future_rep_setup$
+declare v jsonb:=current_setting('solaris.tg6_proxy_fixture')::jsonb;
+begin
+  update public.world_organization_representations
+  set starts_at=now()+interval '1 hour'
+  where id=(v->>'representationId')::uuid;
+end
+$future_rep_setup$;
+
+set local role authenticated;
+set local request.jwt.claim.role='authenticated';
+do $future_rep_negative$
+declare v jsonb:=current_setting('solaris.tg6_proxy_fixture')::jsonb;
+begin
+  perform set_config('request.jwt.claim.sub',v->>'owner',true);
+  perform set_config('request.jwt.claims',
+    jsonb_build_object('sub',v->>'owner','role','authenticated')::text,true);
+  if public.world_my_proxy_candidates_v1((v->>'representationId')::uuid) is not null then
+    raise exception 'TG6_PROXY_FUTURE_REP_CANDIDATES_EXPOSED';
+  end if;
+  begin
+    perform public.world_request_proxy_v1(
+      (v->>'representationId')::uuid,(v->>'proxyPersonId')::uuid,
+      (v->>'sessionId')::uuid,(v->>'validFrom')::timestamptz,
+      (v->>'validUntil')::timestamptz,'Future-dated representation denied',1,
+      gen_random_uuid(),'tg6-future-rep:'||gen_random_uuid()::text
+    );
+    raise exception 'TG6_PROXY_FUTURE_REP_REQUEST_ALLOWED';
+  exception when insufficient_privilege then null;
+  end;
+end
+$future_rep_negative$;
+reset role;
+
+do $future_member_setup$
+declare v jsonb:=current_setting('solaris.tg6_proxy_fixture')::jsonb;
+begin
+  update public.world_organization_representations
+    set starts_at=now()-interval '1 minute'
+    where id=(v->>'representationId')::uuid;
+  update public.world_organization_memberships
+    set joined_at=now()+interval '1 hour'
+    where organization_id=(v->>'organizationId')::uuid
+      and country_id=(v->>'countryId')::uuid;
+end
+$future_member_setup$;
+
+set local role authenticated;
+set local request.jwt.claim.role='authenticated';
+do $future_member_negative$
+declare v jsonb:=current_setting('solaris.tg6_proxy_fixture')::jsonb;
+begin
+  perform set_config('request.jwt.claim.sub',v->>'owner',true);
+  perform set_config('request.jwt.claims',
+    jsonb_build_object('sub',v->>'owner','role','authenticated')::text,true);
+  if public.world_my_proxy_candidates_v1((v->>'representationId')::uuid) is not null then
+    raise exception 'TG6_PROXY_FUTURE_MEMBER_CANDIDATES_EXPOSED';
+  end if;
+  begin
+    perform public.world_request_proxy_v1(
+      (v->>'representationId')::uuid,(v->>'proxyPersonId')::uuid,
+      (v->>'sessionId')::uuid,(v->>'validFrom')::timestamptz,
+      (v->>'validUntil')::timestamptz,'Future-dated admission denied',1,
+      gen_random_uuid(),'tg6-future-member:'||gen_random_uuid()::text
+    );
+    raise exception 'TG6_PROXY_FUTURE_MEMBER_REQUEST_ALLOWED';
+  exception when check_violation then null;
+  end;
+end
+$future_member_negative$;
+reset role;
+
+do $effective_fixture_restore$
+declare v jsonb:=current_setting('solaris.tg6_proxy_fixture')::jsonb;
+begin
+  update public.world_organization_memberships
+    set joined_at=now()-interval '1 minute'
+    where organization_id=(v->>'organizationId')::uuid
+      and country_id=(v->>'countryId')::uuid;
+end
+$effective_fixture_restore$;
+
 set local role anon;
 set local request.jwt.claim.role = 'anon';
 set local request.jwt.claim.sub = '';
