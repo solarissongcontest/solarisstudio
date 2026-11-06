@@ -119,6 +119,22 @@ test("Country and Wiki have distinct mobile-browser and desktop presentations", 
   const wiki = discovered.find((route) => /^\/wiki\/[^/]+$/.test(route));
   expect(wiki, "Local sitemap must contain a Wiki article").toBeTruthy();
   await page.goto(wiki!, { waitUntil: "domcontentloaded" });
+  // Published Reference can intentionally redirect legacy /wiki/$code to
+  // /countries/$code. Check the authoritative rollout outcome before testing
+  // the still-supported legacy article composition.
+  await expect.poll(async () => {
+    if (await page.locator(".country-profile-v8[data-country-layout-mode]").isVisible()) return "country";
+    if (await page.locator(".wiki-canvas[data-wiki-layout-mode]").isVisible()) return "wiki";
+    return "pending";
+  }, { timeout: 30_000 }).not.toBe("pending");
+  if (await page.locator(".country-profile-v8[data-country-layout-mode]").isVisible()) {
+    await expect(page).toHaveURL(/\/countries\/[^/]+\/?$/);
+    await expect(page.locator(".country-profile-v8")).toHaveAttribute(
+      "data-country-layout-mode",
+      mobileWeb ? "mobile-web" : "desktop-web",
+    );
+    return;
+  }
   const wikiRoot = page.locator(".wiki-canvas");
   await expect(wikiRoot).toBeVisible({ timeout: 30_000 });
   await expect(wikiRoot).toHaveAttribute(
