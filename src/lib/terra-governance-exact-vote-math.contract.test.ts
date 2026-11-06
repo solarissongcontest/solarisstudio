@@ -53,10 +53,14 @@ describe("Terra Solaris TG8 exact-rational legislative voting primitive", () => 
 
   it("uses a fail-closed local-only wrapper rather than production Supabase", () => {
     expect(wrapper).toContain("supabase status -o env");
-    expect(wrapper).toContain("http://127.0.0.1:");
-    expect(wrapper).toContain("postgres://postgres:postgres@127.0.0.1:");
-    expect(wrapper).toContain('fail "Refusing hosted/non-loopback database"');
+    expect(wrapper).toContain("new URL(process.env.API_URL)");
+    expect(wrapper).toContain("new URL(process.env.DB_URL)");
+    expect(wrapper).toContain("api.search === '' && api.hash === ''");
+    expect(wrapper).toContain("db.pathname === '/postgres' && db.search === '' && db.hash === ''");
+    expect(wrapper).toContain("localHost(db.hostname)");
+    expect(wrapper).toContain('fail "Refusing hosted/non-loopback database or malformed Supabase URL"');
     expect(wrapper).toContain('psql "$DB_URL"');
+    expect(wrapper).not.toContain('eval "$(');
     expect(wrapper).not.toContain("DATABASE_URL");
   });
 });
