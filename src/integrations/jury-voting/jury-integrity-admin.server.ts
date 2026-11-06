@@ -1,4 +1,4 @@
-import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
+import { getSolarisCapabilitiesServer } from "@/integrations/supabase/capabilities.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export type JuryIntegrityTargetEvidence = {
@@ -51,11 +51,15 @@ function numberValue(value: unknown) {
 export async function listJuryIntegrityCasesServer(editionId: string) {
   const scopedEditionId = String(editionId ?? "").trim();
   if (!scopedEditionId) throw new Error("Jury Integrity requires an explicit edition scope");
-  // Integrity analysis includes private target-level jury scores in
-  // admin_evidence. Integrity visibility alone must not grant ballot access.
-  // Both checks are edition-scoped and must pass before privileged reads.
-  await requireSolarisCapabilityServer("integrity.read", scopedEditionId);
-  await requireSolarisCapabilityServer("jury.ballots.read", scopedEditionId);
+  // Private target-level scores require BOTH integrity and ballot access.
+  // Resolve the exact-edition capability set only once to avoid repeating
+  // authenticated permission queries on every Organizer read.
+  const access = await getSolarisCapabilitiesServer(scopedEditionId);
+  for (const capability of ["integrity.read", "jury.ballots.read"] as const) {
+    if (!access.capabilities.includes(capability)) {
+      throw new Error(`Solaris capability required: ${capability}`);
+    }
+  }
 
   const db = supabaseAdmin as any;
   const tv = db.schema("televoting");
