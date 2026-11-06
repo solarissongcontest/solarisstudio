@@ -92,6 +92,16 @@ describe("Public Search spoiler-free preview scope", () => {
     expect(excludeSearchSpoilerEdition(rows, null)).toEqual(rows);
   });
 
+  it("matches exact edition identity rather than hiding similarly prefixed historic IDs", () => {
+    const rows = [
+      { edition_id: "current", value: "secret" },
+      { edition_id: "current-archived", value: "historic" },
+      { edition_id: "other", value: "other" },
+    ];
+    expect(excludeSearchSpoilerEdition(rows, "current").map((row) => row.value))
+      .toEqual(["historic", "other"]);
+  });
+
   it("filters current-edition story previews without blocking the archive", () => {
     const stories = [
       { editionSlug: "current", title: "Potential winner spoiler" },
