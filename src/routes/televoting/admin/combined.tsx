@@ -13,6 +13,8 @@ import {
 import { toast } from "sonner";
 
 import { AdminDataView, type AdminDataColumn } from "@/components/admin/AdminDataView";
+import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { AdminConfirmSheet, AdminPageHeader } from "@/components/admin/AdminUI";
 import { DangerZone } from "@/components/admin/AdminWorkspacePrimitives";
 import { Button } from "@/components/ui/button";
@@ -34,7 +36,7 @@ import {
 } from "@/integrations/televoting/combined.functions";
 import type { SourceInputMode } from "@/integrations/televoting/combined-math";
 import { getMergedRoundEntries } from "@/integrations/televoting/entries.functions";
-import { getMergedTelevotingRounds } from "@/integrations/televoting/rounds.functions";
+import { getMergedTelevotingRoundsPage } from "@/integrations/televoting/rounds.functions";
 
 export const Route = createFileRoute("/televoting/admin/combined")({
   head: () => ({
@@ -43,7 +45,7 @@ export const Route = createFileRoute("/televoting/admin/combined")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: CombinedResultsPage,
+  component: CombinedResultsAccountBoundary,
 });
 
 type SourceDraft = {
@@ -89,7 +91,23 @@ function emptySource(): SourceDraft {
   };
 }
 
-function CombinedResultsPage() {
+function CombinedResultsAccountBoundary() {
+  const actorId = useAuthenticatedUser().id;
+  const { editionId } = useAdminContext();
+  if (!editionId) {
+    return (
+      <section className="mx-auto max-w-5xl space-y-4">
+        <AdminPageHeader eyebrow="Televoting" title="Combined Results" description="Choose the exact Organizer edition before opening a private component pool." />
+        <div className="glass p-6 text-sm text-muted-foreground">Select an edition in the Organizer toolbar. Combined Results never selects the newest or active edition automatically.</div>
+      </section>
+    );
+  }
+  // Reset selected aggregation and every prepared result action on account or edition changes.
+  return <CombinedResultsPage key={`${actorId}:${editionId}`} editionId={editionId} />;
+}
+
+function CombinedResultsPage({ editionId }: { editionId: string }) {
+  const actorId = useAuthenticatedUser().id;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const getAdmin = useServerFn(getMergedTelevotingAdmin);
@@ -104,7 +122,7 @@ function CombinedResultsPage() {
   const recalcFn = useServerFn(recalculateMergedCombined);
   const statusFn = useServerFn(setMergedCombinedStatus);
   const deleteFn = useServerFn(deleteMergedCombinedAggregation);
-  const roundsFn = useServerFn(getMergedTelevotingRounds);
+  const roundsFn = useServerFn(getMergedTelevotingRoundsPage);
   const entriesFn = useServerFn(getMergedRoundEntries);
 
   const [selectedId, setSelectedId] = useState("");
@@ -113,47 +131,83 @@ function CombinedResultsPage() {
   const [createPool, setCreatePool] = useState("1000");
   const [createExponent, setCreateExponent] = useState("1.33");
 
-  const { data: admin, isLoading: adminLoading } = useQuery({
-    queryKey: ["merged-televoting-admin"],
+  const { data: admin, isLoading: adminLoading, isFetching: adminFetching, error: adminError, refetch: retryAdmin } = useQuery({
+    queryKey: ["merged-televoting-admin", actorId],
     queryFn: () => getAdmin(),
+    enabled: Boolean(actorId),
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   useEffect(() => {
-    if (!adminLoading && !admin) void navigate({ to: "/televoting/admin/sign-in" });
-  }, [admin, adminLoading, navigate]);
+    if (actorId && !adminLoading && !adminFetching && !admin && !adminError) void navigate({ to: "/televoting/admin/sign-in" });
+  }, [actorId, admin, adminLoading, adminFetching, adminError, navigate]);
 
-  const { data: aggregations = [], isLoading: listLoading } = useQuery({
-    queryKey: ["merged-combined-aggregations"],
-    queryFn: () => listFn(),
-    enabled: Boolean(admin),
+  const { data: allAggregations = [], isLoading: listLoading, isFetching: listFetching, error: listError, refetch: retryList } = useQuery({
+    queryKey: ["merged-combined-aggregations", actorId, editionId],
+    queryFn: () => listFn({ data: { editionId } }),
+    enabled: Boolean(actorId && admin),
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
+  // The read-only projection resolves canonical Solaris edition -> Televote edition.
+  // Never call the legacy global rounds synchronizer from a Combined read.
+  const { data: editionPage, isLoading: roundsLoading, isFetching: roundsFetching, error: roundsError, refetch: retryRounds } = useQuery({
+    queryKey: ["merged-combined-edition-rounds", actorId, editionId],
+    queryFn: () => roundsFn({ data: { editionId } }),
+    enabled: Boolean(actorId && admin && editionId),
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+  const remoteEditionId = editionPage?.edition?.id ?? "";
+  const aggregations = useMemo(
+    () => allAggregations.filter((aggregation) => Boolean(remoteEditionId) && aggregation.edition_id === remoteEditionId),
+    [allAggregations, remoteEditionId],
+  );
+  const allRounds = useMemo(
+    () => (editionPage?.edition?.rounds ?? []).map((round) => ({ ...round, editionName: editionPage!.edition!.name })),
+    [editionPage],
+  );
+  const selectedAggregationVerified = aggregations.some((aggregation) => aggregation.id === selectedId);
+
   useEffect(() => {
-    if (!selectedId && aggregations.length) setSelectedId(aggregations[0]!.id);
+    if (!aggregations.some((aggregation) => aggregation.id === selectedId)) {
+      setSelectedId(aggregations[0]?.id ?? "");
+    }
   }, [aggregations, selectedId]);
 
-  const { data: editionRounds = [] } = useQuery({
-    queryKey: ["merged-televoting-rounds"],
-    queryFn: () => roundsFn(),
-    enabled: Boolean(admin),
-  });
-
-  const allRounds = useMemo(
-    () => editionRounds.flatMap((edition) => edition.rounds.map((round) => ({ ...round, editionName: edition.name }))),
-    [editionRounds],
-  );
-
-  const { data: detail, isLoading: detailLoading, error: detailError } = useQuery({
-    queryKey: ["merged-combined-detail", selectedId],
-    queryFn: () => detailFn({ data: { id: selectedId } }),
-    enabled: Boolean(admin && selectedId),
+  const { data: detail, isLoading: detailLoading, isFetching: detailFetching, error: detailError, refetch: retryDetail } = useQuery({
+    queryKey: ["merged-combined-detail", actorId, editionId, selectedId],
+    queryFn: async () => {
+      const response = await detailFn({ data: { id: selectedId, editionId } });
+      if (!remoteEditionId || response.aggregation.edition_id !== remoteEditionId) {
+        throw new Error("Combined result does not belong to the selected Organizer edition");
+      }
+      return response;
+    },
+    enabled: Boolean(actorId && admin && remoteEditionId && aggregations.some((aggregation) => aggregation.id === selectedId)),
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const refresh = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["merged-combined-aggregations"] }),
-      queryClient.invalidateQueries({ queryKey: ["merged-combined-detail", selectedId] }),
-      queryClient.invalidateQueries({ queryKey: ["merged-televoting-audit"] }),
+      queryClient.invalidateQueries({ queryKey: ["merged-combined-aggregations", actorId, editionId] }),
+      queryClient.invalidateQueries({ queryKey: ["merged-combined-detail", actorId, editionId, selectedId] }),
+      queryClient.invalidateQueries({ queryKey: ["merged-televoting-audit", actorId] }),
     ]);
   };
 
@@ -162,23 +216,67 @@ function CombinedResultsPage() {
       createFn({
         data: {
           name: createName,
+          editionId,
           totalPoints: Number(createPool),
           rankExponent: Number(createExponent),
         },
       }),
     onSuccess: async (result) => {
-      setSelectedId(result.id);
       setCreateOpen(false);
+      // The list must include the new aggregate *before* selection changes;
+      // otherwise the membership effect can reset selection to an older item.
+      await queryClient.invalidateQueries({ queryKey: ["merged-combined-aggregations", actorId, editionId] });
+      await queryClient.invalidateQueries({ queryKey: ["merged-televoting-audit", actorId] });
+      setSelectedId(result.id);
       toast.success("Combined result created");
-      await refresh();
     },
     onError: (error: Error) => toast.error(error.message),
   });
 
-  if (adminLoading || listLoading) {
-    return <section className="glass p-8 text-center text-sm text-muted-foreground">Loading Combined Results…</section>;
+  // Hide the entire mutating workspace during initial reads and every private refetch.
+  // A stale successful payload must never mask a failed administrative or source read.
+  if (!actorId || adminLoading || adminFetching || listLoading || listFetching ||
+      (Boolean(admin) && (roundsLoading || roundsFetching)) ||
+      (Boolean(selectedId) && (detailLoading || detailFetching))) {
+    return <section className="glass p-8 text-center text-sm text-muted-foreground" role="status">Verifying Combined Results…</section>;
+  }
+  const privateReadError = adminError ?? listError ?? roundsError ?? (selectedId ? detailError : null);
+  if (privateReadError) {
+    return (
+      <section className="glass space-y-3 p-6" role="alert">
+        <p className="text-sm font-semibold">Combined Results unavailable</p>
+        <p className="text-sm text-muted-foreground">
+          Private result evidence could not be verified. No calculation or publication action is available until it reloads.
+        </p>
+        <p className="text-xs text-rose-100">
+          {privateReadError instanceof Error ? privateReadError.message : "The protected result read failed."}
+        </p>
+        <button
+          type="button"
+          className="admin-action-secondary min-h-11"
+          onClick={() => void (adminError ? retryAdmin() : Promise.all([
+            retryList(),
+            retryRounds(),
+            ...(selectedId ? [retryDetail()] : []),
+          ]))}
+        >
+          Retry Combined Results
+        </button>
+      </section>
+    );
   }
   if (!admin) return null;
+  if (selectedId && !selectedAggregationVerified) {
+    return <section className="glass p-8 text-center text-sm text-muted-foreground" role="status">Revalidating the selected Combined result…</section>;
+  }
+  if (!editionPage?.linked || !editionPage.edition) {
+    return (
+      <section className="glass space-y-3 p-6">
+        <AdminPageHeader eyebrow="Televoting" title="Combined Results" description="The selected Solaris edition is not linked to a Televoting edition." />
+        <p className="text-sm text-muted-foreground">Link the selected edition from Voting before creating or modifying combined results. Legacy unassigned aggregates are not silently adopted.</p>
+      </section>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-5 py-2">
@@ -230,8 +328,9 @@ function CombinedResultsPage() {
         <div className="min-w-0 space-y-5">
           {detailLoading ? <section className="glass p-8 text-center text-sm text-muted-foreground">Loading workspace…</section> : null}
           {detailError ? <section className="glass border-red-300/20 p-5 text-sm text-red-100">{(detailError as Error).message}</section> : null}
-          {detail ? (
+          {detail && selectedAggregationVerified ? (
             <CombinedWorkspace
+              key={selectedId}
               detail={detail}
               allRounds={allRounds}
               onRefresh={refresh}
@@ -604,7 +703,12 @@ function SourceCard({ source, resolved, participants, catalogMap, allRounds, all
       await valuesFn({ data: {
         aggregationId,
         sourceId: source.id,
-        values: Object.fromEntries(Object.entries(values).map(([key, value]) => [key, Number(value) || 0])),
+        values: Object.fromEntries(Object.entries(values).map(([key, value]) => {
+          if (!value.trim() || !Number.isFinite(Number(value))) {
+            throw new Error(`Enter a valid finite value for ${catalogMap.get(key)?.name ?? key}`);
+          }
+          return [key, Number(value)];
+        })),
       }});
       toast.success("Source values saved");
       await onRefresh();

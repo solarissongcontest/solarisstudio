@@ -47,7 +47,11 @@ describe("V3 Organizer voting round mutation reviews", () => {
     expect(route).toContain("await setSelfVoting({ data: { roundId, mode: pendingSelfVotingMode } })");
     expect(route).toContain("setDeleteTarget(null)");
     expect(route).toContain("setPendingSelfVotingMode(null)");
-    expect(route).toContain("}, [roundId]);");
+    // Account changes must invalidate prepared deletion and self-voting reviews too.
+    expect(route).toContain("}, [actorId, roundId]);");
+    expect(route).toContain("component: RoundEntriesAccountBoundary");
+    expect(route).toContain("function RoundEntriesAccountBoundary()");
+    expect(route).toContain('<RoundEntriesPage key={`${actorId ?? "signed-out"}:${roundId}`} />');
     expect(adapter).toContain("deleteMergedCustomRoundEntry");
     expect(adapter).toContain("setMergedRoundSelfVotingMode");
     expect(route.match(/await deleteCustom\(/g)?.length).toBe(1);

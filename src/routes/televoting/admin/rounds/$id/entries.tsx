@@ -6,6 +6,7 @@ import { ArrowDown, ArrowUp, Globe, Link2, Pencil, Plus, RefreshCw, Search, Tras
 import { toast } from "sonner";
 
 import { AdminConfirmSheet, AdminPageHeader } from "@/components/admin/AdminUI";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +27,7 @@ import {
 
 export const Route = createFileRoute("/televoting/admin/rounds/$id/entries")({
   head: () => ({ meta: [{ title: "Round Entries — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
-  component: RoundEntriesPage,
+  component: RoundEntriesAccountBoundary,
 });
 
 type CustomForm = {
@@ -63,8 +64,17 @@ function selfVotingModeLabel(mode: SelfVotingMode) {
   return "Unrestricted";
 }
 
+// A keyed component boundary discards prepared commands and pending UI callbacks
+// when either the signed-in account or the round changes.
+function RoundEntriesAccountBoundary() {
+  const { id: roundId } = Route.useParams();
+  const actorId = useAuthenticatedUser().id;
+  return <RoundEntriesPage key={`${actorId ?? "signed-out"}:${roundId}`} />;
+}
+
 function RoundEntriesPage() {
   const { id: roundId } = Route.useParams();
+  const actorId = useAuthenticatedUser().id;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const getAdmin = useServerFn(getMergedTelevotingAdmin);
@@ -87,24 +97,41 @@ function RoundEntriesPage() {
   const [savingSelfVotingMode, setSavingSelfVotingMode] = useState(false);
 
   const { data: admin, isLoading: adminLoading } = useQuery({
-    queryKey: ["merged-televoting-admin"],
+    // A previous Organizer's legacy session must never authorize this actor.
+    queryKey: ["merged-televoting-admin", actorId],
     queryFn: () => getAdmin(),
+    enabled: Boolean(actorId),
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   useEffect(() => {
-    if (!adminLoading && !admin) void navigate({ to: "/televoting/admin/sign-in" });
-  }, [admin, adminLoading, navigate]);
+    if (actorId && !adminLoading && !admin) void navigate({ to: "/televoting/admin/sign-in" });
+  }, [actorId, admin, adminLoading, navigate]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["merged-televoting-round-entries", roundId],
+    queryKey: ["merged-televoting-round-entries", actorId, roundId],
     queryFn: () => getEntries({ data: { roundId } }),
-    enabled: Boolean(admin),
+    enabled: Boolean(actorId && admin),
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const { data: solarisSource, isLoading: sourceLoading, error: sourceError } = useQuery({
-    queryKey: ["merged-televoting-solaris-source", roundId],
+    queryKey: ["merged-televoting-solaris-source", actorId, roundId],
     queryFn: () => getSolarisSource({ data: { roundId } }),
-    enabled: Boolean(admin),
+    enabled: Boolean(actorId && admin),
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   useEffect(() => {
@@ -127,14 +154,19 @@ function RoundEntriesPage() {
   }, [solarisSource?.binding]);
 
   useEffect(() => {
+    // Local prepared overrides and confirmation sheets cannot cross accounts.
+    setSelectedCountries([]);
+    setCustomForm(emptyCustom);
+    setCountrySearch("");
+    setSourceSelection("edition");
     setDeleteTarget(null);
     setPendingSelfVotingMode(null);
-  }, [roundId]);
+  }, [actorId, roundId]);
 
   const refresh = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["merged-televoting-round-entries", roundId] }),
-      queryClient.invalidateQueries({ queryKey: ["merged-televoting-solaris-source", roundId] }),
+      queryClient.invalidateQueries({ queryKey: ["merged-televoting-round-entries", actorId, roundId] }),
+      queryClient.invalidateQueries({ queryKey: ["merged-televoting-solaris-source", actorId, roundId] }),
       queryClient.invalidateQueries({ queryKey: ["merged-televoting-rounds"] }),
       queryClient.invalidateQueries({ queryKey: ["merged-televoting-open-round"] }),
     ]);
@@ -199,7 +231,7 @@ function RoundEntriesPage() {
     return (data?.countries ?? []).filter((country) => `${country.name} ${country.code}`.toLowerCase().includes(term));
   }, [countrySearch, data?.countries]);
 
-  const editable = data?.round.status !== "open";
+  const editable = Boolean(actorId && admin && data && data.round.status !== "open");
   const entries = data?.entries ?? [];
   const currentSelfVotingMode = (data?.round.self_voting_mode ?? "country_match") as SelfVotingMode;
 

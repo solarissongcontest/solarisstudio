@@ -20,7 +20,7 @@ describe("V3 Organizer Combined Results read purity", () => {
       "export const getMergedCombinedAggregation",
       "export const createMergedCombinedAggregation",
     );
-    expect(detailRead).toContain("getMergedCombinedAggregationServer(data.id)");
+    expect(detailRead).toContain("getMergedCombinedAggregationServer(data.id, data.editionId)");
     expect(detailRead).not.toContain("refreshCombinedCanonicalParticipants");
     expect(detailRead).not.toContain("syncEditableCombinedParticipantsFromSolarisServer");
   });
@@ -47,7 +47,7 @@ describe("V3 Organizer Combined Results read purity", () => {
 
   it("does not claim the remaining global Combined authority is V3-complete", () => {
     expect(functions).toContain("listMergedCombinedAggregations");
-    expect(functions).toContain("editionId?: string | null");
+    expect(functions).toContain("Combined creation requires an exact Solaris edition");
     expect(functions).not.toContain("expectedAggregationVersion");
     expect(functions).not.toContain("idempotencyKey");
   });
