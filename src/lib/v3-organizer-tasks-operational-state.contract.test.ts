@@ -29,6 +29,14 @@ describe("V3 Organizer Tasks operational state contract", () => {
     expect(adapter).not.toContain("dueMs <= nowMs");
   });
 
+  it("keeps private Tasks and mobile badge caches isolated by authenticated actor", () => {
+    expect(adapter).toContain('import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";');
+    expect(adapter).toContain('const actorId = useAuthenticatedUser().id;');
+    expect(adapter).toContain('queryKey: ["organizer-tasks-v5", normalizedEditionId ?? "unscoped", filter, actorId]');
+    expect(adapter).toContain('queryKey: ["organizer-task-count-v5", normalizedEditionId ?? "unscoped", actorId]');
+    expect(adapter).not.toContain('queryKey: ["organizer-tasks-v5", normalizedEditionId ?? "unscoped", filter]');
+  });
+
   it("requires complete canonical rich-state evidence before exposing rich metrics", () => {
     expect(adapter).toContain("hasCompleteOrganizerTaskOperationalEvidence");
     expect(route).toContain("completeOperationalEvidence");
