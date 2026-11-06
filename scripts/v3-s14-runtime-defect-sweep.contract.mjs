@@ -21,15 +21,30 @@ function fixture(run) {
 }
 function completeS14Proof(candidateSha = SHA) {
   return {
-    candidateSha, passed: true, partial: false, runtimeFailure: false,
+    schemaVersion: 3, candidateSha, passed: true, partial: false, runtimeFailure: false,
     completedStages: [...STAGES],
     completedContestExtensions: [...EXTENSIONS],
     pendingStages: [], pendingContestExtensions: [], blockedContestExtensions: [],
     implementedInvariants: [...S14_INVARIANTS],
     implementedFailureInjections: [...S14_FAILURES],
     seed: { editionCount: 1, delegationCount: 66, showCount: 3 },
-    runIdentity: { candidateSha, editionId: "local-edition", databaseFingerprint: "isolated-db" },
-    lifecycle: { finalState: "archived" },
+    runIdentity: { candidateSha, runId: `s14-${candidateSha}`, editionId: "local-edition", databaseFingerprint: "isolated-db" },
+    provenance: {
+      resultEvidenceHash: "local-results-hash",
+      publicationEvidenceHash: "local-publication-hash",
+      retainedOperationReceiptCount: 3,
+    },
+    lifecycle: {
+      resultsOperationId: "local-results-operation",
+      postEditionOperationId: "local-post-edition-operation",
+      archiveOperationId: "local-archive-operation",
+      finalState: "archived",
+    },
+    archive: {
+      eventId: "local-archive-event",
+      outboxId: "local-archive-event:edition.tasks",
+      consequenceConsumerReceiptCount: 1,
+    },
   };
 }
 
@@ -86,6 +101,19 @@ test("rejects reordered lifecycle and incomplete success coverage on the exact S
       ["under-seeded contest", (p) => { p.seed.delegationCount = 65; }],
       ["missing persistent identity", (p) => { p.runIdentity.databaseFingerprint = ""; }],
       ["mismatched persistent SHA", (p) => { p.runIdentity.candidateSha = "b".repeat(40); }],
+      ["missing schema", (p) => { delete p.schemaVersion; }],
+      ["missing run ID", (p) => { p.runIdentity.runId = ""; }],
+      ["missing result hash", (p) => { p.provenance.resultEvidenceHash = ""; }],
+      ["missing publication hash", (p) => { p.provenance.publicationEvidenceHash = ""; }],
+      ["no retained operation receipts", (p) => { p.provenance.retainedOperationReceiptCount = 0; }],
+      ["non-integer receipt count", (p) => { p.provenance.retainedOperationReceiptCount = 1.5; }],
+      ["missing Results operation", (p) => { p.lifecycle.resultsOperationId = null; }],
+      ["missing post-edition operation", (p) => { p.lifecycle.postEditionOperationId = ""; }],
+      ["missing Archive operation", (p) => { p.lifecycle.archiveOperationId = ""; }],
+      ["missing Archive event", (p) => { p.archive.eventId = ""; }],
+      ["outbox for another event", (p) => { p.archive.outboxId = "other-event:edition.tasks"; }],
+      ["outbox for another consumer", (p) => { p.archive.outboxId = "local-archive-event:other.consumer"; }],
+      ["missing Archive consumer receipt", (p) => { p.archive.consequenceConsumerReceiptCount = 0; }],
     ];
     for (const [label, mutate] of invalidCases) {
       const proof = completeS14Proof();
