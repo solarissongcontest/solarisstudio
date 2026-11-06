@@ -12,7 +12,9 @@ const STATIC_CHECK = /add constraint studio2_feature_flags_key_check check\s*\(\
 // database constraint and append a single key. This is necessary when multiple
 // feature teams ship migrations in parallel. Do not accept an unrecognized
 // replacement of a previously validated flag allowlist.
-const ADDITIVE_CHECK = /pg_catalog\.format\(\s*'alter table public\.studio2_feature_flags add constraint studio2_feature_flags_key_check check \(\(%s\) or key = %L\)',\s*v_predicate,\s*'([^']+)'\s*\)/gi;
+// Preserve historical rollout keys while recognizing exactly one or two additive keys.
+// A wholesale CHECK replacement remains unrecognized and fails the audit.
+const ADDITIVE_CHECK = /pg_catalog\.format\(\s*'alter table public\.studio2_feature_flags add constraint studio2_feature_flags_key_check check \(\(%s\) or key (= %L|in \(%L,%L\))\)'\s*,\s*v_predicate,\s*'([^']+)'(?:\s*,\s*'([^']+)')?\s*\)/gi;
 
 type ConstraintEvolution = {
   staticMigration: string;
@@ -55,20 +57,27 @@ function effectiveFeatureFlagVocabulary(): ConstraintEvolution {
     if (!/alter table public\.studio2_feature_flags\s+drop constraint/i.test(source)) continue;
     if (!source.includes("studio2_feature_flags_key_check")) continue;
 
-    const additive = [...source.matchAll(ADDITIVE_CHECK)].map((match) => match[1]);
-    if (additive.length !== 1 ||
+    const matches = [...source.matchAll(ADDITIVE_CHECK)];
+    const additive = matches.flatMap((match) => [match[2], match[3]].filter(
+      (key): key is string => typeof key === "string",
+    ));
+    const requiredCount = matches[0]?.[1] === "= %L" ? 1 : 2;
+    if (matches.length !== 1 ||
+        additive.length !== requiredCount ||
+        new Set(additive).size !== additive.length ||
         !source.includes("pg_catalog.pg_get_expr(") ||
         !source.includes("if v_predicate is null then") ||
-        !source.includes("pg_catalog.strpos(v_predicate,") ||
-        !source.includes("on conflict (key) do nothing")) {
+        !source.includes("on conflict (key) do nothing") ||
+        additive.some((key) => !new RegExp(String.raw`pg_catalog\.strpos\(v_predicate,\s*'${key}'\)`).test(source))) {
       throw new Error(`${name} rewrites the feature flag constraint without a verified additive contract`);
     }
 
-    // We only recognize the exact additive, idempotent 'prior predicate OR
-    // new key' recipe. A future migration using a new recipe must explicitly
-    // extend this safety test rather than silently bypassing it.
-    persisted.add(additive[0]);
-    extensions.push(additive[0]);
+    // The verified prior predicate OR exact appended key(s) is additive.
+    // Third keys or different recipes require another explicit safety rule.
+    for (const key of additive) {
+      persisted.add(key);
+      extensions.push(key);
+    }
     latestMigration = name;
   }
 
