@@ -193,7 +193,10 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
   const result = officeNetworkBlocked || query.isError || query.isFetching
     ? undefined : query.data;
   const offices = useQuery({
-    queryKey: ["world", "public", "body-offices", result?.organization.id, result?.body.id, connectivity.checkedAt],
+    // An office result belongs to the exact last-verified body response, not
+    // just its ID. Re-verifying an organ also forces its offices to re-check.
+    queryKey: ["world", "public", "body-offices", result?.organization.id, result?.body.id,
+      query.dataUpdatedAt, connectivity.checkedAt],
     queryFn: ({ signal }) => readPublicBodyOffices(result!.organization, result!.body, signal),
     enabled: !!result && !officeNetworkBlocked,
     staleTime: 90_000,
