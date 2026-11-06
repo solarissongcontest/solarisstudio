@@ -18,6 +18,7 @@ import {
   WORLD_UNIFIED_SEARCH_LIMIT,
   fetchWorldUnifiedSearch,
   parseWorldSearchCountries,
+  parseWorldSearchPage,
   verifiedWorldSearchTerm,
 } from "./terra-world-unified-search";
 
@@ -108,6 +109,52 @@ describe("Terra Solaris unified public World search", () => {
     mocks.organizations.range.mockResolvedValueOnce({ data: [], count: 3, error: null });
     await expect(fetchWorldUnifiedSearch("GUARD"))
       .rejects.toThrow("World search count could not be verified");
+  });
+
+  it("parses shareable page positions without permitting unbounded offsets", () => {
+    expect(parseWorldSearchPage(0)).toBe(0);
+    expect(parseWorldSearchPage("2")).toBe(2);
+    expect(parseWorldSearchPage(1000)).toBe(1000);
+    for (const value of [-1, "-1", 1.5, "1.5", "01", "1001", 1001, "NaN", {}, null]) {
+      expect(parseWorldSearchPage(value)).toBe(0);
+    }
+  });
+
+  it("pages countries and organizations independently, with bounded exact ranges", async () => {
+    mocks.countries.range.mockResolvedValueOnce({ data: [country], count: 49, error: null });
+    mocks.organizations.range.mockResolvedValueOnce({ data: [organization], count: 52, error: null });
+    const result = await fetchWorldUnifiedSearch("a", 2, 3);
+    // A 1-character query still never searches, including on deep-linked pages.
+    expect(result.countries).toEqual([]);
+    expect(mocks.from).not.toHaveBeenCalled();
+    const paged = await fetchWorldUnifiedSearch("and", 2, 3);
+    expect(mocks.countries.range).toHaveBeenCalledWith(24, 35);
+    expect(mocks.organizations.range).toHaveBeenCalledWith(36, 47);
+    expect(paged.countryTotal).toBe(49);
+    expect(paged.organizationTotal).toBe(52);
+  });
+
+  it("fails before any query for an invalid reader-supplied page", async () => {
+    await expect(fetchWorldUnifiedSearch("Oland", -1, 0))
+      .rejects.toThrow("Invalid bounded World search page");
+    await expect(fetchWorldUnifiedSearch("GUARD", 0, 1001))
+      .rejects.toThrow("Invalid bounded World search page");
+    expect(mocks.from).not.toHaveBeenCalled();
+  });
+
+  it("rejects a paginated result which contradicts its exact count", async () => {
+    mocks.countries.range.mockResolvedValueOnce({ data: [country], count: 12, error: null });
+    mocks.organizations.range.mockResolvedValueOnce({ data: [organization], count: 1, error: null });
+    await expect(fetchWorldUnifiedSearch("Oland", 1, 0))
+      .rejects.toThrow("World search count could not be verified");
+  });
+
+  it("accepts an emptied later page so the UI can recover after deletion", async () => {
+    mocks.countries.range.mockResolvedValueOnce({ data: [], count: 11, error: null });
+    mocks.organizations.range.mockResolvedValueOnce({ data: [organization], count: 1, error: null });
+    const result = await fetchWorldUnifiedSearch("and", 2, 0);
+    expect(result.countries).toEqual([]);
+    expect(result.countryTotal).toBe(11);
   });
 
   it("does not show stale partial results when either data source fails", async () => {
