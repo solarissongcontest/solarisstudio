@@ -196,8 +196,20 @@ function AccessPermissionsPage() {
     retry: false,
   });
 
-  const users = useMemo(() => usersQuery.data ?? [], [usersQuery.data]);
-  const catalog = catalogQuery.data;
+  // Failed or refreshing permission-directory reads must not become false empty
+  // metrics or leave a previous actor's cached directory visible.
+  const directoryVerified =
+    catalogQuery.isSuccess &&
+    usersQuery.isSuccess &&
+    !catalogQuery.error &&
+    !usersQuery.error &&
+    !catalogQuery.isFetching &&
+    !usersQuery.isFetching;
+  const users = useMemo(
+    () => (directoryVerified ? usersQuery.data ?? [] : []),
+    [directoryVerified, usersQuery.data],
+  );
+  const catalog = directoryVerified ? catalogQuery.data : undefined;
   const selectedUser = users.find((user) => user.userId === selectedUserId) ?? null;
   const filteredUsers = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -452,7 +464,11 @@ function AccessPermissionsPage() {
 
   const effectiveScope = scope === "edition" ? (resolvedEditionId || null) : null;
   const summary = summaryQuery.data;
-  const loading = catalogQuery.isLoading || usersQuery.isLoading;
+  const loading =
+    catalogQuery.isLoading ||
+    usersQuery.isLoading ||
+    catalogQuery.isFetching ||
+    usersQuery.isFetching;
   const pageError = catalogQuery.error ?? usersQuery.error;
 
   return (
@@ -500,6 +516,7 @@ function AccessPermissionsPage() {
           </AdminCard>
         ) : null}
 
+        {directoryVerified ? (
         <section
           className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
           aria-label="Permission engine summary"
@@ -526,6 +543,7 @@ function AccessPermissionsPage() {
             attention={Boolean(summary?.mismatched)}
           />
         </section>
+        ) : null}
 
         <PermissionApprovalQueue
           approvals={approvalsQuery.data ?? []}
@@ -595,7 +613,22 @@ function AccessPermissionsPage() {
               icon={ShieldEllipsis}
               title="Permission data unavailable"
               description={errorText(pageError)}
+              action={
+                <button
+                  type="button"
+                  className="admin-action-primary"
+                  onClick={() => void Promise.all([catalogQuery.refetch(), usersQuery.refetch()])}
+                >
+                  Retry permission directory
+                </button>
+              }
             />
+          </AdminCard>
+        ) : !directoryVerified ? (
+          <AdminCard>
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Verifying permission directory…
+            </p>
           </AdminCard>
         ) : tab === "users" ? (
           <UsersTab
