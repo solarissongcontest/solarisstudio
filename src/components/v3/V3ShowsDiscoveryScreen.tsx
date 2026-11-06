@@ -38,7 +38,8 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
   const [state, setState] = useState<ShowDiscoveryState | "all">("all");
   // Keyed pagination resets synchronously with any filter change, without a
   // render/effect cycle that could briefly reveal a stale historical window.
-  const browseFilterKey = JSON.stringify([search.trim(), editionId, kind, state]);
+  const normalizedSearch = search.trim().toLowerCase();
+  const browseFilterKey = JSON.stringify([normalizedSearch, editionId, kind, state]);
   const [browseWindowState, setBrowseWindowState] = useState({ key: "", page: 1 });
 
   const discovery = useMemo(
@@ -75,15 +76,15 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
     () =>
       allItems.filter(
         (item) =>
-          (!search.trim() || [
+          (!normalizedSearch || [
             item.show.name, editionLabel(item.edition),
             showKindLabel(item.show.kind), item.stateLabel,
-          ].join(" ").toLowerCase().includes(search.trim().toLowerCase())) &&
+          ].join(" ").toLowerCase().includes(normalizedSearch)) &&
           (editionId === "all" || item.edition.id === editionId) &&
           (kind === "all" || item.show.kind === kind) &&
           (state === "all" || item.state === state),
       ),
-    [allItems, editionId, kind, state, search],
+    [allItems, editionId, kind, state, normalizedSearch],
   );
 
   const browseWindow = useMemo(
@@ -93,7 +94,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
     ),
     [browseItems, browseFilterKey, browseWindowState],
   );
-  const activeFilterCount = [editionId !== "all", kind !== "all", state !== "all"].filter(Boolean).length;
+  const activeFilterCount = Number(editionId !== "all") + Number(kind !== "all") + Number(state !== "all");
   // Shared fields render in the app filter sheet or desktop/mobile-web filter row,
   // avoiding duplicate controls, translation drift and client bundle cost.
   const filterFields = (
