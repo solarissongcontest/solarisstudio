@@ -5,6 +5,8 @@ on:
     branches:
       - main
     paths:
+      - ".github/scripts/v3-start-disposable-supabase.sh"
+      - ".github/scripts/prepare-archive-local-config.py"
       - "supabase/migrations/**"
       - ".github/scripts/v3-s14-televote-result-truth-rehearsal.sh"
       - ".github/scripts/v3-s14-televote-result-truth-replay-hardening-rehearsal.sh"
@@ -32,7 +34,7 @@ jobs:
         with:
           version: 2.113.0
       - name: Start isolated local Supabase
-        run: supabase start
+        run: bash .github/scripts/v3-start-disposable-supabase.sh
       - name: Rebuild complete migration chain locally
         run: supabase db reset --local --no-seed
       - name: Rehearse published Televote truth
@@ -67,7 +69,7 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/solaris-s14-tv-truth-main
-          supabase start
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-start-disposable-supabase.sh"
           supabase db reset --local --no-seed
       - name: Apply only the feature migrations locally
         shell: bash

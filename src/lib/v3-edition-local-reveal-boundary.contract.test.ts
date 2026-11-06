@@ -22,8 +22,9 @@ describe("V3 Edition local spoiler reveal stays within its route", () => {
       'locked: globalSpoilerProtection || spoilerSafe || !projection.story,',
     );
     expect(overview).toContain(
-      'locked: globalSpoilerProtection || spoilerSafe || projection.results.state !== "available",',
+      "locked: globalSpoilerProtection || !canOpenV3EditionResults({",
     );
+    expect(overview).toMatch(/canOpenV3EditionResults\(\{\s*state: projection.results.state,\s*showHref: projection.results.showHref,\s*spoilerSafe,/);
   });
 
   it("does not turn a local reveal into a direct cross-product Story or Results action", () => {

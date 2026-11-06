@@ -1,11 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import { Bell, BellOff, BookmarkCheck, ChevronRight, Radio, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import { useMyFollows, useSetFanFollow } from "@/lib/engagement-data";
 import {
   buildV3FollowingSavedProjection,
+  searchV3FollowingSavedItems,
   type V3FollowingSavedItem,
   type V3FollowNotificationLevel,
 } from "@/lib/v3-following-saved";
@@ -106,7 +107,14 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
   const shows = useAllShows();
   const setFollow = useSetFanFollow(viewerId);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const mutationInFlight = useRef(false);
+  const [message, setMessage] = useState<{ viewerId: string; text: string } | null>(null);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    setMessage(null);
+    setSearch("");
+  }, [viewerId]);
 
   const projection = useMemo(() => {
     if (!follows.data?.schemaReady) return null;
@@ -118,16 +126,43 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
       shows: shows.data ?? [],
     });
   }, [countries.data, editions.data, follows.data, shows.data, viewerId]);
+  const visibleItems = useMemo(
+    () => searchV3FollowingSavedItems(projection?.items ?? [], search),
+    [projection, search],
+  );
 
   const loading = follows.isLoading || countries.isLoading || editions.isLoading || shows.isLoading;
   const failed = follows.isError || countries.isError || editions.isError || shows.isError;
+  const paused = !failed && (
+    (follows.isPending && follows.isPaused) ||
+    (countries.isPending && countries.isPaused) ||
+    (editions.isPending && editions.isPaused) ||
+    (shows.isPending && shows.isPaused)
+  );
+  // Only a query being retried should disable error recovery. Other public
+  // collections can still be loading or refreshing independently.
+  const retrying =
+    (follows.isError && follows.isFetching) ||
+    (countries.isError && countries.isFetching) ||
+    (editions.isError && editions.isFetching) ||
+    (shows.isError && shows.isFetching);
+
+  // Retry only failed reads. Refetching every public collection would waste egress
+  // and could invalidate unrelated successful data.
+  const retryFailedReads = () => {
+    if (follows.isError) void follows.refetch();
+    if (countries.isError) void countries.refetch();
+    if (editions.isError) void editions.refetch();
+    if (shows.isError) void shows.refetch();
+  };
 
   const updateFollow = async (
     item: V3FollowingSavedItem,
     following: boolean,
     notificationLevel = item.notificationLevel,
   ) => {
-    if (pendingKey) return;
+    if (mutationInFlight.current) return;
+    mutationInFlight.current = true;
     const operationKey = `${item.entityType}:${item.entityId}`;
     setPendingKey(operationKey);
     setMessage(null);
@@ -138,11 +173,12 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
         following,
         notificationLevel,
       });
-      setMessage(following ? `Updated ${item.title}.` : `Removed ${item.title} from Following & Saved.`);
+      setMessage({ viewerId, text: following ? `Updated ${item.title}.` : `Removed ${item.title} from Following & Saved.` });
     } catch (error) {
       console.error("[V3 Following & Saved] Preference update failed", error);
-      setMessage("Solaris could not save that preference. Nothing else was changed.");
+      setMessage({ viewerId, text: "Update not confirmed. Check your saved items before trying again." });
     } finally {
+      mutationInFlight.current = false;
       setPendingKey(null);
     }
   };
@@ -156,20 +192,41 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
           description="Keep meaningful Solaris entities close and choose how many updates you want from each one."
         />
 
-        {message ? (
+        {message?.viewerId === viewerId ? (
           <p className="mb-4 rounded-xl border border-[var(--v3-border)] px-4 py-3 text-sm" role="status" aria-live="polite">
-            {message}
+            {message.text}
           </p>
         ) : null}
 
-        {loading ? (
-          <V3Surface className="p-5">
-            <p role="status" aria-live="polite" className="text-sm text-[var(--v3-text-secondary)]">Loading your saved items…</p>
-          </V3Surface>
-        ) : failed ? (
-          <V3Surface className="p-5">
+        {pendingKey ? (
+          <p role="status" aria-live="polite" className="mb-4 text-sm text-[var(--v3-text-secondary)]">
+            Saving your preference…
+          </p>
+        ) : null}
+
+        {failed ? (
+          <V3Surface className="p-5" data-v3-following-saved-state="error">
             <p role="alert" className="text-sm font-semibold">Following & Saved could not be loaded.</p>
             <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">Solaris did not substitute public or browser-local data for your private preferences.</p>
+            <button
+              type="button"
+              disabled={retrying}
+              onClick={retryFailedReads}
+              className="mt-3 min-h-11 rounded-xl border border-[var(--v3-border)] px-4 text-sm font-semibold transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {retrying ? "Retrying…" : "Retry saved items"}
+            </button>
+          </V3Surface>
+        ) : paused ? (
+          <V3Surface className="p-5" data-v3-following-saved-state="paused">
+            <p role="status" className="text-sm font-semibold">Saved items cannot be verified while the connection is paused.</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
+              Reconnect to load your private preferences. Solaris will not mistake an unverified list for an empty one.
+            </p>
+          </V3Surface>
+        ) : loading ? (
+          <V3Surface className="p-5">
+            <p role="status" aria-live="polite" className="text-sm text-[var(--v3-text-secondary)]">Loading your saved items…</p>
           </V3Surface>
         ) : follows.data?.schemaReady === false ? (
           <V3Surface className="p-5" data-v3-following-saved-state="unavailable">
@@ -182,17 +239,44 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
           </V3Surface>
         ) : projection?.items.length ? (
           <>
+            <V3Surface className="mb-4 p-4">
+              <label className="grid gap-2 text-xs font-semibold text-[var(--v3-text-secondary)]">
+                Search saved items
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Country, edition or show"
+                  className="min-h-11 rounded-xl border border-[var(--v3-border)] bg-[var(--v3-bg-elevated)] px-3 text-sm text-[var(--v3-text-primary)]"
+                />
+              </label>
+              <p role="status" className="mt-2 text-xs text-[var(--v3-text-tertiary)]">
+                {visibleItems.length} of {projection.items.length} saved items
+              </p>
+            </V3Surface>
+            {search.trim() && visibleItems.length === 0 ? (
+              <V3Surface className="p-5" data-v3-following-saved-state="no-search-results">
+                <p className="text-sm font-semibold">No saved items match your search</p>
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="mt-3 min-h-11 rounded-xl border border-[var(--v3-border)] px-4 text-sm font-semibold"
+                >
+                  Clear search
+                </button>
+              </V3Surface>
+            ) : null}
             {(["country", "edition", "show"] as const).map((entityType) => {
-              const items = projection.items.filter((item) => item.entityType === entityType);
+              const items = visibleItems.filter((item) => item.entityType === entityType);
               if (!items.length) return null;
               return (
-                <V3Section key={entityType} title={typeLabel(entityType)} meta={`${items.length} saved`}>
+                <V3Section key={entityType} title={typeLabel(entityType)} meta={search.trim() ? `${items.length} matching` : `${items.length} saved`}>
                   <div className="grid gap-3">
                     {items.map((item) => (
                       <SavedItem
                         key={item.followId}
                         item={item}
-                        pending={pendingKey === `${item.entityType}:${item.entityId}`}
+                        pending={Boolean(pendingKey)}
                         onLevel={(level) => void updateFollow(item, true, level)}
                         onRemove={() => void updateFollow(item, false)}
                       />
