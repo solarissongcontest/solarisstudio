@@ -21,9 +21,16 @@ vi.mock("@/integrations/supabase/client", () => ({
 
 import { WorldExploreEntry, WorldV3ExploreEntry } from "./WorldExploreEntry";
 
-function renderLegacy(flag: boolean) {
+function renderLegacy(flag: boolean, status: "verified" | "fetching" | "failed" = "verified") {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  client.setQueryData(["world", "public", "rollout"], flag);
+  const key = ["world", "public", "rollout"];
+  client.setQueryData(key, flag);
+  const query = client.getQueryCache().find({ queryKey: key, exact: true });
+  if (!query) throw new Error("Missing isolated World rollout cache");
+  if (status === "fetching") query.setState({ fetchStatus: "fetching" });
+  if (status === "failed") query.setState({
+    status: "error", error: new Error("World rollout recheck failed"), fetchStatus: "idle",
+  });
   try {
     return renderToStaticMarkup(
       <QueryClientProvider client={client}><WorldExploreEntry /></QueryClientProvider>,
@@ -38,6 +45,11 @@ describe("Terra Solaris discovery entry in the three experiences", () => {
     expect(renderLegacy(false)).not.toContain("/world");
     expect(renderLegacy(true)).toContain('href="/world"');
     expect(renderLegacy(true)).toContain("Terra Solaris");
+  });
+
+  it("hides cached-true World discovery during failed or in-flight rollout verification", () => {
+    expect(renderLegacy(true, "fetching")).not.toContain('href="/world"');
+    expect(renderLegacy(true, "failed")).not.toContain('href="/world"');
   });
 
   it("keeps the installed-app entry presentational and gated by a server-owned decision", () => {
