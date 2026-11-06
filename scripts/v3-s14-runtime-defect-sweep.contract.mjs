@@ -56,7 +56,7 @@ test("groups S15 cutover inventory without turning every item into a hard blocke
 });
 test("does not accept success without complete same-SHA Archive evidence", () => {
   fixture(({ root, evidenceDir, put }) => {
-    put("runtime-full-contest.json", { candidateSha: SHA, status: "passed", exitCode: 0 });
+    put("runtime-full-contest.json", { candidateSha: SHA, lane: "full-contest", status: "passed", exitCode: 0 });
     const result = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
     assert.equal(result.exactShaFullContestProof, "not-observed");
     assert.ok(result.findings.some((f) => f.id === "S14_RUNTIME_EVIDENCE_GAP"));
@@ -64,7 +64,7 @@ test("does not accept success without complete same-SHA Archive evidence", () =>
 });
 test("accepts valid S14 proof only for its exact commit", () => {
   fixture(({ root, evidenceDir, put }) => {
-    put("runtime-full-contest.json", { candidateSha: SHA, status: "passed", exitCode: 0 });
+    put("runtime-full-contest.json", { candidateSha: SHA, lane: "full-contest", status: "passed", exitCode: 0 });
     put("s14-full-contest.json", completeS14Proof());
     const result = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
     assert.equal(result.exactShaFullContestProof, "complete-on-exact-sha");
@@ -102,7 +102,7 @@ test("rejects reordered lifecycle and incomplete success coverage on the exact S
 
 test("failed stage does not imply that unexecuted later stages passed", () => {
   fixture(({ root, evidenceDir, put }) => {
-    put("runtime-full-contest.json", { candidateSha: SHA, status: "failed", exitCode: 1 });
+    put("runtime-full-contest.json", { candidateSha: SHA, lane: "full-contest", status: "failed", exitCode: 1 });
     put("s14-full-contest.partial.json", {
       candidateSha: SHA, passed: false, partial: true,
       failurePhase: "stage-8-results", failureStage: "stage-8-results",
@@ -355,6 +355,29 @@ test("a complete S14 runtime is not clean without exact-SHA static audit and obs
     report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
     assert.equal(report.checks.staticEvidence.complete, true);
     assert.equal(hasRuntimeCleanProof(report), true, "unresolved S15 cutovers remain triage, not automatic runtime failures");
+
+    // Copying another lane's successful artifact must not manufacture Archive
+    // evidence just because the copied JSON has the expected candidate SHA.
+    put("runtime-archive.json", {
+      candidateSha: SHA, lane: "full-contest", status: "passed", exitCode: 0,
+    });
+    report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
+    assert.equal(report.checks.localRuntimeLanes.archive, "invalid-evidence");
+    assert.ok(report.findings.some((f) =>
+      f.id === "EVIDENCE_LANE_MISMATCH_ARCHIVE" && f.status === "confirmed-blocker"));
+    assert.equal(hasRuntimeCleanProof(report), false, "cross-lane reused success cannot prove S14");
+
+    // Absence is also invalid: the CI producer always writes an explicit lane.
+    put("runtime-archive.json", { candidateSha: SHA, status: "passed", exitCode: 0 });
+    report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
+    assert.equal(report.checks.localRuntimeLanes.archive, "invalid-evidence");
+    assert.ok(report.findings.some((f) => f.id === "EVIDENCE_LANE_MISMATCH_ARCHIVE"));
+    assert.equal(hasRuntimeCleanProof(report), false, "unbound runtime evidence cannot prove S14");
+
+    put("runtime-archive.json", { candidateSha: SHA, lane: "archive", status: "passed", exitCode: 0 });
+    report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
+    assert.equal(report.checks.localRuntimeLanes.archive, "passed");
+    assert.equal(hasRuntimeCleanProof(report), true, "correctly attributed lanes retain valid diagnostic proof");
 
     put("checks-static.json", { ...evidence, candidateSha: "b".repeat(40) });
     report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
