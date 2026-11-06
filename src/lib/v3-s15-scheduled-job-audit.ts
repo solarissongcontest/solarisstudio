@@ -91,7 +91,7 @@ function withoutSqlComments(source: string): string {
  */
 function withoutInertDollarQuotes(code: string): string {
   const result = code.split("");
-  const tokens = /\\$([A-Za-z_][A-Za-z0-9_]*)?\\$/g;
+  const tokens = /\$([A-Za-z_][A-Za-z0-9_]*)?\$/g;
   let doEnd: string | null = null;
   let maskedUntil = 0;
 
@@ -109,7 +109,7 @@ function withoutInertDollarQuotes(code: string): string {
     // migration is applied. A CREATE FUNCTION ... AS $tag$ body does not.
     if (
       doEnd === null &&
-      /(?:^|;)\\s*do(?:\\s+language\\s+[A-Za-z_][A-Za-z0-9_]*)?\\s*$/i.test(code.slice(0, start))
+      /(?:^|;)\s*do(?:\s+language\s+[A-Za-z_][A-Za-z0-9_]*)?\s*$/i.test(code.slice(0, start))
     ) {
       doEnd = delimiter;
       continue;
@@ -118,7 +118,7 @@ function withoutInertDollarQuotes(code: string): string {
     const closingAt = code.indexOf(delimiter, start + delimiter.length);
     const end = closingAt < 0 ? code.length : closingAt + delimiter.length;
     for (let i = start; i < end; i += 1) {
-      if (result[i] !== "\\n") result[i] = " ";
+      if (result[i] !== "\n") result[i] = " ";
     }
     maskedUntil = end;
   }
@@ -128,7 +128,8 @@ function withoutInertDollarQuotes(code: string): string {
 
 /**
  * Locate calls only in SQL code, not in a SQL string containing an example.
- * Dollar-quoted DO/function bodies remain code for this source audit.
+ * Anonymous DO bodies remain executable code, but quoted SQL data and
+ * CREATE FUNCTION bodies do not register jobs at migration time.
  */
 function outsideSqlStrings(source: string): string {
   let result = "";
