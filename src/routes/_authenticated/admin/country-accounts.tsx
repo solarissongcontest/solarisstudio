@@ -62,7 +62,10 @@ function reviewInvalidatingErrorCode(code: ReturnType<typeof systemErrorCodeFrom
 }
 
 function CountryAccountsAdminPage() {
-  const { data: countries = [] } = useCountries();
+  const countriesQuery = useCountries();
+  const countries = countriesQuery.data ?? [];
+  // Stale cached rows are not a verified country roster after a failed refetch.
+  const countriesReady = countriesQuery.isSuccess && !countriesQuery.error;
   const {
     data,
     isLoading: accountsLoading,
@@ -99,6 +102,7 @@ function CountryAccountsAdminPage() {
   }, [countries, accountByCountry, query]);
 
   function openAccount(account: AdminCountryAccount) {
+    if (!countriesReady) return;
     setTarget(account);
     setReason(account.suspension_reason ?? "");
     setMessage(null);
@@ -113,7 +117,7 @@ function CountryAccountsAdminPage() {
   }
 
   function requestStatusReview(targetStatus: "active" | "suspended") {
-    if (!target || target.status === targetStatus) return;
+    if (!countriesReady || !target || target.status === targetStatus) return;
     setMessage(null);
     setLastOperationId(null);
     setPendingReview({
@@ -134,6 +138,11 @@ function CountryAccountsAdminPage() {
   async function confirmStatusReview() {
     if (!pendingReview) return;
     const review = pendingReview;
+    if (!review.outcomeUnconfirmed && !countriesReady) {
+      setPendingReview(null);
+      setMessage("Country roster could not be verified before applying this review. Nothing was changed. Retry the country directory and open a new review.");
+      return;
+    }
 
     // A first attempt must prove the human-reviewed account is still current.
     // Once an outcome is unconfirmed, however, refetching the account first can
@@ -220,7 +229,7 @@ function CountryAccountsAdminPage() {
   const suspended = accountsReady
     ? data!.accounts.filter((account) => account.status === "suspended").length
     : null;
-  const unclaimed = claimed === null ? null : Math.max(0, countries.length - claimed);
+  const unclaimed = claimed === null || !countriesReady ? null : Math.max(0, countries.length - claimed);
 
   return (
     <AdminPage>
@@ -284,6 +293,30 @@ function CountryAccountsAdminPage() {
                 className="admin-action-primary"
               >
                 <RefreshCw className="size-4" /> Retry
+              </button>
+            }
+          />
+        ) : countriesQuery.isLoading ? (
+          <div className="py-10 text-center text-sm text-muted-foreground">
+            Verifying country directory…
+          </div>
+        ) : !countriesReady ? (
+          <AdminEmptyState
+            icon={RefreshCw}
+            title="Country directory could not be verified"
+            description={
+              countriesQuery.error instanceof Error
+                ? countriesQuery.error.message
+                : "The country directory is unavailable. Account totals and moderation controls will not be inferred from missing country data."
+            }
+            action={
+              <button
+                type="button"
+                onClick={() => void countriesQuery.refetch()}
+                disabled={countriesQuery.isFetching}
+                className="admin-action-secondary"
+              >
+                <RefreshCw className="size-4" /> Retry country directory
               </button>
             }
           />

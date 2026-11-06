@@ -94,6 +94,23 @@ describe("V3 Organizer country account moderation review", () => {
     expect(route).toContain("Review the current account state before trying again.");
   });
 
+  it("does not represent failed country directory reads as zero unclaimed accounts or allow a new moderation operation", () => {
+    expect(route).toContain("const countriesQuery = useCountries();");
+    expect(route).toContain("const countriesReady = countriesQuery.isSuccess && !countriesQuery.error;");
+    expect(route).toContain("claimed === null || !countriesReady ? null");
+    expect(route).toContain("countriesQuery.isLoading ? (");
+    expect(route).toContain("title=\"Country directory could not be verified\"");
+    expect(route).toContain("Retry country directory");
+    expect(route).toContain("void countriesQuery.refetch()");
+    expect(route).toContain("if (!countriesReady) return;");
+    expect(route).toContain("if (!countriesReady || !target || target.status === targetStatus) return;");
+    expect(route).toContain("if (!review.outcomeUnconfirmed && !countriesReady)");
+    expect(route).toContain("Nothing was changed. Retry the country directory");
+    // Unconfirmed operations must retain the same frozen identity for reconciliation.
+    expect(route).toContain("if (!review.outcomeUnconfirmed) {");
+    expect(route).toContain("operationIdentity: review.operationIdentity");
+  });
+
   it("requires typing the exact country before either access change", () => {
     expect(route).toContain("confirmationText={pendingReview?.countryName}");
     expect(route).toContain("Type ${pendingReview.countryName} to confirm the access change");
