@@ -30,6 +30,17 @@ describe("Jury integrity evidence service-role authorization", () => {
     expect(fixture.privilegedSchema).not.toHaveBeenCalled();
   });
 
+  it.each(["not-an-edition", "ssc22", "00000000-0000-0000-0000-000000000000"])(
+    "rejects malformed edition identifiers before permission or private reads: %s",
+    async (id) => {
+      await expect(listJuryIntegrityCasesServer(id)).rejects.toThrow(
+        "Jury Integrity requires a valid edition id",
+      );
+      expect(fixture.getCapabilities).not.toHaveBeenCalled();
+      expect(fixture.privilegedSchema).not.toHaveBeenCalled();
+    },
+  );
+
   it("does not access protected evidence when the identity lookup fails", async () => {
     fixture.getCapabilities.mockRejectedValue(new Error("Not authenticated"));
     await expect(listJuryIntegrityCasesServer(editionId)).rejects.toThrow("Not authenticated");
