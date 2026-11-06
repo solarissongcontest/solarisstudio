@@ -58,19 +58,10 @@ describe("TG3 public institution bodies", () => {
   it("rejects unpublished, cross-slug and incomplete institution identities", () => {
     expect(decodePublicWorldInstitution(parent, "guard")?.shortName).toBe("GUARD");
     expect(decodePublicWorldInstitution({ ...parent, public_visibility: "private" }, "guard")).toBeNull();
+    expect(decodePublicWorldInstitution({ ...parent, status: "proposed" }, "guard")).toBeNull();
     expect(decodePublicWorldInstitution(parent, "unity")).toBeNull();
     expect(decodePublicWorldInstitution({ ...parent, official_name: "" }, "guard")).toBeNull();
-    expect(decodePublicWorldInstitution({ ...parent, status: "proposed" }, "guard")).toBeNull();
   });
-  it("blocks proposed unions before any body or office read", async () => {
-    const proposal = chain({ data: { ...parent, status: "proposed" }, error: null });
-    mockFrom.mockReturnValue(proposal);
-    expect(await readPublicWorldBodies("guard", 0)).toBeNull();
-    expect(mockFrom).toHaveBeenCalledTimes(1);
-    expect(proposal.in).toHaveBeenCalledWith(
-      "status", ["recognized", "active", "suspended", "historical", "dissolved"]);
-  });
-
   it("rejects private, cross-parent, invalid-status and invalid-slug bodies", () => {
     expect(decodePublicWorldBody({ ...organ, visibility: "members" }, "org-1")).toBeNull();
     expect(decodePublicWorldBody({ ...organ, organization_id: "other" }, "org-1")).toBeNull();
@@ -96,6 +87,7 @@ describe("TG3 public institution bodies", () => {
     const result = await readPublicWorldBodies("guard", 0);
     expect(result?.bodies).toHaveLength(1);
     expect(body.eq).toHaveBeenCalledWith("world_organizations.public_visibility", "public");
+    expect(body.in).toHaveBeenCalledWith("world_organizations.status", ["recognized", "active", "suspended", "historical", "dissolved"]);
   });
   it("searches the entire published body set, never only the current page", async () => {
     const org = chain({ data: parent, error: null });
@@ -222,7 +214,6 @@ describe("TG3 public institution bodies", () => {
       null,
       { id: "org-1", public_visibility: "private" },
       { id: "another-org", public_visibility: "public" },
-      { id: "org-1", public_visibility: "public", status: "proposed" },
     ]) {
       body.maybeSingle.mockResolvedValue({
         data: { ...organ, world_organizations: joinedParent }, error: null,
