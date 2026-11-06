@@ -343,7 +343,7 @@ function AppPublicPaletteDialog({
   const searchResults = useMemo<PublicSearchResult[]>(() => {
     if (!normalized) return [];
 
-    const remoteResults = (awaitingRemote || remote.isError ? [] : remote.data ?? []).map((item) => ({
+    const remoteResults = (normalized.length < 2 || awaitingRemote || remote.isError ? [] : remote.data ?? []).map((item) => ({
       id: item.result_id,
       label: item.title,
       description: item.subtitle ?? "",
