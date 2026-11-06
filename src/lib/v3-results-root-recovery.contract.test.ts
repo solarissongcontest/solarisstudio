@@ -34,7 +34,7 @@ describe("Public Results root authoritative recovery boundary", () => {
     expect(source).toContain("if (bundle.isError || !bundle.data) void bundle.refetch()");
     expect(source).toContain("else void rollout.refetch()");
     expect(source).toContain("Retry official results");
-    expect(source).toContain("motion-safe:animate-spin");
+    expect(source).toContain('{retrying ? "Retrying results…" : "Retry official results"}');
     expect(source).not.toContain("setInterval(");
   });
 
