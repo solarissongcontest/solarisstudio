@@ -602,6 +602,8 @@ test(
         return {
           runtime: document.documentElement.dataset.solarisRuntime ?? null,
           coarsePointer: matchMedia("(pointer: coarse)").matches,
+          portraitMedia: matchMedia("(orientation: portrait)").matches,
+          landscapeMedia: matchMedia("(orientation: landscape)").matches,
           webkitSafeAreaSupport: CSS.supports("-webkit-touch-callout", "none"),
           viewport: { width: innerWidth, height: innerHeight },
           headerTop: chromeRect.top,
@@ -622,8 +624,15 @@ test(
     ]) {
       await page.setViewportSize({ width: state.width, height: state.height });
       await expect(header).toBeVisible();
+      const before = await readSafeZone();
+      await testInfo.attach(`top-safe-before-${state.label}.json`, {
+        body: Buffer.from(JSON.stringify(before, null, 2)),
+        contentType: "application/json",
+      });
       await expect
-        .poll(async () => (await readSafeZone())?.safePadding ?? -1)
+        .poll(async () => (await readSafeZone())?.safePadding ?? -1, {
+          message: `Installed ${state.label} safe-area contract: ${JSON.stringify(before)}`,
+        })
         .toBeGreaterThanOrEqual(state.minimum - 1);
 
       const evidence = await readSafeZone();
