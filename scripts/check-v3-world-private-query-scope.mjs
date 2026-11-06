@@ -91,9 +91,10 @@ export function inspectPrivateWorldComponent(file, source) {
     let end = start;
     for (; end < masked.length; end++) {
       if (masked[end] === "[") depth++;
-      if (masked[end] === "]" && --depth === 0) { end++; break; }
-      // Undo decrement for every character other than a closing bracket.
-      if (masked[end] !== "]") depth++;
+      else if (masked[end] === "]") {
+        depth--;
+        if (depth === 0) { end++; break; }
+      }
     }
     if (depth !== 0 || end > masked.length) {
       violations.push({ file, line, code: "MALFORMED_QUERY_KEY",
