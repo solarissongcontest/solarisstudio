@@ -29,6 +29,21 @@ const detail={...overview.measures[0],countryId,body:"Section I. Published ficti
 beforeEach(()=>rpc.mockReset());
 
 describe("WORLD-09 TG16 country-controlled domestic laws",()=>{
+  it("connects the public route and Government navigation under canonical publication/shell protections",()=>{
+    const route=readFileSync(resolve(process.cwd(),
+      "src/routes/world/domestic-laws/$code.tsx"),"utf8");
+    const country=readFileSync(resolve(process.cwd(),
+      "src/components/world/WorldDomesticPolitics.tsx"),"utf8");
+    const viewer=readFileSync(resolve(process.cwd(),
+      "src/components/world/WorldDomesticLaws.tsx"),"utf8");
+    expect(route).toContain("WorldPublicGate verifyOnMount");
+    expect(route).toContain("<AppShell>");
+    expect(country).toContain('/world/domestic-laws/$code');
+    expect(viewer).toContain("readDomesticLaws");
+    expect(viewer).toContain("writeDomesticMeasure");
+    expect(viewer).toContain("isFetchedAfterMount");
+    expect(viewer).toContain("candidate?.countryId===data?.countryId");
+  });
   it("does not introduce a real institutional vote, legal Work owner or another controller",()=>{
     expect(SQL).toContain("public.country_accounts");
     expect(SQL).not.toContain("insert into public.world_ballots");
