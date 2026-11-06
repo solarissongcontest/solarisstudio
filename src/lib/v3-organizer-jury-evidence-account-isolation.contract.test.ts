@@ -44,6 +44,15 @@ describe("Organizer Jury private evidence and account boundary", () => {
     expect(route).toContain("retryVoters(), retryVotes(), retryStatuses(), retrySubmissions()");
   });
 
+  it("drops prepared destructive reviews whenever Jury evidence is stale or unavailable", () => {
+    expect(route).toContain("setPendingBallotReview(null)");
+    expect(route).toContain("setPendingDnvChange(null)");
+    expect(route).toContain("setDeleteTarget(null)");
+    expect(route).toContain("setEditDraft(null)");
+    expect(route).toContain("setLifecycleReason");
+    expect(route).toContain("!votersError && !votesError && !statusesError && !submissionsError");
+  });
+
   it("preserves governed lifecycle command identities and does not claim roster or score writer cutover", () => {
     expect(route).toContain("studio2_jury_dnv_preview");
     expect(route).toContain("createOrganisationCommand");
