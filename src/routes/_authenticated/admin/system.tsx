@@ -1021,7 +1021,7 @@ function isEditionCalendarItem(item: { id: string; source: string }) {
 }
 
 function parseEditionCalendarDate(value: string): Date | null {
-  const match = /^(\\d{4})-(\\d{2})-(\\d{2})(?:T|$)/.exec(value);
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:T|$)/.exec(value);
   if (!match) return null;
   const year = Number(match[1]);
   const month = Number(match[2]);
