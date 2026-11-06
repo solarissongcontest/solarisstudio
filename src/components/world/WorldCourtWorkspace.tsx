@@ -203,9 +203,9 @@ export function WorldCourtWorkspace() {
           File official disputes, respond as a sovereign country, and read published-safe Court docket entries.
           Private claims and pleadings are restricted to the parties and authorized Court officials.
         </p>
-        {workspace.isPending ? <Message>Checking Court availability and access…</Message> : null}
+        {(workspace.isPending || workspace.isFetching) ? <Message>Checking Court availability and access…</Message> : null}
         {workspace.isError ? <Failure error={workspace.error} retry={refresh} /> : null}
-        {workspace.isSuccess ? (
+        {workspace.isSuccess && !workspace.isFetching ? (
           <>
             <section className="mt-9 border-t border-border pt-6" aria-labelledby="public-court-docket">
               <h2 id="public-court-docket" className="text-xl font-semibold">Public Court docket</h2>
