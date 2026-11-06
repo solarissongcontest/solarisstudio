@@ -86,15 +86,8 @@ function qualificationSegments(
 
 function buildQualificationRecordOverrides(
   input: Parameters<typeof buildFanRecords>[0],
+  archive: ReturnType<typeof buildPublicCountryArchive>,
 ): FanRecord[] {
-  const archive = buildPublicCountryArchive({
-    editions: input.editions,
-    shows: input.shows,
-    participants: input.participants,
-    results: input.results,
-    jury: input.jury,
-    televote: [],
-  });
   const histories = new Map<string, Map<number, boolean>>();
   const countryMap = new Map(input.countries.map((country) => [country.id, country]));
 
@@ -240,7 +233,7 @@ export function buildCanonicalFanRecordsWithCoverage(
   };
 
   const overrides = new Map(
-    buildQualificationRecordOverrides(safeInput).map((record) => [record.id, record]),
+    buildQualificationRecordOverrides(safeInput, archive).map((record) => [record.id, record]),
   );
   const base = buildFanRecords(safeInput);
   const seen = new Set<string>();
