@@ -343,7 +343,9 @@ function AppPublicPaletteDialog({
   const searchResults = useMemo<PublicSearchResult[]>(() => {
     if (!normalized) return [];
 
-    const remoteResults = (normalized.length < 2 || awaitingRemote || remote.isError ? [] : remote.data ?? []).map((item) => ({
+    const remoteResults = (
+      normalized.length < 2 || awaitingRemote || remote.isError ? [] : remote.data ?? []
+    ).map((item) => ({
       id: item.result_id,
       label: item.title,
       description: item.subtitle ?? "",
@@ -453,7 +455,7 @@ function AppPublicPaletteDialog({
         <CommandEmpty>
           {!awaitingRemote && remote.isError && normalized.length >= 2
             ? "Published content search is unavailable; local matches may still be shown."
-             : awaitingRemote || remote.isFetching
+            : awaitingRemote || remote.isFetching
               ? "Searching Solaris…"
               : normalized.length === 1
                 ? "Type one more character to search."
