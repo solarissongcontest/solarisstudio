@@ -25,8 +25,6 @@ export default defineConfig({
     build: {
       rolldownOptions: {
         output: {
-          // Keep exports stable while shortening private module bindings.
-          minify: { compress: true, mangle: { toplevel: true } },
           // Production evidence showed repeated gzip framing across hundreds of
           // tiny Lucide chunks and several TanStack Router helper chunks. Keep
           // package behavior unchanged while consolidating only those vendor
@@ -118,15 +116,6 @@ export default defineConfig({
                 minShareCount: 2,
                 minSize: 5000,
                 priority: 1,
-              },
-              // Bound shared dependencies to preserve lazy routes, reduce
-              // repeated gzip overhead, and honor all single-file budgets.
-              {
-                name: "shared-cross-route",
-                minShareCount: 2,
-                minSize: 10000,
-                maxSize: 1000000,
-                priority: -1,
               },
             ],
           },
