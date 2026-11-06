@@ -24,12 +24,18 @@ import { readTelevoteReceipt, scrubTelevoteReceipts, writeTelevoteReceipt } from
 
 function readStoredReceipt(roundId: string): SubmissionReceiptDetail | null {
   if (typeof window === "undefined") return null;
-  // Upgrade every legacy round, not just this round: old receipt markers
-  // contained voter names and unpublished ballot breakdowns.
-  scrubTelevoteReceipts(window.localStorage);
-  const stored = readTelevoteReceipt(window.localStorage, roundId);
-  if (!stored) return null;
-  return { id: roundId, kind: "televote", governance: stored.governance };
+  try {
+    const storage = window.localStorage;
+    // Upgrade every legacy round, not just this round: old receipt markers
+    // contained voter names and unpublished ballot breakdowns.
+    scrubTelevoteReceipts(storage);
+    const stored = readTelevoteReceipt(storage, roundId);
+    if (!stored) return null;
+    return { id: roundId, kind: "televote", governance: stored.governance };
+  } catch {
+    // Browser storage can be disabled; a local marker is never authoritative.
+    return null;
+  }
 }
 
 function persistRecoveredReceipt(
