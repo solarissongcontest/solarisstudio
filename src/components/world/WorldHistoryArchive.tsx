@@ -9,6 +9,7 @@ const secondary = "inline-flex min-h-11 items-center justify-center gap-2 rounde
 const origin = (event: WorldHistoryEvent) =>
   event.sourceType === "editorial" ? "Editorial history" :
   event.sourceType === "domestic_election" ? "Official domestic election" :
+  event.sourceType === "domestic_office" ? "Official domestic office term" :
   "Recorded institution recognition";
 
 export function WorldHistoryArchive({ countryCode }: { countryCode: string | null }) {
