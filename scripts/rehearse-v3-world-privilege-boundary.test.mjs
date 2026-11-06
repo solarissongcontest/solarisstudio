@@ -70,9 +70,10 @@ test('TG19 runner allows only explicit local status URLs and ignores inherited U
 
 test('TG19 SQL catalog audit is read only and checks every World persistent table', () => {
   assert.match(audit, /set transaction read only;/i);
-  assert.match(audit, /c\.relkind in \('r', 'p'\)/);
+  assert.match(audit, /c\.relkind in \('r', 'p', 'v', 'm', 'f'\)/);
   assert.match(audit, /left\(c\.relname, 6\) = 'world_'/);
   assert.match(audit, /world_table\.relrowsecurity/);
+  assert.match(audit, /world_table\.relkind in \('r', 'p'\)/);
   for (const privilege of ['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE']) {
     assert.ok(audit.includes("'" + privilege + "'"));
   }
