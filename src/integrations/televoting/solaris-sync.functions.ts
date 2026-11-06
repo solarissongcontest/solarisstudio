@@ -51,6 +51,12 @@ export const getMergedRoundSolarisSource = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }) => {
+    // Private cross-edition participant source is not an ordinary public read.
+    // Prove read authority before importing the service-role-backed service.
+    const { requireSolarisCapabilityServer } = await import(
+      "@/integrations/supabase/capabilities.server"
+    );
+    await requireSolarisCapabilityServer("voting.read", null);
     const { getMergedRoundSolarisSourceServer } = await import(
       "@/integrations/televoting/solaris-sync.server"
     );

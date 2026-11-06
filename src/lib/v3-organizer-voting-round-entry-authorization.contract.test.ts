@@ -57,6 +57,18 @@ describe("Organizer Televoting round-entry adapter authorization", () => {
     expect(functions).not.toContain("operationId");
     expect(functions).not.toContain("idempotencyKey");
   });
+  it("preflights voting.read before importing the private Solaris source reader", () => {
+    const start = solarisSyncAdapter.indexOf("export const getMergedRoundSolarisSource =");
+    const end = solarisSyncAdapter.indexOf("export const syncMergedRoundFromSolaris =", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const code = solarisSyncAdapter.slice(start, end);
+    const guard = code.indexOf('await requireSolarisCapabilityServer("voting.read", null)');
+    const privilegedImport = code.indexOf('"@/integrations/televoting/solaris-sync.server"');
+    expect(guard).toBeGreaterThanOrEqual(0);
+    expect(privilegedImport).toBeGreaterThan(guard);
+  });
+
   it("preflights voting.manage before loading the cross-edition Solaris line-up sync writer", () => {
     const start = solarisSyncAdapter.indexOf("export const syncMergedRoundFromSolaris =");
     expect(start).toBeGreaterThanOrEqual(0);
