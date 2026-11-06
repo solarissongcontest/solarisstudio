@@ -134,6 +134,7 @@ begin
   end if;
   if p_kind not in ('party','election','editorial_history')
      or p_payload is null or jsonb_typeof(p_payload) <> 'object'
+     or pg_column_size(p_payload) > 16384
      or p_operation_id is null
      or length(coalesce(p_idempotency_key,'')) not between 8 and 200
      or p_expected_revision is null or p_expected_revision < 0 then
