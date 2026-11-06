@@ -24,6 +24,12 @@ describe("V3 Me identity-only query budget", () => {
     expect(context).toContain("includeParticipationContext &&\n        userQuery.data &&\n        account?.country");
   });
 
+  it("isolates legacy private notice summaries when delegation ownership changes", () => {
+    expect(context).toContain(
+      'queryKey: ["mysolaris-notice-summary", userId, countryId, currentEdition?.id, "recipient-inbox"]',
+    );
+  });
+
   it("does not display stale cached tasks as a new identity-only projection or write fake badge zeroes", () => {
     expect(context).toContain("const capabilities = includeParticipationContext");
     expect(context).toContain("const noticeSummary = includeParticipationContext && noticesQuery.data");

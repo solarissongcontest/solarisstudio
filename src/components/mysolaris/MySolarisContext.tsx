@@ -134,7 +134,7 @@ export function MySolarisProvider({
     enabled: Boolean(
       includeParticipationContext && userQuery.data && capabilities.official_communications,
     ),
-    queryKey: ["mysolaris-notice-summary", userId, currentEdition?.id, "recipient-inbox"],
+    queryKey: ["mysolaris-notice-summary", userId, countryId, currentEdition?.id, "recipient-inbox"],
     queryFn: async () => {
       const notices = await loadStudio2RecipientNoticeInbox(currentEdition?.id);
       return {
