@@ -111,14 +111,18 @@ export function auditWorldBallotEventSql(sources) {
   if (!/^jsonb_build_object\s*\(\s*'voteId'\s*,\s*p_vote_id\s*\)$/i.test(args[7])) {
     throw new Error("Ballot outbox payload must contain only voteId");
   }
-  // Don't permit voter identities/choices to escape into other envelope slots.
-  const envelope = args.slice(1).join(" ");
-  if (/\b(?:p_choice|v_actor|cast_by_user_id|cast_by_proxy_id|proxy_user_id|auth\s*\.\s*uid)\b/i.test(envelope)) {
-    throw new Error("Ballot event envelope contains private vote identity or choice");
-  }
-  if (args[1].toLowerCase() !== "'world_vote'" ||
-      args[2].replace(/\s/g, "").toLowerCase() !== "p_vote_id::text") {
-    throw new Error("Ballot event has unexpected entity authority");
+  // Every other slot must also match the reviewed TG8 event signature.
+  // A denylist of choice/user names is insufficient: future private fields
+  // could be passed as p_email, p_claims, tags, or arbitrary expressions.
+  const normalized = args.map((arg) => arg.replace(/\s+/g, "").toLowerCase());
+  const expected = [
+    "'world.vote.ballot_cast'", "'world_vote'", "p_vote_id::text", "1",
+    "v_operation_id", "null", "null", null, "1", "array[]::text[]",
+  ];
+  for (let i = 0; i < normalized.length; i++) {
+    if (expected[i] !== null && normalized[i] !== expected[i]) {
+      throw new Error("Unexpected ballot event envelope field " + (i + 1));
+    }
   }
   return { ok: true, event: BALLOT_EVENT, source, payloadKeys: ["voteId"], occurrences: 1 };
 }
