@@ -93,15 +93,6 @@ function OrganizerDelegationsPage() {
   });
 
   const summary = summarizeConfirmationRequirementAttention(requirementsQuery.data ?? []);
-  const [attentionSearch, setAttentionSearch] = useState("");
-  const attentionNeedle = attentionSearch.trim().toLocaleLowerCase();
-  const visibleAttention = attentionNeedle
-    ? summary.needsAttention.filter((requirement) =>
-        `${requirement.countryName} ${requirement.reason ?? ""}`
-          .toLocaleLowerCase()
-          .includes(attentionNeedle),
-      )
-    : summary.needsAttention;
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -133,7 +124,6 @@ function OrganizerDelegationsPage() {
               if (choice) {
                 setEditionContext({ id: choice.id, slug: choice.slug, label: editionLabel(choice) });
               }
-              setAttentionSearch("");
             }}
           >
             <option value="">Select an exact edition…</option>
@@ -291,24 +281,8 @@ function OrganizerDelegationsPage() {
             />
 
             {summary.needsAttention.length > 0 ? (
-              <div className="mt-3 border-t border-white/[0.07]">
-                <div className="flex flex-wrap items-end justify-between gap-3 py-3">
-                  <label className="flex min-w-[14rem] flex-1 flex-col gap-1.5">
-                    <span className="text-xs font-semibold text-muted-foreground">Find a delegation obligation</span>
-                    <input
-                      type="search"
-                      value={attentionSearch}
-                      onChange={(event) => setAttentionSearch(event.target.value)}
-                      placeholder="Country or requirement reason"
-                      className="admin-input"
-                    />
-                  </label>
-                  <span className="pb-2 text-xs text-muted-foreground" role="status">
-                    {visibleAttention.length} of {summary.needsAttention.length} unresolved obligations
-                  </span>
-                </div>
-                <div className="divide-y divide-white/[0.07] border-t border-white/[0.07]">
-                  {visibleAttention.slice(0, 12).map((requirement) => (
+              <div className="mt-3 divide-y divide-white/[0.07] border-t border-white/[0.07]">
+                  {summary.needsAttention.slice(0, 12).map((requirement) => (
                     <div
                       key={requirement.id}
                       className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
@@ -333,17 +307,11 @@ function OrganizerDelegationsPage() {
                       </Link>
                     </div>
                   ))}
-                  {visibleAttention.length === 0 ? (
-                    <p className="py-4 text-xs text-muted-foreground">
-                      No unresolved obligations match this search. The edition-wide attention total remains unchanged.
-                    </p>
-                  ) : null}
-                  {visibleAttention.length > 12 ? (
+                  {summary.needsAttention.length > 12 ? (
                     <p className="py-3 text-xs text-muted-foreground">
-                      +{visibleAttention.length - 12} more matching obligations. Open Requirements for the complete authoritative list.
+                      +{summary.needsAttention.length - 12} more obligations. Open Requirements for the complete authoritative list.
                     </p>
                   ) : null}
-                </div>
               </div>
             ) : null}
           </AdminCard>

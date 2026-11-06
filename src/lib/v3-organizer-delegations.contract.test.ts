@@ -101,18 +101,6 @@ describe('V3 Organizer Delegations context boundary', () => {
     expect(headerLink).toBeLessThan(requirementsError);
   });
 
-  it('filters the already-loaded attention list without suppressing canonical totals or fetching more data', () => {
-    expect(delegationsRoute).toContain('const [attentionSearch, setAttentionSearch] = useState("");');
-    expect(delegationsRoute).toContain('const visibleAttention = attentionNeedle');
-    expect(delegationsRoute).toContain('summary.needsAttention.filter((requirement) =>');
-    expect(delegationsRoute).toContain('visibleAttention.slice(0, 12).map((requirement)');
-    expect(delegationsRoute).toContain('No unresolved obligations match this search.');
-    expect(delegationsRoute).toContain('{visibleAttention.length} of {summary.needsAttention.length} unresolved obligations');
-    expect(delegationsRoute).toContain('value={summary.needsAttention.length}');
-    expect(delegationsRoute).toContain('queryFn: () => loadConfirmationRequirements(resolvedEditionId)');
-    expect(delegationsRoute).not.toContain('queryKey: ["delegation-attention-search"');
-  });
-
   it('keeps missing, stale and revoked Delegations context fail-closed and visible', () => {
     expect(delegationsRoute).toContain('editionsQuery.isLoading');
     expect(delegationsRoute).toContain('editionsQuery.isError');
