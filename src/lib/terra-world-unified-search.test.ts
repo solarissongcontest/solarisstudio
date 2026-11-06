@@ -24,6 +24,8 @@ import {
   parseWorldSearchPage,
   parseWorldSearchCategory,
   verifiedWorldSearchTerm,
+  worldPublicQueryVerified,
+  verifiedWorldFeaturedOrganizations,
 } from "./terra-world-unified-search";
 
 const country = {
@@ -55,6 +57,29 @@ beforeEach(() => {
 });
 
 describe("Terra Solaris unified public World search", () => {
+  it("fails closed when a successful cached query is being rechecked or refetch failed", () => {
+    const valid = { isSuccess: true, isError: false, isRefetchError: false, isFetching: false };
+    expect(worldPublicQueryVerified(valid)).toBe(true);
+    expect(worldPublicQueryVerified({ ...valid, isFetching: true })).toBe(false);
+    expect(worldPublicQueryVerified({ ...valid, isRefetchError: true })).toBe(false);
+    expect(worldPublicQueryVerified({ ...valid, isError: true })).toBe(false);
+    expect(worldPublicQueryVerified({ ...valid, isSuccess: false })).toBe(false);
+  });
+
+  it("does not display unrecognized or unrelated organizations as featured unions", () => {
+    const rows = [
+      { id: "a", slug: "guard", shortName: "GUARD", officialName: "GUARD",
+        type: "institution", description: null, status: "active" },
+      { id: "b", slug: "unity", shortName: "UNITY", officialName: "UNITY",
+        type: "institution", description: null, status: "proposed" },
+      { id: "c", slug: "unrelated", shortName: "Other", officialName: "Other",
+        type: "institution", description: null, status: "active" },
+      { id: "d", slug: "unity", shortName: "UNITY", officialName: "UNITY",
+        type: "institution", description: null, status: "recognized" },
+    ];
+    expect(verifiedWorldFeaturedOrganizations(rows).map((row) => row.id)).toEqual(["a", "d"]);
+  });
+
   it("does not query countries or organizations until two safe characters exist", async () => {
     const blank = await fetchWorldUnifiedSearch("");
     const oneLetter = await fetchWorldUnifiedSearch("a");
