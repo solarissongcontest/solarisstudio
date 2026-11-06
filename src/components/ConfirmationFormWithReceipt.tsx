@@ -8,6 +8,7 @@ import {
 } from "@/components/ConfirmationForm";
 import { DelayedConfirmationState } from "@/components/DelayedConfirmationState";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { supabase } from "@/integrations/supabase/client";
 import { GovernanceSnapshot, RulesApplyingHere } from "@/components/rules/GovernanceRules";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +38,8 @@ import {
 } from "@/lib/v3-confirmation.functions";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import {
+  clearStoredV3ConfirmationReceipt,
+  confirmationReceiptActorScope,
   readStoredV3ConfirmationReceipt,
   writeStoredV3ConfirmationReceipt,
 } from "@/lib/v3-confirmation-receipt-store";
@@ -161,6 +164,8 @@ function V3ConfirmationFlow(props: ConfirmationFormProps) {
   const [receipt, setReceipt] = useState<SubmissionReceiptDetail | null>(null);
   const [authoritativeReceipt, setAuthoritativeReceipt] = useState<V3ConfirmationReceipt | null>(null);
   const [receiptStage, setReceiptStage] = useState<ReceiptStage>("idle");
+  const [receiptScope, setReceiptScope] = useState<string | null>(null);
+  const activeReceiptScope = useRef<string | null>(null);
   const [uncertainOperationId, setUncertainOperationId] = useState<string | null>(null);
   const [uncertainStage, setUncertainStage] = useState<UncertainStage | null>(null);
   const [bridgeMode, setBridgeMode] = useState<DraftBridgeMode>(
@@ -187,10 +192,50 @@ function V3ConfirmationFlow(props: ConfirmationFormProps) {
   }, []);
 
   useEffect(() => {
-    // Edit-token flows intentionally open the current canonical submission.
-    // An older stored receipt for the same round must never hide the edit form.
-    if (editing) return;
-    const stored = readStoredV3ConfirmationReceipt(roundId);
+    let active = true;
+    let authEventRevision = 0;
+
+    const updateActor = (userId: string | null) => {
+      if (!active) return;
+      const next = confirmationReceiptActorScope(userId, getBrowserSessionId());
+      if (activeReceiptScope.current !== next) {
+        // An account change invalidates in-memory receipts and uncertain
+        // operations immediately, before a different actor can see them.
+        if (activeReceiptScope.current !== null) clearStoredV3ConfirmationReceipt(roundId);
+        setReceipt(null);
+        setAuthoritativeReceipt(null);
+        setReceiptStage("idle");
+        setUncertainOperationId(null);
+        setUncertainStage(null);
+      }
+      activeReceiptScope.current = next;
+      setReceiptScope(next);
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      authEventRevision += 1;
+      updateActor(session?.user?.id ?? null);
+    });
+
+    // Reading a local session is for cache partitioning only, never access
+    // authority. The server still validates all consequential submissions.
+    void supabase.auth.getSession().then(({ data, error }) => {
+      if (!error && authEventRevision === 0) updateActor(data.session?.user?.id ?? null);
+    }).catch(() => {
+      // Unknown identity: fail closed instead of restoring an old receipt.
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, [roundId]);
+
+  useEffect(() => {
+    // Never restore a round-only legacy receipt or show previous account data
+    // before authentication state and browser-session identity are resolved.
+    if (editing || !receiptScope || activeReceiptScope.current !== receiptScope) return;
+    const stored = readStoredV3ConfirmationReceipt(roundId, receiptScope);
     if (!stored) return;
     setReceipt({
       id: roundId,
@@ -200,7 +245,7 @@ function V3ConfirmationFlow(props: ConfirmationFormProps) {
     });
     setAuthoritativeReceipt(stored.receipt);
     setReceiptStage("confirmed");
-  }, [editing, roundId]);
+  }, [editing, receiptScope, roundId]);
 
   useEffect(() => {
     if (editing) {
@@ -380,6 +425,7 @@ function V3ConfirmationFlow(props: ConfirmationFormProps) {
     submissionId: string;
     receipt: V3ConfirmationReceipt;
   }) => {
+    if (!receiptScope || activeReceiptScope.current !== receiptScope) return;
     const detail: SubmissionReceiptDetail = {
       id: roundId,
       kind: "confirmation",
@@ -393,12 +439,14 @@ function V3ConfirmationFlow(props: ConfirmationFormProps) {
     setReceiptStage("confirmed");
     writeStoredV3ConfirmationReceipt({
       roundId,
+      actorScope: receiptScope,
       submissionId: input.submissionId,
       receipt: input.receipt,
     });
-  }, [roundId]);
+  }, [receiptScope, roundId]);
 
   const reconcileUncertainSubmission = useCallback(async (operationId: string) => {
+    if (!receiptScope || activeReceiptScope.current !== receiptScope) return;
     setUncertainOperationId(operationId);
     setUncertainStage("checking");
     const sessionId = getBrowserSessionId();
@@ -414,7 +462,7 @@ function V3ConfirmationFlow(props: ConfirmationFormProps) {
           browser_session_id: sessionId,
         },
       });
-      if (!mounted.current) return;
+      if (!mounted.current || activeReceiptScope.current !== receiptScope) return;
 
       if (!reconciled.found) {
         // The V3 mutation and receipt are atomic. A reachable ledger with no
@@ -440,11 +488,11 @@ function V3ConfirmationFlow(props: ConfirmationFormProps) {
 
       setUncertainStage("not_committed");
     } catch (error) {
-      if (!mounted.current) return;
+      if (!mounted.current || activeReceiptScope.current !== receiptScope) return;
       console.error("[V3 Confirmations] Submission reconciliation is still unavailable", error);
       setUncertainStage("still_uncertain");
     }
-  }, [bridgeMode, editing, reconcileAuthoritativeOperation, roundId, storeConfirmedReceipt]);
+  }, [bridgeMode, editing, receiptScope, reconcileAuthoritativeOperation, roundId, storeConfirmedReceipt]);
 
   const handleSubmissionUncertain = useCallback((operationId?: string) => {
     if (!operationId) {
@@ -458,7 +506,7 @@ function V3ConfirmationFlow(props: ConfirmationFormProps) {
   useEffect(() => {
     const onSubmitted = (event: Event) => {
       const detail = (event as CustomEvent<SubmissionReceiptDetail>).detail;
-      if (detail?.id !== roundId) return;
+      if (detail?.id !== roundId || !receiptScope || activeReceiptScope.current !== receiptScope) return;
       setReceipt(detail);
       setAuthoritativeReceipt(null);
       setReceiptStage("checking");
@@ -475,7 +523,7 @@ function V3ConfirmationFlow(props: ConfirmationFormProps) {
           },
         })
           .then((result) => {
-            if (!mounted.current) return;
+            if (!mounted.current || activeReceiptScope.current !== receiptScope) return;
             if (!result.found) {
               setReceiptStage("unavailable");
               return;
@@ -486,7 +534,7 @@ function V3ConfirmationFlow(props: ConfirmationFormProps) {
             });
           })
           .catch((error) => {
-            if (!mounted.current) return;
+            if (!mounted.current || activeReceiptScope.current !== receiptScope) return;
             console.error("[V3 Confirmations] Authoritative receipt lookup failed", error);
             setReceiptStage("unavailable");
           });
@@ -501,7 +549,7 @@ function V3ConfirmationFlow(props: ConfirmationFormProps) {
 
     window.addEventListener(CONFIRMATION_SUBMITTED_EVENT, onSubmitted);
     return () => window.removeEventListener(CONFIRMATION_SUBMITTED_EVENT, onSubmitted);
-  }, [bridgeMode, editing, lookupAuthoritativeReceipt, roundId, storeConfirmedReceipt]);
+  }, [bridgeMode, editing, lookupAuthoritativeReceipt, receiptScope, roundId, storeConfirmedReceipt]);
 
   const chooseAccountDraft = useCallback(() => {
     if (!bridgeConflict) return;
