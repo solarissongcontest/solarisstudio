@@ -144,7 +144,7 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
     expect(geometry).toContain("var(--v3-bottom-obstruction, 0px) + 24px");
     expect(geometry).toContain("106px + env(safe-area-inset-bottom)");
     expect(geometry).toContain("html[data-solaris-keyboard-open]");
-    expect(geometry).toContain("@media (min-width: 1024px)");
+    expect(geometry).toContain("@media (min-width: 1024px) and (min-height: 600px)");
     expect(geometry).toContain("--v3-nav-shell-height: 64px");
   });
 
