@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
  * protected both by the existing RLS and explicit public predicates.
  */
 export const WORLD_BODIES_PAGE_SIZE = 24;
+export const WORLD_BODIES_MAX_PAGE = 1000;
 export type WorldBodyStatusFilter = "all" | "active" | "historical";
 
 export function cleanWorldBodySearch(term: string): string {
@@ -106,7 +107,7 @@ export async function readPublicWorldBodies(
   const organization = await readPublicWorldInstitution(slug);
   if (!organization) return null;
   const page = Number.isSafeInteger(requestedPage)
-    ? Math.max(0, Math.min(1000, requestedPage)) : 0;
+    ? Math.max(0, Math.min(WORLD_BODIES_MAX_PAGE, requestedPage)) : 0;
   const term = cleanWorldBodySearch(options.term ?? "");
   let request = (supabase as any).from("world_organization_organs")
     .select("id,organization_id,slug,name,short_name,type,status,visibility,sort_order", { count: "exact" })
