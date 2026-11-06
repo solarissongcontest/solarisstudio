@@ -29,16 +29,9 @@
     overflow: hidden;
   }
 
-  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-masthead dl > div {
-    min-inline-size: 0;
-    overflow-wrap: anywhere;
-  }
-
   .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-masthead dd {
-    max-inline-size: 100%;
     font-size: clamp(.875rem, 4.5vw, 1.25rem);
     line-height: 1.3;
-    overflow-wrap: anywhere;
   }
 
   .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-tabs {
