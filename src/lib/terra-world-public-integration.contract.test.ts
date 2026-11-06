@@ -54,14 +54,19 @@ describe("Integrated Terra Solaris public discovery chain", () => {
   });
 
   it("requires an officially published parent in every body or office read", () => {
-    expect(bodyReader).toContain("isPublicWorldInstitutionStatus(row.status)");
-    expect(bodyReader).toContain("isPublicWorldInstitutionStatus(String(parent.status ??"));
-    expect(bodyReader).toContain('.in("status", [...WORLD_PUBLIC_INSTITUTION_STATUSES])');
+    expect(bodyReader).toContain("worldBodyParentPublished(row.status)");
+    expect(bodyReader).toContain("worldBodyParentPublished(parent.status)"));
+    expect(bodyReader).toContain('.in("status", [...WORLD_PUBLISHED_BODY_PARENT_STATUSES])');
     expect(bodyReader.split('world_organizations!inner(id,public_visibility,status)').length - 1)
       .toBe(4);
-    expect(bodyReader.split('.in("world_organizations.status", [...WORLD_PUBLIC_INSTITUTION_STATUSES])').length - 1)
+    expect(bodyReader.split('.in("world_organizations.status", [...WORLD_PUBLISHED_BODY_PARENT_STATUSES])').length - 1)
       .toBe(4);
     expect(bodyReader).not.toContain("select(\"*\"");
+    const canonicalStatuses = source("src/lib/terra-world-public.ts")
+      .match(/WORLD_PUBLIC_INSTITUTION_STATUSES = \[([\s\S]*?)\] as const;/)?.[1];
+    const bodyStatuses = bodyReader
+      .match(/WORLD_PUBLISHED_BODY_PARENT_STATUSES = \[([\s\S]*?)\] as const;/)?.[1];
+    expect(bodyStatuses?.replace(/\s+/g, "")).toBe(canonicalStatuses?.replace(/\s+/g, ""));
   });
 
   it("keeps exactly one page-level main landmark in the Search shell", () => {
