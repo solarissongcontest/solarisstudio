@@ -11,14 +11,12 @@ import {
   type ArchiveGameMode,
 } from "@/lib/archive-games";
 import {
-  useAllContestEntities,
   useAllParticipants,
   useAllResults,
   useAllShows,
   useCountries,
   useEditions,
 } from "@/lib/data";
-import { entityDisplayMap } from "@/lib/entities";
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 
 export const Route = createFileRoute("/archive-games/")({
@@ -55,13 +53,11 @@ function ArchiveGamesPage() {
   const participantsQuery = useAllParticipants();
   const resultsQuery = useAllResults();
   const countriesQuery = useCountries();
-  const entitiesQuery = useAllContestEntities();
   const { data: editions } = editionsQuery;
   const { data: shows } = showsQuery;
   const { data: participants } = participantsQuery;
   const { data: results } = resultsQuery;
   const { data: countries } = countriesQuery;
-  const { data: entities } = entitiesQuery;
 
   const [mode, setMode] = useState<ArchiveGameMode>("higher-lower");
   const [round, setRound] = useState(1);
@@ -76,9 +72,11 @@ function ArchiveGamesPage() {
   const challengeComplete = anniversaryMode && round > ANNIVERSARY_CHALLENGE_LENGTH;
   const challengeRank = anniversaryRank(score);
 
-  const displayMap = useMemo(
-    () => entityDisplayMap(entities ?? [], countries ?? []),
-    [entities, countries],
+  // Archive trivia needs a public country label, not unrestricted historical
+  // Contest Entity rows. Those may include an unrevealed identity override.
+  const countryNames = useMemo(
+    () => new Map((countries ?? []).map((country) => [country.id, country.name] as const)),
+    [countries],
   );
 
   // Archive Games is a public projection. Broad archive hooks may legitimately
@@ -104,9 +102,9 @@ function ArchiveGamesPage() {
       shows: publicArchive.shows,
       participants: publicArchive.participants,
       results: publicArchive.results,
-      nameForEntity: (id: string) => displayMap.get(id)?.name ?? "Unknown entry",
+      nameForEntity: (id: string) => countryNames.get(id) ?? "Unknown entry",
     }),
-    [publicArchive, displayMap],
+    [publicArchive, countryNames],
   );
 
   const stats = useMemo(() => archiveGameStats(gameInput), [gameInput]);
@@ -159,7 +157,7 @@ function ArchiveGamesPage() {
     resetSession();
   };
 
-  const archiveQueries = [editionsQuery, showsQuery, participantsQuery, resultsQuery, countriesQuery, entitiesQuery];
+  const archiveQueries = [editionsQuery, showsQuery, participantsQuery, resultsQuery, countriesQuery];
   if (archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Archive Games" title="Play the SSC archive" description="Quick games built from published history." /><ArchiveDataLoading label="Preparing the archive games…" /></AppShell>;
   if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Archive Games" title="Play the SSC archive" description="Quick games built from published history." /><ArchiveDataError /></AppShell>;
 
