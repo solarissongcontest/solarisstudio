@@ -6,6 +6,7 @@ const overview = readFileSync(
   "utf8",
 );
 const routeCapabilities = readFileSync("src/lib/permission-route-map.ts", "utf8");
+const overviewPage = readFileSync("src/routes/televoting/admin/index.tsx", "utf8");
 
 describe("Organizer Televoting overview authorization", () => {
   it("keeps /televoting/admin owned by voting.read", () => {
@@ -36,4 +37,12 @@ describe("Organizer Televoting overview authorization", () => {
     expect(privilegedImportIndex).toBeLessThan(privateReadIndex);
     expect(overview).not.toContain("requireMergedTelevotingAdminServer");
   });
+  it("lets organizers explicitly retry unavailable canonical voting state", () => {
+    expect(overviewPage).toContain("isFetching, refetch");
+    expect(overviewPage).toContain("onClick={() => void refetch()}");
+    expect(overviewPage).toContain("disabled={isFetching}");
+    expect(overviewPage).toContain('aria-busy={isFetching}');
+    expect(overviewPage).toContain("Retry voting status");
+  });
+
 });
