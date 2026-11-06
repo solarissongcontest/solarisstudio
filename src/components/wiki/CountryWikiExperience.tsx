@@ -339,7 +339,7 @@ function CountryWikiArticle({
 
         {countryLayoutMode === "mobile-web" ? (
           <div className="wiki-mobile-web-navigation">
-            <nav className="wiki-mobile-web-toc scroll-slim" aria-label="Article sections">
+            <nav className="wiki-mobile-web-toc scroll-slim flex gap-3.5 overflow-x-auto overscroll-x-contain border-b border-border" aria-label="Article sections">
               {articleSections.map((section) => (
                 <button
                   key={section.id}
@@ -351,8 +351,8 @@ function CountryWikiArticle({
                 </button>
               ))}
             </nav>
-            <details className="wiki-mobile-web-facts">
-              <summary>Quick facts about {country.name}</summary>
+            <details className="wiki-mobile-web-facts mb-5 mt-3 border-b border-border">
+              <summary className="flex min-h-11 cursor-pointer list-inside items-center gap-2 text-[.8125rem] font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Quick facts about {country.name}</summary>
               <WikiInfobox country={country} profile={profile} infoRows={infoRows} mobile />
             </details>
           </div>
@@ -569,8 +569,8 @@ function CountryWikiHeader({ country, layoutMode }: { country: Country; layoutMo
 
   if (layoutMode === "mobile-web") {
     return (
-      <header className="wiki-mobile-web-heading" aria-labelledby="wiki-mobile-web-title">
-        <Link to="/wiki">← All Wiki articles</Link>
+      <header className="wiki-mobile-web-heading mb-4 border-b border-border pb-4" aria-labelledby="wiki-mobile-web-title">
+        <Link to="/wiki" className="inline-flex min-h-11 items-center text-[.8125rem] font-semibold text-muted-foreground">← All Wiki articles</Link>
         <div className="mt-3 flex min-w-0 items-start gap-4">
           <FlagFrame
             image={country.flag_image}
@@ -590,7 +590,7 @@ function CountryWikiHeader({ country, layoutMode }: { country: Country; layoutMo
             ) : null}
           </div>
         </div>
-        <Link className="wiki-mobile-web-profile-link mt-2" to="/countries/$code" params={{ code: country.short_code }}>
+        <Link className="wiki-mobile-web-profile-link mt-2 inline-flex min-h-11 items-center text-[.8125rem] font-semibold text-primary" to="/countries/$code" params={{ code: country.short_code }}>
           View country profile →
         </Link>
       </header>
