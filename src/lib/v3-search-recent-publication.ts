@@ -85,3 +85,28 @@ export function visiblePublicationVerifiedRecents<T extends RecentPath & { label
     return [recent];
   });
 }
+
+/**
+ * Shared-device history stores visitor-visible titles, not merely destinations.
+ * A Story headline can spoil a final even though the Story is public. In
+ * spoiler-free mode, do not replay any stored Story title while the current
+ * edition's final-result scope cannot be established without another query.
+ * Keep deliberate published Results/Records links but replace stored labels
+ * that may themselves reveal a winner. No additional hosted reads.
+ */
+export function spoilerSafePublicRecents<T extends { path: string; label: string }>(
+  recents: readonly T[],
+  spoilerFree: boolean,
+): T[] {
+  if (!spoilerFree) return [...recents];
+  return recents.flatMap((recent): T[] => {
+    if (/^\/stories(?:\/|[?#]|$)/i.test(recent.path)) return [];
+    if (/^\/records(?:\/|[?#]|$)/i.test(recent.path)) {
+      return [{ ...recent, label: "Records" } as T];
+    }
+    if (/^\/results(?:\/|[?#]|$)/i.test(recent.path)) {
+      return [{ ...recent, label: "Results" } as T];
+    }
+    return [recent];
+  });
+}
