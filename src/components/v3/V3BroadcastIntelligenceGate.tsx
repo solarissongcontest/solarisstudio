@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { V3AppShell } from "@/components/v3/V3AppShell";
-import { V3Screen, V3ScreenHeader, V3StatusChip, V3Surface } from "@/components/v3/V3Foundation";
+import { V3Screen, V3Surface } from "@/components/v3/V3Foundation";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
 import { useNotificationPreferences } from "@/lib/engagement-data";
 import { useV3BroadcastIntelligenceBundle } from "@/lib/v3-broadcast-intelligence-runtime";
@@ -13,6 +13,7 @@ import {
   useV3RolloutProbe,
 } from "@/lib/v3-primary-runtime";
 import { V3BroadcastIntelligenceScreen } from "./V3BroadcastIntelligenceScreen";
+import { V3AnalysisRevealScreen } from "./V3AnalysisRevealScreen";
 
 export function V3BroadcastIntelligenceGate({
   fallback,
@@ -86,34 +87,10 @@ export function V3BroadcastIntelligenceGate({
       activeArea="results"
     >
       {spoilerGate.protected ? (
-        <V3Screen>
-          <V3ScreenHeader
-            kicker="Broadcast Intelligence"
-            title="Replay the voting"
-            description="Explore an officially published voting replay without spoiling the result."
-            editorial
-          />
-          <V3Surface level="raised" className="p-5" data-v3-broadcast-spoiler-protected="">
-            <V3StatusChip tone="warning">Spoiler-free</V3StatusChip>
-            <h2 className="mt-4 text-xl font-bold tracking-[-0.03em]">
-              Voting replay spoilers are hidden
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">
-              This replay can reveal placements, points and the winner.
-              Open it explicitly when you are ready to see this result.
-            </p>
-            <button
-              type="button"
-              onClick={() => setRevealedResultKey(spoilerGate.revealKey)}
-              className="mt-4 min-h-11 rounded-xl bg-[var(--v3-accent)] px-4 text-sm font-semibold text-[var(--v3-bg-base)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
-            >
-              Reveal this replay
-            </button>
-            <p className="mt-3 text-xs leading-5 text-white/42">
-              Revealing does not change your spoiler-free preference.
-            </p>
-          </V3Surface>
-        </V3Screen>
+        <V3AnalysisRevealScreen
+          replay={true}
+          onReveal={() => setRevealedResultKey(spoilerGate.revealKey)}
+        />
       ) : (
         <V3BroadcastIntelligenceScreen
           bundle={bundle.data}
