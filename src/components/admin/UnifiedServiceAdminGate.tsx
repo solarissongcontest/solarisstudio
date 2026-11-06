@@ -1,13 +1,14 @@
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import type { User } from "@supabase/supabase-js";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { DatabaseZap, ShieldCheck } from "lucide-react";
 
 import { AuthenticatedUserProvider } from "@/components/auth/AuthenticatedUserContext";
 import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { supabase } from "@/integrations/supabase/client";
 import { getMergedTelevotingServerStatus } from "@/integrations/televoting/status.functions";
+import { shouldRevalidateOrganizerGate } from "@/lib/v3-organizer-auth-gate-revalidation";
 import { AdminShell, AdminPage } from "./AdminShell";
 import { AdminCard, AdminPageHeader, AdminStatus } from "./AdminUI";
 
@@ -35,16 +36,37 @@ export function UnifiedServiceAdminGate({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const getTelevotingStatus = useServerFn(getMergedTelevotingServerStatus);
   const [state, setState] = useState<GateState>({ status: "checking", user: null });
+  const [authRevision, setAuthRevision] = useState(0);
+  const authGenerationRef = useRef(0);
+  const observedActorRef = useRef<string | null>(null);
+
+  // This gate is mounted across Organizer route transitions. A login switch
+  // without navigation must synchronously conceal the previous user's shell.
+  // Never call Supabase async APIs inside its auth-event callback.
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      const nextActorId = session?.user?.id ?? null;
+      if (!shouldRevalidateOrganizerGate(event, observedActorRef.current, nextActorId)) return;
+      observedActorRef.current = nextActorId;
+      authGenerationRef.current += 1;
+      setState({ status: "checking", user: null });
+      setAuthRevision((revision) => revision + 1);
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     let alive = true;
+    const requestGeneration = authGenerationRef.current;
+    const isCurrent = () => alive && requestGeneration === authGenerationRef.current;
     setState({ status: "checking", user: null });
 
     void (async () => {
       const { data: userData, error: userError } = await supabase.auth.getUser();
 
+      if (!isCurrent()) return;
       if (userError || !userData.user) {
-        if (alive) setState({ status: "redirecting", user: null });
+        setState({ status: "redirecting", user: null });
         await navigate({ to: "/auth", search: { redirect: pathname }, replace: true });
         return;
       }
@@ -56,14 +78,16 @@ export function UnifiedServiceAdminGate({ children }: { children: ReactNode }) {
         isOrganizer = false;
       }
 
+      if (!isCurrent()) return;
       if (!isOrganizer) {
-        if (alive) setState({ status: "redirecting", user: null });
+        setState({ status: "redirecting", user: null });
         await navigate({ to: "/my-solaris", replace: true });
         return;
       }
 
       if (LEGACY_SIGN_IN_ROUTES.has(pathname)) {
-        if (alive) setState({ status: "redirecting", user: null });
+        if (!isCurrent()) return;
+        setState({ status: "redirecting", user: null });
         await navigate({ to: "/admin/operations", replace: true });
         return;
       }
@@ -71,23 +95,28 @@ export function UnifiedServiceAdminGate({ children }: { children: ReactNode }) {
       if (pathname.startsWith("/televoting/admin")) {
         try {
           const status = await getTelevotingStatus();
+          if (!isCurrent()) return;
           if (!status.adminReady) {
-            if (alive) setState({ status: "backend-missing", user: userData.user });
+            setState({ status: "backend-missing", user: userData.user });
             return;
           }
         } catch {
-          if (alive) setState({ status: "backend-missing", user: userData.user });
+          if (!isCurrent()) return;
+          setState({ status: "backend-missing", user: userData.user });
           return;
         }
       }
 
-      if (alive) setState({ status: "allowed", user: userData.user });
+      if (isCurrent()) {
+        observedActorRef.current = userData.user.id;
+        setState({ status: "allowed", user: userData.user });
+      }
     })();
 
     return () => {
       alive = false;
     };
-  }, [getTelevotingStatus, navigate, pathname]);
+  }, [authRevision, getTelevotingStatus, navigate, pathname]);
 
   if (state.status === "backend-missing") {
     return (
