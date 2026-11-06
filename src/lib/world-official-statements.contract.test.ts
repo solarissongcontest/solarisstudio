@@ -143,6 +143,10 @@ describe("TG9 public statements: privacy and historical fidelity", () => {
     expect(sql).toContain("private.studio2_complete_operation(");
     expect(sql).toContain("private.v3_emit_domain_event(");
     expect(sql).toContain("public.world_access_allowed(");
+    expect(sql).toContain("term.started_at <= now()");
+    expect(sql).toContain("term.actual_end_at is null");
+    expect(sql).not.toContain("term.starts_at");
+    expect(sql).not.toContain("term.ends_at");
     expect(sql).toContain("for update;");
     expect(sql).toContain("world_statements_published_public_read");
     expect(sql).toContain("world_statement_versions_published_public_read");
