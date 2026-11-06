@@ -303,6 +303,22 @@ describe("Organizer Entry Review current-version queue", () => {
     })).toBeNull();
   });
 
+  it("does not search or present retained historical songs as the current selection", () => {
+    const route = readFileSync(
+      resolve(process.cwd(), "src/routes/confirmations/admin/responses.tsx"), "utf8",
+    );
+    expect(route).toContain('row.participating && row.selection_method === "internal" &&');
+    expect(route).toContain('!row.entry_unknown ? row.internal_entries : null');
+    expect(route).toContain('row.participating && row.selection_method === "national_final" &&');
+    expect(route).toContain('!row.nf_entries_unknown ? activeNfEntries(row) : []');
+    expect(route).toContain('row.selection_method === "internal" && !row.entry_unknown');
+    expect(route).toContain('row.selection_method === "national_final" && !row.nf_entries_unknown');
+    expect(route).toContain("Current internal Entry not confirmed yet");
+    expect(route).toContain("Current National Final candidates not confirmed yet");
+    expect(route).toContain("internal?.song_title?.trim()");
+    expect(route).not.toContain('const nfEntries = row.national_finals?.national_final_entries ?? [];');
+  });
+
   it("keeps the summary and current-decision filters in the Organizer queue", () => {
     const route = readFileSync(
       resolve(process.cwd(),"src/routes/confirmations/admin/responses.tsx"),"utf8",
