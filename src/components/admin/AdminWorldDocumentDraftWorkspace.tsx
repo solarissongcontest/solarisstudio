@@ -510,11 +510,14 @@ export function AdminWorldDocumentDraftWorkspace() {
         await queryClient.invalidateQueries({
           queryKey: ["tg4-organizer-unpublished-version", review.organizationSlug, review.documentSlug],
         });
-        setCreateTitle(""); setCreateSlug(""); setDraftTitle(""); setDraftText("");
-        setDraftProvisions([]);
-        originalDraft.current = worldDocumentDraftSignature({
-          title: "", plainText: "", provisions: [],
-        });
+        setCreateTitle(""); setCreateSlug("");
+        // Do not clear verified legal text after invalidation. The exact
+        // pending-version revision hydration refreshes the editor, and an
+        // empty optimistic reset could race that canonical read.
+        if (review.command === "world.document.version.create" ||
+            review.command === "world.document.version.update_draft") {
+          hydratedPendingRevision.current = null;
+        }
       } else {
         setOperation({ review, status: receipt.status === "failed" ? "failed" : "reconcile",
           message: receipt.status === "failed"
