@@ -27,6 +27,15 @@ describe("V3 web Search canonical discovery shortcuts", () => {
     expect(web).toContain("countries.find((country) => country.id === access!.countryId)");
   });
 
+  it("offers an accessible reset that restores focus and avoids archive-wide reads", () => {
+    expect(web).toContain('aria-label="Clear search"');
+    expect(web).toContain('ref={webSearchInputRef}');
+    expect(web).toContain('webSearchInputRef.current?.focus()');
+    expect(web).toContain('setQuery("")');
+    expect(web).toContain('normalized.length >= 2 ? (');
+    expect(web).toContain('Type one more character to search published Solaris content.');
+  });
+
   it("retains public results, comparison, directory and recent navigation for everyone", () => {
     expect(web).toContain('id: "action:latest-results"');
     expect(web).toContain('id: "action:compare"');
