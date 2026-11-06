@@ -123,7 +123,30 @@ export async function readPublicWorldBodies(
     .order("name", { ascending: true })
     .order("slug", { ascending: true })
     .range(page * WORLD_BODIES_PAGE_SIZE, (page + 1) * WORLD_BODIES_PAGE_SIZE - 1);
-  if (error) throw new Error("Public institutional bodies could not be loaded.");
+  if (error) {
+    // PostgREST may return HTTP 416 (PGRST103) instead of [] when a previously
+    // published page vanishes. Never trust the error text or old query-cache
+    // total. Recount precisely the same public, organization-scoped filter
+    // with a single id-row probe before recovering from this exceptional case.
+    if (record(error)?.code !== "PGRST103") {
+      throw new Error("Public institutional bodies could not be loaded.");
+    }
+    let recount = (supabase as any).from("world_organization_organs")
+      .select("id", { count: "exact" })
+      .eq("organization_id", organization.id).eq("visibility", "public");
+    if (options.status === "active" || options.status === "historical") {
+      recount = recount.eq("status", options.status);
+    }
+    if (term) {
+      recount = recount.or("name.ilike.%" + term + "%,short_name.ilike.%" + term + "%");
+    }
+    const { error: countError, count: verifiedCount } = await recount.range(0, 0);
+    if (countError || !Number.isSafeInteger(verifiedCount) || verifiedCount < 0 ||
+        page * WORLD_BODIES_PAGE_SIZE < verifiedCount) {
+      throw new Error("Public institutional bodies could not be verified.");
+    }
+    return { organization, bodies: [], total: verifiedCount as number, page };
+  }
   const offset = page * WORLD_BODIES_PAGE_SIZE;
   if (!Number.isSafeInteger(count) || count < 0 || !Array.isArray(data) ||
       data.length > WORLD_BODIES_PAGE_SIZE ||
