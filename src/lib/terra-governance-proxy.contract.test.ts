@@ -95,8 +95,10 @@ describe("TG6 institutional acting-proxy authorization", () => {
       migration.indexOf("revoke all on function public.world_my_proxy_candidates_v1"),
     );
     expect(request).toContain("v_rep.starts_at > now()");
+    expect(request).toContain("v_rep.role <> 'representative'");
     expect(request).toContain("member_row.joined_at <= now()");
     expect(approval).toContain("v_rep.starts_at > now()");
+    expect(approval).toContain("v_rep.role <> 'representative'");
     expect(approval).toContain("member_row.joined_at <= now()");
     expect(approval).toContain("holder.started_at <= now()");
     expect(candidates).toContain("starts_at <= now()");
