@@ -186,7 +186,7 @@ function IntegrityPreclearanceWorkspace({ actorId }: { actorId: string }) {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Metric label="Private questions" value={casesVerified ? questions.length : null} tone="info" />
-          <Metric label="Rulings on selected case" value={caseId && rulingsVerified ? rulingsQuery.data.length : null} tone={rulingsVerified && rulingsQuery.data?.length ? "ready" : "attention"} />
+          <Metric label="Rulings on selected case" value={caseId && rulingsVerified ? (rulingsQuery.data?.length ?? null) : null} tone={rulingsVerified && rulingsQuery.data?.length ? "ready" : "attention"} />
         </div>
 
         <AdminCard className="mt-4">
