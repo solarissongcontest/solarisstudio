@@ -24,7 +24,7 @@ describe("Public Terra Solaris World Search integration", () => {
     expect(searchRoute).toContain("<WorldPublicGate verifyOnMount>");
     expect(landing).toContain("refetchOnMount: verifyOnMount");
     expect(landing).toContain("rollout.isRefetchError");
-    expect(landing).toContain("verifyOnMount && rollout.isFetching");
+    expect(landing).toContain("rollout.isPending || rollout.isFetching");
     expect(searchRoute).toContain("<WorldUnifiedSearchPage");
     expect(searchRoute).toContain('createFileRoute("/world/search/")');
     expect(searchRoute).toContain("parseWorldSearchCategory(search.type)");
