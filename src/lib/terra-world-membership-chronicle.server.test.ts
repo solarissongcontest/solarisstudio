@@ -270,6 +270,15 @@ describe("TG3 World membership chronicle server query boundary", () => {
     });
   });
 
+  it("rejects malformed membership query payloads before fetching linked identities", async () => {
+    const calls = installPublicClient({
+      world_organization_memberships: [noError([{ ...membership }, null], 2)],
+    });
+    await expect(loadWorldMembershipChronicle(filters)).rejects.toThrow(/Invalid public institutional membership response/);
+    expect(calls.some(({ table }) => table === "countries")).toBe(false);
+    expect(calls.some(({ table }) => table === "world_organizations")).toBe(false);
+  });
+
   it("fails closed on missing exact count instead of reporting an invented total", async () => {
     installPublicClient({
       world_organization_memberships: [noError([membership], null)],

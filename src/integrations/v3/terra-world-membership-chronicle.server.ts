@@ -23,6 +23,20 @@ function assertSuccess(error: unknown, label: string) {
   if (error) throw new Error("Could not load public " + label);
 }
 
+/** Extract only verified, unique identity keys from the bounded TG2 page. */
+function referencedMembershipIds(rows: unknown, field: "organization_id" | "country_id"): string[] {
+  if (!Array.isArray(rows)) throw new Error("Invalid public institutional membership response");
+  const ids = new Set<string>();
+  for (const row of rows) {
+    if (!row || typeof row !== "object" || Array.isArray(row)) {
+      throw new Error("Invalid public institutional membership response");
+    }
+    const value = (row as Record<string, unknown>)[field];
+    if (typeof value === "string" && value.length > 0) ids.add(value);
+  }
+  return [...ids];
+}
+
 /**
  * A direct server-function invocation must not bypass the World rollout gate.
  * Do not read membership or institution tables if the flag is absent, disabled
@@ -126,10 +140,7 @@ export async function loadWorldMembershipChronicle(input: {
 
   // Query just the institutions actually referenced on the displayed page.
   // Avoid re-downloading the entire 100-institution selector on every page.
-  const organizationIds: string[] = [...new Set(
-    (memberships ?? []).map((row: { organization_id?: unknown }) => row.organization_id)
-      .filter((id: unknown): id is string => typeof id === "string" && id.length > 0)
-  )];
+  const organizationIds = referencedMembershipIds(memberships, "organization_id");
   let organizations: unknown[] = [];
   if (selectedOrganization) {
     organizations = [selectedOrganization];
@@ -144,10 +155,7 @@ export async function loadWorldMembershipChronicle(input: {
     organizations = result.data ?? [];
   }
 
-  const countryIds: string[] = [...new Set(
-    (memberships ?? []).map((row: { country_id?: unknown }) => row.country_id)
-      .filter((id: unknown): id is string => typeof id === "string" && id.length > 0)
-  )];
+  const countryIds = referencedMembershipIds(memberships, "country_id");
   let countries: unknown[] = [];
   if (countryIds.length) {
     const countryResult = await client.from("countries")
