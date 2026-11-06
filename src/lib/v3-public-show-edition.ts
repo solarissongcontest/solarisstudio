@@ -31,27 +31,19 @@ export function publishedShowReadAccess(
   show: Pick<Show, "id" | "edition_id" | "published" | "publication_config"> | null | undefined,
   edition: Pick<Edition, "id" | "published"> | null | undefined,
 ) {
-  if (!show || !isPublishedShowInPublishedEdition(show, edition)) {
-    return {
-      showId: undefined,
-      editionId: undefined,
-      resultsId: undefined,
-      juryVotesId: undefined,
-      televoteVotesId: undefined,
-      votersId: undefined,
-      televoteDetailId: undefined,
-    };
-  }
-
-  const published = resolveShowPublication(show);
-  const detailed = published.detailed_voting;
+  // With no published owning context, the canonical resolver returns all-false
+  // publication flags. One projection governs every optional public read.
+  const permittedShow = show && isPublishedShowInPublishedEdition(show, edition) ? show : undefined;
+  const publication = resolveShowPublication(permittedShow);
+  const showId = permittedShow?.id;
+  const detailed = publication.detailed_voting;
   return {
-    showId: show.id,
-    editionId: show.edition_id,
-    resultsId: hasPublishedResults(published) ? show.id : undefined,
-    juryVotesId: detailed && published.jury_results ? show.id : undefined,
-    televoteVotesId: detailed && published.televote_results ? show.id : undefined,
-    votersId: detailed && (published.jury_results || published.televote_results) ? show.id : undefined,
-    televoteDetailId: detailed && published.televote_results ? show.id : undefined,
+    showId,
+    editionId: permittedShow?.edition_id,
+    resultsId: hasPublishedResults(publication) ? showId : undefined,
+    juryVotesId: detailed && publication.jury_results ? showId : undefined,
+    televoteVotesId: detailed && publication.televote_results ? showId : undefined,
+    votersId: detailed && (publication.jury_results || publication.televote_results) ? showId : undefined,
+    televoteDetailId: detailed && publication.televote_results ? showId : undefined,
   };
 }
