@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, BookOpen, Globe2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { readWorldHistoryPage, type WorldHistoryEvent } from "@/lib/terra-world-history";
 
@@ -10,10 +10,12 @@ const origin = (event: WorldHistoryEvent) =>
   event.sourceType === "editorial" ? "Editorial history" :
   event.sourceType === "domestic_election" ? "Official domestic election" :
   event.sourceType === "domestic_office" ? "Official domestic office term" :
+  event.sourceType === "domestic_law" ? "Official domestic law" :
   "Recorded institution recognition";
 
 export function WorldHistoryArchive({ countryCode }: { countryCode: string | null }) {
   const [page, setPage] = useState(0);
+  useEffect(() => { setPage(0); }, [countryCode]);
   const query = useQuery({
     queryKey: ["world", "history", countryCode, page],
     queryFn: ({ signal }) => readWorldHistoryPage(page, countryCode, signal),
