@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseTelevotingOverviewSummary } from "./admin-overview-summary";
+import { parseTelevotingOverviewSummary, requireTelevotingOverviewEditionId } from "./admin-overview-summary";
 
 const valid = {
   editions: 4,
@@ -48,4 +48,17 @@ describe("Organizer voting overview canonical readback", () => {
   ])("rejects inconsistent status identities: %o", (patch) => {
     expect(() => parseTelevotingOverviewSummary({ ...valid, ...patch })).toThrow();
   });
+});
+
+describe("Organizer voting overview edition scope", () => {
+  const edition = "00000000-0000-4000-8000-00000000a791";
+
+  it("preserves exact validated edition identity for canonical and authorization reads", () => {
+    expect(requireTelevotingOverviewEditionId(`  ${edition}  `)).toBe(edition);
+  });
+
+  it.each([undefined, null, "", " ", "active", "ssc22", "not-a-uuid", 22, {}, []])(
+    "refuses unscoped or invalid edition requests: %s",
+    (value) => expect(() => requireTelevotingOverviewEditionId(value)).toThrow(),
+  );
 });
