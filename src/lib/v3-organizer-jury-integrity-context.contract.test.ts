@@ -33,7 +33,9 @@ describe("V3 Organizer Jury Integrity edition scope", () => {
 
   it("binds the Organizer route query to current context and rechecks returned scope", () => {
     expect(route).toContain("useAdminContext()");
-    expect(route).toContain('["jury-integrity-v5", editionId ?? "unscoped"]');
+    expect(route).toContain("useAuthenticatedUser().id");
+    expect(route).toContain('["jury-integrity-v5", actorId, editionId ?? "unscoped"]');
+    expect(route).toContain("gcTime: 0");
     expect(route).toContain("enabled: Boolean(editionId)");
     expect(route).toContain("loadCases({ data: { editionId } })");
     expect(route).toContain("result.editionId !== editionId");

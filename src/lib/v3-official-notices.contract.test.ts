@@ -72,6 +72,40 @@ describe("V3 official delegation notices", () => {
     expect(source).toContain('data-v3-official-notice-detail={notice.id}');
   });
 
+  it("renders acknowledgement from the confirmed receipt, not the archived inbox label", () => {
+    const source = screen();
+
+    expect(source).toContain("v3OfficialNoticeAcknowledgementState(notice, inboxState, receipt)");
+    expect(source).toContain('acknowledgementState === "recorded"');
+    expect(source).toContain("Archived without acknowledgement");
+    expect(source).toContain("Restore it to the inbox to acknowledge it.");
+    expect(source).not.toContain('const acknowledged = inboxState === "acknowledged"');
+  });
+
+  it("fails closed on delegation-access read errors with an explicit retry", () => {
+    const workflow = content();
+    const errorBoundary = workflow.indexOf("if (account.isError)");
+    const accessGuard = workflow.indexOf("if (!access?.userId || access.userId !== userId)");
+
+    expect(errorBoundary).toBeGreaterThan(-1);
+    expect(errorBoundary).toBeLessThan(accessGuard);
+    expect(workflow).toContain("No private notices or actions were loaded.");
+    expect(workflow).toContain("void account.refetch()");
+    expect(workflow).toContain("Retry access check");
+  });
+
+  it("shows recoverable inbox failures without manufacturing zero notices", () => {
+    const workflow = content();
+    const presentation = screen();
+
+    expect(workflow).toContain("void feature.refetch()");
+    expect(workflow).toContain("void inbox.refetch()");
+    expect(presentation).toContain("Retry loading");
+    expect(presentation).toContain('hasLoadedInbox ? actionCount : "—"');
+    expect(presentation).toContain('hasLoadedInbox ? unreadCount : "—"');
+    expect(presentation).toContain('hasLoadedInbox ? items.length : "—"');
+  });
+
   it("handles stale notice deep links without inventing a successful state", () => {
     const source = screen();
 
