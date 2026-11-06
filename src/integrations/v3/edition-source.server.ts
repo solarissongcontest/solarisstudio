@@ -12,6 +12,7 @@ import {
   type EntityDisplay,
 } from "@/lib/entities";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
+import { showModeConfig } from "@/lib/show-mode";
 import {
   buildV3EditionPageProjection,
   type V3EditionEntry,
@@ -147,6 +148,12 @@ function parsePublicStory(value: unknown): V3EditionStory | null {
     publishedAt: stringOrNull(story.publishedAt),
     items,
   };
+}
+
+function publicScheduledStart(show: Show): string | null {
+  const value = showModeConfig(show).scheduledStart;
+  if (!value) return null;
+  return Number.isFinite(Date.parse(value)) ? value : null;
 }
 
 function experienceFromPhase(phase: PublicContestPhase): V3EditionExperience {
@@ -397,6 +404,7 @@ export async function loadV3EditionBundle(input: {
         name: show.name,
         kind: show.kind,
         href: `/shows/${show.id}`,
+        startsAt: publicScheduledStart(show),
         participantCount: publication.participants
           ? participants.filter((participant) => participant.show_id === show.id).length
           : 0,
