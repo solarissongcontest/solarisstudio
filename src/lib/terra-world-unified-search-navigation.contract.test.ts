@@ -29,6 +29,16 @@ describe("Public Terra Solaris World Search integration", () => {
     expect(searchRoute).toContain("c: 0, o: 0, type: parseWorldSearchCategory(next)");
   });
 
+  it("keeps World Landing and Search on the same publication lifecycle contract", () => {
+    const reader = source("src/lib/terra-world-public.ts");
+    const searchReader = source("src/lib/terra-world-unified-search.ts");
+    expect(reader).toContain('in("status", [...WORLD_PUBLIC_INSTITUTION_STATUSES])');
+    expect(reader).toContain("isPublicWorldInstitutionStatus(item.status)");
+    expect(searchReader).toContain("WORLD_PUBLIC_INSTITUTION_STATUSES");
+    expect(landing).toContain("worldPublicQueryVerified(directory)");
+    expect(landing).toContain("directory.isRefetchError");
+  });
+
   it("does not display cached results while publication queries are revalidating or failed", () => {
     expect(searchScreen).toContain("worldPublicQueryVerified(countryQuery)");
     expect(searchScreen).toContain("worldPublicQueryVerified(organizationQuery)");
