@@ -1,5 +1,6 @@
 import { EntryVersionEvidence } from "@/components/ConfirmationReviewStatus";
 import { OrganizerEntryVersionHistory } from "@/components/admin/OrganizerEntryVersionHistory";
+import { isOrganizerEntryReviewResultForDisplayedVersion } from "@/lib/v3-organizer-entry-operation-version";
 import {
   buildOrganizerEntryCorrectionReason,
   ORGANIZER_ENTRY_CORRECTION_CATEGORIES,
@@ -331,6 +332,8 @@ function EntryReviewCard({
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<SystemReceipt | null>(null);
   const mutationInFlightRef = useRef(false);
+  const displayedEntryVersionRef = useRef<string | null>(entry.current_version_id ?? null);
+  displayedEntryVersionRef.current = entry.current_version_id ?? null;
   const unresolvedReviewOperationRef = useRef<{
     operationId: string;
     entryId: string;
@@ -338,6 +341,7 @@ function EntryReviewCard({
     editionId: string | null;
     targetType: "internal" | "national_final";
     nextStatus: "pending" | "accepted" | "declined" | "removed";
+    expectedEntryVersion: string | null;
   } | null>(null);
   const reconcileOperation = useServerFn(reconcileSystemOperation);
   const status = reviewLabel(entry);
@@ -348,13 +352,17 @@ function EntryReviewCard({
     .map((item) => ({ category: item.id, explanation: correctionNotes[item.id] ?? "" }));
   const correctionReason = buildOrganizerEntryCorrectionReason(selectedCorrectionIssues, correctionMessage);
 
-  // A new immutable submission is a fresh review. Never carry earlier issue
-  // selections into a later Entry version, even when the card stays mounted.
+  // New immutable content requires a fresh review. Keep any unresolved
+  // operation ID for same-operation reconciliation, but never carry visible
+  // reasons, issue drafts or a previous version's receipt into this version.
   useEffect(() => {
+    setReason(entry.review_reason ?? "");
     setCorrectionNotes({});
     setCorrectionMessage("");
+    setReceipt(null);
     setError(null);
-  }, [entry.current_version_id]);
+    setOpen(false);
+  }, [editionId, submissionId, targetType, entry.id, entry.current_version_id]);
 
   function toggleCorrectionCategory(category: OrganizerEntryCorrectionCategory) {
     setCorrectionNotes((current) => {
@@ -370,6 +378,7 @@ function EntryReviewCard({
 
   async function recoverReview(operationId: string) {
     if (!isScopeCurrent()) return false;
+    const pending = unresolvedReviewOperationRef.current;
     const reconciliation = await reconcileOperation({ data: { operationId } });
     if (!isScopeCurrent()) return false;
     if (!reconciliation.ok || reconciliation.receipt.operationId !== operationId) return false;
@@ -386,6 +395,16 @@ function EntryReviewCard({
       );
     }
     unresolvedReviewOperationRef.current = null;
+    if (!isOrganizerEntryReviewResultForDisplayedVersion(
+      pending?.expectedEntryVersion, displayedEntryVersionRef.current,
+    )) {
+      setReceipt(null);
+      setError("Earlier Entry review settled for another version. The current Entry still requires its own review.");
+      toast.warning("Earlier Entry review settled for another version. Review the latest submission separately.");
+      setOpen(false);
+      await onChanged();
+      return true;
+    }
     setReceipt(reconciliation.receipt);
     toast.success("Entry review confirmed after reconnecting");
     setOpen(false);
@@ -485,6 +504,7 @@ function EntryReviewCard({
         editionId: editionId ?? null,
         targetType,
         nextStatus,
+        expectedEntryVersion: entry.current_version_id ?? null,
       };
       let mutation;
       try {
@@ -520,6 +540,16 @@ function EntryReviewCard({
       unresolvedReviewOperationRef.current = null;
       if (!isScopeCurrent()) {
         toast.warning("Entry review completed for a previous edition. Verify its canonical receipt before retrying.");
+        return;
+      }
+      if (!isOrganizerEntryReviewResultForDisplayedVersion(
+        entry.current_version_id, displayedEntryVersionRef.current,
+      )) {
+        setReceipt(null);
+        setError("Earlier Entry review settled for another version. The current Entry still requires its own review.");
+        toast.warning("Earlier Entry review settled for another version. Review the latest submission separately.");
+        setOpen(false);
+        await onChanged();
         return;
       }
       setReceipt(canonicalReceipt);
