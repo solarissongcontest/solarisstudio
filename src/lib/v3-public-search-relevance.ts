@@ -53,11 +53,11 @@ function isOneEditAway(query: string, candidate: string): boolean {
 
 /** Permit the common SSC22 / SSC-22 shorthand for published SSC 22 labels. */
 function matchesEditionCode(query: string, values: Array<string | number | null | undefined>): boolean {
-  const code = /^ssc[\\s_-]*0*(\\d{1,3})$/.exec(fold(query.trim()));
+  const code = /^ssc[\s_-]*0*(\d{1,3})$/.exec(fold(query.trim()));
   if (!code) return false;
   const editionNumber = Number(code[1]);
   const haystack = fold(values.filter((value) => value != null).join(" "));
-  return new RegExp(`\\\\bssc[\\\\s_-]*0*${editionNumber}\\\\b`).test(haystack);
+  return new RegExp(`\\bssc[\\s_-]*0*${editionNumber}\\b`).test(haystack);
 }
 
 /**
@@ -89,8 +89,8 @@ export function matchesV3PublicSearch(
 }
 
 function relevanceScore(result: PublicSearchResult, query: string): number {
-  const q = fold(query.trim()).replace(/\\bssc[\\s_-]+(?=\\d)/g, "ssc");
-  const label = fold(result.label).replace(/\\bssc[\\s_-]+(?=\\d)/g, "ssc");
+  const q = fold(query.trim()).replace(/\bssc[\s_-]+(?=\d)/g, "ssc");
+  const label = fold(result.label).replace(/\bssc[\s_-]+(?=\d)/g, "ssc");
   const keywords = fold(result.keywords ?? "");
   const description = fold(result.description);
   if (label === q) return 0;
