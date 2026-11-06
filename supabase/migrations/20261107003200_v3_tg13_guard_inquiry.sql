@@ -247,6 +247,18 @@ begin
  if p_response_due_at <= now() then
   raise exception using errcode='22023',message='VALIDATION';
  end if;
+ -- GUARD non-compliance is an internal member accountability process.
+ -- A nonmember or a future-dated/ended membership cannot be investigated as
+ -- if it currently owes obligations to GUARD. Suspended members still do.
+ perform 1 from public.world_organization_memberships membership
+ where membership.organization_id=p_organization_id
+  and membership.country_id=p_target_country_id
+  and membership.status in ('member','suspended')
+  and membership.joined_at<=now() and membership.ended_at is null
+ for share of membership;
+ if not found then
+  raise exception using errcode='23514',message='TARGET_NOT_MEMBER';
+ end if;
  select term.holder_person_id into v_actor_person
  from public.world_office_terms term
  join public.world_organization_offices office on office.id=term.office_id
