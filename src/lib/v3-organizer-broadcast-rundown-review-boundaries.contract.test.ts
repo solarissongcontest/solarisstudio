@@ -108,6 +108,6 @@ describe("V3 Organizer Broadcast Rundown production review boundaries", () => {
     expect(route).toContain("setPendingStructureReview(null)");
     expect(route).toContain("setPendingLockReview(null)");
     expect(route).toContain("setPendingSegmentReview(null)");
-    expect(route).toContain("[showId, mode]");
+    expect(route).toContain("[showId, mode, actorId]");
   });
 });
