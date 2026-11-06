@@ -109,8 +109,17 @@ export async function writeWorldLegislature(input: WriteLegislatureRequest) {
     if (error.code === "42501") throw new Error("Country control authorization changed.");
     throw new Error(error.message || "Legislature save failed");
   }
-  if (!object(data) || data.ok !== true || !UUID.test(String(data.id)) ||
-      !UUID.test(String(data.operationId)) || !revision(data.revision) ||
-      data.kind !== input.kind) throw new Error("Missing official legislature operation receipt");
-  return { id:data.id as string,revision:data.revision as number,operationId:data.operationId as string };
+  // The canonical S2 reconciler returns {status,result,operationId,error}.
+  // A successful HTTP response is not proof that the command committed.
+  if (!object(data) || data.status !== "succeeded" || data.error !== null ||
+      data.operationId !== input.operationId || !object(data.result)) {
+    throw new Error("Missing official legislature operation receipt");
+  }
+  const result=data.result;
+  if (result.ok !== true || !UUID.test(String(result.id)) ||
+      result.operationId !== input.operationId || !revision(result.revision) ||
+      result.kind !== input.kind)
+    throw new Error("Missing official legislature operation receipt");
+  return {id:result.id as string,revision:result.revision as number,
+    operationId:input.operationId};
 }
