@@ -418,6 +418,7 @@ function CommunicationsCentre() {
       setReviewError(new Error("Organizer edition or communication state changed. Reopen the Entry follow-up review."));
       return;
     }
+    setReviewError(null);
     // A confirmed template replaces local composer state only. It does not
     // create, edit or publish a notice until the Organizer uses the governed
     // draft/publication commands below.
