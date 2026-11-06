@@ -105,6 +105,10 @@ function EthicsCasePanel({
           {record.state.replaceAll("_", " ")}
         </span>
       </div>
+      <Link to="/world/ethics/$caseId/findings" params={{caseId:record.id}}
+        className="mt-4 inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold">
+        Review case findings
+      </Link>
       <p className="mt-2 text-sm text-muted-foreground">
         Subject: {record.subjectCountryId ? countryName(record.subjectCountryId) : "Individual"}
         {record.subjectPersonId ? ` · Person reference ${record.subjectPersonId}` : ""}
