@@ -127,7 +127,7 @@ describe("V3 Organizer Access & Permissions context lock", () => {
   });
 
   it("uses resolved edition context for access simulation and refuses stale-context global fallback", () => {
-    expect(route).toContain('if (editionId && !resolvedEditionId)');
+    expect(route).toContain('if (!editionContextVerified || (editionId && !resolvedEditionId))');
     expect(route).toContain(
       'Access simulation will not fall back to global scope.',
     );
