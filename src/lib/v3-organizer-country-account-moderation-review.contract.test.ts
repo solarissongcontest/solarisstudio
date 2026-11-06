@@ -20,6 +20,21 @@ const legacyAccountService = readFileSync(
 );
 
 describe("V3 Organizer country account moderation review", () => {
+  it("segregates private account directories and reviewed status changes by actor", () => {
+    expect(route).toContain('const actorId = useAuthenticatedUser().id;');
+    expect(route).toContain('const currentActorRef = useRef(actorId);');
+    expect(route).toContain('actorId,\n      userId: target.user_id');
+    expect(route).toContain('if (review.actorId !== currentActorRef.current) return;');
+    expect(route).toContain('if (!pendingReview || currentActorRef.current !== actorId) return;');
+    expect(route).toContain('setPendingReview(null);');
+    expect(route).toContain('setTarget(null);');
+    expect(route).toContain('!countriesQuery.isFetching');
+    const hook = readFileSync(resolve(process.cwd(), "src/lib/country-account.ts"), "utf8");
+    expect(hook).toContain('queryKey: ["admin-country-accounts", actorId]');
+    expect(hook).toContain('const actorId = useAuthenticatedUser().id;');
+  });
+
+
   it("routes suspension and restoration through an explicit review boundary", () => {
     expect(route).toContain("AdminConfirmSheet");
     expect(route).toContain('onClick={() => requestStatusReview("suspended")}');
@@ -96,7 +111,7 @@ describe("V3 Organizer country account moderation review", () => {
 
   it("does not represent failed country directory reads as zero unclaimed accounts or allow a new moderation operation", () => {
     expect(route).toContain("const countriesQuery = useCountries();");
-    expect(route).toContain("const countriesReady = countriesQuery.isSuccess && !countriesQuery.error;");
+    expect(route).toContain("const countriesReady = countriesQuery.isSuccess && !countriesQuery.error && !countriesQuery.isFetching;");
     expect(route).toContain("claimed === null || !countriesReady ? null");
     expect(route).toContain("countriesQuery.isLoading ? (");
     expect(route).toContain("title=\"Country directory could not be verified\"");
