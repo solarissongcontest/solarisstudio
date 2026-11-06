@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => {
     in: vi.fn(),
     or: vi.fn(),
     range: vi.fn(),
+    abortSignal: vi.fn(),
   };
   return { chain, from: vi.fn(), rpc: vi.fn() };
 });
@@ -56,6 +57,51 @@ beforeEach(() => {
 });
 
 describe("TG3 world publication-safe projections", () => {
+  it("cancels already obsolete World reads before opening any Supabase request", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await expect(fetchWorldPublicEnabled({ signal: controller.signal }))
+      .rejects.toHaveProperty("name", "AbortError");
+    await expect(fetchFeaturedWorldOrganizations({ signal: controller.signal }))
+      .rejects.toHaveProperty("name", "AbortError");
+    await expect(fetchWorldDirectory({ term: "guard", filter: "all", page: 0, signal: controller.signal }))
+      .rejects.toHaveProperty("name", "AbortError");
+    await expect(fetchWorldProjection("guard", controller.signal))
+      .rejects.toHaveProperty("name", "AbortError");
+    expect(mocks.rpc).not.toHaveBeenCalled();
+    expect(mocks.from).not.toHaveBeenCalled();
+  });
+
+  it("forwards query cancellation to the bounded PostgREST directory request", async () => {
+    const controller = new AbortController();
+    mocks.chain.range.mockResolvedValueOnce({ data: [row], count: 1, error: null });
+    await fetchWorldDirectory({ term: "guard", filter: "all", page: 0, signal: controller.signal });
+    expect(mocks.chain.abortSignal).toHaveBeenCalledWith(controller.signal);
+  });
+
+  it("forwards cancellation to the featured public institution read", async () => {
+    const controller = new AbortController();
+    mocks.chain.abortSignal.mockResolvedValueOnce({ data: [row], error: null });
+    await expect(fetchFeaturedWorldOrganizations({ signal: controller.signal }))
+      .resolves.toHaveLength(1);
+    expect(mocks.chain.abortSignal).toHaveBeenCalledWith(controller.signal);
+  });
+
+  it("forwards cancellation to canonical World feature and projection RPCs", async () => {
+    const controller = new AbortController();
+    const featureRequest = { abortSignal: vi.fn().mockResolvedValue({ data: true, error: null }) };
+    const projectionRequest = { abortSignal: vi.fn().mockResolvedValue({
+      data: { organization, organs: [], memberships: [], offices: [] }, error: null,
+    }) };
+    mocks.rpc.mockReturnValueOnce(featureRequest).mockReturnValueOnce(projectionRequest);
+    await expect(fetchWorldPublicEnabled({ signal: controller.signal })).resolves.toBe(true);
+    await expect(fetchWorldProjection("guard", controller.signal)).resolves.toMatchObject({
+      organization: { slug: "guard" },
+    });
+    expect(featureRequest.abortSignal).toHaveBeenCalledWith(controller.signal);
+    expect(projectionRequest.abortSignal).toHaveBeenCalledWith(controller.signal);
+  });
+
   it("is unavailable until the canonical rollout RPC explicitly returns true", async () => {
     mocks.rpc.mockResolvedValueOnce({ data: false, error: null });
     await expect(fetchWorldPublicEnabled()).resolves.toBe(false);

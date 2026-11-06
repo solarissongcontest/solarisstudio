@@ -9,11 +9,14 @@ import { supabase } from "@/integrations/supabase/client";
 export const WORLD_PUBLIC_ROLLOUT_KEY = "terra_world_public" as const;
 
 /** Unknown flags and absent rollout contracts always resolve disabled. */
-export async function fetchWorldPublicEnabled(): Promise<boolean> {
-  const { data, error } = await (supabase as any).rpc("studio2_feature_enabled", {
+export async function fetchWorldPublicEnabled(options?: WorldReadOptions): Promise<boolean> {
+  assertWorldReadActive(options?.signal);
+  let request = (supabase as any).rpc("studio2_feature_enabled", {
     p_key: WORLD_PUBLIC_ROLLOUT_KEY,
     p_edition_id: null,
   });
+  if (options?.signal) request = request.abortSignal(options.signal);
+  const { data, error } = await request;
   if (error) throw new Error("World availability cannot be verified.");
   return data === true;
 }
@@ -99,6 +102,13 @@ const nonempty = (value: unknown): value is string =>
 const optionalText = (value: unknown): string | null =>
   typeof value === "string" ? value : null;
 const items = (value: unknown): unknown[] => Array.isArray(value) ? value : [];
+
+type WorldReadOptions = { signal?: AbortSignal };
+
+/** Cancel stale World reads before opening any remote Supabase request. */
+function assertWorldReadActive(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new DOMException("World request cancelled.", "AbortError");
+}
 
 export function parseWorldOrganization(value: unknown): WorldOrganization | null {
   const row = object(value);
@@ -215,8 +225,9 @@ export function parseWorldDirectoryRows(raw: unknown): WorldOrganization[] {
 }
 
 export async function fetchWorldDirectory(input: {
-  term: string; filter: WorldDirectoryFilter; page: number;
+  term: string; filter: WorldDirectoryFilter; page: number; signal?: AbortSignal;
 }): Promise<WorldDirectoryResponse> {
+  assertWorldReadActive(input.signal);
   const term = cleanWorldSearch(input.term);
   const page = Math.max(0, Math.min(1000, Math.trunc(input.page) || 0));
   // Only public fields; do not select "*", count members or hydrate per-row profiles.
@@ -231,6 +242,7 @@ export async function fetchWorldDirectory(input: {
     .in("status", publishedStatuses)
     .order("official_name", { ascending: true });
   if (term) request = request.or("official_name.ilike.%" + term + "%,short_name.ilike.%" + term + "%");
+  if (input.signal) request = request.abortSignal(input.signal);
   const { data, error, count } = await request.range(
     page * WORLD_DIRECTORY_PAGE_SIZE,
     (page + 1) * WORLD_DIRECTORY_PAGE_SIZE - 1,
@@ -259,13 +271,16 @@ export async function fetchWorldDirectory(input: {
  * World landing only needs GUARD/UNITY, not the first page of every future
  * organization. Its single targeted query remains RLS/public-visibility scoped.
  */
-export async function fetchFeaturedWorldOrganizations(): Promise<WorldOrganization[]> {
-  const { data, error } = await (supabase as any).from("world_organizations")
+export async function fetchFeaturedWorldOrganizations(options?: WorldReadOptions): Promise<WorldOrganization[]> {
+  assertWorldReadActive(options?.signal);
+  let request = (supabase as any).from("world_organizations")
     .select("id,slug,official_name,short_name,type,description,status,public_visibility")
     .eq("public_visibility", "public")
     .in("slug", ["guard", "unity"])
     .in("status", [...WORLD_PUBLIC_INSTITUTION_STATUSES])
     .order("short_name", { ascending: true });
+  if (options?.signal) request = request.abortSignal(options.signal);
+  const { data, error } = await request;
   if (error) throw new Error("World institutions are temporarily unavailable.");
   // Guard against an upstream/RLS regression returning a pre-recognition row
   // despite the explicitly scoped publication query.
@@ -274,11 +289,16 @@ export async function fetchFeaturedWorldOrganizations(): Promise<WorldOrganizati
     isPublicWorldInstitutionStatus(item.status));
 }
 
-export async function fetchWorldProjection(slug: string): Promise<WorldProjection | null> {
+export async function fetchWorldProjection(
+  slug: string, signal?: AbortSignal,
+): Promise<WorldProjection | null> {
+  assertWorldReadActive(signal);
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return null;
-  const { data, error } = await (supabase as any).rpc("world_organization_projection_v1", {
+  let request = (supabase as any).rpc("world_organization_projection_v1", {
     p_slug: slug,
   });
+  if (signal) request = request.abortSignal(signal);
+  const { data, error } = await request;
   if (error) throw new Error("This organization cannot be loaded right now.");
   return parseWorldProjection(data, slug);
 }

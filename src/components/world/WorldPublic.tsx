@@ -200,7 +200,7 @@ export function WorldDirectory() {
   }, [input]);
   const directory = useQuery({
     queryKey: ["world", "public", "organizations", term, filter, page],
-    queryFn: () => fetchWorldDirectory({ term, filter, page }),
+    queryFn: ({ signal }) => fetchWorldDirectory({ term, filter, page, signal }),
     staleTime: 90_000,
     refetchOnMount: "always",
     retry: false,
@@ -313,7 +313,7 @@ export function WorldOrganizationPage({
   useEffect(() => { setMemberPage(0); }, [slug]);
   const projection = useQuery({
     queryKey: ["world", "public", "organization", slug],
-    queryFn: () => fetchWorldProjection(slug),
+    queryFn: ({ signal }) => fetchWorldProjection(slug, signal),
     staleTime: 60_000,
     refetchOnMount: "always",
     retry: false,
@@ -338,11 +338,13 @@ export function WorldOrganizationPage({
     retry: false,
     staleTime: 300_000,
     refetchOnMount: "always",
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       // Exact member IDs and five display fields. Never download account owners,
       // country controls, private delegation or membership authority.
+      if (signal.aborted) throw new DOMException("World request cancelled.", "AbortError");
       const { data, error } = await (supabase as any).from("countries")
-        .select("id,name,short_code,flag_image,accent_color").in("id", countryIds);
+        .select("id,name,short_code,flag_image,accent_color").in("id", countryIds)
+        .abortSignal(signal);
       if (error) throw new Error("Country labels could not be loaded.");
       return parseCountryRows(data);
     },
