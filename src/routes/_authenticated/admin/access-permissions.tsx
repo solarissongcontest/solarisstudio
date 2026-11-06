@@ -620,7 +620,7 @@ function AccessPermissionsPage() {
             capabilityKey={capabilityKey}
             onCapabilityKey={setCapabilityKey}
             effectiveScope={effectiveScope}
-            busy={previewChange.isPending || requestApproval.isPending || applyApproved.isPending}
+            busy={!editionContextVerified || previewChange.isPending || requestApproval.isPending || applyApproved.isPending}
             onChange={(input) => previewChange.mutate(input)}
             onSimulate={(userId) => simulation.mutate({ userId })}
             simulation={simulation.data ?? null}
@@ -1224,7 +1224,8 @@ function UsersTab({
                 <button
                   type="button"
                   onClick={() => onSimulate(selectedUser.userId)}
-                  className="admin-action-secondary"
+                  disabled={busy}
+                  className="admin-action-secondary disabled:opacity-45"
                 >
                   <Eye className="size-4" /> View access as
                 </button>
