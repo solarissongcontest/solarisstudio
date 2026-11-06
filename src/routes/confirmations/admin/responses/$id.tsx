@@ -1,6 +1,7 @@
 import { EntryVersionEvidence } from "@/components/ConfirmationReviewStatus";
 import { OrganizerEntryVersionHistory } from "@/components/admin/OrganizerEntryVersionHistory";
 import { isOrganizerEntryReviewResultForDisplayedVersion } from "@/lib/v3-organizer-entry-operation-version";
+import { summarizeOrganizerEntryDetail } from "@/lib/v3-organizer-entry-detail-summary";
 import {
   buildOrganizerEntryCorrectionReason,
   ORGANIZER_ENTRY_CORRECTION_CATEGORIES,
@@ -1378,11 +1379,12 @@ function ResponseDetailPage() {
   const activeNfEntries = (data.national_final?.entries ?? []).filter(
     (entry) => !entry.removed && entry.review_status !== "removed",
   );
-  const entryCount = data.internal_entry ? 1 : activeNfEntries.length;
-  const acceptedCount = [data.internal_entry, ...activeNfEntries].filter(
-    (entry): entry is ReviewEntry =>
-      Boolean(entry && !entry.removed && entry.review_status === "accepted"),
-  ).length;
+  const entrySummary = summarizeOrganizerEntryDetail({
+    internalEntry: data.internal_entry,
+    nationalFinal: data.national_final,
+  });
+  const entryCount = entrySummary.entryCount;
+  const acceptedCount = entrySummary.currentAcceptedCount;
   const state = detailState(data);
   const copyArtists = activeNfEntries.map((entry) => entry.artist ?? "Unknown artist").join("\n");
   const copySongs = activeNfEntries.map((entry) => entry.song_title ?? "Unknown song").join("\n");
@@ -1483,7 +1485,7 @@ function ResponseDetailPage() {
               <p className="mt-1 text-2xl font-bold">{entryCount}</p>
             </div>
             <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
-              <p className="text-[11px] font-semibold text-muted-foreground">Accepted</p>
+              <p className="text-[11px] font-semibold text-muted-foreground">Accepted current versions</p>
               <p className="mt-1 text-2xl font-bold">{acceptedCount}</p>
             </div>
             <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
@@ -1526,16 +1528,13 @@ function ResponseDetailPage() {
             <AdminCardHeader
               eyebrow="Entry review"
               title={data.national_final.nf_name || "National Final"}
-              description={`${activeNfEntries.length} active ${activeNfEntries.length === 1 ? "entry" : "entries"}${data.national_final.winning_entry_id ? " · winner selected" : " · winner not selected"}`}
+              description={`${activeNfEntries.length} active ${activeNfEntries.length === 1 ? "entry" : "entries"} · ${entrySummary.nationalFinal?.description ?? "Review state unavailable"}`}
               action={
-                data.national_final.winning_entry_id ? (
-                  <AdminStatus tone="ready">Winner set</AdminStatus>
-                ) : activeNfEntries.length &&
-                  activeNfEntries.every((entry) => entry.review_status === "accepted") ? (
-                  <AdminStatus tone="neutral">Waiting for winner</AdminStatus>
-                ) : (
-                  <AdminStatus tone="attention">Review in progress</AdminStatus>
-                )
+                entrySummary.nationalFinal ? (
+                  <AdminStatus tone={entrySummary.nationalFinal.tone}>
+                    {entrySummary.nationalFinal?.label}
+                  </AdminStatus>
+                ) : null
               }
             />
 
