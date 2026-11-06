@@ -64,6 +64,8 @@ function Unavailable({ retry, missing }: { retry?: () => void; missing?: boolean
 }
 
 export function WorldBodiesDirectory({ slug }: { slug: string }) {
+  const { connectivity } = useSolarisApp();
+  const publicationBlocked = connectivity.status === "offline" || connectivity.status === "service-restricted";
   const [page, setPage] = useState(0);
   const [input, setInput] = useState("");
   const [term, setTerm] = useState("");
@@ -72,7 +74,7 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
   const query = useQuery({
     queryKey: ["world", "public", "bodies", slug, term, status, page],
     queryFn: ({ signal }) => readPublicWorldBodies(slug, page, { term, status, signal }),
-    enabled: valid,
+    enabled: valid && !publicationBlocked,
     // Preserve the verified parent and search controls while the next filtered page loads.
     placeholderData: (previous) => previous?.organization.slug === slug ? previous : undefined,
     staleTime: 90_000,
@@ -101,13 +103,14 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
   }
   // A background refresh can fail while TanStack retains previously cached data.
   // Never show that stale publication snapshot after a failed verification.
-  const result = query.isError ? undefined : query.data;
+  const result = publicationBlocked || query.isError ? undefined : query.data;
   return <Frame>
     <Back institution={result?.organization} />
     {!valid ? <Unavailable missing /> : null}
-    {valid && query.isPending ? <Loading /> : null}
-    {query.isError ? <Unavailable retry={() => void query.refetch()} /> : null}
-    {query.isSuccess && !result ? <Unavailable missing /> : null}
+    {valid && publicationBlocked ? <Unavailable retry={() => void query.refetch()} /> : null}
+    {valid && !publicationBlocked && query.isPending ? <Loading /> : null}
+    {valid && !publicationBlocked && query.isError ? <Unavailable retry={() => void query.refetch()} /> : null}
+    {valid && !publicationBlocked && query.isSuccess && !result ? <Unavailable missing /> : null}
     {result ? <>
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{result.organization.shortName} · Governance</p>
@@ -172,22 +175,23 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
   const query = useQuery({
     queryKey: ["world", "public", "body", slug, bodySlug],
     queryFn: ({ signal }) => readPublicWorldBody(slug, bodySlug, signal),
-    enabled: valid, staleTime: 90_000, retry: false,
+    enabled: valid && !officeNetworkBlocked, staleTime: 90_000, retry: false,
   });
-  const result = query.isError ? undefined : query.data;
+  const result = officeNetworkBlocked || query.isError ? undefined : query.data;
   const offices = useQuery({
     queryKey: ["world", "public", "body-offices", result?.organization.id, result?.body.id],
     queryFn: ({ signal }) => readPublicBodyOffices(result!.organization, result!.body, signal),
-    enabled: !!result,
+    enabled: !!result && !officeNetworkBlocked,
     staleTime: 90_000,
     retry: false,
   });
   return <Frame>
     <Back institution={result?.organization} />
     {!valid ? <Unavailable missing /> : null}
-    {valid && query.isPending ? <Loading /> : null}
-    {query.isError ? <Unavailable retry={() => void query.refetch()} /> : null}
-    {query.isSuccess && !result ? <Unavailable missing /> : null}
+    {valid && officeNetworkBlocked ? <Unavailable retry={() => void query.refetch()} /> : null}
+    {valid && !officeNetworkBlocked && query.isPending ? <Loading /> : null}
+    {valid && !officeNetworkBlocked && query.isError ? <Unavailable retry={() => void query.refetch()} /> : null}
+    {valid && !officeNetworkBlocked && query.isSuccess && !result ? <Unavailable missing /> : null}
     {result ? <>
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{result.organization.shortName} · Institutional body</p>
