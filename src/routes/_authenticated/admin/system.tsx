@@ -13,6 +13,7 @@ import {
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminCard,
@@ -77,7 +78,11 @@ type PendingPlatformModeChange = {
 };
 
 function AdminSystemPage() {
-  const { editionId } = useAdminContext();
+  const { editionId, setEditionContext } = useAdminContext();
+  const actorId = useAuthenticatedUser().id;
+  const [explicitChoice, setExplicitChoice] = useState<{ actorId: string; editionId: string } | null>(null);
+  const explicitEditionId = explicitChoice?.actorId === actorId ? explicitChoice.editionId : "";
+  const verifiedChoiceId = explicitEditionId && editionId === explicitEditionId ? explicitEditionId : "";
   const queryClient = useQueryClient();
   const editionsQuery = useEditions();
   const editions = editionsQuery.data ?? [];
@@ -87,15 +92,15 @@ function AdminSystemPage() {
   const editionsReady =
     editionsQuery.isSuccess && !editionsQuery.error && !editionsQuery.isFetching;
   const selectedEdition = useMemo(
-    () => (editionsReady && editionId ? editions.find((edition) => edition.id === editionId) ?? null : null),
-    [editions, editionId, editionsReady],
+        () => (editionsReady && verifiedChoiceId ? editions.find((edition) => edition.id === verifiedChoiceId) ?? null : null),
+    [editions, verifiedChoiceId, editionsReady],
   );
   const editionContextMessage = editionsQuery.error
     ? "Solaris could not verify the selected Organizer edition. Edition-scoped schedule and reminders are unavailable until the lookup succeeds."
     : editionsLoading
       ? "Resolving the Organizer edition before loading edition-scoped schedule data."
-      : !editionId
-        ? "Select an Organizer edition before viewing workflow dates or custom reminders. Solaris will not guess a newest edition."
+      : !verifiedChoiceId
+        ? "Explicitly choose an Organizer edition below before viewing workflow dates or custom reminders. Solaris will not guess a newest edition."
         : "The selected Organizer edition could not be resolved. Choose a valid edition before viewing or changing edition-scoped schedule data.";
   const editionRetryAction = editionsQuery.error ? (
     <button
@@ -173,13 +178,14 @@ function AdminSystemPage() {
       createOpen &&
       createEditionId &&
       (editionId !== createEditionId ||
+        verifiedChoiceId !== createEditionId ||
         (editionsReady && selectedEdition?.id !== createEditionId))
     ) {
       setCreateOpen(false);
       setCreateEditionId(null);
       setForm({ label: "", due_at: "", notes: "" });
     }
-  }, [createOpen, createEditionId, editionId, editionsReady, selectedEdition?.id]);
+  }, [createOpen, createEditionId, editionId, verifiedChoiceId, editionsReady, selectedEdition?.id]);
 
   const applyPlatformMode = useMutation({
     mutationFn: async ({
@@ -296,6 +302,34 @@ function AdminSystemPage() {
             : "Platform controls remain available globally. Edition-scoped schedule data requires an explicit Organizer edition."
         }
       />
+
+      <AdminCard className="mb-4">
+        <label className="flex flex-col gap-2">
+          <span className="text-xs font-semibold text-muted-foreground">
+            Choose the edition for this System review
+          </span>
+          <select
+            className="admin-input"
+            value={verifiedChoiceId}
+            disabled={!editionsReady}
+            onChange={(event) => {
+              const choice = editions.find((edition) => edition.id === event.target.value);
+              setExplicitChoice(choice ? { actorId, editionId: choice.id } : null);
+              if (choice) {
+                setEditionContext({ id: choice.id, slug: choice.slug, label: editionLabel(choice) });
+              }
+            }}
+          >
+            <option value="">Select an exact edition…</option>
+            {(editionsReady ? editions : []).map((edition) => (
+              <option key={edition.id} value={edition.id}>{editionLabel(edition)}</option>
+            ))}
+          </select>
+          <span className="text-xs text-muted-foreground">
+            The Organizer navigation may show a default edition, but scoped schedule and reminders require a deliberate selection here. The global platform mode remains separately governed.
+          </span>
+        </label>
+      </AdminCard>
 
       {selectedEdition && !deadlinesError && !scheduleError ? (
         <MetricStrip className="grid-cols-3 sm:grid-cols-3 xl:grid-cols-3">
