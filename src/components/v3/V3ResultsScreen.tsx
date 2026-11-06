@@ -196,32 +196,24 @@ export function V3ResultsScreen({
               </Link>
             </V3Section>
 
-            <V3Section title="Explore this result">
-              <nav aria-label="Explore this result" className="grid gap-2">
-                {projection.exploreThisResult.map((link) => (
-                  <Link
-                    key={link.key}
-                    to={link.href as any}
-                    className="flex min-h-11 items-center rounded-xl border border-[var(--v3-border-subtle)] px-4"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-              </nav>
-            </V3Section>
-            <V3Section title="More analysis">
-              <nav aria-label="More result analysis" className="grid gap-2">
-                {projection.moreAnalysis.map((link) => (
-                  <Link
-                    key={link.key}
-                    to={link.href as any}
-                    className="flex min-h-11 items-center rounded-xl border border-[var(--v3-border-subtle)] px-4"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-              </nav>
-            </V3Section>
+            {([
+              ["Explore this result", "Explore this result", projection.exploreThisResult],
+              ["More analysis", "More result analysis", projection.moreAnalysis],
+            ] as const).map(([title, ariaLabel, links]) => (
+              <V3Section key={title} title={title}>
+                <nav aria-label={ariaLabel} className="grid gap-2">
+                  {links.map((link) => (
+                    <Link
+                      key={link.key}
+                      to={link.href as any}
+                      className="flex min-h-11 items-center rounded-xl border border-[var(--v3-border-subtle)] px-4"
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </nav>
+              </V3Section>
+            ))}
           </>
         )}
       </div>

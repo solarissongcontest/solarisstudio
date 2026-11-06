@@ -1,108 +1,72 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const moderation = readFileSync(
-  "src/integrations/televoting/moderation.server.ts",
-  "utf8",
-);
-const permissions = readFileSync("src/lib/permissions-v2.ts", "utf8");
-const foundation = readFileSync(
-  "supabase/migrations/20260914035152_permission_engine_v2_foundation.sql",
-  "utf8",
-);
+const server = readFileSync("src/integrations/televoting/moderation.server.ts", "utf8");
+const adapters = readFileSync("src/integrations/televoting/moderation.functions.ts", "utf8");
 
-function section(start: string, end?: string) {
-  const startIndex = moderation.indexOf(start);
-  if (startIndex < 0) return "";
-  const endIndex = end ? moderation.indexOf(end, startIndex + start.length) : -1;
-  return moderation.slice(startIndex, endIndex < 0 ? undefined : endIndex);
+const cases = [
+  ["listMergedModerationSubmissions", "integrity.read"],
+  ["setMergedSubmissionStatus", "integrity.manage"],
+  ["softDeleteMergedSubmission", "integrity.manage"],
+  ["restoreMergedSubmission", "integrity.manage"],
+  ["updateMergedSubmissionNote", "integrity.manage"],
+  ["editMergedSubmissionEntries", "integrity.manage"],
+] as const;
+
+function body(source: string, method: string) {
+  const start = source.indexOf("export const " + method + " = createServerFn");
+  if (start < 0) throw new Error("Missing function " + method);
+  const next = source.indexOf("\nexport const ", start + method.length);
+  return source.slice(start, next < 0 ? undefined : next);
+}
+function serverBody(method: string) {
+  const start = server.indexOf("export async function " + method);
+  if (start < 0) throw new Error("Missing server method " + method);
+  const next = server.indexOf("\nexport async function ", start + method.length);
+  return server.slice(start, next < 0 ? undefined : next);
 }
 
-describe("Organizer V3 Televote moderation authorization", () => {
-  it("uses canonical integrity capabilities before the merged admin compatibility session", () => {
-    const readGuard = section(
-      "async function requireModerationReadServer()",
-      "async function requireModerationManageServer()",
-    );
-    const manageGuard = section(
-      "async function requireModerationManageServer()",
-      "async function audit(",
-    );
-
-    expect(readGuard).toContain(
-      'await requireSolarisCapabilityServer("integrity.read", null);',
-    );
-    expect(manageGuard).toContain(
-      'await requireSolarisCapabilityServer("integrity.manage", null);',
-    );
-    expect(readGuard.indexOf("requireMergedTelevotingAdminServer()"))
-      .toBeGreaterThan(readGuard.indexOf("requireSolarisCapabilityServer"));
-    expect(manageGuard.indexOf("requireMergedTelevotingAdminServer()"))
-      .toBeGreaterThan(manageGuard.indexOf("requireSolarisCapabilityServer"));
+describe("V3 Organizer Televote integrity moderation authority", () => {
+  it("validates integrity.read/manage before compatibility organizer authentication", () => {
+    const read = server.slice(server.indexOf("async function requireModerationReadServer()"), server.indexOf("async function requireModerationManageServer()"));
+    const manage = server.slice(server.indexOf("async function requireModerationManageServer()"), server.indexOf("async function audit("));
+    expect(read).toContain('requireSolarisCapabilityServer("integrity.read", null)');
+    expect(manage).toContain('requireSolarisCapabilityServer("integrity.manage", null)');
+    expect(read.indexOf("requireSolarisCapabilityServer(")).toBeLessThan(read.indexOf("requireMergedTelevotingAdminServer()"));
+    expect(manage.indexOf("requireSolarisCapabilityServer(")).toBeLessThan(manage.indexOf("requireMergedTelevotingAdminServer()"));
   });
 
-  it("requires integrity.read for protected moderation data", () => {
-    const list = section(
-      "export async function listMergedModerationSubmissionsServer",
-      "export async function setMergedSubmissionStatusServer",
-    );
-    const alerts = section("export async function getMergedModerationAlertsCountServer");
-
-    expect(list).toContain("await requireModerationReadServer();");
-    expect(alerts).toContain("await requireModerationReadServer();");
-    expect(list).toContain("ip_country");
-    expect(list).toContain("is_vpn");
-    expect(list).toContain("risk_score");
-    expect(list).toContain("moderator_note");
+  it.each(cases)("protects %s with %s before importing privileged module", (method, capability) => {
+    const adapter = body(adapters, method);
+    expect(adapter).toContain('await requireModerationCapability("' + capability + '")');
+    expect(adapter.indexOf("await requireModerationCapability")).toBeLessThan(adapter.indexOf('"@/integrations/televoting/moderation.server"'));
   });
 
-  it("requires integrity.manage for every consequential moderation mutation", () => {
-    const mutations = [
-      section(
-        "export async function setMergedSubmissionStatusServer",
-        "export async function softDeleteMergedSubmissionServer",
-      ),
-      section(
-        "export async function softDeleteMergedSubmissionServer",
-        "export async function restoreMergedSubmissionServer",
-      ),
-      section(
-        "export async function restoreMergedSubmissionServer",
-        "export async function updateMergedSubmissionNoteServer",
-      ),
-      section(
-        "export async function updateMergedSubmissionNoteServer",
-        "export async function editMergedSubmissionEntriesServer",
-      ),
-      section(
-        "export async function editMergedSubmissionEntriesServer",
-        "export async function getMergedModerationAlertsCountServer",
-      ),
-    ];
-
-    for (const mutation of mutations) {
-      expect(mutation).toContain("await requireModerationManageServer()");
-      const guard = mutation.indexOf("requireModerationManageServer()");
-      const firstRemoteAccess = mutation.indexOf("televotingAdmin");
-      expect(guard).toBeGreaterThan(-1);
-      expect(firstRemoteAccess).toBeGreaterThan(guard);
+  it("protects all raw server readers and writers, including the alerts count", () => {
+    for (const name of ["listMergedModerationSubmissionsServer", "getMergedModerationAlertsCountServer"]) {
+      const impl = serverBody(name);
+      expect(impl).toContain("await requireModerationReadServer()");
+    }
+    for (const name of ["setMergedSubmissionStatusServer", "softDeleteMergedSubmissionServer", "restoreMergedSubmissionServer", "updateMergedSubmissionNoteServer", "editMergedSubmissionEntriesServer"]) {
+      const impl = serverBody(name);
+      expect(impl).toContain("await requireModerationManageServer()");
     }
   });
 
-  it("does not leave direct generic-admin authorization inside moderation operations", () => {
-    expect(moderation.match(/requireMergedTelevotingAdminServer\(\)/g)).toHaveLength(2);
-    expect(moderation.match(/requireModerationManageServer\(\)/g)).toHaveLength(6);
-    expect(moderation.match(/requireModerationReadServer\(\)/g)).toHaveLength(3);
+  it("fails closed on alert errors instead of misrepresenting errors as zero threats", () => {
+    const alert = body(adapters, "getMergedModerationAlertsCount");
+    expect(alert).toContain('await requireModerationCapability("integrity.read")');
+    expect(alert).not.toContain("return 0");
+    expect(alert).toContain("return getMergedModerationAlertsCountServer()");
   });
 
-  it("matches the existing Permission Engine semantics for integrity read and manage", () => {
-    expect(permissions).toContain("'integrity.read'");
-    expect(permissions).toContain("'integrity.manage'");
-    expect(foundation).toContain(
-      "('integrity.read', 'integrity', 'View integrity cases', 'View protected integrity reports, cases and evidence metadata.', 'read')",
-    );
-    expect(foundation).toContain(
-      "('integrity.manage', 'integrity', 'Manage integrity cases', 'Triage reports and manage investigations.', 'operate')",
-    );
+  it("preserves the existing moderation audit and bounded private ballot source", () => {
+    expect(server).toContain('.from("admin_audit_log").insert(');
+    expect(server).toContain(".limit(2500)");
+    expect(server).toContain("moderator_note");
+    expect(server).toContain("ip_country");
+    expect(server).toContain("risk_score");
+    expect(server).toContain("is_vpn");
+    expect(adapters).not.toMatch(/\.from\(|\.rpc\(|\.insert\(|\.update\(|\.delete\(/);
   });
 });

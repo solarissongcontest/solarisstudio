@@ -143,6 +143,26 @@ describe("System V3 S8 resource protection registry", () => {
     expect(outbox).toContain("v_dead_letter := v_delivery.attempt_count >= p_max_attempts");
   });
 
+  it("records bounded in-process voting rate-limit memory without implying global authority", () => {
+    expect(v3ResourceProtection("televote-instance-limiter-memory-ceiling")).toMatchObject({
+      kind: "resource-limit",
+      authority: "server",
+      externallyTriggerable: true,
+      replaySafe: false,
+      bounds: {
+        maxRetainedIdentitiesPerInstance: 5000,
+        maxIdentityChars: 256,
+        maxAttemptsPerIdentity: 100,
+        capacityFailClosed: true,
+        activeIdentityEviction: false,
+      },
+    });
+    const limiter = source("src/integrations/televoting/rate-limit.server.ts");
+    expect(limiter).toContain("if (buckets.size >= MAX_KEYS)");
+    expect(limiter).toContain("trimExpired(storedBucket, now)");
+    expect(limiter).toContain("throw new Error(opts.message ?? DEFAULT_MESSAGE)");
+  });
+
   it("records image, WOFF2 and evidence ceilings already enforced by the upload pipeline", () => {
     expect(v3ResourceProtection("public-image-finalization-limits")?.bounds).toMatchObject({
       maxBytes: 5 * 1024 * 1024,
