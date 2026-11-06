@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   AlertTriangle,
@@ -11,6 +11,7 @@ import {
   ServerCog,
 } from "lucide-react";
 
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminCard,
@@ -101,15 +102,26 @@ export const Route = createFileRoute("/_authenticated/admin/system-operations")(
 
 function SystemOperationsPage() {
   const queryClient = useQueryClient();
+  const actorId = useAuthenticatedUser().id;
+  const currentActorRef = useRef(actorId);
   const backend = useOrganisationBackendContract();
   const systemOperationsSupported =
     backend.data?.capabilities.systemOperations === true;
   const retryIdentities = useRef(new Map<string, DeliveryRetryIdentity>());
   const [retryRecovery, setRetryRecovery] = useState<RetryRecoveryState | null>(null);
 
+  // Prevent a later account from seeing earlier private delivery telemetry or
+  // reusing another actor's idempotency identity for a pending retry.
+  useEffect(() => {
+    if (currentActorRef.current === actorId) return;
+    currentActorRef.current = actorId;
+    retryIdentities.current.clear();
+    setRetryRecovery(null);
+  }, [actorId]);
+
   const health = useQuery({
     enabled: systemOperationsSupported,
-    queryKey: ["admin-system-runtime-health"],
+    queryKey: ["admin-system-runtime-health", actorId],
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc("admin_system_runtime_health", {
         p_delivery_limit: 50,
@@ -120,14 +132,15 @@ function SystemOperationsPage() {
     refetchInterval: 60_000,
   });
 
-  const applyRetryOutcome = async (deliveryId: string, outcome: DeliveryRetryOutcome) => {
+  const applyRetryOutcome = async (actorIdAtRequest: string, deliveryId: string, outcome: DeliveryRetryOutcome) => {
+    if (actorIdAtRequest !== currentActorRef.current) return;
     if (outcome.state === "succeeded") {
       retryIdentities.current.delete(deliveryId);
       setRetryRecovery((current) =>
         current?.deliveryId === deliveryId ? null : current,
       );
       await queryClient.invalidateQueries({
-        queryKey: ["admin-system-runtime-health"],
+        queryKey: ["admin-system-runtime-health", actorIdAtRequest],
       });
       return;
     }
@@ -136,7 +149,7 @@ function SystemOperationsPage() {
 
     if (outcome.state === "failed" || outcome.recovery.shouldRefreshCanonical) {
       await queryClient.invalidateQueries({
-        queryKey: ["admin-system-runtime-health"],
+        queryKey: ["admin-system-runtime-health", actorIdAtRequest],
       });
     }
 
@@ -150,11 +163,16 @@ function SystemOperationsPage() {
       deliveryId,
       operationId,
       idempotencyKey,
+      actorIdAtRequest,
     }: {
       deliveryId: string;
       operationId: string;
       idempotencyKey: string;
+      actorIdAtRequest: string;
     }) => {
+      if (currentActorRef.current !== actorIdAtRequest) {
+        throw new Error("Organizer account changed before delivery retry.");
+      }
       if (!systemOperationsSupported) {
         throw new Error(
           "The production database does not yet support System Operations.",
@@ -166,7 +184,7 @@ function SystemOperationsPage() {
       });
     },
     onSuccess: async (outcome, variables) => {
-      await applyRetryOutcome(variables.deliveryId, outcome);
+      await applyRetryOutcome(variables.actorIdAtRequest, variables.deliveryId, outcome);
     },
   });
 
@@ -175,11 +193,16 @@ function SystemOperationsPage() {
       deliveryId,
       operationId,
       outcome,
+      actorIdAtRequest,
     }: {
       deliveryId: string;
       operationId: string;
       outcome: Exclude<DeliveryRetryOutcome, { state: "succeeded" }>;
+      actorIdAtRequest: string;
     }) => {
+      if (currentActorRef.current !== actorIdAtRequest) {
+        throw new Error("Organizer account changed before delivery reconciliation.");
+      }
       if (!systemOperationsSupported) {
         throw new Error(
           "The production database does not yet support System Operations.",
@@ -192,7 +215,7 @@ function SystemOperationsPage() {
       });
     },
     onSuccess: async (outcome, variables) => {
-      await applyRetryOutcome(variables.deliveryId, outcome);
+      await applyRetryOutcome(variables.actorIdAtRequest, variables.deliveryId, outcome);
     },
   });
 
@@ -217,7 +240,7 @@ function SystemOperationsPage() {
     setRetryRecovery((current) =>
       current?.deliveryId === deliveryId ? null : current,
     );
-    retry.mutate({ deliveryId, ...identity });
+    retry.mutate({ deliveryId, ...identity, actorIdAtRequest: actorId });
   };
 
   const reconcileFailedDelivery = (deliveryId: string) => {
@@ -229,6 +252,7 @@ function SystemOperationsPage() {
       deliveryId,
       operationId: identity.operationId,
       outcome: current,
+      actorIdAtRequest: actorId,
     });
   };
 
