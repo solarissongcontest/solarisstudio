@@ -10,6 +10,7 @@ import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/s
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import { showPublishesResults } from "@/lib/publication";
+import { formatEventDateTime } from "@/lib/public-time";
 import { getV3ShowBrowsePage, V3_SHOW_BROWSE_PAGE_SIZE } from "@/lib/v3-show-browse-page";
 import {
   buildShowDiscovery,
@@ -419,16 +420,9 @@ function ShowStateBadge({ item }: { item: ShowDiscoveryItem }) {
 }
 
 function formatShowTime(value: string) {
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return "Time TBA";
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Europe/Helsinki",
-    timeZoneName: "short",
-  }).format(date);
+  return Number.isFinite(Date.parse(value))
+    ? formatEventDateTime(value, { locale: "en-GB" })
+    : "Time TBA";
 }
 
 function stateFilterLabel(state: ShowDiscoveryState) {
