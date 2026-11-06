@@ -22,9 +22,9 @@ select jsonb_build_object(
         where lower(opt) in ('security_invoker=true', 'security_invoker=on', 'security_invoker=1')
       ),
       'anonSelect', case when to_regrole('anon') is not null
-        then has_table_privilege('anon', c.oid, 'SELECT') else false end,
+        then has_any_column_privilege('anon', c.oid, 'SELECT') else false end,
       'authenticatedSelect', case when to_regrole('authenticated') is not null
-        then has_table_privilege('authenticated', c.oid, 'SELECT') else false end
+        then has_any_column_privilege('authenticated', c.oid, 'SELECT') else false end
     ) order by n.nspname, c.relname)
     from pg_class c
     join pg_namespace n on n.oid = c.relnamespace
