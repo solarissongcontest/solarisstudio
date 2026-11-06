@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { executeShowCueCommand } from './show-cue-command';
 import {
   RUNDOWN_SEGMENT_STATUSES,
   buildBroadcastRundown,
@@ -274,14 +275,13 @@ export async function saveStudio2BroadcastRundown(
 ): Promise<Studio2BroadcastRundownConfig> {
   await requireEnabled();
   validateStudio2BroadcastRundown(config);
-  const data = await rpc('studio2_save_broadcast_rundown', {
+  return executeShowCueCommand('v3_save_show_rundown', {
     p_show_id: requireShowId(showId),
     p_expected_revision: config.revision,
     p_start_at: config.startAt,
     p_segments: config.segments,
     p_reason: requireReason(reason),
-  });
-  return validateStudio2BroadcastCommandResult(data, config.revision, 'increment');
+  }, (data, intent) => validateStudio2BroadcastCommandResult(data, intent.p_expected_revision as number, 'increment'));
 }
 
 export async function setStudio2BroadcastRundownLock(
@@ -292,13 +292,12 @@ export async function setStudio2BroadcastRundownLock(
 ): Promise<Studio2BroadcastRundownConfig> {
   await requireEnabled();
   validateStudio2BroadcastRundown(config);
-  const data = await rpc('studio2_set_broadcast_rundown_lock', {
+  return executeShowCueCommand('v3_set_show_rundown_lock', {
     p_show_id: requireShowId(showId),
     p_expected_revision: config.revision,
     p_locked: locked,
     p_reason: requireReason(reason, 'Broadcast rundown lock'),
-  });
-  return validateStudio2BroadcastCommandResult(data, config.revision, 'same-or-increment');
+  }, (data, intent) => validateStudio2BroadcastCommandResult(data, intent.p_expected_revision as number, 'same-or-increment'));
 }
 
 export async function transitionStudio2BroadcastSegment(
@@ -314,12 +313,11 @@ export async function transitionStudio2BroadcastSegment(
   validateStudio2BroadcastRundown(config);
   const normalizedSegmentId = segmentId.trim();
   if (!normalizedSegmentId) throw new Error('Rundown segment is required.');
-  const data = await rpc('studio2_transition_broadcast_segment', {
+  return executeShowCueCommand('v3_transition_show_cue', {
     p_show_id: requireShowId(showId),
     p_expected_revision: config.revision,
     p_segment_id: normalizedSegmentId,
     p_to_status: nextStatus,
     p_reason: requireReason(reason, 'Broadcast segment transition'),
-  });
-  return validateStudio2BroadcastCommandResult(data, config.revision, 'increment');
+  }, (data, intent) => validateStudio2BroadcastCommandResult(data, intent.p_expected_revision as number, 'increment'));
 }
