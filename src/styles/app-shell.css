@@ -27,9 +27,26 @@ html[data-solaris-app-boot] body::before {
   --solaris-app-tabbar-max-height: 4.6rem;
   --solaris-bottom-obstruction: 0px;
   --solaris-app-safe-top: env(safe-area-inset-top);
+  --solaris-app-safe-top-comfort: 6px;
   --solaris-app-safe-right: env(safe-area-inset-right);
   --solaris-app-safe-bottom: env(safe-area-inset-bottom);
   --solaris-app-safe-left: env(safe-area-inset-left);
+}
+
+
+/* One top-system-safe boundary for legacy installed-app chrome as well as V3.
+   This is intentionally platform + runtime gated, not width gated. */
+@supports (-webkit-touch-callout: none) {
+  @media (pointer: coarse) and (orientation: portrait) {
+    html[data-solaris-runtime="standalone"] {
+      --solaris-app-safe-top: max(env(safe-area-inset-top, 0px), 60px);
+    }
+  }
+  @media (pointer: coarse) and (orientation: landscape) {
+    html[data-solaris-runtime="standalone"] {
+      --solaris-app-safe-top: max(env(safe-area-inset-top, 0px), 20px);
+    }
+  }
 }
 
 .solaris-app-toolbar,
@@ -107,7 +124,7 @@ html[data-solaris-app-boot] body::before {
     top: 0;
     z-index: var(--solaris-z-toolbar);
     display: block;
-    padding-top: env(safe-area-inset-top);
+    padding-top: calc(var(--solaris-app-safe-top) + var(--solaris-app-safe-top-comfort));
     border-bottom: 1px solid rgb(215 238 247 / .13);
     background:
       linear-gradient(
@@ -387,7 +404,7 @@ html[data-solaris-app-boot] body::before {
   .solaris-app-offline {
     position: fixed;
     z-index: 75;
-    top: calc(env(safe-area-inset-top) + var(--solaris-app-toolbar-height) + .45rem);
+    top: calc(var(--solaris-app-safe-top) + var(--solaris-app-toolbar-height) + var(--solaris-app-safe-top-comfort) + .45rem);
     left: 50%;
     display: flex;
     width: min(calc(100vw - 1.5rem), 32rem);
@@ -2776,7 +2793,7 @@ html[data-solaris-app]
     position: sticky;
     top: 0;
     isolation: isolate;
-    padding-top: env(safe-area-inset-top);
+    padding-top: calc(var(--solaris-app-safe-top) + var(--solaris-app-safe-top-comfort));
   }
 
   html[data-solaris-app] .solaris-app-toolbar-inner {
