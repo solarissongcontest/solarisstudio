@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Globe2 } from "lucide-react";
 
 import { fetchWorldPublicEnabled } from "@/lib/terra-world-public";
+import { worldPublicQueryVerified } from "@/lib/terra-world-unified-search";
 import { V3ActionCard, V3Section } from "@/components/v3/V3Foundation";
 
 /**
@@ -14,11 +15,14 @@ export function WorldExploreEntry() {
   const rollout = useQuery({
     queryKey: ["world", "public", "rollout"],
     queryFn: fetchWorldPublicEnabled,
-    staleTime: 60_000,
+    staleTime: 45_000,
+    refetchOnMount: "always",
     retry: false,
   });
 
-  if (rollout.data !== true) return null;
+  // A cached yes can no longer advertise a public section after its
+  // authoritative rollout recheck fails or is still running.
+  if (!worldPublicQueryVerified(rollout) || rollout.data !== true) return null;
 
   return (
     <section className="public-hub-section" aria-labelledby="explore-world-heading">
