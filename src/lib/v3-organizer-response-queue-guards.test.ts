@@ -114,7 +114,10 @@ describe("Organizer Confirmation response queue page guards", () => {
     expect(code).toContain('mode === "next_in_line" && editionId ? nextError : error');
     expect(code).toContain("setLoadingNextRows(true)");
     expect(code).toContain("setNextRows([])");
-    expect(code).toContain("[editionId, mode, responseReloadKey]");
+    expect(code).toContain("[editionId, mode, nextReloadKey]");
+    expect(code).toContain("function retryVisibleQueue()");
+    expect(code).toContain("setNextReloadKey((current) => current + 1)");
+    expect(code).toContain("Retry Next in Line");
     expect(code).not.toContain('setError((current) => current ?? result.error.message)');
   });
 

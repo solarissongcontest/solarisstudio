@@ -250,6 +250,7 @@ function ConfirmationResponsesList() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ResponseFilter>("all");
   const [responseReloadKey, setResponseReloadKey] = useState(0);
+  const [nextReloadKey, setNextReloadKey] = useState(0);
   const responseLoadGenerationRef = useRef(0);
   const loadMoreInFlightRef = useRef(false);
   const [mode, setMode] = useState<"confirmations" | "next_in_line">("confirmations");
@@ -375,7 +376,7 @@ function ConfirmationResponsesList() {
       alive = false;
       if (generation === nextLoadGenerationRef.current) nextLoadGenerationRef.current += 1;
     };
-  }, [editionId, mode, responseReloadKey]);
+  }, [editionId, mode, nextReloadKey]);
 
   async function loadMoreResponses() {
     if (!editionId || !responseCursor || loadingMoreResponses || loadMoreInFlightRef.current) return;
@@ -453,6 +454,11 @@ function ConfirmationResponsesList() {
         return priority || new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime();
       });
   }, [editionId, filter, query, roundId, rows]);
+
+  function retryVisibleQueue() {
+    if (mode === "next_in_line") setNextReloadKey((current) => current + 1);
+    else setResponseReloadKey((current) => current + 1);
+  }
 
   const filteredNext = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -549,8 +555,8 @@ function ConfirmationResponsesList() {
               <p className="font-semibold">Responses could not be loaded safely</p>
               <p className="text-sm text-muted-foreground">{visibleError}</p>
               <button type="button" className="admin-action-secondary"
-                onClick={() => setResponseReloadKey((current) => current + 1)}>
-                Reload current edition
+                onClick={retryVisibleQueue}>
+                {mode === "next_in_line" ? "Retry Next in Line" : "Reload current edition"}
               </button>
             </div>
           </div>
