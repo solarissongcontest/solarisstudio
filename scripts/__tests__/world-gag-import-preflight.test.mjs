@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, truncate, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runCli, validateGagManifest } from '../world-gag-import-preflight.mjs';
@@ -85,6 +85,10 @@ test('CLI writes a strict private local report and refuses overwrites', async ()
     assert.equal(report.status, 'source_checked_not_imported');
     await assert.rejects(runCli(['--manifest', manifestFile, '--source', sourceFile, '--output', reportFile]), /EEXIST/);
     await assert.rejects(runCli(['--manifest', manifestFile, '--source', join(dir, 'missing')]), /ENOENT/);
+    const oversized = join(dir, 'oversized.bin');
+    await writeFile(oversized, '');
+    await truncate(oversized, 33 * 1024 * 1024);
+    await assert.rejects(runCli(['--manifest', manifestFile, '--source', oversized]), /source must be a regular/);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
