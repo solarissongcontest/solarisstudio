@@ -56,3 +56,36 @@ test('offline CLI has success, finding, error exit codes without any network',()
     rmSync(f);assert.equal(run().status,2);
   } finally { rmSync(dir,{recursive:true,force:true}); }
 });
+
+test('live collector rechecks PR and main SHAs and never talks to Supabase', async () => {
+  const { collectWorldMigrationSnapshot } = await import('./check-world-swarm-migration-collisions.mjs');
+  const originalFetch=globalThis.fetch;
+  const calls=[];
+  const fixture=(changeMain=false,changePr=false)=>{
+    let mainReads=0;
+    return async (url) => {
+    const path=new URL(url).pathname;
+    calls.push(path);
+    let body;
+    if (path.endsWith('/branches/main')) body={commit:{sha:changeMain && ++mainReads>1?'c'.repeat(40):sha}};
+    else if (path.endsWith('/contents/supabase/migrations')) body=[{type:'file',name:'20261107001000_a.sql',path:migration('20261107001000_a.sql')}];
+    else if (path.endsWith('/pulls')) body=[{number:5,title:'[V3-WORLD] TG14',head:{sha:head,ref:'v3/world/tg14'}}];
+    else if (path.endsWith('/pulls/5/files')) body=[{filename:migration('20261107005000_court.sql'),status:'added'}];
+    else if (path.endsWith('/pulls/5')) body={state:'open',head:{sha:changePr?'c'.repeat(40):head}};
+    else throw Error('unexpected route '+path);
+    return {ok:true,json:async()=>body};
+    };
+  };
+  try {
+    globalThis.fetch=fixture();
+    const result=await collectWorldMigrationSnapshot('solarissongcontest/solarisstudio','mock-token',true);
+    assert.equal(result.mainSha,sha);
+    assert.equal(result.pullRequests[0].files[0].status,'added');
+    assert.equal(calls.filter(x=>x.endsWith('/branches/main')).length,2);
+    assert.ok(calls.every(x=>x.startsWith('/repos/')));
+    globalThis.fetch=fixture(true);
+    await assert.rejects(collectWorldMigrationSnapshot('solarissongcontest/solarisstudio','mock-token'),/Main advanced/);
+    globalThis.fetch=fixture(false,true);
+    await assert.rejects(collectWorldMigrationSnapshot('solarissongcontest/solarisstudio','mock-token'),/PR changed/);
+  } finally { globalThis.fetch=originalFetch; }
+});
