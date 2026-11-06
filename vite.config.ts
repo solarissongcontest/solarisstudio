@@ -124,7 +124,10 @@ export default defineConfig({
               {
                 name: "shared-cross-route",
                 minShareCount: 2,
-                minSize: 10000,
+                // Capture smaller duplicated cross-route modules instead of
+                // paying repeated ESM import/export wrappers and gzip headers.
+                // Still require 2 consumers, keeping route-only modules lazy.
+                minSize: 2000,
                 maxSize: 1000000,
                 priority: -1,
               },
