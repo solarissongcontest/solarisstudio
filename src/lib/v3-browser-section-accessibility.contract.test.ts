@@ -17,7 +17,8 @@ describe("V3 mobile-browser and desktop section-navigation accessibility", () =>
     expect(mobile).toContain('aria-controls={"public-mobile-section-panel-" + area}');
     expect(mobile).toContain('hidden={!open}');
     expect(css).toContain(".public-mobile-section-panel[hidden] {\n  display: none;");
-    expect(mobile).toContain('useEffect(() => setOpen(false), [pathname])');
+    expect(mobile).toContain("setOpen(false);");
+    expect(mobile).toContain("}, [pathname]);");
     expect(mobile).toContain('window.matchMedia("(min-width: 768px)")');
     expect(mobile).toContain('wideWebsite.addEventListener("change", closeForWideWebsite)');
     expect(mobile).toContain('wideWebsite.removeEventListener("change", closeForWideWebsite)');
@@ -35,6 +36,18 @@ describe("V3 mobile-browser and desktop section-navigation accessibility", () =>
     expect(mobile).toContain("setOpen(false)");
     expect(mobile).toContain("triggerRef.current?.focus()");
     expect(mobile).toContain("ref={triggerRef}");
+    expect(mobile).toContain("const closeAfterNavigation = (keyboardActivated: boolean, targetPath: string) => {");
+    expect(mobile).toContain("pendingKeyboardSectionFocus =");
+    expect(mobile).toContain("pending.path !== pathname");
+    expect(mobile).toContain("Date.now() - pending.at > 5_000");
+    expect(mobile).toContain("if (pendingKeyboardSectionFocus !== pending) return;");
+    expect(mobile).toContain("React StrictMode can replay mount effects");
+    expect(mobile).toMatch(/requestAnimationFrame\([\s\S]*pendingKeyboardSectionFocus = null;/);
+    expect(mobile).toContain("heading.focus({ preventScroll: true })");
+    expect(mobile).toContain("window.requestAnimationFrame(");
+    expect(mobile).toContain("window.cancelAnimationFrame(frame)");
+    expect(mobile).toContain("onNavigate(event.detail === 0, item.to)");
+    expect(mobile).toContain('closeAfterNavigation(event.detail === 0, "/site-directory")');
   });
 
   it("keeps advanced section links reachable on tablet web without squeezing touch targets", () => {
