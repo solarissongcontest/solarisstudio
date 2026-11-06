@@ -105,8 +105,8 @@ export function CountryMobileWebMasthead({
       ) : null}
 
       <div className="mt-5 flex flex-wrap items-center gap-2" aria-label="Country links">
-        <Link to="/wiki/$code" params={{ code: identity.code }} className={COUNTRY_MOBILE_LINK_CLASS}>
-          Wiki
+        <Link to="/wiki" className={COUNTRY_MOBILE_LINK_CLASS}>
+          Reference
         </Link>
         <Link to="/compare" search={{ a: identity.code }} className={COUNTRY_MOBILE_LINK_CLASS}>
           Compare
