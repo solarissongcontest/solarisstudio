@@ -182,10 +182,11 @@ export function buildShowDiscovery(input: {
     input.editions.filter((edition) => edition.published).map((edition) => [edition.id, edition]),
   );
 
-  const items = input.shows.flatMap<ShowDiscoveryItem>((show) => {
-    if (!isShowPublic(show)) return [];
+  const items: ShowDiscoveryItem[] = [];
+  for (const show of input.shows) {
+    if (!isShowPublic(show)) continue;
     const edition = editionById.get(show.edition_id);
-    if (!edition) return [];
+    if (!edition) continue;
     const config = showModeConfig(show);
     const rawState = canonicalShowState(show);
     // A terminal Edition is never "on air" or "coming soon". Preserve
@@ -196,15 +197,15 @@ export function buildShowDiscovery(input: {
       ? "archived" : rawState;
     const broadcastUrl = safeShowModeYoutubeUrl(config.youtubeUrl);
 
-    return [{
+    items.push({
       show,
       edition,
       state,
       stateLabel: stateLabel(state),
       scheduledStart: config.scheduledStart || null,
       broadcastUrl,
-    }];
-  });
+    });
+  }
 
   const liveNow = items
     .filter((item) => item.state === "live" || item.state === "paused")
