@@ -17,6 +17,7 @@ import {
   canShowV3FantasyTeamScore,
   fantasyBudgetUsed,
   fantasyRosterReady,
+  v3FantasyRosterMatchesReadback,
   normalizeV3FantasyStandings,
   resolveV3FantasyState,
   restoreV3FantasyRoster,
@@ -184,18 +185,50 @@ function FantasyPage() {
       if (authError || auth.user?.id !== intent.viewerId || latestRosterScope.current !== intent.scope) {
         throw new Error("Fantasy account changed. Sign in again before saving.");
       }
-      const { error } = await (supabase as any).rpc("submit_fantasy_team", {
+      const { data: teamId, error } = await (supabase as any).rpc("submit_fantasy_team", {
         _game_id: intent.gameId,
         _country_ids: intent.countryIds,
         _captain_country_id: intent.captainId,
       });
       if (error) throw error;
+
+      // An RPC response alone cannot prove that a caller-specific draft is saved.
+      // A failed readback is uncertain, not proof that the RPC was rolled back.
+      const unconfirmed = new Error(
+        "Your roster may have been saved, but Solaris could not confirm the saved team. Refresh this game before retrying.",
+      );
+      if (typeof teamId !== "string" || !teamId.trim()) throw unconfirmed;
+      const [savedTeam, savedEntries] = await Promise.all([
+        (supabase as any).from("fantasy_teams").select(FANTASY_TEAM_FIELDS)
+          .eq("id", teamId).eq("game_id", intent.gameId)
+          .eq("profile_id", intent.viewerId).maybeSingle(),
+        (supabase as any).from("fantasy_team_entries")
+          .select("team_id,country_id,cost_locked").eq("team_id", teamId),
+      ]);
+      if (savedTeam.error || savedEntries.error ||
+          latestRosterScope.current !== intent.scope ||
+          !v3FantasyRosterMatchesReadback({
+            gameId: intent.gameId,
+            viewerId: intent.viewerId,
+            teamId,
+            countryIds: intent.countryIds,
+            captainId: intent.captainId,
+            team: savedTeam.data as V3FantasyTeam | null,
+            entries: savedEntries.data as V3FantasyTeamEntry[] | null,
+          })) throw unconfirmed;
+      const { data: confirmedActor, error: actorError } = await supabase.auth.getUser();
+      if (actorError || confirmedActor.user?.id !== intent.viewerId ||
+          latestRosterScope.current !== intent.scope) throw unconfirmed;
+      return teamId;
     },
-    onSuccess: async (_result, intent) => {
+    onSuccess: (_teamId, intent) => {
+      // Only a verified RPC + readback can mark the original draft saved.
+      if (latestRosterScope.current === intent.scope) setDraftDirty(false);
+    },
+    onSettled: async (_result, _error, intent) => {
+      // Even an unconfirmed write may have committed. Refresh the correct scope.
       await queryClient.invalidateQueries({ queryKey: ["fantasy-my-team", intent.gameId, intent.viewerId] });
       await queryClient.invalidateQueries({ queryKey: ["fantasy-my-team-entries", intent.viewerId] });
-      // Success for account/game A cannot mark account/game B's unsaved work clean.
-      if (latestRosterScope.current === intent.scope) setDraftDirty(false);
     },
   });
 

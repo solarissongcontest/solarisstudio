@@ -155,6 +155,30 @@ export function shouldRestoreV3FantasyRoster(input: {
   return !input.draftDirty || input.rosterScope !== input.draftScope;
 }
 
+/** Confirm an RPC save from exact caller/game-scoped canonical team and entry rows. */
+export function v3FantasyRosterMatchesReadback(input: {
+  gameId: string;
+  viewerId: string;
+  teamId: string;
+  countryIds: readonly string[];
+  captainId: string | null;
+  team: V3FantasyTeam | null;
+  entries: readonly V3FantasyTeamEntry[] | null;
+}): boolean {
+  const { gameId, viewerId, teamId, countryIds, captainId, team, entries } = input;
+  if (!team || !entries || team.id !== teamId || team.game_id !== gameId ||
+      team.profile_id !== viewerId || team.captain_country_id !== captainId ||
+      entries.length !== countryIds.length ||
+      new Set(countryIds).size !== countryIds.length) return false;
+  const recordedIds = new Set<string>();
+  for (const entry of entries) {
+    if (entry.team_id !== teamId || !countryIds.includes(entry.country_id) ||
+        recordedIds.has(entry.country_id)) return false;
+    recordedIds.add(entry.country_id);
+  }
+  return recordedIds.size === countryIds.length;
+}
+
 export function restoreV3FantasyRoster(
   team: V3FantasyTeam | null | undefined,
   entries: readonly V3FantasyTeamEntry[] | null | undefined,

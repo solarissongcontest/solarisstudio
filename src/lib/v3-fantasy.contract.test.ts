@@ -104,6 +104,19 @@ const projection = source("src/lib/v3-fantasy.ts");
     expect(route).toContain("submit.variables?.scope === rosterScope");
   });
 
+  it("only clears the Fantasy draft after canonical account-scoped roster readback", () => {
+    expect(route).toContain("const { data: teamId, error }");
+    expect(route).toContain('rpc("submit_fantasy_team"');
+    expect(route).toContain('eq("profile_id", intent.viewerId)');
+    expect(route).toContain('eq("team_id", teamId)');
+    expect(route).toContain("v3FantasyRosterMatchesReadback({");
+    expect(route).toContain("confirmedActor.user?.id !== intent.viewerId");
+    expect(route).toContain("Your roster may have been saved, but Solaris could not confirm");
+    expect(route).toContain("onSettled: async (_result, _error, intent) => {");
+    expect(route).toContain("if (latestRosterScope.current === intent.scope) setDraftDirty(false)");
+    expect(projection).toContain("export function v3FantasyRosterMatchesReadback(");
+  });
+
   it("keeps V3 installed-app cutover reversible behind server-evaluated rollout", () => {
     expect(route).toContain("useV3RolloutProbe(platformResolved && isAppMode)");
     expect(route).toContain("rollout.data?.enabled === true");

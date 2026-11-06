@@ -5,6 +5,7 @@ import {
   canShowV3FantasyTeamScore,
   fantasyBudgetUsed,
   fantasyRosterReady,
+  v3FantasyRosterMatchesReadback,
   normalizeV3FantasyStandings,
   resolveV3FantasyState,
   restoreV3FantasyRoster,
@@ -72,6 +73,33 @@ describe("V3 Fantasy projection", () => {
     expect(shouldRestoreV3FantasyRoster({ rosterScope: "A:game-1", draftScope: "A:game-1", draftDirty: false })).toBe(true);
     expect(shouldRestoreV3FantasyRoster({ rosterScope: "B:game-1", draftScope: "A:game-1", draftDirty: true })).toBe(true);
     expect(shouldRestoreV3FantasyRoster({ rosterScope: "A:game-2", draftScope: "A:game-1", draftDirty: true })).toBe(true);
+  });
+
+  it("confirms Fantasy save readback only with the same actor, game, captain and roster", () => {
+    const team = {
+      id: "team", game_id: game.id, profile_id: "viewer", state: "submitted",
+      captain_country_id: "country-b", score: null,
+    };
+    const entries = [
+      { team_id: "team", country_id: "country-a", cost_locked: 8 },
+      { team_id: "team", country_id: "country-b", cost_locked: 10 },
+    ];
+    const intent = {
+      gameId: game.id, viewerId: "viewer", teamId: "team",
+      countryIds: ["country-b", "country-a"], captainId: "country-b",
+      team, entries,
+    };
+    expect(v3FantasyRosterMatchesReadback(intent)).toBe(true);
+    expect(v3FantasyRosterMatchesReadback({ ...intent, viewerId: "other" })).toBe(false);
+    expect(v3FantasyRosterMatchesReadback({ ...intent, gameId: "other" })).toBe(false);
+    expect(v3FantasyRosterMatchesReadback({ ...intent, teamId: "other" })).toBe(false);
+    expect(v3FantasyRosterMatchesReadback({ ...intent, captainId: null })).toBe(false);
+    expect(v3FantasyRosterMatchesReadback({ ...intent, countryIds: ["country-a", "country-c"] })).toBe(false);
+    expect(v3FantasyRosterMatchesReadback({ ...intent, countryIds: ["country-a", "country-a"] })).toBe(false);
+    expect(v3FantasyRosterMatchesReadback({ ...intent, entries: entries.slice(0, 1) })).toBe(false);
+    expect(v3FantasyRosterMatchesReadback({ ...intent, entries: [{ ...entries[0], team_id: "other" }, entries[1]] })).toBe(false);
+    expect(v3FantasyRosterMatchesReadback({ ...intent, team: null })).toBe(false);
+    expect(v3FantasyRosterMatchesReadback({ ...intent, entries: null })).toBe(false);
   });
 
   it("derives roster readiness from exact size and server-published costs", () => {
