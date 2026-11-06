@@ -51,7 +51,9 @@ describe("Solaris Studio V3 foundation preview", () => {
     const config = source("vite.config.ts");
     const stub = source("src/components/v3/V3FoundationPreview.disabled.tsx");
     const route = source("src/routes/v3-preview.tsx");
-    expect(config).toContain('source !== "@/components/v3/V3FoundationPreview"');
+    expect(config).toContain('source === "@/components/v3/V3FoundationPreview"');
+    expect(config).toContain("normalizedSource === originalFile");
+    expect(config).toContain("normalizedSource === originalFile.slice(0, -4)");
     expect(config).toContain('name: "v3-disabled-preview-build-elision"');
     expect(config).toContain('enforce: "pre"');
     expect(config).toContain("shouldOmitDisabledV3Preview(isProduction, previewFlag)");

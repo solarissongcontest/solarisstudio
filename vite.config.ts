@@ -37,9 +37,18 @@ export default defineConfig({
         name: "v3-disabled-preview-build-elision",
         enforce: "pre" as const,
         resolveId(source: string) {
-          if (!omitDisabledV3Preview || source !== "@/components/v3/V3FoundationPreview") {
-            return null;
-          }
+          if (!omitDisabledV3Preview) return null;
+          // Vite resolves configured aliases before user pre-plugins. Handle
+          // both the original @/ request and its exact resolved file identity.
+          const originalFile = fileURLToPath(
+            new URL("./src/components/v3/V3FoundationPreview.tsx", import.meta.url),
+          ).replaceAll("\\\\", "/");
+          const normalizedSource = source.replaceAll("\\\\", "/");
+          const matches =
+            source === "@/components/v3/V3FoundationPreview" ||
+            normalizedSource === originalFile ||
+            normalizedSource === originalFile.slice(0, -4);
+          if (!matches) return null;
           if (process.env.GITHUB_ACTIONS === "true") {
             console.info("[v3-preview-build] substituting inaccessible production preview");
           }
