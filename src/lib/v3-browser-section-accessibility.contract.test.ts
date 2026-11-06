@@ -46,6 +46,8 @@ describe("V3 mobile-browser and desktop section-navigation accessibility", () =>
     expect(desktop).toContain("const activeIsAdvanced = items.some((item) => item.to === activeTo)");
     expect(desktop).toContain("useState(activeIsAdvanced)");
     expect(desktop).toContain("useEffect(() => setOpen(activeIsAdvanced), [activeIsAdvanced, activeTo])");
+    expect(desktop).toContain("useState(collapsible && !activeIsAdvanced)");
+    expect(desktop).toContain("if (activeIsAdvanced) setCollapsed(false);");
     expect(desktop).toContain("onToggle={(event) => setOpen(event.currentTarget.open)}");
     expect(desktop).toContain("<summary");
     expect(css).toContain(".public-site-sidebar details > summary:focus-visible");
