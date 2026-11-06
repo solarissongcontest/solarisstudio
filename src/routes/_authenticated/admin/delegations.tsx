@@ -39,7 +39,12 @@ export const Route = createFileRoute("/_authenticated/admin/delegations")({
 function OrganizerDelegationsPage() {
   const { editionId } = useAdminContext();
   const editionsQuery = useEditions();
-  const selectedEdition = selectOrganizerEdition(editionsQuery.data ?? [], editionId);
+  // A failed refresh may retain cached edition rows. Those rows must not
+  // authorize another private Confirmation request after verification fails.
+  const selectedEdition =
+    editionsQuery.isSuccess && !editionsQuery.error
+      ? selectOrganizerEdition(editionsQuery.data ?? [], editionId)
+      : null;
   const resolvedEditionId = selectedEdition?.id ?? "";
   const selectedEditionLabel = selectedEdition ? editionLabel(selectedEdition) : null;
 
@@ -51,7 +56,7 @@ function OrganizerDelegationsPage() {
       resolvedEditionId || "none",
     ],
     queryFn: () => loadConfirmationRequirements(resolvedEditionId),
-    enabled: Boolean(resolvedEditionId),
+    enabled: editionsQuery.isSuccess && !editionsQuery.error && Boolean(resolvedEditionId),
     staleTime: 20_000,
   });
 

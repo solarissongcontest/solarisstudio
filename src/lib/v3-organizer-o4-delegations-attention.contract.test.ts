@@ -16,12 +16,20 @@ describe("Organizer O4 Delegations attention boundary", () => {
     // Only the resolved Organizer edition may reach the Confirmation query.
     expect(route).toContain("selectOrganizerEdition(editionsQuery.data ?? [], editionId)");
     expect(route).toContain('const resolvedEditionId = selectedEdition?.id ?? "";');
-    expect(route).toContain("enabled: Boolean(resolvedEditionId)");
+    expect(route).toContain("editionsQuery.isSuccess && !editionsQuery.error");
+    expect(route).toContain("enabled: editionsQuery.isSuccess && !editionsQuery.error && Boolean(resolvedEditionId)");
+    expect(route).not.toContain("enabled: Boolean(resolvedEditionId)");
     expect(route).toContain("loadConfirmationRequirements(resolvedEditionId)");
     expect(route).not.toContain("loadConfirmationRequirements(editionId!)");
     expect(route).toContain("Edition context could not be verified");
     expect(route).toContain("Edition context required");
     expect(route).toContain("Solaris will not substitute another edition");
+  });
+
+  it("never reuses cached edition rows to read private obligations after a failed context refresh", () => {
+    expect(route).toContain("editionsQuery.isSuccess && !editionsQuery.error");
+    expect(route).toContain("enabled: editionsQuery.isSuccess && !editionsQuery.error && Boolean(resolvedEditionId)");
+    expect(route).toContain('const resolvedEditionId = selectedEdition?.id ?? "";');
   });
 
   it("uses canonical Confirmation requirements rather than entry-review state for attention", () => {
