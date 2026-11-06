@@ -22,11 +22,11 @@ export type WorldPrivateRoom = {
   status: "active" | "archived";
   revision: number;
 };
-export type WorldChatReaction = { emoji: string; userId: string };
+export type WorldChatReaction = { emoji: string; mine: boolean };
 export type WorldChatMessage = {
   id: string;
   spaceId: string;
-  senderId: string;
+  mine: boolean;
   senderName: string;
   body: string;
   revision: number;
@@ -63,7 +63,7 @@ const isRoom = (x: unknown): x is WorldPrivateRoom =>
   x.status === "active" && typeof x.revision === "number";
 const isMessage = (x: unknown): x is WorldChatMessage =>
   isRecord(x) && isValidRoomId(x.id) && isValidRoomId(x.spaceId) &&
-  isValidRoomId(x.senderId) && typeof x.senderName === "string" &&
+  typeof x.mine === "boolean" && typeof x.senderName === "string" &&
   typeof x.body === "string" && typeof x.createdAt === "string" &&
   typeof x.revision === "number" && Array.isArray(x.reactions);
 
