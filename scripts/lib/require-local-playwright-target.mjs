@@ -28,3 +28,45 @@ export function requireLocalPlaywrightTarget(configuredUrl, fallbackUrl) {
   }
   return target.origin;
 }
+
+const REQUIRED_LOCAL_SUPABASE_URLS = [
+  "VITE_SUPABASE_URL", "SUPABASE_URL", "E2E_SUPABASE_URL",
+  "VITE_CONFIRMATIONS_SUPABASE_URL", "CONFIRMATIONS_SUPABASE_URL",
+];
+const EXTRA_URL_KEYS = new Set(["API_URL", "DB_URL", "DATABASE_URL", "POSTGRES_URL", "SUPABASE_DB_URL"]);
+
+function isSupabaseTargetKey(key) {
+  return EXTRA_URL_KEYS.has(key) ||
+    /(?:^|_)SUPABASE(?:_[A-Z0-9]+)*_URL$/i.test(key) ||
+    /SUPABASE_URL$/i.test(key);
+}
+
+/** Refuse all hosted DB/client settings before any standalone browser run. */
+export function requireLocalPlaywrightSupabaseEnvironment(environment) {
+  for (const key of REQUIRED_LOCAL_SUPABASE_URLS) {
+    if (typeof environment[key] !== "string" || !environment[key].trim()) {
+      throw new Error("[Playwright safety] Missing " + key + "; explicit loopback Supabase configuration is required");
+    }
+  }
+  for (const [key, raw] of Object.entries(environment)) {
+    if (!isSupabaseTargetKey(key) || raw == null || raw === "") continue;
+    if (typeof raw !== "string" || raw.trim() !== raw) {
+      throw new Error("[Playwright safety] Invalid or ambiguous Supabase target " + key);
+    }
+    let url;
+    try { url = new URL(raw); }
+    catch { throw new Error("[Playwright safety] Invalid Supabase target " + key); }
+    if (!["localhost", "127.0.0.1", "[::1]", "::1"].includes(url.hostname.toLowerCase())) {
+      throw new Error("[Playwright safety] Refusing non-local Supabase endpoint in " + key);
+    }
+    const isDatabaseUrl = ["DB_URL", "DATABASE_URL", "POSTGRES_URL", "SUPABASE_DB_URL"].includes(key);
+    const validProtocol = isDatabaseUrl
+      ? ["postgres:", "postgresql:"].includes(url.protocol)
+      : ["http:", "https:"].includes(url.protocol);
+    if (!validProtocol) throw new Error("[Playwright safety] Invalid protocol in " + key);
+    if ([...url.searchParams.keys()].some((name) => ["host", "hostaddr", "service"].includes(name.toLowerCase()))) {
+      throw new Error("[Playwright safety] Supabase database authority override in " + key);
+    }
+  }
+  return true;
+}

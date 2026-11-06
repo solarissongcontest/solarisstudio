@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { requireLocalPlaywrightTarget } from "../../scripts/lib/require-local-playwright-target.mjs";
+import { requireLocalPlaywrightTarget, requireLocalPlaywrightSupabaseEnvironment } from "../../scripts/lib/require-local-playwright-target.mjs";
 
 const configs = {
   "playwright.s14-grand-final.config.ts": "http://127.0.0.1:4177",
@@ -34,9 +34,27 @@ describe("standalone Playwright hosted-front-end isolation", () => {
   it("requires the fail-closed guard in every standalone S14 and PR455 runner", () => {
     for (const [path, fallback] of Object.entries(configs)) {
       const source = readFileSync(path, "utf8");
-      expect(source, path).toContain('import { requireLocalPlaywrightTarget } from "./scripts/lib/require-local-playwright-target.mjs";');
+      expect(source, path).toContain('import { requireLocalPlaywrightTarget, requireLocalPlaywrightSupabaseEnvironment } from "./scripts/lib/require-local-playwright-target.mjs";');
       expect(source, path).toContain(`requireLocalPlaywrightTarget(process.env.E2E_BASE_URL, "${fallback}")`);
       expect(source, path).not.toContain("process.env.E2E_BASE_URL ??");
+    }
+  });
+
+  it("requires local Supabase URLs for all standalone browser suites", () => {
+    const local = {
+      VITE_SUPABASE_URL: "http://127.0.0.1:54321",
+      SUPABASE_URL: "http://127.0.0.1:54321",
+      E2E_SUPABASE_URL: "http://127.0.0.1:54321",
+      VITE_CONFIRMATIONS_SUPABASE_URL: "http://127.0.0.1:54321",
+      CONFIRMATIONS_SUPABASE_URL: "http://127.0.0.1:54321",
+    };
+    expect(requireLocalPlaywrightSupabaseEnvironment(local)).toBe(true);
+    for (const key of Object.keys(local)) {
+      expect(() => requireLocalPlaywrightSupabaseEnvironment({ ...local, [key]: "" }), key).toThrow(/Playwright safety/);
+    }
+    expect(() => requireLocalPlaywrightSupabaseEnvironment({ ...local, DB_URL: "postgresql://postgres:secret@localhost:54322/postgres?host=db.remote.test" })).toThrow(/authority override/);
+    for (const [path] of Object.entries(configs)) {
+      expect(readFileSync(path, "utf8")).toContain("requireLocalPlaywrightSupabaseEnvironment(process.env);");
     }
   });
 });
