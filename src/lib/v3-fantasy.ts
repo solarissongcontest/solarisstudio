@@ -41,6 +41,45 @@ export type V3FantasyStanding = {
   profileId: string;
 };
 
+/** Validate an entire published leaderboard before rendering any ranking. */
+export function normalizeV3FantasyStandings(payload: unknown): V3FantasyStanding[] {
+  if (!Array.isArray(payload)) throw new Error("Invalid Fantasy leaderboard response.");
+
+  const identities = new Set<string>();
+  return payload.map((value: unknown) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error("Invalid Fantasy standing.");
+    }
+
+    const row = value as Record<string, unknown>;
+    // PostgreSQL numeric columns can arrive as decimal strings through RPC.
+    const toNumber = (input: unknown): number => {
+      if (typeof input === "number") return input;
+      if (typeof input !== "string" ||
+          !/^-?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$/.test(input.trim())) {
+        return Number.NaN;
+      }
+      return Number(input.trim());
+    };
+    const score = toNumber(row.score);
+    const position = toNumber(row.position);
+    const profileId = row.profileId;
+    const displayName = row.displayName;
+
+    if (
+      typeof profileId !== "string" || !profileId.trim() ||
+      typeof displayName !== "string" || !displayName.trim() ||
+      !Number.isFinite(score) || score < 0 ||
+      !Number.isSafeInteger(position) || position < 1 ||
+      identities.has(profileId)
+    ) {
+      throw new Error("Invalid Fantasy standing.");
+    }
+    identities.add(profileId);
+    return { profileId, displayName, score, position };
+  });
+}
+
 export type V3FantasyState =
   | "unavailable"
   | "upcoming"
