@@ -203,7 +203,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
         <div id="v3-shows-browse-results" className="v3-shows-browse-results">
           {browseWindow.visible.map((item) =>
             presentation === "mobile-web" ? (
-              <ShowWebRow key={item.show.id} item={item} />
+              <ShowRow key={item.show.id} item={item} web />
             ) : presentation === "desktop-web" ? (
               <ShowCard key={item.show.id} item={item} />
             ) : (
@@ -260,7 +260,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
           <div className="space-y-2">
             {discovery.archive.slice(0, 8).map((item) =>
               presentation === "mobile-web"
-                ? <ShowWebRow key={item.show.id} item={item} />
+                ? <ShowRow key={item.show.id} item={item} web />
                 : <ShowRow key={item.show.id} item={item} compact />,
             )}
           </div>
@@ -317,7 +317,7 @@ function ShowCollection({
       <div className={presentation === "mobile-web" ? "v3-shows-web-list" : emphasis === "live" ? "grid gap-3" : "grid gap-2 sm:grid-cols-2"}>
         {items.map((item) =>
           presentation === "mobile-web"
-            ? <ShowWebRow key={item.show.id} item={item} />
+            ? <ShowRow key={item.show.id} item={item} web />
             : <ShowCard key={item.show.id} item={item} live={emphasis === "live"} />,
         )}
       </div>
@@ -325,15 +325,10 @@ function ShowCollection({
   );
 }
 
-function ShowWebRow({ item }: { item: ShowDiscoveryItem }) {
-  return <ShowRow item={item} web />;
-}
-
 function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: boolean }) {
   return (
     <div className={`rounded-2xl border p-4 ${live ? "border-primary/45 bg-primary/5" : "border-border bg-surface"}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+      <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <ShowStateBadge item={item} />
             <span className="text-xs text-muted-foreground">{editionLabel(item.edition)}</span>
@@ -348,7 +343,6 @@ function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: bool
           <p className="mt-1 text-xs capitalize text-muted-foreground">
             {showKindLabel(item.show.kind)}{item.scheduledStart ? ` · ${formatShowTime(item.scheduledStart)}` : ""}
           </p>
-        </div>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
         <Link
