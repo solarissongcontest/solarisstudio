@@ -55,6 +55,32 @@ create table public.world_session_minutes_revisions (
  check (attendance_snapshot is null or jsonb_typeof(attendance_snapshot)='array')
 );
 
+-- A concluded session cannot be archived before its approved minutes are
+-- published. Cancellation is distinct: cancelled meetings may be archived
+-- without fabricated proceedings. The session lock already taken by the
+-- canonical transition and minutes publication RPCs serializes this check.
+create or replace function private.world_session_archival_minutes_guard_v1()
+returns trigger language plpgsql security definer
+set search_path=pg_catalog
+as $archive_guard$
+begin
+ if old.status='concluded' and new.status='archived'
+    and not exists (
+      select 1 from public.world_session_minutes m
+      where m.session_id=new.id and m.status='published'
+    )
+ then raise exception using errcode='23514',
+   message='SESSION_MINUTES_NOT_PUBLISHED';
+ end if;
+ return new;
+end
+$archive_guard$;
+revoke all on function private.world_session_archival_minutes_guard_v1()
+ from public,anon,authenticated,service_role;
+create trigger world_session_archive_requires_minutes
+before update of status on public.world_sessions
+for each row execute function private.world_session_archival_minutes_guard_v1();
+
 alter table public.world_session_minutes enable row level security;
 alter table public.world_session_minutes_revisions enable row level security;
 revoke all on public.world_session_minutes,public.world_session_minutes_revisions
