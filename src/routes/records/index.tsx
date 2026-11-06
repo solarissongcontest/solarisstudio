@@ -13,7 +13,7 @@ import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { usePublicPresentationMode } from "@/lib/use-public-presentation-mode";
 import { V3RecordsGate } from "@/components/v3/V3RecordsGate";
-import { buildCanonicalFanRecords } from "@/lib/canonical-fan-records";
+import { buildCanonicalFanRecordsWithCoverage } from "@/lib/canonical-fan-records";
 import {
   useAllJuryVotes,
   useAllParticipants,
@@ -75,6 +75,53 @@ function RecordsPage() {
   return <LegacyRecordsPage />;
 }
 
+function RecordsPageHeader({ mobileWeb, ready }: { mobileWeb: boolean; ready: boolean }) {
+  if (mobileWeb) {
+    return (
+      <header
+        className={`mb-5 border-b border-border/70 ${ready ? "pb-5" : "pb-4"}`}
+        data-records-mobile-web-header
+      >
+        <p className="text-[11px] font-bold uppercase tracking-[.16em] text-primary">Hall of records</p>
+        <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight">Records</h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {ready
+            ? "Achievements, streaks and unusual results from the published SSC archive. Tied countries share the record."
+            : "Verified records from the published archive."}
+        </p>
+        {ready ? (
+          <Link
+            to="/archive-games"
+            className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary"
+          >
+            Play Archive Games →
+          </Link>
+        ) : null}
+      </header>
+    );
+  }
+
+  return (
+    <PageHeader
+      eyebrow="Hall of records"
+      title="Records"
+      description={
+        ready
+          ? "The extreme, impressive and occasionally unfortunate corners of SSC history, with ties shown properly instead of quietly choosing one country and hoping nobody notices."
+          : "Verified records from the published archive."
+      }
+      actions={ready ? (
+        <Link
+          to="/archive-games"
+          className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm sm:w-auto"
+        >
+          Play Archive Games →
+        </Link>
+      ) : undefined}
+    />
+  );
+}
+
 function LegacyRecordsPage() {
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
@@ -95,9 +142,9 @@ function LegacyRecordsPage() {
   const presentationMode = usePublicPresentationMode();
   const mobileWeb = presentationMode === "mobile-web";
 
-  const records = useMemo(
+  const { records, archivedFinalEditions } = useMemo(
     () =>
-      buildCanonicalFanRecords({
+      buildCanonicalFanRecordsWithCoverage({
         countries: countries ?? [],
         editions: editions ?? [],
         shows: shows ?? [],
@@ -112,23 +159,13 @@ function LegacyRecordsPage() {
     tab === "all"
       ? records
       : records.filter((record) => record.category === tab);
-  const showById = useMemo(
-    () => new Map((shows ?? []).map((show) => [show.id, show])),
-    [shows],
+  const coverageDescription = (
+    <>
+      These records use {archivedFinalEditions} edition{archivedFinalEditions === 1 ? "" : "s"} with archived
+      Grand Final results, plus the jury and qualification data that is actually stored.
+      Missing editions are excluded rather than treated as zeroes, so records can change when older archive data is added.
+    </>
   );
-  const archivedFinalEditions = useMemo(
-    () =>
-      new Set(
-        (results ?? [])
-          .filter((result) => {
-            const kind = showById.get(result.show_id ?? "")?.kind;
-            return kind === "grand-final" || kind === "final";
-          })
-          .map((result) => result.edition_id),
-      ).size,
-    [results, showById],
-  );
-
   const archiveQueries = [
     countriesQuery,
     editionsQuery,
@@ -137,43 +174,17 @@ function LegacyRecordsPage() {
     resultsQuery,
     juryQuery,
   ];
-  if (archiveIsLoading(...archiveQueries)) {
+  const loading = archiveIsLoading(...archiveQueries);
+  const failed = archiveHasError(...archiveQueries);
+  if (loading || failed) {
     return (
       <AppShell>
-        {mobileWeb ? (
-          <header className="mb-5 border-b border-border/70 pb-4" data-records-mobile-web-header>
-            <p className="text-[11px] font-bold uppercase tracking-[.16em] text-primary">Hall of records</p>
-            <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight">Records</h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Verified records from the published archive.</p>
-          </header>
+        <RecordsPageHeader mobileWeb={mobileWeb} ready={false} />
+        {loading ? (
+          <ArchiveDataLoading label="Calculating records from the archive…" />
         ) : (
-          <PageHeader
-            eyebrow="Hall of records"
-            title="Records"
-            description="Verified records from the published archive."
-          />
+          <ArchiveDataError />
         )}
-        <ArchiveDataLoading label="Calculating records from the archive…" />
-      </AppShell>
-    );
-  }
-  if (archiveHasError(...archiveQueries)) {
-    return (
-      <AppShell>
-        {mobileWeb ? (
-          <header className="mb-5 border-b border-border/70 pb-4" data-records-mobile-web-header>
-            <p className="text-[11px] font-bold uppercase tracking-[.16em] text-primary">Hall of records</p>
-            <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight">Records</h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Verified records from the published archive.</p>
-          </header>
-        ) : (
-          <PageHeader
-            eyebrow="Hall of records"
-            title="Records"
-            description="Verified records from the published archive."
-          />
-        )}
-        <ArchiveDataError />
       </AppShell>
     );
   }
@@ -181,30 +192,7 @@ function LegacyRecordsPage() {
   return (
     <AppShell>
       <div data-records-presentation={presentationMode}>
-        {mobileWeb ? (
-          <header className="mb-5 border-b border-border/70 pb-5" data-records-mobile-web-header>
-            <p className="text-[11px] font-bold uppercase tracking-[.16em] text-primary">Hall of records</p>
-            <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight">Records</h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Achievements, streaks and unusual results from the published SSC archive.
-              Tied countries share the record.
-            </p>
-            <Link to="/archive-games" className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary">
-              Play Archive Games →
-            </Link>
-          </header>
-        ) : (
-          <PageHeader
-            eyebrow="Hall of records"
-            title="Records"
-            description="The extreme, impressive and occasionally unfortunate corners of SSC history, with ties shown properly instead of quietly choosing one country and hoping nobody notices."
-            actions={
-              <Link to="/archive-games" className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm sm:w-auto">
-                Play Archive Games →
-              </Link>
-            }
-          />
-        )}
+        <RecordsPageHeader mobileWeb={mobileWeb} ready />
 
         {mobileWeb ? (
           <details className="mb-5 border-y border-border/70" data-records-mobile-web-coverage>
@@ -213,19 +201,13 @@ function LegacyRecordsPage() {
               <span className="text-xs font-medium text-muted-foreground">{archivedFinalEditions} final editions</span>
             </summary>
             <p className="pb-4 text-sm leading-6 text-muted-foreground">
-              These records use {archivedFinalEditions} edition{archivedFinalEditions === 1 ? "" : "s"} with archived
-              Grand Final results, plus the jury and qualification data that is actually stored.
-              Missing editions are excluded rather than treated as zeroes, so records can change when older archive data is added.
+              {coverageDescription}
             </p>
           </details>
         ) : (
           <Panel className="mb-5" title="Archive coverage">
             <p className="text-xs leading-relaxed text-muted-foreground">
-              These records currently use {archivedFinalEditions} edition
-              {archivedFinalEditions === 1 ? "" : "s"} with archived Grand Final
-              results, plus the jury and qualification data that is actually stored.
-              Missing editions are excluded rather than treated as zeroes, so a record
-              can change when older archive data is added.
+              {coverageDescription}
             </p>
           </Panel>
         )}
