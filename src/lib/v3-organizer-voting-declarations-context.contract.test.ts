@@ -49,6 +49,15 @@ describe("V3 Organizer voting declaration edition scope", () => {
     expect(route).toContain("idempotencyKey");
     expect(route).toContain("applyVotingDeclarationInvalidation");
   });
+  it("does not redirect on transient identity failures and permits the Organizer read to retry", () => {
+    expect(route).toContain("error: adminError, refetch: retryAdmin");
+    expect(route).toContain("!admin && !adminError");
+    expect(route).toContain("const unavailableError = adminError ?? error");
+    expect(route).toContain("disabled={adminLoading || adminFetching || isFetching || (!admin && !adminError)}");
+    expect(route).toContain("onClick={() => void (adminError ? retryAdmin() : refetch())}");
+    expect(route).toContain("!adminFetching && !adminError");
+  });
+
   it("never reuses another account's private declarations or allows unverified invalidation", () => {
     expect(route).toContain('const actorId = useAuthenticatedUser().id;');
     expect(route).toContain('["merged-televoting-admin", actorId]');
