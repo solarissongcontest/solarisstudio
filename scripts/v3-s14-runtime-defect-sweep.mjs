@@ -31,6 +31,16 @@ export const EXTENSIONS = [
   "grand-final-publication",
 ];
 export const LANES = ["full-contest", "archive", "deadline", "televote-truth"];
+export const S14_INVARIANTS = [
+  "confirmation-no-effective-duplicates", "entry-valid-revision", "media-accepted-revision",
+  "jury-single-final-ballot", "televote-canonical-ballot", "result-reproducible",
+  "publication-final-version", "tasks-canonical", "notifications-reconcilable",
+];
+export const S14_FAILURES = [
+  "network-after-commit", "db-timeout-before-commit", "duplicate-request",
+  "worker-crash", "realtime-disconnect", "stale-client", "two-organizers", "supabase-outage",
+];
+
 
 function loadJson(path) {
   if (!existsSync(path)) return null;
@@ -43,6 +53,13 @@ function source(root, path) {
 function sameMembers(actual, expected) {
   return Array.isArray(actual) && actual.length === expected.length &&
     expected.every((x) => actual.includes(x));
+}
+function sameOrderedMembers(actual, expected) {
+  return Array.isArray(actual) && actual.length === expected.length &&
+    expected.every((x, i) => actual[i] === x);
+}
+function presentString(value) {
+  return typeof value === "string" && value.trim().length > 0;
 }
 function safeText(value) {
   return String(value ?? "").replace(/[\r\n]/g, " ").slice(0, 350);
@@ -225,8 +242,15 @@ export function collectDefectSweep({ root, evidenceDir, candidateSha, toolSha = 
   let fullContestProof = "not-observed";
   if (final && checkSha(final, candidateSha, "s14-final", findings)) {
     const valid = final.passed === true && final.partial === false && final.runtimeFailure === false &&
-      sameMembers(final.completedStages, STAGES) &&
-      sameMembers(final.completedContestExtensions, EXTENSIONS) &&
+      sameOrderedMembers(final.completedStages, STAGES) &&
+      sameOrderedMembers(final.completedContestExtensions, EXTENSIONS) &&
+      sameMembers(final.implementedInvariants, S14_INVARIANTS) &&
+      sameMembers(final.implementedFailureInjections, S14_FAILURES) &&
+      final.seed?.editionCount === 1 && final.seed?.delegationCount === 66 &&
+      Number.isSafeInteger(final.seed?.showCount) && final.seed.showCount >= 3 &&
+      final.runIdentity?.candidateSha === candidateSha &&
+      presentString(final.runIdentity?.editionId) &&
+      presentString(final.runIdentity?.databaseFingerprint) &&
       Array.isArray(final.pendingStages) && final.pendingStages.length === 0 &&
       Array.isArray(final.pendingContestExtensions) && final.pendingContestExtensions.length === 0 &&
       Array.isArray(final.blockedContestExtensions) && final.blockedContestExtensions.length === 0 &&
@@ -234,7 +258,7 @@ export function collectDefectSweep({ root, evidenceDir, candidateSha, toolSha = 
     fullContestProof = valid ? "complete-on-exact-sha" : "invalid";
     if (!valid) findings.push(finding(
       "S14_INVALID_FINAL_EVIDENCE", "evidence-integrity", "confirmed-blocker",
-      "Final evidence is missing required stage, extension, runtime, or archived-state assertions.",
+      "Final evidence lacks ordered lifecycle, complete invariants/failure coverage, 66-delegation seed, exact-SHA persistent identity, or archived state.",
       "s14-full-contest.json",
     ));
   } else if (partial && checkSha(partial, candidateSha, "s14-partial", findings)) {

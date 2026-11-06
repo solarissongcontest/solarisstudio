@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { collectDefectSweep, hasRuntimeCleanProof, STAGES, EXTENSIONS } from "./v3-s14-runtime-defect-sweep.mjs";
+import {
+  collectDefectSweep, hasRuntimeCleanProof, STAGES, EXTENSIONS, S14_INVARIANTS, S14_FAILURES,
+} from "./v3-s14-runtime-defect-sweep.mjs";
 
 const SHA = "a".repeat(40);
 function fixture(run) {
@@ -17,6 +19,20 @@ function fixture(run) {
     rmSync(root, { recursive: true, force: true });
   }
 }
+function completeS14Proof(candidateSha = SHA) {
+  return {
+    candidateSha, passed: true, partial: false, runtimeFailure: false,
+    completedStages: [...STAGES],
+    completedContestExtensions: [...EXTENSIONS],
+    pendingStages: [], pendingContestExtensions: [], blockedContestExtensions: [],
+    implementedInvariants: [...S14_INVARIANTS],
+    implementedFailureInjections: [...S14_FAILURES],
+    seed: { editionCount: 1, delegationCount: 66, showCount: 3 },
+    runIdentity: { candidateSha, editionId: "local-edition", databaseFingerprint: "isolated-db" },
+    lifecycle: { finalState: "archived" },
+  };
+}
+
 test("groups S15 cutover inventory without turning every item into a hard blocker", () => {
   fixture(({ root, evidenceDir, put }) => {
     put("s15-readiness.json", {
@@ -49,28 +65,41 @@ test("does not accept success without complete same-SHA Archive evidence", () =>
 test("accepts valid S14 proof only for its exact commit", () => {
   fixture(({ root, evidenceDir, put }) => {
     put("runtime-full-contest.json", { candidateSha: SHA, status: "passed", exitCode: 0 });
-    put("s14-full-contest.json", {
-      candidateSha: SHA, passed: true, partial: false, runtimeFailure: false,
-      completedStages: STAGES,
-      completedContestExtensions: EXTENSIONS,
-      pendingStages: [], pendingContestExtensions: [], blockedContestExtensions: [],
-      lifecycle: { finalState: "archived" },
-    });
+    put("s14-full-contest.json", completeS14Proof());
     const result = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
     assert.equal(result.exactShaFullContestProof, "complete-on-exact-sha");
     assert.ok(!result.findings.some((f) => f.id === "S14_RUNTIME_EVIDENCE_GAP"));
 
-    put("s14-full-contest.json", {
-      candidateSha: "b".repeat(40), passed: true, partial: false, runtimeFailure: false,
-      completedStages: STAGES, completedContestExtensions: EXTENSIONS,
-      pendingStages: [], pendingContestExtensions: [], blockedContestExtensions: [],
-      lifecycle: { finalState: "archived" },
-    });
+    put("s14-full-contest.json", completeS14Proof("b".repeat(40)));
     const stale = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
     assert.ok(stale.findings.some((f) => f.id === "EVIDENCE_SHA_MISMATCH_s14-final"));
     assert.notEqual(stale.exactShaFullContestProof, "complete-on-exact-sha");
   });
 });
+test("rejects reordered lifecycle and incomplete success coverage on the exact SHA", () => {
+  fixture(({ root, evidenceDir, put }) => {
+    const invalidCases = [
+      ["reordered stages", (p) => { p.completedStages.reverse(); }],
+      ["reordered grand final", (p) => { p.completedContestExtensions.reverse(); }],
+      ["missing invariant", (p) => { p.implementedInvariants.pop(); }],
+      ["missing recovery scenario", (p) => { p.implementedFailureInjections.pop(); }],
+      ["under-seeded contest", (p) => { p.seed.delegationCount = 65; }],
+      ["missing persistent identity", (p) => { p.runIdentity.databaseFingerprint = ""; }],
+      ["mismatched persistent SHA", (p) => { p.runIdentity.candidateSha = "b".repeat(40); }],
+    ];
+    for (const [label, mutate] of invalidCases) {
+      const proof = completeS14Proof();
+      mutate(proof);
+      put("s14-full-contest.json", proof);
+      const report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
+      assert.equal(report.exactShaFullContestProof, "invalid", label);
+      assert.ok(report.confirmedBlockerCount > 0, label);
+      assert.ok(report.findings.some((f) => f.id === "S14_INVALID_FINAL_EVIDENCE"), label);
+      assert.equal(hasRuntimeCleanProof(report), false, label);
+    }
+  });
+});
+
 test("failed stage does not imply that unexecuted later stages passed", () => {
   fixture(({ root, evidenceDir, put }) => {
     put("runtime-full-contest.json", { candidateSha: SHA, status: "failed", exitCode: 1 });
@@ -304,12 +333,7 @@ test("a complete S14 runtime is not clean without exact-SHA static audit and obs
     for (const lane of ["full-contest", "archive", "deadline", "televote-truth"]) {
       put("runtime-" + lane + ".json", { candidateSha: SHA, lane, status: "passed", exitCode: 0 });
     }
-    put("s14-full-contest.json", {
-      candidateSha: SHA, passed: true, partial: false, runtimeFailure: false,
-      completedStages: STAGES, completedContestExtensions: EXTENSIONS,
-      pendingStages: [], pendingContestExtensions: [], blockedContestExtensions: [],
-      lifecycle: { finalState: "archived" },
-    });
+    put("s14-full-contest.json", completeS14Proof());
     const evidence = {
       candidateSha: SHA,
       checks: ["s14-readiness", "s15-inventory", "sweep-contracts"]
