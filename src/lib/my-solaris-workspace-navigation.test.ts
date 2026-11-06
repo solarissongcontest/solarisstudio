@@ -9,6 +9,7 @@ function source(path: string) {
 const shell = source("src/components/AppShell.tsx");
 const workspaceShell = source("src/components/mysolaris/MySolarisWorkspaceShell.tsx");
 const workspaceNav = source("src/components/mysolaris/MySolarisWorkspaceNav.tsx");
+const workspaceNavigation = source("src/lib/my-solaris-navigation.ts");
 const workspaceContext = source("src/components/mysolaris/MySolarisContext.tsx");
 const operationsPanel = source("src/components/MySolarisOperationsPanel.tsx");
 const targets = source("src/lib/navigation-targets.ts");
@@ -30,9 +31,12 @@ describe("MySolaris product consolidation", () => {
     expect(workspaceNav).toContain('aria-label="MySolaris mobile sections"');
   });
 
-  it("uses a desktop rail and a compact Home, Tasks, Entry, Voting, More mobile navigation", () => {
+  it("uses a desktop rail and a compact Home, Entry, Voting, Notices, More mobile navigation", () => {
     expect(workspaceShell).toContain("lg:grid-cols-[13.5rem_minmax(0,1fr)]");
     expect(workspaceNav).toContain("MY_SOLARIS_MOBILE_PRIMARY_IDS");
+    expect(workspaceNavigation).toContain(
+      'MY_SOLARIS_MOBILE_PRIMARY_IDS = ["home", "entry", "voting", "notices"]',
+    );
     expect(workspaceNav).toContain("<MoreHorizontal");
     expect(workspaceNav).toContain("More");
     expect(shell).toContain("!isMySolarisWorkspace && (");
@@ -79,10 +83,22 @@ describe("MySolaris product consolidation", () => {
     ]) {
       expect(targets).toContain(`${target}: "/my-solaris/`);
     }
+    expect(workspaceNavigation).not.toContain('id: "tasks"');
     expect(workspaceNav).not.toContain('to: "/country-hub');
   });
 
-  it("has real canonical route surfaces behind the primary workspace destinations", () => {
+  it("redirects participant task requests to Participate and reserves inspection to verified Organizer access", () => {
+    expect(tasksRoute).toContain('beforeLoad: ({ search })');
+    expect(tasksRoute).toContain('if (!search.country)');
+    expect(tasksRoute).toContain('throw redirect({ to: NAV_TARGETS.participate, replace: true })');
+    expect(tasksRoute).toContain('useMyCountryAccount()');
+    expect(tasksRoute).toContain('account.data?.access?.isOrganizer !== true');
+    expect(tasksRoute).toContain('<Navigate to={NAV_TARGETS.participate} replace />');
+    expect(tasksRoute).toContain('<MySolarisTasksModule />');
+    expect(tasksRoute).toContain('Unable to verify Organizer access.');
+  });
+
+  it("has real canonical route surfaces behind the remaining workspace destinations", () => {
     expect(tasksRoute).toContain('createFileRoute("/_authenticated/my-solaris/tasks")');
     expect(entryRoute).toContain('createFileRoute("/_authenticated/my-solaris/entry")');
     expect(votingRoute).toContain('createFileRoute("/_authenticated/my-solaris/voting")');
