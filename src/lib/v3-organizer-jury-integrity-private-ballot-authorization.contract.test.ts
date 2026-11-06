@@ -73,6 +73,7 @@ describe("Organizer Jury Integrity protected ballot boundary", () => {
     expect(page).toContain("disabled={query.isFetching}");
     expect(page).toContain("aria-busy={query.isFetching}");
     expect(page).toContain("Retry integrity evidence");
+    expect(page).toContain("Review pagination or service health before trusting risk totals");
   });
 
   it("allows authorized producers to expand all evidence targets without another backend read", () => {
