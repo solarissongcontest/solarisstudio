@@ -28,6 +28,7 @@ const pending = (overrides: Partial<WorldDocumentDraftSnapshot> = {}) => documen
     title: "Charter v2", plainText: "The full canonical legal text",
     structuredContent: { articles: 10 }, provisions: [],
     publicationState: "draft", effectiveFrom: "2026-11-06T12:00:00.000Z",
+    effectiveTo: null, sourceDescription: null, sourceProvenance: {},
   },
   ...overrides,
 });
