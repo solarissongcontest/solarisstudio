@@ -99,12 +99,22 @@ describe("V3 Following & Saved read and mutation recovery", () => {
   });
   it("rejects an account switch before dispatching a Following mutation", () => {
     const source = screen();
-    expect(source).toContain('import { supabase } from "@/integrations/supabase/client";');
+    expect(source).not.toContain("integrations/supabase");
+    expect(source).toContain('import { assertCurrentFollowingActor } from "@/lib/v3-following-actor";');
     expect(source).toContain("const latestViewerId = useRef(viewerId);");
-    expect(source).toContain("const { data: auth, error: authError } = await supabase.auth.getUser();");
-    expect(source).toContain("auth.user.id !== viewerId || latestViewerId.current !== viewerId");
-    expect(source.indexOf("supabase.auth.getUser()")).toBeLessThan(source.indexOf("await setFollow.mutateAsync({"));
+    expect(source).toContain("await assertCurrentFollowingActor(viewerId);");
+    expect(source).toContain("latestViewerId.current !== viewerId");
+    expect(source.indexOf("assertCurrentFollowingActor(viewerId)")).toBeLessThan(source.indexOf("await setFollow.mutateAsync({"));
     expect(source).toContain("Following account changed before the preference update.");
+  });
+
+  it("resolves authenticated actor checks through integration-owned Supabase access", () => {
+    const integration = readFileSync(resolve(process.cwd(), "src/integrations/v3/following-actor.ts"), "utf8");
+    const adapter = readFileSync(resolve(process.cwd(), "src/lib/v3-following-actor.ts"), "utf8");
+    expect(adapter).toContain('@/integrations/v3/following-actor');
+    expect(integration).toContain("await supabase.auth.getUser()");
+    expect(integration).toContain("data.user.id !== expectedViewerId");
+    expect(integration).toContain("Following account changed before the preference update.");
   });
 
 });
