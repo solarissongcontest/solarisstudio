@@ -121,7 +121,7 @@ function CombinedResultsPage() {
   const [createPool, setCreatePool] = useState("1000");
   const [createExponent, setCreateExponent] = useState("1.33");
 
-  const { data: admin, isLoading: adminLoading } = useQuery({
+  const { data: admin, isLoading: adminLoading, isFetching: adminFetching, error: adminError, refetch: retryAdmin } = useQuery({
     queryKey: ["merged-televoting-admin", actorId],
     queryFn: () => getAdmin(),
     enabled: Boolean(actorId),
@@ -133,10 +133,10 @@ function CombinedResultsPage() {
   });
 
   useEffect(() => {
-    if (actorId && !adminLoading && !admin) void navigate({ to: "/televoting/admin/sign-in" });
-  }, [actorId, admin, adminLoading, navigate]);
+    if (actorId && !adminLoading && !adminFetching && !admin && !adminError) void navigate({ to: "/televoting/admin/sign-in" });
+  }, [actorId, admin, adminLoading, adminFetching, adminError, navigate]);
 
-  const { data: aggregations = [], isLoading: listLoading, error: listError, refetch: retryList } = useQuery({
+  const { data: aggregations = [], isLoading: listLoading, isFetching: listFetching, error: listError, refetch: retryList } = useQuery({
     queryKey: ["merged-combined-aggregations", actorId],
     queryFn: () => listFn(),
     enabled: Boolean(actorId && admin),
@@ -151,7 +151,7 @@ function CombinedResultsPage() {
     if (!selectedId && aggregations.length) setSelectedId(aggregations[0]!.id);
   }, [aggregations, selectedId]);
 
-  const { data: editionRounds = [] } = useQuery({
+  const { data: editionRounds = [], isLoading: roundsLoading, isFetching: roundsFetching, error: roundsError, refetch: retryRounds } = useQuery({
     queryKey: ["merged-televoting-rounds", actorId],
     queryFn: () => roundsFn(),
     enabled: Boolean(actorId && admin),
@@ -167,7 +167,7 @@ function CombinedResultsPage() {
     [editionRounds],
   );
 
-  const { data: detail, isLoading: detailLoading, error: detailError } = useQuery({
+  const { data: detail, isLoading: detailLoading, isFetching: detailFetching, error: detailError, refetch: retryDetail } = useQuery({
     queryKey: ["merged-combined-detail", actorId, selectedId],
     queryFn: () => detailFn({ data: { id: selectedId } }),
     enabled: Boolean(actorId && admin && selectedId),
@@ -204,23 +204,39 @@ function CombinedResultsPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-  if (!actorId || adminLoading || listLoading) {
-    return <section className="glass p-8 text-center text-sm text-muted-foreground">Loading Combined Results…</section>;
+  // Hide the entire mutating workspace during initial reads and every private refetch.
+  // A stale successful payload must never mask a failed administrative or source read.
+  if (!actorId || adminLoading || adminFetching || listLoading || listFetching ||
+      (Boolean(admin) && (roundsLoading || roundsFetching)) ||
+      (Boolean(selectedId) && (detailLoading || detailFetching))) {
+    return <section className="glass p-8 text-center text-sm text-muted-foreground" role="status">Verifying Combined Results…</section>;
   }
-  if (!admin) return null;
-  if (listError) {
+  const privateReadError = adminError ?? listError ?? roundsError ?? (selectedId ? detailError : null);
+  if (privateReadError) {
     return (
       <section className="glass space-y-3 p-6" role="alert">
         <p className="text-sm font-semibold">Combined Results unavailable</p>
         <p className="text-sm text-muted-foreground">
           Private result evidence could not be verified. No calculation or publication action is available until it reloads.
         </p>
-        <button type="button" className="admin-action-secondary min-h-11" onClick={() => void retryList()}>
+        <p className="text-xs text-rose-100">
+          {privateReadError instanceof Error ? privateReadError.message : "The protected result read failed."}
+        </p>
+        <button
+          type="button"
+          className="admin-action-secondary min-h-11"
+          onClick={() => void (adminError ? retryAdmin() : Promise.all([
+            retryList(),
+            retryRounds(),
+            ...(selectedId ? [retryDetail()] : []),
+          ]))}
+        >
           Retry Combined Results
         </button>
       </section>
     );
   }
+  if (!admin) return null;
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-5 py-2">
