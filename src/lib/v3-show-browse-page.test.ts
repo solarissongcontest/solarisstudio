@@ -39,9 +39,10 @@ describe("V3 public Shows bounded browse", () => {
     const source = readFileSync(
       resolve(process.cwd(), "src/components/v3/V3ShowsDiscoveryScreen.tsx"), "utf8",
     );
-    expect(source).toContain("getV3ShowBrowsePage(browseItems, browsePage)");
-    expect(source).toContain("setBrowsePage(1);");
-    expect(source).toContain("[search, editionId, kind, state]");
+    expect(source).toContain("getV3ShowBrowsePage(");
+    expect(source).toContain("browseWindowState.key === browseFilterKey ? browseWindowState.page : 1");
+    expect(source).toContain("JSON.stringify([search.trim(), editionId, kind, state])");
+    expect(source).toContain("setBrowseWindowState((previous) => (");
     expect(source).toContain("browseWindow.visible.map((item)");
     expect(source).not.toContain("browseItems.map((item)");
     expect(source).toContain("buildShowDiscovery({");
