@@ -299,6 +299,7 @@ function SubmissionVersionsPage() {
                     <AdminCard><AdminEmptyState icon={History} title="Current response unavailable" description="Version history cannot be compared with the current response right now." /></AdminCard>
                   ) : (
                     <ConfirmationVersionHistory
+                      key={detailQuery.data.id}
                       submissionId={detailQuery.data.id}
                       currentSnapshot={currentSnapshot(detailQuery.data)}
                       scopeLabel={restoreScopeLabel}
