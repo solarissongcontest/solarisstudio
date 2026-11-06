@@ -25,6 +25,10 @@ export default defineConfig({
     build: {
       rolldownOptions: {
         output: {
+          // Keep Oxc's safe private-binding minification without the broad
+          // shared-cross-route group that broke Organizer browser hydration.
+          // This exact option passed the isolated Browser Audit in #2190.
+          minify: { compress: true, mangle: { toplevel: true } },
           // Production evidence showed repeated gzip framing across hundreds of
           // tiny Lucide chunks and several TanStack Router helper chunks. Keep
           // package behavior unchanged while consolidating only those vendor
@@ -35,6 +39,87 @@ export default defineConfig({
               {
                 name: "vendor-router",
                 test: /[\\/]node_modules[\\/]@tanstack[\\/]react-router[\\/]/,
+              },
+              // Shared Radix primitives are used across route-local overlays.
+              // Consolidate package internals without pulling route modules
+              // into the common client bundle.
+              {
+                name: "vendor-radix",
+                test: /[\\/]node_modules[\\/]@radix-ui[\\/]/,
+              },
+              // Keep large chart vendors behind their existing lazy screen
+              // boundaries, sharing internals instead of emitting fragments.
+              {
+                name: "vendor-charts",
+                test: /[\\/]node_modules[\\/](?:recharts|victory-vendor)[\\/]/,
+              },
+              // Motion and data-cache internals appear in many route chunks.
+              // Group only package implementation, preserving lazy page imports.
+              {
+                name: "vendor-motion",
+                test: /[\\/]node_modules[\\/]framer-motion[\\/]/,
+              },
+              {
+                name: "vendor-query",
+                test: /[\\/]node_modules[\\/]@tanstack[\\/](?:react-query|query-core)[\\/]/,
+              },
+              {
+                name: "vendor-floating",
+                test: /[\\/]node_modules[\\/]@floating-ui[\\/]/,
+              },
+              // The public session, database and storage clients already
+              // share this SDK. Keep its package internals consolidated
+              // instead of repeatedly framing tiny route-local chunks.
+              {
+                name: "vendor-supabase",
+                test: /[\\/]node_modules[\\/]@supabase[\\/]/,
+              },
+              // Share app-level presentation primitives used by multiple
+              // lazy routes without grouping any one-off screens or domain code.
+              // This reduces duplicated chunk wrappers while keeping the actual
+              // page components behind their existing route import boundaries.
+              {
+                name: "shared-app-primitives",
+                test: /[\\/]src[\\/]components[\\/]app[\\/]/,
+                minShareCount: 2,
+                minSize: 6000,
+                priority: 1,
+              },
+              // Collapse small, frequently reused UI control adapters instead
+              // of repeating module shells and gzip framing across lazy routes.
+              // A minimum two-entry share prevents one-off page components
+              // from being pulled into the common browser payload. The lower
+              // minimum size groups smaller reused controls across directories.
+              {
+                name: "shared-controls",
+                test: /[\\/]src[\\/]components[\\/]ui[\\/]/,
+                minShareCount: 2,
+                minSize: 5000,
+                priority: 1,
+              },
+              // Reused public-browser presentation primitives are shared across
+              // the section rails, hubs and data explorers. Consolidate only
+              // components referenced from multiple route chunks; preserve
+              // route-only modules and installed-app boundaries.
+              {
+                name: "shared-cross-page-primitives",
+                // Preserve existing app, control, Organizer and V3 shell
+                // boundaries. Only reused cross-page presentation modules
+                // can join the group; route-specific modules remain lazy.
+                test: /[\\/]src[\\/]components[\\/](?!(?:app|ui|admin|v3)[\\/])/,
+                minShareCount: 2,
+                minSize: 5000,
+                priority: 1,
+              },
+              // Reused client-only domain modules were each carrying separate
+              // chunk wrappers and gzip framing. Combine only modules actually
+              // shared by multiple lazy entrypoints; preserve route-local code.
+              {
+                name: "shared-client-helpers",
+                test: /[\\/]src[\\/]lib[\\/](?!.*(?:\.server\.|\.test\.|\.contract\.|\.spec\.))/,
+                minShareCount: 2,
+                minSize: 5000,
+                priority: 1,
               },
             ],
           },
