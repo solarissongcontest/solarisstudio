@@ -14,6 +14,7 @@ import type { CountryDirectoryPresentation } from "@/lib/country-directory-prese
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { type Country, useCountries, useEditions } from "@/lib/data";
 import { countryDirectoryRegionOptions, effectiveParticipatingScope, filterCountryDirectory } from "@/lib/v3-country-directory-filters";
+import { publishedCountryStatusMap, type PublishedCountryStatus } from "@/lib/v3-country-published-status";
 import { directoryCountLabel } from "@/lib/v3-directory-count";
 import { usePublicEditionParticipants } from "@/lib/public-participants";
 import {
@@ -59,6 +60,10 @@ export function V3CountriesDiscoveryScreen({
   const currentLineupReady = Boolean(activeEdition?.id) && participantsQuery.isSuccess;
   // An unavailable optional lineup must never strand the visitor on its selected scope.
   const selectedParticipatingOnly = effectiveParticipatingScope(participatingOnly, currentLineupReady);
+  const publishedStatuses = useMemo(
+    () => publishedCountryStatusMap(discovery, currentLineupReady),
+    [discovery, currentLineupReady],
+  );
   useEffect(() => {
     if (participatingOnly && participantsQuery.isError) setParticipatingOnly(false);
   }, [participatingOnly, participantsQuery.isError]);
@@ -267,7 +272,8 @@ export function V3CountriesDiscoveryScreen({
           aria-label="Countries"
         >
           {visible.map((country) => (
-            <CountryTile key={country.id} country={country} presentation={presentation} />
+            <CountryTile key={country.id} country={country} presentation={presentation}
+              status={selectedParticipatingOnly ? undefined : publishedStatuses.get(country.id)} />
           ))}
         </div>
 
@@ -382,9 +388,11 @@ export function V3CountriesDiscoveryScreen({
 function CountryTile({
   country,
   presentation,
+  status,
 }: {
   country: Country;
   presentation: CountryDirectoryPresentation;
+  status?: PublishedCountryStatus;
 }) {
   if (presentation === "mobile-web") {
     return (
@@ -399,6 +407,7 @@ function CountryTile({
             <span className="mt-0.5 block truncate text-xs text-muted-foreground">{country.native_name}</span>
           ) : null}
           <span className="mt-1 block truncate text-xs text-muted-foreground">{country.region || country.short_code}</span>
+          {status ? <CountryStatusNote status={status} /> : null}
         </span>
         <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </Link>
@@ -416,6 +425,7 @@ function CountryTile({
           <span className="min-w-0">
             <span className="block break-words text-sm font-bold leading-5">{country.name}</span>
             <span className="mt-1 block truncate text-xs text-muted-foreground">{country.region || country.short_code}</span>
+            {status ? <CountryStatusNote status={status} /> : null}
           </span>
           <ChevronRight className="mt-1 size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-1" aria-hidden="true" />
         </span>
@@ -430,8 +440,23 @@ function CountryTile({
       <span className="block min-w-0 pr-3">
         <span className="block break-words text-sm font-semibold leading-5">{country.name}</span>
         <span className="mt-0.5 block truncate text-xs text-muted-foreground">{country.region || country.short_code}</span>
+        {status ? <CountryStatusNote status={status} /> : null}
       </span>
       <ChevronRight className="absolute bottom-4 right-2.5 size-4 text-muted-foreground/70 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
     </Link>
+  );
+}
+
+const PUBLISHED_STATUS_LABELS: Record<PublishedCountryStatus, string> = {
+  participating: "Participating",
+  withdrawn: "Withdrawn",
+  disqualified: "Disqualified",
+};
+
+function CountryStatusNote({ status }: { status: PublishedCountryStatus }) {
+  return (
+    <span data-country-current-status={status} className="mt-1 block text-xs font-medium text-muted-foreground">
+      Current edition · {PUBLISHED_STATUS_LABELS[status]}
+    </span>
   );
 }
