@@ -81,6 +81,21 @@ describe("TG3 world publication-safe projections", () => {
   });
 
 
+  it("excludes unrecognized and unrelated featured institutions even when upstream leaks rows", async () => {
+    mocks.chain.order.mockResolvedValueOnce({
+      data: [
+        row,
+        { ...row, id: "secret-proposal", slug: "unity", status: "proposed" },
+        { ...row, id: "unrelated", slug: "other", status: "active" },
+      ],
+      error: null,
+    });
+    const featured = await fetchFeaturedWorldOrganizations();
+    expect(mocks.chain.in).toHaveBeenCalledWith("status",
+      ["recognized", "active", "suspended", "historical", "dissolved"]);
+    expect(featured.map((item) => item.slug)).toEqual(["guard"]);
+  });
+
   it("rejects unpublished directory records even if a broken upstream reader returned them", () => {
     expect(parseWorldDirectoryRows([row, { ...row, slug: "secret", public_visibility: "private" }]))
       .toHaveLength(1);
