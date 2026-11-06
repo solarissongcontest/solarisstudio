@@ -48,7 +48,7 @@ describe("V3 web global Search request budget", () => {
     expect(archive).toContain('group: "Entries"');
     expect(archive).toContain('group: "Stories"');
     expect(archive).toContain("searchGovernanceLibrary(normalized)");
-    expect(archive).toContain("navigationSearchResults(normalized)");
+    expect(archive).toContain("navigationV3PublicSearchResults(normalized)");
   });
 
   it("preserves idle current-edition, country, confirmation and recent actions", () => {
