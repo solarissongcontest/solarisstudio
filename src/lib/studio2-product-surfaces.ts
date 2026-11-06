@@ -200,6 +200,25 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
     surfaceLabel: "Terra Solaris",
     description: "Publication-safe world, GUARD, UNITY and institutional discovery, independently gated until TG2 and TG3 are verified.",
   },
+  terra_private_spaces: {
+    key: "terra_private_spaces",
+    label: "Terra Solaris · Private Workspaces",
+    state: "planned",
+    audience: "delegation",
+    route: "/world/workspaces",
+    surfaceLabel: "Private institutional workspaces",
+    description: "Authenticated, membership-scoped institutional rooms. Explicitly rollout-locked until TG11/TG12 SQL, private authorization, revocation and release verification are certified; never part of public World search.",
+  },
+  terra_chat: {
+    key: "terra_chat",
+    label: "Terra Solaris · Institutional Chat",
+    state: "planned",
+    audience: "delegation",
+    route: "/world/workspaces/:slug",
+    surfaceLabel: "Private institutional chat",
+    dependsOn: ["terra_private_spaces"],
+    description: "Live membership-checked room messaging with governed moderation, deliberately disabled until private-room security and delivery checks are certified.",
+  },
 };
 
 export const STUDIO2_PRODUCT_SURFACE_LIST = Object.values(STUDIO2_PRODUCT_SURFACES);
