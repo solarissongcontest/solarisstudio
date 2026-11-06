@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useAppAttentionSummary } from "@/lib/app-attention";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
@@ -30,6 +31,7 @@ import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
 import { cn } from "@/lib/utils";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { V3DesktopPrimaryNavigation } from "./V3DesktopPrimaryNavigation";
+import { V3MobileWebPrimaryNavigation } from "./V3MobileWebPrimaryNavigation";
 import { V3FoundationShell, V3TopContext } from "./V3Foundation";
 import {
   V3LiquidTabBar,
@@ -148,6 +150,7 @@ export function V3AppShell({
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
   const navigate = useNavigate();
+  const { isAppMode, platformResolved } = useSolarisApp();
   const publicArea = activeArea ?? resolveV3ShellActiveArea(pathname, searchStr);
   const attention = useAppAttentionSummary();
   const rollout = useV3RolloutProbe(true);
@@ -179,7 +182,8 @@ export function V3AppShell({
       : "Notifications";
 
   useEffect(() => {
-    if (typeof window === "undefined" || !navigationIdentityReady) return;
+    // Browser History owns website navigation; tab memory is installed-app only.
+    if (typeof window === "undefined" || !isAppMode || !navigationIdentityReady) return;
 
     const previousViewerKey = previousResolvedViewerKeyRef.current;
     previousResolvedViewerKeyRef.current = resolvedViewerKey;
@@ -249,6 +253,7 @@ export function V3AppShell({
       );
     };
   }, [
+    isAppMode,
     navigationIdentityReady,
     navigationScope,
     pathname,
@@ -344,21 +349,37 @@ export function V3AppShell({
 
   return (
     <V3FoundationShell>
-      <div className={cn("min-h-dvh", className)}>
+      <div
+        className={cn("min-h-dvh", isAppMode && "v3-installed-app-layout", className)}
+        data-v3-shell-experience={!platformResolved ? "resolving" : isAppMode ? "app" : "web"}
+      >
         <V3TopContext edition={editionLabel} phase={phaseLabel} actions={shellActions} />
-        <V3DesktopPrimaryNavigation
-          destinations={navigationDestinations}
-          onSelect={selectDestination}
-        />
+        {platformResolved && !isAppMode ? (
+          <V3MobileWebPrimaryNavigation
+            destinations={V3_SHELL_DESTINATIONS}
+            activeArea={publicArea}
+            participateAttentionCount={participateAttentionCount}
+            pathname={pathname}
+          />
+        ) : null}
+        {platformResolved ? (
+          <V3DesktopPrimaryNavigation
+            destinations={navigationDestinations}
+            pathname={pathname}
+            onSelect={isAppMode ? selectDestination : undefined}
+          />
+        ) : null}
         {children}
       </div>
 
-      <V3LiquidTabBar
-        key={navigationInteractionKey}
-        pathname={pathname}
-        destinations={navigationDestinations}
-        onSelect={selectDestination}
-      />
+      {platformResolved && isAppMode ? (
+        <V3LiquidTabBar
+          key={navigationInteractionKey}
+          pathname={pathname}
+          destinations={navigationDestinations}
+          onSelect={selectDestination}
+        />
+      ) : null}
     </V3FoundationShell>
   );
 }
