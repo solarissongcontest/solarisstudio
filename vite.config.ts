@@ -78,7 +78,7 @@ export default defineConfig({
                 name: "shared-app-primitives",
                 test: /[\\/]src[\\/]components[\\/]app[\\/]/,
                 minShareCount: 2,
-                minSize: 6000,
+                minSize: 2500,
                 priority: 1,
               },
               // Collapse small, frequently reused UI control adapters instead
@@ -90,7 +90,7 @@ export default defineConfig({
                 name: "shared-controls",
                 test: /[\\/]src[\\/]components[\\/]ui[\\/]/,
                 minShareCount: 2,
-                minSize: 5000,
+                minSize: 1000,
                 priority: 1,
               },
               // Reused client-only domain modules were each carrying separate
@@ -100,7 +100,7 @@ export default defineConfig({
                 name: "shared-client-helpers",
                 test: /[\\/]src[\\/]lib[\\/](?!.*(?:\.server\.|\.test\.|\.contract\.|\.spec\.))/,
                 minShareCount: 2,
-                minSize: 2500,
+                minSize: 1000,
                 priority: 1,
               },
             ],
