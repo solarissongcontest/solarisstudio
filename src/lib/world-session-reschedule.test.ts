@@ -11,7 +11,7 @@ import {
 } from "./world-session-reschedule";
 
 const source = (path: string) => readFileSync(resolve(process.cwd(),path),"utf8");
-const migration = source("supabase/migrations/20261104126000_v3_tg6_session_reschedule.sql");
+const migration = source("supabase/migrations/20261104125100_v3_tg6_session_reschedule.sql");
 const fixture = source("scripts/rehearse-v3-world-session-reschedule.sql");
 const runner = source("scripts/rehearse-v3-world-session-reschedule.sh");
 const ui = source("src/components/world/WorldSessionScheduleEditor.tsx");
