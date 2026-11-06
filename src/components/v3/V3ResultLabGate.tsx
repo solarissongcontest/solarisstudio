@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { Eye } from "lucide-react";
 
 import { V3AppShell } from "@/components/v3/V3AppShell";
-import { V3Screen, V3ScreenHeader, V3StatusChip, V3Surface } from "@/components/v3/V3Foundation";
+import { V3Screen, V3Surface } from "@/components/v3/V3Foundation";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
 import { useNotificationPreferences } from "@/lib/engagement-data";
 import {
@@ -14,6 +13,7 @@ import { useV3ResultLabBundle } from "@/lib/v3-result-lab-runtime";
 import { resolveV3ResultsSpoilerProtection } from "@/lib/v3-results";
 import { resolveV3ResultLabSpoilerGate } from "@/lib/v3-result-lab-spoilers";
 import { V3ResultLabScreen } from "./V3ResultLabScreen";
+import { V3AnalysisRevealScreen } from "./V3AnalysisRevealScreen";
 
 export function V3ResultLabGate({ fallback }: { fallback: ReactNode }) {
   const [selectedShowId, setSelectedShowId] = useState<string | null>(null);
@@ -80,35 +80,10 @@ export function V3ResultLabGate({ fallback }: { fallback: ReactNode }) {
       activeArea="results"
     >
       {spoilerGate.protected ? (
-        <V3Screen>
-          <V3ScreenHeader
-            kicker="What-if analytics"
-            title="Result Lab"
-            description="Explore hypothetical voting scenarios from officially published results."
-            editorial
-          />
-          <V3Surface level="raised" className="p-5" data-v3-result-lab-spoiler-protected="">
-            <V3StatusChip tone="warning">Spoiler-free</V3StatusChip>
-            <h2 className="mt-4 text-xl font-bold tracking-[-0.03em]">
-              Result Lab spoilers are hidden
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">
-              The simulation can reveal official placements and a hypothetical winner.
-              Your spoiler-free preference is on, so nothing is shown until you choose to reveal this result.
-            </p>
-            <button
-              type="button"
-              onClick={() => setRevealedResultKey(spoilerGate.revealKey)}
-              className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--v3-accent)] px-4 text-sm font-semibold text-[var(--v3-bg-base)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
-            >
-              <Eye className="size-4" aria-hidden="true" />
-              Reveal this simulation
-            </button>
-            <p className="mt-3 text-xs leading-5 text-white/42">
-              Revealing this result does not change your spoiler-free preference.
-            </p>
-          </V3Surface>
-        </V3Screen>
+        <V3AnalysisRevealScreen
+          replay={false}
+          onReveal={() => setRevealedResultKey(spoilerGate.revealKey)}
+        />
       ) : (
         <V3ResultLabScreen
           bundle={bundle.data}
