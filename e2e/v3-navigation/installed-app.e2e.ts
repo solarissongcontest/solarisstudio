@@ -228,6 +228,30 @@ test("installed app shell survives representative navigation without duplicate c
     ).toHaveCount(1);
   }
 
+  // Keyboard focus must be visibly distinct from the selected glass lens.
+  // Start with a real keyboard event so WebKit uses :focus-visible modality;
+  // programmatic focus alone can follow pointer heuristics instead.
+  await page.keyboard.press("Tab");
+  const focusedExplore = page.locator(".solaris-app-tabbar")
+    .getByRole("link", { name: "Explore", exact: true });
+  await focusedExplore.focus();
+  await expect(focusedExplore).toBeFocused();
+  await expect.poll(() =>
+    focusedExplore.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return (
+        element.matches(":focus-visible") &&
+        style.outlineStyle === "solid" &&
+        Number.parseFloat(style.outlineWidth) >= 2 &&
+        Number.parseFloat(style.outlineOffset) <= -3
+      );
+    }),
+  ).toBe(true);
+  // Focusing an inactive tab must not navigate or turn it into the active tab.
+  await expect(page.locator('.solaris-app-tabbar [aria-current="page"]'))
+    .toHaveAttribute("aria-label", "Me");
+  await focusedExplore.evaluate((element) => element.blur());
+
   const initial = await readGeometry(page);
   expect(initial).not.toBeNull();
   if (!initial) return;
