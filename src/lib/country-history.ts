@@ -111,6 +111,6 @@ export function usePublicCountryIdentityHistory(countryId?: string, verifyOnMoun
     // Canonical public Country uses a fresh server check before revealing
     // historical flags; other consumers retain the existing cache contract.
     refetchOnMount: verifyOnMount ? "always" : undefined,
-    retry: false,
+    retry: verifyOnMount ? false : undefined,
   });
 }
