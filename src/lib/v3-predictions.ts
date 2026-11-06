@@ -25,6 +25,16 @@ export type V3PredictionRoundProjection = {
   breakdown: V3PredictionBreakdown | null;
 };
 
+/**
+ * Only server-recorded submitted, locked or scored entries unlock submission
+ * affordances. A saved draft is not a submission.
+ */
+export function hasSubmittedPrediction(
+  entry?: Pick<SavedPredictionEntry, "state"> | null,
+): boolean {
+  return entry?.state === "submitted" || entry?.state === "locked" || entry?.state === "scored";
+}
+
 export function predictionState(
   round: PredictionRound,
   entry?: SavedPredictionEntry | null,
@@ -33,7 +43,7 @@ export function predictionState(
   if (round.status === "scored" || entry?.prediction_score) return "scored";
   if (round.status === "scoring") return "scoring";
   if (round.status === "locked") return "locked";
-  if (round.status === "open") return entry ? "submitted" : "open";
+  if (round.status === "open") return hasSubmittedPrediction(entry) ? "submitted" : "open";
   return "upcoming";
 }
 
