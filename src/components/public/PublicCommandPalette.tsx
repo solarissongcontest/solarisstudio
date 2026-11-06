@@ -858,7 +858,7 @@ function WebSearchArchiveResults({
             group: "Shows",
           };
         }),
-      ...(storiesQuery.data ?? [])
+      ...(storiesQuery.isError ? [] : storiesQuery.data ?? [])
         .filter((story) =>
           matchesPublicSearch(
             normalized,
