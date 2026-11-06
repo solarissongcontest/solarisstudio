@@ -17,6 +17,17 @@ const web = palette.slice(
 );
 
 describe("V3 global Search relevance integration", () => {
+  it("keeps idle browser Search shortcuts on the canonical public destination catalog", () => {
+    const dialog = palette.slice(
+      palette.indexOf("function WebPublicPaletteDialog"),
+      palette.indexOf("function WebSearchArchiveResults"),
+    );
+    expect(dialog).toContain('navigationV3PublicSearchResults("")');
+    expect(dialog).toContain('["/explore", "/participate", "/results", "/guide", "/rules"]');
+    expect(dialog).toContain("renderSearchGroups(idleGroups, openIdleResult)");
+  });
+
+
   it("ranks both app and web results before applying the 50-result budget", () => {
     expect(app).toContain("rankV3PublicSearchResults(dedupePublicSearchResults([...local, ...remoteResults]), normalized).slice(0, 50)");
     expect(web).toContain("rankV3PublicSearchResults(dedupePublicSearchResults(values), normalized).slice(0, 50)");
