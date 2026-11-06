@@ -319,3 +319,17 @@
     border-inline-start: 3px solid HighlightText;
   }
 }
+
+/* Avoid animated disclosures and collapsing rails when the user requests
+   reduced motion, while leaving layout and navigation semantics unchanged. */
+@media (prefers-reduced-motion: reduce) {
+  .public-mobile-section-nav .transition-transform,
+  .public-section-navigation .transition-transform,
+  .public-site-sidebar,
+  .public-site-sidebar-link,
+  .public-drawer-page-link,
+  .public-section-nav-toggle {
+    transition: none !important;
+    animation: none !important;
+  }
+}
