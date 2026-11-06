@@ -60,6 +60,8 @@
 .public-mobile-section-trigger:focus-visible,
 .public-mobile-section-link:focus-visible,
 .public-site-sidebar-link:focus-visible,
+.public-drawer-page-link:focus-visible,
+.public-section-nav-toggle:focus-visible,
 .public-site-sidebar details > summary:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: -2px;
@@ -86,7 +88,7 @@
 
 .public-site-sidebar-link {
   display: flex;
-  min-height: 2.5rem;
+  min-height: 2.75rem;
   align-items: center;
   border-radius: .65rem;
   padding: .45rem .65rem;
@@ -247,7 +249,7 @@
 
   .public-section-navigation.is-collapsible .public-section-nav-toggle {
     display: flex;
-    min-height: 2.5rem;
+    min-height: 2.75rem;
     width: 100%;
     align-items: center;
     gap: .55rem;
