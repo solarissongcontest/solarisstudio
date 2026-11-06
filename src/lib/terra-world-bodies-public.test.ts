@@ -455,18 +455,30 @@ describe("TG3 institution body offices", () => {
     expect(query.limit).toHaveBeenCalledWith(WORLD_BODY_OFFICE_LIMIT);
   });
 
-  it("rejects an apparently complete but silently truncated public office roster", async () => {
+  it("retains the explicitly labeled 20-office preview when more offices exist", async () => {
     const query = chain({});
-    const offices = Array.from({ length: WORLD_BODY_OFFICE_LIMIT }, (_, index) => ({
+    const firstOffices = Array.from({ length: WORLD_BODY_OFFICE_LIMIT }, (_, index) => ({
       ...office, id: `office-${index + 1}`,
     }));
-    query.limit.mockResolvedValue({ data: offices, error: null, count: WORLD_BODY_OFFICE_LIMIT + 1 });
+    query.limit.mockResolvedValue({ data: firstOffices, error: null, count: WORLD_BODY_OFFICE_LIMIT + 1 });
     mockFrom.mockReturnValue(query);
-    await expect(readPublicBodyOffices(publicParent, publicBody)).rejects.toThrow("could not be verified");
+    const result = await readPublicBodyOffices(publicParent, publicBody);
+    expect(result).toHaveLength(WORLD_BODY_OFFICE_LIMIT);
+    expect(result[WORLD_BODY_OFFICE_LIMIT - 1].id).toBe(`office-${WORLD_BODY_OFFICE_LIMIT}`);
     expect(query.select).toHaveBeenCalledWith(
       expect.stringContaining("world_organization_organs!world_offices_organ_same_organization_fk!inner"),
       { count: "exact" },
     );
+  });
+
+  it("rejects a silently short 20-office preview when more records exist", async () => {
+    const query = chain({});
+    const incomplete = Array.from({ length: WORLD_BODY_OFFICE_LIMIT - 1 }, (_, index) => ({
+      ...office, id: `office-${index + 1}`,
+    }));
+    query.limit.mockResolvedValue({ data: incomplete, error: null, count: WORLD_BODY_OFFICE_LIMIT + 1 });
+    mockFrom.mockReturnValue(query);
+    await expect(readPublicBodyOffices(publicParent, publicBody)).rejects.toThrow("could not be verified");
   });
 
   it("rejects unverified or inconsistent public office counts instead of showing incomplete official data", async () => {
