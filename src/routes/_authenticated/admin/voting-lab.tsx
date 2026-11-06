@@ -25,7 +25,7 @@ export const Route = createFileRoute('/_authenticated/admin/voting-lab')({
   head: () => ({
     meta: [
       { title: 'Voting Laboratory — Solaris Organizer' },
-      { name: 'robots', content: 'noindex' },
+      { name: 'robots', content: 'noindex, nofollow' },
     ],
   }),
   component: VotingLabPage,
@@ -50,8 +50,9 @@ function VotingLabPage() {
   const [invalidPolicy, setInvalidPolicy] = useState<'reject' | 'cap'>('cap');
 
   const featureQuery = useQuery({
-    queryKey: ['studio2-feature', 'voting_lab'],
-    queryFn: () => isStudio2FeatureEnabled('voting_lab'),
+    queryKey: ['studio2-feature', 'voting_lab', editionId ?? 'none'],
+    enabled: Boolean(editionId),
+    queryFn: () => isStudio2FeatureEnabled('voting_lab', editionId),
     staleTime: 30_000,
   });
 
@@ -96,6 +97,21 @@ function VotingLabPage() {
     }
   }, [customConfig, syntheticBallots]);
 
+  if (!editionId) {
+    return (
+      <AdminPage>
+        <div className="mx-auto max-w-7xl space-y-4">
+          <VotingLabPageHeader />
+          <AdminEmptyState
+            icon={FlaskConical}
+            title="Select an edition"
+            description="Voting Laboratory uses only the exact selected Organizer edition as its entry pool. It will not probe a global rollout, load production ballots, sample all editions or substitute another edition."
+          />
+        </div>
+      </AdminPage>
+    );
+  }
+
   if (featureQuery.isLoading) {
     return (
       <AdminPage>
@@ -115,22 +131,7 @@ function VotingLabPage() {
           <AdminEmptyState
             icon={FlaskConical}
             title="Voting Laboratory is disabled"
-            description="Enable the Voting Lab rollout flag before running synthetic vote simulations."
-          />
-        </div>
-      </AdminPage>
-    );
-  }
-
-  if (!editionId) {
-    return (
-      <AdminPage>
-        <div className="mx-auto max-w-7xl space-y-4">
-          <VotingLabPageHeader />
-          <AdminEmptyState
-            icon={FlaskConical}
-            title="Select an edition"
-            description="Voting Laboratory uses only the exact selected Organizer edition as its entry pool. It will not load production ballots, an all-editions sample, or substitute another edition."
+            description="Enable the Voting Lab rollout flag for this edition before running synthetic vote simulations."
           />
         </div>
       </AdminPage>
