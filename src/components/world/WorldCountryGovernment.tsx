@@ -29,20 +29,25 @@ function GovernmentFact({ label, value }: { label: string; value: string | null 
 export function WorldCountryGovernmentScreen({ code }: { code: string }) {
   const query = useCountryGovernment(code);
   const invalid = !validGovernmentCountryCode(code);
-  const data = query.data;
+  // A cached successful read is not current publication evidence. Suppress
+  // all Government content during a recheck or after its failure, even when
+  // React Query still retains the previous response.
+  const verified = query.isSuccess && query.isFetchedAfterMount &&
+    !query.isFetching && !query.isError && !query.isRefetchError;
+  const data = verified ? query.data : undefined;
   const profile = data?.profile;
   const leader = profile?.leaderName ? [profile.leaderTitle, profile.leaderName].filter(Boolean).join(" ") : null;
   return (
     <AppShell>
-      <main className="mx-auto w-full max-w-6xl px-4 pb-16 pt-5 sm:px-6 sm:pt-8 lg:px-8">
+      <div className="mx-auto w-full max-w-6xl px-4 pb-28 pt-5 sm:px-6 sm:pt-8 lg:px-8">
         <nav aria-label="Country government breadcrumb" className="mb-7 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <Link to="/countries" className="inline-flex min-h-10 items-center gap-2 hover:text-foreground">Countries</Link>
           {data ? <><span aria-hidden="true">/</span><Link to="/countries/$code" params={{ code: data.country.code }} className="hover:text-foreground">{data.country.name}</Link></> : null}
           <span aria-hidden="true">/</span><span className="font-semibold text-foreground">Government</span>
         </nav>
         {invalid || data === null ? <GovernmentState title="Country not found" detail="No public country is registered at this address. Check the country code or browse the country directory." /> : null}
-        {query.isPending && !invalid && data === undefined ? <GovernmentState loading title="Opening government profile" detail="Loading this country's public Terra Solaris record…" /> : null}
-        {query.isError && !data ? <GovernmentState title="Government profile unavailable" detail="The authoritative public country profile could not be read. No private editor content or guessed officials are shown." retry={() => void query.refetch()} /> : null}
+        {!invalid && !query.isError && !query.isRefetchError && (query.isPending || query.isFetching || !query.isFetchedAfterMount) ? <GovernmentState loading title="Verifying government profile" detail="Checking this country's currently published Terra Solaris record…" /> : null}
+        {(query.isError || query.isRefetchError) ? <GovernmentState title="Government profile unavailable" detail="The public country profile could not be verified. Previous cached sections are hidden until a fresh check succeeds." retry={() => void query.refetch()} /> : null}
         {data ? (
           <>
             <header className="max-w-4xl border-b border-border/70 pb-8">
@@ -106,10 +111,9 @@ export function WorldCountryGovernmentScreen({ code }: { code: string }) {
                 </section>
               </aside>
             </div>
-            {query.isError ? <p role="status" className="mt-7 text-xs text-muted-foreground">Showing cached public profile. Refresh is currently unavailable.</p> : null}
           </>
         ) : null}
-      </main>
+      </div>
     </AppShell>
   );
 }
