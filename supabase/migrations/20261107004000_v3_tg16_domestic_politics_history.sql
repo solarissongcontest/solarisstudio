@@ -134,6 +134,9 @@ begin
      ) then
     raise exception using errcode = '42501', message = 'AUTHORIZATION';
   end if;
+  if not coalesce(public.studio2_feature_enabled('terra_world_public',null),false) then
+    raise exception using errcode='42501',message='WORLD_NOT_PUBLISHED';
+  end if;
   if p_kind not in ('party','election','editorial_history')
      or p_payload is null or jsonb_typeof(p_payload) <> 'object'
      or pg_column_size(p_payload) > 16384
@@ -381,6 +384,7 @@ as $reader$
  left join public.country_profiles pr on pr.country_id=c.id
  where lower(c.short_code)=lower(btrim(p_country_code))
    and length(btrim(p_country_code)) between 2 and 12
+   and coalesce(public.studio2_feature_enabled('terra_world_public',null),false)
  limit 1
 $reader$;
 revoke all on function public.world_domestic_country_v1(text)
@@ -403,6 +407,9 @@ begin
        length(btrim(p_country_code)) not between 2 and 12
        or p_country_code !~ '^[[:alnum:]-]+$')) then
     raise exception using errcode='22023',message='VALIDATION';
+  end if;
+  if not coalesce(public.studio2_feature_enabled('terra_world_public',null),false) then
+    raise exception using errcode='42501',message='WORLD_NOT_PUBLISHED';
   end if;
   select coalesce(jsonb_agg(to_jsonb(page_row) order by page_row.occurred_at desc,
                              page_row.id desc),'[]'::jsonb)
