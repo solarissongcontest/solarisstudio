@@ -123,11 +123,16 @@ export async function readPublicWorldBodies(
     .order("slug", { ascending: true })
     .range(page * WORLD_BODIES_PAGE_SIZE, (page + 1) * WORLD_BODIES_PAGE_SIZE - 1);
   if (error) throw new Error("Public institutional bodies could not be loaded.");
+  const offset = page * WORLD_BODIES_PAGE_SIZE;
   if (!Number.isSafeInteger(count) || count < 0 || !Array.isArray(data) ||
       data.length > WORLD_BODIES_PAGE_SIZE ||
-      (page * WORLD_BODIES_PAGE_SIZE + data.length > count)) {
+      (data.length > 0 && offset + data.length > count) ||
+      (data.length === 0 && offset < count)) {
     throw new Error("Public institutional bodies could not be verified.");
   }
+  // A page may become empty between requests when a published organ is withdrawn.
+  // Return the verified count instead of turning a legitimate out-of-range page
+  // into an error, so the UI can reset to the final available page.
   const bodies = data.map((row: unknown) => decodePublicWorldBody(row, organization.id));
   if (bodies.some((body: PublicWorldBody | null) => !body)) {
     throw new Error("An institutional body had an invalid public identity.");
