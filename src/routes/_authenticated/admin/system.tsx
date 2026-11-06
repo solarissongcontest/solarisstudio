@@ -165,14 +165,21 @@ function AdminSystemPage() {
   );
   const [platformPassword, setPlatformPassword] = useState("");
 
-  // An unfinished reminder form must not follow the operator to a new edition.
+  // Keep an unfinished reminder draft while the edition list revalidates.
+  // Only a real scope switch or a confirmed missing edition discards the draft.
+  // A background refresh/error must never silently erase typed Organizer work.
   useEffect(() => {
-    if (createOpen && createEditionId && createEditionId !== selectedEdition?.id) {
+    if (
+      createOpen &&
+      createEditionId &&
+      (editionId !== createEditionId ||
+        (editionsReady && selectedEdition?.id !== createEditionId))
+    ) {
       setCreateOpen(false);
       setCreateEditionId(null);
       setForm({ label: "", due_at: "", notes: "" });
     }
-  }, [createOpen, createEditionId, selectedEdition?.id]);
+  }, [createOpen, createEditionId, editionId, editionsReady, selectedEdition?.id]);
 
   const applyPlatformMode = useMutation({
     mutationFn: async ({
