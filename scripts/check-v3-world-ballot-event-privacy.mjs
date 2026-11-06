@@ -33,10 +33,16 @@ export function stripSqlComments(sql) {
       continue;
     }
     if (sql.slice(i, i + 2) === "/*") {
-      const end = sql.indexOf("*/", i + 2);
-      if (end < 0) throw new Error("Unterminated SQL comment");
-      result += sql.slice(i, end + 2).replace(/[^\n]/g, " ");
-      i = end + 2;
+      const start = i;
+      let depth = 1;
+      i += 2;
+      while (i < sql.length && depth > 0) {
+        if (sql.slice(i, i + 2) === "/*") { depth++; i += 2; }
+        else if (sql.slice(i, i + 2) === "*/") { depth--; i += 2; }
+        else i++;
+      }
+      if (depth > 0) throw new Error("Unterminated SQL comment");
+      result += sql.slice(start, i).replace(/[^\n]/g, " ");
       continue;
     }
     result += sql[i++];
@@ -81,8 +87,77 @@ export function sqlCallArguments(sql, openingParen) {
 }
 
 /**
- * Explicit SQL source is mandatory. Exactly one literal ballot-cast producer
- * is accepted so missing/duplicated events cannot quietly pass an audit.
+ * Locate the canonical ballot command body. Ordinary SQL strings and random
+ * dollar-quoted prose outside the command are not evidence that the event
+ * exists in the transaction that records a ballot.
+ */
+export function worldBallotCommandBody(sql) {
+  const source = stripSqlComments(sql);
+  const declarations = [...source.matchAll(/\bcreate\s+or\s+replace\s+function\s+public\s*\.\s*world_cast_ballot_v1\s*\(/gi)];
+  if (declarations.length !== 1) {
+    throw new Error("Expected exactly one canonical world_cast_ballot_v1 function");
+  }
+  const declaration = declarations[0];
+  const params = sqlCallArguments(source, declaration.index + declaration[0].lastIndexOf("("));
+  const header = source.slice(params.end, params.end + 1500);
+  const quoted = /\bas\s+(\$[a-z_0-9]*\$)/i.exec(header);
+  if (!quoted) throw new Error("Ballot command body delimiter not found");
+  const delimiter = quoted[1];
+  const start = params.end + quoted.index + quoted[0].length;
+  const end = source.indexOf(delimiter, start);
+  if (end < 0) throw new Error("Unterminated ballot command body");
+  return source.slice(start, end);
+}
+
+/** Skip strings and nested literals while finding executable event invocations. */
+export function executableWorldEventCalls(body) {
+  const calls = [];
+  const pattern = /^private\s*\.\s*v3_emit_domain_event\s*\(/i;
+  for (let i = 0; i < body.length;) {
+    const ch = body[i];
+    if (ch === "'" || ch === '"') {
+      const quote = ch;
+      let closed = false;
+      for (++i; i < body.length; i++) {
+        if (body[i] !== quote) continue;
+        if (body[i + 1] === quote) { i++; continue; }
+        closed = true;
+        i++;
+        break;
+      }
+      if (!closed) throw new Error("Unterminated ballot command string");
+      continue;
+    }
+    if (ch === "$" ) {
+      const tag = /^\$[a-z_0-9]*\$/i.exec(body.slice(i));
+      if (tag) {
+        const end = body.indexOf(tag[0], i + tag[0].length);
+        if (end < 0) throw new Error("Unterminated nested SQL literal");
+        i = end + tag[0].length;
+        continue;
+      }
+    }
+    if (ch === "/" && body[i + 1] === "*") {
+      // stripSqlComments already masks nested comments, but reject any
+      // unstripped ones rather than treating their contents as code.
+      throw new Error("Unparsed nested SQL comment");
+    }
+    const match = pattern.exec(body.slice(i));
+    if (match && (i === 0 || !/[\p{L}\p{N}_]/u.test(body[i - 1]))) {
+      const openingParen = i + match[0].lastIndexOf("(");
+      const call = sqlCallArguments(body, openingParen);
+      calls.push(call.args);
+      i = call.end;
+      continue;
+    }
+    i++;
+  }
+  return calls;
+}
+
+/**
+ * Explicit source is mandatory. Exactly one executable invocation in the
+ * canonical ballot command is accepted. No DB/network or runtime authority.
  */
 export function auditWorldBallotEventSql(sources) {
   if (!Array.isArray(sources) || sources.length === 0) {
@@ -94,17 +169,13 @@ export function auditWorldBallotEventSql(sources) {
         typeof source.content !== "string" || source.content.length > 2_000_000) {
       throw new Error("Invalid or oversized SQL source");
     }
-    const sql = stripSqlComments(source.content);
-    const pattern = /\bprivate\s*\.\s*v3_emit_domain_event\s*\(/gi;
-    for (const match of sql.matchAll(pattern)) {
-      const openingParen = match.index + match[0].lastIndexOf("(");
-      const call = sqlCallArguments(sql, openingParen);
-      if (call.args[0]?.toLowerCase() !== "'world.vote.ballot_cast'") continue;
-      found.push({ source: source.name, args: call.args });
+    if (!/\bworld_cast_ballot_v1\b/i.test(source.content)) continue;
+    for (const args of executableWorldEventCalls(worldBallotCommandBody(source.content))) {
+      found.push({ source: source.name, args });
     }
   }
   if (found.length !== 1) {
-    throw new Error("Expected exactly one literal world.vote.ballot_cast event; found " + found.length);
+    throw new Error("Expected exactly one executable ballot event; found " + found.length);
   }
   const { args, source } = found[0];
   if (args.length !== 10) throw new Error("Unexpected ballot event envelope");
