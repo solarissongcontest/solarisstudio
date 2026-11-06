@@ -106,14 +106,20 @@ if (!inputPath) fail("V3_SECURITY_ADVISOR_RAW is required");
 if (!projectRef) fail("V3_SECURITY_ADVISOR_PROJECT_REF is required");
 
 const envelope = unwrapAdvisorEnvelope(readJson(inputPath));
+// A successful scan may have zero findings, but zero lint families proves no
+// advisor coverage at all. Never turn a missing/truncated scan into clean S16 evidence.
+if (envelope.lints.length === 0) fail("advisor response contains no lint families");
 const findings: CanonicalFinding[] = [];
 const ids = new Set<string>();
+const lintNames = new Set<string>();
 
 for (const lint of envelope.lints) {
   const lintName = typeof lint.name === "string" ? lint.name.trim() : "";
   const lintTitle = typeof lint.title === "string" ? lint.title.trim() : "";
   const level = typeof lint.level === "string" ? lint.level.trim().toUpperCase() : "";
   if (!lintName) fail("every advisor lint family requires a name");
+  if (lintNames.has(lintName)) fail(`duplicate advisor lint family ${lintName}`);
+  lintNames.add(lintName);
   if (!lintTitle) fail(`advisor lint ${lintName} requires a title`);
   if (!allowedLevels.has(level)) fail(`unsupported advisor level for ${lintName}: ${level || "<missing>"}`);
   if (!Array.isArray(lint.findings)) fail(`advisor lint ${lintName} requires a findings array`);
