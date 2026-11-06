@@ -699,7 +699,11 @@ function EntryReviewCard({
             <AdminStatus tone={reviewTone(status)}>{status}</AdminStatus>
             {winner ? <AdminStatus tone="ready">Winner</AdminStatus> : null}
             {storedWinner && !winner ? (
-              <AdminStatus tone="attention">Stored winner is inactive</AdminStatus>
+              <AdminStatus tone="attention">
+                {entry.removed || entry.review_status === "removed"
+                  ? "Stored winner is inactive"
+                  : "Stored winner needs current-version review"}
+              </AdminStatus>
             ) : null}
           </div>
         </div>
@@ -1723,7 +1727,7 @@ function ResponseDetailPage() {
                   submissionId={data.id}
                   storedWinner={data.national_final?.winning_entry_id === entry.id}
                   winner={data.national_final?.winning_entry_id === entry.id &&
-                    !entry.removed && entry.review_status !== "removed"}
+                    effectiveOrganizerEntryReviewStatus(entry) === "accepted"}
                   onChanged={load}
                   isScopeCurrent={isDisplayedResponseCurrent}
                   onWinner={(reason) => setWinner(entry, reason)}
