@@ -415,7 +415,7 @@ function CommunicationsCentre() {
         entryFollowupReviewEditionId !== editionId || busy) {
       setEntryFollowupReviewOpen(false);
       setEntryFollowupReviewEditionId(null);
-      toast.error("Organizer edition or communication state changed. Reopen the Entry follow-up review.");
+      setReviewError(new Error("Organizer edition or communication state changed. Reopen the Entry follow-up review."));
       return;
     }
     // A confirmed template replaces local composer state only. It does not
