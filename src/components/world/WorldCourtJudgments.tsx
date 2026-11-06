@@ -384,6 +384,10 @@ export function WorldCourtJudgments({ caseId }: { caseId: string }) {
           Published Court decisions, historical versions and authorized judicial actions.
           Private proceedings are never part of public discovery.
         </p>
+        <Link to="/world/court/$caseId/proceedings" params={{caseId}}
+          className="mt-4 inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold">
+          Read hearings and official orders
+        </Link>
         <button type="button" onClick={reload}
           className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg border border-border px-4 text-sm font-semibold">
           <RefreshCw size={16} aria-hidden="true" /> Refresh official record
