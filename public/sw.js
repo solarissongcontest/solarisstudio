@@ -281,6 +281,29 @@ async function reportPushReceipt(data, stage) {
   }
 }
 
+// Classify the destination the browser will actually interpret, not only the
+// raw producer string. Encoded separators (/world%2Fcourt) and encoded letters
+// (/%77orld) otherwise bypass the lock-screen redaction fallback.
+function isWorldPushRoute(candidate) {
+  if (typeof candidate !== "string") return false;
+  let path = normalizePushRoute(candidate).split(/[?#]/, 1)[0].toLowerCase();
+
+  // Decode repeatedly to handle producer-to-provider double encoding. A path
+  // that remains ambiguous or malformed is conservatively treated as private.
+  for (let depth = 0; depth < 8; depth++) {
+    if (path === "/world" || path.startsWith("/world/")) return true;
+    if (!path.includes("%")) return false;
+    try {
+      const next = decodeURIComponent(path);
+      if (next === path) return false;
+      path = next.toLowerCase();
+    } catch {
+      return true;
+    }
+  }
+  return path === "/world" || path.startsWith("/world/") || path.includes("%");
+}
+
 // Belt-and-suspenders protection for lock screens: other push producers may
 // be deployed before the canonical World dispatcher. Never trust a detailed
 // Court/Ethics title or allegation sent with a private/world classification.
@@ -303,6 +326,7 @@ function resolvePushDisplayContent(candidate) {
     category === "world" || category.startsWith("world.") || category.startsWith("world_") ||
     eventType === "world" || eventType.startsWith("world.") || eventType.startsWith("world_") ||
     route === "/world" || route.startsWith("/world/") || route.startsWith("/world?") ||
+    isWorldPushRoute(payload.route) ||
     institutionalKind.test(category) || institutionalKind.test(eventType);
 
   if (!sensitive) {
