@@ -31,6 +31,7 @@ import { publicSearchPublicationScope, publicSearchRowsForPublishedShows } from 
 import { excludeSearchSpoilerEdition, excludeSearchSpoilerStories, resolvePublicSearchSpoilerPreviewScope } from "@/lib/public-search-spoiler-preview";
 import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
 import { canSuggestDelegationSearchActions } from "@/lib/public-search-action-visibility";
+import { limitV3PublicSearchGroups, matchesV3PublicSearch, navigationV3PublicSearchResults, rankV3PublicSearchResults } from "@/lib/v3-public-search-relevance";
 import {
   editionLabel,
   useAllJuryVotes,
@@ -43,8 +44,6 @@ import {
 } from "@/lib/data";
 import {
   dedupePublicSearchResults,
-  matchesPublicSearch,
-  navigationSearchResults,
   type PublicSearchResult,
 } from "@/lib/public-search";
 import { isRecentShowPublic } from "@/lib/public-recent-show-publication";
@@ -60,9 +59,12 @@ import { cn } from "@/lib/utils";
 export function PublicCommandPalette({
   compact = false,
   access,
+  keyboardShortcut = true,
 }: {
   compact?: boolean;
   access?: AccountAccess;
+  /** Mobile Home uses the same palette without registering a second global shortcut. */
+  keyboardShortcut?: boolean;
 }) {
   const { isAppMode } = useSolarisApp();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -72,6 +74,7 @@ export function PublicCommandPalette({
   const wasOpen = useRef(false);
 
   useEffect(() => {
+    if (!keyboardShortcut) return;
     const handler = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -82,7 +85,7 @@ export function PublicCommandPalette({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [keyboardShortcut]);
 
   useEffect(() => {
     if (!isAppMode) return;
@@ -281,11 +284,14 @@ function AppPublicPaletteDialog({
     // hosted read traffic. Explicit Retry remains under the visitor's control.
     retry: false,
     refetchOnWindowFocus: false,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("solaris_public_search", {
-        search_query: debouncedQuery,
-        result_limit: 30,
-      });
+    queryFn: async ({ signal }) => {
+      // A superseded React Query key cancels the pending PostgREST request.
+      const { data, error } = await (supabase as any)
+        .rpc("solaris_public_search", {
+          search_query: debouncedQuery,
+          result_limit: 30,
+        })
+        .abortSignal(signal);
       if (error) throw error;
       return (Array.isArray(data) ? data : []) as AppSearchRow[];
     },
@@ -358,9 +364,9 @@ function AppPublicPaletteDialog({
 
     const local = [
       ...actionResults.filter((item) =>
-        matchesPublicSearch(normalized, item.label, item.description, item.keywords),
+        matchesV3PublicSearch(normalized, item.label, item.description, item.keywords),
       ),
-      ...navigationSearchResults(normalized),
+      ...navigationV3PublicSearchResults(normalized),
       ...searchGovernanceLibrary(normalized).slice(0, 16).map((item) => ({
         id: `governance:${item.to}:${item.title}`,
         label: item.title,
@@ -370,7 +376,7 @@ function AppPublicPaletteDialog({
       })),
     ];
 
-    return dedupePublicSearchResults([...local, ...remoteResults]).slice(0, 50);
+    return limitV3PublicSearchGroups(rankV3PublicSearchResults(dedupePublicSearchResults([...local, ...remoteResults]), normalized));
   }, [actionResults, normalized, awaitingRemote, remote.data, remote.isError]);
 
   const grouped = useMemo(() => {
@@ -674,7 +680,7 @@ function WebPublicPaletteDialog({
           {renderSearchGroups(idleGroups, openIdleResult)}
           {!recentResults.length ? (
             <CommandGroup heading="Start here">
-              {navigationSearchResults("")
+              {navigationV3PublicSearchResults("")
                 .filter((item) =>
                   ["/explore", "/participate", "/results", "/guide", "/rules"].includes(item.href),
                 )
@@ -817,17 +823,17 @@ function WebSearchArchiveResults({
   const searchResults = useMemo(() => {
     const values: PublicSearchResult[] = [
       ...actionResults.filter((item) =>
-        matchesPublicSearch(
+        matchesV3PublicSearch(
           normalized,
           item.label,
           item.description,
           item.keywords,
         ),
       ),
-      ...navigationSearchResults(normalized),
+      ...navigationV3PublicSearchResults(normalized),
       ...countries
         .filter((country) =>
-          matchesPublicSearch(
+          matchesV3PublicSearch(
             normalized,
             country.name,
             country.native_name,
@@ -853,10 +859,11 @@ function WebSearchArchiveResults({
         ]),
       ...publicEditions
         .filter((edition) =>
-          matchesPublicSearch(
+          matchesV3PublicSearch(
             normalized,
             edition.name,
             edition.edition_number,
+            edition.edition_number == null ? null : `SSC ${edition.edition_number}`,
             edition.year,
             edition.host_city,
             edition.slug,
@@ -872,12 +879,13 @@ function WebSearchArchiveResults({
       ...publicShows
         .filter((show) => {
           const edition = editionById.get(show.edition_id);
-          return matchesPublicSearch(
+          return matchesV3PublicSearch(
             normalized,
             show.name,
             show.kind,
             edition?.name,
             edition?.edition_number,
+            edition?.edition_number == null ? null : `SSC ${edition.edition_number}`,
           );
         })
         .map((show) => {
@@ -895,7 +903,7 @@ function WebSearchArchiveResults({
         spoilerScope.editionSlug,
       )
         .filter((story) =>
-          matchesPublicSearch(
+          matchesV3PublicSearch(
             normalized,
             story.title,
             story.subtitle,
@@ -914,7 +922,7 @@ function WebSearchArchiveResults({
         .filter((entry) => {
           const country = countryById.get(entry.country_id);
           const edition = editionById.get(entry.edition_id);
-          return matchesPublicSearch(
+          return matchesV3PublicSearch(
             normalized,
             entry.artist,
             entry.song,
@@ -922,6 +930,7 @@ function WebSearchArchiveResults({
             country?.short_code,
             edition?.name,
             edition?.edition_number,
+            edition?.edition_number == null ? null : `SSC ${edition.edition_number}`,
           );
         })
         .map((entry) => {
@@ -948,7 +957,7 @@ function WebSearchArchiveResults({
       ...scorechartShows
         .filter((show) => {
           const edition = editionById.get(show.edition_id);
-          return matchesPublicSearch(
+          return matchesV3PublicSearch(
             normalized,
             show.name,
             show.kind,
@@ -974,7 +983,7 @@ function WebSearchArchiveResults({
         }),
       ...records
         .filter((record) =>
-          matchesPublicSearch(
+          matchesV3PublicSearch(
             normalized,
             record.label,
             record.value,
@@ -1006,7 +1015,7 @@ function WebSearchArchiveResults({
       })),
     ];
 
-    return dedupePublicSearchResults(values).slice(0, 50);
+    return limitV3PublicSearchGroups(rankV3PublicSearchResults(dedupePublicSearchResults(values), normalized));
   }, [
     actionResults,
     countries,
