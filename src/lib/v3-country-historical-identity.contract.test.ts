@@ -75,6 +75,7 @@ describe("canonical Country historical identity presentation", () => {
     expect(sections).toContain("!identityHistory.isRefetchError && !identityHistory.isFetching");
     expect(sections).toContain('anchorId={surface === "country" ? "former-identities" : undefined}');
     expect(sections).toContain('className="aspect-[3/2] w-full');
+    expect(sections).toContain('span className="grid aspect-[3/2] w-full');
     expect(sections).toContain("<FormerCountryIdentities");
     expect(world).toContain("sections={data?.schemaReady ? data.sections : []}");
     expect(world).not.toContain("{data?.schemaReady ? (");

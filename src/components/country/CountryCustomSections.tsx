@@ -185,7 +185,7 @@ export function FormerCountryIdentities({
             {identity.flag ? (
               <FlagFrame image={identity.flag} alt={`${identity.name} flag`} fallback={country.short_code} className="aspect-[3/2] w-full rounded-md border border-border/55" />
             ) : (
-              <span className="grid h-12 w-full place-items-center rounded-md border border-border bg-surface text-[10px] font-bold text-muted-foreground">
+              <span className="grid aspect-[3/2] w-full place-items-center rounded-md border border-border bg-surface text-[10px] font-bold text-muted-foreground">
                 {country.short_code}
               </span>
             )}
