@@ -94,25 +94,33 @@ function parseSearchRows(value: unknown): ReferenceItem[] {
     }
 
     const row = raw as Record<string, unknown>;
-    if (!RESULT_KINDS.has(row.result_type as ResultKind)) return [];
+    // The published search RPC still emits legacy Wiki country hits. Route those
+    // through the canonical Country destination instead of silently dropping them.
+    const legacyWiki = row.result_type === "wiki";
+    if (!legacyWiki && !RESULT_KINDS.has(row.result_type as ResultKind)) return [];
 
     const id = typeof row.result_id === "string" ? row.result_id.trim() : "";
     const title = typeof row.title === "string" ? row.title.trim() : "";
     const href = typeof row.href === "string" ? row.href.trim() : "";
 
-    if (!id || !title || !href.startsWith("/") || href.startsWith("//")) {
+    if (!id || !title || !href.startsWith("/") || href.startsWith("//") ||
+      (legacyWiki && !/^\/wiki\/[A-Za-z0-9_-]+$/.test(href))) {
       throw new Error("Invalid public Reference result");
     }
-    if (seen.has(id)) return [];
-    seen.add(id);
+    const canonicalHref = legacyWiki ? href.replace(/^\/wiki\//, "/countries/") : href;
+    const kind = legacyWiki ? "country" : row.result_type as ResultKind;
+    // Country and legacy Wiki records point to the same canonical public entity.
+    const dedupeKey = kind === "country" ? `country:${canonicalHref}` : id;
+    if (seen.has(dedupeKey)) return [];
+    seen.add(dedupeKey);
 
     return [
       {
         id,
-        kind: row.result_type as ResultKind,
-        title,
+        kind,
+        title: legacyWiki && title.endsWith(" in the Wiki") ? title.slice(0, -" in the Wiki".length) : title,
         subtitle: typeof row.subtitle === "string" ? row.subtitle : "",
-        href,
+        href: canonicalHref,
       },
     ];
   });
