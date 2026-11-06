@@ -86,6 +86,10 @@ describe("country page presentation ownership", () => {
     expect(css).not.toContain(":root {");
     expect(masthead).toContain("aspect-[3/2]");
     expect(masthead).toContain("FlagFrame");
+    // The legacy detail alias redirects back to the canonical Country page
+    // when Reference is enabled; navigation must go to the Reference index.
+    expect(masthead).toContain('<Link to="/wiki" className={COUNTRY_MOBILE_LINK_CLASS}>');
+    expect(masthead).not.toContain('to="/wiki/$code"');
     expect(masthead).toContain("hasLongDescription");
     expect(masthead).toContain("aria-controls={descriptionId}");
     expect(masthead).toContain("aria-expanded={descriptionExpanded}");
