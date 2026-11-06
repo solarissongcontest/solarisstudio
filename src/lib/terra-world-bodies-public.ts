@@ -6,6 +6,14 @@ import { supabase } from "@/integrations/supabase/client";
  * protected both by the existing RLS and explicit public predicates.
  */
 export const WORLD_BODIES_PAGE_SIZE = 24;
+export type WorldBodyStatusFilter = "all" | "active" | "historical";
+
+export function cleanWorldBodySearch(term: string): string {
+  // Remove PostgREST filter grammar and LIKE wildcards before constructing a bounded name search.
+  return term.normalize("NFC")
+    .replace(/[^\\p{L}\\p{N} -]/gu, "")
+    .replace(/\\s+/g, " ").trim().slice(0, 64);
+}
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export function validWorldSlug(value: string): boolean {
@@ -93,14 +101,23 @@ export type WorldBodyDirectory = {
 
 export async function readPublicWorldBodies(
   slug: string, requestedPage: number,
+  options: { term?: string; status?: WorldBodyStatusFilter } = {},
 ): Promise<WorldBodyDirectory | null> {
   const organization = await readPublicWorldInstitution(slug);
   if (!organization) return null;
   const page = Number.isSafeInteger(requestedPage)
     ? Math.max(0, Math.min(1000, requestedPage)) : 0;
-  const { data, error, count } = await (supabase as any).from("world_organization_organs")
+  const term = cleanWorldBodySearch(options.term ?? "");
+  let request = (supabase as any).from("world_organization_organs")
     .select("id,organization_id,slug,name,short_name,type,status,visibility,sort_order", { count: "exact" })
-    .eq("organization_id", organization.id).eq("visibility", "public")
+    .eq("organization_id", organization.id).eq("visibility", "public");
+  if (options.status === "active" || options.status === "historical") {
+    request = request.eq("status", options.status);
+  }
+  if (term) {
+    request = request.or("name.ilike.%" + term + "%,short_name.ilike.%" + term + "%");
+  }
+  const { data, error, count } = await request
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true })
     .range(page * WORLD_BODIES_PAGE_SIZE, (page + 1) * WORLD_BODIES_PAGE_SIZE - 1);
