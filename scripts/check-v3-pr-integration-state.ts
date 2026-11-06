@@ -118,7 +118,7 @@ function main() {
   if (options.requireExactHeadVerified) {
     const failures = v3PrStrictEvidenceFailures(report);
     if (failures.length > 0) {
-      process.stderr.write(`V3 PR strict integration evidence failed:\\n- ${failures.join("\\n- ")}\\n`);
+      process.stderr.write(`V3 PR strict integration evidence failed:\n- ${failures.join("\n- ")}\n`);
       process.exitCode = 1;
     }
   }
