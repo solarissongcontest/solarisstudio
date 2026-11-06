@@ -67,6 +67,8 @@ alter table public.world_treaties enable row level security;
 alter table public.world_treaty_parties enable row level security;
 revoke all on public.world_treaties from public, anon, authenticated;
 revoke all on public.world_treaty_parties from public, anon, authenticated;
+revoke all on public.world_treaties from service_role;
+revoke all on public.world_treaty_parties from service_role;
 
 create or replace function public.world_register_treaty_v1(
   p_document_id uuid,
@@ -253,6 +255,46 @@ revoke all on function public.world_get_published_treaties_v1(text,integer)
  from public,anon,authenticated;
 grant execute on function public.world_get_published_treaties_v1(text,integer)
  to anon,authenticated;
+
+-- Private manager projection for exact treaty registration/duplicate detection.
+create or replace function public.world_get_treaty_manager_v1(p_document_id uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = pg_catalog
+as $manager_treaty$
+declare
+  v_document public.world_documents%rowtype;
+  v_treaty public.world_treaties%rowtype;
+begin
+  select * into v_document from public.world_documents
+  where id=p_document_id and document_type='treaty';
+  if v_document.id is null or not public.world_access_allowed(
+    'world.document.manage',v_document.organization_id,null,null,
+    'document',v_document.id
+  ) then
+    return null;
+  end if;
+  select * into v_treaty from public.world_treaties
+  where document_id=p_document_id;
+  if v_treaty.id is null then
+    return jsonb_build_object('registered',false,'documentId',p_document_id);
+  end if;
+  return jsonb_build_object('registered',true,'documentId',p_document_id,
+    'treatyId',v_treaty.id,'revision',v_treaty.revision,
+    'status',v_treaty.status,'treatyType',v_treaty.treaty_type,
+    'openedAt',v_treaty.opened_at,
+    'countries',(
+      select coalesce(jsonb_agg(party.country_id order by party.country_id),'[]'::jsonb)
+      from public.world_treaty_parties party where party.treaty_id=v_treaty.id
+    ));
+end
+$manager_treaty$;
+revoke all on function public.world_get_treaty_manager_v1(uuid)
+ from public,anon,authenticated;
+grant execute on function public.world_get_treaty_manager_v1(uuid)
+ to authenticated;
 
 comment on function public.world_get_published_treaties_v1(text,integer) is
   'TG4 publication-safe registered treaty directory. A listed/invited party is NOT a signature or ratification.';
