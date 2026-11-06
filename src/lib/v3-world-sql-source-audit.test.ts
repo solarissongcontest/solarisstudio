@@ -125,7 +125,7 @@ grant insert (region_id, status), select on table public.world_memberships to an
     "WORLD_BROWSER_DIRECT_DML_GRANT",
     "WORLD_BROWSER_DIRECT_DML_GRANT",
   ]);
-  expect(report.findings[0].detail).toContain("update (status, \\"second,name\\")");
+  expect(report.findings[0].detail).toContain(`update (status, "second,name")`);
   expect(report.findings[1].detail).toContain("insert (region_id, status)");
 });
 
@@ -150,9 +150,9 @@ grant all on all tables in schema private to anon;`;
 
 test("TG19 World SQL: quoted World SECURITY DEFINER function/procedure are inspected", () => {
   const sql = `create or replace function "private"."world_check_v1"() returns integer
-language sql security definer as $select 1$;
+language sql security definer as $fn$select 1$fn$;
 create procedure "public"."world_mutate_v1"() language plpgsql security definer
-set search_path = public as $ begin null; end $;`;
+set search_path = public as $fn$ begin null; end $fn$;`;
   const { report, status } = fixtureRun(sql, true);
   expect(status).toBe(1);
   expect(report.worldFunctionsInspected).toBe(2);
