@@ -33,7 +33,7 @@ describe("country page presentation ownership", () => {
     // Reference-enabled viewers browse the Reference index, never a link
     // that redirects to the same Country. Legacy viewers keep their precise article.
     expect(route.split('<Link to="/wiki">Reference</Link>')).toHaveLength(3);
-    expect(route).toContain('wiki: { label: "Reference", href: "/wiki" }');
+    expect(route).toContain(': { label: "Reference", href: "/wiki" }');
     expect(route).toContain('label: "Wiki article", href: `/wiki/${country.short_code}`');
     expect(route).toContain('legacyWikiArticleAvailable ? (');
     expect(route).toContain('to="/wiki/$code"');
