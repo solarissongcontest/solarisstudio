@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const source = readFileSync("src/routes/_authenticated/admin/jury/$slug.tsx", "utf8");
+const privateVotes = readFileSync("src/lib/v3-organizer-jury-private-votes.ts", "utf8");
 
 describe("Organizer Jury private ballot account/show isolation", () => {
   it("resets prepared correction, DNV and ballot review state when actor or route context changes", () => {
@@ -31,6 +32,9 @@ describe("Organizer Jury private ballot account/show isolation", () => {
     expect(source).toContain("setPendingDnvChange(null);");
     expect(source).toContain('if (privateBallotReadUnavailable) {\n    return (');
     expect(source).toContain("Retry Jury ballot evidence");
+    expect(source).toContain("retryVotes()");
+    expect(source).toContain("loadingVotes ||");
+    expect(source).toContain("votesError");
     expect(source).toContain("privateBallotReadError instanceof Error");
     expect(source).toContain("risk_score");
     expect(source).toContain("review_version");
@@ -44,4 +48,17 @@ describe("Organizer Jury private ballot account/show isolation", () => {
     expect(source).toContain("assign_jury_vote");
     expect(source).toContain("clear_jury_point");
   });
+  it("uses a private actor, edition and show query for raw unpublished Jury scores", () => {
+    expect(source).toContain("useOrganizerJuryVotes({ actorId, editionId: edition?.id, showId: selectedShow?.id })");
+    expect(source).not.toContain("useJuryVotes(selectedShow?.id)");
+    expect(privateVotes).toContain('["jury_votes", "organizer-private", actorId, editionId, showId]');
+    expect(privateVotes).toContain('enabled: Boolean(actorId && editionId && showId)');
+    expect(privateVotes).toContain('.from("jury_votes")');
+    expect(privateVotes).toContain('.eq("edition_id", editionId)');
+    expect(privateVotes).toContain('.eq("show_id", showId)');
+    for (const option of ["gcTime: 0", "retry: false", "refetchInterval: false", "refetchOnWindowFocus: false", "refetchOnReconnect: false"]) {
+      expect(privateVotes).toContain(option);
+    }
+  });
+
 });
