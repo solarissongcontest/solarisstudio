@@ -66,7 +66,7 @@ describe("Organizer V3 Guide parity evidence", () => {
   });
 
   it("remains a private observational help surface with no second data or mutation authority", () => {
-    expect(guide).toContain('{ name: "robots", content: "noindex" }');
+    expect(guide).toContain('{ name: "robots", content: "noindex, nofollow" }');
     expect(guide).not.toContain("supabase");
     expect(guide).not.toContain("useQuery(");
     expect(guide).not.toContain("useMutation(");
