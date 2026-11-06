@@ -623,6 +623,10 @@ function EntryReviewCard({
 
   async function chooseWinner() {
     if (mutationInFlightRef.current || !onWinner || !isScopeCurrent()) return;
+    if (effectiveOrganizerEntryReviewStatus(entry) !== "accepted") {
+      setError("Accept this candidate on its current Entry version before selecting the National Final winner.");
+      return;
+    }
     if (!reason.trim()) {
       setError("Add an organiser reason before selecting the winner.");
       return;
@@ -886,12 +890,17 @@ function EntryReviewCard({
             {onWinner && !storedWinner ? (
               <button
                 type="button"
-                disabled={busy || !reason.trim() || entry.removed || entry.review_status === "removed"}
+                disabled={busy || !reason.trim() || effectiveOrganizerEntryReviewStatus(entry) !== "accepted"}
                 onClick={() => void chooseWinner()}
                 className="admin-action-secondary w-full"
               >
                 <Trophy className="size-4" /> Select as NF winner
               </button>
+            ) : null}
+            {onWinner && !storedWinner && effectiveOrganizerEntryReviewStatus(entry) !== "accepted" ? (
+              <p className="text-xs text-amber-100">
+                Review and accept this candidate's current Entry version before selecting a winner.
+              </p>
             ) : null}
 
             {storedWinner && onClearWinner ? (
