@@ -23,8 +23,10 @@ describe("Public Terra Solaris World Search integration", () => {
     expect(worldRoute).toContain("<WorldPublicGate><WorldLanding /></WorldPublicGate>");
     expect(searchRoute).toContain("<WorldPublicGate verifyOnMount>");
     expect(landing).toContain("refetchOnMount: verifyOnMount");
-    expect(landing).toContain("rollout.isRefetchError");
-    expect(landing).toContain("rollout.isPending || rollout.isFetching");
+    expect(landing).toContain("publicWorldRolloutDisplay(rollout, verifyOnMount)");
+    const gate = source("src/lib/terra-world-rollout-gate.ts");
+    expect(gate).toContain("state.isError || state.isRefetchError");
+    expect(gate).toContain("state.isPending || state.isFetching");
     expect(searchRoute).toContain("<WorldUnifiedSearchPage");
     expect(searchRoute).toContain('createFileRoute("/world/search/")');
     expect(searchRoute).toContain("parseWorldSearchCategory(search.type)");
