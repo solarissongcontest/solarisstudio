@@ -52,9 +52,11 @@ describe("V3 Confirmation authoritative receipt presentation", () => {
   it("persists only validated authoritative receipts for later route recovery", () => {
     const source = store();
 
-    expect(source).toContain('value.receipt?.authority === "authoritative_server"');
-    expect(source).toContain("value.receipt.roundId === roundId");
+    expect(source).toContain('candidate.receipt?.authority === "authoritative_server"');
+    expect(source).toContain("candidate.receipt.roundId === roundId");
     expect(source).toContain("writeStoredV3ConfirmationReceipt");
+    expect(source).toContain("candidate.actorScope === actorScope");
+    expect(source).toContain("candidate.version === 2");
     expect(source).not.toContain("sessionStorage");
   });
 });
