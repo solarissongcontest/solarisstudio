@@ -1,4 +1,10 @@
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
+import {
+  normalizeGuardApplication,
+  parseGuardIntakeReceipt,
+  validateGuardApplication,
+  type GuardApplicationFields,
+} from "@/lib/terra-governance-guard-intake";
 
 // The database command, not this UI adapter, decides eligibility and workflow state.
 const supabase = typedSupabase as any;
@@ -17,6 +23,8 @@ export type GuardReviewApplication = {
   motivation: string;
   contributions: string;
   commitment: string;
+  intakeSource: "solaris" | "external";
+  sourceReference: string | null;
   status: GuardReviewPhase;
   submittedAt: string;
   revision: number;
@@ -76,6 +84,9 @@ export function parseGuardReviewInbox(
       || !validText(row.motivation, 3000)
       || !validText(row.contributions, 3000)
       || !validText(row.commitment, 3000)
+      || (row.intakeSource !== "solaris" && row.intakeSource !== "external")
+      || !(row.sourceReference === null ||
+        (row.intakeSource === "external" && validText(row.sourceReference, 500)))
       || row.status !== phase || !validTimestamp(row.submittedAt)
       || !Number.isSafeInteger(row.revision) || Number(row.revision) < 1) {
       throw new Error("The institutional review projection is incomplete.");
@@ -193,6 +204,95 @@ export async function advanceGuardReview({
     expectedRevision: application.revision,
     targetStatus,
     operationId: operation.operationId,
+  });
+}
+
+
+/** Bounded public country names for the private Chairperson intake picker. */
+export type GuardReviewCountry = { id: string; name: string; short_code: string };
+
+export function parseGuardReviewCountries(value: unknown): GuardReviewCountry[] {
+  if (!Array.isArray(value) || value.length > 200) {
+    throw new Error("Country options could not be verified.");
+  }
+  const seen = new Set<string>();
+  return value.map((item) => {
+    const row = record(item);
+    if (!row || !UUID.test(String(row.id)) || !validText(row.name, 200)
+      || !validText(row.short_code, 20) || seen.has(row.id as string)) {
+      throw new Error("Country options could not be verified.");
+    }
+    seen.add(row.id as string);
+    return { id: row.id as string, name: row.name as string, short_code: row.short_code as string };
+  });
+}
+
+export async function loadGuardReviewCountries(): Promise<GuardReviewCountry[]> {
+  const { data, error } = await supabase.from("countries")
+    .select("id,name,short_code").order("name").limit(200);
+  if (error) throw error;
+  return parseGuardReviewCountries(data);
+}
+
+export type GuardExternalIntakeRequest = {
+  organizationId: string;
+  countryId: string;
+  fields: GuardApplicationFields;
+  sourceReference: string;
+  operation: GuardReviewOperation;
+};
+
+export function newGuardExternalIntakeOperation(): GuardReviewOperation {
+  const id = crypto.randomUUID();
+  return { operationId: id, idempotencyKey: "guard-external-intake:" + id };
+}
+
+export function validateGuardExternalIntake(
+  fields: GuardApplicationFields,
+  sourceReference: string,
+): Record<string, string> {
+  const errors: Record<string, string> = { ...validateGuardApplication(fields) };
+  const length = sourceReference.trim().length;
+  if (length < 8 || length > 500) errors.sourceReference = "Provide a source record between 8 and 500 characters.";
+  return errors;
+}
+
+export function parseGuardExternalIntakeReceipt(
+  response: unknown,
+  expected: { organizationId: string; countryId: string; operationId: string },
+): { applicationId: string; operationId: string; status: "submitted" } {
+  const envelope = record(response);
+  const result = record(envelope?.result);
+  if (!result || result.intakeSource !== "external") {
+    throw new Error("The external application receipt could not be verified.");
+  }
+  return parseGuardIntakeReceipt(response, expected);
+}
+
+export async function registerExternalGuardApplication({
+  organizationId,countryId,fields,sourceReference,operation,
+}: GuardExternalIntakeRequest): Promise<{ applicationId: string; operationId: string; status: "submitted" }> {
+  if (!UUID.test(organizationId) || !UUID.test(countryId) ||
+    !UUID.test(operation.operationId) ||
+    Object.keys(validateGuardExternalIntake(fields,sourceReference)).length > 0) {
+    throw new Error("Correct the external application fields before registration.");
+  }
+  const normalized = normalizeGuardApplication(fields);
+  const { data, error } = await supabase.rpc("world_register_external_guard_application_v1", {
+    p_organization_id: organizationId,
+    p_country_id: countryId,
+    p_official_state_designation: normalized.officialDesignation,
+    p_government_system: normalized.governmentSystem,
+    p_motivation: normalized.motivation,
+    p_contributions: normalized.contributions,
+    p_international_commitment: normalized.commitment,
+    p_source_reference: sourceReference.trim(),
+    p_operation_id: operation.operationId,
+    p_idempotency_key: operation.idempotencyKey,
+  });
+  if (error) throw error;
+  return parseGuardExternalIntakeReceipt(data, {
+    organizationId,countryId,operationId:operation.operationId,
   });
 }
 
