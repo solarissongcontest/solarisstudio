@@ -109,8 +109,10 @@ const passthroughGzip = publicPassthrough.reduce(
   (sum, file) => sum + file.gzip,
   0,
 );
-const appShell = css.find((file) => /^app-shell-.*\.css$/.test(basename(file.name)));
-const globalStyles = css.find((file) => /^styles-.*\.css$/.test(basename(file.name)));
+const appShell = css.filter((file) => /^app-shell-.*\.css$/.test(basename(file.name)));
+const globalStyles = css.filter((file) => /^styles-.*\.css$/.test(basename(file.name)));
+const appShellGzip = appShell.reduce((total, file) => total + file.gzip, 0);
+const globalStylesGzip = globalStyles.reduce((total, file) => total + file.gzip, 0);
 
 const kb = (bytes) => (bytes / 1024).toFixed(1);
 const failures = [];
@@ -155,20 +157,20 @@ enforce(
   largestCssGzip?.name,
 );
 enforce("Total JS + CSS gzip", totalGzip, BUDGETS.maxTotalJsCssGzip);
-if (appShell) {
+if (appShell.length) {
   enforce(
     "App shell CSS gzip",
-    appShell.gzip,
+    appShellGzip,
     BUDGETS.maxAppShellCssGzip,
-    appShell.name,
+    appShell.map((file) => file.name).join(", "),
   );
 }
-if (globalStyles) {
+if (globalStyles.length) {
   enforce(
     "Global styles CSS gzip",
-    globalStyles.gzip,
+    globalStylesGzip,
     BUDGETS.maxGlobalStylesCssGzip,
-    globalStyles.name,
+    globalStyles.map((file) => file.name).join(", "),
   );
 }
 
@@ -209,8 +211,8 @@ const diagnosticSummary = [
   `largest_js_gzip=${largestJsGzip?.name ?? "n/a"}:${kb(largestJsGzip?.gzip ?? 0)} KiB`,
   `largest_css_gzip=${largestCssGzip?.name ?? "n/a"}:${kb(largestCssGzip?.gzip ?? 0)} KiB`,
   `total_gzip=${kb(totalGzip)} KiB`,
-  `app_shell_gzip=${appShell ? `${kb(appShell.gzip)} KiB` : "n/a"}`,
-  `global_styles_gzip=${globalStyles ? `${kb(globalStyles.gzip)} KiB` : "n/a"}`,
+  `app_shell_gzip=${appShell.length ? `${kb(appShellGzip)} KiB` : "n/a"}`,
+  `global_styles_gzip=${globalStyles.length ? `${kb(globalStylesGzip)} KiB` : "n/a"}`,
   `report=${REPORT_PATH}`,
 ].join("; ");
 
@@ -236,8 +238,8 @@ console.log(
   `  total JS + CSS gzip: ${totalGzip} bytes · ${kb(totalGzip)} KiB / ${BUDGETS.maxTotalJsCssGzip} bytes`,
 );
 console.log(`  machine-readable report: ${REPORT_PATH}`);
-if (appShell) console.log(`  app shell CSS gzip: ${kb(appShell.gzip)} KiB`);
-if (globalStyles) console.log(`  global styles CSS gzip: ${kb(globalStyles.gzip)} KiB`);
+if (appShell.length) console.log(`  app shell CSS gzip: ${kb(appShellGzip)} KiB`);
+if (globalStyles.length) console.log(`  global styles CSS gzip: ${kb(globalStylesGzip)} KiB`);
 
 if (failures.length) {
   console.error("\nClient performance budget exceeded:");
