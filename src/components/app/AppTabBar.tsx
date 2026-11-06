@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Compass, Home, Trophy, UserRound, Vote, type LucideIcon } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdrop";
 import { APP_RESUME_EVENT } from "@/lib/app-lifecycle";
@@ -90,6 +90,9 @@ export function AppTabBar({
   });
   const barRef = useRef<HTMLElement | null>(null);
   const materialRef = useRef<HTMLDivElement | null>(null);
+  // Stable per-instance IDs avoid duplicate descriptions if app shells overlap
+  // briefly during route transitions. Icon/badge positions remain unchanged.
+  const badgeDescriptionId = useId();
   const dragState = useRef<DragState | null>(null);
   const suppressClick = useRef(false);
   const {
@@ -519,6 +522,7 @@ export function AppTabBar({
               data-app-tab-index={index}
               aria-current={active ? "page" : undefined}
               aria-label={area.label}
+              aria-describedby={badge > 0 ? `${badgeDescriptionId}-${area.id}` : undefined}
               onPointerDown={(event) => startDrag(event, index, active)}
               onPointerMove={moveDrag}
               onPointerUp={finishDrag}
@@ -568,12 +572,14 @@ export function AppTabBar({
               <span className="relative">
                 <Icon className="solaris-app-tab-icon size-[1.15rem]" aria-hidden="true" />
                 {badge > 0 ? (
-                  <span
-                    className="solaris-app-tab-badge"
-                    aria-label={`${badge} item${badge === 1 ? "" : "s"} need attention`}
-                  >
-                    {badge > 9 ? "9+" : badge}
-                  </span>
+                  <>
+                    <span className="solaris-app-tab-badge" aria-hidden="true">
+                      {badge > 9 ? "9+" : badge}
+                    </span>
+                    <span className="sr-only" id={`${badgeDescriptionId}-${area.id}`}>
+                      {badge} item{badge === 1 ? "" : "s"} need attention
+                    </span>
+                  </>
                 ) : null}
               </span>
               <span className="solaris-app-tab-label">{area.label}</span>
