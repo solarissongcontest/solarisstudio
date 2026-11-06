@@ -15,10 +15,12 @@ export function CountryMobileWebMasthead({
   identity,
   follow,
   currentContext,
+  legacyWikiCode,
 }: {
   identity: CountryIdentityModel;
   follow: ReactNode;
   currentContext: CountryCurrentContext;
+  legacyWikiCode: string | null;
 }) {
   const latestEntry = identity.currentEntry;
   const meaningfulStats = identity.statistics.slice(0, 3);
@@ -113,9 +115,15 @@ export function CountryMobileWebMasthead({
       ) : null}
 
       <div className="mt-5 flex flex-wrap items-center gap-2" aria-label="Country links">
-        <Link to="/wiki" className={COUNTRY_MOBILE_LINK_CLASS}>
-          Reference
-        </Link>
+        {legacyWikiCode ? (
+          <Link to="/wiki/$code" params={{ code: legacyWikiCode }} className={COUNTRY_MOBILE_LINK_CLASS}>
+            Wiki article
+          </Link>
+        ) : (
+          <Link to="/wiki" className={COUNTRY_MOBILE_LINK_CLASS}>
+            Reference
+          </Link>
+        )}
         <Link to="/compare" search={{ a: identity.code }} className={COUNTRY_MOBILE_LINK_CLASS}>
           Compare
         </Link>
