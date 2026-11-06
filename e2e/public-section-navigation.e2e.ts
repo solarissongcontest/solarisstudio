@@ -150,3 +150,25 @@ test("browser navigation remains identifiable in system high-contrast mode", asy
     expect(outlineWidth).toBe("2px");
   }
 });
+
+test("reduced motion disables browser navigation disclosure and sidebar animations", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "public-390", "One mobile-to-desktop responsive browser probe");
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/results", { waitUntil: "domcontentloaded" });
+
+  const arrow = page.locator(".public-mobile-section-trigger svg").first();
+  await expect(arrow).toBeVisible();
+  const arrowTransitions = await arrow.evaluate((element) =>
+    getComputedStyle(element).transitionDuration.split(",").map((value) => Number.parseFloat(value.trim())),
+  );
+  expect(arrowTransitions.every((duration) => duration === 0)).toBe(true);
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const sidebar = page.locator(".public-site-sidebar");
+  await expect(sidebar).toBeVisible();
+  const sidebarTransitions = await sidebar.evaluate((element) =>
+    getComputedStyle(element).transitionDuration.split(",").map((value) => Number.parseFloat(value.trim())),
+  );
+  expect(sidebarTransitions.every((duration) => duration === 0)).toBe(true);
+});
