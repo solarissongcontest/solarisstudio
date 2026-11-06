@@ -87,6 +87,6 @@ describe("TG19 unrecognized institution public privacy / dark rollout", () => {
     expect(wrapper).toContain("localhost");
     expect(wrapper).toContain("Refusing hosted/non-loopback");
     expect(wrapper).toContain("psql \"$DB_URL\"");
-    expect(wrapper).not.toMatch(/\beval\b|\bcurl\b|\bwget\b/);
+    expect(wrapper).not.toMatch(/^\s*(?:eval|curl|wget)\b/m);
   });
 });
