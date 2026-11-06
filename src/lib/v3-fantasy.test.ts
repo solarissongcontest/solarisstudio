@@ -102,17 +102,29 @@ describe("V3 Fantasy projection", () => {
     const rows = [
       { profileId: "fan-a", displayName: "Fan A", score: "26.50", position: "1" },
       { profileId: "fan-b", displayName: "Fan B", score: 26.5, position: 1 },
-      { profileId: "fan-c", displayName: "Fan C", score: 0, position: 3 },
+      { profileId: "fan-c", displayName: "Fan C", score: 0, position: 2 },
     ];
     expect(normalizeV3FantasyStandings(rows)).toEqual([
       { profileId: "fan-a", displayName: "Fan A", score: 26.5, position: 1 },
       { profileId: "fan-b", displayName: "Fan B", score: 26.5, position: 1 },
-      { profileId: "fan-c", displayName: "Fan C", score: 0, position: 3 },
+      { profileId: "fan-c", displayName: "Fan C", score: 0, position: 2 },
     ]);
     expect(normalizeV3FantasyStandings([])).toEqual([]);
     // A missing RPC payload is not the same as a successfully returned empty array.
     expect(() => normalizeV3FantasyStandings(null)).toThrow();
     expect(() => normalizeV3FantasyStandings(undefined)).toThrow();
+  });
+
+  it("enforces the SQL dense_rank contract and rejects impossible published rank sequences", () => {
+    const a = { profileId: "a", displayName: "A", score: 20, position: 1 };
+    const b = { profileId: "b", displayName: "B", score: 20, position: 1 };
+    const c = { profileId: "c", displayName: "C", score: 10, position: 2 };
+    expect(normalizeV3FantasyStandings([a, b, c])).toEqual([a, b, c]);
+    expect(() => normalizeV3FantasyStandings([{ ...a, position: 2 }])).toThrow();
+    expect(() => normalizeV3FantasyStandings([a, { ...c, position: 3 }])).toThrow();
+    expect(() => normalizeV3FantasyStandings([a, { ...b, position: 2 }])).toThrow();
+    expect(() => normalizeV3FantasyStandings([a, { ...c, position: 1 }])).toThrow();
+    expect(() => normalizeV3FantasyStandings([c, { ...a, position: 2 }])).toThrow();
   });
 
   it("fails the entire standings projection closed when a ranking or identity is malformed", () => {

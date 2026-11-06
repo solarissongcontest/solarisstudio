@@ -46,7 +46,7 @@ export function normalizeV3FantasyStandings(payload: unknown): V3FantasyStanding
   if (!Array.isArray(payload)) throw new Error("Invalid Fantasy leaderboard response.");
 
   const identities = new Set<string>();
-  return payload.map((value: unknown) => {
+  const standings = payload.map((value: unknown) => {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
       throw new Error("Invalid Fantasy standing.");
     }
@@ -78,6 +78,18 @@ export function normalizeV3FantasyStandings(payload: unknown): V3FantasyStanding
     identities.add(profileId);
     return { profileId, displayName, score, position };
   });
+
+  // The canonical SQL leaderboard orders by dense_rank(score DESC). A gap,
+  // reversed score, or rank mismatch means the whole payload is untrusted.
+  let previousScore = Number.POSITIVE_INFINITY;
+  let expectedPosition = 0;
+  for (const row of standings) {
+    if (row.score > previousScore) throw new Error("Invalid Fantasy ranking order.");
+    if (row.score !== previousScore) expectedPosition += 1;
+    if (row.position !== expectedPosition) throw new Error("Invalid Fantasy dense ranking.");
+    previousScore = row.score;
+  }
+  return standings;
 }
 
 export type V3FantasyState =
