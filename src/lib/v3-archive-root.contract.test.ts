@@ -27,6 +27,10 @@ describe("V3 P34 Archive root", () => {
     expect(source).toContain('to: "/countries"');
     expect(source).toContain('to: "/shows"');
     expect(source).toContain('to: "/stories"');
+    // Archive links into the existing Results-owned records view, without
+    // duplicating or calculating official outcomes in this navigation root.
+    expect(source).toContain('to: "/records"');
+    expect(source).not.toContain('to: "/admin/time-machine"');
     expect(source).toContain('to: "/encyclopedia"');
     expect(source).toContain('to: "/archive-games"');
   });
