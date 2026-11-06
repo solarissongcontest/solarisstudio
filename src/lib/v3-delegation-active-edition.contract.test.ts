@@ -49,6 +49,10 @@ describe("Public Delegation current-edition authority", () => {
 
     expect(source).toContain("const countryId = requiredString(country.id");
     expect(source).toContain("countryId: profile.countryId");
+    // The legacy Wiki detail URL would redirect to the identical Country page.
+    // Use the public Wiki index, which resolves to Reference only when enabled.
+    expect(source).toContain('wiki: { label: "Reference", href: "/wiki" }');
+    expect(source).not.toContain('href: `/wiki/${code}`');
     expect(gate).toContain("countryId={bundle.countryId}");
     expect(screen).toContain('entityType="country" entityId={countryId} label={projection.name}');
     expect(screen).not.toContain("entityId={projection.code}");
