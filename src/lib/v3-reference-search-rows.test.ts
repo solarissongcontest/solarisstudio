@@ -50,6 +50,25 @@ describe("Publication-safe Reference legacy Wiki search compatibility", () => {
     expect(items.every((item) => item.href.startsWith("/"))).toBe(true);
   });
 
+  it("canonicalizes mixed-case published Wiki and Country aliases without duplicate Country results", () => {
+    const lowerWiki = { ...wiki, href: "/wiki/ola" };
+    const lowerCountry = { ...country, href: "/countries/ola" };
+    expect(parseReferenceSearchRows([lowerWiki, country])).toEqual([{
+      id: lowerWiki.result_id,
+      kind: "country",
+      title: "Oland",
+      subtitle: "Detailed country article",
+      href: "/countries/OLA",
+    }]);
+    expect(parseReferenceSearchRows([lowerCountry, wiki])).toEqual([{
+      id: lowerCountry.result_id,
+      kind: "country",
+      title: "Oland",
+      subtitle: "OLA · Hydra",
+      href: "/countries/OLA",
+    }]);
+  });
+
   it("keeps different country articles separate even when both are legacy aliases", () => {
     const aotea = {
       ...wiki,
