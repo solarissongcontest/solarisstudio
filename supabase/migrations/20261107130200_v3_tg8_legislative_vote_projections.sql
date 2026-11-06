@@ -9,7 +9,8 @@ create or replace function public.world_vote_public_list_v1(
 ) returns jsonb language sql stable security definer set search_path=pg_catalog
 as $public_list$
   select case when coalesce(public.studio2_feature_enabled('terra_world_public',null),false)
-                 and coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
+                 and (coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
+       and coalesce(public.studio2_feature_enabled('terra_world_legislative_voting',null),false))
     then coalesce(jsonb_agg(jsonb_build_object(
       'id',items.id,'organizationSlug',items.slug,
       'measureId',items.measure_id,'measureTitle',items.title,
@@ -46,7 +47,8 @@ create or replace function public.world_vote_public_detail_v1(
 as $public_detail$
   select case when
     coalesce(public.studio2_feature_enabled('terra_world_public',null),false)
-    and coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
+    and (coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
+       and coalesce(public.studio2_feature_enabled('terra_world_legislative_voting',null),false))
     then (
       select jsonb_build_object(
         'id',vote.id,'organizationSlug',org.slug,'organName',organ.name,
@@ -102,7 +104,8 @@ create or replace function public.world_vote_my_ballot_v1(
 ) returns jsonb language sql stable security definer set search_path=pg_catalog
 as $own_ballot$
   select case when auth.uid() is null or
-      not coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
+      not (coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
+       and coalesce(public.studio2_feature_enabled('terra_world_legislative_voting',null),false))
     then null
     else (
       select jsonb_build_object(
@@ -150,7 +153,8 @@ create or replace function public.world_vote_manage_v1(
 ) returns jsonb language sql stable security definer set search_path=pg_catalog
 as $vote_manage$
   select case when auth.uid() is null or
-    not coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
+    not (coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
+       and coalesce(public.studio2_feature_enabled('terra_world_legislative_voting',null),false))
     then null else (
       select jsonb_build_object(
         'id',vote.id,'organizationId',vote.organization_id,
@@ -176,7 +180,8 @@ create or replace function public.world_vote_openable_rules_v1(
 ) returns jsonb language sql stable security definer set search_path=pg_catalog
 as $openable$
   select case when auth.uid() is null or
-    not coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
+    not (coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
+       and coalesce(public.studio2_feature_enabled('terra_world_legislative_voting',null),false))
     or not public.world_access_allowed('world.vote.open',p_organization_id,null,p_organ_id,null,null)
     then '[]'::jsonb
     else coalesce((
@@ -198,7 +203,8 @@ create or replace function public.world_vote_openable_measures_v1(
 ) returns jsonb language sql stable security definer set search_path=pg_catalog
 as $openable_measures$
   select case when auth.uid() is null or
-    not coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
+    not (coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
+       and coalesce(public.studio2_feature_enabled('terra_world_legislative_voting',null),false))
     then '[]'::jsonb
     else coalesce((
       select jsonb_agg(jsonb_build_object(
