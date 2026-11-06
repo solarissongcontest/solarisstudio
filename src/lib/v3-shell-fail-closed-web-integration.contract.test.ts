@@ -39,8 +39,9 @@ describe("V3 shell fail-closed access and browser header integration", () => {
     expect(account).toContain("if (options.requireVerified)");
     expect(account).toContain("assertVerifiedAccountAccessChecks(organizerResult.error, countryResult.error)");
     expect(account).toContain('error.name !== "AuthSessionMissingError"');
-    expect(account).toContain("if (organizerError != null) throw organizerError");
-    expect(account).toContain("if (countryError != null) throw countryError");
+    const verification = readFileSync(resolve(process.cwd(), "src/lib/account-access-verification.ts"), "utf8");
+    expect(verification).toContain("if (organizerError != null) throw organizerError");
+    expect(verification).toContain("if (countryError != null) throw countryError");
   });
   it("treats missing anonymous sessions differently from auth outages", () => {
     const shell = src();

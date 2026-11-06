@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { assertVerifiedAccountAccessChecks } from "./country-account";
+import { assertVerifiedAccountAccessChecks } from "./account-access-verification";
 
 describe("strict account-access verification", () => {
   it("accepts both successful checks, including a valid signed-in user without a country account", () => {

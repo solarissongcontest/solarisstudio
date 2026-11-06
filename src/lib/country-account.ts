@@ -5,6 +5,7 @@ import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import type { Country } from "@/lib/data";
 import { useFanSession } from "@/lib/prediction-data";
 import { uploadVerifiedFile } from "@/lib/upload-safety";
+import { assertVerifiedAccountAccessChecks } from "@/lib/account-access-verification";
 
 const supabase = typedSupabase as any;
 
@@ -105,14 +106,6 @@ function missingCountrySchema(error: unknown) {
  * Legacy consumers retain their existing best-effort read. Shell callers can
  * opt into strict verification without issuing a second network request.
  */
-export function assertVerifiedAccountAccessChecks(
-  organizerError: unknown,
-  countryError: unknown,
-) {
-  if (organizerError != null) throw organizerError;
-  if (countryError != null) throw countryError;
-}
-
 export async function getCurrentAccountAccess(
   userId?: string | null,
   options: { requireVerified?: boolean } = {},
