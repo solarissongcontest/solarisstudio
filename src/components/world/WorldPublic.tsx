@@ -399,7 +399,7 @@ export function WorldOrganizationPage({
                       ))}
                     </div>
                   ) : <p className="mt-4 text-sm text-muted-foreground">No public bodies have been recorded.</p>}
-                  <Link to="/world/organizations/$slug/bodies/" params={{ slug }}
+                  <Link to="/world/organizations/$slug/bodies" params={{ slug }}
                     className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary">
                     Browse public bodies <ArrowRight className="size-4" aria-hidden="true" />
                   </Link>
