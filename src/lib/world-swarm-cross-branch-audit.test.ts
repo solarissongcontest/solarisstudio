@@ -108,4 +108,23 @@ describe("TG19 read-only World cross-PR migration preflight", () => {
     b.files.push({ filename, status: "modified" });
     expect(codes(snapshot([a, b]))).toContain("migration_path_overlap");
   });
+  it("blocks removing an already-merged main migration in stale stacked PRs", () => {
+    const filename = path("20261104121500", "v3_tg2_office_term_effective_authority");
+    const candidate = pr(1939, []);
+    candidate.files.push({ filename, status: "removed" });
+    const report = auditWorldSwarmCrossBranches(snapshot([candidate], [filename]));
+    expect(report.clean).toBe(false);
+    expect(report.issues).toContainEqual(expect.objectContaining({
+      code: "main_migration_removed", severity: "error", prs: [1939], paths: [filename],
+    }));
+  });
+
+  it("allows deletion of a never-merged, invalid migration during a branch correction", () => {
+    const candidate = pr(2271, [path("20261107005500", "v3_tg15_valid")]);
+    candidate.files.push({
+      filename: path("20261107006000", "v3_tg15_invalid"), status: "removed",
+    });
+    expect(auditWorldSwarmCrossBranches(snapshot([candidate])).clean).toBe(true);
+  });
+
 });
