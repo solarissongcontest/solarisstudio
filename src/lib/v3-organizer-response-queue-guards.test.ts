@@ -86,6 +86,23 @@ describe("Organizer Confirmation response queue page guards", () => {
     expect(route).toContain("assertOrganizerResponsePageCoverage(0, initialRows.length, page.totalCount, page.page.hasMore)");
     expect(route).toContain("assertOrganizerResponsePageCoverage(rows.length, newRows.length, page.totalCount, page.page.hasMore)");
   });
+  it("rejects an empty initial page with a false continuation promise", () => {
+    expect(() => assertOrganizerResponsePageCoverage(0, 0, 10, true))
+      .toThrow(/does not match/);
+    expect(() => assertOrganizerResponsePageCoverage(10, 0, 20, true))
+      .toThrow(/does not match/);
+  });
+  it("rejects a repeated cursor before appending any continued response", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/confirmations/admin/responses.tsx"), "utf8");
+    expect(route).toContain("page.page.nextCursor.submittedAt === requestedCursor.submittedAt");
+    expect(route).toContain("page.page.nextCursor.submissionId === requestedCursor.submissionId");
+    expect(route).toContain("Confirmation pagination repeated its continuation cursor.");
+    const cursorCheck = route.indexOf("page.page.nextCursor.submittedAt === requestedCursor.submittedAt");
+    const append = route.indexOf("setRows((current) => [...current, ...newRows]);");
+    expect(cursorCheck).toBeGreaterThan(-1);
+    expect(append).toBeGreaterThan(cursorCheck);
+  });
   it("allows ordinary and signed HTTP(S) source links", () => {
     expect(safeOrganizerResponseSongUrl("https://song.example.test/entry.mp3?token=opaque")).toBe(
       "https://song.example.test/entry.mp3?token=opaque",
