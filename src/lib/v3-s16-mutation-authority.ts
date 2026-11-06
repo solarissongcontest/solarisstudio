@@ -1,4 +1,4 @@
-export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-4" as const;
+export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-5" as const;
 
 export type V3S16Risk = "integrity_critical" | "security_critical";
 
@@ -318,10 +318,32 @@ export function scanV3S16StaticAuthority(
   const productionFiles = files.filter((file) =>
     !/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file.path) &&
     !file.path.includes("/fixtures/") &&
+    !file.path.startsWith("scripts/") &&
     !file.path.startsWith("supabase/migrations/") &&
     !file.path.startsWith(".github/tests/"),
   );
   const migrationFiles = files.filter((file) => file.path.startsWith("supabase/migrations/"));
+
+  // Standalone utility scripts are not canonical application mutation owners.
+  // Isolated rehearsals may legitimately write disposable data, so exclude
+  // scripts from the generic table scanner above. Account identity mutations
+  // are different: a raw auth.admin call in an executable utility bypasses
+  // actor-bound server authorization, review, and audit receipts entirely.
+  for (const file of files) {
+    if (!file.path.startsWith("scripts/") ||
+        /\\.(?:test|spec)\\.[cm]?[jt]sx?$/.test(file.path) ||
+        file.path.includes("/fixtures/")) continue;
+    if (!/\\.auth\\s*\\.\\s*admin\\s*\\.\\s*(?:updateUserById|deleteUser)\\s*\\(/.test(file.source)) continue;
+    findings.push({
+      domain: "account-session",
+      kind: "competing_legacy_writer",
+      subject: "unguarded auth.admin account mutation",
+      path: file.path,
+      detail: "Standalone scripts must not use raw auth.admin account mutation authority; use a governed, actor-scoped server operation.",
+      releaseRisk: "hard_blocker",
+      ownerBoundary: "shared",
+    });
+  }
 
   for (const domain of domains) {
     const ownerBoundary = domain.resultsFrozenOwner ? "results_pr_1400" : "shared";
