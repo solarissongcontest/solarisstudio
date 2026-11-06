@@ -56,6 +56,30 @@ export function isPotentialWorldSwarmPull(pull: { title: string; branch: string 
     || /\b(?:terra solaris|terra governance|world(?:-swarm)?|tg(?:[0-9]|1[0-9]))\b/.test(title);
 }
 
+/** A second bounded open-PR inventory detects new, closed or moved World PRs. */
+export type WorldSwarmPullIdentity = Pick<WorldSwarmPull, "number" | "headSha" | "baseRef" | "title">;
+
+export function sameWorldSwarmPullSet(
+  before: readonly WorldSwarmPullIdentity[],
+  after: readonly WorldSwarmPullIdentity[],
+): boolean {
+  if (before.length !== after.length) return false;
+  const unique = new Map<number, WorldSwarmPullIdentity>();
+  for (const item of before) {
+    if (unique.has(item.number)) return false;
+    unique.set(item.number, item);
+  }
+  for (const item of after) {
+    const earlier = unique.get(item.number);
+    if (!earlier ||
+      earlier.headSha !== item.headSha ||
+      earlier.baseRef !== item.baseRef ||
+      earlier.title !== item.title) return false;
+    unique.delete(item.number);
+  }
+  return unique.size === 0;
+}
+
 const EXACT_SHA = /^[0-9a-f]{40}$/i;
 const MIGRATION = /^supabase\/migrations\/(\d{14})_([a-z0-9][a-z0-9_-]*)\.sql$/;
 const NEW_DATE_FLOOR = "20261101000000";
