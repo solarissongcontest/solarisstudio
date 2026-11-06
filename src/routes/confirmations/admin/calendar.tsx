@@ -150,7 +150,20 @@ function CalendarPage() {
           </div>
         </AdminCard>
 
-        {!editionId && !loading ? (
+        {editionsQuery.isError ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={CalendarDays}
+              title="Organizer editions unavailable"
+              description="The edition directory could not be verified. No calendar scope or dates can be inferred."
+              action={
+                <button type="button" className="admin-action-secondary" onClick={() => void editionsQuery.refetch()} disabled={editionsQuery.isFetching}>
+                  Retry edition lookup
+                </button>
+              }
+            />
+          </AdminCard>
+        ) : !editionId && !loading ? (
           <AdminCard>
             <AdminEmptyState
               icon={CalendarDays}
