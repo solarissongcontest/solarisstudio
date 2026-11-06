@@ -39,6 +39,16 @@ function runNormalizer(raw: unknown) {
   };
 }
 
+function failureText(raw: unknown): string {
+  try {
+    runNormalizer(raw);
+  } catch (error) {
+    const stderr = (error as { stderr?: Buffer }).stderr;
+    return stderr?.toString("utf8") ?? String(error);
+  }
+  throw new Error("normalizer unexpectedly accepted invalid security advisor coverage");
+}
+
 const lints = [
   {
     name: "anon_security_definer_function_executable",
@@ -87,6 +97,27 @@ describe("V3 Supabase security advisor snapshot normalization", () => {
       expect(finding.id).toMatch(/^[a-z0-9_]+:[0-9a-f]{20}$/);
       expect(finding.detail.length).toBeGreaterThan(0);
     }
+  });
+
+  it("fails closed when the advisor returns no lint families", () => {
+    expect(failureText({ lints: [] })).toContain("advisor response contains no lint families");
+    expect(failureText({ result: { lints: [] } })).toContain("advisor response contains no lint families");
+  });
+
+  it("rejects duplicate advisor lint families even when both report zero findings", () => {
+    const cleanLint = { name: "test_rls_policy", title: "RLS policy checks", level: "INFO", findings: [] };
+    expect(failureText({ lints: [cleanLint, { ...cleanLint }] })).toContain(
+      "duplicate advisor lint family test_rls_policy",
+    );
+  });
+
+  it("preserves a legitimate zero-finding scan when at least one lint family ran", () => {
+    const snapshot = runNormalizer({
+      lints: [{ name: "test_rls_policy", title: "RLS policy checks", level: "INFO", findings: [] }],
+    });
+    expect(snapshot.schemaVersion).toBe(1);
+    expect(snapshot.projectRef).toBe("candidate-project");
+    expect(snapshot.findings).toEqual([]);
   });
 
   it("keeps finding ids stable when advisor ordering and metadata key ordering change", () => {
