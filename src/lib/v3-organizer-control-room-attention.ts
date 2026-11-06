@@ -9,6 +9,8 @@ export type ControlRoomAttentionItem = {
   severity: ControlRoomAttentionSeverity;
   title: string;
   detail: string;
+  route: string;
+  actionLabel: string;
 };
 
 function severityRank(severity: ControlRoomAttentionSeverity) {
@@ -35,6 +37,8 @@ export function buildControlRoomAttention(
       severity: incidentSeverity(incident),
       title: incident.title,
       detail: `${incident.severity.toUpperCase()} · ${incident.status.replaceAll("_", " ")}`,
+      route: `/admin/incidents?incident=${encodeURIComponent(incident.id)}`,
+      actionLabel: "Open incident",
     }));
 
   const readinessItems = (readiness?.issues ?? [])
@@ -45,6 +49,8 @@ export function buildControlRoomAttention(
       severity: issue.severity === "critical" ? "critical" : "action",
       title: issue.title,
       detail: issue.detail,
+      route: "/admin/control",
+      actionLabel: "Open Control",
     }));
 
   return [...incidentItems, ...readinessItems].sort((left, right) => {
