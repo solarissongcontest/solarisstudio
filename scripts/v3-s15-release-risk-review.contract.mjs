@@ -118,6 +118,16 @@ test("forged derived S15 rows cannot change canonical lane, owner, capability or
   }
 });
 
+test("cutovers cannot be disguised as structural findings with the correct source digest", () => {
+  const t=triage();
+  const disguised=t.cutovers[0].sourceFinding;
+  t.cutovers=t.cutovers.slice(1);
+  t.cutoverCount=t.cutovers.length;
+  t.structuralFindings=[disguised];
+  assert.throws(()=>assessS15ReleaseRisk(t,SHA,null,SOURCE_RAW),
+    /structural review cannot hide canonical cutover findings/);
+});
+
 test("source-bound triage cannot omit findings while retaining a valid original digest", () => {
   const t=triage();
   t.cutovers=t.cutovers.slice(1);

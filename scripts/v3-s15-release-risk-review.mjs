@@ -40,6 +40,12 @@ export function assessS15ReleaseRisk(triage, candidateSha, review = null, rawS15
     if (canonical.physicalOwnership?.zeroOwnershipConflicts !== triage.physicalOwnershipConflictFree)
       throw new Error("S15 triage contradicts canonical physical ownership status");
   }
+  for (const finding of triage.structuralFindings) {
+    if (typeof finding !== "string" || !finding.trim() ||
+        /^(?:PUBLIC|ORGANIZER)_CUTOVER_UNRESOLVED(?:\s|$)/.test(finding)) {
+      throw new Error("S15 structural review cannot hide canonical cutover findings");
+    }
+  }
   const current = new Map();
   for (const row of triage.cutovers) {
     if (!row || !["public", "organizer"].includes(row.lane) ||
