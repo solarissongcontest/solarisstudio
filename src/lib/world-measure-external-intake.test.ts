@@ -123,7 +123,7 @@ describe("WORLD-05 TG7 governed external proposals",()=>{
       "src/lib/world-measure-external-intake.ts"),"utf8");
     expect(intakeSql).toContain("create table private.world_measure_intakes");
     expect(intakeSql).toContain("world_measures_intake_source_identity_fk");
-    expect(intakeSql).toContain("world_external_intake_history_guard");
+    expect(intakeSql).toContain("world_measure_external_intake_history_guard");
     expect(intakeSql).toContain("alter table private.world_measure_intakes enable row level security");
     expect(intakeSql).toContain("private.world_measure_intakes from public,anon,authenticated,service_role");
     expect(recordSql).toContain("'world.measure.external_intake.received'");
