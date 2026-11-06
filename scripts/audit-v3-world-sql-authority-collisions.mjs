@@ -89,8 +89,9 @@ function argumentsList(raw) {
 
 function parameterType(raw) {
   let arg = raw.replace(/\s+/g, ' ').trim();
-  if (/^(?:OUT|INOUT|TABLE)\s/i.test(arg)) return null;
-  arg = arg.replace(/^(?:IN|VARIADIC)\s+/i, '');
+  if (/^(?:OUT|TABLE)\s/i.test(arg)) return null;
+  // INOUT participates in PostgreSQL's input signature; excluding it would miss collisions.
+  arg = arg.replace(/^(?:INOUT|IN|VARIADIC)\s+/i, '');
   arg = arg.split(/\s+DEFAULT\s+|\s*=\s*/i)[0].trim();
   if (!arg) throw new Error('Missing SQL routine parameter type');
   const pair = /^("(?:[^"]|"")*"|[a-z_][a-z0-9_$]*)\s+(.+)$/i.exec(arg);
