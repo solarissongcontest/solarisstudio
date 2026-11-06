@@ -22,6 +22,18 @@ describe("Public V3 Rules release metadata", () => {
     expect(home).toContain("Previous versions");
   });
 
+  it("uses the newer shared canonical Rules date formatter instead of browser-local dates", () => {
+    const home = read("src/components/rules/RulesHomeV5.tsx");
+    const history = read("src/lib/v3-rulebook-history.ts");
+
+    expect(home).toContain('import { formatRulebookHistoryDate } from "@/lib/v3-rulebook-history"');
+    expect(home).toContain("return formatRulebookHistoryDate(value);");
+    expect(home).not.toContain("Intl.DateTimeFormat(undefined");
+    expect(history).toContain('import { SOLARIS_TIME_ZONE } from "@/lib/public-time"');
+    expect(history).toContain('RULEBOOK_HISTORY_LOCALE = "en-GB"');
+    expect(history).toContain("timeZone: SOLARIS_TIME_ZONE");
+  });
+
   it("fails soft when a release has no valid effective date", () => {
     const home = read("src/components/rules/RulesHomeV5.tsx");
 
