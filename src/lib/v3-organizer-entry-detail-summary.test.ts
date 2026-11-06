@@ -167,6 +167,15 @@ describe("Organizer Entry Review detail summary", () => {
     expect(route).toContain("storedWinner && onClearWinner");
   });
 
+  it("marks accepted-but-blank song cards as requiring metadata inspection", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
+    expect(route).toContain('if (status === "accepted" && !entry.song_title?.trim())');
+    expect(route).toContain('Missing song title · inspect');
+    expect(route).toContain('<AdminStatus tone={reviewTone(status)}>{status}</AdminStatus>');
+    expect(route).toContain('return "border-amber-300/35 bg-amber-300/[0.035]";');
+  });
+
   it("keeps the dashboard summary on the same current-version interpretation", () => {
     const route = readFileSync(resolve(process.cwd(),
       "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
