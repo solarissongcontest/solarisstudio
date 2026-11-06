@@ -1,0 +1,251 @@
+name: V3 S14 Archive System rehearsal
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/**"
+      - ".github/scripts/v3-s14-archive-system-rehearsal.sh"
+      - ".github/scripts/v3-start-disposable-supabase.sh"
+      - ".github/scripts/prepare-archive-local-config.py"
+      - ".github/scripts/v3-s14-archive-guard-rehearsal.sh"
+      - ".github/scripts/v3-s14-archive-delete-guard-rehearsal.sh"
+      - ".github/scripts/v3-s14-edition-event-vocabulary-rehearsal.sh"
+      - ".github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh"
+      - ".github/workflows/v3-s14-archive-system-rehearsal.yml"
+      - "src/lib/solaris-v6-domain-registry.ts"
+      - "src/lib/v3-domain-consequence-registry.ts"
+      - "src/lib/v3-projection-reconciliation-registry.ts"
+      - "src/lib/v3-system-s1-registry.test.ts"
+      - "src/lib/v3-s14-archive-consequences.contract.test.ts"
+      - "src/lib/v3-s14-archive-review-fixes.contract.test.ts"
+      - "src/lib/v3-s14-archive-registry.contract.test.ts"
+      - "src/lib/v3-s14-archive-task-registry-alignment.contract.test.ts"
+      - "src/lib/v3-s14-failed-task-delivery-evidence.contract.test.ts"
+      - "src/lib/v3-s14-resolved-task-notification-invariant.contract.test.ts"
+      - "src/lib/v3-s14-archive-terminal-boundary.contract.test.ts"
+      - "src/lib/v3-s14-transition-http409.contract.test.ts"
+      - "src/lib/v3-edition-transition-client.ts"
+      - "src/lib/v3-edition-transition-client.test.ts"
+      - "src/lib/studio2-control-room.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s14-archive-system-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clean-replay:
+    name: Clean replay + S14 archive system
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact feature head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact feature head
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='${{ github.event.pull_request.head.sha || github.sha }}'
+          actual="$(git rev-parse HEAD)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "::error::Expected Archive feature head $expected, checked out $actual"
+            exit 1
+          fi
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Start isolated local Supabase
+        run: bash .github/scripts/v3-start-disposable-supabase.sh
+
+      - name: Rebuild from complete migration chain
+        run: supabase db reset --local --no-seed
+
+      - name: Rehearse final-publication reconciliation and Archive consequences
+        run: bash .github/scripts/v3-s14-archive-system-rehearsal.sh
+
+      - name: Verify canonical edition transition event vocabulary
+        run: bash .github/scripts/v3-s14-edition-event-vocabulary-rehearsal.sh
+
+      - name: Rehearse Archive authorization and lifecycle guards
+        run: bash .github/scripts/v3-s14-archive-guard-rehearsal.sh
+
+      - name: Rehearse archived runtime deletion guard
+        shell: bash
+        run: |
+          set -o pipefail
+          bash .github/scripts/v3-s14-archive-delete-guard-rehearsal.sh 2>&1 \
+            | tee "$RUNNER_TEMP/s14-archive-delete-guard-clean.log"
+
+      - name: Upload archived runtime deletion guard diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s14-archive-delete-guard-clean
+          path: ${{ runner.temp }}/s14-archive-delete-guard-clean.log
+          if-no-files-found: ignore
+          retention-days: 3
+
+      - name: Rehearse archived task and notification non-resurrection invariants
+        shell: bash
+        run: |
+          set -o pipefail
+          bash .github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh 2>&1 \
+            | tee "$RUNNER_TEMP/s14-archive-task-resurrection-clean.log"
+
+      - name: Upload archived task non-resurrection diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s14-archive-task-resurrection-clean
+          path: ${{ runner.temp }}/s14-archive-task-resurrection-clean.log
+          if-no-files-found: ignore
+          retention-days: 3
+
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
+
+  upgrade-from-main:
+    name: Current main upgrade + S14 archive system
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact feature head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact feature head
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='${{ github.event.pull_request.head.sha || github.sha }}'
+          actual="$(git rev-parse HEAD)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "::error::Expected Archive feature head $expected, checked out $actual"
+            exit 1
+          fi
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Prepare disposable current-main worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          git worktree add /tmp/solaris-s14-main origin/main
+
+      - name: Build current main locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-s14-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-start-disposable-supabase.sh"
+          supabase db reset --local --no-seed
+
+      - name: Apply only the S14 feature migration delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Exercise the complete candidate delta, including Results snapshot
+          # dependencies. Never overwrite an already-adopted main migration.
+          for migration in "$GITHUB_WORKSPACE"/supabase/migrations/*.sql; do
+            target="/tmp/solaris-s14-main/supabase/migrations/$(basename "$migration")"
+            if [[ -f "$target" ]]; then
+              cmp -s "$migration" "$target" || {
+                echo "::error::Already-adopted migration differs: $(basename "$migration")"
+                exit 1
+              }
+            else
+              cp "$migration" "$target"
+            fi
+          done
+          cd /tmp/solaris-s14-main
+          # These feature migrations intentionally sort before newer migrations
+          # already present on current main. Supabase CLI requires --include-all
+          # to apply unapplied historical versions in this upgrade rehearsal.
+          supabase migration up --local --include-all
+
+      - name: Rehearse S14 after current-main upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-s14-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-archive-system-rehearsal.sh"
+
+      - name: Verify transition event vocabulary after current-main upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-s14-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-edition-event-vocabulary-rehearsal.sh"
+
+      - name: Rehearse Archive guards after current-main upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-s14-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-archive-guard-rehearsal.sh"
+
+      - name: Rehearse archived runtime deletion guard after current-main upgrade
+        shell: bash
+        run: |
+          set -o pipefail
+          cd /tmp/solaris-s14-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-archive-delete-guard-rehearsal.sh" 2>&1 \
+            | tee "$RUNNER_TEMP/s14-archive-delete-guard-upgrade.log"
+
+      - name: Upload archived runtime deletion guard diagnostics after current-main upgrade
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s14-archive-delete-guard-upgrade
+          path: ${{ runner.temp }}/s14-archive-delete-guard-upgrade.log
+          if-no-files-found: ignore
+          retention-days: 3
+
+      - name: Rehearse task and notification non-resurrection after current-main upgrade
+        shell: bash
+        run: |
+          set -o pipefail
+          cd /tmp/solaris-s14-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh" 2>&1 \
+            | tee "$RUNNER_TEMP/s14-archive-task-resurrection-upgrade.log"
+
+      - name: Upload task and notification non-resurrection diagnostics after current-main upgrade
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s14-archive-task-resurrection-upgrade
+          path: ${{ runner.temp }}/s14-archive-task-resurrection-upgrade.log
+          if-no-files-found: ignore
+          retention-days: 3
+
+      - name: Stop isolated local Supabase
+        if: always()
+        shell: bash
+        run: |
+          cd /tmp/solaris-s14-main 2>/dev/null || exit 0
+          supabase stop --no-backup || true

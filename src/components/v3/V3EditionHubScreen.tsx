@@ -9,6 +9,7 @@ import {
   Trophy,
 } from "lucide-react";
 
+import { EventTime } from "@/components/public/EventTime";
 import type {
   V3EditionEntry,
   V3EditionPageProjection,
@@ -38,6 +39,15 @@ const SECTION_DESCRIPTIONS: Record<V3EditionSectionKey, string> = {
   results: "Official published Grand Final result",
 };
 
+const OUTCOME_SECTION_ORDER: readonly V3EditionSectionKey[] = [
+  "overview",
+  "results",
+  "participants",
+  "songs",
+  "schedule",
+  "stories",
+];
+
 function experiencePresentation(
   experience: V3EditionPageProjection["hub"]["hero"]["experience"],
 ): { label: string; tone: V3StatusTone } {
@@ -57,6 +67,16 @@ function experiencePresentation(
     case "upcoming":
       return { label: "Upcoming", tone: "progress" };
   }
+}
+
+function prioritizesOutcome(
+  experience: V3EditionPageProjection["hub"]["hero"]["experience"],
+) {
+  return (
+    experience === "results" ||
+    experience === "post-edition" ||
+    experience === "archived"
+  );
 }
 
 function editionMeta(projection: V3EditionPageProjection): string {
@@ -123,6 +143,29 @@ function IdentityRow({
 export function V3EditionHubScreen({ projection }: V3EditionHubScreenProps) {
   const status = experiencePresentation(projection.hub.hero.experience);
   const meta = editionMeta(projection);
+  const prioritizeOutcome = prioritizesOutcome(projection.hub.hero.experience);
+  const navigationSections = prioritizeOutcome
+    ? OUTCOME_SECTION_ORDER.flatMap((key) => {
+        const section = projection.hub.sections.find((candidate) => candidate.key === key);
+        return section ? [section] : [];
+      })
+    : projection.hub.sections;
+  const publishedOutcomeRows =
+    prioritizeOutcome && projection.results.state === "available"
+      ? projection.results.rows.filter((row) => row.rank === 1)
+      : [];
+  const featuredOutcomeRows =
+    publishedOutcomeRows.length > 0
+      ? publishedOutcomeRows
+      : prioritizeOutcome && projection.results.state === "available"
+        ? projection.results.rows.slice(0, 1)
+        : [];
+  const outcomeLabel =
+    publishedOutcomeRows.length === 1
+      ? "Winner"
+      : publishedOutcomeRows.length > 1
+        ? "Joint first"
+        : "Top published result";
 
   return (
     <V3Screen>
@@ -135,11 +178,11 @@ export function V3EditionHubScreen({ projection }: V3EditionHubScreenProps) {
 
       <V3Surface level="raised" className="overflow-hidden">
         {projection.hub.hero.artworkUrl ? (
-          <div className="relative aspect-[16/8] overflow-hidden border-b border-white/[0.06] bg-white/[0.025]">
+          <div className="relative border-b border-white/[0.06] bg-white/[0.025]">
             <img
               src={projection.hub.hero.artworkUrl}
               alt=""
-              className="h-full w-full object-cover"
+              className="block h-auto max-h-[34rem] w-full object-contain"
               loading="lazy"
             />
             <div
@@ -179,8 +222,62 @@ export function V3EditionHubScreen({ projection }: V3EditionHubScreenProps) {
         </V3Section>
       ) : null}
 
+      {featuredOutcomeRows.length > 0 ? (
+        <V3Section
+          title="Edition outcome"
+          meta={<V3StatusChip tone="success">Official result</V3StatusChip>}
+        >
+          <V3Surface level="raised" className="overflow-hidden">
+            <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
+              <div>
+                <p className="v3-kicker">{outcomeLabel}</p>
+                <p className="mt-1 text-sm font-semibold">
+                  {projection.hub.hero.experience === "archived"
+                    ? "Historical published outcome"
+                    : "Published Grand Final outcome"}
+                </p>
+              </div>
+              <Trophy className="size-5 text-white/45" aria-hidden="true" />
+            </div>
+            <div className="divide-y divide-white/[0.055]">
+              {featuredOutcomeRows.map((row) => (
+                <div key={row.id} className="flex min-h-16 items-center gap-3 px-4 py-3">
+                  <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-white/[0.055] text-[0.62rem] font-black text-white/70">
+                    {row.flagImage ? (
+                      <img src={row.flagImage} alt="" className="h-full w-full object-cover" loading="lazy" />
+                    ) : (
+                      row.shortCode.slice(0, 3)
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    {row.href ? (
+                      <Link to={row.href as any} className="block truncate text-sm font-semibold hover:underline">
+                        {row.name}
+                      </Link>
+                    ) : (
+                      <span className="block truncate text-sm font-semibold">{row.name}</span>
+                    )}
+                    <span className="mt-0.5 block text-xs text-white/45">Official rank #{row.rank}</span>
+                  </span>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums">{row.totalPoints} pts</span>
+                </div>
+              ))}
+            </div>
+          </V3Surface>
+          {projection.results.showHref ? (
+            <V3ActionCard
+              title="Open official result"
+              description="View the full published show result in Results"
+              icon={Trophy}
+              tone="neutral"
+              to={projection.results.showHref}
+            />
+          ) : null}
+        </V3Section>
+      ) : null}
+
       <nav aria-label={`Explore ${projection.hub.hero.name}`} className="flex flex-wrap gap-2">
-        {projection.hub.sections.map((section) =>
+        {navigationSections.map((section) =>
           section.state === "available" ? (
             <a
               key={section.key}
@@ -291,19 +388,29 @@ export function V3EditionHubScreen({ projection }: V3EditionHubScreenProps) {
         <div id="edition-schedule" className="grid gap-3">
           {projection.shows.length ? (
             projection.shows.map((show) => (
-              <V3ActionCard
-                key={show.id}
-                title={show.name}
-                description={[
-                  show.kind.replaceAll("-", " "),
-                  show.participantCount ? `${show.participantCount} entries` : null,
-                  show.runningOrderAvailable ? "running order public" : null,
-                  show.resultsAvailable ? "results available" : null,
-                ].filter(Boolean).join(" · ")}
-                icon={CalendarDays}
-                tone="neutral"
-                to={show.href}
-              />
+              <div key={show.id} className="grid gap-2">
+                <div className="px-1">
+                  {show.startsAt ? (
+                    <EventTime value={show.startsAt} label="Scheduled" />
+                  ) : (
+                    <span className="text-xs font-semibold text-white/45">
+                      Time to be announced
+                    </span>
+                  )}
+                </div>
+                <V3ActionCard
+                  title={show.name}
+                  description={[
+                    show.kind.replaceAll("-", " "),
+                    show.participantCount ? `${show.participantCount} entries` : null,
+                    show.runningOrderAvailable ? "running order public" : null,
+                    show.resultsAvailable ? "results available" : null,
+                  ].filter(Boolean).join(" · ")}
+                  icon={CalendarDays}
+                  tone="neutral"
+                  to={show.href}
+                />
+              </div>
             ))
           ) : (
             <V3Surface className="p-4">
@@ -417,7 +524,7 @@ export function V3EditionHubScreen({ projection }: V3EditionHubScreenProps) {
                   ))}
                 </ol>
               </V3Surface>
-              {projection.results.showHref ? (
+              {projection.results.showHref && !prioritizeOutcome ? (
                 <V3ActionCard
                   title="Open official result"
                   description="View the full published show result in Results"
@@ -433,7 +540,7 @@ export function V3EditionHubScreen({ projection }: V3EditionHubScreenProps) {
 
       <V3Section title="Explore this edition" meta={`${projection.hub.sections.length} sections`}>
         <div className="grid gap-3 sm:grid-cols-2">
-          {projection.hub.sections.map((section) => {
+          {navigationSections.map((section) => {
             if (section.state === "locked") {
               return (
                 <V3Surface key={section.key} className="p-4">

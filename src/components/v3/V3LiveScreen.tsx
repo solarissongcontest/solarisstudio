@@ -19,9 +19,14 @@ import {
 } from "./V3Foundation";
 
 export type V3LiveScreenProps = {
+  edition?: {
+    slug: string;
+    label: string;
+  } | null;
   experience: V3LiveExperience | null;
   onRefresh?: () => void;
   refreshing?: boolean;
+  degraded?: boolean;
 };
 
 function showStatePresentation(
@@ -58,6 +63,30 @@ function freshnessLabel(iso: string) {
   })}`;
 }
 
+function liveMomentLabel(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleString([], {
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function liveTimingRows(experience: V3LiveExperience) {
+  return [
+    { label: "Scheduled start", value: experience.timing.scheduledStart },
+    { label: "Live started", value: experience.timing.liveStartedAt },
+    { label: "Voting opened", value: experience.voting.openedAt },
+    { label: "Voting closed", value: experience.voting.closedAt },
+    { label: "Results segment started", value: experience.timing.resultsStartedAt },
+    { label: "Show ended", value: experience.timing.endedAt },
+  ].filter(
+    (row): row is { label: string; value: string } =>
+      typeof row.value === "string" && row.value.length > 0,
+  );
+}
+
 /**
  * Presentation-only Public V3 Live surface.
  *
@@ -66,9 +95,11 @@ function freshnessLabel(iso: string) {
  * order position or elapsed wall-clock time when Solaris lacks that authority.
  */
 export function V3LiveScreen({
+  edition = null,
   experience,
   onRefresh,
   refreshing = false,
+  degraded = false,
 }: V3LiveScreenProps) {
   if (!experience) {
     return (
@@ -76,9 +107,56 @@ export function V3LiveScreen({
         <V3ScreenHeader
           kicker="Live"
           title="No public show right now"
-          description="A live experience will appear when Solaris has a published show to follow."
+          description={
+            edition
+              ? `${edition.label} does not currently have a published show selected for Live.`
+              : "A live experience will appear when Solaris has a published show to follow."
+          }
           editorial
         />
+        {edition ? (
+          <V3Surface className="flex min-h-14 items-center justify-between gap-3 px-4 py-3">
+            <div className="min-w-0">
+              <p className="v3-kicker">Edition context</p>
+              <p className="mt-1 truncate text-sm font-semibold">{edition.label}</p>
+            </div>
+            <a
+              href={`/editions/${edition.slug}`}
+              className="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-white/10 px-3 text-xs font-semibold text-white/70 transition hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+            >
+              Open edition
+            </a>
+          </V3Surface>
+        ) : null}
+        {degraded ? (
+          <V3Surface
+            level="raised"
+            className="border-amber-300/20 bg-amber-300/[0.055] p-4"
+            data-v3-live-degraded-snapshot=""
+          >
+            <div role="status" aria-live="polite">
+              <p className="text-sm font-semibold">Live connection interrupted</p>
+              <p className="mt-1 text-xs leading-5 text-white/55">
+                The last authoritative snapshot had no public show. That state may now be stale,
+                so refresh to reconcile before relying on it.
+              </p>
+            </div>
+            {onRefresh ? (
+              <button
+                type="button"
+                onClick={onRefresh}
+                disabled={refreshing}
+                className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/10 px-3 text-xs font-semibold text-white/70 transition hover:bg-white/[0.05] disabled:cursor-wait disabled:opacity-50"
+              >
+                <RefreshCcw
+                  className={`size-4 ${refreshing ? "motion-safe:animate-spin" : ""}`}
+                  aria-hidden="true"
+                />
+                {refreshing ? "Refreshing…" : "Retry refresh"}
+              </button>
+            ) : null}
+          </V3Surface>
+        ) : null}
         <V3Surface className="p-5">
           <div role="status">
             <p className="text-sm font-semibold">Nothing is live yet</p>
@@ -93,7 +171,11 @@ export function V3LiveScreen({
   }
 
   const presentation = showStatePresentation(experience.state);
+  // A cached 'open' round is historical truth, not evidence that voting is
+  // still open after the authoritative refresh has failed.
+  const voteActionAvailable = !degraded && experience.voting.state === "open";
   const exactPerformanceKnown = Boolean(experience.currentPerformance);
+  const timingRows = liveTimingRows(experience);
 
   return (
     <V3Screen>
@@ -104,22 +186,55 @@ export function V3LiveScreen({
         editorial
       />
 
+      {edition ? (
+        <V3Surface className="flex min-h-14 items-center justify-between gap-3 px-4 py-3">
+          <div className="min-w-0">
+            <p className="v3-kicker">Edition context</p>
+            <p className="mt-1 truncate text-sm font-semibold">{edition.label}</p>
+          </div>
+          <a
+            href={`/editions/${edition.slug}`}
+            className="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-white/10 px-3 text-xs font-semibold text-white/70 transition hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+          >
+            Open edition
+          </a>
+        </V3Surface>
+      ) : null}
+
+      {degraded ? (
+        <V3Surface
+          level="raised"
+          className="border-amber-300/20 bg-amber-300/[0.055] p-4"
+          data-v3-live-degraded-snapshot=""
+        >
+          <div role="status" aria-live="polite">
+            <p className="text-sm font-semibold">Live connection interrupted</p>
+            <p className="mt-1 text-xs leading-5 text-white/55">
+              Showing the last authoritative Solaris snapshot from {freshnessLabel(
+                experience.freshness.updatedAt,
+              ).replace(/^Updated /, "")}. Refresh to reconcile with the current show state.
+              Voting availability cannot be confirmed while this snapshot is stale.
+            </p>
+          </div>
+        </V3Surface>
+      ) : null}
+
       <V3Surface level="raised" className="overflow-hidden p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="v3-kicker">Current show state</p>
             <p className="mt-2 text-xl font-bold tracking-[-0.03em]">
-              {experience.stateLabel}
+              {degraded ? `Last reported · ${experience.stateLabel}` : experience.stateLabel}
             </p>
           </div>
-          <V3StatusChip tone={presentation.tone}>
-            {presentation.label}
+          <V3StatusChip tone={degraded ? "warning" : presentation.tone}>
+            {degraded ? "Last known" : presentation.label}
           </V3StatusChip>
         </div>
 
         {exactPerformanceKnown && experience.currentPerformance ? (
           <div className="mt-5 rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
-            <p className="v3-kicker">Now performing</p>
+            <p className="v3-kicker">{degraded ? "Last reported performance" : "Now performing"}</p>
             <p className="mt-2 text-base font-semibold">
               {experience.currentPerformance.countryName}
             </p>
@@ -162,14 +277,24 @@ export function V3LiveScreen({
                 className={`size-4 ${refreshing ? "motion-safe:animate-spin" : ""}`}
                 aria-hidden="true"
               />
-              {refreshing ? "Refreshing…" : "Refresh"}
+              {refreshing ? "Refreshing…" : degraded ? "Retry refresh" : "Refresh"}
             </button>
           ) : null}
         </div>
       </V3Surface>
 
+      {degraded && experience.voting.state === "open" ? (
+        <V3Surface className="border-amber-300/20 p-4" data-v3-live-voting-unverified="">
+          <p className="text-sm font-semibold">Voting status unverified</p>
+          <p className="mt-1 text-xs leading-5 text-white/55">
+            Voting was open in the last snapshot, but it may have closed since then.
+            Refresh successfully before following a voting action.
+          </p>
+        </V3Surface>
+      ) : null}
+
       {experience.broadcast ||
-      experience.voting.state === "open" ||
+      voteActionAvailable ||
       experience.resultsPublished ? (
         <V3Section title="Do now">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -203,7 +328,7 @@ export function V3LiveScreen({
               </a>
             ) : null}
 
-            {experience.voting.state === "open" ? (
+            {voteActionAvailable ? (
               <V3ActionCard
                 title="Vote now"
                 description="Public voting is authoritatively open"
@@ -223,6 +348,30 @@ export function V3LiveScreen({
               />
             ) : null}
           </div>
+        </V3Section>
+      ) : null}
+
+      {timingRows.length ? (
+        <V3Section title="Show timing" meta="Authoritative snapshot">
+          <V3Surface className="overflow-hidden">
+            <dl className="divide-y divide-white/[0.06]">
+              {timingRows.map((row) => (
+                <div
+                  key={row.label}
+                  className="flex min-h-14 items-center justify-between gap-4 px-4 py-3"
+                >
+                  <dt className="text-xs font-medium text-white/48">{row.label}</dt>
+                  <dd className="text-right text-sm font-semibold text-white/80">
+                    {liveMomentLabel(row.value)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <p className="border-t border-white/[0.06] px-4 py-3 text-[0.7rem] leading-5 text-white/38">
+              Times are displayed from the server snapshot. They do not independently advance
+              show, voting or result state in this browser.
+            </p>
+          </V3Surface>
         </V3Section>
       ) : null}
 
@@ -277,7 +426,7 @@ export function V3LiveScreen({
       </V3Section>
 
       {experience.nextPerformance ? (
-        <V3Section title="Next">
+        <V3Section title={degraded ? "Last reported next" : "Next"}>
           <V3Surface className="p-4">
             <p className="text-sm font-semibold">
               {experience.nextPerformance.countryName}
@@ -295,7 +444,7 @@ export function V3LiveScreen({
       ) : null}
 
       <p className="sr-only" aria-live="polite">
-        {experience.stateLabel}. {freshnessLabel(experience.freshness.updatedAt)}.
+        {degraded ? "Last known show state: " : ""}{experience.stateLabel}. {freshnessLabel(experience.freshness.updatedAt)}.
       </p>
     </V3Screen>
   );

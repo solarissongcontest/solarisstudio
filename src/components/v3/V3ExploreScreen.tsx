@@ -73,11 +73,11 @@ function CurrentEditionCard({ edition }: { edition: V3ExploreEditionCard }) {
   return (
     <V3Surface level="raised" className="overflow-hidden">
       {edition.artworkUrl ? (
-        <div className="relative aspect-[16/7] overflow-hidden border-b border-white/[0.06] bg-white/[0.025]">
+        <div className="relative border-b border-white/[0.06] bg-white/[0.025]">
           <img
             src={edition.artworkUrl}
             alt=""
-            className="h-full w-full object-cover"
+            className="block h-auto max-h-[34rem] w-full object-contain"
             loading="lazy"
           />
           <div
@@ -99,7 +99,18 @@ function CurrentEditionCard({ edition }: { edition: V3ExploreEditionCard }) {
           <V3StatusChip tone={status.tone}>{status.label}</V3StatusChip>
         </div>
 
-        <div className="mt-4">
+        {edition.experience === "live" && edition.liveHref ? (
+          <div className="mt-4" data-v3-explore-live-action="">
+            <V3ActionCard
+              title="Open Live Mode"
+              description="Follow the current public show as it happens"
+              tone="urgent"
+              to={edition.liveHref}
+            />
+          </div>
+        ) : null}
+
+        <div className={edition.experience === "live" && edition.liveHref ? "mt-3" : "mt-4"}>
           <V3ActionCard
             title="Open edition"
             description="Participants, published entries, schedule, stories and official result availability"
