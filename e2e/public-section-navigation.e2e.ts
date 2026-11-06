@@ -179,3 +179,36 @@ test("reduced motion disables browser navigation disclosure and sidebar animatio
   );
   expect(sidebarTransitions.every((duration) => duration === 0)).toBe(true);
 });
+
+test("desktop advanced section follows deep links and browser history", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "public-1440", "Desktop browser section route behavior");
+
+  await page.goto("/results", { waitUntil: "domcontentloaded" });
+
+  const sidebar = page.locator(".public-section-navigation");
+  const advanced = sidebar.locator("nav.public-section-nav-body > details");
+  const summary = advanced.locator("summary");
+  await expect(advanced).toBeVisible();
+
+  // Ordinary result tools start folded so they do not crowd the main rail.
+  await expect(advanced).not.toHaveAttribute("open", "");
+
+  await summary.click();
+  await expect(advanced).toHaveAttribute("open", "");
+
+  const resultLab = advanced.getByRole("link", { name: "Result Lab", exact: true });
+  await expect(resultLab).toBeVisible();
+  await resultLab.click();
+  await expect(page).toHaveURL(/\/result-lab\/?(?:[?#].*)?$/);
+  await expect(advanced).toHaveAttribute("open", "");
+  await expect(resultLab).toHaveAttribute("aria-current", "page");
+
+  await page.goBack({ waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/\/results\/?(?:[?#].*)?$/);
+  await expect(advanced).not.toHaveAttribute("open", "");
+
+  await page.goForward({ waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/\/result-lab\/?(?:[?#].*)?$/);
+  await expect(advanced).toHaveAttribute("open", "");
+  await expect(resultLab).toHaveAttribute("aria-current", "page");
+});
