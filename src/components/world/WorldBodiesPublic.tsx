@@ -91,7 +91,8 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
     refetchOnMount: "always",
     retry: false,
   });
-  const verifiedTotal = query.isSuccess && !query.isPlaceholderData && !query.isFetching
+  const verifiedTotal = query.isSuccess && query.isFetchedAfterMount &&
+    !query.isPlaceholderData && !query.isFetching
     ? query.data?.total : undefined;
   useEffect(() => {
     if (verifiedTotal === undefined) return;
@@ -114,15 +115,21 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
   }
   // A background refresh can fail while TanStack retains previously cached data.
   // Never show that stale publication snapshot after a failed verification.
+  // A cached success predating this route mount is not publication proof.
+  // A verified placeholder can retain only the search controls, never rows.
   const result = publicationBlocked || query.isError ||
-    (query.isFetching && !query.isPlaceholderData) ? undefined : query.data;
+    ((!query.isFetchedAfterMount || query.isFetching) && !query.isPlaceholderData)
+      ? undefined : query.data;
   return <Frame>
     <Back institution={result?.organization} />
     {!valid ? <Unavailable missing /> : null}
     {valid && publicationBlocked ? <Unavailable retry={() => void query.refetch()} /> : null}
-    {valid && !publicationBlocked && (query.isPending || (query.isFetching && !query.isPlaceholderData)) ? <Loading /> : null}
+    {valid && !publicationBlocked && !query.isError &&
+      (query.isPending || ((!query.isFetchedAfterMount || query.isFetching) && !query.isPlaceholderData))
+      ? <Loading /> : null}
     {valid && !publicationBlocked && query.isError ? <Unavailable retry={() => void query.refetch()} /> : null}
-    {valid && !publicationBlocked && query.isSuccess && !query.isFetching && !result ? <Unavailable missing /> : null}
+    {valid && !publicationBlocked && query.isSuccess && query.isFetchedAfterMount &&
+      !query.isFetching && !result ? <Unavailable missing /> : null}
     {result ? <>
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{result.organization.shortName} · Governance</p>
@@ -190,8 +197,8 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
     enabled: valid && !officeNetworkBlocked, staleTime: 90_000,
     refetchOnMount: "always", retry: false,
   });
-  const result = officeNetworkBlocked || query.isError || query.isFetching
-    ? undefined : query.data;
+  const result = officeNetworkBlocked || query.isError ||
+    !query.isFetchedAfterMount || query.isFetching ? undefined : query.data;
   const offices = useQuery({
     // An office result belongs to the exact last-verified body response, not
     // just its ID. Re-verifying an organ also forces its offices to re-check.
@@ -207,9 +214,11 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
     <Back institution={result?.organization} />
     {!valid ? <Unavailable missing /> : null}
     {valid && officeNetworkBlocked ? <Unavailable retry={() => void query.refetch()} /> : null}
-    {valid && !officeNetworkBlocked && (query.isPending || query.isFetching) ? <Loading /> : null}
+    {valid && !officeNetworkBlocked && !query.isError &&
+      (query.isPending || !query.isFetchedAfterMount || query.isFetching) ? <Loading /> : null}
     {valid && !officeNetworkBlocked && query.isError ? <Unavailable retry={() => void query.refetch()} /> : null}
-    {valid && !officeNetworkBlocked && query.isSuccess && !query.isFetching && !result ? <Unavailable missing /> : null}
+    {valid && !officeNetworkBlocked && query.isSuccess && query.isFetchedAfterMount &&
+      !query.isFetching && !result ? <Unavailable missing /> : null}
     {result ? <>
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{result.organization.shortName} · Institutional body</p>
@@ -231,7 +240,7 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
             Currently active public office definitions only. This is not a historical office roster;
             private terms and unpublished appointments are excluded.
           </p>
-          {offices.isPending || offices.isFetching ? <p role="status" className="mt-4 text-sm text-muted-foreground">Checking offices…</p> : null}
+          {offices.isPending || !offices.isFetchedAfterMount || offices.isFetching ? <p role="status" className="mt-4 text-sm text-muted-foreground">Checking offices…</p> : null}
           {offices.isError ? <div role="alert" className="mt-4 text-sm">
             <p>{connectivity.status === "offline"
               ? "Reconnect to verify current public offices."
@@ -245,10 +254,10 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
               Retry offices
             </button>
           </div> : null}
-          {offices.isSuccess && !offices.isFetching && offices.data.length === 0 ? (
+          {offices.isSuccess && offices.isFetchedAfterMount && !offices.isFetching && offices.data.length === 0 ? (
             <p className="mt-4 text-sm text-muted-foreground">No active public offices are assigned to this body.</p>
           ) : null}
-          {offices.isSuccess && !offices.isFetching && offices.data.length > 0 ? (
+          {offices.isSuccess && offices.isFetchedAfterMount && !offices.isFetching && offices.data.length > 0 ? (
             <ul className="mt-3 divide-y divide-border">
               {offices.data.map((office) => <li key={office.id} className="py-3">
                 <p className="text-sm font-semibold">{office.title}</p>
@@ -256,7 +265,7 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
               </li>)}
             </ul>
           ) : null}
-          {offices.isSuccess && !offices.isFetching && offices.data.length === WORLD_BODY_OFFICE_LIMIT ? (
+          {offices.isSuccess && offices.isFetchedAfterMount && !offices.isFetching && offices.data.length === WORLD_BODY_OFFICE_LIMIT ? (
             <p className="mt-2 text-xs text-muted-foreground">Showing the first {WORLD_BODY_OFFICE_LIMIT} active public offices.</p>
           ) : null}
           <div className="mt-7 border-t border-border pt-6">
