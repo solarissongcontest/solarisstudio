@@ -12,7 +12,9 @@ describe("V3 Public completion Chat 3 discovery roots", () => {
     expect(screen).toContain('id="countries-page-title"');
     expect(screen).toContain('className="v3-countries-title"');
     expect(screen).toContain('presentation === "installed-app"');
-    expect(screen).toContain('? "Meet the countries"');
+    expect(screen).toContain('? "Countries"');
+    expect(screen).toContain('aria-pressed={!selectedParticipatingOnly}');
+    expect(screen).toContain('<Check size={16}');
     expect(screen).toContain('data-country-directory-experience={presentation}');
     expect(screen).toContain('aria-labelledby="countries-page-title"');
     expect(screen).not.toContain('eyebrow="Browse all"');
@@ -21,7 +23,7 @@ describe("V3 Public completion Chat 3 discovery roots", () => {
     expect(screen.indexOf('className="v3-countries-browser scroll-mt-24"')).toBeLessThan(
       screen.indexOf('eyebrow="Current movement"'),
     );
-    expect(screen).toContain("participatingOnly && activeEdition ? filtered : filtered.slice(0, visibleCount)");
+    expect(screen).toContain("selectedParticipatingOnly ? filtered : filtered.slice(0, visibleCount)");
     expect(screen).toContain("usePublicEditionParticipants(activeEdition?.id)");
     expect(screen).not.toContain("useAllParticipants");
     expect(screen).not.toContain("useAllResults");
@@ -38,7 +40,9 @@ describe("V3 Public completion Chat 3 discovery roots", () => {
     expect(screen).toContain('eyebrow="Up next"');
     expect(screen).toContain('eyebrow="Recent"');
     expect(screen).toContain('eyebrow="Current edition"');
-    expect(screen).toContain('eyebrow="Browse"');
+    expect(screen).toContain('id="shows-browse-title"');
+    expect(screen).toContain("All public shows");
+    expect(screen).toContain('aria-labelledby="shows-browse-title"');
     expect(screen).toContain('eyebrow="Archive"');
     expect(screen).toContain("showPublishesResults(item.show)");
     expect(screen).toContain("item.broadcastUrl");
