@@ -192,6 +192,18 @@ function V3ConfirmationFlow(props: ConfirmationFormProps) {
   }, []);
 
   useEffect(() => {
+    // The same mounted flow may receive a different round without unmounting.
+    // Never display a receipt or uncertain operation from the previous round.
+    activeReceiptScope.current = null;
+    setReceiptScope(null);
+    setReceipt(null);
+    setAuthoritativeReceipt(null);
+    setReceiptStage("idle");
+    setUncertainOperationId(null);
+    setUncertainStage(null);
+  }, [roundId]);
+
+  useEffect(() => {
     let active = true;
     let authEventRevision = 0;
 
