@@ -901,7 +901,11 @@ function WebSearchArchiveResults({
             ]
               .filter(Boolean)
               .join(" · "),
-            href: country ? `/countries/${country.short_code}` : "/editions",
+            href: country
+              ? `/countries/${country.short_code}`
+              : edition
+                ? `/editions/${edition.slug}`
+                : "/editions",
             group: "Entries",
             keywords: "entry song artist participant",
           };
