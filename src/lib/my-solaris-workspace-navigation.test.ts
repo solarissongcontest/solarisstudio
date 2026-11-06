@@ -93,6 +93,12 @@ describe("MySolaris product consolidation", () => {
     expect(tasksRoute).toContain('if (!search.country)');
     expect(tasksRoute).toContain('throw redirect({ to: NAV_TARGETS.participate, replace: true })');
     expect(tasksRoute).toContain('useMyCountryAccount()');
+    expect(tasksRoute).toContain("useFanSession()");
+    expect(tasksRoute).toContain("session.isPending || account.isPending");
+    expect(tasksRoute).toContain("session.isError || account.isError");
+    expect(tasksRoute).toContain("account.data?.access?.userId !== session.data.id");
+    expect(tasksRoute).toContain("No private inspection data was loaded.");
+
     expect(tasksRoute).toContain('account.data?.access?.isOrganizer !== true');
     expect(tasksRoute).toContain('<Navigate to={NAV_TARGETS.participate} replace />');
     expect(tasksRoute).toContain('<MySolarisTasksModule />');
