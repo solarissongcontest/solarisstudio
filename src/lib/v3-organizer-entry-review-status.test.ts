@@ -3,6 +3,7 @@ import {
   classifyOrganizerEntryReview,
   deriveOrganizerResponseReviewState,
   hasOutdatedOrganizerEntryReview,
+  hasOutdatedOrganizerResponseReview,
   type OrganizerResponseReviewEvidence,
 } from "./v3-organizer-entry-review-status";
 
@@ -99,6 +100,45 @@ describe("Organizer Entry Review current-version queue", () => {
     expect(deriveOrganizerResponseReviewState({
       ...internal(accepted()), selection_method: "future_selection",
     })).toBe("neutral");
+  });
+
+  it("finds stale current-selection review evidence without using another selection", () => {
+    const stale = { ...accepted(), reviewed_version_id: "entry-v1" };
+    expect(hasOutdatedOrganizerResponseReview(internal(stale))).toBe(true);
+    expect(hasOutdatedOrganizerResponseReview(internal(accepted()))).toBe(false);
+    expect(hasOutdatedOrganizerResponseReview({
+      ...internal(stale), selection_method: "national_final",
+    })).toBe(false);
+    expect(hasOutdatedOrganizerResponseReview({
+      ...internal(stale), participating: false,
+    })).toBe(false);
+  });
+
+  it("ignores removed and unknown NF candidates but catches any active stale review", () => {
+    const entries = [
+      accepted(),
+      { ...accepted(), id: "entry-2", reviewed_version_id: "entry-v1" },
+    ];
+    expect(hasOutdatedOrganizerResponseReview(nationalFinal(entries, "entry-1"))).toBe(true);
+    expect(hasOutdatedOrganizerResponseReview(nationalFinal([
+      { ...entries[1], removed: true },
+    ], null))).toBe(false);
+    expect(hasOutdatedOrganizerResponseReview(nationalFinal([
+      { ...entries[1], review_status: "removed" },
+    ], null))).toBe(false);
+    expect(hasOutdatedOrganizerResponseReview({
+      ...nationalFinal(entries, "entry-1"), nf_entries_unknown: true,
+    })).toBe(false);
+  });
+
+  it("requires a known Entry before treating historical internal review as actionable", () => {
+    const stale = { ...accepted(), reviewed_version_id: "entry-v1" };
+    expect(hasOutdatedOrganizerResponseReview({
+      ...internal(stale), entry_unknown: true,
+    })).toBe(false);
+    expect(hasOutdatedOrganizerResponseReview({
+      ...internal(stale), selection_method: null,
+    })).toBe(false);
   });
 
   it("does not confer acceptance from legacy, missing or unknown review evidence", () => {

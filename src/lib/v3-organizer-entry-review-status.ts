@@ -51,6 +51,29 @@ export function hasOutdatedOrganizerEntryReview(
     classifyOrganizerEntryReview(entry) === "needs_review";
 }
 
+/**
+ * This is triage evidence for the selected response only, not a server verdict.
+ * A historical review on an inactive selection or removed NF candidate cannot
+ * make the current response appear to need version-related attention.
+ */
+export function hasOutdatedOrganizerResponseReview(
+  response: OrganizerResponseReviewEvidence,
+): boolean {
+  if (!response.participating) return false;
+  if (response.selection_method === "internal") {
+    return Boolean(response.internal_entries &&
+      !response.entry_unknown &&
+      hasOutdatedOrganizerEntryReview(response.internal_entries));
+  }
+  if (response.selection_method === "national_final") {
+    if (response.nf_entries_unknown) return false;
+    return (response.national_finals?.national_final_entries ?? [])
+      .filter((entry) => !entry.removed && entry.review_status !== "removed")
+      .some(hasOutdatedOrganizerEntryReview);
+  }
+  return false;
+}
+
 export function deriveOrganizerResponseReviewState(
   response: OrganizerResponseReviewEvidence,
 ): OrganizerResponseReviewState {

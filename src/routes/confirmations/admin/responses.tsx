@@ -18,7 +18,7 @@ import { confirmationsSupabase } from "@/integrations/confirmations/client";
 import {
   classifyOrganizerEntryReview,
   deriveOrganizerResponseReviewState,
-  hasOutdatedOrganizerEntryReview,
+  hasOutdatedOrganizerResponseReview,
 } from "@/lib/v3-organizer-entry-review-status";
 import {
   loadConfirmationResponsesPage,
@@ -108,6 +108,7 @@ type ResponseFilter =
   | "song_submitted"
   | "song_missing"
   | "unreviewed"
+  | "outdated_review"
   | "accepted_overall"
   | "nf_accepted"
   | "internal_accepted"
@@ -124,6 +125,7 @@ const FILTERS: Array<{ value: ResponseFilter; label: string }> = [
   { value: "song_submitted", label: "Song submitted" },
   { value: "song_missing", label: "Song missing" },
   { value: "unreviewed", label: "Needs review" },
+  { value: "outdated_review", label: "Outdated review evidence" },
   { value: "accepted_overall", label: "Songs accepted overall" },
   { value: "nf_accepted", label: "NF songs accepted" },
   { value: "internal_accepted", label: "Internal songs accepted" },
@@ -203,6 +205,7 @@ function matchesFilter(row: ResponseRow, filter: ResponseFilter) {
   if (filter === "song_submitted") return songSubmitted(row);
   if (filter === "song_missing") return row.participating && !songSubmitted(row);
   if (filter === "unreviewed") return responseCardState(row) === "review";
+  if (filter === "outdated_review") return hasOutdatedOrganizerResponseReview(row);
   if (filter === "accepted_overall") return hasAcceptedInternal(row) || hasAcceptedNf(row);
   if (filter === "nf_accepted") return hasAcceptedNf(row);
   if (filter === "internal_accepted") return hasAcceptedInternal(row);
@@ -441,6 +444,7 @@ function ConfirmationResponsesList() {
   const reviewCount = rows.filter((row) => responseCardState(row) === "review").length;
   const issueCount = rows.filter((row) => responseCardState(row) === "issue").length;
   const readyCount = rows.filter((row) => responseCardState(row) === "ready").length;
+  const outdatedCount = rows.filter(hasOutdatedOrganizerResponseReview).length;
   const loading = loadingEditions || (Boolean(editionId) && loadingResponses);
 
   return (
@@ -459,13 +463,14 @@ function ConfirmationResponsesList() {
 
       {editionId && mode === "confirmations" ? (
         <>
-          <div className="mb-2 grid grid-cols-3 gap-2">
+          <div className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
             <Metric label="Review" value={reviewCount} tone="rose" />
             <Metric label="Problems" value={issueCount} tone="amber" />
             <Metric label="Ready" value={readyCount} tone="emerald" />
+            <Metric label="Outdated" value={outdatedCount} tone="amber" />
           </div>
           <p className="mb-4 text-xs text-muted-foreground">
-            Loaded {rows.length} of {responseTotalCount} response{responseTotalCount === 1 ? "" : "s"}
+            Counts reflect the loaded page: {rows.length} of {responseTotalCount} response{responseTotalCount === 1 ? "" : "s"}
             {responseStateVersion ? ` · canonical state ${responseStateVersion.slice(-12)}` : ""}.
           </p>
         </>
@@ -557,8 +562,7 @@ function ConfirmationResponsesList() {
               <AdminCard key={row.id} className={`!p-4 transition-shadow ${cardGlow(state)}`}>
                 <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="admin-section-label">{row.editions ? `SSC ${row.editions.edition_number}` : "SSC"} · {row.submission_rounds?.name ?? "Confirmation"}</p><h2 className="mt-1 truncate text-lg font-bold tracking-[-.02em]">{row.country}</h2><p className="mt-1 truncate text-xs text-muted-foreground">@{row.instagram_username.replace(/^@/, "")}</p></div><StateBadge state={state} /></div>
                 <div className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.022] p-3"><p className="text-sm font-semibold leading-snug">{entrySummary}</p>
-                  {(internal && hasOutdatedOrganizerEntryReview(internal)) ||
-                    activeEntries.some(hasOutdatedOrganizerEntryReview) ? (
+                  {hasOutdatedOrganizerResponseReview(row) ? (
                     <p className="mt-1 text-xs text-amber-100">
                       Earlier review evidence is stale or lacks a current Entry-version binding.
                       Review the latest submission before counting it as accepted.
