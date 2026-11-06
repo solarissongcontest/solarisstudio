@@ -40,7 +40,7 @@ export function predictionState(
   entry?: SavedPredictionEntry | null,
 ): V3PredictionState | null {
   if (round.status === "cancelled") return null;
-  if (round.status === "scored" || entry?.prediction_score) return "scored";
+  if (round.status === "scored") return "scored";
   if (round.status === "scoring") return "scoring";
   if (round.status === "locked") return "locked";
   if (round.status === "open") return hasSubmittedPrediction(entry) ? "submitted" : "open";
@@ -66,7 +66,8 @@ export function projectPredictionRound(
 ): V3PredictionRoundProjection | null {
   const state = predictionState(round, entry);
   if (!state) return null;
-  const score = entry?.prediction_score ?? null;
+  // A previous score does not override a round that is currently locked or scoring.
+  const score = state === "scored" ? entry?.prediction_score ?? null : null;
   return {
     id: round.id,
     showId: round.show_id,
