@@ -49,7 +49,7 @@ function localPreview(utcInput: string): string {
   try {
     const iso = utcInstantFromInput(utcInput);
     return new Date(iso).toLocaleString(undefined, {
-      dateStyle: "medium", timeStyle: "short", timeZoneName: "short",
+      year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short",
     });
   } catch {
     return "Enter a valid UTC instant";
@@ -150,9 +150,9 @@ export function WorldSessionScheduleEditor({ sessionId }: { sessionId: string })
     setPending({
       description: "Reschedule the official session from revision " +
         schedule.data.revision + " to " +
-        new Date(startsAt).toLocaleString(undefined,{dateStyle:"full",timeStyle:"short",timeZoneName:"short"}) +
+        new Date(startsAt).toLocaleString(undefined,{year:"numeric",month:"long",day:"numeric",hour:"2-digit",minute:"2-digit",timeZoneName:"short"}) +
         ", ending " +
-        new Date(endsAt).toLocaleString(undefined,{dateStyle:"full",timeStyle:"short",timeZoneName:"short"}) +
+        new Date(endsAt).toLocaleString(undefined,{year:"numeric",month:"long",day:"numeric",hour:"2-digit",minute:"2-digit",timeZoneName:"short"}) +
         ". The authoritative session, public schedule and audit event will update together.",
       run: () => rescheduleWorldSession(input),
     });
