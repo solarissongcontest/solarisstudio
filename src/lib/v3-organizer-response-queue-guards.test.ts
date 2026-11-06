@@ -5,6 +5,7 @@ import {
   assertOrganizerResponsePageContinuity,
   safeOrganizerResponseSongUrl,
   assertOrganizerNextInLineRowsInScope,
+  assertOrganizerResponseRowsInEdition,
 } from "./v3-organizer-response-queue-guards";
 
 describe("Organizer Confirmation response queue page guards", () => {
@@ -122,6 +123,45 @@ describe("Organizer Confirmation response queue page guards", () => {
     expect(code).toContain("Loading Next in Line for the selected edition");
     expect(code).toContain("Next in Line could not be loaded safely");
     expect(code).not.toContain('setError((current) => current ?? result.error.message)');
+  });
+
+  it("accepts only same-edition Confirmation response rows", () => {
+    const rows=[{id:"response-1",editions:{id:"edition-A"},
+      submission_rounds:{edition_id:"edition-A"}}];
+    expect(assertOrganizerResponseRowsInEdition(rows,"edition-A")).toEqual(rows);
+    expect(assertOrganizerResponseRowsInEdition([],"edition-A")).toEqual([]);
+  });
+  it("rejects cross-edition rows even when a round happens to match", () => {
+    expect(() => assertOrganizerResponseRowsInEdition([
+      {id:"response-1",editions:{id:"edition-B"},
+       submission_rounds:{edition_id:"edition-A"}},
+    ],"edition-A")).toThrow(/outside the selected edition/);
+    expect(() => assertOrganizerResponseRowsInEdition([
+      {id:"response-1",editions:{id:"edition-A"},
+       submission_rounds:{edition_id:"edition-B"}},
+    ],"edition-A")).toThrow(/outside the selected edition/);
+  });
+  it("rejects absent edition, duplicate IDs or malformed identities", () => {
+    const good={id:"response-1",editions:{id:"edition-A"}};
+    expect(() => assertOrganizerResponseRowsInEdition([good,good],"edition-A"))
+      .toThrow(/duplicate/);
+    expect(() => assertOrganizerResponseRowsInEdition([
+      {id:"",editions:{id:"edition-A"}},
+    ],"edition-A")).toThrow(/invalid response identity/);
+    expect(() => assertOrganizerResponseRowsInEdition([
+      {id:"response-1",editions:null},
+    ],"edition-A")).toThrow(/outside the selected edition/);
+    expect(() => assertOrganizerResponseRowsInEdition([good],""))
+      .toThrow(/Select an Organizer edition/);
+  });
+  it("guards every page before it is shown or appended", () => {
+    const route=readFileSync(resolve(process.cwd(),
+      "src/routes/confirmations/admin/responses.tsx"),"utf8");
+    expect(route).toContain("assertOrganizerResponseRowsInEdition(page.rows, editionId)");
+    expect(route).toContain("assertOrganizerResponseRowsInEdition(page.rows, requestedEditionId)");
+    expect(route).toContain("const scopedRows = useMemo");
+    expect(route).toContain("const reviewCount = scopedRows.filter");
+    expect(route).toContain("buildOrganizerEntryReviewWorklist(rows, editionId)");
   });
 
   it("makes unsafe external Next-in-Line links visibly unavailable", () => {

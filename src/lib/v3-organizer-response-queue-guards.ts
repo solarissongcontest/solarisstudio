@@ -80,3 +80,36 @@ export function assertOrganizerNextInLineRowsInScope<
   }
   return [...rows];
 }
+
+/**
+ * The server projection must already enforce exact Organizer edition scope.
+ * This second boundary rejects malformed/foreign records instead of merging
+ * or silently hiding them. It is not an RLS or capability substitute.
+ */
+export type OrganizerResponseScopeEvidence = {
+  id?: unknown;
+  editions?: { id?: unknown } | null;
+  submission_rounds?: { edition_id?: unknown } | null;
+};
+
+export function assertOrganizerResponseRowsInEdition<T extends OrganizerResponseScopeEvidence>(
+  rows: readonly T[],
+  editionId: string,
+): T[] {
+  if (!editionId) throw new Error("Select an Organizer edition before loading Confirmation responses.");
+  const seen = new Set<string>();
+  for (const row of rows) {
+    if (!row || typeof row.id !== "string" || !row.id.trim()) {
+      throw new Error("Confirmation response projection returned an invalid response identity.");
+    }
+    if (row.editions?.id !== editionId ||
+        (row.submission_rounds && row.submission_rounds.edition_id !== editionId)) {
+      throw new Error("Confirmation response projection returned data outside the selected edition.");
+    }
+    if (seen.has(row.id)) {
+      throw new Error("Confirmation response projection returned duplicate response identities.");
+    }
+    seen.add(row.id);
+  }
+  return [...rows];
+}

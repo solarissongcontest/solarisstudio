@@ -30,6 +30,7 @@ import {
   assertOrganizerResponsePageContinuity,
   safeOrganizerResponseSongUrl,
   assertOrganizerNextInLineRowsInScope,
+  assertOrganizerResponseRowsInEdition,
 } from "@/lib/v3-organizer-response-queue-guards";
 import {
   buildOrganizerEntryReviewWorklist,
@@ -333,7 +334,7 @@ function ConfirmationResponsesList() {
         if (page.page.hasMore && !page.page.nextCursor) {
           throw new Error("Confirmation projection returned an incomplete page cursor.");
         }
-        setRows(page.rows);
+        setRows(assertOrganizerResponseRowsInEdition(page.rows, editionId));
         setResponseCursor(page.page.hasMore ? page.page.nextCursor : null);
         setResponseTotalCount(page.totalCount);
         setResponseStateVersion(page.stateVersion);
@@ -409,12 +410,13 @@ function ConfirmationResponsesList() {
       if (activeEditionRef.current !== requestedEditionId ||
           requestedGeneration !== responseLoadGenerationRef.current) return;
       assertOrganizerResponsePageContinuity(baseline, page);
+      const newRows = assertOrganizerResponseRowsInEdition(page.rows, requestedEditionId);
       if (page.page.hasMore && !page.page.nextCursor) {
         throw new Error("Confirmation projection returned an incomplete continuation cursor.");
       }
       setRows((current) => {
         const byId = new Map(current.map((row) => [row.id, row]));
-        page.rows.forEach((row) => byId.set(row.id, row));
+        newRows.forEach((row) => byId.set(row.id, row));
         return [...byId.values()];
       });
       setResponseCursor(page.page.hasMore ? page.page.nextCursor : null);
@@ -433,14 +435,19 @@ function ConfirmationResponsesList() {
     }
   }
 
+  const scopedRows = useMemo(() =>
+    editionId ? rows.filter((row) => row.editions?.id === editionId) : [],
+    [rows, editionId],
+  );
+
   const rounds = useMemo(() => {
     const map = new Map<string, { id: string; name: string; edition_id: string }>();
-    rows.forEach((row) => {
+    scopedRows.forEach((row) => {
       const round = row.submission_rounds;
       if (round?.edition_id === editionId) map.set(round.id, round);
     });
     return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
-  }, [editionId, rows]);
+  }, [editionId, scopedRows]);
 
   useEffect(() => {
     if (roundId !== "all" && !rounds.some((round) => round.id === roundId)) setRoundId("all");
@@ -448,7 +455,7 @@ function ConfirmationResponsesList() {
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
-    return rows
+    return scopedRows
       .filter((row) => {
         if (row.editions?.id !== editionId) return false;
         if (roundId !== "all" && row.submission_rounds?.id !== roundId) return false;
@@ -471,7 +478,7 @@ function ConfirmationResponsesList() {
         const priority = statePriority(responseCardState(a)) - statePriority(responseCardState(b));
         return priority || new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime();
       });
-  }, [editionId, filter, query, roundId, rows]);
+  }, [editionId, filter, query, roundId, scopedRows]);
 
   function retryVisibleQueue() {
     if (mode === "next_in_line") setNextReloadKey((current) => current + 1);
@@ -508,10 +515,10 @@ function ConfirmationResponsesList() {
   const entryRevised = scopedEntryWorklist.filter((item) =>
     matchesOrganizerEntryWorkFilter(item, "revised")).length;
 
-  const reviewCount = rows.filter((row) => responseCardState(row) === "review").length;
-  const issueCount = rows.filter((row) => responseCardState(row) === "issue").length;
-  const readyCount = rows.filter((row) => responseCardState(row) === "ready").length;
-  const outdatedCount = rows.filter(hasOutdatedOrganizerResponseReview).length;
+  const reviewCount = scopedRows.filter((row) => responseCardState(row) === "review").length;
+  const issueCount = scopedRows.filter((row) => responseCardState(row) === "issue").length;
+  const readyCount = scopedRows.filter((row) => responseCardState(row) === "ready").length;
+  const outdatedCount = scopedRows.filter(hasOutdatedOrganizerResponseReview).length;
   const loading = loadingEditions || (Boolean(editionId) &&
     (mode === "next_in_line" ? loadingNextRows : loadingResponses));
   const visibleError = mode === "next_in_line" && editionId ? nextError : error;
