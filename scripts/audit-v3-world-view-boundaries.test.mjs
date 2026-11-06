@@ -87,7 +87,7 @@ test("local catalog runner keeps libpq environment overrides out and runs read-o
   assert.equal(captured.options.env.PGSERVICE, undefined);
   assert.equal(captured.options.env.PGOPTIONS, undefined);
   assert.equal(isolatedPgEnvironment({ PGHOSTADDR: "1.2.3.4", PATH: "/bin" }).PGHOSTADDR, undefined);
-  assert.match(WORLD_VIEW_CATALOG_SQL, /has_table_privilege/);
+  assert.match(WORLD_VIEW_CATALOG_SQL, /has_any_column_privilege/);
   assert.match(WORLD_VIEW_CATALOG_SQL, /relkind in \('v', 'm'\)/);
 });
 
@@ -96,4 +96,11 @@ test("rejects non-JSON catalog output and never calls runner for remote URL", ()
   assert.throws(() => runLocalAudit("postgresql://evil.example:54322/postgres", {
     runner: () => { throw new Error("Remote runner must never start"); },
   }), /loopback/);
+});
+
+test("detects effective column-scoped SELECT grants in both browser roles", () => {
+  // has_table_privilege by itself misses SELECT privileges on a single column.
+  assert.match(WORLD_VIEW_CATALOG_SQL, /has_any_column_privilege\('anon', c\.oid, 'SELECT'\)/);
+  assert.match(WORLD_VIEW_CATALOG_SQL, /has_any_column_privilege\('authenticated', c\.oid, 'SELECT'\)/);
+  assert.doesNotMatch(WORLD_VIEW_CATALOG_SQL, /has_table_privilege\(/);
 });
