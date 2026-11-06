@@ -9,7 +9,7 @@ vi.mock("@/integrations/confirmations/public-runtime.server", () => ({
 import {
   loadWorldMembershipChronicle,
   loadWorldMembershipInstitutions,
-} from "./terra-world-membership-chronicle.server";
+} from "@/integrations/v3/terra-world-membership-chronicle.server";
 
 type QueryResponse = {
   data: unknown;
