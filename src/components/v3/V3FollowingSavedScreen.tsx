@@ -180,12 +180,14 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
         reconciled.data?.schemaReady === true &&
         matchesIntent(reconciled.data.follows);
     };
+    let mutationDispatched = false;
     try {
       // Do not dispatch a stale preference click under a different login.
       const { data: auth, error: authError } = await supabase.auth.getUser();
       if (authError || !auth.user || auth.user.id !== viewerId || latestViewerId.current !== viewerId) {
         throw new Error("Following account changed before the preference update.");
       }
+      mutationDispatched = true;
       await setFollow.mutateAsync({
         entityType: item.entityType,
         entityId: item.entityId,
@@ -200,10 +202,14 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
     } catch (error) {
       console.error("[V3 Following & Saved] Preference update failed", error);
       let confirmed = false;
-      try {
-        confirmed = await readConfirmedIntent();
-      } catch (readError) {
-        console.error("[V3 Following & Saved] Reconciliation read failed", readError);
+      // A rejected actor preflight sent no mutation: never infer that an
+      // empty stale-account refetch means a requested removal succeeded.
+      if (mutationDispatched) {
+        try {
+          confirmed = await readConfirmedIntent();
+        } catch (readError) {
+          console.error("[V3 Following & Saved] Reconciliation read failed", readError);
+        }
       }
       setMessage({ viewerId, text: confirmed
         ? (following ? `Updated ${item.title} after reconnecting to server state.` : `Removed ${item.title} after reconnecting to server state.`)
