@@ -6,7 +6,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { AppShell } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
 import {
-  fetchWorldUnifiedSearch,
+  fetchWorldCountrySearchPage,
+  fetchWorldOrganizationSearchPage,
   verifiedWorldSearchTerm,
   WORLD_UNIFIED_SEARCH_LIMIT,
   WORLD_UNIFIED_SEARCH_MAX_PAGE,
@@ -100,14 +101,25 @@ export function WorldUnifiedSearchPage({
 
   const normalized = verifiedWorldSearchTerm(term);
   const canSearch = normalized.length >= 2;
-  const search = useQuery({
-    queryKey: ["world", "public", "unified-search", normalized, countryPage, organizationPage],
-    queryFn: () => fetchWorldUnifiedSearch(normalized, countryPage, organizationPage),
+  // Separate caches mean paging countries does not trigger an unnecessary
+  // organization request, or vice versa. Both readers remain RLS-authorized.
+  const countryQuery = useQuery({
+    queryKey: ["world", "public", "country-search", normalized, countryPage],
+    queryFn: () => fetchWorldCountrySearchPage(normalized, countryPage),
     enabled: canSearch,
     staleTime: 90_000,
     retry: false,
   });
-  const visible = canSearch && search.isSuccess ? search.data : null;
+  const organizationQuery = useQuery({
+    queryKey: ["world", "public", "organization-search", normalized, organizationPage],
+    queryFn: () => fetchWorldOrganizationSearchPage(normalized, organizationPage),
+    enabled: canSearch,
+    staleTime: 90_000,
+    retry: false,
+  });
+  const visible = canSearch && countryQuery.isSuccess && organizationQuery.isSuccess
+    ? { term: normalized, ...countryQuery.data, ...organizationQuery.data }
+    : null;
 
   // Recover both page positions in a single navigation when search results
   // shrink after publication changes. Never render a false zero-results page.
@@ -193,18 +205,21 @@ export function WorldUnifiedSearchPage({
           </section>
         ) : null}
 
-        {canSearch && search.isPending ? (
+        {canSearch && (countryQuery.isPending || organizationQuery.isPending) ? (
           <p role="status" aria-live="polite" className="py-8 text-sm text-muted-foreground">
             Searching published World records…
           </p>
         ) : null}
-        {canSearch && search.isError ? (
+        {canSearch && (countryQuery.isError || organizationQuery.isError) ? (
           <div role="alert" className="mt-8 border-y border-border py-6">
             <h2 className="text-lg font-semibold">World search is unavailable</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               Official results could not be verified. No cached or assumed results are being shown.
             </p>
-            <button type="button" onClick={() => void search.refetch()}
+            <button type="button" onClick={() => {
+              if (countryQuery.isError) void countryQuery.refetch();
+              if (organizationQuery.isError) void organizationQuery.refetch();
+            }}
               className="mt-4 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold">
               Try again
             </button>
