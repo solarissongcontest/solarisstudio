@@ -1,8 +1,38 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+// A static React render never mounts/reactivates a query. Return explicit
+// post-recheck outcomes, preserving stale cached data in failures to prove
+// the UI refuses to reveal it rather than merely testing an empty cache.
+const queryModes = vi.hoisted(() => ({
+  projection: "verified" as "verified" | "refetching" | "failed",
+  members: "verified" as "verified" | "refetching" | "failed",
+}));
+vi.mock("@tanstack/react-query", () => ({
+  useQuery: ({ queryKey }: { queryKey: readonly unknown[] }) => {
+    let data: unknown;
+    let mode: "verified" | "refetching" | "failed";
+    if (queryKey[2] === "organization" && queryKey[3] === "guard") {
+      data = profile;
+      mode = queryModes.projection;
+    } else if (queryKey[2] === "member-countries") {
+      data = countryRows;
+      mode = queryModes.members;
+    } else {
+      throw new Error("Unexpected institutional query during profile rendering");
+    }
+    return {
+      data,
+      isSuccess: mode !== "failed",
+      isPending: false,
+      isError: mode === "failed",
+      isRefetchError: mode === "failed",
+      isFetching: mode === "refetching",
+      refetch: vi.fn(),
+    };
+  },
+}));
 vi.mock("@/components/AppShell", () => ({
   AppShell: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
@@ -61,41 +91,27 @@ const profile = {
   }],
 };
 
+const countryRows = [{
+  id: "country-oland", name: "OLAND_COUNTRY_SENTINEL",
+  short_code: "OLA", accent_color: "#112233", flag_image: null,
+}];
+
 type FailureMode = "verified" | "refetching" | "failed";
 
-function renderProfile(view: "overview" | "leadership" | "members", mode: FailureMode,
+function renderProfile(
+  view: "overview" | "leadership" | "members",
+  mode: FailureMode,
   memberMode: FailureMode = "verified",
 ): string {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const projectionKey = ["world", "public", "organization", "guard"];
-  const memberKey = ["world", "public", "member-countries", ["country-oland"]];
-
-  client.setQueryData(projectionKey, profile);
-  client.setQueryData(memberKey, [{
-    id: "country-oland", name: "OLAND_COUNTRY_SENTINEL",
-    short_code: "OLA", accent_color: "#112233", flag_image: null,
-  }]);
-
-  const modify = (key: readonly unknown[], status: FailureMode) => {
-    const query = client.getQueryCache().find({ queryKey: key, exact: true });
-    if (!query) throw new Error("Missing isolated query cache");
-    if (status === "refetching") query.setState({ fetchStatus: "fetching" });
-    if (status === "failed") query.setState({
-      status: "error", error: new Error("Publication verification failed"),
-      fetchStatus: "idle",
-    });
-  };
-  modify(projectionKey, mode);
-  modify(memberKey, memberMode);
-
+  queryModes.projection = mode;
+  queryModes.members = memberMode;
   try {
     return renderToStaticMarkup(
-      <QueryClientProvider client={client}>
-        <WorldOrganizationPage slug="guard" view={view} onViewChange={() => {}} />
-      </QueryClientProvider>,
+      <WorldOrganizationPage slug="guard" view={view} onViewChange={() => {}} />,
     );
   } finally {
-    client.clear();
+    queryModes.projection = "verified";
+    queryModes.members = "verified";
   }
 }
 
