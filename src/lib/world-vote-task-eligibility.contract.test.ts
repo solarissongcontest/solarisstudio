@@ -60,4 +60,37 @@ describe("TG10 institutional vote Task Engine recipient authority", () => {
     expect(sql).toMatch(/revoke all on function private\.world_vote_task_recipient_eligible_v1\(uuid,uuid,uuid\)\s+from public, anon, authenticated, service_role;/i);
     expect(sql).not.toMatch(/grant execute/i);
   });
+  it("keeps the TG10 rehearsal inside the parent disposable TG8 transaction", () => {
+    const rehearsal = read("scripts/rehearse-v3-world-vote-task-eligibility.sql");
+    expect(rehearsal).toContain("current_setting('solaris.tg8_fixture'");
+    expect(rehearsal).toContain("savepoint tg10_vote_task_eligibility;");
+    expect(rehearsal).toContain("rollback to savepoint tg10_vote_task_eligibility;");
+    expect(rehearsal).toContain("release savepoint tg10_vote_task_eligibility;");
+    expect(rehearsal).not.toMatch(/(^|\n)\s*(?:begin|commit)\s*;/im);
+  });
+
+  it("rehearses recipient, private privilege, feature and platform denial", () => {
+    const rehearsal = read("scripts/rehearse-v3-world-vote-task-eligibility.sql");
+    expect(rehearsal).toContain("TG10_VALID_REPRESENTATIVE_TASK_DENIED");
+    expect(rehearsal).toContain("TG10_OTHER_COUNTRY_REP_LEAK");
+    expect(rehearsal).toContain("TG10_OUTSIDER_TASK_LEAK");
+    expect(rehearsal).toContain("TG10_NULL_ACTOR_TASK_LEAK");
+    expect(rehearsal).toContain("TG10_EXPIRED_VOTE_TASK_LEAK");
+    expect(rehearsal).toContain("set local role anon;");
+    expect(rehearsal).toContain("TG10_ANON_EXECUTE_ALLOWED");
+    expect(rehearsal).toContain("TG10_DISABLED_VOTING_TASK_LEAK");
+    expect(rehearsal).toContain("TG10_DISABLED_RULES_TASK_LEAK");
+    expect(rehearsal).toContain("TG10_READ_ONLY_TASK_LEAK");
+    expect(rehearsal).not.toMatch(/world_vote_electorate|world_legislative_ballots/i);
+  });
+
+  it("uses TG8's real cast to revoke already-cast task entitlement", () => {
+    const rehearsal = read("scripts/rehearse-v3-world-vote-task-eligibility.sql");
+    expect(rehearsal).toContain("public.world_cast_ballot_v1(");
+    expect(rehearsal).toContain("TG10_CANONICAL_CAST_FAILED");
+    expect(rehearsal).toContain("TG10_ALREADY_CAST_VOTE_TASK_LEAK");
+    expect(rehearsal).toContain("public.world_vote_eligibility");
+    expect(rehearsal).not.toMatch(/(?:https?:\/\/|postgres(?:ql)?:\/\/)/i);
+  });
+
 });
