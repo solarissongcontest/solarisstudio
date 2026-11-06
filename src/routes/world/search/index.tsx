@@ -33,9 +33,9 @@ function WorldSearchRoute() {
           search: { q: verifiedWorldSearchTerm(next), c: 0, o: 0 },
           replace: false,
         })}
-        onPagesChange={(nextCountryPage, nextOrganizationPage) => void navigate({
+        onPagesChange={(nextCountryPage, nextOrganizationPage, replace = false) => void navigate({
           search: { q, c: nextCountryPage, o: nextOrganizationPage },
-          replace: true,
+          replace,
         })}
       />
     </WorldPublicGate>
