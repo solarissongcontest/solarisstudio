@@ -29,6 +29,7 @@ import { usePublicSearchParticipants } from "@/lib/public-participants";
 import { publicSearchPublicationScope, publicSearchRowsForPublishedShows } from "@/lib/public-search-published-scope";
 import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
 import { canSuggestDelegationSearchActions } from "@/lib/public-search-action-visibility";
+import { matchesV3PublicSearch, rankV3PublicSearchResults } from "@/lib/v3-public-search-relevance";
 import {
   editionLabel,
   useAllJuryVotes,
@@ -41,7 +42,6 @@ import {
 } from "@/lib/data";
 import {
   dedupePublicSearchResults,
-  matchesPublicSearch,
   navigationSearchResults,
   type PublicSearchResult,
 } from "@/lib/public-search";
@@ -356,7 +356,7 @@ function AppPublicPaletteDialog({
 
     const local = [
       ...actionResults.filter((item) =>
-        matchesPublicSearch(normalized, item.label, item.description, item.keywords),
+        matchesV3PublicSearch(normalized, item.label, item.description, item.keywords),
       ),
       ...navigationSearchResults(normalized),
       ...searchGovernanceLibrary(normalized).slice(0, 16).map((item) => ({
@@ -368,7 +368,7 @@ function AppPublicPaletteDialog({
       })),
     ];
 
-    return dedupePublicSearchResults([...local, ...remoteResults]).slice(0, 50);
+    return rankV3PublicSearchResults(dedupePublicSearchResults([...local, ...remoteResults]), normalized).slice(0, 50);
   }, [actionResults, normalized, awaitingRemote, remote.data, remote.isError]);
 
   const grouped = useMemo(() => {
@@ -785,7 +785,7 @@ function WebSearchArchiveResults({
   const searchResults = useMemo(() => {
     const values: PublicSearchResult[] = [
       ...actionResults.filter((item) =>
-        matchesPublicSearch(
+        matchesV3PublicSearch(
           normalized,
           item.label,
           item.description,
@@ -795,7 +795,7 @@ function WebSearchArchiveResults({
       ...navigationSearchResults(normalized),
       ...countries
         .filter((country) =>
-          matchesPublicSearch(
+          matchesV3PublicSearch(
             normalized,
             country.name,
             country.native_name,
@@ -821,7 +821,7 @@ function WebSearchArchiveResults({
         ]),
       ...publicEditions
         .filter((edition) =>
-          matchesPublicSearch(
+          matchesV3PublicSearch(
             normalized,
             edition.name,
             edition.edition_number,
@@ -840,7 +840,7 @@ function WebSearchArchiveResults({
       ...publicShows
         .filter((show) => {
           const edition = editionById.get(show.edition_id);
-          return matchesPublicSearch(
+          return matchesV3PublicSearch(
             normalized,
             show.name,
             show.kind,
@@ -860,7 +860,7 @@ function WebSearchArchiveResults({
         }),
       ...(storiesQuery.isError ? [] : storiesQuery.data ?? [])
         .filter((story) =>
-          matchesPublicSearch(
+          matchesV3PublicSearch(
             normalized,
             story.title,
             story.subtitle,
@@ -879,7 +879,7 @@ function WebSearchArchiveResults({
         .filter((entry) => {
           const country = countryById.get(entry.country_id);
           const edition = editionById.get(entry.edition_id);
-          return matchesPublicSearch(
+          return matchesV3PublicSearch(
             normalized,
             entry.artist,
             entry.song,
@@ -913,7 +913,7 @@ function WebSearchArchiveResults({
       ...scorechartShows
         .filter((show) => {
           const edition = editionById.get(show.edition_id);
-          return matchesPublicSearch(
+          return matchesV3PublicSearch(
             normalized,
             show.name,
             show.kind,
@@ -939,7 +939,7 @@ function WebSearchArchiveResults({
         }),
       ...records
         .filter((record) =>
-          matchesPublicSearch(
+          matchesV3PublicSearch(
             normalized,
             record.label,
             record.value,
@@ -971,7 +971,7 @@ function WebSearchArchiveResults({
       })),
     ];
 
-    return dedupePublicSearchResults(values).slice(0, 50);
+    return rankV3PublicSearchResults(dedupePublicSearchResults(values), normalized).slice(0, 50);
   }, [
     actionResults,
     countries,
