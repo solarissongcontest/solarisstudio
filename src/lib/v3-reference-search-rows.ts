@@ -12,6 +12,14 @@ export type ReferenceSearchItem = {
 };
 
 const VISIBLE_KINDS = new Set<ReferenceResultKind>(["edition", "country", "entry", "show"]);
+const SAFE_RESULT_HREF: Record<ReferenceResultKind | "wiki", RegExp> = {
+  country: /^\/countries\/[A-Za-z0-9_-]+$/,
+  wiki: /^\/wiki\/[A-Za-z0-9_-]+$/,
+  edition: /^\/editions\/[A-Za-z0-9_-]+$/,
+  show: /^\/shows\/[A-Za-z0-9_-]+$/,
+  // Published entry searches deliberately drill into their Country profile.
+  entry: /^\/countries\/[A-Za-z0-9_-]+$/,
+};
 
 export function parseReferenceSearchRows(value: unknown): ReferenceSearchItem[] {
   if (!Array.isArray(value)) throw new Error("Invalid public search projection");
@@ -26,8 +34,8 @@ export function parseReferenceSearchRows(value: unknown): ReferenceSearchItem[] 
     const id = typeof row.result_id === "string" ? row.result_id.trim() : "";
     const title = typeof row.title === "string" ? row.title.trim() : "";
     const href = typeof row.href === "string" ? row.href.trim() : "";
-    if (!id || !title || !href.startsWith("/") || href.startsWith("//") ||
-      (legacyWiki && !/^\/wiki\/[A-Za-z0-9_-]+$/.test(href))) {
+    const sourceKind = legacyWiki ? "wiki" : row.result_type as ReferenceResultKind;
+    if (!id || !title || !SAFE_RESULT_HREF[sourceKind].test(href)) {
       throw new Error("Invalid public Reference result");
     }
 
