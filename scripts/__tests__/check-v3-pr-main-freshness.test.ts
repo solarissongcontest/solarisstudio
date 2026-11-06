@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   assessV3PrMainFreshness,
   FRESHNESS_STATUS_CONTEXT,
@@ -317,7 +317,9 @@ describe("live GitHub freshness publication race", () => {
     let mainReads = 0;
     let pullReads = 0;
 
-    vi.stubGlobal("fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    // Replace fetch explicitly for Bun compatibility, then restore in finally.
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
       const method = init?.method ?? "GET";
       let payload: unknown;
@@ -337,13 +339,13 @@ describe("live GitHub freshness publication race", () => {
         throw new Error("Unexpected local fake GitHub request: " + method + " " + url);
       }
       return new Response(JSON.stringify(payload), { status: 200, headers: { "Content-Type": "application/json" } });
-    });
+    };
 
     try {
       const exitCode = await runV3PrMainFreshnessCheck();
       return { exitCode, posts };
     } finally {
-      vi.unstubAllGlobals();
+      globalThis.fetch = previousFetch;
       for (const [key, value] of Object.entries(previous)) {
         if (value === undefined) delete process.env[key];
         else process.env[key] = value;
