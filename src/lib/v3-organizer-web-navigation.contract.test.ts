@@ -47,6 +47,19 @@ describe("Organizer V3 website and installed navigation families", () => {
     expect(desktop).toContain(".admin-sidebar");
     expect(css).toContain('data-organizer-runtime="web"] .admin-main');
   });
+  it("keeps a single Organizer primary-navigation owner on installed 720–899px tablets", () => {
+    const css = source("src/styles/v3-organizer-web-navigation.css");
+    const installed = source("src/styles/v3-organizer-liquid-tabbar.css");
+    const desktop = source("src/admin-desktop.css");
+    expect(desktop).toContain("@media (min-width: 720px)");
+    expect(installed).toContain("@media (min-width: 900px)");
+    expect(css).toContain("@media (min-width: 720px) and (max-width: 899px)");
+    expect(css).toContain('[data-organizer-generation="v3"][data-organizer-runtime="app"] .admin-sidebar');
+    expect(css).toContain('[data-organizer-generation="v3"][data-organizer-runtime="app"] .admin-frame');
+    expect(css).toContain("padding-bottom: calc(max(106px, var(--v3-bottom-obstruction, 0px)) + 24px)");
+    expect(css).not.toContain('[data-organizer-generation="legacy"][data-organizer-runtime="app"] .admin-sidebar');
+  });
+
   it("keeps legacy Organizer website controls in flow and uses edition scope without guessing", () => {
     const legacy = source("src/components/admin/OrganizerLegacyWebNavigation.tsx");
     expect(legacy).toContain('data-organizer-legacy-web-navigation=""');

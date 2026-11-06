@@ -57,3 +57,22 @@
     scroll-snap-type: none;
   }
 }
+
+/*
+ * Installed Organizer V3 keeps its Liquid dock up to 899px, whereas the
+ * historical AdminFrame sidebar starts at 720px. Without this overlap guard
+ * a landscape tablet displays two competing primary navigation systems and
+ * loses content width. Installed V6 retains its independent 720px cutover.
+ */
+@media (min-width: 720px) and (max-width: 899px) {
+  .admin-control-room[data-organizer-generation="v3"][data-organizer-runtime="app"] .admin-frame {
+    display: block;
+  }
+  .admin-control-room[data-organizer-generation="v3"][data-organizer-runtime="app"] .admin-sidebar {
+    display: none;
+  }
+  .admin-control-room[data-organizer-generation="v3"][data-organizer-runtime="app"] .admin-main {
+    padding-bottom: calc(max(106px, var(--v3-bottom-obstruction, 0px)) + 24px);
+    scroll-padding-bottom: calc(max(106px, var(--v3-bottom-obstruction, 0px)) + 24px);
+  }
+}
