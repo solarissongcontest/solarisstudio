@@ -104,17 +104,7 @@ export default defineConfig({
                 // can join the group; route-specific modules remain lazy.
                 test: /[\\/]src[\\/]components[\\/](?!(?:app|ui|admin|v3)[\\/])/,
                 minShareCount: 2,
-                minSize: 3000,
-                priority: 1,
-              },
-              // V3 presentation modules shared by multiple lazy routes are
-              // grouped separately from the mainline cross-page/public adapters,
-              // preserving the existing installed-app route and shell boundaries.
-              {
-                name: "shared-v3-presentation",
-                test: /[\\/]src[\\/]components[\\/]v3[\\/]/,
-                minShareCount: 2,
-                minSize: 3000,
+                minSize: 5000,
                 priority: 1,
               },
               // Reused client-only domain modules were each carrying separate
