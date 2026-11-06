@@ -107,4 +107,18 @@ describe("V3 installed dock review regressions", () => {
     expect(audit).toContain("throw error;");
   });
 
+
+  it("announces real attention counts through the named tab link without altering visual badge geometry", () => {
+    // An aria-label on the parent link replaces the accessible name of its
+    // descendants. Putting aria-label on the badge itself is not sufficient
+    // for VoiceOver to announce unread counts on a named navigation tab.
+    expect(tab).toContain('const badgeDescriptionId = useId()');
+    expect(tab).toContain('aria-label={area.label}');
+    expect(tab).toContain('aria-describedby={badge > 0 ?');
+    expect(tab).toContain('id={`${badgeDescriptionId}-${area.id}`}');
+    expect(tab).toContain('className="solaris-app-tab-badge" aria-hidden="true"');
+    expect(tab).toContain("{badge > 9 ? \"9+\" : badge}");
+    expect(tab).toContain('className="sr-only"');
+    expect(tab).toContain('{badge} item{badge === 1 ? "" : "s"} need attention');
+  });
 });
