@@ -11,6 +11,9 @@ describe("TG10 organization follow preference contracts",()=>{
   expect(sql).toContain("_entity_type not in ('country', 'edition', 'show', 'organization')");
   expect(sql).toContain("organization_row.public_visibility = 'public'");
   expect(sql).toContain("organization_row.status in ('recognized', 'active')");
+  expect(sql).toContain("public.studio2_feature_enabled('terra_world_public', null) is true");
+  expect(sql).toContain("_entity_type = 'organization' and _following is false");
+
   expect(sql).not.toMatch(/create table (?:public\.)?world_follows/i);
  });
  it("restricts category visibility and mutations to the follow owner",()=>{
