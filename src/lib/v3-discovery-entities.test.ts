@@ -195,6 +195,42 @@ describe("V3 Chat 3 show discovery", () => {
     ]);
   });
 
+  it("does not invent completed status for archived cancelled or active legacy Shows", () => {
+    const result = buildShowDiscovery({
+      editions: [edition("old", 20, "post_edition")],
+      shows: [
+        show("archived-live", "old", "live", 1),
+        show("archived-delayed", "old", "delayed", 2),
+        show("archived-ended", "old", "ended", 3),
+        show("archived-cancelled", "old", "cancelled", 4),
+      ],
+    });
+
+    const byId = new Map(result.archive.map((item) => [item.show.id, item]));
+    expect(byId.get("archived-live")?.state).toBe("archived");
+    expect(byId.get("archived-delayed")?.stateLabel).toBe("Archived");
+    expect(byId.get("archived-ended")?.stateLabel).toBe("Ended");
+    expect(byId.get("archived-cancelled")?.stateLabel).toBe("Cancelled");
+    expect(result.liveNow).toEqual([]);
+    expect(result.upNext).toEqual([]);
+  });
+
+  it("reuses the canonical safe broadcast URL boundary for published archived Shows", () => {
+    const valid = { ...show("valid", "e20", "ended", 1), broadcast_config: {
+      showMode: { phase: "ended", youtubeUrl: "https://youtu.be/broadcast123" },
+    } };
+    const unsafe = { ...show("unsafe", "e20", "ended", 2), broadcast_config: {
+      showMode: { phase: "ended", youtubeUrl: "https://youtube.com.evil.example/video" },
+    } };
+    const result = buildShowDiscovery({
+      editions: [edition("e20", 20, "archived")],
+      shows: [valid, unsafe],
+    });
+    const byId = new Map(result.archive.map((item) => [item.show.id, item]));
+    expect(byId.get("valid")?.broadcastUrl).toBe("https://youtu.be/broadcast123");
+    expect(byId.get("unsafe")?.broadcastUrl).toBeNull();
+  });
+
   it("keeps stale scheduled and live shows of archived editions out of current discovery", () => {
     const result = buildShowDiscovery({
       editions: [edition("e22", 22), edition("e21", 21, "archived")],
@@ -206,7 +242,10 @@ describe("V3 Chat 3 show discovery", () => {
     });
     expect(result.upNext.map((item) => item.show.id)).toEqual(["current-upcoming"]);
     expect(result.liveNow).toEqual([]);
-    expect(result.archive.map((item) => item.show.id)).toEqual(["archived-live", "archived-scheduled"]);
+    expect(result.archive.map((item) => [item.show.id, item.stateLabel])).toEqual([
+      ["archived-live", "Archived"], ["archived-scheduled", "Archived"],
+    ]);
+    expect(result.archive.every((item) => item.state === "archived")).toBe(true);
   });
 
 });

@@ -24,8 +24,10 @@ export const Route = createFileRoute("/archive/")({
 const ARCHIVE_DESTINATIONS = [
   { title: "Editions", description: "Browse contest editions and their published historical context.", to: "/editions", group: "history" },
   { title: "Countries", description: "Follow country identities, entries, results and participation history.", to: "/countries", group: "history" },
+  { title: "Songs & artists", description: "Find already-revealed songs and artists in published Solaris Reference records.", to: "/encyclopedia", group: "history" },
   { title: "Shows", description: "Open published semi-finals, finals and other historical show records.", to: "/shows", group: "history" },
   { title: "Stories", description: "Read current and historical stories already released to the public.", to: "/stories", group: "history" },
+  { title: "Records", description: "Explore official all-time records and published contest outcomes in Results.", to: "/records", group: "history" },
   { title: "Reference", description: "Search publication-safe Solaris history across connected public entities.", to: "/encyclopedia", group: "reference" },
   { title: "Archive Games", description: "Play retained historical games without changing official contest truth.", to: "/archive-games", group: "reference" },
 ] as const;

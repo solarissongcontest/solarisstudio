@@ -72,7 +72,7 @@ async function loadAdminDeadlines(editionId?: string | null) {
     .order("due_at", { ascending: true });
 
   if (error) {
-    if (missingSchema(error)) return [] as AdminDeadline[];
+    // Missing private authority is not an all-clear: preserve a visible read failure.
     throw error;
   }
 
@@ -81,6 +81,7 @@ async function loadAdminDeadlines(editionId?: string | null) {
 
 export function useAdminDeadlines(editionId?: string | null) {
   const { editionId: organizerContextEditionId } = useAdminContext();
+  const actorId = useAuthenticatedUser().id;
   const requestedEditionId = normalizeEditionId(editionId);
   const organizerEditionId = normalizeEditionId(organizerContextEditionId);
   const exactEditionId =
@@ -88,7 +89,7 @@ export function useAdminDeadlines(editionId?: string | null) {
 
   return useQuery({
     enabled: Boolean(exactEditionId),
-    queryKey: ["admin-deadlines", exactEditionId ?? "unscoped"],
+    queryKey: ["admin-deadlines", exactEditionId ?? "unscoped", actorId],
     queryFn: () => {
       if (!exactEditionId) {
         throw new Error(
@@ -101,10 +102,11 @@ export function useAdminDeadlines(editionId?: string | null) {
 }
 
 export function useEditionAdminDeadlines(editionId?: string | null) {
+  const actorId = useAuthenticatedUser().id;
   const normalizedEditionId = normalizeEditionId(editionId);
   return useQuery({
     enabled: Boolean(normalizedEditionId),
-    queryKey: ["admin-deadlines", normalizedEditionId ?? "unscoped"],
+    queryKey: ["admin-deadlines", normalizedEditionId ?? "unscoped", actorId],
     queryFn: () => {
       if (!normalizedEditionId) {
         throw new Error("Edition deadlines require an explicit Organizer edition scope.");
@@ -115,8 +117,9 @@ export function useEditionAdminDeadlines(editionId?: string | null) {
 }
 
 export function useAdminAudit(limit = 30) {
+  const actorId = useAuthenticatedUser().id;
   return useQuery({
-    queryKey: ["admin-audit", limit],
+    queryKey: ["admin-audit", limit, actorId],
     queryFn: async () => {
       const { data, error } = await adminDb
         .from("admin_audit_log")
@@ -125,7 +128,7 @@ export function useAdminAudit(limit = 30) {
         .limit(limit);
 
       if (error) {
-        if (missingSchema(error)) return [] as AdminAuditRow[];
+        // Audit history must not silently become empty when its authority fails.
         throw error;
       }
 
