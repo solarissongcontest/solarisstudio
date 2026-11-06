@@ -35,6 +35,8 @@ export const SOLARIS_FEATURE_FLAGS = [
   'solaris_app_v3_live',
   'solaris_app_v3_organizer',
   'terra_world_public',
+  'terra_private_spaces',
+  'terra_chat',
 ] as const;
 
 export type SolarisFeatureFlag = (typeof SOLARIS_FEATURE_FLAGS)[number];
