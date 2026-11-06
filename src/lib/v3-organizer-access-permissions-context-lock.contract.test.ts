@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { verifyOrganizerPermissionRead, type OrganizerPermissionReadClient } from "./v3-organizer-permission-read";
 
 const route = readFileSync(
   resolve(process.cwd(), "src/routes/_authenticated/admin/access-permissions.tsx"),
@@ -141,7 +142,10 @@ describe("V3 Organizer Access & Permissions context lock", () => {
     expect(route).toContain("const verifiedEditionRef = useRef(editionContextVerified);");
     expect(route).toContain("verifiedEditionRef.current = editionContextVerified;");
     expect(route).toContain("if (!editionContextVerified) {");
-    expect(route).toContain('title={editionsQuery.isError ? "Edition access unavailable" : "Verifying edition access"}');
+    expect(route).toContain('"Edition access unavailable"');
+    expect(route).toContain('"Permission verification unavailable"');
+    expect(route).toContain('"Permission access denied"');
+    expect(route).toContain('"Verifying edition access"');
     expect(route).toContain("Retry edition lookup");
     expect(route).toContain("Organizer edition context is not verified. No access change was previewed.");
     expect(route).toContain('scope === "edition"');
@@ -236,4 +240,64 @@ describe("V3 Organizer Access & Permissions context lock", () => {
     expect(route).not.toContain('supabase.from(');
     expect(route).not.toContain('supabase.rpc(');
   });
+  it("requires a fresh server capability probe for the exact selected edition before private access reads", async () => {
+    const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
+    const client: OrganizerPermissionReadClient = {
+      rpc: async (name, args) => {
+        calls.push({ name, args });
+        return { data: true, error: null };
+      },
+    };
+    expect(await verifyOrganizerPermissionRead("edition-22", client)).toBe(true);
+    expect(calls).toEqual([{
+      name: "studio2_access_allowed",
+      args: {
+        p_capability: "permissions.read",
+        p_edition_id: "edition-22",
+        p_strict_before_cutover: false,
+      },
+    }]);
+    expect(route).toContain('queryFn: () => verifyOrganizerPermissionRead(resolvedEditionId)');
+    expect(route).toContain('permissionReadQuery.data === true');
+    expect(route).toContain('permissionReadQuery.isSuccess &&');
+    expect(route).toContain('!permissionReadQuery.isFetching &&');
+    expect(route).toContain('!permissionReadQuery.error &&');
+    expect(route).toContain('gcTime: 0');
+    expect(route).toContain('refetchOnMount: "always"');
+    expect(route).not.toContain('supabase.rpc(');
+  });
+
+  it("fails closed on revoked, malformed, missing and unavailable permission reads", async () => {
+    const denied: OrganizerPermissionReadClient = { rpc: async () => ({ data: false, error: null }) };
+    const malformed: OrganizerPermissionReadClient = { rpc: async () => ({ data: null, error: null }) };
+    const failed: OrganizerPermissionReadClient = { rpc: async () => ({ data: null, error: { message: "Unavailable" } }) };
+    expect(await verifyOrganizerPermissionRead("edition-22", denied)).toBe(false);
+    await expect(verifyOrganizerPermissionRead("edition-22", malformed)).rejects.toThrow(/invalid response/);
+    await expect(verifyOrganizerPermissionRead("edition-22", failed)).rejects.toMatchObject({ message: "Unavailable" });
+    await expect(verifyOrganizerPermissionRead("", denied)).rejects.toThrow(/explicit Organizer edition/);
+    expect(route).toContain("Permission access denied");
+    expect(route).toContain("Permission verification unavailable");
+    expect(route).toContain("Retry permission verification");
+    expect(route).toContain("Public edition visibility does not authorize private access reviews.");
+  });
+
+  it("never preloads protected directory, approval or audit data until the server confirms capability", () => {
+    for (const key of [
+      "queryFn: loadPermissionCatalog,",
+      "queryFn: loadAccessUsers,",
+      "queryFn: loadPermissionSummary,",
+      "queryFn: () => loadPermissionEvents(mismatchesOnly),",
+      "queryFn: loadPermissionChangeApprovals,",
+    ]) {
+      const start = route.indexOf(key);
+      expect(start).toBeGreaterThan(0);
+      expect(route.slice(start, start + 150)).toContain("enabled: editionContextVerified,");
+    }
+    expect(route).toContain("const directoryVerified =\n    editionContextVerified &&");
+    expect(route).toContain("approvals={editionContextVerified && approvalsQuery.isSuccess && !approvalsQuery.isFetching");
+    expect(route).toContain("const summary = editionContextVerified && summaryQuery.isSuccess");
+    expect(route).toContain('actionsAvailable={editionContextVerified}');
+    expect(route).not.toContain("queryFn: () => viewAccessAs(userId, editionId || null)");
+  });
+
 });

@@ -26,6 +26,7 @@ import {
 } from "@/components/admin/AdminUI";
 import { WorkspaceTabs } from "@/components/admin/AdminWorkspacePrimitives";
 import { selectOrganizerEdition } from "@/lib/admin-edition-selection";
+import { verifyOrganizerPermissionRead } from "@/lib/v3-organizer-permission-read";
 import { editionLabel as formatEditionLabel, useEditions } from "@/lib/data";
 import {
   applyPermissionChange,
@@ -129,12 +130,31 @@ function AccessPermissionsPage() {
       : null;
   const resolvedEditionId = editionId && organizerEdition ? organizerEdition.id : "";
   const organizerEditionLabel = organizerEdition ? formatEditionLabel(organizerEdition) : null;
+  // A published edition row only proves public visibility. It does not establish
+  // permission to inspect private access grants for this exact edition.
+  const permissionReadQuery = useQuery({
+    queryKey: ["permission-engine-context-read", actorId, resolvedEditionId || "none"],
+    queryFn: () => verifyOrganizerPermissionRead(resolvedEditionId),
+    enabled:
+      editionsQuery.isSuccess &&
+      !editionsQuery.error &&
+      !editionsQuery.isFetching &&
+      Boolean(verifiedChoiceId) &&
+      Boolean(resolvedEditionId),
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+  });
   const editionContextVerified =
     editionsQuery.isSuccess &&
     !editionsQuery.error &&
     !editionsQuery.isFetching &&
     Boolean(verifiedChoiceId) &&
-    Boolean(resolvedEditionId);
+    Boolean(resolvedEditionId) &&
+    permissionReadQuery.isSuccess &&
+    !permissionReadQuery.isFetching &&
+    !permissionReadQuery.error &&
+    permissionReadQuery.data === true;
   // Ref keeps an in-flight R3 operation bound to live verification, not a stale closure.
   const verifiedEditionRef = useRef(editionContextVerified);
   const editionLabels = useMemo(
@@ -166,22 +186,27 @@ function AccessPermissionsPage() {
   const catalogQuery = useQuery({
     queryKey: ["permission-engine-catalog", actorId],
     queryFn: loadPermissionCatalog,
+    enabled: editionContextVerified,
   });
   const usersQuery = useQuery({
     queryKey: ["permission-engine-users", actorId],
     queryFn: loadAccessUsers,
+    enabled: editionContextVerified,
   });
   const summaryQuery = useQuery({
     queryKey: ["permission-engine-summary", actorId],
     queryFn: loadPermissionSummary,
+    enabled: editionContextVerified,
   });
   const eventsQuery = useQuery({
     queryKey: ["permission-engine-events", mismatchesOnly, actorId],
     queryFn: () => loadPermissionEvents(mismatchesOnly),
+    enabled: editionContextVerified,
   });
   const approvalsQuery = useQuery({
     queryKey: ["permission-engine-approvals", actorId],
     queryFn: loadPermissionChangeApprovals,
+    enabled: editionContextVerified,
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,
   });
@@ -209,6 +234,7 @@ function AccessPermissionsPage() {
   // Failed or refreshing permission-directory reads must not become false empty
   // metrics or leave a previous actor's cached directory visible.
   const directoryVerified =
+    editionContextVerified &&
     catalogQuery.isSuccess &&
     usersQuery.isSuccess &&
     !catalogQuery.error &&
@@ -506,7 +532,7 @@ function AccessPermissionsPage() {
   }, [editionContextVerified, resetSimulation]);
 
   const effectiveScope = scope === "edition" ? (resolvedEditionId || null) : null;
-  const summary = summaryQuery.data;
+  const summary = editionContextVerified && summaryQuery.isSuccess ? summaryQuery.data : undefined;
   const loading =
     catalogQuery.isLoading ||
     usersQuery.isLoading ||
@@ -566,7 +592,7 @@ function AccessPermissionsPage() {
         >
           <span className="admin-section-label">Edition context</span>
           <AdminStatus tone={organizerEditionLabel ? "info" : "neutral"}>
-            {organizerEditionLabel ?? "No verified edition selected"}
+            {(editionContextVerified ? organizerEditionLabel : null) ?? "No verified edition selected"}
           </AdminStatus>
           <span className="text-xs text-muted-foreground">
             Edition-scoped grants use only this verified Organizer context. Global changes remain explicitly labeled as every edition.
@@ -577,10 +603,24 @@ function AccessPermissionsPage() {
           <AdminCard>
             <AdminEmptyState
               icon={ShieldEllipsis}
-              title={editionsQuery.isError ? "Edition access unavailable" : "Verifying edition access"}
-              description="Permission changes are paused until the Organizer edition registry is verified. Global changes must also have an explicit, verified review context."
+              title={editionsQuery.isError
+                ? "Edition access unavailable"
+                : permissionReadQuery.isError
+                  ? "Permission verification unavailable"
+                  : permissionReadQuery.isSuccess && permissionReadQuery.data === false
+                    ? "Permission access denied"
+                    : "Verifying edition access"}
+              description={permissionReadQuery.isSuccess && permissionReadQuery.data === false
+                ? "This Organizer account does not currently have permissions.read for the selected edition. Public edition visibility does not authorize private access reviews."
+                : permissionReadQuery.isError
+                  ? "Solaris could not verify this edition-scoped permission. Access reviews remain unavailable; retry the server authorization check."
+                  : "Permission changes are paused until both Organizer edition context and server-side permissions.read are verified, including for global changes."}
               action={
-                editionsQuery.isError ? (
+                permissionReadQuery.isError ? (
+                  <button type="button" onClick={() => void permissionReadQuery.refetch()} disabled={permissionReadQuery.isFetching} className="admin-action-secondary">
+                    Retry permission verification
+                  </button>
+                ) : editionsQuery.isError ? (
                   <button type="button" onClick={() => void editionsQuery.refetch()} disabled={editionsQuery.isFetching} className="admin-action-secondary">
                     Retry edition lookup
                   </button>
@@ -620,7 +660,7 @@ function AccessPermissionsPage() {
         ) : null}
 
         <PermissionApprovalQueue
-          approvals={approvalsQuery.data ?? []}
+          approvals={editionContextVerified && approvalsQuery.isSuccess && !approvalsQuery.isFetching ? approvalsQuery.data ?? [] : []}
           loading={approvalsQuery.isLoading}
           error={approvalsQuery.error}
           actionsAvailable={editionContextVerified}
