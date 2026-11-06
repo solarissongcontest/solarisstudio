@@ -129,7 +129,7 @@ export function V3PredictionsScreen() {
               onClick={() => {
                 if (rounds.isError) void rounds.refetch();
                 if (session.isError) void session.refetch();
-              }
+              }}
               className="mt-3 min-h-11 rounded-xl border border-white/20 px-4 text-sm font-semibold transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {rounds.isFetching || session.isFetching ? "Retrying…" : "Retry prediction state"}
