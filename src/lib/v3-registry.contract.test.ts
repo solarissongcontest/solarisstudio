@@ -61,7 +61,9 @@ describe("Solaris V3 migration registries", () => {
   });
 
   it("maps every V3 feature flag to Public or Organizer ownership", () => {
-    const expected = SOLARIS_FEATURE_FLAGS.filter((flag) => flag.startsWith("solaris_app_v3")).sort();
+    const expected = SOLARIS_FEATURE_FLAGS.filter(
+      (flag) => flag.startsWith("solaris_app_v3") || flag === "terra_world_public",
+    ).sort();
     const mapped = unique([
       ...V3_PUBLIC_FEATURE_FLAGS,
       ...V3_ORGANIZER_FEATURE_FLAGS,

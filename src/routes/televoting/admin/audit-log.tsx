@@ -1,5 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Clock3, FileClock, Search } from "lucide-react";
@@ -16,7 +16,7 @@ import {
   ObjectPage,
   WorkspaceHeader,
 } from "@/components/admin/AdminWorkspacePrimitives";
-import { getMergedTelevotingAdmin } from "@/integrations/televoting/admin-auth.functions";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { listMergedAuditLog, type MergedAuditRow } from "@/integrations/televoting/audit.functions";
 import type { AuditJson } from "@/integrations/televoting/audit.server";
 
@@ -26,24 +26,23 @@ export const Route = createFileRoute("/televoting/admin/audit-log")({
 });
 
 function AuditLogPage() {
-  const navigate = useNavigate();
-  const getAdmin = useServerFn(getMergedTelevotingAdmin);
+  const actorId = useAuthenticatedUser().id;
   const getAudit = useServerFn(listMergedAuditLog);
   const [query, setQuery] = useState("");
   const [action, setAction] = useState("");
   const [targetType, setTargetType] = useState("");
 
-  const { data: admin, isLoading: adminLoading } = useQuery({ queryKey: ["merged-televoting-admin"], queryFn: () => getAdmin() });
-
-  useEffect(() => {
-    if (!adminLoading && !admin) void navigate({ to: "/auth", search: { redirect: "/televoting/admin/audit-log" } });
-  }, [admin, adminLoading, navigate]);
-
-  const { data: rows = [], isLoading, error } = useQuery<MergedAuditRow[]>({
-    queryKey: ["merged-televoting-audit", action, targetType],
+  const { data: rows = [], isLoading, error, isFetching, refetch } = useQuery<MergedAuditRow[]>({
+    // Private audit history must not survive an Organizer account switch.
+    queryKey: ["merged-televoting-audit", actorId, action, targetType],
     queryFn: () => getAudit({ data: { action: action || null, targetType: targetType || null, limit: 750 } }),
-    enabled: Boolean(admin),
-    refetchInterval: 60_000,
+    enabled: Boolean(actorId),
+    staleTime: 60_000,
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const actions = useMemo<string[]>(() => [...new Set(rows.map((row) => row.action))].sort(), [rows]);
@@ -60,19 +59,32 @@ function AuditLogPage() {
         eyebrow="Voting service"
         title="Audit log"
         description="Trace result, round, moderation and integrity changes in one chronological organizer history. Technical payloads stay collapsed until you need them."
-        actions={<Link to="/televoting/admin" className="admin-action-secondary">Back to Voting</Link>}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="admin-action-secondary"
+              disabled={isFetching}
+              aria-busy={isFetching}
+              onClick={() => void refetch()}
+            >
+              {isFetching ? "Refreshing…" : error ? "Retry audit history" : "Refresh audit history"}
+            </button>
+            <Link to="/televoting/admin" className="admin-action-secondary">Back to Voting</Link>
+          </div>
+        }
       />
 
       <FilterBar className="[&>div]:sm:grid-cols-3 [&>div]:xl:grid-cols-3">
         <div className="sm:col-span-3">
-          <AdminCardHeader eyebrow="Filter" title={`${filtered.length} visible event${filtered.length === 1 ? "" : "s"}`} description="Search the actor, action, reason, target or changed values." />
+          <AdminCardHeader eyebrow="Filter" title={error ? "Audit history unavailable" : isLoading ? "Loading audit history" : `${filtered.length} visible event${filtered.length === 1 ? "" : "s"}`} description="Search the actor, action, reason, target or changed values." />
         </div>
         <label className="relative block"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search audit history…" className="min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] pl-9 pr-3 text-sm text-foreground outline-none focus:border-sky-200/30" /></label>
         <select value={action} onChange={(event) => setAction(event.target.value)} className="min-h-11 rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none"><option value="">All actions</option>{actions.map((item) => <option key={item} value={item}>{humanize(item)}</option>)}</select>
         <select value={targetType} onChange={(event) => setTargetType(event.target.value)} className="min-h-11 rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none"><option value="">All targets</option>{targetTypes.map((item) => <option key={item} value={item}>{humanize(item)}</option>)}</select>
       </FilterBar>
 
-      {adminLoading || isLoading ? (
+      {isLoading ? (
         <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading audit history…</p></AdminCard>
       ) : error ? (
         <AdminCard className="!border-rose-200/15 !bg-rose-200/[0.045]"><p className="text-sm text-rose-100">{error instanceof Error ? error.message : "Audit log could not be loaded."}</p></AdminCard>

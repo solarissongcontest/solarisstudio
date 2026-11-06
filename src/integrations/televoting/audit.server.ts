@@ -1,5 +1,4 @@
-import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
-import { televotingAdmin } from "@/integrations/televoting/client.server";
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 
 export type AuditJson =
   | string
@@ -28,7 +27,10 @@ export async function listMergedAuditLogServer(filters: {
   targetType?: string | null;
   limit?: number;
 }): Promise<MergedAuditRow[]> {
-  await requireMergedTelevotingAdminServer();
+  // This history spans editions and may contain private vote-operation details.
+  // Require a global canonical Voting read grant before opening the service client.
+  await requireSolarisCapabilityServer("voting.read", null);
+  const { televotingAdmin } = await import("@/integrations/televoting/client.server");
 
   let query = televotingAdmin
     .from("admin_audit_log")
