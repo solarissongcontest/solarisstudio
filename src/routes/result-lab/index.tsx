@@ -7,6 +7,7 @@ import { FlagChip } from "@/components/FlagChip";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { DataStoryPage, ResponsiveHistory, type PublicDataColumn } from "@/components/public/PublicDataStory";
 import { V3ResultLabGate } from "@/components/v3/V3ResultLabGate";
+import { PublicResultsAnalysisSpoilerBoundary } from "@/components/public/PublicResultsAnalysisSpoilerBoundary";
 import {
   editionLabel,
   matchVoterKey,
@@ -343,6 +344,7 @@ function LegacyResultLabPage() {
 
   return (
     <AppShell>
+      <PublicResultsAnalysisSpoilerBoundary selectedShowId={selectedShow?.id ?? null} title="Result Lab">
       <PageHeader
         eyebrow="What-if analytics"
         title="Result Lab"
@@ -629,6 +631,7 @@ function LegacyResultLabPage() {
         </div>
         </div>
       </DataStoryPage>
+      </PublicResultsAnalysisSpoilerBoundary>
     </AppShell>
   );
 }

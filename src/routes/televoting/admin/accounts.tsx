@@ -4,6 +4,5 @@ export const Route = createFileRoute("/televoting/admin/accounts")({
   beforeLoad: () => {
     throw redirect({ to: "/admin/operations" });
   },
-  head: () => ({ meta: [{ name: "robots", content: "noindex" }] }),
-  component: () => null,
+  head: () => ({ meta: [{ name: "robots", content: "noindex, nofollow" }] }),
 });
