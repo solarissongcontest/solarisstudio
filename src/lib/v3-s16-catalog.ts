@@ -82,17 +82,90 @@ export const S16_ROLE_AND_DEFAULT_CATALOG_SQL = `select jsonb_build_object(
     left join pg_namespace n on n.oid=d.defaclnamespace where d.defaclobjtype='f')
 )::text;`;
 
+/**
+ * PostgreSQL treats comments as whitespace, including between DML keywords.
+ * Preserve quoted text in one pass and inspect comment-bearing dynamic SQL
+ * strings in a second pass. This is deliberately a conservative candidate
+ * detector, not a SQL parser or proof of a sanctioned writer.
+ */
+function withoutSqlComments(source: string, preserveQuoted: boolean): string {
+  let result = "";
+  let quote: "'" | '"' | null = null;
+  let i = 0;
+  while (i < source.length) {
+    const char = source[i];
+    const next = source[i + 1];
+    if (preserveQuoted && quote) {
+      result += char;
+      if (char === "\\" && next !== undefined) {
+        result += next;
+        i += 2;
+        continue;
+      }
+      if (char === quote) {
+        if (next === quote) {
+          result += next;
+          i += 2;
+          continue;
+        }
+        quote = null;
+      }
+      i++;
+      continue;
+    }
+    if (preserveQuoted && (char === "'" || char === '"')) {
+      quote = char;
+      result += char;
+      i++;
+      continue;
+    }
+    if (char === "-" && next === "-") {
+      result += " ";
+      i += 2;
+      while (i < source.length && source[i] !== "\n") i++;
+      continue;
+    }
+    if (char === "/" && next === "*") {
+      result += " ";
+      i += 2;
+      let depth = 1;
+      while (i < source.length && depth > 0) {
+        if (source[i] === "/" && source[i + 1] === "*") {
+          depth++;
+          i += 2;
+        } else if (source[i] === "*" && source[i + 1] === "/") {
+          depth--;
+          i += 2;
+        } else {
+          i++;
+        }
+      }
+      continue;
+    }
+    result += char;
+    i++;
+  }
+  return result;
+}
+
 /** Match qualified relations exactly. Unqualified relations require search-path resolution. */
 export function potentialS16Write(definition: string, table: string, searchPath: string | null): boolean {
   const [schema, name] = table.includes(".") ? table.split(".") : ["public", table];
-  const writes = definition.matchAll(/\b(?:insert\s+into|update|delete\s+from|merge\s+into|truncate(?:\s+table)?)\s+(?:only\s+)?((?:"[^"]+"|[a-z_][\w$]*)(?:\s*\.\s*(?:"[^"]+"|[a-z_][\w$]*))?)/gi);
-  for (const match of writes) {
-    const parts = match[1].replaceAll('"', '').replace(/\s/g, '').split('.');
-    if (parts.at(-1) !== name) continue;
-    if (parts.length === 2) { if (parts[0] === schema) return true; continue; }
-    // Unknown resolution remains a candidate, never a clean bill of health.
-    const schemas = searchPath?.replaceAll('"', '').split(',').map(s => s.trim());
-    if (!schemas || schemas.includes(schema)) return true;
+  // A quoted EXECUTE string may itself contain SQL comments; scanning both
+  // forms cannot turn a possible writer into a false negative.
+  for (const sql of [withoutSqlComments(definition, true), withoutSqlComments(definition, false)]) {
+    const writes = sql.matchAll(/\b(?:insert\s+into|update|delete\s+from|merge\s+into|truncate(?:\s+table)?)\s+(?:only\s+)?((?:"[^"]+"|[a-z_][\w$]*)(?:\s*\.\s*(?:"[^"]+"|[a-z_][\w$]*))?)/gi);
+    for (const match of writes) {
+      const parts = match[1].replaceAll('"', "").replace(/\s/g, "").split(".");
+      if (parts.at(-1) !== name) continue;
+      if (parts.length === 2) {
+        if (parts[0] === schema) return true;
+        continue;
+      }
+      // Unknown resolution remains a candidate, never a clean bill of health.
+      const schemas = searchPath?.replaceAll('"', "").split(",").map((part) => part.trim());
+      if (!schemas || schemas.includes(schema)) return true;
+    }
   }
   return false;
 }
