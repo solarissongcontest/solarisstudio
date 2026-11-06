@@ -119,6 +119,6 @@ describe("V3 installed dock review regressions", () => {
     expect(tab).toContain('className="solaris-app-tab-badge" aria-hidden="true"');
     expect(tab).toContain("{badge > 9 ? \"9+\" : badge}");
     expect(tab).toContain('className="sr-only"');
-    expect(tab).toContain('{badge} item{badge === 1 ? "" : "s"} need attention');
+    expect(tab).toContain('{badge} item{badge === 1 ? " needs" : "s need"} attention');
   });
 });
