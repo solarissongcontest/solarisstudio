@@ -3,6 +3,7 @@ import { CheckCircle2, Crown, LockKeyhole, Sparkles, Trophy, Users } from "lucid
 import type { Country } from "@/lib/data";
 import {
   canEditV3FantasyRoster,
+  canShowV3FantasyTeamScore,
   fantasyRosterReady,
   fantasyStateLabel,
   type V3FantasyChoice,
@@ -212,12 +213,12 @@ export function V3FantasyScreen({
           </button>
           {team ? (
             <p className="mt-2 text-xs text-[var(--v3-text-tertiary)]">
-              Canonical team state: {team.state}{team.score != null ? ` · ${team.score.toFixed(1)} points` : ""}
+              Canonical team state: {team.state}{canShowV3FantasyTeamScore(game, team) ? ` · ${team.score!.toFixed(1)} points` : ""}
             </p>
           ) : null}
         </V3Section>
 
-        <V3Section title="Leaderboard" meta={state === "settled" || state === "live_scoring" ? "Published scoring" : "When available"}>
+        <V3Section title="Leaderboard" meta={state === "settled" ? "Published scoring" : "When available"}>
           <V3Surface className="overflow-hidden">
             {standings.length ? standings.slice(0, 25).map((row, index) => {
               const isViewer = Boolean(viewerId && row.profileId === viewerId);

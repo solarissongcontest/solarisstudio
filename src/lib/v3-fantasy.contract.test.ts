@@ -68,6 +68,17 @@ const projection = source("src/lib/v3-fantasy.ts");
     expect(projection).toContain("input.rosterScope !== input.draftScope");
   });
 
+  it("gates personal scores and public standings until canonical game scoring completes", () => {
+    expect(projection).toContain('game?.status === "scored"');
+    expect(projection).toContain('if (game.status === "scored") return "settled";');
+    expect(projection).not.toContain('game.status === "scored" || team?.state === "scored"');
+    expect(route).toContain('enabled: activeGame?.status === "scored"');
+    expect(route).toContain('standings={activeGame.status === "scored" ? (leaderboard.data ?? []) : []}');
+    expect(route).toContain("canShowV3FantasyTeamScore(activeGame, myTeam.data)");
+    expect(screen).toContain("canShowV3FantasyTeamScore(game, team)");
+    expect(screen).toContain('meta={state === "settled" ? "Published scoring" : "When available"}');
+  });
+
   it("keeps roster mutation on the existing server-authoritative Fantasy writer", () => {
     expect(route).toContain("fantasyRosterReady({ game: activeGame, selected: rosterSelected, choices: choices.data ?? [] })");
     expect(route).toContain('.rpc("submit_fantasy_team"');

@@ -50,6 +50,24 @@ export type V3FantasyState =
   | "live_scoring"
   | "settled";
 
+/**
+ * A team can be scored before the server finishes scoring the entire game.
+ * Never reveal a partially written score merely because one team says "scored".
+ * The canonical scoring command only marks a game scored after results publication.
+ */
+export function canShowV3FantasyTeamScore(
+  game: V3FantasyGame | null,
+  team: V3FantasyTeam | null,
+): boolean {
+  return Boolean(
+    game?.status === "scored" &&
+    team?.game_id === game.id &&
+    team.state === "scored" &&
+    typeof team.score === "number" &&
+    Number.isFinite(team.score),
+  );
+}
+
 export function resolveV3FantasyState(input: {
   game: V3FantasyGame | null;
   team: V3FantasyTeam | null;
@@ -61,7 +79,7 @@ export function resolveV3FantasyState(input: {
   const opensAt = Date.parse(game.opens_at);
   const locksAt = Date.parse(game.locks_at);
   if (Number.isFinite(opensAt) && nowMs < opensAt) return "upcoming";
-  if (game.status === "scored" || team?.state === "scored") return "settled";
+  if (game.status === "scored") return "settled";
   if (game.status === "scoring") return "live_scoring";
   if (
     game.status === "locked" ||

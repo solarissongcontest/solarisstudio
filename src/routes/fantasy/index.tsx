@@ -14,6 +14,7 @@ import { useFanSession } from "@/lib/prediction-data";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 import {
   canEditV3FantasyRoster,
+  canShowV3FantasyTeamScore,
   fantasyBudgetUsed,
   fantasyRosterReady,
   resolveV3FantasyState,
@@ -140,7 +141,7 @@ function FantasyPage() {
   }, [rosterScope, draftScope, draftDirty, session.isLoading, myTeam.data, myTeam.isLoading, myTeam.isError, myTeamEntries.data, myTeamEntries.isLoading, myTeamEntries.isError]);
 
   const leaderboard = useQuery({
-    enabled: Boolean(activeGame),
+    enabled: activeGame?.status === "scored",
     queryKey: ["fantasy-leaderboard", activeGame?.id],
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc("fantasy_leaderboard", { _game_id: activeGame!.id });
@@ -260,7 +261,7 @@ function FantasyPage() {
           cost={cost}
           state={fantasyState}
           team={myTeam.data ?? null}
-          standings={leaderboard.data ?? []}
+          standings={activeGame.status === "scored" ? (leaderboard.data ?? []) : []}
           viewerId={viewerId}
           submitting={submit.isPending}
           submitError={submit.isError ? (submit.error instanceof Error ? submit.error.message : "Roster could not be saved.") : null}
@@ -364,11 +365,11 @@ function FantasyPage() {
             </button>
             {cost > activeGame.budget ? <p className="text-sm text-destructive">Budget exceeded.</p> : null}
             {submit.isError ? <p className="text-sm text-destructive">{submit.error instanceof Error ? submit.error.message : "Roster could not be saved."}</p> : null}
-            {myTeam.data ? <p className="text-sm text-muted-foreground">Saved · {myTeam.data.state}{myTeam.data.score != null ? ` · ${myTeam.data.score.toFixed(1)} pts` : ""}</p> : null}
+            {myTeam.data ? <p className="text-sm text-muted-foreground">Saved · {myTeam.data.state}{canShowV3FantasyTeamScore(activeGame, myTeam.data) ? ` · ${myTeam.data.score!.toFixed(1)} pts` : ""}</p> : null}
           </div>
 
           <Panel title="Leaderboard" className="mt-5">
-            {leaderboard.data?.length ? (
+            {activeGame.status === "scored" && leaderboard.data?.length ? (
               <div className="space-y-2">
                 {leaderboard.data.slice(0, 25).map((row) => (
                   <div key={row.profileId} className="flex items-center gap-3 rounded-xl border border-border/70 bg-background/30 p-3 text-sm">

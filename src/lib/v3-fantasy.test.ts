@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   canEditV3FantasyRoster,
+  canShowV3FantasyTeamScore,
   fantasyBudgetUsed,
   fantasyRosterReady,
   resolveV3FantasyState,
@@ -31,6 +32,27 @@ describe("V3 Fantasy projection", () => {
     expect(resolveV3FantasyState({ game: { ...game, status: "locked" }, team: null, nowMs: Date.parse("2026-10-16T12:00:00Z") })).toBe("locked");
     expect(resolveV3FantasyState({ game: { ...game, status: "scoring" }, team: null, nowMs: Date.parse("2026-10-18T12:00:00Z") })).toBe("live_scoring");
     expect(resolveV3FantasyState({ game: { ...game, status: "scored" }, team: null, nowMs: Date.parse("2026-10-18T12:00:00Z") })).toBe("settled");
+  });
+
+  it("does not leak an individual score during partial game scoring", () => {
+    const team = {
+      id: "team", game_id: game.id, profile_id: "viewer",
+      state: "scored", captain_country_id: null, score: 42,
+    };
+    const beforeScoring = { ...game, status: "locked" };
+    const scoring = { ...game, status: "scoring" };
+    const settled = { ...game, status: "scored" };
+    const nowMs = Date.parse("2026-10-18T12:00:00Z");
+    expect(resolveV3FantasyState({ game: scoring, team, nowMs })).toBe("live_scoring");
+    expect(resolveV3FantasyState({ game: beforeScoring, team, nowMs })).toBe("locked");
+    expect(canShowV3FantasyTeamScore(scoring, team)).toBe(false);
+    expect(canShowV3FantasyTeamScore(beforeScoring, team)).toBe(false);
+    expect(canShowV3FantasyTeamScore(settled, team)).toBe(true);
+    expect(canShowV3FantasyTeamScore(settled, { ...team, game_id: "other" })).toBe(false);
+    expect(canShowV3FantasyTeamScore(settled, { ...team, state: "submitted" })).toBe(false);
+    expect(canShowV3FantasyTeamScore(settled, { ...team, score: Number.NaN })).toBe(false);
+    expect(canShowV3FantasyTeamScore(settled, { ...team, score: Number.POSITIVE_INFINITY })).toBe(false);
+    expect(canShowV3FantasyTeamScore(settled, { ...team, score: null })).toBe(false);
   });
 
   it("restores the canonical saved roster and captain instead of reopening an empty builder", () => {
