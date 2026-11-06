@@ -807,8 +807,30 @@ function WebSearchArchiveResults({
   const storiesQuery = useQuery({
     queryKey: ["public-command-palette-stories"],
     queryFn: () => loadPublicStorylines(40),
-    staleTime: 5 * 60 * 1000,
+    // Story titles may reveal results. A previously published story may have
+    // been withdrawn since the last dialog opening; cached rows are not a
+    // publication grant until this mounted dialog has refreshed them.
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+    retry: false,
   });
+  const verifiedStoryPreviews = useMemo(
+    () =>
+      storiesQuery.isSuccess &&
+      storiesQuery.isFetchedAfterMount &&
+      !storiesQuery.isFetching &&
+      !storiesQuery.isError
+        ? storiesQuery.data ?? []
+        : [],
+    [
+      storiesQuery.isSuccess,
+      storiesQuery.isFetchedAfterMount,
+      storiesQuery.isFetching,
+      storiesQuery.isError,
+      storiesQuery.data,
+    ],
+  );
 
   // The same published-data projection must apply to anonymous visitors and
   // signed-in delegation users, even when their database read scope differs.
@@ -980,7 +1002,7 @@ function WebSearchArchiveResults({
           };
         }),
       ...excludeSearchSpoilerStories(
-        spoilerPreviewVerificationPending || storiesQuery.isError ? [] : storiesQuery.data ?? [],
+        spoilerPreviewVerificationPending ? [] : verifiedStoryPreviews,
         spoilerScope.editionSlug,
       )
         .filter((story) =>
@@ -1108,8 +1130,7 @@ function WebSearchArchiveResults({
     scorechartShows,
     searchableEntries,
     publicShows,
-    storiesQuery.data,
-    storiesQuery.isError,
+    verifiedStoryPreviews,
     spoilerScope.editionSlug,
     spoilerPreviewVerificationPending,
   ]);
