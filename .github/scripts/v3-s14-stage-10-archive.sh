@@ -210,13 +210,15 @@ run_s14_stage_10_archive() {
   [[ "$(db_scalar "select count(*) from public.studio2_contest_events where edition_id='$EDITION_ID'::uuid and type='edition.archived';")" == "$legacy_event_count_before_replay" ]] || \
     fail "archive exact retry duplicated legacy audit evidence"
 
-  reconciled_archive_status="$(db_scalar "select public.studio2_reconcile_operation('$S14_ARCHIVE_OPERATION_ID'::uuid)->>'status';")"
-  [[ "$reconciled_archive_status" == "succeeded" ]] || fail "archive operation cannot be reconciled from its durable receipt"
+  rpc_request "$ORGANIZER_A_TOKEN" studio2_reconcile_operation \
+    "{\"p_operation_id\":\"$S14_ARCHIVE_OPERATION_ID\"}"
+  expect_success "reconcile completed S14 Archive operation receipt"
+  expect_json "Archive reconciliation durable receipt" status succeeded
 
-  claimed_archive_events="$(db_scalar "select coalesce(string_agg(event_id::text,',' order by event_id::text),'') from public.studio2_claim_domain_event_deliveries('edition.tasks','$S14_ARCHIVE_WORKER_ID',100,60);")"
+  claimed_archive_events="$(service_value "select coalesce(string_agg(event_id::text,',' order by event_id::text),'') from public.studio2_claim_domain_event_deliveries('edition.tasks','$S14_ARCHIVE_WORKER_ID',100,60);")"
   printf '%s' "$claimed_archive_events" | tr ',' '\n' | grep -Fxq "$archive_event_id" || \
     fail "archive edition.tasks consequence was not claimable"
-  db_scalar "select public.studio2_process_edition_domain_event('$archive_event_id'::uuid,'edition.tasks','$S14_ARCHIVE_WORKER_ID')::text;" >/dev/null
+  service_value "select public.studio2_process_edition_domain_event('$archive_event_id'::uuid,'edition.tasks','$S14_ARCHIVE_WORKER_ID')::text;" >/dev/null
   [[ "$(db_scalar "select status from private.v3_domain_event_outbox where event_id='$archive_event_id'::uuid and consumer_key='edition.tasks';")" == "completed" ]] || \
     fail "archive edition.tasks consequence did not complete"
   [[ "$(db_scalar "select count(*) from private.v3_domain_event_consumer_receipts where event_id='$archive_event_id'::uuid and consumer_key='edition.tasks';")" == "1" ]] || \
