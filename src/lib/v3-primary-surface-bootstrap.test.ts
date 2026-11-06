@@ -109,21 +109,21 @@ describe("Solaris Studio V3 primary surface bootstrap", () => {
     });
   });
 
-  it("derives the Home edition action only from a published canonical edition", async () => {
+  it("derives and safely encodes the canonical published Home edition action", async () => {
     const published = await loadV3PrimarySurfaceBundle(request, {
       loadSnapshot: async () => snapshot(),
     });
     expect(published.home.currentContest.href).toBe("/editions/hanvor-2026");
 
-    const withoutEdition = await loadV3PrimarySurfaceBundle(request, {
+    const encodedSlug = await loadV3PrimarySurfaceBundle(request, {
       loadSnapshot: async () => snapshot({
         publicContest: {
           ...publicContest,
-          edition: null,
+          edition: { ...publicContest.edition!, slug: "hanvør 2026" },
         },
       }),
     });
-    expect(withoutEdition.home.currentContest.href).toBeNull();
+    expect(encodedSlug.home.currentContest.href).toBe("/editions/hanv%C3%B8r%202026");
   });
 
   it("carries Coming up and Latest from the shared snapshot rather than inventing another loader", async () => {
