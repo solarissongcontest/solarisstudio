@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export const WORLD_HISTORY_PAGE_SIZE = 20;
-export type WorldHistorySource = "editorial" | "domestic_election" | "domestic_office" | "institutional";
+export type WorldHistorySource = "editorial" | "domestic_election" | "domestic_office" | "domestic_law" | "institutional";
 export type WorldHistoryEvent = {
   id: string;
   occurredAt: string;
@@ -30,7 +30,7 @@ export function parseWorldHistoryPage(value: unknown, requestedPage: number): Wo
         typeof event.occurred_at !== "string" || !Number.isFinite(Date.parse(event.occurred_at)) ||
         typeof event.title !== "string" || !event.title.trim() ||
         typeof event.summary !== "string" || !event.summary.trim() ||
-        !["editorial","domestic_election","domestic_office","institutional"].includes(String(event.source_type)) ||
+        !["editorial","domestic_election","domestic_office","domestic_law","institutional"].includes(String(event.source_type)) ||
         typeof event.provenance !== "string" ||
         !(event.country_code === null || typeof event.country_code === "string") ||
         !(event.organization_slug === null || typeof event.organization_slug === "string")) {
