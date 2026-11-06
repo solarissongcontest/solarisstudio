@@ -13,6 +13,27 @@ describe("V3 Country discovery recovery", () => {
     expect(screen).toContain("Retry without changing your filters.");
   });
 
+  it("does not mislabel an unavailable current edition as an empty contest", () => {
+    expect(screen).toContain("editionContextLoading = editionsQuery.isLoading && !editionsQuery.data");
+    expect(screen).toContain('"CURRENT EDITION · LOADING"');
+    expect(screen).toContain("editionsQuery.isError ?");
+    expect(screen).toContain("Current-edition context could not be refreshed.");
+    expect(screen).toContain("onClick={() => void editionsQuery.refetch()}");
+    expect(screen).toContain("disabled={editionsQuery.isFetching}");
+    expect(screen).toContain("All published countries remain available.");
+  });
+
+  it("distinguishes unpublished countries, empty current lineups and filtering without fake counts", () => {
+    expect(screen).toContain("const noPublishedCountries = countriesQuery.data?.length === 0");
+    expect(screen).toContain('"No countries published yet"');
+    expect(screen).toContain('"No published participants yet"');
+    expect(screen).toContain('"No matching countries"');
+    expect(screen).toContain("selectedParticipatingOnly && collectionCount === 0");
+    expect(screen).toContain("action={noPublishedCountries ? undefined : (");
+    expect(screen).toContain("Clear filters");
+    expect(screen).not.toContain("countriesQuery.data?.length || 67");
+  });
+
   it("keeps optional lineup errors separate from an unavailable country directory", () => {
     expect(screen).toContain("if (participatingOnly && participantsQuery.isError) setParticipatingOnly(false)");
     expect(screen).toContain("const selectedParticipatingOnly = effectiveParticipatingScope(participatingOnly, currentLineupReady)");
