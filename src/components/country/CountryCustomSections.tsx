@@ -65,9 +65,11 @@ export function groupFormerCountryIdentities(
   const grouped = new Map<string, FormerCountryIdentity>();
 
   for (const row of rows) {
-    const name = row.display_name?.trim();
-    if (!name || name === country.name) continue;
+    const name = row.display_name?.trim() || country.name;
     const flag = row.flag_image ?? country.flag_image ?? null;
+    // Historical display names and flags are independent: a flag may change
+    // while a country's name stays exactly the same.
+    if (name === country.name && flag === (country.flag_image ?? null)) continue;
     const key = `${name}\u0000${flag ?? ""}`;
     const current = grouped.get(key) ?? { name, flag, editions: [] };
     current.editions.push({
@@ -109,9 +111,15 @@ export function CountryCustomSections({
     .filter((section) => sectionVisibleOn(section, surface))
     .sort((a, b) => a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at));
 
-  const formerIdentities = surface === "wiki"
-    ? groupFormerCountryIdentities(identityHistory.data ?? [], country)
+  // The country is now the canonical public destination for legacy Wiki
+  // detail URLs. Preserve published historical identities in both surfaces.
+  // Do not keep formerly public identities visible after a failed or
+  // in-progress refresh when the query still holds its previous cache.
+  const verifiedHistory = identityHistory.isSuccess && !identityHistory.isError &&
+    !identityHistory.isRefetchError && !identityHistory.isFetching
+    ? (identityHistory.data ?? [])
     : [];
+  const formerIdentities = groupFormerCountryIdentities(verifiedHistory, country);
 
   if (!visible.length && !formerIdentities.length) return null;
 
@@ -121,8 +129,12 @@ export function CountryCustomSections({
       data-country-custom-sections={surface}
       data-country-media-count={media.length}
     >
-      {surface === "wiki" && formerIdentities.length > 0 ? (
-        <FormerCountryIdentities country={country} identities={formerIdentities} />
+      {formerIdentities.length > 0 ? (
+        <FormerCountryIdentities
+          country={country}
+          identities={formerIdentities}
+          anchorId={surface === "country" ? "former-identities" : undefined}
+        />
       ) : null}
 
       {visible.map((section) => (
@@ -143,15 +155,17 @@ export function FormerCountryIdentities({
   country,
   identities,
   article = false,
+  anchorId,
 }: {
   country: Country;
   identities: FormerCountryIdentity[];
   article?: boolean;
+  anchorId?: string;
 }) {
   if (!identities.length) return null;
 
   return (
-    <section className={article ? "min-w-0" : "country-personality-card w-full max-w-none rounded-2xl border border-border/70 bg-surface/60 p-4 sm:p-5"}>
+    <section id={anchorId} className={article ? "min-w-0" : "country-personality-card w-full max-w-none rounded-2xl border border-border/70 bg-surface/60 p-4 sm:p-5"}>
       {!article && (
         <>
           <p className="text-[10px] font-bold uppercase tracking-[0.17em] text-primary">Country history</p>
@@ -168,7 +182,7 @@ export function FormerCountryIdentities({
             className="grid min-w-0 grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-4 py-3 sm:grid-cols-[7rem_minmax(0,1fr)_auto]"
           >
             {identity.flag ? (
-              <FlagFrame image={identity.flag} alt={`${identity.name} flag`} fallback={country.short_code} className="w-full rounded-md border border-border/55" />
+              <FlagFrame image={identity.flag} alt={`${identity.name} flag`} fallback={country.short_code} className="aspect-[3/2] w-full rounded-md border border-border/55" />
             ) : (
               <span className="grid h-12 w-full place-items-center rounded-md border border-border bg-surface text-[10px] font-bold text-muted-foreground">
                 {country.short_code}
