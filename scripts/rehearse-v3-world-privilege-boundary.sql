@@ -10,6 +10,7 @@ declare
   actor_name text;
   privilege_name text;
   world_table_count integer := 0;
+  world_projection_count integer := 0;
   violations text[] := array[]::text[];
 begin
   if not exists (select 1 from pg_roles where rolname = 'anon')
@@ -18,21 +19,27 @@ begin
   end if;
 
   for world_table in
-    select c.oid, c.relname, c.relrowsecurity
+    select c.oid, c.relname, c.relrowsecurity, c.relkind
       from pg_catalog.pg_class c
       join pg_catalog.pg_namespace n on n.oid = c.relnamespace
      where n.nspname = 'public'
        and left(c.relname, 6) = 'world_'
-       and c.relkind in ('r', 'p') -- ordinary/partitioned persistent tables
+       and c.relkind in ('r', 'p', 'v', 'm', 'f') -- tables, views, matviews, foreign tables
      order by c.relname
   loop
-    world_table_count := world_table_count + 1;
-    if not world_table.relrowsecurity then
-      violations := array_append(violations,
-        format('RLS_DISABLED public.%I', world_table.relname));
+    if world_table.relkind in ('r', 'p') then
+      world_table_count := world_table_count + 1;
+      if not world_table.relrowsecurity then
+        violations := array_append(violations,
+          format('RLS_DISABLED public.%I', world_table.relname));
+      end if;
+    else
+      world_projection_count := world_projection_count + 1;
     end if;
 
     -- RLS alone does not make direct browser DML a canonical command.
+    -- Updatable views and foreign tables are checked too: their grants can
+    -- bypass a base table's apparent browser-role DML restrictions.
     -- Future TG migrations must use authorized server operations instead.
     foreach actor_name in array array['anon', 'authenticated'] loop
       foreach privilege_name in array array['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE'] loop
@@ -52,8 +59,8 @@ begin
     raise exception 'TG19_WORLD_PRIVILEGES_FAILED (% tables audited): %',
       world_table_count, array_to_string(violations, '; ');
   end if;
-  raise notice 'TG19_WORLD_PRIVILEGES_PASSED: % persistent World tables; RLS enabled and no browser-role direct DML',
-    world_table_count;
+  raise notice 'TG19_WORLD_PRIVILEGES_PASSED: % persistent World tables, % other World relations; RLS enabled and no browser-role direct DML',
+    world_table_count, world_projection_count;
 end
 $audit$;
 rollback;
