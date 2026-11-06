@@ -9,6 +9,7 @@ import {
   parseWorldPublicInstitutions,
   validWorldCountryCode,
   verifiedWorldCount,
+  verifiedWorldQueryData,
   visibleWorldCountryAffiliations,
   worldCountrySearchFilter,
 } from "./world-country-international";
@@ -127,5 +128,29 @@ describe("World country International public read boundaries", () => {
     for (const bad of [undefined, null, "3", -1, 1.5, Number.POSITIVE_INFINITY]) {
       expect(() => verifiedWorldCount(bad)).toThrow();
     }
+  });
+});
+
+
+describe("publication-safe International read snapshots", () => {
+  const verified = {
+    isSuccess: true, isFetchedAfterMount: true, isFetching: false,
+    data: { countries: ["Oland"] },
+  };
+
+  it("returns only freshly verified public query data", () => {
+    expect(verifiedWorldQueryData(verified)).toEqual(verified.data);
+  });
+
+  it("hides cached success before the mounted reader revalidates", () => {
+    expect(verifiedWorldQueryData({ ...verified, isFetchedAfterMount: false })).toBeUndefined();
+  });
+
+  it("hides cached public membership and identity data while refetching", () => {
+    expect(verifiedWorldQueryData({ ...verified, isFetching: true })).toBeUndefined();
+  });
+
+  it("hides previously cached data after a failed verification", () => {
+    expect(verifiedWorldQueryData({ ...verified, isSuccess: false })).toBeUndefined();
   });
 });
