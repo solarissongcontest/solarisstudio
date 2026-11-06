@@ -79,7 +79,7 @@ describe("V3 Edition Songs collection", () => {
     expect(source).toContain('title="Published songs & artists"');
     expect(source).toContain("Browse published entries, artists and songs in Solaris Reference");
     expect(source).not.toContain('to="/music"');
-    expect(source).toContain('to="/music"');
+    expect(source).toContain('to="/encyclopedia"');
   });
 
   it("does not invent media or add a second publication/fetch boundary", () => {
