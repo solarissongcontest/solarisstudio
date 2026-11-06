@@ -58,6 +58,9 @@ describe("TG16 fictional people, offices and historical terms",()=>{
     expect(SQL).toContain("actual_end_at=now()");
     expect(SQL).toContain("status in ('active','ended','resigned','removed')");
     expect(SQL).toContain("world_domestic_official_revisions");
+    // All term mutations must use the admitted ledger type 'term'.
+    expect(SQL).toContain("case when p_kind in ('term_start','term_end','term_publish') then 'term'");
+    expect(SQL).not.toContain("case when p_kind in ('term_start','term_end') then 'term'");
     expect(SQL).not.toMatch(/delete from public\.world_domestic_office_terms/i);
   });
   it("authorizes against fresh current country controller with a governed receipt and version CAS",()=>{
