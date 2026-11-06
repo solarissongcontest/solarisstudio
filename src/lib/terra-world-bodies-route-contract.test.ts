@@ -78,6 +78,25 @@ describe("TG3 published body route ownership", () => {
     expect(bodies).toContain("valid && officeNetworkBlocked ? <Unavailable");
   });
 
+  it("forces a fresh publication read after reconnect or service recovery", () => {
+    const bodies = readFileSync(resolve(process.cwd(), "src/components/world/WorldBodiesPublic.tsx"), "utf8");
+    expect(bodies).toContain('queryKey: ["world", "public", "bodies", slug, term, status, page, connectivity.checkedAt]');
+    expect(bodies).toContain('queryKey: ["world", "public", "body", slug, bodySlug, connectivity.checkedAt]');
+    expect(bodies).toContain('queryKey: ["world", "public", "body-offices", result?.organization.id, result?.body.id, connectivity.checkedAt]');
+    // A stale pre-recovery list must not even be reused as placeholder content.
+    expect(bodies).toContain("priorQuery?.queryKey[7] === connectivity.checkedAt");
+    expect(bodies).toContain("!query.isPlaceholderData");
+  });
+
+  it("fails closed while the app's connectivity probe is degraded", () => {
+    const bodies = readFileSync(resolve(process.cwd(), "src/components/world/WorldBodiesPublic.tsx"), "utf8");
+    expect(bodies).toContain('const publicationBlocked = connectivity.status !== "online"');
+    expect(bodies).toContain('const officeNetworkBlocked = connectivity.status !== "online"');
+    expect(bodies).toContain('connectivity.status === "degraded"');
+    expect(bodies).toContain("disabled={retryBlocked}");
+    expect(bodies).toContain("disabled={officeNetworkBlocked}");
+  });
+
   it("keeps stable URL paths for both canonical public body screens", () => {
     const directory = readFileSync(resolve(bodyRoutes, "index.tsx"), "utf8");
     const detail = readFileSync(resolve(bodyRoutes, "$bodySlug.tsx"), "utf8");
