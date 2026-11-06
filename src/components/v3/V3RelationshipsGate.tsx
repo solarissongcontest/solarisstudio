@@ -132,7 +132,7 @@ export function V3RelationshipDetailGate({
 
   const loading = bundle.isLoading || (bundle.isSuccess && rollout.isLoading);
   const unavailable = bundle.isError || !bundle.data || rollout.isError || !rollout.data;
-  if (loading || unavailable) {
+  if (loading || unavailable || !bundle.data || !rollout.data) {
     return (
       <V3RelationshipsLoading
         editionLabel={bundle.data?.shell.editionLabel}
