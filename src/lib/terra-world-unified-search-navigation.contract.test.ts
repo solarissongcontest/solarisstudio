@@ -52,6 +52,19 @@ describe("Public Terra Solaris World Search integration", () => {
     expect(searchScreen).toContain("Verifying public institutions");
   });
 
+  it("keeps the public organization directory verified and recovers empty late pages", () => {
+    const reader = source("src/lib/terra-world-public.ts");
+    expect(reader).toContain('const publishedStatuses = input.filter === "current"');
+    expect(reader).toContain('.in("status", publishedStatuses)');
+    expect(reader).toContain("isPublicWorldInstitutionStatus(String(row.status ?? \"\"))");
+    expect(reader).toContain("World organization publication could not be verified");
+    expect(reader).toContain("World directory page count could not be verified");
+    expect(landing).toContain("worldPublicQueryVerified(directory)");
+    expect(landing).toContain("verifiedDirectory.organizations");
+    expect(landing).toContain("if (page > lastPage) setPage(lastPage)");
+    expect(landing).toContain("directory.isRefetchError");
+  });
+
   it("reuses the existing World capability instead of adding a competing rollout flag", () => {
     expect(registry).toContain('legacyRoutes: ["/world", "/world/*"]');
     expect(registry).toContain('sourceFeatureFlags: ["terra_world_public"]');
