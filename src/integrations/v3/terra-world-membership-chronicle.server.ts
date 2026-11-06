@@ -9,7 +9,10 @@ import {
   type WorldMembershipChronicleScope,
 } from "@/lib/terra-world-membership-chronicle";
 
-type PublicClient = { from(table: string): any };
+type PublicClient = {
+  from(table: string): any;
+  rpc(name: string, args: Record<string, unknown>): Promise<{ data: unknown; error: unknown }>;
+};
 function publicClient(): PublicClient {
   // Existing public Solaris runtime, TG2 RLS and canonical membership.
   // Never use service_role, a privileged identity override or hosted test fallback.
@@ -17,6 +20,21 @@ function publicClient(): PublicClient {
 }
 function assertSuccess(error: unknown, label: string) {
   if (error) throw new Error("Could not load public " + label);
+}
+
+/**
+ * A direct server-function invocation must not bypass the World rollout gate.
+ * Do not read membership or institution tables if the flag is absent, disabled
+ * or unverified, even when TG2 public RLS would otherwise return records.
+ */
+async function requireWorldPublication(client: PublicClient): Promise<void> {
+  const { data, error } = await client.rpc("studio2_feature_enabled", {
+    p_key: "terra_world_public",
+    p_edition_id: null,
+  });
+  if (error || data !== true) {
+    throw new Error("Terra Solaris public World rollout could not be verified");
+  }
 }
 
 async function readPublishedInstitutions(client: PublicClient) {
@@ -36,7 +54,9 @@ async function readPublishedInstitutions(client: PublicClient) {
 export async function loadWorldMembershipInstitutions() {
   // Filter choices are a separate, long-lived cached query on the client.
   // They are NOT fetched again in every history page request.
-  return readPublishedInstitutions(publicClient());
+  const client = publicClient();
+  await requireWorldPublication(client);
+  return readPublishedInstitutions(client);
 }
 
 export async function loadWorldMembershipChronicle(input: {
@@ -48,6 +68,7 @@ export async function loadWorldMembershipChronicle(input: {
   const organizationSlug = normalizeWorldChronicleOrganizationSlug(input.organization);
   const countryCode = normalizeWorldChronicleCountryCode(input.country);
   const client = publicClient();
+  await requireWorldPublication(client);
 
   let selectedOrganization: { id: string; slug: string; short_name: string } | null = null;
   if (organizationSlug) {
