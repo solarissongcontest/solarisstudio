@@ -42,19 +42,19 @@ test('detects the broken TG4 SELECT INTO row contract',()=>{
     'returns uuid as $$',
     'declare term_row record;',
     'begin',
-    ' select * into term_row from public.world_office_terms where status = ''active'';',
+    " select * into term_row from public.world_office_terms where status = 'active';",
     ' if term_row.starts_at > now() or term_row.ends_at is not null then return null; end if;',
     ' return term_row.holder_person_id;',
     'end $$ language plpgsql;'
-  ].join('\n').replace("''active''","'active'");
+  ].join('\n');
   assert.deepEqual(scanOfficeTermSql(sql,PATH).map(x=>x.line),[6,6]);
 });
 
 test('detects direct DML target names',()=>{
   const sql=[
-    'insert into public.world_office_terms (id, starts_at, status) values (x, now(), ''active'');',
+    "insert into public.world_office_terms (id, starts_at, status) values (x, now(), 'active');",
     'update public.world_office_terms set ends_at=now() where id=x;'
-  ].join('\n').replace("''active''","'active'");
+  ].join('\n');
   assert.deepEqual(scanOfficeTermSql(sql,PATH).map(x=>x.code),
     ['stale_office_term_insert_column','stale_office_term_update_column']);
 });
