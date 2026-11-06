@@ -34,6 +34,20 @@ describe("Organizer System Settings exact edition context", () => {
     expect(route).toContain("description={editionContextMessage}");
   });
 
+  it("does not invent a show start time from the date-only edition event_date", () => {
+    // The schedule projection currently stores a placeholder noon for a calendar date.
+    // Organizer must NEVER present that placeholder as an actual show start time.
+    expect(route).toContain('item.source === "edition" && item.id.startsWith("edition-event:")');
+    expect(route).toContain("parseEditionCalendarDate(item.at)");
+    expect(route).toContain("calendarDateOnly");
+    expect(route).toContain('const displayedDate = calendarDateOnly');
+    expect(route).toContain('parseEditionCalendarDate(item.at)?.toLocaleDateString()');
+    expect(route).toContain('calendarDateOnly ? "Calendar date" : past ? "Passed" : "Scheduled"');
+    expect(route).toContain('const past = !calendarDateOnly && new Date(item.at).getTime() < Date.now();');
+    expect(route).toContain("yesterday.setHours(0, 0, 0, 0)");
+    expect(route).not.toContain('{new Date(item.at).toLocaleString()} · {item.detail}');
+  });
+
   it("keeps deliberately global platform mode authority available without edition fallback", () => {
     expect(route).toContain('queryKey: ["platform-operational-state"]');
     expect(route).toContain("queryFn: loadPlatformOperationalSnapshot");
