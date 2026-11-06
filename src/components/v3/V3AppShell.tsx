@@ -361,6 +361,7 @@ export function V3AppShell({
 
       {isAppMode ? (
         <AppTabBar
+          ariaLabel="Primary app navigation"
           key={navigationInteractionKey}
           pathname={pathname}
           searchStr={searchStr}
