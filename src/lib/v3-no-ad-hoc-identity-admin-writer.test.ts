@@ -1,12 +1,9 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { scanV3S16StaticAuthority } from "./v3-s16-mutation-authority";
+import { isV3S16UnsafeStandaloneIdentityWriter, scanV3S16StaticAuthority } from "./v3-s16-mutation-authority";
 
 const root = resolve(process.cwd(), "scripts");
-const forbiddenDirectIdentityWrites =
-  /\.auth\s*\.\s*admin\s*\.\s*(?:updateUserById|deleteUser)\s*\(/;
-
 function scriptSources(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name);
@@ -23,9 +20,12 @@ describe("S16 canonical identity mutation authority", () => {
   });
 
   it("does not permit scripts to mutate account identity through raw auth.admin calls", () => {
-    const unsafe = scriptSources(root)
-      .filter((path) => forbiddenDirectIdentityWrites.test(readFileSync(path, "utf8")))
-      .map((path) => relative(process.cwd(), path));
+    const unsafe = scriptSources(root).filter((path) =>
+      isV3S16UnsafeStandaloneIdentityWriter({
+        path: relative(process.cwd(), path).replaceAll(String.fromCharCode(92), "/"),
+        source: readFileSync(path, "utf8"),
+      }),
+    );
 
     // Account changes belong to authenticated, authorized, auditable server
     // operations, not standalone scripts able to act with service-role access.
@@ -40,6 +40,11 @@ describe("S16 canonical identity mutation authority", () => {
       }],
       [],
     );
+
+    expect(isV3S16UnsafeStandaloneIdentityWriter({
+      path: "scripts/destructured-auth.js",
+      source: "await auth.admin.deleteUser('fixed-id');",
+    })).toBe(true);
 
     expect(findings).toEqual([
       expect.objectContaining({
