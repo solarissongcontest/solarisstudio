@@ -190,6 +190,7 @@ export function AdminWorldDocumentDraftWorkspace() {
     queryKey: ["tg4-organizer-unpublished-version", organizationSlug, documentSlug, pendingDraft?.versionNumber],
     enabled: Boolean(snapshot.data?.allowedActions.manage && organization && pendingDraft),
     staleTime: 0,
+    gcTime: 0,
     retry: 1,
     queryFn: async () => {
       if (!pendingDraft || !snapshot.data) throw new Error("An exact unpublished version is required.");
@@ -231,9 +232,26 @@ export function AdminWorldDocumentDraftWorkspace() {
     setDraftProvisions(provisions);
   }, [snapshot.data]);
 
+  // Exact pending-version hydration: preserve in-progress edits on background
+  // refetch of the same revision, but reset after canonical CAS changes.
+  const hydratedPendingRevision = useRef<string | null>(null);
+  useEffect(() => {
+    const current = pendingDraftDetails.data;
+    const version = current?.version;
+    if (!current || !version || version.publicationState !== "draft") return;
+    const identity = `${current.documentId}:${version.versionId}:${version.revision}`;
+    if (hydratedPendingRevision.current === identity) return;
+    hydratedPendingRevision.current = identity;
+    originalDraft.current = worldDocumentDraftSignature({
+      title: version.title, plainText: version.plainText, provisions: version.provisions,
+    });
+    setDraftTitle(version.title);
+    setDraftText(version.plainText);
+    setDraftProvisions(version.provisions);
+  }, [pendingDraftDetails.data]);
+
   const hasUnsavedDraftEdits = Boolean(
     snapshot.data?.allowedActions.manage &&
-    !snapshot.data.hasUnpublishedDraft &&
     originalDraft.current !== null &&
     worldDocumentDraftSignature({
       title: draftTitle, plainText: draftText, provisions: draftProvisions,
@@ -388,6 +406,60 @@ export function AdminWorldDocumentDraftWorkspace() {
     );
   };
 
+  const reviewDraftUpdate = (event: FormEvent) => {
+    event.preventDefault();
+    const doc = snapshot.data;
+    const current = pendingDraftDetails.data;
+    const version = current?.version;
+    if (!organization || !doc?.allowedActions.manage || !doc.hasUnpublishedDraft ||
+        !current || !version || version.publicationState !== "draft" ||
+        !version.revision || !version.sourceProvenance ||
+        version.versionId !== doc.pendingDraft?.versionId ||
+        current.documentId !== doc.documentId ||
+        current.organization.organizationId !== doc.organization.organizationId) return;
+    const validation = validateWorldDocumentDraft({
+      title: draftTitle, plainText: draftText,
+      hasProvisions: draftProvisions.length > 0,
+    }) ?? validateWorldDocumentProvisions(draftProvisions);
+    if (validation) { setNotice(validation); return; }
+    const provisions = toWorldProvisionCommandRows(draftProvisions);
+    const changes = compareWorldDocumentProvisions(version.provisions, draftProvisions);
+    openReview("world.document.version.update_draft", "world_update_document_version_draft_v1",
+      {
+        documentId: doc.documentId, versionId: version.versionId,
+        expectedVersionRevision: version.revision,
+        title: draftTitle.trim(), plainText: draftText,
+        structuredContent: version.structuredContent,
+        sourceDescription: version.sourceDescription,
+        sourceProvenance: version.sourceProvenance,
+        effectiveFrom: version.effectiveFrom, effectiveTo: version.effectiveTo,
+        provisions,
+      },
+      {
+        p_version_id: version.versionId,
+        p_title: draftTitle.trim(),
+        p_structured_content: version.structuredContent,
+        p_plain_text: draftText,
+        p_effective_from: version.effectiveFrom,
+        p_effective_to: version.effectiveTo,
+        p_source_description: version.sourceDescription,
+        p_source_provenance: version.sourceProvenance,
+        p_provisions: provisions,
+        p_expected_version_revision: version.revision,
+      },
+      "Update an existing unpublished legal version",
+      [organization.official_name, doc.title, `Version: ${version.versionNumber}`,
+        `Expected draft revision: ${version.revision}`,
+        `Retained structured provisions: ${provisions.length}`,
+        `New identities: ${changes.added.join(", ") || "none"}`,
+        `Omitted from draft: ${changes.omitted.join(", ") || "none"}`,
+        `Modified: ${changes.modified.join(", ") || "none"}`,
+        "Existing source attribution and effective date will be preserved",
+        "No publication or historical-version overwrite"],
+      doc.slug,
+    );
+  };
+
   const checkReceipt = async (review: Review) => {
     const { data, error } = await db.rpc("studio2_reconcile_operation", {
       p_operation_id: review.operationId,
@@ -399,7 +471,8 @@ export function AdminWorldDocumentDraftWorkspace() {
   const reconcile = async (send: boolean) => {
     const active = operation;
     if (!active || (send && active.status !== "review") || active.status === "checking") return;
-    if (send && active.review.command === "world.document.version.create" && !reviewedFullText) return;
+    if (send && ["world.document.version.create", "world.document.version.update_draft"]
+      .includes(active.review.command) && !reviewedFullText) return;
     const { review } = active;
     if (executing.current.has(review.operationId)) return;
     executing.current.add(review.operationId);
@@ -433,6 +506,9 @@ export function AdminWorldDocumentDraftWorkspace() {
         await queryClient.invalidateQueries({ queryKey: ["tg4-organizer-documents", review.organizationSlug] });
         await queryClient.invalidateQueries({
           queryKey: ["tg4-organizer-document", review.organizationSlug, review.documentSlug],
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["tg4-organizer-unpublished-version", review.organizationSlug, review.documentSlug],
         });
         setCreateTitle(""); setCreateSlug(""); setDraftTitle(""); setDraftText("");
         setDraftProvisions([]);
@@ -724,7 +800,8 @@ export function AdminWorldDocumentDraftWorkspace() {
                   <ul className="space-y-1 text-sm text-muted-foreground">
                     {operation.review.details.map((detail, index) => <li key={index}>{detail}</li>)}
                   </ul>
-                  {operation.review.command === "world.document.version.create" && (
+                  {["world.document.version.create", "world.document.version.update_draft"].includes(
+                    operation.review.command) && (
                     <details className="space-y-3 rounded-xl border border-border p-3">
                       <summary className="cursor-pointer text-sm font-semibold">
                         Inspect the complete outgoing legal draft
@@ -769,7 +846,8 @@ export function AdminWorldDocumentDraftWorkspace() {
                     </details>
                   )}
                   {operation.status === "review" &&
-                    operation.review.command === "world.document.version.create" && (
+                    ["world.document.version.create", "world.document.version.update_draft"].includes(
+                      operation.review.command) && (
                     <label className="flex cursor-pointer items-start gap-3 text-sm">
                       <input type="checkbox" className="mt-1 size-4 shrink-0"
                         checked={reviewedFullText}
@@ -784,7 +862,8 @@ export function AdminWorldDocumentDraftWorkspace() {
                     {operation.status === "review" && (
                       <>
                         <button type="button" className={buttonClass}
-                          disabled={operation.review.command === "world.document.version.create" && !reviewedFullText}
+                          disabled={["world.document.version.create", "world.document.version.update_draft"]
+                            .includes(operation.review.command) && !reviewedFullText}
                           onClick={() => void reconcile(true)}>Execute reviewed action</button>
                         <button type="button" className={secondaryClass} onClick={() => setOperation(null)}>Back to editor</button>
                       </>
