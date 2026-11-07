@@ -97,6 +97,7 @@ do $publication_event$
 declare
   v jsonb:=current_setting('solaris.tg10_candidate_fixture')::jsonb;
   v_bad_operation uuid:=gen_random_uuid();
+  v_pending_operation uuid:=gen_random_uuid();
   v_good_operation uuid:=gen_random_uuid();
   v_count integer;
 begin
@@ -117,19 +118,26 @@ begin
      v_good_operation,repeat('b',64),'world.statement.publish','R2',
      '{}'::jsonb,'succeeded','{}'::jsonb,now());
 
+  insert into public.studio2_operation_receipts(
+    operation_id,actor_id,idempotency_key,correlation_id,request_fingerprint,
+    command,risk_class,scope,status
+  ) values (
+    v_pending_operation,(v->>'first')::uuid,
+    'tg10-pending-'||v_pending_operation::text,
+    v_pending_operation,repeat('e',64),
+    'world.statement.publish','R2','{}'::jsonb,'processing'
+  );
+
   -- A real S2 receipt alone is insufficient when its S4 event points to a
   -- different immutable version than the exact request.
-  insert into private.v3_domain_events(
-    event_type,aggregate_type,aggregate_id,aggregate_version,operation_id,
-    correlation_id,actor_id,payload
-  ) values (
+  perform private.v3_emit_domain_event(
     'world.statement.published','world_statement',v->>'statement',1,
-    v_bad_operation,v_bad_operation,(v->>'first')::uuid,
+    v_bad_operation,null,null,
     jsonb_build_object(
       'organizationId',v->>'org','statementId',v->>'statement',
       'versionId',gen_random_uuid(),'revision',1,
       'visibility','public','published',true
-    )
+    ),1,array[]::text[]
   );
   if exists (
     select 1 from private.world_statement_follow_notification_candidates_v1(
@@ -137,19 +145,32 @@ begin
     )
   ) then raise exception 'TG10_MISMATCHED_S4_VERSION_ACCEPTED'; end if;
 
-  -- This is the exact TG9 world_issue_statement_v1 S4 envelope and its
-  -- already-completed canonical S2 operation; no alternative publisher.
-  insert into private.v3_domain_events(
-    event_type,aggregate_type,aggregate_id,aggregate_version,operation_id,
-    correlation_id,actor_id,payload
-  ) values (
+  -- A true S4 fact is not deliverable until the matching S2 operation succeeds.
+  perform private.v3_emit_domain_event(
     'world.statement.published','world_statement',v->>'statement',1,
-    v_good_operation,v_good_operation,(v->>'first')::uuid,
+    v_pending_operation,null,null,
     jsonb_build_object(
       'organizationId',v->>'org','statementId',v->>'statement',
       'versionId',v->>'version','revision',1,
       'visibility','public','published',true
+    ),1,array[]::text[]
+  );
+  if exists (
+    select 1 from private.world_statement_follow_notification_candidates_v1(
+      (v->>'statement')::uuid,(v->>'version')::uuid
     )
+  ) then raise exception 'TG10_INCOMPLETE_R2_SOURCE_ACCEPTED'; end if;
+
+  -- This is the exact TG9 world_issue_statement_v1 S4 envelope and its
+  -- already-completed canonical S2 operation; no alternative publisher.
+  perform private.v3_emit_domain_event(
+    'world.statement.published','world_statement',v->>'statement',1,
+    v_good_operation,null,null,
+    jsonb_build_object(
+      'organizationId',v->>'org','statementId',v->>'statement',
+      'versionId',v->>'version','revision',1,
+      'visibility','public','published',true
+    ),1,array[]::text[]
   );
   select count(*) into v_count
   from private.world_statement_follow_notification_candidates_v1(
@@ -293,17 +314,14 @@ begin
     v_old_op,repeat('d',64),'world.statement.publish','R2',
     '{}'::jsonb,'succeeded','{}'::jsonb,now()
   );
-  insert into private.v3_domain_events(
-    event_type,aggregate_type,aggregate_id,aggregate_version,operation_id,
-    correlation_id,actor_id,payload
-  ) values (
+  perform private.v3_emit_domain_event(
     'world.statement.published','world_statement',v_old_statement::text,1,
-    v_old_op,v_old_op,(v->>'first')::uuid,
+    v_old_op,null,null,
     jsonb_build_object(
       'organizationId',v->>'org','statementId',v_old_statement,
       'versionId',v_old_version,'revision',1,
       'visibility','public','published',true
-    )
+    ),1,array[]::text[]
   );
   if exists (
     select 1 from private.world_statement_follow_notification_candidates_v1(
@@ -345,17 +363,14 @@ begin
     v_correct_op,repeat('c',64),'world.statement.correct','R2',
     '{}'::jsonb,'succeeded','{}'::jsonb,now()
   );
-  insert into private.v3_domain_events(
-    event_type,aggregate_type,aggregate_id,aggregate_version,operation_id,
-    correlation_id,actor_id,payload
-  ) values (
+  perform private.v3_emit_domain_event(
     'world.statement.corrected','world_statement',v->>'statement',2,
-    v_correct_op,v_correct_op,(v->>'first')::uuid,
+    v_correct_op,null,null,
     jsonb_build_object(
       'organizationId',v->>'org','statementId',v->>'statement',
       'versionId',v_corrected,'revision',2,
       'visibility','public','published',true
-    )
+    ),1,array[]::text[]
   );
   select * into strict v_result
   from private.world_statement_follow_notification_candidates_v1(
