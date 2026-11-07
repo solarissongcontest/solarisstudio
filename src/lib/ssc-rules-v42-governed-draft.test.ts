@@ -17,7 +17,9 @@ describe("SSC v4.2 governed draft importer", () => {
     expect(changes.find((change) => change.rule_id === "6.5")?.after_snapshot?.body?.join(" ")).toContain("in 2015 or any later year");
     expect(changes.find((change) => change.rule_id === "6.4")?.after_snapshot?.body?.join(" ")).toContain("most-viewed");
     expect(changes.find((change) => change.rule_id === "17.2")?.after_snapshot?.body?.join(" ")).toContain("negative score");
-    expect(changes.find((change) => change.rule_id === "22.5")?.after_snapshot?.body?.join(" ")).toContain("six consecutive SSC Editions");
+    expect(changes.find((change) => change.rule_id === "22.5")?.after_snapshot?.body?.join(" ")).toContain("six SSC editions in a row");
+    expect(changes.find((change) => change.rule_id === "22.5")?.after_snapshot?.body?.join(" ")).toContain("without an active Head of Delegation (HoD) at any point during any of them");
+    expect(changes.find((change) => change.rule_id === "22.5")?.after_snapshot?.body?.join(" ")).toContain("the count starts over");
     expect(changes.find((change) => change.rule_id === "17.2")?.after_snapshot?.bullets).toHaveLength(10);
   });
 });

@@ -287,7 +287,7 @@ const SPECIFIC_CHANGES: Record<string, RuleWordingPatch> = {
     "important": "A withdrawal after the submission deadline but before publication is not automatically penalised only because that deadline passed. After publication, Rule 15.2 applies if the withdrawal seriously disrupts the edition."
   },
   "17.2": {
-    "important": "Fixed point penalties are subtracted from contest points. Levels 2 and 3 affect bonus points only. If there are no bonus points, TSBC must choose another existing appropriate level rather than silently convert the penalty. Fixed contest-point deductions apply in full and may result in a negative score. Aggravating or reasons for a lighter penalty (reasons for a stronger or lighter penalty) still matter."
+    "important": "Fixed contest-point penalties are taken away in full, even if the score becomes negative. Levels 2 and 3 only affect bonus points. If an edition has no bonus points, TSBC must choose a different existing penalty level that fits the rule break and explain why. TSBC cannot quietly turn a bonus-point penalty into a normal point penalty. Reasons for a stronger or lighter penalty still matter."
   },
   "20.2": {
     "important": "A private message, an older edition's custom or silence cannot silently change the published rules. Urgent exceptions must follow Rule 21.1."

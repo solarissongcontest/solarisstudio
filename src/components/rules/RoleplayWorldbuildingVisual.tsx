@@ -116,7 +116,7 @@ export function RoleplayWorldbuildingVisual({ usePlainCountryTerms = false }: { 
           title="Six finished editions in a row without an active HoD at any time"
           items={[
             "Other countries may take it over or split its land",
-            "It may be removed from today\'s official map",
+            "It may be removed from today's official map",
             "Historical SSC records remain untouched",
           ]}
           tone="indigo"
