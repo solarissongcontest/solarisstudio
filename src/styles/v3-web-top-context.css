@@ -1,101 +1,62 @@
-/*
- * Browser-native V3 masthead. Its quiet, in-flow editorial presentation is
- * intentionally separate from the installed app's sticky v3-top-context.
- * The desktop website's existing section nav becomes the sticky rail.
- */
+/* In-flow browser masthead, independent of installed PWA chrome. */
 [data-solaris-v3] [data-v3-shell-experience="web"] {
   --v3-top-context-obstruction: 0px;
   --v3-shell-top-obstruction: 0.5rem;
 }
-[data-solaris-v3] [data-v3-shell-experience="web"] .v3-web-top-context {
+[data-solaris-v3] .v3-web-top-context {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas: "brand actions" "context context";
   align-items: center;
-  column-gap: 12px;
-  row-gap: 0;
+  gap: 0 12px;
   width: min(100%, 72rem);
-  min-width: 0;
   margin-inline: auto;
   padding: 5px max(14px, env(safe-area-inset-right)) 7px max(14px, env(safe-area-inset-left));
   border-bottom: 1px solid var(--v3-border-subtle);
-  background: transparent;
 }
 [data-solaris-v3] .v3-web-top-context__brand {
   grid-area: brand;
-  display: inline-flex;
-  align-items: baseline;
+  display: flex;
+  align-items: center;
   gap: 5px;
-  min-width: 0;
-  width: max-content;
-  max-width: 100%;
   min-height: 44px;
   color: var(--v3-text-primary);
-  text-decoration: none;
   font-size: 0.83rem;
   font-weight: 800;
+  text-decoration: none;
   letter-spacing: 0.09em;
 }
-[data-solaris-v3] .v3-web-top-context__brand-secondary {
-  color: var(--v3-accent-strong);
-  letter-spacing: 0.06em;
-}
+[data-solaris-v3] .v3-web-top-context__brand-secondary { color: var(--v3-accent-strong); }
 [data-solaris-v3] .v3-web-top-context__brand:focus-visible {
   outline: 2px solid var(--v3-accent-strong);
-  outline-offset: -2px;
 }
 [data-solaris-v3] .v3-web-top-context__context {
   grid-area: context;
   display: flex;
-  gap: 6px;
   align-items: center;
+  gap: 6px;
   min-width: 0;
-  padding: 0 0 3px;
-  font-size: 0.72rem;
-  line-height: 1.35;
   color: var(--v3-text-secondary);
+  font-size: 0.72rem;
 }
-[data-solaris-v3] .v3-web-top-context__edition,
-[data-solaris-v3] .v3-web-top-context__phase {
-  display: block;
-  min-width: 0;
+[data-solaris-v3] :is(.v3-web-top-context__edition, .v3-web-top-context__phase) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 [data-solaris-v3] .v3-web-top-context__edition { font-weight: 700; }
-[data-solaris-v3] .v3-web-top-context__separator { color: var(--v3-text-tertiary); }
-[data-solaris-v3] .v3-web-top-context__actions {
-  grid-area: actions;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: 0;
-  gap: 5px;
-}
+[data-solaris-v3] .v3-web-top-context__actions { grid-area: actions; display: flex; align-items: center; gap: 5px; }
 @media (min-width: 720px) {
-  [data-solaris-v3] [data-v3-shell-experience="web"] .v3-web-top-context {
+  [data-solaris-v3] .v3-web-top-context {
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas: "brand context actions";
-    column-gap: 20px;
     padding-block: 8px;
-  }
-  [data-solaris-v3] .v3-web-top-context__context {
-    justify-content: flex-start;
-    padding: 0;
-    font-size: 0.78rem;
   }
 }
 @media (min-width: 1024px) {
-  [data-solaris-v3] [data-v3-shell-experience="web"] {
-    --v3-shell-top-obstruction: 4.5rem;
-  }
-  [data-solaris-v3] [data-v3-shell-experience="web"] .v3-desktop-primary-nav {
-    top: 0;
-  }
+  [data-solaris-v3] [data-v3-shell-experience="web"] { --v3-shell-top-obstruction: 4.5rem; }
+  [data-solaris-v3] [data-v3-shell-experience="web"] .v3-desktop-primary-nav { top: 0; }
 }
 @media (min-width: 1440px) {
-  [data-solaris-v3] [data-v3-shell-experience="web"] .v3-web-top-context {
-    width: min(100%, 76rem);
-  }
+  [data-solaris-v3] .v3-web-top-context { width: min(100%, 76rem); }
 }
