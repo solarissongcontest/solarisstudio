@@ -6,7 +6,43 @@ fail() { printf '\n[v3-public-result-snapshot] FAIL: %s\n' "$*" >&2; exit 1; }
 
 # Fail closed when the local Supabase CLI is unavailable.
 status_env="$(supabase status -o env)" || fail "No local Supabase stack"
-eval "$status_env"
+# The CLI prints assignment-shaped data, NOT trusted shell code. Never eval it.
+# Reject malformed lines and duplicate authorities before any database call.
+API_URL=""
+DB_URL=""
+api_count=0
+db_count=0
+while IFS= read -r entry || [[ -n "$entry" ]]; do
+  [[ -z "$entry" ]] && continue
+  [[ "$entry" =~ ^[A-Z][A-Z0-9_]*= ]] || fail "Malformed local Supabase status output"
+  case "$entry" in
+    API_URL=*)
+      api_count=$((api_count + 1))
+      [[ $api_count -eq 1 ]] || fail "Duplicate local Supabase API_URL"
+      API_URL="${entry#API_URL=}"
+      ;;
+    DB_URL=*)
+      db_count=$((db_count + 1))
+      [[ $db_count -eq 1 ]] || fail "Duplicate local Supabase DB_URL"
+      DB_URL="${entry#DB_URL=}"
+      ;;
+  esac
+done <<< "$status_env"
+[[ $api_count -eq 1 && $db_count -eq 1 ]] || fail "Missing local Supabase endpoints"
+
+# Supabase may quote literal values in env output. Only remove paired outer
+# quotes; do not interpret escapes, substitutions, commands, or shell syntax.
+strip_outer_quotes() {
+  local value="$1"
+  if (( ${#value} >= 2 )); then
+    if [[ "${value:0:1}" == '"' && "${value: -1}" == '"' ]] || [[ "${value:0:1}" == "'" && "${value: -1}" == "'" ]]; then
+      value="${value:1:${#value}-2}"
+    fi
+  fi
+  printf "%s" "$value"
+}
+API_URL="$(strip_outer_quotes "$API_URL")"
+DB_URL="$(strip_outer_quotes "$DB_URL")"
 : "${API_URL:?missing local Supabase API_URL}"
 : "${DB_URL:?missing local Supabase DB_URL}"
 

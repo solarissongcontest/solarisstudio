@@ -10,7 +10,7 @@ const runner = fileURLToPath(new URL("./rehearse-v3-public-result-snapshot.sh", 
 const localApi = "http://127.0.0.1:54321";
 const localDb = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
-function exercise(api = localApi, db = localDb, statusFails = false) {
+function exercise(api = localApi, db = localDb, statusFails = false, statusTail = "") {
   const temp = mkdtempSync(join(tmpdir(), "v3-snapshot-isolation-"));
   const supabase = join(temp, "supabase");
   const psql = join(temp, "psql");
@@ -19,6 +19,7 @@ function exercise(api = localApi, db = localDb, statusFails = false) {
     "#!/usr/bin/env bash",
     'if [ "$STUB_STATUS_FAIL" = "1" ]; then exit 17; fi',
     'printf "API_URL=%q\\nDB_URL=%q\\n" "$STUB_API_URL" "$STUB_DB_URL"',
+    'if [ -n "$STUB_STATUS_TAIL" ]; then printf "%s\\n" "$STUB_STATUS_TAIL"; fi',
     "",
   ].join("\n"));
   writeFileSync(psql, [
@@ -38,12 +39,15 @@ function exercise(api = localApi, db = localDb, statusFails = false) {
       STUB_API_URL: api,
       STUB_DB_URL: db,
       STUB_STATUS_FAIL: statusFails ? "1" : "0",
+      STUB_STATUS_TAIL: statusTail,
+      STATUS_SHELL_MARKER: join(temp, "status-shell-executed"),
       PSQL_MARKER: marker,
     },
   });
   const psqlInvoked = existsSync(marker);
+  const statusCommandExecuted = existsSync(join(temp, "status-shell-executed"));
   rmSync(temp, { recursive: true, force: true });
-  return { result, psqlInvoked };
+  return { result, psqlInvoked, statusCommandExecuted };
 }
 
 for (const [name, api, db] of [
@@ -89,4 +93,32 @@ test("failed local Supabase CLI status fails closed even with inherited local-lo
   assert.notEqual(result.status, 0);
   assert.equal(psqlInvoked, false);
   assert.match(result.stderr, /No local Supabase stack/);
+});
+
+test("command-bearing local CLI status output is inert before authorization", () => {
+  const { result, psqlInvoked, statusCommandExecuted } = exercise(
+    localApi, localDb, false, 'touch "$STATUS_SHELL_MARKER"',
+  );
+  assert.notEqual(result.status, 0);
+  assert.equal(statusCommandExecuted, false, "status output must never execute commands");
+  assert.equal(psqlInvoked, false, "malformed status must fail before database access");
+  assert.match(result.stderr, /Malformed local Supabase status output/);
+});
+
+test("duplicate local authority in CLI status output fails closed", () => {
+  const { result, psqlInvoked } = exercise(
+    localApi, localDb, false, `DB_URL=${localDb}`,
+  );
+  assert.notEqual(result.status, 0);
+  assert.equal(psqlInvoked, false);
+  assert.match(result.stderr, /Duplicate local Supabase DB_URL/);
+});
+
+test("unknown status assignments never evaluate embedded shell substitutions", () => {
+  const { result, psqlInvoked, statusCommandExecuted } = exercise(
+    localApi, localDb, false, 'OTHER_KEY=$(touch "$STATUS_SHELL_MARKER")',
+  );
+  assert.equal(statusCommandExecuted, false);
+  assert.equal(psqlInvoked, true, "only the stubbed local psql may be reached");
+  assert.equal(result.status, 88);
 });
