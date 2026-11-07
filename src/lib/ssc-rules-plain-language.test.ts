@@ -75,8 +75,11 @@ describe("SSC v4.2 plain-language candidate", () => {
     expect(sanction?.bullets).toHaveLength(10);
     expect(sanction?.bullets?.[0]).toBe("Level 1 · Official Warning");
     expect(sanction?.bullets?.[9]).toBe("Level 10 · Lifetime Ban");
-    expect(bodyOf("17.2")).toContain("subtracted in full from the country's contest score");
-    expect(bodyOf("17.2")).toContain("Where an edition awards no bonus points");
+    expect(bodyOf("17.2")).toContain("must subtract all those points from the country's score");
+    expect(bodyOf("17.2")).toContain("If an edition has no bonus points");
+    expect(bodyOf("17.2")).toContain("choose a different penalty from the ten existing levels");
+    expect(bodyOf("17.2")).toContain("explain its choice in writing");
+    expect(bodyOf("17.2")).toContain("35 points and a 50-point penalty finishes with -15 points");
     expect(bodyOf("17.2")).toContain("negative score");
     expect(bodyOf("17.3")).toContain("starting points, not automatic results");
   });
@@ -116,6 +119,7 @@ describe("SSC v4.2 plain-language candidate", () => {
         ...(rule.examples ?? []).flatMap(({ title, detail }) => [title, detail]),
       ].join(" ");
       expect(userText, "Rule " + rule.id + " still contains old jargon").not.toMatch(hardTerms);
+      expect(userText, "Rule " + rule.id + " uses vague narrative language").not.toMatch(/\b(?:quietly|silently)\b/i);
       expect(rule.summary.split(/\s+/).length, "Long summary for Rule " + rule.id).toBeLessThanOrEqual(32);
       for (const paragraph of rule.body) {
         // Mechanical guardrails are not a substitute for actual teen-reader review.
