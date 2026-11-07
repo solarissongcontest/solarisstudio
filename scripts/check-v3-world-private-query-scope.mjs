@@ -16,6 +16,7 @@ export const PRIVATE_WORLD_COMPONENTS = Object.freeze([
   "src/components/world/WorldEthicsWorkspace.tsx", // TG13
   "src/components/world/WorldCourtWorkspace.tsx", // TG14
   "src/components/world/WorldCourtJudgments.tsx", // TG14
+  "src/components/world/WorldUnionRecognitionWorkspace.tsx", // TG15
 ]);
 
 // The identity bootstrap resolves the actor; it has no private payload itself.
