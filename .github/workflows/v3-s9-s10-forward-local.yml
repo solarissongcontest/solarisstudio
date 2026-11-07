@@ -7,6 +7,7 @@ on:
       - ".github/workflows/v3-s9-s10-forward-local.yml"
       - "scripts/rehearse-v3-s9-s10-forward-local.sh"
       - "docs/v3/recovery-candidates/forward-only-s9-observability-local.sql"
+      - "docs/v3/recovery-candidates/forward-only-s9-indexes-concurrent-local.sql"
       - "docs/v3/recovery-candidates/forward-only-s10-sli-local.sql"
       - "docs/v3/recovery-candidates/fixtures/s9-s10-production-ledger-subset-20261107.sql"
       - "src/lib/v3-s9-s10-forward-recovery.contract.test.ts"
