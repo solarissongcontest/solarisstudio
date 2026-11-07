@@ -26,7 +26,9 @@ create schema if not exists televoting;
 create role authenticated nologin;
 create role anon nologin;
 create role service_role nologin;
+create role service_worker nologin;
 create role app_user nologin;
+grant service_role to service_worker;
 create schema if not exists public;
 create table public.editions (id uuid primary key);
 create table public.shows (
@@ -97,6 +99,18 @@ create function public.studio2_access_allowed(text, uuid, boolean)
 returns boolean language sql stable as $$ select current_user = 'postgres' $$;
 create function public.sync_show_results_from_votes(uuid)
 returns void language plpgsql as $$ begin return; end $$;
+create function private.v3_security_definer_role_probe()
+returns jsonb
+language sql
+security definer
+set search_path = pg_catalog
+as $$
+  select jsonb_build_object(
+    'currentUser', current_user,
+    'sessionUser', session_user,
+    'effectiveRole', current_setting('role', true)
+  )
+$$;
 create function extensions.v3_assert(boolean, text)
 returns void language plpgsql as $$
 begin if not $1 then raise exception '%', $2; end if; end $$;
@@ -140,6 +154,20 @@ psql -f /tmp/s14-provenance-guard.sql
 psql -f /tmp/s14-source-truth.sql
 
 psql <<'SQL'
+set role app_user;
+select extensions.v3_assert(
+  (private.v3_security_definer_role_probe()->>'currentUser') = 'postgres'
+  and (private.v3_security_definer_role_probe()->>'sessionUser') = 'postgres'
+  and (private.v3_security_definer_role_probe()->>'effectiveRole') = 'app_user',
+  'SECURITY DEFINER role/session context was not preserved'
+);
+reset role;
+set role service_worker;
+select extensions.v3_assert(
+  (private.v3_security_definer_role_probe()->>'effectiveRole') = 'service_worker',
+  'role membership did not preserve the effective worker role'
+);
+set role service_role;
 set role service_role;
 select extensions.v3_assert(
   (private.v3_sync_published_televote_round(
