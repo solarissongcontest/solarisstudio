@@ -27,6 +27,7 @@ import {
   type RulebookRelease,
 } from "@/lib/rules-governance";
 import { governanceImpactForRuleIds } from "@/lib/governance-v5";
+import { buildV42GovernedDraftChanges } from "@/lib/ssc-rules/v42-governed-draft";
 import { SSC_RULEBOOK, SSC_RULES, getRuleById, type RuleTone } from "@/lib/ssc-rules-v4";
 import { cn } from "@/lib/utils";
 
@@ -180,6 +181,60 @@ function RulesManager() {
     },
   });
 
+  // Explicit organizer action only. No CI or page load may create production draft changes.
+  const [v42ImportProgress, setV42ImportProgress] = useState(0);
+  const v42ImportMutation = useMutation({
+    mutationFn: async () => {
+      if (current?.version !== "4.1") {
+        throw new Error("The current published rulebook changed. Review its newer text before importing v4.2.");
+      }
+      const existingDraft = releases.find((release) => release.version === "4.2" && release.status === "draft");
+      if (existingDraft && existingDraft.title !== "Plain-English SSC General Regulations") {
+        throw new Error("Another v4.2 draft already exists. Review it instead of overwriting its changes.");
+      }
+      const existingPublished = releases.some((release) => release.version === "4.2" && release.status === "published");
+      if (existingPublished) throw new Error("v4.2 was already published.");
+      const changes = buildV42GovernedDraftChanges();
+      const created = existingDraft ?? await rpc("admin_create_rulebook_release", {
+        _version: "4.2",
+        _title: "Plain-English SSC General Regulations",
+        _summary: "Clarity revision of 113 regulations across 22 chapters. Policy edge cases require TSBC approval before publication.",
+        _base_version: current.version,
+      });
+      if (!created?.id) throw new Error("Rules Manager did not return a draft release ID.");
+      const existingIds = new Set((existingDraft?.changes ?? []).map((change) => change.rule_id));
+      let imported = 0;
+      for (const change of changes) {
+        if (existingIds.has(change.rule_id)) continue; // Do not erase manual organizer edits.
+        await rpc("admin_upsert_rulebook_change", {
+          _release_id: created.id,
+          _rule_id: change.rule_id,
+          _change_kind: change.change_kind,
+          _before_snapshot: change.before_snapshot,
+          _after_snapshot: change.after_snapshot,
+          _rationale: change.rationale,
+        });
+        imported += 1;
+        setV42ImportProgress(imported);
+      }
+      return { id: created.id as string, imported, unchanged: existingIds.size };
+    },
+    onSuccess: async ({ id, imported, unchanged }) => {
+      await refresh();
+      setSelectedReleaseId(id);
+      setV42ImportProgress(0);
+      setNotice({
+        tone: "success",
+        message: `v4.2 draft prepared: ${imported} rules imported, ${unchanged} existing edits preserved. Review before publishing.`,
+      });
+    },
+    onError: async (error: Error) => {
+      await refresh(); // Partial drafts remain safely resumable.
+      setV42ImportProgress(0);
+      setNotice({ tone: "error", message: `Draft import stopped: ${error.message}. Existing changes are preserved; retry after review.` });
+    },
+  });
+
   const archiveMutation = useMutation({
     mutationFn: (releaseId: string) => rpc("admin_archive_rulebook_release", { _release_id: releaseId }),
     onSuccess: async () => {
@@ -259,6 +314,26 @@ function RulesManager() {
               busy={createMutation.isPending}
               onCreate={(input) => createMutation.mutate(input)}
             />
+            {current?.version === "4.1" ? (
+              <AdminCard>
+                <p className="admin-section-label">SSC v4.2 candidate</p>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  Prepare 113 plain-English rule changes as a governed draft. No rule becomes effective
+                  until an authorized organizer reviews and publishes the release.
+                </p>
+                <button
+                  type="button"
+                  className="admin-action-secondary mt-3 w-full justify-center"
+                  disabled={v42ImportMutation.isPending || releasesQuery.isLoading}
+                  onClick={() => v42ImportMutation.mutate()}
+                >
+                  {v42ImportMutation.isPending ? `Preparing draft · ${v42ImportProgress}/113` : "Prepare v4.2 draft"}
+                </button>
+                <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+                  Resumes a matching draft without overwriting existing rule edits. Publication requires separate approval.
+                </p>
+              </AdminCard>
+            ) : null}
           </aside>
 
           <section aria-label="Rulebook release workspace" className="min-w-0 space-y-4">
