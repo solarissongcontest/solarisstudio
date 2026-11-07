@@ -22,9 +22,10 @@ describe("SSC rulebook module architecture", () => {
     expect(canon).toContain("export const SSC_RULES");
     expect(canon).toContain("export const SSC_RULEBOOK");
     expect(current).toContain("ROLEPLAY_CHAPTER");
-    expect(current).toContain('version: "4.1"');
+    expect(current).toContain('version: "4.2"');
     expect(current).toContain("PUBLISHED_4_0_1_RULE_2_1_BODY");
     expect(current).toContain("carryPublishedDefinitionWording");
+    expect(current).toContain("withPlainLanguage");
     expect(roleplay).toContain('number: 22');
     expect(roleplay).toContain('id: "22.5"');
     expect(roleplay).toContain("six consecutive completed SSC Editions");
