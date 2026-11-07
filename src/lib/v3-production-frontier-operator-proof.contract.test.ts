@@ -20,7 +20,7 @@ describe("S13 production-frontier operator evidence: no fictional adoption", () 
   });
 
   it("lists all 36 postcutover history holes exactly once, with reviewed source files present", () => {
-    const names = [...inventory.matchAll(/^- `(\\d{14}_[A-Za-z0-9_\\-]+\\.sql)`$/gm)].map((match) => match[1]);
+    const names = [...inventory.matchAll(/^- `(\d{14}_[A-Za-z0-9_\-]+\.sql)`$/gm)].map((match) => match[1]);
     expect(names.length).toBe(36);
     expect(new Set(names).size).toBe(36);
     for (const filename of names) {
@@ -28,13 +28,13 @@ describe("S13 production-frontier operator evidence: no fictional adoption", () 
       expect(filename.slice(0, 14) <= "20261101181812", filename).toBe(true);
       expect(existsSync(resolve(process.cwd(), "supabase/migrations", filename)), filename).toBe(true);
     }
-    const groups = [...inventory.matchAll(/^### [^\\n]+ \\((\\d+)\\)$/gm)].map((match) => Number(match[1]));
+    const groups = [...inventory.matchAll(/^### [^\n]+ \((\d+)\)$/gm)].map((match) => Number(match[1]));
     expect(groups).toEqual([3, 9, 2, 7, 12, 3]);
     expect(groups.reduce((sum, count) => sum + count, 0)).toBe(36);
   });
 
   it("never treats history-only evidence, clean-local replay or already merged hotfixes as deployment authorization", () => {
-    expect(doc).toContain("**not a runnable deployment sequence**".replace("**", ""));
+    expect(doc).toContain("**not a runnable deployment sequence**");
     expect(doc).toContain("hosted-head-equivalent");
     expect(doc).toContain("The earlier 2026-11-04 read-only observations");
     expect(doc).toContain("**Do not reapply them or open a second historical adoption.**");
