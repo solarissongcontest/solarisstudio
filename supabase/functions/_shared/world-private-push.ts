@@ -40,7 +40,7 @@ function isWorldRoute(rawRoute: string): boolean {
   for (let pass = 0; pass < 4; pass += 1) {
     // Treat malformed encoded separators immediately after /world as private.
     // Do not match unrelated words such as /worldwide.
-    if (/^\/world(?:$|[\/?#\\%])/i.test(route)) return true;
+    if (/^\/world(?:$|[/?#\\%])/i.test(route)) return true;
     if (!route.includes("%")) return false;
     try {
       const decoded = decodeURIComponent(route);
@@ -50,7 +50,7 @@ function isWorldRoute(rawRoute: string): boolean {
       return false;
     }
   }
-  return /^\/world(?:$|[\/?#\\%])/i.test(route);
+  return /^\/world(?:$|[/?#\\%])/i.test(route);
 }
 
 export function isPrivateWorldPush(candidate: WorldPushCandidate): boolean {
