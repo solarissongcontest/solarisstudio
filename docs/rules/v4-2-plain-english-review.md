@@ -18,7 +18,7 @@ Status: draft code change for organizer review, **not an automatically published
 2. **6.3–6.4:** When no official music video exists, use the **song's YouTube video** for the popularity check. Official checks must retain their selected video and timestamp to make the result reviewable.
 3. **6.6:** When the artist's previous country has **no active HoD**, another country may use the artist without that country's permission. The three-appearance cap and ban on previous winning artists remain.
 4. **15.1:** A delegation may withdraw after the submission deadline but before entry publication. Simply passing that deadline does not automatically create a penalty. Serious disruptive withdrawal **after** publication remains covered by **15.2**.
-5. **17.2:** Fixed contest-point penalties deduct directly from points. Levels 2 and 3 refer only to bonus points. An edition with no bonus-point system must use an otherwise applicable effective sanction rather than silently convert a bonus deduction into a regular-points penalty.
+5. **17.2:** The owner confirmed that fixed contest-point penalties should come directly off the country’s score. The treatment of bonus-point sanctions in editions that have no bonuses was **not explicitly settled**. This draft proposes choosing an otherwise applicable sanction instead of silently converting bonus penalties into regular-point deductions. TSBC must approve or revise that proposal.
 
 ## Review points that must not be guessed
 
