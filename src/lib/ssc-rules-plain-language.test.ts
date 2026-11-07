@@ -27,7 +27,7 @@ describe("SSC v4.2 plain-language candidate", () => {
     const officialIds = SSC_RULES.map(({ id }) => id).sort();
     expect(Object.keys(CLEAR_RULE_BODIES).sort()).toEqual(officialIds);
     expect(Object.keys(PLAIN_SUMMARIES).sort()).toEqual(officialIds);
-    for (const rule of SSC_RULES) {
+    for (const rule of draftRules) {
       expect(rule.summary.length).toBeGreaterThan(20);
       expect(rule.body.length).toBeGreaterThan(0);
       expect(rule.body.every((paragraph) => paragraph.trim().length > 0)).toBe(true);
@@ -72,7 +72,7 @@ describe("SSC v4.2 plain-language candidate", () => {
     expect(sanction?.bullets).toHaveLength(10);
     expect(sanction?.bullets?.[0]).toBe("Level 1 · Official Warning");
     expect(sanction?.bullets?.[9]).toBe("Level 10 · Lifetime Ban");
-    expect(bodyOf("17.2")).toContain("subtracted directly from the country's points");
+    expect(bodyOf("17.2")).toContain("subtracted in full from the country's contest score");
     expect(bodyOf("17.2")).toContain("where an edition awards no bonus points");
     expect(bodyOf("17.2")).toContain("negative score");
     expect(bodyOf("17.3")).toContain("starting points rather than automatic outcomes");
