@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { requireV3RecoveryEvidenceIdentity } from "../src/lib/v3-recovery-evidence-identity";
+import { requireV3RecoveryEvidenceIdentity, requireV3RecoveryCleanTree } from "../src/lib/v3-recovery-evidence-identity";
 import { buildV3RecoveryReadinessReport } from "../src/lib/v3-recovery-guardrails";
 import { validateV3ProjectionReconciliationRegistry } from "../src/lib/v3-projection-reconciliation-registry";
 
@@ -33,6 +33,13 @@ try {
   );
 } catch (error) {
   failRecoveryIdentity(error instanceof Error ? error.message : String(error));
+}
+
+try {
+  const sourceStatus = execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], { encoding: "utf8" });
+  requireV3RecoveryCleanTree(sourceStatus);
+} catch (error) {
+  failRecoveryIdentity(error instanceof Error ? error.message : "Cannot verify a clean Git source tree");
 }
 
 const environment = requiredEnvironment("V3_RECOVERY_EVIDENCE_ENVIRONMENT");
