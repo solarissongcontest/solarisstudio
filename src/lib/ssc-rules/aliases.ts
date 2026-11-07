@@ -34,4 +34,9 @@ export const SEARCH_SYNONYMS: Record<string, string[]> = {
   dormant: ["hodless", "inactive country", "six editions", "unrepresented"],
   destroy: ["eliminate country", "erase country", "remove from map", "dormant country"],
   erase: ["eliminate country", "destroy country", "remove from map", "dormant country"],
+  inactive: ["dormant country", "no hod", "six editions", "protected country"],
+  protected: ["country ownership", "no hod", "country safety", "six editions"],
+  glossary: ["definitions", "what does it mean", "simple rules"],
+  penalty: ["sanction", "bonus points", "contest points"],
+  singer: ["artist", "song", "eurovision", "national selection"],
 };
