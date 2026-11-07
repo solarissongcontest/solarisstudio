@@ -203,6 +203,23 @@ describe("TG19 private World actor cache-source guard", () => {
       .toContain("STALE_PRIVATE_FALLBACK");
   });
 
+  it("rejects TG15 founder workspaces that reuse private applications across signed-in actors", () => {
+    const result = runFixture({
+      "WorldUnionRecognitionWorkspace.tsx": `
+        function WorldUnionRecognitionWorkspace() {
+          return useQuery({
+            queryKey: ["world", "unions", "founder-workspace"],
+            queryFn: fetchUnionWorkspace,
+            gcTime: 0, refetchOnMount: "always",
+          });
+        }
+      `,
+    });
+    expect(result.status).toBe(1);
+    expect(result.report.violations.map((item) => item.code))
+      .toContain("ACTOR_NOT_IN_QUERY_KEY");
+  });
+
   it("audits checked-out source without certifying absent unmerged files", () => {
     const result = spawnSync(
       process.execPath, [script, "--root", process.cwd(), "--json"],
@@ -210,7 +227,7 @@ describe("TG19 private World actor cache-source guard", () => {
     );
     expect(result.error).toBeUndefined();
     const report = JSON.parse(result.stdout) as Report;
-    expect(report.inspected.length + report.absent.length).toBe(5);
+    expect(report.inspected.length + report.absent.length).toBe(6);
     expect(report.proof).toBe("SOURCE_ONLY_NOT_RUNTIME_AUTHORIZATION_OR_RELEASE_CERTIFICATION");
     expect(report.violations).toEqual([]);
     expect(result.status).toBe(0);
