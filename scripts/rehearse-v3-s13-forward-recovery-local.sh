@@ -18,9 +18,13 @@ master() { "${args[@]}" -d postgres "$@"; }
 run() { "${args[@]}" -d "$db" "$@"; }
 created=no
 probe_db=""
+reference_db=""
 cleanup() {
   if [[ -n "$probe_db" ]]; then
     master -c "drop database $probe_db with (force)" >/dev/null
+  fi
+  if [[ -n "$reference_db" ]]; then
+    master -c "drop database $reference_db with (force)" >/dev/null
   fi
   [[ "$created" == yes ]] || return 0
   master -c "drop database $db with (force)" >/dev/null
@@ -88,8 +92,91 @@ expect_preflight_rejection nogrant 'lacks private schema usage'
 expect_preflight_rejection partialtable 'target already exists'
 expect_preflight_rejection partialrpc 'target already exists'
 
+# Compare the recovered schema to the canonical original three-stage S13
+# source sequence on the SAME production-observed dependency fixture.
+# We compare pg_catalog object definitions, privileges, indexes and constraints,
+# NOT production rows or migration-history identifiers.
+reference_db="${db}_canonical"
+master -c "create database $reference_db template $db" >/dev/null
+base="$root/supabase/migrations"
+for source_sql in \
+  "$base/20261019111000_v3_s13_migration_hardening.sql" \
+  "$base/20261019112900_v3_s13_migration_registration_context.sql" \
+  "$base/20261019113300_v3_s13_strict_registration_restore.sql"; do
+  [[ -f "$source_sql" ]] || exit 2
+  run_in_db "$reference_db" -f "$source_sql" >/dev/null
+done
+
 # Positive deployment rehearsal against the production-observed dependency subset.
 run -f "$candidate" >/dev/null
+
+catalog_fingerprint() {
+  local database="$1"
+  run_in_db "$database" -c "with evidence(record) as (
+    select 'rpc|' || n.nspname || '.' || p.proname || '|' ||
+      pg_get_function_identity_arguments(p.oid) || '|' ||
+      pg_get_functiondef(p.oid) || '|' || coalesce(p.proacl::text,'') ||
+      '|' || p.prosecdef::text || '|' || p.provolatile::text
+    from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='public' and p.proname in
+      ('v3_schema_compatibility','v3_register_migration_contract','v3_claim_backfill',
+       'v3_checkpoint_backfill','v3_fail_backfill','v3_record_migration_parity',
+       'v3_set_schema_compatibility')
+    union all
+    select 'table|' || c.relname || '|' || c.relrowsecurity::text ||
+      '|' || coalesce(c.relacl::text,'') || '|' || pg_get_userbyid(c.relowner)
+    from pg_class c join pg_namespace n on n.oid=c.relnamespace
+    where n.nspname='private' and c.relkind='r' and c.relname in
+      ('v3_migration_contracts','v3_schema_compatibility','v3_schema_compatibility_history',
+       'v3_backfill_jobs','v3_migration_parity_runs')
+    union all
+    select 'column|' || c.relname || '.' || a.attname || '|' ||
+      a.attnum::text || '|' || format_type(a.atttypid,a.atttypmod) ||
+      '|' || a.attnotnull::text || '|' || coalesce(pg_get_expr(d.adbin,d.adrelid),'') ||
+      '|' || a.attidentity || '|' || a.attgenerated
+    from pg_attribute a join pg_class c on c.oid=a.attrelid
+      join pg_namespace n on n.oid=c.relnamespace
+      left join pg_attrdef d on d.adrelid=a.attrelid and d.adnum=a.attnum
+    where n.nspname='private' and c.relkind='r' and a.attnum>0 and not a.attisdropped
+      and c.relname in
+      ('v3_migration_contracts','v3_schema_compatibility','v3_schema_compatibility_history',
+       'v3_backfill_jobs','v3_migration_parity_runs')
+    union all
+    select 'constraint|' || c.relname || '.' || k.conname || '|' ||
+      pg_get_constraintdef(k.oid)
+    from pg_constraint k join pg_class c on c.oid=k.conrelid
+      join pg_namespace n on n.oid=c.relnamespace
+    where n.nspname='private' and c.relname in
+      ('v3_migration_contracts','v3_schema_compatibility','v3_schema_compatibility_history',
+       'v3_backfill_jobs','v3_migration_parity_runs')
+    union all
+    select 'index|' || c.relname || '|' || pg_get_indexdef(c.oid)
+    from pg_class c join pg_namespace n on n.oid=c.relnamespace
+    where n.nspname='private' and c.relkind in ('i','I') and
+      (c.relname like 'v3_migration_%' or c.relname like 'v3_backfill_%' or
+       c.relname like 'v3_schema_compatibility%')
+  )
+  select md5(string_agg(record,E'\\n' order by record)) from evidence"
+}
+recovered_hash="$(catalog_fingerprint "$db")"
+canonical_hash="$(catalog_fingerprint "$reference_db")"
+[[ -n "$recovered_hash" && "$recovered_hash" == "$canonical_hash" ]] || {
+  echo "S13 recovered object definition / ACL / constraint / index PARITY FAILED" >&2
+  echo "Recovery: $recovered_hash; original source: $canonical_hash" >&2
+  exit 1
+}
+# The transient migration-context audit registration is intentionally not
+# claimed as executed by the forward-only candidate.
+recovery_keys="$(run -c "select string_agg(migration_key,',' order by migration_key)
+  from private.v3_migration_contracts")"
+canonical_keys="$(run_in_db "$reference_db" -c "select string_agg(migration_key,',' order by migration_key)
+  from private.v3_migration_contracts")"
+[[ "$recovery_keys" == "v3.s13.migration-hardening,v3.s13.strict-registration-restore" ]] || {
+  echo "Unexpected forward-only S13 recovery audit registry: $recovery_keys" >&2; exit 1;
+}
+[[ "$canonical_keys" == "v3.s13.migration-hardening,v3.s13.migration-registration-context,v3.s13.strict-registration-restore" ]] || {
+  echo "Unexpected original staged-S13 audit registry: $canonical_keys" >&2; exit 1;
+}
 tables="$(run -c "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace
 where n.nspname='private' and c.relkind='r' and c.relname in
 ('v3_migration_contracts','v3_schema_compatibility','v3_schema_compatibility_history',
@@ -151,5 +238,5 @@ fi
 allowed="$(run -c "select set_config('request.jwt.claim.role','service_role',false);
 select public.v3_register_migration_contract('v3.s13.local-positive-test',1,'forward_fix_only',false,null,'Local synthetic authorization check') ->> 'migrationKey'" | tail -n1)"
 [[ "$allowed" == 'v3.s13.local-positive-test' ]] || { echo 'Service context cannot register' >&2; exit 1; }
-echo 'PASS: S13 forward candidate against production-observed PG17.11 dependency subset, 4 preflight-negative tests, ACL/RPC negative authorization, strict keys, rollback and no-op replay refusal'
-echo 'LIMITATION: this reproduces the observed S13 prerequisites only, NOT full hosted schema/data or release safety'
+echo 'PASS: S13 forward candidate on observed PG17.11 dependencies; canonical 7-RPC + 5-table DDL/ACL/index/constraint parity; 4 drift-negative cases; strict security / replay denial'
+echo 'LIMITATION: this tests only observed S13 dependencies, NOT full production schema/data. Original transient registration-context audit key is intentionally not claimed by this candidate.'
