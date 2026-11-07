@@ -121,7 +121,7 @@ const BODY_ROWS = String.raw`
 22.11	Fictional rivalry does not permit real-life harassment, threats, forged permission, impersonation or tampering with accounts and country records. Roleplay cannot be used to force someone out of SSC or falsely make a Protected country appear Dormant.
 `;
 
-type RuleWordingPatch = Partial<Pick<SscRule, "summary" | "important" | "allowed" | "prohibited">>;
+type RuleWordingPatch = Partial<Pick<SscRule, "summary" | "important" | "allowed" | "prohibited" | "bullets">>;
 const SPECIFIC_CHANGES: Record<string, RuleWordingPatch> = {
   "4.6": {
     "important": "Device latency or a phone countdown reaching zero first does not guarantee a place. If a confirmed Solaris Studio fault affected fairness, TSBC can correct the round under Rules 12.5 and 19.4."
@@ -165,10 +165,26 @@ const SPECIFIC_CHANGES: Record<string, RuleWordingPatch> = {
   },
   "22.5": {
     "summary": "Dormant means six completed SSC editions in a row with no active Head of Delegation at any point.",
-    "important": "Dormant status allows permanent fictional map changes under Rule 22.6 but does not delete old entries, scores or results. A new HoD before official elimination immediately restores protection."
+    "important": "Dormant status allows permanent fictional map changes under Rule 22.6 but does not delete old entries, scores or results. A new HoD before official elimination immediately restores protection.",
+    "bullets": [
+      "0 to 5 completed editions in a row without an active HoD: the country is still Protected.",
+      "6 completed editions in a row without an active HoD: the country becomes Dormant.",
+      "If an HoD is active even once during an edition, that edition does not count toward the six.",
+      "A new active HoD before official elimination makes the country Protected immediately."
+    ]
   },
   "22.6": {
-    "important": "This applies only after the exact six-edition Dormant test in Rule 22.5 and the map-recording steps in Rule 22.7. Old SSC results cannot be deleted."
+    "important": "This applies only after the exact six-edition Dormant test in Rule 22.5 and the map-recording steps in Rule 22.7. Old SSC results cannot be deleted.",
+    "allowed": [
+      "Take over all or part of a Dormant country's fictional territory.",
+      "Divide its land between other countries.",
+      "Remove it as a country on today's map, while keeping its past SSC history.",
+      "Create new fictional territories or states from its former land if the official map remains clear."
+    ],
+    "prohibited": [
+      "Take over a country before it completes the six-edition Dormant test.",
+      "Delete or rewrite the former country's past SSC songs, votes, results or hosting records."
+    ]
   }
 };
 
@@ -191,5 +207,6 @@ export function withPlainLanguage<T extends SscRule>(rule: T): T {
     body: [...body],
     allowed: extra.allowed ?? rule.allowed,
     prohibited: extra.prohibited ?? rule.prohibited,
+    bullets: extra.bullets ?? rule.bullets,
   };
 }
