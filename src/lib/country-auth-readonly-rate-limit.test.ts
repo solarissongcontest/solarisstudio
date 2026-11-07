@@ -111,8 +111,12 @@ describe("country auth protection during restricted platform modes", () => {
     expect(accountSessionWorkflow).toContain(
       'V3_PRODUCTION_HEAD_KEEP_RUNNING: "true"',
     );
-    expect(accountSessionWorkflow).not.toContain("v3-copy-migration-delta.sh");
-    expect(accountSessionWorkflow).not.toContain("/tmp/solaris-account-session-main");
+    const productionJob = accountSessionWorkflow.split("  upgrade-from-production-head:")[1];
+    expect(productionJob).not.toContain("v3-copy-migration-delta.sh");
+    expect(productionJob).not.toContain("/tmp/solaris-account-session-main");
+    expect(productionJob).toContain("v3-account-session-authority-rehearsal.sh");
+    expect(accountSessionWorkflow).toContain("upgrade-from-main:");
+    expect(accountSessionWorkflow).toContain("v3-account-session-authority-baseline.sql");
     expect(productionHeadUpgrade).toContain(
       'KEEP_RUNNING="${V3_PRODUCTION_HEAD_KEEP_RUNNING:-false}"',
     );
@@ -129,7 +133,8 @@ describe("country auth protection during restricted platform modes", () => {
     expect(readonlyGateChecks).toContain("valid country sign-in reaches password authentication in read_only");
     expect(readonlyGateChecks).toContain("sign-in rate limiting remains enforced");
     expect(readonlyGateChecks).toContain("unrelated service-role table write");
-    expect(readonlyGateChecks).toContain("v3_revoke_session");
+    expect(readonlyGateChecks).toContain("/rpc/claim_country_account");
+    expect(readonlyGateChecks).not.toContain('request POST "$API_URL/rest/v1/rpc/v3_revoke_session" "$SERVICE_ROLE_KEY"');
     expect(readonlyGateChecks).toContain("exhausted recovery budget preserves generic anti-enumeration envelope");
     expect(readonlyGateChecks).toContain("Password recovery is temporarily unavailable. Try again shortly.");
     expect(readonlyGateChecks).toContain("limiter infrastructure failure is generic 503, not fake success");

@@ -45,7 +45,7 @@ describe("V3 Organizer country account moderation review", () => {
     expect(route).toContain("liveAccount.status !== review.currentStatus");
     expect(route).toContain("liveAccount.suspension_reason !== review.currentSuspensionReason");
     expect(route).toContain("liveAccount.updated_at !== review.currentUpdatedAt");
-    expect(route).toContain("Nothing was changed");
+    expect(route).toContain("No command was submitted");
     expect(route).not.toContain("data?.accounts.find((account) => account.user_id === review.userId)");
   });
 
@@ -54,12 +54,16 @@ describe("V3 Organizer country account moderation review", () => {
     expect(route).toContain("Type ${pendingReview.countryName} to confirm the access change");
   });
 
-  it("keeps the existing server RPC as the only account-status mutation authority and states the remaining race", () => {
-    expect(route).toContain("await setStatus.mutateAsync({");
-    expect(accountService).toContain('supabase.rpc("admin_set_country_account_status"');
-    expect(route).not.toContain('supabase.rpc("admin_set_country_account_status"');
+  it("submits the frozen review version and stable operation identity to canonical authority", () => {
+    expect(accountService).toContain("mutationFn: executeCountryAccountStatus");
+    expect(route).toContain("expectedUpdatedAt: review.currentUpdatedAt");
+    expect(route).toContain("operationId: review.operationId");
+    expect(route).toContain("idempotencyKey: review.idempotencyKey");
+    expect(route).toContain("if (!review.replaying)");
+    expect(route).toContain("if (!isCurrentReview(review)) return;");
+    expect(route).toContain("applyingReview.current = true");
+    expect(route).toContain("replaying: true");
     expect(route).not.toContain('.from("country_accounts")');
-    expect(route).toContain("not a version-bound/idempotent V3 command");
-    expect(route).toContain("a narrow race remains");
+    expect(route).not.toContain("a narrow race remains");
   });
 });
