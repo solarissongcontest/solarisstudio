@@ -65,10 +65,11 @@ describe("SSC v4.2 plain-language candidate", () => {
 
   it("allows friendship without treating a high vote alone as proof of cheating", () => {
     const voting = bodyOf("11.4");
-    expect(voting).toContain("give your friend\'s song high points");
-    expect(voting).toContain("belonging to the same group is allowed");
-    expect(voting).toContain("players arranged their votes together");
-    expect(voting).toContain("Friendship or unusual voting patterns alone are not proof of cheating");
+    expect(voting).toContain("An HoD can give a friend's entry high points");
+    expect(voting).toContain("Being friends with another HoD");
+    expect(voting).toContain("HoDs agreed on how to vote");
+    expect(voting).toContain("Friendship or similar voting patterns alone are not proof of cheating");
+    expect(voting).not.toMatch(/\bplayers?\b/i);
     expect(voting).not.toContain("alliances and shared communities");
   });
 
@@ -99,6 +100,8 @@ describe("SSC v4.2 plain-language candidate", () => {
     expect(timing).not.toContain("Rules 8.5 and 13.4");
     const hierarchy = bodyOf("20.2");
     expect(hierarchy).toContain("Rule 21.1");
+    expect(bodyOf("20.1")).toContain("HoDs should not have to search");
+    expect(bodyOf("20.2")).toContain("before it affects HoDs");
     expect(hierarchy).not.toContain("under Rule 15.1");
   });
 
