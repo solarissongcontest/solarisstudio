@@ -15,11 +15,14 @@ begin
   end if;
 end $contract$;
 
+-- The caller must supply the exact immutable version ID from the committed
+-- TG9 S4 event. A late/duplicate signal for an obsolete version must yield
+-- ZERO candidates, never silently become a notification for a newer correction.
 -- No external caller can supply publication status, event importance, user
--- identity, title or destination. They are derived from the same canonical
--- immutable published-version records used by public World readers.
+-- identity, title or destination; those come from canonical published records.
 create or replace function private.world_statement_follow_notification_candidates_v1(
   p_statement_id uuid,
+  p_version_id uuid,
   p_after_user_id uuid default null,
   p_limit integer default 100
 )
@@ -43,7 +46,7 @@ begin
   if p_limit is null or p_limit < 1 or p_limit > 200 then
     raise exception using errcode = '22023', message = 'INVALID_WORLD_FOLLOW_BATCH_LIMIT';
   end if;
-  if p_statement_id is null then
+  if p_statement_id is null or p_version_id is null then
     return;
   end if;
 
@@ -65,6 +68,7 @@ begin
     from public.world_statements statement_row
     join public.world_statement_versions current_version
       on current_version.id = statement_row.current_version_id
+     and current_version.id = p_version_id
      and current_version.statement_id = statement_row.id
     join public.world_organizations organization_row
       on organization_row.id = statement_row.organization_id
@@ -81,6 +85,7 @@ begin
       on category_preference.follow_id = follow_row.id
      and category_preference.category = 'statements'
     where statement_row.id = p_statement_id
+      and statement_row.current_version_id = p_version_id
       and public.studio2_feature_enabled('terra_world_public', null) is true
       and statement_row.status = 'published'
       and statement_row.visibility = 'public'
@@ -99,12 +104,12 @@ $candidates$;
 
 -- This function is a private service contract. It must NOT be accessible to
 -- browsers, and no service-role permission implies independent publication.
-revoke all on function private.world_statement_follow_notification_candidates_v1(uuid,uuid,integer)
+revoke all on function private.world_statement_follow_notification_candidates_v1(uuid,uuid,uuid,integer)
   from public, anon, authenticated, service_role;
-grant execute on function private.world_statement_follow_notification_candidates_v1(uuid,uuid,integer)
+grant execute on function private.world_statement_follow_notification_candidates_v1(uuid,uuid,uuid,integer)
   to service_role;
 
-comment on function private.world_statement_follow_notification_candidates_v1(uuid,uuid,integer) is
-  'TG10 private paginated S6 candidate projection for current published official statement versions. Consumers must revalidate public source + preferences before push dispatch; no delivery or event is created here.';
+comment on function private.world_statement_follow_notification_candidates_v1(uuid,uuid,uuid,integer) is
+  'TG10 private S6 candidate projection bound to exact committed official statement version. Stale version signals yield no candidates. Consumers must revalidate live publication and preferences before dispatch; no delivery/event is created here.';
 
 commit;
