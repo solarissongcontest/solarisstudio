@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
 const script = fileURLToPath(new URL("./check-client-bundle-budget.mjs", import.meta.url));
-const FIXED_GZIP_CAP = 1_843_200;
+const FIXED_GZIP_CAP = 1_200 * 1024;
 
 function exerciseBudget(assets, publicAssets = {}) {
   const cwd = mkdtempSync(join(tmpdir(), "solaris-budget-nested-"));
@@ -44,7 +44,7 @@ function exerciseBudget(assets, publicAssets = {}) {
   }
 }
 
-test("nested generated JavaScript must count toward the unchanged 1,843,200-byte gzip cap", () => {
+test("nested generated JavaScript must count toward the stricter 1,200-KiB gzip cap", () => {
   const { result, report } = exerciseBudget({
     "entry.js": "console.log('small top-level entry');",
     "chunks/critical/generated.js": randomBytes(1_900_000),
