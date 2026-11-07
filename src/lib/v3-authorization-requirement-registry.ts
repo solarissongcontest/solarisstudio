@@ -207,6 +207,30 @@ const VERIFIED: Readonly<Record<string, VerifiedAuthorization>> = {
       "supabase/migrations/20261015201221_v3_s5_entry_consequences.sql",
     ],
   },
+  "jury.submit": {
+    authorizationModel: "participant-boundary",
+    requiredCapability: null,
+    scope: "show",
+    objectResolution:
+      "authenticated user -> active country account -> canonical show/edition -> Jury roster identity; integrity preflight must bind the same user, show, edition and exact ballot; operation id binds idempotent submission semantics",
+    serverBoundary: "public.v3_submit_jury_ballot",
+    serviceRoleAllowed: false,
+    negativePaths: [
+      "unauthenticated caller or inactive country account",
+      "Jury disabled/closed or caller absent from the show Jury roster",
+      "missing, expired or ballot-mismatched integrity preflight",
+      "self vote or invalid/non-show target when forbidden",
+      "duplicate canonical Jury submission",
+      "operation id reused for different semantic ballot request",
+    ],
+    evidence: [
+      "supabase/migrations/20261014132819_v3_jury_reliability_foundation.sql",
+      "supabase/migrations/20261024200200_v3_s9_s10_observability_authority_fixes.sql",
+      "supabase/migrations/20261024200300_v3_s9_jury_submit_event_validation.sql",
+      "src/lib/v3-jury-reliability.contract.test.ts",
+      "src/lib/v3-s9-s10-current-main.contract.test.ts",
+    ],
+  },
   "jury.open": {
     authorizationModel: CAPABILITY_MODEL,
     requiredCapability: "voting.manage",
