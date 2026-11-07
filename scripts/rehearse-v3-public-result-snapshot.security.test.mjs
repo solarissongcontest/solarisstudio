@@ -10,7 +10,7 @@ const runner = fileURLToPath(new URL("./rehearse-v3-public-result-snapshot.sh", 
 const localApi = "http://127.0.0.1:54321";
 const localDb = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
-function exercise(api = localApi, db = localDb, statusFails = false, statusTail = "") {
+function exercise(api = localApi, db = localDb, statusFails = false, statusTail = "", extraEnv = {}) {
   const temp = mkdtempSync(join(tmpdir(), "v3-snapshot-isolation-"));
   const supabase = join(temp, "supabase");
   const psql = join(temp, "psql");
@@ -35,6 +35,12 @@ function exercise(api = localApi, db = localDb, statusFails = false, statusTail 
     timeout: 5000,
     env: {
       ...process.env,
+      PGHOST: "",
+      PGHOSTADDR: "",
+      PGSERVICE: "",
+      PGSERVICEFILE: "",
+      PGOPTIONS: "",
+      ...extraEnv,
       PATH: temp + delimiter + process.env.PATH,
       STUB_API_URL: api,
       STUB_DB_URL: db,
@@ -122,3 +128,14 @@ test("unknown status assignments never evaluate embedded shell substitutions", (
   assert.equal(psqlInvoked, true, "only the stubbed local psql may be reached");
   assert.equal(result.status, 88);
 });
+
+for (const variable of ["PGHOST", "PGHOSTADDR", "PGSERVICE", "PGSERVICEFILE", "PGOPTIONS"]) {
+  test(`ambient libpq ${variable} override fails before psql`, () => {
+    const { result, psqlInvoked } = exercise(
+      localApi, localDb, false, "", { [variable]: "remote.example" },
+    );
+    assert.notEqual(result.status, 0);
+    assert.equal(psqlInvoked, false, `unsafe ${variable} must not reach database command`);
+    assert.match(result.stderr, new RegExp(`libpq connection override forbidden: ${variable}`));
+  });
+}

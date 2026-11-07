@@ -70,6 +70,11 @@ try {
     db.username !== "postgres" || db.password !== "postgres" ||
     db.pathname !== "/postgres" || db.search || db.hash
   ) throw new Error("Database URL must identify local PostgreSQL without overrides");
+  // A loopback URL is insufficient if libpq receives an ambient host/service
+  // override. Deny these before the FIRST psql invocation.
+  for (const variable of ["PGHOST", "PGHOSTADDR", "PGSERVICE", "PGSERVICEFILE", "PGOPTIONS"]) {
+    if (process.env[variable]) throw new Error("libpq connection override forbidden: " + variable);
+  }
 } catch (error) {
   process.stderr.write("Local-only URL preflight rejected endpoint: " + error.message + "\n");
   process.exit(1);
