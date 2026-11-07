@@ -31,6 +31,7 @@ import {
 } from "@/lib/governance-v5";
 import { getRuleContext } from "@/lib/rule-context";
 import { ROLEPLAY_QUICK_ANSWERS } from "@/lib/ssc-rules/roleplay";
+import { compareRulebookVersions } from "@/lib/ssc-rules/runtime-overlay";
 
 function actionFromStoredPath(path: string | null): GovernanceActionKey | null {
   if (!path) return null;
@@ -304,6 +305,14 @@ export function RulesHomeV5({
             title="Official clarifications"
             description="Published interpretations of recurring questions."
           />
+          {compareRulebookVersions(version, "4.2") < 0 ? (
+            <RuleDestination
+              to="/rules/v4-2-preview"
+              icon={BookOpen}
+              title="Preview proposed v4.2"
+              description="Read all 113 rewritten rules. Draft only, not yet official."
+            />
+          ) : null}
           <RuleDestination
             to="/rules/changes"
             icon={History}
