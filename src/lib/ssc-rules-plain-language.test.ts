@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   CLEAR_RULE_BODIES,
+  PLAIN_SUMMARIES,
 } from "@/lib/ssc-rules/plain-language-v42";
 import { glossaryForRule } from "@/lib/ssc-rules/glossary";
 import {
@@ -23,7 +24,9 @@ describe("SSC v4.2 plain-language candidate", () => {
     expect(SSC_RULES).toHaveLength(113);
     const officialIds = SSC_RULES.map(({ id }) => id).sort();
     expect(Object.keys(CLEAR_RULE_BODIES).sort()).toEqual(officialIds);
+    expect(Object.keys(PLAIN_SUMMARIES).sort()).toEqual(officialIds);
     for (const rule of SSC_RULES) {
+      expect(rule.summary.length).toBeGreaterThan(20);
       expect(rule.body.length).toBeGreaterThan(0);
       expect(rule.body.every((paragraph) => paragraph.trim().length > 0)).toBe(true);
       expect(rule.body.join(" ")).not.toMatch(/\bshall\b/i);
