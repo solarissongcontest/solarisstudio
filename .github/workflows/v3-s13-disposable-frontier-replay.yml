@@ -65,12 +65,24 @@ jobs:
       - name: Verify existing production-isolation policy before startup
         run: bun run scripts/check-v3-production-isolation.ts
 
-      # Supabase CLI v3 changed targeting and defaults in November 2026.
-      # Pin the existing verified v2 channel rather than inheriting latest.
+      # Match the existing S14 full-contest rehearsal's tested CLI exactly.
+      # A rolling v2 channel chose 2.122.1 and changed local role grants;
+      # its Televote ACL assertion failed where 2.113.0 previously passed.
+      # Keep newer CLI compatibility as a separate explicit, local-only trial.
       - name: Setup pinned Supabase CLI
-        uses: supabase/setup-cli@v3
+        uses: supabase/setup-cli@v1
         with:
-          version: v2.stable
+          version: 2.113.0
+
+      - name: Verify exact local CLI toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(supabase --version)"
+          [[ "$actual" == "2.113.0" ]] || {
+            echo "::error::Unexpected local Supabase CLI $actual (expected 2.113.0)"
+            exit 1
+          }
 
       - name: Install local PostgreSQL client
         run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
