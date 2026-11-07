@@ -416,9 +416,9 @@ function MaintenanceRecoveryPage() {
                       : "Prepare v4.2 draft (unpublished)"}
                 </button>
                 <p className="text-xs text-slate-400">
-                  Approval of the YouTube video rule, bonus-point penalties and
-                  negative final scores remains outstanding. Publishing stays
-                  disabled until the normal authorized release workflow returns.
+                  The SSC owner/TSBC approval is recorded. Independent meaning
+                  and readability review, negative-score Results verification,
+                  and the normal authorized publication workflow remain required.
                 </p>
                 <a href="/rules/v4-2-preview" className="text-sm font-semibold text-sky-200 underline">
                   Read the public draft preview
