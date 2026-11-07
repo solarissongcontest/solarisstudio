@@ -7,6 +7,11 @@ const migration = readFileSync(
   "utf8",
 );
 
+const rehearsal = readFileSync(
+  join(process.cwd(), "scripts/rehearse-v3-world-follow-notification-candidates.sql"),
+  "utf8",
+);
+
 describe("TG10 private institutional statement notification candidates", () => {
   it("reuses the World publication, version, existing fan-follow and preference authorities", () => {
     for (const source of [
@@ -29,6 +34,10 @@ describe("TG10 private institutional statement notification candidates", () => {
     expect(migration).toContain("statement_row.published_at <= now()");
     expect(migration).toContain("current_version.published_at <= now()");
     expect(migration).toContain("current_version.statement_id = statement_row.id");
+    expect(migration).toContain("p_version_id uuid");
+    expect(migration).toContain("p_statement_id is null or p_version_id is null");
+    expect(migration).toContain("current_version.id = p_version_id");
+    expect(migration).toContain("statement_row.current_version_id = p_version_id");
     expect(migration).toContain("organization_row.public_visibility = 'public'");
     expect(migration).toContain("organization_row.status in ('recognized', 'active')");
   });
@@ -54,13 +63,20 @@ describe("TG10 private institutional statement notification candidates", () => {
     expect(migration).toContain("'Terra Solaris'::text");
     expect(migration).not.toContain("current_version.body");
     expect(migration).toContain("interval '30 minutes'");
+    // A late original-publish event must not become a correction event.
+    expect(rehearsal).toContain("TG10_STALE_VERSION_EVENT_ALLOWED");
+    expect(rehearsal).toContain("TG10_UNRELATED_VERSION_EVENT_ALLOWED");
+    expect(rehearsal).toContain("TG10_SUPERSEDED_CORRECTION_EVENT_ALLOWED");
+    expect(rehearsal).toContain("TG10_FUTURE_VERSION_LEAK");
+    expect(rehearsal).toContain("v_corrected");
+    expect(rehearsal).toContain("v_future");
   });
 
   it("never authorizes a browser, writes a notification, or starts a dispatch", () => {
     expect(migration).toContain("security definer");
     expect(migration).toContain("set search_path = pg_catalog");
-    expect(migration).toMatch(/revoke all on function private\.world_statement_follow_notification_candidates_v1\(uuid,uuid,integer\)\s+from public, anon, authenticated, service_role/i);
-    expect(migration).toMatch(/grant execute on function private\.world_statement_follow_notification_candidates_v1\(uuid,uuid,integer\)\s+to service_role/i);
+    expect(migration).toMatch(/revoke all on function private\.world_statement_follow_notification_candidates_v1\(uuid,uuid,uuid,integer\)\s+from public, anon, authenticated, service_role/i);
+    expect(migration).toMatch(/grant execute on function private\.world_statement_follow_notification_candidates_v1\(uuid,uuid,uuid,integer\)\s+to service_role/i);
     expect(migration).not.toMatch(/(?:insert\s+into|update|delete\s+from)\s+public\.notification_deliveries\b/i);
   });
 });
