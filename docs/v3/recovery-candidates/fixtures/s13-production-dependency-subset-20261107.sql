@@ -7,11 +7,22 @@
 -- Function EXECUTE: postgres=true, anon=false, authenticated=false, service_role=false.
 -- Exact pg_get_functiondef MD5: 84d3f05e5f537908732a3875ba0178e6.
 -- Exact function privilege-list MD5: 341a58cafc38a872c684592babc76f83.
+-- Production read-only metadata also shows postgres-owned PUBLIC functions
+-- have default EXECUTE grants to anon, authenticated and service_role. This is
+-- relevant because the new S13 public RPCs must explicitly REVOKE browser
+-- execution as designed. Private schema has no postgres owner default ACL.
+-- No existing deployed function definition statically referred to missing S13
+-- registration objects; planned two S13 index names had no collisions.
 -- Only application code, roles and configuration; NO application rows/secrets.
 -- This fixture intentionally does NOT claim the complete hosted schema.
 begin;
 create schema private authorization postgres;
 grant usage on schema private to anon, authenticated, service_role;
+
+-- Mirror the observed Supabase *public* default-function EXECUTE grants in
+-- this disposable database. This does not modify live Supabase.
+alter default privileges for role postgres in schema public
+  grant execute on functions to anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION private.studio2_request_is_service_role()
  RETURNS boolean
