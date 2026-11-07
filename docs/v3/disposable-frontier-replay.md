@@ -10,6 +10,10 @@ This workflow is deliberately separate from the **hosted** migration-frontier re
 - No CI secrets, hosted API endpoints, hosted migration metadata, application rows, hosted migrations, production deployment, remote `db push`, `--remote`, or hosted test traffic are needed or permitted.
 - It is run on changes to this workflow/document and can be manually triggered. It is not a substitute for the full S14 contest rehearsal.
 
+## Offline frontier strictness integrated from #2340
+
+The same QA candidate carries the reviewed source of PR #2340 at exact head `8c3bed4cc8902d6c73a573158e709748ad1cb8c9` in three offline-only files. The comparator now rejects a directory with zero SQL migrations, and its `--require-reconciled` mode requires an explicit, exact lowercase `--expected-sha` matching Git HEAD. Diagnostic output with no expected SHA cannot claim matching source identity. The original donor must not be merged separately without verifying integration parity. This is necessary evidence integrity, not hosted schema repair.
+
 ## Important limitation
 
 A successfully replayed **clean local schema** does not prove compatibility with the existing hosted schema, data, permissions or divergent history. The documented 36 post-cutover holes must still be classified, reconciled and tested against a **locally recreated hosted-head-equivalent baseline**. The three National Final hosted hotfixes are now present in the repository, but their compatibility does not authorize skipping the other gaps.

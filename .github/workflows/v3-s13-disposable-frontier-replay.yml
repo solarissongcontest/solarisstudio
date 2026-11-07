@@ -6,6 +6,9 @@ on:
     paths:
       - ".github/workflows/v3-s13-disposable-frontier-replay.yml"
       - "docs/v3/disposable-frontier-replay.md"
+      - "scripts/check-v3-production-migration-frontier.ts"
+      - "src/lib/v3-production-migration-frontier.ts"
+      - "src/lib/v3-production-migration-frontier.test.ts"
   workflow_dispatch:
 
 permissions:
