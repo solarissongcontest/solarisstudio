@@ -1,0 +1,148 @@
+begin;
+
+-- TG10 / S6 consumer contract. Candidate computation only; never dispatches,
+-- inserts notification_deliveries, exposes private World data or changes a follow.
+-- Requires TG9 published statement source (#2245) and the canonical TG10
+-- fan_follow_categories extension (#2284). Integrate AFTER both.
+do $contract$
+begin
+  if to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is not null then
+    perform public.v3_register_migration_contract(
+      '20261107151000_v3_tg10_world_follow_notification_candidates',
+      1, 'forward_fix_only', false, null,
+      'Private, bounded official World statement follow-recipient candidates. Dispatch and S6 reconciliation require separate owner-reviewed integration.'
+    );
+  end if;
+end $contract$;
+
+-- The caller must supply the exact immutable version ID from the committed
+-- TG9 S4 event. A late/duplicate signal for an obsolete version must yield
+-- ZERO candidates, never silently become a notification for a newer correction.
+-- No external caller can supply publication status, event importance, user
+-- identity, title or destination; those come from canonical published records.
+create or replace function private.world_statement_follow_notification_candidates_v1(
+  p_statement_id uuid,
+  p_version_id uuid,
+  p_after_user_id uuid default null,
+  p_limit integer default 100
+)
+returns table(
+  user_id uuid,
+  category text,
+  event_type text,
+  subject_id text,
+  dedupe_key text,
+  route text,
+  title text,
+  body text,
+  scheduled_for timestamptz
+)
+language plpgsql
+stable
+security definer
+set search_path = pg_catalog
+as $candidates$
+begin
+  if p_limit is null or p_limit < 1 or p_limit > 200 then
+    raise exception using errcode = '22023', message = 'INVALID_WORLD_FOLLOW_BATCH_LIMIT';
+  end if;
+  if p_statement_id is null or p_version_id is null then
+    return;
+  end if;
+
+  return query
+    select
+      follow_row.profile_id,
+      'following'::text,
+      case
+        when current_version.version_number > 1
+          then 'world.statement.corrected'::text
+        else 'world.statement.published'::text
+      end,
+      current_version.id::text,
+      'world-statement:' || current_version.id::text || ':' || follow_row.profile_id::text,
+      '/world/organizations/' || organization_row.slug,
+      'Terra Solaris'::text,
+      'An institution you follow published an official statement.'::text,
+      current_version.published_at
+    from public.world_statements statement_row
+    join public.world_statement_versions current_version
+      on current_version.id = statement_row.current_version_id
+     and current_version.id = p_version_id
+     and current_version.statement_id = statement_row.id
+    join public.world_organizations organization_row
+      on organization_row.id = statement_row.organization_id
+    join public.fan_follows follow_row
+      on follow_row.entity_type = 'organization'
+     and follow_row.entity_id = organization_row.id
+     and follow_row.notification_level in ('important', 'all')
+     -- A user following only after publication must not receive a historical
+     -- event as a fresh follower notification.
+     and follow_row.created_at <= current_version.published_at
+     and (p_after_user_id is null or follow_row.profile_id > p_after_user_id)
+    join public.notification_preferences preference
+      on preference.profile_id = follow_row.profile_id
+     and preference.external_enabled is true
+     and 'following' = any(preference.categories)
+    left join public.fan_follow_categories category_preference
+      on category_preference.follow_id = follow_row.id
+     and category_preference.category = 'statements'
+    where statement_row.id = p_statement_id
+      and statement_row.current_version_id = p_version_id
+      -- Caller-supplied IDs are not evidence that a publication occurred.
+      -- The immutable S4 fact must be tied to the exact TG9 canonical
+      -- version and a successfully completed R2 publication/correction.
+      and exists (
+        select 1
+        from private.v3_domain_events source_event
+        join public.studio2_operation_receipts receipt
+          on receipt.operation_id = source_event.operation_id
+         and receipt.status = 'succeeded'
+         and receipt.command = case
+           when current_version.version_number = 1
+             then 'world.statement.publish'::text
+           else 'world.statement.correct'::text
+         end
+        where source_event.aggregate_type = 'world_statement'
+          and source_event.aggregate_id = statement_row.id::text
+          and source_event.aggregate_version = current_version.version_number
+          and source_event.event_type = case
+            when current_version.version_number = 1
+              then 'world.statement.published'::text
+            else 'world.statement.corrected'::text
+          end
+          and source_event.payload ->> 'organizationId' = organization_row.id::text
+          and source_event.payload ->> 'statementId' = statement_row.id::text
+          and source_event.payload ->> 'versionId' = current_version.id::text
+          and source_event.payload ->> 'revision' = current_version.version_number::text
+          and source_event.payload ->> 'published' = 'true'
+          and source_event.payload ->> 'visibility' = 'public'
+          and source_event.occurred_at <= now()
+      )
+      and public.studio2_feature_enabled('terra_world_public', null) is true
+      and statement_row.status = 'published'
+      and statement_row.visibility = 'public'
+      and statement_row.published_at <= now()
+      and current_version.published_at <= now()
+      -- The bounded S6 push window must never replay old historical events
+      -- simply because a feature flag or recipient consumer is enabled later.
+      and current_version.published_at >= now() - interval '30 minutes'
+      and organization_row.public_visibility = 'public'
+      and organization_row.status in ('recognized', 'active')
+      and coalesce(category_preference.enabled, true) is true
+    order by follow_row.profile_id
+    limit p_limit;
+end
+$candidates$;
+
+-- This function is a private service contract. It must NOT be accessible to
+-- browsers, and no service-role permission implies independent publication.
+revoke all on function private.world_statement_follow_notification_candidates_v1(uuid,uuid,uuid,integer)
+  from public, anon, authenticated, service_role;
+grant execute on function private.world_statement_follow_notification_candidates_v1(uuid,uuid,uuid,integer)
+  to service_role;
+
+comment on function private.world_statement_follow_notification_candidates_v1(uuid,uuid,uuid,integer) is
+  'TG10 private S6 candidate projection bound to the committed S4 event and completed S2 publication of the exact version. Only followers existing at publication may receive candidates. Consumer must revalidate before dispatch; no delivery/event is created here.';
+
+commit;
