@@ -83,6 +83,21 @@ export function auditWorldMigrationSnapshot(snapshot, candidate = null) {
   };
 }
 
+// Reject non-atomic scans that silently miss newly opened, closed, or retargeted PRs.
+// The pull-list endpoint is paginated, so compare the entire identity set, not row order.
+function openPullInventory(rows) {
+  if (!Array.isArray(rows)) throw Error('Open PR inventory unavailable');
+  const seen = new Set();
+  return rows.map(pr => {
+    const n = pr?.number, head = pr?.head?.sha, ref = pr?.head?.ref, title = pr?.title;
+    if (!Number.isInteger(n) || n < 1 || seen.has(n) || !SHA.test(head || '') || typeof ref !== 'string' || typeof title !== 'string') {
+      throw Error('Malformed or duplicate open PR inventory');
+    }
+    seen.add(n);
+    return JSON.stringify([n, head, ref, title]);
+  }).sort().join('\n');
+}
+
 async function get(path, token) {
   const r = await fetch('https://api.github.com' + path, {
     headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + token, 'X-GitHub-Api-Version': '2022-11-28' },
@@ -109,6 +124,7 @@ export async function collectWorldMigrationSnapshot(repo, token, worldOnly = fal
   const dir = await get(root + '/contents/supabase/migrations?ref=' + sha, token);
   if (!Array.isArray(dir) || dir.length >= 1000) throw Error('Main migration file inventory incomplete');
   const all = await pages(root + '/pulls?state=open', token);
+  const initialOpenInventory = openPullInventory(all);
   const chosen = worldOnly ? all.filter(x => WORLD.test((x.title || '') + ' ' + (x.head?.ref || ''))) : all;
   const pullRequests = [];
   for (let i = 0; i < chosen.length; i += 5) {
@@ -121,6 +137,8 @@ export async function collectWorldMigrationSnapshot(repo, token, worldOnly = fal
     }));
     pullRequests.push(...rows);
   }
+  const finalOpenInventory = openPullInventory(await pages(root + '/pulls?state=open', token));
+  if (finalOpenInventory !== initialOpenInventory) throw Error('Open PR inventory changed during scan; rerun exact-head audit');
   const end = await get(root + '/branches/main', token);
   if (end.commit?.sha !== sha) throw Error('Main advanced during scan; rerun exact-head audit');
   return { repository: repo, mainSha: sha, mainFiles: dir.filter(x=>x.type==='file' && x.name.endsWith('.sql')).map(x=>x.path),
