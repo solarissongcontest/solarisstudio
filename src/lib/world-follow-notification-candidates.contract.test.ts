@@ -1,4 +1,6 @@
-import { readFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -78,5 +80,83 @@ describe("TG10 private institutional statement notification candidates", () => {
     expect(migration).toMatch(/revoke all on function private\.world_statement_follow_notification_candidates_v1\(uuid,uuid,uuid,integer\)\s+from public, anon, authenticated, service_role/i);
     expect(migration).toMatch(/grant execute on function private\.world_statement_follow_notification_candidates_v1\(uuid,uuid,uuid,integer\)\s+to service_role/i);
     expect(migration).not.toMatch(/(?:insert\s+into|update|delete\s+from)\s+public\.notification_deliveries\b/i);
+  });
+});
+
+
+describe("TG10 rollback-only SQL runner local destination safety", () => {
+  const runner = join(process.cwd(), "scripts/rehearse-v3-world-follow-notification-candidates.sh");
+
+  it("parses CLI status without shell evaluation and rejects nonlocal or ambiguous addresses", () => {
+    expect(spawnSync("bash", ["-n", runner], { encoding: "utf8" }).status).toBe(0);
+
+    const root = mkdtempSync(join(tmpdir(), "tg10-world-local-only-"));
+    const mockBin = join(root, "bin");
+    const cliOutput = join(root, "cli-output");
+    const psqlCalls = join(root, "psql-calls");
+    const injectedMarker = join(root, "shell-was-executed");
+    mkdirSync(mockBin);
+    const mockSupabase = join(mockBin, "supabase");
+    const mockPsql = join(mockBin, "psql");
+    writeFileSync(mockSupabase, [
+      "#!/usr/bin/env bash",
+      '[[ "$1" == status && "$2" == -o && "$3" == env ]] || exit 77',
+      '[[ "$MOCK_FAIL" != 1 ]] || exit 78',
+      'cat "$MOCK_STATUS_FILE"',
+      "",
+    ].join("\n"));
+    writeFileSync(mockPsql, [
+      "#!/usr/bin/env bash",
+      'printf "%s\\n" "$*" >> "$MOCK_PSQL_LOG"',
+      "",
+    ].join("\n"));
+    chmodSync(mockSupabase, 0o700);
+    chmodSync(mockPsql, 0o700);
+
+    const api = "API_URL=http://127.0.0.1:54321";
+    const db = "DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+    type Case = { label: string; status: string; accepted: boolean; cliFailure?: boolean };
+    const scenarios: Case[] = [
+      { label: "plain local URL", status: api + "\n" + db, accepted: true },
+      { label: "quoted local URL", status: 'API_URL="http://127.0.0.1:54321"\nDB_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres"', accepted: true },
+      { label: "remote API", status: "API_URL=https://production.invalid\n" + db, accepted: false },
+      { label: "remote database", status: api + "\nDB_URL=postgresql://postgres:postgres@production.invalid:5432/postgres", accepted: false },
+      { label: "userinfo spoofing", status: api + "\nDB_URL=postgresql://postgres:postgres@127.0.0.1:54322@production.invalid/postgres", accepted: false },
+      { label: "PostgreSQL query override", status: api + "\n" + db + "?host=production.invalid", accepted: false },
+      { label: "duplicate database keys", status: api + "\n" + db + "\n" + db, accepted: false },
+      { label: "missing database even if inherited", status: api, accepted: false },
+      { label: "shell command appended to URL", status: api + "; touch " + injectedMarker + "\n" + db, accepted: false },
+      { label: "extra shell text is never executed", status: api + "\n" + db + "\ntouch " + injectedMarker, accepted: true },
+      { label: "subshell text is never evaluated", status: api + "\n" + db + "\n$(touch " + injectedMarker + ")", accepted: true },
+      { label: "CLI failure", status: api + "\n" + db, accepted: false, cliFailure: true },
+    ];
+
+    try {
+      for (const scenario of scenarios) {
+        writeFileSync(cliOutput, scenario.status + "\n");
+        rmSync(psqlCalls, { force: true });
+        rmSync(injectedMarker, { force: true });
+        const result = spawnSync("bash", [runner], {
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            PATH: mockBin + ":" + (process.env.PATH || ""),
+            MOCK_STATUS_FILE: cliOutput,
+            MOCK_PSQL_LOG: psqlCalls,
+            MOCK_FAIL: scenario.cliFailure ? "1" : "0",
+            // Inherited remote values must never substitute for missing CLI keys.
+            API_URL: "https://production.invalid",
+            DB_URL: "postgresql://postgres:postgres@production.invalid:5432/postgres",
+          },
+        });
+        expect(result.error, scenario.label).toBeUndefined();
+        expect(result.status === 0, scenario.label + ": " + result.stderr)
+          .toBe(scenario.accepted);
+        expect(existsSync(psqlCalls), scenario.label).toBe(scenario.accepted);
+        expect(existsSync(injectedMarker), scenario.label).toBe(false);
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
