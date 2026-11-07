@@ -33,6 +33,33 @@ and pending migration list. It rejects omissions, duplicate entries,
 candidate drift, unsafe production-action language, and forward plans attached
 to effects already classified as present.
 
+## Current verified classification
+
+The committed matrix in
+`src/lib/v3-production-schema-effect-matrix.ts` covers all **36** reported
+post-cutover holes exactly once:
+
+- **24 effect-missing**: the named V3 object, guard, RPC, trigger, or behavior
+  was directly absent in the authorized catalog observation;
+- **6 effect-uncertain**: the target prerequisite or aggregate existed, but the
+  exact effect still requires a full catalog/signature comparison;
+- **6 effect-partial**: a related legacy object or narrow privilege existed,
+  while the migration's complete intended effect was not proven.
+
+No entry is classified as fully equivalent or superseded. The same matrix
+assigns all **32 pending** repository migrations to three dependency lanes:
+world authority/privacy, Results/publication/Televote, and cross-cutting
+runtime. Lane membership is a review dependency graph, not permission to run
+the files.
+
+The highest-impact missing contract is the S13 foundation. The integrated
+forward-only candidate is intentionally outside `supabase/migrations/` and
+rehearses against a sanitized PostgreSQL 17.11 dependency subset. It produces
+the canonical five S13 tables and seven RPCs, matches the original staged
+source catalog, rejects five partial/collision preconditions, denies browser
+and direct-table writes, and refuses replay. It does not claim complete
+hosted-schema/data equivalence or production authorization.
+
 This is operator-ready reconciliation evidence, not deployment approval. A
 successful result still requires a hosted-head-equivalent disposable local
 rehearsal, S13/S14/S15/S16 exact-SHA evidence, independent recovery review, and

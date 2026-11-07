@@ -9,7 +9,9 @@ export const V3_SCHEMA_EFFECT_RECONCILIATION_SCHEMA_VERSION = 1 as const;
 export type V3SchemaEffectClassification =
   | "effect-present"
   | "effect-partial"
-  | "effect-missing";
+  | "effect-missing"
+  | "effect-superseded"
+  | "effect-uncertain";
 
 export type V3SchemaEffectEntry = {
   version: string;
@@ -125,7 +127,7 @@ export function reconcileV3ProductionSchemaEffects(input: {
       errors.push(`effect manifest entry is not an audited post-cutover hole: ${key}`);
       continue;
     }
-    if (!["effect-present", "effect-partial", "effect-missing"].includes(entry.classification ?? "")) {
+    if (!["effect-present", "effect-partial", "effect-missing", "effect-superseded", "effect-uncertain"].includes(entry.classification ?? "")) {
       errors.push(`${key} has an invalid effect classification`);
     }
     if (!hasUniqueStrings(entry.evidenceRefs)) {
@@ -137,7 +139,8 @@ export function reconcileV3ProductionSchemaEffects(input: {
     if (entry.historyAction !== "preserve") {
       errors.push(`${key} must preserve immutable migration history`);
     }
-    if ((entry.classification === "effect-partial" || entry.classification === "effect-missing") &&
+    if ((entry.classification === "effect-partial" || entry.classification === "effect-missing" ||
+      entry.classification === "effect-uncertain") &&
         !isNonemptyString(entry.forwardPlan)) {
       errors.push(`${key} requires a forwardPlan for partial or missing effects`);
     }
