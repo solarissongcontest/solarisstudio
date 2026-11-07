@@ -32,17 +32,17 @@ export default defineConfig({
             {
               name: "solaris-client-chunk-composition-evidence",
               generateBundle(_outputOptions, bundle) {
-                const clientChunks = Object.values(bundle).filter(
-                  (asset) => asset.type === "chunk" && asset.fileName.endsWith(".js"),
-                );
-                if (!clientChunks.length) return;
                 const totals = new Map<string, number>();
-                for (const chunk of clientChunks) {
+                let clientChunkCount = 0;
+                for (const chunk of Object.values(bundle)) {
+                  if (chunk.type !== "chunk" || !chunk.fileName.endsWith(".js")) continue;
+                  clientChunkCount += 1;
                   for (const [moduleId, info] of Object.entries(chunk.modules)) {
                     const size = info.renderedLength ?? 0;
                     if (size > 0) totals.set(moduleId, (totals.get(moduleId) ?? 0) + size);
                   }
                 }
+                if (!clientChunkCount) return;
                 const ranked = [...totals]
                   .sort((left, right) => right[1] - left[1])
                   .slice(0, 45);
