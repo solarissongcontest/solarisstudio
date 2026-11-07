@@ -123,6 +123,30 @@ describe("TG10 private institutional statement notification candidates", () => {
     expect(rehearsal.trimEnd()).toMatch(/rollback;$/);
   });
 
+  it("clears simulated JWT identity after each authenticated RPC phase", () => {
+    const followReset = rehearsal.indexOf("do $clear_follow_actor$");
+    const publication = rehearsal.indexOf("do $publish_after_follows$");
+    const categoryRpc = rehearsal.indexOf("do $disable$");
+    const categoryReset = rehearsal.indexOf("do $clear_category_actor$");
+    const privacy = rehearsal.indexOf("do $privacy$");
+    expect(followReset).toBeGreaterThan(rehearsal.indexOf("end $follows$"));
+    expect(followReset).toBeLessThan(publication);
+    expect(categoryReset).toBeGreaterThan(categoryRpc);
+    expect(categoryReset).toBeLessThan(privacy);
+    for (const name of ["clear_follow_actor", "clear_category_actor"]) {
+      const block = rehearsal.slice(
+        rehearsal.indexOf("do $" + name + "$"),
+        rehearsal.indexOf("end $" + name + "$"),
+      );
+      expect(block).toContain("set_config('request.jwt.claim.sub','',true)");
+      expect(block).toContain("set_config('request.jwt.claims','{}',true)");
+      expect(block).toContain("set_config('request.jwt.claim.role','',true)");
+      expect(block).toContain("auth.uid() is not null");
+    }
+    expect(rehearsal).toContain("TG10_FOLLOW_ACTOR_LEAKED_INTO_PRIVILEGED_REHEARSAL");
+    expect(rehearsal).toContain("TG10_CATEGORY_ACTOR_LEAKED_INTO_PRIVILEGED_REHEARSAL");
+  });
+
   it("rehearses authenticated organization follows before the first public statement", () => {
     const follow = rehearsal.indexOf("do $follows$");
     const publish = rehearsal.indexOf("do $publish_after_follows$");
