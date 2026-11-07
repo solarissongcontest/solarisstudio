@@ -1,0 +1,118 @@
+name: V3 HTTP409 forward-repair isolated PostgreSQL rehearsal
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/v3-http409-forward-repair-local.yml"
+      - "docs/v3/recovery-candidates/forward-only-deterministic-http409.sql"
+      - "scripts/rehearse-v3-http409-recovery-local.mjs"
+      - "src/lib/v3-forward-only-conflict-reconciliation.contract.test.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-http409-local-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  isolated-postgresql:
+    name: Forward-repair synthetic SQL verification on loopback only
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      REVIEWED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      V3_VERIFICATION_TARGET: local
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PROJECT_ID: local
+      SUPABASE_PROJECT_REF: local
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_PROJECT_ID: local
+      VITE_SUPABASE_PROJECT_REF: local
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - "127.0.0.1:54322:5432"
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout exact candidate commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Fail closed on stale commit and hosted credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$REVIEWED_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          [[ "$(git rev-parse HEAD)" == "$REVIEWED_SHA" ]] || {
+            echo "::error::Exact-SHA candidate mismatch"
+            exit 1
+          }
+          [[ "$V3_VERIFICATION_TARGET" == "local" ]] || exit 1
+          [[ "$SUPABASE_URL" == "http://127.0.0.1:54321" ]] || exit 1
+          for key in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD DATABASE_URL POSTGRES_URL                      SUPABASE_DB_URL DB_URL PGSERVICE PGSERVICEFILE PGHOSTADDR PGHOST; do
+            if [[ -n "${!key:-}" ]]; then
+              echo "::error::$key must be unset for isolated PostgreSQL verification"
+              exit 1
+            fi
+          done
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install local PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+
+      - name: Check local PostgreSQL is available
+        env:
+          PGPASSWORD: postgres
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -w -X -h 127.0.0.1 -p 54322 -U postgres -d postgres \
+            -v ON_ERROR_STOP=1 -Atq -c 'select current_database()' | grep -qx postgres
+
+      - name: Verify JavaScript syntax without any database activity
+        run: node --check scripts/rehearse-v3-http409-recovery-local.mjs
+
+      - name: Execute synthetic local-only SQL rehearsal
+        env:
+          SOLARIS_RUN_LOCAL_DB_REHEARSAL: "YES"
+          SOLARIS_LOCAL_DB_PORT: "54322"
+          SOLARIS_LOCAL_DB_PASSWORD: postgres
+        run: node scripts/rehearse-v3-http409-recovery-local.mjs
+
+      - name: Confirm disposable DB was cleaned up
+        env:
+          PGPASSWORD: postgres
+        shell: bash
+        run: |
+          set -euo pipefail
+          remaining="$(psql -w -X -h 127.0.0.1 -p 54322 -U postgres -d postgres \
+            -v ON_ERROR_STOP=1 -Atq \
+            -c "select count(*) from pg_database where datname like 'solaris_v3_http409_%'")"
+          [[ "$remaining" == "0" ]] || {
+            echo "::error::Disposable SQL rehearsal left temporary databases behind"
+            exit 1
+          }
+
+      - name: State limitations explicitly
+        run: |
+          echo "Synthetic local PostgreSQL proof only; NOT hosted-head-equivalent and NOT production certified."
+          echo "No production Supabase project, credentials, application rows, or hosted migration history were accessed."
