@@ -66,9 +66,9 @@ describe("S10 local-only rehearsal target protection", () => {
   });
 
   it.each([
-    ["misleading API localhost", safeStatus.replace("127.0.0.1:54321", "localhost:54321@evil.example"), false],
-    ["valid local endpoints", safeStatus, true],
-  ])("never calls actual psql; fake CLI checks %s", (_case, status, expectPsqlCall) => {
+    { name: "misleading API localhost", status: safeStatus.replace("127.0.0.1:54321", "localhost:54321@evil.example"), expectPsqlCall: false },
+    { name: "valid local endpoints", status: safeStatus, expectPsqlCall: true },
+  ])("never calls actual psql; fake CLI checks $name", ({ status, expectPsqlCall }) => {
     const directory = mkdtempSync(join(tmpdir(), "solaris-s10-isolation-"));
     const marker = join(directory, "psql-marker");
     try {
