@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { describe, it } from "vitest";
 
 /**
- * Quality's Vitest configuration intentionally includes src/**/*.test.ts only.
+ * Quality's Vitest configuration collects .test.ts files under src/.
  * Exercise the standalone Node contract tests on every PR so the post-merge
  * evidence verifier is validated before it is allowed to certify main.
  *
