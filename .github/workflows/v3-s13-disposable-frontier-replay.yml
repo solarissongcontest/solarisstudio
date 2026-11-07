@@ -139,6 +139,37 @@ jobs:
         if: success()
         run: bun run scripts/check-v3-production-isolation.ts
 
+      - name: Record fail-closed local replay failure evidence
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f v3-frontier-disposable-local-evidence.json ]]; then
+            echo "::error::Refusing to overwrite an existing migration evidence result"
+            exit 1
+          fi
+          node --input-type=module <<'NODE'
+          import { execFileSync } from "node:child_process";
+          import { writeFileSync } from "node:fs";
+          const head = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+          const expected = process.env.REVIEWED_SHA;
+          if (!/^[0-9a-f]{40}$/.test(head) || head !== expected) {
+            throw new Error("Cannot bind failed local replay evidence to a verified exact checkout");
+          }
+          const evidence = {
+            candidateSha: head,
+            environment: "disposable-local-supabase",
+            outcome: "failed",
+            localReplayPassed: false,
+            failureDetails: "Inspect this exact-head workflow job log for the first semantic SQL/bootstrap error",
+            hostedHistoryReconciled: false,
+            hostedDataCompatibilityCertified: false,
+            releaseCertified: false,
+            productionDeploymentAuthorized: false
+          };
+          writeFileSync("v3-frontier-disposable-local-evidence.json", JSON.stringify(evidence, null, 2) + "\n");
+          NODE
+
       - name: Upload exact-head local-only evidence
         if: always()
         uses: actions/upload-artifact@v4
