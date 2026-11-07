@@ -7,11 +7,40 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 command -v supabase >/dev/null 2>&1 || fail "Supabase CLI unavailable; isolated local verification required"
 command -v psql >/dev/null 2>&1 || fail "PostgreSQL client unavailable; isolated local verification required"
 
-# Never use caller-provided remote DB_URL. Resolve the disposable local stack
-# and require loopback for both API and PostgreSQL before opening a connection.
-eval "$(supabase status -o env)" || fail "Local Supabase stack is unavailable"
-: "${API_URL:?Local Supabase API URL missing}"
-: "${DB_URL:?Local Supabase DB URL missing}"
+# Read only the two local connection addresses from the CLI. NEVER eval its
+# output: URL validation would happen too late to stop injected shell commands.
+status_output="$(supabase status -o env)" || fail "Local Supabase stack is unavailable"
+API_URL=''
+DB_URL=''
+api_count=0
+db_count=0
+while IFS= read -r line; do
+  case "$line" in
+    API_URL=*)
+      api_count=$((api_count + 1))
+      API_URL="${line#API_URL=}"
+      ;;
+    DB_URL=*)
+      db_count=$((db_count + 1))
+      DB_URL="${line#DB_URL=}"
+      ;;
+  esac
+done <<< "$status_output"
+
+[[ "$api_count" -eq 1 && "$db_count" -eq 1 ]] ||
+  fail "Local Supabase status must provide exactly one API_URL and DB_URL"
+
+# Supabase may print either plain values or simple quoted values. No shell
+# expansion or command substitution is performed on the contents.
+strip_outer_quotes() {
+  local value="$1"
+  if [[ "$value" == \"*\" || "$value" == \'*\' ]]; then
+    value="${value:1:-1}"
+  fi
+  printf '%s' "$value"
+}
+API_URL="$(strip_outer_quotes "$API_URL")"
+DB_URL="$(strip_outer_quotes "$DB_URL")"
 
 # Full-string matches reject user-info tricks, extra @hosts, non-numeric
 # ports, query overrides and any other nonstandard connection target.
