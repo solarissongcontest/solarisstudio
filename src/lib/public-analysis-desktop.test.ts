@@ -7,13 +7,18 @@ function source(path: string) {
 }
 
 describe("public Analysis desktop visualizations", () => {
-  it("renders Jury vs Televote scatter points with a real radius", () => {
+  it("renders responsive Jury vs Televote SVG points with accessible hover and area-scaled radius", () => {
     const scatter = source("src/components/viz/JuryVsTelevote.tsx");
+    const native = source("src/components/viz/NativeJuryTelevoteScatter.tsx");
+    const geometry = source("src/lib/scatter-plot-geometry.ts");
 
-    expect(scatter).toContain("Number(props.size)");
-    expect(scatter).toContain("Math.sqrt(size / Math.PI)");
-    expect(scatter).not.toContain("props.r + 3");
-    expect(scatter).toContain('ResponsiveContainer width="100%" height="100%" minWidth={0}');
+    expect(scatter).toContain("NativeJuryTelevoteScatter");
+    expect(scatter).not.toContain('from "recharts"');
+    expect(native).toContain("ResizeObserver");
+    expect(native).toContain("scatterPointRadius(point.n, lowCount, highCount)");
+    expect(native).toContain("onFocus={() => onHover(point.id)}");
+    expect(native).toContain('aria-label="Average jury points by average televote points.');
+    expect(geometry).toContain("Math.sqrt((70 + ratio * 210) / Math.PI)");
   });
 
   it("lets desktop network and chord diagrams use the available panel width", () => {
