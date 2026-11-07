@@ -8,6 +8,7 @@ import type { Edition, ResultRow, Show } from "./data";
 import type { SolarisTask } from "./participation-os";
 import { loadV3BootstrapProjection } from "./v3-bootstrap-server";
 import {
+  activeV3DelegationCountryId,
   assembleV3PrimarySurfaceSnapshot,
   countDistinctV3Delegations,
   countPendingAcknowledgementTasks,
@@ -72,6 +73,23 @@ function base() {
 }
 
 describe("Solaris Studio V3 primary surface production snapshot", () => {
+  it("does not project suspended or unverifiable country ownership as an active delegation", () => {
+    expect(activeV3DelegationCountryId({
+      country_id: "country-oland",
+      status: "active",
+    })).toBe("country-oland");
+
+    for (const status of ["suspended", "pending", "", null, undefined]) {
+      expect(activeV3DelegationCountryId({
+        country_id: "country-oland",
+        status,
+      })).toBeNull();
+    }
+
+    expect(activeV3DelegationCountryId(null)).toBeNull();
+    expect(activeV3DelegationCountryId({ country_id: " ", status: "active" })).toBeNull();
+  });
+
   it("builds anonymous Home from public canonical state without participant evidence", () => {
     const snapshot = assembleV3PrimarySurfaceSnapshot(base());
 
@@ -327,6 +345,34 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
     );
     expect(bootstrap.experience.mode).toBe("live-voting");
     expect(bootstrap.experience.votingOpen).toBe(true);
+  });
+
+  it("keeps server-expired Televoting out of Home Live even when round status is still open", async () => {
+    const liveShow = { ...show, status: "live" } as Show;
+    const expired = assembleV3PrimarySurfaceSnapshot({
+      ...base(),
+      shows: [liveShow],
+      viewer: { id: "user-1", displayName: null },
+      televote: {
+        id: "expired",
+        title: "Old public voting",
+        route: "/televoting",
+        eligible: true,
+        submitted: false,
+        required: false,
+        status: "open",
+        closesAt: "2026-10-12T05:59:59.999Z",
+      },
+    });
+    expect(expired.runtime).toBeNull();
+    expect(expired.tasks.find((task) => task.kind === "televote")?.state).toBe("finished");
+
+    const projected = await loadV3BootstrapProjection(
+      { viewerId: "user-1", editionId: edition.id, delegationId: null },
+      { loadSnapshot: async () => expired },
+    );
+    expect(projected.experience.votingOpen).toBe(false);
+    expect(projected.experience.mode).toBe("live");
   });
 
   it("uses a requested published edition rather than silently switching context", () => {

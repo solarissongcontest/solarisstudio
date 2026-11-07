@@ -20,6 +20,7 @@ import {
   type VotingTaskInput,
 } from "./participation-os";
 import { isShowPublic, showPublishesResults } from "./publication";
+import { resolveScheduleState } from "./solaris-schedule";
 import type { PublicRound } from "./confirmation-rounds.functions";
 import type { V3ShowState } from "./v3-domain-state";
 import type {
@@ -38,6 +39,18 @@ export type V3PrimarySurfaceDelegation = {
   id: string;
   name: string;
 };
+
+/**
+ * A signed-in account is not automatically an active delegation. Organizer
+ * suspension must remove the country context before HOD tasks are loaded,
+ * even if an older query returns the suspended row from a stale read path.
+ */
+export function activeV3DelegationCountryId(
+  account: { country_id?: string | null; status?: string | null } | null,
+): string | null {
+  if (account?.status !== "active") return null;
+  return account.country_id?.trim() || null;
+}
 
 export type V3ParticipantIdentityRow = {
   country_id?: string | null;
@@ -292,12 +305,19 @@ function runtimeForOpenTelevote(input: {
   publicPhase: string;
   liveShow: Show | undefined;
   televote: VotingTaskInput | null;
+  now: number;
 }): { runtime: EditionRuntimeState | null; show: V3ShowState | null } {
+  const voteSchedule = input.televote ? resolveScheduleState({
+    status: input.televote.status,
+    opensAt: input.televote.opensAt,
+    closesAt: input.televote.closesAt,
+  }, input.now) : "closed";
   if (
     !input.edition ||
     input.publicPhase === "post_edition" ||
     input.publicPhase === "between_editions" ||
-    input.televote?.status !== "open"
+    input.televote?.status !== "open" ||
+    (voteSchedule !== "open" && voteSchedule !== "closing-soon")
   ) {
     return { runtime: null, show: null };
   }
@@ -383,6 +403,7 @@ export function assembleV3PrimarySurfaceSnapshot(
     publicPhase: publicContest.phase,
     liveShow,
     televote: scopedTelevote,
+    now: serverTime.ms,
   });
 
   return {

@@ -110,6 +110,17 @@ describe("Solaris Studio V3 production primary-surface source architecture", () 
     expect(source).not.toContain("@/integrations/televoting/client");
   });
 
+  it("requires current active country ownership before presenting delegation context and HOD tasks", () => {
+    const source = serverSource();
+    const loader = source.slice(source.indexOf("async function loadDelegation("), source.indexOf("async function loadDelegationCount("));
+    expect(loader).toContain('.from("country_accounts")');
+    expect(loader).toContain('.eq("user_id", viewerId)');
+    expect(loader).toContain('.eq("status", "active")');
+    expect(loader).toContain("activeV3DelegationCountryId(account.data)");
+    expect(source).toContain("if (\n    !input.editionId ||\n    !input.delegation ||");
+    expect(source).toContain("delegation,\n    capabilities,");
+  });
+
   it("captures server time inside the server source and never uses browser clock or polling", () => {
     const source = serverSource();
 
