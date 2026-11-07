@@ -7,13 +7,13 @@ import type { SscRule } from "@/lib/ssc-rules/types";
  */
 const BODY_ROWS = String.raw`
 1.1	The Solaris Song Contest (SSC) is a fan-run online music competition. Real people represent fictional countries using real songs. Everything happens online: a host, stage or broadcast is part of the contest's online presentation, not a physical event. SSC is independent and is not officially connected to artists, broadcasters, record labels or streaming services.
-2.1	These official words have the same meaning throughout SSC. § Edition: One complete SSC contest, including participation, song selection, voting and results. § Country: A fictional country registered in SSC, not a real-world government. § Participant: A real person taking part in the contest. § Delegation: The person or group officially representing a country. § Head of Delegation (HoD): The delegation's main representative and contact with TSBC. § Entry: The song and artist or performing act chosen to represent a country. § Confirmation: The process that officially secures a country's participation in an edition. § National Selection: When a country considers several songs or artists before choosing its entry. § Internal Selection: When the delegation chooses its entry directly. § Solaris Studio: The main online platform for SSC's entries, votes, messages and administration. § Official Contest Channel: Solaris Studio or another channel that TSBC announces for official SSC actions. § Official Deadline: The announced date and time by which a required action must be completed. § Submission: Material sent to TSBC through an official SSC channel. § Jury Vote: A delegation's official independent vote under the published voting rules. § Televote: A public vote submitted through SSC's official voting system. § Official Result: A contest result checked and confirmed by TSBC. § TSBC: The Terra Solaris Broadcasting Coalition, the organisation running SSC. § Appeal: A request for TSBC to review a decision. § Sanction: An official penalty imposed after a rule breach is found. § Disqualification: Removal of a country, entry, vote or participant because of a rule breach. § Withdrawal: When a country formally leaves an edition after confirming participation. § Force Majeure: An exceptional emergency outside reasonable control that stops or seriously disrupts normal contest activity. § Protected country: A country that cannot be permanently taken over, divided or eliminated without the required consent. Rules 22.4 and 22.5 explain its status. § Dormant country: A country that has had no active HoD during any part of six completed SSC editions in a row. Rule 22.5 explains the exact test. § Official map (canonical map): The version of the fictional Solaris world map recognised and recorded by TSBC. § Annexation: Taking another fictional country's land and making it part of your country. § Partition: Dividing a fictional country into separate parts. § Successor state: A new fictional country that continues some of an older country's identity or history. § Mitigating factors: Reasons that can justify a lighter penalty. § Aggravating factors: Reasons that can justify a stronger penalty.
+2.1	These official words have the same meaning throughout SSC. § Edition: One complete SSC contest, including participation, song selection, voting and results. § Country: A fictional country registered in SSC, not a real-world government. § Participant: A real person taking part in the contest. § Delegation: The person or group officially representing a country. § Head of Delegation (HoD): The delegation's main representative and contact with TSBC. § Entry: The song and artist or performing act chosen to represent a country. § Confirmation: The process that officially secures a country's participation in an edition. § National Selection: When a country considers several songs or artists before choosing its entry. § Internal Selection: When the delegation chooses its entry directly. § Solaris Studio: The main online platform for SSC's entries, votes, messages and administration. § Official Contest Channel: Solaris Studio or another channel that TSBC announces for official SSC actions. § Official Deadline: The announced date and time by which a required action must be completed. § Submission: Material sent to TSBC through an official SSC channel. § Jury Vote: A delegation's official independent vote under the published voting rules. § Televote: A public vote submitted through SSC's official voting system. § Official Result: A contest result checked and confirmed by TSBC. § TSBC: The Terra Solaris Broadcasting Coalition, the organisation running SSC. § Appeal: A request for TSBC to review a decision. § penalty: An official penalty imposed after a rule breach is found. § Disqualification: Removal of a country, entry, vote or participant because of a rule breach. § Withdrawal: When a country formally leaves an edition after confirming participation. § Major emergency: A serious unexpected problem that people cannot control and that stops the contest from running normally. § Protected country: A country that cannot be permanently taken over, divided or eliminated without the required consent. Rules 22.4 and 22.5 explain its status. § Unprotected country: A country with no active HoD at any time across six completed SSC editions in a row. Its protection ends only after all six have finished. See Rule 22.5. § Official map (official map): The version of the fictional Solaris world map recognised and recorded by TSBC. § Taking over land: Making another fictional country's land part of your country. § Dividing a country: Splitting its fictional land into parts. § Successor state: A new fictional country that continues some of an older country's identity or history. § Reasons for a lighter penalty: Facts that may make a penalty less serious. § Reasons for a stronger penalty: Facts that may make a penalty more serious.
 3.1	The Terra Solaris Broadcasting Coalition (TSBC) runs SSC and is responsible for fair competition. It manages editions and official systems, checks entries and votes, investigates possible rule breaches, publishes verified results, applies justified penalties and explains the rules. If a situation is not covered, TSBC must make a fair, consistent and transparent decision and treat delegations equally.
 3.2	The Contest Director manages each edition. This includes checking entries, setting deadlines, supervising voting and results, applying the rules and dealing with disputes. Delegations must be treated consistently.
 3.3	The Creative Director usually is the Head of Delegation of the country that won the previous edition. They help suggest the slogan, artwork, stage ideas and entertainment. This is a creative role: they do not decide who can compete, control votes, issue penalties or change results.
 4.1	Use Solaris Studio for official confirmations, entries, votes and contest information unless TSBC announces another official channel. If the main system is unavailable, TSBC may announce a replacement channel. If two official channels give conflicting instructions, TSBC must say which applies and fairly address any resulting disadvantage. An unofficial private message cannot quietly change an official rule or deadline.
 4.2	Keep your Solaris Studio account reasonably secure. Do not pretend to be another participant, enter someone else's account without permission or use extra accounts to get more votes, places or other competitive rights. Approved administrative or testing accounts are allowed when they are not used to compete.
-4.3	Do not use bots, scripts or other automated tools to gain an unfair advantage, such as submitting confirmations faster than human users, creating extra voting accounts or bypassing vote limits. Normal browser features and accessibility tools are allowed.
+4.3	Do not use bots, scripts or other tools to get an unfair advantage. For example, you cannot use them to confirm faster than people, make extra voting accounts or get around voting limits. Normal browser features and tools that help people with disabilities are allowed.
 4.4	You may find a bug, test only enough to understand it and report it to TSBC. Do not deliberately use a bug to gain points, votes, confirmation places or access to someone else's information. Do not share a serious active exploit to help others abuse it.
 4.5	If people disagree about when an online action happened, TSBC may use reliable server records, including submission times and audit records. A phone clock or screenshot does not automatically outweigh the official server's record.
 4.6	Before a limited confirmation round opens, TSBC must publish its opening time, how many places are available and what information is required. Unless the published edition rules specify another fair method, valid confirmations are accepted in the order the official server receives them after opening. Your device's countdown or internet delay does not guarantee a place. If the official system fails, TSBC may take fair steps to correct the result.
@@ -24,7 +24,7 @@ const BODY_ROWS = String.raw`
 6.1	A participating country may submit one song-and-artist entry per edition. TSBC must check that it meets the requirements before the entry is officially accepted. Sending an entry does not guarantee acceptance.
 6.2	The competing song must be available on Spotify in its original studio version, unless TSBC explicitly approves another version. Remixes, live recordings and other versions need approval. Songs previously entered in Eurovision, Junior Eurovision, American Song Contest or another competition TSBC has declared ineligible cannot be used.
 6.3	Each entry must provide suitable video material. Use the official music video when one exists. If it does not, TSBC may accept the song's official visualiser, lyric video or another suitable approved song video. Unless an edition announces otherwise, Instagram previews can be at most 25 seconds and Grand Final presentation clips at most 90 seconds.
-6.4	At the official eligibility check, the artist must have fewer than 25 million monthly Spotify listeners. The song's official music video must have fewer than 20 million YouTube views. If there is no official music video, check the YouTube video for the song instead. TSBC must use the relevant video and view count at its recorded check time, not a later figure. A correctly accepted entry stays eligible if its numbers rise afterwards. Calling an artist 'mainstream' is not enough to reject an entry that meets the published limits. Any different objective limit must be announced before the relevant selection or submission period begins. If there are several eligible full-song videos and no official music video, use the most-viewed existing upload from the artist's or record label's official YouTube channel that was published before the entry-submission deadline. If none exists, TSBC must select the most-viewed clearly identifiable full-song upload available before that deadline. TSBC must record the chosen URL, upload date, view count and check time. A new delegation-controlled upload cannot be used to bypass the limit.
+6.4	At the official check, the artist must have fewer than 25 million monthly Spotify listeners. The song's official music video must have fewer than 20 million YouTube views. If there is no official music video, use a YouTube video for the song instead. § If there are several full-song uploads, choose the most-viewed one posted on the artist's or record label's official YouTube channel before the entry deadline. If there is no such upload, use the most-viewed video clearly showing the full song that was available before the deadline. § TSBC must record the chosen video's link, upload date, view count and the time it was checked. Use the views at that time, not a later number. A song that was correctly accepted stays allowed if its views or listeners rise later. A country cannot post a new video to get around the limit. TSBC cannot reject an entry just because someone calls the artist 'mainstream'. Any other set limit must be announced before the selection or entry period begins.
 6.5	An artist who has competed in the Eurovision Song Contest cannot compete in SSC. An artist who participated in a Eurovision National Selection in 2015 or any later year also cannot compete. Participation in a National Selection before 2015 may be allowed if the other requirements are met. Previous Junior Eurovision artists may be eligible if they are no longer underage and meet the other artist rules. Junior Eurovision songs themselves cannot be submitted.
 6.6	An artist may compete in SSC no more than three times and cannot compete again after winning SSC. Usually, only the country they previously represented may choose them again. Another country needs permission from the previous country's delegation, but if that country has no active Head of Delegation, permission is not required. All other artist-eligibility rules still apply. These are internal SSC representation rules, not real-world ownership of an artist.
 6.7	If a song credits several main or featured artists, TSBC may check each artist's eligibility and SSC history. An artist cannot avoid previous-appearance rules simply by changing their stage name.
@@ -34,7 +34,7 @@ const BODY_ROWS = String.raw`
 7.1	SSC uses numbered editions. An edition usually has two Semi-Finals and one Grand Final, but TSBC may add Semi-Finals when needed. The exact format must be announced before competition starts.
 7.2	TSBC decides the order in which entries appear. It may consider musical variety, pacing and the overall show. No country has a guaranteed right to a certain position.
 7.3	The published voting system for that edition decides the result. Unless its rules say otherwise, the country with the most total points wins.
-7.4	If countries finish with the same number of points, compare them in this order until the tie is broken: first, jury points; second, the number of countries awarding points; third, the highest single score received; fourth, televote points; fifth, the earlier running-order position. If the countries are still tied, TSBC makes the final decision.
+7.4	If two countries have the same total points, use these steps in order. Stop as soon as one country is ahead. § First, compare jury points. § Next, count how many countries gave each entry points. § Next, compare the highest single score each entry received. § Next, compare televote points. § Next, the country that appeared earlier in the running order wins the tie. § If the tie still cannot be broken, TSBC makes the final decision.
 7.5	The country with the verified highest winning result is the official winner. It receives the SSC trophy and the first right to creatively host the next edition.
 7.6	Results are not final until TSBC has checked the required votes, calculations and eligibility issues. TSBC may delay publication while doing this. If a serious error is discovered later, TSBC may correct the official result where justified.
 8.1	The winning country gets the first chance to creatively host the next SSC edition online. Hosting does not require a physical event. The winner may host alone, host jointly or decline. If it declines, TSBC chooses an alternative; the runner-up does not automatically become host.
@@ -57,7 +57,7 @@ const BODY_ROWS = String.raw`
 12.2	The official server's recorded submission time decides when an online action arrived. A phone screenshot or browser countdown does not overrule reliable server records. If Solaris Studio showed the wrong time because of a confirmed problem, TSBC may take fair corrective action under Rules 12.5 and 19.4.
 12.3	Submit your entry and any required jury vote before their published deadlines. TSBC may reject a late submission or apply a justified penalty if the delay disrupts the contest.
 12.4	TSBC may extend deadlines for a justified reason. Everyone affected should normally receive the same extension, unless exceptional circumstances apply only to one person or delegation.
-12.5	If a major problem with Solaris Studio or another official system prevents the contest from following its schedule, TSBC may delay a stage, extend a deadline, reopen a process or restore the correct state using server records. A problem with only your own phone or internet does not automatically entitle you to more time.
+12.5	If a serious problem with Solaris Studio or another official system breaks the contest schedule, TSBC may delay a stage or extend a deadline. It may also reopen a process or use trusted server records to restore the correct state. A problem with only your own phone or internet does not automatically give you extra time.
 12.6	TSBC publishes official results after the necessary votes, calculations and any investigation needed before publication have been checked.
 13.1	TSBC prepares SSC's official online presentation, including graphics, scoreboards, voting displays, videos, recaps, interval acts and other show material.
 13.2	TSBC controls the official SSC logo and original contest branding. You may use official branding for genuine SSC activities, but must not change it in a way that misleads people.
@@ -77,16 +77,16 @@ const BODY_ROWS = String.raw`
 15.2	If a country withdraws after its entry has been officially published, TSBC may apply a penalty only when the withdrawal seriously disrupts the edition. TSBC may decide not to penalise it because of exceptional circumstances.
 15.3	Before the submission deadline, a country may replace its entry if the new song and artist meet every eligibility rule. After that deadline, a replacement normally requires TSBC approval.
 15.4	If a Host Country stops hosting or withdraws from participation, TSBC arranges another host. The runner-up does not automatically inherit hosting rights.
-15.5	If a country withdraws because of an exceptional event outside its reasonable control, TSBC must consider the unexpected-emergency (Force Majeure) rules.
+15.5	If a country withdraws because of an exceptional event outside its reasonable control, TSBC must consider the unexpected-emergency (major emergency) rules.
 16.1	Before applying a penalty, TSBC may collect evidence, ask questions and hear from the people involved. The person accused should normally have a fair chance to respond. Temporary protective action may be taken immediately if necessary for safety or voting integrity; an investigation alone does not prove a rule was broken.
 16.2	You may report a genuine concern about a rule breach, safety problem or technical weakness without having to prove guilt first. An honest report is not a false report just because the concern later turns out to be unproven. Deliberately invented reports or evidence are prohibited.
 16.3	When Solaris Studio offers different reporting privacy options, it must clearly say who can see the reporter's identity. A fully anonymous report must not be linked to the reporter's account in the case record. A confidential report may show the reporter's identity only to authorised reviewers according to the selected option. Do not promise full anonymity if normal reviewers can identify the reporter from stored account details.
-16.4	When the system supports it, someone who reported anonymously can use a private recovery code to see updates, answer TSBC's questions and send more information without connecting the report to their SSC account. Retaliation and attempts to expose protected reporters are not allowed.
+16.4	If the system supports it, someone who sent a report without giving their name may use a private recovery code. They can check updates, answer TSBC's questions and add details without linking the report to their SSC account. Nobody may punish or expose someone for making a protected report.
 16.5	TSBC may preserve evidence and relevant records during an investigation. It can hide private or identifying information when sharing evidence. The person accused must still get enough information to respond fairly.
 16.6	A report, accusation or automated flag is not proof that someone broke a rule. TSBC must review the facts before deciding that misconduct happened.
 17.1	TSBC should choose a response that fits the actual problem and its impact. Where possible, it should first fix an invalid vote or other correctable problem instead of applying an unrelated penalty. Any penalty must take account of intent, harm, previous conduct and efforts to correct the mistake.
-17.2	SSC has ten official penalty levels, from a warning to a lifetime ban. TSBC chooses the level based on how serious the proven breach was and the relevant circumstances. Fixed contest-point penalties are subtracted in full from the country's contest score. A deduction can produce a negative score; it must not be silently capped at zero. Bonus-point penalties apply only to bonus points; where an edition awards no bonus points, Levels 2 and 3 cannot be applied as written. TSBC must instead choose another existing sanction level suited to the proven breach, without automatically converting bonus-point penalties into regular contest-point deductions. Aggravating or mitigating factors may justify a different level. The exact ten levels are listed below.
-17.3	The listed violation levels are normal starting points rather than automatic outcomes. TSBC may choose a stronger or lighter penalty when aggravating or mitigating factors (reasons to increase or reduce it) justify that choice. The examples below include vote trading, which normally starts at Level 9.
+17.2	SSC has ten penalty levels, from a warning to a lifetime ban. TSBC picks a level based on how serious the proven rule break was. It must also consider the facts of the case. § Fixed contest-point penalties are subtracted in full from the country's contest score. This may leave a negative score; it cannot be quietly stopped at zero. Bonus-point penalties affect bonus points only. Where an edition awards no bonus points, Levels 2 and 3 cannot be used as written. TSBC must choose another existing penalty level that fits the rule break and record why. It cannot quietly turn a bonus-point penalty into a normal point penalty. § Reasons for a stronger or lighter penalty may change the level chosen. The ten levels are listed below.
+17.3	The listed penalty levels are starting points, not automatic results. TSBC may use a stronger or lighter penalty when it has a good reason and explains it. The examples below include vote trading, which normally starts at Level 9.
 17.4	A penalty may be stronger if someone repeatedly breaks the rules, hides evidence, encourages others to cheat or deliberately causes major disruption.
 17.5	A penalty may be lighter if someone admits a mistake, cooperates, fixes the problem quickly or shows that the breach was genuinely unintentional.
 17.6	An Official Warning is a formal notice that a similar future breach may lead to a stronger penalty. TSBC may take earlier relevant warnings into account in later editions.
@@ -98,27 +98,27 @@ const BODY_ROWS = String.raw`
 18.4	After reviewing an appeal, TSBC may keep the penalty, make it lighter, remove it or make it stronger if important new evidence justifies this. The appeal decision is final under SSC's normal process.
 18.5	You may make a genuine appeal even if TSBC later rejects it. Do not use appeals only to spam, harass people or deliberately delay a case.
 18.6	An official who is closely involved in a case or has a serious personal conflict should not decide it when another eligible reviewer can take over. A complaint about an official should not normally be decided only by that same official.
-19.1	Force Majeure means an unexpected exceptional event outside reasonable control that prevents SSC from running normally. Examples include major platform outages, widespread internet failures, disasters, serious illness affecting essential organisers and a previously accepted video being removed by a platform.
+19.1	A major emergency is a serious, unexpected event that people cannot reasonably control and that stops SSC from running normally. Examples include a major website failure, an internet outage affecting many people, a natural disaster, serious illness affecting essential organisers, or a platform removing an accepted song's video.
 19.2	During an emergency outside reasonable control, TSBC may extend deadlines, postpone votes, reopen an affected process, replace unavailable material, pause an edition or cancel it when necessary. TSBC should announce its decision as soon as reasonably possible.
-19.3	If an accepted song's video or other media disappears for reasons outside the delegation's control, TSBC may approve a suitable replacement video or another fair way for the entry to remain in the competition.
+19.3	If an accepted song's video or other media is removed for reasons outside the delegation's control, TSBC may approve a replacement. It may also choose another fair way for that entry to stay in the contest.
 19.4	An emergency adjustment should reduce disruption and treat affected countries fairly. Its purpose is to restore the situation that would reasonably have existed without the emergency, not give anyone a new advantage.
-20.1	For each edition, TSBC must publish a single clear set of edition-specific details, such as confirmation places, opening times, deadlines, competition format, jury and televote rules, points, results dates and hosting arrangements. Publish these before they become relevant. Players should not have to reconstruct them from scattered messages.
-20.2	The General Regulations apply to every edition. An edition may set different details only where the General Regulations allow it. An exception to a General Regulation must be clearly announced, explain what it covers and be made known before it can fairly affect participants, except for urgent corrections allowed under Rule 21.1. Private habits or old edition practices do not quietly override the written rules.
+20.1	For every edition, TSBC must publish one clear list of the rules and details that can change between contests. This includes confirmation places, opening times, deadlines, show format, voting rules, points, result dates and hosting plans. Publish each detail before it matters. Players should not have to search through private messages to find official rules.
+20.2	The General Regulations apply to every edition. An edition can change a detail only when these General Regulations allow it. TSBC must clearly explain any allowed change before it affects players. An urgent fix under Rule 21.1 is the only exception to that timing rule. Private messages and habits from old editions cannot quietly change the written rules.
 21.1	TSBC may improve or update the rules between editions. A major competitive rule should not normally change after the relevant competition stage starts. An urgent change is allowed to fix a serious error, technical problem, manipulation risk or other issue threatening fairness.
-21.2	If a rule is genuinely unclear, TSBC must explain how it applies using fairness, consistency, transparency, equal treatment and the contest's integrity as guiding principles.
+21.2	If a rule is unclear, TSBC must explain it fairly. It must treat similar cases in the same way, give clear reasons, treat countries equally and protect fair competition.
 21.3	The rulebook version marked Current in Solaris Studio is the official version. Older versions remain available as history and normally stop applying when replaced.
 21.4	An updated rulebook or amendment starts applying on the effective date and time announced by TSBC, and remains in place until it is replaced or changed.
-22.1	You control your own fictional country's normal stories, including its government, culture, cities, internal politics and military. You cannot decide major permanent outcomes for another represented country without the permission required by these rules. A claim in roleplay does not itself change official Solaris records.
-22.2	If a shared story would permanently change another Protected country in an important way, its active Head of Delegation must normally agree to that specific outcome. Silence, temporary absence or withdrawing from one edition is not permission. Agreeing to play out a war does not automatically mean agreeing to annexation or destruction.
-22.3	You can tell stories about wars, invasions, battles and peace agreements, and decide what your own fictional forces do. But starting a war does not let you permanently conquer, annex or erase another Protected country without its required permission. A temporary occupation can be part of an agreed story without changing the official map.
-22.4	A country is Protected if it has an active Head of Delegation, or if it has had fewer than six consecutive completed editions with no active HoD at any point in each edition. Withdrawal, suspension, temporary absence and missing an edition do not immediately remove this protection. If it had an active HoD at any time during an edition, that edition does not count toward the six. You cannot permanently take over a Protected country without the required consent.
-22.5	A country becomes Dormant after six consecutive SSC Editions have fully finished with no active Head of Delegation at any point in any of those editions. Count completed editions, not months. Having an active HoD even briefly in an edition breaks the count. TSBC records settle disputes about the count. A new HoD before official elimination restores protection immediately. Dormant does not mean the country's past entries or scores disappear.
-22.6	Once a country is Dormant, other countries may conquer, annex (take over), partition (divide), absorb or completely eliminate it from the present-day fictional Solaris map, following the official map process in Rule 22.7. They cannot do this to a still-Protected country. The former country's historical entries, votes and results remain untouched.
-22.7	A public claim or unofficial map image does not automatically change the official Solaris world map. Changes to borders or the existence of countries must be recorded through TSBC's map process. TSBC checks status, resolves competing claims, records the recognised outcome and keeps official maps consistent. Posting first does not automatically win a disputed claim.
-22.8	If a new HoD takes over a Dormant country before it is officially eliminated, that country becomes Protected immediately. If it was already eliminated, a returning HoD cannot automatically reclaim borders now belonging to other countries. A restored country or successor state needs a new official map outcome.
-22.9	You may split, merge or dissolve fictional areas you control, including creating new states or autonomous regions. If another Protected country's land would change, its HoD must agree. TSBC must be able to record the updated map and country identities without rewriting past contest history.
-22.10	An annexation, merger or elimination today does not change who competed in past editions. Old entries, points, votes, flags, hosting records and results stay with the country that held them at the time, even if that country no longer exists on today's map.
-22.11	Fictional rivalry does not permit real-life harassment, threats, forged permission, impersonation or tampering with accounts and country records. Roleplay cannot be used to force someone out of SSC or falsely make a Protected country appear Dormant.
+22.1	You control the normal stories about your own fictional country. That includes its government, culture, cities, politics and army. You cannot decide a lasting change to another country's land or future without the permission these rules require. A roleplay claim alone does not change official Solaris records.
+22.2	If a story would make a lasting, major change to another Protected country, its active Head of Delegation must normally agree to that exact change. Silence, a short absence or leaving one SSC edition does not count as permission. Agreeing to a fictional war is not the same as agreeing to lose land or be destroyed.
+22.3	You can tell stories about wars, attacks, battles and peace deals. You decide what your own fictional forces do. But starting a war does not give you the right to take over, split or erase a Protected country without permission. An agreed story can include a short-term takeover without changing the official map.
+22.4	A country is Protected while it has an active Head of Delegation (HoD). It also stays Protected until six completed SSC editions in a row have passed with no active HoD at any time in any of them. An active HoD, even briefly during one edition, breaks that count. Withdrawing, missing an edition or having a short gap without an HoD does not remove protection by itself. You cannot take over a Protected country without the permission these rules require.
+22.5	A country becomes Unprotected only after six SSC editions in a row have fully ended without an active Head of Delegation (HoD) at any point during any of them. Count finished editions, not months. If an HoD is active even briefly during an edition, the count starts over. TSBC uses official records to settle any disagreement. If a new HoD becomes active before the country is removed from the official map, that country becomes Protected right away. Its past entries and scores never disappear.
+22.6	Once a country becomes Unprotected under Rule 22.5, other countries may take it over, divide its land, add it to their own countries or remove it from today's fictional Solaris map. They must follow the official map process in Rule 22.7. They cannot do this to a Protected country. Past SSC songs, votes, results and hosting records stay unchanged.
+22.7	A public claim or an unofficial map picture does not change the official Solaris map. TSBC must record changes to borders and countries through its official map process. TSBC checks which countries are Protected, reviews competing claims and records what changes are accepted. Posting a claim first does not mean you win.
+22.8	If a new HoD takes charge of an Unprotected country before it is removed from the official map, it becomes Protected again immediately. If it has already been removed, a returning HoD cannot simply take back land now held by other countries. Bringing the old country back, or creating a new country to replace it, needs a new official map decision.
+22.9	You may split, join or end fictional areas you control. You may also create new countries or regions that run some of their own affairs. If this would change a Protected country's land, its HoD must agree. TSBC must record the new map without changing the results of past contests.
+22.10	Taking over, joining or removing a country today cannot change the past. Old songs, points, votes, flags, hosting records and results stay with the country that held them at the time. This remains true even if the country no longer exists on today's map.
+22.11	A fictional rivalry never allows real-life bullying, threats, fake permission, pretending to be someone else or changing accounts and country records without permission. You cannot use roleplay to force someone out of SSC or falsely claim a Protected country is Unprotected.
 `;
 
 const SUMMARY_ROWS = String.raw`
@@ -140,7 +140,7 @@ const SUMMARY_ROWS = String.raw`
 6.1|Each participating country can submit one eligible entry, subject to TSBC checks.
 6.2|Submit an eligible song in its original Spotify studio version unless another version is approved.
 6.3|Every entry needs a suitable song video; an approved alternative may be used.
-6.4|At the official check, the artist must be under 25 million Spotify listeners and the song video under 20 million YouTube views.
+6.4|Spotify listeners and YouTube views must be below the limits when TSBC checks the entry.
 6.5|Artists who entered Eurovision or a Eurovision National Selection in 2015 or later cannot compete.
 6.6|Artists have a three-appearance limit, and reuse by another country may need permission.
 6.7|TSBC may check every credited main or featured artist, including their past SSC appearances.
@@ -150,7 +150,7 @@ const SUMMARY_ROWS = String.raw`
 7.1|An edition usually has two Semi-Finals and a Grand Final; TSBC announces its exact format.
 7.2|TSBC chooses the order of performances for the edition's presentation.
 7.3|The published voting system decides the results, and the highest score normally wins.
-7.4|Tied countries are separated using SSC's published sequence of tie-break steps.
+7.4|If two countries have the same points, check the five tie-break steps in order.
 7.5|The verified winning country receives the trophy and first right to host the next edition.
 7.6|TSBC checks results before making them final and may correct serious errors.
 8.1|The winner may creatively host the next online edition, host jointly or decline.
@@ -173,7 +173,7 @@ const SUMMARY_ROWS = String.raw`
 12.2|The official server's recorded time decides when an online action arrived.
 12.3|Submit entries and required jury votes before their deadlines.
 12.4|TSBC may extend a deadline for a justified reason and must treat affected countries fairly.
-12.5|Major official-platform failures may justify postponing or reopening affected actions.
+12.5|If an official system fails, TSBC can delay or reopen affected tasks fairly.
 12.6|Results become public only after the required checks are complete.
 13.1|TSBC creates SSC's official online show materials and presentation.
 13.2|You may use official SSC branding appropriately, but cannot alter it misleadingly.
@@ -197,12 +197,12 @@ const SUMMARY_ROWS = String.raw`
 16.1|TSBC gathers evidence and normally gives participants a chance to respond before penalising them.
 16.2|You can report a genuine concern without proving guilt yourself.
 16.3|Reporting options must explain whether your identity is anonymous or confidential, and who can see it.
-16.4|Anonymous reporters may use a private code to follow their case; retaliation is prohibited.
+16.4|People who report problems without their names may get a private code to follow updates.
 16.5|Investigators may hide private details while still giving accused participants a fair chance to respond.
 16.6|A report or automated alert is not proof of a rule breach.
 17.1|Penalties should fit the proven problem, and correctable problems should be fixed where possible.
-17.2|SSC has ten possible penalty levels, from a warning to a lifetime ban.
-17.3|Common violations have suggested penalty levels, but those levels are not automatic.
+17.2|SSC has ten penalty levels. Point penalties may bring scores below zero.
+17.3|Penalty levels are starting points. TSBC may change the level for a good reason.
 17.4|Repeated or deliberately harmful behaviour can justify a stronger penalty.
 17.5|Honest mistakes, cooperation and quick fixes can justify a lighter penalty.
 17.6|A formal warning means similar future misconduct may receive a stronger penalty.
@@ -214,24 +214,24 @@ const SUMMARY_ROWS = String.raw`
 18.4|An appeal can keep, reduce, remove or sometimes increase a penalty.
 18.5|Genuine appeals are allowed, but appeals cannot be used to harass or stall a case.
 18.6|An official with a serious personal conflict should not be the only person deciding a case.
-19.1|Major events outside anyone's reasonable control may require emergency contest changes.
+19.1|A major emergency is an unexpected problem that seriously affects SSC.
 19.2|During an emergency, TSBC may delay, reopen, pause or cancel affected contest processes.
-19.3|If accepted media becomes unavailable unexpectedly, TSBC may approve a replacement.
+19.3|TSBC may allow a new video if an accepted one disappears through no fault of the country.
 19.4|Emergency changes should restore fairness, not give a country an extra advantage.
-20.1|Each edition must publish its own dates, formats, voting limits and other changeable details.
-20.2|General rules apply to all editions; edition rules can change only permitted details.
+20.1|Each edition must publish its special dates, places, voting limits and other details.
+20.2|Edition rules can change the general rules only when the general rules allow it.
 21.1|TSBC may update rules, but major competition changes should not normally happen mid-stage.
-21.2|TSBC decides genuinely unclear cases fairly and consistently.
+21.2|When a rule is unclear, TSBC must give a fair, clear answer.
 21.3|The version marked Current in Solaris Studio is the official rulebook.
 21.4|New or amended rules start applying from the effective date and time TSBC announces.
 22.1|You may shape your own country's fictional story, but not permanently rewrite someone else's.
 22.2|Permanent changes to another Protected country normally need that country's HoD to agree.
 22.3|You may roleplay wars, but an invasion alone does not let you permanently take another country's land.
-22.4|A country stays Protected until it has completed six editions in a row with no active HoD.
-22.5|A country becomes Dormant after six completed editions in a row without any active HoD.
-22.6|A Dormant country may be taken over, divided or eliminated from today's map, but its past scores remain.
+22.4|A country stays Protected until six completed editions in a row pass without an active HoD.
+22.5|A country becomes Unprotected only after six finished editions in a row without an active HoD at any time.
+22.6|An Unprotected country may be taken over or divided, but its past SSC results stay.
 22.7|Permanent border changes must be recorded by TSBC; unofficial claims do not change the map.
-22.8|A returning HoD restores protection before elimination, but not automatically the borders of an eliminated country.
+22.8|A new HoD restores protection before the country is removed from the official map.
 22.9|You may split or merge fictional countries you control, but need consent for another Protected country's land.
 22.10|Changes to today's countries never change past SSC entries, votes or results.
 22.11|Fictional wars never justify real harassment, impersonation or forged consent.
@@ -287,35 +287,35 @@ const SPECIFIC_CHANGES: Record<string, RuleWordingPatch> = {
     "important": "A withdrawal after the submission deadline but before publication is not automatically penalised only because that deadline passed. After publication, Rule 15.2 applies if the withdrawal seriously disrupts the edition."
   },
   "17.2": {
-    "important": "Fixed point penalties are subtracted from contest points. Levels 2 and 3 affect bonus points only. If there are no bonus points, TSBC must choose another existing appropriate level rather than silently convert the penalty. Fixed contest-point deductions apply in full and may result in a negative score. Aggravating or mitigating factors (reasons for a stronger or lighter penalty) still matter."
+    "important": "Fixed point penalties are subtracted from contest points. Levels 2 and 3 affect bonus points only. If there are no bonus points, TSBC must choose another existing appropriate level rather than silently convert the penalty. Fixed contest-point deductions apply in full and may result in a negative score. Aggravating or reasons for a lighter penalty (reasons for a stronger or lighter penalty) still matter."
   },
   "20.2": {
     "important": "A private message, an older edition's custom or silence cannot silently change the published rules. Urgent exceptions must follow Rule 21.1."
   },
   "22.4": {
     "summary": "Your country stays protected while it has an active HoD or has not yet completed six whole editions in a row without one.",
-    "important": "Not competing in one edition, losing an HoD temporarily or withdrawing does not mean that someone else may annex your country."
+    "important": "Not competing in one edition, losing an HoD temporarily or withdrawing does not mean that someone else may take over your country."
   },
   "22.5": {
-    "summary": "Dormant means six completed SSC editions in a row with no active Head of Delegation at any point.",
-    "important": "Dormant status allows permanent fictional map changes under Rule 22.6 but does not delete old entries, scores or results. A new HoD before official elimination immediately restores protection.",
+    "summary": "Unprotected means six completed SSC editions in a row with no active Head of Delegation at any point.",
+    "important": "Unprotected status allows permanent fictional map changes under Rule 22.6 but does not delete old entries, scores or results. A new HoD before official elimination immediately restores protection.",
     "bullets": [
       "0 to 5 completed editions in a row without an active HoD: the country is still Protected.",
-      "6 completed editions in a row without an active HoD: the country becomes Dormant.",
+      "6 completed editions in a row without an active HoD: the country becomes Unprotected.",
       "If an HoD is active even once during an edition, that edition does not count toward the six.",
       "A new active HoD before official elimination makes the country Protected immediately."
     ]
   },
   "22.6": {
-    "important": "This applies only after the exact six-edition Dormant test in Rule 22.5 and the map-recording steps in Rule 22.7. Old SSC results cannot be deleted.",
+    "important": "This applies only after the exact six-edition Unprotected test in Rule 22.5 and the map-recording steps in Rule 22.7. Old SSC results cannot be deleted.",
     "allowed": [
-      "Take over all or part of a Dormant country's fictional territory.",
+      "Take over all or part of a Unprotected country's fictional territory.",
       "Divide its land between other countries.",
       "Remove it as a country on today's map, while keeping its past SSC history.",
       "Create new fictional territories or states from its former land if the official map remains clear."
     ],
     "prohibited": [
-      "Take over a country before it completes the six-edition Dormant test.",
+      "Take over a country before it completes the six-edition Unprotected test.",
       "Delete or rewrite the former country's past SSC songs, votes, results or hosting records."
     ]
   }
@@ -329,7 +329,38 @@ export const CLEAR_RULE_BODIES: Record<string, string[]> = Object.fromEntries(
   }),
 );
 
-/** Keep examples, official thresholds, exact sanction levels and search tags intact. */
+
+// Titles and help examples from the current rulebook are also shown on v4.2 pages.
+// Change labels here only in the v4.2 draft; never rewrite official v4.1 history.
+const TEEN_FRIENDLY_TITLES: Record<string, string> = {
+  "6.4": "Spotify and YouTube limits",
+  "7.4": "What happens when scores are tied",
+  "17.2": "The ten penalty levels",
+  "17.3": "How TSBC chooses a penalty",
+  "19.1": "What counts as a major emergency",
+  "22.4": "When a country stays Protected",
+  "22.5": "When a country becomes Unprotected",
+  "22.6": "What can happen to an Unprotected country",
+  "22.7": "How changes to the official map work",
+  "22.8": "When an Unprotected country gets a new HoD",
+};
+function simplifyOlderDisplayText(value: string): string {
+  return value
+    .replace(/\bDormant\b/g, "Unprotected")
+    .replace(/\bdormant\b/g, "unprotected")
+    .replace(/\bDormancy\b/g, "Time without an HoD")
+    .replace(/\bForce Majeure\b/g, "major emergency")
+    .replace(/\bAnnexation\b/g, "Taking over land")
+    .replace(/\bannexation\b/g, "taking over land")
+    .replace(/\bMitigating factors\b/g, "Reasons for a lighter penalty")
+    .replace(/\bAggravating factors\b/g, "Reasons for a stronger penalty")
+    .replace(/\bmitigating factors\b/g, "reasons for a lighter penalty")
+    .replace(/\baggravating factors\b/g, "reasons for a stronger penalty")
+    .replace(/\bSanctions\b/g, "Penalties")
+    .replace(/\bsanction\b/g, "penalty");
+}
+
+/** Keep examples, official thresholds, exact penalty levels and search tags intact. */
 export function withPlainLanguage<T extends SscRule>(rule: T): T {
   const body = CLEAR_RULE_BODIES[rule.id];
   if (!body) throw new Error(`Missing plain-English wording for SSC Rule ${rule.id}`);
@@ -337,11 +368,17 @@ export function withPlainLanguage<T extends SscRule>(rule: T): T {
   return {
     ...rule,
     ...extra,
-    summary: extra.summary ?? PLAIN_SUMMARIES[rule.id] ?? rule.summary,
+    title: TEEN_FRIENDLY_TITLES[rule.id] ?? simplifyOlderDisplayText(rule.title),
+    summary: simplifyOlderDisplayText(extra.summary ?? PLAIN_SUMMARIES[rule.id] ?? rule.summary),
     body: [...body],
-    allowed: extra.allowed ?? rule.allowed,
-    prohibited: extra.prohibited ?? rule.prohibited,
-    bullets: extra.bullets ?? rule.bullets,
-    examples: extra.examples ?? rule.examples,
+    important: (extra.important ?? rule.important) ? simplifyOlderDisplayText((extra.important ?? rule.important)!) : undefined,
+    allowed: (extra.allowed ?? rule.allowed)?.map(simplifyOlderDisplayText),
+    prohibited: (extra.prohibited ?? rule.prohibited)?.map(simplifyOlderDisplayText),
+    bullets: (extra.bullets ?? rule.bullets)?.map(simplifyOlderDisplayText),
+    examples: (extra.examples ?? rule.examples)?.map((example) => ({
+      ...example,
+      title: simplifyOlderDisplayText(example.title),
+      detail: simplifyOlderDisplayText(example.detail),
+    })),
   };
 }
