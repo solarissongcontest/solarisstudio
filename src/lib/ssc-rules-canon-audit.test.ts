@@ -113,10 +113,10 @@ describe("SSC current canon audit", () => {
 
   it("carries the already-published v4.0.1 definitions into the current structural canon", () => {
     const definitions = textFor("2.1");
-    expect(definitions).toContain("an appeal is a request");
+    expect(definitions).toContain("appeal: a request for tsbc to review a decision");
     expect(definitions).toContain("head of delegation (hod)");
     expect(definitions).toContain("official contest channel");
-    expect(definitions).toContain("withdrawal means a country formally leaves");
+    expect(definitions).toContain("withdrawal: when a country formally leaves");
   });
 
   it("preserves the Roleplay & Worldbuilding protection and Dormant contracts", () => {
