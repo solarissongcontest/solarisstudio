@@ -303,7 +303,7 @@ describe("V3 PR current-main freshness guard", () => {
 });
 
 describe("live GitHub freshness publication race", () => {
-  async function scenario(options: { changedHead?: boolean; mainAfterSuccess?: string }) {
+  async function scenario(options: { changedHead?: boolean; mainAfterSuccess?: string; transientPullMetadataFailures?: number }) {
     const previous = Object.fromEntries(
       ["GITHUB_REPOSITORY", "GITHUB_TOKEN", "V3_CURRENT_PR", "V3_EXPECTED_HEAD_SHA", "GITHUB_STEP_SUMMARY"].map((key) => [key, process.env[key]]),
     );
@@ -329,6 +329,9 @@ describe("live GitHub freshness publication race", () => {
         payload = {};
       } else if (url.endsWith("/pulls/123")) {
         pullReads += 1;
+        if (pullReads <= (options.transientPullMetadataFailures ?? 0)) {
+          return new Response(JSON.stringify({ message: "The request could not be processed because too many files changed" }), { status: 422, headers: { "Content-Type": "application/json" } });
+        }
         payload = { number: 123, title: "[V3-QA] Verify freshness", base: { ref: "main" }, head: { ref: "v3/qa-example", sha: options.changedHead && pullReads > 1 ? OTHER_HEAD : HEAD } };
       } else if (url.endsWith("/branches/main")) {
         mainReads += 1;
@@ -373,5 +376,15 @@ describe("live GitHub freshness publication race", () => {
     const result = await scenario({});
     expect(result.exitCode).toBe(0);
     expect(result.posts.map((post) => [post.sha, post.state])).toEqual([[HEAD, "success"]]);
+  });
+
+  it("survives two transient GitHub PR metadata 422 errors without relaxing exact-head verification", async () => {
+    const result = await scenario({ transientPullMetadataFailures: 2 });
+    expect(result.exitCode).toBe(0);
+    expect(result.posts.map((post) => [post.sha, post.state])).toEqual([[HEAD, "success"]]);
+  });
+
+  it("fails closed after three consecutive GitHub PR metadata 422 responses", async () => {
+    await expect(scenario({ transientPullMetadataFailures: 3 })).rejects.toThrow(/GitHub API 422/);
   });
 });

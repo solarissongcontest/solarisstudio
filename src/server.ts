@@ -10,10 +10,13 @@ import {
 import {
   GLOBAL_MAINTENANCE_MODE,
   isMaintenanceHodAppRouteAllowed,
+  isMaintenancePlatformRecoveryRouteAllowed,
+  MAINTENANCE_PLATFORM_PREFLIGHT_PATH,
   maintenanceHodAccessEnabled,
 } from "./lib/maintenance";
 import { renderMaintenanceHodPortal } from "./lib/maintenance-hod-portal";
 import { renderMaintenancePage } from "./lib/maintenance-page";
+import { renderV42MaintenancePreview } from "./lib/rules-v42-maintenance-preview";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -474,6 +477,30 @@ export default {
       const secret = maintenanceSecret(env);
       const hod = maintenanceHodRuntime(env);
 
+      // Explicit public, static, zero-network rulebook preview during maintenance.
+      // Neither the TanStack app nor Supabase is initialized for this response.
+      // Every non-GET/HEAD method remains subject to the normal maintenance gate.
+      if (
+        GLOBAL_MAINTENANCE_MODE &&
+        url.pathname === "/rules/v4-2-preview" &&
+        (request.method === "GET" || request.method === "HEAD")
+      ) {
+        return new Response(
+          request.method === "HEAD" ? null : renderV42MaintenancePreview(),
+          {
+            status: 200,
+            headers: {
+              "content-type": "text/html; charset=utf-8",
+              "cache-control": "public, max-age=300",
+              "x-content-type-options": "nosniff",
+              "x-robots-tag": "noindex, nofollow",
+              "content-security-policy":
+                "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+            },
+          },
+        );
+      }
+
       if (url.pathname === MAINTENANCE_ADMIN_PATH) {
         return await handleMaintenanceAdminRequest(request, secret);
       }
@@ -502,6 +529,27 @@ export default {
         request.method,
         hod.enabled,
       );
+      const recoveryRouteAllowed =
+        GLOBAL_MAINTENANCE_MODE &&
+        isMaintenancePlatformRecoveryRouteAllowed(url.pathname, request.method);
+
+      // Only this exact recovery POST may reach its handler while maintenance
+      // blocks all other ordinary write transports. Require same-origin browser
+      // requests plus a user JWT; the handler re-verifies the user, Organizer
+      // role and maintenance.manage capability via the canonical database.
+      if (recoveryRouteAllowed && url.pathname === MAINTENANCE_PLATFORM_PREFLIGHT_PATH) {
+        if (!sameOrigin(request)) {
+          return new Response("Recovery request origin rejected.", { status: 403 });
+        }
+        if (!/^Bearer\s+[^\s]+$/.test(request.headers.get("authorization") ?? "")) {
+          return new Response("Organizer authentication required.", { status: 401 });
+        }
+        const contentLength = Number(request.headers.get("content-length") ?? "0");
+        if (Number.isFinite(contentLength) && contentLength > 512) {
+          return new Response("Recovery request too large.", { status: 413 });
+        }
+      }
+
       const teaserPreviewAllowed = isTerraOsTeaserPreviewRequest(url, request.method);
       const maintenanceAppAssetAllowed = isMaintenanceAppAssetPath(url.pathname);
       let maintenanceAdminBypass = false;
@@ -511,7 +559,8 @@ export default {
         !MAINTENANCE_ASSET_PATHS.has(url.pathname) &&
         !maintenanceAppAssetAllowed &&
         !teaserPreviewAllowed &&
-        !hodAppRouteAllowed
+        !hodAppRouteAllowed &&
+        !recoveryRouteAllowed
       ) {
         const localE2EBypass = hasLocalE2EMaintenanceBypass(request);
         maintenanceAdminBypass =

@@ -16,6 +16,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   auditV3ProductionMigrationFrontier,
+  assessV3ProductionMigrationCandidateIdentity,
   type HostedMigration,
 } from "../src/lib/v3-production-migration-frontier";
 
@@ -42,11 +43,13 @@ try {
   const audit = auditV3ProductionMigrationFrontier(repositoryFiles, hosted);
   const candidateSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
   const expectedSha = flagValue("--expected-sha");
-  const shaMismatch = expectedSha !== null && candidateSha !== expectedSha;
+  const strictReconciliation = args.includes("--require-reconciled");
+  const identity = assessV3ProductionMigrationCandidateIdentity(candidateSha, expectedSha, strictReconciliation);
   const result = {
     candidateSha,
     ...audit,
-    candidateShaMatchesExpected: !shaMismatch,
+    candidateShaMatchesExpected: identity.matchesExpected,
+    candidateIdentityError: identity.error,
     productionDeploymentAuthorized: false,
     note: "Read-only history reconciliation only: never proof of migration replay, data compatibility, deployment approval or release certification.",
   };
@@ -54,7 +57,7 @@ try {
   if (args.includes("--json")) {
     console.log(JSON.stringify(result, null, 2));
   } else {
-    console.log(`V3 production migration frontier (${candidateSha}): ${audit.historyReconciled && !shaMismatch ? "RECONCILED" : "BLOCKED"}`);
+    console.log(`V3 production migration frontier (${candidateSha}): ${audit.historyReconciled && identity.acceptable ? "RECONCILED" : "BLOCKED"}`);
     console.log(`Hosted head: ${audit.hostedHead ?? "missing"}; repository head: ${audit.repositoryHead ?? "missing"}`);
     console.log(`Historical bootstrap-only versions: repository ${audit.historicalRepoOnlyCount}, hosted ${audit.historicalHostedOnlyCount}`);
     console.log(`Post-cutover holes before hosted head: ${audit.holesBeforeHostedHead.length}`);
@@ -65,10 +68,10 @@ try {
     for (const f of audit.unknownHostedPostCutover) console.error(`HOSTED-ONLY: ${f.version} ${f.name ?? "unnamed"}`);
     for (const issue of audit.nameMismatches) console.error(`NAME MISMATCH: ${issue.version} (${issue.repositoryName} != ${issue.hostedName})`);
     for (const error of audit.errors) console.error(`INVALID EVIDENCE: ${error}`);
-    if (shaMismatch) console.error(`SHA MISMATCH: checkout ${candidateSha} != expected ${expectedSha}`);
+    if (identity.error) console.error(`CANDIDATE IDENTITY: ${identity.error}`);
   }
 
-  if (shaMismatch || (args.includes("--require-reconciled") && !audit.historyReconciled)) process.exit(1);
+  if (!identity.acceptable || (strictReconciliation && !audit.historyReconciled)) process.exit(1);
 } catch (error) {
   console.error(`FAIL CLOSED: could not verify hosted migration history: ${error instanceof Error ? error.message : String(error)}`);
   process.exit(2);
