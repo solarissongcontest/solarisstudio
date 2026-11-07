@@ -88,11 +88,13 @@ describe("Solaris V6 consequential command recovery", () => {
     );
     expect(systemOperations).toContain("retryIdentities.current.get(deliveryId)");
     expect(systemOperations).toContain("retryIdentities.current.set(deliveryId, identity)");
-    expect(systemOperations).toContain("retry.mutate({ deliveryId, ...identity })");
-    expect(systemOperations).toContain("resolveSolarisV6OperationRecovery");
-    expect(systemOperations).toContain("Retry same operation");
-    expect(systemOperations).toContain("recovery.shouldRefreshCanonical");
-    expect(systemOperations).toContain("retryIdentities.current.delete(variables.deliveryId)");
+    const retryAdapter = source("src/lib/v3-organizer-delivery-retry.ts");
+    expect(systemOperations).toContain("retry.mutate({ deliveryId, ...identity, actorIdAtRequest: actorId })");
+    expect(retryAdapter).toContain("resolveSolarisV6OperationRecovery");
+    expect(systemOperations).toContain("Reconcile operation");
+    expect(retryAdapter).toContain('"studio2_reconcile_operation"');
+    expect(retryAdapter).toContain("allowSameIdentityRetry: isMissingReceipt(error)");
+    expect(systemOperations).toContain("retryIdentities.current.delete(deliveryId)");
   });
 
   it("fails toward canonical refresh when no stable operation identity exists", () => {
