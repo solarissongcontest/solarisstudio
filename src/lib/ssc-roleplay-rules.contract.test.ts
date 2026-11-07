@@ -93,7 +93,7 @@ describe("SSC Roleplay & Worldbuilding contract", () => {
     expect(detail).toContain("Examples");
     expect(checker).toContain("min-h-12");
     expect(journey).toContain("md:grid-cols-2");
-    expect(search).toContain("findRuleSearchQuickAnswer(q)");
+    expect(search).toContain("findRuleSearchQuickAnswer(q, version)");
     expect(search).not.toContain("findRoleplayQuickAnswer");
     // The canonical matcher preserves authored roleplay answers but declines
     // to invent a verdict for generic or unrelated question strings.
