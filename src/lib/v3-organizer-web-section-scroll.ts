@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 /**
- * Reveal a browser section without invoking scrollIntoView, which can move
+ * Reveal a browser section without page-level scrolling, which can move
  * the entire document and interfere with the phone browser's address bar.
  */
 export function organizerWebSectionRevealDelta(
