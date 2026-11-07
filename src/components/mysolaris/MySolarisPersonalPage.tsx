@@ -3,6 +3,7 @@ import { Bookmark, ChevronRight, Sparkles } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
 
 import { PageHeader, Panel } from "@/components/AppShell";
+import { WorldSavedInstitutionFollows } from "@/components/world/WorldSavedInstitutionFollows";
 import { editionLabel, useCountries, useEditions } from "@/lib/data";
 import { useContentEvents, useMyFollows } from "@/lib/engagement-data";
 import { useFanSession, useMyPredictionHistory } from "@/lib/prediction-data";
@@ -21,7 +22,7 @@ const COPY: Record<MySolarisPersonalView, { title: string; description: string }
   },
   saved: {
     title: "Saved",
-    description: "Countries and editions you follow, without mixing them into account settings.",
+    description: "Countries, editions and Terra Solaris institutions you follow.",
   },
 };
 
@@ -181,6 +182,13 @@ export function MySolarisPersonalPage({ view }: { view: MySolarisPersonalView })
               <EmptyState>Follow an edition and it will appear here.</EmptyState>
             )}
           </Panel>
+          <WorldSavedInstitutionFollows
+            viewerId={userQuery.data?.id}
+            follows={followsQuery.data?.schemaReady === true ? followsQuery.data.follows : undefined}
+            loading={userQuery.isLoading || followsQuery.isLoading}
+            failed={userQuery.isError || followsQuery.isError}
+            schemaReady={followsQuery.data?.schemaReady === true}
+          />
         </div>
       ) : null}
     </>

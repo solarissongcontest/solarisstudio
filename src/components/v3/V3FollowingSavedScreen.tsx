@@ -1,8 +1,12 @@
 import { Link } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { Bell, BellOff, BookmarkCheck, ChevronRight, Radio, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useAllShows, useCountries, useEditions } from "@/lib/data";
+import { WorldOrganizationFollowControl } from "@/components/world/WorldOrganizationFollowControl";
+import { setWorldOrganizationFollow } from "@/lib/world-organization-follows";
+import { usePublishedWorldFollowing } from "@/lib/use-world-following-public";
 import { useMyFollows, useSetFanFollow } from "@/lib/engagement-data";
 import {
   buildV3FollowingSavedProjection,
@@ -21,6 +25,8 @@ const LEVELS: Array<{ value: V3FollowNotificationLevel; label: string }> = [
 function typeLabel(type: V3FollowingSavedItem["entityType"]) {
   if (type === "country") return "Countries";
   if (type === "edition") return "Editions";
+  if (type === "organization") return "Institutions";
+  if (type === "unsupported") return "Other saved items";
   return "Shows";
 }
 
@@ -35,11 +41,15 @@ function SavedItem({
   pending,
   onLevel,
   onRemove,
+  topicsOpen,
+  onTopics,
 }: {
   item: V3FollowingSavedItem;
   pending: boolean;
   onLevel: (level: V3FollowNotificationLevel) => void;
   onRemove: () => void;
+  topicsOpen: boolean;
+  onTopics: () => void;
 }) {
   const LevelIcon = levelIcon(item.notificationLevel);
   const title = item.href ? (
@@ -74,7 +84,7 @@ function SavedItem({
               </span>
               <select
                 value={item.notificationLevel}
-                disabled={pending}
+                disabled={pending || item.entityType === "unsupported"}
                 onChange={(event) => onLevel(event.target.value as V3FollowNotificationLevel)}
                 className="min-h-11 rounded-xl border border-[var(--v3-border)] bg-[var(--v3-bg-elevated)] px-3 text-sm font-medium text-[var(--v3-text-primary)] disabled:opacity-60"
                 aria-label={`Notification level for ${item.title}`}
@@ -86,7 +96,7 @@ function SavedItem({
             </label>
             <button
               type="button"
-              disabled={pending}
+              disabled={pending || item.entityType === "unsupported"}
               onClick={onRemove}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--v3-border)] px-3 text-sm font-semibold text-[var(--v3-text-secondary)] disabled:opacity-60"
             >
@@ -94,6 +104,12 @@ function SavedItem({
               Remove
             </button>
           </div>
+          {item.entityType === "organization" ? (
+            <button type="button" onClick={onTopics} disabled={pending} aria-expanded={topicsOpen}
+              className="mt-3 min-h-11 rounded-xl border border-[var(--v3-border)] px-3 text-sm font-semibold">
+              {topicsOpen ? "Close institution topics" : "Manage institution topics"}
+            </button>
+          ) : null}
         </div>
       </div>
     </V3Surface>
@@ -106,14 +122,27 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
   const editions = useEditions();
   const shows = useAllShows();
   const setFollow = useSetFanFollow(viewerId);
+  const queryClient = useQueryClient();
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const mutationInFlight = useRef(false);
   const [message, setMessage] = useState<{ viewerId: string; text: string } | null>(null);
   const [search, setSearch] = useState("");
+  const [expandedWorldFollow, setExpandedWorldFollow] = useState<string | null>(null);
+
+  const worldFollowing = usePublishedWorldFollowing({
+    viewerId,
+    follows: follows.data?.schemaReady === true ? follows.data.follows : undefined,
+  });
+  const organizationIds = worldFollowing.ids;
+  const verifiedOrganizations = worldFollowing.organizations;
 
   useEffect(() => {
     setMessage(null);
     setSearch("");
+  }, [viewerId]);
+
+  useEffect(() => {
+    setExpandedWorldFollow(null);
   }, [viewerId]);
 
   const projection = useMemo(() => {
@@ -124,8 +153,9 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
       countries: countries.data ?? [],
       editions: editions.data ?? [],
       shows: shows.data ?? [],
+      organizations: verifiedOrganizations,
     });
-  }, [countries.data, editions.data, follows.data, shows.data, viewerId]);
+  }, [countries.data, editions.data, follows.data, shows.data, verifiedOrganizations, viewerId]);
   const visibleItems = useMemo(
     () => searchV3FollowingSavedItems(projection?.items ?? [], search),
     [projection, search],
@@ -162,17 +192,26 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
     notificationLevel = item.notificationLevel,
   ) => {
     if (mutationInFlight.current) return;
+    if (item.entityType === "unsupported") return;
     mutationInFlight.current = true;
     const operationKey = `${item.entityType}:${item.entityId}`;
     setPendingKey(operationKey);
     setMessage(null);
     try {
-      await setFollow.mutateAsync({
-        entityType: item.entityType,
-        entityId: item.entityId,
-        following,
-        notificationLevel,
-      });
+      if (item.entityType === "organization") {
+        await setWorldOrganizationFollow(item.entityId, following, notificationLevel);
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["fan-follows", viewerId] }),
+          queryClient.invalidateQueries({ queryKey: ["world-organization-follow", viewerId, item.entityId] }),
+        ]);
+      } else {
+        await setFollow.mutateAsync({
+          entityType: item.entityType,
+          entityId: item.entityId,
+          following,
+          notificationLevel,
+        });
+      }
       setMessage({ viewerId, text: following ? `Updated ${item.title}.` : `Removed ${item.title} from Following & Saved.` });
     } catch (error) {
       console.error("[V3 Following & Saved] Preference update failed", error);
@@ -195,6 +234,12 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
         {message?.viewerId === viewerId ? (
           <p className="mb-4 rounded-xl border border-[var(--v3-border)] px-4 py-3 text-sm" role="status" aria-live="polite">
             {message.text}
+          </p>
+        ) : null}
+
+        {organizationIds.length > 0 && worldFollowing.isError ? (
+          <p role="status" className="mb-4 text-sm text-[var(--v3-text-secondary)]">
+            Institution names cannot currently be verified. Your private follows remain manageable.
           </p>
         ) : null}
 
@@ -246,7 +291,7 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
                   type="search"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Country, edition or show"
+                  placeholder="Country, edition, show or institution"
                   className="min-h-11 rounded-xl border border-[var(--v3-border)] bg-[var(--v3-bg-elevated)] px-3 text-sm text-[var(--v3-text-primary)]"
                 />
               </label>
@@ -266,20 +311,28 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
                 </button>
               </V3Surface>
             ) : null}
-            {(["country", "edition", "show"] as const).map((entityType) => {
+            {(["country", "edition", "show", "organization", "unsupported"] as const).map((entityType) => {
               const items = visibleItems.filter((item) => item.entityType === entityType);
               if (!items.length) return null;
               return (
                 <V3Section key={entityType} title={typeLabel(entityType)} meta={search.trim() ? `${items.length} matching` : `${items.length} saved`}>
                   <div className="grid gap-3">
                     {items.map((item) => (
-                      <SavedItem
-                        key={item.followId}
-                        item={item}
-                        pending={Boolean(pendingKey)}
-                        onLevel={(level) => void updateFollow(item, true, level)}
-                        onRemove={() => void updateFollow(item, false)}
-                      />
+                      <div key={item.followId}>
+                        <SavedItem
+                          item={item}
+                          pending={Boolean(pendingKey)}
+                          onLevel={(level) => void updateFollow(item, true, level)}
+                          onRemove={() => void updateFollow(item, false)}
+                          topicsOpen={expandedWorldFollow === item.followId}
+                          onTopics={() => setExpandedWorldFollow((previous) => previous === item.followId ? null : item.followId)}
+                        />
+                        {item.entityType === "organization" && expandedWorldFollow === item.followId ? (
+                          <div className="mt-2 rounded-xl border border-[var(--v3-border)] p-4">
+                            <WorldOrganizationFollowControl organizationId={item.entityId} organizationName={item.title} />
+                          </div>
+                        ) : null}
+                      </div>
                     ))}
                   </div>
                 </V3Section>
@@ -289,7 +342,7 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
         ) : (
           <V3Surface className="p-5" data-v3-following-saved-state="empty">
             <p className="text-sm font-semibold">Nothing saved yet</p>
-            <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">Follow a country, edition or show from its public page and it will appear here.</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">Follow a country, edition, show or public institution and it will appear here.</p>
             <Link to={"/explore" as any} className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-[var(--v3-accent)] px-4 text-sm font-semibold text-[var(--v3-bg-base)]">
               Explore Solaris
             </Link>
