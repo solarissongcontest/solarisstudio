@@ -1,6 +1,13 @@
 import { writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { requireV3RecoveryEvidenceIdentity } from "../src/lib/v3-recovery-evidence-identity";
 import { buildV3RecoveryReadinessReport } from "../src/lib/v3-recovery-guardrails";
 import { validateV3ProjectionReconciliationRegistry } from "../src/lib/v3-projection-reconciliation-registry";
+
+function failRecoveryIdentity(message: string): never {
+  console.error(`[v3-recovery-readiness] ${message}`);
+  process.exit(2);
+}
 
 function requiredEnvironment(name: string) {
   const value = process.env[name]?.trim();
@@ -11,10 +18,21 @@ function requiredEnvironment(name: string) {
   return value;
 }
 
-const commitSha = requiredEnvironment("V3_RECOVERY_EVIDENCE_SHA").toLowerCase();
-if (!/^[0-9a-f]{40}$/.test(commitSha)) {
-  console.error("[v3-recovery-readiness] V3_RECOVERY_EVIDENCE_SHA must be an exact 40-character commit SHA");
-  process.exit(2);
+let checkoutHead: string;
+try {
+  checkoutHead = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+} catch {
+  failRecoveryIdentity("Cannot verify Git HEAD for S11 recovery evidence");
+}
+
+let commitSha: string;
+try {
+  commitSha = requireV3RecoveryEvidenceIdentity(
+    requiredEnvironment("V3_RECOVERY_EVIDENCE_SHA"),
+    checkoutHead,
+  );
+} catch (error) {
+  failRecoveryIdentity(error instanceof Error ? error.message : String(error));
 }
 
 const environment = requiredEnvironment("V3_RECOVERY_EVIDENCE_ENVIRONMENT");
