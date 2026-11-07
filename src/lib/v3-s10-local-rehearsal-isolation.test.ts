@@ -11,7 +11,7 @@ const safeStatus = [
 ].join("\n");
 
 function check(status: string, overrides: Record<string, string> = {}) {
-  return spawnSync(process.execPath, [helper], {
+  return spawnSync("node", [helper], {
     encoding: "utf8",
     input: `${status}\n`,
     env: { PATH: process.env.PATH ?? "", ...overrides },
