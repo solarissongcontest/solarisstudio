@@ -5,6 +5,7 @@ import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import type { Country } from "@/lib/data";
 import { useFanSession } from "@/lib/prediction-data";
 import { uploadVerifiedFile } from "@/lib/upload-safety";
+import { assertVerifiedAccountAccessChecks } from "@/lib/account-access-verification";
 
 const supabase = typedSupabase as any;
 
@@ -101,11 +102,21 @@ function missingCountrySchema(error: unknown) {
   );
 }
 
-export async function getCurrentAccountAccess(userId?: string | null): Promise<AccountAccess> {
+/**
+ * Legacy consumers retain their existing best-effort read. Shell callers can
+ * opt into strict verification without issuing a second network request.
+ */
+export async function getCurrentAccountAccess(
+  userId?: string | null,
+  options: { requireVerified?: boolean } = {},
+): Promise<AccountAccess> {
   let resolvedUserId = userId ?? null;
 
   if (!resolvedUserId) {
-    const { data } = await typedSupabase.auth.getUser();
+    const { data, error } = await typedSupabase.auth.getUser();
+    if (options.requireVerified && error && error.name !== "AuthSessionMissingError") {
+      throw error;
+    }
     resolvedUserId = data.user?.id ?? null;
   }
 
@@ -130,6 +141,13 @@ export async function getCurrentAccountAccess(userId?: string | null): Promise<A
       .eq("user_id", resolvedUserId)
       .maybeSingle(),
   ]);
+
+  // The ordinary account-reader API historically synthesizes a restricted
+  // result when one backend check fails. Never turn that fallback into a
+  // "ready" permission decision in the shared navigation shell.
+  if (options.requireVerified) {
+    assertVerifiedAccountAccessChecks(organizerResult.error, countryResult.error);
+  }
 
   if (organizerResult.error && !missingCountrySchema(organizerResult.error)) {
     console.warn("Could not resolve organizer access", organizerResult.error);
