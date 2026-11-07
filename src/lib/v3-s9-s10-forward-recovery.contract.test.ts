@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 const s9 = read("docs/v3/recovery-candidates/forward-only-s9-observability-local.sql");
 const s10 = read("docs/v3/recovery-candidates/forward-only-s10-sli-local.sql");
+const indexStage = read("docs/v3/recovery-candidates/forward-only-s9-indexes-concurrent-local.sql");
 const baseS9 = read("supabase/migrations/20261019110000_v3_s9_safe_metrics.sql");
 const baseS10 = read("supabase/migrations/20261019112000_v3_s10_sli_snapshot.sql");
 const fixture = read("docs/v3/recovery-candidates/fixtures/s9-s10-production-ledger-subset-20261107.sql");
@@ -15,7 +16,9 @@ const noWrapper = (source: string) =>
 
 describe("V3 S9/S10 non-deployable forward-only recovery candidate", () => {
   it("retains the source S9 and S10 effects without modifying immutable SQL", () => {
-    expect(s9).toContain(noWrapper(baseS9));
+    const canonicalS9WithoutIndexes = noWrapper(baseS9)
+      .replace(/create index if not exists\s+[\s\S]*?;/gi, "");
+    expect(s9).toContain(canonicalS9WithoutIndexes);
     expect(s10).toContain(noWrapper(baseS10));
     expect(s9).toContain("NOT a migration");
     expect(s10).toContain("NOT a migration");
@@ -29,7 +32,19 @@ describe("V3 S9/S10 non-deployable forward-only recovery candidate", () => {
       "public.studio2_access_allowed(text,uuid,boolean)",
     ]) expect(s9).toContain(name);
     expect(s9).toContain("S9 blocked: existing observability function");
-    expect(s9).toContain("S9 blocked: index collision");
+    expect(s9).toContain("S9 blocked: required concurrent index not installed");
+    expect(s9).toContain("i.indisvalid and i.indisready");
+    const canonicalIndexStatements = Array.from(
+      baseS9.matchAll(/create index if not exists\s+[\s\S]*?;/gi),
+      ([statement]) => statement.replace(/^create index if not exists/i, "create index concurrently"),
+    );
+    expect(canonicalIndexStatements).toHaveLength(3);
+    for (const statement of canonicalIndexStatements) {
+      expect(indexStage).toContain(statement);
+    }
+    expect(indexStage).not.toMatch(/\bbegin;[\s\S]*\bcommit;/i);
+    expect(indexStage).toContain("S9 index stage blocked: existing index/object");
+    expect(indexStage).toContain("i.indisvalid and i.indisready");
     expect(s10).toContain("S10 blocked: canonical S9 projection missing");
     expect(s10).toContain("S10 blocked: canonical S13 registry missing");
     expect(s10).toContain("S10 blocked: existing SLI function");
@@ -60,6 +75,8 @@ describe("V3 S9/S10 non-deployable forward-only recovery candidate", () => {
     expect(harness).toContain("20261019113300_v3_s13_strict_registration_restore.sql");
     expect(harness).toContain("Authenticated without system.read accessed S9");
     expect(harness).toContain("S10 canonical S13 registration record missing");
+    expect(harness).toContain('run -f "$index_stage"');
+    expect(harness).toContain('expect_reject "$index_stage"');
     expect(harness).not.toContain("dkxmnvekiopyesuzggeu");
   });
 });
