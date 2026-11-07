@@ -165,6 +165,14 @@ begin
   if public.world_organization_projection_v1('tg19-c708-private') is not null then
     raise exception 'TG19_NO_JWT_PRIVATE_PROJECTION_LEAK';
   end if;
+  -- An authenticated role without JWT identity must also be unable to read
+  -- memberships whose parent organization is not publicly visible.
+  if exists (
+    select 1 from public.world_organization_memberships
+    where id = 'c7080000-0000-4000-8000-000000000002'
+  ) then
+    raise exception 'TG19_NO_JWT_PRIVATE_MEMBERSHIP_LEAK';
+  end if;
   if exists (
     select 1 from public.world_organization_organs where slug = 'tg19-secret-organ'
   ) or exists (

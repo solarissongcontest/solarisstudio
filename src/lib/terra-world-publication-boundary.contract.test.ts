@@ -100,6 +100,12 @@ describe("World TG19 publication-boundary rehearsal isolation", () => {
     expect(sql).toContain("TG19_ANON_PRIVATE_MEMBERSHIP_RLS_LEAK");
     expect(sql).toContain("TG19_ANON_PUBLIC_MEMBERSHIP_PROJECTION_MISSING");
     expect(sql).toContain("TG19_NO_JWT_PRIVATE_MEMBERSHIP_LEAK");
+    // Section-scoped assertion: an anon-only check must not masquerade as
+    // an authenticated/no-JWT RLS regression.
+    const noJwtBlock = sql.split("set local role authenticated;")[1]?.split("reset role;")[0] ?? "";
+    expect(noJwtBlock).toContain("from public.world_organization_memberships");
+    expect(noJwtBlock).toContain("where id = 'c7080000-0000-4000-8000-000000000002'");
+    expect(noJwtBlock).toContain("TG19_NO_JWT_PRIVATE_MEMBERSHIP_LEAK");
     expect(sql).toContain("TG19_NO_JWT_PRIVATE_CHILD_LEAK");
     expect(sql).toContain("TG19_WORLD_DARK_ROLLOUT_REQUIRED");
     expect(sql).not.toMatch(/\bdblink\b|\bhttp_post\b/i);
