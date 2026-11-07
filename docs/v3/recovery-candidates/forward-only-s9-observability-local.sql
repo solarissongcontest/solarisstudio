@@ -1,8 +1,8 @@
 -- STAGED LOCAL-TEST CANDIDATE ONLY; NOT a migration; DO NOT run on hosted Supabase.
 -- Based on existing canonical S9 20261019110000. Never replay historical migration
 -- history; this evaluates only the missing effects on the observed S2/S4 ledgers.
--- Original index DDL remains ordinary CREATE INDEX: production lock/cost analysis
--- and potential separate concurrent-index stage required before ANY deployment.
+-- The three S9 indexes are moved into a separate staged CONCURRENTLY script.
+-- The canonical S9 FUNCTION body and ACL below remain unchanged.
 begin;
 set local lock_timeout = '5s';
 set local statement_timeout = '120s';
@@ -25,13 +25,22 @@ begin
   if to_regprocedure('public.admin_system_observability_snapshot(integer)') is not null then
     raise exception 'S9 blocked: existing observability function, reconcile first';
   end if;
+  -- The index stage must have completed without invalid/reused identities.
+  -- Stage concurrent indexes separately so this RPC install holds no ledger
+  -- index build locks. Name presence ALONE is not sufficient.
   foreach v_target in array array[
     'public.studio2_operation_receipts_created_at_idx',
     'private.v3_domain_events_occurred_at_idx',
     'private.v3_domain_event_outbox_created_at_idx'
   ] loop
-    if to_regclass(v_target) is not null then
-      raise exception 'S9 blocked: index collision %', v_target;
+    if to_regclass(v_target) is null then
+      raise exception 'S9 blocked: required concurrent index not installed %',v_target;
+    end if;
+    if not exists (
+      select 1 from pg_index i
+      where i.indexrelid=to_regclass(v_target) AND i.indisvalid and i.indisready
+    ) then
+      raise exception 'S9 blocked: invalid concurrent index %',v_target;
     end if;
   end loop;
   if not exists (
@@ -62,12 +71,9 @@ $s9_frontier_guard$;
 -- indexes rather than making System Health increasingly full-scan historical
 -- ledgers as Solaris grows.
 
-create index if not exists studio2_operation_receipts_created_at_idx
-  on public.studio2_operation_receipts (created_at desc);
-create index if not exists v3_domain_events_occurred_at_idx
-  on private.v3_domain_events (occurred_at desc, id);
-create index if not exists v3_domain_event_outbox_created_at_idx
-  on private.v3_domain_event_outbox (created_at desc, event_id, consumer_key);
+
+
+
 
 create or replace function public.admin_system_observability_snapshot(
   p_lookback_minutes integer default 60
