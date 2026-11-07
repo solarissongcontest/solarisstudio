@@ -392,7 +392,7 @@ export const PUBLIC_DESTINATIONS: PublicDestination[] = [
     "/rules/chapters/roleplay-worldbuilding",
     "help",
     "Roleplay & worldbuilding",
-    "Wars, invasions, Dormant countries, annexation, elimination, borders and the canonical map.",
+    "Fictional wars, inactive countries, taking territory and changes to the official Solaris map.",
     "secondary",
     {
       parent: "rules",

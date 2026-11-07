@@ -1,14 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { NativeLineChart } from "@/components/viz/NativeLineChart";
 
 import { editionLabel, type Country, type Edition, type ResultRow, type Show } from "@/lib/data";
 import { cn } from "@/lib/utils";
@@ -127,6 +119,18 @@ export function HistoricalLeaderboard({
       .map((result) => result.final_rank ?? 1),
   );
 
+  const chartSeries = topIds.map((id) => {
+    const country = countryMap.get(id);
+    return {
+      key: id,
+      name: country?.name ?? id,
+      stroke: country?.accent_color ?? "var(--jury)",
+      strokeWidth: hoverId === id ? 3 : 1.75,
+      strokeOpacity: hoverId && hoverId !== id ? 0.15 : 1,
+      connectNulls: false,
+    };
+  });
+
   return (
     <div className="min-w-0">
       <div className="mb-4 grid gap-2 sm:grid-cols-3">
@@ -182,106 +186,32 @@ export function HistoricalLeaderboard({
         </summary>
         <div className="border-t border-border/60 p-2">
       <div className="h-[380px] w-full">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <LineChart data={data} margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
-            <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
-            <XAxis dataKey="label" stroke="var(--muted-foreground)" fontSize={10} />
-            <YAxis
-              reversed
-              domain={[1, maxRank]}
-              stroke="var(--muted-foreground)"
-              fontSize={11}
-              allowDecimals={false}
-              tickFormatter={(value) => `#${value}`}
-            />
-            <Tooltip
-              contentStyle={{
-                background: "var(--popover)",
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-                fontSize: 12,
-              }}
-              labelStyle={{ color: "var(--foreground)" }}
-              formatter={(value: unknown, key: unknown) => [
-                value == null ? "No archived result" : `#${String(value)}`,
-                countryMap.get(String(key))?.name ?? String(key),
-              ]}
-            />
-
-            {topIds.map((id) => {
-              const country = countryMap.get(id);
-              const dim = Boolean(hoverId && hoverId !== id);
-              return (
-                <Line
-                  key={id}
-                  type="monotone"
-                  dataKey={id}
-                  name={country?.name ?? id}
-                  stroke={country?.accent_color ?? "var(--jury)"}
-                  strokeWidth={hoverId === id ? 3 : 1.75}
-                  strokeOpacity={dim ? 0.15 : 1}
-                  dot={{ r: 2 }}
-                  connectNulls={false}
-                  isAnimationActive
-                  animationDuration={800}
-                />
-              );
-            })}
-          </LineChart>
-        </ResponsiveContainer>
+        <NativeLineChart
+           data={data}
+           xKey="label"
+           series={chartSeries}
+           reversed
+           yDomain={[1, maxRank]}
+           yTickFormatter={(value) => `#${Math.round(value)}`}
+           valueFormatter={(value) => `#${Math.round(value)}`}
+           ariaLabel="Published country finishing positions over SSC editions, with first place at the top"
+         />
       </div>
         </div>
       </details>
 
       <div className="hidden sm:block">
       <div className="h-[380px] w-full md:h-[460px] xl:h-[520px]">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <LineChart data={data} margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
-            <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
-            <XAxis dataKey="label" stroke="var(--muted-foreground)" fontSize={10} />
-            <YAxis
-              reversed
-              domain={[1, maxRank]}
-              stroke="var(--muted-foreground)"
-              fontSize={11}
-              allowDecimals={false}
-              tickFormatter={(value) => `#${value}`}
-            />
-            <Tooltip
-              contentStyle={{
-                background: "var(--popover)",
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-                fontSize: 12,
-              }}
-              labelStyle={{ color: "var(--foreground)" }}
-              formatter={(value: unknown, key: unknown) => [
-                value == null ? "No archived result" : `#${String(value)}`,
-                countryMap.get(String(key))?.name ?? String(key),
-              ]}
-            />
-
-            {topIds.map((id) => {
-              const country = countryMap.get(id);
-              const dim = Boolean(hoverId && hoverId !== id);
-              return (
-                <Line
-                  key={id}
-                  type="monotone"
-                  dataKey={id}
-                  name={country?.name ?? id}
-                  stroke={country?.accent_color ?? "var(--jury)"}
-                  strokeWidth={hoverId === id ? 3 : 1.75}
-                  strokeOpacity={dim ? 0.15 : 1}
-                  dot={{ r: 2 }}
-                  connectNulls={false}
-                  isAnimationActive
-                  animationDuration={800}
-                />
-              );
-            })}
-          </LineChart>
-        </ResponsiveContainer>
+        <NativeLineChart
+           data={data}
+           xKey="label"
+           series={chartSeries}
+           reversed
+           yDomain={[1, maxRank]}
+           yTickFormatter={(value) => `#${Math.round(value)}`}
+           valueFormatter={(value) => `#${Math.round(value)}`}
+           ariaLabel="Published country finishing positions over SSC editions, with first place at the top"
+         />
       </div>
       </div>
 

@@ -12,7 +12,40 @@ fail() {
 
 # S14 is destructive by design, therefore it is permanently local-only.
 # Never add a hosted fallback. A broken local stack must fail the rehearsal.
-eval "$(supabase status -o env)"
+# Supabase CLI emits KEY="value" records, not trusted shell code.
+# eval would execute command substitutions in status output before isolation.
+status_output="$(supabase status -o env)" || fail "could not read local Supabase status"
+declare -A s14_seen_status_keys=()
+while IFS= read -r assignment || [[ -n "$assignment" ]]; do
+  [[ -z "$assignment" || "$assignment" == \#* ]] && continue
+  [[ "$assignment" =~ ^([A-Z][A-Z0-9_]*)=(.*)$ ]] || fail "malformed local Supabase status assignment"
+  key="${BASH_REMATCH[1]}"
+  value="${BASH_REMATCH[2]}"
+  case "$key" in
+    API_URL|DB_URL|ANON_KEY|SERVICE_ROLE_KEY) ;;
+    *) continue ;;
+  esac
+  [[ -z "${s14_seen_status_keys[$key]+x}" ]] || fail "duplicate local Supabase status key: $key"
+  s14_seen_status_keys[$key]=1
+  if [[ "${value:0:1}" == '"' ]]; then
+    [[ "${#value}" -ge 2 && "${value: -1}" == '"' ]] || fail "malformed quoted local Supabase status key: $key"
+    value="${value:1:${#value}-2}"
+  fi
+  [[ -n "$value" && "$value" != *'"'* && "$value" != *$'\r'* && "$value" != *'$('* && "$value" != *'`'* ]] ||
+    fail "unsafe local Supabase status value for $key"
+  case "$key" in
+    API_URL) API_URL="$value" ;;
+    DB_URL) DB_URL="$value" ;;
+    ANON_KEY) ANON_KEY="$value" ;;
+    SERVICE_ROLE_KEY) SERVICE_ROLE_KEY="$value" ;;
+  esac
+done <<< "$status_output"
+# A previously exported variable must never satisfy a missing local CLI record.
+# Require all four values to originate from this exact CLI response.
+for key in API_URL DB_URL ANON_KEY SERVICE_ROLE_KEY; do
+  [[ -n "${s14_seen_status_keys[$key]+x}" ]] || fail "missing local Supabase $key"
+done
+unset status_output assignment key value s14_seen_status_keys
 : "${API_URL:?missing local Supabase API_URL}"
 : "${DB_URL:?missing local Supabase DB_URL}"
 : "${ANON_KEY:?missing local Supabase ANON_KEY}"
