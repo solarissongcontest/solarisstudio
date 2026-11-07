@@ -116,9 +116,21 @@ describe("SSC v4.2 plain-language candidate", () => {
     const hierarchy = bodyOf("20.2");
     expect(hierarchy).toContain("Rule 21.1");
     expect(bodyOf("20.1")).toContain("HoDs should not have to search");
-    expect(bodyOf("20.2")).toContain("before it affects HoDs");
+    expect(bodyOf("20.2")).toContain("inform affected participants before it applies to them");
     expect(Object.values(CLEAR_RULE_BODIES).join(" ")).not.toMatch(/\bplayers?\b/i);
     expect(hierarchy).not.toContain("under Rule 15.1");
+  });
+
+  it("preserves fair notice and existing protections when simplifying rule language", () => {
+    expect(bodyOf("13.3")).toContain("reasonable action");
+    expect(bodyOf("14.2")).toContain("discriminatory abuse");
+    expect(bodyOf("15.1")).toContain("should tell TSBC as soon as you reasonably can");
+    expect(bodyOf("20.2")).toContain("announce it clearly");
+    expect(bodyOf("20.2")).toContain("explain exactly what it covers");
+    expect(bodyOf("20.2")).toContain("inform affected participants before it applies to them");
+    expect(bodyOf("20.2")).toContain("Rule 21.1 allows urgent corrections without advance notice");
+    expect(bodyOf("21.1")).toContain("once the relevant stage has started");
+    expect(bodyOf("22.4")).toContain("A suspension, withdrawal, temporary absence or skipped edition does not immediately remove protection");
   });
 
   it("keeps the exact six-edition boundary with clear Unprotected language", () => {
