@@ -39,7 +39,7 @@ function RuleSearchPage() {
               <SolarisDepthEyebrow tone="primary">Rules search</SolarisDepthEyebrow>
               <h1 className="mt-2 text-2xl font-bold tracking-[-0.03em] sm:text-3xl">Find the rule that applies</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Search by rule number, topic or plain-language question. Terms such as invasion, HODless, Dormant and annexation are indexed too.
+                Search by rule number, topic or plain-language question. You can also search everyday questions, such as what happens when a country has no HoD or how an invasion affects the map.
               </p>
               <GovernanceStatusStrip context="rules" className="mt-3" />
             </header>
@@ -127,7 +127,7 @@ function RuleSearchPage() {
             <SolarisDepthSurface variant="quiet" className="text-center">
               <p className="text-sm font-semibold">No official rule matched that phrase</p>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                Try broader words such as confirmation, deadline, voting, privacy, invasion, HODless, Dormant or annexation.
+                Try broader words such as confirmation, deadline, voting, privacy, invasion or country without a representative.
               </p>
             </SolarisDepthSurface>
           ) : (

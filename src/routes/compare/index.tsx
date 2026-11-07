@@ -8,15 +8,7 @@ import {
   useMemo,
 } from "react";
 
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { NativeLineChart } from "@/components/viz/NativeLineChart";
 
 import {
   AppShell,
@@ -566,85 +558,29 @@ function ComparePage() {
           >
             {timeline.length ? (
               <div className="h-[280px]">
-                <ResponsiveContainer
-                  width="100%"
-                  height="100%"
-                >
-                  <LineChart
-                    data={
-                      timeline
-                    }
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="var(--border)"
-                    />
-
-                    <XAxis
-                      dataKey="label"
-                      stroke="var(--muted-foreground)"
-                      fontSize={
-                        11
-                      }
-                    />
-
-                    <YAxis
-                      reversed
-                      allowDecimals={
-                        false
-                      }
-                      stroke="var(--muted-foreground)"
-                      fontSize={
-                        11
-                      }
-                    />
-
-                    <Tooltip
-                      contentStyle={{
-                        background:
-                          "var(--popover)",
-
-                        border:
-                          "1px solid var(--border)",
-
-                        borderRadius:
-                          14,
-                      }}
-                    />
-
-                    <Line
-                      type="monotone"
-                      dataKey="a"
-                      name={
-                        countryA.name
-                      }
-                      stroke={
-                        countryA.accent_color
-                      }
-                      strokeWidth={
-                        3
-                      }
-                      connectNulls
-                      dot
-                    />
-
-                    <Line
-                      type="monotone"
-                      dataKey="b"
-                      name={
-                        countryB.name
-                      }
-                      stroke={
-                        countryB.accent_color
-                      }
-                      strokeWidth={
-                        3
-                      }
-                      connectNulls
-                      dot
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                <NativeLineChart
+                  data={timeline}
+                  xKey="label"
+                  reversed
+                  yTickFormatter={(value) => String(Math.round(value))}
+                  ariaLabel="Country placement timeline by contest edition, lower rank is better"
+                  series={[
+                    {
+                      key: "a",
+                      name: countryA.name,
+                      stroke: countryA.accent_color ?? "var(--jury)",
+                      strokeWidth: 3,
+                      connectNulls: true,
+                    },
+                    {
+                      key: "b",
+                      name: countryB.name,
+                      stroke: countryB.accent_color ?? "var(--televote)",
+                      strokeWidth: 3,
+                      connectNulls: true,
+                    },
+                  ]}
+                />
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">

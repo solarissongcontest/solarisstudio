@@ -49,8 +49,8 @@ export function RoleplayWorldbuildingVisual() {
         <VisualLane
           icon={Map}
           eyebrow="Official canon"
-          title="One canonical map"
-          detail="Permanent border and sovereignty outcomes are registered so official Solaris records never contradict each other."
+          title="One official map"
+          detail="Permanent border changes must be recorded by TSBC so everyone sees the same official world map."
           accent="sky"
         />
       </div>
@@ -61,7 +61,7 @@ export function RoleplayWorldbuildingVisual() {
             <p className="text-[10px] font-black uppercase tracking-[0.15em] text-indigo-200/70">
               Dormancy clock
             </p>
-            <h3 className="mt-1 text-base font-bold">Six fully HODless completed Editions</h3>
+            <h3 className="mt-1 text-base font-bold">Six completed editions without an active HoD</h3>
           </div>
           <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-indigo-200/15 bg-black/10 px-3 text-[11px] font-bold text-indigo-100">
             <Clock3 className="size-3.5" aria-hidden="true" />
@@ -80,7 +80,7 @@ export function RoleplayWorldbuildingVisual() {
               }
             >
               <span className="block font-mono text-[10px] font-black text-muted-foreground">
-                HODLESS
+                NO ACTIVE HOD
               </span>
               <span className="mt-1 block text-xl font-black">{edition}</span>
               <span className="mt-1 block text-[10px] leading-4 text-muted-foreground">
@@ -93,7 +93,7 @@ export function RoleplayWorldbuildingVisual() {
         <div className="mt-4 flex items-start gap-2 rounded-xl border border-white/[0.07] bg-black/10 px-3 py-3 text-xs leading-5 text-muted-foreground">
           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
           <span>
-            If the country has an active HOD at any point in an Edition, that Edition does not count toward the six-Edition Dormant threshold.
+            If a country has an active Head of Delegation (HoD) at any time during an edition, that edition does not count toward the six. The count restarts.
           </span>
         </div>
       </div>
@@ -102,7 +102,7 @@ export function RoleplayWorldbuildingVisual() {
         <StatusCard
           icon={ShieldCheck}
           label="Protected"
-          title="Active or fewer than six fully HODless Editions"
+          title="An active HoD, or fewer than six completed editions without one"
           items={[
             "May be invaded in roleplay",
             "Cannot be unilaterally annexed or erased",
@@ -113,7 +113,7 @@ export function RoleplayWorldbuildingVisual() {
         <StatusCard
           icon={Map}
           label="Dormant"
-          title="Six consecutive fully HODless Editions completed"
+          title="Six completed editions in a row without an active HoD"
           items={[
             "May be permanently conquered or partitioned",
             "May be completely eliminated from the present-day map",
@@ -136,9 +136,9 @@ export function RoleplayWorldbuildingVisual() {
           />
           <ArrowRight className="mx-auto hidden size-4 text-muted-foreground sm:block" aria-hidden="true" />
           <ReturnState
-            label="After canonical elimination"
+            label="After official removal from the map"
             title="A new outcome is needed"
-            detail="Restoration, a successor state or another continuation may happen, but old borders do not automatically return."
+            detail="The country may return through a new recognised story and map record, but its old borders do not automatically come back."
           />
         </div>
       </div>
