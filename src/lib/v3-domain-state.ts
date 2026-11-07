@@ -117,8 +117,7 @@ export function projectV3Experience(
 
   let mode: V3ExperienceMode;
 
-  if (snapshot.edition === "cancelled") mode = "cancelled";
-  else if (snapshot.edition === "archived") mode = "archived";
+  if (archived) mode = "archived";
   else if (resultsPublic) mode = "results";
   else if (live && votingOpen) mode = "live-voting";
   else if (live) mode = "live";
