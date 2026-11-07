@@ -15,7 +15,13 @@ describe("System V3 S11 recovery guardrail artifacts", () => {
     expect(evidenceGenerator).toContain("validateV3ProjectionReconciliationRegistry");
     expect(evidenceGenerator).toContain('requiredEnvironment("V3_RECOVERY_EVIDENCE_SHA")');
     expect(evidenceGenerator).toContain('requiredEnvironment("V3_RECOVERY_EVIDENCE_ENVIRONMENT")');
-    expect(evidenceGenerator).toContain("exact 40-character commit SHA");
+    expect(evidenceGenerator).toContain('execFileSync("git", ["rev-parse", "HEAD"]');
+    expect(evidenceGenerator).toContain('execFileSync("git", ["status", "--porcelain", "--untracked-files=all"]');
+    expect(evidenceGenerator).toContain("requireV3RecoveryEvidenceIdentity");
+    expect(evidenceGenerator).toContain("requireV3RecoveryCleanTree");
+    const identityHelper = source("src/lib/v3-recovery-evidence-identity.ts");
+    expect(identityHelper).toContain("const fullSha = /^[0-9a-f]{40}$/;");
+    expect(identityHelper).toContain("if (requested !== checkedOut)");
     expect(evidenceGenerator).toContain("V3_RECOVERY_EVIDENCE_OUTPUT");
     expect(evidenceGenerator).not.toContain("supabase.co");
     expect(evidenceGenerator).not.toContain("fetch(");
