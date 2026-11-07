@@ -184,21 +184,40 @@ async function githubRequest<T>(
   token: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      "X-GitHub-Api-Version": "2022-11-28",
-      ...(init.headers ?? {}),
-    },
-  });
-  if (!response.ok) {
+  // GitHub intermittently returns 422 ("too many files changed") for the
+  // PR metadata endpoint even when the PR is small. Retry only this GET,
+  // never ancestry verdicts, commit-status writes, or unrelated API errors.
+  const retryablePullMetadataRead =
+    (!init.method || init.method.toUpperCase() === "GET") &&
+    /^https:\/\/api\.github\.com\/repos\/[^/]+\/[^/]+\/pulls\/[0-9]+$/.test(url);
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const response = await fetch(url, {
+      ...init,
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        ...(init.headers ?? {}),
+      },
+    });
+    if (response.ok) return (await response.json()) as T;
     const body = await response.text();
+    if (
+      retryablePullMetadataRead &&
+      response.status === 422 &&
+      body.toLowerCase().includes("too many files changed") &&
+      attempt < 2
+    ) {
+      // Keep the read budget bounded and retry only while the condition
+      // remains transient. The final PR/main/exact-head checks still run.
+      await new Promise<void>((resolve) => setTimeout(resolve, 150 * (attempt + 1)));
+      continue;
+    }
     throw new Error(`GitHub API ${response.status} for ${url}: ${body.slice(0, 400)}`);
   }
-  return (await response.json()) as T;
+  throw new Error("GitHub pull metadata read exceeded its bounded retry budget");
 }
 
 async function githubGraphQl<T>(token: string, query: string, variables: object): Promise<T> {

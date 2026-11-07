@@ -11,7 +11,7 @@ import { FlagMedia } from "@/components/FlagMedia";
  * changes the proportions and creates gaps/rounded-looking joins.
  */
 
-import { motion } from "framer-motion";
+import { AnimatedListItem } from "../AnimatedListItem";
 import type { CSSProperties } from "react";
 
 import {
@@ -134,14 +134,9 @@ function SSC21CountryCard({
 
   const ctx = { theme, accent: row.accent };
 
-  const Wrapper = animate
-    ? motion.li
-    : ("li" as unknown as typeof motion.li);
-
   return (
-    <Wrapper
-      layout={animate}
-      transition={{ type: "spring", stiffness: 380, damping: 32 }}
+    <AnimatedListItem
+      animate={animate}
       className={cn("relative list-none", className)}
       style={{
         height,
@@ -312,11 +307,9 @@ function SSC21CountryCard({
       />
 
       {awarded != null && awarded !== 0 && (
-        <motion.span
+        <span
           key={`award-${awarded}`}
-          initial={{ scale: 0.6, opacity: 0, x: 14 }}
-          animate={{ scale: 1, opacity: 1, x: 0 }}
-          className="numeric"
+          className="numeric solaris-native-award-gain"
           style={{
             position: "absolute",
             right: -44 * scale,
@@ -329,9 +322,9 @@ function SSC21CountryCard({
           }}
         >
           +{awarded}
-        </motion.span>
+        </span>
       )}
-    </Wrapper>
+    </AnimatedListItem>
   );
 }
 
@@ -459,14 +452,9 @@ function UniversalCountryCard({
       decoration.visible && decoration.target === "card",
   );
 
-  const Wrapper = animate
-    ? motion.li
-    : ("li" as unknown as typeof motion.li);
-
   return (
-    <Wrapper
-      layout={animate}
-      transition={{ type: "spring", stiffness: 380, damping: 32 }}
+    <AnimatedListItem
+      animate={animate}
       className={cn("list-none", className)}
       style={style}
     >
@@ -496,11 +484,9 @@ function UniversalCountryCard({
       ))}
 
       {awarded != null && awarded !== 0 && (
-        <motion.span
+        <span
           key={`award-${awarded}`}
-          initial={{ scale: 0.6, opacity: 0, x: 14 }}
-          animate={{ scale: 1, opacity: 1, x: 0 }}
-          className="numeric grid shrink-0 place-items-center rounded-lg px-2 py-1 font-bold"
+          className="numeric solaris-native-award-gain grid shrink-0 place-items-center rounded-lg px-2 py-1 font-bold"
           style={{
             position: "relative",
             zIndex: 8,
@@ -510,9 +496,9 @@ function UniversalCountryCard({
           }}
         >
           +{awarded}
-        </motion.span>
+        </span>
       )}
-    </Wrapper>
+    </AnimatedListItem>
   );
 }
 
