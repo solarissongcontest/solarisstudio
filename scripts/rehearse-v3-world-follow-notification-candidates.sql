@@ -15,14 +15,14 @@ declare
 begin
   if to_regclass('public.world_statements') is null
      or to_regclass('public.fan_follow_categories') is null
-     or to_regprocedure('private.world_statement_follow_notification_candidates_v1(uuid,uuid,integer)') is null then
+     or to_regprocedure('private.world_statement_follow_notification_candidates_v1(uuid,uuid,uuid,integer)') is null then
     raise exception 'TG10_UPSTREAM_MIGRATIONS_NOT_APPLIED';
   end if;
 
   if has_function_privilege('authenticated',
-       'private.world_statement_follow_notification_candidates_v1(uuid,uuid,integer)', 'EXECUTE')
+       'private.world_statement_follow_notification_candidates_v1(uuid,uuid,uuid,integer)', 'EXECUTE')
      or has_function_privilege('anon',
-       'private.world_statement_follow_notification_candidates_v1(uuid,uuid,integer)', 'EXECUTE') then
+       'private.world_statement_follow_notification_candidates_v1(uuid,uuid,uuid,integer)', 'EXECUTE') then
     raise exception 'TG10_PRIVATE_NOTIFICATION_RECIPIENTS_EXPOSED';
   end if;
 
@@ -99,18 +99,21 @@ declare
   v_next_count integer;
 begin
   select count(*) into v_count
-  from private.world_statement_follow_notification_candidates_v1((v->>'statement')::uuid);
+  from private.world_statement_follow_notification_candidates_v1((v->>'statement')::uuid,(v->>'version')::uuid);
   if v_count <> 2 then
     raise exception 'TG10_EXPECTED_IMPORTANT_AND_ALL_RECIPIENTS, got %',v_count;
   end if;
+  if exists (
+    select 1 from private.world_statement_follow_notification_candidates_v1(
+      (v->>'statement')::uuid,gen_random_uuid()
+    )
+  ) then raise exception 'TG10_UNRELATED_VERSION_EVENT_ALLOWED'; end if;
 
   select * into v_first_row
-  from private.world_statement_follow_notification_candidates_v1(
-    (v->>'statement')::uuid,null,1
+  from private.world_statement_follow_notification_candidates_v1((v->>'statement')::uuid,(v->>'version')::uuid,null,1
   );
   select count(*) into v_next_count
-  from private.world_statement_follow_notification_candidates_v1(
-    (v->>'statement')::uuid,v_first_row.user_id,1
+  from private.world_statement_follow_notification_candidates_v1((v->>'statement')::uuid,(v->>'version')::uuid,v_first_row.user_id,1
   );
   if v_first_row.user_id is null or v_next_count <> 1 then
     raise exception 'TG10_KEYSET_PAGINATION_INCORRECT';
@@ -123,8 +126,7 @@ begin
   end if;
 
   begin
-    perform 1 from private.world_statement_follow_notification_candidates_v1(
-      (v->>'statement')::uuid,null,201
+    perform 1 from private.world_statement_follow_notification_candidates_v1((v->>'statement')::uuid,(v->>'version')::uuid,null,201
     );
     raise exception 'TG10_UNBOUNDED_LIMIT_ALLOWED';
   exception when sqlstate '22023' then null;
@@ -155,39 +157,34 @@ declare
   v jsonb:=current_setting('solaris.tg10_candidate_fixture')::jsonb;
   v_count integer;
 begin
-  select count(*) into v_count from private.world_statement_follow_notification_candidates_v1(
-    (v->>'statement')::uuid
+  select count(*) into v_count from private.world_statement_follow_notification_candidates_v1((v->>'statement')::uuid,(v->>'version')::uuid
   );
   if v_count <> 1 then raise exception 'TG10_CATEGORY_OPTOUT_IGNORED'; end if;
 
   update public.world_organizations set public_visibility='private'
   where id=(v->>'org')::uuid;
-  if exists(select 1 from private.world_statement_follow_notification_candidates_v1(
-    (v->>'statement')::uuid
+  if exists(select 1 from private.world_statement_follow_notification_candidates_v1((v->>'statement')::uuid,(v->>'version')::uuid
   )) then raise exception 'TG10_PRIVATE_ORGANIZATION_LEAK'; end if;
   update public.world_organizations set public_visibility='public'
   where id=(v->>'org')::uuid;
 
   update public.studio2_feature_flags set enabled=false
   where key='terra_world_public';
-  if exists(select 1 from private.world_statement_follow_notification_candidates_v1(
-    (v->>'statement')::uuid
+  if exists(select 1 from private.world_statement_follow_notification_candidates_v1((v->>'statement')::uuid,(v->>'version')::uuid
   )) then raise exception 'TG10_DARK_FLAG_LEAK'; end if;
   update public.studio2_feature_flags set enabled=true
   where key='terra_world_public';
 
   update public.world_statements set visibility='private'
   where id=(v->>'statement')::uuid;
-  if exists(select 1 from private.world_statement_follow_notification_candidates_v1(
-    (v->>'statement')::uuid
+  if exists(select 1 from private.world_statement_follow_notification_candidates_v1((v->>'statement')::uuid,(v->>'version')::uuid
   )) then raise exception 'TG10_UNPUBLISHED_STATEMENT_LEAK'; end if;
   update public.world_statements set visibility='public'
   where id=(v->>'statement')::uuid;
 
   update public.world_statements set status='withdrawn'
   where id=(v->>'statement')::uuid;
-  if exists(select 1 from private.world_statement_follow_notification_candidates_v1(
-    (v->>'statement')::uuid
+  if exists(select 1 from private.world_statement_follow_notification_candidates_v1((v->>'statement')::uuid,(v->>'version')::uuid
   )) then raise exception 'TG10_WITHDRAWN_STATEMENT_LEAK'; end if;
   update public.world_statements set status='published'
   where id=(v->>'statement')::uuid;
@@ -210,8 +207,16 @@ begin
   update public.world_statements
   set current_version_id=v_corrected,current_revision=2
   where id=(v->>'statement')::uuid;
+  -- The S4 event from an older publication must not turn into a correction.
+  if exists (
+    select 1 from private.world_statement_follow_notification_candidates_v1(
+      (v->>'statement')::uuid,(v->>'version')::uuid
+    )
+  ) then raise exception 'TG10_STALE_VERSION_EVENT_ALLOWED'; end if;
   select * into strict v_result
-  from private.world_statement_follow_notification_candidates_v1((v->>'statement')::uuid);
+  from private.world_statement_follow_notification_candidates_v1(
+    (v->>'statement')::uuid,v_corrected
+  );
   if v_result.event_type <> 'world.statement.corrected'
      or v_result.subject_id <> v_corrected::text then
     raise exception 'TG10_VERSIONED_CORRECTION_WRONG';
@@ -226,9 +231,14 @@ begin
   update public.world_statements
   set current_version_id=v_future,current_revision=3
   where id=(v->>'statement')::uuid;
+  -- Exact future-version notification is forbidden until effective.
   if exists(select 1 from private.world_statement_follow_notification_candidates_v1(
-    (v->>'statement')::uuid
+    (v->>'statement')::uuid,v_future
   )) then raise exception 'TG10_FUTURE_VERSION_LEAK'; end if;
+  -- A previous correction event cannot masquerade as a future version.
+  if exists(select 1 from private.world_statement_follow_notification_candidates_v1(
+    (v->>'statement')::uuid,v_corrected
+  )) then raise exception 'TG10_SUPERSEDED_CORRECTION_EVENT_ALLOWED'; end if;
   raise notice 'PASS: correction only current immutable version and future version exclusion';
 end $versions$;
 
