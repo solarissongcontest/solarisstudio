@@ -94,7 +94,7 @@ export default defineConfig({
                 name: "shared-controls",
                 test: /[\\/]src[\\/]components[\\/]ui[\\/]/,
                 minShareCount: 2,
-                minSize: 5000,
+                minSize: 2000,
                 priority: 1,
               },
               // Reused public-browser presentation primitives are shared across
@@ -118,7 +118,7 @@ export default defineConfig({
                 name: "shared-client-helpers",
                 test: /[\\/]src[\\/]lib[\\/](?!.*(?:\.server\.|\.test\.|\.contract\.|\.spec\.))/,
                 minShareCount: 2,
-                minSize: 5000,
+                minSize: 2000,
                 priority: 1,
               },
             ],
