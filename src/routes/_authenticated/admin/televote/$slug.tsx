@@ -279,8 +279,10 @@ function TelevoteTotalsWorkspace() {
 
       reconciliationStarted = true;
       await reconcileOrganizerTelevoteTotals({
-        editionId: review.editionId,
-        showId: review.showId,
+        data: {
+          editionId: review.editionId,
+          showId: review.showId,
+        },
       });
 
       const { data: reconciledVotes, error: reconciliationReadError } = await supabase

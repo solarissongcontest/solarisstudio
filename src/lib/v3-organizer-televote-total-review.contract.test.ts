@@ -52,7 +52,7 @@ describe('V3 Organizer Televote total review boundary', () => {
   });
 
   it('does not pretend the Organizer route is a canonical writer', () => {
-    expect(route).toContain('this screen never writes the canonical projection');
+    expect(route).toContain('This screen never writes the canonical projection');
     expect(route).toContain('service-role-only, versioned Televote reconciliation command');
     expect(route).toContain('Values not present in the published source are refused');
   });

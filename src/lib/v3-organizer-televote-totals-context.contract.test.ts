@@ -29,7 +29,7 @@ describe("V3 Organizer Televote totals context", () => {
     expect(route).toContain("entityEditionId: review?.showEditionId ?? selectedShow.edition_id");
     expect(route).toContain("capabilityEditionId: organizerEditionId");
     expect(route).toContain("review.editionId !== edition.id || review.showId !== selectedShow.id");
-    expect(route).toContain("const commandEditionId = assertTelevoteEditionScope(review)");
+    expect(route).toContain("assertTelevoteEditionScope(review)");
     expect(route).toContain("reconcileOrganizerTelevoteTotals({");
     expect(route.indexOf("validateEditionCommandScope")).toBeLessThan(
       route.indexOf("reconcileOrganizerTelevoteTotals({"),
