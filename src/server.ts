@@ -14,6 +14,7 @@ import {
 } from "./lib/maintenance";
 import { renderMaintenanceHodPortal } from "./lib/maintenance-hod-portal";
 import { renderMaintenancePage } from "./lib/maintenance-page";
+import { renderV42MaintenancePreview } from "./lib/rules-v42-maintenance-preview";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -473,6 +474,30 @@ export default {
       const url = new URL(request.url);
       const secret = maintenanceSecret(env);
       const hod = maintenanceHodRuntime(env);
+
+      // Explicit public, static, zero-network rulebook preview during maintenance.
+      // Neither the TanStack app nor Supabase is initialized for this response.
+      // Every non-GET/HEAD method remains subject to the normal maintenance gate.
+      if (
+        GLOBAL_MAINTENANCE_MODE &&
+        url.pathname === "/rules/v4-2-preview" &&
+        (request.method === "GET" || request.method === "HEAD")
+      ) {
+        return new Response(
+          request.method === "HEAD" ? null : renderV42MaintenancePreview(),
+          {
+            status: 200,
+            headers: {
+              "content-type": "text/html; charset=utf-8",
+              "cache-control": "public, max-age=300",
+              "x-content-type-options": "nosniff",
+              "x-robots-tag": "noindex, nofollow",
+              "content-security-policy":
+                "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+            },
+          },
+        );
+      }
 
       if (url.pathname === MAINTENANCE_ADMIN_PATH) {
         return await handleMaintenanceAdminRequest(request, secret);
