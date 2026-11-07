@@ -2,9 +2,9 @@ import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
 /**
- * The canonical Quality/Vitest config discovers src/**/*.test.ts files, not
- * standalone scripts/*.test.mjs files. Run the real offline claim-collision
- * regression suite without adding a workflow or contacting GitHub/Supabase.
+ * Quality/Vitest discovers TypeScript test files under src/, but does not
+ * automatically discover standalone Node test files under scripts/.
+ * Execute the real offline fixtures without new workflows or hosted traffic.
  */
 describe("WORLD TG0/TG19 claim collision preflight", () => {
   it("runs all seven offline Node ownership-collision regressions in Quality", () => {
