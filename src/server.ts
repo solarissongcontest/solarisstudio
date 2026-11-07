@@ -10,6 +10,8 @@ import {
 import {
   GLOBAL_MAINTENANCE_MODE,
   isMaintenanceHodAppRouteAllowed,
+  isMaintenancePlatformRecoveryRouteAllowed,
+  MAINTENANCE_PLATFORM_PREFLIGHT_PATH,
   maintenanceHodAccessEnabled,
 } from "./lib/maintenance";
 import { renderMaintenanceHodPortal } from "./lib/maintenance-hod-portal";
@@ -527,6 +529,27 @@ export default {
         request.method,
         hod.enabled,
       );
+      const recoveryRouteAllowed =
+        GLOBAL_MAINTENANCE_MODE &&
+        isMaintenancePlatformRecoveryRouteAllowed(url.pathname, request.method);
+
+      // Only this exact recovery POST may reach its handler while maintenance
+      // blocks all other ordinary write transports. Require same-origin browser
+      // requests plus a user JWT; the handler re-verifies the user, Organizer
+      // role and maintenance.manage capability via the canonical database.
+      if (recoveryRouteAllowed && url.pathname === MAINTENANCE_PLATFORM_PREFLIGHT_PATH) {
+        if (!sameOrigin(request)) {
+          return new Response("Recovery request origin rejected.", { status: 403 });
+        }
+        if (!/^Bearer\s+[^\s]+$/.test(request.headers.get("authorization") ?? "")) {
+          return new Response("Organizer authentication required.", { status: 401 });
+        }
+        const contentLength = Number(request.headers.get("content-length") ?? "0");
+        if (Number.isFinite(contentLength) && contentLength > 512) {
+          return new Response("Recovery request too large.", { status: 413 });
+        }
+      }
+
       const teaserPreviewAllowed = isTerraOsTeaserPreviewRequest(url, request.method);
       const maintenanceAppAssetAllowed = isMaintenanceAppAssetPath(url.pathname);
       let maintenanceAdminBypass = false;
@@ -536,7 +559,8 @@ export default {
         !MAINTENANCE_ASSET_PATHS.has(url.pathname) &&
         !maintenanceAppAssetAllowed &&
         !teaserPreviewAllowed &&
-        !hodAppRouteAllowed
+        !hodAppRouteAllowed &&
+        !recoveryRouteAllowed
       ) {
         const localE2EBypass = hasLocalE2EMaintenanceBypass(request);
         maintenanceAdminBypass =
