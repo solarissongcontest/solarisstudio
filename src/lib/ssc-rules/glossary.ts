@@ -10,7 +10,6 @@ export const SSC_PLAIN_GLOSSARY = [
   { term: "Taking over land", definition: "Making another fictional country's land part of your own country. Protected countries cannot be taken over without the required permission.", match: ["taking over land", "take over", "annex", "annexation"] },
   { term: "Dormant country", definition: "The name used in the official v4.1 rules for a country with no active HoD during six finished SSC editions in a row. The proposed v4.2 name is Unprotected country. The six-edition rule does not change.", match: ["dormant", "dormancy"] },
   { term: "Official map", definition: "The map TSBC has accepted and recorded for the fictional Solaris world. A post or a different map picture does not change it.", match: ["canonical map", "official map", "canonical"] },
-  { term: "Taking over land", definition: "A fictional country making another country's land part of its own. It cannot do this to a Protected country without permission.", match: ["annex", "annexation"] },
   { term: "Dividing land", definition: "Splitting a fictional country's land into parts.", match: ["partition"] },
   { term: "New country replacing an older one", definition: "A new fictional country that keeps some of the history or identity of the old country.", match: ["successor state"] },
   { term: "Breaking away", definition: "When part of a fictional country leaves to form its own new country.", match: ["secession"] },
