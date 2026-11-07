@@ -294,7 +294,19 @@ const SPECIFIC_CHANGES: Record<string, RuleWordingPatch> = {
   },
   "22.4": {
     "summary": "Your country stays protected while it has an active HoD or has not yet completed six whole editions in a row without one.",
-    "important": "Not competing in one edition, losing an HoD temporarily or withdrawing does not mean that someone else may take over your country."
+    "important": "Not competing in one edition, losing an HoD temporarily or withdrawing does not mean that someone else may take over your country.",
+    "examples": [
+      {
+        "title": "The HoD leaves during SSC 30",
+        "outcome": "not-allowed",
+        "detail": "Other countries cannot take over just because the HoD left. SSC 30 still had an active HoD for part of the edition, so it does not count toward the six-edition limit. The first edition that could count is SSC 31."
+      },
+      {
+        "title": "A country skips two editions",
+        "outcome": "not-allowed",
+        "detail": "Two completed editions without an active HoD are not enough. The country is still Protected."
+      }
+    ]
   },
   "22.5": {
     "summary": "Unprotected means six completed SSC editions in a row with no active Head of Delegation at any point.",
@@ -351,6 +363,7 @@ function simplifyOlderDisplayText(value: string): string {
     .replace(/\bDormant\b/g, "Unprotected")
     .replace(/\bdormant\b/g, "unprotected")
     .replace(/\bDormancy\b/g, "Time without an HoD")
+    .replace(/\bdormancy\b/g, "time without an HoD")
     .replace(/\bForce Majeure\b/g, "major emergency")
     .replace(/\bAnnexation\b/g, "Taking over land")
     .replace(/\bannexation\b/g, "taking over land")
