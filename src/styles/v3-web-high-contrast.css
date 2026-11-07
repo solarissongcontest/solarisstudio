@@ -1,0 +1,22 @@
+/* OS high contrast for browser-only navigation. Installed Liquid chrome is separate. */
+@media (forced-colors: active) {
+  [data-solaris-v3] [data-v3-shell-experience="web"] :is(
+    .v3-web-top-context__brand,
+    .v3-mobile-web-primary-nav__item[aria-current],
+    .v3-desktop-primary-nav__item[aria-current]
+  ) { color: Highlight; }
+  [data-solaris-v3] [data-v3-shell-experience="web"] :is(
+    .v3-web-top-context__brand:focus-visible,
+    .v3-mobile-web-primary-nav__item:focus-visible,
+    .v3-desktop-primary-nav__item:focus-visible,
+    .v3-desktop-primary-nav__item[aria-current]
+  ) {
+    outline: 2px solid Highlight;
+    outline-offset: -3px;
+  }
+  [data-solaris-v3] [data-v3-shell-experience="web"]
+    .v3-mobile-web-primary-nav__item[aria-current] {
+    border-bottom-color: Highlight;
+    border-bottom-width: 3px;
+  }
+}

@@ -1,0 +1,62 @@
+/* In-flow browser masthead, independent of installed PWA chrome. */
+[data-solaris-v3] [data-v3-shell-experience="web"] {
+  --v3-top-context-obstruction: 0px;
+  --v3-shell-top-obstruction: 0.5rem;
+}
+[data-solaris-v3] .v3-web-top-context {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "brand actions" "context context";
+  align-items: center;
+  gap: 0 12px;
+  width: min(100%, 72rem);
+  margin-inline: auto;
+  padding: 5px max(14px, env(safe-area-inset-right)) 7px max(14px, env(safe-area-inset-left));
+  border-bottom: 1px solid var(--v3-border-subtle);
+}
+[data-solaris-v3] .v3-web-top-context__brand {
+  grid-area: brand;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  color: var(--v3-text-primary);
+  font-size: 0.83rem;
+  font-weight: 800;
+  text-decoration: none;
+  letter-spacing: 0.09em;
+}
+[data-solaris-v3] .v3-web-top-context__brand-secondary { color: var(--v3-accent-strong); }
+[data-solaris-v3] .v3-web-top-context__brand:focus-visible {
+  outline: 2px solid var(--v3-accent-strong);
+}
+[data-solaris-v3] .v3-web-top-context__context {
+  grid-area: context;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--v3-text-secondary);
+  font-size: 0.72rem;
+}
+[data-solaris-v3] :is(.v3-web-top-context__edition, .v3-web-top-context__phase) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-solaris-v3] .v3-web-top-context__edition { font-weight: 700; }
+[data-solaris-v3] .v3-web-top-context__actions { grid-area: actions; display: flex; align-items: center; gap: 5px; }
+@media (min-width: 720px) {
+  [data-solaris-v3] .v3-web-top-context {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "brand context actions";
+    padding-block: 8px;
+  }
+}
+@media (min-width: 1024px) {
+  [data-solaris-v3] [data-v3-shell-experience="web"] { --v3-shell-top-obstruction: 4.5rem; }
+  [data-solaris-v3] [data-v3-shell-experience="web"] .v3-desktop-primary-nav { top: 0; }
+}
+@media (min-width: 1440px) {
+  [data-solaris-v3] .v3-web-top-context { width: min(100%, 76rem); }
+}
