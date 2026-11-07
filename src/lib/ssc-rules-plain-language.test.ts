@@ -73,6 +73,15 @@ describe("SSC v4.2 plain-language candidate", () => {
     expect(voting).not.toContain("alliances and shared communities");
   });
 
+  it("makes official-system failures and personal internet failures different cases", () => {
+    const rule = bodyOf("12.5");
+    expect(rule).toContain("TSBC may extend a deadline");
+    expect(rule).toContain("reopen a stage");
+    expect(rule).toContain("records saved by the system");
+    expect(rule).toContain("only with your own phone or internet");
+    expect(rule).toContain("do not automatically get extra time");
+  });
+
   it("allows withdrawal after the deadline but before entry publication", () => {
     const withdrawal = bodyOf("15.1");
     expect(withdrawal).toContain("before its entry is published");
@@ -102,6 +111,7 @@ describe("SSC v4.2 plain-language candidate", () => {
     expect(hierarchy).toContain("Rule 21.1");
     expect(bodyOf("20.1")).toContain("HoDs should not have to search");
     expect(bodyOf("20.2")).toContain("before it affects HoDs");
+    expect(Object.values(CLEAR_RULE_BODIES).join(" ")).not.toMatch(/\bplayers?\b/i);
     expect(hierarchy).not.toContain("under Rule 15.1");
   });
 
