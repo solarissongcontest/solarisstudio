@@ -76,6 +76,9 @@ begin
       on follow_row.entity_type = 'organization'
      and follow_row.entity_id = organization_row.id
      and follow_row.notification_level in ('important', 'all')
+     -- A user following only after publication must not receive a historical
+     -- event as a fresh follower notification.
+     and follow_row.created_at <= current_version.published_at
      and (p_after_user_id is null or follow_row.profile_id > p_after_user_id)
     join public.notification_preferences preference
       on preference.profile_id = follow_row.profile_id
@@ -86,6 +89,36 @@ begin
      and category_preference.category = 'statements'
     where statement_row.id = p_statement_id
       and statement_row.current_version_id = p_version_id
+      -- Caller-supplied IDs are not evidence that a publication occurred.
+      -- The immutable S4 fact must be tied to the exact TG9 canonical
+      -- version and a successfully completed R2 publication/correction.
+      and exists (
+        select 1
+        from private.v3_domain_events source_event
+        join public.studio2_operation_receipts receipt
+          on receipt.operation_id = source_event.operation_id
+         and receipt.status = 'succeeded'
+         and receipt.command = case
+           when current_version.version_number = 1
+             then 'world.statement.publish'::text
+           else 'world.statement.correct'::text
+         end
+        where source_event.aggregate_type = 'world_statement'
+          and source_event.aggregate_id = statement_row.id::text
+          and source_event.aggregate_version = current_version.version_number
+          and source_event.event_type = case
+            when current_version.version_number = 1
+              then 'world.statement.published'::text
+            else 'world.statement.corrected'::text
+          end
+          and source_event.payload ->> 'organizationId' = organization_row.id::text
+          and source_event.payload ->> 'statementId' = statement_row.id::text
+          and source_event.payload ->> 'versionId' = current_version.id::text
+          and source_event.payload ->> 'revision' = current_version.version_number::text
+          and source_event.payload ->> 'published' = 'true'
+          and source_event.payload ->> 'visibility' = 'public'
+          and source_event.occurred_at <= now()
+      )
       and public.studio2_feature_enabled('terra_world_public', null) is true
       and statement_row.status = 'published'
       and statement_row.visibility = 'public'
@@ -110,6 +143,6 @@ grant execute on function private.world_statement_follow_notification_candidates
   to service_role;
 
 comment on function private.world_statement_follow_notification_candidates_v1(uuid,uuid,uuid,integer) is
-  'TG10 private S6 candidate projection bound to exact committed official statement version. Stale version signals yield no candidates. Consumers must revalidate live publication and preferences before dispatch; no delivery/event is created here.';
+  'TG10 private S6 candidate projection bound to the committed S4 event and completed S2 publication of the exact version. Only followers existing at publication may receive candidates. Consumer must revalidate before dispatch; no delivery/event is created here.';
 
 commit;
