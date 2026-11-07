@@ -25,8 +25,9 @@ export function assertLocalBrowserAuditTarget(
 }
 
 export default async function pr455BrowserPreflight() {
-  if (!process.env.CI) return;
+  // Non-CI Playwright runs must also be prevented from browsing hosted targets.
   assertLocalBrowserAuditTarget();
+  if (!process.env.CI) return;
   if (process.env.SOLARIS_PR455_PREFLIGHT_CHILD === "1") return;
   if (process.env.SOLARIS_PR455_PREFLIGHT_ALREADY_PASSED === "1") return;
 
