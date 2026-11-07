@@ -6,6 +6,7 @@
 -- helper owned by postgres, with search_path=pg_catalog.
 -- Function EXECUTE: postgres=true, anon=false, authenticated=false, service_role=false.
 -- Exact pg_get_functiondef MD5: 84d3f05e5f537908732a3875ba0178e6.
+-- Exact function privilege-list MD5: 341a58cafc38a872c684592babc76f83.
 -- Only application code, roles and configuration; NO application rows/secrets.
 -- This fixture intentionally does NOT claim the complete hosted schema.
 begin;
@@ -40,6 +41,10 @@ begin
      or not has_schema_privilege('anon','private','USAGE')
      or not has_schema_privilege('authenticated','private','USAGE') then
     raise exception 'S13 production-observed private-schema USAGE does not match';
+  end if;
+  if (select md5(coalesce(array_to_string(p.proacl::text[],','),''))
+        from pg_proc p where p.oid=v_oid::oid) <> '341a58cafc38a872c684592babc76f83' then
+    raise exception 'S13 production-observed private-helper ACL signature differs';
   end if;
   if has_function_privilege('anon',v_oid,'EXECUTE')
      or has_function_privilege('authenticated',v_oid,'EXECUTE')
