@@ -1,4 +1,4 @@
-export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-4" as const;
+export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-5" as const;
 
 export type V3S16Risk = "integrity_critical" | "security_critical";
 
@@ -310,6 +310,12 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
   },
 ];
 
+export function isV3S16UnsafeStandaloneIdentityWriter(file: V3S16SourceFile): boolean {
+  return file.path.startsWith("scripts/") &&
+    !/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file.path) &&
+    !file.path.includes("/fixtures/") &&
+    /\bauth\s*\.\s*admin\s*\.\s*(?:updateUserById|deleteUser)\s*\(/.test(file.source);
+}
 export function scanV3S16StaticAuthority(
   files: readonly V3S16SourceFile[],
   domains: readonly V3S16DomainDefinition[] = V3_S16_CRITICAL_DOMAINS,
@@ -318,10 +324,27 @@ export function scanV3S16StaticAuthority(
   const productionFiles = files.filter((file) =>
     !/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file.path) &&
     !file.path.includes("/fixtures/") &&
+    !file.path.startsWith("scripts/") &&
     !file.path.startsWith("supabase/migrations/") &&
     !file.path.startsWith(".github/tests/"),
   );
   const migrationFiles = files.filter((file) => file.path.startsWith("supabase/migrations/"));
+
+  // Isolated data rehearsal scripts are not production canonical-table
+  // writers. But a standalone auth.admin identity mutation bypasses governed
+  // actor authorization and receipts even when a service-role key is present.
+  for (const file of files) {
+    if (!isV3S16UnsafeStandaloneIdentityWriter(file)) continue;
+    findings.push({
+      domain: "account-session",
+      kind: "competing_legacy_writer",
+      subject: "unguarded auth.admin account mutation",
+      path: file.path,
+      detail: "Standalone scripts must not use raw auth.admin account mutation authority; use a governed, actor-scoped server operation.",
+      releaseRisk: "hard_blocker",
+      ownerBoundary: "shared",
+    });
+  }
 
   for (const domain of domains) {
     const ownerBoundary = domain.resultsFrozenOwner ? "results_pr_1400" : "shared";
