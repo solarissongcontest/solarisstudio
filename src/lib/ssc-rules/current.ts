@@ -4,7 +4,6 @@ import {
   SSC_RULE_CHAPTERS as BASE_RULE_CHAPTERS,
 } from "@/lib/ssc-rules/canon-v4";
 import { ROLEPLAY_CHAPTER } from "@/lib/ssc-rules/roleplay";
-import { withPlainLanguage } from "@/lib/ssc-rules/plain-language-v42";
 
 /**
  * v4.0.1 was published through the rulebook governance service after the v4.0
@@ -48,28 +47,16 @@ function carryPublishedDefinitionWording<T extends { id: string; body: string[] 
 
 const inheritedChapters = BASE_RULE_CHAPTERS.map((chapter) => ({
   ...chapter,
-  rules: chapter.rules.map((rule) => withPlainLanguage(carryPublishedDefinitionWording(rule))),
+  rules: chapter.rules.map((rule) => carryPublishedDefinitionWording(rule)),
 }));
 
-const inheritedRules = BASE_RULES.map((rule) => withPlainLanguage(carryPublishedDefinitionWording(rule)));
+const inheritedRules = BASE_RULES.map((rule) => carryPublishedDefinitionWording(rule));
 
-const plainRoleplayChapter = {
-  ...ROLEPLAY_CHAPTER,
-  description: "Who controls a fictional country, how shared stories work, when a country is Protected or Dormant, and how official map changes happen.",
-  atAGlance: [
-    "You decide the ordinary stories and internal events of your own country.",
-    "You cannot permanently change another Protected country without the required permission.",
-    "A country becomes Dormant only after six completed editions in a row with no active Head of Delegation at any point.",
-    "Dormant countries can be taken over in fictional worldbuilding, but their old SSC entries and scores remain intact.",
-  ],
-  rules: ROLEPLAY_CHAPTER.rules.map((rule) => withPlainLanguage(rule)),
-};
-
-export const SSC_RULE_CHAPTERS = [...inheritedChapters, plainRoleplayChapter];
+export const SSC_RULE_CHAPTERS = [...inheritedChapters, ROLEPLAY_CHAPTER];
 
 export const SSC_RULES = [
   ...inheritedRules,
-  ...plainRoleplayChapter.rules.map((rule) => ({
+  ...ROLEPLAY_CHAPTER.rules.map((rule) => ({
     ...rule,
     chapterNumber: ROLEPLAY_CHAPTER.number,
     chapterTitle: ROLEPLAY_CHAPTER.title,
@@ -79,8 +66,8 @@ export const SSC_RULES = [
 
 export const SSC_RULEBOOK = {
   ...BASE_RULEBOOK,
-  version: "4.2",
-  status: "Online-first plain-English 22-chapter candidate",
+  version: "4.1",
+  status: "Online-first 22-chapter edition",
   description:
-    "The permanent General Regulations for the completely online, fan-organised Solaris Song Contest, including the Roleplay & Worldbuilding framework. The text uses plain English; Edition-Specific Regulations still publish the details that change each edition.",
+    "The permanent General Regulations for the completely online, fan-organised Solaris Song Contest, including the Roleplay & Worldbuilding framework. Edition-Specific Regulations publish the variables that change from one edition to another.",
 } as const;
