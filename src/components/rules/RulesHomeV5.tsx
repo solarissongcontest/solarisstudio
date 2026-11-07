@@ -143,7 +143,7 @@ export function RulesHomeV5({
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground" data-v3-rulebook-release-meta="">
             <span aria-label={`Current rulebook version ${version}`}>Current version · v{version}</span>
             {effectiveDate ? <span>Effective {effectiveDate}</span> : null}
-            <Link to="/rules/chapters/definitions" className="font-semibold text-primary hover:underline">
+            <Link to="/rules/chapters/$chapter" params={{ chapter: "definitions" }} className="font-semibold text-primary hover:underline">
               Explain rule words
             </Link>
             <Link to="/rules/changes" className="font-semibold text-primary hover:underline">
