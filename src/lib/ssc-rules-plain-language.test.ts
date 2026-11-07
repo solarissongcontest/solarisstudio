@@ -53,6 +53,7 @@ describe("SSC v4.2 plain-language candidate", () => {
     expect(reuse).toContain("permission is not required");
     expect(reuse).toContain("no more than three times");
     expect(reuse).toContain("cannot compete again after winning");
+    expect(getRuleById("6.6")?.examples?.some((example) => example.title === "Previous country has no active HoD" && example.outcome === "allowed")).toBe(true);
   });
 
   it("allows withdrawal after the deadline but before entry publication", () => {
