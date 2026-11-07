@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   CLEAR_RULE_BODIES,
   PLAIN_SUMMARIES,
+  TEEN_FRIENDLY_TITLES,
   withPlainLanguage,
 } from "@/lib/ssc-rules/plain-language-v42";
 import { glossaryForRule } from "@/lib/ssc-rules/glossary";
@@ -27,6 +28,7 @@ describe("SSC v4.2 plain-language candidate", () => {
     const officialIds = SSC_RULES.map(({ id }) => id).sort();
     expect(Object.keys(CLEAR_RULE_BODIES).sort()).toEqual(officialIds);
     expect(Object.keys(PLAIN_SUMMARIES).sort()).toEqual(officialIds);
+    expect(Object.keys(TEEN_FRIENDLY_TITLES).sort()).toEqual(officialIds);
     for (const rule of draftRules) {
       expect(rule.summary.length).toBeGreaterThan(20);
       expect(rule.body.length).toBeGreaterThan(0);
@@ -53,6 +55,8 @@ describe("SSC v4.2 plain-language candidate", () => {
     expect(bodyOf("6.4")).toContain("If neither official channel has a suitable full-song video");
     expect(bodyOf("6.4")).toContain("A fan upload does not take priority");
     expect(bodyOf("6.4")).toContain("must not switch to a less-viewed upload just to make the song pass");
+    expect(bodyOf("6.4")).toContain("recorded check time");
+    expect(bodyOf("6.4")).toContain("official YouTube channel");
     expect(draftRuleById("6.4")?.examples?.some(({ title, detail }) => title === "Official video versus fan upload" && detail.includes("600,000 views") && detail.includes("2 million"))).toBe(true);
   });
 
@@ -123,6 +127,7 @@ describe("SSC v4.2 plain-language candidate", () => {
     expect(bodyOf("22.5")).toContain("six SSC editions in a row");
     expect(bodyOf("22.5")).toContain("at any point during any of them");
     expect(bodyOf("22.5")).toContain("the count starts over");
+    expect(bodyOf("22.5")).toContain("not the number of months");
     expect(bodyOf("22.5")).toContain("its protection returns immediately");
     expect(bodyOf("22.6")).toContain("Rule 22.7");
     expect(bodyOf("22.10")).toContain("does not change SSC history");
@@ -162,5 +167,8 @@ describe("SSC v4.2 plain-language candidate", () => {
     expect(terms.some((item) => item.term === "Unprotected country")).toBe(true);
     expect(draftRuleById("22.5")?.summary.toLowerCase()).toContain("unprotected");
     expect(draftRuleById("6.5")?.summary).toContain("2015");
+    expect(draftRuleById("11.4")?.title).toBe("Voting for friends");
+    expect(draftRuleById("12.5")?.title).toBe("What happens when an official system fails");
+    expect(draftRuleById("22.5")?.title).toBe("When a country becomes Unprotected");
   });
 });
