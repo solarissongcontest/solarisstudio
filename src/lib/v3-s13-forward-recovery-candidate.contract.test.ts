@@ -27,6 +27,9 @@ describe("System V3 S13 forward-only candidate source and safety", () => {
       "v3_record_migration_parity", "v3_set_schema_compatibility",
     ];
     for (const name of names) expect(candidate).toContain(name);
+    expect(candidate).toContain("v3_migration_parity_runs_key_time_idx");
+    expect(candidate).toContain("v3_backfill_jobs_status_idx");
+    expect(candidate).toContain("e.kind in ('table','index')");
     expect(candidate).toContain("S13 recovery blocked: target already exists");
     expect(candidate).toContain("private.studio2_request_is_service_role()");
     expect(candidate).toContain("has_schema_privilege('service_role', 'private', 'USAGE')");
@@ -52,12 +55,15 @@ describe("System V3 S13 forward-only candidate source and safety", () => {
     expect(fixture).toContain("current_setting('request.jwt.claim.role', true)");
     expect(fixture).toContain("grant usage on schema private to anon, authenticated, service_role");
     expect(fixture).toContain("revoke all on function private.studio2_request_is_service_role()");
+    expect(fixture).toContain("alter default privileges for role postgres in schema public");
+    expect(fixture).toContain("grant execute on functions to anon, authenticated, service_role");
     expect(rehearsal).toContain("catalog_fingerprint");
     expect(rehearsal).toContain("20261019112900_v3_s13_migration_registration_context.sql");
     expect(rehearsal).toContain("expect_preflight_rejection nohelper");
     expect(rehearsal).toContain("expect_preflight_rejection nogrant");
     expect(rehearsal).toContain("expect_preflight_rejection partialtable");
     expect(rehearsal).toContain("expect_preflight_rejection partialrpc");
+    expect(rehearsal).toContain("expect_preflight_rejection partialindex");
     expect(rehearsal).toContain("PGHOST=127.0.0.1");
     expect(rehearsal).toContain("PGSSLMODE=disable");
     expect(rehearsal).not.toContain("dkxmnvekiopyesuzggeu");
