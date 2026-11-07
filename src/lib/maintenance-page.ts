@@ -220,7 +220,7 @@ export function renderMaintenancePage(now: Date = new Date()): string {
     <section class="finale" aria-labelledby="finale-title">${rhythmFieldMarkup("finale-rhythm", 1, -1)}<div class="finale-inner scroll-in"><p class="section-kicker">Solaris Studio</p><h2 id="finale-title" class="terra-wordmark display-heading" style="white-space:nowrap;max-width:none;font-size:clamp(2.5rem,13.5vw,9rem)">TerraOS&nbsp;3</h2><p>Built for what happens next.</p><a class="finale-link" href="#confirmation-access">Access Confirmation ↑</a></div></section>
   </main>
 
-  <footer><div><strong>Terra Solaris Broadcasting Coalition</strong>Solaris Studio · TerraOS&nbsp;3</div><div>Maintenance notice updated ${updated} · HTTP 503</div></footer>
+  <footer><div><strong>Terra Solaris Broadcasting Coalition</strong>Solaris Studio · TerraOS&nbsp;3</div><div><a href="/maintenance/recovery" style="color:#b9e3ff">Authorized organizer recovery</a></div><div>Maintenance notice updated ${updated} · HTTP 503</div></footer>
 </div>
 <script id="terraos-story-data" type="application/json">${storyData}</script>
 <script src="/assets/terraos-maintenance.js?v=${MAINTENANCE_ASSET_REVISION}"></script>
