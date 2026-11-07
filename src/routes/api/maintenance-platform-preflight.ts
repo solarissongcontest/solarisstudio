@@ -3,6 +3,7 @@ import type {} from "@tanstack/react-start";
 
 import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
 import { runProtectedPlatformExitPreflight } from "@/lib/platform-exit-preflight.functions";
+import { readBoundedRecoveryBody } from "@/lib/maintenance-recovery-body";
 
 function responseJson(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), {
@@ -31,8 +32,9 @@ export const Route = createFileRoute("/api/maintenance-platform-preflight")({
         if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
           return responseJson({ error: "json_required" }, 415);
         }
-        const raw = await request.text();
-        if (raw.length > 512) return responseJson({ error: "request_too_large" }, 413);
+        const bounded = await readBoundedRecoveryBody(request);
+        if (!bounded.ok) return responseJson({ error: bounded.error }, bounded.status);
+        const raw = bounded.text;
         let input: unknown;
         try {
           input = JSON.parse(raw);
