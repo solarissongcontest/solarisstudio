@@ -27,6 +27,7 @@ import {
   type RulebookRelease,
 } from "@/lib/rules-governance";
 import { governanceImpactForRuleIds } from "@/lib/governance-v5";
+import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
 import { buildV42GovernedDraftChanges } from "@/lib/ssc-rules/v42-governed-draft";
 import { SSC_RULEBOOK, SSC_RULES, getRuleById, type RuleTone } from "@/lib/ssc-rules-v4";
 import { cn } from "@/lib/utils";
@@ -267,6 +268,17 @@ function RulesManager() {
         />
 
         {notice ? <Notice notice={notice} onClose={() => setNotice(null)} /> : null}
+
+        {GLOBAL_MAINTENANCE_MODE ? (
+          <p className="mb-4 rounded-xl border border-amber-200/25 bg-amber-200/[0.06] p-3 text-sm leading-6 text-muted-foreground">
+            Emergency maintenance still blocks new rulebook drafts and publication.
+            An eligible organizer can run the protected recovery checks at{" "}
+            <a href="/maintenance/recovery" className="font-semibold text-sky-200 underline">
+              Platform recovery
+            </a>.
+            This does not approve or publish v4.2 automatically.
+          </p>
+        ) : null}
 
         <div className="grid gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
           <aside className="space-y-4">
