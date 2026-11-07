@@ -87,12 +87,40 @@ describe("TG10 private institutional statement notification candidates", () => {
     expect(rehearsal).toContain("TG10_MISMATCHED_S4_VERSION_ACCEPTED");
     expect(rehearsal).toContain("TG10_CANONICAL_S4_FACT_NOT_ACCEPTED");
     expect(rehearsal).toContain("TG10_INCOMPLETE_R2_SOURCE_ACCEPTED");
+    expect(rehearsal).toContain("TG10_WRONG_S2_COMMAND_ACCEPTED");
+    expect(rehearsal).toContain("TG10_WRONG_S4_EVENT_TYPE_ACCEPTED");
+    expect(rehearsal).toContain("TG10_WRONG_S4_AGGREGATE_REVISION_ACCEPTED");
+    expect(rehearsal).toContain("TG10_NONPUBLIC_S4_PAYLOAD_ACCEPTED");
     expect(rehearsal).toContain("TG10_AFTER_PUBLICATION_FOLLOW_ACCEPTED");
     expect(rehearsal).toContain("perform private.v3_emit_domain_event(");
     expect(rehearsal).not.toContain("insert into private.v3_domain_events(");
     expect(rehearsal).toContain("'world.statement.corrected','world_statement'");
     expect(rehearsal).toContain("v_corrected");
     expect(rehearsal).toContain("v_future");
+  });
+
+  it("exercises mismatched S4 event and S2 operation provenance before the canonical event", () => {
+    const start = rehearsal.indexOf("do $publication_event$");
+    const end = rehearsal.indexOf("end $publication_event$");
+    const block = rehearsal.slice(start, end);
+    expect(start).toBeGreaterThan(0);
+    expect(end).toBeGreaterThan(start);
+    for (const rejected of [
+      "TG10_WRONG_S2_COMMAND_ACCEPTED",
+      "TG10_WRONG_S4_EVENT_TYPE_ACCEPTED",
+      "TG10_WRONG_S4_AGGREGATE_REVISION_ACCEPTED",
+      "TG10_NONPUBLIC_S4_PAYLOAD_ACCEPTED",
+    ]) {
+      expect(block).toContain(rejected);
+      expect(block.indexOf(rejected)).toBeLessThan(block.indexOf("v_good_operation,null,null"));
+    }
+    expect(block).toContain("'world.statement.corrected','world_statement'");
+    expect(block).toContain("'visibility','private','published',true");
+    expect(block).toContain("v_wrong_command_operation");
+    expect(block).toContain("v_wrong_revision_operation");
+    expect(block).toContain("receipt");
+    expect(block).toContain("TG10_CANONICAL_S4_FACT_NOT_ACCEPTED");
+    expect(rehearsal.trimEnd()).toMatch(/rollback;$/);
   });
 
   it("rehearses authenticated organization follows before the first public statement", () => {
