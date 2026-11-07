@@ -50,6 +50,8 @@ describe("SSC v4.2 plain-language candidate", () => {
     expect(bodyOf("6.4")).toContain("most-viewed");
     expect(bodyOf("6.4")).toContain("before the entry deadline");
     expect(bodyOf("6.4")).toContain("full-song video that clearly shows which song it is");
+    expect(bodyOf("6.4")).toContain("Only if neither official channel");
+    expect(bodyOf("6.4")).toContain("A fan video does not take priority");
   });
 
   it("waives previous-country artist permission only without an active HoD", () => {
