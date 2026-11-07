@@ -15,9 +15,9 @@ import {
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 describe("SSC Roleplay & Worldbuilding contract", () => {
-  it("ships Chapter 22 as the v4.1 current canon without renumbering prior chapters", () => {
-    expect(SSC_RULEBOOK.version).toBe("4.1");
-    expect(BUNDLED_RULEBOOK_META.version).toBe("4.1");
+  it("ships Chapter 22 within the plain-English v4.2 current candidate without renumbering prior chapters", () => {
+    expect(SSC_RULEBOOK.version).toBe("4.2");
+    expect(BUNDLED_RULEBOOK_META.version).toBe("4.2");
     expect(SSC_RULE_CHAPTERS).toHaveLength(22);
     expect(SSC_RULE_CHAPTERS.at(-1)?.number).toBe(22);
     expect(SSC_RULE_CHAPTERS.at(-1)?.slug).toBe("roleplay-worldbuilding");
@@ -25,11 +25,11 @@ describe("SSC Roleplay & Worldbuilding contract", () => {
     expect(getRuleById("22.1")?.chapterNumber).toBe(22);
   });
 
-  it("carries the already-published v4.0.1 definitions into the bundled v4.1 canon", () => {
+  it("retains the meaning of published definitions while rewording v4.2 in plain English", () => {
     const terms = getRuleById("2.1")?.body.join(" ") ?? "";
-    expect(terms).toContain("Appeal: A formal request for TSBC to review a decision");
+    expect(terms).toContain("An Appeal is a request for TSBC to review a decision");
     expect(terms).toContain("Head of Delegation (HoD)");
-    expect(terms).toContain("Withdrawal: The formal removal of a Country from an Edition");
+    expect(terms).toContain("Withdrawal means a country formally leaves an edition");
   });
 
   it("makes the six-completed-edition threshold explicit and searchable", () => {
@@ -40,7 +40,7 @@ describe("SSC Roleplay & Worldbuilding contract", () => {
     expect(dormant?.body.join(" ")).toContain("six consecutive SSC Editions");
     expect(dormant?.body.join(" ")).toContain("no active Head of Delegation at any point");
     expect(protectedCountry?.body.join(" ")).toContain("Withdrawal");
-    expect(elimination?.body.join(" ")).toContain("completely eliminated");
+    expect(elimination?.body.join(" ")).toContain("completely eliminate");
 
     expect(searchSscRules("hodless country").some((rule) => rule.id === "22.5")).toBe(true);
     expect(searchSscRules("annex dormant country").some((rule) => rule.id === "22.6")).toBe(true);
@@ -52,7 +52,7 @@ describe("SSC Roleplay & Worldbuilding contract", () => {
     expect(compareRulebookVersions("4.1.0", "4.1")).toBe(0);
     expect(compareRulebookVersions("4.2", "4.1")).toBe(1);
     expect(isPublishedReleaseCompatibleWithBundledCanon({ version: "4.0.1" })).toBe(false);
-    expect(isPublishedReleaseCompatibleWithBundledCanon({ version: "4.1" })).toBe(true);
+    expect(isPublishedReleaseCompatibleWithBundledCanon({ version: "4.1" })).toBe(false);
     expect(isPublishedReleaseCompatibleWithBundledCanon({ version: "4.2" })).toBe(true);
   });
 
@@ -61,7 +61,7 @@ describe("SSC Roleplay & Worldbuilding contract", () => {
     const history = source("src/routes/rules/changes.tsx");
     expect(governance).toContain("reconcileRulebookReleaseHistory");
     expect(governance).toContain("compareRulebookVersions(serverCurrent.version, BUNDLED_RULEBOOK_META.version)");
-    expect(governance).toContain('change_kind: "added" as const');
+    expect(governance).toContain('change_kind: "modified" as const');
     expect(governance).toContain("serverCurrent?.version ?? null");
     expect(history).toContain('"Current bundled"');
     expect(history).toContain('"Bundled with this app version"');
