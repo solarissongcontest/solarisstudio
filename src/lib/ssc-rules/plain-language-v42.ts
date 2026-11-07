@@ -140,7 +140,7 @@ const SUMMARY_ROWS = String.raw`
 6.1|Each participating country can submit one eligible entry, subject to TSBC checks.
 6.2|Submit an eligible song in its original Spotify studio version unless another version is approved.
 6.3|Every entry needs a suitable song video; an approved alternative may be used.
-6.4|Spotify listeners and YouTube views must be below the limits when TSBC checks the entry.
+6.4|TSBC checks the artist’s Spotify listeners and the chosen video’s YouTube views against the published limits.
 6.5|Artists who entered Eurovision or a Eurovision National Selection in 2015 or later cannot compete.
 6.6|Artists have a three-appearance limit, and reuse by another country may need permission.
 6.7|TSBC may check every credited main or featured artist, including their past SSC appearances.
@@ -173,7 +173,7 @@ const SUMMARY_ROWS = String.raw`
 12.2|The official server's recorded time decides when an online action arrived.
 12.3|Submit entries and required jury votes before their deadlines.
 12.4|TSBC may extend a deadline for a justified reason and must treat affected countries fairly.
-12.5|If an official system fails, TSBC can delay or reopen affected tasks fairly.
+12.5|TSBC may extend deadlines for official system failures; personal internet problems do not automatically mean extra time.
 12.6|Results become public only after the required checks are complete.
 13.1|TSBC creates SSC's official online show materials and presentation.
 13.2|You may use official SSC branding appropriately, but cannot alter it misleadingly.
@@ -201,7 +201,7 @@ const SUMMARY_ROWS = String.raw`
 16.5|Investigators may hide private details while still giving accused participants a fair chance to respond.
 16.6|A report or automated alert is not proof of a rule breach.
 17.1|Penalties should fit the proven problem, and correctable problems should be fixed where possible.
-17.2|SSC has ten penalty levels. Point penalties may bring scores below zero.
+17.2|Fixed point penalties can make a score negative. Bonus-only penalty levels cannot be used if the edition has no bonus points.
 17.3|Penalty levels are starting points. TSBC may change the level for a good reason.
 17.4|Repeated or deliberately harmful behaviour can justify a stronger penalty.
 17.5|Honest mistakes, cooperation and quick fixes can justify a lighter penalty.
@@ -248,14 +248,15 @@ export const PLAIN_SUMMARIES: Record<string, string> = Object.fromEntries(
 type RuleWordingPatch = Partial<Pick<SscRule, "summary" | "important" | "allowed" | "prohibited" | "bullets" | "examples">>;
 const SPECIFIC_CHANGES: Record<string, RuleWordingPatch> = {
   "4.6": {
-    "important": "Device latency or a phone countdown reaching zero first does not guarantee a place. If a confirmed Solaris Studio fault affected fairness, TSBC can correct the round under Rules 12.5 and 19.4."
+    "important": "A countdown on your device does not reserve a place. If a confirmed Solaris Studio problem made confirmation unfair, TSBC may correct the result under Rules 12.5 and 19.4."
   },
   "6.4": {
     "summary": "The artist must have under 25 million Spotify monthly listeners and the song video under 20 million YouTube views at the official check.",
-    "important": "If the song has no official music video, use the song's YouTube video instead. Use the most-viewed existing eligible full-song upload under the stated priority and record its URL and figures.",
+    "important": "If there is no official music video, use the most-viewed suitable full-song upload from the artist or label's official channel. Only if neither has one, check other channels. Apply the YouTube view limit to the chosen video and record its link and the check time.",
     "examples": [
       {"title":"Official song video","outcome":"information","detail":"If the song has an official music video, use that video's YouTube view count at the recorded check time."},
-      {"title":"No official music video","outcome":"information","detail":"Use a YouTube video for the song instead and record the exact video checked. When there are several qualifying uploads, use the highest view count under Rule 6.4 and record its URL and check time."}
+      {"title":"No official music video","outcome":"information","detail":"If there is no official music video, first choose the most-viewed suitable full-song upload from the artist or label's official channel. Use other channels only if neither official channel has one."},
+      {"title":"Official video versus fan upload","outcome":"information","detail":"The artist has a suitable full-song video with 600,000 views, and a fan upload has 2 million. Check the artist's video first. The fan video does not take priority just because it has more views."}
     ]
   },
   "6.5": {
