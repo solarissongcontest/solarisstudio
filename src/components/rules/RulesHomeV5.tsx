@@ -30,7 +30,7 @@ import {
   type GovernanceActionKey,
 } from "@/lib/governance-v5";
 import { getRuleContext } from "@/lib/rule-context";
-import { ROLEPLAY_QUICK_ANSWERS } from "@/lib/ssc-rules/roleplay";
+import { roleplayQuickAnswersForVersion } from "@/lib/ssc-rules/roleplay-quick-answers";
 import { compareRulebookVersions } from "@/lib/ssc-rules/runtime-overlay";
 
 function actionFromStoredPath(path: string | null): GovernanceActionKey | null {
@@ -118,8 +118,11 @@ export function RulesHomeV5({
   }, []);
 
   const quick = useMemo(
-    () => [ROLEPLAY_QUICK_ANSWERS[1], GOVERNANCE_QUICK_ANSWERS[0], ROLEPLAY_QUICK_ANSWERS[2], GOVERNANCE_QUICK_ANSWERS[2]],
-    [],
+    () => {
+      const roleplay = roleplayQuickAnswersForVersion(version);
+      return [roleplay[1], GOVERNANCE_QUICK_ANSWERS[0], roleplay[2], GOVERNANCE_QUICK_ANSWERS[2]];
+    },
+    [version],
   );
   const forYou = context ? FOR_YOU_COPY[context] : null;
 
@@ -139,13 +142,13 @@ export function RulesHomeV5({
             <span className="text-xs text-muted-foreground">General Regulations · v{version}</span>
           </div>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Understand what you can do, what you must do, and what happens if a rule is broken. Search a question or browse all chapters.
+            Find out what the rules mean for you. Search for a topic, ask a question or browse the chapters.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground" data-v3-rulebook-release-meta="">
             <span aria-label={`Current rulebook version ${version}`}>Current version · v{version}</span>
             {effectiveDate ? <span>Effective {effectiveDate}</span> : null}
             <Link to="/rules/chapters/$chapter" params={{ chapter: "definitions" }} className="font-semibold text-primary hover:underline">
-              Explain rule words
+              Definitions
             </Link>
             <Link to="/rules/changes" className="font-semibold text-primary hover:underline">
               Previous versions
@@ -182,7 +185,7 @@ export function RulesHomeV5({
 
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
           <span>Try</span>
-          {["annex a hodless country", "friend voting", "artist eligibility", "deadline"].map((example) => (
+          {["take over a country without an HoD", "friend voting", "artist eligibility", "deadlines"].map((example) => (
             <button
               key={example}
               type="button"
@@ -229,12 +232,12 @@ export function RulesHomeV5({
               </span>
               <span className="min-w-0">
                 <span className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-[0.15em] text-indigo-200/75">New chapter · 22</span>
+                  <span className="text-[10px] font-black uppercase tracking-[0.15em] text-indigo-200/75">{compareRulebookVersions(version, "4.2") >= 0 ? "Chapter 22" : "New chapter · 22"}</span>
                   <span className="rounded-full border border-indigo-300/15 bg-indigo-300/[0.06] px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-indigo-100">Worldbuilding</span>
                 </span>
                 <span className="mt-1 block text-base font-bold">Roleplay & Worldbuilding</span>
                 <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  Fictional wars, protected countries, the six-edition rule for countries with no HoD, and changes to the official world map.
+                  Create country stories, understand when you need permission, and learn how the official map can change.
                 </span>
               </span>
               <ArrowRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-indigo-200" />
@@ -279,13 +282,15 @@ export function RulesHomeV5({
             to="/rules/chapters"
             icon={BookOpen}
             title="22 chapters"
-            description="Browse the complete General Regulations by subject."
+            description="Find a rule by chapter or topic."
           />
           <RuleDestination
             to="/rules/chapters/roleplay-worldbuilding"
             icon={Map}
             title="Roleplay & worldbuilding"
-            description="Countries, conflicts, Dormancy, borders and the canonical map."
+            description={compareRulebookVersions(version, "4.2") >= 0
+              ? "Country stories, protection, borders and the official map."
+              : "Countries, conflicts, Dormancy, borders and the canonical map."}
           />
           <RuleDestination
             to="/rules/participating"
@@ -297,13 +302,13 @@ export function RulesHomeV5({
             to="/rules/check"
             icon={ShieldCheck}
             title="Check a situation"
-            description="Use controlled eligibility and process checkers."
+            description="Check whether a song or situation meets the rules."
           />
           <RuleDestination
             to="/rules/interpretations"
             icon={MessageCircleQuestion}
             title="Official clarifications"
-            description="Published interpretations of recurring questions."
+            description="Answers TSBC has officially clarified."
           />
           {compareRulebookVersions(version, "4.2") < 0 ? (
             <RuleDestination
