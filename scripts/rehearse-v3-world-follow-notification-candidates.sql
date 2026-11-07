@@ -137,6 +137,10 @@ declare
   v_bad_operation uuid:=gen_random_uuid();
   v_pending_operation uuid:=gen_random_uuid();
   v_good_operation uuid:=gen_random_uuid();
+  v_wrong_command_operation uuid:=gen_random_uuid();
+  v_wrong_type_operation uuid:=gen_random_uuid();
+  v_wrong_revision_operation uuid:=gen_random_uuid();
+  v_private_visibility_operation uuid:=gen_random_uuid();
   v_count integer;
 begin
   if exists (
@@ -198,6 +202,82 @@ begin
       (v->>'statement')::uuid,(v->>'version')::uuid
     )
   ) then raise exception 'TG10_INCOMPLETE_R2_SOURCE_ACCEPTED'; end if;
+
+  -- The S4 emitter accepts a generic envelope. Only the TG10 consumer
+  -- can reject a forged event whose immutable source metadata disagrees
+  -- with the canonical TG9 publisher, even when a receipt has succeeded.
+  insert into public.studio2_operation_receipts(
+    operation_id,actor_id,idempotency_key,correlation_id,request_fingerprint,
+    command,risk_class,scope,status,result,completed_at
+  ) values
+    (v_wrong_command_operation,(v->>'first')::uuid,'tg10-wrong-command-'||v_wrong_command_operation::text,
+     v_wrong_command_operation,repeat('f',64),'world.statement.correct','R2',
+     '{}'::jsonb,'succeeded','{}'::jsonb,now()),
+    (v_wrong_type_operation,(v->>'first')::uuid,'tg10-wrong-type-'||v_wrong_type_operation::text,
+     v_wrong_type_operation,repeat('1',64),'world.statement.publish','R2',
+     '{}'::jsonb,'succeeded','{}'::jsonb,now()),
+    (v_wrong_revision_operation,(v->>'first')::uuid,'tg10-wrong-revision-'||v_wrong_revision_operation::text,
+     v_wrong_revision_operation,repeat('2',64),'world.statement.publish','R2',
+     '{}'::jsonb,'succeeded','{}'::jsonb,now()),
+    (v_private_visibility_operation,(v->>'first')::uuid,'tg10-private-payload-'||v_private_visibility_operation::text,
+     v_private_visibility_operation,repeat('3',64),'world.statement.publish','R2',
+     '{}'::jsonb,'succeeded','{}'::jsonb,now());
+
+  -- The right S4 version and public payload do not excuse a wrong S2 command.
+  perform private.v3_emit_domain_event(
+    'world.statement.published','world_statement',v->>'statement',1,
+    v_wrong_command_operation,null,null,
+    jsonb_build_object(
+      'organizationId',v->>'org','statementId',v->>'statement',
+      'versionId',v->>'version','revision',1,
+      'visibility','public','published',true
+    ),1,array[]::text[]
+  );
+  if exists (select 1 from private.world_statement_follow_notification_candidates_v1(
+    (v->>'statement')::uuid,(v->>'version')::uuid
+  )) then raise exception 'TG10_WRONG_S2_COMMAND_ACCEPTED'; end if;
+
+  -- A syntactically valid S4 event for revision one cannot be correction-type.
+  perform private.v3_emit_domain_event(
+    'world.statement.corrected','world_statement',v->>'statement',1,
+    v_wrong_type_operation,null,null,
+    jsonb_build_object(
+      'organizationId',v->>'org','statementId',v->>'statement',
+      'versionId',v->>'version','revision',1,
+      'visibility','public','published',true
+    ),1,array[]::text[]
+  );
+  if exists (select 1 from private.world_statement_follow_notification_candidates_v1(
+    (v->>'statement')::uuid,(v->>'version')::uuid
+  )) then raise exception 'TG10_WRONG_S4_EVENT_TYPE_ACCEPTED'; end if;
+
+  -- Version ID and payload revision cannot conceal a different S4 aggregate.
+  perform private.v3_emit_domain_event(
+    'world.statement.published','world_statement',v->>'statement',2,
+    v_wrong_revision_operation,null,null,
+    jsonb_build_object(
+      'organizationId',v->>'org','statementId',v->>'statement',
+      'versionId',v->>'version','revision',1,
+      'visibility','public','published',true
+    ),1,array[]::text[]
+  );
+  if exists (select 1 from private.world_statement_follow_notification_candidates_v1(
+    (v->>'statement')::uuid,(v->>'version')::uuid
+  )) then raise exception 'TG10_WRONG_S4_AGGREGATE_REVISION_ACCEPTED'; end if;
+
+  -- Public present-time tables do not excuse a nonpublic publication event.
+  perform private.v3_emit_domain_event(
+    'world.statement.published','world_statement',v->>'statement',1,
+    v_private_visibility_operation,null,null,
+    jsonb_build_object(
+      'organizationId',v->>'org','statementId',v->>'statement',
+      'versionId',v->>'version','revision',1,
+      'visibility','private','published',true
+    ),1,array[]::text[]
+  );
+  if exists (select 1 from private.world_statement_follow_notification_candidates_v1(
+    (v->>'statement')::uuid,(v->>'version')::uuid
+  )) then raise exception 'TG10_NONPUBLIC_S4_PAYLOAD_ACCEPTED'; end if;
 
   -- This is the exact TG9 world_issue_statement_v1 S4 envelope and its
   -- already-completed canonical S2 operation; no alternative publisher.
