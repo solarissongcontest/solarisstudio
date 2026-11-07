@@ -58,7 +58,9 @@ describe("Governance OS v5 contract", () => {
     expect(receipts).toContain("governance?: GovernanceReceiptSnapshot");
     expect(confirmation).toContain("snapshot={receipt.governance}");
     expect(jury).toContain('captureGovernanceSnapshot("jury.vote")');
-    expect(televote).toContain("governance,");
+    expect(televote).toContain("writeTelevoteReceipt(window.localStorage, roundId, governance)");
+    const stored = source("src/lib/v3-televote-receipt-storage.ts");
+    expect(stored).toContain("JSON.stringify({ governance: safeGovernance(governance) } satisfies LocalTelevoteReceipt)");
   });
 
   it("returns from a rule to the exact task state with scroll and focus restoration", () => {

@@ -1,15 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import {
-  CartesianGrid,
-  ResponsiveContainer,
-  Scatter,
-  ScatterChart,
-  Tooltip,
-  XAxis,
-  YAxis,
-  ZAxis,
-} from "recharts";
+import { NativeJuryTelevoteScatter } from "./NativeJuryTelevoteScatter";
 
 import type { Country, ResultRow } from "@/lib/data";
 
@@ -97,146 +88,14 @@ export function JuryVsTelevote({ countries, results }: { countries: Country[]; r
         </summary>
         <div className="border-t border-border/60 p-2">
       <div className="h-[360px] w-full">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <ScatterChart margin={{ top: 12, right: 22, bottom: 20, left: 4 }}>
-            <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
-            <XAxis
-              type="number"
-              dataKey="jury"
-              name="Avg jury points"
-              stroke="var(--muted-foreground)"
-              fontSize={11}
-              tickLine={false}
-              axisLine={false}
-              label={{ value: "Average jury points", position: "insideBottom", offset: -12 }}
-            />
-            <YAxis
-              type="number"
-              dataKey="televote"
-              name="Avg televote points"
-              stroke="var(--muted-foreground)"
-              fontSize={11}
-              tickLine={false}
-              axisLine={false}
-              width={42}
-              label={{ value: "Average televote points", angle: -90, position: "insideLeft" }}
-            />
-            <ZAxis type="number" dataKey="n" range={[70, 280]} />
-            <Tooltip
-              cursor={{ strokeDasharray: "3 3" }}
-              content={({ active, payload }) => {
-                if (!active || !payload?.length) return null;
-                const point = payload[0].payload as (typeof data)[number];
-                return (
-                  <div className="glass min-w-40 p-3 text-xs shadow-xl">
-                    <p className="font-semibold">{point.name}</p>
-                    <p className="mt-1">Avg jury: {point.jury.toFixed(1)}</p>
-                    <p>Avg televote: {point.televote.toFixed(1)}</p>
-                    <p className="mt-1 text-muted-foreground">{point.n} appearances</p>
-                  </div>
-                );
-              }}
-            />
-            <Scatter
-              data={data}
-              onMouseEnter={(point: any) => setHoverId(point.id)}
-              onMouseLeave={() => setHoverId(null)}
-              shape={(props: any) => {
-                const point = props.payload as (typeof data)[number];
-                const isHover = hoverId === point.id;
-                const size = Number(props.size);
-                const baseRadius = Number.isFinite(size) && size > 0 ? Math.sqrt(size / Math.PI) : 7;
-                const radius = isHover ? baseRadius + 3 : baseRadius;
-
-                return (
-                  <circle
-                    cx={Number(props.cx) || 0}
-                    cy={Number(props.cy) || 0}
-                    r={radius}
-                    fill={point.color}
-                    fillOpacity={isHover ? 0.95 : 0.78}
-                    stroke={isHover ? "var(--gold)" : "rgba(255,255,255,.22)"}
-                    strokeWidth={isHover ? 2.5 : 1}
-                    className="cursor-pointer transition-opacity"
-                  />
-                );
-              }}
-            />
-          </ScatterChart>
-        </ResponsiveContainer>
+        <NativeJuryTelevoteScatter data={data} hoverId={hoverId} onHover={setHoverId} />
       </div>
         </div>
       </details>
 
       <div className="hidden sm:block">
       <div className="h-[360px] w-full sm:h-[440px] lg:h-[520px]">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <ScatterChart margin={{ top: 12, right: 22, bottom: 20, left: 4 }}>
-            <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
-            <XAxis
-              type="number"
-              dataKey="jury"
-              name="Avg jury points"
-              stroke="var(--muted-foreground)"
-              fontSize={11}
-              tickLine={false}
-              axisLine={false}
-              label={{ value: "Average jury points", position: "insideBottom", offset: -12 }}
-            />
-            <YAxis
-              type="number"
-              dataKey="televote"
-              name="Avg televote points"
-              stroke="var(--muted-foreground)"
-              fontSize={11}
-              tickLine={false}
-              axisLine={false}
-              width={42}
-              label={{ value: "Average televote points", angle: -90, position: "insideLeft" }}
-            />
-            <ZAxis type="number" dataKey="n" range={[70, 280]} />
-            <Tooltip
-              cursor={{ strokeDasharray: "3 3" }}
-              content={({ active, payload }) => {
-                if (!active || !payload?.length) return null;
-                const point = payload[0].payload as (typeof data)[number];
-                return (
-                  <div className="glass min-w-40 p-3 text-xs shadow-xl">
-                    <p className="font-semibold">{point.name}</p>
-                    <p className="mt-1">Avg jury: {point.jury.toFixed(1)}</p>
-                    <p>Avg televote: {point.televote.toFixed(1)}</p>
-                    <p className="mt-1 text-muted-foreground">{point.n} appearances</p>
-                  </div>
-                );
-              }}
-            />
-            <Scatter
-              data={data}
-              onMouseEnter={(point: any) => setHoverId(point.id)}
-              onMouseLeave={() => setHoverId(null)}
-              shape={(props: any) => {
-                const point = props.payload as (typeof data)[number];
-                const isHover = hoverId === point.id;
-                const size = Number(props.size);
-                const baseRadius = Number.isFinite(size) && size > 0 ? Math.sqrt(size / Math.PI) : 7;
-                const radius = isHover ? baseRadius + 3 : baseRadius;
-
-                return (
-                  <circle
-                    cx={Number(props.cx) || 0}
-                    cy={Number(props.cy) || 0}
-                    r={radius}
-                    fill={point.color}
-                    fillOpacity={isHover ? 0.95 : 0.78}
-                    stroke={isHover ? "var(--gold)" : "rgba(255,255,255,.22)"}
-                    strokeWidth={isHover ? 2.5 : 1}
-                    className="cursor-pointer transition-opacity"
-                  />
-                );
-              }}
-            />
-          </ScatterChart>
-        </ResponsiveContainer>
+        <NativeJuryTelevoteScatter data={data} hoverId={hoverId} onHover={setHoverId} />
       </div>
       </div>
 
