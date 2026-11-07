@@ -32,6 +32,7 @@ describe("public Analysis desktop visualizations", () => {
 
     expect(history).toContain("md:h-[460px]");
     expect(history).toContain("xl:h-[520px]");
-    expect(history).toContain('ResponsiveContainer width="100%" height="100%" minWidth={0}');
+    expect(history).toContain("<NativeLineChart");
+    expect(history).not.toContain('from "recharts"');
   });
 });
