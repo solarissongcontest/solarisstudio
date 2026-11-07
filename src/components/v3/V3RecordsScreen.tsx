@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 
 import { FlagChip } from "@/components/FlagChip";
 import type { FanRecordCategory } from "@/lib/fan-records";
-import type { V3Record, V3RecordHolder } from "@/lib/v3-records";
+import type { V3Record, V3RecordCategoryFilter, V3RecordHolder } from "@/lib/v3-records";
 import {
   V3Screen,
   V3ScreenHeader,
@@ -23,8 +23,6 @@ const RECORD_TABS = [
   { value: "all", label: "All" },
 ] as const;
 
-type RecordTab = FanRecordCategory | "all";
-
 const CATEGORY_LABELS: Record<FanRecordCategory, string> = {
   career: "Career",
   streaks: "Streak",
@@ -40,18 +38,27 @@ export function V3RecordsScreen({
   generatedAt,
   spoilerProtected = false,
   onRevealCurrentEdition,
+  selectedCategory,
+  onCategoryChange,
 }: {
   records: readonly V3Record[];
   archivedFinalEditions: number;
   generatedAt: string;
   spoilerProtected?: boolean;
   onRevealCurrentEdition?: () => void;
+  selectedCategory?: V3RecordCategoryFilter;
+  onCategoryChange?: (category: V3RecordCategoryFilter) => void;
 }) {
-  const [tab, setTab] = useState<RecordTab>("career");
+  const [localCategory, setLocalCategory] = useState<V3RecordCategoryFilter>("career");
+  const category = selectedCategory ?? localCategory;
   const filtered = useMemo(
-    () => (tab === "all" ? records : records.filter((record) => record.category === tab)),
-    [records, tab],
+    () => (category === "all" ? records : records.filter((record) => record.category === category)),
+    [records, category],
   );
+  const changeCategory = (nextCategory: V3RecordCategoryFilter) => {
+    if (onCategoryChange) onCategoryChange(nextCategory);
+    else setLocalCategory(nextCategory);
+  };
 
   return (
     <V3Screen>
@@ -108,14 +115,14 @@ export function V3RecordsScreen({
           aria-label="Record category"
         >
           {RECORD_TABS.map((option) => {
-            const selected = option.value === tab;
+            const selected = option.value === category;
             return (
               <button
                 key={option.value}
                 type="button"
                 role="tab"
                 aria-selected={selected}
-                onClick={() => setTab(option.value)}
+                onClick={() => changeCategory(option.value)}
                 className="min-h-11 shrink-0 rounded-xl border px-3 text-xs font-semibold transition"
                 style={{
                   borderColor: selected

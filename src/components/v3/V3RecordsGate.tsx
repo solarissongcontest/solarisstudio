@@ -1,3 +1,4 @@
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useState } from "react";
 
 import { V3AppShell } from "@/components/v3/V3AppShell";
@@ -5,12 +6,16 @@ import { V3Screen, V3Surface } from "@/components/v3/V3Foundation";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
 import { useNotificationPreferences } from "@/lib/engagement-data";
 import { useV3EditionRolloutProbe, useV3RolloutProbe } from "@/lib/v3-primary-runtime";
+import { parseV3RecordCategorySearch, type V3RecordCategoryFilter } from "@/lib/v3-records";
 import { useV3RecordsBundle } from "@/lib/v3-records-runtime";
 import { resolveV3ResultsSpoilerProtection } from "@/lib/v3-results";
 import { V3RecordsScreen } from "./V3RecordsScreen";
 
 export function V3RecordsGate({ fallback }: { fallback: ReactNode }) {
   const { preferences } = useAppExperiencePreferences();
+  const navigate = useNavigate();
+  const search = useRouterState({ select: (state) => state.location.search });
+  const categoryNomination = parseV3RecordCategorySearch(search);
   const [revealedScope, setRevealedScope] = useState<string | null>(null);
   const bundle = useV3RecordsBundle(true);
   const rolloutEditionSlug = bundle.data?.rolloutEditionSlug ?? "";
@@ -36,6 +41,21 @@ export function V3RecordsGate({ fallback }: { fallback: ReactNode }) {
   useEffect(() => {
     setRevealedScope(null);
   }, [rollout.data?.userId, bundle.data?.currentEditionId]);
+
+  useEffect(() => {
+    if (!categoryNomination.shouldNormalize) return;
+
+    // Invalid category values must not erase unrelated search context.
+    void navigate({
+      to: "/records",
+      search: ((previous: Record<string, unknown>) => {
+        const next = { ...previous };
+        delete next.category;
+        return next;
+      }) as any,
+      replace: true,
+    });
+  }, [categoryNomination.shouldNormalize, navigate]);
 
   // Until canonical Records/publication authority can be verified, do not
   // launch legacy archive-wide readers just because a network request failed.
@@ -98,6 +118,17 @@ export function V3RecordsGate({ fallback }: { fallback: ReactNode }) {
     !currentEditionRevealed &&
     bundle.data.currentEditionAffectsRecords;
 
+  const changeCategory = (category: V3RecordCategoryFilter) => {
+    if (category === categoryNomination.category) return;
+    void navigate({
+      to: "/records",
+      search: ((previous: Record<string, unknown>) => ({
+        ...previous,
+        category: category === "career" ? undefined : category,
+      })) as any,
+    });
+  };
+
   return (
     <V3AppShell
       editionLabel={bundle.data.shell.editionLabel}
@@ -115,6 +146,8 @@ export function V3RecordsGate({ fallback }: { fallback: ReactNode }) {
         generatedAt={bundle.data.generatedAt}
         spoilerProtected={spoilerProtected}
         onRevealCurrentEdition={() => setRevealedScope(revealScope)}
+        selectedCategory={categoryNomination.category}
+        onCategoryChange={changeCategory}
       />
     </V3AppShell>
   );

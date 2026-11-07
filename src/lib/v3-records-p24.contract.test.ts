@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { parseV3RecordCategorySearch } from "./v3-records";
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
@@ -145,6 +146,53 @@ describe("Public V3 P24 Records", () => {
     expect(provenance).toContain("if (!input.editionId) return null");
     expect(screen).toContain('data-v3-record-provenance={holder.provenance.kind}');
     expect(screen).toContain("Source: {holder.provenance.label}");
+  });
+
+  it("allows a published Records category to be shared as sanitized URL state", () => {
+    const gate = read("src/components/v3/V3RecordsGate.tsx");
+    const screen = read("src/components/v3/V3RecordsScreen.tsx");
+    const contract = read("src/lib/v3-records.ts");
+    expect(gate).toContain("state.location.search");
+    expect(gate).toContain("parseV3RecordCategorySearch(search)");
+    expect(gate).toContain('to: "/records"');
+    expect(gate).toContain('category: category === "career" ? undefined : category');
+    expect(gate).toContain("replace: true");
+    expect(gate).toContain("delete next.category");
+    expect(gate).toContain("...previous");
+    expect(screen).toContain("selectedCategory ?? localCategory");
+    expect(screen).toContain("onCategoryChange(nextCategory)");
+    expect(contract).toContain('FanRecordCategory | "all"');
+    // Versioned provenance, spoiler-safe derived records and official history links
+    // remain independent of the user's URL category selection.
+    expect(screen).toContain("holder.provenance.href");
+    expect(gate).toContain("resolveV3ResultsSpoilerProtection");
+  });
+
+  it("normalizes malformed Records category URL values without reading private data", () => {
+    for (const malformed of ["", "unknown", "Career", 5, null, ["voting"], { value: "all" }]) {
+      expect(parseV3RecordCategorySearch({ category: malformed })).toEqual({
+        category: "career",
+        shouldNormalize: true,
+      });
+    }
+    expect(parseV3RecordCategorySearch({ category: "career" })).toEqual({
+      category: "career",
+      shouldNormalize: true,
+    });
+    expect(parseV3RecordCategorySearch({ category: undefined })).toEqual({
+      category: "career",
+      shouldNormalize: false,
+    });
+    expect(parseV3RecordCategorySearch({ from: "results" })).toEqual({
+      category: "career",
+      shouldNormalize: false,
+    });
+    for (const category of ["streaks", "edition", "voting", "regional", "unusual", "all"]) {
+      expect(parseV3RecordCategorySearch({ category })).toEqual({
+        category,
+        shouldNormalize: false,
+      });
+    }
   });
 
   it("does not expose a browser-controlled Records rollout escape hatch", () => {
