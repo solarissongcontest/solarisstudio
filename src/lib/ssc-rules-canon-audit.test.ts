@@ -32,7 +32,7 @@ function textFor(ruleId: string) {
 
 describe("SSC current canon audit", () => {
   it("keeps exactly 22 numbered chapters with unique current rule ids", () => {
-    expect(SSC_RULEBOOK.version).toBe("4.1");
+    expect(SSC_RULEBOOK.version).toBe("4.2");
     expect(RULEBOOK_STATS.chapters).toBe(22);
     expect(SSC_RULE_CHAPTERS.map((chapter) => chapter.number)).toEqual(
       Array.from({ length: 22 }, (_, index) => index + 1),
@@ -113,10 +113,10 @@ describe("SSC current canon audit", () => {
 
   it("carries the already-published v4.0.1 definitions into the current structural canon", () => {
     const definitions = textFor("2.1");
-    expect(definitions).toContain("appeal: a formal request");
+    expect(definitions).toContain("an appeal is a request");
     expect(definitions).toContain("head of delegation (hod)");
     expect(definitions).toContain("official contest channel");
-    expect(definitions).toContain("withdrawal: the formal removal");
+    expect(definitions).toContain("withdrawal means a country formally leaves");
   });
 
   it("preserves the Roleplay & Worldbuilding protection and Dormant contracts", () => {
