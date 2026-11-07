@@ -67,6 +67,8 @@ expect_preflight_rejection() {
     partialrpc)
       run_in_db "$probe_db" -c "create function public.v3_register_migration_contract(text,integer,text,boolean,text,text)
         returns jsonb language sql as \$stub\$select '{}'::jsonb\$stub\$" >/dev/null;;
+    partialindex)
+      run_in_db "$probe_db" -c "create table private.v3_backfill_jobs_status_idx(sentinel integer)" >/dev/null;;
     *)
       echo "Invalid local negative scenario: $name" >&2; exit 2;;
   esac
@@ -91,6 +93,7 @@ expect_preflight_rejection nohelper 'authority helper absent'
 expect_preflight_rejection nogrant 'lacks private schema usage'
 expect_preflight_rejection partialtable 'target already exists'
 expect_preflight_rejection partialrpc 'target already exists'
+expect_preflight_rejection partialindex 'target already exists'
 
 # Compare the recovered schema to the canonical original three-stage S13
 # source sequence on the SAME production-observed dependency fixture.
@@ -238,5 +241,5 @@ fi
 allowed="$(run -c "select set_config('request.jwt.claim.role','service_role',false);
 select public.v3_register_migration_contract('v3.s13.local-positive-test',1,'forward_fix_only',false,null,'Local synthetic authorization check') ->> 'migrationKey'" | tail -n1)"
 [[ "$allowed" == 'v3.s13.local-positive-test' ]] || { echo 'Service context cannot register' >&2; exit 1; }
-echo 'PASS: S13 forward candidate on observed PG17.11 dependencies; canonical 7-RPC + 5-table DDL/ACL/index/constraint parity; 4 drift-negative cases; strict security / replay denial'
+echo 'PASS: S13 forward candidate on observed PG17.11 dependencies; canonical 7-RPC + 5-table DDL/ACL/index/constraint parity; 5 drift-negative cases; strict security / replay denial'
 echo 'LIMITATION: this tests only observed S13 dependencies, NOT full production schema/data. Original transient registration-context audit key is intentionally not claimed by this candidate.'
