@@ -40,6 +40,12 @@ The rehearsal explicitly checks:
 
 The Node script **does not contact production**. These are minimal synthetic definitions, not a hosted-head-equivalent clone; passing only proves important SQL behavior in disposable local Postgres. It does not prove that real current function bodies, ACLs, HTTP transport through local PostgREST, dependency chains, or historical contest data are compatible.
 
+## Additional local HTTP transport check
+
+The path-scoped [isolated PostgreSQL CI workflow](../../../.github/workflows/v3-http409-forward-repair-local.yml) also starts a *temporary* loopback PostgREST **v14.18** container. It creates an isolated synthetic RPC that raises `PT409`, verifies the HTTP response status is **409** with the expected error code, and destroys the container. This establishes the PostgREST error-code mapping separately from the 29-function SQL rewrite.
+
+**This does not exercise the real Confirmation or Results RPC body through the hosted API and does not certify hosted compatibility.** The workflow must not receive production credentials or contact a non-loopback database.
+
 ## Required steps **before creating a versioned forward-only migration**
 
 1. Verify complete definition and caller equivalence of these 29 hosted functions against the reviewed source, not just presence of a string. Check privileges, exception-handler semantics, overloads and dependency changes.
