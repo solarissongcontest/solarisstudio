@@ -121,6 +121,130 @@ const BODY_ROWS = String.raw`
 22.11	Fictional rivalry does not permit real-life harassment, threats, forged permission, impersonation or tampering with accounts and country records. Roleplay cannot be used to force someone out of SSC or falsely make a Protected country appear Dormant.
 `;
 
+const SUMMARY_ROWS = String.raw`
+1.1|SSC is an independent online fan contest where real people represent fictional countries with real music.
+2.1|These words tell you exactly what common SSC terms mean.
+3.1|TSBC runs SSC, checks competition fairness and makes official decisions.
+3.2|The Contest Director manages each SSC edition and its official decisions.
+3.3|The Creative Director helps with the next edition's look, but does not control voting or penalties.
+4.1|Use Solaris Studio for official actions unless TSBC announces another official channel.
+4.2|Protect your account and never use extra accounts to gain extra voting or participation rights.
+4.3|You cannot use bots or scripts to beat other participants or bypass contest limits.
+4.4|You may report a bug, but you cannot exploit it to gain an unfair advantage.
+4.5|Trusted server records help settle disagreements about online submissions and times.
+4.6|Limited confirmation places usually go to valid submissions in the order the server receives them.
+4.7|Edition rules say which confirmation details are needed now and which you can provide later.
+5.1|Every participating country has one official representative called a Head of Delegation (HoD).
+5.2|Joining is voluntary, but official participants must follow SSC's rules.
+5.3|Each registered fictional country has one delegation and uses its official SSC name.
+6.1|Each participating country can submit one eligible entry, subject to TSBC checks.
+6.2|Submit an eligible song in its original Spotify studio version unless another version is approved.
+6.3|Every entry needs a suitable song video; an approved alternative may be used.
+6.4|At the official check, the artist must be under 25 million Spotify listeners and the song video under 20 million YouTube views.
+6.5|Artists who entered Eurovision or a Eurovision National Selection in 2015 or later cannot compete.
+6.6|Artists have a three-appearance limit, and reuse by another country may need permission.
+6.7|TSBC may check every credited main or featured artist, including their past SSC appearances.
+6.8|All musical styles and languages are welcome; variety is encouraged, not required.
+6.9|Countries may choose their entries directly or hold their own song selection.
+6.10|TSBC checks entry eligibility using the information available at a recorded official time.
+7.1|An edition usually has two Semi-Finals and a Grand Final; TSBC announces its exact format.
+7.2|TSBC chooses the order of performances for the edition's presentation.
+7.3|The published voting system decides the results, and the highest score normally wins.
+7.4|Tied countries are separated using SSC's published sequence of tie-break steps.
+7.5|The verified winning country receives the trophy and first right to host the next edition.
+7.6|TSBC checks results before making them final and may correct serious errors.
+8.1|The winner may creatively host the next online edition, host jointly or decline.
+8.2|The host helps create the theme, artwork and presentation, while TSBC runs the contest.
+8.3|The previous winner's HoD normally helps design the next edition as Creative Director.
+8.4|Each edition should have a recognisable theme and a consistent look.
+8.5|TSBC may finish the host's unfinished creative tasks without removing its Host status.
+9.1|Rank songs according to your genuine musical opinions, not someone else's instructions.
+9.2|A required jury ranking must be made independently and submitted before the deadline.
+10.1|Only valid public votes within the edition's published limits are counted.
+11.1|You cannot vote for your own country, including through another account.
+11.2|Voting agreements, fake accounts, automated votes and ballot manipulation are prohibited.
+11.3|You may promote your song, but you cannot trade votes or offer rewards for scores.
+11.4|Voting for a friend's song is allowed when it is genuinely your choice.
+11.5|Automated voting alerts can trigger a human review, but cannot decide guilt themselves.
+11.6|TSBC may ask you to confirm that your voting choices were your own.
+11.7|TSBC reviews voting evidence fairly; unusual statistics alone do not prove cheating.
+11.8|TSBC checks votes and scores before publishing official results.
+12.1|Official deadlines must show the exact date, time and time zone.
+12.2|The official server's recorded time decides when an online action arrived.
+12.3|Submit entries and required jury votes before their deadlines.
+12.4|TSBC may extend a deadline for a justified reason and must treat affected countries fairly.
+12.5|Major official-platform failures may justify postponing or reopening affected actions.
+12.6|Results become public only after the required checks are complete.
+13.1|TSBC creates SSC's official online show materials and presentation.
+13.2|You may use official SSC branding appropriately, but cannot alter it misleadingly.
+13.3|Artists and rights holders keep ownership of their music and images used in SSC.
+13.4|Preview and Grand Final clips have published maximum lengths unless announced otherwise.
+13.5|AI may help with visuals, but AI-generated competing songs and unauthorised imitation vocals are prohibited.
+13.6|You may promote entries and criticise SSC, but cannot harass, impersonate or manipulate votes.
+14.1|Treat participants respectfully; bullying, threats and revealing private details are prohibited.
+14.2|You may criticise songs, rules and decisions, but not harass or threaten people.
+14.3|Discrimination and discriminatory abuse are prohibited in SSC.
+14.4|All participants must compete honestly without cheating or exploiting bugs.
+14.5|Friendship and creative collaboration are welcome as long as votes stay independent.
+14.6|SSC rules cover SSC spaces, and outside behaviour only when it seriously affects SSC.
+14.7|Private account and technical information should not be made public.
+14.8|Solaris Studio should only use and share technical information needed for legitimate SSC tasks.
+15.1|Countries may withdraw, including after the submission deadline but before publication.
+15.2|After an entry is published, a seriously disruptive withdrawal may lead to a penalty.
+15.3|Entries may normally be replaced before the deadline; later changes need approval.
+15.4|If the host withdraws, TSBC chooses another arrangement.
+15.5|Withdrawals caused by serious unexpected problems are considered under emergency rules.
+16.1|TSBC gathers evidence and normally gives participants a chance to respond before penalising them.
+16.2|You can report a genuine concern without proving guilt yourself.
+16.3|Reporting options must explain whether your identity is anonymous or confidential, and who can see it.
+16.4|Anonymous reporters may use a private code to follow their case; retaliation is prohibited.
+16.5|Investigators may hide private details while still giving accused participants a fair chance to respond.
+16.6|A report or automated alert is not proof of a rule breach.
+17.1|Penalties should fit the proven problem, and correctable problems should be fixed where possible.
+17.2|SSC has ten possible penalty levels, from a warning to a lifetime ban.
+17.3|Common violations have suggested penalty levels, but those levels are not automatic.
+17.4|Repeated or deliberately harmful behaviour can justify a stronger penalty.
+17.5|Honest mistakes, cooperation and quick fixes can justify a lighter penalty.
+17.6|A formal warning means similar future misconduct may receive a stronger penalty.
+17.7|A penalty should affect the person, vote, entry or delegation actually responsible.
+17.8|A serious penalty decision must explain what happened, the evidence and the reason for the penalty.
+18.1|You normally have 48 hours after receiving a penalty to appeal it.
+18.2|An appeal should identify the decision, explain why you disagree and provide any evidence.
+18.3|A serious appeal should receive a genuine review with another eligible official where possible.
+18.4|An appeal can keep, reduce, remove or sometimes increase a penalty.
+18.5|Genuine appeals are allowed, but appeals cannot be used to harass or stall a case.
+18.6|An official with a serious personal conflict should not be the only person deciding a case.
+19.1|Major events outside anyone's reasonable control may require emergency contest changes.
+19.2|During an emergency, TSBC may delay, reopen, pause or cancel affected contest processes.
+19.3|If accepted media becomes unavailable unexpectedly, TSBC may approve a replacement.
+19.4|Emergency changes should restore fairness, not give a country an extra advantage.
+20.1|Each edition must publish its own dates, formats, voting limits and other changeable details.
+20.2|General rules apply to all editions; edition rules can change only permitted details.
+21.1|TSBC may update rules, but major competition changes should not normally happen mid-stage.
+21.2|TSBC decides genuinely unclear cases fairly and consistently.
+21.3|The version marked Current in Solaris Studio is the official rulebook.
+21.4|New or amended rules start applying from the effective date and time TSBC announces.
+22.1|You may shape your own country's fictional story, but not permanently rewrite someone else's.
+22.2|Permanent changes to another Protected country normally need that country's HoD to agree.
+22.3|You may roleplay wars, but an invasion alone does not let you permanently take another country's land.
+22.4|A country stays Protected until it has completed six editions in a row with no active HoD.
+22.5|A country becomes Dormant after six completed editions in a row without any active HoD.
+22.6|A Dormant country may be taken over, divided or eliminated from today's map, but its past scores remain.
+22.7|Permanent border changes must be recorded by TSBC; unofficial claims do not change the map.
+22.8|A returning HoD restores protection before elimination, but not automatically the borders of an eliminated country.
+22.9|You may split or merge fictional countries you control, but need consent for another Protected country's land.
+22.10|Changes to today's countries never change past SSC entries, votes or results.
+22.11|Fictional wars never justify real harassment, impersonation or forged consent.
+`;
+
+const PLAIN_SUMMARIES: Record<string, string> = Object.fromEntries(
+  SUMMARY_ROWS.trim().split("\n").map((row) => {
+    const split = row.indexOf("|");
+    if (split < 0) throw new Error("Missing v4.2 rule summary separator");
+    return [row.slice(0, split), row.slice(split + 1)];
+  }),
+);
+
 type RuleWordingPatch = Partial<Pick<SscRule, "summary" | "important" | "allowed" | "prohibited" | "bullets">>;
 const SPECIFIC_CHANGES: Record<string, RuleWordingPatch> = {
   "4.6": {
@@ -204,6 +328,7 @@ export function withPlainLanguage<T extends SscRule>(rule: T): T {
   return {
     ...rule,
     ...extra,
+    summary: extra.summary ?? PLAIN_SUMMARIES[rule.id] ?? rule.summary,
     body: [...body],
     allowed: extra.allowed ?? rule.allowed,
     prohibited: extra.prohibited ?? rule.prohibited,
