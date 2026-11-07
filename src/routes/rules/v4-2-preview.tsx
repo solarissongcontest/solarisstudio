@@ -13,7 +13,7 @@ import { SSC_RULE_CHAPTERS } from "@/lib/ssc-rules/current";
 import { withPlainLanguage } from "@/lib/ssc-rules/plain-language-v42";
 
 /**
- * Public, read-only preview of the complete v4.2 proposal.
+ * Public, read-only reference copy of the v4.2 candidate.
  * Deliberately separate from the authoritative runtime rulebook, release
  * history and Rules Manager publication RPC. It never applies a rule overlay.
  */
@@ -27,10 +27,10 @@ const TOTAL_RULES = PREVIEW_CHAPTERS.reduce((total, chapter) => total + chapter.
 export const Route = createFileRoute("/rules/v4-2-preview")({
   head: () => ({
     meta: [
-      { title: "DRAFT v4.2 Rulebook Preview — Solaris Song Contest" },
+      { title: "v4.2 Rulebook Reference — Solaris Song Contest" },
       {
         name: "description",
-        content: "Read all 113 proposed plain-English SSC regulations. This is not the current official rulebook.",
+        content: "Read a reference copy of 113 v4.2 SSC regulations. The official Current rules are governed separately.",
       },
       { name: "robots", content: "noindex,follow" },
     ],
@@ -54,7 +54,7 @@ function RulesV42PreviewPage() {
   const matching = chapters.reduce((total, chapter) => total + chapter.rules.length, 0);
 
   return (
-    <RulesRouteShell resolvingTitle="Opening proposed v4.2 rules">
+    <RulesRouteShell resolvingTitle="Opening v4.2 reference rules">
       <SolarisDepthPage tone="rules" className="pb-[calc(2rem+env(safe-area-inset-bottom))]">
         <SolarisDepthSafeZone>
           <Link to="/rules" className="inline-flex min-h-11 items-center gap-2 text-xs font-bold text-primary">
@@ -62,37 +62,36 @@ function RulesV42PreviewPage() {
           </Link>
           <SolarisDepthSurface variant="action">
             <header>
-              <SolarisDepthEyebrow tone="primary">Proposal for review · Not in effect</SolarisDepthEyebrow>
+              <SolarisDepthEyebrow tone="primary">Reference copy · See Current Rules</SolarisDepthEyebrow>
               <h1 className="mt-2 text-2xl font-bold tracking-[-0.03em] sm:text-3xl">
                 SSC General Regulations v4.2
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Browse the complete plain-English draft of 113 rules across 22 chapters.
-                This page is a public preview, not a published or legally effective
-                SSC regulation. The current official rules remain available separately.
+                Browse a plain-English reference copy of 113 v4.2 rules across 22 chapters.
+                This page does not determine what is officially published or effective.
+                Consult Current Rules for the authoritative version.
               </p>
               <div
                 role="status"
                 className="mt-4 rounded-xl border border-amber-200/25 bg-amber-200/[0.06] p-3 text-sm leading-6 text-amber-50"
               >
-                <strong>DRAFT · NOT OFFICIAL.</strong> TSBC approval and the governed
-                Rules Manager publication are still required. In particular, the
-                proposals about YouTube video priority, bonus-point penalties and
-                negative scores have not been ratified.
+                <strong>REFERENCE COPY · NOT AUTHORITATIVE.</strong> The official
+                Current Rules release determines publication status and effective text.
+                This page may be superseded and never approves or publishes changes.
               </div>
               <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                <span>{TOTAL_RULES} proposed rules</span>
+                <span>{TOTAL_RULES} reference rules</span>
                 <span>{PREVIEW_CHAPTERS.length} chapters</span>
                 <span>View-only · No account required</span>
               </div>
               <label className="mt-4 flex min-h-12 items-center gap-3 rounded-xl border border-white/[0.09] bg-black/10 px-3 focus-within:border-primary/40">
                 <Search className="size-4 shrink-0 text-primary" aria-hidden="true" />
-                <span className="sr-only">Search draft rules</span>
+                <span className="sr-only">Search reference rules</span>
                 <input
                   type="search"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search the proposed wording…"
+                  placeholder="Search reference wording…"
                   className="min-h-10 min-w-0 flex-1 bg-transparent text-sm outline-none"
                 />
               </label>
@@ -102,7 +101,7 @@ function RulesV42PreviewPage() {
 
         <SolarisDepthSafeZone className="mt-6">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-lg font-bold">Proposed regulations</h2>
+            <h2 className="text-lg font-bold">Reference regulations</h2>
             <span className="text-xs text-muted-foreground">{matching} of {TOTAL_RULES} rules</span>
           </div>
           {chapters.length ? (
