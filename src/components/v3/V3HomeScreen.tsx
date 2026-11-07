@@ -14,6 +14,8 @@ import {
 
 export type V3HomeContestView = {
   title: string;
+  /** Canonical published edition destination, or null without an eligible current edition. */
+  href?: string | null;
   headline: string;
   meta?: string | null;
   stats?: readonly { value: string; label: string }[];
@@ -278,6 +280,16 @@ export function V3HomeScreen({
               ))}
             </div>
           ) : null}
+          <div className="mt-4" data-v3-home-contest-entry="">
+            <V3ActionCard
+              title={currentContest.href ? "Explore current edition" : "Browse editions"}
+              description={currentContest.href
+                ? "Open the official edition overview, schedule and published content."
+                : "Discover published Solaris editions in the archive."}
+              tone="neutral"
+              to={currentContest.href ?? "/editions"}
+            />
+          </div>
         </V3Surface>
       </V3Section>
 
