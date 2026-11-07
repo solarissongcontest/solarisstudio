@@ -2,6 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAdminRulebookReleases } from "@/lib/rules-governance";
+import { prepareGovernedV42Draft } from "@/lib/ssc-rules/v42-governed-import";
 import {
   GLOBAL_MAINTENANCE_MODE,
   MAINTENANCE_PLATFORM_PREFLIGHT_PATH,
@@ -54,6 +56,8 @@ function MaintenanceRecoveryPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [completed, setCompleted] = useState(false);
+  const [draftProgress, setDraftProgress] = useState<number | null>(null);
+  const [draftPrepared, setDraftPrepared] = useState(false);
   const actorRef = useRef<string | null>(null);
   actorRef.current = actorId;
 
@@ -208,12 +212,68 @@ function MaintenanceRecoveryPage() {
       setCompleted(true);
       await refresh();
       setMessage(
-        "The canonical platform mode is Degraded. The separate emergency Worker maintenance gate remains active; this operation does not publish v4.2 or open normal site writes.",
+        "The separate emergency Worker maintenance gate remains active. Canonical mode is Degraded. An authorized organizer may now prepare the v4.2 draft below, without publishing it.",
       );
     } catch (err) {
       setMessage(errorText(err));
     } finally {
       setReauthPassword("");
+      setBusy(false);
+    }
+  };
+
+  // Draft-only: the backend rules.edit RPCs and the canonical Degraded
+  // operational mode must independently allow every write. The Worker remains
+  // in global maintenance, no release publication RPC is exposed here.
+  const prepareV42Draft = async () => {
+    if (!actorId || snapshot?.mode !== "degraded" || busy) return;
+    setBusy(true);
+    setMessage(null);
+    setDraftProgress(0);
+    setDraftPrepared(false);
+    try {
+      const initialUser = await supabase.auth.getUser();
+      if (initialUser.error || initialUser.data.user?.id !== actorId) {
+        throw new Error("Your Solaris Organizer session changed. Sign in again.");
+      }
+      const state = await loadPlatformOperationalSnapshot();
+      if (state.mode !== "degraded") {
+        throw new Error("Solaris is not in Degraded mode. Rulebook draft writes remain blocked.");
+      }
+
+      const releases = await fetchAdminRulebookReleases();
+      const assertActor = async () => {
+        if (actorRef.current !== actorId) {
+          throw new Error("Organizer account changed during import. Resume with the correct account.");
+        }
+        const session = await supabase.auth.getSession();
+        if (session.data.session?.user.id !== actorId) {
+          throw new Error("Organizer session expired or changed. Import stopped safely.");
+        }
+      };
+      const result = await prepareGovernedV42Draft({
+        releases,
+        assertActor,
+        rpc: async (name, args) => {
+          await assertActor();
+          // The official admin RPC verifies rules.edit on the caller. Never
+          // use postgres, service_role, direct-table writes, or impersonation.
+          const { data, error } = await (supabase as any).rpc(name, args);
+          if (error) throw new Error(error.message);
+          return data;
+        },
+        onProgress: ({ imported }) => setDraftProgress(imported),
+      });
+      setDraftPrepared(true);
+      setMessage(
+        `Unpublished v4.2 draft prepared: ${result.imported} new changes, ${result.unchanged} existing edits retained out of ${result.total} rules. TSBC policy review and official publication are still required.`,
+      );
+    } catch (err) {
+      setMessage(
+        `Draft import stopped: ${errorText(err)}. Any completed rule changes remain in the draft and can be resumed after reviewing the issue.`,
+      );
+    } finally {
+      setDraftProgress(null);
       setBusy(false);
     }
   };
@@ -331,6 +391,38 @@ function MaintenanceRecoveryPage() {
                   className="min-h-11 rounded-xl bg-amber-200 px-4 font-bold text-slate-950 disabled:opacity-50">
                   {busy ? "Authorizing recovery…" : "Confirm Degraded recovery"}
                 </button>
+              </div>
+            ) : null}
+
+            {snapshot?.mode === "degraded" ? (
+              <div className="space-y-3 rounded-xl border border-sky-200/25 bg-sky-200/5 p-4">
+                <h3 className="font-bold">Prepare SSC Regulations v4.2 draft</h3>
+                <p className="text-sm leading-6 text-slate-300">
+                  This is an organizer-only, <strong>draft-only</strong> import of all
+                  113 proposed changes into the existing Rules Manager database.
+                  Each write uses the standard rules.edit authorization. Existing
+                  organizer edits are preserved. No publication occurs here.
+                </p>
+                <button
+                  type="button"
+                  disabled={busy || draftPrepared}
+                  onClick={() => void prepareV42Draft()}
+                  className="min-h-11 rounded-xl bg-sky-200 px-4 font-bold text-slate-950 disabled:opacity-50"
+                >
+                  {busy && draftProgress !== null
+                    ? `Preparing draft · ${draftProgress}/113`
+                    : draftPrepared
+                      ? "v4.2 draft prepared"
+                      : "Prepare v4.2 draft (unpublished)"}
+                </button>
+                <p className="text-xs text-slate-400">
+                  Approval of the YouTube video rule, bonus-point penalties and
+                  negative final scores remains outstanding. Publishing stays
+                  disabled until the normal authorized release workflow returns.
+                </p>
+                <a href="/rules/v4-2-preview" className="text-sm font-semibold text-sky-200 underline">
+                  Read the public draft preview
+                </a>
               </div>
             ) : null}
 

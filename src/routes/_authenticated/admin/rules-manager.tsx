@@ -28,7 +28,7 @@ import {
 } from "@/lib/rules-governance";
 import { governanceImpactForRuleIds } from "@/lib/governance-v5";
 import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
-import { buildV42GovernedDraftChanges } from "@/lib/ssc-rules/v42-governed-draft";
+import { prepareGovernedV42Draft } from "@/lib/ssc-rules/v42-governed-import";
 import { SSC_RULEBOOK, SSC_RULES, getRuleById, type RuleTone } from "@/lib/ssc-rules-v4";
 import { cn } from "@/lib/utils";
 
@@ -185,41 +185,12 @@ function RulesManager() {
   // Explicit organizer action only. No CI or page load may create production draft changes.
   const [v42ImportProgress, setV42ImportProgress] = useState(0);
   const v42ImportMutation = useMutation({
-    mutationFn: async () => {
-      if (current?.version !== "4.1") {
-        throw new Error("The current published rulebook changed. Review its newer text before importing v4.2.");
-      }
-      const existingDraft = releases.find((release) => release.version === "4.2" && release.status === "draft");
-      if (existingDraft && existingDraft.title !== "Plain-English SSC General Regulations") {
-        throw new Error("Another v4.2 draft already exists. Review it instead of overwriting its changes.");
-      }
-      const existingPublished = releases.some((release) => release.version === "4.2" && release.status === "published");
-      if (existingPublished) throw new Error("v4.2 was already published.");
-      const changes = buildV42GovernedDraftChanges();
-      const created = existingDraft ?? await rpc("admin_create_rulebook_release", {
-        _version: "4.2",
-        _title: "Plain-English SSC General Regulations",
-        _summary: "Clarity revision of 113 regulations across 22 chapters. Policy edge cases require TSBC approval before publication.",
-        _base_version: current.version,
-      });
-      if (!created?.id) throw new Error("Rules Manager did not return a draft release ID.");
-      const existingIds = new Set((existingDraft?.changes ?? []).map((change) => change.rule_id));
-      let imported = 0;
-      for (const change of changes) {
-        if (existingIds.has(change.rule_id)) continue; // Do not erase manual organizer edits.
-        await rpc("admin_upsert_rulebook_change", {
-          _release_id: created.id,
-          _rule_id: change.rule_id,
-          _change_kind: change.change_kind,
-          _before_snapshot: change.before_snapshot,
-          _after_snapshot: change.after_snapshot,
-          _rationale: change.rationale,
-        });
-        imported += 1;
-        setV42ImportProgress(imported);
-      }
-      return { id: created.id as string, imported, unchanged: existingIds.size };
-    },
+    mutationFn: () =>
+      prepareGovernedV42Draft({
+        releases,
+        rpc,
+        onProgress: ({ imported }) => setV42ImportProgress(imported),
+      }),
     onSuccess: async ({ id, imported, unchanged }) => {
       await refresh();
       setSelectedReleaseId(id);
