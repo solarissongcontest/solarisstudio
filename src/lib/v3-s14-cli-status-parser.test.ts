@@ -17,7 +17,7 @@ const localStatus = [
   'SERVICE_ROLE_KEY="local-service-role-key"',
 ].join("\n");
 
-function runStatus(status: string, exitCode = 0) {
+function runStatus(status: string, exitCode = 0, ambient: Record<string, string> = {}) {
   const script = [
     'supabase() { printf "%s\\n" "$S14_TEST_STATUS"; return "$S14_TEST_EXIT"; }',
     bootstrap,
@@ -29,6 +29,7 @@ function runStatus(status: string, exitCode = 0) {
       PATH: process.env.PATH ?? "/usr/bin:/bin",
       S14_TEST_STATUS: status,
       S14_TEST_EXIT: String(exitCode),
+      ...ambient,
     },
     timeout: 3_000,
   });
@@ -83,6 +84,16 @@ describe("S14 local Supabase status parser", () => {
     const junk = runStatus([localStatus, "not a status assignment"].join("\n"));
     expect(junk.status).not.toBe(0);
     expect(junk.stderr).toContain("malformed local Supabase status assignment");
+  });
+
+  it("rejects inherited environment values when the local CLI omits a required record", () => {
+    const keys = ["API_URL", "DB_URL", "ANON_KEY", "SERVICE_ROLE_KEY"] as const;
+    for (const key of keys) {
+      const withoutKey = localStatus.split("\n").filter((line) => !line.startsWith(`${key}=`)).join("\n");
+      const result = runStatus(withoutKey, 0, { [key]: "inherited-value-must-not-count" });
+      expect(result.status, key).not.toBe(0);
+      expect(result.stderr, key).toContain(`missing local Supabase ${key}`);
+    }
   });
 
   it("fails closed on CLI error or missing service key", () => {

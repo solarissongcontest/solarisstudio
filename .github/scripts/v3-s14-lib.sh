@@ -40,6 +40,11 @@ while IFS= read -r assignment || [[ -n "$assignment" ]]; do
     SERVICE_ROLE_KEY) SERVICE_ROLE_KEY="$value" ;;
   esac
 done <<< "$status_output"
+# A previously exported variable must never satisfy a missing local CLI record.
+# Require all four values to originate from this exact CLI response.
+for key in API_URL DB_URL ANON_KEY SERVICE_ROLE_KEY; do
+  [[ -n "${s14_seen_status_keys[$key]+x}" ]] || fail "missing local Supabase $key"
+done
 unset status_output assignment key value s14_seen_status_keys
 : "${API_URL:?missing local Supabase API_URL}"
 : "${DB_URL:?missing local Supabase DB_URL}"
