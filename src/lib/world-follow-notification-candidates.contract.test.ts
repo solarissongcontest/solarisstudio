@@ -151,7 +151,13 @@ describe("TG10 rollback-only SQL runner local destination safety", () => {
 
     const api = "API_URL=http://127.0.0.1:54321";
     const db = "DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres";
-    type Case = { label: string; status: string; accepted: boolean; cliFailure?: boolean };
+    type Case = {
+      label: string;
+      status: string;
+      accepted: boolean;
+      cliFailure?: boolean;
+      inheritedPg?: Record<string, string>;
+    };
     const scenarios: Case[] = [
       { label: "plain local URL", status: api + "\n" + db, accepted: true },
       { label: "quoted local URL", status: 'API_URL="http://127.0.0.1:54321"\nDB_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres"', accepted: true },
@@ -165,6 +171,14 @@ describe("TG10 rollback-only SQL runner local destination safety", () => {
       { label: "extra shell text is never executed", status: api + "\n" + db + "\ntouch " + injectedMarker, accepted: true },
       { label: "subshell text is never evaluated", status: api + "\n" + db + "\n$(touch " + injectedMarker + ")", accepted: true },
       { label: "CLI failure", status: api + "\n" + db, accepted: false, cliFailure: true },
+      { label: "inherited libpq hostaddr redirect", status: api + "\n" + db, accepted: false, inheritedPg: { PGHOSTADDR: "203.0.113.77" } },
+      { label: "inherited libpq remote host", status: api + "\n" + db, accepted: false, inheritedPg: { PGHOST: "production.invalid" } },
+      { label: "inherited libpq service selector", status: api + "\n" + db, accepted: false, inheritedPg: { PGSERVICE: "production" } },
+      { label: "inherited libpq service file", status: api + "\n" + db, accepted: false, inheritedPg: { PGSERVICEFILE: "/tmp/production-service.conf" } },
+      { label: "inherited libpq backend options", status: api + "\n" + db, accepted: false, inheritedPg: { PGOPTIONS: "-c search_path=public" } },
+      { label: "inherited libpq port", status: api + "\n" + db, accepted: false, inheritedPg: { PGPORT: "6543" } },
+      { label: "inherited libpq database", status: api + "\n" + db, accepted: false, inheritedPg: { PGDATABASE: "production" } },
+      { label: "inherited libpq credential", status: api + "\n" + db, accepted: false, inheritedPg: { PGPASSWORD: "another-password" } },
     ];
 
     try {
@@ -175,7 +189,12 @@ describe("TG10 rollback-only SQL runner local destination safety", () => {
         const result = spawnSync("bash", [runner], {
           encoding: "utf8",
           env: {
-            ...process.env,
+            // The host running Vitest may have legitimate PG* settings. Isolate
+            // the baseline and inject each adversarial libpq setting explicitly.
+            ...Object.fromEntries(
+              Object.entries(process.env).filter(([key]) => !key.startsWith("PG")),
+            ),
+            ...scenario.inheritedPg,
             PATH: mockBin + ":" + (process.env.PATH || ""),
             MOCK_STATUS_FILE: cliOutput,
             MOCK_PSQL_LOG: psqlCalls,
@@ -190,6 +209,9 @@ describe("TG10 rollback-only SQL runner local destination safety", () => {
           .toBe(scenario.accepted);
         expect(existsSync(psqlCalls), scenario.label).toBe(scenario.accepted);
         expect(existsSync(injectedMarker), scenario.label).toBe(false);
+        if (scenario.inheritedPg) {
+          expect(result.stderr, scenario.label).toContain("Refusing inherited libpq PG* setting");
+        }
       }
     } finally {
       rmSync(root, { recursive: true, force: true });
