@@ -91,6 +91,76 @@ where v.key in ('first','second','third')
 on conflict(profile_id) do update
 set external_enabled=true,categories=array['following']::text[];
 
+-- Canonical S4 evidence is mandatory, not merely a guessed public source ID.
+-- These receipts/events exist only in this rolled-back disposable fixture.
+do $publication_event$
+declare
+  v jsonb:=current_setting('solaris.tg10_candidate_fixture')::jsonb;
+  v_bad_operation uuid:=gen_random_uuid();
+  v_good_operation uuid:=gen_random_uuid();
+  v_count integer;
+begin
+  if exists (
+    select 1 from private.world_statement_follow_notification_candidates_v1(
+      (v->>'statement')::uuid,(v->>'version')::uuid
+    )
+  ) then raise exception 'TG10_NO_EVENT_PROVENANCE_ACCEPTED'; end if;
+
+  insert into public.studio2_operation_receipts(
+    operation_id,actor_id,idempotency_key,correlation_id,request_fingerprint,
+    command,risk_class,scope,status,result,completed_at
+  ) values
+    (v_bad_operation,(v->>'first')::uuid,'tg10-bad-source-'||v_bad_operation::text,
+     v_bad_operation,repeat('a',64),'world.statement.publish','R2',
+     '{}'::jsonb,'succeeded','{}'::jsonb,now()),
+    (v_good_operation,(v->>'first')::uuid,'tg10-good-source-'||v_good_operation::text,
+     v_good_operation,repeat('b',64),'world.statement.publish','R2',
+     '{}'::jsonb,'succeeded','{}'::jsonb,now());
+
+  -- A real S2 receipt alone is insufficient when its S4 event points to a
+  -- different immutable version than the exact request.
+  insert into private.v3_domain_events(
+    event_type,aggregate_type,aggregate_id,aggregate_version,operation_id,
+    correlation_id,actor_id,payload
+  ) values (
+    'world.statement.published','world_statement',v->>'statement',1,
+    v_bad_operation,v_bad_operation,(v->>'first')::uuid,
+    jsonb_build_object(
+      'organizationId',v->>'org','statementId',v->>'statement',
+      'versionId',gen_random_uuid(),'revision',1,
+      'visibility','public','published',true
+    )
+  );
+  if exists (
+    select 1 from private.world_statement_follow_notification_candidates_v1(
+      (v->>'statement')::uuid,(v->>'version')::uuid
+    )
+  ) then raise exception 'TG10_MISMATCHED_S4_VERSION_ACCEPTED'; end if;
+
+  -- This is the exact TG9 world_issue_statement_v1 S4 envelope and its
+  -- already-completed canonical S2 operation; no alternative publisher.
+  insert into private.v3_domain_events(
+    event_type,aggregate_type,aggregate_id,aggregate_version,operation_id,
+    correlation_id,actor_id,payload
+  ) values (
+    'world.statement.published','world_statement',v->>'statement',1,
+    v_good_operation,v_good_operation,(v->>'first')::uuid,
+    jsonb_build_object(
+      'organizationId',v->>'org','statementId',v->>'statement',
+      'versionId',v->>'version','revision',1,
+      'visibility','public','published',true
+    )
+  );
+  select count(*) into v_count
+  from private.world_statement_follow_notification_candidates_v1(
+    (v->>'statement')::uuid,(v->>'version')::uuid
+  );
+  if v_count <> 2 then
+    raise exception 'TG10_CANONICAL_S4_FACT_NOT_ACCEPTED, got %',v_count;
+  end if;
+  raise notice 'PASS: missing or mismatched S4 facts denied; canonical S2+S4 publication accepted';
+end $publication_event$;
+
 do $initial$
 declare
   v jsonb:=current_setting('solaris.tg10_candidate_fixture')::jsonb;
@@ -191,11 +261,64 @@ begin
   raise notice 'PASS: opted-out category, hidden institution, dark flag and unpublished content rejected';
 end $privacy$;
 
+-- A user who follows only after a publication is not part of its
+-- original audience, even while the publication remains within the 30m window.
+do $historical_follow$
+declare
+  v jsonb:=current_setting('solaris.tg10_candidate_fixture')::jsonb;
+  v_old_statement uuid:=gen_random_uuid();
+  v_old_version uuid:=gen_random_uuid();
+  v_old_op uuid:=gen_random_uuid();
+begin
+  insert into public.world_statements(
+    id,organization_id,status,visibility,published_at
+  ) values (
+    v_old_statement,(v->>'org')::uuid,'published','public',
+    now()-interval '2 minutes'
+  );
+  insert into public.world_statement_versions(
+    id,statement_id,version_number,title,body,published_at
+  ) values (
+    v_old_version,v_old_statement,1,'Historical public statement',
+    'The account was not following at publication.',now()-interval '2 minutes'
+  );
+  update public.world_statements set current_version_id=v_old_version
+  where id=v_old_statement;
+
+  insert into public.studio2_operation_receipts(
+    operation_id,actor_id,idempotency_key,correlation_id,request_fingerprint,
+    command,risk_class,scope,status,result,completed_at
+  ) values (
+    v_old_op,(v->>'first')::uuid,'tg10-old-'||v_old_op::text,
+    v_old_op,repeat('d',64),'world.statement.publish','R2',
+    '{}'::jsonb,'succeeded','{}'::jsonb,now()
+  );
+  insert into private.v3_domain_events(
+    event_type,aggregate_type,aggregate_id,aggregate_version,operation_id,
+    correlation_id,actor_id,payload
+  ) values (
+    'world.statement.published','world_statement',v_old_statement::text,1,
+    v_old_op,v_old_op,(v->>'first')::uuid,
+    jsonb_build_object(
+      'organizationId',v->>'org','statementId',v_old_statement,
+      'versionId',v_old_version,'revision',1,
+      'visibility','public','published',true
+    )
+  );
+  if exists (
+    select 1 from private.world_statement_follow_notification_candidates_v1(
+      v_old_statement,v_old_version
+    )
+  ) then raise exception 'TG10_AFTER_PUBLICATION_FOLLOW_ACCEPTED'; end if;
+  raise notice 'PASS: post-publication followers do not receive earlier events';
+end $historical_follow$;
+
 do $versions$
 declare
   v jsonb:=current_setting('solaris.tg10_candidate_fixture')::jsonb;
   v_corrected uuid:=gen_random_uuid();
   v_future uuid:=gen_random_uuid();
+  v_correct_op uuid:=gen_random_uuid();
   v_result record;
 begin
   insert into public.world_statement_versions(
@@ -213,6 +336,27 @@ begin
       (v->>'statement')::uuid,(v->>'version')::uuid
     )
   ) then raise exception 'TG10_STALE_VERSION_EVENT_ALLOWED'; end if;
+
+  insert into public.studio2_operation_receipts(
+    operation_id,actor_id,idempotency_key,correlation_id,request_fingerprint,
+    command,risk_class,scope,status,result,completed_at
+  ) values (
+    v_correct_op,(v->>'first')::uuid,'tg10-correction-'||v_correct_op::text,
+    v_correct_op,repeat('c',64),'world.statement.correct','R2',
+    '{}'::jsonb,'succeeded','{}'::jsonb,now()
+  );
+  insert into private.v3_domain_events(
+    event_type,aggregate_type,aggregate_id,aggregate_version,operation_id,
+    correlation_id,actor_id,payload
+  ) values (
+    'world.statement.corrected','world_statement',v->>'statement',2,
+    v_correct_op,v_correct_op,(v->>'first')::uuid,
+    jsonb_build_object(
+      'organizationId',v->>'org','statementId',v->>'statement',
+      'versionId',v_corrected,'revision',2,
+      'visibility','public','published',true
+    )
+  );
   select * into strict v_result
   from private.world_statement_follow_notification_candidates_v1(
     (v->>'statement')::uuid,v_corrected
