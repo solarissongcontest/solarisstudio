@@ -86,7 +86,7 @@ for (const id of organizerRequired) {
   }
 }
 
-const consequencePrefixes = ["confirmation.", "entry.", "media.", "jury.", "televote.", "result."];
+const consequencePrefixes = ["confirmation.", "entry.", "media.", "jury.", "televote.", "results."];
 const relevantConsequences = V3_DOMAIN_CONSEQUENCE_REGISTRY.filter((item) =>
   consequencePrefixes.some((prefix) => item.eventType.startsWith(prefix)),
 );
@@ -114,7 +114,7 @@ if (!runtimeLibraryPresent) blockers.push("S14 local-only runtime library is mis
 
 if (V3_S14_SEED_CONTRACT.editionCount !== 1) blockers.push("S14 seed contract must contain exactly one edition");
 if (V3_S14_SEED_CONTRACT.delegationCount !== 66) blockers.push("S14 seed contract must contain exactly 66 delegations");
-if (V3_S14_SEED_CONTRACT.minimumShowCount < 2) blockers.push("S14 seed contract must contain multiple shows");
+if (V3_S14_SEED_CONTRACT.minimumShowCount < 3) blockers.push("S14 seed contract must contain at least three shows");
 if (!V3_S14_SEED_CONTRACT.deterministic) blockers.push("S14 seed contract must be deterministic");
 if (!V3_S14_SEED_CONTRACT.bounded) blockers.push("S14 seed contract must be bounded and must not clone production");
 

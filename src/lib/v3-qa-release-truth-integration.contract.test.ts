@@ -1,0 +1,96 @@
+// test-integrity: allow-static-source-contract [release] -- explicitly checks fail-closed exact-SHA release workflow and source contract wiring
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
+const workflow = source(".github/workflows/v3-release-candidate-preflight.yml");
+const cli = source("scripts/check-v3-qa-release-truth.ts");
+const truth = source("src/lib/v3-qa-release-truth.ts");
+
+describe("V3 QA release-truth preflight integration", () => {
+  it("includes plural Results lifecycle events in S14 critical consequence readiness", () => {
+    const scanner = source("scripts/check-v3-s14-rehearsal-readiness.ts");
+    const registry = source("src/lib/solaris-v6-domain-registry.ts");
+    const consequences = source("src/lib/v3-domain-consequence-registry.ts");
+
+    expect(registry).toContain('"results.calculated"');
+    expect(registry).toContain('"results.verified"');
+    expect(registry).toContain('"results.locked"');
+    expect(consequences).toContain('"results.calculated"');
+    expect(scanner).toContain('"results."');
+    expect(scanner).not.toContain('"result."');
+    const fullContest = source("scripts/v3-s14-full-contest-spec.ts");
+    expect(fullContest).toContain("minimumShowCount: 3");
+    expect(scanner).toContain("V3_S14_SEED_CONTRACT.minimumShowCount < 3");
+    expect(scanner).not.toContain("V3_S14_SEED_CONTRACT.minimumShowCount < 2");
+  });
+
+  it("uses the existing canonical cross-release consistency validator for S14, S15 and S16", () => {
+    expect(truth).toContain('releaseEvidenceConsistencyFailure } from "../../scripts/v3-release-evidence-consistency"');
+    expect(truth).toContain("releaseEvidenceConsistencyFailure(S14_FILE, value)");
+    expect(truth).toContain("releaseEvidenceConsistencyFailure(S15_FILE, value)");
+    expect(truth).toContain("releaseEvidenceConsistencyFailure(S16_FILE, value)");
+    expect(truth).not.toContain("V3_QA_REQUIRED_S16_CATEGORIES");
+  });
+
+  it("preserves the reviewed dispatch-SHA binding instead of checking out arbitrary input", () => {
+    expect(workflow).toContain("DISPATCH_SHA: ${{ github.sha }}");
+    expect(workflow).toContain("ref: ${{ github.sha }}");
+    expect(workflow).toContain('if [[ "${CANDIDATE_SHA,,}" != "${DISPATCH_SHA,,}" ]]');
+    expect(workflow).not.toContain("ref: ${{ inputs.candidate_sha }}");
+  });
+
+  it("binds CLI evidence identity to the checked-out Git source, not only environment claims", () => {
+    expect(cli).toContain('execFileSync("git", ["rev-parse", "HEAD"]');
+    expect(cli).toContain("assertV3QaEvidenceCheckoutIdentity(checkedOutSha");
+    expect(cli).not.toContain("for (const candidate of [process.env.V3_CANDIDATE_SHA");
+  });
+
+  it("binds the generated truth artifact to the exact requested candidate SHA", () => {
+    expect(workflow).toContain("V3_CANDIDATE_SHA=$actual");
+    expect(workflow).toContain("scripts/check-v3-qa-release-truth.ts");
+    expect(workflow).toContain("v3-release-preflight/release-truth.json");
+    expect(workflow).toContain("truth_sha=");
+    expect(workflow).toContain('truth=$truth_sha');
+    expect(workflow).toContain('truth_sha" != "$expected');
+  });
+
+  it("fails preflight closed until S10-S15 exact-candidate evidence is ready for S16", () => {
+    expect(workflow).toContain(
+      "bun run scripts/check-v3-qa-release-truth.ts --require-s16-ready > /dev/null",
+    );
+    expect(workflow).toContain("bun run scripts/check-v3-release-integrity.ts --release");
+    expect(workflow).not.toContain("scripts/check-v3-qa-release-truth.ts --require-certified");
+  });
+
+  it("keeps release truth read-only and non-certifying by default", () => {
+    expect(cli).not.toMatch(/fetch\(|createClient|SUPABASE_SERVICE_ROLE_KEY|DATABASE_URL/);
+    expect(cli).toContain("--require-s16-ready");
+    expect(cli).toContain("--require-certified");
+    expect(truth).toContain('const certified = readyForS16 && byId.get("S16")?.state === "passed"');
+  });
+
+  it("requires current S15 physical-ownership evidence instead of accepting legacy zero-orphan files", () => {
+    expect(truth).toContain('value.schemaVersion < 4');
+    expect(truth).toContain('zeroOwnershipConflicts !== true');
+    expect(truth).toContain("S15 schemaVersion must be >= 4 for physical-ownership proof");
+  });
+
+  it("retains permanent local-only release-preflight configuration", () => {
+    for (const marker of [
+      "VITE_SUPABASE_URL: http://127.0.0.1:54321",
+      "SUPABASE_URL: http://127.0.0.1:54321",
+      "VITE_CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321",
+      "CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321",
+      "SUPABASE_PROJECT_REF: local",
+      "V3_VERIFICATION_TARGET: local",
+      "V3_SEED_TARGET: local",
+      "V3_CLEANUP_TARGET: local",
+      "scripts/check-v3-production-isolation.ts",
+    ]) {
+      expect(workflow).toContain(marker);
+    }
+    expect(workflow).not.toContain(".supabase.co");
+  });
+});
