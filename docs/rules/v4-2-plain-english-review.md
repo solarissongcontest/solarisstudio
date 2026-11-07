@@ -45,6 +45,32 @@ These tests check what a real reader understands **before** they receive an expl
 
 **Retesting:** The new wording of Rules 6.4 and 17.2 still needs comprehension testing; editing after feedback alone does not prove the revisions work.
 
+## Full 113-rule editorial pass
+
+**Scope of this pass:** Every draft body and summary was read for clear, natural English, appropriate SSC roles and preservation of its stated rules. All 113 proposed rule titles were rewritten in clear language. Compared with the candidate before this full pass, **90 of 113 rule bodies were edited** and **23 were retained** because their wording was already reasonably clear. “Reviewed” does not mean independently certified or proven understandable by every teenager.
+
+**Bodies retained without further changes in this pass:** 2.1, 5.2, 5.3, 6.2, 6.3, 6.5, 6.6, 6.8, 6.9, 7.1, 7.3, 7.4, 7.5, 8.2, 8.3, 8.5, 11.8, 12.5, 14.3, 14.4, 15.3, 15.4 and 16.6. These can still require revision after independent review; notably Rule 12.5 had already been rewritten from the age-17 pilot before this broader pass.
+
+### Style and SSC-specific wording
+
+- Write for HoDs who know the contest, not for legal specialists or software engineers. Use normal English while keeping the exact words **must**, **may** and **cannot** wherever they affect rights or duties.
+- **HoD** is the official representative of a delegation. Use **participant** or **person** for somebody who may not be an HoD, such as a person reporting abuse. Use **country** when referring to the fictional country, its map or its results. Do not substitute “player” for any of these.
+- Prefer a concrete example over abstract official-sounding prose. The Rule 6.4 video-priority example compares an official artist upload with 600,000 views against a fan upload with 2 million views; the official upload wins priority. Rule 17.2 uses 35 − 50 = −15 to explain fixed deductions.
+- Name the responsible party and the next action. Prefer “TSBC must explain its decision in writing” over vague language. Do not use story-like qualifiers such as “quietly” or “silently”.
+- Keep chapters and rules short enough to scan but do not erase the exceptions, evidence requirements, deadlines or other limits. The definitions in Rule 2.1 are intentionally longer because each defined term needs its own clear explanation.
+- Historical published v4.1 terminology stays untouched. The draft v4.2 wording must be introduced by the official Rules Manager publication, not by modifying past records or exposing a synthetic current version.
+
+### Meaning-preservation review points
+
+- **Rule 6.4:** Select the video by official-channel priority and highest views *before* applying the YouTube popularity test. An HoD must not be able to switch to a lower-viewed video to pass. Keep both limits (Spotify fewer than 25 million monthly listeners; YouTube fewer than 20 million views), deadlines, recorded check figures and acceptance-after-growth exception.
+- **Rules 6.5–6.6:** Keep the National Selection boundary (2015 onward), the maximum of three artist appearances, no return after winning and the permission exception only when the former country has no active HoD.
+- **Rules 11.4–11.7:** Friendship and shared groups are allowed; a similar voting pattern is not proof. Evidence of agreed or controlled votes is required before finding cheating. Automated alerts cannot determine guilt.
+- **Rules 12.3–12.5 and 15.1–15.2:** Keep late-entry and withdrawal conditions distinct. Official system failures may justify extensions; a personal internet failure does not automatically do so.
+- **Rules 16–18:** Preserve report confidentiality, a fair chance to respond, the actual ten penalty levels, bonus-only limits, potentially negative final scores, the 48-hour appeal window and independent review where possible.
+- **Rules 21–22:** Keep the Current/version-release boundary, six completed editions without an active HoD, the reset if an HoD was active during any edition, the official map decision and unaltered historical results.
+
+**Still required for release:** The edited wording needs review by other real 15–18-year-old HoDs and an independent meaning comparison against every official v4.1 obligation. Run all required exact-head tests with **isolated local Supabase only**. Confirm owner/TSBC approval, rules-governance history, scoring integration and edition publication through the approved workflow. This editorial pass does **not** authorize any of those releases.
+
 ## Specific decisions supplied by the contest owner
 
 1. **6.5:** Participating in a Eurovision National Selection **in 2015 or later** is disqualifying. Before 2015 remains permissible if other conditions are met.
