@@ -1,0 +1,25 @@
+/**
+ * S11 recovery readiness is evidence about the source tree actually inspected.
+ * A caller-provided candidate label cannot attest an unrelated checkout.
+ */
+export function requireV3RecoveryEvidenceIdentity(
+  requestedSha: string,
+  checkedOutSha: string,
+): string {
+  const requested = requestedSha.trim().toLowerCase();
+  const checkedOut = checkedOutSha.trim().toLowerCase();
+  const fullSha = /^[0-9a-f]{40}$/;
+
+  if (!fullSha.test(requested)) {
+    throw new Error("V3_RECOVERY_EVIDENCE_SHA must be a complete 40-character Git SHA");
+  }
+  if (!fullSha.test(checkedOut)) {
+    throw new Error("S11 recovery evidence requires a verified 40-character Git checkout HEAD");
+  }
+  if (requested !== checkedOut) {
+    throw new Error(
+      `S11 recovery evidence candidate ${requested} does not match checkout HEAD ${checkedOut}`,
+    );
+  }
+  return checkedOut;
+}
