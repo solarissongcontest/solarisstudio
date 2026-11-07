@@ -26,7 +26,7 @@ describe("SSC online-first General Regulations", () => {
     expect(dormantRule?.body.join(" ").toLowerCase()).toContain("six consecutive ssc editions");
     expect(dormantRule?.body.join(" ").toLowerCase()).toContain("no active head of delegation at any point");
     expect(eliminationRule?.summary.toLowerCase()).toContain("eliminated");
-    expect(eliminationRule?.important?.toLowerCase()).toContain("historical ssc record");
+    expect(eliminationRule?.important?.toLowerCase()).toContain("old ssc results cannot be deleted");
   });
 
   it("defines confirmation slots using official server receipt order", () => {
