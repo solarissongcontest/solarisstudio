@@ -133,7 +133,7 @@ catalog_fingerprint() {
     select 'column|' || c.relname || '.' || a.attname || '|' ||
       a.attnum::text || '|' || format_type(a.atttypid,a.atttypmod) ||
       '|' || a.attnotnull::text || '|' || coalesce(pg_get_expr(d.adbin,d.adrelid),'') ||
-      '|' || a.attidentity || '|' || a.attgenerated
+      '|' || a.attidentity::text || '|' || a.attgenerated::text
     from pg_attribute a join pg_class c on c.oid=a.attrelid
       join pg_namespace n on n.oid=c.relnamespace
       left join pg_attrdef d on d.adrelid=a.attrelid and d.adnum=a.attnum
