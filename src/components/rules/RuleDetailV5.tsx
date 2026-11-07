@@ -227,7 +227,7 @@ export function RuleDetailV5({ rule }: { rule: RuleWithChapter }) {
                       </div>
                     ))}
                   </dl>
-                  <Link to="/rules/chapters/definitions" className="mt-3 inline-flex min-h-9 items-center text-sm font-semibold text-primary hover:underline">
+                  <Link to="/rules/chapters/$chapter" params={{ chapter: "definitions" }} className="mt-3 inline-flex min-h-9 items-center text-sm font-semibold text-primary hover:underline">
                     All rule definitions <ChevronRight className="ml-1 size-3.5" />
                   </Link>
                 </section>
