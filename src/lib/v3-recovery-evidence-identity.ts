@@ -23,3 +23,13 @@ export function requireV3RecoveryEvidenceIdentity(
   }
   return checkedOut;
 }
+
+/** A labelled recovery artifact cannot attest uncommitted or untracked source. */
+export function requireV3RecoveryCleanTree(gitStatus: string): void {
+  const disallowed = gitStatus.split("\n")
+    .filter(Boolean)
+    .filter((line) => !/^\?\? v3-release-(?:evidence|preflight)\//.test(line));
+  if (disallowed.length > 0) {
+    throw new Error("S11 recovery evidence refuses a dirty or untracked source checkout");
+  }
+}
