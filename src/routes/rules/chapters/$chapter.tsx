@@ -10,6 +10,8 @@ import {
   SolarisDepthSafeZone,
   SolarisDepthSurface,
 } from "@/components/SolarisDepth";
+import { usePublishedRulebook } from "@/lib/rules-governance";
+import { compareRulebookVersions } from "@/lib/ssc-rules/runtime-overlay";
 import { getChapterBySlug } from "@/lib/ssc-rules/search";
 import type { RuleTone } from "@/lib/ssc-rules/types";
 
@@ -37,9 +39,11 @@ const TONE_DOT: Record<RuleTone, string> = {
 
 function RuleChapterPage() {
   const { chapter: slug } = Route.useParams();
+  const { version: publishedRulebookVersion } = usePublishedRulebook();
   const chapter = getChapterBySlug(slug);
   if (!chapter) throw notFound();
   const isRoleplay = chapter.number === 22;
+  const usesV42CountryName = isRoleplay && compareRulebookVersions(publishedRulebookVersion, "4.2") >= 0;
 
   return (
     <RulesRouteShell resolvingTitle={`Opening Chapter ${chapter.number}`}>
@@ -85,7 +89,7 @@ function RuleChapterPage() {
         {isRoleplay ? (
           <SolarisDepthSafeZone className="mt-5">
             <SolarisDepthSurface variant="reading">
-              <RoleplayWorldbuildingVisual />
+              <RoleplayWorldbuildingVisual usePlainCountryTerms={usesV42CountryName} />
             </SolarisDepthSurface>
           </SolarisDepthSafeZone>
         ) : null}
