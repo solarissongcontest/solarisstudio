@@ -27,9 +27,9 @@ describe("SSC Roleplay & Worldbuilding contract", () => {
 
   it("retains the meaning of published definitions while rewording v4.2 in plain English", () => {
     const terms = getRuleById("2.1")?.body.join(" ") ?? "";
-    expect(terms).toContain("An Appeal is a request for TSBC to review a decision");
+    expect(terms).toContain("Appeal: A request for TSBC to review a decision");
     expect(terms).toContain("Head of Delegation (HoD)");
-    expect(terms).toContain("Withdrawal means a country formally leaves an edition");
+    expect(terms).toContain("Withdrawal: When a country formally leaves an edition");
   });
 
   it("makes the six-completed-edition threshold explicit and searchable", () => {
