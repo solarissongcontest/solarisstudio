@@ -1,14 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { NativeLineChart } from "@/components/viz/NativeLineChart";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import {
@@ -241,45 +233,17 @@ function LegacyRelationshipPairPage({ pair }: { pair: string }) {
         >
           {chartData.length ? (
             <div className="h-[260px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis
-                    dataKey="edition"
-                    stroke="var(--muted-foreground)"
-                    fontSize={11}
-                  />
-                  <YAxis
-                    stroke="var(--muted-foreground)"
-                    fontSize={11}
-                    allowDecimals={false}
-                    domain={[0, 100]}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--popover)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 14,
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="aToB"
-                    name={`${a.short_code} → ${b.short_code}`}
-                    stroke="var(--jury)"
-                    strokeWidth={3}
-                    dot
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="bToA"
-                    name={`${b.short_code} → ${a.short_code}`}
-                    stroke="var(--televote)"
-                    strokeWidth={3}
-                    dot
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <NativeLineChart
+                 data={chartData}
+                 xKey="edition"
+                 yDomain={[0, 100]}
+                 yTickFormatter={(value) => String(Math.round(value))}
+                 ariaLabel="Published normalized jury support between both countries by edition"
+                 series={[
+                   { key: "aToB", name: `${a.short_code} → ${b.short_code}`, stroke: "var(--jury)", strokeWidth: 3 },
+                   { key: "bToA", name: `${b.short_code} → ${a.short_code}`, stroke: "var(--televote)", strokeWidth: 3 },
+                 ]}
+               />
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">

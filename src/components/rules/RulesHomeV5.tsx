@@ -31,6 +31,7 @@ import {
 } from "@/lib/governance-v5";
 import { getRuleContext } from "@/lib/rule-context";
 import { ROLEPLAY_QUICK_ANSWERS } from "@/lib/ssc-rules/roleplay";
+import { compareRulebookVersions } from "@/lib/ssc-rules/runtime-overlay";
 
 function actionFromStoredPath(path: string | null): GovernanceActionKey | null {
   if (!path) return null;
@@ -138,11 +139,14 @@ export function RulesHomeV5({
             <span className="text-xs text-muted-foreground">General Regulations · v{version}</span>
           </div>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Find the rule that applies, get a direct answer, or browse the visual rulebook.
+            Understand what you can do, what you must do, and what happens if a rule is broken. Search a question or browse all chapters.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground" data-v3-rulebook-release-meta="">
             <span aria-label={`Current rulebook version ${version}`}>Current version · v{version}</span>
             {effectiveDate ? <span>Effective {effectiveDate}</span> : null}
+            <Link to="/rules/chapters/$chapter" params={{ chapter: "definitions" }} className="font-semibold text-primary hover:underline">
+              Explain rule words
+            </Link>
             <Link to="/rules/changes" className="font-semibold text-primary hover:underline">
               Previous versions
             </Link>
@@ -230,7 +234,7 @@ export function RulesHomeV5({
                 </span>
                 <span className="mt-1 block text-base font-bold">Roleplay & Worldbuilding</span>
                 <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  Wars, invasions, protected countries, the six-Edition Dormant rule, annexation, elimination and the canonical map.
+                  Fictional wars, protected countries, the six-edition rule for countries with no HoD, and changes to the official world map.
                 </span>
               </span>
               <ArrowRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-indigo-200" />
@@ -301,6 +305,14 @@ export function RulesHomeV5({
             title="Official clarifications"
             description="Published interpretations of recurring questions."
           />
+          {compareRulebookVersions(version, "4.2") < 0 ? (
+            <RuleDestination
+              to="/rules/v4-2-preview"
+              icon={BookOpen}
+              title="Preview proposed v4.2"
+              description="Read all 113 rewritten rules. Draft only, not yet official."
+            />
+          ) : null}
           <RuleDestination
             to="/rules/changes"
             icon={History}
