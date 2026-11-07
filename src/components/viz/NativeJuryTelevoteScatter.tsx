@@ -71,7 +71,7 @@ export function NativeJuryTelevoteScatter({
     <div ref={hostRef} className="relative h-full w-full" data-native-jury-televote-scatter="">
       <svg
         aria-label="Average jury points by average televote points. Dot area indicates appearances."
-        role="img"
+        role="group"
         className="block h-full w-full"
         viewBox={`0 0 ${size.width} ${size.height}`}
       >
