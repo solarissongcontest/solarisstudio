@@ -57,7 +57,7 @@ describe("S14 / Browser Audit preflight target isolation", () => {
     try {
       delete process.env.CI;
       process.env.E2E_BASE_URL = "https://hosted.example";
-      await expect(pr455BrowserPreflight()).rejects.toThrow(/\\[Browser Audit safety\\]/);
+      await expect(pr455BrowserPreflight()).rejects.toThrow("Browser Audit safety");
       process.env.E2E_BASE_URL = "http://127.0.0.1:4173";
       await expect(pr455BrowserPreflight()).resolves.toBeUndefined();
     } finally {
