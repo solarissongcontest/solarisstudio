@@ -55,4 +55,16 @@ db_exec "select private.v3_apply_published_televote_projection(
 [[ "$(db_scalar "select sum(televote_points) from public.results where show_id='$SHOW_ID'::uuid;")" == "-60" ]] || {
   echo "Published Results did not retain all-negative scores" >&2; exit 1;
 }
+# A raw voting round must never be able to contain a negative allocation.
+# The failure must leave the signed Combined projection untouched.
+if psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "select private.v3_apply_published_televote_projection(
+  '$EDITION_ID'::uuid,'$SHOW_ID'::uuid,'round','00000000-0000-4000-8000-00000000b131',4,
+  '2026-10-16T20:20:00Z'::timestamptz,
+  '[{\"country_id\":\"$COUNTRY_A\",\"points\":-15},{\"country_id\":\"$COUNTRY_B\",\"points\":65},{\"country_id\":\"$COUNTRY_C\",\"points\":0}]'::jsonb
+);" >/dev/null 2>&1; then
+  echo "Negative raw-round score was incorrectly accepted" >&2; exit 1
+fi
+[[ "$(db_scalar "select points_total from private.v3_televote_result_projection_sources where show_id='$SHOW_ID'::uuid;")" == "-60" ]] || {
+  echo "Rejected raw-round write changed Combined Results" >&2; exit 1;
+}
 echo "S14 signed Combined publication rehearsal passed on isolated local Supabase."
