@@ -30,6 +30,7 @@ end $roles$;' >/dev/null
 master -c "create database $db" >/dev/null
 created=yes
 run -c "create schema private;
+grant usage on schema private to service_role;
 create function private.studio2_request_is_service_role() returns boolean
 language sql stable as \$predicate\$
  select coalesce(current_setting('request.jwt.claim.role',true) = 'service_role',false)
