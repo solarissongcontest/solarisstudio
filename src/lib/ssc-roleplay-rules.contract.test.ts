@@ -82,6 +82,9 @@ describe("SSC Roleplay & Worldbuilding contract", () => {
     expect(home).toContain("Roleplay & Worldbuilding");
     expect(home).toContain("env(safe-area-inset-bottom)");
     expect(roleplayVisual).toContain("Dormancy clock");
+    expect(roleplayVisual).toContain('usePlainCountryTerms ? "Unprotected" : "Dormant"');
+    expect(chapter).toContain('compareRulebookVersions(publishedRulebookVersion, "4.2") >= 0');
+    expect(chapter).toContain("usePublishedRulebook()");
     expect(roleplayVisual).toContain("grid-cols-3");
     expect(roleplayVisual).toContain("sm:grid-cols-6");
     expect(chapter).toContain("RoleplayWorldbuildingVisual");
