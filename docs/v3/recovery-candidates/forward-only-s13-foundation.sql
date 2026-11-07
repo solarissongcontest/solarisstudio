@@ -7,8 +7,8 @@
 -- Do not paste into hosted Supabase. Do not deploy, merge, or apply without
 -- complete hosted-head-equivalent local rehearsal and separate owner approval.
 --
--- Fail closed if any target S13 table/RPC already exists, to prevent accidental
--- overwrites of partially applied/alternate S13 implementations.
+-- Fail closed if any target S13 table/RPC or planned index name already exists,
+-- to prevent overwrites and silent CREATE INDEX IF NOT EXISTS name collisions.
 begin;
 set local lock_timeout = '5s';
 set local statement_timeout = '120s';
@@ -38,9 +38,11 @@ begin
       ('function', 'public', 'v3_checkpoint_backfill'),
       ('function', 'public', 'v3_fail_backfill'),
       ('function', 'public', 'v3_record_migration_parity'),
-      ('function', 'public', 'v3_set_schema_compatibility')
+      ('function', 'public', 'v3_set_schema_compatibility'),
+      ('index', 'private', 'v3_migration_parity_runs_key_time_idx'),
+      ('index', 'private', 'v3_backfill_jobs_status_idx')
   ) AS e(kind,s,n)
-  where (e.kind = 'table' and to_regclass(format('%I.%I',e.s,e.n)) is not null)
+  where (e.kind in ('table','index') and to_regclass(format('%I.%I',e.s,e.n)) is not null)
      or (e.kind = 'function' and exists (
        select 1 from pg_proc p join pg_namespace ns on ns.oid=p.pronamespace
        where ns.nspname=e.s and p.proname=e.n
