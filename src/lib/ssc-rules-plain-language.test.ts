@@ -63,6 +63,15 @@ describe("SSC v4.2 plain-language candidate", () => {
     expect(draftRuleById("6.6")?.examples?.some((example) => example.title === "Previous country has no active HoD" && example.outcome === "allowed")).toBe(true);
   });
 
+  it("allows friendship without treating a high vote alone as proof of cheating", () => {
+    const voting = bodyOf("11.4");
+    expect(voting).toContain("give your friend\'s song high points");
+    expect(voting).toContain("belonging to the same group is allowed");
+    expect(voting).toContain("players arranged their votes together");
+    expect(voting).toContain("Friendship or unusual voting patterns alone are not proof of cheating");
+    expect(voting).not.toContain("alliances and shared communities");
+  });
+
   it("allows withdrawal after the deadline but before entry publication", () => {
     const withdrawal = bodyOf("15.1");
     expect(withdrawal).toContain("before its entry is published");
