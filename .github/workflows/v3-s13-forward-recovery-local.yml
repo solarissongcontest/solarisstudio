@@ -7,6 +7,8 @@ on:
       - ".github/workflows/v3-s13-forward-recovery-local.yml"
       - "scripts/rehearse-v3-s13-forward-recovery-local.sh"
       - "docs/v3/recovery-candidates/forward-only-s13-foundation.sql"
+      - "docs/v3/recovery-candidates/fixtures/s13-production-dependency-subset-20261107.sql"
+      - "src/lib/v3-s13-forward-recovery-candidate.contract.test.ts"
   workflow_dispatch:
 
 permissions:
@@ -74,5 +76,5 @@ jobs:
           [[ "$left" == 0 ]] || { echo "Disposable database not cleaned: $left" >&2; exit 1; }
       - name: State scope of evidence
         run: |
-          echo "This only proves the S13 forward-recovery candidate on an isolated synthetic Postgres 17 fixture."
-          echo "It does NOT prove production schema equivalence, full migration-history reconciliation, or owner authorization."
+          echo "This verifies the S13 candidate on a read-only production-observed PG17.11 dependency fixture, including original-source object/ACL/index parity."
+          echo "Only the observed S13 dependency SUBSET is reproduced. This does NOT prove full hosted-schema/data equivalence, migration-history closure, or deployment permission."
