@@ -34,7 +34,8 @@ export function AnimatedListItem({
       !previous ||
       previous.scrollX !== scrollX ||
       previous.scrollY !== scrollY ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+      (typeof window.matchMedia === "function" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches) ||
       typeof node.animate !== "function"
     ) {
       return;
