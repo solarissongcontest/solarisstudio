@@ -86,7 +86,10 @@ describe("TG10 private institutional statement notification candidates", () => {
     expect(rehearsal).toContain("TG10_NO_EVENT_PROVENANCE_ACCEPTED");
     expect(rehearsal).toContain("TG10_MISMATCHED_S4_VERSION_ACCEPTED");
     expect(rehearsal).toContain("TG10_CANONICAL_S4_FACT_NOT_ACCEPTED");
+    expect(rehearsal).toContain("TG10_INCOMPLETE_R2_SOURCE_ACCEPTED");
     expect(rehearsal).toContain("TG10_AFTER_PUBLICATION_FOLLOW_ACCEPTED");
+    expect(rehearsal).toContain("perform private.v3_emit_domain_event(");
+    expect(rehearsal).not.toContain("insert into private.v3_domain_events(");
     expect(rehearsal).toContain("'world.statement.corrected','world_statement'");
     expect(rehearsal).toContain("v_corrected");
     expect(rehearsal).toContain("v_future");
