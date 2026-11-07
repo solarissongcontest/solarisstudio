@@ -245,14 +245,18 @@ export const PLAIN_SUMMARIES: Record<string, string> = Object.fromEntries(
   }),
 );
 
-type RuleWordingPatch = Partial<Pick<SscRule, "summary" | "important" | "allowed" | "prohibited" | "bullets">>;
+type RuleWordingPatch = Partial<Pick<SscRule, "summary" | "important" | "allowed" | "prohibited" | "bullets" | "examples">>;
 const SPECIFIC_CHANGES: Record<string, RuleWordingPatch> = {
   "4.6": {
     "important": "Device latency or a phone countdown reaching zero first does not guarantee a place. If a confirmed Solaris Studio fault affected fairness, TSBC can correct the round under Rules 12.5 and 19.4."
   },
   "6.4": {
     "summary": "The artist must have under 25 million Spotify monthly listeners and the song video under 20 million YouTube views at the official check.",
-    "important": "If the song has no official music video, use the song's YouTube video instead. The checked video and figures must be recorded so everyone knows which figures applied."
+    "important": "If the song has no official music video, use the song's YouTube video instead. The checked video and figures must be recorded so everyone knows which figures applied.",
+    "examples": [
+      {"title":"Official song video","outcome":"information","detail":"If the song has an official music video, use that video's YouTube view count at the recorded check time."},
+      {"title":"No official music video","outcome":"information","detail":"Use a YouTube video for the song instead and record the exact video checked. The selection procedure for multiple song videos still needs an official decision."}
+    ]
   },
   "6.5": {
     "summary": "Artists who entered Eurovision, or a Eurovision National Selection in 2015 or later, cannot compete.",
@@ -268,7 +272,12 @@ const SPECIFIC_CHANGES: Record<string, RuleWordingPatch> = {
   },
   "6.6": {
     "summary": "An artist can compete at most three times, cannot return after winning, and needs no prior-country permission if that country has no active HoD.",
-    "important": "If the former country has an active HoD, another country needs its delegation's permission. If it does not have an active HoD, no permission is needed. This is an SSC-only rule, not ownership of the artist."
+    "important": "If the former country has an active HoD, another country needs its delegation's permission. If it does not have an active HoD, no permission is needed. This is an SSC-only rule, not ownership of the artist.",
+    "examples": [
+      {"title":"Same country returns","outcome":"allowed","detail":"An artist represented Oland once. Oland may choose them again if they remain eligible and have not won SSC."},
+      {"title":"Previous country's HoD is active","outcome":"depends","detail":"An artist represented Oland, and Oland still has an active HoD. Vendia needs the previous delegation's permission to use that artist."},
+      {"title":"Previous country has no active HoD","outcome":"allowed","detail":"An artist represented Oland, but Oland has no active Head of Delegation. Vendia does not need Oland's permission, although other eligibility rules still apply."}
+    ]
   },
   "12.2": {
     "important": "If an official platform fault shows the wrong time, TSBC may take fair corrective action under Rules 12.5 and 19.4."
@@ -333,5 +342,6 @@ export function withPlainLanguage<T extends SscRule>(rule: T): T {
     allowed: extra.allowed ?? rule.allowed,
     prohibited: extra.prohibited ?? rule.prohibited,
     bullets: extra.bullets ?? rule.bullets,
+    examples: extra.examples ?? rule.examples,
   };
 }
