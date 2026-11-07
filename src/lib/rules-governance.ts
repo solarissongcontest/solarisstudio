@@ -62,24 +62,22 @@ export function reconcileRulebookReleaseHistory(
     return releases;
   }
 
-  // The bundled v4.2 text proposes clearer wording for every existing rule.
-  // Keep the candidate history explicit while the server's published pointer lags.
-  const changes = SSC_RULE_CHAPTERS.flatMap((chapter) =>
-    chapter.rules.map((rule) => ({
-      rule_id: rule.id,
-      change_kind: "modified" as const,
-      before_snapshot: null,
-      after_snapshot: buildRuleSnapshot(rule.id),
-      rationale: "Reworded the existing rule in plain English without changing its rule ID.",
-    })),
-  );
+  const chapter = SSC_RULE_CHAPTERS.find((candidate) => candidate.number === 22);
+  const changes = (chapter?.rules ?? []).map((rule) => ({
+    rule_id: rule.id,
+    change_kind: "added" as const,
+    before_snapshot: null,
+    after_snapshot: buildRuleSnapshot(rule.id),
+    rationale:
+      "Added the Roleplay & Worldbuilding framework, including country protection, Dormancy, territorial change and canonical-map rules.",
+  }));
 
   const bundledRelease: RulebookRelease = {
     version: BUNDLED_RULEBOOK_META.version,
     is_current: true,
     title: BUNDLED_RULEBOOK_META.status,
     summary:
-      "Proposes plain-English wording across all 22 chapters, clearer definitions and corrected references. Contest-specific changes require TSBC publication.",
+      "Adds Chapter 22, Roleplay & Worldbuilding, while carrying forward the already-published v4.0.1 definitions.",
     base_version: serverCurrent?.version ?? null,
     effective_from: null,
     published_at: null,
