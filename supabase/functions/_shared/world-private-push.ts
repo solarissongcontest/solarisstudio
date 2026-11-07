@@ -10,11 +10,13 @@ export type WorldPushCandidate = {
   id?: unknown;
   category?: unknown;
   event_type?: unknown;
+  eventType?: unknown;
   route?: unknown;
   title?: unknown;
   body?: unknown;
   dedupe_key?: unknown;
   sensitive?: unknown;
+  sensitivity?: unknown;
   visibility?: unknown;
   privacy?: unknown;
 };
@@ -23,27 +25,57 @@ function normalized(value: unknown) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
 
+// TG10 Task Engine kinds can travel under the ordinary organizer_tasks category.
+// Match full tokens, not substrings (e.g. a public song named "Proxy").
+const INSTITUTIONAL_TASK_KIND =
+  /(?:^|[._:-])(?:institutional[_-](?:vote|session)|court[_-]response|proxy[_-]request|proposal[_-]correction|membership[_-]action|ethics[_-]response|leadership[_-]transition)(?:[._:-]|$)/;
+
+/**
+ * Resolve route privacy without interpreting or changing the navigation URL.
+ * An encoded World separator/prefix must not expose a confidential title.
+ * The bounded decode chain handles a few layers of producer encoding.
+ */
+function isWorldRoute(rawRoute: string): boolean {
+  let route = rawRoute;
+  for (let pass = 0; pass < 4; pass += 1) {
+    // Treat malformed encoded separators immediately after /world as private.
+    // Do not match unrelated words such as /worldwide.
+    if (/^\/world(?:$|[/?#\\%])/i.test(route)) return true;
+    if (!route.includes("%")) return false;
+    try {
+      const decoded = decodeURIComponent(route);
+      if (decoded === route) return false;
+      route = decoded;
+    } catch {
+      return false;
+    }
+  }
+  return /^\/world(?:$|[/?#\\%])/i.test(route);
+}
+
 export function isPrivateWorldPush(candidate: WorldPushCandidate): boolean {
   if (candidate.sensitive === true) return true;
   const confidential = new Set(["private", "confidential", "restricted", "committee", "sealed"]);
+  if (confidential.has(normalized(candidate.sensitivity))) return true;
   if (
     confidential.has(normalized(candidate.visibility)) ||
     confidential.has(normalized(candidate.privacy))
   ) return true;
 
   const category = normalized(candidate.category);
-  const eventType = normalized(candidate.event_type);
+  const eventTypes = [normalized(candidate.event_type), normalized(candidate.eventType)];
   const route = normalized(candidate.route);
 
   // Event/route namespace is also a privacy boundary. Unknown world events
   // must not accidentally display their producer-provided case details.
   if (category === "world" || category.startsWith("world_") || category.startsWith("world.")) return true;
-  if (eventType === "world" || eventType.startsWith("world.") || eventType.startsWith("world_")) return true;
-  if (route === "/world" || route.startsWith("/world/") || route.startsWith("/world?")) return true;
+  if (eventTypes.some((value) => value === "world" || value.startsWith("world.") || value.startsWith("world_"))) return true;
+  if (isWorldRoute(route)) return true;
 
   // Canonical responsibility/task kinds can be delivered through the ordinary
   // Task category, so never rely solely on category=world.
-  return [category, eventType].some((value) =>
+  return [category, ...eventTypes].some((value) =>
+    INSTITUTIONAL_TASK_KIND.test(value) ||
     /(?:^|[._:-])(?:court|ethics|investigation|leadership)(?:[._:-]|$)/.test(value)
   );
 }

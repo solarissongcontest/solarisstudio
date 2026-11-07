@@ -54,15 +54,51 @@ describe("Terra Solaris sensitive push disclosure boundary", () => {
     expect(isPrivateWorldPush({ route: "/world" })).toBe(true);
   });
 
-  it("protects private role tasks even under an ordinary notification category", () => {
+  it("protects all eight canonical institutional task kinds under a generic task category", () => {
     for (const task of [
+      "institutional_vote",
+      "institutional_session",
       "court_response",
+      "proxy_request",
+      "proposal_correction",
+      "membership_action",
       "ethics_response",
-      "investigation.response",
       "leadership_transition",
+      "investigation.response",
     ]) {
-      expect(isPrivateWorldPush({ category: "organizer_tasks", event_type: task })).toBe(true);
+      const candidate = {
+        id: deliveryId,
+        category: "organizer_tasks",
+        event_type: task,
+        title: "Private response by Example Country",
+        body: "Confidential institutional evidence",
+        dedupe_key: "private-country-identity",
+      };
+      expect(isPrivateWorldPush(candidate)).toBe(true);
+      expect(publicPushEnvelope(candidate)).toEqual({
+        title: "Terra Solaris",
+        body: "You have a new institutional update.",
+        tag: `world-private:${deliveryId}`,
+        sensitivity: "private",
+      });
     }
+  });
+
+  it("recognizes namespaced task kinds, alternate event field and explicit sensitivity", () => {
+    expect(isPrivateWorldPush({
+      category: "organizer_tasks",
+      eventType: "task.proxy_request.deadline",
+    })).toBe(true);
+    expect(isPrivateWorldPush({
+      event_type: "show.results.published",
+      eventType: "notification.institutional_vote.open",
+    })).toBe(true);
+    expect(isPrivateWorldPush({ sensitivity: " PRIVATE " })).toBe(true);
+    expect(isPrivateWorldPush({ sensitivity: "confidential", visibility: "public" })).toBe(true);
+    expect(isPrivateWorldPush({ sensitivity: "public", event_type: "membership_action" })).toBe(true);
+    expect(isPrivateWorldPush({ event_type: "ordinary", category: "organizer_tasks" })).toBe(false);
+    expect(isPrivateWorldPush({ event_type: "song.proposalist", category: "public_music" })).toBe(false);
+    expect(isPrivateWorldPush({ event_type: "proxy-requested", category: "public_results" })).toBe(false);
   });
 
   it("honors privacy and visibility independently without public flags overriding private flags", () => {
