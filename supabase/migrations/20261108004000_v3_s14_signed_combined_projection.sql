@@ -1,5 +1,13 @@
 begin;
 
+-- S13: forward-only migration; do not rewrite published results or existing
+-- migration history. Review a candidate in disposable Supabase before rollout.
+select public.v3_register_migration_contract(
+  'v3.s14.signed-combined-final-results-v42', 1, 'forward_fix_only',
+  false, null,
+  'Permit reviewed signed Combined final-score deductions under SSC Rule 17.2 while preserving nonnegative raw Televote round scores, canonical replay, and exact source authority.'
+);
+
 -- SSC Regulations v4.2 Rule 17.2: fixed penalties can result in negative
 -- country scores. Keep regular Televoting round allocations non-negative.
 -- This is a forward-only correction to the canonical S14 published-source
