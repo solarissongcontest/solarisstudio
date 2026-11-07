@@ -77,6 +77,18 @@ begin
 end $follows$;
 reset role;
 
+-- RESET ROLE changes the SQL role, NOT the simulated request.jwt.claim.* GUCs.
+-- Clear the actor before any privileged fixture writes or source projections.
+do $clear_follow_actor$
+begin
+  perform set_config('request.jwt.claim.sub','',true);
+  perform set_config('request.jwt.claims','{}',true);
+  perform set_config('request.jwt.claim.role','',true);
+  if auth.uid() is not null then
+    raise exception 'TG10_FOLLOW_ACTOR_LEAKED_INTO_PRIVILEGED_REHEARSAL';
+  end if;
+end $clear_follow_actor$;
+
 -- Mirror the real lifecycle: an organization is public, the user follows it,
 -- and only THEN the statement is published. PostgreSQL now() is transaction-
 -- stable, so these two timestamps are equal in this rollback-only fixture;
@@ -360,6 +372,18 @@ begin
   perform public.world_set_follow_category_v1(v_follow,'statements',false);
 end $disable$;
 reset role;
+
+-- A category-preference command must not silently impersonate its last actor
+-- during the following organization visibility/feature-flag mutation checks.
+do $clear_category_actor$
+begin
+  perform set_config('request.jwt.claim.sub','',true);
+  perform set_config('request.jwt.claims','{}',true);
+  perform set_config('request.jwt.claim.role','',true);
+  if auth.uid() is not null then
+    raise exception 'TG10_CATEGORY_ACTOR_LEAKED_INTO_PRIVILEGED_REHEARSAL';
+  end if;
+end $clear_category_actor$;
 
 do $privacy$
 declare
