@@ -237,7 +237,7 @@ const SUMMARY_ROWS = String.raw`
 22.11|Fictional wars never justify real harassment, impersonation or forged consent.
 `;
 
-const PLAIN_SUMMARIES: Record<string, string> = Object.fromEntries(
+export const PLAIN_SUMMARIES: Record<string, string> = Object.fromEntries(
   SUMMARY_ROWS.trim().split("\n").map((row) => {
     const split = row.indexOf("|");
     if (split < 0) throw new Error("Missing v4.2 rule summary separator");
