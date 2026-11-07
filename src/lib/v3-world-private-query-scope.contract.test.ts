@@ -128,7 +128,7 @@ describe("TG19 private World actor cache-source guard", () => {
           return [self, rooms];
         }
       `,
-      WorldCourtJudgments.tsx: `
+      "WorldCourtJudgments.tsx": `
         function Court({ caseId, authGeneration }) {
           supabase.auth.onAuthStateChange(() => {});
           return useQuery({
