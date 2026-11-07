@@ -20,7 +20,7 @@ describe("S13 production-frontier operator evidence: no fictional adoption", () 
   });
 
   it("lists all 36 postcutover history holes exactly once, with reviewed source files present", () => {
-    const names = [...inventory.matchAll(/^- `(\d{14}_[A-Za-z0-9_\-]+\.sql)`$/gm)].map((match) => match[1]);
+    const names = [...inventory.matchAll(/^- `(\d{14}_[A-Za-z0-9_-]+\.sql)`$/gm)].map((match) => match[1]);
     expect(names.length).toBe(36);
     expect(new Set(names).size).toBe(36);
     for (const filename of names) {
