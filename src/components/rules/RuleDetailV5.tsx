@@ -18,6 +18,7 @@ import {
 } from "@/components/SolarisDepth";
 import { RuleInterpretationsPanel } from "@/components/rules/RuleInterpretationsPanel";
 import { RuleReturnBar } from "@/components/rules/RuleReturnBar";
+import { glossaryForRule } from "@/lib/ssc-rules/glossary";
 import type { RuleExample, RuleTone, SscRule } from "@/lib/ssc-rules/types";
 import { getRuleById } from "@/lib/ssc-rules-v4";
 import { cn } from "@/lib/utils";
@@ -78,6 +79,7 @@ type RuleWithChapter = SscRule & {
 export function RuleDetailV5({ rule }: { rule: RuleWithChapter }) {
   const tone = TONES[rule.tone];
   const isRoleplay = rule.chapterNumber === 22;
+  const glossary = glossaryForRule(rule);
 
   return (
     <SolarisDepthPage tone="rules" className="pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
@@ -126,7 +128,7 @@ export function RuleDetailV5({ rule }: { rule: RuleWithChapter }) {
                 ) : null}
               </div>
               <h1 className="mt-2 max-w-4xl text-2xl font-bold tracking-[-0.03em] sm:text-3xl">{rule.title}</h1>
-              <p className="mt-2 max-w-3xl text-sm font-medium leading-6 text-foreground/90">{rule.summary}</p>
+              <p className="mt-2 max-w-3xl text-sm font-medium leading-6 text-foreground/90">Read the rule in everyday English, with examples and word explanations.</p>
               <GovernanceStatusStrip context="rules" className="mt-3" />
             </div>
           </header>
@@ -137,6 +139,10 @@ export function RuleDetailV5({ rule }: { rule: RuleWithChapter }) {
         <SolarisDepthSurface variant="reading">
           <div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_15rem]">
             <div className="min-w-0 space-y-7">
+              <section aria-labelledby="plain-english-rule-summary" className="rounded-xl border border-primary/15 bg-primary/[0.035] p-4">
+                <SolarisDepthEyebrow>In simple words</SolarisDepthEyebrow>
+                <p id="plain-english-rule-summary" className="mt-2 text-base font-medium leading-7">{rule.summary}</p>
+              </section>
               <section aria-labelledby="official-rule-text">
                 <div className="flex items-center gap-2">
                   <BookOpen className="size-4 text-primary" aria-hidden="true" />
@@ -207,6 +213,23 @@ export function RuleDetailV5({ rule }: { rule: RuleWithChapter }) {
                       </article>
                     ))}
                   </div>
+                </section>
+              ) : null}
+
+              {glossary.length ? (
+                <section aria-labelledby="plain-rule-words">
+                  <SolarisDepthEyebrow>What these words mean</SolarisDepthEyebrow>
+                  <dl id="plain-rule-words" className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {glossary.map((item) => (
+                      <div key={item.term} className="rounded-xl border border-white/[0.08] bg-black/10 p-3.5">
+                        <dt className="text-sm font-semibold">{item.term}</dt>
+                        <dd className="mt-1 text-sm leading-6 text-muted-foreground">{item.definition}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <Link to="/rules/chapters/$chapter" params={{ chapter: "definitions" }} className="mt-3 inline-flex min-h-9 items-center text-sm font-semibold text-primary hover:underline">
+                    All rule definitions <ChevronRight className="ml-1 size-3.5" />
+                  </Link>
                 </section>
               ) : null}
 

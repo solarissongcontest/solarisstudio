@@ -69,14 +69,13 @@ function parseReceipt(value: unknown): PlatformExitPreflightReceipt {
   };
 }
 
-export const runPlatformExitPreflight = createServerFn({ method: "POST" })
-  .inputValidator((data: { targetMode: PlatformOperationalMode }) => {
-    if (data?.targetMode !== "read_only" && data?.targetMode !== "degraded") {
-      throw new Error("Exit preflight is only available for Read-only or Degraded recovery steps.");
-    }
-    return { targetMode: data.targetMode };
-  })
-  .handler(async ({ data }): Promise<PlatformExitPreflightReceipt> => {
+export async function runProtectedPlatformExitPreflight(
+  targetMode: PlatformOperationalMode,
+): Promise<PlatformExitPreflightReceipt> {
+  if (targetMode !== "read_only" && targetMode !== "degraded") {
+    throw new Error("Exit preflight is only available for protected recovery transitions.");
+  }
+
     const {
       createSolarisAuthenticatedClientServer,
       requireSolarisOrganizerServer,
@@ -91,7 +90,7 @@ export const runPlatformExitPreflight = createServerFn({ method: "POST" })
 
     const { data: databaseChecks, error: databaseError } = await authenticated.rpc(
       "studio2_platform_exit_database_preflight",
-      { p_target_mode: data.targetMode },
+      { p_target_mode: targetMode },
     );
     if (databaseError) throw new Error(databaseError.message);
 
@@ -172,7 +171,7 @@ export const runPlatformExitPreflight = createServerFn({ method: "POST" })
       "studio2_record_platform_exit_preflight",
       {
         p_actor_id: organizer.id,
-        p_target_mode: data.targetMode,
+        p_target_mode: targetMode,
         p_database_checks: databaseChecks,
         p_external_checks: externalChecks,
       },
@@ -185,4 +184,18 @@ export const runPlatformExitPreflight = createServerFn({ method: "POST" })
     }
 
     return parseReceipt(recorded);
-  });
+  
+}
+
+// Existing Organizer System action and the narrow emergency transport call
+// the exact same server-attested preflight. No second recovery authority.
+export const runPlatformExitPreflight = createServerFn({ method: "POST" })
+  .inputValidator((data: { targetMode: PlatformOperationalMode }) => {
+    if (data?.targetMode !== "read_only" && data?.targetMode !== "degraded") {
+      throw new Error("Exit preflight is only available for Read-only or Degraded recovery steps.");
+    }
+    return { targetMode: data.targetMode };
+  })
+  .handler(async ({ data }): Promise<PlatformExitPreflightReceipt> =>
+    runProtectedPlatformExitPreflight(data.targetMode),
+  );
