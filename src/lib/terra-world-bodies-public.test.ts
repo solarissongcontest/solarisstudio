@@ -417,7 +417,7 @@ describe("TG3 institution body offices", () => {
 
   it("requires both parent and organ to remain public during office reads", async () => {
     const query = chain({});
-    query.limit.mockResolvedValue({ data: [office], error: null });
+    query.limit.mockResolvedValue({ data: [office], error: null, count: 1 });
     mockFrom.mockReturnValue(query);
     await readPublicBodyOffices(publicParent, publicBody);
     expect(query.eq).toHaveBeenCalledWith("world_organizations.public_visibility", "public");
@@ -426,7 +426,7 @@ describe("TG3 institution body offices", () => {
   });
   it("queries only current organ office definitions and limits the rows", async () => {
     const query = chain({});
-    query.limit = vi.fn().mockResolvedValue({ data: [office], error: null });
+    query.limit = vi.fn().mockResolvedValue({ data: [office], error: null, count: 1 });
     mockFrom.mockReturnValue(query);
     const rows = await readPublicBodyOffices(publicParent, publicBody);
     expect(rows).toHaveLength(1);
@@ -436,15 +436,70 @@ describe("TG3 institution body offices", () => {
     expect(query.eq).toHaveBeenCalledWith("active", true);
     expect(query.order).toHaveBeenCalledWith("id", { ascending: true });
     expect(query.limit).toHaveBeenCalledWith(WORLD_BODY_OFFICE_LIMIT);
-    expect(query.select).toHaveBeenCalledWith("id,organization_id,organ_id,title,office_type,active,world_organizations!inner(id,public_visibility,status),world_organization_organs:world_organization_organs!world_offices_organ_same_organization_fk!inner(id,organization_id,visibility)");
+    expect(query.select).toHaveBeenCalledWith("id,organization_id,organ_id,title,office_type,active,world_organizations!inner(id,public_visibility,status),world_organization_organs:world_organization_organs!world_offices_organ_same_organization_fk!inner(id,organization_id,visibility)", { count: "exact" });
     // Keep the DTO join alias unchanged so public parent/organ verification
     // still fails closed on mismatched or unpublished embedded records.
+  });
+
+  it("returns a full 20-office public roster without truncation or private fields", async () => {
+    const query = chain({});
+    const offices = Array.from({ length: WORLD_BODY_OFFICE_LIMIT }, (_, index) => ({
+      ...office, id: `office-${index + 1}`,
+    }));
+    query.limit.mockResolvedValue({ data: offices, error: null, count: WORLD_BODY_OFFICE_LIMIT });
+    mockFrom.mockReturnValue(query);
+    const result = await readPublicBodyOffices(publicParent, publicBody);
+    expect(result).toHaveLength(WORLD_BODY_OFFICE_LIMIT);
+    expect(result[WORLD_BODY_OFFICE_LIMIT - 1].id).toBe(`office-${WORLD_BODY_OFFICE_LIMIT}`);
+    expect(result[0]).not.toHaveProperty("holder_user_id");
+    expect(query.limit).toHaveBeenCalledWith(WORLD_BODY_OFFICE_LIMIT);
+  });
+
+  it("retains the explicitly labeled 20-office preview when more offices exist", async () => {
+    const query = chain({});
+    const firstOffices = Array.from({ length: WORLD_BODY_OFFICE_LIMIT }, (_, index) => ({
+      ...office, id: `office-${index + 1}`,
+    }));
+    query.limit.mockResolvedValue({ data: firstOffices, error: null, count: WORLD_BODY_OFFICE_LIMIT + 1 });
+    mockFrom.mockReturnValue(query);
+    const result = await readPublicBodyOffices(publicParent, publicBody);
+    expect(result).toHaveLength(WORLD_BODY_OFFICE_LIMIT);
+    expect(result[WORLD_BODY_OFFICE_LIMIT - 1].id).toBe(`office-${WORLD_BODY_OFFICE_LIMIT}`);
+    expect(query.select).toHaveBeenCalledWith(
+      expect.stringContaining("world_organization_organs!world_offices_organ_same_organization_fk!inner"),
+      { count: "exact" },
+    );
+  });
+
+  it("rejects a silently short 20-office preview when more records exist", async () => {
+    const query = chain({});
+    const incomplete = Array.from({ length: WORLD_BODY_OFFICE_LIMIT - 1 }, (_, index) => ({
+      ...office, id: `office-${index + 1}`,
+    }));
+    query.limit.mockResolvedValue({ data: incomplete, error: null, count: WORLD_BODY_OFFICE_LIMIT + 1 });
+    mockFrom.mockReturnValue(query);
+    await expect(readPublicBodyOffices(publicParent, publicBody)).rejects.toThrow("could not be verified");
+  });
+
+  it("rejects unverified or inconsistent public office counts instead of showing incomplete official data", async () => {
+    const query = chain({});
+    mockFrom.mockReturnValue(query);
+    for (const payload of [
+      { data: [office], error: null, count: null },
+      { data: [office], error: null, count: -1 },
+      { data: [office], error: null, count: 1.5 },
+      { data: [office], error: null, count: 2 },
+      { data: [office, { ...office, id: "office-2" }], error: null, count: 1 },
+    ]) {
+      query.limit.mockResolvedValue(payload);
+      await expect(readPublicBodyOffices(publicParent, publicBody)).rejects.toThrow("could not be verified");
+    }
   });
 
   it("cancels bounded public office requests when their page unmounts", async () => {
     const controller = new AbortController();
     const query = chain({});
-    query.limit.mockResolvedValue({ data: [office], error: null });
+    query.limit.mockResolvedValue({ data: [office], error: null, count: 1 });
     mockFrom.mockReturnValue(query);
     const rows = await readPublicBodyOffices(publicParent, publicBody, controller.signal);
     expect(rows).toHaveLength(1);
@@ -460,18 +515,18 @@ describe("TG3 institution body offices", () => {
       { ...office, world_organization_organs: { id: "different-body", organization_id: "org-1", visibility: "public" } },
       { ...office, world_organization_organs: { id: "body-1", organization_id: "different-org", visibility: "public" } },
     ]) {
-      q.limit.mockResolvedValue({ data: [invalid], error: null });
+      q.limit.mockResolvedValue({ data: [invalid], error: null, count: 1 });
       await expect(readPublicBodyOffices(publicParent, publicBody)).rejects.toThrow("invalid public identity");
     }
   });
   it("fails closed on foreign office payloads or malformed arrays", async () => {
     const query = chain({});
-    query.limit = vi.fn().mockResolvedValue({ data: [{ ...office, organ_id: "secret" }], error: null });
+    query.limit = vi.fn().mockResolvedValue({ data: [{ ...office, organ_id: "secret" }], error: null, count: 1 });
     mockFrom.mockReturnValue(query);
     await expect(readPublicBodyOffices(publicParent, publicBody)).rejects.toThrow("invalid public identity");
-    query.limit.mockResolvedValue({ data: {}, error: null });
+    query.limit.mockResolvedValue({ data: {}, error: null, count: 0 });
     await expect(readPublicBodyOffices(publicParent, publicBody)).rejects.toThrow("could not be verified");
-    query.limit.mockResolvedValue({ data: [office, office], error: null });
+    query.limit.mockResolvedValue({ data: [office, office], error: null, count: 2 });
     await expect(readPublicBodyOffices(publicParent, publicBody)).rejects.toThrow("Duplicate");
   });
 });

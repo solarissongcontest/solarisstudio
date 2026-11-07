@@ -276,7 +276,7 @@ export async function readPublicBodyOffices(
   // foreign key. PostgREST requires the explicit constraint hint or the embed
   // is ambiguous (PGRST201), even though the SQL schema itself is valid.
   let request = (supabase as any).from("world_organization_offices")
-    .select("id,organization_id,organ_id,title,office_type,active,world_organizations!inner(id,public_visibility,status),world_organization_organs:world_organization_organs!world_offices_organ_same_organization_fk!inner(id,organization_id,visibility)")
+    .select("id,organization_id,organ_id,title,office_type,active,world_organizations!inner(id,public_visibility,status),world_organization_organs:world_organization_organs!world_offices_organ_same_organization_fk!inner(id,organization_id,visibility)", { count: "exact" })
     .eq("organization_id", organization.id)
     .eq("organ_id", body.id)
     .eq("active", true)
@@ -289,8 +289,14 @@ export async function readPublicBodyOffices(
     .order("display_priority", { ascending: true })
     .order("id", { ascending: true });
   if (signal) request = request.abortSignal(signal);
-  const { data, error } = await request.limit(WORLD_BODY_OFFICE_LIMIT);
-  if (error || !Array.isArray(data) || data.length > WORLD_BODY_OFFICE_LIMIT) {
+  // The UI deliberately presents only the first 20 public office definitions
+  // and labels that limit. Verify that the bounded server response actually
+  // contains all expected rows; a short or malformed response must not be
+  // mistaken for a complete public snapshot.
+  const { data, error, count } = await request.limit(WORLD_BODY_OFFICE_LIMIT);
+  if (error || !Array.isArray(data) ||
+      !Number.isSafeInteger(count) || count < 0 ||
+      data.length !== Math.min(count, WORLD_BODY_OFFICE_LIMIT)) {
     throw new Error("Public institutional offices could not be verified.");
   }
   const offices = data.map((row: unknown) =>
