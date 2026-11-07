@@ -35,9 +35,10 @@ admin -c "create database $db" >/dev/null
 created=yes
 
 fixture="$root/docs/v3/recovery-candidates/fixtures/s9-s10-production-ledger-subset-20261107.sql"
+index_stage="$root/docs/v3/recovery-candidates/forward-only-s9-indexes-concurrent-local.sql"
 s9="$root/docs/v3/recovery-candidates/forward-only-s9-observability-local.sql"
 s10="$root/docs/v3/recovery-candidates/forward-only-s10-sli-local.sql"
-for path in "$fixture" "$s9" "$s10"; do [[ -f "$path" ]] || exit 2; done
+for path in "$fixture" "$index_stage" "$s9" "$s10"; do [[ -f "$path" ]] || exit 2; done
 run -f "$fixture" >/dev/null
 
 expect_reject() {
@@ -53,6 +54,10 @@ expect_reject() {
 
 # The S10 projection must never install without its S9 source and S13 owner.
 expect_reject "$s10" "S10 blocked: canonical S9 projection missing"
+# CREATE INDEX CONCURRENTLY must execute outside an explicit transaction and
+# before the small S9 RPC-install transaction. A second pass must fail closed.
+run -f "$index_stage" >/dev/null
+expect_reject "$index_stage" "S9 index stage blocked: existing index/object"
 run -f "$s9" >/dev/null
 expect_reject "$s10" "S10 blocked: canonical S13 registry missing"
 
@@ -124,5 +129,5 @@ registered="$(run -c "select count(*) from private.v3_migration_contracts
   echo "S10 canonical S13 registration record missing: $registered" >&2; exit 1;
 }
 
-echo 'PASS: S9+S10 local PG17 recovery: S13 dependency, 3 time indexes, 2 RPCs, authorization, window bounds, S9->S10 source binding and private-data canaries'
+echo 'PASS: S9+S10 local PG17 recovery: concurrent independent 3-index stage, S13 dependency, 2 RPCs, authorization, window bounds, S9->S10 source binding and private-data canaries'
 echo 'LIMITATION: observed ledger COLUMN subset and synthetic records only. No hosted-schema-equivalence, index lock-cost proof or migration-history repair.'
