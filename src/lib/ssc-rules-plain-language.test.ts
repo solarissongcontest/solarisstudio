@@ -48,7 +48,7 @@ describe("SSC v4.2 plain-language candidate", () => {
     expect(bodyOf("6.4")).toContain("fewer than 25 million");
     expect(bodyOf("6.4")).toContain("fewer than 20 million");
     expect(bodyOf("6.4")).toContain("most-viewed");
-    expect(bodyOf("6.4")).toContain("before the entry-submission deadline");
+    expect(bodyOf("6.4")).toContain("before the entry deadline");
   });
 
   it("waives previous-country artist permission only without an active HoD", () => {
@@ -73,9 +73,9 @@ describe("SSC v4.2 plain-language candidate", () => {
     expect(sanction?.bullets?.[0]).toBe("Level 1 · Official Warning");
     expect(sanction?.bullets?.[9]).toBe("Level 10 · Lifetime Ban");
     expect(bodyOf("17.2")).toContain("subtracted in full from the country's contest score");
-    expect(bodyOf("17.2")).toContain("where an edition awards no bonus points");
+    expect(bodyOf("17.2")).toContain("Where an edition awards no bonus points");
     expect(bodyOf("17.2")).toContain("negative score");
-    expect(bodyOf("17.3")).toContain("starting points rather than automatic outcomes");
+    expect(bodyOf("17.3")).toContain("starting points, not automatic results");
   });
 
   it("corrects the two outdated rule references", () => {
@@ -87,21 +87,48 @@ describe("SSC v4.2 plain-language candidate", () => {
     expect(hierarchy).not.toContain("under Rule 15.1");
   });
 
-  it("keeps the six-completed-edition Dormant protection boundary", () => {
-    expect(bodyOf("22.4")).toContain("fewer than six consecutive completed editions");
-    expect(bodyOf("22.5")).toContain("six consecutive SSC Editions");
-    expect(bodyOf("22.5")).toContain("no active Head of Delegation at any point");
-    expect(bodyOf("22.5")).toContain("Having an active HoD even briefly");
+  it("keeps the exact six-edition boundary with clear Unprotected language", () => {
+    expect(bodyOf("22.4")).toContain("six completed SSC editions in a row");
+    expect(bodyOf("22.4")).toContain("An active HoD, even briefly");
+    expect(bodyOf("22.5")).toContain("six SSC editions in a row");
+    expect(bodyOf("22.5")).toContain("at any point during any of them");
+    expect(bodyOf("22.5")).toContain("the count starts over");
+    expect(bodyOf("22.5")).toContain("becomes Protected right away");
     expect(bodyOf("22.6")).toContain("Rule 22.7");
-    expect(bodyOf("22.10")).toContain("past editions");
+    expect(bodyOf("22.10")).toContain("past");
+    expect(draftRuleById("22.5")?.title).toContain("Unprotected");
+  });
+
+  it("keeps all 113 draft rules and their help text free of old legal jargon", () => {
+    const hardTerms = /\b(dormant|dormancy|force majeure|annexation|mitigating|aggravating|sanction|sanctions)\b/i;
+    for (const rule of draftRules) {
+      const userText = [
+        rule.title,
+        rule.summary,
+        ...rule.body,
+        rule.important ?? "",
+        ...(rule.allowed ?? []),
+        ...(rule.prohibited ?? []),
+        ...(rule.bullets ?? []),
+        ...(rule.examples ?? []).flatMap(({ title, detail }) => [title, detail]),
+      ].join(" ");
+      expect(userText, "Rule " + rule.id + " still contains old jargon").not.toMatch(hardTerms);
+      expect(rule.summary.split(/\s+/).length, "Long summary for Rule " + rule.id).toBeLessThanOrEqual(32);
+      for (const paragraph of rule.body) {
+        // Mechanical guardrails are not a substitute for actual teen-reader review.
+        for (const sentence of paragraph.split(/(?<=[.!?])\s+/)) {
+          expect(sentence.split(/\s+/).length, "Long sentence in Rule " + rule.id).toBeLessThanOrEqual(38);
+        }
+      }
+    }
   });
 
   it("shows clear definitions on rule details and keeps searches usable", () => {
     const rule = draftRuleById("22.5");
     expect(rule).not.toBeNull();
     const terms = glossaryForRule(rule!);
-    expect(terms.some((item) => item.term === "Dormant country")).toBe(true);
-    expect(draftRuleById("22.5")?.summary.toLowerCase()).toContain("dormant");
+    expect(terms.some((item) => item.term === "Unprotected country")).toBe(true);
+    expect(draftRuleById("22.5")?.summary.toLowerCase()).toContain("unprotected");
     expect(draftRuleById("6.5")?.summary).toContain("2015");
   });
 });
