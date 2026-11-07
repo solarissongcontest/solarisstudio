@@ -40,6 +40,7 @@ function RuleChapterPage() {
   const chapter = getChapterBySlug(slug);
   if (!chapter) throw notFound();
   const isRoleplay = chapter.number === 22;
+  const usesV42CountryName = isRoleplay && Boolean(chapter.rules.find((rule) => rule.id === "22.5")?.body.join(" ").includes("Unprotected"));
 
   return (
     <RulesRouteShell resolvingTitle={`Opening Chapter ${chapter.number}`}>
@@ -85,7 +86,7 @@ function RuleChapterPage() {
         {isRoleplay ? (
           <SolarisDepthSafeZone className="mt-5">
             <SolarisDepthSurface variant="reading">
-              <RoleplayWorldbuildingVisual />
+              <RoleplayWorldbuildingVisual usePlainCountryTerms={usesV42CountryName} />
             </SolarisDepthSurface>
           </SolarisDepthSafeZone>
         ) : null}
