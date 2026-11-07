@@ -3,7 +3,7 @@ import {
   isSensitiveVotingAuditField,
   redactVotingAuditPayload,
   REDACTED_VOTING_AUDIT_VALUE,
-} from "./v3-voting-audit-redaction";
+} from "./v3-voting-audit-redaction.server";
 import { readFileSync } from "node:fs";
 
 describe("Voting audit read-projection redaction", () => {
@@ -54,7 +54,8 @@ describe("Voting audit read-projection redaction", () => {
 
   it("redacts both old and new payloads on the SERVER before returning audit rows", () => {
     const server = readFileSync("src/integrations/televoting/audit.server.ts", "utf8");
-    expect(server).toContain('import { redactVotingAuditPayload } from "@/lib/v3-voting-audit-redaction"');
+    expect(server).toContain('import { redactVotingAuditPayload } from "@/lib/v3-voting-audit-redaction.server"');
+    expect(server).toContain('import { redactVotingAuditPayload } from "@/lib/v3-voting-audit-redaction.server"');
     expect(server).toContain("old_values: redactVotingAuditPayload(");
     expect(server).toContain("new_values: redactVotingAuditPayload(");
     expect(server).toContain('requireSolarisCapabilityServer("voting.read", null)');

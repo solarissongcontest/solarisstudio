@@ -1,5 +1,5 @@
 import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
-import { redactVotingAuditPayload } from "@/lib/v3-voting-audit-redaction";
+import { redactVotingAuditPayload } from "@/lib/v3-voting-audit-redaction.server";
 
 export type AuditJson =
   | string
