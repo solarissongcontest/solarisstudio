@@ -25,6 +25,37 @@ export default defineConfig({
     build: {
       rolldownOptions: {
         output: {
+          // Build-time evidence only: inspect which source modules remain inside
+          // generated client chunks. This plugin does not transform emitted code
+          // or change the fixed JS/CSS gzip budget.
+          plugins: [
+            {
+              name: "solaris-client-chunk-composition-evidence",
+              generateBundle(_outputOptions, bundle) {
+                const clientChunks = Object.values(bundle).filter(
+                  (asset) => asset.type === "chunk" && asset.fileName.endsWith(".js"),
+                );
+                if (!clientChunks.length) return;
+                const totals = new Map<string, number>();
+                for (const chunk of clientChunks) {
+                  for (const [moduleId, info] of Object.entries(chunk.modules)) {
+                    const size = info.renderedLength ?? 0;
+                    if (size > 0) totals.set(moduleId, (totals.get(moduleId) ?? 0) + size);
+                  }
+                }
+                const ranked = [...totals]
+                  .sort((left, right) => right[1] - left[1])
+                  .slice(0, 45);
+                console.info(
+                  "[solaris-client-chunk-composition] top rendered module sizes (not compressed):",
+                  ...ranked.map(
+                    ([moduleId, bytes]) =>
+                      `\n  ${(bytes / 1024).toFixed(1)} KiB  ${moduleId.replace(process.cwd() + "/", "")}`,
+                  ),
+                );
+              },
+            },
+          ],
           // Keep Oxc's safe private-binding minification without the broad
           // shared-cross-route group that broke Organizer browser hydration.
           // This exact option passed the isolated Browser Audit in #2190.
