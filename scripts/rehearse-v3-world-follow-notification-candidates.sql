@@ -39,13 +39,6 @@ begin
     'Candidate Test Institution','CTI','international_organization','active','public'
   );
 
-  insert into public.world_statements(id,organization_id,status,visibility,published_at)
-  values(v_statement,v_org,'published','public',now());
-  insert into public.world_statement_versions(
-    id,statement_id,version_number,title,body,published_at
-  ) values(v_version,v_statement,1,'Canonical public statement','Published text never appears in lock screen content.',now());
-  update public.world_statements set current_version_id=v_version where id=v_statement;
-
   perform set_config('solaris.tg10_candidate_fixture',jsonb_build_object(
     'first',v_first,'second',v_second,'third',v_third,
     'org',v_org,'statement',v_statement,'version',v_version
@@ -83,6 +76,51 @@ begin
   end loop;
 end $follows$;
 reset role;
+
+-- Mirror the real lifecycle: an organization is public, the user follows it,
+-- and only THEN the statement is published. PostgreSQL now() is transaction-
+-- stable, so these two timestamps are equal in this rollback-only fixture;
+-- the separate historical-follow scenario below tests strict late-follow
+-- exclusion using an explicitly older publication time.
+do $publish_after_follows$
+declare
+  v jsonb := current_setting('solaris.tg10_candidate_fixture')::jsonb;
+  v_follower_count integer;
+begin
+  select count(*) into v_follower_count
+  from public.fan_follows follow_row
+  where follow_row.entity_type = 'organization'
+    and follow_row.entity_id = (v->>'org')::uuid
+    and follow_row.profile_id in (
+      (v->>'first')::uuid,(v->>'second')::uuid,(v->>'third')::uuid
+    );
+  if v_follower_count <> 3 then
+    raise exception 'TG10_PUBLISH_BEFORE_CANONICAL_FOLLOW, got %', v_follower_count;
+  end if;
+
+  insert into public.world_statements(id,organization_id,status,visibility,published_at)
+  values((v->>'statement')::uuid,(v->>'org')::uuid,'published','public',now());
+  insert into public.world_statement_versions(
+    id,statement_id,version_number,title,body,published_at
+  ) values(
+    (v->>'version')::uuid,(v->>'statement')::uuid,1,
+    'Canonical public statement',
+    'Published text never appears in lock screen content.',now()
+  );
+  update public.world_statements
+  set current_version_id=(v->>'version')::uuid
+  where id=(v->>'statement')::uuid;
+
+  if exists (
+    select 1
+    from public.fan_follows follow_row
+    join public.world_statement_versions initial_version
+      on initial_version.id=(v->>'version')::uuid
+    where follow_row.entity_type='organization'
+      and follow_row.entity_id=(v->>'org')::uuid
+      and follow_row.created_at > initial_version.published_at
+  ) then raise exception 'TG10_PREPUBLICATION_FOLLOW_TIMELINE_INVALID'; end if;
+end $publish_after_follows$;
 
 insert into public.notification_preferences(profile_id,external_enabled,categories)
 select (v.value)::uuid,true,array['following']::text[]
