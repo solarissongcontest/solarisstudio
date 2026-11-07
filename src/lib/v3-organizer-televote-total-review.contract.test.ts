@@ -33,16 +33,16 @@ describe('V3 Organizer Televote total review boundary', () => {
     expect(route).toContain('if (!sameIdSet(review.participantIds, liveParticipantIds))');
     expect(route).toContain('livePublishedResults !== review.publishedResults');
     expect(route).toContain('liveExisting.points !== change.saved');
-    expect(route.indexOf('const [showResult, participantResult, voteResult]')).toBeLessThan(route.indexOf('mutationPhaseStarted = true'));
+    expect(route.indexOf('const [showResult, participantResult, voteResult]')).toBeLessThan(route.indexOf('reconciliationStarted = true'));
   });
 
-  it('applies only the frozen reviewed batch with exact scope and expected-value guards', () => {
+  it('reconciles only through the canonical source command and verifies the reviewed values', () => {
+    expect(route).toContain('reconcileOrganizerTelevoteTotals({');
     expect(route).toContain('for (const change of review.changes)');
-    expect(route).toContain('.eq("edition_id", commandEditionId)');
-    expect(route).toContain('.eq("show_id", review.showId)');
-    expect(route).toContain('.eq("points", change.saved)');
-    expect(route).toContain('review?.editionId ?? organizerEditionId');
-    expect(route).not.toContain('for (const change of changes) {\n        const existing = voteFor(change.key);');
+    expect(route).toContain('Publish the correction in the source system');
+    expect(route).not.toContain('.from("televote_votes") as any');
+    expect(route).not.toContain('.update({ points: change.points })');
+    expect(route).not.toContain('.insert({\n            edition_id: commandEditionId');
   });
 
   it('clears stale reviews on Organizer context changes and requires exact show-name typing', () => {
@@ -51,10 +51,9 @@ describe('V3 Organizer Televote total review boundary', () => {
     expect(route).toContain('Type ${pendingReview.showName} to confirm');
   });
 
-  it('does not pretend the compatibility writer is atomic or has a receipt', () => {
-    expect(route).toContain('this compatibility writer is still sequential and non-atomic');
-    expect(route).toContain('System #585 owns the canonical atomic, versioned, idempotent Televote-total command and receipt');
-    expect(route).toContain('one or more earlier rows may already have committed');
-    expect(route).toContain('refresh canonical state before retrying');
+  it('does not pretend the Organizer route is a canonical writer', () => {
+    expect(route).toContain('this screen never writes the canonical projection');
+    expect(route).toContain('service-role-only, versioned Televote reconciliation command');
+    expect(route).toContain('Values not present in the published source are refused');
   });
 });

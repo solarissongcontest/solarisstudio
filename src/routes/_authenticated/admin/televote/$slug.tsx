@@ -30,6 +30,7 @@ import { reportSupabaseError } from "@/lib/errors";
 import { hasPublishedResults, resolveShowPublication } from "@/lib/publication";
 import { validateEditionCommandScope } from "@/lib/solaris-v6-edition-context";
 import { resolveVoting } from "@/lib/voting";
+import { reconcileOrganizerTelevoteTotals } from "@/integrations/televoting/televote-totals.functions";
 
 type TelevoteSearch = { show?: string };
 
@@ -210,9 +211,9 @@ function TelevoteTotalsWorkspace() {
     const review = pendingReview;
     if (!review?.changes.length) return;
     setBusy(true);
-    let mutationPhaseStarted = false;
+    let reconciliationStarted = false;
     try {
-      const commandEditionId = assertTelevoteEditionScope(review);
+      assertTelevoteEditionScope(review);
 
       const [showResult, participantResult, voteResult] = await Promise.all([
         supabase
@@ -276,33 +277,27 @@ function TelevoteTotalsWorkspace() {
         }
       }
 
-      mutationPhaseStarted = true;
+      reconciliationStarted = true;
+      await reconcileOrganizerTelevoteTotals({
+        editionId: review.editionId,
+        showId: review.showId,
+      });
+
+      const { data: reconciledVotes, error: reconciliationReadError } = await supabase
+        .from("televote_votes")
+        .select("id,edition_id,show_id,country_id,contest_entity_id,points")
+        .eq("show_id", review.showId)
+        .eq("edition_id", review.editionId);
+      if (reconciliationReadError) throw reconciliationReadError;
       for (const change of review.changes) {
-        if (change.existingId) {
-          const { data, error } = await (supabase.from("televote_votes") as any)
-            .update({ points: change.points })
-            .eq("id", change.existingId)
-            .eq("edition_id", commandEditionId)
-            .eq("show_id", review.showId)
-            .eq("points", change.saved)
-            .select("id")
-            .maybeSingle();
-          if (error) throw error;
-          if (!data) {
-            throw Object.assign(
-              new Error(`${change.label}'s Televote total changed while this batch was being applied. Refresh canonical state before retrying.`),
-              { status: 409 },
-            );
-          }
-        } else {
-          const { error } = await (supabase.from("televote_votes") as any).insert({
-            edition_id: commandEditionId,
-            show_id: review.showId,
-            country_id: change.identity.country_id,
-            contest_entity_id: change.identity.contest_entity_id,
-            points: change.points,
-          });
-          if (error) throw error;
+        const reconciled = voteForIdentity(change.key, change.identity, (reconciledVotes ?? []) as Televote[]);
+        if (!reconciled || reconciled.points !== change.points) {
+          throw Object.assign(
+            new Error(
+              `${change.label}'s reviewed value is not present in the canonical published Televote source. Publish the correction in the source system, then reconcile again.`,
+            ),
+            { status: 409 },
+          );
         }
       }
 
@@ -311,16 +306,16 @@ function TelevoteTotalsWorkspace() {
         qc.invalidateQueries({ queryKey: ["results"] }),
       ]);
       setPendingReview(null);
-      toast.success(`Saved ${review.changes.length} reviewed Televote total${review.changes.length === 1 ? "" : "s"}`);
+      toast.success(`Reconciled ${review.changes.length} reviewed Televote total${review.changes.length === 1 ? "" : "s"}`);
     } catch (caught) {
       await Promise.allSettled([
         qc.invalidateQueries({ queryKey: ["televote_votes"] }),
         qc.invalidateQueries({ queryKey: ["results"] }),
       ]);
       setPendingReview(null);
-      const fallback = mutationPhaseStarted
-        ? "Televote totals could not be confirmed. The compatibility writer is sequential and non-atomic, so one or more earlier rows may already have committed. Refresh canonical state before retrying."
-        : "Televote totals were not applied because canonical state changed before the reviewed batch could start. Refresh and open a fresh review.";
+      const fallback = reconciliationStarted
+        ? "Canonical Televote reconciliation completed, but the reviewed values were not confirmed. Publish the correction in the source system, then refresh canonical state before retrying."
+        : "Televote totals were not reconciled because canonical state changed before the reviewed operation could start. Refresh and open a fresh review.";
       toast.error(reportSupabaseError(caught, fallback));
     } finally {
       setBusy(false);
@@ -378,8 +373,8 @@ function TelevoteTotalsWorkspace() {
       <AdminPageHeader
         eyebrow={editionLabel(edition)}
         title="Televote totals"
-        description="Review or enter the aggregate televote points that feed this show's standings. Negative totals are allowed for sanctions or point deductions. Public voting rounds and integrity review remain in the Televoting service."
-        actions={<button type="button" disabled={busy || !changes.length} onClick={requestSave} className="admin-action-primary"><Save className="size-4" /> {busy ? "Saving…" : changes.length ? `Review ${changes.length}` : "Saved"}</button>}
+        description="Review the aggregate Televote points from the canonical published source. Corrections must be published in the Televoting service and are reconciled here without a competing Results writer."
+        actions={<button type="button" disabled={busy || !changes.length} onClick={requestSave} className="admin-action-primary"><Save className="size-4" /> {busy ? "Reconciling…" : changes.length ? `Review ${changes.length}` : "Saved"}</button>}
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -454,7 +449,7 @@ function TelevoteTotalsWorkspace() {
         </AdminCard>
       )}
 
-      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">These are aggregate show totals, not individual public ballots. You can enter a negative value when an official sanction or penalty deducts points. Editing here never deletes public-voting submissions or integrity records.</p>
+      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">These are aggregate show totals, not individual public ballots. This screen never writes the canonical projection; publish official corrections in the Televoting service, then reconcile the source here.</p>
 
       <AdminConfirmSheet
         open={!!pendingReview}
@@ -473,10 +468,10 @@ function TelevoteTotalsWorkspace() {
               ))}
             </div>
             <p>Before applying, Solaris re-reads the exact show, line-up, publication state and reviewed totals. If any reviewed state changed, this batch is refused and must be reviewed again.</p>
-            <p className="text-amber-100/90"><strong>Legacy authority:</strong> this compatibility writer is still sequential and non-atomic. System #585 owns the canonical atomic, versioned, idempotent Televote-total command and receipt. If a network failure makes the outcome uncertain, refresh canonical state before retrying.</p>
+            <p className="text-amber-100/90"><strong>Canonical authority:</strong> this review invokes the service-role-only, versioned Televote reconciliation command. Values not present in the published source are refused rather than written from the Organizer screen.</p>
           </div>
         ) : undefined}
-        confirmLabel="Apply reviewed totals"
+        confirmLabel="Reconcile reviewed totals"
         confirmationText={pendingReview?.showName}
         confirmationHint={pendingReview ? `Type ${pendingReview.showName} to confirm` : undefined}
         busy={busy}
