@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const helper = resolve(process.cwd(), "scripts/check-v3-s10-local-rehearsal-targets.mjs");
@@ -62,6 +63,52 @@ describe("S10 local-only rehearsal target protection", () => {
 
   it("keeps local libpq configuration valid", () => {
     expect(check(safeStatus, { PGHOST: "localhost", PGDATABASE: "postgres", PGPORT: "54322" }).status).toBe(0);
+  });
+
+  it.each([
+    ["misleading API localhost", safeStatus.replace("127.0.0.1:54321", "localhost:54321@evil.example"), false],
+    ["valid local endpoints", safeStatus, true],
+  ])("never calls actual psql; fake CLI checks %s", (_case, status, expectPsqlCall) => {
+    const directory = mkdtempSync(join(tmpdir(), "solaris-s10-isolation-"));
+    const marker = join(directory, "psql-marker");
+    try {
+      const supabaseStub = join(directory, "supabase");
+      const psqlStub = join(directory, "psql");
+      writeFileSync(supabaseStub, [
+        "#!/usr/bin/env bash",
+        '[[ "$*" == "status -o env" ]] || exit 41',
+        'printf "%s\\n" "$S10_TEST_STATUS"',
+        "",
+      ].join("\\n"));
+      writeFileSync(psqlStub, [
+        "#!/usr/bin/env bash",
+        'printf "%s\\n" "$1" >> "$S10_TEST_PSQL_MARKER"',
+        "exit 42",
+        "",
+      ].join("\\n"));
+      chmodSync(supabaseStub, 0o755);
+      chmodSync(psqlStub, 0o755);
+
+      const result = spawnSync("bash", [rehearsal], {
+        encoding: "utf8",
+        cwd: process.cwd(),
+        env: {
+          PATH: `${directory}:${process.env.PATH ?? ""}`,
+          S10_TEST_STATUS: status,
+          S10_TEST_PSQL_MARKER: marker,
+        },
+        timeout: 5000,
+      });
+      // Both cases deliberately fail: the external target before SQL, the local
+      // target at the deliberately failing fake psql. No real database exists.
+      expect(result.status).not.toBe(0);
+      expect(existsSync(marker)).toBe(expectPsqlCall);
+      if (expectPsqlCall) {
+        expect(readFileSync(marker, "utf8")).toContain("postgresql://postgres:postgres@127.0.0.1:54322/postgres");
+      }
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 
   it("wires the validated values before invoking psql and never evals Supabase status", () => {
