@@ -114,7 +114,7 @@ describe("S10 local-only rehearsal target protection", () => {
   it("wires the validated values before invoking psql and never evals Supabase status", () => {
     const source = readFileSync(rehearsal, "utf8");
     expect(source).toContain("check-v3-s10-local-rehearsal-targets.mjs");
-    expect(source).not.toMatch(/\beval\s+\"\$\(supabase status/);
+    expect(source).not.toMatch(/\beval\s+"\$\(supabase status/);
     expect(source.indexOf("check-v3-s10-local-rehearsal-targets.mjs")).toBeLessThan(source.indexOf("db_exec()"));
   });
 });
