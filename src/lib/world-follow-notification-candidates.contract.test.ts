@@ -37,6 +37,18 @@ describe("TG10 private institutional statement notification candidates", () => {
     expect(migration).toContain("current_version.published_at <= now()");
     expect(migration).toContain("current_version.statement_id = statement_row.id");
     expect(migration).toContain("p_version_id uuid");
+    expect(migration).toContain("private.v3_domain_events source_event");
+    expect(migration).toContain("public.studio2_operation_receipts receipt");
+    expect(migration).toContain("receipt.status = 'succeeded'");
+    expect(migration).toContain("source_event.aggregate_type = 'world_statement'");
+    expect(migration).toContain("source_event.aggregate_version = current_version.version_number");
+    expect(migration).toContain("source_event.payload ->> 'organizationId' = organization_row.id::text");
+    expect(migration).toContain("source_event.payload ->> 'statementId' = statement_row.id::text");
+    expect(migration).toContain("source_event.payload ->> 'versionId' = current_version.id::text");
+    expect(migration).toContain("source_event.payload ->> 'revision' = current_version.version_number::text");
+    expect(migration).toContain("source_event.payload ->> 'published' = 'true'");
+    expect(migration).toContain("source_event.payload ->> 'visibility' = 'public'");
+    expect(migration).toContain("receipt.command = case");
     expect(migration).toContain("p_statement_id is null or p_version_id is null");
     expect(migration).toContain("current_version.id = p_version_id");
     expect(migration).toContain("statement_row.current_version_id = p_version_id");
@@ -47,6 +59,7 @@ describe("TG10 private institutional statement notification candidates", () => {
   it("honors user notification consent and the explicitly disabled statement category", () => {
     expect(migration).toContain("follow_row.entity_type = 'organization'");
     expect(migration).toContain("follow_row.notification_level in ('important', 'all')");
+    expect(migration).toContain("follow_row.created_at <= current_version.published_at");
     expect(migration).toContain("preference.external_enabled is true");
     expect(migration).toContain("'following' = any(preference.categories)");
     expect(migration).toContain("category_preference.category = 'statements'");
@@ -70,6 +83,11 @@ describe("TG10 private institutional statement notification candidates", () => {
     expect(rehearsal).toContain("TG10_UNRELATED_VERSION_EVENT_ALLOWED");
     expect(rehearsal).toContain("TG10_SUPERSEDED_CORRECTION_EVENT_ALLOWED");
     expect(rehearsal).toContain("TG10_FUTURE_VERSION_LEAK");
+    expect(rehearsal).toContain("TG10_NO_EVENT_PROVENANCE_ACCEPTED");
+    expect(rehearsal).toContain("TG10_MISMATCHED_S4_VERSION_ACCEPTED");
+    expect(rehearsal).toContain("TG10_CANONICAL_S4_FACT_NOT_ACCEPTED");
+    expect(rehearsal).toContain("TG10_AFTER_PUBLICATION_FOLLOW_ACCEPTED");
+    expect(rehearsal).toContain("'world.statement.corrected','world_statement'");
     expect(rehearsal).toContain("v_corrected");
     expect(rehearsal).toContain("v_future");
   });
