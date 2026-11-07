@@ -337,6 +337,8 @@ const TEEN_FRIENDLY_TITLES: Record<string, string> = {
   "7.4": "What happens when scores are tied",
   "17.2": "The ten penalty levels",
   "17.3": "How TSBC chooses a penalty",
+  "17.4": "When TSBC can give a stronger penalty",
+  "17.5": "When TSBC can give a lighter penalty",
   "19.1": "What counts as a major emergency",
   "22.4": "When a country stays Protected",
   "22.5": "When a country becomes Unprotected",
@@ -352,8 +354,8 @@ function simplifyOlderDisplayText(value: string): string {
     .replace(/\bForce Majeure\b/g, "major emergency")
     .replace(/\bAnnexation\b/g, "Taking over land")
     .replace(/\bannexation\b/g, "taking over land")
-    .replace(/\bMitigating factors\b/g, "Reasons for a lighter penalty")
-    .replace(/\bAggravating factors\b/g, "Reasons for a stronger penalty")
+    .replace(/\bMitigating factors\b/gi, "Reasons for a lighter penalty")
+    .replace(/\bAggravating factors\b/gi, "Reasons for a stronger penalty")
     .replace(/\bmitigating factors\b/g, "reasons for a lighter penalty")
     .replace(/\baggravating factors\b/g, "reasons for a stronger penalty")
     .replace(/\bSanctions\b/g, "Penalties")
