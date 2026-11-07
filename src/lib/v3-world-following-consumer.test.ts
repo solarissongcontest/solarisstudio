@@ -62,6 +62,7 @@ describe("TG10 Me institution follow public-name boundary", () => {
     );
     expect(request.eq).toHaveBeenCalledWith("public_visibility", "public");
     expect(request.in).toHaveBeenCalledWith("id", [ID, OTHER]);
+    expect(request.in).toHaveBeenCalledWith("status", ["recognized", "active"]);
     expect(request.limit).toHaveBeenCalledWith(2);
     expect(result.map((item) => item.officialName)).toEqual(["UNITY", "UNITY"]);
   });
@@ -69,6 +70,17 @@ describe("TG10 Me institution follow public-name boundary", () => {
   it("does not render unpublished rows even if they are returned unexpectedly", async () => {
     simulateResult([{ ...publicOrg(), public_visibility: "private" }]);
     expect(await fetchPublishedFollowingOrganizations([ID])).toEqual([]);
+  });
+
+  it("does not disclose a proposed or unrecognized institution even when a backend mistakenly returns it", async () => {
+    const request = simulateResult([
+      { ...publicOrg(), status: "proposed", official_name: "Unpublished Council" },
+      { ...publicOrg(OTHER), status: "active", official_name: "Published Council" },
+    ]);
+    expect(await fetchPublishedFollowingOrganizations([ID, OTHER])).toEqual([
+      expect.objectContaining({ id: OTHER, officialName: "Published Council" }),
+    ]);
+    expect(request.in).toHaveBeenCalledWith("status", ["recognized", "active"]);
   });
 
   it("fails closed on out-of-scope organizations, invalid or excessive IDs", async () => {

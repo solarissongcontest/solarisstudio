@@ -28,6 +28,7 @@ export async function fetchPublishedFollowingOrganizations(
     .from("world_organizations")
     .select("id,slug,official_name,short_name,type,description,status,public_visibility")
     .eq("public_visibility", "public")
+    .in("status", ["recognized", "active"])
     .in("id", ids)
     .limit(ids.length);
   if (error || !Array.isArray(data)) {
@@ -39,5 +40,7 @@ export async function fetchPublishedFollowingOrganizations(
   if (organizations.some((item) => !knownIds.has(item.id))) {
     throw new Error("Institution scope could not be verified.");
   }
-  return organizations;
+  // Defense in depth: never display a proposed or unrecognized name even if
+  // a future backend/RLS regression unexpectedly returns one.
+  return organizations.filter((item) => item.status === "recognized" || item.status === "active");
 }
