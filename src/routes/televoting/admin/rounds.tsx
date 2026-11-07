@@ -7,7 +7,7 @@ export const Route = createFileRoute("/televoting/admin/rounds")({
   head: () => ({
     meta: [
       { title: "Voting Rounds — Solaris Organizer" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: VotingRoundsRoute,

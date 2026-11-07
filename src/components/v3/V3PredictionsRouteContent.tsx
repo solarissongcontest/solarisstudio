@@ -14,6 +14,7 @@ export function V3PredictionsRouteContent() {
 
   const privateStateLoading = session.isLoading || Boolean(viewerId && history.isLoading);
   const privateStateFailed = session.isError || Boolean(viewerId && history.isError);
+  const privateStateRetrying = session.isFetching || Boolean(viewerId && history.isFetching);
 
   if (privateStateLoading || privateStateFailed) {
     return (
@@ -32,6 +33,17 @@ export function V3PredictionsRouteContent() {
               <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
                 Solaris will not show a round as open or unsubmitted when your saved submission history is unavailable.
               </p>
+              <button
+                type="button"
+                disabled={privateStateRetrying}
+                onClick={() => {
+                  if (session.isError) void session.refetch();
+                  if (viewerId && history.isError) void history.refetch();
+                }}
+                className="mt-3 min-h-11 rounded-xl border border-white/20 px-4 text-sm font-semibold transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {privateStateRetrying ? "Retrying…" : "Retry prediction history"}
+              </button>
             </div>
           ) : (
             <p

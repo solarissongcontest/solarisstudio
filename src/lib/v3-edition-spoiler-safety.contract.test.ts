@@ -5,8 +5,10 @@ import { describe, expect, it } from "vitest";
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 const gate = () => read("src/components/v3/V3EditionRouteGate.tsx");
-const safeScreen = () => read("src/components/v3/V3EditionSpoilerSafeScreen.tsx");
-const projection = () => read("src/lib/v3-edition.ts");
+const overview = () => read("src/components/v3/V3EditionOverviewScreen.tsx");
+const participants = () => read("src/components/v3/V3EditionParticipantsScreen.tsx");
+const songs = () => read("src/components/v3/V3EditionSongsScreen.tsx");
+const schedule = () => read("src/components/v3/V3EditionScheduleScreen.tsx");
 
 describe("V3 Edition spoiler and result safety", () => {
   it("reuses the shared local + server spoiler preference authority", () => {
@@ -17,58 +19,60 @@ describe("V3 Edition spoiler and result safety", () => {
     expect(source).toContain("localSpoilerFree: preferences.spoilerFree");
     expect(source).toContain("serverSpoilerFree: serverPreferences.data?.spoiler_free ?? null");
     expect(source).toContain("viewerResolved: true");
-    expect(source).toContain("<V3EditionSpoilerSafeScreen");
+    expect(source).toContain("hideSpoilers={hideSpoilers}");
+    expect(source).toContain("spoilerSafe={hideSpoilers}");
   });
 
-  it("hides narrative, entry and result content before the user explicitly reveals this Edition", () => {
-    const source = safeScreen();
-    const revealBoundary = source.indexOf("if (!hideSpoilers || revealed)");
-    const protectedMarker = source.indexOf('data-v3-edition-spoiler-protected=""');
-    expect(revealBoundary).toBeGreaterThan(-1);
-    expect(protectedMarker).toBeGreaterThan(revealBoundary);
-    expect(source).toContain("Published story titles, narrative moments, entry details, placements and points stay hidden");
+  it("keeps Overview narrative, entry and Result spoilers protected", () => {
+    const source = overview();
+    expect(source).toContain("const [revealed, setRevealed] = useState(false)");
+    expect(source).toContain("const spoilerSafe = hideSpoilers && !revealed");
+    expect(source).toContain('data-v3-edition-spoiler-protected=""');
     expect(source).toContain("Reveal edition spoilers");
-    expect(source).not.toContain("projection.entries.map");
-    expect(source).not.toContain("projection.story.title");
-    expect(source).not.toContain("projection.story.items");
-    expect(source).not.toContain("projection.results.rows");
-  });
-
-  it("preserves normal Edition section landmarks without exposing protected payloads", () => {
-    const source = safeScreen();
-    expect(source).toContain('title="At a glance"');
-    expect(source).toContain('title="Participants"');
     expect(source).toContain('title="Songs & artists"');
-    expect(source).toContain('title="Schedule"');
     expect(source).toContain('title="Stories"');
     expect(source).toContain('title="Results"');
     expect(source).toContain('meta="Spoiler protected"');
   });
 
-  it("keeps safe Edition identity, participant and schedule value available while protected", () => {
-    const source = safeScreen();
-    expect(source).toContain("projection.hub.hero.name");
-    expect(source).toContain("projection.overview.participantCount");
-    expect(source).toContain("projection.participants.map");
-    expect(source).toContain("projection.shows.map");
-    expect(source).toContain("Public edition identity, participants and show schedule remain available below");
+  it("keeps Participants useful without exposing Entry or Result spoilers", () => {
+    const source = participants();
+    expect(source).toContain("!spoilerSafe");
+    expect(source).toContain("entryByIdentity");
+    expect(source).toContain("resultByIdentity");
+    expect(source).toContain("showEntryAvailability={!spoilerSafe}");
+    expect(source).toContain("entry details and result placements hidden by spoiler-free mode");
   });
 
-  it("keeps reveal local instead of mutating the user's spoiler preference", () => {
-    const source = safeScreen();
+  it("keeps Edition Songs behind a local reveal without changing the global preference", () => {
+    const source = songs();
     expect(source).toContain("const [revealed, setRevealed] = useState(false)");
-    expect(source).toContain("onClick={() => setRevealed(true)}");
-    expect(source).toContain("Your spoiler-free preference stays unchanged");
+    expect(source).toContain("const spoilerProtected = hideSpoilers && !revealed");
+    expect(source).toContain("Reveal songs");
+    expect(source).toContain("onReveal={() => setRevealed(true)}");
+    expect(source).toContain("Your spoiler-free preference remains enabled");
+    expect(source).toContain("!hideSpoilers ? (");
     expect(source).not.toContain("update({ spoilerFree");
     expect(source).not.toContain("localStorage");
     expect(source).not.toContain("sessionStorage");
   });
 
-  it("keeps known withdrawn/disqualified identities out of the public Edition ranking", () => {
-    const source = projection();
-    expect(source).toContain("competingEditionResults(input)");
-    expect(source).toContain('participant.participationStatus !== "confirmed"');
-    expect(source).toContain("visibleResults");
-    expect(source).toContain('rows: resultsState === "available" ? visibleResults : []');
+  it("keeps Schedule chronology while suppressing Result/field-size hints under spoiler protection", () => {
+    const source = schedule();
+    expect(source).toContain("projection.hub.hero.nextEvent");
+    expect(source).toContain("<EventTime");
+    expect(source).toContain("!spoilerSafe && show.participantCount > 0");
+    expect(source).toContain("!spoilerSafe && show.resultsAvailable");
+    expect(source).toContain("show.runningOrderAvailable");
+  });
+
+  it("does not turn any spoiler-aware collection into a second data or timing authority", () => {
+    for (const source of [overview(), participants(), songs(), schedule()]) {
+      expect(source).not.toContain("supabase");
+      expect(source).not.toContain("createClient");
+      expect(source).not.toContain("useQuery(");
+      expect(source).not.toContain("Date.now(");
+      expect(source).not.toContain("new Date(");
+    }
   });
 });

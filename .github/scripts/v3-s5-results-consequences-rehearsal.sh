@@ -30,7 +30,10 @@ log "Seeding one exact canonical result version"
 db_exec "insert into public.countries(id,name,short_code) values ('$COUNTRY_ID','S5 Results Country','S5R');"
 db_exec "insert into public.editions(id,name,year,slug,edition_number,status,published) values ('$EDITION_ID','S5 Results Consequences',2026,'s5-results-consequences',9961,'active',false);"
 db_exec "insert into public.shows(id,edition_id,name,kind,sort_order,published) values ('$SHOW_ID','$EDITION_ID','S5 Results Final','final',1,false);"
-db_exec "insert into public.results(id,edition_id,show_id,country_id,jury_points,televote_points,total_points,final_rank) values ('$RESULT_ID','$EDITION_ID','$SHOW_ID','$COUNTRY_ID',12,10,22,1);"
+# Version capture requires a real confirmed identity; the raw row below
+# remains a synthetic invariant fixture, rather than an orphan Result.
+db_exec "insert into public.participants(edition_id,show_id,country_id,participation_status) values ('$EDITION_ID','$SHOW_ID','$COUNTRY_ID','confirmed');"
+db_exec "insert into public.results(id,edition_id,show_id,country_id,jury_points,televote_points,total_points,final_rank) values ('$RESULT_ID','$EDITION_ID','$SHOW_ID','$COUNTRY_ID',12,10,22,1) on conflict (show_id,country_id) where show_id is not null do update set id=excluded.id,jury_points=excluded.jury_points,televote_points=excluded.televote_points,total_points=excluded.total_points,final_rank=excluded.final_rank;"
 db_exec "insert into public.studio2_result_operations(show_id,edition_id,calculation_version,reviewed_version,locked_version) values ('$SHOW_ID','$EDITION_ID',1,1,1);"
 
 insert_execution() {

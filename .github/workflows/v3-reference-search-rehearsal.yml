@@ -1,0 +1,36 @@
+name: V3 literal public search acceptance
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "src/lib/v3-reference-literal-search.contract.test.ts"
+      - ".github/scripts/v3-reference-search*"
+      - ".github/workflows/v3-reference-search-rehearsal.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: reference-search-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  acceptance:
+    name: Isolated literal public search acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Start disposable local database
+        run: bash .github/scripts/v3-start-disposable-supabase.sh
+      - name: Replay candidate migrations locally
+        run: supabase db reset --local --no-seed
+      - name: Verify governed editorial lifecycle and negative authorization
+        run: bash .github/scripts/v3-reference-search-rehearsal.sh
+      - name: Stop this disposable stack
+        if: always()
+        run: supabase stop --no-backup || true

@@ -85,11 +85,45 @@ function finiteRatio(value: number) {
 }
 
 function positiveInteger(value: number) {
-  return Number.isInteger(value) && value > 0;
+  return Number.isSafeInteger(value) && value > 0;
 }
 
 function nonNegativeInteger(value: number) {
-  return Number.isInteger(value) && value >= 0;
+  return Number.isSafeInteger(value) && value >= 0;
+}
+
+/**
+ * Failure budgets compare integer operation counts with a decimal SLO target.
+ * IEEE-754 subtraction can make 2000 * (1 - 0.9995) slightly smaller than 1,
+ * falsely exhausting a budget that permits exactly one failed operation.
+ *
+ * Parse the finite target's canonical decimal representation and compare the
+ * counts with exact base-10 integer arithmetic. This is evidence evaluation,
+ * not a change to the approved objective or its threshold.
+ */
+function exactFailureAllowance(completed: number, target: number) {
+  const [mantissa, exponentText] = target.toString().toLowerCase().split("e");
+  const exponent = exponentText === undefined ? 0 : Number(exponentText);
+  const fractionalDigits = mantissa.split(".")[1]?.length ?? 0;
+  const digits = mantissa.replace(".", "");
+  const scale = fractionalDigits - exponent;
+  const denominator = 10n ** BigInt(Math.max(0, scale));
+  const targetNumerator = BigInt(digits) * (scale < 0 ? 10n ** BigInt(-scale) : 1n);
+  const allowedNumerator = BigInt(completed) * (denominator - targetNumerator);
+  const whole = allowedNumerator / denominator;
+  const remainder = allowedNumerator % denominator;
+
+  // Keep the public report shape numeric. The integer comparison remains exact
+  // even if the displayed fractional allowance must round to a JS number.
+  const allowed = scale > 0
+    ? Number(`${whole}.${remainder.toString().padStart(scale, "0")}`)
+    : Number(whole);
+
+  return {
+    allowed,
+    exceeds: (badOperations: number) =>
+      BigInt(badOperations) * denominator > allowedNumerator,
+  };
 }
 
 function validateObjective(objective: V3OperationSuccessObjective) {
@@ -181,7 +215,10 @@ export function evaluateV3OperationErrorBudget(
   const allowedBadRatio = finiteRatio(objective.targetSuccessRatio)
     ? Math.max(0, 1 - objective.targetSuccessRatio)
     : 0;
-  const allowedBadOperations = completed * allowedBadRatio;
+  const exactAllowance = finiteRatio(objective.targetSuccessRatio)
+    ? exactFailureAllowance(completed, objective.targetSuccessRatio)
+    : null;
+  const allowedBadOperations = exactAllowance?.allowed ?? completed * allowedBadRatio;
   const remainingBadOperations = Math.max(0, allowedBadOperations - badOperations);
   const overspentBadOperations = Math.max(0, badOperations - allowedBadOperations);
   const consumedRatio = allowedBadOperations > 0
@@ -189,19 +226,17 @@ export function evaluateV3OperationErrorBudget(
     : badOperations === 0
       ? 0
       : null;
-  const burnRate = observedBadRatio === null
-    ? null
-    : allowedBadRatio > 0
-      ? observedBadRatio / allowedBadRatio
-      : observedBadRatio === 0
-        ? 0
-        : null;
+  // The observed bad ratio and allowance share the same operation count.
+  // Using integer-count budget consumption avoids another floating subtraction.
+  const burnRate = observedBadRatio === null ? null : consumedRatio;
 
   let status: V3ErrorBudgetEvaluation["status"];
   if (objectiveErrors.length > 0) status = "invalid_objective";
   else if (observationErrors.length > 0) status = "invalid_observation";
   else if (completed < objective.minimumCompletedOperations) status = "insufficient_data";
-  else if (badOperations > allowedBadOperations) status = "exhausted";
+  else if (exactAllowance?.exceeds(badOperations) ?? badOperations > allowedBadOperations) {
+    status = "exhausted";
+  }
   else status = "within_budget";
 
   return {

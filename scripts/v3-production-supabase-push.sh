@@ -5,6 +5,9 @@ set -euo pipefail
 # Deliberately local/operator-run: production credentials must never be exposed to CI.
 
 PRODUCTION_PROJECT_REF="dkxmnvekiopyesuzggeu"
+# Immutable migration-history compatibility boundary from the October bootstrap.
+# DO NOT extend this to the current hosted head: that hides unapplied SQL.
+BOOTSTRAP_HISTORY_CUTOVER="20261014020000"
 EXPECTED_REMOTE_HEAD="20261017212902"
 EXPECTED_REPO_HEAD="20261017212902"
 EXPECTED_PENDING_COUNT="0"
@@ -19,11 +22,13 @@ remote_head_from_list() {
       remote_version = $2
       gsub(/[`[:space:]]/, "", local_version)
       gsub(/[`[:space:]]/, "", remote_version)
-      if (local_version ~ /^[0-9]{14}$/ && remote_version ~ /^[0-9]{14}$/) {
+      # The newest hosted migration may be absent from the repository.
+      # Never infer the remote frontier only from paired local/remote rows.
+      if (remote_version ~ /^[0-9]{14}$/) {
         print remote_version
       }
     }
-  ' | tail -n 1
+  ' | sort | tail -n 1
 }
 
 remote_only_versions_from_list() {
@@ -69,6 +74,16 @@ rm -rf "$repo_root/supabase/.temp"
 
 [[ -z "$(git status --porcelain)" ]] || fail "working tree must be clean"
 
+# Approve the exact checkout rather than only an ordered SQL manifest.
+# An unrelated application change between dry-run and commit must invalidate
+# the original approval. This never substitutes for explicit user authorization.
+actual_candidate_sha="$(git rev-parse HEAD)"
+expected_candidate_sha="${SOLARIS_PRODUCTION_CANDIDATE_SHA:-}"
+[[ "$expected_candidate_sha" =~ ^[0-9a-f]{40}$ ]] \
+  || fail "set SOLARIS_PRODUCTION_CANDIDATE_SHA to the exact reviewed 40-character lowercase commit SHA"
+[[ "$actual_candidate_sha" == "$expected_candidate_sha" ]] \
+  || fail "candidate SHA is $actual_candidate_sha, approval was for $expected_candidate_sha"
+
 actual_repo_head="$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort | tail -n 1 | cut -d_ -f1)"
 [[ "$actual_repo_head" == "$EXPECTED_REPO_HEAD" ]] || fail "repository migration head is $actual_repo_head, expected $EXPECTED_REPO_HEAD; refresh the deployment candidate"
 [[ "${#EXPECTED_PENDING_VERSIONS[@]}" -eq "$EXPECTED_PENDING_COUNT" ]] || fail "deployment script pending-version manifest is internally inconsistent"
@@ -97,7 +112,7 @@ printf 'Target project: %s\n' "$PRODUCTION_PROJECT_REF"
 printf 'Expected remote migration head before push: %s\n' "$EXPECTED_REMOTE_HEAD"
 printf 'Repository migration head: %s\n' "$EXPECTED_REPO_HEAD"
 printf 'Expected canonical pending migrations: %s\n' "$EXPECTED_PENDING_COUNT"
-printf 'Git SHA: %s\n' "$(git rev-parse HEAD)"
+printf 'Git SHA: %s\n' "$actual_candidate_sha"
 
 # Link interactively/local-only. The CLI may request the production DB password.
 supabase link --project-ref "$PRODUCTION_PROJECT_REF"
@@ -117,18 +132,21 @@ remote_head="$(printf '%s\n' "$list_before" | remote_head_from_list)"
 # Supabase CLI 2.121+ refuses db push while either side is unmatched. Never use
 # --include-all and never rewrite production migration history to make the CLI
 # happy. Instead, construct a temporary local compatibility view:
-# - hold only local-only versions at or before the exact production head;
-# - add no-op aliases only for remote-only versions at or before that head.
+# - hold only local-only versions at or before the original bootstrap cutover;
+# - add no-op aliases only for remote-only versions at or before that cutover.
+# Missing versions after that cutover are REAL drift and must fail closed.
 # Every held file is restored and every alias is deleted by the exit trap.
 mapfile -t initial_local_only < <(printf '%s\n' "$list_before" | local_only_versions_from_list | sort)
 historical_held=0
 for version in "${initial_local_only[@]}"; do
   [[ "$version" =~ ^[0-9]{14}$ ]] || fail "invalid local-only migration version: $version"
-  if [[ "$version" < "$EXPECTED_REMOTE_HEAD" || "$version" == "$EXPECTED_REMOTE_HEAD" ]]; then
+  if [[ "$version" < "$BOOTSTRAP_HISTORY_CUTOVER" || "$version" == "$BOOTSTRAP_HISTORY_CUTOVER" ]]; then
     mapfile -t matches < <(find "$repo_root/supabase/migrations" -maxdepth 1 -type f -name "${version}_*.sql" -print | sort)
     (( ${#matches[@]} == 1 )) || fail "historical local-only migration $version resolves to ${#matches[@]} files, expected exactly one"
     mv "${matches[0]}" "$historical_hold_dir/"
     ((historical_held += 1))
+  elif [[ "$version" < "$EXPECTED_REMOTE_HEAD" || "$version" == "$EXPECTED_REMOTE_HEAD" ]]; then
+    fail "unapplied post-bootstrap migration $version is older than the hosted head: reconcile and rehearse it explicitly, never hide it as bootstrap history"
   fi
 done
 if (( historical_held > 0 )); then
@@ -140,8 +158,8 @@ if (( ${#remote_only_versions[@]} > 0 )); then
   printf 'Preparing %d temporary remote-history compatibility stubs.\n' "${#remote_only_versions[@]}"
   for version in "${remote_only_versions[@]}"; do
     [[ "$version" =~ ^[0-9]{14}$ ]] || fail "invalid remote-only migration version: $version"
-    [[ "$version" < "$EXPECTED_REMOTE_HEAD" || "$version" == "$EXPECTED_REMOTE_HEAD" ]] \
-      || fail "remote-only migration $version is newer than expected production head $EXPECTED_REMOTE_HEAD"
+    [[ "$version" < "$BOOTSTRAP_HISTORY_CUTOVER" || "$version" == "$BOOTSTRAP_HISTORY_CUTOVER" ]] \
+      || fail "hosted-only post-bootstrap migration $version must be canonically adopted and upgrade-rehearsed, never replaced with a no-op stub"
     if compgen -G "$repo_root/supabase/migrations/${version}_*.sql" >/dev/null; then
       fail "remote-only migration $version unexpectedly has a local migration file"
     fi
@@ -187,6 +205,25 @@ supabase db push --linked --dry-run
 printf '\nDry-run complete. Re-run with SOLARIS_PRODUCTION_COMMIT=YES to commit.\n'
 [[ "${SOLARIS_PRODUCTION_COMMIT:-}" == "YES" ]] || exit 0
 
+# A different operator may have deployed while our dry-run was executing.
+# Re-read the live frontier immediately before committing: the initial
+# approval/dry-run snapshot must not be treated as a distributed lock.
+printf '\nRechecking hosted migration frontier immediately before commit:\n'
+list_precommit="$(supabase migration list --linked)"
+remote_precommit="$(printf '%s\n' "$list_precommit" | remote_head_from_list)"
+[[ "$remote_precommit" == "$EXPECTED_REMOTE_HEAD" ]] \
+  || fail "hosted migration frontier moved after dry-run: ${remote_precommit:-unknown}, expected $EXPECTED_REMOTE_HEAD"
+mapfile -t precommit_remote_only < <(printf '%s\n' "$list_precommit" | remote_only_versions_from_list | sort)
+(( ${#precommit_remote_only[@]} == 0 )) \
+  || fail "hosted-only migration appeared after dry-run: ${precommit_remote_only[*]}"
+mapfile -t precommit_pending < <(printf '%s\n' "$list_precommit" | local_only_versions_from_list | sort)
+(( ${#precommit_pending[@]} == EXPECTED_PENDING_COUNT )) \
+  || fail "pending migration set changed after dry-run"
+for i in "${!EXPECTED_PENDING_VERSIONS[@]}"; do
+  [[ "${precommit_pending[$i]}" == "${EXPECTED_PENDING_VERSIONS[$i]}" ]] \
+    || fail "pending migration manifest changed after dry-run at position $((i + 1))"
+done
+
 supabase db push --linked
 
 printf '\nMigration parity after deployment:\n'
@@ -194,5 +231,9 @@ list_after="$(supabase migration list --linked)"
 printf '%s\n' "$list_after"
 remote_after="$(printf '%s\n' "$list_after" | remote_head_from_list)"
 [[ "$remote_after" == "$EXPECTED_REPO_HEAD" ]] || fail "post-deploy head is ${remote_after:-unknown}, expected $EXPECTED_REPO_HEAD"
+mapfile -t postdeploy_local_only < <(printf '%s\n' "$list_after" | local_only_versions_from_list | sort)
+mapfile -t postdeploy_remote_only < <(printf '%s\n' "$list_after" | remote_only_versions_from_list | sort)
+(( ${#postdeploy_local_only[@]} == 0 && ${#postdeploy_remote_only[@]} == 0 )) \
+  || fail "post-deploy migration history still differs: local-only=${postdeploy_local_only[*]} remote-only=${postdeploy_remote_only[*]}"
 
 printf 'Production migration deployment completed at %s UTC\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"

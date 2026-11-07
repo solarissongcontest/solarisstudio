@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { inspectV3CronMigrations } from "../src/lib/v3-s15-scheduled-job-audit";
 
 import {
   V3_SYSTEM_EDGE_FUNCTION_REGISTRY,
@@ -23,26 +24,19 @@ const edgeFunctionNames = readdirSync(functionsRoot, { withFileTypes: true })
   .map((entry) => entry.name)
   .sort();
 
-const scheduledJobNames = new Set<string>();
-for (const name of readdirSync(migrationsRoot).filter((name) => name.endsWith(".sql")).sort()) {
-  const source = readFileSync(resolve(migrationsRoot, name), "utf8");
-  for (const match of source.matchAll(/cron\.schedule\s*\(\s*'([^']+)'/g)) {
-    scheduledJobNames.add(match[1]);
-  }
-}
-
+const cronAudit = inspectV3CronMigrations(
+  readdirSync(migrationsRoot).filter((name) => name.endsWith(".sql")).map((name) => ({
+    path: "supabase/migrations/" + name,
+    sql: readFileSync(resolve(migrationsRoot, name), "utf8"),
+  })),
+  V3_SYSTEM_SCHEDULED_JOB_REGISTRY,
+);
 const failures = validateV3SystemZeroOrphans({
   integrationPaths,
   edgeFunctionNames,
-  scheduledJobNames: [...scheduledJobNames].sort(),
+  scheduledJobNames: cronAudit.scheduledJobNames,
 });
-
-for (const job of V3_SYSTEM_SCHEDULED_JOB_REGISTRY) {
-  const source = readFileSync(resolve(root, job.evidence), "utf8");
-  if (!source.includes(`'${job.name}'`) || !source.includes("cron.schedule")) {
-    failures.push(`scheduled job evidence drifted: ${job.name} -> ${job.evidence}`);
-  }
-}
+failures.push(...cronAudit.findings);
 
 if (failures.length) {
   console.error("System V3 S15 zero-orphan audit failed.\n");

@@ -103,6 +103,8 @@ describe("Solaris Studio V3 production primary-surface source architecture", () 
     expect(source).toContain('.eq("status", "open")');
     expect(source).toContain('.eq("editions.is_active", true)');
     expect(source).toContain("loadOpenPublicTelevote(publicClient)");
+    expect(source).toContain("editionId === currentEditionId");
+    expect(source).toContain("isCurrentEdition ? loadOpenPublicTelevote(publicClient) : Promise.resolve(null)");
     expect(source).toContain("televote: publicTelevote");
     expect(source).not.toContain("televotingSupabase");
     expect(source).not.toContain("@/integrations/televoting/client");

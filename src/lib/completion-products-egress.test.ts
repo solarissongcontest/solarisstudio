@@ -15,11 +15,17 @@ describe("completion product public egress contract", () => {
     "supabase/migrations/20260920104806_completion_products.sql",
   );
 
-  it("does not make Encyclopedia download vote or result archives it never renders", () => {
+  it("keeps Reference on bounded public projections instead of downloading archives it never renders", () => {
     expect(encyclopedia).not.toContain("useAllJuryVotes");
     expect(encyclopedia).not.toContain("useAllTelevotes");
     expect(encyclopedia).not.toContain("useAllResults");
-    expect(encyclopedia).toContain("useAllParticipants");
+    expect(encyclopedia).not.toContain("useAllParticipants");
+    expect(encyclopedia).not.toContain("useAllShows");
+    expect(encyclopedia).not.toContain("useCountries");
+    expect(encyclopedia).not.toContain("useEditions");
+    expect(encyclopedia).toContain('"solaris_public_search"');
+    expect(encyclopedia).toContain('"v3_public_explore_counts"');
+    expect(encyclopedia).toContain("result_limit: 50");
   });
 
   it("uses one compact Voting DNA aggregate instead of shipping the full jury archive", () => {

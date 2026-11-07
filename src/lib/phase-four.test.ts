@@ -103,6 +103,107 @@ describe("Taste DNA", () => {
     expect(rankingSimilarity(["a", "b", "c"], ["a", "b", "c"])).toBe(100);
   });
 
+  it("refuses to invent personal preferences from invalid or duplicate IDs", () => {
+    const entries = ["a", "b", "c", "d"].map((id, index) => ({
+      id,
+      juryPoints: 40 - index * 10,
+      televotePoints: 10 + index * 10,
+      totalPoints: 50,
+      officialRank: index + 1,
+    }));
+    const profileFor = (ranking: string[]) =>
+      buildTasteDna({
+        ranking,
+        results: entries,
+        juryBallots: [],
+        history: [],
+        nameForId: (id) => id,
+      });
+
+    expect(profileFor(["a", "a", "a"])).toBeNull();
+    expect(profileFor(["missing-1", "missing-2", "a"])).toBeNull();
+    expect(profileFor(["a", "b", "c"])).not.toBeNull();
+  });
+
+  it("excludes off-field jury ballots and normalizes duplicate or stale jury entries", () => {
+    const profile = buildTasteDna({
+      ranking: ["a", "b", "c", "d"],
+      results: ["a", "b", "c", "d"].map((id, index) => ({
+        id,
+        juryPoints: 40 - index * 10,
+        televotePoints: 10 + index * 10,
+        totalPoints: 50,
+        officialRank: index + 1,
+      })),
+      juryBallots: [
+        { key: "valid", name: "Real jury", ranking: ["old-country", "a", "a", "b", "c", "d"] },
+        { key: "stale", name: "Not in the show", ranking: ["old-country"] },
+      ],
+      history: [],
+      nameForId: (id) => id,
+    });
+
+    expect(profile).not.toBeNull();
+    expect(profile!.similarJuries).toEqual([
+      { key: "valid", name: "Real jury", similarity: 100 },
+    ]);
+    expect(profile!.oppositeJuries).toEqual(profile!.similarJuries);
+  });
+
+  it("keeps valid partial preferences equivalent after cleanup without mutating inputs", () => {
+    const results = ["a", "b", "c", "d", "e"].map((id, index) => ({
+      id,
+      juryPoints: 50 - index * 10,
+      televotePoints: 10 + index * 10,
+      totalPoints: 60,
+      officialRank: index + 1,
+    }));
+    const ranking = ["old", "c", "c", "b", "a"];
+    const juryBallots = [
+      { key: "jury", name: "Real jury", ranking: ["old", "c", "c", "b", "a"] },
+    ];
+    const snapshot = structuredClone({ results, ranking, juryBallots });
+    for (const result of results) Object.freeze(result);
+    Object.freeze(results);
+    Object.freeze(ranking);
+    Object.freeze(juryBallots[0].ranking);
+    Object.freeze(juryBallots[0]);
+    Object.freeze(juryBallots);
+
+    const shared = { results, history: [], nameForId: (id: string) => id };
+    const profile = buildTasteDna({ ...shared, ranking, juryBallots });
+    const clean = buildTasteDna({
+      ...shared,
+      ranking: ["c", "b", "a"],
+      juryBallots: [{ key: "jury", name: "Real jury", ranking: ["c", "b", "a"] }],
+    });
+
+    expect(profile).not.toBeNull();
+    expect(profile).toEqual(clean);
+    expect({ results, ranking, juryBallots }).toEqual(snapshot);
+  });
+
+  it("does not count comparison padding as an actual recurring favourite", () => {
+    const profile = buildTasteDna({
+      ranking: ["a", "b", "c"],
+      results: ["a", "b", "c", "d", "e"].map((id, index) => ({
+        id,
+        juryPoints: 50 - index * 10,
+        televotePoints: 10 + index * 10,
+        totalPoints: 60,
+        officialRank: index + 1,
+      })),
+      juryBallots: [],
+      history: [{ showId: "previous-show", ranking: ["e", "d", "c"] }],
+      nameForId: (id) => id,
+    });
+
+    expect(profile).not.toBeNull();
+    expect(profile!.recurringFavourites).toEqual([
+      { id: "c", name: "c", topThreeCount: 2, topTenCount: 2, ballotCount: 2, score: 32 },
+    ]);
+  });
+
   it("recognizes a jury-leaning ranking", () => {
     const profile = buildTasteDna({
       ranking: ["a", "b", "c", "d"],

@@ -1,0 +1,77 @@
+name: V3 S16 effective catalog correctness
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/lib/v3-s16*"
+      - "scripts/*v3-s16*"
+      - "supabase/migrations/**"
+      - ".github/scripts/v3-s16-catalog-rehearsal.sh"
+      - ".github/scripts/v3-start-disposable-supabase.sh"
+      - ".github/scripts/prepare-archive-local-config.py"
+      - ".github/workflows/v3-s16-catalog-rehearsal.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: s16-catalog-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  catalog-correctness:
+    name: S16 catalog correctness (${{ matrix.baseline }}) — not release certification
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        baseline: [candidate, current-main]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - run: bun install --frozen-lockfile
+      - name: Prepare owned disposable database worktree
+        env:
+          BASELINE: ${{ matrix.baseline }}
+        run: |
+          set -euo pipefail
+          runtime="$RUNNER_TEMP/s16-catalog-db"
+          baseline_sha="$(git rev-parse HEAD)"
+          if [[ "$BASELINE" == current-main ]]; then
+            git fetch origin main --no-tags
+            baseline_sha="$(git rev-parse origin/main)"
+          fi
+          git worktree add "$runtime" "$baseline_sha"
+          echo "V3_S16_RUNTIME_DIR=$runtime" >> "$GITHUB_ENV"
+          cd "$runtime"
+          GITHUB_JOB="${GITHUB_JOB}-${BASELINE}" bash "$GITHUB_WORKSPACE/.github/scripts/v3-start-disposable-supabase.sh"
+          supabase db reset --local --no-seed
+          if [[ "$BASELINE" == current-main ]]; then
+            bash "$GITHUB_WORKSPACE/.github/scripts/v3-copy-migration-delta.sh" "$GITHUB_WORKSPACE" "$runtime"
+            supabase migration up --local --include-all
+          fi
+      - name: Verify real catalog semantics and retain unresolved authority evidence
+        run: bash .github/scripts/v3-s16-catalog-rehearsal.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: s16-catalog-${{ matrix.baseline }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            v3-release-preflight/s16/
+            v3-release-preflight/static/s16-mutation-authority.json
+            v3-release-evidence/s16-mutation-authority.json
+          if-no-files-found: warn
+      - name: Stop only the owned local stack
+        if: always()
+        run: |
+          if [[ -n "${V3_S16_RUNTIME_DIR:-}" && -d "$V3_S16_RUNTIME_DIR" ]]; then
+            cd "$V3_S16_RUNTIME_DIR"
+            supabase stop --no-backup
+          fi

@@ -32,6 +32,22 @@ export type V3FollowingSavedProjection = {
   counts: Record<V3FollowEntityType, number>;
 };
 
+/**
+ * Search only the already verified fan-owned projection. This must never trigger
+ * another Supabase query or substitute an unverified profile's saved items.
+ */
+export function searchV3FollowingSavedItems(
+  items: readonly V3FollowingSavedItem[],
+  query: string,
+): V3FollowingSavedItem[] {
+  const term = query.trim().toLocaleLowerCase();
+  if (!term) return [...items];
+  return items.filter((item) =>
+    [item.title, item.context ?? "", item.entityType]
+      .some((text) => text.toLocaleLowerCase().includes(term)),
+  );
+}
+
 function editionName(edition: EditionLike) {
   if (edition.edition_number != null) {
     return edition.name?.trim() || `Edition ${edition.edition_number}`;

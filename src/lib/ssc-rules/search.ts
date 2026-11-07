@@ -1,5 +1,5 @@
 import { LEGACY_RULE_ALIASES, SEARCH_SYNONYMS } from "@/lib/ssc-rules/aliases";
-import { SSC_RULES, SSC_RULE_CHAPTERS } from "@/lib/ssc-rules/canon-v4";
+import { SSC_RULES, SSC_RULE_CHAPTERS } from "@/lib/ssc-rules/current";
 
 const rulesById = new Map(SSC_RULES.map((rule) => [rule.id, rule]));
 const normalize = (value: string) => value.trim().toLowerCase();
@@ -60,6 +60,6 @@ export function searchSscRules(query: string) {
     .map(({ rule }) => rule);
 }
 
-export const QUICK_RULE_IDS = ["6.4", "6.5", "6.6", "11.2", "11.5", "4.6", "17.2", "17.7", "16.3", "20.1"] as const;
+export const QUICK_RULE_IDS = ["22.5", "22.6", "6.4", "6.5", "6.6", "11.2", "11.5", "4.6", "17.2", "16.3"] as const;
 export const QUICK_RULES = QUICK_RULE_IDS.map(getRuleById).filter(Boolean) as NonNullable<ReturnType<typeof getRuleById>>[];
 export const RULEBOOK_STATS = { chapters: SSC_RULE_CHAPTERS.length, rules: SSC_RULES.length };
