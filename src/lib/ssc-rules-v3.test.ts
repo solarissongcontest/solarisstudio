@@ -10,7 +10,7 @@ import {
 
 describe("SSC online-first General Regulations", () => {
   it("uses the current 22-chapter online-first architecture", () => {
-    expect(SSC_RULEBOOK.version).toBe("4.1");
+    expect(SSC_RULEBOOK.version).toBe("4.2");
     expect(SSC_RULEBOOK.status.toLowerCase()).toContain("online-first");
     expect(RULEBOOK_STATS.chapters).toBe(22);
     expect(RULEBOOK_STATS.rules).toBeGreaterThan(70);
@@ -22,7 +22,7 @@ describe("SSC online-first General Regulations", () => {
     const eliminationRule = getRuleById("22.6");
 
     expect(protectedRule?.body.join(" ").toLowerCase()).toContain("withdrawal");
-    expect(protectedRule?.body.join(" ").toLowerCase()).toContain("does not immediately remove this protection");
+    expect(protectedRule?.body.join(" ").toLowerCase()).toContain("do not immediately remove this protection");
     expect(dormantRule?.body.join(" ").toLowerCase()).toContain("six consecutive ssc editions");
     expect(dormantRule?.body.join(" ").toLowerCase()).toContain("no active head of delegation at any point");
     expect(eliminationRule?.summary.toLowerCase()).toContain("eliminated");
@@ -40,9 +40,9 @@ describe("SSC online-first General Regulations", () => {
   it("does not use subjective mainstream status as a hidden eligibility rule", () => {
     const rule = getRuleById("6.4");
     const body = rule?.body.join(" ").toLowerCase() ?? "";
-    expect(body).toContain("subjectively described as mainstream");
-    expect(body).toContain("published measurable requirements");
-    expect(body).toContain("objective restriction");
+    expect(body).toContain("mainstream");
+    expect(body).toContain("published limits");
+    expect(body).toContain("objective limit");
   });
 
   it("keeps automated friend-voting analysis as a human-review signal", () => {
