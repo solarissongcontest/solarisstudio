@@ -142,19 +142,80 @@ function gitBlob(ref, file) {
   return result.status === 0 ? result.stdout : null;
 }
 
+// This is diagnostic classification only. It must never turn a partial S14
+// artifact into a reported full-contest pass, even though release certification
+// is separately enforced by the canonical evidence-consistency validator.
+const S14_DIAGNOSTIC_STAGES = [
+  "stage-1-setup", "stage-2-delegation-onboarding", "stage-3-confirmations",
+  "stage-4-entries", "stage-5-running-orders", "stage-6-jury",
+  "stage-7-public-voting", "stage-8-results", "stage-9-publication",
+  "stage-10-archive",
+];
+const S14_DIAGNOSTIC_EXTENSIONS = [
+  "grand-final-qualifier-bridge", "grand-final-voting",
+  "grand-final-results", "grand-final-publication",
+];
+const S14_DIAGNOSTIC_INVARIANTS = [
+  "confirmation-no-effective-duplicates", "entry-valid-revision", "media-accepted-revision",
+  "jury-single-final-ballot", "televote-canonical-ballot", "result-reproducible",
+  "publication-final-version", "tasks-canonical", "notifications-reconcilable",
+];
+const S14_DIAGNOSTIC_FAILURES = [
+  "network-after-commit", "db-timeout-before-commit", "duplicate-request",
+  "worker-crash", "realtime-disconnect", "stale-client", "two-organizers",
+  "supabase-outage",
+];
+function includesEachOnce(actual, required) {
+  if (!Array.isArray(actual) || !actual.every((x) => typeof x === "string" && x.trim())) return false;
+  const unique = new Set(actual);
+  return unique.size === actual.length && required.every((x) => unique.has(x));
+}
+function matchesOrderedStages(actual, expected) {
+  return Array.isArray(actual) &&
+    actual.length === expected.length &&
+    actual.every((value, index) => value === expected[index]);
+}
+
+export function hasCompleteS14DiagnosticClaim(data, candidateSha) {
+  if (!data || typeof data !== "object" || Array.isArray(data) ||
+      !/^[a-f0-9]{40}$/.test(candidateSha)) return false;
+  if (data.candidateSha !== candidateSha || data.passed !== true ||
+      data.partial !== false || data.runtimeFailure !== false ||
+      data.lifecycle?.finalState !== "archived") return false;
+  if (!matchesOrderedStages(data.completedStages, S14_DIAGNOSTIC_STAGES) ||
+      !matchesOrderedStages(data.pendingStages, []) ||
+      !matchesOrderedStages(data.completedContestExtensions, S14_DIAGNOSTIC_EXTENSIONS) ||
+      !matchesOrderedStages(data.pendingContestExtensions, []) ||
+      !matchesOrderedStages(data.blockedContestExtensions, []) ||
+      !includesEachOnce(data.implementedInvariants, S14_DIAGNOSTIC_INVARIANTS) ||
+      !includesEachOnce(data.implementedFailureInjections, S14_DIAGNOSTIC_FAILURES)) return false;
+  if (data.runIdentity?.candidateSha !== candidateSha ||
+      typeof data.runIdentity.editionId !== "string" ||
+      !data.runIdentity.editionId.trim() ||
+      typeof data.runIdentity.databaseFingerprint !== "string" ||
+      !data.runIdentity.databaseFingerprint.trim() ||
+      data.seed?.editionCount !== 1 || data.seed?.delegationCount !== 66 ||
+      !Number.isSafeInteger(data.seed.showCount) || data.seed.showCount < 3) return false;
+  return true;
+}
+
 function loadEvidence(sha, findings) {
   const file = read("v3-release-evidence/s14-full-contest.json");
   if (!file) return { status: "not-present", certified: false };
   try {
     const data = JSON.parse(file);
-    const matching = data.candidateSha === sha;
+    const matching = data?.candidateSha === sha;
     if (!matching) findings.push({
       id: "S14-STALE-EVIDENCE", family: "exact-sha-evidence", risk: "unproven",
       detail: "S14 full-contest evidence does not match the checked-out candidate; it cannot certify this run.",
     });
+    const completeClaim = hasCompleteS14DiagnosticClaim(data, sha);
+    if (matching && !completeClaim) findings.push({
+      id: "S14-INCOMPLETE-SUCCESS-CLAIM", family: "exact-sha-evidence", risk: "unproven",
+      detail: "S14 evidence is partial, failed, or missing canonical lifecycle/Grand Final/seed identity proof; a success flag alone is insufficient.",
+    });
     return {
-      status: matching && data.passed === true && data.lifecycle?.finalState === "archived"
-        ? "candidate-s14-reported-pass" : "not-release-grade",
+      status: completeClaim ? "candidate-s14-reported-pass" : "not-release-grade",
       certified: false, candidateMatches: matching,
       completedStages: data.completedStages ?? [],
       pendingStages: data.pendingStages ?? [],
