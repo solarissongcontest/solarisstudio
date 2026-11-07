@@ -138,11 +138,14 @@ export function RulesHomeV5({
             <span className="text-xs text-muted-foreground">General Regulations · v{version}</span>
           </div>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Find the rule that applies, get a direct answer, or browse the visual rulebook.
+            Understand what you can do, what you must do, and what happens if a rule is broken. Search a question or browse all chapters.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground" data-v3-rulebook-release-meta="">
             <span aria-label={`Current rulebook version ${version}`}>Current version · v{version}</span>
             {effectiveDate ? <span>Effective {effectiveDate}</span> : null}
+            <Link to="/rules/chapters/definitions" className="font-semibold text-primary hover:underline">
+              Explain rule words
+            </Link>
             <Link to="/rules/changes" className="font-semibold text-primary hover:underline">
               Previous versions
             </Link>
