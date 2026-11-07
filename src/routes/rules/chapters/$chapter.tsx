@@ -10,7 +10,8 @@ import {
   SolarisDepthSafeZone,
   SolarisDepthSurface,
 } from "@/components/SolarisDepth";
-import { compareRulebookVersions, usePublishedRulebook } from "@/lib/rules-governance";
+import { usePublishedRulebook } from "@/lib/rules-governance";
+import { compareRulebookVersions } from "@/lib/ssc-rules/runtime-overlay";
 import { getChapterBySlug } from "@/lib/ssc-rules/search";
 import type { RuleTone } from "@/lib/ssc-rules/types";
 
