@@ -287,10 +287,10 @@ const SPECIFIC_CHANGES: Record<string, RuleWordingPatch> = {
     "important": "A withdrawal after the submission deadline but before publication is not automatically penalised only because that deadline passed. After publication, Rule 15.2 applies if the withdrawal seriously disrupts the edition."
   },
   "17.2": {
-    "important": "Fixed contest-point penalties are taken away in full, even if the score becomes negative. Levels 2 and 3 only affect bonus points. If an edition has no bonus points, TSBC must choose a different existing penalty level that fits the rule break and explain why. TSBC cannot quietly turn a bonus-point penalty into a normal point penalty. Reasons for a stronger or lighter penalty still matter."
+    "important": "Take away the full number of contest points listed in a penalty, even if the final score is negative. Levels 2 and 3 remove bonus points only. If there are no bonus points, TSBC must choose another existing penalty level and explain the decision in writing. TSBC must not replace a bonus-point penalty with a normal contest-point deduction. The facts of the case can justify a stronger or lighter penalty."
   },
   "20.2": {
-    "important": "A private message, an older edition's custom or silence cannot silently change the published rules. Urgent exceptions must follow Rule 21.1."
+    "important": "Private messages, practices from past editions, and a lack of response do not change the published rules. Urgent exceptions must follow Rule 21.1."
   },
   "22.4": {
     "summary": "Your country stays protected while it has an active HoD or has not yet completed six whole editions in a row without one.",
