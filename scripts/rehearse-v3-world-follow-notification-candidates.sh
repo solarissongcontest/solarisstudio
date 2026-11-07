@@ -47,5 +47,15 @@ DB_URL="$(strip_outer_quotes "$DB_URL")"
 [[ "$API_URL" =~ ^http://127\.0\.0\.1:[0-9]{2,5}/?$ ]] || fail "Refusing non-loopback Supabase API URL"
 [[ "$DB_URL" =~ ^postgres(ql)?://postgres:postgres@127\.0\.0\.1:[0-9]{2,5}(/postgres)?$ ]] || fail "Refusing non-loopback PostgreSQL URL"
 
+# libpq can read connection attributes outside a URL. In particular PGHOSTADDR
+# can replace the network destination even with a literal loopback URL host;
+# PGSERVICE/PGSERVICEFILE and PGOPTIONS can redirect or alter the session.
+# Fail closed on ANY inherited PG* variable rather than maintaining an
+# incomplete allow/deny list. The developer must explicitly unset them before
+# running this disposable local-only database fixture.
+for pg_setting in "${!PG@}"; do
+  fail "Refusing inherited libpq PG* setting: $pg_setting"
+done
+
 psql "$DB_URL" --no-psqlrc -v ON_ERROR_STOP=1 \
   -f "$SCRIPT_DIR/rehearse-v3-world-follow-notification-candidates.sql"
