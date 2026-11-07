@@ -2,7 +2,7 @@
 
 **Status: DRAFT / LOCAL TEST ONLY / NOT A PRODUCTION MIGRATION.**
 
-The live read-only catalog audit of the actual Solaris Studio Supabase project (2026-11-07) confirmed the `private` schema and `private.studio2_request_is_service_role()` exist, `service_role` has schema USAGE, and **all five S13 framework tables and all seven S13 public RPCs are absent**. The SQL Editor reported PostgreSQL **17.11**.
+The live read-only catalog audit of the actual Solaris Studio Supabase project (2026-11-07) confirmed the `private` schema and `private.studio2_request_is_service_role()` exist, `service_role` has schema USAGE, and **all five S13 framework tables and all seven S13 public RPCs are absent**. The SQL Editor and independent read-only system-catalog query reported PostgreSQL **17.11**. A second read-only query verified **all 12** S13 targets absent.
 
 ## What this candidate adds
 
@@ -17,13 +17,17 @@ No historical migration version is marked applied, and no existing record is upd
 
 ## What the isolated test proves
 
-`.github/workflows/v3-s13-forward-recovery-local.yml` launches disposable **PostgreSQL 17** over loopback. The shell rehearsal creates its own database, installs local roles and a synthetic equivalent of the existing service-role predicate, and applies **only this candidate**. It checks the complete S13 catalog, service-only access, immediate strict-key rejection, migration contract replay, duplicate execution rejection without changing existing contract records, and disposal of the database. A source-integrity Vitest contract pins the candidate to the original S13 framework and strict registration implementation.
+`.github/workflows/v3-s13-forward-recovery-local.yml` launches disposable **PostgreSQL 17.11** over loopback. The shell rehearsal creates its own database and installs local roles using `fixtures/s13-production-dependency-subset-20261107.sql` instead of an invented security helper. This fixture is based on bounded **read-only** production metadata and pins the real `private.studio2_request_is_service_role()` definition fingerprint, function-ACL fingerprint, schema-level USAGE grants, owner, search path and SQL invoker semantics. **No production rows, credentials or hosted endpoints enter CI.**
 
-**The test uses a synthetic fixture, not the actual hosted schema and data.** Even if CI turns green, that alone does not prove a hosted-head-equivalent upgrade, verified function-body parity, grants/RLS under the full V3 permission engine, live legacy-data compatibility, or resolution of the other missing migration effects.
+The rehearsal compares the forward-recovery S13 objects to the **original three-stage S13 migration sequence**, executed in a second disposable DB cloned from the same production-observed dependency fixture. It hashes the definitions and ACLs of all seven public S13 RPCs, plus five private tables' columns, constraints, indexes, owners and privileges. It checks strict registration and tests authorization, replay refusal, and **four failure states**: missing authority helper, missing schema privilege, pre-existing S13 table and pre-existing S13 RPC. Failures must abort without introducing S13 objects. It also verifies browser-role denial and direct-write denial for the service role.
+
+The original three-stage S13 history creates **three** registration keys (foundation, temporary context, strict restore), whereas forward-only recovery intentionally creates **two** because the temporary migration window was not executed. This is a **known semantic/history difference**, not a history repair. Full reconciliation must account for it explicitly.
+
+**This reproduces only the production-observed S13 dependency subset, not the complete hosted schema and data.** Even with green CI, it cannot establish hosted-head-equivalent upgrade safety, overall real contest-data compatibility, all grants/RLS under the full V3 permission engine, or resolution of the other missing migration effects. Historical migration-history versions must never be fabricated or marked applied.
 
 ## Remaining blockers before production
 
-- Review the candidate against an isolated **sanitized hosted-head-equivalent** PostgreSQL/Supabase schema, preserving the existing `private.studio2_request_is_service_role` and all actual dependent routines.
+- This test uses the **exact S13 external helper definition/ACL and schema-usage footprint** observed in production. Still build/review an isolated **sanitized hosted-head-equivalent** PostgreSQL/Supabase schema including other schemas, caller routines and representative synthetic data shapes.
 - Audit the remaining 36 historical missing-history effects, S6 notification repairs, S14 Televote/Archive, immutable Results, and all 32 newer pending migrations. Their dependencies must be compatible with the canonical strict S13 registration policy.
 - Obtain local clean-replay and upgrade parity, negative authorization tests, recovery/rollback and exact-SHA release verification.
 - Create a NEW versioned migration with `supabase migration new` **only after** those local proofs and System/migration-owner review. Never replay the old historical file to falsify migration-history parity.
