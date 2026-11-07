@@ -1,4 +1,5 @@
 import { canReuseTelevoteAttempt, initialTelevoteStage, recoverTelevoteTransportResponse, type TelevoteAttemptSnapshot } from "@/lib/v3-televote-reconciliation";
+import { readTelevoteReceipt, writeTelevoteReceipt } from "@/lib/v3-televote-receipt-storage";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -69,7 +70,6 @@ type ClientIdentity = Awaited<ReturnType<typeof buildTelevotingClientIdentity>>;
 const TOTAL = 20;
 const MAX_PER_ENTRY = 10;
 const MIN_ENTRIES = 5;
-const receiptKey = (roundId: string) => `ssc_vote_receipt:${roundId}`;
 const taskDraftKey = (roundId: string) => `solaris:televote-task-draft:${roundId}`;
 
 type TelevoteTaskDraft = {
@@ -99,8 +99,9 @@ function readTaskDraft(roundId: string): TelevoteTaskDraft | null {
 function storedReceipt(roundId: string) {
   if (typeof window === "undefined") return false;
   try {
-    return Boolean(localStorage.getItem(receiptKey(roundId)));
+    return readTelevoteReceipt(window.localStorage, roundId) !== null;
   } catch {
+    // Accessing localStorage itself may throw in restricted browser contexts.
     return false;
   }
 }
@@ -244,21 +245,13 @@ export function TelevotingBooth({
       );
       return { result, ballot };
     },
-    onSuccess: ({ result, ballot }) => {
+    onSuccess: ({ result }) => {
       const governance = markTelevotingRoundSubmitted(roundId, {
         submissionId: result.id,
         acknowledgedAt: result.accepted_at ?? null,
       });
       try {
-        localStorage.setItem(
-          receiptKey(roundId),
-          JSON.stringify({
-            username: username.trim(),
-            home,
-            breakdown: ballot,
-            governance,
-          }),
-        );
+        writeTelevoteReceipt(window.localStorage, roundId, governance);
       } catch {
         // The database remains authoritative.
       }

@@ -3,25 +3,115 @@
 **Status:** BLOCKED pending explicit reconciliation. This is an operator procedure,
 not permission to deploy or an assertion that a production upgrade has run.
 
-## Verified read-only baseline, 2026-11-04
+## Verified read-only baseline, 2026-11-07
 
-At repository source SHA `17afd07b0993af10cf31d576a1db23032741a944`:
+At independently inspected repository source SHA `e570fa68943845aa7ccca834581d7a45518772f1` and authorized **read-only**
+Supabase `list_migrations` metadata for project `dkxmnvekiopyesuzggeu`:
 
-- Hosted Solaris Studio project: `dkxmnvekiopyesuzggeu`.
-- Hosted migration history: 497 entries; latest `20261101181812_v3_s13_adopt_rules_v4_1_roleplay_registry`.
-- Repository migration files: 473; latest `20261104185330_v3_publication_control_initialization_retry.sql`.
-- The immutable October bootstrap compatibility boundary is `20261014020000`.
-- **36** repository migrations newer than the bootstrap boundary but older than the hosted head are absent from the hosted history.
-- **3** hosted migrations newer than the bootstrap boundary are missing from the repository:
-  - `20261101172649_v3_confirmation_pending_nf_winner`
-  - `20261101173758_v3_pending_nf_winner_transition_guard`
-  - `20261101174945_v3_pending_nf_winner_public_lookup_redaction`
-- **14** repository migrations are newer than the hosted head, including the integrated S14/Results work.
-- Read-only database metadata confirmed RLS enabled for all 149 tables in the `public` schema. This is **not** a complete policy, grant, RPC, or schema-drift certification.
-- Focused read-only `pg_proc` metadata inspection confirmed `v3_register_migration_contract` is **absent** in the currently hosted schema. This supports the finding that the S13 registration framework has not yet been adopted in production.
-- Hosted `private.v3_guard_exact_reviewed_winner()` is `SECURITY DEFINER` and not executable by `anon` or `authenticated` directly. Hosted `public.v3_submit_confirmation(jsonb,uuid,text,text)` is `SECURITY DEFINER` and executable by both roles. That RPC must be evaluated against its existing browser-session/authentication and winner-review guards before the upgrade, rather than treating its execute grant as automatically safe or unsafe. No mutation tests were performed.
+- Hosted migration records: **497**, hosted tip `20261101181812_v3_s13_adopt_rules_v4_1_roleplay_registry`.
+- Repository SQL migration files: **494**, source tip `20261105140500_v3_televote_influence_role_runtime_access.sql`.
+- The **immutable** compatibility boundary remains `20261014020000`. Do not slide this cutoff.
+- **36** repository SQL versions strictly after the cutoff, at or before the hosted tip, are absent from hosted migration history.
+- **32** repository SQL versions newer than the hosted tip remain **pending**, not authorized for deployment.
+- **0** hosted-only migrations after the cutoff; **0** duplicate versions; **0** post-cutover name mismatches.
+- The three previously reported National Final winner migrations (`20261101172649`, `20261101173758`,
+  `20261101174945`) are already present in source, following merged [#1880](https://github.com/solarissongcontest/solarisstudio/pull/1880).
+  **Do not reapply them or open a second historical adoption.**
+- The earlier 2026-11-04 read-only observations about `public` RLS coverage, `v3_register_migration_contract`,
+  and selected privileged RPCs **were not independently rechecked in this refresh**. They are prior-context
+  investigation leads, NOT current production grants/identity/schema-compatibility evidence.
 
-**Known adoption dependency:** [PR #1880](https://github.com/solarissongcontest/solarisstudio/pull/1880) already contains all three hosted-only National Final winner migration files at their exact hosted versions. The PR reports that the hotfixes have already been applied to production; treat that as a source to verify, **not** permission to reapply them. Re-fetch its current head and exact-head tests, reconcile with current main, and adopt the reviewed SQL once rather than independently recreating those migrations. The other 36 post-bootstrap gaps remain separately unresolved.\n\nThese figures are **not permanent**. Regenerate them against the exact deployment candidate and the live, read-only hosted history. In particular, the 36 migrations are NOT historical bootstrap aliases: their timestamps are strictly later than the original cutover. Neither the 36 nor the hosted-only 3 may be silently skipped, stubbed, or marked applied without verifying their effects and dependencies.
+These are **migration-history metadata facts**, not proof of current hosted schema equivalence, applied SQL
+effects, safe replay on hosted data, deployment authorization, or release certification. Re-fetch all
+metadata against the final exact release candidate before acting.
+
+## Dependency-ordered System-owner triage: the 36 post-cutover gaps
+
+The following six groups partition **all 36 missing-history SQL files exactly once**. Grouping is for
+effect/dependency classification and human review, **not a runnable deployment sequence**. SQL timestamps
+from different groups interleave. A correctly ordered System-owner migration plan must follow actual
+cross-group dependencies and the hosted-head-equivalent baseline, never blindly execute these old scripts
+against production or manufacture no-op history entries.
+
+### A. Televote projection authority, source truth and replay (3)
+
+- `20261017001000_v3_s14_televote_result_truth.sql`
+- `20261017001010_v3_s14_televote_projection_guard_hardening.sql`
+- `20261017001020_v3_s14_televote_projection_replay_hardening.sql`
+
+### B. Participant, Entry, Confirmation, voting and rollout consequences (9)
+
+- `20261017123000_v3_s5_acknowledgement_consequences.sql`
+- `20261018024500_v3_entry_review_conflict_http409.sql`
+- `20261018031000_v3_http409_deterministic_conflicts.sql`
+- `20261018053000_v3_s6_confirmation_requirement_reconciliation.sql`
+- `20261018081500_v3_s5_entry_lifecycle_consequences.sql`
+- `20261018111500_v3_confirmation_sync_service_role_privileges.sql`
+- `20261018122500_v3_voting_declaration_expected_edition_scope.sql`
+- `20261019000500_v3_confirmation_sync_publication_event_service_role.sql`
+- `20261019013000_v3_public_live_rollout_flag.sql`
+
+### C. S9/S10 observability projection prerequisites (2)
+
+- `20261019110000_v3_s9_safe_metrics.sql`
+- `20261019112000_v3_s10_sli_snapshot.sql`
+
+### D. S13 registration framework, bounded S6 repair window and cleanup (7)
+
+- `20261019111000_v3_s13_migration_hardening.sql`
+- `20261019112900_v3_s13_migration_registration_context.sql`
+- `20261019113000_v3_s6_notification_reconciliation.sql`
+- `20261019113100_v3_s6_notification_reactivation.sql`
+- `20261019113200_v3_s6_notification_failure_visibility.sql`
+- `20261019113300_v3_s13_strict_registration_restore.sql`
+- `20261024200300_v3_s6_confirmation_requirement_bounded_repair.sql`
+
+### E. S14 Archive, Task and notification invariants (12)
+
+- `20261019112100_v3_s14_archive_consequence_reconciliation.sql`
+- `20261019112200_v3_s14_final_results_readiness_hardening.sql`
+- `20261019112300_v3_s14_transition_http409.sql`
+- `20261019112400_v3_s14_archive_task_registry_alignment.sql`
+- `20261019112500_v3_s14_resolved_task_notification_invariant.sql`
+- `20261019202636_v3_s14_resolved_task_delivery_reconciliation.sql`
+- `20261020130000_v3_s14_archive_invariant_forward_fixes.sql`
+- `20261020140000_v3_s14_archive_runtime_update_guard.sql`
+- `20261021110000_v3_s14_archive_guard_authority_forward_fix.sql`
+- `20261021161000_v3_s14_task_reconciliation_service_boundary.sql`
+- `20261021163000_v3_s14_failed_task_delivery_evidence.sql`
+- `20261021202000_v3_s14_archive_reconciliation_convergence.sql`
+
+### F. Running-order/Results source adoption and Public snapshot (3)
+
+- `20261022151607_batch_running_order_result_sync.sql`
+- `20261023205400_v3_s13_adopt_batch_running_order_result_sync.sql`
+- `20261024170500_v3_public_published_result_snapshot.sql`
+
+### Forward-only adoption gates, not permissions to deploy
+
+1. **Freeze evidence and model the real baseline:** System owner classifies the 36 versions as already-effect-present,
+   partly present, or absent using a **reviewed, sanitized hosted-head-equivalent local baseline** and explicit
+   signatures, grants, RLS, triggers, table columns, indexes, and relevant legacy data shapes. Hosted version
+   history alone proves none of those effects.
+2. **Resolve dependency chains before writing forward SQL:** S14 Televote source truth must precede its
+   projection guards and drifted-replay hardening. The S13 migration-contract foundation must precede
+   registration-context and its bounded S6 notification window; the three S6 notification changes must precede
+   strict registration restoration. S14 Archive guard/Task reconciliation must keep the terminal freeze,
+   unforgeable authority boundary, resolved notification invariant, and failed-delivery evidence intact.
+   Running-order sync precedes the later S13 adoption contract. Results snapshot consumers must bind exact
+   published versions; Confirmation bounded repair must not directly rewrite canonical requirement state.
+3. **Specify a new forward-only System-owned series:** for each still-missing effect define exact new ordered
+   migration(s), expected preconditions, idempotent backfill, guarded privilege changes, rollback/recovery, lock/
+   performance budget, and postcondition checks. Keep all original historic filenames and immutable cutoff
+   unchanged. A historical migration version must **not** be marked applied merely to silence the comparator.
+4. **Run two different disposable-local proofs:** replay the full repository migration chain from clean baseline
+   (currently 494/494 on pinned CLI 2.113.0) **and separately** rehearse the forward-only series against the
+   sanitized hosted-head-equivalent local state, including RLS negative cases, Results/Publication/Archive
+   lifecycle, and duplicate/reordered upgrade attempts. Neither proof can query hosted application rows in CI.
+5. **Reject until reconciled:** the authoritative offline frontier must report no post-cutover holes, unknown
+   hosted migrations or name mismatches, and the candidate must pass exact-SHA S13/S14/S15/S16 and
+   post-merge CI requirements. Only the System owner may then revise production migration push pins,
+   followed by a **separate explicit owner approval** before any hosted schema modification.
 
 ## Offline executable history audit
 
@@ -44,7 +134,7 @@ The offline auditor accepts only migration metadata. **Never** wire this into or
 ## Reconciliation is required before any upgrade authorization
 
 1. System/migration owner: classify every post-cutover migration hole against the actual hosted schema/RPC/function signatures, grants, RLS and dependencies. Do not assume the effect exists because the table or function name happens to exist.
-2. Adopt or incorporate the three hosted National Final winner hotfixes into version control in a way that preserves their existing production effects. Rehearse the adoption path before accepting it. Do not backdate a new migration as a fake match and do not blindly replay a hotfix onto live data.
+2. Preserve the already merged National Final winner hotfix SQL versions from #1880, verify their exact intended effects against the sanitized hosted-head-equivalent local baseline, and **do not reapply them** or create replacement historic migrations.
 3. For the 36 missing post-cutover repository migrations, determine a legitimate **forward-only** upgrade path that respects the existing hosted modifications, rather than fabricating historical no-op coverage. Review data requirements, indexes, locks, security-definer privileges, transactional behavior, versioned Results and publication contracts.
 4. Rehearse the proposed exact ordered upgrade on a **disposable local Supabase** with representative legacy state and negative authorization cases. Verify clean replay, hosted-head-equivalent upgrade, Results/Publication/Archive and S15 dependencies, RLS/grants, function signatures, and rollback/recovery plans. Passing S14 on clean local state does not prove hosted-data compatibility.
 5. Re-run the offline frontier auditor on the candidate, obtain exact-head Quality and applicable migration/release evidence, and record the reviewed migration manifest and outcomes in the deployment ledger.

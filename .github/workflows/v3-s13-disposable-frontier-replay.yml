@@ -1,0 +1,199 @@
+name: V3 S13 disposable local migration frontier replay
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/v3-s13-disposable-frontier-replay.yml"
+      - "docs/v3/disposable-frontier-replay.md"
+      - "scripts/check-v3-production-migration-frontier.ts"
+      - "src/lib/v3-production-migration-frontier.ts"
+      - "src/lib/v3-production-migration-frontier.test.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-frontier-local-replay-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  disposable-migration-replay:
+    name: Exact-head migration chain on disposable local Supabase
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      REVIEWED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      V3_VERIFICATION_TARGET: local
+      V3_SEED_TARGET: local
+      V3_CLEANUP_TARGET: local
+      V3_SERVICE_ROLE_SCOPE: local
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PROJECT_ID: local
+      SUPABASE_PROJECT_REF: local
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_PROJECT_ID: local
+      VITE_SUPABASE_PROJECT_REF: local
+      LOCAL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Fail closed on remote credentials or mismatched source
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$REVIEWED_SHA" ]] || { echo "::error::Exact candidate SHA mismatch"; exit 1; }
+          for key in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD DATABASE_URL POSTGRES_URL SUPABASE_DB_URL DB_URL; do
+            if [[ -n "${!key:-}" ]]; then
+              echo "::error::$key must be absent from the disposable local rehearsal"
+              exit 1
+            fi
+          done
+          [[ "$SUPABASE_URL" == "http://127.0.0.1:54321" ]] || exit 1
+          [[ "$LOCAL_DATABASE_URL" == "postgresql://postgres:postgres@127.0.0.1:54322/postgres" ]] || exit 1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify existing production-isolation policy before startup
+        run: bun run scripts/check-v3-production-isolation.ts
+
+      # Match the existing S14 full-contest rehearsal's tested CLI exactly.
+      # A rolling v2 channel chose 2.122.1 and changed local role grants;
+      # its Televote ACL assertion failed where 2.113.0 previously passed.
+      # Keep newer CLI compatibility as a separate explicit, local-only trial.
+      - name: Setup pinned Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Verify exact local CLI toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(supabase --version)"
+          [[ "$actual" == "2.113.0" ]] || {
+            echo "::error::Unexpected local Supabase CLI $actual (expected 2.113.0)"
+            exit 1
+          }
+
+      - name: Install local PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+
+      - name: Start disposable local Supabase
+        run: supabase start
+
+      - name: Replay all candidate migrations against disposable local DB
+        run: supabase db reset --local --no-seed
+
+      - name: Compare exact local replay to repository SQL inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$REVIEWED_SHA" ]] || { echo "::error::Source changed"; exit 1; }
+          PGPASSWORD=postgres psql -w -X -h 127.0.0.1 -p 54322 -U postgres -d postgres \
+            -v ON_ERROR_STOP=1 -Atq \
+            -c "select version from supabase_migrations.schema_migrations order by version" \
+            > /tmp/v3-frontier-disposable-local-versions.txt
+          node --input-type=module <<'NODE'
+          import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+          import { execFileSync } from "node:child_process";
+          const expected = process.env.REVIEWED_SHA;
+          const actual = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+          if (!/^[0-9a-f]{40}$/.test(expected ?? "") || expected !== actual) {
+            throw new Error("Exact-SHA source identity does not match");
+          }
+          const files = readdirSync("supabase/migrations").filter(name => name.endsWith(".sql"));
+          const versions = files.map(name => {
+            const match = /^(\d{14})_(.+)\.sql$/.exec(name);
+            if (!match) throw new Error("Malformed repository migration filename: " + name);
+            return match[1];
+          }).sort();
+          const local = readFileSync("/tmp/v3-frontier-disposable-local-versions.txt", "utf8")
+            .split(/\r?\n/).filter(Boolean).sort();
+          if (!versions.length || !local.length || new Set(versions).size !== versions.length
+              || new Set(local).size !== local.length || JSON.stringify(versions) !== JSON.stringify(local)) {
+            const missing = versions.filter(v => !local.includes(v));
+            const extra = local.filter(v => !versions.includes(v));
+            throw new Error("Local replay does not match exact repository migration inventory: "
+              + JSON.stringify({ repositoryCount: versions.length, localCount: local.length,
+                missing: missing.slice(0, 20), extra: extra.slice(0, 20) }));
+          }
+          const evidence = {
+            candidateSha: actual,
+            environment: "disposable-local-supabase",
+            localReplayPassed: true,
+            migrationCount: versions.length,
+            repositoryHead: versions.at(-1),
+            localHead: local.at(-1),
+            hostedHistoryReconciled: false,
+            hostedDataCompatibilityCertified: false,
+            releaseCertified: false,
+            productionDeploymentAuthorized: false,
+            limitation: "Clean local replay only. Does not reproduce the hosted migration frontier or certify existing hosted data."
+          };
+          writeFileSync("v3-frontier-disposable-local-evidence.json", JSON.stringify(evidence, null, 2) + "\n");
+          console.log(JSON.stringify(evidence));
+          NODE
+          if [[ -n "$(git status --porcelain --untracked-files=all -- supabase/migrations)" ]]; then
+            echo "::error::Local replay altered the reviewed migration sources"
+            exit 1
+          fi
+
+      - name: Reassert local-only configuration
+        if: success()
+        run: bun run scripts/check-v3-production-isolation.ts
+
+      - name: Record fail-closed local replay failure evidence
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f v3-frontier-disposable-local-evidence.json ]]; then
+            echo "::error::Refusing to overwrite an existing migration evidence result"
+            exit 1
+          fi
+          node --input-type=module <<'NODE'
+          import { execFileSync } from "node:child_process";
+          import { writeFileSync } from "node:fs";
+          const head = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+          const expected = process.env.REVIEWED_SHA;
+          if (!/^[0-9a-f]{40}$/.test(head) || head !== expected) {
+            throw new Error("Cannot bind failed local replay evidence to a verified exact checkout");
+          }
+          const evidence = {
+            candidateSha: head,
+            environment: "disposable-local-supabase",
+            outcome: "failed",
+            localReplayPassed: false,
+            failureDetails: "Inspect this exact-head workflow job log for the first semantic SQL/bootstrap error",
+            hostedHistoryReconciled: false,
+            hostedDataCompatibilityCertified: false,
+            releaseCertified: false,
+            productionDeploymentAuthorized: false
+          };
+          writeFileSync("v3-frontier-disposable-local-evidence.json", JSON.stringify(evidence, null, 2) + "\n");
+          NODE
+
+      - name: Upload exact-head local-only evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-frontier-disposable-local-${{ github.event.pull_request.head.sha || github.sha }}
+          path: v3-frontier-disposable-local-evidence.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Stop disposable local Supabase
+        if: always()
+        run: supabase stop --no-backup || true

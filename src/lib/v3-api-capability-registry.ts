@@ -31,6 +31,18 @@ export const V3_API_CAPABILITY_REGISTRY = [
     source: "src/routes/api/flag.ts",
   },
   {
+    route: "/api/maintenance-platform-preflight",
+    methods: ["POST"],
+    ownerDomain: "incident",
+    audience: "organizer",
+    mutation: true,
+    requiredCapability: "maintenance.manage",
+    riskTier: 3,
+    purpose:
+      "Explicit, same-origin authenticated Organizer transport for canonical server-attested Read-only-to-Degraded recovery preflight. Never exposes arbitrary RPC, ordinary writes, or release publication.",
+    source: "src/routes/api/maintenance-platform-preflight.ts",
+  },
+  {
     route: "/api/maintenance-confirmation",
     methods: ["POST"],
     ownerDomain: "confirmation",

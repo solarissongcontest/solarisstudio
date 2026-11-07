@@ -27,6 +27,8 @@ import {
   type RulebookRelease,
 } from "@/lib/rules-governance";
 import { governanceImpactForRuleIds } from "@/lib/governance-v5";
+import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
+import { prepareGovernedV42Draft } from "@/lib/ssc-rules/v42-governed-import";
 import { SSC_RULEBOOK, SSC_RULES, getRuleById, type RuleTone } from "@/lib/ssc-rules-v4";
 import { cn } from "@/lib/utils";
 
@@ -180,6 +182,31 @@ function RulesManager() {
     },
   });
 
+  // Explicit organizer action only. No CI or page load may create production draft changes.
+  const [v42ImportProgress, setV42ImportProgress] = useState(0);
+  const v42ImportMutation = useMutation({
+    mutationFn: () =>
+      prepareGovernedV42Draft({
+        releases,
+        rpc,
+        onProgress: ({ imported }) => setV42ImportProgress(imported),
+      }),
+    onSuccess: async ({ id, imported, unchanged }) => {
+      await refresh();
+      setSelectedReleaseId(id);
+      setV42ImportProgress(0);
+      setNotice({
+        tone: "success",
+        message: `v4.2 draft prepared: ${imported} rules imported, ${unchanged} existing edits preserved. Review before publishing.`,
+      });
+    },
+    onError: async (error: Error) => {
+      await refresh(); // Partial drafts remain safely resumable.
+      setV42ImportProgress(0);
+      setNotice({ tone: "error", message: `Draft import stopped: ${error.message}. Existing changes are preserved; retry after review.` });
+    },
+  });
+
   const archiveMutation = useMutation({
     mutationFn: (releaseId: string) => rpc("admin_archive_rulebook_release", { _release_id: releaseId }),
     onSuccess: async () => {
@@ -212,6 +239,17 @@ function RulesManager() {
         />
 
         {notice ? <Notice notice={notice} onClose={() => setNotice(null)} /> : null}
+
+        {GLOBAL_MAINTENANCE_MODE ? (
+          <p className="mb-4 rounded-xl border border-amber-200/25 bg-amber-200/[0.06] p-3 text-sm leading-6 text-muted-foreground">
+            Emergency maintenance still blocks new rulebook drafts and publication.
+            An eligible organizer can run the protected recovery checks at{" "}
+            <a href="/maintenance/recovery" className="font-semibold text-sky-200 underline">
+              Platform recovery
+            </a>.
+            This does not approve or publish v4.2 automatically.
+          </p>
+        ) : null}
 
         <div className="grid gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
           <aside className="space-y-4">
@@ -259,6 +297,26 @@ function RulesManager() {
               busy={createMutation.isPending}
               onCreate={(input) => createMutation.mutate(input)}
             />
+            {current?.version === "4.1" ? (
+              <AdminCard>
+                <p className="admin-section-label">SSC v4.2 candidate</p>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  Prepare 113 plain-English rule changes as a governed draft. No rule becomes effective
+                  until an authorized organizer reviews and publishes the release.
+                </p>
+                <button
+                  type="button"
+                  className="admin-action-secondary mt-3 w-full justify-center"
+                  disabled={v42ImportMutation.isPending || releasesQuery.isLoading}
+                  onClick={() => v42ImportMutation.mutate()}
+                >
+                  {v42ImportMutation.isPending ? `Preparing draft · ${v42ImportProgress}/113` : "Prepare v4.2 draft"}
+                </button>
+                <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+                  Resumes a matching draft without overwriting existing rule edits. Publication requires separate approval.
+                </p>
+              </AdminCard>
+            ) : null}
           </aside>
 
           <section aria-label="Rulebook release workspace" className="min-w-0 space-y-4">

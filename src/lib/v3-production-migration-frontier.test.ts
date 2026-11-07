@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import {
   auditV3ProductionMigrationFrontier,
+  assessV3ProductionMigrationCandidateIdentity,
   V3_PRODUCTION_BOOTSTRAP_CUTOVER,
 } from "./v3-production-migration-frontier";
 
@@ -92,6 +93,31 @@ describe("V3 hosted production migration frontier", () => {
     expect(operator).toContain("The newest hosted migration may be absent from the repository.");
     expect(operator).toContain("if (remote_version ~ /^[0-9]{14}$/) {");
     expect(operator).not.toContain('if [[ "$version" < "$EXPECTED_REMOTE_HEAD" || "$version" == "$EXPECTED_REMOTE_HEAD" ]]; then\\n    mapfile -t matches');
+  });
+
+  it("requires exact candidate SHA for strict migration reconciliation while permitting diagnostics", () => {
+    const sha = "a".repeat(40);
+    expect(assessV3ProductionMigrationCandidateIdentity(sha, null, true)).toMatchObject({
+      acceptable: false, matchesExpected: false, error: "strict reconciliation requires --expected-sha",
+    });
+    expect(assessV3ProductionMigrationCandidateIdentity(sha, null, false)).toMatchObject({
+      acceptable: true, matchesExpected: false,
+    });
+    expect(assessV3ProductionMigrationCandidateIdentity(sha, "not-a-sha", true).acceptable).toBe(false);
+    expect(assessV3ProductionMigrationCandidateIdentity(sha, "b".repeat(40), true).acceptable).toBe(false);
+    expect(assessV3ProductionMigrationCandidateIdentity(sha, sha, true)).toEqual({
+      acceptable: true, matchesExpected: true, error: null,
+    });
+  });
+
+  it("fails closed when the repository directory has files but no SQL migrations", () => {
+    const report = auditV3ProductionMigrationFrontier(
+      ["README.md", ".gitkeep", "config.toml"],
+      [{ version: cutover, name: "historical_bootstrap" }],
+    );
+    expect(report.repositoryCount).toBe(0);
+    expect(report.errors).toContain("Repository migration inventory contains no SQL migrations");
+    expect(report.historyReconciled).toBe(false);
   });
 
   it("fails closed when remote evidence is missing or too old", () => {

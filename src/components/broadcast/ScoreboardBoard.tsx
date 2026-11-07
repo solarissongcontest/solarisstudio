@@ -6,7 +6,6 @@
  */
 
 import type { CSSProperties, ReactNode } from "react";
-import { AnimatePresence } from "framer-motion";
 import { CountryCard } from "./CountryCard";
 import {
   distributeRows,
@@ -130,7 +129,7 @@ export function ScoreboardBoard({
               alignContent: "start",
             }}
           >
-            <AnimatePresence initial={false}>
+            <>
               {col.map((row) => (
                 <CountryCard
                   key={row.id}
@@ -142,7 +141,7 @@ export function ScoreboardBoard({
                   animate={animate && config.animation.enabled}
                 />
               ))}
-            </AnimatePresence>
+            </>
           </ul>
         </div>
       ))}
