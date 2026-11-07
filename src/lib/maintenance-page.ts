@@ -161,6 +161,7 @@ export function renderMaintenancePage(now: Date = new Date()): string {
         <p class="hero-tagline">Solaris, reimagined.</p>
         <p class="hero-intro">A new generation of Solaris Studio is taking shape around what is happening, what matters to you, and what comes next.</p>
         <div class="hero-actions"><a class="hero-action hero-action-primary" href="#experience">Explore TerraOS&nbsp;3</a><a class="hero-action" href="#confirmation-access">Access Confirmation</a></div>
+        <p style="margin:13px 0 0;font-size:13px;line-height:1.6"><a href="/rules/v4-2-preview" style="color:#b9e3ff;text-decoration:underline;text-underline-offset:4px">Read proposed SSC Regulations v4.2 · unofficial draft</a></p>
         <div class="release-card">
           <div class="arrival-line">${arrivalMarkup}</div>
           <div class="readiness-head"><span>TerraOS&nbsp;3 readiness</span><strong>${readiness.percent}%</strong></div>
