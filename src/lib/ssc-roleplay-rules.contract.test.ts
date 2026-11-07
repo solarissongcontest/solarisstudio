@@ -42,7 +42,7 @@ describe("SSC Roleplay & Worldbuilding contract", () => {
     expect(unprotected?.body.join(" ")).toContain("six SSC editions in a row");
     expect(unprotected?.body.join(" ")).toContain("without an active Head of Delegation (HoD) at any point");
     expect(protectedCountry?.body.join(" ")).toContain("Withdrawing");
-    expect(elimination?.body.join(" ")).toContain("remove it from today's fictional Solaris map");
+    expect(elimination?.body.join(" ")).toContain("remove that country from the current Solaris map");
 
     expect(searchSscRules("hodless country").some((rule) => rule.id === "22.5")).toBe(true);
     expect(searchSscRules("annex dormant country").some((rule) => rule.id === "22.6")).toBe(true);
