@@ -247,6 +247,9 @@ export const PLAIN_SUMMARIES: Record<string, string> = Object.fromEntries(
 
 type RuleWordingPatch = Partial<Pick<SscRule, "summary" | "important" | "allowed" | "prohibited" | "bullets" | "examples">>;
 const SPECIFIC_CHANGES: Record<string, RuleWordingPatch> = {
+  "4.1": {
+    "important": "Follow the rules and deadlines published through official SSC channels, not private chats. TSBC must clearly announce any official change."
+  },
   "4.6": {
     "important": "A countdown on your device does not reserve a place. If a confirmed Solaris Studio problem made confirmation unfair, TSBC may correct the result under Rules 12.5 and 19.4."
   },
