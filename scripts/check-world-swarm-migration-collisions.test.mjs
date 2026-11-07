@@ -61,15 +61,22 @@ test('live collector rechecks PR and main SHAs and never talks to Supabase', asy
   const { collectWorldMigrationSnapshot } = await import('./check-world-swarm-migration-collisions.mjs');
   const originalFetch=globalThis.fetch;
   const calls=[];
-  const fixture=(changeMain=false,changePr=false)=>{
-    let mainReads=0;
+  const fixture=(changeMain=false,changePr=false,inventoryChange='')=>{
+    let mainReads=0, pullReads=0;
     return async (url) => {
     const path=new URL(url).pathname;
     calls.push(path);
     let body;
     if (path.endsWith('/branches/main')) body={commit:{sha:changeMain && ++mainReads>1?'c'.repeat(40):sha}};
     else if (path.endsWith('/contents/supabase/migrations')) body=[{type:'file',name:'20261107001000_a.sql',path:migration('20261107001000_a.sql')}];
-    else if (path.endsWith('/pulls')) body=[{number:5,title:'[V3-WORLD] TG14',head:{sha:head,ref:'v3/world/tg14'}}];
+    else if (path.endsWith('/pulls')) {
+      pullReads++;
+      const row={number:5,title:'[V3-WORLD] TG14',head:{sha:head,ref:'v3/world/tg14'}};
+      body=pullReads===1 || !inventoryChange ? [row] :
+        inventoryChange==='added' ? [row,{number:6,title:'[V3-WORLD] New TG15',head:{sha:'d'.repeat(40),ref:'v3/world/tg15'}}] :
+        inventoryChange==='closed' ? [] :
+        inventoryChange==='retitled' ? [{...row,title:'[V3-WORLD] TG15'}] : [row];
+    }
     else if (path.endsWith('/pulls/5/files')) body=[{filename:migration('20261107005000_court.sql'),status:'added'}];
     else if (path.endsWith('/pulls/5')) body={state:'open',head:{sha:changePr?'c'.repeat(40):head}};
     else throw Error('unexpected route '+path);
@@ -82,10 +89,15 @@ test('live collector rechecks PR and main SHAs and never talks to Supabase', asy
     assert.equal(result.mainSha,sha);
     assert.equal(result.pullRequests[0].files[0].status,'added');
     assert.equal(calls.filter(x=>x.endsWith('/branches/main')).length,2);
+    assert.equal(calls.filter(x=>x.endsWith('/pulls')).length,2);
     assert.ok(calls.every(x=>x.startsWith('/repos/')));
     globalThis.fetch=fixture(true);
     await assert.rejects(collectWorldMigrationSnapshot('solarissongcontest/solarisstudio','mock-token'),/Main advanced/);
     globalThis.fetch=fixture(false,true);
     await assert.rejects(collectWorldMigrationSnapshot('solarissongcontest/solarisstudio','mock-token'),/PR changed/);
+    for (const change of ['added','closed','retitled']) {
+      globalThis.fetch=fixture(false,false,change);
+      await assert.rejects(collectWorldMigrationSnapshot('solarissongcontest/solarisstudio','mock-token'),/Open PR inventory changed/);
+    }
   } finally { globalThis.fetch=originalFetch; }
 });
