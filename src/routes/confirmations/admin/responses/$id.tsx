@@ -1,4 +1,5 @@
 import { EntryVersionEvidence } from "@/components/ConfirmationReviewStatus";
+import { OrganizerEntryVersionHistory } from "@/components/admin/OrganizerEntryVersionHistory";
 import { assertDisplayedEntryVersion } from "@/lib/v3-entry-review-preview";
 import {
   effectiveOrganizerEntryReviewStatus,
@@ -645,6 +646,16 @@ function EntryReviewCard({
           <TechnicalRows entry={entry} />
           <EntryVersionEvidence entry={entry} />
           <EntrySourceInspection entry={entry} />
+          {open && editionId ? (
+            <OrganizerEntryVersionHistory
+              key={`${editionId}:${submissionId}:${targetType}:${entry.id}:${entry.current_version_id ?? "unbound"}`}
+              editionId={editionId}
+              submissionId={submissionId}
+              entryId={entry.id}
+              targetType={targetType}
+              currentVersionId={entry.current_version_id ?? null}
+            />
+          ) : null}
 
           <div className="space-y-2">
             <Label htmlFor={`review-reason-${entry.id}`}>Organiser reason</Label>
