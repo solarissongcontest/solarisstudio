@@ -21,5 +21,6 @@ describe("S14 Televote source-truth recovery candidate", () => {
     expect(candidate).toContain("studio2_televote_projection_status");
     expect(candidate).toContain("IDEMPOTENCY_CONFLICT");
     expect(candidate).toContain("STALE_VERSION");
+    expect(candidate).not.toContain("solaris.v3_televote_projection_write");
   });
 });

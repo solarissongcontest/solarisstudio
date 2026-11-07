@@ -4,8 +4,8 @@
 -- Canonical sources: 20261017001000 and 20261017001010. Intentional forward
 -- enhancement: guard UPDATE checks BOTH OLD and NEW show IDs, to prevent a
 -- managed vote row being moved to an unmanaged show as a bypass.
--- Custom GUC write marker remains the canonical source behavior and requires
--- explicit full-auth/workflow security review before any live rollout.
+-- Authorization is based on PostgreSQL's effective role, not caller-settable
+-- request claims or custom transaction markers.
 begin;
 set local lock_timeout = '5s';
 set local statement_timeout = '120s';
@@ -68,8 +68,7 @@ begin
     end if;
   end if;
 
-  if coalesce(current_setting('solaris.v3_televote_projection_write', true), '') = '1'
-     or private.studio2_request_is_service_role() then
+  if coalesce(current_setting('role', true), '') = 'service_role' then
     if tg_op = 'DELETE' then return old; end if;
     return new;
   end if;

@@ -97,28 +97,13 @@ create function public.studio2_access_allowed(text, uuid, boolean)
 returns boolean language sql stable as $$ select current_user = 'postgres' $$;
 create function public.sync_show_results_from_votes(uuid)
 returns void language plpgsql as $$ begin return; end $$;
-create or replace function private.v3_guard_source_managed_televote_projection()
-returns trigger language plpgsql as $$
-begin
-  if current_user <> 'app_user' then
-    if tg_op = 'delete' then return old; else return new; end if;
-  end if;
-  if exists (
-    select 1 from private.v3_televote_result_projection_sources
-    where show_id = coalesce(new.show_id, old.show_id)
-  ) then
-    raise exception 'Published Televote projection is server-managed' using errcode = '42501';
-  end if;
-  if tg_op = 'delete' then return old; else return new; end if;
-end $$;
-create trigger v3_guard_source_managed_televote_projection
-before insert or update or delete on public.televote_votes
-for each row execute function private.v3_guard_source_managed_televote_projection();
 create function extensions.v3_assert(boolean, text)
 returns void language plpgsql as $$
 begin if not $1 then raise exception '%', $2; end if; end $$;
 grant usage on schema public, private, extensions to app_user;
 grant insert, update, delete, select on public.televote_votes to app_user;
+grant usage on schema public, private, televoting, extensions to service_role;
+grant select, insert, update, delete on public.televote_votes to service_role;
 insert into public.editions values ('00000000-0000-0000-0000-000000000001');
 insert into public.shows values ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001');
 insert into public.participants(show_id, country_id, contest_entity_id) values
@@ -148,10 +133,14 @@ insert into televoting.combined_televote_results values
   ('00000000-0000-0000-0000-000000000004', 1, 'BB', 20);
 SQL
 
+guard="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/docs/v3/recovery-candidates/forward-only-s14-televote-provenance-guard-local.sql"
+docker cp "$guard" "$container:/tmp/s14-provenance-guard.sql"
 docker cp "$candidate" "$container:/tmp/s14-source-truth.sql"
+psql -f /tmp/s14-provenance-guard.sql
 psql -f /tmp/s14-source-truth.sql
 
 psql <<'SQL'
+set role service_role;
 select extensions.v3_assert(
   (private.v3_sync_published_televote_round(
     '00000000-0000-0000-0000-000000000003'
@@ -214,6 +203,8 @@ do $$ begin
 exception when sqlstate '22023' then null;
 end $$;
 set role app_user;
+select set_config('request.jwt.claim.role', 'service_role', true);
+select set_config('solaris.v3_televote_projection_write', '1', true);
 do $$ begin
   insert into public.televote_votes(edition_id, show_id, country_id, points)
   values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002',
@@ -222,6 +213,9 @@ do $$ begin
 exception when sqlstate '42501' then null;
 end $$;
 reset role;
+select set_config('request.jwt.claim.role', '', true);
+select set_config('solaris.v3_televote_projection_write', '', true);
+set role service_role;
 select extensions.v3_assert(
   (private.v3_sync_published_televote_aggregation(
     '00000000-0000-0000-0000-000000000004'

@@ -76,5 +76,5 @@ jobs:
       - name: State test scope
         run: |
           echo "S14 managed-vote guard only; no Televote published-source replay or live contest data."
-          echo "The service JWT and transaction-local marker trust boundaries remain pending System-owner verification."
+          echo "The guard rejects forged JWT claims and transaction markers; hosted role grants and service entry points remain pending System-owner verification."
           echo "No production migration or release authority."

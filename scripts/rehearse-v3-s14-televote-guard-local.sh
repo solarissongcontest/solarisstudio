@@ -87,6 +87,10 @@ expect_block "set role authenticated; update public.televote_votes
  set show_id=$show_managed where id=$vote_legacy" "move unmanaged to managed"
 expect_block "set role authenticated; update public.televote_votes
  set show_id=null where id=$vote_managed" "remove managed show scope"
+expect_block "set role authenticated;
+ select set_config('request.jwt.claim.role','service_role',true);
+ select set_config('solaris.v3_televote_projection_write','1',true);
+ update public.televote_votes set points=100 where id=$vote_managed" "forged claim and marker"
 
 # Proof that this is a REAL regression: original hardened 01010 guard
 # allows an UPDATE leaving a source-managed show because it inspects only NEW.
@@ -146,4 +150,4 @@ if run -c "select count(*) from private.v3_televote_result_projection_sources" |
  echo 'FAIL: candidate replay changed source provenance records' >&2; exit 1
 fi
 echo 'PASS: S14 local PG17.11 provenance guard, 6 denied writes, legacy continuity, service path, role/ACL, old->new scope regression, idempotent refusal and downstream sync isolation'
-echo 'NO-GO: custom SQL session GUC and JWT-claim trust boundary not fully verified; published-results source synchronizers and full production RLS are NOT tested.'
+echo 'PASS: forged JWT claim and custom marker do not authorize projection writes; published-results source synchronizers and full production RLS remain separately scoped.'

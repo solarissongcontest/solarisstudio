@@ -12,7 +12,7 @@ The live production `private.studio2_guard_direct_client_write()` checks `sessio
 
 The original `20261017001010_v3_s14_televote_projection_guard_hardening.sql` checks only `NEW.show_id` on UPDATE. Once a show has a published provenance row, moving an existing `public.televote_votes` row **away from that managed show** to another show or to NULL may evade that source-managed check. A move *into* a managed show is already checked.
 
-Our local-only **forward candidate** extends the hardened trigger to check **both `OLD.show_id` and `NEW.show_id` for UPDATE**, while leaving the original service-role and scoped-write-marker paths intact. It creates the canonical provenance table and trigger, but **does not install source-publish synchronization, version verification, results reconciliation, snapshot status or replay repair**. This is a guard-only effect slice, not a full Televote source-truth implementation.
+Our local-only **forward candidate** extends the hardened trigger to check **both `OLD.show_id` and `NEW.show_id` for UPDATE**. Authorization uses PostgreSQL's effective `role` setting and does not trust request JWT claims or custom transaction markers. It creates the canonical provenance table and trigger, but **does not install source-publish synchronization, version verification, results reconciliation, snapshot status or replay repair**. This is a guard-only effect slice, not a full Televote source-truth implementation.
 
 ## Local proof
 
@@ -32,7 +32,7 @@ The rehearsal should prove that:
 
 ## CRITICAL UNRESOLVED TRUST BOUNDARY
 
-The canonical guard intentionally honors `solaris.v3_televote_projection_write = '1'` or the `request.jwt.claim.role = 'service_role'` helper. In PostgreSQL a SQL-capable session may be able to set custom GUCs itself; raw marker presence alone is **not authenticated provenance**. This local guard regression **does not prove that untrusted users cannot reach a marker-setting path**. Before any production release, the System owner must prove all paths that set these markers, PostgREST and SECURITY DEFINER access, and coupled RLS/platform guard behavior. A further authorization design change may be needed. Do not mistake this PR's green CI for a security sign-off.
+The canonical guard accepts the internal `service_role` effective role only. Attempts to forge `request.jwt.claim.role` or `solaris.v3_televote_projection_write` while remaining `authenticated` are denied in the disposable rehearsal. Production adoption still requires owner verification of hosted role grants, RLS, and all service-role entry points. Do not mistake this local proof for hosted certification.
 
 ## Parallel S14 Archive dependency check (read-only)
 

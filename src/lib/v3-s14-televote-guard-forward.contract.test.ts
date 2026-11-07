@@ -51,7 +51,7 @@ describe("S14 Televote result provenance guard forward recovery candidate", () =
     expect(harness).toContain('"move managed to unmanaged"');
     expect(harness).toContain('"remove managed show scope"');
     expect(harness).toContain("private.local_vote_sync_counter");
-    expect(harness).toContain("Unauthorized Televote attempts");
+    expect(harness).toContain("unauthorized Televote attempts");
     expect(fixture).toContain("create policy local_worst_case_authenticated_vote_write");
     expect(fixture).toContain("studio2_platform_direct_write_guard");
     expect(harness).toContain("PGHOST=127.0.0.1");

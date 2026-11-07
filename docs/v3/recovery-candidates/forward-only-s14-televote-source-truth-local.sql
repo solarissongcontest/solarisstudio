@@ -32,6 +32,8 @@ create table if not exists private.v3_televote_result_projection_sources (
 
 revoke all on table private.v3_televote_result_projection_sources
   from public, anon, authenticated;
+grant select on table private.v3_televote_result_projection_sources
+  to service_role;
 
 create or replace function private.v3_apply_published_televote_projection(
   p_edition_id uuid,
@@ -219,8 +221,6 @@ begin
     end if;
   end if;
 
-  perform set_config('solaris.v3_televote_projection_write', '1', true);
-
   delete from public.televote_votes
   where public.televote_votes.show_id = v_target_show_id;
 
@@ -296,6 +296,9 @@ $apply$;
 revoke all on function private.v3_apply_published_televote_projection(
   uuid, uuid, text, text, integer, timestamptz, jsonb
 ) from public, anon, authenticated;
+grant execute on function private.v3_apply_published_televote_projection(
+  uuid, uuid, text, text, integer, timestamptz, jsonb
+) to service_role;
 
 create or replace function private.v3_sync_published_televote_round(p_round_id uuid)
 returns jsonb
@@ -399,6 +402,8 @@ $round_sync$;
 
 revoke all on function private.v3_sync_published_televote_round(uuid)
   from public, anon, authenticated;
+grant execute on function private.v3_sync_published_televote_round(uuid)
+  to service_role;
 
 create or replace function private.v3_sync_published_televote_aggregation(p_aggregation_id uuid)
 returns jsonb
@@ -522,6 +527,8 @@ $combined_sync$;
 
 revoke all on function private.v3_sync_published_televote_aggregation(uuid)
   from public, anon, authenticated;
+grant execute on function private.v3_sync_published_televote_aggregation(uuid)
+  to service_role;
 
 create or replace function public.studio2_televote_projection_status(p_show_id uuid)
 returns jsonb
