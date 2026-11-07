@@ -79,13 +79,13 @@ describe("S10 local-only rehearsal target protection", () => {
         '[[ "$*" == "status -o env" ]] || exit 41',
         'printf "%s\\n" "$S10_TEST_STATUS"',
         "",
-      ].join("\\n"));
+      ].join("\n"));
       writeFileSync(psqlStub, [
         "#!/usr/bin/env bash",
         'printf "%s\\n" "$1" >> "$S10_TEST_PSQL_MARKER"',
         "exit 42",
         "",
-      ].join("\\n"));
+      ].join("\n"));
       chmodSync(supabaseStub, 0o755);
       chmodSync(psqlStub, 0o755);
 
