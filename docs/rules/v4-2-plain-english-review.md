@@ -26,13 +26,25 @@ The official v4.2 candidate should be understandable to an ordinary 15–18-year
 
 **Publication rule:** Do not treat a clearer GitHub draft, a passing test, or a static preview as an official new rule. v4.1 stays Current until the governed release is approved and published.
 
+## Readability pilot: age-17 participant feedback
+
+These tests check what a real reader understands **before** they receive an explanation. They are observations from one reader, not a representative usability study.
+
+- **Rule 22.5 (country protection):** The reader understood the outcome but found “Count finished editions, not months” unclear. The candidate now explains which completed editions count and why months do not.
+- **Rule 6.4 (YouTube video priority):** The reader chose the higher-viewed fan upload instead of the lower-viewed official artist upload. The source priority was missed. The candidate now presents official artist/label uploads first, then other uploads only when no suitable official upload exists.
+- **Rule 17.2 (penalties):** The reader correctly calculated that 35 points minus a fixed 50-point penalty is -15. The reader did not explicitly identify that TSBC must choose another existing level when bonus-only Levels 2 and 3 cannot apply. The reader rated the text confusing and criticised terms like “quietly” and the artificial tone. The candidate now explains the calculation with numbers, gives a reason why bonus-only levels cannot apply without bonuses, and requires a written reason for the alternative level.
+
+**Whole-rulebook style blocker:** The reader described the prose as unnatural and AI-sounding, not just difficult. Before release, a human editor must review **all 113 rules**, summaries, important notes, examples and participant-facing help for natural, professional English. Prefer specific actions (“must not change the score to zero”) over narrative adverbs (“quietly”), vague explanations or redundant qualifications. Read rules aloud and ask more teenagers to restate them. Do not mechanically shorten text or change a penalty, permission, threshold or deadline just to make it sound simpler. Automated wording checks cannot establish naturalness or comprehension.
+
+**Retesting:** The new wording of Rules 6.4 and 17.2 still needs comprehension testing; editing after feedback alone does not prove the revisions work.
+
 ## Specific decisions supplied by the contest owner
 
 1. **6.5:** Participating in a Eurovision National Selection **in 2015 or later** is disqualifying. Before 2015 remains permissible if other conditions are met.
 2. **6.3–6.4:** When no official music video exists, use the **song's YouTube video** for the popularity check. The proposed tie-break is the most-viewed existing full-song upload from the artist/label official channel before the submission deadline; if none exists, use the most-viewed identifiable pre-deadline full-song video. Record the selected URL and figures. Official checks must retain their selected video and timestamp to make the result reviewable.
 3. **6.6:** When the artist's previous country has **no active HoD**, another country may use the artist without that country's permission. The three-appearance cap and ban on previous winning artists remain.
 4. **15.1:** A delegation may withdraw after the submission deadline but before entry publication. Simply passing that deadline does not automatically create a penalty. Serious disruptive withdrawal **after** publication remains covered by **15.2**.
-5. **17.2:** The owner confirmed that fixed contest-point penalties should come directly off the country’s score. The user recorded approval in principle for the proposed bonus-point wording in [issue #2379](https://github.com/solarissongcontest/solarisstudio/issues/2379#issuecomment-6708975596), but formal TSBC ratification evidence and release checks are still required. The candidate uses making Levels 2 and 3 inapplicable without bonuses, and requiring TSBC to select another existing appropriate level with recorded reasons rather than silently converting bonus penalties. TSBC must approve or revise that proposal.
+5. **17.2:** The owner confirmed that fixed contest-point penalties should come directly off the country’s score. The user recorded approval in principle for the proposed bonus-point wording in [issue #2379](https://github.com/solarissongcontest/solarisstudio/issues/2379#issuecomment-6708975596), but formal TSBC ratification evidence and release checks are still required. The candidate uses making Levels 2 and 3 inapplicable without bonuses, and requiring TSBC to select another existing appropriate level with recorded reasons rather than converting bonus penalties without approval. TSBC must approve or revise that proposal.
 
 ## Review points that must not be guessed
 
