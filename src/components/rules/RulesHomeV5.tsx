@@ -233,7 +233,7 @@ export function RulesHomeV5({
                 </span>
                 <span className="mt-1 block text-base font-bold">Roleplay & Worldbuilding</span>
                 <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  Wars, invasions, protected countries, the six-Edition Dormant rule, annexation, elimination and the canonical map.
+                  Fictional wars, protected countries, the six-edition rule for countries with no HoD, and changes to the official world map.
                 </span>
               </span>
               <ArrowRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-indigo-200" />
