@@ -137,6 +137,15 @@ insert into televoting.rounds values
 insert into televoting.round_results values
   ('00000000-0000-0000-0000-000000000003', 1, 'AA', 12),
   ('00000000-0000-0000-0000-000000000003', 1, 'BB', 10);
+insert into televoting.televote_aggregations values
+  ('00000000-0000-0000-0000-000000000004', 'published', false, 1,
+   '2026-01-03T00:00:00Z', now(), '2026-01-03T00:00:00Z');
+insert into televoting.televote_aggregation_sources values
+  ('00000000-0000-0000-0000-000000000004',
+   '00000000-0000-0000-0000-000000000003', true);
+insert into televoting.combined_televote_results values
+  ('00000000-0000-0000-0000-000000000004', 1, 'AA', 24),
+  ('00000000-0000-0000-0000-000000000004', 1, 'BB', 20);
 SQL
 
 docker cp "$candidate" "$container:/tmp/s14-source-truth.sql"
@@ -213,6 +222,18 @@ do $$ begin
 exception when sqlstate '42501' then null;
 end $$;
 reset role;
+select extensions.v3_assert(
+  (private.v3_sync_published_televote_aggregation(
+    '00000000-0000-0000-0000-000000000004'
+  )->>'ok')::boolean,
+  'published combined result did not reach canonical projection'
+);
+select extensions.v3_assert(
+  (select source_type = 'combined' and source_id = '00000000-0000-0000-0000-000000000004'
+   from private.v3_televote_result_projection_sources
+   where show_id = '00000000-0000-0000-0000-000000000002'),
+  'combined source provenance was not recorded'
+);
 select extensions.v3_assert(
   (public.studio2_televote_projection_status('00000000-0000-0000-0000-000000000002')->>'managed')::boolean,
   'projection status did not report managed source truth'
