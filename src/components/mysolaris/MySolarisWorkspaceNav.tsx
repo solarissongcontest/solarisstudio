@@ -85,7 +85,7 @@ export function MySolarisWorkspaceNav() {
                     badge={badgeFor(
                       item.id,
                       workspace.taskCounts.needsAction,
-                      workspace.unreadNoticeCount,
+                      workspace.noticeAttentionCount,
                     )}
                   />
                 ))}
@@ -109,7 +109,7 @@ export function MySolarisWorkspaceNav() {
               badge={badgeFor(
                 item.id,
                 workspace.taskCounts.needsAction,
-                workspace.unreadNoticeCount,
+                workspace.noticeAttentionCount,
               )}
             />
           ))}
