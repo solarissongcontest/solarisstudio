@@ -95,6 +95,21 @@ describe("TG10 private institutional statement notification candidates", () => {
     expect(rehearsal).toContain("v_future");
   });
 
+  it("rehearses authenticated organization follows before the first public statement", () => {
+    const follow = rehearsal.indexOf("do $follows$");
+    const publish = rehearsal.indexOf("do $publish_after_follows$");
+    const event = rehearsal.indexOf("do $publication_event$");
+    expect(follow).toBeGreaterThan(0);
+    expect(publish).toBeGreaterThan(follow);
+    expect(event).toBeGreaterThan(publish);
+    expect(rehearsal).toContain("perform public.set_fan_follow(");
+    expect(rehearsal).toContain("TG10_PUBLISH_BEFORE_CANONICAL_FOLLOW");
+    expect(rehearsal).toContain("TG10_PREPUBLICATION_FOLLOW_TIMELINE_INVALID");
+    // now() is transaction-stable; the older historical event below separately
+    // exercises a genuinely post-publication follower without future timestamps.
+    expect(rehearsal).toContain("TG10_AFTER_PUBLICATION_FOLLOW_ACCEPTED");
+  });
+
   it("never authorizes a browser, writes a notification, or starts a dispatch", () => {
     expect(migration).toContain("security definer");
     expect(migration).toContain("set search_path = pg_catalog");
