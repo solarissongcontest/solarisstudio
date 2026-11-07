@@ -80,7 +80,7 @@ export const SSC_RULES = [
 export const SSC_RULEBOOK = {
   ...BASE_RULEBOOK,
   version: "4.2",
-  status: "Plain-English 22-chapter candidate",
+  status: "Online-first plain-English 22-chapter candidate",
   description:
     "The permanent General Regulations for the completely online, fan-organised Solaris Song Contest, including the Roleplay & Worldbuilding framework. The text uses plain English; Edition-Specific Regulations still publish the details that change each edition.",
 } as const;
