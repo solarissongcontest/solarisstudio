@@ -8,7 +8,7 @@ const route = readFileSync(
 );
 
 describe("V3 Organizer Televote totals context", () => {
-  it("binds route reads to the exact selected Organizer edition", () => {
+  it("binds the read-only view to the exact selected Organizer edition", () => {
     expect(route).toContain("useAdminContext()");
     expect(route).toContain('key={editionId || "unscoped"}');
     expect(route).toContain(
@@ -22,23 +22,9 @@ describe("V3 Organizer Televote totals context", () => {
     expect(route).toContain("Reads and saves stay blocked until the contexts match");
   });
 
-  it("reasserts edition and show scope before canonical reconciliation", () => {
-    expect(route).toContain("validateEditionCommandScope");
-    expect(route).toContain("routeEditionId: edition.id");
-    expect(route).toContain("commandEditionId: review?.editionId ?? organizerEditionId");
-    expect(route).toContain("entityEditionId: review?.showEditionId ?? selectedShow.edition_id");
-    expect(route).toContain("capabilityEditionId: organizerEditionId");
-    expect(route).toContain("review.editionId !== edition.id || review.showId !== selectedShow.id");
-    expect(route).toContain("assertTelevoteEditionScope(review)");
-    expect(route).toContain("reconcileOrganizerTelevoteTotals({");
-    expect(route.indexOf("validateEditionCommandScope")).toBeLessThan(
-      route.indexOf("reconcileOrganizerTelevoteTotals({"),
-    );
-  });
-
   it("does not expose a direct Televote projection writer", () => {
-    expect(route).not.toContain('.from("televote_votes") as any');
-    expect(route).not.toContain('.update({ points: change.points })');
-    expect(route).not.toContain('.insert({\n            edition_id: commandEditionId');
+    expect(route).not.toContain(".update({ points:");
+    expect(route).not.toContain(".insert({");
+    expect(route).not.toContain("setDraft");
   });
 });

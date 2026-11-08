@@ -1,20 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Save, TriangleAlert, Vote } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { ArrowLeft, TriangleAlert, Vote } from "lucide-react";
+import { useMemo } from "react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminCard,
-  AdminConfirmSheet,
   AdminEmptyState,
   AdminPageHeader,
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { FlagChip } from "@/components/FlagChip";
-import { supabase } from "@/integrations/supabase/client";
 import {
   editionLabel,
   useContestEntities,
@@ -26,37 +22,14 @@ import {
   type Televote,
 } from "@/lib/data";
 import { entityDisplayMap } from "@/lib/entities";
-import { reportSupabaseError } from "@/lib/errors";
 import { hasPublishedResults, resolveShowPublication } from "@/lib/publication";
-import { validateEditionCommandScope } from "@/lib/solaris-v6-edition-context";
 import { resolveVoting } from "@/lib/voting";
-import { reconcileOrganizerTelevoteTotals } from "@/integrations/televoting/televote-totals.functions";
 
 type TelevoteSearch = { show?: string };
 
 type Identity = {
   country_id: string | null;
   contest_entity_id: string | null;
-};
-
-type ReviewedTelevoteChange = {
-  key: string;
-  label: string;
-  points: number;
-  saved: number;
-  existingId: string | null;
-  identity: Identity;
-};
-
-type PendingTelevoteReview = {
-  editionId: string;
-  editionName: string;
-  showId: string;
-  showName: string;
-  showEditionId: string;
-  participantIds: string[];
-  publishedResults: boolean;
-  changes: ReviewedTelevoteChange[];
 };
 
 export const Route = createFileRoute("/_authenticated/admin/televote/$slug")({
@@ -80,18 +53,10 @@ function voteForIdentity(key: string, identity: Identity, votes: Televote[]) {
   });
 }
 
-function sameIdSet(left: string[], right: string[]) {
-  if (left.length !== right.length) return false;
-  const sortedLeft = [...left].sort();
-  const sortedRight = [...right].sort();
-  return sortedLeft.every((value, index) => value === sortedRight[index]);
-}
-
 function TelevoteTotalsWorkspace() {
   const { slug } = Route.useParams();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const qc = useQueryClient();
   const { editionId: organizerEditionId } = useAdminContext();
   const { data: edition, isLoading: loadingEdition } = useEdition(slug);
   const scopedEditionId = edition && organizerEditionId === edition.id ? edition.id : undefined;
@@ -114,10 +79,6 @@ function TelevoteTotalsWorkspace() {
   const voting = useMemo(() => resolveVoting(selectedShow?.voting_config), [selectedShow?.voting_config]);
   const publishedResults = !!selectedShow?.published && hasPublishedResults(resolveShowPublication(selectedShow));
 
-  const [draft, setDraft] = useState<Record<string, string>>({});
-  const [pendingReview, setPendingReview] = useState<PendingTelevoteReview | null>(null);
-  const [busy, setBusy] = useState(false);
-
   function identityFor(key: string): Identity {
     const entity = entities.find((item) => item.id === key || item.country_id === key);
     return entity
@@ -129,200 +90,7 @@ function TelevoteTotalsWorkspace() {
     return voteForIdentity(key, identityFor(key), votes);
   }
 
-  useEffect(() => {
-    const next: Record<string, string> = {};
-    participants.forEach((participant) => {
-      next[participant.country_id] = String(voteFor(participant.country_id, televotes)?.points ?? 0);
-    });
-    setDraft(next);
-  // voteFor intentionally derives from the selected show's current entity/vote snapshot.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedShow?.id, participants, televotes, entities]);
-
-  useEffect(() => {
-    setPendingReview(null);
-  }, [organizerEditionId, edition?.id, selectedShow?.id]);
-
-  const changes = useMemo(() => participants.flatMap((participant) => {
-    const key = participant.country_id;
-    const saved = voteFor(key)?.points ?? 0;
-    const parsed = Math.round(Number(draft[key] ?? 0) || 0);
-    return parsed === saved ? [] : [{ key, points: parsed, saved }];
-  // voteFor intentionally derives from the current entity/vote snapshot.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [participants, draft, televotes, entities]);
-
-  const totalPoints = participants.reduce((sum, participant) => sum + Math.round(Number(draft[participant.country_id] ?? 0) || 0), 0);
-
-  function assertTelevoteEditionScope(review?: PendingTelevoteReview) {
-    if (!edition || !organizerEditionId || !selectedShow) {
-      throw Object.assign(
-        new Error("Televote totals require an exact Organizer edition and show context."),
-        { status: 409 },
-      );
-    }
-    if (review && (review.editionId !== edition.id || review.showId !== selectedShow.id)) {
-      throw Object.assign(
-        new Error("Edition or show context changed after this Televote review opened. Open a fresh review before applying."),
-        { status: 409 },
-      );
-    }
-    const scope = validateEditionCommandScope({
-      routeEditionId: edition.id,
-      commandEditionId: review?.editionId ?? organizerEditionId,
-      entityEditionId: review?.showEditionId ?? selectedShow.edition_id,
-      capabilityEditionId: organizerEditionId,
-    });
-    if (!scope.ok) {
-      throw Object.assign(
-        new Error(
-          `Edition context changed before the Televote totals save (${scope.mismatches.join(", ")}). Refresh canonical state before retrying.`,
-        ),
-        { status: 409 },
-      );
-    }
-    return edition.id;
-  }
-
-  function requestSave() {
-    if (!edition || !selectedShow || !changes.length) return;
-    assertTelevoteEditionScope();
-    setPendingReview({
-      editionId: edition.id,
-      editionName: editionLabel(edition),
-      showId: selectedShow.id,
-      showName: selectedShow.name,
-      showEditionId: selectedShow.edition_id,
-      participantIds: participants.map((participant) => participant.id),
-      publishedResults,
-      changes: changes.map((change) => {
-        const existing = voteFor(change.key);
-        return {
-          ...change,
-          label: displays.get(change.key)?.name ?? change.key,
-          existingId: existing?.id ?? null,
-          identity: identityFor(change.key),
-        };
-      }),
-    });
-  }
-
-  async function applyReviewedChanges() {
-    const review = pendingReview;
-    if (!review?.changes.length) return;
-    setBusy(true);
-    let reconciliationStarted = false;
-    try {
-      assertTelevoteEditionScope(review);
-
-      const [showResult, participantResult, voteResult] = await Promise.all([
-        supabase
-          .from("shows")
-          .select("id,edition_id,name,published,publication_config")
-          .eq("id", review.showId)
-          .eq("edition_id", review.editionId)
-          .maybeSingle(),
-        supabase
-          .from("participants")
-          .select("id")
-          .eq("show_id", review.showId)
-          .eq("edition_id", review.editionId),
-        supabase
-          .from("televote_votes")
-          .select("id,edition_id,show_id,country_id,contest_entity_id,points")
-          .eq("show_id", review.showId)
-          .eq("edition_id", review.editionId),
-      ]);
-
-      if (showResult.error) throw showResult.error;
-      if (participantResult.error) throw participantResult.error;
-      if (voteResult.error) throw voteResult.error;
-      if (!showResult.data) {
-        throw Object.assign(new Error("The reviewed show no longer exists in this edition."), { status: 409 });
-      }
-      if (showResult.data.name !== review.showName) {
-        throw Object.assign(new Error("The reviewed show changed after this review opened. Open a fresh review."), { status: 409 });
-      }
-      const livePublishedResults = !!showResult.data.published
-        && hasPublishedResults(resolveShowPublication(showResult.data as any));
-      if (livePublishedResults !== review.publishedResults) {
-        throw Object.assign(
-          new Error("Result publication state changed after this review opened. Review the Televote impact again before applying."),
-          { status: 409 },
-        );
-      }
-      const liveParticipantIds = (participantResult.data ?? []).map((participant) => participant.id);
-      if (!sameIdSet(review.participantIds, liveParticipantIds)) {
-        throw Object.assign(
-          new Error("The show line-up changed after this review opened. Refresh Televote totals and review the exact current line-up."),
-          { status: 409 },
-        );
-      }
-
-      const liveVotes = (voteResult.data ?? []) as Televote[];
-      for (const change of review.changes) {
-        const liveExisting = voteForIdentity(change.key, change.identity, liveVotes);
-        if (change.existingId) {
-          if (!liveExisting || liveExisting.id !== change.existingId || liveExisting.points !== change.saved) {
-            throw Object.assign(
-              new Error(`${change.label}'s saved Televote total changed after this review opened. Refresh before retrying.`),
-              { status: 409 },
-            );
-          }
-        } else if (liveExisting) {
-          throw Object.assign(
-            new Error(`${change.label} received a Televote total after this review opened. Refresh before retrying.`),
-            { status: 409 },
-          );
-        }
-      }
-
-      reconciliationStarted = true;
-      await reconcileOrganizerTelevoteTotals({
-        data: {
-          editionId: review.editionId,
-          showId: review.showId,
-        },
-      });
-
-      const { data: reconciledVotes, error: reconciliationReadError } = await supabase
-        .from("televote_votes")
-        .select("id,edition_id,show_id,country_id,contest_entity_id,points")
-        .eq("show_id", review.showId)
-        .eq("edition_id", review.editionId);
-      if (reconciliationReadError) throw reconciliationReadError;
-      for (const change of review.changes) {
-        const reconciled = voteForIdentity(change.key, change.identity, (reconciledVotes ?? []) as Televote[]);
-        if (!reconciled || reconciled.points !== change.points) {
-          throw Object.assign(
-            new Error(
-              `${change.label}'s reviewed value is not present in the canonical published Televote source. Publish the correction in the source system, then reconcile again.`,
-            ),
-            { status: 409 },
-          );
-        }
-      }
-
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ["televote_votes"] }),
-        qc.invalidateQueries({ queryKey: ["results"] }),
-      ]);
-      setPendingReview(null);
-      toast.success(`Reconciled ${review.changes.length} reviewed Televote total${review.changes.length === 1 ? "" : "s"}`);
-    } catch (caught) {
-      await Promise.allSettled([
-        qc.invalidateQueries({ queryKey: ["televote_votes"] }),
-        qc.invalidateQueries({ queryKey: ["results"] }),
-      ]);
-      setPendingReview(null);
-      const fallback = reconciliationStarted
-        ? "Canonical Televote reconciliation completed, but the reviewed values were not confirmed. Publish the correction in the source system, then refresh canonical state before retrying."
-        : "Televote totals were not reconciled because canonical state changed before the reviewed operation could start. Refresh and open a fresh review.";
-      toast.error(reportSupabaseError(caught, fallback));
-    } finally {
-      setBusy(false);
-    }
-  }
+  const totalPoints = participants.reduce((sum, participant) => sum + (voteFor(participant.country_id)?.points ?? 0), 0);
 
   if (loadingEdition) {
     return <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading televote totals…</p></AdminCard>;
@@ -375,8 +143,8 @@ function TelevoteTotalsWorkspace() {
       <AdminPageHeader
         eyebrow={editionLabel(edition)}
         title="Televote totals"
-        description="Review the aggregate Televote points from the canonical published source. Corrections must be published in the Televoting service and are reconciled here without a competing Results writer."
-        actions={<button type="button" disabled={busy || !changes.length} onClick={requestSave} className="admin-action-primary"><Save className="size-4" /> {busy ? "Reconciling…" : changes.length ? `Review ${changes.length}` : "Saved"}</button>}
+        description="Read-only canonical aggregate Televote points for this show. Corrections, sanctions and deductions must be created and published through the Televoting correction workflow."
+        actions={<Link to="/televoting/admin/combined" className="admin-action-primary">Open correction workflow</Link>}
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -409,7 +177,7 @@ function TelevoteTotalsWorkspace() {
         <AdminCard className="mb-4 !border-amber-200/15">
           <div className="flex items-start gap-3">
             <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-100" />
-            <div><p className="text-sm font-semibold">Results from this show are already public</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Changing these totals may change calculated standings. Every save now requires reviewing the exact batch and typing the show name.</p></div>
+            <div><p className="text-sm font-semibold">Results from this show are already public</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Published-result corrections require a governed Televoting correction source and publication review. This screen cannot apply them directly.</p></div>
           </div>
         </AdminCard>
       ) : null}
@@ -423,9 +191,7 @@ function TelevoteTotalsWorkspace() {
           <div className="divide-y divide-white/[0.07]">
             {participants.map((participant, index) => {
               const display = displays.get(participant.country_id);
-              const saved = voteFor(participant.country_id)?.points ?? 0;
-              const current = Math.round(Number(draft[participant.country_id] ?? 0) || 0);
-              const changed = current !== saved;
+              const points = voteFor(participant.country_id)?.points ?? 0;
               return (
                 <label key={participant.id} className="flex min-w-0 items-center gap-3 px-3 py-3 sm:px-4">
                   <span className="numeric w-7 shrink-0 text-center text-xs text-muted-foreground">{participant.running_order ?? index + 1}</span>
@@ -434,16 +200,13 @@ function TelevoteTotalsWorkspace() {
                     <span className="block truncate text-sm font-semibold text-foreground">{display?.name ?? participant.country_id}</span>
                     <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{participant.artist || participant.song ? [participant.artist, participant.song].filter(Boolean).join(" · ") : "Entry"}</span>
                   </span>
-                  {current < 0 ? <AdminStatus tone="attention">Sanction</AdminStatus> : changed ? <AdminStatus tone="attention">Edited</AdminStatus> : null}
-                  <input
+                  {points < 0 ? <AdminStatus tone="attention">Sanction</AdminStatus> : null}
+                  <output
                     aria-label={`${display?.name ?? participant.country_id} televote points`}
-                    inputMode="numeric"
-                    type="number"
-                    step={1}
-                    value={draft[participant.country_id] ?? "0"}
-                    onChange={(event) => setDraft((currentDraft) => ({ ...currentDraft, [participant.country_id]: event.target.value }))}
-                    className="numeric min-h-11 w-24 shrink-0 rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-right text-sm font-semibold text-foreground outline-none focus:border-sky-200/30"
-                  />
+                    className="numeric min-h-11 w-24 shrink-0 rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 py-3 text-right text-sm font-semibold text-foreground"
+                  >
+                    {points}
+                  </output>
                 </label>
               );
             })}
@@ -451,34 +214,7 @@ function TelevoteTotalsWorkspace() {
         </AdminCard>
       )}
 
-      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">These are aggregate show totals, not individual public ballots. This screen never writes the canonical projection; publish official corrections in the Televoting service, then reconcile the source here.</p>
-
-      <AdminConfirmSheet
-        open={!!pendingReview}
-        onClose={() => !busy && setPendingReview(null)}
-        onConfirm={applyReviewedChanges}
-        title={`Review Televote totals for ${pendingReview?.showName ?? "this show"}`}
-        description={pendingReview ? (
-          <div className="space-y-3 text-left">
-            <p>You are changing {pendingReview.changes.length} official aggregate Televote total{pendingReview.changes.length === 1 ? "" : "s"} in <strong>{pendingReview.editionName}</strong>.</p>
-            <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-white/[0.08] bg-black/10 p-3">
-              {pendingReview.changes.map((change) => (
-                <div key={change.key} className="flex items-center justify-between gap-3 text-xs">
-                  <span className="truncate font-medium text-foreground">{change.label}</span>
-                  <span className="numeric shrink-0 text-muted-foreground">{change.saved} → <strong className="text-foreground">{change.points}</strong></span>
-                </div>
-              ))}
-            </div>
-            <p>Before applying, Solaris re-reads the exact show, line-up, publication state and reviewed totals. If any reviewed state changed, this batch is refused and must be reviewed again.</p>
-            <p className="text-amber-100/90"><strong>Canonical authority:</strong> this review invokes the service-role-only, versioned Televote reconciliation command. Values not present in the published source are refused rather than written from the Organizer screen.</p>
-          </div>
-        ) : undefined}
-        confirmLabel="Reconcile reviewed totals"
-        confirmationText={pendingReview?.showName}
-        confirmationHint={pendingReview ? `Type ${pendingReview.showName} to confirm` : undefined}
-        busy={busy}
-        danger={pendingReview?.publishedResults ?? false}
-      />
+      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">These are aggregate show totals, not individual public ballots. Negative sanctions remain visible here after canonical publication. Use the correction workflow to create reviewed deductions, recalculate, lock and publish them; this screen never writes the canonical projection.</p>
     </AdminPage>
   );
 }
