@@ -87,6 +87,33 @@ function normalizeArg(input) {
     .replace(/\bbool\b|\bboolean\b/g, 'bool');
 }
 
+/** Columns in the initial CREATE TABLE only. This is NOT the final migrated shape:
+ * later ALTER TABLE commands and branch dependencies still require manual review.
+ */
+function initialTableColumns(maskedSql, afterTableName) {
+  let start = afterTableName;
+  while (/\s/.test(maskedSql[start] || '')) start++;
+  if (maskedSql[start] !== '(') return null; // CREATE TABLE AS / LIKE without an explicit definition.
+  let depth = 1, end = start + 1;
+  for (; end < maskedSql.length && depth; end++) {
+    if (maskedSql[end] === '(') depth++;
+    if (maskedSql[end] === ')') depth--;
+  }
+  if (depth) throw new Error('Unclosed SQL table definition');
+  const items = splitArgs(maskedSql.slice(start + 1, end - 1));
+  const columns = [];
+  for (const item of items) {
+    const definition = item.trim();
+    if (!definition || /^(?:constraint|primary|foreign|unique|check|exclude|like)\b/i.test(definition)) continue;
+    const first = /^("(?:[^"]|"")+"|[a-z_][\w$]*)\s+/i.exec(definition);
+    if (!first) throw new Error('Cannot identify initial SQL table column');
+    const name = first[1].replace(/^"|"$/g, '').replace(/""/g, '"').toLowerCase();
+    if (columns.includes(name)) throw new Error('Repeated initial SQL table column');
+    columns.push(name);
+  }
+  return columns.sort();
+}
+
 export function sqlDeclarations(source) {
   if (typeof source !== 'string') throw new Error('SQL source must be text');
   const masked = maskSql(source), found = [];
@@ -109,7 +136,10 @@ export function sqlDeclarations(source) {
       const args = raw ? splitArgs(raw).map(normalizeArg).filter(Boolean) : [];
       signature = `(${args.join(',')})`;
     }
-    found.push({ kind, name, signature, key: `${kind}:${name}${signature}` });
+    const initialColumns = kind === 'table'
+      ? initialTableColumns(masked, match.index + match[0].length)
+      : null;
+    found.push({ kind, name, signature, key: `${kind}:${name}${signature}`, initialColumns });
   }
   return found;
 }
@@ -132,7 +162,8 @@ export function auditSnapshot(snapshot) {
       for (const object of sqlDeclarations(file.content)) {
         const perPr = groups.get(object.key) || new Map();
         const own = perPr.get(pr.number) || [];
-        own.push({ number: pr.number, headSha: pr.headSha, path: file.path, sourceSha256: digest });
+        own.push({ number: pr.number, headSha: pr.headSha, path: file.path,
+          sourceSha256: digest, initialColumns: object.initialColumns });
         perPr.set(pr.number, own); groups.set(object.key, perPr);
       }
     }
@@ -142,7 +173,28 @@ export function auditSnapshot(snapshot) {
     if (byPr.size < 2) continue;
     const sources = [...byPr.values()].flat();
     const kinds = new Set(sources.map(x => x.sourceSha256));
-    collisions.push({ object: key, classification: kinds.size === 1 ? 'identical-source-review' : 'different-source-review', sources });
+    // Highlight missing columns from competing initial CREATE TABLE definitions.
+    // Never claim final schema incompatibility: subsequent ALTER TABLE migrations
+    // or an intentionally stacked dependency might reconcile these differences.
+    let initialTableColumnComparison = null;
+    if (key.startsWith('table:')) {
+      const withColumns = sources.filter(x => x.initialColumns !== null);
+      if (withColumns.length === sources.length) {
+        const allColumns = [...new Set(withColumns.flatMap(x => x.initialColumns))].sort();
+        const signatures = new Set(withColumns.map(x => x.initialColumns.join('\u0000')));
+        initialTableColumnComparison = {
+          differingColumnSets: signatures.size > 1,
+          observations: withColumns.map(x => ({
+            number: x.number, path: x.path, initialColumns: x.initialColumns,
+            absentFromInitialDefinition: allColumns.filter(c => !x.initialColumns.includes(c)),
+          })),
+          warning: 'Initial CREATE TABLE declarations only; later ALTER TABLE and inherited migration effects are not evaluated.',
+        };
+      }
+    }
+    collisions.push({ object: key,
+      classification: kinds.size === 1 ? 'identical-source-review' : 'different-source-review',
+      sources, initialTableColumnComparison });
   }
   collisions.sort((a, b) => a.object.localeCompare(b.object));
   return { mainSha: snapshot.mainSha, inspectedPrs: snapshot.prs.map(x => ({ number: x.number, headSha: x.headSha })), collisions, note: 'Read-only source-level review signals. Not merge authorization, live SQL verification, or release certification.' };
