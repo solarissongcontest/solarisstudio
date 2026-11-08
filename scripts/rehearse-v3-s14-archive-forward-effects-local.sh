@@ -292,7 +292,7 @@ if drift="$(sql -f "$candidate" 2>&1)"; then
 fi
 [[ "$drift" == *"S14 Archive recovery BLOCKED: hosted critical column drift public.studio2_edition_runtime.updated_at"* ]] ||
   fail "Archive column-shape refusal did not identify the deliberate drift: $drift"
-[[ "$(sql -c "select to_regclass('private.v3_archive_runtime_transition_gates') is null")" == true ]] ||
+[[ "$(sql -c "select (to_regclass('private.v3_archive_runtime_transition_gates') is null)::text")" == true ]] ||
   fail 'Rejected critical-column drift left behind partial Archive DDL'
 sql -c "alter table public.studio2_edition_runtime alter column updated_at set not null" >/dev/null
 
