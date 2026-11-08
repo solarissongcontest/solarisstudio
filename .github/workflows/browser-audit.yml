@@ -66,14 +66,28 @@ jobs:
         with:
           node-version: 22
 
-      # The legacy v1 action fetches GitHub release assets and failed twice with
-      # upstream HTTP 504 before any browser test could run (8 Nov 2026).
-      # v3 uses the npm package for the SAME pinned CLI version, retaining the
-      # disposable local Supabase, loopback guards and exact-SHA audit contract.
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v3
-        with:
-          version: 2.113.0
+      # Both legacy v1 (CLI asset) and v3 (nested Bun 1.3.10 installer) failed
+      # on unrelated GitHub release HTTP 504 downloads. Use the official npm
+      # package at the SAME exact CLI version, outside the application tree.
+      # This does not contact hosted Supabase and never substitutes remote data.
+      - name: Install pinned Supabase CLI in disposable runner directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLI_ROOT="$RUNNER_TEMP/solaris-browser-supabase-cli"
+          mkdir -p "$CLI_ROOT"
+          npm install --prefix "$CLI_ROOT" --no-save --no-package-lock --no-audit --no-fund --ignore-scripts=false supabase@2.113.0
+          CLI_BIN="$CLI_ROOT/node_modules/.bin/supabase"
+          if [ ! -x "$CLI_BIN" ]; then
+            echo "::error::Pinned local Supabase CLI was not installed"
+            exit 1
+          fi
+          actual="$("$CLI_BIN" --version | tr -d '\r')"
+          if [ "$actual" != "2.113.0" ]; then
+            echo "::error::Supabase CLI version mismatch: expected 2.113.0, got $actual"
+            exit 1
+          fi
+          echo "$CLI_ROOT/node_modules/.bin" >> "$GITHUB_PATH"
 
       - name: Install app dependencies
         run: bun install --frozen-lockfile
