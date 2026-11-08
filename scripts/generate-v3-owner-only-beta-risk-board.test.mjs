@@ -123,3 +123,22 @@ test('canonical owner-only policy forbids hosted tests and has no fake exclusion
   assert.ok(p.proposedExclusions.every(x => x.verified === false));
   assert.ok(p.conditionalReviews['PUBLIC-PARITY'].pilotNeed.includes('Jury'));
 });
+
+
+test('live source matrix projects all rows without downgrading a hard blocker', () => {
+  const actualMatrix = JSON.parse(readFileSync(
+    new URL('../docs/v3/final-week-release-blocker-matrix.json', import.meta.url)));
+  const actualPolicy = JSON.parse(readFileSync(
+    new URL('../docs/v3/owner-only-beta-risk-scope.json', import.meta.url)));
+  const board = buildOwnerOnlyBetaRiskBoard(actualMatrix, actualPolicy, sha);
+  assert.equal(board.rows.length, actualMatrix.items.length);
+  assert.deepEqual(
+    board.rows.filter(x => x.pilotClass === 'hard').map(x => x.id).sort(),
+    actualMatrix.items.filter(x => x.classification === 'hard').map(x => x.id).sort(),
+  );
+  assert.equal(board.counts.hardUnresolved,
+    actualMatrix.items.filter(x => x.classification === 'hard' && x.status !== 'closed').length);
+  assert.equal(board.counts.verifiedConditionalExclusions, 0);
+  assert.equal(board.decision, 'NOT_CERTIFIED');
+  assert.ok(board.unknowns.some(x => x.id === 'UNKNOWN-BETA-ACCESS'));
+});
