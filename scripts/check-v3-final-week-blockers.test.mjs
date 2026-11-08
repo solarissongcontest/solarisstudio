@@ -38,8 +38,14 @@ test("incomplete coverage and outstanding hard blocker fail release even at matc
   const errors = evaluateFinalWeekBlockers(fixture(), { release: true, candidateSha: sha }).errors.join("\n");
   assert.match(errors, /coverage is incomplete/);
   assert.match(errors, /hard blockers remain/);
-  assert.match(errors, /certification is absent/);
 });
+test("complete exact-SHA preflight may pass before separate owner certification", () => {
+  const m = fixture(); m.coverage = "complete"; m.releaseCandidateSha = sha;
+  m.items[0].status = "closed"; m.items[0].closureEvidence = [{ candidateSha: sha, test: "isolated pass" }];
+  assert.deepEqual(evaluateFinalWeekBlockers(m, { release: true, candidateSha: sha }).errors, []);
+  assert.match(evaluateFinalWeekBlockers(m, { release: true, certified: true, candidateSha: sha }).errors.join("\n"), /owner approval evidence is absent/);
+});
+
 test("duplicate, orphan dependency and missing observed evidence fail structure", () => {
   const m = fixture();
   m.items.push({ ...row(), dependencies: ["ghost"], evidence: [] });
