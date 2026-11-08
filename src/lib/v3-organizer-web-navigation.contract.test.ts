@@ -1,0 +1,107 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+import { organizerWebSectionRevealDelta } from "./v3-organizer-web-section-scroll";
+
+const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
+
+describe("Organizer V3 website and installed navigation families", () => {
+  it("selects the browser or installed rail from canonical platform resolution, never viewport width", () => {
+    const shell = source("src/components/admin/AdminShell.tsx");
+    expect(shell).toContain("const { isAppMode, platformResolved } = useSolarisApp()");
+    expect(shell).toContain('data-organizer-runtime={!platformResolved ? "resolving" : isAppMode ? "app" : "web"}');
+    expect(shell).toContain("organizerModeResolved && platformResolved && !isAppMode");
+    expect(shell).toContain("<OrganizerLegacyWebNavigation pathname={pathname} />");
+    expect(shell).toContain("<OrganizerV3WebNavigation pathname={pathname} />");
+    expect(shell).toContain("organizerModeResolved && platformResolved && isAppMode");
+    expect(shell).toContain("<OrganizerV3MobileChrome />");
+    expect(shell).toContain("<OrganizerV6MobileChrome />");
+    expect(shell).toContain("const organizerModeResolved =");
+    expect(shell).toContain("!organizerV3.isLoading && !organizerV3.isError && organizerV3.data != null");
+    expect(shell).toContain("{organizerModeResolved");
+    expect(shell).toContain("<OrganizerV6MobileChrome />");
+    expect(shell).toContain("Organizer navigation could not be verified.");
+    expect(shell).toContain("onClick={() => void organizerV3.refetch()}");
+    expect(shell).not.toContain("window.innerWidth < 900");
+  });
+
+  it("links to the same five Organizer roots as the app without reading installed tab memory", () => {
+    const website = source("src/components/admin/OrganizerV3WebNavigation.tsx");
+    expect(website).toContain("V3_ORGANIZER_TAB_ORDER.map");
+    expect(website).toContain("v3OrganizerTabRoot(tab)");
+    expect(website).toContain('aria-label="Organizer website sections"');
+    expect(website).toContain('normalize(pathname) === normalize(target) ? "page" : "location"');
+    expect(website).toContain("to={target as any}");
+    expect(website).not.toContain("getV3OrganizerTabDestination");
+    expect(website).not.toContain("onClick={");
+  });
+
+  it("lets tablet/desktop browsers use the existing sidebar and restores web scroll clearance", () => {
+    const css = source("src/styles/v3-organizer-web-navigation.css");
+    const desktop = source("src/admin-desktop.css");
+    expect(css).toContain("min-height: 44px");
+    expect(css).toContain("overflow-x: auto");
+    expect(css).toContain("@media (min-width: 720px)");
+    expect(css).toContain("display: none !important");
+    expect(css).not.toContain("position: fixed");
+    expect(desktop).toContain("@media (min-width: 720px)");
+    expect(desktop).toContain(".admin-sidebar");
+    expect(css).toContain('data-organizer-runtime="web"] .admin-main');
+  });
+  it("keeps a single Organizer primary-navigation owner on installed 720–899px tablets", () => {
+    const css = source("src/styles/v3-organizer-web-navigation.css");
+    const installed = source("src/styles/v3-organizer-liquid-tabbar.css");
+    const desktop = source("src/admin-desktop.css");
+    expect(desktop).toContain("@media (min-width: 720px)");
+    expect(installed).toContain("@media (min-width: 900px)");
+    expect(css).toContain("@media (min-width: 720px) and (max-width: 899px)");
+    expect(css).toContain('[data-organizer-generation="v3"][data-organizer-runtime="app"] .admin-sidebar');
+    expect(css).toContain('[data-organizer-generation="v3"][data-organizer-runtime="app"] .admin-frame');
+    expect(css).toContain("padding-bottom: calc(max(106px, var(--v3-bottom-obstruction, 0px)) + 24px)");
+    expect(css).not.toContain('[data-organizer-generation="legacy"][data-organizer-runtime="app"] .admin-sidebar');
+  });
+
+  it("keeps legacy Organizer website controls in flow and uses edition scope without guessing", () => {
+    const legacy = source("src/components/admin/OrganizerLegacyWebNavigation.tsx");
+    expect(legacy).toContain('data-organizer-legacy-web-navigation=""');
+    expect(legacy).toContain("adminEditionRoute(pathname, slug)");
+    expect(legacy).toContain("adminDelegationRoute(pathname)");
+    expect(legacy).toContain("resolveAdminEditionContext(editions, editionId)");
+    for (const route of ["/admin/operations", "/admin/tasks", "/admin/countries", "/admin/more"]) {
+      expect(legacy).toContain(route);
+    }
+    expect(legacy).toContain('aria-disabled="true"');
+    expect(legacy).toContain('title="Select an edition first"');
+    expect(legacy).not.toContain("getAdminAppTabDestination");
+    expect(legacy).not.toContain("onClick={");
+    const css = source("src/styles/v3-organizer-web-navigation.css");
+    expect(css).toContain('[data-organizer-runtime="web"]');
+    expect(css).not.toContain('[data-organizer-generation="v3"][data-organizer-runtime="web"]');
+  });
+
+  it("maintains real active/focus indicators under operating-system forced colors", () => {
+    const css = source("src/styles/v3-organizer-web-navigation.css");
+    expect(css).toContain("@media (forced-colors: active)");
+    expect(css).toContain('v3-organizer-web-navigation__link[data-active="true"]');
+    expect(css).toContain("border-bottom-color: Highlight;");
+    expect(css).toContain("outline: 2px solid Highlight;");
+    expect(css).toContain('v3-organizer-web-navigation__link[aria-disabled="true"]');
+    expect(css).toContain("color: GrayText;");
+  });
+
+  it("reveals an offscreen active browser section without scrolling the page", () => {
+    const container = { left: 0, right: 320 };
+    expect(organizerWebSectionRevealDelta(container, { left: 20, right: 100 })).toBe(0);
+    expect(organizerWebSectionRevealDelta(container, { left: -28, right: 80 })).toBe(-28);
+    expect(organizerWebSectionRevealDelta(container, { left: 275, right: 363 })).toBe(43);
+    const hook = source("src/lib/v3-organizer-web-section-scroll.ts");
+    expect(hook).toContain('nav.querySelector<HTMLElement>("[aria-current]")');
+    expect(hook).toContain("nav.scrollLeft += delta");
+    expect(hook).not.toContain("scrollIntoView");
+    expect(hook).toContain('window.addEventListener("resize", revealActiveSection)');
+    expect(source("src/components/admin/OrganizerV3WebNavigation.tsx")).toContain("ref={navRef}");
+    const legacy = source("src/components/admin/OrganizerLegacyWebNavigation.tsx");
+    expect(legacy).toContain("ref={navRef}");
+    expect(legacy).toContain('${pathname}:${slug ?? "unscoped"}');
+  });
+});

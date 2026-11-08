@@ -1,0 +1,94 @@
+/*
+ * Browser-only Organizer sections. Above 720px the established AdminNav
+ * sidebar provides the same canonical destinations, so there is no second
+ * primary rail. Installed floating Liquid Glass remains untouched.
+ */
+.admin-control-room[data-organizer-runtime="web"] .v3-organizer-web-navigation {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 0;
+  width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  padding: 2px max(12px, env(safe-area-inset-right)) 2px max(12px, env(safe-area-inset-left));
+  border-bottom: 1px solid rgba(177, 211, 236, 0.11);
+  background: rgba(6, 16, 31, 0.88);
+}
+.v3-organizer-web-navigation::-webkit-scrollbar { display: none; }
+.admin-control-room .v3-organizer-web-navigation__link {
+  display: inline-flex;
+  flex: 1 0 auto;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 11px;
+  border-bottom: 2px solid transparent;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  scroll-snap-align: start;
+}
+.admin-control-room .v3-organizer-web-navigation__link[data-active="true"] {
+  color: var(--foreground);
+  border-bottom-color: var(--admin-accent, #7fc9f0);
+}
+.admin-control-room .v3-organizer-web-navigation__link:focus-visible {
+  outline: 2px solid var(--admin-accent, #7fc9f0);
+  outline-offset: -3px;
+}
+@media (max-width: 719px) {
+  .admin-control-room[data-organizer-runtime="web"] .admin-main {
+    padding-bottom: max(2rem, env(safe-area-inset-bottom));
+    scroll-padding-bottom: max(2rem, env(safe-area-inset-bottom));
+  }
+}
+@media (min-width: 720px) {
+  .admin-control-room .v3-organizer-web-navigation { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-control-room .v3-organizer-web-navigation {
+    scroll-behavior: auto;
+    scroll-snap-type: none;
+  }
+}
+
+/*
+ * Installed Organizer V3 keeps its Liquid dock up to 899px, whereas the
+ * historical AdminFrame sidebar starts at 720px. Without this overlap guard
+ * a landscape tablet displays two competing primary navigation systems and
+ * loses content width. Installed V6 retains its independent 720px cutover.
+ */
+@media (min-width: 720px) and (max-width: 899px) {
+  .admin-control-room[data-organizer-generation="v3"][data-organizer-runtime="app"] .admin-frame {
+    display: block;
+  }
+  .admin-control-room[data-organizer-generation="v3"][data-organizer-runtime="app"] .admin-sidebar {
+    display: none;
+  }
+  .admin-control-room[data-organizer-generation="v3"][data-organizer-runtime="app"] .admin-main {
+    padding-bottom: calc(max(106px, var(--v3-bottom-obstruction, 0px)) + 24px);
+    scroll-padding-bottom: calc(max(106px, var(--v3-bottom-obstruction, 0px)) + 24px);
+  }
+}
+
+/* Windows High Contrast and other forced-color modes must retain a physical
+ * current-destination indicator. Native system colors preserve user choice. */
+@media (forced-colors: active) {
+  .admin-control-room .v3-organizer-web-navigation__link[data-active="true"] {
+    color: Highlight;
+    border-bottom-color: Highlight;
+  }
+  .admin-control-room .v3-organizer-web-navigation__link:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: -3px;
+  }
+  .admin-control-room .v3-organizer-web-navigation__link[aria-disabled="true"] {
+    color: GrayText;
+  }
+}
