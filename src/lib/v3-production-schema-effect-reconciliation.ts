@@ -37,6 +37,8 @@ export type V3SchemaEffectManifest = {
 export type V3SchemaEffectReconciliationReport = {
   candidateSha: string;
   manifestValid: boolean;
+  evidenceComplete: boolean;
+  unresolvedVersions: readonly string[];
   productionDeploymentAuthorized: false;
   errors: readonly string[];
   reconciledVersions: readonly string[];
@@ -104,6 +106,7 @@ export function reconcileV3ProductionSchemaEffects(input: {
 
   const entries = Array.isArray(manifest?.entries) ? manifest.entries : [];
   const seen = new Set<string>();
+  const unresolvedVersions: string[] = [];
   const expected = new Map(input.frontier.holesBeforeHostedHead.map(item => [expectedEntryKey(item), item]));
   const reconciledVersions: string[] = [];
 
@@ -130,8 +133,8 @@ export function reconcileV3ProductionSchemaEffects(input: {
     if (!["effect-present", "effect-partial", "effect-missing", "effect-superseded", "effect-uncertain"].includes(entry.classification ?? "")) {
       errors.push(`${key} has an invalid effect classification`);
     }
-    if (!hasUniqueStrings(entry.evidenceRefs)) {
-      errors.push(`${key} must include unique evidenceRefs`);
+    if (!hasUniqueStrings(entry.evidenceRefs) || entry.evidenceRefs.length === 0) {
+      errors.push(`${key} must include non-empty unique evidenceRefs`);
     }
     if (!hasUniqueStrings(entry.dependencies)) {
       errors.push(`${key} must include unique dependencies`);
@@ -151,6 +154,9 @@ export function reconcileV3ProductionSchemaEffects(input: {
         /\b(?:deploy|apply|replay|write)\b|alter\s+production|production\s+(?:write|migration)/i.test(entry.forwardPlan)) {
       errors.push(`${key} forwardPlan must describe reviewable work, not authorize production action`);
     }
+    if (entry.classification === "effect-uncertain") {
+      unresolvedVersions.push(migration.version);
+    }
     reconciledVersions.push(migration.version);
   }
 
@@ -163,6 +169,8 @@ export function reconcileV3ProductionSchemaEffects(input: {
   return {
     candidateSha: input.candidateSha,
     manifestValid: errors.length === 0,
+    evidenceComplete: errors.length === 0 && unresolvedVersions.length === 0,
+    unresolvedVersions: unresolvedVersions.sort(),
     productionDeploymentAuthorized: false,
     errors,
     reconciledVersions: reconciledVersions.sort(),
