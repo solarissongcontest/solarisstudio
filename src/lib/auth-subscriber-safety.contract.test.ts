@@ -23,7 +23,13 @@ describe("auth subscriber lifecycle audit", () => {
     expect(accountCache).toContain('client.setQueryData(["fan-session"]');
     expect(accountCache).toContain("clearPrivateAccountQueries(client)");
     expect(appShell).toContain("if (!alive) return;");
-    expect(appShell).toContain("if (alive) setAccess(next);");
+    // The current auth generation, not a stale callback's alive flag alone,
+    // now owns when verified permissions can become visible.
+    expect(appShell).toContain("const requestId = ++accessRequestRef.current");
+    expect(appShell).toContain("requestId !== accessRequestRef.current");
+    expect(appShell).toContain("setAccess(EMPTY_ACCESS)");
+    expect(appShell).toContain("setAccess(next)");
+    expect(appShell).toContain('setAccessResolution("unavailable")');
     expect(settings).toContain("useFanSession");
     expect(settings).not.toContain("supabase.auth.onAuthStateChange");
     expect(settings).not.toContain("supabase.auth.getUser");
