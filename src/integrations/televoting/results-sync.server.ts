@@ -1,5 +1,6 @@
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
+import { assertCombinedPublicationContextServer } from "@/integrations/televoting/combined-context.server";
 
 export type SolarisResultSyncOutcome = {
   ok: boolean;
@@ -22,13 +23,14 @@ type ImportRow = {
   points: number;
 };
 
-
 function errorMessage(value: unknown) {
   return value instanceof Error ? value.message : String(value ?? "Unknown error");
 }
 
 function normaliseCode(value: unknown) {
-  return String(value ?? "").trim().toUpperCase();
+  return String(value ?? "")
+    .trim()
+    .toUpperCase();
 }
 
 function publicCountryContributions(value: unknown): Record<string, number> | null {
@@ -66,7 +68,9 @@ async function writeCanonicalShowTelevote(data: {
   // The database RPC is explicitly service_role-only. Do not silently fall
   // back to an Organizer/RLS client and partially synchronize results.
   if (!process.env["SUPABASE_SERVICE_ROLE_KEY"]) {
-    throw new Error("Server-only Supabase service-role access is required for canonical Televote synchronization");
+    throw new Error(
+      "Server-only Supabase service-role access is required for canonical Televote synchronization",
+    );
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -109,11 +113,18 @@ export async function syncPublishedRoundResultsToSolarisServer(
 
   const { data: round, error: roundError } = await televotingAdmin
     .from("rounds")
-    .select("id,name,results_status,results_outdated,broadcast_display_mode,calculation_version,public_advanced_transparency")
+    .select(
+      "id,name,results_status,results_outdated,broadcast_display_mode,calculation_version,public_advanced_transparency",
+    )
     .eq("id", roundId)
     .maybeSingle();
   if (roundError) throw new Error(roundError.message);
-  if (!round || round.results_status !== "published" || round.results_outdated || Number(round.calculation_version) < 1) {
+  if (
+    !round ||
+    round.results_status !== "published" ||
+    round.results_outdated ||
+    Number(round.calculation_version) < 1
+  ) {
     return {
       ok: false,
       status: "source_not_published",
@@ -129,7 +140,8 @@ export async function syncPublishedRoundResultsToSolarisServer(
       status: "waiting_for_combined",
       sourceType: "round",
       sourceId: roundId,
-      message: "This round is part of a Combined Televote. Solaris will wait for the published Combined result.",
+      message:
+        "This round is part of a Combined Televote. Solaris will wait for the published Combined result.",
     };
   }
 
@@ -146,7 +158,8 @@ export async function syncPublishedRoundResultsToSolarisServer(
       sourceType: "round",
       sourceId: roundId,
       editionId: binding?.edition_id,
-      message: "Bind this Televoting round to a Solaris show before publishing it into the official scoreboard.",
+      message:
+        "Bind this Televoting round to a Solaris show before publishing it into the official scoreboard.",
     };
   }
 
@@ -162,7 +175,10 @@ export async function syncPublishedRoundResultsToSolarisServer(
     showId: binding.show_id,
     sourceType: "round",
     sourceId: roundId,
-    rows: (rows ?? []).map((row) => ({ countryCode: String(row.country_code ?? ""), points: Number(row.final_points ?? 0) })),
+    rows: (rows ?? []).map((row) => ({
+      countryCode: String(row.country_code ?? ""),
+      points: Number(row.final_points ?? 0),
+    })),
   });
 
   if (outcome.ok && round.public_advanced_transparency) {
@@ -188,9 +204,7 @@ export async function syncPublishedRoundResultsToSolarisServer(
         final_points: Math.trunc(Number(row.final_points ?? 0)),
         raw_score: Number.isFinite(rawScore) ? rawScore : null,
         activity_points:
-          Number.isFinite(activityPoints) && activityPoints >= 0
-            ? activityPoints
-            : null,
+          Number.isFinite(activityPoints) && activityPoints >= 0 ? activityPoints : null,
         country_contributions: contributions,
         updated_at: new Date().toISOString(),
       };
@@ -211,10 +225,7 @@ export async function syncPublishedRoundResultsToSolarisServer(
         if (snapshotError) throw snapshotError;
       }
     } catch (caught) {
-      console.error(
-        "[Televoting result sync] Could not refresh public aggregate snapshot",
-        caught,
-      );
+      console.error("[Televoting result sync] Could not refresh public aggregate snapshot", caught);
     }
   }
 
@@ -223,8 +234,14 @@ export async function syncPublishedRoundResultsToSolarisServer(
 
 export async function syncPublishedCombinedResultsToSolarisServer(
   aggregationId: string,
+  expectedContext?: { editionId?: string; showId?: string },
 ): Promise<SolarisResultSyncOutcome> {
   await requireMergedTelevotingAdminServer();
+  await assertCombinedPublicationContextServer({
+    aggregationId,
+    expectedEditionId: expectedContext?.editionId,
+    expectedShowId: expectedContext?.showId,
+  });
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const db = supabaseAdmin as any;
 
@@ -250,9 +267,13 @@ export async function syncPublishedCombinedResultsToSolarisServer(
     .eq("aggregation_id", aggregationId);
   if (sourceError) throw new Error(sourceError.message);
   const enabledSources = (sources ?? []).filter((source) => source.enabled);
-  const sourceRoundIds = [...new Set(enabledSources
-    .filter((source) => source.source_round_id)
-    .map((source) => String(source.source_round_id)))];
+  const sourceRoundIds = [
+    ...new Set(
+      enabledSources
+        .filter((source) => source.source_round_id)
+        .map((source) => String(source.source_round_id)),
+    ),
+  ];
 
   if (!sourceRoundIds.length) {
     return {
@@ -260,7 +281,8 @@ export async function syncPublishedCombinedResultsToSolarisServer(
       status: "unbound_show",
       sourceType: "combined",
       sourceId: aggregationId,
-      message: "The Combined Televote has no linked voting round from which Solaris can resolve its show.",
+      message:
+        "The Combined Televote has no linked voting round from which Solaris can resolve its show.",
     };
   }
 
@@ -270,7 +292,9 @@ export async function syncPublishedCombinedResultsToSolarisServer(
     .in("remote_round_id", sourceRoundIds);
   if (bindingError) throw new Error(bindingError.message);
   const bound = (bindings ?? []).filter((binding: any) => binding.show_id);
-  const targetKeys = [...new Set(bound.map((binding: any) => `${binding.edition_id}:${binding.show_id}`))];
+  const targetKeys = [
+    ...new Set(bound.map((binding: any) => `${binding.edition_id}:${binding.show_id}`)),
+  ];
   if (targetKeys.length !== 1 || bound.length !== sourceRoundIds.length) {
     return {
       ok: false,
@@ -325,9 +349,7 @@ export async function syncPublishedCombinedResultsToSolarisServer(
       }
     }
 
-    const sourceById = new Map(
-      enabledSources.map((source) => [String(source.id), source]),
-    );
+    const sourceById = new Map(enabledSources.map((source) => [String(source.id), source]));
     const snapshotRows: Array<Record<string, unknown>> = [];
 
     for (const row of rows ?? []) {
@@ -344,9 +366,8 @@ export async function syncPublishedCombinedResultsToSolarisServer(
           ? String(source.source_round_id)
           : `aggregation-source:${sourceId}`;
         const contributions = source.source_round_id
-          ? contributionByRoundCountry.get(
-              `${String(source.source_round_id)}:${countryCode}`,
-            ) ?? {}
+          ? (contributionByRoundCountry.get(`${String(source.source_round_id)}:${countryCode}`) ??
+            {})
           : {};
 
         snapshotRows.push({
@@ -357,13 +378,10 @@ export async function syncPublishedCombinedResultsToSolarisServer(
           display_order: Number(source.display_order ?? 0),
           weight_percent: Number.isFinite(weightPercent) ? weightPercent : null,
           country_code: countryCode,
-          final_points: Number.isFinite(allocatedPoints)
-            ? Math.trunc(allocatedPoints)
-            : 0,
+          final_points: Number.isFinite(allocatedPoints) ? Math.trunc(allocatedPoints) : 0,
           raw_score: Number.isFinite(rawScore) ? rawScore : null,
           activity_points:
-            String(source.source_type ?? "") === "activity" &&
-            Number.isFinite(rawScore)
+            String(source.source_type ?? "") === "activity" && Number.isFinite(rawScore)
               ? rawScore
               : null,
           country_contributions: contributions,
@@ -411,9 +429,12 @@ export async function trySyncPublishedRoundResultsToSolarisServer(roundId: strin
   }
 }
 
-export async function trySyncPublishedCombinedResultsToSolarisServer(aggregationId: string) {
+export async function trySyncPublishedCombinedResultsToSolarisServer(
+  aggregationId: string,
+  expectedContext?: { editionId?: string; showId?: string },
+) {
   try {
-    return await syncPublishedCombinedResultsToSolarisServer(aggregationId);
+    return await syncPublishedCombinedResultsToSolarisServer(aggregationId, expectedContext);
   } catch (caught) {
     return {
       ok: false,

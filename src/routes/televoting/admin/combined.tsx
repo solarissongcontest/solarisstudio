@@ -36,7 +36,7 @@ export const Route = createFileRoute("/televoting/admin/combined")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): CombinedSearch => ({
     editionId: typeof search.editionId === "string" ? search.editionId : undefined,
     showId: typeof search.showId === "string" ? search.showId : undefined,
   }),
@@ -71,6 +71,11 @@ const INPUT_MODES: Array<[SourceInputMode, string]> = [
   ["activity_points", "Activity points"],
   ["correction", "Manual correction"],
 ];
+
+type CombinedSearch = {
+  editionId?: string;
+  showId?: string;
+};
 
 function emptySource(): SourceDraft {
   return {
@@ -300,6 +305,10 @@ function CombinedResultsPage() {
               valuesFn={valuesFn}
               recalcFn={recalcFn}
               statusFn={statusFn}
+              publicationContext={{
+                editionId: search.editionId,
+                showId: search.showId,
+              }}
               deleteFn={deleteFn}
               onDeleted={() => setSelectedId("")}
             />
@@ -322,6 +331,7 @@ function CombinedWorkspace({
   valuesFn,
   recalcFn,
   statusFn,
+  publicationContext,
   deleteFn,
   onDeleted,
 }: any) {
@@ -472,7 +482,14 @@ function CombinedWorkspace({
   async function changeStatus(status: "draft" | "calculated" | "locked" | "published") {
     setActionBusy(true);
     try {
-      await statusFn({ data: { id: aggregation.id, status } });
+      await statusFn({
+        data: {
+          id: aggregation.id,
+          status,
+          expectedEditionId: publicationContext?.editionId,
+          expectedShowId: publicationContext?.showId,
+        },
+      });
       toast.success(`Combined result ${status}`);
       if (status === "published") setPublishOpen(false);
       await onRefresh();

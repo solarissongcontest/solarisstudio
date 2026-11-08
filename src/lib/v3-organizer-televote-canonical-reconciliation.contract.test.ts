@@ -4,6 +4,12 @@ import { describe, expect, it } from "vitest";
 const route = readFileSync("src/routes/_authenticated/admin/televote/$slug.tsx", "utf8");
 const combinedRoute = readFileSync("src/routes/televoting/admin/combined.tsx", "utf8");
 const combinedMath = readFileSync("src/integrations/televoting/combined-math.ts", "utf8");
+const combinedFunctions = readFileSync("src/integrations/televoting/combined.functions.ts", "utf8");
+const combinedServer = readFileSync("src/integrations/televoting/combined.server.ts", "utf8");
+const contextServer = readFileSync(
+  "src/integrations/televoting/combined-context.server.ts",
+  "utf8",
+);
 
 describe("V3 Organizer Televote correction dependency", () => {
   it("routes corrections to the Televoting-owned workflow", () => {
@@ -27,5 +33,9 @@ describe("V3 Organizer Televote correction dependency", () => {
     expect(combinedRoute).toContain(
       "refuse publication unless every enabled source resolves to that same bound show",
     );
+    expect(combinedFunctions).toContain("expectedEditionId");
+    expect(combinedFunctions).toContain("expectedShowId");
+    expect(combinedServer).toContain("assertCombinedPublicationContextServer");
+    expect(contextServer).toContain("resolveCombinedPublicationTarget");
   });
 });
