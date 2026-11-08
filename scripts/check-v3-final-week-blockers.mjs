@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 
@@ -44,8 +45,8 @@ export function evaluateFinalWeekBlockers(matrix, { release = false, certified =
     if (row.status === "superseded" && (row.classification !== "superseded" || !row.replacementEvidence)) errors.push(where + ": supersession requires explicit replacement evidence");
     if (row.status === "closed") {
       if (!Array.isArray(row.closureEvidence) || !row.closureEvidence.length) errors.push(where + ": closure requires explicit test/acceptance evidence");
-      else if (!row.closureEvidence.every(e => e && SHA.test(e.candidateSha ?? "") && typeof e.test === "string" && e.test.trim())) {
-        errors.push(where + ": every closure evidence record needs an exact candidate SHA and test");
+      else if (!row.closureEvidence.every(e => e && SHA.test(e.verifiedSha ?? "") && typeof e.test === "string" && e.test.trim())) {
+        errors.push(where + ": every closure evidence record needs a verified historical source SHA and test");
       }
     }
     if (row.classification === "hard" && row.status !== "closed") counts.unresolvedHard++;
@@ -59,14 +60,13 @@ export function evaluateFinalWeekBlockers(matrix, { release = false, certified =
     if (!SHA.test(candidateSha)) errors.push("release: exact --candidate-sha is required");
     if (matrix.coverage !== "complete") errors.push("release: matrix coverage is incomplete or unaudited");
     if (certified && matrix.releaseCertified !== true) errors.push("certification: owner approval evidence is absent");
-    if (matrix.releaseCandidateSha !== candidateSha) errors.push("release: releaseCandidateSha does not match the exact candidate");
     if (counts.unresolvedHard) errors.push("release: " + counts.unresolvedHard + " hard blockers remain");
     if (counts.unresolvedConditional) errors.push("release: " + counts.unresolvedConditional + " conditional blockers remain");
-    for (const row of (Array.isArray(matrix.items) ? matrix.items : [])) {
-      if (!row || !CLASSES.has(row.classification)) continue;
-      if (row.verificationSha !== candidateSha) errors.push("release: " + row.id + " was verified at another SHA");
-      if (row.status === "closed" && !row.closureEvidence?.some(e => e.candidateSha === candidateSha)) errors.push("release: " + row.id + " has no closure proof for exact candidate");
-    }
+    // Repository-tracked files cannot contain their own final Git commit SHA.
+    // verificationSha and closureEvidence.verifiedSha identify inspected source
+    // revisions. The exact release-candidate SHA is checked at runtime below;
+    // full S14/S15/S16/security exact-SHA evidence is enforced separately by
+    // the canonical release-integrity gate, never fabricated in this matrix.
   }
   return { errors, counts };
 }
@@ -79,6 +79,19 @@ function run() {
   const candidateSha = candidateIndex < 0 ? "" : args[candidateIndex + 1] ?? "";
   const fileIndex = args.indexOf("--file");
   const file = fileIndex < 0 ? "docs/v3/final-week-release-blocker-matrix.json" : args[fileIndex + 1];
+  if (release) {
+    // Bind this execution to the checked-out commit, without a self-referential
+    // SHA field in repository-tracked source. The existing preflight verifies
+    // candidate identity independently and checks external runtime evidence.
+    let checkoutSha = "";
+    try { checkoutSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(); }
+    catch { /* No Git checkout is not a valid release candidate. */ }
+    if (checkoutSha !== candidateSha) {
+      console.error("Refusing final-week release preflight: candidate SHA does not match the current checkout");
+      process.exitCode = 1;
+      return;
+    }
+  }
   let report;
   try { report = evaluateFinalWeekBlockers(JSON.parse(readFileSync(file, "utf8")), { release, certified, candidateSha }); }
   catch (error) { console.error("V3 final-week blocker matrix unavailable or invalid: " + error.message); process.exitCode = 1; return; }
