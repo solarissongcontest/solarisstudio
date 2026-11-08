@@ -1,0 +1,59 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { auditSnapshot, sqlDeclarations } from './check-world-sql-authority-collisions.mjs';
+
+const sha = c => c.repeat(40);
+const file = (path, content) => ({ path: `supabase/migrations/${path}.sql`, content });
+const snapshot = (a, b) => ({ mainSha: sha('0'), prs: [
+  { number: 1890, headSha: sha('a'), files: a },
+  { number: 2413, headSha: sha('b'), files: b },
+] });
+
+test('finds same canonical TG4 tables introduced by independent migration names', () => {
+  const report = auditSnapshot(snapshot([file('old', 'create table public.world_documents (id uuid primary key, record_class text);')], [file('new', 'CREATE TABLE IF NOT EXISTS public.world_documents (id uuid primary key);')]));
+  assert.equal(report.collisions.length, 1);
+  assert.equal(report.collisions[0].object, 'table:public.world_documents');
+  assert.equal(report.collisions[0].classification, 'different-source-review');
+});
+
+test('finds the colliding legal archive RPC signature despite different argument names', () => {
+  const old = 'create or replace function public.world_get_public_legal_archive_v1(p_org text, p_doc text, p_before integer default null, p_limit integer default 30) returns jsonb language sql as $$ select null::jsonb $$;';
+  const newer = 'CREATE FUNCTION public.world_get_public_legal_archive_v1(p_organization text,p_document text,p_cursor int4,p_limit int4) RETURNS jsonb language sql AS $$SELECT null::jsonb$$;';
+  const report = auditSnapshot(snapshot([file('old', old)], [file('new', newer)]));
+  assert.equal(report.collisions[0].object, 'function:public.world_get_public_legal_archive_v1(text,text,int4,int4)');
+});
+
+test('distinguishes distinct overloads', () => {
+  const report = auditSnapshot(snapshot([file('a', 'CREATE FUNCTION public.f(p_x uuid) RETURNS uuid AS $$ SELECT null::uuid $$ LANGUAGE sql;')], [file('b', 'CREATE FUNCTION public.f(p_x text) RETURNS text AS $$ SELECT null::text $$ LANGUAGE sql;')]));
+  assert.equal(report.collisions.length, 0);
+});
+
+test('ignores SQL comments, string literals, and dollar-quoted function bodies', () => {
+  const source = `-- CREATE TABLE public.hidden(id int);\n/* CREATE TABLE public.also_hidden(id int); */\nCREATE FUNCTION public.real(p_input text DEFAULT 'CREATE TABLE public.not_real') RETURNS void AS $fn$\nBEGIN\n  EXECUTE 'CREATE TABLE public.body_only(id int)';\nEND;\n$fn$ LANGUAGE plpgsql;`;
+  const names = sqlDeclarations(source).map(x => x.name);
+  assert.deepEqual(names, ['public.real']);
+});
+
+test('identical stacked migration source is classified for review, not incorrectly declared incompatible', () => {
+  const sql = 'CREATE TABLE public.world_document_versions(id uuid);';
+  const report = auditSnapshot(snapshot([file('a', sql)], [file('a', sql)]));
+  assert.equal(report.collisions[0].classification, 'identical-source-review');
+});
+
+test('repeated definitions inside one PR are not cross-PR collisions', () => {
+  const report = auditSnapshot({ mainSha: sha('0'), prs: [{ number: 1, headSha: sha('a'), files: [file('a', 'CREATE TABLE public.world_documents(id uuid);'), file('b', 'CREATE TABLE public.world_documents(id uuid);')] }] });
+  assert.deepEqual(report.collisions, []);
+});
+
+test('fails closed on missing heads, duplicate PRs, or incomplete SQL source', () => {
+  assert.throws(() => auditSnapshot({ mainSha: 'main', prs: [] }), /mainSha/);
+  assert.throws(() => auditSnapshot({ mainSha: sha('0'), prs: [{ number: 1, headSha: 'head', files: [] }] }), /Invalid/);
+  assert.throws(() => auditSnapshot({ mainSha: sha('0'), prs: [{ number: 1, headSha: sha('a'), files: [{path:'supabase/migrations/a.sql'}] }] }), /Invalid migration/);
+  assert.throws(() => auditSnapshot({ mainSha: sha('0'), prs: [
+    { number: 1, headSha: sha('a'), files: [] }, { number: 1, headSha: sha('b'), files: [] },
+  ] }), /duplicate PR/);
+});
+
+test('unterminated SQL literal cannot silently produce a clean report', () => {
+  assert.throws(() => sqlDeclarations("CREATE FUNCTION public.fn() RETURNS void AS $abc$select 1;"), /Unterminated/);
+});
