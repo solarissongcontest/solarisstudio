@@ -39,12 +39,18 @@ The committed matrix in
 `src/lib/v3-production-schema-effect-matrix.ts` covers all **36** reported
 post-cutover holes exactly once:
 
-- **24 effect-missing**: the named V3 object, guard, RPC, trigger, or behavior
-  was directly absent in the authorized catalog observation;
-- **6 effect-uncertain**: the target prerequisite or aggregate existed, but the
-  exact effect still requires a full catalog/signature comparison;
-- **6 effect-partial**: a related legacy object or narrow privilege existed,
-  while the migration's complete intended effect was not proven.
+- **28 effect-missing**: the named V3 object, guard, RPC, trigger, or behavior
+  was absent in the authorized read-only catalog observations;
+- **0 effect-uncertain** in this six-entry catalog triage; this does **not**
+  establish full schema compatibility or production safety;
+- **8 effect-partial**: an aggregate or legacy object exists, while the
+  migration's required permission or behavior remains absent.
+
+The six previously uncertain entries were resolved by bounded read-only
+catalog checks on **2026-11-08**: four missing, two partial. The signed
+object-level evidence and limits are documented in
+`docs/v3/recovery-candidates/six-effect-catalog-evidence-20261108.md`.
+These classifications do **not** mean the historical SQL was applied.
 
 No entry is classified as fully equivalent or superseded. The same matrix
 assigns all **32 pending** repository migrations to three dependency lanes:
