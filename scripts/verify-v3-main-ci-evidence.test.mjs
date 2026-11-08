@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { evaluateMainCiEvidence, fetchGithubJson } from "./verify-v3-main-ci-evidence.mjs";
+import { collectCompleteWorkflowRuns, evaluateMainCiEvidence, fetchGithubJson } from "./verify-v3-main-ci-evidence.mjs";
 
 const sha = "a".repeat(40);
 const other = "b".repeat(40);
@@ -90,5 +90,85 @@ test("GitHub evidence fetch refuses unauthenticated requests and HTTP failures",
   await assert.rejects(
     () => fetchGithubJson("https://api.github.com/x", "local-fake-token", async () => ({ ok: false, status: 403 })),
     /HTTP 403/,
+  );
+});
+
+test("collects every exact-SHA run from a stable bounded GitHub page sequence", async () => {
+  let calls = 0;
+  const runs = await collectCompleteWorkflowRuns(async (page) => {
+    calls += 1;
+    return {
+      total_count: 3,
+      workflow_runs: page === 1 ? [good(names[0])] : [good(names[1]), good(names[2])],
+    };
+  });
+  assert.equal(calls, 2);
+  assert.deepEqual(runs.map((run) => run.id), [1, 2, 3]);
+  assert.equal(verify({ workflowRuns: runs }).passed, true);
+  assert.deepEqual(await collectCompleteWorkflowRuns(async () => ({
+    total_count: 0,
+    workflow_runs: [],
+  })), []);
+});
+
+test("rejects repeated run IDs across GitHub pages rather than masking omitted CI failures", async () => {
+  await assert.rejects(
+    () => collectCompleteWorkflowRuns(async (page) => ({
+      total_count: 3,
+      workflow_runs: page === 1
+        ? [good(names[0]), good(names[1])]
+        : [good(names[1]), good(names[2])],
+    })),
+    /repeated run ID/,
+  );
+});
+
+test("rejects GitHub pagination whose total changes, overflows, or stops early", async () => {
+  await assert.rejects(
+    () => collectCompleteWorkflowRuns(async (page) => ({
+      total_count: page === 1 ? 3 : 4,
+      workflow_runs: [good(names[page - 1])],
+    })),
+    /count changed/,
+  );
+  await assert.rejects(
+    () => collectCompleteWorkflowRuns(async () => ({
+      total_count: 1,
+      workflow_runs: [good(names[0]), good(names[1])],
+    })),
+    /exceeds its authoritative run count/,
+  );
+  await assert.rejects(
+    () => collectCompleteWorkflowRuns(async (page) => ({
+      total_count: 3,
+      workflow_runs: page === 1 ? [good(names[0])] : [],
+    })),
+    /ended before all/,
+  );
+  await assert.rejects(
+    () => collectCompleteWorkflowRuns(async () => ({
+      total_count: 3,
+      workflow_runs: [good(names[0])],
+    }), 1),
+    /incomplete after the bounded page limit/,
+  );
+});
+
+test("refuses malformed, duplicated, or over-budget GitHub workflow run metadata", async () => {
+  await assert.rejects(
+    () => collectCompleteWorkflowRuns(async () => ({ total_count: -1, workflow_runs: [] })),
+    /authoritative run count/,
+  );
+  await assert.rejects(
+    () => collectCompleteWorkflowRuns(async () => ({ total_count: 1, workflow_runs: [{ name: "Quality" }] })),
+    /invalid or repeated run ID/,
+  );
+  await assert.rejects(
+    () => collectCompleteWorkflowRuns(async () => ({ total_count: 501, workflow_runs: [] })),
+    /bounded pagination limit/,
+  );
+  await assert.rejects(
+    () => collectCompleteWorkflowRuns(null),
+    /page reader/,
   );
 });
