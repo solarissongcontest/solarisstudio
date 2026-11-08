@@ -8,7 +8,158 @@ const CLASSES = new Set(["hard", "conditional", "debt", "superseded"]);
 const STATES = new Set(["blocked", "in_progress", "unverified", "awaiting_authorization", "closed", "superseded"]);
 const REQUIRED = ["id", "capability", "classification", "status", "sourceOfAuthority", "technicalRootCause", "owner", "nextAction", "targetDate", "verificationSha"];
 
-export function evaluateFinalWeekBlockers(matrix, { release = false, certified = false, candidateSha = "" } = {}) {
+const APPROVAL_ACTIONS = ["hostedMigration", "productionDeployment", "publicWriteReopening"];
+const CERTIFICATION_GATES = ["S13", "S14", "S15", "S16", "security", "productionIsolation"];
+const nonempty = value => typeof value === "string" && value.trim().length > 0;
+
+// This verifies the shape and exact-SHA references of a HUMAN-supplied release
+// approval packet. It cannot authenticate a signature or grant production
+// permission. Operations must independently verify each reference with its owner.
+export function evaluateExplicitReleaseApproval(packet, candidateSha) {
+  const errors = [];
+  if (!packet || typeof packet !== "object" || Array.isArray(packet)) {
+    return ["certification: external --approval-file with explicit owner decisions is required"];
+  }
+  if (packet.schemaVersion !== 1 || packet.scope !== "full_solaris_studio_v3" ||
+      packet.decision !== "GO_FULL_V3") {
+    errors.push("certification: packet must explicitly authorize full V3 GO");
+  }
+  if (!SHA.test(candidateSha) || packet.candidateSha !== candidateSha) {
+    errors.push("certification: approval packet must bind the exact candidate SHA");
+  }
+  if (!nonempty(packet.releaseManager?.name) || !nonempty(packet.releaseManager?.decisionRef)) {
+    errors.push("certification: identifiable release-manager decision reference required");
+  }
+  const scope = packet.scopeReview;
+  if (scope?.decision !== "full_scope_accepted" ||
+      !nonempty(scope.reviewedBy) || !nonempty(scope.evidenceRef) ||
+      !Array.isArray(scope.excludedCapabilities) || scope.excludedCapabilities.length !== 0) {
+    errors.push("certification: full-scope review and zero silent exclusions required");
+  }
+  const refs = new Set();
+  for (const action of APPROVAL_ACTIONS) {
+    const decision = packet.authorizations?.[action];
+    if (decision?.approved !== true || !nonempty(decision.approvedBy) ||
+        !nonempty(decision.evidenceRef)) {
+      errors.push("certification: explicit independent " + action + " authorization missing");
+    } else if (refs.has(decision.evidenceRef)) {
+      errors.push("certification: separate production actions need distinct authorization references");
+    } else refs.add(decision.evidenceRef);
+  }
+  const evidence = packet.gates;
+  if (!Array.isArray(evidence)) {
+    errors.push("certification: exact-SHA release gate evidence array required");
+  } else {
+    for (const gate of CERTIFICATION_GATES) {
+      const rows = evidence.filter(row => row && row.id === gate);
+      if (rows.length !== 1 || rows[0].passed !== true ||
+          rows[0].candidateSha !== candidateSha || !nonempty(rows[0].evidenceRef)) {
+        errors.push("certification: missing/stale/duplicate " + gate + " evidence");
+      }
+    }
+    if (evidence.length !== CERTIFICATION_GATES.length) {
+      errors.push("certification: unexpected release gate evidence rows");
+    }
+  }
+  return errors;
+}
+
+
+const RELEASE_REQUIRED_ITEMS = [
+  "SYS-FRONTIER", "SYS-S13", "SYS-ARCHIVE", "VOTE-AUTHORITY",
+  "RESULT-PUBLICATION", "QA-S14", "QA-S15", "QA-S16",
+  "QA-RELEASE-SHA", "PUBLIC-PARITY", "ORG-PARITY", "DESIGN-3X",
+  "WORLD-SCOPE", "PROD-AUTH",
+];
+const RELEASE_ACCEPTED_STATES = new Set(["tested", "parity", "cutover", "certified"]);
+
+const RELEASE_NAVIGATION_ACCEPTANCE = [
+  "geometry", "material", "lens", "press", "long-press", "drag",
+  "velocity-release", "edge-resistance", "scroll-compact", "page-swipe",
+  "gesture-arbitration", "route-memory", "focused-task-shell", "keyboard",
+  "accessibility", "responsive", "standalone-pwa", "safe-updates",
+  "resume", "offline-shell", "performance", "visual-regression",
+];
+const RELEASE_PUBLIC_DIRECTORIES = [
+  "DIR-countries", "DIR-editions", "DIR-tools", "DIR-site-directory",
+  "DIR-shows", "DIR-archive", "DIR-stories", "DIR-reference",
+  "DIR-rulebook", "DIR-music", "DIR-songs", "DIR-artists",
+];
+
+
+/**
+ * Cross-check a claim of exhaustive V3 blocker coverage with an INDEPENDENT
+ * exact-checkout completion dashboard. This is structural source evidence only:
+ * full S14/S15/S16 rehearsals and real human go/no-go remain separate gates.
+ */
+export function evaluateCompleteV3ScopeEvidence(dashboard, candidateSha) {
+  const errors = [];
+  if (!dashboard || typeof dashboard !== "object" || Array.isArray(dashboard)) {
+    return ["release: generated exact-SHA completion-dashboard.json is required for complete coverage"];
+  }
+  if (dashboard.schemaVersion !== 1 || !SHA.test(candidateSha) ||
+      dashboard.candidateSha !== candidateSha || dashboard.registryGuardsPassed !== true) {
+    errors.push("release: completion dashboard is stale, malformed or lacks passing registry guards");
+  }
+  for (const [family, prefix, last] of [
+    ["system", "S", 16],
+    ["public", "P", 50],
+    ["organizer", "O", 18],
+    ["navigation", "N", 14],
+  ]) {
+    const rows = dashboard[family];
+    if (!Array.isArray(rows) || rows.length !== last + 1 ||
+        new Set(rows.map(row => row?.id)).size !== last + 1 ||
+        Array.from({ length: last + 1 }, (_, i) => prefix + i)
+          .some(id => !rows.some(row => row?.id === id))) {
+      errors.push("release: completion dashboard lacks full " + family + " milestone coverage");
+      continue;
+    }
+    if (rows.some(row => !RELEASE_ACCEPTED_STATES.has(row.state) ||
+        !nonempty(row.evidence) || nonempty(row.blocker))) {
+      errors.push("release: " + family + " milestones lack acceptance or retain blockers");
+    }
+  }
+  for (const family of ["navigationAcceptance", "directories"]) {
+    const rows = dashboard[family];
+    const expected = family === "navigationAcceptance"
+      ? RELEASE_NAVIGATION_ACCEPTANCE : RELEASE_PUBLIC_DIRECTORIES;
+    if (!Array.isArray(rows) || rows.length !== expected.length ||
+        new Set(rows.map(row => row?.id)).size !== expected.length ||
+        expected.some(id => !rows.some(row => row?.id === id)) ||
+        rows.some(row => !nonempty(row?.id) || !nonempty(row?.evidence) ||
+          !RELEASE_ACCEPTED_STATES.has(row?.state) ||
+          (family === "directories" && row.state !== "certified") ||
+          nonempty(row?.blocker))) {
+      errors.push("release: completion dashboard lacks certified " + family + " coverage");
+    }
+  }
+  if (!Array.isArray(dashboard.blockers) || dashboard.blockers.length ||
+      !Array.isArray(dashboard.directoryRegistryIssues) || dashboard.directoryRegistryIssues.length) {
+    errors.push("release: completion dashboard has unresolved findings or a missing findings inventory");
+  }
+  const summary = dashboard.registrySummary;
+  if (!summary || typeof summary !== "object" || Array.isArray(summary) ||
+      !Number.isSafeInteger(summary.systemDomains) || summary.systemDomains < 1 ||
+      summary.pendingPhysicalDomains !== 0 ||
+      !Number.isSafeInteger(summary.consequences) || summary.consequences < 1 ||
+      summary.eventBackedConsequences !== summary.consequences) {
+    errors.push("release: System domain, physical ownership and event consequence coverage is incomplete");
+  }
+  for (const family of ["public", "organizer"]) {
+    const counts = summary?.[family];
+    if (!counts || typeof counts !== "object" || Array.isArray(counts) ||
+        !Object.values(counts).every(value => Number.isSafeInteger(value) && value >= 0) ||
+        Object.values(counts).reduce((total, count) => total + count, 0) < 1 ||
+        Object.entries(counts).some(([status, count]) =>
+          count > 0 && status !== "cutover" && status !== "retired")) {
+      errors.push("release: " + family + " capability registry has incomplete legacy cutover");
+    }
+  }
+  return errors;
+}
+
+export function evaluateFinalWeekBlockers(matrix, { release = false, certified = false, candidateSha = "", approvalPacket = null, coverageDashboard = null } = {}) {
   const errors = [];
   const requireField = (row, key, where) => {
     if (typeof row[key] !== "string" || !row[key].trim()) errors.push(where + ": missing " + key);
@@ -86,10 +237,19 @@ export function evaluateFinalWeekBlockers(matrix, { release = false, certified =
     complete.add(id);
   }
   for (const id of dependencies.keys()) validateDAG(id, []);
-  if (release) {
+  if (release || certified) {
     if (!SHA.test(candidateSha)) errors.push("release: exact --candidate-sha is required");
     if (matrix.coverage !== "complete") errors.push("release: matrix coverage is incomplete or unaudited");
-    if (certified && matrix.releaseCertified !== true) errors.push("certification: owner approval evidence is absent");
+    if (matrix.coverage === "complete") {
+      for (const id of RELEASE_REQUIRED_ITEMS) {
+        if (!ids.has(id)) errors.push("release: full V3 blocker matrix lacks " + id);
+      }
+      errors.push(...evaluateCompleteV3ScopeEvidence(coverageDashboard, candidateSha));
+    }
+    if (certified) {
+      if (matrix.releaseCertified !== true) errors.push("certification: owner approval evidence is absent");
+      errors.push(...evaluateExplicitReleaseApproval(approvalPacket, candidateSha));
+    }
     if (counts.unresolvedHard) errors.push("release: " + counts.unresolvedHard + " hard blockers remain");
     if (counts.unresolvedConditional) errors.push("release: " + counts.unresolvedConditional + " conditional blockers remain");
     // Repository-tracked files cannot contain their own final Git commit SHA.
@@ -122,8 +282,32 @@ function run() {
       return;
     }
   }
+  let approvalPacket = null;
+  if (certified) {
+    const approvalIndex = args.indexOf("--approval-file");
+    const approvalFile = approvalIndex < 0 ? "" : args[approvalIndex + 1] ?? "";
+    if (approvalFile) {
+      try { approvalPacket = JSON.parse(readFileSync(approvalFile, "utf8")); }
+      catch (error) {
+        console.error("V3 release approval packet unavailable or invalid: " + error.message);
+        process.exitCode = 1;
+        return;
+      }
+    }
+  }
+  let coverageDashboard = null;
+  if (release) {
+    const dashboardIndex = args.indexOf("--dashboard-file");
+    const dashboardFile = dashboardIndex < 0
+      ? "v3-release-preflight/completion-dashboard.json"
+      : args[dashboardIndex + 1];
+    if (dashboardFile) {
+      try { coverageDashboard = JSON.parse(readFileSync(dashboardFile, "utf8")); }
+      catch { /* The evaluator rejects complete claims without generated dashboard evidence. */ }
+    }
+  }
   let report;
-  try { report = evaluateFinalWeekBlockers(JSON.parse(readFileSync(file, "utf8")), { release, certified, candidateSha }); }
+  try { report = evaluateFinalWeekBlockers(JSON.parse(readFileSync(file, "utf8")), { release, certified, candidateSha, approvalPacket, coverageDashboard }); }
   catch (error) { console.error("V3 final-week blocker matrix unavailable or invalid: " + error.message); process.exitCode = 1; return; }
   if (args.includes("--json")) console.log(JSON.stringify(report, null, 2));
   else {
