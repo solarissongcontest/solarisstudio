@@ -161,6 +161,7 @@ export function renderMaintenancePage(now: Date = new Date()): string {
         <p class="hero-tagline">Solaris, reimagined.</p>
         <p class="hero-intro">A new generation of Solaris Studio is taking shape around what is happening, what matters to you, and what comes next.</p>
         <div class="hero-actions"><a class="hero-action hero-action-primary" href="#experience">Explore TerraOS&nbsp;3</a><a class="hero-action" href="#confirmation-access">Access Confirmation</a></div>
+        <p style="margin:13px 0 0;font-size:13px;line-height:1.6"><a href="/rules/v4-2-preview" style="color:#b9e3ff;text-decoration:underline;text-underline-offset:4px">SSC Regulations v4.2 · reference copy</a></p>
         <div class="release-card">
           <div class="arrival-line">${arrivalMarkup}</div>
           <div class="readiness-head"><span>TerraOS&nbsp;3 readiness</span><strong>${readiness.percent}%</strong></div>
@@ -219,7 +220,7 @@ export function renderMaintenancePage(now: Date = new Date()): string {
     <section class="finale" aria-labelledby="finale-title">${rhythmFieldMarkup("finale-rhythm", 1, -1)}<div class="finale-inner scroll-in"><p class="section-kicker">Solaris Studio</p><h2 id="finale-title" class="terra-wordmark display-heading" style="white-space:nowrap;max-width:none;font-size:clamp(2.5rem,13.5vw,9rem)">TerraOS&nbsp;3</h2><p>Built for what happens next.</p><a class="finale-link" href="#confirmation-access">Access Confirmation ↑</a></div></section>
   </main>
 
-  <footer><div><strong>Terra Solaris Broadcasting Coalition</strong>Solaris Studio · TerraOS&nbsp;3</div><div>Maintenance notice updated ${updated} · HTTP 503</div></footer>
+  <footer><div><strong>Terra Solaris Broadcasting Coalition</strong>Solaris Studio · TerraOS&nbsp;3</div><div><a href="/maintenance/recovery" style="color:#b9e3ff">Authorized organizer recovery</a></div><div>Maintenance notice updated ${updated} · HTTP 503</div></footer>
 </div>
 <script id="terraos-story-data" type="application/json">${storyData}</script>
 <script src="/assets/terraos-maintenance.js?v=${MAINTENANCE_ASSET_REVISION}"></script>

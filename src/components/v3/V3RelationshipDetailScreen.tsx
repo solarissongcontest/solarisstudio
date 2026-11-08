@@ -1,13 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { NativeLineChart } from "@/components/viz/NativeLineChart";
 
 import { FlagChip } from "@/components/FlagChip";
 import type {
@@ -91,45 +83,21 @@ export function V3RelationshipDetailScreen({
           <V3Surface className="p-4">
             {chartData.length ? (
               <div className="h-[260px]" aria-label="Normalized support over time">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                    <XAxis
-                      dataKey="edition"
-                      stroke="rgba(255,255,255,0.45)"
-                      fontSize={11}
-                    />
-                    <YAxis
-                      stroke="rgba(255,255,255,0.45)"
-                      fontSize={11}
-                      allowDecimals={false}
-                      domain={[0, 100]}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "var(--v3-bg-raised)",
-                        border: "1px solid var(--v3-border-subtle)",
-                        borderRadius: 14,
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="aToB"
-                      name={`${a.shortCode} → ${b.shortCode}`}
-                      stroke="var(--jury)"
-                      strokeWidth={3}
-                      dot
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="bToA"
-                      name={`${b.shortCode} → ${a.shortCode}`}
-                      stroke="var(--televote)"
-                      strokeWidth={3}
-                      dot
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                <NativeLineChart
+                   data={chartData}
+                   xKey="edition"
+                   yDomain={[0, 100]}
+                   yTickFormatter={(value) => String(Math.round(value))}
+                   gridColor="rgba(255,255,255,0.08)"
+                   axisColor="rgba(255,255,255,0.45)"
+                   tooltipBackground="var(--v3-bg-raised)"
+                   tooltipBorder="var(--v3-border-subtle)"
+                   ariaLabel="Published normalized jury support between the two countries by edition"
+                   series={[
+                     { key: "aToB", name: `${a.shortCode} → ${b.shortCode}`, stroke: "var(--jury)", strokeWidth: 3 },
+                     { key: "bToA", name: `${b.shortCode} → ${a.shortCode}`, stroke: "var(--televote)", strokeWidth: 3 },
+                   ]}
+                 />
               </div>
             ) : (
               <div role="status">

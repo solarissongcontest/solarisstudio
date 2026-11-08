@@ -258,6 +258,25 @@ test("Confirmation remains an immediate maintenance destination", async ({ page 
   await expect(page.getByRole("heading", { name: "Your delegation keeps moving." })).toBeVisible();
 });
 
+test("protected recovery page has visible login while the ordinary Worker write gate stays closed", async ({ page, request }) => {
+  const hosted = collectHostedSupabaseRequests(page);
+  const response = await page.goto("/maintenance/recovery", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(200);
+  expect(response?.headers()["content-type"]).toContain("text/html");
+  await expect(page.getByRole("heading", { name: "Protected platform recovery" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in as a Solaris Organizer" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in and inspect state" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /publish/i })).toHaveCount(0);
+
+  const blockedWrite = await request.post("/maintenance/recovery", { data: { probe: true } });
+  expect(blockedWrite.status()).toBe(503);
+  const unauthenticatedPreflight = await request.post("/api/maintenance-platform-preflight", {
+    data: { targetMode: "degraded" },
+  });
+  expect(unauthenticatedPreflight.status()).toBe(401);
+  expect(hosted, "recovery test must never contact hosted Supabase").toEqual([]);
+});
+
 test("maintenance mode blocks writes instead of forwarding them to app services", async ({ request }) => {
   const response = await request.post("/", { data: { probe: "maintenance-write-block" } });
   expect(response.status()).toBe(503);

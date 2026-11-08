@@ -13,7 +13,6 @@ import {
   useState,
 } from "react";
 
-import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import { archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 
@@ -1629,16 +1628,8 @@ function LegacySplash({
         }}
       />
 
-      <motion.div
-        initial={{
-          opacity: 0,
-          scale: 0.95,
-        }}
-        animate={{
-          opacity: 1,
-          scale: 1,
-        }}
-        className="relative grid h-full w-full place-items-center px-8 text-center"
+      <div
+        className="solaris-native-broadcast-enter relative grid h-full w-full place-items-center px-8 text-center"
       >
         <div>
           <h2
@@ -1655,7 +1646,7 @@ function LegacySplash({
             {subtitle}
           </p>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
