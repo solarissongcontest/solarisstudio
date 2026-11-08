@@ -155,6 +155,9 @@ export function WorldLanding() {
           <Link to="/countries" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-5 text-sm font-semibold">
             <Globe2 className="size-4" aria-hidden="true" /> Discover countries
           </Link>
+          <Link to="/world/documents" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-5 text-sm font-semibold">
+            Official documents
+          </Link>
         </div>
       </div>
       <section className="mt-12 border-t border-border pt-8" aria-labelledby="world-institutions-title">
