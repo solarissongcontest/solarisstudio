@@ -44,13 +44,17 @@ try {
   const output = { ...report, frontier };
   if (args.includes("--json")) console.log(JSON.stringify(output, null, 2));
   else {
-    console.log(`V3 schema-effect reconciliation (${candidateSha}): ${report.manifestValid ? "RECONCILED" : "BLOCKED"}`);
+    const status = !report.manifestValid ? "INVALID" : report.evidenceComplete ? "EVIDENCE COMPLETE" : "UNRESOLVED";
+    console.log(`V3 schema-effect reconciliation (${candidateSha}): ${status}`);
     console.log(`Audited holes: ${report.reconciledVersions.length}; pending repository migrations: ${report.pendingVersions.length}`);
     for (const error of report.errors) console.error(`BLOCKER: ${error}`);
+    if (report.unresolvedVersions.length) {
+      console.error(`BLOCKER: uncertain SQL effects remain at ${report.unresolvedVersions.join(", ")}`);
+    }
   }
   // Effect reconciliation deliberately runs while the metadata frontier still
   // reports historical holes; forward-only adoption must close those holes later.
-  if (!report.manifestValid) process.exit(1);
+  if (!report.evidenceComplete) process.exit(1);
 } catch (error) {
   console.error(`FAIL CLOSED: could not validate schema-effect evidence: ${error instanceof Error ? error.message : String(error)}`);
   process.exit(2);
