@@ -172,14 +172,12 @@ jobs:
             echo "VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=$local_key"
             echo "CONFIRMATIONS_SUPABASE_URL=$local_url"
             echo "CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=$local_key"
-            echo "SUPABASE_PROJECT_ID=local"
-            # SUPABASE_PROJECT_REF is also used by the Supabase CLI to select
-            # Docker containers. The local stack was started using the
-            # project_id in supabase/config.toml, so exporting "local" here
-            # makes the seeder's later 'supabase status' seek supabase_db_local
-            # instead of the running disposable container. Keep the CLI's
-            # actual local project identity; VITE and Worker identities are
-            # explicitly isolated below.
+            # SUPABASE_PROJECT_ID and SUPABASE_PROJECT_REF both affect the
+            # Supabase CLI's Docker container selection. After 'supabase start'
+            # uses the disposable project_id from supabase/config.toml, do NOT
+            # export either override to later CLI commands: the seed helper's
+            # 'supabase status' would seek nonexistent supabase_db_local.
+            # Keep browser VITE aliases and the separate local Worker bindings.
             echo "VITE_SUPABASE_PROJECT_ID=local"
             echo "VITE_SUPABASE_PROJECT_REF=local"
           } >> "$GITHUB_ENV"
