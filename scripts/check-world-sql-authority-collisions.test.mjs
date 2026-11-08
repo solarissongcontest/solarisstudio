@@ -23,6 +23,13 @@ test('finds the colliding legal archive RPC signature despite different argument
   assert.equal(report.collisions[0].object, 'function:public.world_get_public_legal_archive_v1(text,text,int4,int4)');
 });
 
+test('normalizes arbitrary SQL argument names rather than only p_* conventions', () => {
+  const old = 'CREATE FUNCTION public.fn(organization text, document text, before_version integer) RETURNS void AS $$ SELECT NULL $$ LANGUAGE sql;';
+  const newer = 'CREATE FUNCTION public.fn(p_org text, doc_slug text, p_before int4) RETURNS void AS $$ SELECT NULL $$ LANGUAGE sql;';
+  const report = auditSnapshot(snapshot([file('a', old)], [file('b', newer)]));
+  assert.equal(report.collisions[0].object, 'function:public.fn(text,text,int4)');
+});
+
 test('distinguishes distinct overloads', () => {
   const report = auditSnapshot(snapshot([file('a', 'CREATE FUNCTION public.f(p_x uuid) RETURNS uuid AS $$ SELECT null::uuid $$ LANGUAGE sql;')], [file('b', 'CREATE FUNCTION public.f(p_x text) RETURNS text AS $$ SELECT null::text $$ LANGUAGE sql;')]));
   assert.equal(report.collisions.length, 0);
