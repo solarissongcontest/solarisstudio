@@ -247,9 +247,9 @@
       "id": "QA-PR2386",
       "capability": "Integrated privacy, local CI authority and recursive bundle protections",
       "classification": "hard",
-      "status": "in_progress",
+      "status": "closed",
       "sourceOfAuthority": "Critical infrastructure isolation rules; System plan security; Final-week Sprint 8–13 Nov",
-      "technicalRootCause": "PR #2386 unmerged; Browser audit failed during third-party CLI installation with HTTP 504, before tests started. Privacy and egress changes require integration and proof.",
+      "technicalRootCause": "RESOLVED on current main: privacy, locally isolated browser audit and recursive bundle protections from PR #2386 were merged at 61848041e8a9e238cdffd0d062f49660bd718e7e on 2026-11-08T10:00:14Z. Exact-release-candidate S14/S15/S16 and security certification remain independently required.",
       "owner": "QA / Integrator",
       "dependencies": [],
       "relatedPRs": [
@@ -260,13 +260,23 @@
         "Exact-head Quality and focused security tests",
         "Full review, non-overlap and merge eligibility"
       ],
-      "nextAction": "Re-run the failed infrastructure job without weakening isolation; merge only if all required gates and ownership checks pass.",
+      "nextAction": "No additional #2386 integration action. Rerun the full exact-SHA release acceptance matrix at the eventual frozen candidate; do not infer V3 certification from this PR-local pass.",
       "targetDate": "2026-11-08",
       "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
       "evidence": [
-        "PR #2386 head a67602e...",
-        "Browser run 42466573609: supabase/setup-cli@v1 HTTP 504",
-        "S13/S15/bundle/freshness PR checks passed at inspection"
+        "GitHub PR #2386: merged 2026-11-08T10:00:14Z, merge commit 61848041e8a9e238cdffd0d062f49660bd718e7e",
+        "PR head e5a6d3269950e801ead9146344c52a32d0f87c66: Quality, Browser audit, S13, S15, bundle budget and main freshness checks succeeded",
+        "Main search confirms merge commit 61848041e8a9e238cdffd0d062f49660bd718e7e is current as inspected on 2026-11-08"
+      ],
+      "closureEvidence": [
+        {
+          "verifiedSha": "61848041e8a9e238cdffd0d062f49660bd718e7e",
+          "test": "GitHub PR #2386 merged=true, mergedAt=2026-11-08T10:00:14Z, merge commit matches latest inspected main"
+        },
+        {
+          "verifiedSha": "e5a6d3269950e801ead9146344c52a32d0f87c66",
+          "test": "GitHub Actions exact PR head Quality/Browser audit/S13/S15/client bundle/main freshness completed success"
+        }
       ]
     },
     {
