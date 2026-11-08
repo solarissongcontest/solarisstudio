@@ -12,18 +12,24 @@ export async function assertCombinedPublicationContextServer(input: {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const db = supabaseAdmin as any;
 
-  const [{ data: sources, error: sourceError }, { data: bindings, error: bindingError }] =
-    await Promise.all([
-      televotingAdmin
-        .from("televote_aggregation_sources")
-        .select("source_round_id,enabled")
-        .eq("aggregation_id", input.aggregationId),
-      db
+  const { data: sources, error: sourceError } = await televotingAdmin
+    .from("televote_aggregation_sources")
+    .select("source_round_id,enabled")
+    .eq("aggregation_id", input.aggregationId);
+  if (sourceError) throw new Error(sourceError.message);
+  const sourceRoundIds = [
+    ...new Set(
+      (sources ?? [])
+        .filter((source: any) => source.enabled && source.source_round_id)
+        .map((source: any) => String(source.source_round_id)),
+    ),
+  ];
+  const { data: bindings, error: bindingError } = sourceRoundIds.length
+    ? await db
         .from("televoting_round_bindings")
         .select("remote_round_id,edition_id,show_id")
-        .not("show_id", "is", null),
-    ]);
-  if (sourceError) throw new Error(sourceError.message);
+        .in("remote_round_id", sourceRoundIds)
+    : { data: [], error: null };
   if (bindingError) throw new Error(bindingError.message);
 
   const showIds = [...new Set((bindings ?? []).map((binding: any) => String(binding.show_id)))];

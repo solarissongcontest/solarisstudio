@@ -17,6 +17,7 @@ import {
   deleteMergedCombinedAggregation,
   deleteMergedCombinedSource,
   getMergedCombinedAggregation,
+  getPublishedCombinedRecovery,
   listMergedCombinedAggregations,
   recalculateMergedCombined,
   reconcilePublishedCombinedResults,
@@ -99,6 +100,7 @@ function CombinedResultsPage() {
   const getAdmin = useServerFn(getMergedTelevotingAdmin);
   const listFn = useServerFn(listMergedCombinedAggregations);
   const detailFn = useServerFn(getMergedCombinedAggregation);
+  const recoveryFn = useServerFn(getPublishedCombinedRecovery);
   const createFn = useServerFn(createMergedCombinedAggregation);
   const updateFn = useServerFn(updateMergedCombinedAggregation);
   const participantFn = useServerFn(setMergedCombinedParticipants);
@@ -308,6 +310,7 @@ function CombinedResultsPage() {
               recalcFn={recalcFn}
               statusFn={statusFn}
               reconcilePublishedFn={reconcilePublishedFn}
+              recoveryFn={recoveryFn}
               publicationContext={{
                 editionId: search.editionId,
                 showId: search.showId,
@@ -335,6 +338,7 @@ function CombinedWorkspace({
   recalcFn,
   statusFn,
   reconcilePublishedFn,
+  recoveryFn,
   publicationContext,
   deleteFn,
   onDeleted,
@@ -347,7 +351,25 @@ function CombinedWorkspace({
   const [publishOpen, setPublishOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
-  const [recoveryRequired, setRecoveryRequired] = useState(false);
+  const recoveryQuery = useQuery({
+    queryKey: [
+      "merged-combined-recovery",
+      aggregation.id,
+      publicationContext?.editionId ?? "",
+      publicationContext?.showId ?? "",
+    ],
+    queryFn: () =>
+      recoveryFn({
+        data: {
+          id: aggregation.id,
+          expectedEditionId: publicationContext?.editionId,
+          expectedShowId: publicationContext?.showId,
+        },
+      }),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    enabled: aggregation.status === "published",
+  });
 
   useEffect(() => {
     setName(aggregation.name);
@@ -355,7 +377,6 @@ function CombinedWorkspace({
     setExponent(String(aggregation.rank_exponent));
     setPublishOpen(false);
     setDeleteOpen(false);
-    setRecoveryRequired(false);
   }, [
     aggregation.id,
     aggregation.name,
@@ -501,7 +522,6 @@ function CombinedWorkspace({
       await onRefresh();
     } catch (error) {
       if (status === "published" && (error as Error).message.includes("Combined Televote published")) {
-        setRecoveryRequired(true);
         await onRefresh();
         toast.error("Publication committed, but Solaris Results still need reconciliation.");
         return;
@@ -522,7 +542,6 @@ function CombinedWorkspace({
           expectedShowId: publicationContext?.showId,
         },
       });
-      setRecoveryRequired(false);
       toast.success(result.message ?? "Published Combined Televote reconciled");
       await onRefresh();
     } catch (error) {
@@ -550,16 +569,31 @@ function CombinedWorkspace({
   return (
     <>
       <section className="glass p-4 sm:p-6">
-        {recoveryRequired ? (
+        {recoveryQuery.data?.canonical !== "reconciled" &&
+        aggregation.status === "published" ? (
           <div className="mb-4 rounded-xl border border-amber-200/20 bg-amber-200/[0.06] p-4" role="alert">
-            <p className="text-sm font-semibold text-amber-100">Publication needs reconciliation</p>
+            <p className="text-sm font-semibold text-amber-100">
+              {recoveryQuery.data?.canonical === "missing"
+                ? "Publication needs reconciliation"
+                : "Publication recovery status is unavailable"}
+            </p>
             <p className="mt-1 text-xs leading-5 text-amber-50/80">
-              The Combined result is published, but Solaris Results was not updated. Retry the
-              governed reconciliation before attempting any other publication action.
+              Solaris will not claim that official Results are synchronized until the canonical
+              projection is confirmed after publication.
             </p>
             <Button className="mt-3" onClick={() => void reconcilePublished()} disabled={actionBusy}>
               <RefreshCw className="mr-2 h-4 w-4" /> Retry canonical reconciliation
             </Button>
+          </div>
+        ) : null}
+        {recoveryQuery.data?.canonical === "reconciled" &&
+        recoveryQuery.data.snapshot === "incomplete" ? (
+          <div className="mb-4 rounded-xl border border-sky-200/20 bg-sky-200/[0.06] p-4" role="status">
+            <p className="text-sm font-semibold text-sky-100">Public detail is rebuilding</p>
+            <p className="mt-1 text-xs leading-5 text-sky-50/80">
+              Official Results are synchronized. Public contribution detail is independently
+              rebuildable and is not being presented as complete yet.
+            </p>
           </div>
         ) : null}
         <div className="grid gap-3 lg:grid-cols-[2fr_1fr_1fr_auto] lg:items-end">

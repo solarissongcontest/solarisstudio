@@ -232,6 +232,22 @@ export const reconcilePublishedCombinedResults = createServerFn({ method: "POST"
     return result;
   });
 
+export const getPublishedCombinedRecovery = createServerFn({ method: "POST" })
+  .inputValidator(
+    (data: { id: string; expectedEditionId?: string; expectedShowId?: string }) => {
+      if (!data?.id) throw new Error("Missing aggregation id");
+      return data;
+    },
+  )
+  .handler(async ({ data }) => {
+    const { getPublishedCombinedRecoveryServer } =
+      await import("@/integrations/televoting/results-sync.server");
+    return getPublishedCombinedRecoveryServer(data.id, {
+      editionId: data.expectedEditionId,
+      showId: data.expectedShowId,
+    });
+  });
+
 export const deleteMergedCombinedAggregation = createServerFn({ method: "POST" })
   .inputValidator((data: { id: string }) => {
     if (!data?.id) throw new Error("Missing aggregation id");

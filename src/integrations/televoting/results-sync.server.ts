@@ -1,6 +1,7 @@
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 import { assertCombinedPublicationContextServer } from "@/integrations/televoting/combined-context.server";
+import { assessCombinedPublicationRecovery } from "@/integrations/televoting/combined-recovery";
 
 export type SolarisResultSyncOutcome = {
   ok: boolean;
@@ -16,6 +17,7 @@ export type SolarisResultSyncOutcome = {
   showId?: string;
   imported?: number;
   message?: string;
+  snapshotStatus?: "not_required" | "complete" | "incomplete";
 };
 
 type ImportRow = {
@@ -324,6 +326,7 @@ export async function syncPublishedCombinedResultsToSolarisServer(
     })),
   });
 
+  let snapshotStatus: SolarisResultSyncOutcome["snapshotStatus"] = "not_required";
   if (outcome.ok) {
     const contributionByRoundCountry = new Map<string, Record<string, number>>();
     if (sourceRoundIds.length) {
@@ -404,15 +407,103 @@ export async function syncPublishedCombinedResultsToSolarisServer(
           .insert(snapshotRows);
         if (snapshotError) throw snapshotError;
       }
+      snapshotStatus = "complete";
     } catch (caught) {
       console.error(
         "[Televoting result sync] Could not refresh Combined Televote public snapshot",
         caught,
       );
+      snapshotStatus = "incomplete";
     }
   }
 
-  return outcome;
+  return { ...outcome, snapshotStatus };
+}
+
+export async function getPublishedCombinedRecoveryServer(
+  aggregationId: string,
+  expectedContext?: { editionId?: string; showId?: string },
+) {
+  await requireMergedTelevotingAdminServer();
+  const target = await assertCombinedPublicationContextServer({
+    aggregationId,
+    expectedEditionId: expectedContext?.editionId,
+    expectedShowId: expectedContext?.showId,
+  });
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const db = supabaseAdmin as any;
+  const { data: aggregation, error: aggregationError } = await televotingAdmin
+    .from("televote_aggregations")
+    .select("id,status,calculation_version,results_outdated")
+    .eq("id", aggregationId)
+    .maybeSingle();
+  if (aggregationError) throw new Error(aggregationError.message);
+  if (!aggregation) throw new Error("Combined result not found");
+
+  const { data: sourceRows, error: sourceError } = await televotingAdmin
+    .from("combined_televote_results")
+    .select("country_code,final_combined_points,source_contributions")
+    .eq("aggregation_id", aggregationId)
+    .eq("calculation_version", Number(aggregation.calculation_version ?? 0));
+  if (sourceError) throw new Error(sourceError.message);
+
+  const sourceProjection = (sourceRows ?? []).map((row: any) => ({
+    countryCode: normaliseCode(row.country_code),
+    points: Number(row.final_combined_points ?? 0),
+  }));
+  const expectedSnapshotRowCount = (sourceRows ?? []).reduce(
+    (count: number, row: any) =>
+      count + combinedSourceContributions(row.source_contributions).length,
+    0,
+  );
+  const codes = [...new Set(sourceProjection.map((row) => row.countryCode))];
+  const { data: countries, error: countryError } = codes.length
+    ? await db.from("countries").select("id,short_code").in("short_code", codes)
+    : { data: [], error: null };
+  if (countryError) throw new Error(countryError.message);
+  const countryIds = (countries ?? []).map((country: any) => String(country.id));
+  const countryCodeById = new Map(
+    (countries ?? []).map((country: any) => [
+      String(country.id),
+      normaliseCode(country.short_code),
+    ]),
+  );
+  const { data: projectionRows, error: projectionError } = countryIds.length
+    ? await db
+        .from("televote_votes")
+        .select("country_id,points")
+        .eq("show_id", target.showId)
+        .in("country_id", countryIds)
+    : { data: [], error: null };
+  if (projectionError) throw new Error(projectionError.message);
+
+  const canonicalProjection = (projectionRows ?? [])
+    .map((row: any) => ({
+      countryCode: countryCodeById.get(String(row.country_id)) ?? "",
+      points: Number(row.points ?? 0),
+    }))
+    .filter((row: any) => row.countryCode);
+  const { count: snapshotCount, error: snapshotError } = await db
+    .from("public_televote_country_contributions")
+    .select("id", { count: "exact", head: true })
+    .eq("show_id", target.showId)
+    .neq("source_type", "live");
+  if (snapshotError) throw new Error(snapshotError.message);
+
+  return {
+    aggregationId,
+    editionId: target.editionId,
+    showId: target.showId,
+    ...assessCombinedPublicationRecovery({
+      published: aggregation.status === "published" && !aggregation.results_outdated,
+      sourceRows: sourceProjection,
+      projectionRows: canonicalProjection,
+      snapshot: {
+        rowCount: Number(snapshotCount ?? 0),
+        expectedRowCount: expectedSnapshotRowCount,
+      },
+    }),
+  };
 }
 
 export async function trySyncPublishedRoundResultsToSolarisServer(roundId: string) {

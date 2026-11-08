@@ -13,6 +13,10 @@ const sync = readFileSync(
   "src/integrations/televoting/results-sync.server.ts",
   "utf8",
 );
+const contextServer = readFileSync(
+  "src/integrations/televoting/combined-context.server.ts",
+  "utf8",
+);
 
 describe("Combined publication recovery", () => {
   it("uses the governed Solaris reconciliation command", () => {
@@ -27,5 +31,17 @@ describe("Combined publication recovery", () => {
     expect(route).toContain("Retry canonical reconciliation");
     expect(sync).toContain('"v3_reconcile_published_televote"');
     expect(route).not.toContain("v3_reconcile_published_televote\" as a correction");
+  });
+
+  it("derives recovery after reload and narrows binding reads", () => {
+    expect(route).toContain('"merged-combined-recovery"');
+    expect(route).toContain("refetchOnWindowFocus: true");
+    expect(contextServer).toContain('.in("remote_round_id", sourceRoundIds)');
+    expect(contextServer).not.toContain('.not("show_id", "is", null)');
+  });
+
+  it("classifies snapshot failures without claiming canonical recovery failed", () => {
+    expect(sync).toContain('snapshotStatus = "incomplete"');
+    expect(sync).toContain("Could not refresh Combined Televote public snapshot");
   });
 });
