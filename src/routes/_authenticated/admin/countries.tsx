@@ -3,11 +3,16 @@ import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-r
 import { AlertTriangle, ArrowRight, Flag, Search } from 'lucide-react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
+import { useAuthenticatedUser } from '@/components/auth/AuthenticatedUserContext';
 import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
 import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useEditions } from '@/lib/data';
+import {
+  canExposeOrganizerCountryCockpitRows,
+  resolveOrganizerCountryCockpitPrivateScope,
+} from '@/lib/v3-organizer-country-cockpit-private-query';
 import {
   loadStudio2CountryCockpit,
   matchesStudio2CountryCockpitQuery,
@@ -103,21 +108,33 @@ function CountriesRoute() {
 
 function CountriesCockpitPage() {
   const { editionId } = useAdminContext();
+  const { id: actorId } = useAuthenticatedUser();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const editionsQuery = useEditions();
   const editions = editionsQuery.data ?? [];
-  const selectedEdition = selectOrganizerEdition(editions, editionId);
+  // Public edition metadata does not authorize an Organizer private read.
+  // Revalidation must complete before any old scope can be displayed.
+  const editionVerified =
+    editionsQuery.isSuccess && !editionsQuery.error && !editionsQuery.isFetching;
+  const selectedEdition = editionVerified ? selectOrganizerEdition(editions, editionId) : null;
   const resolvedEditionId = selectedEdition?.id ?? '';
+  const privateScope = { actorId, editionId: resolvedEditionId, editionVerified };
+  const cockpitAuthority = resolveOrganizerCountryCockpitPrivateScope(privateScope);
 
   const cockpitQuery = useQuery({
-    queryKey: ['studio2-country-cockpit', resolvedEditionId || 'none'],
-    enabled: Boolean(resolvedEditionId),
+    queryKey: cockpitAuthority.queryKey,
+    enabled: cockpitAuthority.enabled,
     queryFn: () => loadStudio2CountryCockpit(resolvedEditionId),
-    staleTime: 20_000,
+    // Inactive private snapshots are never reusable across account switches.
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: false,
   });
 
-  const rows = cockpitQuery.data ?? [];
+  const canExposeRows = canExposeOrganizerCountryCockpitRows(privateScope, cockpitQuery);
+  const rows = canExposeRows ? cockpitQuery.data ?? [] : [];
   const queryValue = search.q ?? '';
   const stateFilter = search.state ?? 'all';
   const filteredRows = sortStudio2CountryCockpitOperationally(
@@ -273,17 +290,9 @@ function CountriesCockpitPage() {
           </details>
         </AdminCard>
 
-        {!selectedEdition && !editionsQuery.isLoading ? (
+        {!actorId ? (
           <AdminCard>
-            <AdminEmptyState
-              icon={Flag}
-              title="No edition selected"
-              description="Select an edition before the country cockpit can build its readiness matrix. Solaris will not substitute another edition for missing or stale Organizer context."
-            />
-          </AdminCard>
-        ) : cockpitQuery.isLoading || editionsQuery.isLoading ? (
-          <AdminCard>
-            <p className="py-12 text-center text-sm text-muted-foreground">Building delegation readiness…</p>
+            <p className="py-12 text-center text-sm text-muted-foreground">Verifying Organizer account before reading private delegation readiness…</p>
           </AdminCard>
         ) : error ? (
           <AdminCard>
@@ -292,6 +301,18 @@ function CountriesCockpitPage() {
               title="Country cockpit could not load"
               description={errorText(error)}
             />
+          </AdminCard>
+        ) : !selectedEdition && editionVerified ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={Flag}
+              title="No edition selected"
+              description="Select an edition before the country cockpit can build its readiness matrix. Solaris will not substitute another edition for missing or stale Organizer context."
+            />
+          </AdminCard>
+        ) : !canExposeRows ? (
+          <AdminCard>
+            <p className="py-12 text-center text-sm text-muted-foreground">Verifying account, edition and current delegation readiness…</p>
           </AdminCard>
         ) : (
           <>

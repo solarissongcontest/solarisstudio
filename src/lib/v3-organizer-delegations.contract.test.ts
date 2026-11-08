@@ -94,7 +94,12 @@ describe('V3 Organizer Delegations context boundary', () => {
     expect(delegationsRoute).toContain('Browse delegation roster');
     expect(delegationsRoute).toContain(') : undefined}');
     expect(countriesRoute).toContain("const cockpitQuery = useQuery({");
-    expect(countriesRoute).toContain("enabled: Boolean(resolvedEditionId)");
+    // Country Cockpit must now require both an authenticated actor and a verified edition.
+    // A bare edition id is no longer sufficient to enable its privileged reader.
+    expect(countriesRoute).toContain('const cockpitAuthority = resolveOrganizerCountryCockpitPrivateScope(privateScope);');
+    expect(countriesRoute).toContain('enabled: cockpitAuthority.enabled');
+    expect(countriesRoute).toContain('canExposeOrganizerCountryCockpitRows(privateScope, cockpitQuery)');
+    expect(countriesRoute).not.toContain('enabled: Boolean(resolvedEditionId)');
     const headerLink = delegationsRoute.indexOf('Browse delegation roster');
     const requirementsError = delegationsRoute.indexOf('requirementsQuery.isError ? (');
     expect(headerLink).toBeGreaterThan(0);
