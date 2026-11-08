@@ -44,6 +44,7 @@ describe("V3 production schema-effect reconciliation", () => {
     };
     const report = reconcileV3ProductionSchemaEffects({ candidateSha: sha, frontier: current, manifest });
     expect(report.manifestValid).toBe(true);
+    expect(report.evidenceComplete).toBe(true);
     expect(report.productionDeploymentAuthorized).toBe(false);
     expect(report.reconciledVersions).toEqual(["20261017100000"]);
   });
@@ -69,6 +70,44 @@ describe("V3 production schema-effect reconciliation", () => {
     expect(report.errors.join("\n")).toMatch(/candidateSha|forwardPlan/);
   });
 
+
+  it("does not call a syntactically valid but uncertain catalog manifest reconciled", () => {
+    const current = frontier();
+    const template = buildV3SchemaEffectManifestTemplate(sha, current);
+    const manifest = {
+      ...template,
+      entries: [{
+        ...template.entries[0],
+        classification: "effect-uncertain",
+        evidenceRefs: ["read-only-catalog:2026-11-08"],
+        forwardPlan: "Review exact hosted object definition before approving forward recovery",
+      }],
+    };
+    const report = reconcileV3ProductionSchemaEffects({ candidateSha: sha, frontier: current, manifest });
+    expect(report.manifestValid).toBe(true);
+    expect(report.evidenceComplete).toBe(false);
+    expect(report.unresolvedVersions).toEqual([migration(hole).version]);
+    expect(report.productionDeploymentAuthorized).toBe(false);
+  });
+
+  it("rejects unsupported present-effect claims without any evidence reference", () => {
+    const current = frontier();
+    const template = buildV3SchemaEffectManifestTemplate(sha, current);
+    const manifest = {
+      ...template,
+      entries: [{
+        ...template.entries[0],
+        classification: "effect-present",
+        evidenceRefs: [],
+        forwardPlan: null,
+      }],
+    };
+    const report = reconcileV3ProductionSchemaEffects({ candidateSha: sha, frontier: current, manifest });
+    expect(report.manifestValid).toBe(false);
+    expect(report.evidenceComplete).toBe(false);
+    expect(report.errors.join("\n")).toMatch(/non-empty unique evidenceRefs/);
+  });
+
   it("keeps pending newer migrations separate from historical holes", () => {
     const current = frontier();
     const manifest = buildV3SchemaEffectManifestTemplate(sha, current);
@@ -80,5 +119,6 @@ describe("V3 production schema-effect reconciliation", () => {
     const source = readFileSync("scripts/check-v3-production-schema-effects.ts", "utf8");
     expect(source).not.toMatch(/supabase\.co|SUPABASE_(?:URL|SERVICE_ROLE)|migration (?:up|push)/i);
     expect(source).not.toMatch(/\b(?:fetch|createClient)\s*\(/);
+    expect(source).toContain("if (!report.evidenceComplete) process.exit(1)");
   });
 });
