@@ -9,6 +9,7 @@ import {
   V3_SYSTEM_CONCEPT_OWNER,
   V3_SYSTEM_DOMAIN_REGISTRY,
 } from "../src/lib/v3-capability-registry";
+import { buildV3CapabilityGapInventory } from "../src/lib/v3-capability-gap-inventory";
 import { evaluateV3NavigationRuntimeEvidence } from "../src/lib/v3-qa-navigation-runtime-evidence";
 import {
   V3_PUBLIC_DIRECTORY_EVIDENCE,
@@ -582,6 +583,13 @@ const directoryRows: EvidenceRow[] = V3_PUBLIC_DIRECTORY_EVIDENCE.map((directory
   };
 });
 
+const capabilityGapInventory = buildV3CapabilityGapInventory({
+  publicCapabilities: V3_PUBLIC_CAPABILITIES,
+  organizerCapabilities: V3_ORGANIZER_CAPABILITY_REGISTRY,
+  consequences: V3_DOMAIN_CONSEQUENCE_REGISTRY,
+  systemDomains: V3_SYSTEM_DOMAIN_REGISTRY,
+});
+
 const blockers = [...systemRows, ...publicRows, ...organizerRows, ...navigationRows, ...navigationAcceptanceRows, ...directoryRows]
   .filter((row) => row.blocker)
   .map((row) => `${row.id} ${row.name}: ${row.blocker}`);
@@ -598,6 +606,7 @@ const payload = {
   navigationAcceptance: navigationAcceptanceRows,
   directories: directoryRows,
   directoryRegistryIssues,
+  capabilityGapInventory,
   registrySummary: {
     public: Object.fromEntries(countStatus(V3_PUBLIC_CAPABILITIES, (item) => item.specificationStatus)),
     organizer: Object.fromEntries(countStatus(V3_ORGANIZER_CAPABILITY_REGISTRY, (item) => item.migrationStatus)),
@@ -660,6 +669,16 @@ if (process.argv.includes("--json")) {
     `- Physical ownership audits pending: **${pendingPhysicalDomains.length}**`,
     `- Declared cross-domain consequences: **${V3_DOMAIN_CONSEQUENCE_REGISTRY.length}**`,
     `- Event-backed consequences: **${eventBackedConsequences.length}**`,
+    "",
+    "## Named source-owned capability gaps",
+    "",
+    "The machine-readable JSON includes each unresolved Public and Organizer capability ID, owning domain and target route; each declaration-only consequence event; and every pending physical-ownership domain. Source status is **not** runtime acceptance evidence.",
+    "",
+    `- Public capabilities not cut over/retired: **${capabilityGapInventory.unresolved.publicCapabilities.length}**`,
+    `- Organizer capabilities not cut over/retired: **${capabilityGapInventory.unresolved.organizerCapabilities.length}**`,
+    `- Declared-only domain consequences: **${capabilityGapInventory.unresolved.consequences.length}**`,
+    `- Pending physical ownership domains: **${capabilityGapInventory.unresolved.physicalOwnership.length}**`,
+    `- Duplicate source IDs: **${Object.values(capabilityGapInventory.duplicateIdentifiers).flat().length}**`,
     "",
     "## Current release blockers",
     "",
