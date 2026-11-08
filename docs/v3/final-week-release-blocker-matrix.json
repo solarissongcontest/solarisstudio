@@ -10,7 +10,8 @@
     "This is an evidence-backed INITIAL critical-path matrix, NOT an exhaustive full-V3 capability certification. Unknown work is not silently classified as done.",
     "verificationSha identifies the inspected source baseline, not proof of a passing acceptance test or hosted schema parity.",
     "Production history counts below are 2026-11-07 observations only. A release decision needs new authorized read-only evidence.",
-    "Normal CI, E2E and migration tests must use isolated local Supabase; hosted production actions require separate explicit approval."
+    "Normal CI, E2E and migration tests must use isolated local Supabase; hosted production actions require separate explicit approval.",
+    "8 Nov Quality output from PR #2386 identified 47 Public and 80 Organizer capabilities below cutover; those values require explicit risk triage rather than automatic blocker classification."
   ],
   "datedProductionEvidence": {
     "observedAt": "2026-11-07",
@@ -428,5 +429,25 @@
         "src/lib/maintenance.ts: GLOBAL_MAINTENANCE_MODE = true"
       ]
     }
-  ]
+  ],
+  "datedSourceInventory": {
+    "evidenceHeadSha": "a67602e26fc52c64d2cf6488b4f97ac7c7112a0b",
+    "inspectedAt": "2026-11-08",
+    "source": "GitHub Actions Quality run 42466573582, V3 release-integrity structural and S15 generated inventory",
+    "publicCapabilitiesNotCutoverOrRetired": 47,
+    "organizerCapabilitiesNotCutoverOrRetired": 80,
+    "domainConsequencesNotEventBacked": 40,
+    "parityCapabilitiesMissingMigrationEvidence": 3,
+    "criticalS14LifecycleConsequencesNotEventBacked": "1 of 14",
+    "s14CriticalCapabilitiesReportedBuilding": [
+      "Public: entry",
+      "Public: results",
+      "Organizer: current-edition-delegations",
+      "Organizer: current-edition-contest",
+      "Organizer: current-edition-voting",
+      "Organizer: current-edition-results",
+      "Organizer: operations-control-room"
+    ],
+    "caution": "These are an implementation/ownership INVENTORY on the stated PR head, not counts of hard release blockers or proof of actual hosted schema effects. #2386 did not edit the capability registry, but this is still not final-candidate evidence."
+  }
 }
