@@ -72,12 +72,11 @@ describe("CI egress safety contracts", () => {
     expect(workflow).toContain('echo "CONFIRMATIONS_SUPABASE_URL=$local_url"');
     expect(workflow).toContain('echo "VITE_SUPABASE_PROJECT_ID=local"');
     expect(workflow).toContain('echo "VITE_SUPABASE_PROJECT_REF=local"');
-    expect(workflow).toContain('echo "SUPABASE_PROJECT_ID=local"');
-    // Supabase CLI uses SUPABASE_PROJECT_REF to select its Docker stack.
-    // Exporting "local" after starting the configured disposable project
-    // causes the seeder's next 'supabase status' to inspect a nonexistent
-    // supabase_db_local container. Preserve the CLI identity, while keeping
-    // the application and Worker identities explicitly pinned to local.
+    // Both plain SUPABASE_PROJECT_ID and SUPABASE_PROJECT_REF override the
+    // Supabase CLI's Docker project selection. Neither may be exported to
+    // GITHUB_ENV after the disposable stack starts from supabase/config.toml.
+    // The browser's VITE aliases and Worker --vars remain strictly local.
+    expect(workflow).not.toContain('echo "SUPABASE_PROJECT_ID=local"');
     expect(workflow).not.toContain('echo "SUPABASE_PROJECT_REF=local"');
     expect(workflow).toContain("supabase status -o env > /tmp/solaris-browser-supabase.env");
     expect(source(".github/scripts/seed-browser-e2e-local.sh")).toContain('eval "$(supabase status -o env)"');
