@@ -157,7 +157,7 @@ jobs:
               !["127.0.0.1", "localhost", "[::1]", "::1"].includes(target.hostname) ||
               !target.port || target.username || target.password ||
               target.pathname !== "/" || target.search || target.hash) {
-            throw new Error("Browser Audit refuses non-local or ambiguous Supabase CLI API_URL");
+            throw new Error("Refusing browser audit against non-local Supabase URL or ambiguous Supabase CLI API_URL");
           }
           NODE
 
