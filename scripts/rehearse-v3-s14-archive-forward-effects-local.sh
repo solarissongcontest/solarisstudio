@@ -283,6 +283,19 @@ fi
   to_regclass('private.v3_domain_event_outbox') is not null)::text")" == true ]] ||
  fail 'Simulated local gap damaged a shared foundation'
 
+# Hosted catalog compatibility negative control: weaken a required column
+# in THIS disposable local database ONLY, prove the preflight blocks the
+# Archive install, then restore exact type/nullability before normal replay.
+sql -c "alter table public.studio2_edition_runtime alter column updated_at drop not null" >/dev/null
+if drift="$(sql -f "$candidate" 2>&1)"; then
+  fail 'Archive recovery accepted hosted critical column nullability drift'
+fi
+[[ "$drift" == *"S14 Archive recovery BLOCKED: hosted critical column drift public.studio2_edition_runtime.updated_at"* ]] ||
+  fail "Archive column-shape refusal did not identify the deliberate drift: $drift"
+[[ "$(sql -c "select to_regclass('private.v3_archive_runtime_transition_gates') is null")" == true ]] ||
+  fail 'Rejected critical-column drift left behind partial Archive DDL'
+sql -c "alter table public.studio2_edition_runtime alter column updated_at set not null" >/dev/null
+
 sql -f "$candidate" >/dev/null
 after="$(fingerprint)"
 if [[ "$before" != "$after" ]]; then
