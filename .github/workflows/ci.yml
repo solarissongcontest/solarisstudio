@@ -68,6 +68,9 @@ jobs:
       - name: Verify V3 production isolation
         run: bun run scripts/check-v3-production-isolation.ts
 
+      - name: Regress fail-closed Playwright/Supabase target guards (offline)
+        run: node --test scripts/lib/require-local-playwright-target.contract.mjs
+
       - name: Regress cross-system sweep classifier (no database or network)
         run: node --test scripts/v3-s14-runtime-defect-sweep.contract.mjs
 

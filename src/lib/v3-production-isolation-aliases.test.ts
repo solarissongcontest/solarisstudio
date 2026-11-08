@@ -3,6 +3,33 @@ import { describe, expect, it } from "vitest";
 import { assertV3ProductionIsolation } from "../../scripts/check-v3-production-isolation";
 
 describe("V3 production isolation Supabase CLI aliases", () => {
+  it("fails closed in CI without any local Supabase URL, including Quality legacy clients", () => {
+    expect(() => assertV3ProductionIsolation({ CI: "true" })).toThrow(/CI requires at least one explicit verified loopback/);
+    expect(() => assertV3ProductionIsolation({ CI: "true", SUPABASE_URL: "https://any-project.supabase.co" })).toThrow(/non-local host/);
+    expect(() => assertV3ProductionIsolation({
+      CI: "true",
+      GITHUB_WORKFLOW: "Quality",
+      SUPABASE_URL: "http://127.0.0.1:54321",
+    })).toThrow(/Quality CI is missing VITE_SUPABASE_URL/);
+    expect(assertV3ProductionIsolation({
+      CI: "true",
+      GITHUB_WORKFLOW: "Quality",
+      VITE_SUPABASE_URL: "http://127.0.0.1:54321",
+      SUPABASE_URL: "http://127.0.0.1:54321",
+      E2E_SUPABASE_URL: "http://127.0.0.1:54321",
+      VITE_CONFIRMATIONS_SUPABASE_URL: "http://127.0.0.1:54321",
+      CONFIRMATIONS_SUPABASE_URL: "http://127.0.0.1:54321",
+    }).loopbackOnly).toBe(true);
+  });
+
+  it("refuses misleading protocol, credentials and HTTP query redirection", () => {
+    for (const value of [
+      "ftp://127.0.0.1:54321",
+      "http://user:pass@127.0.0.1:54321",
+      "http://127.0.0.1:54321/?redirect=https://any-project.supabase.co",
+    ]) expect(() => assertV3ProductionIsolation({ SUPABASE_URL: value })).toThrow();
+  });
+
   it("accepts Supabase CLI aliases only when they are explicitly loopback-scoped", () => {
     const result = assertV3ProductionIsolation({
       API_URL: "http://127.0.0.1:54321",

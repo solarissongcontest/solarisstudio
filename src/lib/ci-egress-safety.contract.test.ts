@@ -34,6 +34,22 @@ describe("CI egress safety contracts", () => {
     }
   });
 
+  it("requires offline negative tests before Quality builds and Browser Audit navigation", () => {
+    const quality = source(".github/workflows/ci.yml");
+    const browser = source(".github/workflows/browser-audit.yml");
+    for (const workflow of [quality, browser]) {
+      expect(workflow).toContain("node --test scripts/lib/require-local-playwright-target.contract.mjs");
+    }
+    expect(quality.indexOf("node --test scripts/lib/require-local-playwright-target.contract.mjs"))
+      .toBeLessThan(quality.indexOf("run: bun run build"));
+    expect(browser).toContain("requireLocalPlaywrightSupabaseEnvironment(process.env)");
+    expect(browser).toContain("bun run scripts/check-v3-production-isolation.ts");
+    const config = source("playwright.config.ts");
+    expect(config).toContain("requireLocalPlaywrightSupabaseEnvironment(process.env)");
+    expect(config).toContain('requireLocalPlaywrightTarget(process.env.E2E_BASE_URL, "http://127.0.0.1:4173")');
+    expect(config).not.toContain("const baseURL = process.env.E2E_BASE_URL ??");
+  });
+
   it("keeps normal Quality CI pinned to loopback Supabase values", () => {
     const workflow = source(".github/workflows/ci.yml");
 
@@ -51,6 +67,9 @@ describe("CI egress safety contracts", () => {
     expect(workflow).toContain("CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321");
     expect(workflow).toContain('echo "VITE_CONFIRMATIONS_SUPABASE_URL=$local_url"');
     expect(workflow).toContain('echo "CONFIRMATIONS_SUPABASE_URL=$local_url"');
+    expect(workflow).toContain('echo "VITE_SUPABASE_PROJECT_ID=local"');
+    expect(workflow).toContain('echo "SUPABASE_PROJECT_REF=local"');
+    expect(workflow).toContain("--var \"SUPABASE_PROJECT_ID:local\"");
   });
 
   it("runs browser regression protection after main changes and makes exhaustive capture explicit", () => {
