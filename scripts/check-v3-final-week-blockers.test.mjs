@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { evaluateFinalWeekBlockers } from "./check-v3-final-week-blockers.mjs";
@@ -19,6 +19,14 @@ const fixture = () => ({
   schemaVersion: 1, scope: "full_solaris_studio_v3", releaseAt: "2026-11-15T20:00:00+02:00",
   snapshotDate: "2026-11-08", baselineMainSha: sha, coverage: "initial_verified_high_priority_only",
   releaseCertified: false, items: [row()],
+});
+
+test("the actual tracked critical-path matrix is structurally valid and explicitly incomplete", () => {
+  const path = fileURLToPath(new URL("../docs/v3/final-week-release-blocker-matrix.json", import.meta.url));
+  const real = JSON.parse(readFileSync(path, "utf8"));
+  assert.deepEqual(evaluateFinalWeekBlockers(real).errors, []);
+  assert.equal(real.coverage, "initial_verified_high_priority_only");
+  assert.equal(real.releaseCertified, false);
 });
 
 test("initial evidence-backed matrix passes structure but has unresolved blockers", () => {
@@ -70,9 +78,9 @@ test("real command-line execution fails closed in release mode (relative entrypo
     const path = join(temp, "matrix.json");
     writeFileSync(path, JSON.stringify(fixture()));
     const script = fileURLToPath(new URL("./check-v3-final-week-blockers.mjs", import.meta.url));
-    const regular = spawnSync(process.execPath, [script, "--file", path], { encoding: "utf8" });
+    const regular = spawnSync(process.execPath, [relative(process.cwd(), script), "--file", path], { encoding: "utf8" });
     assert.equal(regular.status, 0, regular.stderr);
-    const strict = spawnSync(process.execPath, [script, "--file", path, "--release", "--candidate-sha", sha], { encoding: "utf8" });
+    const strict = spawnSync(process.execPath, [relative(process.cwd(), script), "--file", path, "--release", "--candidate-sha", sha], { encoding: "utf8" });
     assert.equal(strict.status, 1, strict.stdout);
     assert.match(strict.stderr, /hard blockers remain/);
   } finally { rmSync(temp, { recursive: true, force: true }); }
