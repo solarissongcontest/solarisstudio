@@ -19,7 +19,7 @@ describe("V3 Organizer Televote totals boundary", () => {
   it("keeps negative canonical sanctions visible without writing them", () => {
     expect(route).toContain("points < 0");
     expect(route).toContain("Sanction");
-    expect(route).toContain("this screen never writes the canonical projection");
+    expect(route).toContain("This screen cannot apply them directly");
     expect(route).not.toContain(".update({ points:");
     expect(route).not.toContain(".insert({");
   });
