@@ -216,14 +216,14 @@ function TelevoteTotalsWorkspace() {
           <div className="flex flex-wrap gap-2">
             <Link
               to="/televoting/admin/combined"
-              search={{ editionId: edition.id, showId: selectedShow?.id }}
+              search={{ editionId: edition.id, showId: selectedShow?.id, view: "corrections" }}
               className="admin-action-primary"
             >
               Review corrections
             </Link>
             <Link
               to="/televoting/admin/combined"
-              search={{ editionId: edition.id, showId: selectedShow?.id }}
+              search={{ editionId: edition.id, showId: selectedShow?.id, view: "health" }}
               className="admin-action-secondary"
             >
               Review publication health

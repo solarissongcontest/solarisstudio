@@ -1,6 +1,7 @@
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 import { assertCombinedPublicationContextServer } from "@/integrations/televoting/combined-context.server";
+import { assertCombinedPublicationContextServer } from "@/integrations/televoting/combined-context.server";
 import {
   COMBINED_ENGINE_VERSION,
   computeCombined,
@@ -74,6 +75,40 @@ export async function listMergedCombinedAggregationsServer() {
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as CombinedAggregation[];
+}
+
+export async function resolveCombinedAggregationsForContextServer(input: {
+  editionId: string;
+  showId: string;
+}) {
+  await requireMergedTelevotingAdminServer();
+  const { data, error } = await televotingAdmin
+    .from("televote_aggregations")
+    .select(
+      "id,edition_id,name,status,calculation_version,calculated_at,published_at,results_outdated,created_at",
+    )
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+
+  const candidates = [];
+  for (const aggregation of data ?? []) {
+    try {
+      const target = await assertCombinedPublicationContextServer({
+        aggregationId: String(aggregation.id),
+        expectedEditionId: input.editionId,
+        expectedShowId: input.showId,
+      });
+      candidates.push({
+        ...aggregation,
+        edition_id: target.editionId,
+        show_id: target.showId,
+      });
+    } catch {
+      // An aggregation without an exact server-validated target is not a
+      // candidate for this Organizer context.
+    }
+  }
+  return candidates;
 }
 
 async function loadAggregation(id: string) {
@@ -293,6 +328,20 @@ export async function getMergedCombinedAggregationServer(id: string) {
     .order("final_rank");
   if (error) throw new Error(error.message);
   return { aggregation, participants, sources, resolved, preview, catalog, stored: stored ?? [] };
+}
+
+export async function getMergedCombinedAggregationForContextServer(input: {
+  id: string;
+  editionId: string;
+  showId: string;
+}) {
+  const target = await assertCombinedPublicationContextServer({
+    aggregationId: input.id,
+    expectedEditionId: input.editionId,
+    expectedShowId: input.showId,
+  });
+  const detail = await getMergedCombinedAggregationServer(input.id);
+  return { ...detail, target };
 }
 
 export async function createMergedCombinedAggregationServer(data: {

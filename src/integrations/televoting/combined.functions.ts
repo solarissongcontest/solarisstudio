@@ -15,6 +15,17 @@ export const listMergedCombinedAggregations = createServerFn({ method: "GET" }).
   },
 );
 
+export const resolveCombinedAggregationsForContext = createServerFn({ method: "POST" })
+  .inputValidator((data: { editionId: string; showId: string }) => {
+    if (!data?.editionId || !data?.showId) throw new Error("Missing edition/show context");
+    return data;
+  })
+  .handler(async ({ data }) => {
+    const { resolveCombinedAggregationsForContextServer } =
+      await import("@/integrations/televoting/combined.server");
+    return resolveCombinedAggregationsForContextServer(data);
+  });
+
 export const getMergedCombinedAggregation = createServerFn({ method: "POST" })
   .inputValidator((data: { id: string }) => {
     if (!data?.id) throw new Error("Missing aggregation id");
@@ -24,6 +35,19 @@ export const getMergedCombinedAggregation = createServerFn({ method: "POST" })
     const { getMergedCombinedAggregationServer } =
       await import("@/integrations/televoting/combined.server");
     return getMergedCombinedAggregationServer(data.id);
+  });
+
+export const getMergedCombinedAggregationForContext = createServerFn({ method: "POST" })
+  .inputValidator((data: { id: string; editionId: string; showId: string }) => {
+    if (!data?.id || !data.editionId || !data.showId) {
+      throw new Error("Missing aggregation context");
+    }
+    return data;
+  })
+  .handler(async ({ data }) => {
+    const { getMergedCombinedAggregationForContextServer } =
+      await import("@/integrations/televoting/combined.server");
+    return getMergedCombinedAggregationForContextServer(data);
   });
 
 export const createMergedCombinedAggregation = createServerFn({ method: "POST" })

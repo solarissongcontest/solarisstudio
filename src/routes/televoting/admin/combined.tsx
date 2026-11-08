@@ -17,10 +17,12 @@ import {
   deleteMergedCombinedAggregation,
   deleteMergedCombinedSource,
   getMergedCombinedAggregation,
+  getMergedCombinedAggregationForContext,
   getPublishedCombinedRecovery,
   listMergedCombinedAggregations,
   recalculateMergedCombined,
   reconcilePublishedCombinedResults,
+  resolveCombinedAggregationsForContext,
   saveMergedCombinedSourceValues,
   setMergedCombinedParticipants,
   setMergedCombinedStatus,
@@ -41,6 +43,8 @@ export const Route = createFileRoute("/televoting/admin/combined")({
   validateSearch: (search: Record<string, unknown>): CombinedSearch => ({
     editionId: typeof search.editionId === "string" ? search.editionId : undefined,
     showId: typeof search.showId === "string" ? search.showId : undefined,
+    aggregationId: typeof search.aggregationId === "string" ? search.aggregationId : undefined,
+    view: search.view === "health" ? "health" : "corrections",
   }),
   component: CombinedResultsPage,
 });
@@ -77,6 +81,8 @@ const INPUT_MODES: Array<[SourceInputMode, string]> = [
 type CombinedSearch = {
   editionId?: string;
   showId?: string;
+  aggregationId?: string;
+  view?: "corrections" | "health";
 };
 
 function emptySource(): SourceDraft {
@@ -100,7 +106,9 @@ function CombinedResultsPage() {
   const getAdmin = useServerFn(getMergedTelevotingAdmin);
   const listFn = useServerFn(listMergedCombinedAggregations);
   const detailFn = useServerFn(getMergedCombinedAggregation);
+  const detailContextFn = useServerFn(getMergedCombinedAggregationForContext);
   const recoveryFn = useServerFn(getPublishedCombinedRecovery);
+  const resolveContextFn = useServerFn(resolveCombinedAggregationsForContext);
   const createFn = useServerFn(createMergedCombinedAggregation);
   const updateFn = useServerFn(updateMergedCombinedAggregation);
   const participantFn = useServerFn(setMergedCombinedParticipants);
@@ -135,9 +143,26 @@ function CombinedResultsPage() {
     enabled: Boolean(admin),
   });
 
+  const hasContext = Boolean(search.editionId && search.showId);
+  const { data: contextAggregations = [], isLoading: contextLoading } = useQuery({
+    queryKey: ["merged-combined-context", search.editionId, search.showId],
+    queryFn: () =>
+      resolveContextFn({
+        data: { editionId: search.editionId!, showId: search.showId! },
+      }),
+    enabled: Boolean(admin && hasContext),
+  });
+
   useEffect(() => {
-    if (!selectedId && !search.editionId && aggregations.length) setSelectedId(aggregations[0]!.id);
-  }, [aggregations, search.editionId, selectedId]);
+    if (search.aggregationId) {
+      setSelectedId(search.aggregationId);
+    } else if (hasContext) {
+      if (contextAggregations.length === 1) setSelectedId(contextAggregations[0]!.id);
+      else setSelectedId("");
+    } else if (!selectedId && aggregations.length) {
+      setSelectedId(aggregations[0]!.id);
+    }
+  }, [aggregations, contextAggregations, hasContext, search.aggregationId, selectedId]);
 
   const { data: editionRounds = [] } = useQuery({
     queryKey: ["merged-televoting-rounds"],
@@ -159,7 +184,16 @@ function CombinedResultsPage() {
     error: detailError,
   } = useQuery({
     queryKey: ["merged-combined-detail", selectedId],
-    queryFn: () => detailFn({ data: { id: selectedId } }),
+    queryFn: () =>
+      hasContext
+        ? detailContextFn({
+            data: {
+              id: selectedId,
+              editionId: search.editionId!,
+              showId: search.showId!,
+            },
+          })
+        : detailFn({ data: { id: selectedId } }),
     enabled: Boolean(admin && selectedId),
   });
 
@@ -190,7 +224,7 @@ function CombinedResultsPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-  if (adminLoading || listLoading) {
+  if (adminLoading || listLoading || (hasContext && contextLoading)) {
     return (
       <section className="glass p-8 text-center text-sm text-muted-foreground">
         Loading Combined Results…
@@ -198,6 +232,57 @@ function CombinedResultsPage() {
     );
   }
   if (!admin) return null;
+
+  if (hasContext && !selectedId) {
+    return (
+      <div className="mx-auto max-w-[1100px] space-y-5 py-2">
+        <AdminPageHeader
+          eyebrow="Televoting · Exact context"
+          title={search.view === "health" ? "Review publication health" : "Review corrections"}
+          description="Select only a server-validated Combined result associated with this exact edition and show."
+        />
+        <section className="glass p-5">
+          {contextAggregations.length ? (
+            <>
+              <p className="text-sm font-semibold">Multiple valid Combined results</p>
+              <div className="mt-3 space-y-2">
+                {contextAggregations.map((aggregation: any) => (
+                  <button
+                    key={aggregation.id}
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-xl border border-white/10 px-4 py-3 text-left hover:bg-white/[0.05]"
+                    onClick={() =>
+                      void navigate({
+                        search: {
+                          ...search,
+                          aggregationId: aggregation.id,
+                        },
+                      })
+                    }
+                  >
+                    <span>
+                      <span className="block font-semibold">{aggregation.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {aggregation.status} · calculation v{aggregation.calculation_version}
+                      </span>
+                    </span>
+                    <span className="text-xs text-muted-foreground">Open</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-semibold">No Combined result is associated</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Nothing can be opened for this edition/show without selecting an unrelated aggregation.
+              </p>
+            </>
+          )}
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-5 py-2">
@@ -312,6 +397,7 @@ function CombinedResultsPage() {
               statusFn={statusFn}
               reconcilePublishedFn={reconcilePublishedFn}
               recoveryFn={recoveryFn}
+              view={search.view}
               publicationContext={{
                 editionId: search.editionId,
                 showId: search.showId,
@@ -340,6 +426,7 @@ function CombinedWorkspace({
   statusFn,
   reconcilePublishedFn,
   recoveryFn,
+  view,
   publicationContext,
   deleteFn,
   onDeleted,
@@ -375,6 +462,7 @@ function CombinedWorkspace({
     recoveryQuery.isError || (!recoveryQuery.isLoading && !recoveryQuery.data);
   const canonicalNeedsRepair =
     recoveryQuery.data?.canonical === "missing" || recoveryQuery.data?.canonical === "mismatch";
+  const canonicalUnverifiable = recoveryQuery.data?.canonical === "unverifiable";
   const snapshotNeedsRepair =
     recoveryQuery.data?.canonical === "reconciled" &&
     recoveryQuery.data.snapshot === "incomplete";
@@ -592,6 +680,17 @@ function CombinedWorkspace({
   return (
     <>
       <section className="glass p-4 sm:p-6">
+        {view === "health" ? (
+          <div className="mb-4 border-b border-white/[0.08] pb-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-sky-200/80">
+              Publication health
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              This view is read-focused. Repair actions use the governed reconciliation path and
+              never edit official points in the browser.
+            </p>
+          </div>
+        ) : null}
         {aggregation.status === "published" && recoveryQuery.isLoading ? (
           <div className="mb-4 rounded-xl border border-white/[0.12] bg-white/[0.035] p-4" role="status">
             <p className="text-sm font-semibold">Checking publication health…</p>
@@ -608,6 +707,31 @@ function CombinedWorkspace({
               was triggered.
             </p>
             <Button className="mt-3" onClick={() => void recoveryQuery.refetch()} disabled={actionBusy}>
+              <RefreshCw className="mr-2 h-4 w-4" /> Check status again
+            </Button>
+          </div>
+        ) : null}
+        {aggregation.status === "published" && aggregation.results_outdated ? (
+          <div className="mb-4 rounded-xl border border-orange-200/20 bg-orange-200/[0.06] p-4" role="alert">
+            <p className="text-sm font-semibold text-orange-100">
+              Official Results are outdated
+            </p>
+            <p className="mt-1 text-xs leading-5 text-orange-50/80">
+              This aggregation has changed since its last calculation. Recalculate and pass the
+              normal lock/publication gates before treating its publication as current.
+            </p>
+          </div>
+        ) : null}
+        {aggregation.status === "published" && canonicalUnverifiable ? (
+          <div className="mb-4 rounded-xl border border-amber-200/20 bg-amber-200/[0.06] p-4" role="alert">
+            <p className="text-sm font-semibold text-amber-100">
+              Unable to verify official publication data
+            </p>
+            <p className="mt-1 text-xs leading-5 text-amber-50/80">
+              Required source, version, or canonical projection data is invalid or incomplete.
+              No reconciliation action is offered until the authoritative state can be verified.
+            </p>
+            <Button className="mt-3" variant="outline" onClick={() => void recoveryQuery.refetch()} disabled={actionBusy}>
               <RefreshCw className="mr-2 h-4 w-4" /> Check status again
             </Button>
           </div>

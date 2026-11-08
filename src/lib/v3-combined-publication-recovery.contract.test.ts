@@ -44,4 +44,19 @@ describe("Combined publication recovery", () => {
     expect(sync).toContain('snapshotStatus = "incomplete"');
     expect(sync).toContain("Could not refresh Combined Televote public snapshot");
   });
+
+  it("keeps unverifiable and outdated publication states safe", () => {
+    expect(route).toContain("Unable to verify official publication data");
+    expect(route).toContain("Check status again");
+    expect(route).toContain("Official Results are outdated");
+    expect(route).toContain("canonicalUnverifiable");
+    expect(route).not.toContain('canonicalUnverifiable ? "Retry canonical reconciliation"');
+  });
+
+  it("resolves Organizer context before selecting a Combined result", () => {
+    expect(functions).toContain("resolveCombinedAggregationsForContext");
+    expect(route).toContain("merged-combined-context");
+    expect(route).toContain("Multiple valid Combined results");
+    expect(route).toContain("No Combined result is associated");
+  });
 });
