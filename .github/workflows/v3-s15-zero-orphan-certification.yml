@@ -106,6 +106,18 @@ jobs:
             --output-dir v3-release-evidence
           cat v3-release-evidence/s15-cutover-triage.md >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Generate S15 release-risk owner-review diagnostics (no waivers)
+        if: always() && steps.checkout.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test scripts/v3-s15-release-risk-review.contract.mjs
+          node scripts/v3-s15-release-risk-review.mjs \
+            --triage v3-release-evidence/s15-cutover-triage.json \
+            --s15 v3-release-evidence/s15-zero-orphan.json \
+            --sha "$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')" \
+            --output-dir v3-release-evidence
+          cat v3-release-evidence/s15-release-risk-review.md >> "$GITHUB_STEP_SUMMARY"
       - name: Upload per-capability S15 owner triage
         if: always()
         uses: actions/upload-artifact@v4
@@ -114,6 +126,9 @@ jobs:
           path: |
             v3-release-evidence/s15-cutover-triage.json
             v3-release-evidence/s15-cutover-triage.md
+            v3-release-evidence/s15-release-risk-review.json
+            v3-release-evidence/s15-release-risk-review.md
+            v3-release-evidence/s15-release-risk-review.template.json
           if-no-files-found: error
           retention-days: 30
 
