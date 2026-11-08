@@ -58,7 +58,15 @@ describe("V3 global Search relevance integration", () => {
     expect(app).toContain('rpc("solaris_public_search"');
     expect(app).toContain("result_limit: 30");
     expect(app).toContain("retry: false");
-    expect(web).toContain("storiesQuery.isError ? [] : storiesQuery.data ?? []");
+    // A cached Story is not a publication grant: require a successful,
+    // freshly fetched source before Search can suggest its headline.
+    expect(web).toContain("const verifiedStoryPreviews = useMemo(");
+    expect(web).toContain("storiesQuery.isSuccess &&");
+    expect(web).toContain("storiesQuery.isFetchedAfterMount &&");
+    expect(web).toContain("!storiesQuery.isFetching &&");
+    expect(web).toContain("!storiesQuery.isError");
+    expect(web).toContain("? storiesQuery.data ?? []");
+    expect(web).toContain("spoilerPreviewVerificationPending ? [] : verifiedStoryPreviews");
     expect(palette).toContain("{normalized.length >= 2 ? (");
   });
 

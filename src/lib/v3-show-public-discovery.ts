@@ -18,23 +18,29 @@ export function publicShowsForDiscovery<
 }
 
 /**
- * Recent links are stored locally and can outlive a publication change.
- * Hide stale show-detail links until a fresh public-show read confirms them.
- * Non-show recents remain owned by their respective discovery surfaces.
+ * Show recents live in shared-device storage and may outlive a rename or
+ * publication reversal. Require a freshly verified public Show identity, then
+ * display the canonical published Show name instead of a cached page title.
+ * A stored title may contain a winner or another spoiler, even when its URL
+ * still points to a public Show. Missing Show names use a neutral fallback.
+ * Other public recent types keep their independent publication policies.
  */
-export function visibleRecentShowDestinations<T extends { path: string }>(
+export function visibleRecentShowDestinations<T extends { path: string; label: string }>(
   recents: readonly T[],
-  publicShows: readonly Pick<Show, "id">[],
+  publicShows: readonly (Pick<Show, "id"> & Partial<Pick<Show, "name">>)[],
 ): T[] {
-  const visibleShowIds = new Set(publicShows.map((show) => show.id));
-  return recents.filter((recent) => {
-    if (!recent.path.startsWith("/shows/")) return true;
+  const publicShowLabels = new Map(
+    publicShows.map((show) => [show.id, show.name?.trim() || "Show"] as const),
+  );
+  return recents.flatMap((recent): T[] => {
+    if (!/^\/shows\//i.test(recent.path)) return [recent];
     const match = /^\/shows\/([^/?#]+)\/?(?:[?#].*)?$/i.exec(recent.path);
-    if (!match) return false;
+    if (!match) return [];
     try {
-      return visibleShowIds.has(decodeURIComponent(match[1]));
+      const label = publicShowLabels.get(decodeURIComponent(match[1]));
+      return label ? [{ ...recent, label } as T] : [];
     } catch {
-      return false;
+      return [];
     }
   });
 }

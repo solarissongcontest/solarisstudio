@@ -66,7 +66,17 @@ describe("V3 web Search canonical discovery shortcuts", () => {
       expect(archive).toContain(`if (${name}Query.isError) void ${name}Query.refetch()`);
     }
     expect(archive).toContain("hasArchiveError");
-    expect(archive).toContain("storiesQuery.isError ? [] : storiesQuery.data ?? []");
+    // Even a previously published cached Story must be freshly checked after
+    // this dialog mounts. Failed or pending revalidation is not an empty match.
+    expect(archive).toContain("staleTime: 0");
+    expect(archive).toContain('refetchOnMount: "always"');
+    expect(archive).toContain("const verifiedStoryPreviews = useMemo(");
+    expect(archive).toContain("storiesQuery.isSuccess &&");
+    expect(archive).toContain("storiesQuery.isFetchedAfterMount &&");
+    expect(archive).toContain("!storiesQuery.isFetching &&");
+    expect(archive).toContain("!storiesQuery.isError");
+    expect(archive).toContain("? storiesQuery.data ?? []");
+    expect(archive).toContain("spoilerPreviewVerificationPending ? [] : verifiedStoryPreviews");
     expect(archive).toContain("!isFetching && !hasArchiveError && !searchResults.length");
     // Missing verification is not equivalent to zero withdrawn participants.
     // Never compute public historical records from cached or failed participant reads.
