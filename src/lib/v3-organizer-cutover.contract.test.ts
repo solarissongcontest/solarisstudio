@@ -45,7 +45,7 @@ describe("V3 Organizer reversible cutover", () => {
     expect(mobile).toContain("consumeV3OrganizerNavigationRestore");
     expect(mobile).toContain('data-organizer-v3-tabbar-mode={tabbarMode}');
     expect(organizerLiquid).toContain('data-organizer-v3-tabbar-mode="compact"');
-    expect(organizerLiquid).toContain("@media (min-width: 900px)");
+    expect(organizerLiquid).toContain("@media (min-width: 900px) and (min-height: 600px)");
   });
 
   it("locks navigation, interaction generation and route memory to the selected edition context", () => {

@@ -85,7 +85,7 @@ export function OrganizerV3MobileChrome() {
   useEffect(() => {
     if (
       typeof window === "undefined" ||
-      !window.matchMedia("(max-width: 899px)").matches ||
+      !window.matchMedia("(max-width: 899px), (max-height: 599px)").matches ||
       !navigationMemoryReady
     ) {
       return;
@@ -163,7 +163,7 @@ export function OrganizerV3MobileChrome() {
   });
 
   const openTab = (id: V3OrganizerTabId) => {
-    if (typeof window === "undefined" || window.innerWidth >= 900) return;
+    if (typeof window === "undefined" || (window.innerWidth >= 900 && window.innerHeight >= 600)) return;
     const alreadyActive = activeTab === id;
     const rootPath = v3OrganizerTabRoot(id);
     const normalizedPath = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;

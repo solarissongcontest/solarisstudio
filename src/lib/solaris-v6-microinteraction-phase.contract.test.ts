@@ -68,11 +68,13 @@ describe("Solaris V6 full microinteraction pass", () => {
   it("keeps overlay keyboard safe-area and persistent-chrome measurements under shared ownership", () => {
     const manager = source("src/components/app/AppOverlayManager.tsx");
     const metrics = source("src/components/app/AppChromeMetrics.tsx");
+    const viewport = source("src/lib/app-viewport.ts");
     const appStyles = source("src/styles/app-shell.css");
 
     expect(manager).toContain("data-solaris-feature-overlay-open");
     expect(manager).toContain("<AppChromeMetrics />");
-    expect(metrics).toContain("--solaris-keyboard-inset");
+    expect(viewport).toContain("--solaris-keyboard-inset");
+    expect(metrics).not.toContain("--solaris-keyboard-inset");
     expect(metrics).toContain("--solaris-safe-bottom");
     expect(appStyles).toContain("--solaris-bottom-obstruction");
   });

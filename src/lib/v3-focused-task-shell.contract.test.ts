@@ -52,7 +52,18 @@ describe("Solaris Studio V3 focused critical-task shell architecture", () => {
 
     expect(css).toContain("min-width: 2.75rem");
     expect(css).toContain("min-height: 2.75rem");
-    expect(css).toContain("env(safe-area-inset-top)");
+    // Focused Confirmation and Participation inherit the same defensive top
+    // boundary as the installed toolbar, not an unreliable raw iOS inset.
+    const appCss = read("src/styles/app-shell.css");
+    expect(appCss).toContain("--solaris-app-safe-top: env(safe-area-inset-top)");
+    expect(css).toContain("min-height: calc(4rem + var(--solaris-app-safe-top));");
+    expect(css).toContain("calc(var(--solaris-app-safe-top) + 0.45rem)");
+    expect(css).toContain(
+      "scroll-margin-block-start: calc(4.75rem + var(--solaris-app-safe-top));",
+    );
+    expect(appCss).toContain(
+      "--solaris-app-safe-top: max(env(safe-area-inset-top, 0px), 60px)",
+    );
     expect(css).toContain("env(safe-area-inset-bottom)");
     expect(css).toContain("prefers-reduced-transparency: reduce");
     expect(css).toContain("backdrop-filter: none");
