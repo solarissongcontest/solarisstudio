@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 
 const SHA = /^[a-f0-9]{40}$/;
 const CLASSES = new Set(["hard", "conditional", "debt", "superseded"]);
@@ -88,4 +89,4 @@ function run() {
   if (report.errors.length) process.exitCode = 1;
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) run();
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) run();
