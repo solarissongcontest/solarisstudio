@@ -75,7 +75,11 @@ function normalizeArg(input) {
   const words = raw.split(/\s+/).filter(Boolean);
   if (/^out$/i.test(words[0])) return null; // OUT-only args do not determine routine identity.
   if (/^(in|inout|variadic)$/i.test(words[0])) words.shift();
-  if (words.length > 1 && /^(p_|arg_|a_)/i.test(words[0])) words.shift();
+  // Input parameters can have ANY names, not only p_* names. Preserve
+  // multi-word built-in type names; otherwise drop the first name token.
+  const typeStarts = new Set(['double', 'character', 'timestamp', 'time', 'bit',
+    'interval', 'national']);
+  if (words.length > 1 && !typeStarts.has(words[0].toLowerCase())) words.shift();
   if (!words.length) throw new Error('Unrecognizable SQL argument');
   return words.join(' ').toLowerCase().replace(/\s*([(),])\s*/g, '$1')
     .replace(/\bint4\b|\binteger\b/g, 'int4')
