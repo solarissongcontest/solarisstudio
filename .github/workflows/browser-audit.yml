@@ -66,8 +66,12 @@ jobs:
         with:
           node-version: 22
 
+      # The legacy v1 action fetches GitHub release assets and failed twice with
+      # upstream HTTP 504 before any browser test could run (8 Nov 2026).
+      # v3 uses the npm package for the SAME pinned CLI version, retaining the
+      # disposable local Supabase, loopback guards and exact-SHA audit contract.
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v3
         with:
           version: 2.113.0
 
