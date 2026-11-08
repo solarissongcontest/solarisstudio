@@ -3,6 +3,7 @@ import { createMiddleware } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from './types'
+import { assertNonProductionSupabaseTarget } from '@/lib/supabase-target-safety'
 
 
 
@@ -45,6 +46,11 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
       console.error(`[Supabase] ${message}`);
       throw new Error(message);
     }
+
+    assertNonProductionSupabaseTarget(
+      SUPABASE_URL,
+      import.meta.env.MODE || process.env.NODE_ENV || 'development',
+    );
     
     const request = getRequest();
 

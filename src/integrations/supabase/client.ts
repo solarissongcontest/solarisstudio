@@ -2,6 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { noteSupabaseResponse } from '@/lib/supabase-service-restriction';
+import { assertNonProductionSupabaseTarget } from '@/lib/supabase-target-safety';
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
@@ -46,6 +47,11 @@ function createSupabaseClient() {
     console.error(`[Supabase] ${message}`);
     throw new Error(message);
   }
+
+  assertNonProductionSupabaseTarget(
+    SUPABASE_URL,
+    import.meta.env.MODE || process.env.NODE_ENV || 'development',
+  );
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     global: {
