@@ -10,6 +10,10 @@ const SUPABASE_URL_KEYS = [
 ] as const;
 
 const DATABASE_URL_KEYS = ["DATABASE_URL", "POSTGRES_URL", "SUPABASE_DB_URL", "DB_URL"] as const;
+const REQUIRED_QUALITY_SUPABASE_URL_KEYS = [
+  "VITE_SUPABASE_URL", "SUPABASE_URL", "E2E_SUPABASE_URL",
+  "VITE_CONFIRMATIONS_SUPABASE_URL", "CONFIRMATIONS_SUPABASE_URL",
+] as const;
 const PROJECT_ID_KEYS = [
   "SUPABASE_PROJECT_ID",
   "SUPABASE_PROJECT_REF",
@@ -60,6 +64,17 @@ function assertLocalUrl(key: string, rawValue: string) {
     parsed = new URL(rawValue);
   } catch {
     throw new Error(`${key} is set but is not a valid URL; refusing automated V3 verification`);
+  }
+
+  const databaseUrl = (DATABASE_URL_KEYS as readonly string[]).includes(key);
+  const validProtocol = databaseUrl
+    ? ["postgres:", "postgresql:"].includes(parsed.protocol)
+    : ["http:", "https:"].includes(parsed.protocol);
+  if (!validProtocol) {
+    throw new Error(`${key} has an invalid protocol for a local Supabase/database target`);
+  }
+  if (!databaseUrl && (parsed.username || parsed.password || parsed.pathname !== "/" || parsed.search || parsed.hash)) {
+    throw new Error(`${key} must be a bare, unauthenticated loopback Supabase origin`);
   }
 
   // A libpq URI's query parameters can redirect a loopback-looking DB URL.
@@ -136,6 +151,22 @@ export function assertV3ProductionIsolation(environment: NodeJS.ProcessEnv = pro
       configuredLocalUrls += 1;
     } catch (error) {
       errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  if (truthy(environment.CI)) {
+    if (configuredLocalUrls === 0) {
+      errors.push("CI requires at least one explicit verified loopback Supabase/database URL; missing local configuration must fail closed");
+    }
+    // Quality builds the browser bundle before starting any database. All
+    // client/legacy Confirmation endpoints must therefore be explicit, never
+    // inferred from the repository's tracked production .env.
+    if (environment.GITHUB_WORKFLOW === "Quality" || environment.GITHUB_JOB === "quality") {
+      for (const key of REQUIRED_QUALITY_SUPABASE_URL_KEYS) {
+        if (!environment[key]?.trim()) {
+          errors.push(`Quality CI is missing ${key}; refusing .env or hosted backend fallback`);
+        }
+      }
     }
   }
 

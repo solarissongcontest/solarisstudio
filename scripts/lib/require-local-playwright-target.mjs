@@ -67,6 +67,25 @@ export function requireLocalPlaywrightSupabaseEnvironment(environment) {
     if ([...url.searchParams.keys()].some((name) => ["host", "hostaddr", "service"].includes(name.toLowerCase()))) {
       throw new Error("[Playwright safety] Supabase database authority override in " + key);
     }
+    if (!isDatabaseUrl && (url.username || url.password || url.pathname !== "/" || url.search || url.hash)) {
+      throw new Error("[Playwright safety] Supabase HTTP target must be a bare loopback origin in " + key);
+    }
+    if (isDatabaseUrl && url.hash) {
+      throw new Error("[Playwright safety] Ambiguous database target fragment in " + key);
+    }
+  }
+  for (const key of ["PGHOST", "PGHOSTADDR"]) {
+    const value = environment[key]?.trim();
+    if (!value) continue;
+    const allowed = key === "PGHOSTADDR" ? ["127.0.0.1", "::1"] : ["localhost", "127.0.0.1", "::1"];
+    if (!allowed.includes(value.toLowerCase())) {
+      throw new Error("[Playwright safety] Refusing non-local PostgreSQL routing in " + key);
+    }
+  }
+  for (const key of ["PGSERVICE", "PGSERVICEFILE"]) {
+    if (environment[key]?.trim()) {
+      throw new Error("[Playwright safety] Refusing opaque PostgreSQL service override in " + key);
+    }
   }
   return true;
 }

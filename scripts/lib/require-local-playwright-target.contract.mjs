@@ -42,4 +42,11 @@ test("standalone browser suites fail closed without local Supabase isolation", a
   }
   assert.throws(() => check({ ...local, DB_URL: "postgresql://postgres:password@localhost:54322/postgres?hostaddr=203.0.113.5" }), /authority override/);
   assert.equal(check({ ...local, DB_URL: "postgresql://postgres:password@localhost:54322/postgres?application_name=s14" }), true);
+  for (const name of Object.keys(local)) {
+    assert.throws(() => check({ ...local, [name]: "https://different-project.supabase.co" }), /Playwright safety/, name);
+  }
+  assert.throws(() => check({ ...local, API_URL: "http://localhost:54321@hosted.example" }), /Playwright safety/);
+  assert.throws(() => check({ ...local, PGHOST: "db.hosted.example" }), /Playwright safety/);
+  assert.throws(() => check({ ...local, PGSERVICE: "production" }), /Playwright safety/);
+  assert.throws(() => check({ ...local, VITE_SUPABASE_URL: "http://127.0.0.1:54321/?redirect=https://hosted.example" }), /Playwright safety/);
 });
