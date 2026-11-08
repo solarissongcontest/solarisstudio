@@ -5,6 +5,10 @@ const migration = readFileSync(
   "supabase/migrations/20261108115000_v3_tg4_world_legal_documents.sql",
   "utf8",
 );
+const readerMigration = readFileSync(
+  "supabase/migrations/20261108133000_v3_tg4_world_legal_document_reader.sql",
+  "utf8",
+);
 
 describe("TG4 legal archive authority boundary", () => {
   it("keeps legal truth in document and immutable version tables", () => {
@@ -29,5 +33,15 @@ describe("TG4 legal archive authority boundary", () => {
     expect(migration).toContain("document_row.visibility = 'public'");
     expect(migration).toContain("publication_state in ('published', 'superseded', 'historical_source')");
     expect(migration).toContain("world_document_publicly_available_v1(document_row.id)");
+  });
+
+  it("gates the full-text reader separately and excludes draft versions", () => {
+    expect(readerMigration).toContain("security definer");
+    expect(readerMigration).toContain("document_row.visibility = 'public'");
+    expect(readerMigration).toContain("organization_row.public_visibility = 'public'");
+    expect(readerMigration).toContain("version_row.publication_state in ('published', 'superseded', 'historical_source')");
+    expect(readerMigration).not.toContain("publication_state = 'draft'");
+    expect(readerMigration).toContain("revoke all on function public.world_get_public_legal_document_version_v1");
+    expect(readerMigration).toContain("grant execute on function public.world_get_public_legal_document_version_v1");
   });
 });

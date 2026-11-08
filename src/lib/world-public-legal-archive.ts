@@ -39,6 +39,24 @@ export type PublicLegalDocument = {
   documentStatus: "active" | "retired" | "historical";
 };
 
+export type PublicLegalDocumentVersion = {
+  organizationSlug: string;
+  organizationName: string;
+  documentSlug: string;
+  documentTitle: string;
+  documentType: string;
+  documentStatus: "active" | "retired" | "historical";
+  versionId: string;
+  versionNumber: number;
+  versionTitle: string;
+  fullText: string;
+  contentHash: string;
+  publicationState: "published" | "superseded" | "historical_source";
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+  publishedAt: string | null;
+};
+
 const record = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown> : null;
@@ -46,6 +64,50 @@ const text = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 const nullableText = (value: unknown): string | null =>
   typeof value === "string" ? value : null;
+
+export function legalDocumentVersionRequestArgs(
+  organization: string,
+  document: string,
+  version: number | null,
+): { p_organization_slug: string; p_document_slug: string; p_version_number: number | null } {
+  if (!slugPattern.test(organization) || !slugPattern.test(document) ||
+      version !== null && (!Number.isSafeInteger(version) || version < 1)) {
+    throw new Error("Invalid public legal document request.");
+  }
+  return { p_organization_slug: organization, p_document_slug: document, p_version_number: version };
+}
+
+export function parsePublicLegalDocumentVersion(
+  value: unknown,
+  organization: string,
+  document: string,
+): PublicLegalDocumentVersion | null {
+  const row = record(value);
+  if (!row || row.organizationSlug !== organization || row.documentSlug !== document ||
+      !text(row.organizationName) || !text(row.documentTitle) || !text(row.documentType) ||
+      !["active", "retired", "historical"].includes(String(row.documentStatus)) ||
+      !text(row.versionId) || !Number.isSafeInteger(row.versionNumber) || row.versionNumber < 1 ||
+      !text(row.versionTitle) || typeof row.fullText !== "string" || row.fullText.length === 0 ||
+      !text(row.contentHash) || !/^[0-9a-f]{64}$/.test(row.contentHash) ||
+      !["published", "superseded", "historical_source"].includes(String(row.publicationState))) return null;
+  return {
+    organizationSlug: organization,
+    organizationName: row.organizationName,
+    documentSlug: document,
+    documentTitle: row.documentTitle,
+    documentType: row.documentType,
+    documentStatus: row.documentStatus as PublicLegalDocumentVersion["documentStatus"],
+    versionId: row.versionId,
+    versionNumber: row.versionNumber,
+    versionTitle: row.versionTitle,
+    fullText: row.fullText,
+    contentHash: row.contentHash,
+    publicationState: row.publicationState as PublicLegalDocumentVersion["publicationState"],
+    effectiveFrom: nullableText(row.effectiveFrom),
+    effectiveTo: nullableText(row.effectiveTo),
+    publishedAt: nullableText(row.publishedAt),
+  };
+}
 
 export function legalArchiveRequestArgs(
   organization: string,
@@ -161,4 +223,18 @@ export async function readPublicLegalDocuments(
   const parsed = parsePublicLegalDocuments(data);
   if (!parsed) throw new Error("The public legal document directory was invalid.");
   return parsed;
+}
+
+export async function readPublicLegalDocumentVersion(
+  organization: string,
+  document: string,
+  version: number | null = null,
+): Promise<PublicLegalDocumentVersion | null> {
+  const args = legalDocumentVersionRequestArgs(organization, document, version);
+  const { data, error } = await (supabase as any).rpc(
+    "world_get_public_legal_document_version_v1",
+    args,
+  );
+  if (error) throw new Error("The public legal document could not be verified.");
+  return parsePublicLegalDocumentVersion(data, organization, document);
 }

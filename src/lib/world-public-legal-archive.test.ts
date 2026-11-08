@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   WORLD_LEGAL_ARCHIVE_PAGE_SIZE,
   legalArchiveRequestArgs,
+  legalDocumentVersionRequestArgs,
   parsePublicLegalArchive,
+  parsePublicLegalDocumentVersion,
   parsePublicLegalDocuments,
 } from "./world-public-legal-archive";
 
@@ -82,5 +84,28 @@ describe("TG4 public legal archive", () => {
       documentStatus: "active",
     }]);
     expect(parsePublicLegalDocuments([{ organizationSlug: "guard/private" }])).toBeNull();
+  });
+
+  it("parses a public version reader response without accepting draft metadata", () => {
+    const result = parsePublicLegalDocumentVersion({
+      organizationSlug: "guard",
+      organizationName: "GUARD",
+      documentSlug: "charter",
+      documentTitle: "GUARD Charter",
+      documentType: "charter",
+      documentStatus: "active",
+      versionId: "version-4",
+      versionNumber: 4,
+      versionTitle: "Charter version 4",
+      fullText: "Article 1\nThe union is voluntary.",
+      contentHash: "a".repeat(64),
+      publicationState: "published",
+      effectiveFrom: "2026-01-01T00:00:00Z",
+      effectiveTo: null,
+      publishedAt: "2026-01-01T00:00:00Z",
+    }, "guard", "charter");
+    expect(result?.fullText).toContain("Article 1");
+    expect(parsePublicLegalDocumentVersion({ publicationState: "draft" }, "guard", "charter")).toBeNull();
+    expect(() => legalDocumentVersionRequestArgs("guard", "charter", 0)).toThrow();
   });
 });

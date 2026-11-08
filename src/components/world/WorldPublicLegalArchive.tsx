@@ -62,7 +62,15 @@ export function WorldPublicLegalArchive({
           <section className="mt-8">
             <ol className="divide-y divide-border border-y border-border">
               {page.versions.map((version) => <li key={version.versionId} className="space-y-3 py-6">
-                <h2 className="text-xl font-semibold">Version {version.versionNumber}: {version.title}</h2>
+                <h2 className="text-xl font-semibold">
+                  <Link
+                    to="/world/documents/$organization/$document/version/$version"
+                    params={{ organization, document, version: String(version.versionNumber) }}
+                    className="hover:underline"
+                  >
+                    Version {version.versionNumber}: {version.title}
+                  </Link>
+                </h2>
                 <p className="text-sm text-muted-foreground">{versionLabel(version)}</p>
                 <dl className="grid gap-3 text-sm sm:grid-cols-3">
                   <div><dt className="text-muted-foreground">Effective from</dt><dd className="font-medium">{dateLabel(version.effectiveFrom)}</dd></div>
