@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { expect, test } from "bun:test";
+import { describe, expect, it } from "vitest";
 
 const functions = readFileSync(
   "src/integrations/televoting/combined.functions.ts",
@@ -14,16 +14,18 @@ const sync = readFileSync(
   "utf8",
 );
 
-test("Combined publication recovery uses the governed Solaris reconciliation command", () => {
-  expect(functions).toContain("reconcilePublishedCombinedResults");
-  expect(functions).toContain("trySyncPublishedCombinedResultsToSolarisServer");
-  expect(functions).toContain("expectedEditionId");
-  expect(functions).toContain("expectedShowId");
-});
+describe("Combined publication recovery", () => {
+  it("uses the governed Solaris reconciliation command", () => {
+    expect(functions).toContain("reconcilePublishedCombinedResults");
+    expect(functions).toContain("trySyncPublishedCombinedResultsToSolarisServer");
+    expect(functions).toContain("expectedEditionId");
+    expect(functions).toContain("expectedShowId");
+  });
 
-test("Combined UI exposes truthful recovery after partial publication", () => {
-  expect(route).toContain("Publication committed, but Solaris Results still need reconciliation.");
-  expect(route).toContain("Retry canonical reconciliation");
-  expect(sync).toContain('"v3_reconcile_published_televote"');
-  expect(route).not.toContain("v3_reconcile_published_televote\" as a correction");
+  it("exposes truthful recovery after partial publication", () => {
+    expect(route).toContain("Publication committed, but Solaris Results still need reconciliation.");
+    expect(route).toContain("Retry canonical reconciliation");
+    expect(sync).toContain('"v3_reconcile_published_televote"');
+    expect(route).not.toContain("v3_reconcile_published_televote\" as a correction");
+  });
 });
