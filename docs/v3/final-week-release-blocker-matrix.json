@@ -1,0 +1,451 @@
+{
+  "schemaVersion": 1,
+  "scope": "full_solaris_studio_v3",
+  "releaseAt": "2026-11-15T20:00:00+02:00",
+  "snapshotDate": "2026-11-08",
+  "baselineMainSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
+  "coverage": "initial_verified_high_priority_only",
+  "releaseCertified": false,
+  "notes": [
+    "This is an evidence-backed INITIAL critical-path matrix, NOT an exhaustive full-V3 capability certification. Unknown work is not silently classified as done.",
+    "verificationSha identifies the inspected source baseline, not proof of a passing acceptance test or hosted schema parity.",
+    "Production history counts below are 2026-11-07 observations only. A release decision needs new authorized read-only evidence.",
+    "Normal CI, E2E and migration tests must use isolated local Supabase; hosted production actions require separate explicit approval.",
+    "8 Nov Quality output from PR #2386 identified 47 Public and 80 Organizer capabilities below cutover; those values require explicit risk triage rather than automatic blocker classification."
+  ],
+  "datedProductionEvidence": {
+    "observedAt": "2026-11-07",
+    "observedOperationalMode": "degraded",
+    "observedMissingPostCutoverHistory": 36,
+    "observedNewerPendingHistory": 32,
+    "historyCurrentVerification": "NOT_CURRENTLY_REVERIFIED",
+    "source": "docs/v3/production-frontier-preflight.md"
+  },
+  "items": [
+    {
+      "id": "SYS-FRONTIER",
+      "capability": "Production migration-effect frontier",
+      "classification": "hard",
+      "status": "blocked",
+      "sourceOfAuthority": "Canonical Authority Addendum §1.3, §3; System plan; Final-week Sprint 9 Nov",
+      "technicalRootCause": "Hosted schema effect and newer migration frontier not freshly reconciled; historic migration-history mismatch is not a safe deployment plan.",
+      "owner": "System / Supabase",
+      "dependencies": [],
+      "relatedPRs": [
+        2393,
+        2403,
+        2404
+      ],
+      "requiredEvidence": [
+        "New authorized bounded read-only hosted catalog fingerprint",
+        "Source-to-hosted effect-level classification and dependency graph",
+        "Sanitized hosted-equivalent local fixture"
+      ],
+      "nextAction": "System owner to re-read hosted metadata and classify each effect present/partial/absent before ordering forward repairs.",
+      "targetDate": "2026-11-09",
+      "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
+      "evidence": [
+        "docs/v3/production-frontier-preflight.md",
+        "PR #2393, #2403 and #2404 descriptions"
+      ]
+    },
+    {
+      "id": "SYS-S13",
+      "capability": "S13 migration registration and recovery foundation",
+      "classification": "hard",
+      "status": "in_progress",
+      "sourceOfAuthority": "System plan S13; Final-week Sprint 10 Nov",
+      "technicalRootCause": "2026-11-07 catalog inspection in PR #2393 reports five S13 tables and seven S13 RPCs absent from hosted; recovery candidate is unmerged draft.",
+      "owner": "System / Supabase",
+      "dependencies": [
+        "SYS-FRONTIER"
+      ],
+      "relatedPRs": [
+        2393,
+        2403
+      ],
+      "requiredEvidence": [
+        "Strict negative precondition tests",
+        "Sanitized local hosted-equivalent restore and replay",
+        "Grant/RLS/function-signature proof"
+      ],
+      "nextAction": "Review and safely integrate System-owned forward-only S13 candidate; no blind hosted replay.",
+      "targetDate": "2026-11-10",
+      "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
+      "evidence": [
+        "PR #2393 staged local candidate",
+        "PR #2403 S13/S14 local proof"
+      ]
+    },
+    {
+      "id": "SYS-ARCHIVE",
+      "capability": "S14 Archive guards, Results and Task/notification convergence",
+      "classification": "hard",
+      "status": "blocked",
+      "sourceOfAuthority": "System plan S14; Final-week Sprint 10–11 Nov",
+      "technicalRootCause": "S14 recovery remains draft #2403 and depends on missing S13 effects; green isolated proof does not certify hosted upgrade compatibility.",
+      "owner": "System / Supabase",
+      "dependencies": [
+        "SYS-S13"
+      ],
+      "relatedPRs": [
+        2403
+      ],
+      "requiredEvidence": [
+        "Hosted-equivalent local forward-recovery replay",
+        "Archive terminal-state and one-shot guard negatives",
+        "Post-failure Task and notification convergence"
+      ],
+      "nextAction": "Rebase System-owned Archive PR on actual current main and prove recovery on sanitized hosted-equivalent local state.",
+      "targetDate": "2026-11-10",
+      "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
+      "evidence": [
+        "PR #2403 draft/local verified, not production authorized"
+      ]
+    },
+    {
+      "id": "VOTE-AUTHORITY",
+      "capability": "Televote source-of-truth and canonical mutation authority",
+      "classification": "hard",
+      "status": "in_progress",
+      "sourceOfAuthority": "System plan S16; Organizer/Voting canonical specs; Final-week Sprint 10–11 Nov",
+      "technicalRootCause": "Draft #2404 repairs Televote projection authority and source adapters; canonical correction writer, replay and cross-round integration still require acceptance evidence.",
+      "owner": "System / Voting",
+      "dependencies": [
+        "SYS-FRONTIER",
+        "SYS-S13"
+      ],
+      "relatedPRs": [
+        2404
+      ],
+      "requiredEvidence": [
+        "Unauthorized role/actor/edition/round denial",
+        "Idempotency and stale-version regression",
+        "Single-authority S16 catalogue checks",
+        "Negative Combined-score and corrected publication acceptance"
+      ],
+      "nextAction": "Complete #2404 ownership review and local S14 source-truth replay; do not create competing writer.",
+      "targetDate": "2026-11-11",
+      "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
+      "evidence": [
+        "PR #2404 draft integrated source/guard candidate"
+      ]
+    },
+    {
+      "id": "RESULT-PUBLICATION",
+      "capability": "Official Results, signed Combined scores and publication/Archive contracts",
+      "classification": "hard",
+      "status": "unverified",
+      "sourceOfAuthority": "Canonical Results PR #1400 ownership; System plan S14; Canonical Authority Addendum §1.7",
+      "technicalRootCause": "Signed Combined-score fix #2402 merged, but complete current-candidate Results/publication correction and Archive readiness not certified.",
+      "owner": "Results owner / System",
+      "dependencies": [
+        "VOTE-AUTHORITY",
+        "SYS-ARCHIVE"
+      ],
+      "relatedPRs": [
+        1400,
+        2402,
+        2404
+      ],
+      "requiredEvidence": [
+        "Full publication, correction/replay, historical version and spoiler-secrecy tests",
+        "Signed negative score reaching official output",
+        "Frozen Results scope review"
+      ],
+      "nextAction": "Regress merged #2402 with dependent source truth and exact S14 publication flow; do not alter frozen Results writer.",
+      "targetDate": "2026-11-11",
+      "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
+      "evidence": [
+        "PR #2402 merged; full integrated publication not yet proven"
+      ]
+    },
+    {
+      "id": "QA-S14",
+      "capability": "Full isolated official contest lifecycle rehearsal",
+      "classification": "hard",
+      "status": "blocked",
+      "sourceOfAuthority": "System plan S14; Canonical Authority Addendum §1.5; Final-week Sprint 13 Nov",
+      "technicalRootCause": "No exact-current-main complete stateful Confirmation→Entry→Jury→Televote→Results→Publication→Archive pass established in this audit.",
+      "owner": "QA / Integrator",
+      "dependencies": [
+        "SYS-ARCHIVE",
+        "VOTE-AUTHORITY",
+        "RESULT-PUBLICATION"
+      ],
+      "relatedPRs": [
+        2403,
+        2404
+      ],
+      "requiredEvidence": [
+        "Isolated hosted-equivalent local full rehearsal",
+        "Failure/retry/concurrency and restoration scenarios",
+        "Exact candidate SHA and stage reports"
+      ],
+      "nextAction": "Rehearse full lifecycle once System prerequisites permit; retain genuine failing stage evidence.",
+      "targetDate": "2026-11-13",
+      "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
+      "evidence": [
+        "Canonical S14 scripts exist in repo; presence is not a passing rehearsal"
+      ]
+    },
+    {
+      "id": "QA-S15",
+      "capability": "Independent zero-orphan ownership and capability cutover",
+      "classification": "hard",
+      "status": "unverified",
+      "sourceOfAuthority": "System plan S15; Canonical Authority Addendum §5",
+      "technicalRootCause": "One green PR-local S15 job does not prove full release-candidate zero-orphan or product parity.",
+      "owner": "QA / Integrator",
+      "dependencies": [
+        "SYS-S13"
+      ],
+      "relatedPRs": [
+        2386
+      ],
+      "requiredEvidence": [
+        "Complete untruncated exact-SHA S15 registry inventory",
+        "No orphaned mandatory capability/command/route",
+        "Known legacy cutover accounted for"
+      ],
+      "nextAction": "Regenerate S15 independent zero-orphan inventory on isolated exact candidate SHA; do not wait for S14 to prove ownership inventory.",
+      "targetDate": "2026-11-13",
+      "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
+      "evidence": [
+        "PR #2386 S15 job passed on its PR head only"
+      ]
+    },
+    {
+      "id": "QA-S16",
+      "capability": "Canonical mutation-authority audit",
+      "classification": "hard",
+      "status": "unverified",
+      "sourceOfAuthority": "Canonical Authority Addendum §5 and S16; System plan",
+      "technicalRootCause": "Static ownership inventories cannot alone prove RLS, grants, service-role paths, triggers and unexpected browser writers are denied.",
+      "owner": "QA / Integrator + System",
+      "dependencies": [
+        "SYS-S13",
+        "VOTE-AUTHORITY"
+      ],
+      "relatedPRs": [
+        2386,
+        2404
+      ],
+      "requiredEvidence": [
+        "Exact-SHA S16 catalog grants/RLS/RPC/function proof",
+        "Legacy and unauthorized second writers removed",
+        "Negative browser/direct-write authorization tests"
+      ],
+      "nextAction": "Run independent S16 against isolated hosted-equivalent local schema; classify real defects, not registry-only pass.",
+      "targetDate": "2026-11-13",
+      "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
+      "evidence": [
+        "Canonical S16 checker and contract tests already in main"
+      ]
+    },
+    {
+      "id": "QA-PR2386",
+      "capability": "Integrated privacy, local CI authority and recursive bundle protections",
+      "classification": "hard",
+      "status": "in_progress",
+      "sourceOfAuthority": "Critical infrastructure isolation rules; System plan security; Final-week Sprint 8–13 Nov",
+      "technicalRootCause": "PR #2386 unmerged; Browser audit failed during third-party CLI installation with HTTP 504, before tests started. Privacy and egress changes require integration and proof.",
+      "owner": "QA / Integrator",
+      "dependencies": [],
+      "relatedPRs": [
+        2386
+      ],
+      "requiredEvidence": [
+        "Retry isolated Browser audit after external HTTP504",
+        "Exact-head Quality and focused security tests",
+        "Full review, non-overlap and merge eligibility"
+      ],
+      "nextAction": "Re-run the failed infrastructure job without weakening isolation; merge only if all required gates and ownership checks pass.",
+      "targetDate": "2026-11-08",
+      "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
+      "evidence": [
+        "PR #2386 head a67602e...",
+        "Browser run 42466573609: supabase/setup-cli@v1 HTTP 504",
+        "S13/S15/bundle/freshness PR checks passed at inspection"
+      ]
+    },
+    {
+      "id": "QA-RELEASE-SHA",
+      "capability": "Exact-SHA certification and unified release manifest",
+      "classification": "hard",
+      "status": "blocked",
+      "sourceOfAuthority": "Canonical Authority Addendum §1.4 and §7; Final-week Sprint 14 Nov",
+      "technicalRootCause": "No frozen 14 November candidate and complete exact-candidate acceptance bundle yet.",
+      "owner": "QA / Release manager",
+      "dependencies": [
+        "QA-S14",
+        "QA-S15",
+        "QA-S16",
+        "PUBLIC-PARITY",
+        "ORG-PARITY",
+        "DESIGN-3X",
+        "WORLD-SCOPE"
+      ],
+      "relatedPRs": [],
+      "requiredEvidence": [
+        "Quality, Browser, S13–S16 and security at the same SHA",
+        "Migration hosted-equivalence and no-egress proof",
+        "Signed owner review and recovery checklist"
+      ],
+      "nextAction": "Build complete exact-SHA certification manifest after mandatory gates; never reuse older green checks.",
+      "targetDate": "2026-11-14",
+      "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
+      "evidence": [
+        ".github/workflows/v3-release-candidate-preflight.yml",
+        "scripts/check-v3-release-integrity.ts"
+      ]
+    },
+    {
+      "id": "PUBLIC-PARITY",
+      "capability": "Required Public/Participant/Live/Results user workflows",
+      "classification": "conditional",
+      "status": "unverified",
+      "sourceOfAuthority": "Public V3 spec; Updated Public product/design plan; Final-week Sprint 12 Nov",
+      "technicalRootCause": "Canonical parity across all required published Public and Participant capabilities has not been regenerated at current main; route presence alone insufficient.",
+      "owner": "Public 2A/2B",
+      "dependencies": [
+        "SYS-S13",
+        "VOTE-AUTHORITY",
+        "RESULT-PUBLICATION"
+      ],
+      "relatedPRs": [],
+      "requiredEvidence": [
+        "Capability registry and product parity reviewed",
+        "Anonymous/fan/HoD publication and access negatives",
+        "Mobile browser, installed PWA and desktop user journeys"
+      ],
+      "nextAction": "Public owners regenerate status, identify actual required gaps, complete existing PRs rather than duplicate implementations.",
+      "targetDate": "2026-11-12",
+      "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
+      "evidence": [
+        "src/lib/v3-capability-registry.ts",
+        "scripts/generate-v3-completion-dashboard.ts"
+      ]
+    },
+    {
+      "id": "ORG-PARITY",
+      "capability": "Organizer operational workflows and voting/review controls",
+      "classification": "conditional",
+      "status": "unverified",
+      "sourceOfAuthority": "Organizer V3 operational spec; Final-week Sprint 12 Nov",
+      "technicalRootCause": "Full Organizer actor/edition/show isolation, submission reviews, receipts and Control/Live parity are not release-certified at current main.",
+      "owner": "Organizer / Voting",
+      "dependencies": [
+        "SYS-S13",
+        "VOTE-AUTHORITY"
+      ],
+      "relatedPRs": [
+        2386
+      ],
+      "requiredEvidence": [
+        "Actor + edition + round permission negatives",
+        "End-to-end Entry/Media/Jury/Televote/Results operations",
+        "Risk-tier review and immutable receipts"
+      ],
+      "nextAction": "Organizer owner complete required vertical slices with canonical RPC contracts and fresh private cache keys.",
+      "targetDate": "2026-11-12",
+      "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
+      "evidence": [
+        "PR #2386 includes Organizer privacy fixes"
+      ]
+    },
+    {
+      "id": "DESIGN-3X",
+      "capability": "Installed PWA, ordinary mobile website, desktop website acceptance",
+      "classification": "conditional",
+      "status": "unverified",
+      "sourceOfAuthority": "Three-Experience Design Manifesto; Top System Safe Zone; V3 bottom bar; Final-week Sprint 12 Nov",
+      "technicalRootCause": "No same-candidate three-runtime acceptance evidence for all launch-critical routes, navigation focus, dock clearance and safe-area boundaries.",
+      "owner": "Navigation / Public/Organizer",
+      "dependencies": [
+        "PUBLIC-PARITY",
+        "ORG-PARITY"
+      ],
+      "relatedPRs": [],
+      "requiredEvidence": [
+        "Three runtime-family browser and real-device acceptance",
+        "Navigation deep links, keyboard, reduced motion and safe-area proof",
+        "No duplicated installed app dock on mobile web"
+      ],
+      "nextAction": "Navigation owner run targeted three-experience audit and record exact SHA screenshots/interaction evidence.",
+      "targetDate": "2026-11-12",
+      "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
+      "evidence": [
+        "Three-Experience Design Manifesto",
+        "Top system safe zone"
+      ]
+    },
+    {
+      "id": "WORLD-SCOPE",
+      "capability": "Canonical World/Governance mandatory release-scope parity",
+      "classification": "conditional",
+      "status": "unverified",
+      "sourceOfAuthority": "Terra Solaris Governance master plan; Final-week Sprint §3 and §12",
+      "technicalRootCause": "Latest full V3 World feature/parity registry and explicit approved 15 November scope are not confirmed in this inspection.",
+      "owner": "World owner / Release manager",
+      "dependencies": [],
+      "relatedPRs": [],
+      "requiredEvidence": [
+        "Complete World capability scope review",
+        "Dark rollout and publication-safe permissions",
+        "Explicit scope exception if any feature excluded"
+      ],
+      "nextAction": "World owner must independently confirm all canonically required World features and submit role/publication/privacy evidence BEFORE release certification. Any limited scope requires explicit owner approval.",
+      "targetDate": "2026-11-12",
+      "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
+      "evidence": [
+        "Solaris Studio V3 WORLD SYSTEMS-unions etc.txt"
+      ]
+    },
+    {
+      "id": "PROD-AUTH",
+      "capability": "Production migration, deployment and reopening approvals",
+      "classification": "conditional",
+      "status": "awaiting_authorization",
+      "sourceOfAuthority": "Final-week Sprint §2; Critical Supabase Egress instructions; owner directive §2",
+      "technicalRootCause": "No explicit separate owner approval for hosted schema changes, production deployment, or public operational-mode change.",
+      "owner": "Owner / Release manager",
+      "dependencies": [
+        "QA-RELEASE-SHA",
+        "SYS-FRONTIER"
+      ],
+      "relatedPRs": [],
+      "requiredEvidence": [
+        "Explicit independent approval for hosted migrations",
+        "Explicit independent production deployment approval",
+        "Explicit maintenance/write reopening authorization"
+      ],
+      "nextAction": "Prepare human approval package; never infer deployment permission from green CI or deadline.",
+      "targetDate": "2026-11-15",
+      "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
+      "evidence": [
+        "src/lib/maintenance.ts: GLOBAL_MAINTENANCE_MODE = true"
+      ]
+    }
+  ],
+  "datedSourceInventory": {
+    "evidenceHeadSha": "a67602e26fc52c64d2cf6488b4f97ac7c7112a0b",
+    "inspectedAt": "2026-11-08",
+    "source": "GitHub Actions Quality run 42466573582, V3 release-integrity structural and S15 generated inventory",
+    "publicCapabilitiesNotCutoverOrRetired": 47,
+    "organizerCapabilitiesNotCutoverOrRetired": 80,
+    "domainConsequencesNotEventBacked": 40,
+    "parityCapabilitiesMissingMigrationEvidence": 3,
+    "criticalS14LifecycleConsequencesNotEventBacked": "1 of 14",
+    "s14CriticalCapabilitiesReportedBuilding": [
+      "Public: entry",
+      "Public: results",
+      "Organizer: current-edition-delegations",
+      "Organizer: current-edition-contest",
+      "Organizer: current-edition-voting",
+      "Organizer: current-edition-results",
+      "Organizer: operations-control-room"
+    ],
+    "caution": "These are an implementation/ownership INVENTORY on the stated PR head, not counts of hard release blockers or proof of actual hosted schema effects. #2386 did not edit the capability registry, but this is still not final-candidate evidence."
+  }
+}

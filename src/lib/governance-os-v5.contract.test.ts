@@ -58,7 +58,9 @@ describe("Governance OS v5 contract", () => {
     expect(receipts).toContain("governance?: GovernanceReceiptSnapshot");
     expect(confirmation).toContain("snapshot={receipt.governance}");
     expect(jury).toContain('captureGovernanceSnapshot("jury.vote")');
-    expect(televote).toContain("governance,");
+    expect(televote).toContain("writeTelevoteReceipt(window.localStorage, roundId, governance)");
+    const stored = source("src/lib/v3-televote-receipt-storage.ts");
+    expect(stored).toContain("JSON.stringify({ governance: safeGovernance(governance) } satisfies LocalTelevoteReceipt)");
   });
 
   it("returns from a rule to the exact task state with scroll and focus restoration", () => {
@@ -89,13 +91,13 @@ describe("Governance OS v5 contract", () => {
     expect(home).toContain('to="/rules/chapters"');
     expect(chapter).not.toContain("overflow-x-auto");
     expect(journey).not.toContain("min-w-[58rem]");
-    expect(search).toContain("findRuleSearchQuickAnswer(q)");
+    expect(search).toContain("findRuleSearchQuickAnswer(q, version)");
     expect(search).not.toContain("findGovernanceQuickAnswer");
     // The replacement combines official Governance/Roleplay curated answers
     // instead of guessing from generic terms with a fuzzy substring match.
     const quickAnswers = source("src/lib/v3-rules-quick-answer-search.ts");
     expect(quickAnswers).toContain("GOVERNANCE_QUICK_ANSWERS");
-    expect(quickAnswers).toContain("ROLEPLAY_QUICK_ANSWERS");
+    expect(quickAnswers).toContain("roleplayQuickAnswersForVersion");
   });
 
   it("uses a five-step sensitive Integrity service with review-before-submit and explicit anonymous recovery", () => {

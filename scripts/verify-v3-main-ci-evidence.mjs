@@ -72,6 +72,50 @@ export async function fetchGithubJson(url, token, fetchImpl = fetch) {
   return response.json();
 }
 
+/**
+ * GitHub's paginated Actions list is not an immutable snapshot. Concurrent new
+ * runs can shift page boundaries. Reject duplicate run IDs, changing totals,
+ * and incomplete page sequences rather than certifying a partial observation.
+ * No Supabase/network access occurs in this validator; getPage is injected.
+ */
+export async function collectCompleteWorkflowRuns(getPage, maxPages = 5) {
+  if (typeof getPage !== "function" || !Number.isSafeInteger(maxPages) || maxPages < 1) {
+    throw new Error("A page reader and positive bounded page limit are required");
+  }
+  const runs = [];
+  const seenIds = new Set();
+  let expectedTotal = null;
+  for (let page = 1; page <= maxPages; page++) {
+    const result = await getPage(page);
+    if (!result || !Array.isArray(result.workflow_runs) ||
+        !Number.isSafeInteger(result.total_count) || result.total_count < 0) {
+      throw new Error("GitHub workflow runs response has no authoritative run count");
+    }
+    if (expectedTotal !== null && result.total_count !== expectedTotal) {
+      throw new Error("GitHub workflow run count changed during pagination; retry on a stable snapshot");
+    }
+    expectedTotal = result.total_count;
+    if (result.workflow_runs.length > 100 || expectedTotal > maxPages * 100) {
+      throw new Error("GitHub workflow evidence exceeds the bounded pagination limit");
+    }
+    for (const run of result.workflow_runs) {
+      if (!run || !Number.isSafeInteger(run.id) || run.id < 1 || seenIds.has(run.id)) {
+        throw new Error("GitHub workflow evidence contains an invalid or repeated run ID");
+      }
+      seenIds.add(run.id);
+      runs.push(run);
+    }
+    if (runs.length > expectedTotal) {
+      throw new Error("GitHub workflow evidence exceeds its authoritative run count");
+    }
+    if (runs.length === expectedTotal) return runs;
+    if (result.workflow_runs.length === 0) {
+      throw new Error("GitHub workflow evidence ended before all exact-SHA runs were read");
+    }
+  }
+  throw new Error("GitHub workflow evidence remains incomplete after the bounded page limit");
+}
+
 async function gatherEvidence({ repository, expectedSha, token, fetchJson = fetchGithubJson }) {
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository ?? "")) {
     throw new Error("GITHUB_REPOSITORY must be owner/repository");
@@ -79,19 +123,12 @@ async function gatherEvidence({ repository, expectedSha, token, fetchJson = fetc
   if (!shaPattern.test(expectedSha ?? "")) throw new Error("GITHUB_SHA must be an exact commit SHA");
   const api = `https://api.github.com/repos/${repository}`;
   const firstMain = await fetchJson(`${api}/branches/main`, token);
-  const runs = [];
-  for (let page = 1; page <= 5; page++) {
-    const result = await fetchJson(
+  const runs = await collectCompleteWorkflowRuns(
+    (page) => fetchJson(
       `${api}/actions/runs?branch=main&event=push&head_sha=${expectedSha}&per_page=100&page=${page}`,
       token,
-    );
-    if (!Array.isArray(result.workflow_runs) || !Number.isInteger(result.total_count)) {
-      throw new Error("GitHub workflow runs response has no authoritative run count");
-    }
-    runs.push(...result.workflow_runs);
-    if (runs.length >= result.total_count) break;
-    if (page === 5) throw new Error("More than 500 runs for this exact commit; evidence is incomplete");
-  }
+    ),
+  );
   const lastMain = await fetchJson(`${api}/branches/main`, token);
   return evaluateMainCiEvidence({
     expectedSha,

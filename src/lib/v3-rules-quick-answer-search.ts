@@ -1,13 +1,11 @@
 import { GOVERNANCE_QUICK_ANSWERS } from './governance-v5';
-import { ROLEPLAY_QUICK_ANSWERS } from './ssc-rules/roleplay';
+import { roleplayQuickAnswersForVersion } from './ssc-rules/roleplay-quick-answers';
 
 /**
  * Quick answers are controlled interpretations, not a full-text search result.
  * Only show one when an explicit curated phrase matches meaningfully. Ordinary
  * fuzzy searches still go through the complete official rulebook search.
  */
-const QUICK_ANSWERS = [...ROLEPLAY_QUICK_ANSWERS, ...GOVERNANCE_QUICK_ANSWERS] as const;
-
 const QUESTION_WORDS = new Set([
   'a', 'an', 'and', 'are', 'as', 'at', 'be', 'been', 'by', 'can', 'could',
   'do', 'does', 'for', 'from', 'has', 'have', 'how', 'i', 'if', 'in', 'is',
@@ -55,13 +53,14 @@ function matchScore(query: string, queryWords: string[], candidate: string): num
   return 100 + candidateWords.length * 20 + candidateWords.length / queryWords.length;
 }
 
-export function findRuleSearchQuickAnswer(query: string) {
+export function findRuleSearchQuickAnswer(query: string, version = '4.1') {
   const normalized = normalizeRuleQuestion(query);
   if (!normalized) return null;
   const words = meaningfulWords(normalized);
-  let best: { answer: (typeof QUICK_ANSWERS)[number]; score: number } | null = null;
+  const quickAnswers = [...roleplayQuickAnswersForVersion(version), ...GOVERNANCE_QUICK_ANSWERS];
+  let best: { answer: (typeof quickAnswers)[number]; score: number } | null = null;
 
-  for (const answer of QUICK_ANSWERS) {
+  for (const answer of quickAnswers) {
     const score = Math.max(
       matchScore(normalized, words, answer.question),
       ...answer.phrases.map((phrase) => matchScore(normalized, words, phrase)),
