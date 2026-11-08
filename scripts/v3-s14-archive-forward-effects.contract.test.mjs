@@ -106,6 +106,33 @@ test("requires runtime dependencies instead of merely allowing PL/pgSQL to compi
     /'public\\.televotes'|'public\\.televoting_windows'/);
 });
 
+test("pins 31 bounded hosted critical column shapes and tests drift rejection", () => {
+  const start = candidate.indexOf("-- Catalog-only evidence collected by bounded");
+  const end = candidate.indexOf("-- Mandatory runtime dependencies", start);
+  assert.ok(start >= 0 && end > start, "hosted catalog preflight section missing");
+  const preflight = candidate.slice(start, end);
+  const contracts = [...preflight.matchAll(/\('(?:public|private)\.[a-z0-9_]+', '[a-z0-9_]+', '(?:uuid|text|bigint|jsonb|boolean|timestamptz)', (?:true|false)\)/g)];
+  assert.equal(contracts.length, 31, "unexpected hosted catalog column contract count");
+  for (const contract of [
+    "('public.studio2_edition_runtime', 'version', 'bigint', true)",
+    "('public.studio2_edition_runtime', 'subsystems', 'jsonb', true)",
+    "('public.studio2_edition_runtime', 'updated_at', 'timestamptz', true)",
+    "('public.studio2_organizer_tasks', 'edition_id', 'uuid', false)",
+    "('public.admin_notifications', 'source_key', 'text', false)",
+    "('public.notification_deliveries', 'subject_id', 'text', true)",
+    "('private.v3_result_versions', 'result_rows', 'jsonb', true)",
+    "('private.v3_domain_events', 'aggregate_version', 'bigint', true)",
+    "('private.v3_domain_event_outbox', 'event_id', 'uuid', true)",
+  ]) assert.ok(preflight.includes(contract), "missing hosted catalog contract: " + contract);
+  assert.match(preflight, /a\.atttypid is distinct from to_regtype\(e\.typ\)/);
+  assert.match(preflight, /a\.attnotnull is distinct from e\.must_not_null/);
+  assert.match(preflight, /S14 Archive recovery BLOCKED: hosted critical column drift/);
+  assert.match(rehearsal, /alter table public\.studio2_edition_runtime alter column updated_at drop not null/);
+  assert.match(rehearsal, /hosted critical column drift public\.studio2_edition_runtime\.updated_at/);
+  assert.match(rehearsal, /alter table public\.studio2_edition_runtime alter column updated_at set not null/);
+  assert.match(rehearsal, /Rejected critical-column drift left behind partial Archive DDL/);
+});
+
 test("integrated recovery uses the exact reviewed S13 donor and enforces S13 → S14", () => {
   // This git-object SHA is the exact S13 candidate source from draft #2393.
   // An upstream donor edit requires explicit review and a deliberate repin.
