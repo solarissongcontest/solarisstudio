@@ -52,10 +52,40 @@ export function evaluateFinalWeekBlockers(matrix, { release = false, certified =
     if (row.classification === "hard" && row.status !== "closed") counts.unresolvedHard++;
     if (row.classification === "conditional" && row.status !== "closed") counts.unresolvedConditional++;
   }
+  // Release readiness must be a dependency DAG. A cycle makes every action
+  // appear blocked by another "later" gate, so no owner can close the root cause.
+  const dependencies = new Map();
   for (const row of (Array.isArray(matrix.items) ? matrix.items : [])) {
     if (!row || !Array.isArray(row.dependencies)) continue;
-    for (const dependency of row.dependencies) if (!ids.has(dependency)) errors.push(row.id + ": unknown dependency " + dependency);
+    if (typeof row.id === "string" && !dependencies.has(row.id)) dependencies.set(row.id, []);
+    for (const dependency of row.dependencies) {
+      if (typeof dependency !== "string" || !ids.has(dependency)) {
+        errors.push(row.id + ": unknown dependency " + String(dependency));
+      } else if (typeof row.id === "string") {
+        dependencies.get(row.id)?.push(dependency);
+      }
+    }
   }
+  const active = new Set();
+  const complete = new Set();
+  const reportedCycles = new Set();
+  function validateDAG(id, lineage) {
+    if (complete.has(id)) return;
+    if (active.has(id)) {
+      const start = lineage.indexOf(id);
+      const cycle = [...lineage.slice(Math.max(start, 0)), id].join(" -> ");
+      if (!reportedCycles.has(cycle)) {
+        errors.push("release dependency cycle: " + cycle);
+        reportedCycles.add(cycle);
+      }
+      return;
+    }
+    active.add(id);
+    for (const required of dependencies.get(id) ?? []) validateDAG(required, [...lineage, id]);
+    active.delete(id);
+    complete.add(id);
+  }
+  for (const id of dependencies.keys()) validateDAG(id, []);
   if (release) {
     if (!SHA.test(candidateSha)) errors.push("release: exact --candidate-sha is required");
     if (matrix.coverage !== "complete") errors.push("release: matrix coverage is incomplete or unaudited");
