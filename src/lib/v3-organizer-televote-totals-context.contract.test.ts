@@ -2,10 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-const route = readFileSync(
-  "src/routes/_authenticated/admin/televote/$slug.tsx",
-  "utf8",
-);
+const route = readFileSync("src/routes/_authenticated/admin/televote/$slug.tsx", "utf8");
 
 describe("V3 Organizer Televote totals context", () => {
   it("binds the read-only view to the exact selected Organizer edition", () => {
@@ -17,7 +14,9 @@ describe("V3 Organizer Televote totals context", () => {
     expect(route).toContain("useShows(scopedEditionId)");
     expect(route).toContain("useParticipants(scopedEditionId)");
     expect(route).toContain("useContestEntities(scopedEditionId)");
-    expect(route).toContain("const contextMismatch = Boolean(edition && organizerEditionId !== edition.id)");
+    expect(route).toContain(
+      "const contextMismatch = Boolean(edition && organizerEditionId !== edition.id)",
+    );
     expect(route).toContain('title="Edition context mismatch"');
     expect(route).toContain("Reads and saves stay blocked until the contexts match");
   });

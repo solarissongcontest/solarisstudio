@@ -25,8 +25,8 @@ describe("V3 Organizer Televote totals boundary", () => {
   });
 
   it("reads the exact selected show and edition scope", () => {
-    expect(route).toContain('useShows(scopedEditionId)');
-    expect(route).toContain('useParticipants(scopedEditionId)');
-    expect(route).toContain('useTelevotes(selectedShow?.id)');
+    expect(route).toContain("useShows(scopedEditionId)");
+    expect(route).toContain("useParticipants(scopedEditionId)");
+    expect(route).toContain("useTelevotes(selectedShow?.id)");
   });
 });
