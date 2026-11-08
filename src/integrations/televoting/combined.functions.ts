@@ -208,6 +208,30 @@ export const setMergedCombinedStatus = createServerFn({ method: "POST" })
     return { ...remote, solarisSync };
   });
 
+export const reconcilePublishedCombinedResults = createServerFn({ method: "POST" })
+  .inputValidator(
+    (data: {
+      id: string;
+      expectedEditionId?: string;
+      expectedShowId?: string;
+    }) => {
+      if (!data?.id) throw new Error("Missing aggregation id");
+      return data;
+    },
+  )
+  .handler(async ({ data }) => {
+    const { trySyncPublishedCombinedResultsToSolarisServer } =
+      await import("@/integrations/televoting/results-sync.server");
+    const result = await trySyncPublishedCombinedResultsToSolarisServer(data.id, {
+      editionId: data.expectedEditionId,
+      showId: data.expectedShowId,
+    });
+    if (!result.ok) {
+      throw new Error(result.message ?? "Published Combined Televote reconciliation is not ready");
+    }
+    return result;
+  });
+
 export const deleteMergedCombinedAggregation = createServerFn({ method: "POST" })
   .inputValidator((data: { id: string }) => {
     if (!data?.id) throw new Error("Missing aggregation id");

@@ -19,6 +19,7 @@ import {
   getMergedCombinedAggregation,
   listMergedCombinedAggregations,
   recalculateMergedCombined,
+  reconcilePublishedCombinedResults,
   saveMergedCombinedSourceValues,
   setMergedCombinedParticipants,
   setMergedCombinedStatus,
@@ -106,6 +107,7 @@ function CombinedResultsPage() {
   const valuesFn = useServerFn(saveMergedCombinedSourceValues);
   const recalcFn = useServerFn(recalculateMergedCombined);
   const statusFn = useServerFn(setMergedCombinedStatus);
+  const reconcilePublishedFn = useServerFn(reconcilePublishedCombinedResults);
   const deleteFn = useServerFn(deleteMergedCombinedAggregation);
   const roundsFn = useServerFn(getMergedTelevotingRounds);
   const entriesFn = useServerFn(getMergedRoundEntries);
@@ -305,6 +307,7 @@ function CombinedResultsPage() {
               valuesFn={valuesFn}
               recalcFn={recalcFn}
               statusFn={statusFn}
+              reconcilePublishedFn={reconcilePublishedFn}
               publicationContext={{
                 editionId: search.editionId,
                 showId: search.showId,
@@ -331,6 +334,7 @@ function CombinedWorkspace({
   valuesFn,
   recalcFn,
   statusFn,
+  reconcilePublishedFn,
   publicationContext,
   deleteFn,
   onDeleted,
@@ -343,6 +347,7 @@ function CombinedWorkspace({
   const [publishOpen, setPublishOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
+  const [recoveryRequired, setRecoveryRequired] = useState(false);
 
   useEffect(() => {
     setName(aggregation.name);
@@ -350,6 +355,7 @@ function CombinedWorkspace({
     setExponent(String(aggregation.rank_exponent));
     setPublishOpen(false);
     setDeleteOpen(false);
+    setRecoveryRequired(false);
   }, [
     aggregation.id,
     aggregation.name,
@@ -494,6 +500,32 @@ function CombinedWorkspace({
       if (status === "published") setPublishOpen(false);
       await onRefresh();
     } catch (error) {
+      if (status === "published" && (error as Error).message.includes("Combined Televote published")) {
+        setRecoveryRequired(true);
+        await onRefresh();
+        toast.error("Publication committed, but Solaris Results still need reconciliation.");
+        return;
+      }
+      toast.error((error as Error).message);
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function reconcilePublished() {
+    setActionBusy(true);
+    try {
+      const result = await reconcilePublishedFn({
+        data: {
+          id: aggregation.id,
+          expectedEditionId: publicationContext?.editionId,
+          expectedShowId: publicationContext?.showId,
+        },
+      });
+      setRecoveryRequired(false);
+      toast.success(result.message ?? "Published Combined Televote reconciled");
+      await onRefresh();
+    } catch (error) {
       toast.error((error as Error).message);
     } finally {
       setActionBusy(false);
@@ -518,6 +550,18 @@ function CombinedWorkspace({
   return (
     <>
       <section className="glass p-4 sm:p-6">
+        {recoveryRequired ? (
+          <div className="mb-4 rounded-xl border border-amber-200/20 bg-amber-200/[0.06] p-4" role="alert">
+            <p className="text-sm font-semibold text-amber-100">Publication needs reconciliation</p>
+            <p className="mt-1 text-xs leading-5 text-amber-50/80">
+              The Combined result is published, but Solaris Results was not updated. Retry the
+              governed reconciliation before attempting any other publication action.
+            </p>
+            <Button className="mt-3" onClick={() => void reconcilePublished()} disabled={actionBusy}>
+              <RefreshCw className="mr-2 h-4 w-4" /> Retry canonical reconciliation
+            </Button>
+          </div>
+        ) : null}
         <div className="grid gap-3 lg:grid-cols-[2fr_1fr_1fr_auto] lg:items-end">
           <Field label="Combined result name">
             <Input value={name} onChange={(e) => setName(e.target.value)} />
