@@ -374,7 +374,7 @@ export const GOVERNANCE_QUICK_ANSWERS: GovernanceQuickAnswer[] = [
     question: "Can I vote highly for a friend's song?",
     answer: "Yes",
     explanation:
-      "Friendship itself is allowed. Your vote must still reflect your own genuine independent preference.",
+      "You can give your friend high points if you genuinely like the song. The decision must be yours, not something you agreed on beforehand.",
     ruleIds: ["11.4", "11.2"],
     phrases: ["friend vote", "friend voting", "friend give points", "friend 12 points", "vote for friend"],
   },
@@ -383,7 +383,7 @@ export const GOVERNANCE_QUICK_ANSWERS: GovernanceQuickAnswer[] = [
     question: "Can we agree to exchange high points?",
     answer: "No",
     explanation:
-      "Reciprocal or coordinated voting arrangements are prohibited even if both people would otherwise like the entries.",
+      "No deals to swap points. It does not matter if you also happen to like each other's songs.",
     ruleIds: ["11.2"],
     phrases: ["trade points", "exchange votes", "exchange points", "reciprocal vote", "coordinate votes"],
   },
@@ -392,7 +392,7 @@ export const GOVERNANCE_QUICK_ANSWERS: GovernanceQuickAnswer[] = [
     question: "Can I use an artist who competed in Eurovision?",
     answer: "No",
     explanation:
-      "The current SSC entry-eligibility rules restrict artists with the relevant Eurovision participation history.",
+      "Artists who competed in Eurovision cannot enter SSC. Artists who entered a Eurovision National Selection in 2015 or later are also ineligible.",
     ruleIds: ["6.5"],
     phrases: ["eurovision artist", "artist competed eurovision", "eurovision singer"],
   },
@@ -401,7 +401,7 @@ export const GOVERNANCE_QUICK_ANSWERS: GovernanceQuickAnswer[] = [
     question: "Can I report a concern anonymously?",
     answer: "Yes",
     explanation:
-      "Solaris supports fully anonymous reporting without attaching a Solaris reporter account to the case.",
+      "You can report a concern without linking your Solaris account to the report.",
     ruleIds: ["16.3"],
     phrases: ["anonymous report", "report anonymously", "hide identity"],
   },
@@ -410,7 +410,7 @@ export const GOVERNANCE_QUICK_ANSWERS: GovernanceQuickAnswer[] = [
     question: "Does an Integrity flag mean someone is guilty?",
     answer: "No",
     explanation:
-      "Automated and statistical signals can trigger human review but do not establish a rule violation by themselves.",
+      "No. A flag means something may need checking. TSBC still needs evidence before deciding that anyone broke a rule.",
     ruleIds: ["11.5", "16.6"],
     phrases: ["flag guilt", "integrity flag proof", "friend voting flag", "automatic flag"],
   },
@@ -419,7 +419,7 @@ export const GOVERNANCE_QUICK_ANSWERS: GovernanceQuickAnswer[] = [
     question: "What happens if I miss an official deadline?",
     answer: "Depends",
     explanation:
-      "The published deadline governs. An extension or remedy may exist where the rules authorise it, especially for a confirmed platform-wide failure.",
+      "It depends on the situation. If an official SSC system fails, TSBC may extend or reopen a stage. Extra time is not guaranteed, and a problem with your own Wi-Fi does not automatically qualify.",
     ruleIds: ["12.3", "12.4", "12.5"],
     phrases: ["miss deadline", "late entry", "deadline passed", "extension"],
   },

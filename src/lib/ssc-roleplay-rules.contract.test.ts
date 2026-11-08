@@ -35,14 +35,14 @@ describe("SSC Roleplay & Worldbuilding contract", () => {
   });
 
   it("makes the six-completed-edition threshold explicit and searchable", () => {
-    const dormant = draftRule("22.5");
+    const unprotected = draftRule("22.5");
     const protectedCountry = draftRule("22.4");
     const elimination = draftRule("22.6");
 
-    expect(dormant?.body.join(" ")).toContain("six consecutive SSC Editions");
-    expect(dormant?.body.join(" ")).toContain("no active Head of Delegation at any point");
-    expect(protectedCountry?.body.join(" ")).toContain("Withdrawal");
-    expect(elimination?.body.join(" ")).toContain("completely eliminate");
+    expect(unprotected?.body.join(" ")).toContain("six SSC editions in a row");
+    expect(unprotected?.body.join(" ")).toContain("without an active Head of Delegation (HoD) at any point");
+    expect(protectedCountry?.body.join(" ")).toContain("A suspension, withdrawal, temporary absence or skipped edition does not immediately remove protection");
+    expect(elimination?.body.join(" ")).toContain("remove that country from the current Solaris map");
 
     expect(searchSscRules("hodless country").some((rule) => rule.id === "22.5")).toBe(true);
     expect(searchSscRules("annex dormant country").some((rule) => rule.id === "22.6")).toBe(true);
@@ -82,6 +82,9 @@ describe("SSC Roleplay & Worldbuilding contract", () => {
     expect(home).toContain("Roleplay & Worldbuilding");
     expect(home).toContain("env(safe-area-inset-bottom)");
     expect(roleplayVisual).toContain("Dormancy clock");
+    expect(roleplayVisual).toContain('usePlainCountryTerms ? "Unprotected" : "Dormant"');
+    expect(chapter).toContain('compareRulebookVersions(publishedRulebookVersion, "4.2") >= 0');
+    expect(chapter).toContain("usePublishedRulebook()");
     expect(roleplayVisual).toContain("grid-cols-3");
     expect(roleplayVisual).toContain("sm:grid-cols-6");
     expect(chapter).toContain("RoleplayWorldbuildingVisual");
@@ -90,12 +93,12 @@ describe("SSC Roleplay & Worldbuilding contract", () => {
     expect(detail).toContain("Examples");
     expect(checker).toContain("min-h-12");
     expect(journey).toContain("md:grid-cols-2");
-    expect(search).toContain("findRuleSearchQuickAnswer(q)");
+    expect(search).toContain("findRuleSearchQuickAnswer(q, version)");
     expect(search).not.toContain("findRoleplayQuickAnswer");
     // The canonical matcher preserves authored roleplay answers but declines
     // to invent a verdict for generic or unrelated question strings.
     const quickAnswers = source("src/lib/v3-rules-quick-answer-search.ts");
-    expect(quickAnswers).toContain("ROLEPLAY_QUICK_ANSWERS");
+    expect(quickAnswers).toContain("roleplayQuickAnswersForVersion");
     expect(quickAnswers).toContain("GOVERNANCE_QUICK_ANSWERS");
     expect(navigation).toContain("Browse all 22 chapters");
     expect(navigation).toContain('"/rules/chapters/roleplay-worldbuilding"');

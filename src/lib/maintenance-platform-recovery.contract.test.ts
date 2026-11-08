@@ -17,6 +17,8 @@ const preflight = source("src/lib/platform-exit-preflight.functions.ts");
 const modes = source("src/lib/platform-operational-mode.ts");
 const maintenance = source("src/lib/maintenance-page.ts");
 const manager = source("src/routes/_authenticated/admin/rules-manager.tsx");
+const root = source("src/routes/__root.tsx");
+const appRuntime = source("src/components/app/AppRuntime.tsx");
 
 describe("emergency organizer platform recovery lane", () => {
   it("allows only the exact inert GET page and guarded POST preflight", () => {
@@ -83,6 +85,27 @@ describe("emergency organizer platform recovery lane", () => {
     expect(page).toContain("applyPlatformModeChange({");
     expect(modes).toContain("p_exit_preflight_id: input.exitPreflightId ?? null");
     expect(page).not.toContain("admin_create_rulebook_release");
+    expect(page).not.toContain("admin_publish_rulebook_release");
+  });
+
+  it("keeps the recovery page independent of disabled public app work and visibly fails closed", () => {
+    expect(root).toContain('maintenanceRecovery = pathname === "/maintenance/recovery"');
+    expect(root).toContain("const isolatedRoute = teaserPreview || maintenanceRecovery");
+    expect(root).toContain("{maintenanceRecovery ? content : <V3RootLegacyCutover>{content}</V3RootLegacyCutover>}");
+    expect(root).toContain("{!isolatedRoute ? <Toaster /> : null}");
+    expect(appRuntime).toContain("if (!platform.isAppMode || maintenanceRecovery) return");
+    expect(appRuntime).toContain("!platform.canInstallServiceWorker || maintenanceRecovery");
+    expect(server).toContain("maintenanceRecoveryFailureResponse(request.method)");
+    expect(server).toContain("normalized.status >= 500");
+    expect(server).toContain("MAINTENANCE_PLATFORM_RECOVERY_PATH");
+    expect(server).toContain("No platform setting or rulebook publication has been changed by this error");
+    expect(server).toContain('"cache-control": "private, no-store"');
+    expect(server).toContain("form-action 'none'");
+    expect(page).toContain("The SSC owner/TSBC approval is recorded");
+    // Existing write restrictions stay authoritative even for these fallback paths.
+    expect(server).toContain("!recoveryRouteAllowed");
+    expect(server).toContain("!hodAppRouteAllowed");
+    expect(server).toContain('request.method !== "GET"');
     expect(page).not.toContain("admin_publish_rulebook_release");
   });
 
