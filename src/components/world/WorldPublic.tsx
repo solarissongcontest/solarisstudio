@@ -136,7 +136,9 @@ export function WorldLanding() {
     staleTime: 90_000,
     retry: false,
   });
-  const featured = directory.data ?? [];
+  // React Query may retain a previous successful result while a revalidation
+  // fails. Published identity must not survive a failed verification.
+  const featured = directory.isError ? [] : directory.data ?? [];
   return (
     <PublicFrame>
       <div className="max-w-3xl">
@@ -198,7 +200,8 @@ export function WorldDirectory() {
     staleTime: 90_000,
     retry: false,
   });
-  const total = directory.data?.total ?? 0;
+  const verifiedDirectory = directory.isError ? null : directory.data;
+  const total = verifiedDirectory?.total ?? 0;
   return (
     <PublicFrame>
       <Link to="/world" className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
@@ -243,9 +246,9 @@ export function WorldDirectory() {
             <p className="text-sm text-muted-foreground">
               {total} {total === 1 ? "organization" : "organizations"} found
             </p>
-            {directory.data.organizations.length ? (
+            {verifiedDirectory?.organizations.length ? (
               <div className="mt-3 divide-y divide-border">
-                {directory.data.organizations.map((organization) =>
+                {verifiedDirectory.organizations.map((organization) =>
                   <OrganizationRow key={organization.id} organization={organization} />)}
               </div>
             ) : (
@@ -300,9 +303,10 @@ export function WorldOrganizationPage({
     staleTime: 60_000,
     retry: false,
   });
+  const verifiedProjection = projection.isError ? null : projection.data;
   const currentMembers = useMemo(() =>
-    projection.data ? currentWorldMemberships(projection.data) : [],
-    [projection.data]);
+    verifiedProjection ? currentWorldMemberships(verifiedProjection) : [],
+    [verifiedProjection]);
   const visibleMembers = useMemo(
     () => currentMembers.slice(memberPage * WORLD_MEMBER_PAGE_SIZE, (memberPage + 1) * WORLD_MEMBER_PAGE_SIZE),
     [currentMembers, memberPage],
@@ -328,19 +332,19 @@ export function WorldOrganizationPage({
     new Map((countries.data ?? []).map((country) => [country.id, country])),
     [countries.data]);
   const representativesByCountry = useMemo(() =>
-    new Map((projection.data?.representatives ?? [])
+    new Map((verifiedProjection?.representatives ?? [])
       .filter((rep) => rep.endsAt === null && rep.role === "representative" && rep.votingAuthority)
       .map((rep) => [rep.countryId, rep])),
-    [projection.data]);
+    [verifiedProjection]);
   const officesByCountry = useMemo(() => {
     const map = new Map<string, string[]>();
-    for (const office of projection.data?.offices ?? []) {
+    for (const office of verifiedProjection?.offices ?? []) {
       const countryId = office.currentTerm?.representedCountryId;
       if (!countryId) continue;
       map.set(countryId, [...(map.get(countryId) ?? []), office.title]);
     }
     return map;
-  }, [projection.data]);
+  }, [verifiedProjection]);
   return (
     <PublicFrame>
       <Link to="/world/organizations" className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
@@ -348,21 +352,21 @@ export function WorldOrganizationPage({
       </Link>
       {projection.isPending ? <div className="mt-6"><LoadingWorld label="Loading organization" /></div> : null}
       {projection.isError ? <div className="mt-6"><QueryFailure message="Public institution information is temporarily unavailable." retry={() => void projection.refetch()} /></div> : null}
-      {projection.isSuccess && !projection.data ? (
+      {projection.isSuccess && !verifiedProjection ? (
         <div className="mt-6 rounded-2xl border border-border px-5 py-9">
           <h1 className="text-2xl font-semibold">Organization not available</h1>
           <p className="mt-2 text-sm text-muted-foreground">This organization does not have a published profile, or this link is no longer valid.</p>
           <Link to="/world/organizations" className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground">Browse organizations</Link>
         </div>
       ) : null}
-      {projection.data ? (
+      {verifiedProjection ? (
         <>
           <header className="mt-5 max-w-4xl">
             <Kicker>Terra Solaris · International institution</Kicker>
-            <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight sm:text-6xl">{projection.data.organization.shortName}</h1>
-            <p className="mt-2 text-base font-medium text-muted-foreground">{projection.data.organization.officialName}</p>
+            <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight sm:text-6xl">{verifiedProjection.organization.shortName}</h1>
+            <p className="mt-2 text-base font-medium text-muted-foreground">{verifiedProjection.organization.officialName}</p>
             <div className="mt-5 flex flex-wrap gap-2">
-              <span className="rounded-full border border-border px-3 py-1 text-xs font-medium capitalize">{projection.data.organization.status}</span>
+              <span className="rounded-full border border-border px-3 py-1 text-xs font-medium capitalize">{verifiedProjection.organization.status}</span>
               <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">{currentMembers.length} current {currentMembers.length === 1 ? "membership" : "memberships"}</span>
             </div>
           </header>
@@ -382,14 +386,14 @@ export function WorldOrganizationPage({
                 <Kicker>About</Kicker>
                 <h2 className="mt-2 text-2xl font-semibold">The institution</h2>
                 <p className="mt-4 max-w-2xl whitespace-pre-line text-base leading-7 text-muted-foreground">
-                  {projection.data.organization.description || "An official description has not yet been published."}
+                  {verifiedProjection.organization.description || "An official description has not yet been published."}
                 </p>
                 <section className="mt-10 border-t border-border pt-6" aria-labelledby="world-organs-title">
                   <Kicker>Organization</Kicker>
                   <h2 id="world-organs-title" className="mt-2 text-xl font-semibold">Public bodies</h2>
-                  {projection.data.organs.length ? (
+                  {verifiedProjection.organs.length ? (
                     <div className="mt-4 divide-y divide-border">
-                      {projection.data.organs.slice(0, 5).map((organ) => (
+                      {verifiedProjection.organs.slice(0, 5).map((organ) => (
                         <Link key={organ.id} to="/world/organizations/$slug/bodies/$bodySlug"
                           params={{ slug, bodySlug: organ.slug }}
                           className="flex min-h-14 flex-wrap items-center justify-between gap-2 py-4 focus-visible:rounded-md focus-visible:outline focus-visible:outline-2">
@@ -409,8 +413,8 @@ export function WorldOrganizationPage({
                 <Kicker>At a glance</Kicker>
                 <div className="mt-4 space-y-5">
                   <div><p className="text-xs text-muted-foreground">Active memberships</p><p className="mt-1 text-2xl font-semibold">{currentMembers.length}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Recorded public organs</p><p className="mt-1 text-2xl font-semibold">{projection.data.organs.length}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Leadership offices</p><p className="mt-1 text-2xl font-semibold">{projection.data.offices.length}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Recorded public organs</p><p className="mt-1 text-2xl font-semibold">{verifiedProjection.organs.length}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Leadership offices</p><p className="mt-1 text-2xl font-semibold">{verifiedProjection.offices.length}</p></div>
                 </div>
                 <button type="button" className="mt-6 flex min-h-11 items-center gap-2 text-sm font-semibold text-primary" onClick={() => onViewChange("leadership")}>
                   Meet the leadership <ArrowRight className="size-4" aria-hidden="true" />
@@ -423,9 +427,9 @@ export function WorldOrganizationPage({
               <Kicker>Institutional offices</Kicker>
               <h2 id="world-leadership-title" className="mt-2 text-2xl font-semibold">Leadership</h2>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">Only recorded current office terms appear below. Empty offices are not assigned fictional holders.</p>
-              {projection.data.offices.length ? (
+              {verifiedProjection.offices.length ? (
                 <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                  {projection.data.offices.map((office) => (
+                  {verifiedProjection.offices.map((office) => (
                     <article key={office.id} className="rounded-xl border border-border p-5">
                       <p className="text-xs text-muted-foreground">{office.title}</p>
                       <h3 className="mt-2 text-lg font-semibold">{office.currentTerm?.holderDisplayName ?? "Vacant or unrecorded"}</h3>
