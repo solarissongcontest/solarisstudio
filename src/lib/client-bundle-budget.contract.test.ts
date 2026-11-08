@@ -134,6 +134,48 @@ describe("client bundle performance budget", () => {
     expect(validation.status).not.toBe(0);
   });
 
+  it("rejects self-consistent but fabricated gzip measurements", () => {
+    const { assetRoot, reportPath } = fixtureRoot();
+    writeFileSync(join(assetRoot, "app.js"), "export const realBundle = true;\n");
+    expect(runBudget(assetRoot, reportPath).status).toBe(0);
+
+    const report = JSON.parse(readFileSync(reportPath, "utf8"));
+    // The old validator accepted this: counts, raw bytes, and sums agree.
+    report.assets[0].gzipBytes = 0;
+    report.javascriptGzipBytes = 0;
+    report.aggregateGzipBytes = 0;
+    report.overBudgetBytes = 0;
+    writeFileSync(reportPath, `${JSON.stringify(report)}\n`);
+
+    const validation = spawnSync(process.execPath, [validatorScript, reportPath], {
+      encoding: "utf8",
+    });
+    expect(validation.status).not.toBe(0);
+    expect(validation.stderr).toContain("gzip byte count does not match app.js");
+  });
+
+  it("does not accept a green report when a tighter single-file budget failed", () => {
+    const { assetRoot, reportPath } = fixtureRoot();
+    // Compressible data keeps the aggregate below 1,800 KiB, but raw JS
+    // exceeds the unchanged 1,050 KiB individual-file limit.
+    writeFileSync(join(assetRoot, "big.js"), Buffer.alloc(1_050 * 1024 + 1, 97));
+    expect(runBudget(assetRoot, reportPath).status).not.toBe(0);
+
+    const report = JSON.parse(readFileSync(reportPath, "utf8"));
+    expect(report.overBudgetBytes).toBe(0);
+    expect(report.failures).toEqual(expect.arrayContaining([
+      expect.stringContaining("Largest JS raw"),
+    ]));
+    report.withinBudget = true;
+    writeFileSync(reportPath, `${JSON.stringify(report)}\n`);
+
+    const validation = spawnSync(process.execPath, [validatorScript, reportPath], {
+      encoding: "utf8",
+    });
+    expect(validation.status).not.toBe(0);
+    expect(validation.stderr).toContain("withinBudget must match whether reported budget checks failed");
+  });
+
   it("rejects inconsistent report totals", () => {
     const { assetRoot, reportPath } = fixtureRoot();
     writeFileSync(join(assetRoot, "app.js"), "export const ok = true;\n");
