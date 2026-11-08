@@ -53,6 +53,56 @@ begin
     raise exception 'S14 Archive recovery BLOCKED: required original function missing %', v_absent;
   end if;
 
+
+  -- Catalog-only evidence collected by bounded, READ-ONLY production queries.
+  -- Column type and nullability must match the critical preexisting ledgers;
+  -- existence-only relation checks can silently accept incompatible schemas.
+  -- This is intentionally a subset, not a full hosted-head-equivalence proof.
+  select e.rel || '.' || e.col into v_absent
+  from (values
+    ('public.studio2_edition_runtime', 'edition_id', 'uuid', true),
+    ('public.studio2_edition_runtime', 'state', 'text', true),
+    ('public.studio2_edition_runtime', 'subsystems', 'jsonb', true),
+    ('public.studio2_edition_runtime', 'version', 'bigint', true),
+    ('public.studio2_edition_runtime', 'updated_at', 'timestamptz', true),
+    ('public.studio2_organizer_tasks', 'id', 'uuid', true),
+    ('public.studio2_organizer_tasks', 'edition_id', 'uuid', false),
+    ('public.studio2_organizer_tasks', 'state', 'text', true),
+    ('public.studio2_organizer_tasks', 'task_type', 'text', true),
+    ('public.studio2_organizer_tasks', 'source_key', 'text', true),
+    ('public.admin_notifications', 'recipient_id', 'uuid', true),
+    ('public.admin_notifications', 'source_key', 'text', false),
+    ('public.admin_notifications', 'resolution_mode', 'text', true),
+    ('public.admin_notifications', 'requires_action', 'boolean', true),
+    ('public.admin_notifications', 'resolved_at', 'timestamptz', false),
+    ('public.notification_deliveries', 'subject_id', 'text', true),
+    ('public.notification_deliveries', 'category', 'text', true),
+    ('public.notification_deliveries', 'status', 'text', true),
+    ('public.notification_deliveries', 'scheduled_for', 'timestamptz', true),
+    ('private.v3_result_versions', 'show_id', 'uuid', true),
+    ('private.v3_result_versions', 'version', 'bigint', true),
+    ('private.v3_result_versions', 'result_rows', 'jsonb', true),
+    ('public.studio2_operation_receipts', 'operation_id', 'uuid', true),
+    ('public.studio2_operation_receipts', 'idempotency_key', 'text', true),
+    ('public.studio2_operation_receipts', 'correlation_id', 'uuid', true),
+    ('private.v3_domain_events', 'event_type', 'text', true),
+    ('private.v3_domain_events', 'aggregate_version', 'bigint', true),
+    ('private.v3_domain_events', 'payload', 'jsonb', true),
+    ('private.v3_domain_event_outbox', 'event_id', 'uuid', true),
+    ('private.v3_domain_event_outbox', 'consumer_key', 'text', true),
+    ('private.v3_domain_event_outbox', 'status', 'text', true)
+  ) as e(rel,col,typ,must_not_null)
+  left join pg_attribute a
+    on a.attrelid = to_regclass(e.rel) and a.attname = e.col
+    and a.attnum > 0 and not a.attisdropped
+  where a.attname is null
+     or a.atttypid is distinct from to_regtype(e.typ)
+     or a.attnotnull is distinct from e.must_not_null
+  limit 1;
+  if v_absent is not null then
+    raise exception 'S14 Archive recovery BLOCKED: hosted critical column drift %', v_absent;
+  end if;
+
   -- Mandatory runtime dependencies were confirmed through *read-only* hosted
   -- pg_catalog metadata. PostgreSQL may create a PL/pgSQL function even when
   -- external helpers invoked at runtime are missing; refuse that false green.
