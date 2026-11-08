@@ -12,7 +12,7 @@ import {
 
 const DORMANCY_EDITIONS = [1, 2, 3, 4, 5, 6] as const;
 
-export function RoleplayWorldbuildingVisual() {
+export function RoleplayWorldbuildingVisual({ usePlainCountryTerms = false }: { usePlainCountryTerms?: boolean }) {
   return (
     <section
       className="space-y-4"
@@ -36,21 +36,21 @@ export function RoleplayWorldbuildingVisual() {
           icon={Flag}
           eyebrow="Your country"
           title="You control the internal story"
-          detail="Government, culture, cities, domestic events and the actions of institutions you control."
+          detail="Your government, culture, cities, local events and the people you control."
           accent="emerald"
         />
         <VisualLane
           icon={UsersRound}
           eyebrow="Shared story"
-          title="Consent controls permanent effects"
-          detail="Wars and diplomacy can be shared, but a protected country cannot be permanently rewritten by somebody else."
+          title="Other countries need permission for lasting changes"
+          detail="You can play out wars together, but you cannot take over another Protected country without permission."
           accent="amber"
         />
         <VisualLane
           icon={Map}
           eyebrow="Official canon"
-          title="One canonical map"
-          detail="Permanent border and sovereignty outcomes are registered so official Solaris records never contradict each other."
+          title="One official map"
+          detail="TSBC must record lasting border changes so everyone uses the same world map."
           accent="sky"
         />
       </div>
@@ -59,9 +59,9 @@ export function RoleplayWorldbuildingVisual() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.15em] text-indigo-200/70">
-              Dormancy clock
+              {usePlainCountryTerms ? "Six-edition protection rule" : "Dormancy clock"}
             </p>
-            <h3 className="mt-1 text-base font-bold">Six fully HODless completed Editions</h3>
+            <h3 className="mt-1 text-base font-bold">Six completed editions without an active HoD</h3>
           </div>
           <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-indigo-200/15 bg-black/10 px-3 text-[11px] font-bold text-indigo-100">
             <Clock3 className="size-3.5" aria-hidden="true" />
@@ -80,11 +80,11 @@ export function RoleplayWorldbuildingVisual() {
               }
             >
               <span className="block font-mono text-[10px] font-black text-muted-foreground">
-                HODLESS
+                NO ACTIVE HOD
               </span>
               <span className="mt-1 block text-xl font-black">{edition}</span>
               <span className="mt-1 block text-[10px] leading-4 text-muted-foreground">
-                {edition === 6 ? "Dormant after completion" : "Still protected"}
+                {edition === 6 ? (usePlainCountryTerms ? "Unprotected after completion" : "Dormant after completion") : "Still protected"}
               </span>
             </div>
           ))}
@@ -93,7 +93,7 @@ export function RoleplayWorldbuildingVisual() {
         <div className="mt-4 flex items-start gap-2 rounded-xl border border-white/[0.07] bg-black/10 px-3 py-3 text-xs leading-5 text-muted-foreground">
           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
           <span>
-            If the country has an active HOD at any point in an Edition, that Edition does not count toward the six-Edition Dormant threshold.
+            If a country has an active Head of Delegation (HoD) at any time during an edition, that edition does not count toward the six. The count restarts.
           </span>
         </div>
       </div>
@@ -102,21 +102,21 @@ export function RoleplayWorldbuildingVisual() {
         <StatusCard
           icon={ShieldCheck}
           label="Protected"
-          title="Active or fewer than six fully HODless Editions"
+          title="An active HoD, or fewer than six finished editions in a row without one"
           items={[
             "May be invaded in roleplay",
-            "Cannot be unilaterally annexed or erased",
+            "Other people cannot take it over or erase it without permission",
             "Withdrawal alone does not remove protection",
           ]}
           tone="emerald"
         />
         <StatusCard
           icon={Map}
-          label="Dormant"
-          title="Six consecutive fully HODless Editions completed"
+          label={usePlainCountryTerms ? "Unprotected" : "Dormant"}
+          title="Six finished editions in a row without an active HoD at any time"
           items={[
-            "May be permanently conquered or partitioned",
-            "May be completely eliminated from the present-day map",
+            "Other countries may take it over or split its land",
+            "It may be removed from today's official map",
             "Historical SSC records remain untouched",
           ]}
           tone="indigo"
@@ -132,13 +132,13 @@ export function RoleplayWorldbuildingVisual() {
           <ReturnState
             label="Before elimination"
             title="Protection resumes"
-            detail="The country becomes protected again immediately. Unilateral permanent alteration stops."
+            detail="The country becomes Protected right away. Others can no longer take it over without permission."
           />
           <ArrowRight className="mx-auto hidden size-4 text-muted-foreground sm:block" aria-hidden="true" />
           <ReturnState
-            label="After canonical elimination"
+            label="After official removal from the map"
             title="A new outcome is needed"
-            detail="Restoration, a successor state or another continuation may happen, but old borders do not automatically return."
+            detail="The country can return through a new story and official map decision, but does not simply get its old land back."
           />
         </div>
       </div>

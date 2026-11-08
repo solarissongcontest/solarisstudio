@@ -10,6 +10,8 @@ import {
   SolarisDepthSafeZone,
   SolarisDepthSurface,
 } from "@/components/SolarisDepth";
+import { usePublishedRulebook } from "@/lib/rules-governance";
+import { compareRulebookVersions } from "@/lib/ssc-rules/runtime-overlay";
 import { getChapterBySlug } from "@/lib/ssc-rules/search";
 import type { RuleTone } from "@/lib/ssc-rules/types";
 
@@ -19,7 +21,9 @@ export const Route = createFileRoute("/rules/chapters/$chapter")({
     return {
       meta: [
         { title: chapter ? `Chapter ${chapter.number}: ${chapter.title} — SSC Rules` : "Rulebook chapter — SSC Rules" },
-        { name: "description", content: chapter?.description ?? "Read the official SSC rulebook." },
+        { name: "description", content: chapter?.number === 22
+          ? "Rules for country stories, protection, shared wars and official map changes."
+          : chapter?.description ?? "Read the official SSC rulebook." },
       ],
     };
   },
@@ -37,9 +41,22 @@ const TONE_DOT: Record<RuleTone, string> = {
 
 function RuleChapterPage() {
   const { chapter: slug } = Route.useParams();
+  const { version: publishedRulebookVersion } = usePublishedRulebook();
   const chapter = getChapterBySlug(slug);
   if (!chapter) throw notFound();
   const isRoleplay = chapter.number === 22;
+  const usesV42CountryName = isRoleplay && compareRulebookVersions(publishedRulebookVersion, "4.2") >= 0;
+  const chapterDescription = usesV42CountryName
+    ? "Write your country's story, agree on changes affecting others, and learn when the official map can change."
+    : chapter.description;
+  const atAGlance = usesV42CountryName
+    ? [
+        "You decide what happens inside your own country.",
+        "You need the required permission before permanently changing another Protected country.",
+        "A country becomes Unprotected only after six finished SSC editions in a row without an active HoD at any point.",
+        "An Unprotected country may be removed from the official map, but its past SSC results stay in the archive.",
+      ]
+    : chapter.atAGlance;
 
   return (
     <RulesRouteShell resolvingTitle={`Opening Chapter ${chapter.number}`}>
@@ -69,14 +86,14 @@ function RuleChapterPage() {
                   {chapter.title}
                 </h1>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-                  {chapter.description}
+                  {chapterDescription}
                 </p>
                 <GovernanceStatusStrip context="rules" className="mt-3" />
               </div>
 
               <div className="flex gap-2 sm:flex-col sm:items-end">
                 <ChapterMetric icon={BookOpen} value={chapter.rules.length} label="rules" />
-                <ChapterMetric icon={Sparkles} value={chapter.atAGlance.length} label="key ideas" />
+                <ChapterMetric icon={Sparkles} value={atAGlance.length} label="key ideas" />
               </div>
             </div>
           </SolarisDepthSurface>
@@ -85,7 +102,7 @@ function RuleChapterPage() {
         {isRoleplay ? (
           <SolarisDepthSafeZone className="mt-5">
             <SolarisDepthSurface variant="reading">
-              <RoleplayWorldbuildingVisual />
+              <RoleplayWorldbuildingVisual usePlainCountryTerms={usesV42CountryName} />
             </SolarisDepthSurface>
           </SolarisDepthSafeZone>
         ) : null}
@@ -94,7 +111,7 @@ function RuleChapterPage() {
           <section aria-labelledby="chapter-at-a-glance">
             <SolarisDepthEyebrow>At a glance</SolarisDepthEyebrow>
             <div id="chapter-at-a-glance" className="mt-2 grid gap-2 sm:grid-cols-2">
-              {chapter.atAGlance.map((item, index) => (
+              {atAGlance.map((item, index) => (
                 <article
                   key={item}
                   className="flex gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3.5"
@@ -146,7 +163,7 @@ function RuleChapterPage() {
           <div className="flex items-start gap-3 rounded-2xl border border-white/[0.07] bg-black/10 p-4 text-xs leading-5 text-muted-foreground">
             <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
             <p>
-              The short summaries and visuals help explain the chapter. Open an individual rule for the governing text, practical meaning, examples, related rules and official clarifications.
+              These summaries and pictures are a guide. Open any rule to read its full wording, examples and related rules.
             </p>
           </div>
         </SolarisDepthSafeZone>
