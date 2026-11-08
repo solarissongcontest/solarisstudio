@@ -8,6 +8,7 @@ const combinedMath = readFileSync("src/integrations/televoting/combined-math.ts"
 describe("V3 Organizer Televote correction dependency", () => {
   it("routes corrections to the Televoting-owned workflow", () => {
     expect(route).toContain('to="/televoting/admin/combined"');
+    expect(route).toContain("search={{ editionId: edition.id, showId: selectedShow?.id }}");
     expect(route).toContain(
       "Corrections, sanctions and deductions must be created and published through the Televoting correction workflow.",
     );
@@ -22,5 +23,9 @@ describe("V3 Organizer Televote correction dependency", () => {
       "finalCombinedPoints: totalVotingPoints + totalActivityPoints + finalCorrection",
     );
     expect(combinedMath).toContain("Final, reviewed point deductions must be applied in full");
+    expect(combinedRoute).toContain("Correction context preserved from Solaris Organizer");
+    expect(combinedRoute).toContain(
+      "refuse publication unless every enabled source resolves to that same bound show",
+    );
   });
 });

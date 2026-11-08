@@ -213,7 +213,11 @@ function TelevoteTotalsWorkspace() {
         title="Televote totals"
         description="Read-only canonical aggregate Televote points for this show. Corrections, sanctions and deductions must be created and published through the Televoting correction workflow."
         actions={
-          <Link to="/televoting/admin/combined" className="admin-action-primary">
+          <Link
+            to="/televoting/admin/combined"
+            search={{ editionId: edition.id, showId: selectedShow?.id }}
+            className="admin-action-primary"
+          >
             Open correction workflow
           </Link>
         }

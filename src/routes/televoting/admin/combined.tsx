@@ -2,14 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  LockKeyhole,
-  Plus,
-  RefreshCw,
-  Save,
-  Send,
-  Trash2,
-} from "lucide-react";
+import { LockKeyhole, Plus, RefreshCw, Save, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AdminDataView, type AdminDataColumn } from "@/components/admin/AdminDataView";
@@ -42,6 +35,10 @@ export const Route = createFileRoute("/televoting/admin/combined")({
       { title: "Combined Results — Solaris Operations" },
       { name: "robots", content: "noindex" },
     ],
+  }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    editionId: typeof search.editionId === "string" ? search.editionId : undefined,
+    showId: typeof search.showId === "string" ? search.showId : undefined,
   }),
   component: CombinedResultsPage,
 });
@@ -91,6 +88,7 @@ function emptySource(): SourceDraft {
 
 function CombinedResultsPage() {
   const navigate = useNavigate();
+  const search = Route.useSearch();
   const queryClient = useQueryClient();
   const getAdmin = useServerFn(getMergedTelevotingAdmin);
   const listFn = useServerFn(listMergedCombinedAggregations);
@@ -129,8 +127,8 @@ function CombinedResultsPage() {
   });
 
   useEffect(() => {
-    if (!selectedId && aggregations.length) setSelectedId(aggregations[0]!.id);
-  }, [aggregations, selectedId]);
+    if (!selectedId && !search.editionId && aggregations.length) setSelectedId(aggregations[0]!.id);
+  }, [aggregations, search.editionId, selectedId]);
 
   const { data: editionRounds = [] } = useQuery({
     queryKey: ["merged-televoting-rounds"],
@@ -139,11 +137,18 @@ function CombinedResultsPage() {
   });
 
   const allRounds = useMemo(
-    () => editionRounds.flatMap((edition) => edition.rounds.map((round) => ({ ...round, editionName: edition.name }))),
+    () =>
+      editionRounds.flatMap((edition) =>
+        edition.rounds.map((round) => ({ ...round, editionName: edition.name })),
+      ),
     [editionRounds],
   );
 
-  const { data: detail, isLoading: detailLoading, error: detailError } = useQuery({
+  const {
+    data: detail,
+    isLoading: detailLoading,
+    error: detailError,
+  } = useQuery({
     queryKey: ["merged-combined-detail", selectedId],
     queryFn: () => detailFn({ data: { id: selectedId } }),
     enabled: Boolean(admin && selectedId),
@@ -176,7 +181,11 @@ function CombinedResultsPage() {
   });
 
   if (adminLoading || listLoading) {
-    return <section className="glass p-8 text-center text-sm text-muted-foreground">Loading Combined Results…</section>;
+    return (
+      <section className="glass p-8 text-center text-sm text-muted-foreground">
+        Loading Combined Results…
+      </section>
+    );
   }
   if (!admin) return null;
 
@@ -193,20 +202,54 @@ function CombinedResultsPage() {
         }
       />
 
+      {search.editionId || search.showId ? (
+        <section className="glass border-sky-200/15 p-4 text-sm">
+          <p className="font-semibold">Correction context preserved from Solaris Organizer</p>
+          <p className="mt-1 text-muted-foreground">
+            Choose the reviewed Combined result for the exact edition/show below. Solaris will
+            refuse publication unless every enabled source resolves to that same bound show.
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Edition: {search.editionId ?? "not supplied"} · Show: {search.showId ?? "not supplied"}
+          </p>
+        </section>
+      ) : null}
+
       {createOpen ? (
         <section className="glass p-4 sm:p-5">
           <div className="grid gap-3 md:grid-cols-[2fr_1fr_1fr_auto] md:items-end">
-            <Field label="Name"><Input value={createName} onChange={(e) => setCreateName(e.target.value)} /></Field>
-            <Field label="Total point pool"><Input type="number" min={1} value={createPool} onChange={(e) => setCreatePool(e.target.value)} /></Field>
-            <Field label="Rank exponent"><Input type="number" step="0.01" min="0.01" value={createExponent} onChange={(e) => setCreateExponent(e.target.value)} /></Field>
-            <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>Create</Button>
+            <Field label="Name">
+              <Input value={createName} onChange={(e) => setCreateName(e.target.value)} />
+            </Field>
+            <Field label="Total point pool">
+              <Input
+                type="number"
+                min={1}
+                value={createPool}
+                onChange={(e) => setCreatePool(e.target.value)}
+              />
+            </Field>
+            <Field label="Rank exponent">
+              <Input
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={createExponent}
+                onChange={(e) => setCreateExponent(e.target.value)}
+              />
+            </Field>
+            <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
+              Create
+            </Button>
           </div>
         </section>
       ) : null}
 
       <div className="grid gap-5 xl:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="glass h-fit p-3 xl:sticky xl:top-24">
-          <p className="mb-2 px-2 text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Saved combined results</p>
+          <p className="mb-2 px-2 text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
+            Saved combined results
+          </p>
           <div className="space-y-1">
             {aggregations.map((aggregation) => (
               <button
@@ -219,17 +262,31 @@ function CombinedResultsPage() {
                 <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
                   <span>{aggregation.status}</span>
                   <span>v{aggregation.calculation_version}</span>
-                  {aggregation.results_outdated ? <span className="text-amber-100">outdated</span> : null}
+                  {aggregation.results_outdated ? (
+                    <span className="text-amber-100">outdated</span>
+                  ) : null}
                 </div>
               </button>
             ))}
-            {!aggregations.length ? <p className="px-2 py-6 text-center text-xs text-muted-foreground">No combined results yet.</p> : null}
+            {!aggregations.length ? (
+              <p className="px-2 py-6 text-center text-xs text-muted-foreground">
+                No combined results yet.
+              </p>
+            ) : null}
           </div>
         </aside>
 
         <div className="min-w-0 space-y-5">
-          {detailLoading ? <section className="glass p-8 text-center text-sm text-muted-foreground">Loading workspace…</section> : null}
-          {detailError ? <section className="glass border-red-300/20 p-5 text-sm text-red-100">{(detailError as Error).message}</section> : null}
+          {detailLoading ? (
+            <section className="glass p-8 text-center text-sm text-muted-foreground">
+              Loading workspace…
+            </section>
+          ) : null}
+          {detailError ? (
+            <section className="glass border-red-300/20 p-5 text-sm text-red-100">
+              {(detailError as Error).message}
+            </section>
+          ) : null}
           {detail ? (
             <CombinedWorkspace
               detail={detail}
@@ -283,10 +340,21 @@ function CombinedWorkspace({
     setExponent(String(aggregation.rank_exponent));
     setPublishOpen(false);
     setDeleteOpen(false);
-  }, [aggregation.id, aggregation.name, aggregation.total_points_to_distribute, aggregation.rank_exponent]);
+  }, [
+    aggregation.id,
+    aggregation.name,
+    aggregation.total_points_to_distribute,
+    aggregation.rank_exponent,
+  ]);
 
-  const catalogMap = useMemo(() => new Map(detail.catalog.map((entry: any) => [entry.key, entry])), [detail.catalog]);
-  const resolvedById = useMemo(() => new Map(detail.resolved.map((source: any) => [source.id, source])), [detail.resolved]);
+  const catalogMap = useMemo(
+    () => new Map(detail.catalog.map((entry: any) => [entry.key, entry])),
+    [detail.catalog],
+  );
+  const resolvedById = useMemo(
+    () => new Map(detail.resolved.map((source: any) => [source.id, source])),
+    [detail.resolved],
+  );
   const previewColumns = [
     {
       key: "rank",
@@ -321,13 +389,22 @@ function CombinedWorkspace({
       key: "final",
       header: "Final",
       align: "right" as const,
-      render: (row: any) => <span className="numeric text-base font-semibold">{row.finalCombinedPoints}</span>,
+      render: (row: any) => (
+        <span className="numeric text-base font-semibold">{row.finalCombinedPoints}</span>
+      ),
     },
   ] satisfies readonly AdminDataColumn<any>[];
 
   async function saveSettings() {
     try {
-      await updateFn({ data: { id: aggregation.id, name, totalPoints: Number(pool), rankExponent: Number(exponent) } });
+      await updateFn({
+        data: {
+          id: aggregation.id,
+          name,
+          totalPoints: Number(pool),
+          rankExponent: Number(exponent),
+        },
+      });
       toast.success("Combined settings saved");
       await onRefresh();
     } catch (error) {
@@ -337,9 +414,13 @@ function CombinedWorkspace({
 
   async function syncParticipants() {
     try {
-      const roundIds = [...new Set(detail.sources.map((source: any) => source.source_round_id).filter(Boolean))] as string[];
+      const roundIds = [
+        ...new Set(detail.sources.map((source: any) => source.source_round_id).filter(Boolean)),
+      ] as string[];
       if (!roundIds.length) throw new Error("Add at least one linked website round first");
-      const entries = await Promise.all(roundIds.map((roundId) => entriesFn({ data: { roundId } })));
+      const entries = await Promise.all(
+        roundIds.map((roundId) => entriesFn({ data: { roundId } })),
+      );
       const keys: string[] = [];
       for (const list of entries) {
         for (const entry of list) if (!keys.includes(entry.entry_key)) keys.push(entry.entry_key);
@@ -421,15 +502,36 @@ function CombinedWorkspace({
     <>
       <section className="glass p-4 sm:p-6">
         <div className="grid gap-3 lg:grid-cols-[2fr_1fr_1fr_auto] lg:items-end">
-          <Field label="Combined result name"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
-          <Field label="Overall point pool"><Input type="number" value={pool} onChange={(e) => setPool(e.target.value)} /></Field>
-          <Field label="Rank exponent"><Input type="number" step="0.01" value={exponent} onChange={(e) => setExponent(e.target.value)} /></Field>
-          <Button onClick={saveSettings}><Save className="mr-2 h-4 w-4" /> Save</Button>
+          <Field label="Combined result name">
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </Field>
+          <Field label="Overall point pool">
+            <Input type="number" value={pool} onChange={(e) => setPool(e.target.value)} />
+          </Field>
+          <Field label="Rank exponent">
+            <Input
+              type="number"
+              step="0.01"
+              value={exponent}
+              onChange={(e) => setExponent(e.target.value)}
+            />
+          </Field>
+          <Button onClick={saveSettings}>
+            <Save className="mr-2 h-4 w-4" /> Save
+          </Button>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
-          <span className="rounded-full border border-white/10 px-2 py-1">Status {aggregation.status}</span>
-          <span className="rounded-full border border-white/10 px-2 py-1">Calculation v{aggregation.calculation_version}</span>
-          {aggregation.results_outdated ? <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-2 py-1 text-amber-100">Recalculation required</span> : null}
+          <span className="rounded-full border border-white/10 px-2 py-1">
+            Status {aggregation.status}
+          </span>
+          <span className="rounded-full border border-white/10 px-2 py-1">
+            Calculation v{aggregation.calculation_version}
+          </span>
+          {aggregation.results_outdated ? (
+            <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-2 py-1 text-amber-100">
+              Recalculation required
+            </span>
+          ) : null}
         </div>
       </section>
 
@@ -437,23 +539,40 @@ function CombinedWorkspace({
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-lg font-bold tracking-[-.02em]">Eligible entries</h2>
-            <p className="mt-2 text-xs text-muted-foreground">Identity is the stable round entry key, so country and custom entries can coexist safely.</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Identity is the stable round entry key, so country and custom entries can coexist
+              safely.
+            </p>
           </div>
-          <Button variant="outline" onClick={syncParticipants}><RefreshCw className="mr-2 h-4 w-4" /> Sync from linked rounds</Button>
+          <Button variant="outline" onClick={syncParticipants}>
+            <RefreshCw className="mr-2 h-4 w-4" /> Sync from linked rounds
+          </Button>
         </div>
         <div className="flex flex-wrap gap-2">
           {detail.participants.map((key: string) => {
             const entry: any = catalogMap.get(key);
-            return <span key={key} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs">{entry?.name ?? key}</span>;
+            return (
+              <span
+                key={key}
+                className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs"
+              >
+                {entry?.name ?? key}
+              </span>
+            );
           })}
-          {!detail.participants.length ? <p className="text-sm text-muted-foreground">No eligible entries selected yet.</p> : null}
+          {!detail.participants.length ? (
+            <p className="text-sm text-muted-foreground">No eligible entries selected yet.</p>
+          ) : null}
         </div>
       </section>
 
       <section className="glass p-4 sm:p-6">
         <div className="mb-5">
           <h2 className="text-lg font-bold tracking-[-.02em]">Components</h2>
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Enabled non-correction source weights must total exactly 100%. Website rounds can use raw totals or already-converted points without double conversion.</p>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            Enabled non-correction source weights must total exactly 100%. Website rounds can use
+            raw totals or already-converted points without double conversion.
+          </p>
         </div>
 
         <div className="space-y-3">
@@ -476,10 +595,19 @@ function CombinedWorkspace({
         </div>
 
         <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-4">
-          <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Add component</p>
-          <SourceEditor draft={sourceDraft} setDraft={setSourceDraft} allRounds={allRounds} allSources={detail.sources} />
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
+            Add component
+          </p>
+          <SourceEditor
+            draft={sourceDraft}
+            setDraft={setSourceDraft}
+            allRounds={allRounds}
+            allSources={detail.sources}
+          />
           <div className="mt-3 flex justify-end">
-            <Button onClick={addSource}><Plus className="mr-2 h-4 w-4" /> Add source</Button>
+            <Button onClick={addSource}>
+              <Plus className="mr-2 h-4 w-4" /> Add source
+            </Button>
           </div>
         </div>
       </section>
@@ -488,28 +616,55 @@ function CombinedWorkspace({
         <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h2 className="text-lg font-bold tracking-[-.02em]">Calculation preview</h2>
-            <p className="mt-2 text-xs text-muted-foreground">Preview uses the same component-pool-v2 engine as the persisted calculation.</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Preview uses the same component-pool-v2 engine as the persisted calculation.
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={recalc}><RefreshCw className="mr-2 h-4 w-4" /> Recalculate</Button>
-            <Button variant="outline" onClick={() => void changeStatus("locked")} disabled={actionBusy || aggregation.results_outdated || !aggregation.calculation_version}><LockKeyhole className="mr-2 h-4 w-4" /> Lock</Button>
-            <Button variant="outline" onClick={() => setPublishOpen(true)} disabled={actionBusy || aggregation.results_outdated || !aggregation.calculation_version}><Send className="mr-2 h-4 w-4" /> Publish</Button>
+            <Button onClick={recalc}>
+              <RefreshCw className="mr-2 h-4 w-4" /> Recalculate
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => void changeStatus("locked")}
+              disabled={
+                actionBusy || aggregation.results_outdated || !aggregation.calculation_version
+              }
+            >
+              <LockKeyhole className="mr-2 h-4 w-4" /> Lock
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setPublishOpen(true)}
+              disabled={
+                actionBusy || aggregation.results_outdated || !aggregation.calculation_version
+              }
+            >
+              <Send className="mr-2 h-4 w-4" /> Publish
+            </Button>
           </div>
         </div>
 
         {detail.preview.errors.length ? (
           <div className="mb-4 rounded-2xl border border-red-300/20 bg-red-300/[0.06] p-4 text-xs text-red-100">
-            {detail.preview.errors.map((previewError: string) => <p key={previewError}>• {previewError}</p>)}
+            {detail.preview.errors.map((previewError: string) => (
+              <p key={previewError}>• {previewError}</p>
+            ))}
           </div>
         ) : null}
         {detail.preview.warnings.length ? (
           <div className="mb-4 rounded-2xl border border-amber-300/20 bg-amber-300/[0.05] p-4 text-xs text-amber-100">
-            {detail.preview.warnings.map((warning: string) => <p key={warning}>• {warning}</p>)}
+            {detail.preview.warnings.map((warning: string) => (
+              <p key={warning}>• {warning}</p>
+            ))}
           </div>
         ) : null}
 
         <div className="grid gap-2 sm:grid-cols-4">
-          <Stat label="Source weights" value={`${Math.round(detail.preview.totalPercentage * 100) / 100}%`} />
+          <Stat
+            label="Source weights"
+            value={`${Math.round(detail.preview.totalPercentage * 100) / 100}%`}
+          />
           <Stat label="Pool" value={detail.preview.totalPoints} />
           <Stat label="Allocated" value={detail.preview.allocatedTotal} />
           <Stat label="Final total" value={detail.preview.finalTotal} />
@@ -528,7 +683,13 @@ function CombinedWorkspace({
         title="Delete combined result"
         description="Published combined results are protected from deletion."
       >
-        <Button variant="destructive" disabled={aggregation.status === "published" || actionBusy} onClick={() => setDeleteOpen(true)}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
+        <Button
+          variant="destructive"
+          disabled={aggregation.status === "published" || actionBusy}
+          onClick={() => setDeleteOpen(true)}
+        >
+          <Trash2 className="mr-2 h-4 w-4" /> Delete
+        </Button>
       </DangerZone>
 
       <AdminConfirmSheet
@@ -557,7 +718,19 @@ function CombinedWorkspace({
   );
 }
 
-function SourceCard({ source, resolved, participants, catalogMap, allRounds, allSources, aggregationId, upsertSourceFn, deleteSourceFn, valuesFn, onRefresh }: any) {
+function SourceCard({
+  source,
+  resolved,
+  participants,
+  catalogMap,
+  allRounds,
+  allSources,
+  aggregationId,
+  upsertSourceFn,
+  deleteSourceFn,
+  valuesFn,
+  onRefresh,
+}: any) {
   const [draft, setDraft] = useState<SourceDraft>({
     id: source.id,
     sourceType: source.source_type,
@@ -570,45 +743,61 @@ function SourceCard({ source, resolved, participants, catalogMap, allRounds, all
     correctionTargetSourceId: source.correction_target_source_id ?? "",
   });
   const [values, setValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(participants.map((key: string) => [key, String(resolved?.values?.[key] ?? 0)])),
+    Object.fromEntries(
+      participants.map((key: string) => [key, String(resolved?.values?.[key] ?? 0)]),
+    ),
   );
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    setValues(Object.fromEntries(participants.map((key: string) => [key, String(resolved?.values?.[key] ?? 0)])));
+    setValues(
+      Object.fromEntries(
+        participants.map((key: string) => [key, String(resolved?.values?.[key] ?? 0)]),
+      ),
+    );
   }, [participants.join("|"), resolved]);
 
   async function saveSource() {
     try {
-      await upsertSourceFn({ data: {
-        id: source.id,
-        aggregationId,
-        sourceType: draft.sourceType,
-        inputMode: draft.inputMode,
-        roundId: draft.roundId || null,
-        name: draft.name,
-        weight: Number(draft.weight),
-        enabled: draft.enabled,
-        displayOrder: source.display_order,
-        correctionScope: draft.correctionScope,
-        correctionTargetSourceId: draft.correctionTargetSourceId || null,
-      }});
+      await upsertSourceFn({
+        data: {
+          id: source.id,
+          aggregationId,
+          sourceType: draft.sourceType,
+          inputMode: draft.inputMode,
+          roundId: draft.roundId || null,
+          name: draft.name,
+          weight: Number(draft.weight),
+          enabled: draft.enabled,
+          displayOrder: source.display_order,
+          correctionScope: draft.correctionScope,
+          correctionTargetSourceId: draft.correctionTargetSourceId || null,
+        },
+      });
       toast.success("Source saved");
       await onRefresh();
-    } catch (error) { toast.error((error as Error).message); }
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
   }
 
   async function saveValues() {
     try {
-      await valuesFn({ data: {
-        aggregationId,
-        sourceId: source.id,
-        values: Object.fromEntries(Object.entries(values).map(([key, value]) => [key, Number(value) || 0])),
-      }});
+      await valuesFn({
+        data: {
+          aggregationId,
+          sourceId: source.id,
+          values: Object.fromEntries(
+            Object.entries(values).map(([key, value]) => [key, Number(value) || 0]),
+          ),
+        },
+      });
       toast.success("Source values saved");
       await onRefresh();
-    } catch (error) { toast.error((error as Error).message); }
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
   }
 
   async function removeSource() {
@@ -628,10 +817,19 @@ function SourceCard({ source, resolved, participants, catalogMap, allRounds, all
   return (
     <>
       <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-        <SourceEditor draft={draft} setDraft={setDraft} allRounds={allRounds} allSources={allSources} />
+        <SourceEditor
+          draft={draft}
+          setDraft={setDraft}
+          allRounds={allRounds}
+          allSources={allSources}
+        />
         <div className="mt-3 flex flex-wrap justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={saveSource}><Save className="mr-1.5 h-3.5 w-3.5" /> Save source</Button>
-          <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}><Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete</Button>
+          <Button variant="outline" size="sm" onClick={saveSource}>
+            <Save className="mr-1.5 h-3.5 w-3.5" /> Save source
+          </Button>
+          <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete
+          </Button>
         </div>
 
         {!source.source_round_id && participants.length ? (
@@ -639,15 +837,32 @@ function SourceCard({ source, resolved, participants, catalogMap, allRounds, all
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold">Manual source values</p>
-                <p className="mt-1 text-[10px] text-muted-foreground">Values use stable entry keys and can be raw, activity, converted or correction inputs.</p>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Values use stable entry keys and can be raw, activity, converted or correction
+                  inputs.
+                </p>
               </div>
-              <Button size="sm" onClick={saveValues}>Save values</Button>
+              <Button size="sm" onClick={saveValues}>
+                Save values
+              </Button>
             </div>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {participants.map((key: string) => (
-                <label key={key} className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/10 p-2.5">
-                  <span className="min-w-0 flex-1 truncate text-xs">{catalogMap.get(key)?.name ?? key}</span>
-                  <Input className="h-8 w-24 text-right" type="number" value={values[key] ?? "0"} onChange={(e) => setValues((current) => ({ ...current, [key]: e.target.value }))} />
+                <label
+                  key={key}
+                  className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/10 p-2.5"
+                >
+                  <span className="min-w-0 flex-1 truncate text-xs">
+                    {catalogMap.get(key)?.name ?? key}
+                  </span>
+                  <Input
+                    className="h-8 w-24 text-right"
+                    type="number"
+                    value={values[key] ?? "0"}
+                    onChange={(e) =>
+                      setValues((current) => ({ ...current, [key]: e.target.value }))
+                    }
+                  />
                 </label>
               ))}
             </div>
@@ -669,34 +884,137 @@ function SourceCard({ source, resolved, participants, catalogMap, allRounds, all
   );
 }
 
-function SourceEditor({ draft, setDraft, allRounds, allSources }: { draft: SourceDraft; setDraft: (next: SourceDraft) => void; allRounds: any[]; allSources: any[] }) {
+function SourceEditor({
+  draft,
+  setDraft,
+  allRounds,
+  allSources,
+}: {
+  draft: SourceDraft;
+  setDraft: (next: SourceDraft) => void;
+  allRounds: any[];
+  allSources: any[];
+}) {
   const correction = draft.inputMode === "correction" || draft.sourceType === "correction";
   return (
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-      <Field label="Name"><Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></Field>
-      <Field label="Source type"><select value={draft.sourceType} onChange={(e) => setDraft({ ...draft, sourceType: e.target.value })} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">{SOURCE_TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
-      <Field label="Input mode"><select value={draft.inputMode} onChange={(e) => setDraft({ ...draft, inputMode: e.target.value as SourceInputMode })} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">{INPUT_MODES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
-      <Field label="Linked round"><select value={draft.roundId} onChange={(e) => setDraft({ ...draft, roundId: e.target.value })} disabled={correction} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Manual values</option>{allRounds.map((round) => <option key={round.id} value={round.id}>{round.editionName} · {round.name}</option>)}</select></Field>
+      <Field label="Name">
+        <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+      </Field>
+      <Field label="Source type">
+        <select
+          value={draft.sourceType}
+          onChange={(e) => setDraft({ ...draft, sourceType: e.target.value })}
+          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+        >
+          {SOURCE_TYPES.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Input mode">
+        <select
+          value={draft.inputMode}
+          onChange={(e) => setDraft({ ...draft, inputMode: e.target.value as SourceInputMode })}
+          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+        >
+          {INPUT_MODES.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Linked round">
+        <select
+          value={draft.roundId}
+          onChange={(e) => setDraft({ ...draft, roundId: e.target.value })}
+          disabled={correction}
+          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="">Manual values</option>
+          {allRounds.map((round) => (
+            <option key={round.id} value={round.id}>
+              {round.editionName} · {round.name}
+            </option>
+          ))}
+        </select>
+      </Field>
       <Field label={correction ? "Correction scope" : "Weight %"}>
         {correction ? (
-          <select value={draft.correctionScope} onChange={(e) => setDraft({ ...draft, correctionScope: e.target.value as "source" | "final" })} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="final">Final result</option><option value="source">Specific source</option></select>
-        ) : <Input type="number" min="0" max="100" step="0.1" value={draft.weight} onChange={(e) => setDraft({ ...draft, weight: e.target.value })} />}
+          <select
+            value={draft.correctionScope}
+            onChange={(e) =>
+              setDraft({ ...draft, correctionScope: e.target.value as "source" | "final" })
+            }
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="final">Final result</option>
+            <option value="source">Specific source</option>
+          </select>
+        ) : (
+          <Input
+            type="number"
+            min="0"
+            max="100"
+            step="0.1"
+            value={draft.weight}
+            onChange={(e) => setDraft({ ...draft, weight: e.target.value })}
+          />
+        )}
       </Field>
       <div className="flex items-end gap-3 pb-1">
-        <Switch checked={draft.enabled} onCheckedChange={(checked) => setDraft({ ...draft, enabled: checked })} />
+        <Switch
+          checked={draft.enabled}
+          onCheckedChange={(checked) => setDraft({ ...draft, enabled: checked })}
+        />
         <span className="pb-1 text-xs text-muted-foreground">Enabled</span>
       </div>
       {correction && draft.correctionScope === "source" ? (
-        <Field label="Correction target"><select value={draft.correctionTargetSourceId} onChange={(e) => setDraft({ ...draft, correctionTargetSourceId: e.target.value })} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Select source</option>{allSources.filter((source) => source.id !== draft.id && (source.input_mode ?? "raw_results") !== "correction").map((source) => <option key={source.id} value={source.id}>{source.source_name}</option>)}</select></Field>
+        <Field label="Correction target">
+          <select
+            value={draft.correctionTargetSourceId}
+            onChange={(e) => setDraft({ ...draft, correctionTargetSourceId: e.target.value })}
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="">Select source</option>
+            {allSources
+              .filter(
+                (source) =>
+                  source.id !== draft.id && (source.input_mode ?? "raw_results") !== "correction",
+              )
+              .map((source) => (
+                <option key={source.id} value={source.id}>
+                  {source.source_name}
+                </option>
+              ))}
+          </select>
+        </Field>
       ) : null}
     </div>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="block"><span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</span>{children}</label>;
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
 }
 
 function Stat({ label, value }: { label: string; value: string | number }) {
-  return <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</p><p className="mt-2 text-xl font-semibold">{value}</p></div>;
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-2 text-xl font-semibold">{value}</p>
+    </div>
+  );
 }
