@@ -167,6 +167,7 @@ function CombinedResultsPage() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["merged-combined-aggregations"] }),
       queryClient.invalidateQueries({ queryKey: ["merged-combined-detail", selectedId] }),
+      queryClient.invalidateQueries({ queryKey: ["merged-combined-recovery", selectedId] }),
       queryClient.invalidateQueries({ queryKey: ["merged-televoting-audit"] }),
     ]);
   };
@@ -370,6 +371,16 @@ function CombinedWorkspace({
     refetchOnWindowFocus: true,
     enabled: aggregation.status === "published",
   });
+  const recoveryUnavailable =
+    recoveryQuery.isError || (!recoveryQuery.isLoading && !recoveryQuery.data);
+  const canonicalNeedsRepair =
+    recoveryQuery.data?.canonical === "missing" || recoveryQuery.data?.canonical === "mismatch";
+  const snapshotNeedsRepair =
+    recoveryQuery.data?.canonical === "reconciled" &&
+    recoveryQuery.data.snapshot === "incomplete";
+  const snapshotUnavailable =
+    recoveryQuery.data?.canonical === "reconciled" &&
+    recoveryQuery.data.snapshot === "unverifiable";
 
   useEffect(() => {
     setName(aggregation.name);
@@ -520,9 +531,11 @@ function CombinedWorkspace({
       toast.success(`Combined result ${status}`);
       if (status === "published") setPublishOpen(false);
       await onRefresh();
+      if (status === "published") await recoveryQuery.refetch();
     } catch (error) {
       if (status === "published" && (error as Error).message.includes("Combined Televote published")) {
         await onRefresh();
+        await recoveryQuery.refetch();
         toast.error("Publication committed, but Solaris Results still need reconciliation.");
         return;
       }
@@ -542,8 +555,18 @@ function CombinedWorkspace({
           expectedShowId: publicationContext?.showId,
         },
       });
-      toast.success(result.message ?? "Published Combined Televote reconciled");
       await onRefresh();
+      const verified = await recoveryQuery.refetch();
+      if (verified.data?.canonical !== "reconciled") {
+        throw new Error(
+          "The reconciliation command completed without a verified canonical Results projection.",
+        );
+      }
+      if (verified.data.snapshot === "complete") {
+        toast.success(result.message ?? "Published Combined Televote reconciled");
+      } else {
+        toast.warning("Official Results synchronized, but public voting breakdown still needs repair.");
+      }
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
@@ -569,31 +592,74 @@ function CombinedWorkspace({
   return (
     <>
       <section className="glass p-4 sm:p-6">
-        {recoveryQuery.data?.canonical !== "reconciled" &&
-        aggregation.status === "published" ? (
+        {aggregation.status === "published" && recoveryQuery.isLoading ? (
+          <div className="mb-4 rounded-xl border border-white/[0.12] bg-white/[0.035] p-4" role="status">
+            <p className="text-sm font-semibold">Checking publication health…</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              Official Results and public contribution detail are being verified from server state.
+            </p>
+          </div>
+        ) : null}
+        {aggregation.status === "published" && recoveryUnavailable ? (
+          <div className="mb-4 rounded-xl border border-amber-200/20 bg-amber-200/[0.06] p-4" role="alert">
+            <p className="text-sm font-semibold text-amber-100">Unable to verify publication status</p>
+            <p className="mt-1 text-xs leading-5 text-amber-50/80">
+              The verification read failed or returned no trustworthy state. No canonical mutation
+              was triggered.
+            </p>
+            <Button className="mt-3" onClick={() => void recoveryQuery.refetch()} disabled={actionBusy}>
+              <RefreshCw className="mr-2 h-4 w-4" /> Check status again
+            </Button>
+          </div>
+        ) : null}
+        {aggregation.status === "published" && canonicalNeedsRepair ? (
           <div className="mb-4 rounded-xl border border-amber-200/20 bg-amber-200/[0.06] p-4" role="alert">
             <p className="text-sm font-semibold text-amber-100">
-              {recoveryQuery.data?.canonical === "missing"
-                ? "Publication needs reconciliation"
-                : "Publication recovery status is unavailable"}
+              Official Results need reconciliation
             </p>
             <p className="mt-1 text-xs leading-5 text-amber-50/80">
-              Solaris will not claim that official Results are synchronized until the canonical
-              projection is confirmed after publication.
+              The published Combined result is missing from, or differs from, the authoritative
+              Solaris Results projection.
             </p>
             <Button className="mt-3" onClick={() => void reconcilePublished()} disabled={actionBusy}>
               <RefreshCw className="mr-2 h-4 w-4" /> Retry canonical reconciliation
             </Button>
           </div>
         ) : null}
-        {recoveryQuery.data?.canonical === "reconciled" &&
-        recoveryQuery.data.snapshot === "incomplete" ? (
-          <div className="mb-4 rounded-xl border border-sky-200/20 bg-sky-200/[0.06] p-4" role="status">
-            <p className="text-sm font-semibold text-sky-100">Public detail is rebuilding</p>
-            <p className="mt-1 text-xs leading-5 text-sky-50/80">
-              Official Results are synchronized. Public contribution detail is independently
-              rebuildable and is not being presented as complete yet.
+        {aggregation.status === "published" &&
+        recoveryQuery.data?.canonical === "reconciled" ? (
+          <div className="mb-4 rounded-xl border border-emerald-200/20 bg-emerald-200/[0.06] p-4" role="status">
+            <p className="text-sm font-semibold text-emerald-100">Official Results synchronized</p>
+            <p className="mt-1 text-xs leading-5 text-emerald-50/80">
+              Calculation v{aggregation.calculation_version} matches the canonical Solaris
+              projection for this edition and show.
             </p>
+          </div>
+        ) : null}
+        {snapshotNeedsRepair ? (
+          <div className="mb-4 rounded-xl border border-sky-200/20 bg-sky-200/[0.06] p-4" role="status">
+            <p className="text-sm font-semibold text-sky-100">Public voting breakdown needs repair</p>
+            <p className="mt-1 text-xs leading-5 text-sky-50/80">
+              Official Results are correct, but supporting contribution detail is missing or stale.
+              Retry the governed reconciliation to rebuild it without changing official points.
+            </p>
+            <Button className="mt-3" variant="outline" onClick={() => void reconcilePublished()} disabled={actionBusy}>
+              <RefreshCw className="mr-2 h-4 w-4" /> Repair public breakdown
+            </Button>
+          </div>
+        ) : null}
+        {snapshotUnavailable ? (
+          <div className="mb-4 rounded-xl border border-amber-200/20 bg-amber-200/[0.06] p-4" role="alert">
+            <p className="text-sm font-semibold text-amber-100">
+              Public voting breakdown could not be verified
+            </p>
+            <p className="mt-1 text-xs leading-5 text-amber-50/80">
+              Official Results are synchronized, but the supporting public detail read failed.
+              Check status again before treating the breakdown as complete.
+            </p>
+            <Button className="mt-3" variant="outline" onClick={() => void recoveryQuery.refetch()} disabled={actionBusy}>
+              <RefreshCw className="mr-2 h-4 w-4" /> Check status again
+            </Button>
           </div>
         ) : null}
         <div className="grid gap-3 lg:grid-cols-[2fr_1fr_1fr_auto] lg:items-end">

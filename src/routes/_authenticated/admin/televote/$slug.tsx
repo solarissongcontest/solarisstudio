@@ -213,13 +213,32 @@ function TelevoteTotalsWorkspace() {
         title="Televote totals"
         description="Read-only canonical aggregate Televote points for this show. Corrections, sanctions and deductions must be created and published through the Televoting correction workflow."
         actions={
-          <Link
-            to="/televoting/admin/combined"
-            search={{ editionId: edition.id, showId: selectedShow?.id }}
-            className="admin-action-primary"
-          >
-            Open correction workflow
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              to="/televoting/admin/combined"
+              search={{ editionId: edition.id, showId: selectedShow?.id }}
+              className="admin-action-primary"
+            >
+              Review corrections
+            </Link>
+            <Link
+              to="/televoting/admin/combined"
+              search={{ editionId: edition.id, showId: selectedShow?.id }}
+              className="admin-action-secondary"
+            >
+              Review publication health
+            </Link>
+            {publishedResults && selectedShow ? (
+              <Link
+                to="/shows/$showId"
+                params={{ showId: selectedShow.id }}
+                search={{ from: "results" }}
+                className="admin-action-secondary"
+              >
+                View official Results
+              </Link>
+            ) : null}
+          </div>
         }
       />
 
@@ -245,6 +264,30 @@ function TelevoteTotalsWorkspace() {
         <Metric label="Total points" value={totalPoints} />
         <Metric label="Recorded votes" value={televotes.length} />
       </div>
+
+      <AdminCard className="mb-4 !border-sky-200/15">
+        <div className="grid gap-3 text-sm sm:grid-cols-3">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Edition</p>
+            <p className="mt-1 font-semibold">{editionLabel(edition)}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Show</p>
+            <p className="mt-1 font-semibold">{selectedShow?.name ?? "Unavailable"}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Publication</p>
+            <p className="mt-1 font-semibold">
+              {publishedResults ? "Official Results published" : "Not publicly published"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {televotes.length
+                ? "Canonical Televote projection loaded"
+                : "No canonical Televote rows recorded"}
+            </p>
+          </div>
+        </div>
+      </AdminCard>
 
       {!voting.televoteEnabled ? (
         <AdminCard className="mb-4 !border-amber-200/15">
