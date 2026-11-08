@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   CLEAR_RULE_BODIES,
   PLAIN_SUMMARIES,
+  TEEN_FRIENDLY_TITLES,
   withPlainLanguage,
 } from "@/lib/ssc-rules/plain-language-v42";
 import { glossaryForRule } from "@/lib/ssc-rules/glossary";
@@ -27,6 +28,7 @@ describe("SSC v4.2 plain-language candidate", () => {
     const officialIds = SSC_RULES.map(({ id }) => id).sort();
     expect(Object.keys(CLEAR_RULE_BODIES).sort()).toEqual(officialIds);
     expect(Object.keys(PLAIN_SUMMARIES).sort()).toEqual(officialIds);
+    expect(Object.keys(TEEN_FRIENDLY_TITLES).sort()).toEqual(officialIds);
     for (const rule of draftRules) {
       expect(rule.summary.length).toBeGreaterThan(20);
       expect(rule.body.length).toBeGreaterThan(0);
@@ -44,11 +46,18 @@ describe("SSC v4.2 plain-language candidate", () => {
   it("uses the song video when there is no official music video", () => {
     expect(bodyOf("6.3")).toContain("visualiser");
     expect(bodyOf("6.4")).toContain("If there is no official music video");
-    expect(bodyOf("6.4")).toContain("YouTube video for the song instead");
+    expect(bodyOf("6.4")).toContain("checks a full-song YouTube upload instead");
     expect(bodyOf("6.4")).toContain("fewer than 25 million");
     expect(bodyOf("6.4")).toContain("fewer than 20 million");
     expect(bodyOf("6.4")).toContain("most-viewed");
-    expect(bodyOf("6.4")).toContain("before the entry-submission deadline");
+    expect(bodyOf("6.4")).toContain("before the entry deadline");
+    expect(bodyOf("6.4")).toContain("full-song upload from another channel that clearly identifies the song");
+    expect(bodyOf("6.4")).toContain("If neither official channel has a suitable full-song video");
+    expect(bodyOf("6.4")).toContain("A fan upload does not take priority");
+    expect(bodyOf("6.4")).toContain("must not switch to a less-viewed upload just to make the song pass");
+    expect(bodyOf("6.4")).toContain("recorded check time");
+    expect(bodyOf("6.4")).toContain("official YouTube channel");
+    expect(draftRuleById("6.4")?.examples?.some(({ title, detail }) => title === "Official video versus fan upload" && detail.includes("600,000 views") && detail.includes("2 million"))).toBe(true);
   });
 
   it("waives previous-country artist permission only without an active HoD", () => {
@@ -60,10 +69,29 @@ describe("SSC v4.2 plain-language candidate", () => {
     expect(draftRuleById("6.6")?.examples?.some((example) => example.title === "Previous country has no active HoD" && example.outcome === "allowed")).toBe(true);
   });
 
+  it("allows friendship without treating a high vote alone as proof of cheating", () => {
+    const voting = bodyOf("11.4");
+    expect(voting).toContain("An HoD can give a friend's entry high points");
+    expect(voting).toContain("HoDs can be friends or part of the same group");
+    expect(voting).toContain("reliable evidence of an agreement about votes");
+    expect(voting).toContain("Friendship or similar voting patterns alone are not proof");
+    expect(voting).not.toMatch(/\bplayers?\b/i);
+    expect(voting).not.toContain("alliances and shared communities");
+  });
+
+  it("makes official-system failures and personal internet failures different cases", () => {
+    const rule = bodyOf("12.5");
+    expect(rule).toContain("TSBC may extend a deadline");
+    expect(rule).toContain("reopen a stage");
+    expect(rule).toContain("records saved by the system");
+    expect(rule).toContain("only with your own phone or internet");
+    expect(rule).toContain("do not automatically get extra time");
+  });
+
   it("allows withdrawal after the deadline but before entry publication", () => {
     const withdrawal = bodyOf("15.1");
-    expect(withdrawal).toContain("before its entry is published");
-    expect(withdrawal).toContain("not automatically punished");
+    expect(withdrawal).toContain("before TSBC publishes its song");
+    expect(withdrawal).toContain("missing the deadline alone is not a reason to issue a penalty");
     expect(bodyOf("15.2")).toContain("after its entry has been officially published");
   });
 
@@ -72,10 +100,13 @@ describe("SSC v4.2 plain-language candidate", () => {
     expect(sanction?.bullets).toHaveLength(10);
     expect(sanction?.bullets?.[0]).toBe("Level 1 · Official Warning");
     expect(sanction?.bullets?.[9]).toBe("Level 10 · Lifetime Ban");
-    expect(bodyOf("17.2")).toContain("subtracted in full from the country's contest score");
-    expect(bodyOf("17.2")).toContain("where an edition awards no bonus points");
+    expect(bodyOf("17.2")).toContain("must subtract all those points from the country's score");
+    expect(bodyOf("17.2")).toContain("If an edition has no bonus points");
+    expect(bodyOf("17.2")).toContain("choose a different penalty from the ten existing levels");
+    expect(bodyOf("17.2")).toContain("explain its choice in writing");
+    expect(bodyOf("17.2")).toContain("35 points and a 50-point penalty finishes with -15 points");
     expect(bodyOf("17.2")).toContain("negative score");
-    expect(bodyOf("17.3")).toContain("starting points rather than automatic outcomes");
+    expect(bodyOf("17.3")).toContain("a guide, not an automatic punishment");
   });
 
   it("corrects the two outdated rule references", () => {
@@ -84,24 +115,72 @@ describe("SSC v4.2 plain-language candidate", () => {
     expect(timing).not.toContain("Rules 8.5 and 13.4");
     const hierarchy = bodyOf("20.2");
     expect(hierarchy).toContain("Rule 21.1");
+    expect(bodyOf("20.1")).toContain("HoDs should not have to search");
+    expect(bodyOf("20.2")).toContain("inform affected participants before it applies to them");
+    expect(Object.values(CLEAR_RULE_BODIES).join(" ")).not.toMatch(/\bplayers?\b/i);
     expect(hierarchy).not.toContain("under Rule 15.1");
   });
 
-  it("keeps the six-completed-edition Dormant protection boundary", () => {
-    expect(bodyOf("22.4")).toContain("fewer than six consecutive completed editions");
-    expect(bodyOf("22.5")).toContain("six consecutive SSC Editions");
-    expect(bodyOf("22.5")).toContain("no active Head of Delegation at any point");
-    expect(bodyOf("22.5")).toContain("Having an active HoD even briefly");
+  it("preserves fair notice and existing protections when simplifying rule language", () => {
+    expect(bodyOf("13.3")).toContain("reasonable action");
+    expect(bodyOf("14.2")).toContain("discriminatory abuse");
+    expect(bodyOf("15.1")).toContain("should tell TSBC as soon as you reasonably can");
+    expect(bodyOf("20.2")).toContain("announce it clearly");
+    expect(bodyOf("20.2")).toContain("explain exactly what it covers");
+    expect(bodyOf("20.2")).toContain("inform affected participants before it applies to them");
+    expect(bodyOf("20.2")).toContain("Rule 21.1 allows urgent corrections without advance notice");
+    expect(bodyOf("21.1")).toContain("once the relevant stage has started");
+    expect(bodyOf("22.4")).toContain("A suspension, withdrawal, temporary absence or skipped edition does not immediately remove protection");
+  });
+
+  it("keeps the exact six-edition boundary with clear Unprotected language", () => {
+    expect(bodyOf("22.4")).toContain("six SSC editions in a row have ended");
+    expect(bodyOf("22.4")).toContain("An active HoD, even briefly");
+    expect(bodyOf("22.5")).toContain("six SSC editions in a row");
+    expect(bodyOf("22.5")).toContain("at any point during any of them");
+    expect(bodyOf("22.5")).toContain("the count starts over");
+    expect(bodyOf("22.5")).toContain("not the number of months");
+    expect(bodyOf("22.5")).toContain("its protection returns immediately");
     expect(bodyOf("22.6")).toContain("Rule 22.7");
-    expect(bodyOf("22.10")).toContain("past editions");
+    expect(bodyOf("22.10")).toContain("does not change SSC history");
+    expect(draftRuleById("22.5")?.title).toContain("Unprotected");
+  });
+
+  it("keeps all 113 draft rules and their help text free of old legal jargon", () => {
+    const hardTerms = /\b(dormant|dormancy|force majeure|annexation|mitigating|aggravating|sanction|sanctions)\b/i;
+    for (const rule of draftRules) {
+      const userText = [
+        rule.title,
+        rule.summary,
+        ...rule.body,
+        rule.important ?? "",
+        ...(rule.allowed ?? []),
+        ...(rule.prohibited ?? []),
+        ...(rule.bullets ?? []),
+        ...(rule.examples ?? []).flatMap(({ title, detail }) => [title, detail]),
+      ].join(" ");
+      expect(userText, "Rule " + rule.id + " still contains old jargon").not.toMatch(hardTerms);
+      expect(userText, "Rule " + rule.id + " uses vague narrative language").not.toMatch(/\b(?:quietly|silently)\b/i);
+      expect(userText, "Rule " + rule.id + " uses an incorrect SSC role").not.toMatch(/\bplayers?\b/i);
+      expect(rule.summary.split(/\s+/).length, "Long summary for Rule " + rule.id).toBeLessThanOrEqual(32);
+      for (const paragraph of rule.body) {
+        // Mechanical guardrails are not a substitute for actual teen-reader review.
+        for (const sentence of paragraph.split(/(?<=[.!?])\s+/)) {
+          expect(sentence.split(/\s+/).length, "Long sentence in Rule " + rule.id).toBeLessThanOrEqual(38);
+        }
+      }
+    }
   });
 
   it("shows clear definitions on rule details and keeps searches usable", () => {
     const rule = draftRuleById("22.5");
     expect(rule).not.toBeNull();
     const terms = glossaryForRule(rule!);
-    expect(terms.some((item) => item.term === "Dormant country")).toBe(true);
-    expect(draftRuleById("22.5")?.summary.toLowerCase()).toContain("dormant");
+    expect(terms.some((item) => item.term === "Unprotected country")).toBe(true);
+    expect(draftRuleById("22.5")?.summary.toLowerCase()).toContain("unprotected");
     expect(draftRuleById("6.5")?.summary).toContain("2015");
+    expect(draftRuleById("11.4")?.title).toBe("Voting for friends");
+    expect(draftRuleById("12.5")?.title).toBe("What happens when an official system fails");
+    expect(draftRuleById("22.5")?.title).toBe("When a country becomes Unprotected");
   });
 });
