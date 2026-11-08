@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { buildV3CapabilityGapInventory } from "./v3-capability-gap-inventory";
+import type { V3CapabilityInventorySources } from "./v3-capability-gap-inventory";
 
-function fixture() {
+type MutableFixture = { [K in keyof V3CapabilityInventorySources]: Array<V3CapabilityInventorySources[K][number]> };
+
+function fixture(): MutableFixture {
   return {
     publicCapabilities: [
       {
