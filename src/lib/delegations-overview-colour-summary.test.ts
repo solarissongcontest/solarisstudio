@@ -19,12 +19,16 @@ describe("delegations overview confirmation triage", () => {
     expect(overview).toContain("triageCounts.neutral");
   });
 
-  it("uses the same core rules as the response-card triage", () => {
+  it("delegates National Final readiness to the accepted nonremoved winner triage", () => {
     const overview = source("src/routes/confirmations/admin/index.tsx");
 
     expect(overview).toContain('entry.review_status === "declined"');
     expect(overview).toContain('entry.review_status === "pending"');
     expect(overview).toContain('entry.review_status === "accepted"');
-    expect(overview).toContain("!row.national_finals?.winning_entry_id");
+    expect(overview).toContain("deriveConfirmationNationalFinalTriage(");
+    expect(overview).toContain("row.national_finals?.national_final_entries ?? []");
+    expect(overview).toContain("row.national_finals?.winning_entry_id ?? null");
+    expect(overview).toContain("row.nf_entries_unknown");
+    expect(overview).not.toContain('if (!row.national_finals?.winning_entry_id) return "neutral";');
   });
 });

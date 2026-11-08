@@ -10,10 +10,14 @@ import {
 import {
   GLOBAL_MAINTENANCE_MODE,
   isMaintenanceHodAppRouteAllowed,
+  isMaintenancePlatformRecoveryRouteAllowed,
+  MAINTENANCE_PLATFORM_PREFLIGHT_PATH,
+  MAINTENANCE_PLATFORM_RECOVERY_PATH,
   maintenanceHodAccessEnabled,
 } from "./lib/maintenance";
 import { renderMaintenanceHodPortal } from "./lib/maintenance-hod-portal";
 import { renderMaintenancePage } from "./lib/maintenance-page";
+import { renderV42MaintenancePreview } from "./lib/rules-v42-maintenance-preview";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -83,6 +87,24 @@ function errorResponse() {
       "cache-control": "no-store",
       "content-type": "text/html; charset=utf-8",
       "x-content-type-options": "nosniff",
+    },
+  });
+}
+
+/** Visible, inert fallback for a failed recovery SSR/hydration entrypoint.
+ * It never exposes admin RPCs or accepts credentials. The guarded route
+ * remains the only recovery entrypoint even when rendering fails.
+ */
+function maintenanceRecoveryFailureResponse(method: string) {
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Solaris recovery temporarily unavailable</title><style>body{margin:0;background:#080e1c;color:#f1f5f9;font:16px/1.6 system-ui,sans-serif}main{max-width:38rem;margin:8vh auto;padding:1.5rem}h1{font-size:1.7rem}a{color:#bae6fd}p{color:#cbd5e1}</style></head><body><main><h1>Protected recovery is temporarily unavailable</h1><p>The Solaris Studio maintenance safety gate is still active. The recovery page could not load correctly. No platform setting or rulebook publication has been changed by this error.</p><p>Check the active studio Worker deployment in Cloudflare and the recovery route build. Do not submit passwords to an error page or bypass maintenance with SQL.</p><p><a href="https://github.com/solarissongcontest/solarisstudio/issues/2379">Open the tracked recovery issue</a></p></main></body></html>`;
+  return new Response(method === "HEAD" ? null : html, {
+    status: 503,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "private, no-store",
+      "x-content-type-options": "nosniff",
+      "x-robots-tag": "noindex, nofollow",
+      "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
     },
   });
 }
@@ -474,6 +496,30 @@ export default {
       const secret = maintenanceSecret(env);
       const hod = maintenanceHodRuntime(env);
 
+      // Explicit public, static, zero-network rulebook preview during maintenance.
+      // Neither the TanStack app nor Supabase is initialized for this response.
+      // Every non-GET/HEAD method remains subject to the normal maintenance gate.
+      if (
+        GLOBAL_MAINTENANCE_MODE &&
+        url.pathname === "/rules/v4-2-preview" &&
+        (request.method === "GET" || request.method === "HEAD")
+      ) {
+        return new Response(
+          request.method === "HEAD" ? null : renderV42MaintenancePreview(),
+          {
+            status: 200,
+            headers: {
+              "content-type": "text/html; charset=utf-8",
+              "cache-control": "public, max-age=300",
+              "x-content-type-options": "nosniff",
+              "x-robots-tag": "noindex, nofollow",
+              "content-security-policy":
+                "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+            },
+          },
+        );
+      }
+
       if (url.pathname === MAINTENANCE_ADMIN_PATH) {
         return await handleMaintenanceAdminRequest(request, secret);
       }
@@ -502,6 +548,27 @@ export default {
         request.method,
         hod.enabled,
       );
+      const recoveryRouteAllowed =
+        GLOBAL_MAINTENANCE_MODE &&
+        isMaintenancePlatformRecoveryRouteAllowed(url.pathname, request.method);
+
+      // Only this exact recovery POST may reach its handler while maintenance
+      // blocks all other ordinary write transports. Require same-origin browser
+      // requests plus a user JWT; the handler re-verifies the user, Organizer
+      // role and maintenance.manage capability via the canonical database.
+      if (recoveryRouteAllowed && url.pathname === MAINTENANCE_PLATFORM_PREFLIGHT_PATH) {
+        if (!sameOrigin(request)) {
+          return new Response("Recovery request origin rejected.", { status: 403 });
+        }
+        if (!/^Bearer\s+[^\s]+$/.test(request.headers.get("authorization") ?? "")) {
+          return new Response("Organizer authentication required.", { status: 401 });
+        }
+        const contentLength = Number(request.headers.get("content-length") ?? "0");
+        if (Number.isFinite(contentLength) && contentLength > 512) {
+          return new Response("Recovery request too large.", { status: 413 });
+        }
+      }
+
       const teaserPreviewAllowed = isTerraOsTeaserPreviewRequest(url, request.method);
       const maintenanceAppAssetAllowed = isMaintenanceAppAssetPath(url.pathname);
       let maintenanceAdminBypass = false;
@@ -511,7 +578,8 @@ export default {
         !MAINTENANCE_ASSET_PATHS.has(url.pathname) &&
         !maintenanceAppAssetAllowed &&
         !teaserPreviewAllowed &&
-        !hodAppRouteAllowed
+        !hodAppRouteAllowed &&
+        !recoveryRouteAllowed
       ) {
         const localE2EBypass = hasLocalE2EMaintenanceBypass(request);
         maintenanceAdminBypass =
@@ -551,6 +619,16 @@ export default {
       const response = await handler.fetch(request, env, ctx);
       const normalized = await normalizeCatastrophicSsrResponse(response);
 
+      // Never leave the guarded recovery page blank on a failed app render.
+      // Keep all ordinary maintenance writes blocked; this fallback is static.
+      if (
+        recoveryRouteAllowed &&
+        url.pathname === MAINTENANCE_PLATFORM_RECOVERY_PATH &&
+        normalized.status >= 500
+      ) {
+        return maintenanceRecoveryFailureResponse(request.method);
+      }
+
       if (
         GLOBAL_MAINTENANCE_MODE &&
         maintenanceAdminBypass &&
@@ -565,6 +643,14 @@ export default {
       return normalized;
     } catch (error) {
       console.error(error);
+      const failedPath = new URL(request.url).pathname;
+      if (
+        GLOBAL_MAINTENANCE_MODE &&
+        failedPath === MAINTENANCE_PLATFORM_RECOVERY_PATH &&
+        (request.method === "GET" || request.method === "HEAD")
+      ) {
+        return maintenanceRecoveryFailureResponse(request.method);
+      }
       return errorResponse();
     }
   },

@@ -2,10 +2,10 @@ import { resolveS16CandidateSha, requireS16CleanTree } from "../src/lib/v3-s16-c
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { extname, join, relative, resolve } from "node:path";
-import { buildV3S16MutationAuthorityReport, scanV3S16StaticAuthority, V3_S16_CRITICAL_DOMAINS, V3_S16_POLICY_VERSION, type V3S16CatalogEvidence, type V3S16SourceFile } from "../src/lib/v3-s16-mutation-authority";
+import { buildV3S16MutationAuthorityReport, isV3S16UnsafeStandaloneIdentityWriter, scanV3S16StaticAuthority, V3_S16_CRITICAL_DOMAINS, V3_S16_POLICY_VERSION, type V3S16CatalogEvidence, type V3S16SourceFile } from "../src/lib/v3-s16-mutation-authority";
 import { classifyV3S16ReleaseAuthority } from "../src/lib/v3-s16-release-risk";
 
-const SOURCE_ROOTS = ["src", "supabase/migrations", "supabase/functions", "workers", "functions"];
+const SOURCE_ROOTS = ["src", "supabase/migrations", "supabase/functions", "workers", "functions", "scripts"];
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".sql"]);
 
 function candidateSha() {
@@ -32,8 +32,15 @@ function catalogPath() {
 }
 
 requireS16CleanTree(execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], {encoding:"utf8"}));
-const files: V3S16SourceFile[] = [];
-for (const root of SOURCE_ROOTS) collectFiles(resolve(root), files);
+const collectedFiles: V3S16SourceFile[] = [];
+for (const root of SOURCE_ROOTS) collectFiles(resolve(root), collectedFiles);
+// Preserve S16 release-risk classification of production code without making
+// disposable-data rehearsals appear to be production application writers.
+// Standalone scripts enter the authority report only if they contain a raw
+// account identity writer, which the static S16 classifier fails closed on.
+const files = collectedFiles.filter((file) =>
+  !file.path.startsWith("scripts/") || isV3S16UnsafeStandaloneIdentityWriter(file),
+);
 const sha = candidateSha();
 const staticOnly = process.argv.includes("--static");
 const catalogFile = catalogPath();
