@@ -38,6 +38,7 @@ describe("Mobile App V2 architectural invariants", () => {
     const tabs = source("src/components/app/AppTabBar.tsx");
     const glass = source("src/components/app/KubeLiquidGlassBackdrop.tsx");
     const css = source("src/styles/app-shell.css");
+    const v3NavbarCss = source("src/styles/v3-installed-app-navbar.css");
     const sw = source("public/sw.js");
     const flags = source("src/components/FlagChip.tsx");
     const flagCss = source("src/flag-media.css");
@@ -50,8 +51,12 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(glass).not.toContain("cloneNode(true)");
     expect(glass).not.toContain("MutationObserver");
     expect(glass).toContain('"css-backdrop"');
-    expect(css).toContain("--solaris-app-tabbar-max-height: 5.35rem");
+    expect(css).toContain("--solaris-app-tabbar-max-height: 4.6rem");
     expect(css).toContain("max-height: var(--solaris-app-tabbar-max-height)");
+    expect(v3NavbarCss).toContain("max-height: 64px");
+    expect(v3NavbarCss).toContain("height: 64px");
+    expect(v3NavbarCss).toContain("min-height: 44px");
+    expect(v3NavbarCss).toContain("width: min(");
     expect(css).not.toContain("solaris-kube-safari-mirror");
     expect(sw).toContain('const CACHE_VERSION = "solaris-app-v16"');
     expect(flags).toContain('size === "lg" || size === "xl"');

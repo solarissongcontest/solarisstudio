@@ -32,7 +32,17 @@ describe("installed app information hierarchy", () => {
     expect(toolbar).not.toContain("IntersectionObserver");
     expect(toolbar).not.toContain("solaris-app-large-title-flow");
     expect(toolbar).not.toContain("data-title-collapsed");
-    expect(styles).toContain("padding-top: env(safe-area-inset-top)");
+    // The old raw env inset can be zero in an iOS standalone first frame.
+    // The shared token preserves env as the normal browser default while the
+    // portrait/landscape standalone rules enforce the required system zone.
+    expect(styles).toContain("--solaris-app-safe-top: env(safe-area-inset-top)");
+    expect(styles).toContain("--solaris-app-safe-top-comfort: 6px");
+    expect(styles).toContain(
+      "padding-top: calc(var(--solaris-app-safe-top) + var(--solaris-app-safe-top-comfort));",
+    );
+    expect(styles).toMatch(
+      /@media \(pointer: coarse\) and \(orientation: portrait\)[\s\S]*?--solaris-app-safe-top: max\(env\(safe-area-inset-top, 0px\), 60px\)/,
+    );
     expect(styles).toContain('.solaris-app-toolbar[data-app-screen="directory"] .solaris-app-toolbar-context-title');
     expect(styles).toContain("transform: translate(-50%, -50%)");
   });

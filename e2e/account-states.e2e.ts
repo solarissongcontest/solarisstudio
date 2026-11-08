@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext } from "@playwright/test";
+import { applyNavbarInstalledCssEmulation } from "./v3-navigation/navbar-local-rollout";
 
 type AccountState = "COUNTRY" | "ORGANIZER" | "SUSPENDED";
 
@@ -292,10 +293,23 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     url!, publishableKey!, session, "solaris_app_v3_results", true, [ARCHIVE_EDITION_ID],
   );
 
+  // JS display-mode overrides do not change Playwright's native CSS media
+  // queries. Apply the existing loopback-only installed CSS fixture after each
+  // new document or reload, preserving actual PWA dock visibility semantics.
+  const gotoInstalled = async (target: string) => {
+    await page.goto(target, { waitUntil: "domcontentloaded" });
+    await applyNavbarInstalledCssEmulation(page);
+  };
+  const reloadInstalled = async () => {
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await applyNavbarInstalledCssEmulation(page);
+  };
+
   try {
-    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/");
     await expect(page.locator("html")).toHaveAttribute("data-solaris-runtime", "standalone");
     const primaryNav = page.getByRole("navigation", { name: "Primary app navigation" });
+    await expect(primaryNav).toHaveCSS("display", "block");
     await expect(primaryNav).toBeVisible();
     await expect(page.getByRole("heading", { name: "Solaris now", exact: true })).toBeVisible();
     await expect(page.getByText("Current contest", { exact: true })).toBeVisible();
@@ -331,7 +345,7 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
 
     // Assert the V3-installed Countries composition within the authorized local rollout.
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/countries", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/countries");
     await expect(page.locator("[data-v3-legacy-route-adapter]")).toBeVisible();
     await expect(page.locator("[data-v3-legacy-bottom-clearance]")).toHaveCount(1);
     await expect(page.locator(".v3-countries-title")).toBeVisible();
@@ -359,10 +373,22 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     expect(countryLayout!.rowGap).toBeGreaterThanOrEqual(12);
     expect(countryLayout!.filterGap).toBeGreaterThanOrEqual(12);
 
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-    await page.waitForTimeout(100);
+    // Global CSS may request smooth scrolling; a fixed 100ms delay can
+    // measure content hundreds of pixels below the dock mid-animation.
+    // Reach the real scroll end first, then sample settled final-control clearance.
+    await page.evaluate(() => {
+      const scroller = document.scrollingElement ?? document.documentElement;
+      scroller.scrollTo({ top: scroller.scrollHeight, behavior: "instant" });
+    });
+    await expect
+      .poll(() => page.evaluate(() => {
+        const scroller = document.scrollingElement ?? document.documentElement;
+        return Math.max(0, scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop);
+      }))
+      .toBeLessThanOrEqual(2);
     const dockClearance = await page.evaluate(() => {
-      const dock = document.querySelector<HTMLElement>("[data-v3-liquid-tabbar]");
+      // Installed V3 now owns one canonical AppTabBar, never the legacy LiquidTabBar.
+      const dock = document.querySelector<HTMLElement>(".solaris-app-tabbar[data-layout='bar']");
       const spacer = document.querySelector<HTMLElement>("[data-v3-legacy-bottom-clearance]");
       const lastCard =
         document.querySelector<HTMLElement>(".v3-countries-regions > button:last-child") ??
@@ -378,7 +404,7 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     expect(dockClearance!.gap).toBeGreaterThanOrEqual(12);
 
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.goto("/explore", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/explore");
     await expect(page.getByRole("heading", { name: "Discover the contest", exact: true })).toBeVisible();
 
     await page.getByRole("link", { name: /Open edition/i }).click();
@@ -394,7 +420,7 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     );
     await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
 
-    await page.goto("/countries/BRW", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/countries/BRW");
     await expect(page.getByRole("heading", { name: "Browserland", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Current entry", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Participation history", exact: true })).toBeVisible();
@@ -404,12 +430,12 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     );
 
     await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_delegation", false);
-    await page.goto("/countries/BRW", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/countries/BRW");
     await expect(page.locator(".country-profile-v8")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Browserland", exact: true })).toBeVisible();
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/results", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/results");
     const resultRoot = page.locator("[data-v3-results-root]");
     await expect(resultRoot).toBeVisible();
     await expect(resultRoot).toHaveAttribute("data-v3-results-state", "spoiler-protected");
@@ -426,17 +452,17 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await resultRoot.getByRole("button", { name: "Jury", exact: true }).click();
     await expect(resultRoot).toContainText("110222");
     await expect(resultRoot).not.toContainText("Private archive artist");
-    await page.reload({ waitUntil: "domcontentloaded" });
+    await reloadInstalled();
     await expect(resultRoot).toHaveAttribute("data-v3-results-state", "spoiler-protected");
     await expect(resultRoot).not.toContainText("111222");
 
     await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_results", false);
-    await page.goto("/results", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/results");
     await expect(resultRoot).toHaveCount(0);
     await page.setViewportSize({ width: 1440, height: 1000 });
 
     await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_me", true);
-    await page.goto("/my-solaris", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/my-solaris");
     const meRoot = page.locator("[data-v3-me-root]");
     await expect(meRoot).toBeVisible();
     await expect(meRoot.getByRole("heading", { name: "Identity", exact: true })).toBeVisible();
@@ -444,23 +470,23 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await expect(meRoot).toContainText("Delegation history is unavailable");
     await expect(meRoot.getByRole("link", { name: /Switch to Organizer/ })).toBeVisible();
     await expect(meRoot).not.toContainText("Private archive artist");
-    await page.goto("/my-solaris?tab=account", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/my-solaris?tab=account");
     await expect(meRoot).toHaveCount(0);
     await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_me", false);
-    await page.goto("/my-solaris", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/my-solaris");
     await expect(meRoot).toHaveCount(0);
 
     await setV3FeatureForLocalUser(
       url!, publishableKey!, session, "solaris_app_v3_edition_hub", true, [ARCHIVE_EDITION_ID],
     );
 
-    await page.goto("/editions/ssc21", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/editions/ssc21");
     await expect(page.getByRole("heading", { name: "Browser Archive Edition", exact: true })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Explore Browser Archive Edition" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "At a glance", exact: true })).toBeVisible();
     await expect(page.locator(".edition-public-page")).toHaveCount(0);
 
-    await page.goto("/editions/ssc22", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/editions/ssc22");
     await expect(page.locator(".edition-public-page")).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Explore Browser Audit Edition" })).toHaveCount(0);
   } finally {
