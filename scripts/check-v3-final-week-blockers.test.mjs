@@ -54,6 +54,18 @@ test("duplicate, orphan dependency and missing observed evidence fail structure"
   assert.match(errors, /unknown dependency/);
   assert.match(errors, /initial observed evidence/);
 });
+test("dependency cycles and self-dependencies fail closed in blocker matrix", () => {
+  const matrix = fixture();
+  const second = { ...row(), id: "QA-02", dependencies: ["SYS-01"] };
+  matrix.items[0].dependencies = ["QA-02"];
+  matrix.items.push(second);
+  const errors = evaluateFinalWeekBlockers(matrix).errors.join("\n");
+  assert.match(errors, /release dependency cycle/);
+  assert.match(errors, /SYS-01 -> QA-02 -> SYS-01/);
+  matrix.items[0].dependencies = ["SYS-01"];
+  assert.match(evaluateFinalWeekBlockers(matrix).errors.join("\n"), /SYS-01 -> SYS-01/);
+});
+
 test("closing without acceptance proof or with invalid source SHA fails", () => {
   const m = fixture(); m.items[0].status = "closed";
   assert.match(evaluateFinalWeekBlockers(m).errors.join("\n"), /closure requires explicit/);
