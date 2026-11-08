@@ -27,6 +27,8 @@ const SERVICE_ROLE_KEYS = [
 ] as const;
 const TARGET_KEYS = ["V3_VERIFICATION_TARGET", "V3_SEED_TARGET", "V3_CLEANUP_TARGET", "E2E_TARGET"] as const;
 const DESTRUCTIVE_MODE_KEYS = ["V3_DESTRUCTIVE_VERIFICATION", "V3_REHEARSAL_DESTRUCTIVE", "E2E_DESTRUCTIVE"] as const;
+const POSTGRES_HOST_ENV_KEYS = ["PGHOST", "PGHOSTADDR"] as const;
+const POSTGRES_SERVICE_ENV_KEYS = ["PGSERVICE", "PGSERVICEFILE"] as const;
 const KNOWN_HOSTED_PROJECT_REFS = new Set(["dkxmnvekiopyesuzggeu"]);
 const LOCAL_TARGET_MARKERS = new Set([
   "local",
@@ -82,6 +84,23 @@ function assertLocalUrl(key: string, rawValue: string) {
   }
 }
 
+// libpq may take its connection authority from PGHOSTADDR / PGHOST even when
+// a separate Supabase or database URL looks local. A service definition is
+// opaque at this boundary and could silently redirect the same psql process.
+function assertLocalPostgresHost(key: string, rawValue: string) {
+  const value = rawValue.trim();
+  const hosts = value.split(",");
+  const permitted = key === "PGHOSTADDR"
+    ? value === "127.0.0.1" || value === "::1"
+    : loopbackHost(value);
+
+  if (hosts.length !== 1 || !permitted) {
+    throw new Error(
+      `${key} is not an explicit single loopback PostgreSQL host; refusing non-local or ambiguous libpq routing in automated V3 verification`,
+    );
+  }
+}
+
 function assertLocalProjectIdentity(key: string, rawValue: string) {
   const value = normalizedMarker(rawValue);
   if (KNOWN_HOSTED_PROJECT_REFS.has(value)) {
@@ -118,6 +137,24 @@ export function assertV3ProductionIsolation(environment: NodeJS.ProcessEnv = pro
     } catch (error) {
       errors.push(error instanceof Error ? error.message : String(error));
     }
+  }
+
+  // libpq resolves these independently of DATABASE_URL. Inspect them even
+  // when another configuration entry already points at loopback.
+  for (const key of POSTGRES_HOST_ENV_KEYS) {
+    const value = environment[key]?.trim();
+    if (!value) continue;
+    inspected.push(key);
+    try {
+      assertLocalPostgresHost(key, value);
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+  for (const key of POSTGRES_SERVICE_ENV_KEYS) {
+    if (!environment[key]?.trim()) continue;
+    inspected.push(key);
+    errors.push(`${key} configures an opaque PostgreSQL service override; automated V3 verification requires direct, verified loopback authority`);
   }
 
   const dynamicProjectKeys = Object.keys(environment).filter((key) => /SUPABASE.*(?:PROJECT_ID|PROJECT_REF)$/i.test(key));

@@ -102,14 +102,22 @@ function resultsArePublic(state: V3ResultsState) {
 export function projectV3Experience(
   snapshot: V3ContestDomainSnapshot,
 ): V3ExperienceProjection {
-  const votingOpen = isVotingOpen(snapshot.televote);
-  const live = isLiveShow(snapshot.show);
+  // Edition cancellation is terminal authority, not just a display label.
+  // Stale show, ballot and Result decoration must not resurrect availability.
+  if (snapshot.edition === "cancelled") {
+    return { mode: "cancelled", live: false, votingOpen: false, resultsPublic: false };
+  }
+
+  // Archived editions can still show explicitly published historical Results,
+  // but old show/voting signals must never expose a live action.
+  const archived = snapshot.edition === "archived";
+  const votingOpen = !archived && isVotingOpen(snapshot.televote);
+  const live = !archived && isLiveShow(snapshot.show);
   const resultsPublic = resultsArePublic(snapshot.results);
 
   let mode: V3ExperienceMode;
 
-  if (snapshot.edition === "cancelled") mode = "cancelled";
-  else if (snapshot.edition === "archived") mode = "archived";
+  if (archived) mode = "archived";
   else if (resultsPublic) mode = "results";
   else if (live && votingOpen) mode = "live-voting";
   else if (live) mode = "live";
