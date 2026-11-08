@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -100,7 +100,7 @@ function emptySource(): SourceDraft {
 }
 
 function CombinedResultsPage() {
-  const navigate = useNavigate();
+  const navigate = Route.useNavigate();
   const search = Route.useSearch();
   const queryClient = useQueryClient();
   const getAdmin = useServerFn(getMergedTelevotingAdmin);

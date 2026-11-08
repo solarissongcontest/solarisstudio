@@ -14,7 +14,12 @@ const contextServer = readFileSync(
 describe("V3 Organizer Televote correction dependency", () => {
   it("routes corrections to the Televoting-owned workflow", () => {
     expect(route).toContain('to="/televoting/admin/combined"');
-    expect(route).toContain("search={{ editionId: edition.id, showId: selectedShow?.id }}");
+    expect(route).toContain(
+      'search={{ editionId: edition.id, showId: selectedShow?.id, view: "corrections" }}',
+    );
+    expect(route).toContain(
+      'search={{ editionId: edition.id, showId: selectedShow?.id, view: "health" }}',
+    );
     expect(route).toContain(
       "Corrections, sanctions and deductions must be created and published through the Televoting correction workflow.",
     );
