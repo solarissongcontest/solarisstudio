@@ -20,7 +20,10 @@ describe("CI egress safety contracts", () => {
   it("keeps every Playwright workflow isolated from hosted Supabase", () => {
     const playwrightWorkflows = workflowFiles()
       .map((name) => ({ name, content: source(`.github/workflows/${name}`) }))
-      .filter(({ content }) => /playwright/i.test(content));
+      // Merely executing the offline guard contract is not a browser run.
+      // Select actual Playwright installs/test invocations so Quality's
+      // negative-tests-only job does not masquerade as an E2E workflow.
+      .filter(({ content }) => /(?:bunx|npx|pnpm exec|yarn|bun run)\s+playwright\s+(?:test|install)|Run responsive browser audit/i.test(content));
 
     expect(playwrightWorkflows.length).toBeGreaterThan(0);
 
