@@ -46,6 +46,71 @@ test("complete exact-SHA preflight may pass before separate owner certification"
   assert.match(evaluateFinalWeekBlockers(m, { release: true, certified: true, candidateSha: sha }).errors.join("\n"), /owner approval evidence is absent/);
 });
 
+const fullApproval = candidateSha => ({
+  schemaVersion: 1,
+  scope: "full_solaris_studio_v3",
+  decision: "GO_FULL_V3",
+  candidateSha,
+  releaseManager: { name: "Test release manager", decisionRef: "test://release-manager-go" },
+  scopeReview: {
+    decision: "full_scope_accepted", reviewedBy: "Test scope reviewer",
+    evidenceRef: "test://world-and-product-scope", excludedCapabilities: [],
+  },
+  authorizations: {
+    hostedMigration: { approved: true, approvedBy: "Test DB owner", evidenceRef: "test://migration-approval" },
+    productionDeployment: { approved: true, approvedBy: "Test release owner", evidenceRef: "test://deploy-approval" },
+    publicWriteReopening: { approved: true, approvedBy: "Test operations owner", evidenceRef: "test://write-reopen-approval" },
+  },
+  gates: ["S13", "S14", "S15", "S16", "security", "productionIsolation"]
+    .map(id => ({ id, passed: true, candidateSha, evidenceRef: "test://gate/" + id })),
+});
+
+const syntheticallyClosed = () => {
+  const m = fixture();
+  m.coverage = "complete";
+  m.releaseCertified = true;
+  m.items[0].status = "closed";
+  m.items[0].closureEvidence = [{ verifiedSha: sha, test: "isolated synthetic pass" }];
+  return m;
+};
+
+test("boolean certification flag alone cannot grant release or production authorization", () => {
+  const errors = evaluateFinalWeekBlockers(syntheticallyClosed(), {
+    certified: true, candidateSha: sha,
+  }).errors.join("\\n");
+  assert.match(errors, /external --approval-file/);
+});
+
+test("synthetic complete release gate requires exact-SHA and three distinct human approvals", () => {
+  const matrix = syntheticallyClosed();
+  assert.deepEqual(evaluateFinalWeekBlockers(matrix, {
+    certified: true, candidateSha: sha, approvalPacket: fullApproval(sha),
+  }).errors, []);
+  const oldCandidate = fullApproval("b".repeat(40));
+  assert.match(evaluateFinalWeekBlockers(matrix, {
+    certified: true, candidateSha: sha, approvalPacket: oldCandidate,
+  }).errors.join("\\n"), /exact candidate SHA/);
+  const reusedRef = fullApproval(sha);
+  reusedRef.authorizations.productionDeployment.evidenceRef = reusedRef.authorizations.hostedMigration.evidenceRef;
+  assert.match(evaluateFinalWeekBlockers(matrix, {
+    certified: true, candidateSha: sha, approvalPacket: reusedRef,
+  }).errors.join("\\n"), /distinct authorization references/);
+});
+
+test("missing individual owner approval, incomplete S16 or excluded scope fail certification", () => {
+  const matrix = syntheticallyClosed();
+  const missing = fullApproval(sha);
+  missing.authorizations.publicWriteReopening.approved = false;
+  missing.gates = missing.gates.filter(x => x.id !== "S16");
+  missing.scopeReview.excludedCapabilities = ["world-required-capability"];
+  const errors = evaluateFinalWeekBlockers(matrix, {
+    certified: true, candidateSha: sha, approvalPacket: missing,
+  }).errors.join("\\n");
+  assert.match(errors, /publicWriteReopening authorization missing/);
+  assert.match(errors, /S16 evidence/);
+  assert.match(errors, /zero silent exclusions/);
+});
+
 test("duplicate, orphan dependency and missing observed evidence fail structure", () => {
   const m = fixture();
   m.items.push({ ...row(), dependencies: ["ghost"], evidence: [] });
