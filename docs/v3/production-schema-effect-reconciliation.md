@@ -27,6 +27,12 @@ production write.
      --json
    ```
 
+The validator distinguishes a structurally valid inventory from complete
+schema-effect evidence. An entry marked `effect-uncertain` may remain in a
+valid diagnostic manifest, but then `evidenceComplete` is false and the CLI
+exits unsuccessfully. A claimed `effect-present` without any evidence reference
+also fails validation. Neither outcome authorizes deployment.
+
 The validator binds the manifest to the checked-out SHA, hosted head,
 immutable bootstrap cutover, repository/hosted counts, complete hole inventory,
 and pending migration list. It rejects omissions, duplicate entries,
