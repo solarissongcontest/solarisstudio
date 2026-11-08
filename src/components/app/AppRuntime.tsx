@@ -90,6 +90,7 @@ const AppRuntimeContext = createContext<AppRuntimeValue>({
 
 export function AppRuntime({ children }: { children: ReactNode }) {
   const { pathname } = useHydrationSafeRouterLocation();
+  const maintenanceRecovery = pathname === "/maintenance/recovery";
   const [platform, setPlatform] = useState<SolarisPlatformSnapshot>(
     HYDRATION_SAFE_PLATFORM,
   );
@@ -157,7 +158,7 @@ export function AppRuntime({ children }: { children: ReactNode }) {
   }, [connectivity.status, lifecycle.phase, platform.isAppMode, platform.mode]);
 
   useEffect(() => {
-    if (!platform.isAppMode) return;
+    if (!platform.isAppMode || maintenanceRecovery) return;
 
     let active = true;
     const syncPushSubscription = async () => {
@@ -181,10 +182,13 @@ export function AppRuntime({ children }: { children: ReactNode }) {
       window.removeEventListener("online", syncPushSubscription);
       window.removeEventListener(APP_RESUME_EVENT, syncPushSubscription);
     };
-  }, [platform.isAppMode]);
+  }, [platform.isAppMode, maintenanceRecovery]);
 
   useEffect(() => {
-    if (!import.meta.env.PROD || !platform.canInstallServiceWorker) return;
+    // Do not register or update the public PWA worker on the privileged
+    // maintenance recovery page. Credentials and incident review remain
+    // confined to the authenticated recovery flow.
+    if (!import.meta.env.PROD || !platform.canInstallServiceWorker || maintenanceRecovery) return;
 
     let active = true;
     let registration: ServiceWorkerRegistration | null = null;
@@ -290,7 +294,7 @@ export function AppRuntime({ children }: { children: ReactNode }) {
       navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
       window.removeEventListener(APP_RESUME_EVENT, onResume);
     };
-  }, [platform.canInstallServiceWorker]);
+  }, [platform.canInstallServiceWorker, maintenanceRecovery]);
 
   useEffect(() => {
     if (!controllerReloadPending || !updateSafety.safe) return;

@@ -29,3 +29,20 @@ export function isMaintenanceHodAppRouteAllowed(
 
   return false;
 }
+
+/**
+ * This is the sole public maintenance exception for authenticated platform
+ * recovery. The GET document is inert until a real Solaris organizer signs in.
+ * The POST transport only records protected, server-attested exit preflights.
+ * Normal writes, Rules Manager mutations and generic server functions stay
+ * blocked by the emergency Worker gate.
+ */
+export const MAINTENANCE_PLATFORM_RECOVERY_PATH = "/maintenance/recovery";
+export const MAINTENANCE_PLATFORM_PREFLIGHT_PATH = "/api/maintenance-platform-preflight";
+
+export function isMaintenancePlatformRecoveryRouteAllowed(pathname: string, method: string) {
+  if (pathname === MAINTENANCE_PLATFORM_RECOVERY_PATH) {
+    return method === "GET" || method === "HEAD";
+  }
+  return pathname === MAINTENANCE_PLATFORM_PREFLIGHT_PATH && method === "POST";
+}

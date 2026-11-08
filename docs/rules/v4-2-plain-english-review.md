@@ -1,0 +1,107 @@
+# SSC Rules v4.2 Plain-English Candidate
+
+**Publication update (8 November 2026):** v4.2 was officially published through the Rules Manager on 7 November 2026 at 21:34:41 UTC, with 113 distinct recorded rule changes. This file remains a historical editorial working paper, not the authoritative Current rulebook or a release certificate. Prepublication statements below describe the draft phase and should not be read as the present live status. The public-help wording correction is merged in PR #2398; independent teen comprehension testing, complete Results compatibility and Chapter 22 supplemental-field provenance still require separate sign-off.
+
+**Original candidate status (before 7 November publication):** draft code change for organizer review, not an automatically published change to the official Rules.
+
+## Scope
+
+- Keeps all **22 chapter identifiers** and **113 current rule IDs** intact.
+- Gives all 113 rules new, simpler participant-facing body text.
+- Reuses the shared official rule data for search, chapter browsing, rule details and guided rules.
+- Adds a common plain-English summary and relevant definitions to rule detail pages.
+- Cleans up hard-to-understand terminology in Roleplay & Worldbuilding visual help and quick answers.
+- Repairs embedded old references in **12.2** (now **12.5 and 19.4**) and **20.2** (now **21.1**).
+- Leaves voting enforcement, eligibility algorithms, score calculation, Supabase tables and publication RPCs unchanged.
+
+## Reader-first wording requirement (ages 15–18)
+
+The official v4.2 candidate should be understandable to an ordinary 15–18-year-old SSC participant who has never read a legal document.
+
+- Use short, direct sentences, familiar words, and one idea at a time. Explain any unavoidable SSC term when it first appears.
+- Explain what the participant **can do**, **cannot do**, and **must do**, including deadlines and exceptions.
+- The name **Dormant country** is replaced in the v4.2 candidate by **Unprotected country**. This is a wording change only, **not** a change to the six-completed-edition test. An HoD active at any time in an edition breaks the run; a new active HoD before official map removal restores protection.
+- Use **penalty** instead of **sanction**, **major emergency** instead of **Force Majeure**, and **taking over land** instead of **annexation** in participant-facing draft text. Old names remain valid search keywords and in the untouched historical v4.1 release.
+- The revised candidate applies to all **113 rule bodies and 113 short summaries**. Plain wording also covers important notes, examples, headings and help text where the draft includes them.
+- Automated tests check for old jargon, overlong summary and sentence text, 113-rule completeness and key numerical/permission rules. These are **guardrails**, not proof that people understand the rules.
+- Before final approval, ask several real 15–18-year-old readers to explain a small selection of rules without help: who may act, when it is allowed, what needs approval, and what happens if the rule is broken. Revise anything they misunderstand. An organizer must verify that no simplification changed the legal meaning.
+
+**Publication rule:** Do not treat a clearer GitHub draft, a passing test, or a static preview as an official new rule. v4.1 stays Current until the governed release is approved and published.
+
+## Readability pilot: age-17 participant feedback
+
+These tests check what a real reader understands **before** they receive an explanation. They are observations from one reader, not a representative usability study.
+
+- **Rule 22.5 (country protection):** The reader understood the outcome but found “Count finished editions, not months” unclear. The candidate now explains which completed editions count and why months do not.
+- **Rule 6.4 (YouTube video priority):** The reader chose the higher-viewed fan upload instead of the lower-viewed official artist upload. The source priority was missed. The candidate now presents official artist/label uploads first, then other uploads only when no suitable official upload exists.
+- **Rule 17.2 (penalties):** The reader correctly calculated that 35 points minus a fixed 50-point penalty is -15. The reader did not explicitly identify that TSBC must choose another existing level when bonus-only Levels 2 and 3 cannot apply. The reader rated the text confusing and criticised terms like “quietly” and the artificial tone. The candidate now explains the calculation with numbers, gives a reason why bonus-only levels cannot apply without bonuses, and requires a written reason for the alternative level.
+- **Rule 11.4 (voting for friends):** The reader answered that TSBC should “Investigate but without enough proof theres nothing they can do”, and rated the rule **mostly clear**. This correctly rejects a cheating penalty based only on friendship and a high vote, but investigating every unsupported accusation is not required. The reader called “alliances and shared communities” unnecessary and unrelated to SSC. The candidate now uses plain wording about friendship, shared groups, evidence of arranging votes or controlling another person's vote, and avoiding unsupported cheating findings. This wording still needs retesting.
+- **Role terminology correction (Rule 11.4; also 20.1 and 20.2):** The reader caught that an earlier simplification incorrectly called an HoD a “player”. SSC uses **Head of Delegation (HoD)**. This was a genuine editing error, not a request to change who may vote. Draft rule bodies now use HoD where the role is intended, with a regression check against “player” in the authored rule bodies.
+- **Rule 12.5 (official outage versus personal internet problem):** The reader's answers were “A try to fix it and is.” and “B u have to figure it out”; clarity **confusing**. The reader captured that the official outage is for TSBC to address and personal Wi-Fi is normally the individual's issue, but did **not** identify the possible deadline extension, delayed or reopened stage, correction from saved records, or that extra time is *not guaranteed*. The reader said the rule “sounds too like what u would read on a manual not on fan contest made by 17 year old”. The candidate now uses everyday but precise wording, distinguishes the two situations in separate paragraphs and gives a short Wi-Fi example. Retest this revision with another scenario.
+
+**Pilot summary:** Five rules sampled with one 17-year-old reader: 2 rated **mostly clear** (22.5, 11.4), 3 rated **confusing** (6.4, 17.2, 12.5); none rated very clear. Comprehension: correct central outcome in 22.5 and 11.4, incorrect selection priority in 6.4, correct point arithmetic but incomplete bonus-penalty explanation in 17.2, and partial outage-vs-personal problem understanding in 12.5. The pilot exposed a **broader tone and role-accuracy problem** beyond difficult vocabulary. These ratings are for the wording *shown during the test*, not a validation of the rewritten candidates.
+
+**Terminology gate:** Preserve official SSC role names (HoD, TSBC, delegation, artist, country). Do not introduce “player”, “contestant” or other informal replacements for HoD when specifying official voting or submission authority. Compare the edited rules with the official roles and permissions in the current rulebook.
+
+**Whole-rulebook style blocker:** The reader described the prose as unnatural and AI-sounding, not just difficult. Before release, a human editor must review **all 113 rules**, summaries, important notes, examples and participant-facing help for natural, professional English. Prefer specific actions (“must not change the score to zero”) over narrative adverbs (“quietly”), vague explanations or redundant qualifications. Read rules aloud and ask more teenagers to restate them. Do not mechanically shorten text or change a penalty, permission, threshold or deadline just to make it sound simpler. Automated wording checks cannot establish naturalness or comprehension.
+
+**Retesting:** The new wording of Rules 6.4 and 17.2 still needs comprehension testing; editing after feedback alone does not prove the revisions work.
+
+## Full 113-rule editorial pass
+
+**Scope of this pass:** Every draft body and summary was read for clear, natural English, appropriate SSC roles and preservation of its stated rules. All 113 proposed rule titles were rewritten in clear language. Compared with the candidate before this full pass, **90 of 113 rule bodies were edited** and **23 were retained** because their wording was already reasonably clear. “Reviewed” does not mean independently certified or proven understandable by every teenager.
+
+**Bodies retained without further changes in this pass:** 2.1, 5.2, 5.3, 6.2, 6.3, 6.5, 6.6, 6.8, 6.9, 7.1, 7.3, 7.4, 7.5, 8.2, 8.3, 8.5, 11.8, 12.5, 14.3, 14.4, 15.3, 15.4 and 16.6. These can still require revision after independent review; notably Rule 12.5 had already been rewritten from the age-17 pilot before this broader pass.
+
+### Style and SSC-specific wording
+
+- Write for HoDs who know the contest, not for legal specialists or software engineers. Use normal English while keeping the exact words **must**, **may** and **cannot** wherever they affect rights or duties.
+- **HoD** is the official representative of a delegation. Use **participant** or **person** for somebody who may not be an HoD, such as a person reporting abuse. Use **country** when referring to the fictional country, its map or its results. Do not substitute “player” for any of these.
+- Prefer a concrete example over abstract official-sounding prose. The Rule 6.4 video-priority example compares an official artist upload with 600,000 views against a fan upload with 2 million views; the official upload wins priority. Rule 17.2 uses 35 − 50 = −15 to explain fixed deductions.
+- Name the responsible party and the next action. Prefer “TSBC must explain its decision in writing” over vague language. Do not use story-like qualifiers such as “quietly” or “silently”.
+- Keep chapters and rules short enough to scan but do not erase the exceptions, evidence requirements, deadlines or other limits. The definitions in Rule 2.1 are intentionally longer because each defined term needs its own clear explanation.
+- Historical published v4.1 terminology stays untouched. The draft v4.2 wording must be introduced by the official Rules Manager publication, not by modifying past records or exposing a synthetic current version.
+
+### Meaning-preservation review points
+
+- **Rule 6.4:** Select the video by official-channel priority and highest views *before* applying the YouTube popularity test. An HoD must not be able to switch to a lower-viewed video to pass. Keep both limits (Spotify fewer than 25 million monthly listeners; YouTube fewer than 20 million views), deadlines, recorded check figures and acceptance-after-growth exception.
+- **Rules 6.5–6.6:** Keep the National Selection boundary (2015 onward), the maximum of three artist appearances, no return after winning and the permission exception only when the former country has no active HoD.
+- **Rules 11.4–11.7:** Friendship and shared groups are allowed; a similar voting pattern is not proof. Evidence of agreed or controlled votes is required before finding cheating. Automated alerts cannot determine guilt.
+- **Rules 12.3–12.5 and 15.1–15.2:** Keep late-entry and withdrawal conditions distinct. Official system failures may justify extensions; a personal internet failure does not automatically do so.
+- **Rules 16–18:** Preserve report confidentiality, a fair chance to respond, the actual ten penalty levels, bonus-only limits, potentially negative final scores, the 48-hour appeal window and independent review where possible.
+- **Rules 21–22:** Keep the Current/version-release boundary, six completed editions without an active HoD, the reset if an HoD was active during any edition, the official map decision and unaltered historical results.
+
+**Still required for release:** The edited wording needs review by other real 15–18-year-old HoDs and an independent meaning comparison against every official v4.1 obligation. Run all required exact-head tests with **isolated local Supabase only**. Confirm owner/TSBC approval, rules-governance history, scoring integration and edition publication through the approved workflow. This editorial pass does **not** authorize any of those releases.
+
+## Specific decisions supplied by the contest owner
+
+1. **6.5:** Participating in a Eurovision National Selection **in 2015 or later** is disqualifying. Before 2015 remains permissible if other conditions are met.
+2. **6.3–6.4:** When no official music video exists, use the **song's YouTube video** for the popularity check. The proposed tie-break is the most-viewed existing full-song upload from the artist/label official channel before the submission deadline; if none exists, use the most-viewed identifiable pre-deadline full-song video. Record the selected URL and figures. Official checks must retain their selected video and timestamp to make the result reviewable.
+3. **6.6:** When the artist's previous country has **no active HoD**, another country may use the artist without that country's permission. The three-appearance cap and ban on previous winning artists remain.
+4. **15.1:** A delegation may withdraw after the submission deadline but before entry publication. Simply passing that deadline does not automatically create a penalty. Serious disruptive withdrawal **after** publication remains covered by **15.2**.
+5. **17.2:** The owner confirmed that fixed contest-point penalties should come directly off the country’s score. The user recorded approval in principle for the proposed bonus-point wording in [issue #2379](https://github.com/solarissongcontest/solarisstudio/issues/2379#issuecomment-6708975596), but formal TSBC ratification evidence and release checks are still required. The candidate uses making Levels 2 and 3 inapplicable without bonuses, and requiring TSBC to select another existing appropriate level with recorded reasons rather than converting bonus penalties without approval. TSBC must approve or revise that proposal.
+
+## Review points that must not be guessed
+
+- **Formal TSBC ratification still required:** The user approved in principle the deterministic YouTube selection order in issue #2379. Confirm formal approval and preserve the recorded video and check time before publication.
+- **Results integration verification still required:** The user approved in principle, but scoring and ranking have not been verified. The candidate proposes applying fixed point deductions in full, including negative final scores (35 - 50 = -15), reflecting the existing admin note that negative vote totals can represent sanctions. This does not implement new scoring or leaderboard algorithms; check the final-result pipeline before publishing.
+- Rule 6.6's no-HoD permission waiver should be reconciled with any account ownership or country status controls. It must not accidentally grant a participant account access.
+- **Publication gate:** Current production is v4.1 (confirmed 7 November 2026). The v4.2 candidate must remain separate from the bundled Current canon until an official Rules Manager v4.2 release carries the full 113 after-snapshots, with an effective time and organizer approval. A GitHub merge is **not** itself a formal TSBC rulebook publication.
+- Confirm that the runtime release overlay has not published newer rule wording; don't overwrite newer published regulations with this candidate.
+- Run offline/unit checks first. Any CI browser test must use a locally isolated Supabase stack and must fail closed if hosted endpoints are configured.
+
+## Release checks
+
+1. Compare each of the 113 revised bodies and notes against the current approved release for changed obligations, exceptions and penalties.
+2. Check Rule 6.5 boundary (2014 versus 2015), video fallback, artist reuse without an active HoD, post-deadline pre-publication withdrawal and bonus versus regular points.
+3. Validate wrong-number references have been removed and related-rule links still resolve.
+4. Confirm the six completed editions with no active HoD rule is unchanged in its effect.
+5. Run the unit tests `src/lib/ssc-rules-plain-language.test.ts`, `src/lib/ssc-rules-v3.test.ts`, `src/lib/ssc-rules-canon-audit.test.ts`, and `src/lib/ssc-roleplay-rules.contract.test.ts`.
+6. Have several participants aged 15–18 read rules from every major chapter, including selection, votes, penalties and worldbuilding. Ask them to explain their responsibilities without organizer hints; revise wording they misunderstand.
+7. Approve and publish the final release through Rules Manager, then confirm the live release metadata and search results.
+
+Source: `src/lib/ssc-rules/plain-language-v42.ts`. The older source texts are deliberately retained in earlier source modules for history and migration; the current v4.2 data composes the reviewed wording without rewriting immutable historical migrations.
+
+## Publication boundary
+
+The bundled `SSC_RULEBOOK` remains v4.1 until the governed Rules Manager publishes a 4.2 release. The 113 plain-language revisions are held in `src/lib/ssc-rules/plain-language-v42.ts` as a candidate, with tests that explicitly verify its contents. A runtime release v4.2 must carry the approved changed snapshots through the official governance API. Never label a draft synthetic history row as Current.
