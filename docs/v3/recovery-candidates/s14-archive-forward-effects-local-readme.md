@@ -20,6 +20,25 @@ A second, narrowly scoped **read-only** hosted PostgreSQL catalog audit verified
 
 The staged S14 SQL now **fails closed before changing any schema** if those required external RPC signatures or current-workflow tables are absent. PostgreSQL's ability to compile a PL/pgSQL definition is not proof that its eventual function calls can execute; this preflight makes that limitation explicit. It still cannot cover dynamic SQL calls, complete dependency versions, privilege-based runtime access, data-level truth, or every partial migration state.
 
+## Hosted critical-column compatibility checkpoint (2026-11-08)
+
+A separate **read-only `pg_catalog` query** checked **31 columns in eight existing canonical ledgers and projection tables**, and found all expected shapes present. This included:
+
+| Existing source | Evidence checked |
+| --- | --- |
+| `public.studio2_edition_runtime` | UUID edition identity, text state, JSONB subsystems, bigint version, non-null timezone-aware update timestamp |
+| `public.studio2_organizer_tasks` | UUID task ID, **nullable** UUID edition scope, non-null state/task type/source key |
+| `public.admin_notifications` | UUID recipient, **nullable** source key and resolved timestamp, non-null action flag and resolution mode |
+| `public.notification_deliveries` | Text subject/category/status, non-null timezone-aware schedule |
+| `private.v3_result_versions` | UUID show, bigint immutable version, JSONB result rows |
+| `public.studio2_operation_receipts` | UUID operation and correlation identity, text idempotency key |
+| `private.v3_domain_events` | Text event type, bigint aggregate version, JSONB payload |
+| `private.v3_domain_event_outbox` | UUID event, text consumer key/status |
+
+The staged recovery's **transaction-start preflight now validates all 31 existing columns by exact PostgreSQL type and nullability**. A missing column, changed type or weakened/strengthened nullability blocks the install before any Archive DDL. The isolated regression deliberately drops `NOT NULL` from the runtime `updated_at` column, proves the recovery refuses to install or leave a private gate table, restores the column constraint, and then completes the normal S13 → S14 parity and behavioral test.
+
+This advances from *object-name-only* detection to a **production-observed schema subset contract**, but it does NOT reproduce a hosted-head-equivalent database, full indexes/checks/foreign keys, RLS/policies, dynamic SQL effects, Supabase migration history, or live row distributions. No production rows were selected.
+
 ## Forward-only candidate SQL
 
 `docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql` stages the combined effects of **eleven existing immutable historical Archive source files**, in dependency order:
