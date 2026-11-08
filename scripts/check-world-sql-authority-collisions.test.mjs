@@ -14,6 +14,9 @@ test('finds same canonical TG4 tables introduced by independent migration names'
   assert.equal(report.collisions.length, 1);
   assert.equal(report.collisions[0].object, 'table:public.world_documents');
   assert.equal(report.collisions[0].classification, 'different-source-review');
+  assert.equal(report.collisions[0].initialTableColumnComparison.differingColumnSets, true);
+  const newer = report.collisions[0].initialTableColumnComparison.observations.find(x => x.number === 2413);
+  assert.deepEqual(newer.absentFromInitialDefinition, ['record_class']);
 });
 
 test('finds the colliding legal archive RPC signature despite different argument names', () => {
@@ -63,4 +66,35 @@ test('fails closed on missing heads, duplicate PRs, or incomplete SQL source', (
 
 test('unterminated SQL literal cannot silently produce a clean report', () => {
   assert.throws(() => sqlDeclarations("CREATE FUNCTION public.fn() RETURNS void AS $abc$select 1;"), /Unterminated/);
+});
+
+
+test('nested type/DEFAULT commas and table constraints do not become phantom columns', () => {
+  const old = `CREATE TABLE public.legal (id uuid PRIMARY KEY,
+    amount numeric(10, 2) DEFAULT round(1.2, 1), title text NOT NULL,
+    CONSTRAINT legal_title_check CHECK (length(title) > 1));`;
+  const newer = `CREATE TABLE IF NOT EXISTS public.legal (
+    id uuid PRIMARY KEY, amount numeric(10,2), title text NOT NULL,
+    legacy_class text DEFAULT 'public', UNIQUE (id, title));`;
+  const report = auditSnapshot(snapshot([file('old', old)], [file('new', newer)]));
+  assert.equal(report.collisions.length, 1);
+  const oldShape = report.collisions[0].initialTableColumnComparison.observations.find(x => x.number === 1890);
+  assert.deepEqual(oldShape.initialColumns, ['amount', 'id', 'title']);
+  assert.deepEqual(oldShape.absentFromInitialDefinition, ['legacy_class']);
+});
+
+test('identical initial columns are not falsely called different when constraints change', () => {
+  const report = auditSnapshot(snapshot(
+    [file('a', 'CREATE TABLE public.legal (id uuid PRIMARY KEY, title text NOT NULL);')],
+    [file('b', 'CREATE TABLE public.legal (title text, id uuid);')],
+  ));
+  assert.equal(report.collisions[0].initialTableColumnComparison.differingColumnSets, false);
+});
+
+test('CREATE TABLE AS has no invented column comparison', () => {
+  const report = auditSnapshot(snapshot(
+    [file('a', 'CREATE TABLE public.report AS SELECT 1 AS count;')],
+    [file('b', 'CREATE TABLE public.report(id bigint);')],
+  ));
+  assert.equal(report.collisions[0].initialTableColumnComparison, null);
 });
