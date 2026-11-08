@@ -78,6 +78,23 @@ describe("CI egress safety contracts", () => {
     // The browser's VITE aliases and Worker --vars remain strictly local.
     expect(workflow).not.toContain('echo "SUPABASE_PROJECT_ID=local"');
     expect(workflow).not.toContain('echo "SUPABASE_PROJECT_REF=local"');
+    // Bun will otherwise import the repository's .env project identity when
+    // the global CLI overrides are absent. Pin *only* app/test steps, never
+    // 'supabase start', status, fixture seeding, or cleanup commands.
+    for (const step of [
+      "Verify assembled browser environment before seeding or navigation",
+      "Build audit application against isolated local Supabase",
+      "Start stable audit server",
+      "Organizer fail-fast preflight",
+      "Run responsive browser audit",
+    ]) {
+      const start = workflow.indexOf(`      - name: ${step}\n`);
+      expect(start, step).toBeGreaterThanOrEqual(0);
+      const next = workflow.indexOf("\n      - name:", start + 1);
+      const block = workflow.slice(start, next < 0 ? undefined : next);
+      expect(block, step).toContain("SUPABASE_PROJECT_ID: local");
+      expect(block, step).toContain("SUPABASE_PROJECT_REF: local");
+    }
     expect(workflow).toContain("supabase status -o env > /tmp/solaris-browser-supabase.env");
     expect(source(".github/scripts/seed-browser-e2e-local.sh")).toContain('eval "$(supabase status -o env)"');
     expect(workflow).toContain('--var "SUPABASE_PROJECT_REF:local"');
