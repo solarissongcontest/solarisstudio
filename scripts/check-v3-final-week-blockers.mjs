@@ -8,7 +8,63 @@ const CLASSES = new Set(["hard", "conditional", "debt", "superseded"]);
 const STATES = new Set(["blocked", "in_progress", "unverified", "awaiting_authorization", "closed", "superseded"]);
 const REQUIRED = ["id", "capability", "classification", "status", "sourceOfAuthority", "technicalRootCause", "owner", "nextAction", "targetDate", "verificationSha"];
 
-export function evaluateFinalWeekBlockers(matrix, { release = false, certified = false, candidateSha = "" } = {}) {
+const APPROVAL_ACTIONS = ["hostedMigration", "productionDeployment", "publicWriteReopening"];
+const CERTIFICATION_GATES = ["S13", "S14", "S15", "S16", "security", "productionIsolation"];
+const nonempty = value => typeof value === "string" && value.trim().length > 0;
+
+// This verifies the shape and exact-SHA references of a HUMAN-supplied release
+// approval packet. It cannot authenticate a signature or grant production
+// permission. Operations must independently verify each reference with its owner.
+export function evaluateExplicitReleaseApproval(packet, candidateSha) {
+  const errors = [];
+  if (!packet || typeof packet !== "object" || Array.isArray(packet)) {
+    return ["certification: external --approval-file with explicit owner decisions is required"];
+  }
+  if (packet.schemaVersion !== 1 || packet.scope !== "full_solaris_studio_v3" ||
+      packet.decision !== "GO_FULL_V3") {
+    errors.push("certification: packet must explicitly authorize full V3 GO");
+  }
+  if (!SHA.test(candidateSha) || packet.candidateSha !== candidateSha) {
+    errors.push("certification: approval packet must bind the exact candidate SHA");
+  }
+  if (!nonempty(packet.releaseManager?.name) || !nonempty(packet.releaseManager?.decisionRef)) {
+    errors.push("certification: identifiable release-manager decision reference required");
+  }
+  const scope = packet.scopeReview;
+  if (scope?.decision !== "full_scope_accepted" ||
+      !nonempty(scope.reviewedBy) || !nonempty(scope.evidenceRef) ||
+      !Array.isArray(scope.excludedCapabilities) || scope.excludedCapabilities.length !== 0) {
+    errors.push("certification: full-scope review and zero silent exclusions required");
+  }
+  const refs = new Set();
+  for (const action of APPROVAL_ACTIONS) {
+    const decision = packet.authorizations?.[action];
+    if (decision?.approved !== true || !nonempty(decision.approvedBy) ||
+        !nonempty(decision.evidenceRef)) {
+      errors.push("certification: explicit independent " + action + " authorization missing");
+    } else if (refs.has(decision.evidenceRef)) {
+      errors.push("certification: separate production actions need distinct authorization references");
+    } else refs.add(decision.evidenceRef);
+  }
+  const evidence = packet.gates;
+  if (!Array.isArray(evidence)) {
+    errors.push("certification: exact-SHA release gate evidence array required");
+  } else {
+    for (const gate of CERTIFICATION_GATES) {
+      const rows = evidence.filter(row => row && row.id === gate);
+      if (rows.length !== 1 || rows[0].passed !== true ||
+          rows[0].candidateSha !== candidateSha || !nonempty(rows[0].evidenceRef)) {
+        errors.push("certification: missing/stale/duplicate " + gate + " evidence");
+      }
+    }
+    if (evidence.length !== CERTIFICATION_GATES.length) {
+      errors.push("certification: unexpected release gate evidence rows");
+    }
+  }
+  return errors;
+}
+
+export function evaluateFinalWeekBlockers(matrix, { release = false, certified = false, candidateSha = "", approvalPacket = null } = {}) {
   const errors = [];
   const requireField = (row, key, where) => {
     if (typeof row[key] !== "string" || !row[key].trim()) errors.push(where + ": missing " + key);
@@ -89,7 +145,10 @@ export function evaluateFinalWeekBlockers(matrix, { release = false, certified =
   if (release) {
     if (!SHA.test(candidateSha)) errors.push("release: exact --candidate-sha is required");
     if (matrix.coverage !== "complete") errors.push("release: matrix coverage is incomplete or unaudited");
-    if (certified && matrix.releaseCertified !== true) errors.push("certification: owner approval evidence is absent");
+    if (certified) {
+      if (matrix.releaseCertified !== true) errors.push("certification: owner approval evidence is absent");
+      errors.push(...evaluateExplicitReleaseApproval(approvalPacket, candidateSha));
+    }
     if (counts.unresolvedHard) errors.push("release: " + counts.unresolvedHard + " hard blockers remain");
     if (counts.unresolvedConditional) errors.push("release: " + counts.unresolvedConditional + " conditional blockers remain");
     // Repository-tracked files cannot contain their own final Git commit SHA.
@@ -122,8 +181,21 @@ function run() {
       return;
     }
   }
+  let approvalPacket = null;
+  if (certified) {
+    const approvalIndex = args.indexOf("--approval-file");
+    const approvalFile = approvalIndex < 0 ? "" : args[approvalIndex + 1] ?? "";
+    if (approvalFile) {
+      try { approvalPacket = JSON.parse(readFileSync(approvalFile, "utf8")); }
+      catch (error) {
+        console.error("V3 release approval packet unavailable or invalid: " + error.message);
+        process.exitCode = 1;
+        return;
+      }
+    }
+  }
   let report;
-  try { report = evaluateFinalWeekBlockers(JSON.parse(readFileSync(file, "utf8")), { release, certified, candidateSha }); }
+  try { report = evaluateFinalWeekBlockers(JSON.parse(readFileSync(file, "utf8")), { release, certified, candidateSha, approvalPacket }); }
   catch (error) { console.error("V3 final-week blocker matrix unavailable or invalid: " + error.message); process.exitCode = 1; return; }
   if (args.includes("--json")) console.log(JSON.stringify(report, null, 2));
   else {
