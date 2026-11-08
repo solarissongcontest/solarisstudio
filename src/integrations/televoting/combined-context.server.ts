@@ -4,6 +4,16 @@ import {
   type CombinedPublicationTarget,
 } from "@/integrations/televoting/combined-context";
 
+export function isExpectedCombinedContextMismatch(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  return (
+    error.message.startsWith("Combined source round ") ||
+    error.message === "Enabled Combined source rounds must resolve to one Solaris edition and show" ||
+    error.message === "Combined source binding does not belong to its canonical Solaris edition" ||
+    error.message === "Combined result does not belong to the requested Solaris edition and show"
+  );
+}
+
 export async function assertCombinedPublicationContextServer(input: {
   aggregationId: string;
   expectedEditionId?: string;

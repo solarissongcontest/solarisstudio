@@ -1,7 +1,9 @@
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
-import { assertCombinedPublicationContextServer } from "@/integrations/televoting/combined-context.server";
-import { assertCombinedPublicationContextServer } from "@/integrations/televoting/combined-context.server";
+import {
+  assertCombinedPublicationContextServer,
+  isExpectedCombinedContextMismatch,
+} from "@/integrations/televoting/combined-context.server";
 import {
   COMBINED_ENGINE_VERSION,
   computeCombined,
@@ -103,9 +105,9 @@ export async function resolveCombinedAggregationsForContextServer(input: {
         edition_id: target.editionId,
         show_id: target.showId,
       });
-    } catch {
-      // An aggregation without an exact server-validated target is not a
-      // candidate for this Organizer context.
+    } catch (error) {
+      if (isExpectedCombinedContextMismatch(error)) continue;
+      throw error;
     }
   }
   return candidates;

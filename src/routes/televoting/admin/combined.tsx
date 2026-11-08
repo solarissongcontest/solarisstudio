@@ -154,15 +154,50 @@ function CombinedResultsPage() {
   });
 
   useEffect(() => {
-    if (search.aggregationId) {
+    const candidates = hasContext ? contextAggregations : aggregations;
+    const candidateIds = new Set(candidates.map((aggregation) => aggregation.id));
+    if (search.aggregationId && candidateIds.has(search.aggregationId)) {
       setSelectedId(search.aggregationId);
-    } else if (hasContext) {
-      if (contextAggregations.length === 1) setSelectedId(contextAggregations[0]!.id);
-      else setSelectedId("");
-    } else if (!selectedId && aggregations.length) {
-      setSelectedId(aggregations[0]!.id);
+      return;
     }
-  }, [aggregations, contextAggregations, hasContext, search.aggregationId, selectedId]);
+    if (hasContext && candidates.length === 1) {
+      const nextId = candidates[0]!.id;
+      setSelectedId(nextId);
+      if (search.aggregationId !== nextId) {
+        void navigate({
+          search: { ...search, aggregationId: nextId },
+          replace: true,
+        });
+      }
+      return;
+    }
+    if (!hasContext && !search.aggregationId && !selectedId && candidates.length) {
+      const nextId = candidates[0]!.id;
+      setSelectedId(nextId);
+      void navigate({ search: { ...search, aggregationId: nextId }, replace: true });
+      return;
+    }
+    if (search.aggregationId && !candidateIds.has(search.aggregationId)) {
+      setSelectedId("");
+      void navigate({
+        search: {
+          ...search,
+          aggregationId: undefined,
+        },
+        replace: true,
+      });
+    } else if (hasContext && candidates.length !== 1) {
+      setSelectedId("");
+    }
+  }, [
+    aggregations,
+    contextAggregations,
+    hasContext,
+    navigate,
+    search,
+    search.aggregationId,
+    selectedId,
+  ]);
 
   const { data: editionRounds = [] } = useQuery({
     queryKey: ["merged-televoting-rounds"],
@@ -183,7 +218,12 @@ function CombinedResultsPage() {
     isLoading: detailLoading,
     error: detailError,
   } = useQuery({
-    queryKey: ["merged-combined-detail", selectedId],
+    queryKey: [
+      "merged-combined-detail",
+      selectedId,
+      search.editionId ?? "",
+      search.showId ?? "",
+    ],
     queryFn: () =>
       hasContext
         ? detailContextFn({
@@ -200,8 +240,22 @@ function CombinedResultsPage() {
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["merged-combined-aggregations"] }),
-      queryClient.invalidateQueries({ queryKey: ["merged-combined-detail", selectedId] }),
-      queryClient.invalidateQueries({ queryKey: ["merged-combined-recovery", selectedId] }),
+      queryClient.invalidateQueries({
+        queryKey: [
+          "merged-combined-detail",
+          selectedId,
+          search.editionId ?? "",
+          search.showId ?? "",
+        ],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: [
+          "merged-combined-recovery",
+          selectedId,
+          search.editionId ?? "",
+          search.showId ?? "",
+        ],
+      }),
       queryClient.invalidateQueries({ queryKey: ["merged-televoting-audit"] }),
     ]);
   };
@@ -233,6 +287,8 @@ function CombinedResultsPage() {
   }
   if (!admin) return null;
 
+  const visibleAggregations = hasContext ? contextAggregations : aggregations;
+
   if (hasContext && !selectedId) {
     return (
       <div className="mx-auto max-w-[1100px] space-y-5 py-2">
@@ -242,7 +298,7 @@ function CombinedResultsPage() {
           description="Select only a server-validated Combined result associated with this exact edition and show."
         />
         <section className="glass p-5">
-          {contextAggregations.length ? (
+          {contextAggregations.length > 1 ? (
             <>
               <p className="text-sm font-semibold">Multiple valid Combined results</p>
               <div className="mt-3 space-y-2">
@@ -271,14 +327,14 @@ function CombinedResultsPage() {
                 ))}
               </div>
             </>
-          ) : (
+          ) : contextAggregations.length === 0 ? (
             <>
               <p className="text-sm font-semibold">No Combined result is associated</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 Nothing can be opened for this edition/show without selecting an unrelated aggregation.
               </p>
             </>
-          )}
+          ) : null}
         </section>
       </div>
     );
@@ -346,11 +402,16 @@ function CombinedResultsPage() {
             Saved combined results
           </p>
           <div className="space-y-1">
-            {aggregations.map((aggregation) => (
+            {visibleAggregations.map((aggregation) => (
               <button
                 key={aggregation.id}
                 type="button"
-                onClick={() => setSelectedId(aggregation.id)}
+                onClick={() => {
+                  setSelectedId(aggregation.id);
+                  void navigate({
+                    search: { ...search, aggregationId: aggregation.id },
+                  });
+                }}
                 className={`w-full rounded-xl border p-3 text-left transition ${selectedId === aggregation.id ? "border-sky-200/15 bg-sky-200/[0.08]" : "border-transparent hover:border-white/10 hover:bg-white/[0.035]"}`}
               >
                 <p className="truncate text-sm font-semibold">{aggregation.name}</p>
@@ -363,7 +424,7 @@ function CombinedResultsPage() {
                 </div>
               </button>
             ))}
-            {!aggregations.length ? (
+            {!visibleAggregations.length ? (
               <p className="px-2 py-6 text-center text-xs text-muted-foreground">
                 No combined results yet.
               </p>

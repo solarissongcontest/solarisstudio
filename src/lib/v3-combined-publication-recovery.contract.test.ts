@@ -17,6 +17,10 @@ const contextServer = readFileSync(
   "src/integrations/televoting/combined-context.server.ts",
   "utf8",
 );
+const combinedServer = readFileSync(
+  "src/integrations/televoting/combined.server.ts",
+  "utf8",
+);
 
 describe("Combined publication recovery", () => {
   it("uses the governed Solaris reconciliation command", () => {
@@ -58,5 +62,15 @@ describe("Combined publication recovery", () => {
     expect(route).toContain("merged-combined-context");
     expect(route).toContain("Multiple valid Combined results");
     expect(route).toContain("No Combined result is associated");
+  });
+
+  it("keeps context selection and resolver failures scoped and visible", () => {
+    expect(route).toContain("merged-combined-detail");
+    expect(route).toContain("search.editionId ?? \"\"");
+    expect(route).toContain("search.showId ?? \"\"");
+    expect(route).toContain("visibleAggregations");
+    expect(combinedServer).toContain("if (isExpectedCombinedContextMismatch(error)) continue;");
+    expect(combinedServer).toContain("throw error;");
+    expect(combinedServer).not.toContain("} catch {\n      // An aggregation without");
   });
 });
