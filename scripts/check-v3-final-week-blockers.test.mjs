@@ -41,7 +41,7 @@ test("incomplete coverage and outstanding hard blocker fail release even at matc
 });
 test("complete exact-SHA preflight may pass before separate owner certification", () => {
   const m = fixture(); m.coverage = "complete"; m.releaseCandidateSha = sha;
-  m.items[0].status = "closed"; m.items[0].closureEvidence = [{ candidateSha: sha, test: "isolated pass" }];
+  m.items[0].status = "closed"; m.items[0].closureEvidence = [{ verifiedSha: sha, test: "isolated pass" }];
   assert.deepEqual(evaluateFinalWeekBlockers(m, { release: true, candidateSha: sha }).errors, []);
   assert.match(evaluateFinalWeekBlockers(m, { release: true, certified: true, candidateSha: sha }).errors.join("\n"), /owner approval evidence is absent/);
 });
@@ -54,24 +54,22 @@ test("duplicate, orphan dependency and missing observed evidence fail structure"
   assert.match(errors, /unknown dependency/);
   assert.match(errors, /initial observed evidence/);
 });
-test("closing without acceptance proof or with invalid exact SHA fails", () => {
+test("closing without acceptance proof or with invalid source SHA fails", () => {
   const m = fixture(); m.items[0].status = "closed";
   assert.match(evaluateFinalWeekBlockers(m).errors.join("\n"), /closure requires explicit/);
-  m.items[0].closureEvidence = [{ candidateSha: "not-a-sha", test: "passed" }];
-  assert.match(evaluateFinalWeekBlockers(m).errors.join("\n"), /exact candidate SHA/);
+  m.items[0].closureEvidence = [{ verifiedSha: "not-a-sha", test: "passed" }];
+  assert.match(evaluateFinalWeekBlockers(m).errors.join("\n"), /verified historical source SHA/);
 });
-test("stale matrix and closure evidence fail for different candidate SHA", () => {
+test("source evidence is historical, while the release candidate is verified at runtime", () => {
   const m = fixture(); m.coverage = "complete"; m.releaseCertified = true;
-  m.releaseCandidateSha = "b".repeat(40); m.items[0].status = "closed";
-  m.items[0].closureEvidence = [{ candidateSha: sha, test: "local test passed" }];
-  const errors = evaluateFinalWeekBlockers(m, { release: true, candidateSha: "b".repeat(40) }).errors.join("\n");
-  assert.match(errors, /verified at another SHA/);
-  assert.match(errors, /no closure proof for exact candidate/);
+  m.items[0].status = "closed";
+  m.items[0].closureEvidence = [{ verifiedSha: sha, test: "local test passed" }];
+  assert.deepEqual(evaluateFinalWeekBlockers(m, { release: true, candidateSha: "b".repeat(40) }).errors, []);
 });
 test("fully closed synthetic exact-SHA matrix passes only this narrow gate", () => {
   const m = fixture(); m.coverage = "complete"; m.releaseCertified = true;
-  m.releaseCandidateSha = sha; m.items[0].status = "closed";
-  m.items[0].closureEvidence = [{ candidateSha: sha, test: "isolated proof" }];
+  m.items[0].status = "closed";
+  m.items[0].closureEvidence = [{ verifiedSha: sha, test: "isolated proof" }];
   assert.deepEqual(evaluateFinalWeekBlockers(m, { release: true, candidateSha: sha }).errors, []);
 });
 test("superseded finding must have explicit replacement", () => {
@@ -86,9 +84,15 @@ test("real command-line execution fails closed in release mode (relative entrypo
     const script = fileURLToPath(new URL("./check-v3-final-week-blockers.mjs", import.meta.url));
     const regular = spawnSync(process.execPath, [relative(process.cwd(), script), "--file", path], { encoding: "utf8" });
     assert.equal(regular.status, 0, regular.stderr);
-    const strict = spawnSync(process.execPath, [relative(process.cwd(), script), "--file", path, "--release", "--candidate-sha", sha], { encoding: "utf8" });
+    const actual = spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).stdout.trim();
+    assert.match(actual, /^[a-f0-9]{40}$/);
+    const strict = spawnSync(process.execPath, [relative(process.cwd(), script), "--file", path, "--release", "--candidate-sha", actual], { encoding: "utf8" });
     assert.equal(strict.status, 1, strict.stdout);
     assert.match(strict.stderr, /hard blockers remain/);
+    const mismatchSha = actual === sha ? "b".repeat(40) : sha;
+    const mismatch = spawnSync(process.execPath, [relative(process.cwd(), script), "--file", path, "--release", "--candidate-sha", mismatchSha], { encoding: "utf8" });
+    assert.equal(mismatch.status, 1);
+    assert.match(mismatch.stderr, /does not match the current checkout/);
   } finally { rmSync(temp, { recursive: true, force: true }); }
 });
 
