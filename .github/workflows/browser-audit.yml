@@ -195,6 +195,11 @@ jobs:
           fi
 
       - name: Verify assembled browser environment before seeding or navigation
+        # Scoped only to application/guard commands, never to Supabase CLI.
+        # Bun loads tracked .env values when these keys are unset.
+        env:
+          SUPABASE_PROJECT_ID: local
+          SUPABASE_PROJECT_REF: local
         run: |
           set -euo pipefail
           bun run scripts/check-v3-production-isolation.ts
@@ -244,6 +249,8 @@ jobs:
         shell: bash
         env:
           SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
+          SUPABASE_PROJECT_ID: local
+          SUPABASE_PROJECT_REF: local
         run: |
           set -euo pipefail
 
@@ -268,6 +275,8 @@ jobs:
         shell: bash
         env:
           SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
+          SUPABASE_PROJECT_ID: local
+          SUPABASE_PROJECT_REF: local
         run: |
           set -euo pipefail
 
@@ -437,6 +446,8 @@ jobs:
         env:
           E2E_BASE_URL: http://127.0.0.1:4173
           SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
+          SUPABASE_PROJECT_ID: local
+          SUPABASE_PROJECT_REF: local
         run: bun run test:e2e:organizer-preflight
 
       - name: Summarize organizer preflight
@@ -482,6 +493,8 @@ jobs:
         env:
           E2E_BASE_URL: http://127.0.0.1:4173
           SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
+          SUPABASE_PROJECT_ID: local
+          SUPABASE_PROJECT_REF: local
           SOLARIS_PR455_PREFLIGHT_ALREADY_PASSED: "1"
           # Pull requests and main pushes run the representative smoke set. Exhaustive
           # and visual certification are explicit manual actions, so temporary release
