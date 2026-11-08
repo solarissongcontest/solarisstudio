@@ -40,7 +40,7 @@ test("incomplete coverage and outstanding hard blocker fail release even at matc
   assert.match(errors, /hard blockers remain/);
 });
 test("complete exact-SHA preflight may pass before separate owner certification", () => {
-  const m = fixture(); m.coverage = "complete"; m.releaseCandidateSha = sha;
+  const m = fixture(); m.coverage = "complete";
   m.items[0].status = "closed"; m.items[0].closureEvidence = [{ verifiedSha: sha, test: "isolated pass" }];
   assert.deepEqual(evaluateFinalWeekBlockers(m, { release: true, candidateSha: sha }).errors, []);
   assert.match(evaluateFinalWeekBlockers(m, { release: true, certified: true, candidateSha: sha }).errors.join("\n"), /owner approval evidence is absent/);
