@@ -11,6 +11,7 @@ const budget = source("scripts/check-client-bundle-budget.mjs");
 const validator = source("scripts/validate-client-bundle-budget-report.mjs");
 const packageJson = source("package.json");
 const quality = source(".github/workflows/ci.yml");
+const bundleEvidence = source(".github/workflows/client-bundle-budget-evidence.yml");
 const browserAudit = source(".github/workflows/browser-audit.yml");
 const budgetScript = resolve("scripts/check-client-bundle-budget.mjs");
 const validatorScript = resolve("scripts/validate-client-bundle-budget-report.mjs");
@@ -56,6 +57,18 @@ describe("client bundle performance budget", () => {
     expect(quality).toContain("run: bun run budget:client");
     expect(browserAudit).toContain("- name: Enforce client performance budget");
     expect(browserAudit).toContain("run: bun run budget:client");
+  });
+
+  it("builds standalone budget evidence with the same fail-closed local CI variables as Quality", () => {
+    // Different local placeholder keys can change Vite's emitted gzip bytes
+    // for the same SHA, making independently generated evidence incomparable.
+    const isolatedBuildEnvironment = (workflow: string) => {
+      const block = workflow.match(/\n\s+set -euo pipefail\n\s+\{\n(?:\s+echo "[^"]+"\n)+\s+\} >> "\$GITHUB_ENV"/);
+      expect(block).not.toBeNull();
+      return block![0].match(/echo "[^"]+"/g)?.sort();
+    };
+
+    expect(isolatedBuildEnvironment(bundleEvidence)).toEqual(isolatedBuildEnvironment(quality));
   });
 
   it("does not charge byte-identical public passthrough assets to the generated client bundle", () => {
