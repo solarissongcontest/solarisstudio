@@ -34,19 +34,22 @@
       "relatedPRs": [
         2393,
         2403,
-        2404
+        2404,
+        2405
       ],
       "requiredEvidence": [
         "New authorized bounded read-only hosted catalog fingerprint",
         "Source-to-hosted effect-level classification and dependency graph",
         "Sanitized hosted-equivalent local fixture"
       ],
-      "nextAction": "System owner to re-read hosted metadata and classify each effect present/partial/absent before ordering forward repairs.",
+      "nextAction": "System owner reconcile #2405 hosted-only guard triggers and notification-delivery grants, restore missing source-owned Archive/Task/receipt triggers and indexes through an approved forward-only local-tested recovery path; reverify migration frontier without production writes.",
       "targetDate": "2026-11-09",
       "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
       "evidence": [
         "docs/v3/production-frontier-preflight.md",
-        "PR #2393, #2403 and #2404 descriptions"
+        "PR #2393, #2403 and #2404 descriptions",
+        "PR #2405: local-vs-hosted eight-relation catalog comparator found 30 differing metadata leaf fields in 2026-11-08 isolated evidence run 42466799975 attempt 2; this is a narrow observed historical snapshot, not a current entire database proof",
+        "PR #2405 exact-head retry hit external setup-cli HTTP 504 before database comparison, so its newer code head has no completed parity verdict"
       ]
     },
     {
@@ -193,7 +196,7 @@
       "id": "QA-S15",
       "capability": "Independent zero-orphan ownership and capability cutover",
       "classification": "hard",
-      "status": "unverified",
+      "status": "in_progress",
       "sourceOfAuthority": "System plan S15; Canonical Authority Addendum §5",
       "technicalRootCause": "One green PR-local S15 job does not prove full release-candidate zero-orphan or product parity.",
       "owner": "QA / Integrator",
@@ -201,25 +204,28 @@
         "SYS-S13"
       ],
       "relatedPRs": [
-        2386
+        2386,
+        2337,
+        2409
       ],
       "requiredEvidence": [
         "Complete untruncated exact-SHA S15 registry inventory",
         "No orphaned mandatory capability/command/route",
         "Known legacy cutover accounted for"
       ],
-      "nextAction": "Regenerate S15 independent zero-orphan inventory on isolated exact candidate SHA; do not wait for S14 to prove ownership inventory.",
+      "nextAction": "Integrate independently reviewed complete-inventory guard #2409 only after its exact-head Browser and owner review; rerun producer's complete zero-orphan scan at frozen V3 candidate and resolve actual orphaned capabilities/routes/ownership.",
       "targetDate": "2026-11-13",
       "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
       "evidence": [
-        "PR #2386 S15 job passed on its PR head only"
+        "PR #2386 S15 job passed on its PR head only",
+        "PR #2409 restacks #2337 complete S15 zero-orphan inventory guard from exact old base, with fresh S13/S15/release-evidence/Quality/main-freshness proof on 2026-11-08 head e19674738cb4c7a0ba1ee0493de4b5b78ee82f9e; full release candidate inventory remains unverified"
       ]
     },
     {
       "id": "QA-S16",
       "capability": "Canonical mutation-authority audit",
       "classification": "hard",
-      "status": "unverified",
+      "status": "in_progress",
       "sourceOfAuthority": "Canonical Authority Addendum §5 and S16; System plan",
       "technicalRootCause": "Static ownership inventories cannot alone prove RLS, grants, service-role paths, triggers and unexpected browser writers are denied.",
       "owner": "QA / Integrator + System",
@@ -229,27 +235,30 @@
       ],
       "relatedPRs": [
         2386,
-        2404
+        2404,
+        2347,
+        2410
       ],
       "requiredEvidence": [
         "Exact-SHA S16 catalog grants/RLS/RPC/function proof",
         "Legacy and unauthorized second writers removed",
         "Negative browser/direct-write authorization tests"
       ],
-      "nextAction": "Run independent S16 against isolated hosted-equivalent local schema; classify real defects, not registry-only pass.",
+      "nextAction": "After review and integration of #2410, run independent S16 grant/RLS/RPC/function/trigger/direct-browser-writer proof on the frozen hosted-equivalent local candidate; resolve catalog anomalies and prevent unauthorised second writers.",
       "targetDate": "2026-11-13",
       "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
       "evidence": [
-        "Canonical S16 checker and contract tests already in main"
+        "Canonical S16 checker and contract tests already in main",
+        "PR #2410 preserves #2347 comment-aware SQL writer and multi-target TRUNCATE detection; exact 2026-11-08 head c865994f2251782990d63ce421bc9dc875b5a63e passed isolated S16 candidate/current-main correctness and Browser/Quality checks; full hosted-equivalent authority audit not yet certified"
       ]
     },
     {
       "id": "QA-PR2386",
       "capability": "Integrated privacy, local CI authority and recursive bundle protections",
       "classification": "hard",
-      "status": "in_progress",
+      "status": "closed",
       "sourceOfAuthority": "Critical infrastructure isolation rules; System plan security; Final-week Sprint 8–13 Nov",
-      "technicalRootCause": "PR #2386 unmerged; Browser audit failed during third-party CLI installation with HTTP 504, before tests started. Privacy and egress changes require integration and proof.",
+      "technicalRootCause": "RESOLVED on current main: privacy, locally isolated browser audit and recursive bundle protections from PR #2386 were merged at 61848041e8a9e238cdffd0d062f49660bd718e7e on 2026-11-08T10:00:14Z. Exact-release-candidate S14/S15/S16 and security certification remain independently required.",
       "owner": "QA / Integrator",
       "dependencies": [],
       "relatedPRs": [
@@ -260,13 +269,23 @@
         "Exact-head Quality and focused security tests",
         "Full review, non-overlap and merge eligibility"
       ],
-      "nextAction": "Re-run the failed infrastructure job without weakening isolation; merge only if all required gates and ownership checks pass.",
+      "nextAction": "No additional #2386 integration action. Rerun the full exact-SHA release acceptance matrix at the eventual frozen candidate; do not infer V3 certification from this PR-local pass.",
       "targetDate": "2026-11-08",
       "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
       "evidence": [
-        "PR #2386 head a67602e...",
-        "Browser run 42466573609: supabase/setup-cli@v1 HTTP 504",
-        "S13/S15/bundle/freshness PR checks passed at inspection"
+        "GitHub PR #2386: merged 2026-11-08T10:00:14Z, merge commit 61848041e8a9e238cdffd0d062f49660bd718e7e",
+        "PR head e5a6d3269950e801ead9146344c52a32d0f87c66: Quality, Browser audit, S13, S15, bundle budget and main freshness checks succeeded",
+        "Main search confirms merge commit 61848041e8a9e238cdffd0d062f49660bd718e7e is current as inspected on 2026-11-08"
+      ],
+      "closureEvidence": [
+        {
+          "verifiedSha": "61848041e8a9e238cdffd0d062f49660bd718e7e",
+          "test": "GitHub PR #2386 merged=true, mergedAt=2026-11-08T10:00:14Z, merge commit matches latest inspected main"
+        },
+        {
+          "verifiedSha": "e5a6d3269950e801ead9146344c52a32d0f87c66",
+          "test": "GitHub Actions exact PR head Quality/Browser audit/S13/S15/client bundle/main freshness completed success"
+        }
       ]
     },
     {
@@ -292,7 +311,7 @@
         "Migration hosted-equivalence and no-egress proof",
         "Signed owner review and recovery checklist"
       ],
-      "nextAction": "Build complete exact-SHA certification manifest after mandatory gates; never reuse older green checks.",
+      "nextAction": "After all real product/System/World gates, freeze exact main SHA; require independent generated full S0-S16/P0-P50/O0-O18/N0-N14 and 22 Navigation/12 directory acceptance dashboard plus S14/S15/S16/security evidence, then obtain distinct human authorizations for hosted migration, production deploy and reopening writes.",
       "targetDate": "2026-11-14",
       "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
       "evidence": [
@@ -420,7 +439,7 @@
         "Explicit independent production deployment approval",
         "Explicit maintenance/write reopening authorization"
       ],
-      "nextAction": "Prepare human approval package; never infer deployment permission from green CI or deadline.",
+      "nextAction": "Prepare separate human approval decisions (hosted migration, production deployment, public write reopening), each with independently verifiable reference; never infer permission from a passing PR, synthetic dashboard, release date or automated merge.",
       "targetDate": "2026-11-15",
       "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
       "evidence": [
