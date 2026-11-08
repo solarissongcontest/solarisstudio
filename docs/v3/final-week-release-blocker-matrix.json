@@ -198,8 +198,7 @@
       "technicalRootCause": "One green PR-local S15 job does not prove full release-candidate zero-orphan or product parity.",
       "owner": "QA / Integrator",
       "dependencies": [
-        "SYS-S13",
-        "QA-S14"
+        "SYS-S13"
       ],
       "relatedPRs": [
         2386
@@ -209,7 +208,7 @@
         "No orphaned mandatory capability/command/route",
         "Known legacy cutover accounted for"
       ],
-      "nextAction": "Generate and validate S15 inventory at final candidate; separate ownership from actual mutation authority.",
+      "nextAction": "Regenerate S15 independent zero-orphan inventory on isolated exact candidate SHA; do not wait for S14 to prove ownership inventory.",
       "targetDate": "2026-11-13",
       "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
       "evidence": [
@@ -284,7 +283,8 @@
         "QA-S16",
         "PUBLIC-PARITY",
         "ORG-PARITY",
-        "DESIGN-3X"
+        "DESIGN-3X",
+        "WORLD-SCOPE"
       ],
       "relatedPRs": [],
       "requiredEvidence": [
@@ -388,16 +388,14 @@
       "sourceOfAuthority": "Terra Solaris Governance master plan; Final-week Sprint §3 and §12",
       "technicalRootCause": "Latest full V3 World feature/parity registry and explicit approved 15 November scope are not confirmed in this inspection.",
       "owner": "World owner / Release manager",
-      "dependencies": [
-        "QA-RELEASE-SHA"
-      ],
+      "dependencies": [],
       "relatedPRs": [],
       "requiredEvidence": [
         "Complete World capability scope review",
         "Dark rollout and publication-safe permissions",
         "Explicit scope exception if any feature excluded"
       ],
-      "nextAction": "Owner to confirm required V3 World scope, retain assigned subsystem ownership, and supply acceptance/rollout evidence.",
+      "nextAction": "World owner must independently confirm all canonically required World features and submit role/publication/privacy evidence BEFORE release certification. Any limited scope requires explicit owner approval.",
       "targetDate": "2026-11-12",
       "verificationSha": "b00593e062cd53ad58f447db0a3c4d9bcf39135b",
       "evidence": [
