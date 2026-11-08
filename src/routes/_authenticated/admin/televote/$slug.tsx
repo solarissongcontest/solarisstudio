@@ -33,7 +33,9 @@ type Identity = {
 };
 
 export const Route = createFileRoute("/_authenticated/admin/televote/$slug")({
-  head: () => ({ meta: [{ title: "Televote totals — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [{ title: "Televote totals — Solaris Studio" }, { name: "robots", content: "noindex" }],
+  }),
   validateSearch: (search: Record<string, unknown>): TelevoteSearch => ({
     show: typeof search.show === "string" && search.show ? search.show : undefined,
   }),
@@ -47,9 +49,14 @@ function TelevoteTotalsRoute() {
 
 function voteForIdentity(key: string, identity: Identity, votes: Televote[]) {
   return votes.find((vote) => {
-    if (vote.contest_entity_id && identity.contest_entity_id) return vote.contest_entity_id === identity.contest_entity_id;
+    if (vote.contest_entity_id && identity.contest_entity_id)
+      return vote.contest_entity_id === identity.contest_entity_id;
     if (vote.country_id === key) return true;
-    return !!identity.country_id && !identity.contest_entity_id && vote.country_id === identity.country_id;
+    return (
+      !!identity.country_id &&
+      !identity.contest_entity_id &&
+      vote.country_id === identity.country_id
+    );
   });
 }
 
@@ -66,18 +73,27 @@ function TelevoteTotalsWorkspace() {
   const { data: countries = [] } = useCountries();
   const { data: entities = [] } = useContestEntities(scopedEditionId);
 
-  const orderedShows = useMemo(() => [...shows].sort((a, b) => a.sort_order - b.sort_order), [shows]);
-  const selectedShow = orderedShows.find((show) => show.id === search.show) ?? orderedShows[0] ?? null;
+  const orderedShows = useMemo(
+    () => [...shows].sort((a, b) => a.sort_order - b.sort_order),
+    [shows],
+  );
+  const selectedShow =
+    orderedShows.find((show) => show.id === search.show) ?? orderedShows[0] ?? null;
   const participants = useMemo(
-    () => allParticipants
-      .filter((participant) => participant.show_id === selectedShow?.id)
-      .sort((a, b) => (a.running_order ?? 9999) - (b.running_order ?? 9999)),
+    () =>
+      allParticipants
+        .filter((participant) => participant.show_id === selectedShow?.id)
+        .sort((a, b) => (a.running_order ?? 9999) - (b.running_order ?? 9999)),
     [allParticipants, selectedShow?.id],
   );
   const { data: televotes = [], isLoading: loadingTelevotes } = useTelevotes(selectedShow?.id);
   const displays = useMemo(() => entityDisplayMap(entities, countries), [entities, countries]);
-  const voting = useMemo(() => resolveVoting(selectedShow?.voting_config), [selectedShow?.voting_config]);
-  const publishedResults = !!selectedShow?.published && hasPublishedResults(resolveShowPublication(selectedShow));
+  const voting = useMemo(
+    () => resolveVoting(selectedShow?.voting_config),
+    [selectedShow?.voting_config],
+  );
+  const publishedResults =
+    !!selectedShow?.published && hasPublishedResults(resolveShowPublication(selectedShow));
 
   function identityFor(key: string): Identity {
     const entity = entities.find((item) => item.id === key || item.country_id === key);
@@ -90,14 +106,34 @@ function TelevoteTotalsWorkspace() {
     return voteForIdentity(key, identityFor(key), votes);
   }
 
-  const totalPoints = participants.reduce((sum, participant) => sum + (voteFor(participant.country_id)?.points ?? 0), 0);
+  const totalPoints = participants.reduce(
+    (sum, participant) => sum + (voteFor(participant.country_id)?.points ?? 0),
+    0,
+  );
 
   if (loadingEdition) {
-    return <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading televote totals…</p></AdminCard>;
+    return (
+      <AdminCard>
+        <p className="py-8 text-center text-sm text-muted-foreground">Loading televote totals…</p>
+      </AdminCard>
+    );
   }
 
   if (!edition) {
-    return <AdminCard><AdminEmptyState icon={Vote} title="Edition not found" description="Choose another edition from the organizer workspace." action={<Link to="/admin" className="admin-action-secondary">Back to editions</Link>} /></AdminCard>;
+    return (
+      <AdminCard>
+        <AdminEmptyState
+          icon={Vote}
+          title="Edition not found"
+          description="Choose another edition from the organizer workspace."
+          action={
+            <Link to="/admin" className="admin-action-secondary">
+              Back to editions
+            </Link>
+          }
+        />
+      </AdminCard>
+    );
   }
 
   if (!organizerEditionId) {
@@ -108,7 +144,11 @@ function TelevoteTotalsWorkspace() {
             icon={Vote}
             title="Choose an edition"
             description="Televote totals are edition-scoped official voting inputs. Select the exact edition in the Organizer toolbar before loading or changing totals."
-            action={<Link to="/televoting/admin" className="admin-action-secondary">Back to Voting</Link>}
+            action={
+              <Link to="/televoting/admin" className="admin-action-secondary">
+                Back to Voting
+              </Link>
+            }
           />
         </AdminCard>
       </AdminPage>
@@ -123,7 +163,11 @@ function TelevoteTotalsWorkspace() {
             icon={TriangleAlert}
             title="Edition context mismatch"
             description="This Televote totals URL belongs to a different edition than the one selected in Solaris Organizer. Reads and saves stay blocked until the contexts match."
-            action={<Link to="/televoting/admin" className="admin-action-secondary">Back to Voting</Link>}
+            action={
+              <Link to="/televoting/admin" className="admin-action-secondary">
+                Back to Voting
+              </Link>
+            }
           />
         </AdminCard>
       </AdminPage>
@@ -131,11 +175,35 @@ function TelevoteTotalsWorkspace() {
   }
 
   if (loadingShows) {
-    return <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading televote totals…</p></AdminCard>;
+    return (
+      <AdminCard>
+        <p className="py-8 text-center text-sm text-muted-foreground">Loading televote totals…</p>
+      </AdminCard>
+    );
   }
 
   if (!orderedShows.length) {
-    return <AdminPage><AdminPageHeader eyebrow={editionLabel(edition)} title="Televote totals" description="Create a show before entering aggregate televote totals." /><AdminCard><AdminEmptyState icon={Vote} title="No shows yet" description="Televote totals belong to a show." action={<Link to="/admin/shows/$slug" params={{ slug }} className="admin-action-primary">Create a show</Link>} /></AdminCard></AdminPage>;
+    return (
+      <AdminPage>
+        <AdminPageHeader
+          eyebrow={editionLabel(edition)}
+          title="Televote totals"
+          description="Create a show before entering aggregate televote totals."
+        />
+        <AdminCard>
+          <AdminEmptyState
+            icon={Vote}
+            title="No shows yet"
+            description="Televote totals belong to a show."
+            action={
+              <Link to="/admin/shows/$slug" params={{ slug }} className="admin-action-primary">
+                Create a show
+              </Link>
+            }
+          />
+        </AdminCard>
+      </AdminPage>
+    );
   }
 
   return (
@@ -144,31 +212,49 @@ function TelevoteTotalsWorkspace() {
         eyebrow={editionLabel(edition)}
         title="Televote totals"
         description="Read-only canonical aggregate Televote points for this show. Corrections, sanctions and deductions must be created and published through the Televoting correction workflow."
-        actions={<Link to="/televoting/admin/combined" className="admin-action-primary">Open correction workflow</Link>}
+        actions={
+          <Link to="/televoting/admin/combined" className="admin-action-primary">
+            Open correction workflow
+          </Link>
+        }
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Link to="/admin/$slug" params={{ slug }} className="admin-action-quiet"><ArrowLeft className="size-4" /> Edition home</Link>
+        <Link to="/admin/$slug" params={{ slug }} className="admin-action-quiet">
+          <ArrowLeft className="size-4" /> Edition home
+        </Link>
         <select
           value={selectedShow?.id ?? ""}
           onChange={(event) => void navigate({ search: { show: event.target.value || undefined } })}
           className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30"
         >
-          {orderedShows.map((show) => <option key={show.id} value={show.id}>{show.name}</option>)}
+          {orderedShows.map((show) => (
+            <option key={show.id} value={show.id}>
+              {show.name}
+            </option>
+          ))}
         </select>
       </div>
 
       <div className="mb-4 grid grid-cols-3 gap-2">
         <Metric label="Entries" value={participants.length} />
         <Metric label="Total points" value={totalPoints} />
-        <Metric label="Changed" value={changes.length} />
+        <Metric label="Recorded votes" value={televotes.length} />
       </div>
 
       {!voting.televoteEnabled ? (
         <AdminCard className="mb-4 !border-amber-200/15">
           <div className="flex items-start gap-3">
             <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-100" />
-            <div><p className="text-sm font-semibold">Televote is disabled in this show's voting system</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Existing totals are preserved, but they will not contribute normally until televote is enabled in Voting system.</p></div>
+            <div>
+              <p className="text-sm font-semibold">
+                Televote is disabled in this show's voting system
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Existing totals are preserved, but they will not contribute normally until televote
+                is enabled in Voting system.
+              </p>
+            </div>
           </div>
         </AdminCard>
       ) : null}
@@ -177,15 +263,39 @@ function TelevoteTotalsWorkspace() {
         <AdminCard className="mb-4 !border-amber-200/15">
           <div className="flex items-start gap-3">
             <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-100" />
-            <div><p className="text-sm font-semibold">Results from this show are already public</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Published-result corrections require a governed Televoting correction source and publication review. This screen cannot apply them directly.</p></div>
+            <div>
+              <p className="text-sm font-semibold">Results from this show are already public</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Published-result corrections require a governed Televoting correction source and
+                publication review. This screen cannot apply them directly.
+              </p>
+            </div>
           </div>
         </AdminCard>
       ) : null}
 
       {loadingTelevotes ? (
-        <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading totals…</p></AdminCard>
+        <AdminCard>
+          <p className="py-8 text-center text-sm text-muted-foreground">Loading totals…</p>
+        </AdminCard>
       ) : !participants.length ? (
-        <AdminCard><AdminEmptyState icon={Vote} title="No entries in this show" description="Build the line-up before entering televote totals." action={<Link to="/admin/entries/$slug" params={{ slug }} search={{ show: selectedShow?.id }} className="admin-action-primary">Open entries</Link>} /></AdminCard>
+        <AdminCard>
+          <AdminEmptyState
+            icon={Vote}
+            title="No entries in this show"
+            description="Build the line-up before entering televote totals."
+            action={
+              <Link
+                to="/admin/entries/$slug"
+                params={{ slug }}
+                search={{ show: selectedShow?.id }}
+                className="admin-action-primary"
+              >
+                Open entries
+              </Link>
+            }
+          />
+        </AdminCard>
       ) : (
         <AdminCard className="!p-0 overflow-hidden">
           <div className="divide-y divide-white/[0.07]">
@@ -193,12 +303,28 @@ function TelevoteTotalsWorkspace() {
               const display = displays.get(participant.country_id);
               const points = voteFor(participant.country_id)?.points ?? 0;
               return (
-                <label key={participant.id} className="flex min-w-0 items-center gap-3 px-3 py-3 sm:px-4">
-                  <span className="numeric w-7 shrink-0 text-center text-xs text-muted-foreground">{participant.running_order ?? index + 1}</span>
-                  <FlagChip code={display?.short_code ?? "??"} color={display?.accent_color ?? "#8888aa"} image={display?.flag_image} size="sm" />
+                <label
+                  key={participant.id}
+                  className="flex min-w-0 items-center gap-3 px-3 py-3 sm:px-4"
+                >
+                  <span className="numeric w-7 shrink-0 text-center text-xs text-muted-foreground">
+                    {participant.running_order ?? index + 1}
+                  </span>
+                  <FlagChip
+                    code={display?.short_code ?? "??"}
+                    color={display?.accent_color ?? "#8888aa"}
+                    image={display?.flag_image}
+                    size="sm"
+                  />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-foreground">{display?.name ?? participant.country_id}</span>
-                    <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{participant.artist || participant.song ? [participant.artist, participant.song].filter(Boolean).join(" · ") : "Entry"}</span>
+                    <span className="block truncate text-sm font-semibold text-foreground">
+                      {display?.name ?? participant.country_id}
+                    </span>
+                    <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                      {participant.artist || participant.song
+                        ? [participant.artist, participant.song].filter(Boolean).join(" · ")
+                        : "Entry"}
+                    </span>
                   </span>
                   {points < 0 ? <AdminStatus tone="attention">Sanction</AdminStatus> : null}
                   <output
@@ -214,11 +340,21 @@ function TelevoteTotalsWorkspace() {
         </AdminCard>
       )}
 
-      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">These are aggregate show totals, not individual public ballots. Negative sanctions remain visible here after canonical publication. Use the correction workflow to create reviewed deductions, recalculate, lock and publish them; this screen never writes the canonical projection.</p>
+      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+        These are aggregate show totals, not individual public ballots. Negative sanctions remain
+        visible here after canonical publication. Use the correction workflow to create reviewed
+        deductions, recalculate, lock and publish them; this screen never writes the canonical
+        projection.
+      </p>
     </AdminPage>
   );
 }
 
 function Metric({ label, value }: { label: string; value: number }) {
-  return <div className="admin-card px-3 py-3 text-center"><p className="numeric text-xl font-bold">{value}</p><p className="mt-1 text-[11px] text-muted-foreground">{label}</p></div>;
+  return (
+    <div className="admin-card px-3 py-3 text-center">
+      <p className="numeric text-xl font-bold">{value}</p>
+      <p className="mt-1 text-[11px] text-muted-foreground">{label}</p>
+    </div>
+  );
 }
