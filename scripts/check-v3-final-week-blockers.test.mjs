@@ -85,3 +85,13 @@ test("real command-line execution fails closed in release mode (relative entrypo
     assert.match(strict.stderr, /hard blockers remain/);
   } finally { rmSync(temp, { recursive: true, force: true }); }
 });
+
+test("browser release QA keeps the same pinned CLI on npm-backed v3 and local-only stack", () => {
+  const path = fileURLToPath(new URL("../.github/workflows/browser-audit.yml", import.meta.url));
+  const yaml = readFileSync(path, "utf8");
+  assert.match(yaml, /uses: supabase\/setup-cli@v3/);
+  assert.match(yaml, /version: 2\.113\.0/);
+  assert.doesNotMatch(yaml, /uses: supabase\/setup-cli@v1/);
+  assert.match(yaml, /Start isolated local Supabase for browser audit/);
+  assert.match(yaml, /Refusing browser audit against non-local Supabase URL/);
+});
