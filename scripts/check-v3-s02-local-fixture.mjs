@@ -96,8 +96,16 @@ export function validateManifest(manifest, s01) {
       manifest.postgresMajor !== 16)
     throw Error('FAIL CLOSED: missing schema fingerprint, PG16, or unknown required object');
   if (typeof manifest.coverageReview !== 'string' ||
-      !manifest.coverageReview.startsWith('S13/S14 independently reviewed:'))
-    throw Error('FAIL CLOSED: required-catalog coverage not attested');
+      !manifest.coverageReview.startsWith('S13/S14 independently reviewed:') ||
+      typeof manifest.reconstructionReviewedBy !== 'string' ||
+      manifest.reconstructionReviewedBy.trim().length < 3 ||
+      typeof manifest.reconstructionReviewedAt !== 'string' ||
+      !/^\\d{4}-\\d{2}-\\d{2}$/.test(manifest.reconstructionReviewedAt) ||
+      !Array.isArray(manifest.assumptions) || !manifest.assumptions.length ||
+      !manifest.assumptions.every(x => typeof x === 'string' && x.trim().length >= 8) ||
+      !Array.isArray(manifest.limitations) || !manifest.limitations.length ||
+      !manifest.limitations.every(x => typeof x === 'string' && x.trim().length >= 8))
+    throw Error('FAIL CLOSED: fixture reconstruction coverage, reviewer, assumptions or limitations not attested');
   completeMap(manifest.relations, RELATIONS, 'S14 relation');
   for (const name of RELATIONS)
     if (manifest.relations[name] !== true)
@@ -268,6 +276,10 @@ export function main(args = process.argv.slice(2), env = process.env) {
     task: 'S02', status: 'SCOPED_CATALOG_PROOF_ONLY',
     sourceEvidenceSha: manifest.s01SourceSha, hostedHead: manifest.hostedHead,
     cutover: manifest.cutover, schemaSha256: manifest.sanitizedSchemaSha256,
+    reconstructionReviewedBy: manifest.reconstructionReviewedBy,
+    reconstructionReviewedAt: manifest.reconstructionReviewedAt,
+    reconstructionAssumptions: manifest.assumptions,
+    reconstructionLimitations: manifest.limitations,
     environment: 'disposable-docker-network-none-unix-socket',
     dockerImage: DOCKER_IMAGE, dockerImageId: imageId,
     schemaImportedIntoVerifiedIsolatedContainer: true,
