@@ -32,13 +32,16 @@ begin
   for v_index in
     select * from (values
       ('public.studio2_operation_receipts_created_at_idx',
-       'public.studio2_operation_receipts', array['created_at DESC']::text[]),
+       'public.studio2_operation_receipts',
+       array['created_at']::text[], array[3]::integer[]),
       ('private.v3_domain_events_occurred_at_idx',
-       'private.v3_domain_events', array['occurred_at DESC', 'id']::text[]),
+       'private.v3_domain_events',
+       array['occurred_at', 'id']::text[], array[3,0]::integer[]),
       ('private.v3_domain_event_outbox_created_at_idx',
        'private.v3_domain_event_outbox',
-       array['created_at DESC', 'event_id', 'consumer_key']::text[])
-    ) as required_index(index_name, table_name, ordered_keys)
+       array['created_at', 'event_id', 'consumer_key']::text[],
+       array[3,0,0]::integer[])
+    ) as required_index(index_name, table_name, ordered_keys, index_options)
   loop
     if to_regclass(v_index.index_name) is null then
       raise exception 'S9 blocked: required concurrent index not installed %',
@@ -59,11 +62,21 @@ begin
         and i.indnatts = i.indnkeyatts
         and i.indpred is null and i.indexprs is null
         and am.amname = 'btree'
+        -- Use catalog columns and btree indoption flags. The per-column
+        -- pg_get_indexdef() output omits DESC/NULLS FIRST in PG17.
         and (
-          select array_agg(pg_get_indexdef(i.indexrelid, key_number, true)
-            order by key_number)
-          from generate_series(1, i.indnkeyatts) as keys(key_number)
+          select array_agg(a.attname order by key_number)
+          from generate_series(0, i.indnkeyatts - 1) as keys(key_number)
+          join pg_attribute a
+            on a.attrelid = i.indrelid
+           and a.attnum = i.indkey[key_number]
         ) = v_index.ordered_keys
+        -- btree flags: DESC = 1; NULLS FIRST = 2. DESC without an
+        -- explicit NULLS clause means 3; default ASC NULLS LAST is 0.
+        and (
+          select array_agg(i.indoption[key_number]::integer order by key_number)
+          from generate_series(0, i.indnkeyatts - 1) as keys(key_number)
+        ) = v_index.index_options
     ) then
       raise exception 'S9 blocked: incompatible concurrent index identity %',
         v_index.index_name;
