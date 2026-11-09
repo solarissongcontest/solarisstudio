@@ -100,7 +100,7 @@ export function validateManifest(manifest, s01) {
       typeof manifest.reconstructionReviewedBy !== 'string' ||
       manifest.reconstructionReviewedBy.trim().length < 3 ||
       typeof manifest.reconstructionReviewedAt !== 'string' ||
-      !/^\\d{4}-\\d{2}-\\d{2}$/.test(manifest.reconstructionReviewedAt) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(manifest.reconstructionReviewedAt) ||
       !Array.isArray(manifest.assumptions) || !manifest.assumptions.length ||
       !manifest.assumptions.every(x => typeof x === 'string' && x.trim().length >= 8) ||
       !Array.isArray(manifest.limitations) || !manifest.limitations.length ||
