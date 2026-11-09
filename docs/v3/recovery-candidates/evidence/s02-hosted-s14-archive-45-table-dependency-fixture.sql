@@ -9072,6 +9072,242 @@ ALTER TABLE "televoting"."vote_submissions" ADD CONSTRAINT "vote_submissions_pke
 
 ALTER TABLE "televoting"."vote_submissions" ADD CONSTRAINT "vote_submissions_status_check" CHECK (status = ANY (ARRAY['active'::text, 'suspicious'::text, 'verified'::text, 'deleted'::text]));
 
+-- Build hosted-observed secondary/unique indexes BEFORE foreign keys that reference them.
+
+-- Secondary indexes never duplicate constraint-owned unique/primary indexes.
+
+CREATE INDEX v3_domain_event_outbox_claim_idx ON private.v3_domain_event_outbox USING btree (consumer_key, status, available_at, lease_expires_at, created_at);
+
+CREATE INDEX v3_domain_event_outbox_dead_letter_idx ON private.v3_domain_event_outbox USING btree (consumer_key, dead_lettered_at DESC) WHERE (status = 'dead_letter'::text);
+
+CREATE INDEX v3_domain_events_aggregate_idx ON private.v3_domain_events USING btree (aggregate_type, aggregate_id, aggregate_version DESC);
+
+CREATE INDEX v3_domain_events_correlation_time_idx ON private.v3_domain_events USING btree (correlation_id, occurred_at, id);
+
+CREATE INDEX v3_domain_events_scope_time_idx ON private.v3_domain_events USING btree (edition_id, show_id, occurred_at DESC);
+
+CREATE INDEX admin_notifications_recipient_idx ON public.admin_notifications USING btree (recipient_id, read_at, created_at DESC);
+
+CREATE INDEX admin_notifications_recipient_resolved_idx ON public.admin_notifications USING btree (recipient_id, resolved_at, created_at DESC);
+
+CREATE UNIQUE INDEX admin_notifications_source_unique_idx ON public.admin_notifications USING btree (recipient_id, source_key) WHERE (source_key IS NOT NULL);
+
+CREATE INDEX editions_event_date_idx ON public.editions USING btree (event_date) WHERE (event_date IS NOT NULL);
+
+CREATE INDEX entries_country_idx ON public.entries USING btree (country_id);
+
+CREATE INDEX entries_edition_idx ON public.entries USING btree (edition_id);
+
+CREATE INDEX entries_entity_idx ON public.entries USING btree (contest_entity_id);
+
+CREATE INDEX jury_ballot_status_edition_idx ON public.jury_ballot_statuses USING btree (edition_id);
+
+CREATE UNIQUE INDEX jury_ballot_status_identity_key ON public.jury_ballot_statuses USING btree (show_id, COALESCE(voter_id, voter_entity_id, voter_country_id));
+
+CREATE INDEX jury_ballot_status_show_idx ON public.jury_ballot_statuses USING btree (show_id);
+
+CREATE INDEX jury_ballot_submissions_user_idx ON public.jury_ballot_submissions USING btree (user_id, submitted_at DESC);
+
+CREATE INDEX idx_jury_votes_voter ON public.jury_votes USING btree (voter_id);
+
+CREATE INDEX jury_votes_ballot_submission_idx ON public.jury_votes USING btree (ballot_submission_id);
+
+CREATE UNIQUE INDEX jury_votes_edition_voter_points_key ON public.jury_votes USING btree (edition_id, COALESCE(voter_id, voter_entity_id, voter_country_id), points) WHERE (show_id IS NULL);
+
+CREATE UNIQUE INDEX jury_votes_edition_voter_recipient_key ON public.jury_votes USING btree (edition_id, COALESCE(voter_id, voter_entity_id, voter_country_id), COALESCE(receiving_entity_id, receiving_country_id)) WHERE (show_id IS NULL);
+
+CREATE INDEX jury_votes_receiving_country_id_idx ON public.jury_votes USING btree (receiving_country_id);
+
+CREATE INDEX jury_votes_receiving_entity_idx ON public.jury_votes USING btree (receiving_entity_id);
+
+CREATE INDEX jury_votes_show_idx ON public.jury_votes USING btree (show_id);
+
+CREATE UNIQUE INDEX jury_votes_show_voter_points_key ON public.jury_votes USING btree (show_id, COALESCE(voter_id, voter_entity_id, voter_country_id), points) WHERE (show_id IS NOT NULL);
+
+CREATE UNIQUE INDEX jury_votes_show_voter_recipient_key ON public.jury_votes USING btree (show_id, COALESCE(voter_id, voter_entity_id, voter_country_id), COALESCE(receiving_entity_id, receiving_country_id)) WHERE (show_id IS NOT NULL);
+
+CREATE INDEX jury_votes_voter_country_id_idx ON public.jury_votes USING btree (voter_country_id);
+
+CREATE INDEX jury_votes_voter_entity_id_idx ON public.jury_votes USING btree (voter_entity_id);
+
+CREATE INDEX jury_voting_windows_edition_idx ON public.jury_voting_windows USING btree (edition_id, status);
+
+CREATE UNIQUE INDEX jury_voting_windows_one_open_per_edition_v3_idx ON public.jury_voting_windows USING btree (edition_id) WHERE (status = 'open'::text);
+
+CREATE INDEX national_final_entries_national_final_id_idx ON public.national_final_entries USING btree (national_final_id) WHERE (COALESCE(removed, false) = false);
+
+CREATE UNIQUE INDEX national_final_entries_one_next_in_line_idx ON public.national_final_entries USING btree (national_final_id) WHERE ((next_in_line = true) AND (removed = false));
+
+CREATE INDEX national_finals_country_edition_idx ON public.national_finals USING btree (country_id, edition_id);
+
+CREATE UNIQUE INDEX next_in_line_responses_edition_country_unique ON public.next_in_line_responses USING btree (edition_id, lower(country));
+
+CREATE UNIQUE INDEX next_in_line_edition_country_unique ON public.next_in_line_submissions USING btree (edition_id, lower(country));
+
+CREATE UNIQUE INDEX next_in_line_submissions_edition_source_v3_uidx ON public.next_in_line_submissions USING btree (edition_id, source_submission_id);
+
+CREATE INDEX notification_deliveries_pending_idx ON public.notification_deliveries USING btree (status, scheduled_for) WHERE (status = 'pending'::text);
+
+CREATE INDEX notification_deliveries_processing_lease_idx ON public.notification_deliveries USING btree (processing_started_at) WHERE (status = 'processing'::text);
+
+CREATE INDEX notification_deliveries_user_idx ON public.notification_deliveries USING btree (user_id, created_at DESC);
+
+CREATE INDEX participants_country_id_idx ON public.participants USING btree (country_id);
+
+CREATE UNIQUE INDEX participants_edition_country_noshow_key ON public.participants USING btree (edition_id, country_id) WHERE (show_id IS NULL);
+
+CREATE INDEX participants_entity_idx ON public.participants USING btree (contest_entity_id);
+
+CREATE INDEX participants_scheduled_publish_idx ON public.participants USING btree (scheduled_publish_at) WHERE ((publication_status = 'scheduled'::text) AND (show_id IS NULL));
+
+CREATE UNIQUE INDEX participants_show_country_key ON public.participants USING btree (show_id, country_id) WHERE (show_id IS NOT NULL);
+
+CREATE UNIQUE INDEX participants_show_entity_key ON public.participants USING btree (show_id, contest_entity_id) WHERE ((show_id IS NOT NULL) AND (contest_entity_id IS NOT NULL));
+
+CREATE INDEX participants_show_idx ON public.participants USING btree (show_id);
+
+CREATE INDEX results_country_id_idx ON public.results USING btree (country_id);
+
+CREATE UNIQUE INDEX results_edition_country_noshow_key ON public.results USING btree (edition_id, country_id) WHERE (show_id IS NULL);
+
+CREATE INDEX results_entity_idx ON public.results USING btree (contest_entity_id);
+
+CREATE UNIQUE INDEX results_show_country_key ON public.results USING btree (show_id, country_id) WHERE (show_id IS NOT NULL);
+
+CREATE UNIQUE INDEX results_show_entity_key ON public.results USING btree (show_id, contest_entity_id) WHERE ((show_id IS NOT NULL) AND (contest_entity_id IS NOT NULL));
+
+CREATE INDEX results_show_idx ON public.results USING btree (show_id);
+
+CREATE UNIQUE INDEX shows_id_edition_id_v3_uidx ON public.shows USING btree (id, edition_id);
+
+CREATE UNIQUE INDEX studio2_confirmation_requirements_current_idx ON public.studio2_confirmation_requirements USING btree (edition_id, country_id) WHERE (superseded_at IS NULL);
+
+CREATE INDEX studio2_confirmation_requirements_edition_state_idx ON public.studio2_confirmation_requirements USING btree (edition_id, status, country_id) WHERE (superseded_at IS NULL);
+
+CREATE INDEX studio2_confirmation_requirements_submission_idx ON public.studio2_confirmation_requirements USING btree (resolved_by_submission_id) WHERE (resolved_by_submission_id IS NOT NULL);
+
+CREATE INDEX studio2_contest_events_actor_user_id_idx ON public.studio2_contest_events USING btree (actor_user_id);
+
+CREATE INDEX studio2_contest_events_edition_time_idx ON public.studio2_contest_events USING btree (edition_id, occurred_at DESC);
+
+CREATE INDEX studio2_contest_events_edition_type_time_idx ON public.studio2_contest_events USING btree (edition_id, type, occurred_at DESC);
+
+CREATE INDEX studio2_edition_runtime_updated_by_idx ON public.studio2_edition_runtime USING btree (updated_by);
+
+CREATE INDEX studio2_eligibility_overrides_active_idx ON public.studio2_eligibility_overrides USING btree (edition_id, country_id, expires_at) WHERE (revoked_at IS NULL);
+
+CREATE INDEX studio2_eligibility_overrides_country_id_idx ON public.studio2_eligibility_overrides USING btree (country_id);
+
+CREATE INDEX studio2_eligibility_overrides_created_by_idx ON public.studio2_eligibility_overrides USING btree (created_by);
+
+CREATE INDEX studio2_eligibility_overrides_revoked_by_idx ON public.studio2_eligibility_overrides USING btree (revoked_by);
+
+CREATE INDEX studio2_eligibility_overrides_scope_idx ON public.studio2_eligibility_overrides USING btree (edition_id, country_id, affected_rule, created_at DESC);
+
+CREATE UNIQUE INDEX studio2_media_asset_reviews_active_idx ON public.studio2_media_asset_reviews USING btree (edition_id, asset_key) WHERE (superseded_at IS NULL);
+
+CREATE INDEX studio2_media_asset_reviews_asset_idx ON public.studio2_media_asset_reviews USING btree (edition_id, asset_key, reviewed_at DESC);
+
+CREATE INDEX studio2_media_asset_reviews_country_id_idx ON public.studio2_media_asset_reviews USING btree (country_id);
+
+CREATE INDEX studio2_media_asset_reviews_edition_idx ON public.studio2_media_asset_reviews USING btree (edition_id, reviewed_at DESC);
+
+CREATE INDEX studio2_media_asset_reviews_entry_id_idx ON public.studio2_media_asset_reviews USING btree (entry_id);
+
+CREATE INDEX studio2_media_asset_reviews_reviewed_by_idx ON public.studio2_media_asset_reviews USING btree (reviewed_by);
+
+CREATE UNIQUE INDEX studio2_next_in_line_one_open_window_idx ON public.studio2_next_in_line_windows USING btree ((true)) WHERE ((enabled = true) AND (status = 'open'::text));
+
+CREATE INDEX studio2_operation_receipts_actor_time_idx ON public.studio2_operation_receipts USING btree (actor_id, created_at DESC);
+
+CREATE INDEX studio2_operation_receipts_command_time_idx ON public.studio2_operation_receipts USING btree (command, created_at DESC);
+
+CREATE INDEX studio2_operation_receipts_correlation_time_idx ON public.studio2_operation_receipts USING btree (correlation_id, created_at DESC);
+
+CREATE INDEX studio2_organizer_tasks_assignee_idx ON public.studio2_organizer_tasks USING btree (assigned_to, state, opened_at DESC) WHERE (assigned_to IS NOT NULL);
+
+CREATE INDEX studio2_organizer_tasks_open_idx ON public.studio2_organizer_tasks USING btree (edition_id, priority, due_at, opened_at DESC) WHERE (state <> 'resolved'::text);
+
+CREATE INDEX studio2_organizer_tasks_source_idx ON public.studio2_organizer_tasks USING btree (source_kind, source_id);
+
+CREATE INDEX studio2_result_operations_edition_idx ON public.studio2_result_operations USING btree (edition_id, updated_at DESC);
+
+CREATE INDEX studio2_result_operations_last_calculated_by_idx ON public.studio2_result_operations USING btree (last_calculated_by);
+
+CREATE INDEX studio2_result_operations_locked_by_idx ON public.studio2_result_operations USING btree (locked_by);
+
+CREATE INDEX studio2_result_operations_reveal_ready_by_idx ON public.studio2_result_operations USING btree (reveal_ready_by);
+
+CREATE INDEX studio2_result_operations_reviewed_by_idx ON public.studio2_result_operations USING btree (reviewed_by);
+
+CREATE INDEX studio2_show_publication_controls_due_idx ON public.studio2_show_publication_controls USING btree (scheduled_for) WHERE (state = 'scheduled'::text);
+
+CREATE INDEX studio2_show_publication_controls_edition_idx ON public.studio2_show_publication_controls USING btree (edition_id, state, updated_at DESC);
+
+CREATE UNIQUE INDEX submissions_recovery_code_uniq ON public.submissions USING btree (upper(recovery_code));
+
+CREATE UNIQUE INDEX submissions_round_country_uniq ON public.submissions USING btree (round_id, lower(country));
+
+CREATE INDEX submissions_session_idx ON public.submissions USING btree (browser_session_id);
+
+CREATE INDEX televote_entity_idx ON public.televote_votes USING btree (contest_entity_id);
+
+CREATE UNIQUE INDEX televote_show_entity_key ON public.televote_votes USING btree (show_id, contest_entity_id) WHERE ((show_id IS NOT NULL) AND (contest_entity_id IS NOT NULL));
+
+CREATE INDEX televote_show_idx ON public.televote_votes USING btree (show_id);
+
+CREATE INDEX televote_votes_country_id_idx ON public.televote_votes USING btree (country_id);
+
+CREATE UNIQUE INDEX televote_votes_edition_country_noshow_key ON public.televote_votes USING btree (edition_id, country_id) WHERE (show_id IS NULL);
+
+CREATE UNIQUE INDEX televote_votes_show_country_key ON public.televote_votes USING btree (show_id, country_id) WHERE (show_id IS NOT NULL);
+
+CREATE INDEX televoting_round_bindings_edition_idx ON public.televoting_round_bindings USING btree (edition_id);
+
+CREATE INDEX televoting_round_bindings_show_idx ON public.televoting_round_bindings USING btree (show_id);
+
+CREATE INDEX idx_voters_edition ON public.voters USING btree (edition_id);
+
+CREATE INDEX idx_voters_show ON public.voters USING btree (show_id);
+
+CREATE INDEX voters_contest_entity_id_idx ON public.voters USING btree (contest_entity_id);
+
+CREATE INDEX voters_country_id_idx ON public.voters USING btree (country_id);
+
+CREATE INDEX televoting_component_results_lookup ON televoting.combined_televote_component_results USING btree (aggregation_id, calculation_version);
+
+CREATE UNIQUE INDEX televoting_combined_results_version_key ON televoting.combined_televote_results USING btree (aggregation_id, country_code, calculation_version);
+
+CREATE INDEX televoting_round_entries_round_idx ON televoting.round_entries USING btree (round_id, display_order);
+
+CREATE INDEX televoting_round_results_round_idx ON televoting.round_results USING btree (round_id);
+
+CREATE UNIQUE INDEX televoting_rounds_single_open ON televoting.rounds USING btree ((true)) WHERE (status = 'open'::televoting.round_status);
+
+CREATE INDEX televoting_vote_entries_submission ON televoting.vote_entries USING btree (submission_id);
+
+CREATE INDEX televoting_vote_entries_target ON televoting.vote_entries USING btree (target_country_code);
+
+CREATE INDEX televoting_vs_country ON televoting.vote_submissions USING btree (country_code);
+
+CREATE INDEX televoting_vs_created ON televoting.vote_submissions USING btree (created_at DESC);
+
+CREATE INDEX televoting_vs_delcat ON televoting.vote_submissions USING btree (deletion_category);
+
+CREATE INDEX televoting_vs_historical_idx ON televoting.vote_submissions USING btree (round_id, is_historical);
+
+CREATE UNIQUE INDEX televoting_vs_round_dt ON televoting.vote_submissions USING btree (round_id, device_token_hash) WHERE ((device_token_hash IS NOT NULL) AND (status <> 'deleted'::text));
+
+CREATE UNIQUE INDEX televoting_vs_round_fp ON televoting.vote_submissions USING btree (round_id, fingerprint_hash) WHERE ((fingerprint_hash IS NOT NULL) AND (status <> 'deleted'::text));
+
+CREATE UNIQUE INDEX televoting_vs_round_ip ON televoting.vote_submissions USING btree (round_id, ip_hash) WHERE ((ip_hash IS NOT NULL) AND (status <> 'deleted'::text));
+
+CREATE INDEX televoting_vs_round_risk ON televoting.vote_submissions USING btree (round_id, risk_score DESC);
+
+CREATE INDEX televoting_vs_round_status ON televoting.vote_submissions USING btree (round_id, status);
+
+CREATE UNIQUE INDEX televoting_vs_round_username ON televoting.vote_submissions USING btree (round_id, username_normalized) WHERE (status <> 'deleted'::text);
+
 ALTER TABLE "private"."v3_domain_event_outbox" ADD CONSTRAINT "v3_domain_event_outbox_event_id_fkey" FOREIGN KEY (event_id) REFERENCES private.v3_domain_events(id) ON DELETE RESTRICT;
 
 ALTER TABLE "private"."v3_domain_events" ADD CONSTRAINT "v3_domain_events_actor_id_fkey" FOREIGN KEY (actor_id) REFERENCES auth.users(id) ON DELETE SET NULL;
@@ -9335,240 +9571,6 @@ ALTER TABLE "televoting"."televote_aggregations" ADD CONSTRAINT "televote_aggreg
 ALTER TABLE "televoting"."vote_entries" ADD CONSTRAINT "vote_entries_submission_id_fkey" FOREIGN KEY (submission_id) REFERENCES televoting.vote_submissions(id) ON DELETE CASCADE;
 
 ALTER TABLE "televoting"."vote_submissions" ADD CONSTRAINT "vote_submissions_round_id_fkey" FOREIGN KEY (round_id) REFERENCES televoting.rounds(id) ON DELETE CASCADE;
-
--- Secondary indexes never duplicate constraint-owned unique/primary indexes.
-
-CREATE INDEX v3_domain_event_outbox_claim_idx ON private.v3_domain_event_outbox USING btree (consumer_key, status, available_at, lease_expires_at, created_at);
-
-CREATE INDEX v3_domain_event_outbox_dead_letter_idx ON private.v3_domain_event_outbox USING btree (consumer_key, dead_lettered_at DESC) WHERE (status = 'dead_letter'::text);
-
-CREATE INDEX v3_domain_events_aggregate_idx ON private.v3_domain_events USING btree (aggregate_type, aggregate_id, aggregate_version DESC);
-
-CREATE INDEX v3_domain_events_correlation_time_idx ON private.v3_domain_events USING btree (correlation_id, occurred_at, id);
-
-CREATE INDEX v3_domain_events_scope_time_idx ON private.v3_domain_events USING btree (edition_id, show_id, occurred_at DESC);
-
-CREATE INDEX admin_notifications_recipient_idx ON public.admin_notifications USING btree (recipient_id, read_at, created_at DESC);
-
-CREATE INDEX admin_notifications_recipient_resolved_idx ON public.admin_notifications USING btree (recipient_id, resolved_at, created_at DESC);
-
-CREATE UNIQUE INDEX admin_notifications_source_unique_idx ON public.admin_notifications USING btree (recipient_id, source_key) WHERE (source_key IS NOT NULL);
-
-CREATE INDEX editions_event_date_idx ON public.editions USING btree (event_date) WHERE (event_date IS NOT NULL);
-
-CREATE INDEX entries_country_idx ON public.entries USING btree (country_id);
-
-CREATE INDEX entries_edition_idx ON public.entries USING btree (edition_id);
-
-CREATE INDEX entries_entity_idx ON public.entries USING btree (contest_entity_id);
-
-CREATE INDEX jury_ballot_status_edition_idx ON public.jury_ballot_statuses USING btree (edition_id);
-
-CREATE UNIQUE INDEX jury_ballot_status_identity_key ON public.jury_ballot_statuses USING btree (show_id, COALESCE(voter_id, voter_entity_id, voter_country_id));
-
-CREATE INDEX jury_ballot_status_show_idx ON public.jury_ballot_statuses USING btree (show_id);
-
-CREATE INDEX jury_ballot_submissions_user_idx ON public.jury_ballot_submissions USING btree (user_id, submitted_at DESC);
-
-CREATE INDEX idx_jury_votes_voter ON public.jury_votes USING btree (voter_id);
-
-CREATE INDEX jury_votes_ballot_submission_idx ON public.jury_votes USING btree (ballot_submission_id);
-
-CREATE UNIQUE INDEX jury_votes_edition_voter_points_key ON public.jury_votes USING btree (edition_id, COALESCE(voter_id, voter_entity_id, voter_country_id), points) WHERE (show_id IS NULL);
-
-CREATE UNIQUE INDEX jury_votes_edition_voter_recipient_key ON public.jury_votes USING btree (edition_id, COALESCE(voter_id, voter_entity_id, voter_country_id), COALESCE(receiving_entity_id, receiving_country_id)) WHERE (show_id IS NULL);
-
-CREATE INDEX jury_votes_receiving_country_id_idx ON public.jury_votes USING btree (receiving_country_id);
-
-CREATE INDEX jury_votes_receiving_entity_idx ON public.jury_votes USING btree (receiving_entity_id);
-
-CREATE INDEX jury_votes_show_idx ON public.jury_votes USING btree (show_id);
-
-CREATE UNIQUE INDEX jury_votes_show_voter_points_key ON public.jury_votes USING btree (show_id, COALESCE(voter_id, voter_entity_id, voter_country_id), points) WHERE (show_id IS NOT NULL);
-
-CREATE UNIQUE INDEX jury_votes_show_voter_recipient_key ON public.jury_votes USING btree (show_id, COALESCE(voter_id, voter_entity_id, voter_country_id), COALESCE(receiving_entity_id, receiving_country_id)) WHERE (show_id IS NOT NULL);
-
-CREATE INDEX jury_votes_voter_country_id_idx ON public.jury_votes USING btree (voter_country_id);
-
-CREATE INDEX jury_votes_voter_entity_id_idx ON public.jury_votes USING btree (voter_entity_id);
-
-CREATE INDEX jury_voting_windows_edition_idx ON public.jury_voting_windows USING btree (edition_id, status);
-
-CREATE UNIQUE INDEX jury_voting_windows_one_open_per_edition_v3_idx ON public.jury_voting_windows USING btree (edition_id) WHERE (status = 'open'::text);
-
-CREATE INDEX national_final_entries_national_final_id_idx ON public.national_final_entries USING btree (national_final_id) WHERE (COALESCE(removed, false) = false);
-
-CREATE UNIQUE INDEX national_final_entries_one_next_in_line_idx ON public.national_final_entries USING btree (national_final_id) WHERE ((next_in_line = true) AND (removed = false));
-
-CREATE INDEX national_finals_country_edition_idx ON public.national_finals USING btree (country_id, edition_id);
-
-CREATE UNIQUE INDEX next_in_line_responses_edition_country_unique ON public.next_in_line_responses USING btree (edition_id, lower(country));
-
-CREATE UNIQUE INDEX next_in_line_edition_country_unique ON public.next_in_line_submissions USING btree (edition_id, lower(country));
-
-CREATE UNIQUE INDEX next_in_line_submissions_edition_source_v3_uidx ON public.next_in_line_submissions USING btree (edition_id, source_submission_id);
-
-CREATE INDEX notification_deliveries_pending_idx ON public.notification_deliveries USING btree (status, scheduled_for) WHERE (status = 'pending'::text);
-
-CREATE INDEX notification_deliveries_processing_lease_idx ON public.notification_deliveries USING btree (processing_started_at) WHERE (status = 'processing'::text);
-
-CREATE INDEX notification_deliveries_user_idx ON public.notification_deliveries USING btree (user_id, created_at DESC);
-
-CREATE INDEX participants_country_id_idx ON public.participants USING btree (country_id);
-
-CREATE UNIQUE INDEX participants_edition_country_noshow_key ON public.participants USING btree (edition_id, country_id) WHERE (show_id IS NULL);
-
-CREATE INDEX participants_entity_idx ON public.participants USING btree (contest_entity_id);
-
-CREATE INDEX participants_scheduled_publish_idx ON public.participants USING btree (scheduled_publish_at) WHERE ((publication_status = 'scheduled'::text) AND (show_id IS NULL));
-
-CREATE UNIQUE INDEX participants_show_country_key ON public.participants USING btree (show_id, country_id) WHERE (show_id IS NOT NULL);
-
-CREATE UNIQUE INDEX participants_show_entity_key ON public.participants USING btree (show_id, contest_entity_id) WHERE ((show_id IS NOT NULL) AND (contest_entity_id IS NOT NULL));
-
-CREATE INDEX participants_show_idx ON public.participants USING btree (show_id);
-
-CREATE INDEX results_country_id_idx ON public.results USING btree (country_id);
-
-CREATE UNIQUE INDEX results_edition_country_noshow_key ON public.results USING btree (edition_id, country_id) WHERE (show_id IS NULL);
-
-CREATE INDEX results_entity_idx ON public.results USING btree (contest_entity_id);
-
-CREATE UNIQUE INDEX results_show_country_key ON public.results USING btree (show_id, country_id) WHERE (show_id IS NOT NULL);
-
-CREATE UNIQUE INDEX results_show_entity_key ON public.results USING btree (show_id, contest_entity_id) WHERE ((show_id IS NOT NULL) AND (contest_entity_id IS NOT NULL));
-
-CREATE INDEX results_show_idx ON public.results USING btree (show_id);
-
-CREATE UNIQUE INDEX shows_id_edition_id_v3_uidx ON public.shows USING btree (id, edition_id);
-
-CREATE UNIQUE INDEX studio2_confirmation_requirements_current_idx ON public.studio2_confirmation_requirements USING btree (edition_id, country_id) WHERE (superseded_at IS NULL);
-
-CREATE INDEX studio2_confirmation_requirements_edition_state_idx ON public.studio2_confirmation_requirements USING btree (edition_id, status, country_id) WHERE (superseded_at IS NULL);
-
-CREATE INDEX studio2_confirmation_requirements_submission_idx ON public.studio2_confirmation_requirements USING btree (resolved_by_submission_id) WHERE (resolved_by_submission_id IS NOT NULL);
-
-CREATE INDEX studio2_contest_events_actor_user_id_idx ON public.studio2_contest_events USING btree (actor_user_id);
-
-CREATE INDEX studio2_contest_events_edition_time_idx ON public.studio2_contest_events USING btree (edition_id, occurred_at DESC);
-
-CREATE INDEX studio2_contest_events_edition_type_time_idx ON public.studio2_contest_events USING btree (edition_id, type, occurred_at DESC);
-
-CREATE INDEX studio2_edition_runtime_updated_by_idx ON public.studio2_edition_runtime USING btree (updated_by);
-
-CREATE INDEX studio2_eligibility_overrides_active_idx ON public.studio2_eligibility_overrides USING btree (edition_id, country_id, expires_at) WHERE (revoked_at IS NULL);
-
-CREATE INDEX studio2_eligibility_overrides_country_id_idx ON public.studio2_eligibility_overrides USING btree (country_id);
-
-CREATE INDEX studio2_eligibility_overrides_created_by_idx ON public.studio2_eligibility_overrides USING btree (created_by);
-
-CREATE INDEX studio2_eligibility_overrides_revoked_by_idx ON public.studio2_eligibility_overrides USING btree (revoked_by);
-
-CREATE INDEX studio2_eligibility_overrides_scope_idx ON public.studio2_eligibility_overrides USING btree (edition_id, country_id, affected_rule, created_at DESC);
-
-CREATE UNIQUE INDEX studio2_media_asset_reviews_active_idx ON public.studio2_media_asset_reviews USING btree (edition_id, asset_key) WHERE (superseded_at IS NULL);
-
-CREATE INDEX studio2_media_asset_reviews_asset_idx ON public.studio2_media_asset_reviews USING btree (edition_id, asset_key, reviewed_at DESC);
-
-CREATE INDEX studio2_media_asset_reviews_country_id_idx ON public.studio2_media_asset_reviews USING btree (country_id);
-
-CREATE INDEX studio2_media_asset_reviews_edition_idx ON public.studio2_media_asset_reviews USING btree (edition_id, reviewed_at DESC);
-
-CREATE INDEX studio2_media_asset_reviews_entry_id_idx ON public.studio2_media_asset_reviews USING btree (entry_id);
-
-CREATE INDEX studio2_media_asset_reviews_reviewed_by_idx ON public.studio2_media_asset_reviews USING btree (reviewed_by);
-
-CREATE UNIQUE INDEX studio2_next_in_line_one_open_window_idx ON public.studio2_next_in_line_windows USING btree ((true)) WHERE ((enabled = true) AND (status = 'open'::text));
-
-CREATE INDEX studio2_operation_receipts_actor_time_idx ON public.studio2_operation_receipts USING btree (actor_id, created_at DESC);
-
-CREATE INDEX studio2_operation_receipts_command_time_idx ON public.studio2_operation_receipts USING btree (command, created_at DESC);
-
-CREATE INDEX studio2_operation_receipts_correlation_time_idx ON public.studio2_operation_receipts USING btree (correlation_id, created_at DESC);
-
-CREATE INDEX studio2_organizer_tasks_assignee_idx ON public.studio2_organizer_tasks USING btree (assigned_to, state, opened_at DESC) WHERE (assigned_to IS NOT NULL);
-
-CREATE INDEX studio2_organizer_tasks_open_idx ON public.studio2_organizer_tasks USING btree (edition_id, priority, due_at, opened_at DESC) WHERE (state <> 'resolved'::text);
-
-CREATE INDEX studio2_organizer_tasks_source_idx ON public.studio2_organizer_tasks USING btree (source_kind, source_id);
-
-CREATE INDEX studio2_result_operations_edition_idx ON public.studio2_result_operations USING btree (edition_id, updated_at DESC);
-
-CREATE INDEX studio2_result_operations_last_calculated_by_idx ON public.studio2_result_operations USING btree (last_calculated_by);
-
-CREATE INDEX studio2_result_operations_locked_by_idx ON public.studio2_result_operations USING btree (locked_by);
-
-CREATE INDEX studio2_result_operations_reveal_ready_by_idx ON public.studio2_result_operations USING btree (reveal_ready_by);
-
-CREATE INDEX studio2_result_operations_reviewed_by_idx ON public.studio2_result_operations USING btree (reviewed_by);
-
-CREATE INDEX studio2_show_publication_controls_due_idx ON public.studio2_show_publication_controls USING btree (scheduled_for) WHERE (state = 'scheduled'::text);
-
-CREATE INDEX studio2_show_publication_controls_edition_idx ON public.studio2_show_publication_controls USING btree (edition_id, state, updated_at DESC);
-
-CREATE UNIQUE INDEX submissions_recovery_code_uniq ON public.submissions USING btree (upper(recovery_code));
-
-CREATE UNIQUE INDEX submissions_round_country_uniq ON public.submissions USING btree (round_id, lower(country));
-
-CREATE INDEX submissions_session_idx ON public.submissions USING btree (browser_session_id);
-
-CREATE INDEX televote_entity_idx ON public.televote_votes USING btree (contest_entity_id);
-
-CREATE UNIQUE INDEX televote_show_entity_key ON public.televote_votes USING btree (show_id, contest_entity_id) WHERE ((show_id IS NOT NULL) AND (contest_entity_id IS NOT NULL));
-
-CREATE INDEX televote_show_idx ON public.televote_votes USING btree (show_id);
-
-CREATE INDEX televote_votes_country_id_idx ON public.televote_votes USING btree (country_id);
-
-CREATE UNIQUE INDEX televote_votes_edition_country_noshow_key ON public.televote_votes USING btree (edition_id, country_id) WHERE (show_id IS NULL);
-
-CREATE UNIQUE INDEX televote_votes_show_country_key ON public.televote_votes USING btree (show_id, country_id) WHERE (show_id IS NOT NULL);
-
-CREATE INDEX televoting_round_bindings_edition_idx ON public.televoting_round_bindings USING btree (edition_id);
-
-CREATE INDEX televoting_round_bindings_show_idx ON public.televoting_round_bindings USING btree (show_id);
-
-CREATE INDEX idx_voters_edition ON public.voters USING btree (edition_id);
-
-CREATE INDEX idx_voters_show ON public.voters USING btree (show_id);
-
-CREATE INDEX voters_contest_entity_id_idx ON public.voters USING btree (contest_entity_id);
-
-CREATE INDEX voters_country_id_idx ON public.voters USING btree (country_id);
-
-CREATE INDEX televoting_component_results_lookup ON televoting.combined_televote_component_results USING btree (aggregation_id, calculation_version);
-
-CREATE UNIQUE INDEX televoting_combined_results_version_key ON televoting.combined_televote_results USING btree (aggregation_id, country_code, calculation_version);
-
-CREATE INDEX televoting_round_entries_round_idx ON televoting.round_entries USING btree (round_id, display_order);
-
-CREATE INDEX televoting_round_results_round_idx ON televoting.round_results USING btree (round_id);
-
-CREATE UNIQUE INDEX televoting_rounds_single_open ON televoting.rounds USING btree ((true)) WHERE (status = 'open'::televoting.round_status);
-
-CREATE INDEX televoting_vote_entries_submission ON televoting.vote_entries USING btree (submission_id);
-
-CREATE INDEX televoting_vote_entries_target ON televoting.vote_entries USING btree (target_country_code);
-
-CREATE INDEX televoting_vs_country ON televoting.vote_submissions USING btree (country_code);
-
-CREATE INDEX televoting_vs_created ON televoting.vote_submissions USING btree (created_at DESC);
-
-CREATE INDEX televoting_vs_delcat ON televoting.vote_submissions USING btree (deletion_category);
-
-CREATE INDEX televoting_vs_historical_idx ON televoting.vote_submissions USING btree (round_id, is_historical);
-
-CREATE UNIQUE INDEX televoting_vs_round_dt ON televoting.vote_submissions USING btree (round_id, device_token_hash) WHERE ((device_token_hash IS NOT NULL) AND (status <> 'deleted'::text));
-
-CREATE UNIQUE INDEX televoting_vs_round_fp ON televoting.vote_submissions USING btree (round_id, fingerprint_hash) WHERE ((fingerprint_hash IS NOT NULL) AND (status <> 'deleted'::text));
-
-CREATE UNIQUE INDEX televoting_vs_round_ip ON televoting.vote_submissions USING btree (round_id, ip_hash) WHERE ((ip_hash IS NOT NULL) AND (status <> 'deleted'::text));
-
-CREATE INDEX televoting_vs_round_risk ON televoting.vote_submissions USING btree (round_id, risk_score DESC);
-
-CREATE INDEX televoting_vs_round_status ON televoting.vote_submissions USING btree (round_id, status);
-
-CREATE UNIQUE INDEX televoting_vs_round_username ON televoting.vote_submissions USING btree (round_id, username_normalized) WHERE (status <> 'deleted'::text);
 
 CREATE TRIGGER v3_domain_events_immutable BEFORE DELETE OR UPDATE ON private.v3_domain_events FOR EACH ROW EXECUTE FUNCTION private.v3_reject_domain_event_mutation();
 
