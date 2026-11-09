@@ -153,7 +153,9 @@ export function catalogQueries(manifest) {
     const index = name.endsWith('_idx');
     const statement = index
       ? 'select exists(select 1 from pg_index i join pg_class c on c.oid=i.indrelid join pg_class x on x.oid=i.indexrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname=' + lit(schema) + ' and c.relname=' + lit(table) + ' and x.relname=' + lit(name) + ')'
-      : 'select exists(select 1 from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname=' + lit(schema) + ' and c.relname=' + lit(table) + ' and t.tgname=' + lit(name) + ' and not t.tgisinternal)';
+      : 'select exists(select 1 from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname=' + lit(schema) + ' and c.relname=' + lit(table) + ' and t.tgname=' + lit(name) + ' and not t.tgisinternal' +
+        (name === 'studio2_platform_direct_write_guard' ?
+          " and t.tgenabled in ('O','A') and t.tgfoid=to_regprocedure('private.studio2_guard_direct_client_write()')" : '') + ')';
     queries.push([statement, expected, identity]);
   }
   for (const [identity, expected] of Object.entries(manifest.privileges)) {
