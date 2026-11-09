@@ -8629,6 +8629,65 @@ CREATE OR REPLACE FUNCTION public.update_updated_at_column()
  SET search_path TO 'public'
 AS $function$ BEGIN NEW.updated_at = now(); RETURN NEW; END; $function$;
 
+-- Constraint dependency sourced from read-only hosted catalog (pg_depend).
+CREATE OR REPLACE FUNCTION private.v3_normalize_entry_credits(p_credits jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ IMMUTABLE SECURITY DEFINER
+ SET search_path TO 'pg_catalog', 'private'
+AS $function$
+declare
+  v_item jsonb;
+  v_role text;
+  v_name text;
+  v_normalized jsonb := '[]'::jsonb;
+  v_count integer;
+begin
+  if p_credits is null or p_credits = 'null'::jsonb then
+    return '[]'::jsonb;
+  end if;
+
+  if jsonb_typeof(p_credits) <> 'array' then
+    raise exception 'Entry credits must be a JSON array' using errcode = '22023';
+  end if;
+
+  v_count := jsonb_array_length(p_credits);
+  if v_count > 32 then
+    raise exception 'Entry credits may contain at most 32 records' using errcode = '54000';
+  end if;
+
+  for v_item in select value from jsonb_array_elements(p_credits)
+  loop
+    if jsonb_typeof(v_item) <> 'object' then
+      raise exception 'Each Entry credit must be an object' using errcode = '22023';
+    end if;
+    if (v_item - array['role', 'name']::text[]) <> '{}'::jsonb then
+      raise exception 'Entry credit contains unsupported fields' using errcode = '22023';
+    end if;
+
+    v_role := lower(btrim(coalesce(v_item ->> 'role', '')));
+    v_name := btrim(regexp_replace(coalesce(v_item ->> 'name', ''), '[[:space:]]+', ' ', 'g'));
+
+    if v_role not in ('composer', 'lyricist', 'songwriter', 'producer', 'arranger', 'other') then
+      raise exception 'Unknown Entry credit role: %', v_role using errcode = '22023';
+    end if;
+    if v_name = '' or char_length(v_name) > 160 then
+      raise exception 'Entry credit name must contain 1 to 160 characters' using errcode = '22023';
+    end if;
+
+    if v_normalized @> jsonb_build_array(jsonb_build_object('role', v_role, 'name', v_name)) then
+      raise exception 'Duplicate Entry credit: % / %', v_role, v_name using errcode = '22023';
+    end if;
+
+    v_normalized := v_normalized || jsonb_build_array(
+      jsonb_build_object('role', v_role, 'name', v_name)
+    );
+  end loop;
+
+  return v_normalized;
+end
+$function$;
+
 -- All observed check/unique/primary constraints before FK references.
 
 ALTER TABLE "private"."v3_domain_event_outbox" ADD CONSTRAINT "v3_domain_event_outbox_attempt_check" CHECK (attempt_count >= 0);
