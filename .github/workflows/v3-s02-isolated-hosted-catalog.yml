@@ -113,6 +113,19 @@ jobs:
           node -e 'require("fs").writeFileSync("s02-s13-local-upgrade-proof.json",JSON.stringify({task:"S02",candidateSha:process.env.EXACT_SHA,reviewedDonorSha:"44f6808d4186e51352d3b746e269e75066aa93b9",scope:"S13 foundation only on bounded hosted-S14 schema subset",tables:5,rpcs:7,serviceGrant:true,anonDenied:true,repeatRejected:true,fullHostedEquivalenceCertified:false,productionDeploymentAuthorized:false},null,2)+"\n",{flag:"wx"});'
           echo "PASS: S13 local forward candidate on hosted-observed S14 scoped fixture"
 
+          # The S14 Archive candidate requires much more than this bounded
+          # catalog subset. Prove that it REJECTS missing hosted dependencies
+          # before any upgrade rather than silently inventing a green result.
+          if docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < s02-s13-donor/docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql > /tmp/v3-s02-s14-negative.log 2>&1; then
+            echo "::error::S14 unexpectedly succeeded on the known incomplete hosted catalog subset"
+            exit 1
+          fi
+          blocker="$(sed -n 's/.*ERROR:  \(S14 Archive recovery BLOCKED:.*\)/\1/p' /tmp/v3-s02-s14-negative.log | head -n 1)"
+          [[ -n "$blocker" ]] || { echo "::error::Unclassified S14 SQL failure (not a proven missing dependency)"; tail -n 20 /tmp/v3-s02-s14-negative.log; exit 1; }
+          echo "EXPECTED FAIL-CLOSED: $blocker"
+          S14_BLOCKER="$blocker" node -e 'require("fs").writeFileSync("s02-s14-required-dependency-blocker.json",JSON.stringify({task:"S02",candidateSha:process.env.EXACT_SHA,scope:"S14 Archive candidate against eight-table hosted-scoped fixture",status:"BLOCKED_UNKNOWN_REQUIRED_CATALOG",reason:process.env.S14_BLOCKER,productionDeploymentAuthorized:false,s14UpgradeProven:false},null,2)+"\n",{flag:"wx"});'
+
+
           [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
           [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
           docker rm -f "$cid" >/dev/null
@@ -128,5 +141,6 @@ jobs:
             s02-scoped-catalog-proof.json
             s02-scoped-object-proof.json
             s02-s13-local-upgrade-proof.json
+            s02-s14-required-dependency-blocker.json
           if-no-files-found: ignore
           retention-days: 14
