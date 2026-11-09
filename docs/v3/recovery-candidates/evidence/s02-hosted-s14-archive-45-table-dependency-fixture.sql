@@ -8754,7 +8754,6 @@ ALTER TABLE "public"."internal_entries" ADD CONSTRAINT "internal_entries_review_
 
 ALTER TABLE "public"."internal_entries" ADD CONSTRAINT "internal_entries_submission_id_key" UNIQUE (submission_id);
 
-ALTER TABLE "public"."internal_entries" ADD CONSTRAINT "v3_s3_validate_internal_entry_pointer" TRIGGER DEFERRABLE;
 
 ALTER TABLE "public"."jury_ballot_statuses" ADD CONSTRAINT "jury_ballot_status_identity_chk" CHECK (voter_id IS NOT NULL OR voter_country_id IS NOT NULL OR voter_entity_id IS NOT NULL);
 
@@ -8764,7 +8763,6 @@ ALTER TABLE "public"."jury_ballot_statuses" ADD CONSTRAINT "jury_ballot_statuses
 
 ALTER TABLE "public"."jury_ballot_statuses" ADD CONSTRAINT "jury_ballot_statuses_timeline_v3_check" CHECK (version >= 1 AND changed_at >= created_at AND updated_at >= created_at);
 
-ALTER TABLE "public"."jury_ballot_statuses" ADD CONSTRAINT "v3_s3_validate_jury_dnv_scope" TRIGGER DEFERRABLE INITIALLY DEFERRED;
 
 ALTER TABLE "public"."jury_ballot_submissions" ADD CONSTRAINT "jury_ballot_submissions_pkey" PRIMARY KEY (id);
 
@@ -8778,7 +8776,6 @@ ALTER TABLE "public"."jury_ballot_submissions" ADD CONSTRAINT "jury_ballot_submi
 
 ALTER TABLE "public"."jury_ballot_submissions" ADD CONSTRAINT "jury_ballot_submissions_status_check" CHECK (status = ANY (ARRAY['submitted'::text, 'valid'::text, 'needs_review'::text, 'invalidated'::text, 'superseded'::text]));
 
-ALTER TABLE "public"."jury_ballot_submissions" ADD CONSTRAINT "v3_s3_validate_jury_submission_scope" TRIGGER DEFERRABLE INITIALLY DEFERRED;
 
 ALTER TABLE "public"."jury_votes" ADD CONSTRAINT "jury_votes_check" CHECK (voter_country_id <> receiving_country_id);
 
@@ -8790,7 +8787,6 @@ ALTER TABLE "public"."jury_votes" ADD CONSTRAINT "jury_votes_recipient_identity_
 
 ALTER TABLE "public"."jury_votes" ADD CONSTRAINT "jury_votes_voter_identity_check" CHECK (voter_id IS NOT NULL OR voter_country_id IS NOT NULL OR voter_entity_id IS NOT NULL);
 
-ALTER TABLE "public"."jury_votes" ADD CONSTRAINT "v3_s3_validate_jury_vote_ballot_scope" TRIGGER DEFERRABLE;
 
 ALTER TABLE "public"."jury_voting_windows" ADD CONSTRAINT "jury_voting_windows_lifecycle_v3_check" CHECK (status = 'open'::text AND opened_at IS NOT NULL AND closed_at IS NULL OR status = 'closed'::text AND (opened_at IS NULL OR closed_at IS NOT NULL AND closed_at >= opened_at));
 
@@ -8804,7 +8800,6 @@ ALTER TABLE "public"."national_final_entries" ADD CONSTRAINT "national_final_ent
 
 ALTER TABLE "public"."national_final_entries" ADD CONSTRAINT "national_final_entries_review_status_check" CHECK (review_status = ANY (ARRAY['pending'::text, 'accepted'::text, 'declined'::text, 'removed'::text]));
 
-ALTER TABLE "public"."national_final_entries" ADD CONSTRAINT "v3_s3_validate_nf_entry_pointer" TRIGGER DEFERRABLE;
 
 ALTER TABLE "public"."national_finals" ADD CONSTRAINT "national_finals_owner_source_check" CHECK (submission_id IS NOT NULL OR country_id IS NOT NULL);
 
@@ -8868,7 +8863,6 @@ ALTER TABLE "public"."shows" ADD CONSTRAINT "shows_lineup_stage_check" CHECK (li
 
 ALTER TABLE "public"."shows" ADD CONSTRAINT "shows_pkey" PRIMARY KEY (id);
 
-ALTER TABLE "public"."shows" ADD CONSTRAINT "v3_validate_publication_projection_from_show" TRIGGER DEFERRABLE INITIALLY DEFERRED;
 
 ALTER TABLE "public"."studio2_confirmation_requirements" ADD CONSTRAINT "studio2_confirmation_requirem_edition_id_country_id_generat_key" UNIQUE (edition_id, country_id, generation);
 
@@ -8988,7 +8982,6 @@ ALTER TABLE "public"."studio2_result_operations" ADD CONSTRAINT "studio2_result_
 
 ALTER TABLE "public"."studio2_result_operations" ADD CONSTRAINT "studio2_result_operations_reviewed_version_check" CHECK (reviewed_version IS NULL OR reviewed_version > 0 AND reviewed_version <= calculation_version);
 
-ALTER TABLE "public"."studio2_result_operations" ADD CONSTRAINT "v3_validate_publication_projection_from_results" TRIGGER DEFERRABLE INITIALLY DEFERRED;
 
 ALTER TABLE "public"."studio2_show_publication_controls" ADD CONSTRAINT "studio2_show_publication_controls_failure_pair_v3_check" CHECK ((last_failure IS NULL) = (last_failure_at IS NULL));
 
@@ -9006,7 +8999,6 @@ ALTER TABLE "public"."studio2_show_publication_controls" ADD CONSTRAINT "studio2
 
 ALTER TABLE "public"."studio2_show_publication_controls" ADD CONSTRAINT "studio2_show_publication_schedule_consistency" CHECK (state = 'scheduled'::text AND scheduled_for IS NOT NULL AND scheduled_from_state IS NOT NULL AND source_show_updated_at IS NOT NULL OR state <> 'scheduled'::text AND scheduled_for IS NULL AND scheduled_from_state IS NULL);
 
-ALTER TABLE "public"."studio2_show_publication_controls" ADD CONSTRAINT "v3_validate_publication_projection_from_control" TRIGGER DEFERRABLE INITIALLY DEFERRED;
 
 ALTER TABLE "public"."submission_rounds" ADD CONSTRAINT "submission_rounds_pkey" PRIMARY KEY (id);
 
