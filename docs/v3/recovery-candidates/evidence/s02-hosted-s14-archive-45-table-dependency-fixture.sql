@@ -24,6 +24,9 @@ DO $roles$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THE
 
 CREATE TYPE televoting.round_status AS ENUM ('draft','open','closed');
 
+-- Additional synthetic S14 RLS-policy parent, three observed column types only, not hosted table parity.
+CREATE TABLE public.country_accounts (user_id uuid, country_id uuid, status text);
+
 -- Eight synthetic FK parent shells, observed key shapes only, not hosted table parity.
 
 CREATE TABLE "auth"."users" ("id" uuid, PRIMARY KEY ("id"));
