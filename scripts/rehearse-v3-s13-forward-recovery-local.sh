@@ -86,6 +86,17 @@ expect_preflight_rejection() {
   [[ "$count" == "$expected_tables" ]] || {
     echo "S13 negative preflight left unintended tables for $name ($count)" >&2; exit 1;
   }
+  # Retry after a failed preflight in the SAME disposable DB with a new psql session.
+  if [[ "$name" == partialrpc ]]; then
+    run_in_db "$probe_db" -c "drop function public.v3_register_migration_contract(text,integer,text,boolean,text,text)" >/dev/null
+    run_in_db "$probe_db" -f "$candidate" >/dev/null
+    retry_count="$(run_in_db "$probe_db" -c "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+      where n.nspname='public' and p.proname in
+      ('v3_schema_compatibility','v3_register_migration_contract','v3_claim_backfill',
+       'v3_checkpoint_backfill','v3_fail_backfill','v3_record_migration_parity',
+       'v3_set_schema_compatibility')")"
+    [[ "$retry_count" == 7 ]] || { echo "S13 retry did not recover 7 RPCs: $retry_count" >&2; exit 1; }
+  fi
   master -c "drop database $probe_db with (force)" >/dev/null
   probe_db=""
 }
@@ -223,11 +234,52 @@ if run -c "select set_config('request.jwt.claim.role','authenticated',false);
   echo 'S13 registry accepted browser JWT under service_role SQL execution' >&2; exit 1
 fi
 
+# Explicit original-source ACL/RLS posture: these five private S13 tables have
+# no RLS policy, so no caller role may have direct CRUD table grants.
+for s13_table in v3_migration_contracts v3_schema_compatibility \
+  v3_schema_compatibility_history v3_backfill_jobs v3_migration_parity_runs; do
+  for s13_role in anon authenticated service_role; do
+    direct_acl="$(run -c "select
+      has_table_privilege('$s13_role','private.$s13_table','SELECT')::text || '|' ||
+      has_table_privilege('$s13_role','private.$s13_table','INSERT')::text || '|' ||
+      has_table_privilege('$s13_role','private.$s13_table','UPDATE')::text || '|' ||
+      has_table_privilege('$s13_role','private.$s13_table','DELETE')::text")"
+    [[ "$direct_acl" == 'false|false|false|false' ]] || {
+      echo "Private S13 ACL drift: $s13_role / $s13_table = $direct_acl" >&2; exit 1
+    }
+  done
+done
+s13_rls="$(run -c "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace
+ where n.nspname='private' and c.relkind='r'
+ and c.relname in ('v3_migration_contracts','v3_schema_compatibility',
+ 'v3_schema_compatibility_history','v3_backfill_jobs','v3_migration_parity_runs')
+ and (c.relrowsecurity or exists(select 1 from pg_policy p where p.polrelid=c.oid))")"
+[[ "$s13_rls" == 0 ]] || {
+ echo "Historical S13 RLS parity changed; review source authority: $s13_rls" >&2; exit 1
+}
+
 # The forward recovery must start at the STRICT canonical registration state.
-# Reapplying the bundled SQL must refuse a preexisting S13 state, without changing it.
+# An already-present S13 foundation MUST be a non-mutating rejected retry.
+# An unguarded successful rerun could replace privileged function definitions.
+before_catalog="$(catalog_fingerprint "$db")"
+before_registry="$(run -c "select md5(coalesce(string_agg(to_jsonb(t)::text, E'\n' order by migration_key),''))
+  from private.v3_migration_contracts t")"
+before_compat="$(run -c "select md5(coalesce(string_agg(to_jsonb(t)::text, E'\n' order by singleton),''))
+  from private.v3_schema_compatibility t")"
 if run -f "$candidate" >/dev/null 2>&1; then
   echo 'Forward recovery unexpectedly re-ran over an existing S13 foundation' >&2; exit 1
 fi
+after_catalog="$(catalog_fingerprint "$db")"
+after_registry="$(run -c "select md5(coalesce(string_agg(to_jsonb(t)::text, E'\n' order by migration_key),''))
+  from private.v3_migration_contracts t")"
+after_compat="$(run -c "select md5(coalesce(string_agg(to_jsonb(t)::text, E'\n' order by singleton),''))
+  from private.v3_schema_compatibility t")"
+[[ "$before_catalog" == "$after_catalog" &&
+   "$before_registry" == "$after_registry" &&
+   "$before_compat" == "$after_compat" ]] || {
+  echo 'S13 already-present retry altered catalog or registry/compatibility state' >&2
+  exit 1
+}
 still="$(run -c "select count(*) from private.v3_migration_contracts")"
 [[ "$still" == 2 ]] || { echo "Preexisting-table replay mutated registry: $still" >&2; exit 1; }
 if run -c "select public.v3_register_migration_contract('20261019113000_v3_s6_notification_reconciliation',1,'forward_fix_only',false,null,'Local-only synthetic alias test')" >/dev/null 2>&1; then
