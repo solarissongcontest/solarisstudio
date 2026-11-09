@@ -1587,15 +1587,11 @@ ALTER TABLE "private"."v3_domain_event_outbox" ADD CONSTRAINT "v3_domain_event_o
 
 ALTER TABLE "private"."v3_domain_event_outbox" ADD CONSTRAINT "v3_domain_event_outbox_error_metadata_check" CHECK (last_error_metadata IS NULL OR jsonb_typeof(last_error_metadata) = 'object'::text AND pg_column_size(last_error_metadata) <= 8192);
 
-ALTER TABLE "private"."v3_domain_event_outbox" ADD CONSTRAINT "v3_domain_event_outbox_event_id_fkey" FOREIGN KEY (event_id) REFERENCES private.v3_domain_events(id) ON DELETE RESTRICT;
-
 ALTER TABLE "private"."v3_domain_event_outbox" ADD CONSTRAINT "v3_domain_event_outbox_lifecycle_check" CHECK (status = 'pending'::text AND lease_owner IS NULL AND lease_expires_at IS NULL AND completed_at IS NULL AND dead_lettered_at IS NULL OR status = 'processing'::text AND NULLIF(btrim(lease_owner), ''::text) IS NOT NULL AND lease_expires_at IS NOT NULL AND completed_at IS NULL AND dead_lettered_at IS NULL OR status = 'completed'::text AND lease_owner IS NULL AND lease_expires_at IS NULL AND completed_at IS NOT NULL AND dead_lettered_at IS NULL OR status = 'dead_letter'::text AND lease_owner IS NULL AND lease_expires_at IS NULL AND completed_at IS NULL AND dead_lettered_at IS NOT NULL);
 
 ALTER TABLE "private"."v3_domain_event_outbox" ADD CONSTRAINT "v3_domain_event_outbox_pkey" PRIMARY KEY (event_id, consumer_key);
 
 ALTER TABLE "private"."v3_domain_event_outbox" ADD CONSTRAINT "v3_domain_event_outbox_status_check" CHECK (status = ANY (ARRAY['pending'::text, 'processing'::text, 'completed'::text, 'dead_letter'::text]));
-
-ALTER TABLE "private"."v3_domain_events" ADD CONSTRAINT "v3_domain_events_actor_id_fkey" FOREIGN KEY (actor_id) REFERENCES auth.users(id) ON DELETE SET NULL;
 
 ALTER TABLE "private"."v3_domain_events" ADD CONSTRAINT "v3_domain_events_aggregate_id_check" CHECK (length(aggregate_id) >= 1 AND length(aggregate_id) <= 240);
 
@@ -1603,13 +1599,9 @@ ALTER TABLE "private"."v3_domain_events" ADD CONSTRAINT "v3_domain_events_aggreg
 
 ALTER TABLE "private"."v3_domain_events" ADD CONSTRAINT "v3_domain_events_aggregate_version_check" CHECK (aggregate_version >= 0);
 
-ALTER TABLE "private"."v3_domain_events" ADD CONSTRAINT "v3_domain_events_edition_id_fkey" FOREIGN KEY (edition_id) REFERENCES editions(id) ON DELETE RESTRICT;
-
 ALTER TABLE "private"."v3_domain_events" ADD CONSTRAINT "v3_domain_events_event_type_check" CHECK (event_type ~ '^[a-z][a-z0-9_-]*(\.[a-z][a-z0-9_-]*)+$'::text);
 
 ALTER TABLE "private"."v3_domain_events" ADD CONSTRAINT "v3_domain_events_operation_fact_unique" UNIQUE (operation_id, event_type, aggregate_type, aggregate_id, aggregate_version);
-
-ALTER TABLE "private"."v3_domain_events" ADD CONSTRAINT "v3_domain_events_operation_id_fkey" FOREIGN KEY (operation_id) REFERENCES studio2_operation_receipts(operation_id) ON DELETE RESTRICT;
 
 ALTER TABLE "private"."v3_domain_events" ADD CONSTRAINT "v3_domain_events_payload_check" CHECK (jsonb_typeof(payload) = 'object'::text AND pg_column_size(payload) <= 65536);
 
@@ -1617,25 +1609,17 @@ ALTER TABLE "private"."v3_domain_events" ADD CONSTRAINT "v3_domain_events_pkey" 
 
 ALTER TABLE "private"."v3_domain_events" ADD CONSTRAINT "v3_domain_events_schema_version_check" CHECK (schema_version >= 1);
 
-ALTER TABLE "private"."v3_domain_events" ADD CONSTRAINT "v3_domain_events_show_id_fkey" FOREIGN KEY (show_id) REFERENCES shows(id) ON DELETE RESTRICT;
-
-ALTER TABLE "private"."v3_result_versions" ADD CONSTRAINT "v3_result_versions_created_by_fkey" FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
-
 ALTER TABLE "private"."v3_result_versions" ADD CONSTRAINT "v3_result_versions_pkey" PRIMARY KEY (show_id, version);
 
 ALTER TABLE "private"."v3_result_versions" ADD CONSTRAINT "v3_result_versions_result_row_count_check" CHECK (result_row_count >= 0);
 
 ALTER TABLE "private"."v3_result_versions" ADD CONSTRAINT "v3_result_versions_result_rows_check" CHECK (jsonb_typeof(result_rows) = 'array'::text);
 
-ALTER TABLE "private"."v3_result_versions" ADD CONSTRAINT "v3_result_versions_show_edition_fk" FOREIGN KEY (show_id, edition_id) REFERENCES shows(id, edition_id);
-
 ALTER TABLE "private"."v3_result_versions" ADD CONSTRAINT "v3_result_versions_version_check" CHECK (version > 0);
 
 ALTER TABLE "public"."admin_notifications" ADD CONSTRAINT "admin_notifications_activation_version_check" CHECK (activation_version > 0);
 
 ALTER TABLE "public"."admin_notifications" ADD CONSTRAINT "admin_notifications_pkey" PRIMARY KEY (id);
-
-ALTER TABLE "public"."admin_notifications" ADD CONSTRAINT "admin_notifications_recipient_id_fkey" FOREIGN KEY (recipient_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 
 ALTER TABLE "public"."admin_notifications" ADD CONSTRAINT "admin_notifications_resolution_mode_check" CHECK (resolution_mode = ANY (ARRAY['manual'::text, 'domain'::text]));
 
@@ -1649,10 +1633,6 @@ ALTER TABLE "public"."notification_deliveries" ADD CONSTRAINT "notification_deli
 
 ALTER TABLE "public"."notification_deliveries" ADD CONSTRAINT "notification_deliveries_user_id_dedupe_key_key" UNIQUE (user_id, dedupe_key);
 
-ALTER TABLE "public"."notification_deliveries" ADD CONSTRAINT "notification_deliveries_user_id_fkey" FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
-
-ALTER TABLE "public"."studio2_edition_runtime" ADD CONSTRAINT "studio2_edition_runtime_edition_id_fkey" FOREIGN KEY (edition_id) REFERENCES editions(id) ON DELETE CASCADE;
-
 ALTER TABLE "public"."studio2_edition_runtime" ADD CONSTRAINT "studio2_edition_runtime_pkey" PRIMARY KEY (edition_id);
 
 ALTER TABLE "public"."studio2_edition_runtime" ADD CONSTRAINT "studio2_edition_runtime_state_check" CHECK (state = ANY (ARRAY['draft'::text, 'planning'::text, 'host_selection'::text, 'confirmations'::text, 'submissions'::text, 'pre_show'::text, 'rehearsals'::text, 'jury_voting'::text, 'live_show'::text, 'televoting'::text, 'vote_verification'::text, 'results'::text, 'post_edition'::text, 'archived'::text]));
@@ -1661,13 +1641,9 @@ ALTER TABLE "public"."studio2_edition_runtime" ADD CONSTRAINT "studio2_edition_r
 
 ALTER TABLE "public"."studio2_edition_runtime" ADD CONSTRAINT "studio2_edition_runtime_subsystems_shape_check" CHECK (subsystems ?& ARRAY['confirmations'::text, 'submissions'::text, 'juryVoting'::text, 'televoting'::text, 'results'::text, 'predictions'::text] AND ((subsystems ->> 'confirmations'::text) = ANY (ARRAY['not_started'::text, 'open'::text, 'paused'::text, 'closed'::text, 'locked'::text, 'verified'::text, 'published'::text])) AND ((subsystems ->> 'submissions'::text) = ANY (ARRAY['not_started'::text, 'open'::text, 'paused'::text, 'closed'::text, 'locked'::text, 'verified'::text, 'published'::text])) AND ((subsystems ->> 'juryVoting'::text) = ANY (ARRAY['not_started'::text, 'open'::text, 'paused'::text, 'closed'::text, 'locked'::text, 'verified'::text, 'published'::text])) AND ((subsystems ->> 'televoting'::text) = ANY (ARRAY['not_started'::text, 'open'::text, 'paused'::text, 'closed'::text, 'locked'::text, 'verified'::text, 'published'::text])) AND ((subsystems ->> 'results'::text) = ANY (ARRAY['not_started'::text, 'open'::text, 'paused'::text, 'closed'::text, 'locked'::text, 'verified'::text, 'published'::text])) AND ((subsystems ->> 'predictions'::text) = ANY (ARRAY['not_started'::text, 'open'::text, 'paused'::text, 'closed'::text, 'locked'::text, 'verified'::text, 'published'::text])));
 
-ALTER TABLE "public"."studio2_edition_runtime" ADD CONSTRAINT "studio2_edition_runtime_updated_by_fkey" FOREIGN KEY (updated_by) REFERENCES auth.users(id) ON DELETE SET NULL;
-
 ALTER TABLE "public"."studio2_edition_runtime" ADD CONSTRAINT "studio2_edition_runtime_version_check" CHECK (version > 0);
 
 ALTER TABLE "public"."studio2_operation_receipts" ADD CONSTRAINT "studio2_operation_receipts_actor_id_command_idempotency_key_key" UNIQUE (actor_id, command, idempotency_key);
-
-ALTER TABLE "public"."studio2_operation_receipts" ADD CONSTRAINT "studio2_operation_receipts_actor_id_fkey" FOREIGN KEY (actor_id) REFERENCES auth.users(id) ON DELETE SET NULL;
 
 ALTER TABLE "public"."studio2_operation_receipts" ADD CONSTRAINT "studio2_operation_receipts_command_check" CHECK (length(btrim(command)) >= 1 AND length(btrim(command)) <= 160);
 
@@ -1685,19 +1661,11 @@ ALTER TABLE "public"."studio2_operation_receipts" ADD CONSTRAINT "studio2_operat
 
 ALTER TABLE "public"."studio2_operation_receipts" ADD CONSTRAINT "studio2_operation_receipts_v3_status_check" CHECK (status = ANY (ARRAY['processing'::text, 'succeeded'::text, 'failed'::text, 'uncertain'::text]));
 
-ALTER TABLE "public"."studio2_organizer_tasks" ADD CONSTRAINT "studio2_organizer_tasks_assigned_to_fkey" FOREIGN KEY (assigned_to) REFERENCES auth.users(id) ON DELETE SET NULL;
-
-ALTER TABLE "public"."studio2_organizer_tasks" ADD CONSTRAINT "studio2_organizer_tasks_country_id_fkey" FOREIGN KEY (country_id) REFERENCES countries(id) ON DELETE CASCADE;
-
-ALTER TABLE "public"."studio2_organizer_tasks" ADD CONSTRAINT "studio2_organizer_tasks_edition_id_fkey" FOREIGN KEY (edition_id) REFERENCES editions(id) ON DELETE CASCADE;
-
 ALTER TABLE "public"."studio2_organizer_tasks" ADD CONSTRAINT "studio2_organizer_tasks_href_check" CHECK (href ~~ '/%'::text);
 
 ALTER TABLE "public"."studio2_organizer_tasks" ADD CONSTRAINT "studio2_organizer_tasks_pkey" PRIMARY KEY (id);
 
 ALTER TABLE "public"."studio2_organizer_tasks" ADD CONSTRAINT "studio2_organizer_tasks_priority_check" CHECK (priority = ANY (ARRAY['critical'::text, 'high'::text, 'normal'::text]));
-
-ALTER TABLE "public"."studio2_organizer_tasks" ADD CONSTRAINT "studio2_organizer_tasks_required_capability_fkey" FOREIGN KEY (required_capability) REFERENCES studio2_capabilities(key) ON UPDATE CASCADE ON DELETE RESTRICT;
 
 ALTER TABLE "public"."studio2_organizer_tasks" ADD CONSTRAINT "studio2_organizer_tasks_resolution_consistency" CHECK (state = 'resolved'::text AND resolved_at IS NOT NULL OR state <> 'resolved'::text AND resolved_at IS NULL);
 
@@ -1716,6 +1684,40 @@ ALTER TABLE "public"."studio2_organizer_tasks" ADD CONSTRAINT "studio2_organizer
 ALTER TABLE "public"."studio2_organizer_tasks" ADD CONSTRAINT "studio2_organizer_tasks_task_type_check" CHECK (length(btrim(task_type)) >= 1 AND length(btrim(task_type)) <= 100);
 
 ALTER TABLE "public"."studio2_organizer_tasks" ADD CONSTRAINT "studio2_organizer_tasks_title_check" CHECK (length(btrim(title)) >= 1 AND length(btrim(title)) <= 220);
+
+-- Foreign keys run AFTER all primary/unique constraints exist.
+
+ALTER TABLE "private"."v3_domain_event_outbox" ADD CONSTRAINT "v3_domain_event_outbox_event_id_fkey" FOREIGN KEY (event_id) REFERENCES private.v3_domain_events(id) ON DELETE RESTRICT;
+
+ALTER TABLE "private"."v3_domain_events" ADD CONSTRAINT "v3_domain_events_actor_id_fkey" FOREIGN KEY (actor_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+
+ALTER TABLE "private"."v3_domain_events" ADD CONSTRAINT "v3_domain_events_edition_id_fkey" FOREIGN KEY (edition_id) REFERENCES editions(id) ON DELETE RESTRICT;
+
+ALTER TABLE "private"."v3_domain_events" ADD CONSTRAINT "v3_domain_events_operation_id_fkey" FOREIGN KEY (operation_id) REFERENCES studio2_operation_receipts(operation_id) ON DELETE RESTRICT;
+
+ALTER TABLE "private"."v3_domain_events" ADD CONSTRAINT "v3_domain_events_show_id_fkey" FOREIGN KEY (show_id) REFERENCES shows(id) ON DELETE RESTRICT;
+
+ALTER TABLE "private"."v3_result_versions" ADD CONSTRAINT "v3_result_versions_created_by_fkey" FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+
+ALTER TABLE "private"."v3_result_versions" ADD CONSTRAINT "v3_result_versions_show_edition_fk" FOREIGN KEY (show_id, edition_id) REFERENCES shows(id, edition_id);
+
+ALTER TABLE "public"."admin_notifications" ADD CONSTRAINT "admin_notifications_recipient_id_fkey" FOREIGN KEY (recipient_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+ALTER TABLE "public"."notification_deliveries" ADD CONSTRAINT "notification_deliveries_user_id_fkey" FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+ALTER TABLE "public"."studio2_edition_runtime" ADD CONSTRAINT "studio2_edition_runtime_edition_id_fkey" FOREIGN KEY (edition_id) REFERENCES editions(id) ON DELETE CASCADE;
+
+ALTER TABLE "public"."studio2_edition_runtime" ADD CONSTRAINT "studio2_edition_runtime_updated_by_fkey" FOREIGN KEY (updated_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+
+ALTER TABLE "public"."studio2_operation_receipts" ADD CONSTRAINT "studio2_operation_receipts_actor_id_fkey" FOREIGN KEY (actor_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+
+ALTER TABLE "public"."studio2_organizer_tasks" ADD CONSTRAINT "studio2_organizer_tasks_assigned_to_fkey" FOREIGN KEY (assigned_to) REFERENCES auth.users(id) ON DELETE SET NULL;
+
+ALTER TABLE "public"."studio2_organizer_tasks" ADD CONSTRAINT "studio2_organizer_tasks_country_id_fkey" FOREIGN KEY (country_id) REFERENCES countries(id) ON DELETE CASCADE;
+
+ALTER TABLE "public"."studio2_organizer_tasks" ADD CONSTRAINT "studio2_organizer_tasks_edition_id_fkey" FOREIGN KEY (edition_id) REFERENCES editions(id) ON DELETE CASCADE;
+
+ALTER TABLE "public"."studio2_organizer_tasks" ADD CONSTRAINT "studio2_organizer_tasks_required_capability_fkey" FOREIGN KEY (required_capability) REFERENCES studio2_capabilities(key) ON UPDATE CASCADE ON DELETE RESTRICT;
 
 CREATE INDEX v3_domain_event_outbox_claim_idx ON private.v3_domain_event_outbox USING btree (consumer_key, status, available_at, lease_expires_at, created_at);
 
