@@ -87,6 +87,7 @@ jobs:
           docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < scripts/v3-s02-hosted-catalog-local.sql > /tmp/v3-s02-local-catalog.json
           [[ "$(docker exec "$cid" psql -w -X -qAt -U postgres -d postgres -c 'show server_version_num')" == 170011 ]] || exit 1
           node scripts/verify-v3-s02-s14-catalog.mjs /tmp/v3-s02-local-catalog.json s02-scoped-catalog-proof.json
+          node scripts/check-v3-s02-local-fixture.mjs --manifest docs/v3/recovery-candidates/evidence/s02-hosted-catalog-scoped-manifest-2026-11-09.json --schema docs/v3/recovery-candidates/evidence/s02-hosted-s14-catalog-scoped-fixture.sql --proof s02-scoped-object-proof.json
           [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
           [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
           docker rm -f "$cid" >/dev/null
@@ -98,6 +99,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: s02-scoped-local-pg17-${{ github.event.pull_request.head.sha || github.sha }}
-          path: s02-scoped-catalog-proof.json
+          path: |
+            s02-scoped-catalog-proof.json
+            s02-scoped-object-proof.json
           if-no-files-found: ignore
           retention-days: 14
