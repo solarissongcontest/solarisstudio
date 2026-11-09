@@ -65,7 +65,7 @@ begin
         -- Use catalog columns and btree indoption flags. The per-column
         -- pg_get_indexdef() output omits DESC/NULLS FIRST in PG17.
         and (
-          select array_agg(a.attname order by key_number)
+          select array_agg(a.attname::text order by key_number)
           from generate_series(0, i.indnkeyatts - 1) as keys(key_number)
           join pg_attribute a
             on a.attrelid = i.indrelid
