@@ -11,7 +11,7 @@
 
 ## Bounded gate added by this candidate
 
-`scripts/check-v3-s02-local-fixture.mjs` reads the committed S01 operator evidence, plus an independently reviewed local-only **schema-only** source file and an operator-created fixture manifest. It checks that every required catalog entry in its limited scope is explicitly true or false, then imports the exact reviewed DDL and runs only `pg_catalog` queries **inside the same newly created networkless PostgreSQL 16 container** through `docker exec`. No database port is published.
+`scripts/check-v3-s02-local-fixture.mjs` reads the committed S01 operator evidence, plus an independently reviewed local-only **schema-only** source file and an operator-created fixture manifest. It checks that every required catalog entry in its limited scope is explicitly true or false, then imports the exact reviewed DDL and runs only `pg_catalog` queries **inside the same newly created networkless PostgreSQL 17.11 container** through `docker exec`. No database port is published. The actual Solaris Studio hosted database was independently checked read-only on 9 November 2026 and returned `server_version = 17.11`, `server_version_num = 170011`; a PostgreSQL 16 fixture is not a version-equivalent baseline.
 
 It checks the eight S14 baseline relations, the absence of five S13 private foundation tables and seven foundation RPC signatures at the observed hosted head, **ten** named object states, **four** notification-delivery direct-grant bits, and notification-delivery RLS. The two hosted-only direct-write guards must be **enabled** and bound to the canonical `private.studio2_guard_direct_client_write()` function; name-only parity is not sufficient. That is **35 explicit predicates**. Unknown catalog objects, extra/missing manifest identities, stale frontier, missing sanitizer attestation, mismatched schema SHA-256, non-local/inherited libpq/Supabase/Docker context aliases, Docker network or port publishing and a different PostgreSQL major all fail closed.
 
@@ -22,7 +22,7 @@ It checks the eight S14 baseline relations, the absence of five S13 private foun
 A separate System/Supabase owner review must produce a sanitized **schema-only** local reconstruction with documented provenance. It must preserve the two hosted-only write guards and reviewed ACL/RLS state, classify unknown dependencies rather than fabricating functions or migration-history rows, and contain no production rows, tokens, passwords, URLs, or other sensitive values. The S02 manifest must explicitly provide:
 
 - `formatVersion: 1`, `fixtureClass: "sanitized-hosted-frontier-s13-s14"`, `reconstruction: "operator-reviewed-hosted-schema"`, `cleanSourceReplay: false`, `schemaOnly: true`, `containsProductionRows: false`, `containsProductionSecrets: false`.
-- The exact `hostedHead`, `cutover`, `s01SourceSha`, `postgresMajor: 16`, `postgresImageId` (the exact `sha256:` Docker image ID of the reviewed local `postgres:16` image), `sanitizedSchemaSha256`, and independently reviewed `coverageReview` beginning `S13/S14 independently reviewed:`.
+- The exact `hostedHead`, `cutover`, `s01SourceSha`, `postgresMajor: 17`, `postgresImageId` (the exact `sha256:` Docker image ID of the reviewed local `postgres:17.11` image), `sanitizedSchemaSha256`, and independently reviewed `coverageReview` beginning `S13/S14 independently reviewed:`.
 - `reconstructionReviewedBy` (nonempty reviewer/owner identity), `reconstructionReviewedAt` (YYYY-MM-DD), and nonempty arrays `assumptions` and `limitations` documenting the reviewed input's reconstruction and what remains unproven. These declarations are included in the proof and **are not independently certified** by the checker.
 - Complete maps `relations` (8), `s13Tables` (5), `s13Functions` (7), `namedObjects` (10) and `privileges` (4), using the exact identities from S01 and the verifier's exported allowlists. Every value is a boolean. No missing identities.
 - `unknownRequiredObjects: []` **only** when the reviewer has genuinely resolved all required dependencies; do not silently set unknowns to absent.
@@ -31,7 +31,7 @@ The verifier cannot certify the reviewer's declaration. Signed evidence of sourc
 
 ## Local-only operator procedure (NOT executed by this candidate)
 
-On a host with a **local Docker Engine on `/var/run/docker.sock`** and a reviewed sanitized DDL file, first make the exact reviewed PostgreSQL 16 image available locally (for example, with an operator-approved `docker pull postgres:16`). Record its `sha256:` image ID in the manifest's `postgresImageId` and PostgreSQL minor version; an image-ID mismatch fails before startup. The verifier uses **`--pull=never`**: a missing image is a hard failure, not a reason to switch targets.
+On a host with a **local Docker Engine on `/var/run/docker.sock`** and a reviewed sanitized DDL file, first make the exact reviewed PostgreSQL 17.11 image available locally (for example, with an operator-approved `docker pull postgres:17.11`). Record its `sha256:` image ID in the manifest's `postgresImageId` and PostgreSQL minor version; an image-ID mismatch fails before startup. The verifier uses **`--pull=never`**: a missing image is a hard failure, not a reason to switch targets.
 
 The script starts its **own** disposable container with `--network=none`, without published TCP ports, source-directory mounts, production environment files or remote Docker contexts. It imports the reviewed DDL and checks that same process-owned cluster through the internal PostgreSQL Unix socket. It removes the container before writing positive evidence, and refuses a failed cleanup.
 
@@ -47,7 +47,7 @@ SOLARIS_S02_DISPOSABLE_CLUSTER=YES SOLARIS_S02_TARGET=local \
 
 Do not run this command with any live production environment variables, secrets or connection strings. Do not use a tunnel or remote Docker daemon: the verifier targets only the local Unix Docker socket and creates the database itself. It **never** fetches a schema or hosted SQL automatically.
 
-The schema SHA-256 in the manifest must match the provided DDL exactly; the imported SQL uses that same byte input. In addition to the 35 checked identities, the output records the image fingerprint, PG16 runtime version, documented reconstruction assumptions/limitations and successful container cleanup. An independently verified schema export/source reconstruction and **full** catalog/behavioral comparison remain separate prerequisites.
+The schema SHA-256 in the manifest must match the provided DDL exactly; the imported SQL uses that same byte input. In addition to the 35 checked identities, the output records the image fingerprint, PG17.11 runtime version, documented reconstruction assumptions/limitations and successful container cleanup. An independently verified schema export/source reconstruction and **full** catalog/behavioral comparison remain separate prerequisites.
 
 ### Focused negative checks
 
