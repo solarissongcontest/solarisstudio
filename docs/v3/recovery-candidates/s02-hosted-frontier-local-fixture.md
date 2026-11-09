@@ -22,7 +22,7 @@ It checks the eight S14 baseline relations, the absence of five S13 private foun
 A separate System/Supabase owner review must produce a sanitized **schema-only** local reconstruction with documented provenance. It must preserve the two hosted-only write guards and reviewed ACL/RLS state, classify unknown dependencies rather than fabricating functions or migration-history rows, and contain no production rows, tokens, passwords, URLs, or other sensitive values. The S02 manifest must explicitly provide:
 
 - `formatVersion: 1`, `fixtureClass: "sanitized-hosted-frontier-s13-s14"`, `reconstruction: "operator-reviewed-hosted-schema"`, `cleanSourceReplay: false`, `schemaOnly: true`, `containsProductionRows: false`, `containsProductionSecrets: false`.
-- The exact `hostedHead`, `cutover`, `s01SourceSha`, `postgresMajor: 16`, `sanitizedSchemaSha256`, and independently reviewed `coverageReview` beginning `S13/S14 independently reviewed:`.
+- The exact `hostedHead`, `cutover`, `s01SourceSha`, `postgresMajor: 16`, `postgresImageId` (the exact `sha256:` Docker image ID of the reviewed local `postgres:16` image), `sanitizedSchemaSha256`, and independently reviewed `coverageReview` beginning `S13/S14 independently reviewed:`.
 - `reconstructionReviewedBy` (nonempty reviewer/owner identity), `reconstructionReviewedAt` (YYYY-MM-DD), and nonempty arrays `assumptions` and `limitations` documenting the reviewed input's reconstruction and what remains unproven. These declarations are included in the proof and **are not independently certified** by the checker.
 - Complete maps `relations` (8), `s13Tables` (5), `s13Functions` (7), `namedObjects` (10) and `privileges` (4), using the exact identities from S01 and the verifier's exported allowlists. Every value is a boolean. No missing identities.
 - `unknownRequiredObjects: []` **only** when the reviewer has genuinely resolved all required dependencies; do not silently set unknowns to absent.
@@ -31,7 +31,7 @@ The verifier cannot certify the reviewer's declaration. Signed evidence of sourc
 
 ## Local-only operator procedure (NOT executed by this candidate)
 
-On a host with a **local Docker Engine on `/var/run/docker.sock`** and a reviewed sanitized DDL file, first make the exact reviewed PostgreSQL 16 image available locally (for example, with an operator-approved `docker pull postgres:16`). Record its `sha256:` image ID and PostgreSQL minor version. The verifier uses **`--pull=never`**: a missing image is a hard failure, not a reason to switch targets.
+On a host with a **local Docker Engine on `/var/run/docker.sock`** and a reviewed sanitized DDL file, first make the exact reviewed PostgreSQL 16 image available locally (for example, with an operator-approved `docker pull postgres:16`). Record its `sha256:` image ID in the manifest's `postgresImageId` and PostgreSQL minor version; an image-ID mismatch fails before startup. The verifier uses **`--pull=never`**: a missing image is a hard failure, not a reason to switch targets.
 
 The script starts its **own** disposable container with `--network=none`, without published TCP ports, source-directory mounts, production environment files or remote Docker contexts. It imports the reviewed DDL and checks that same process-owned cluster through the internal PostgreSQL Unix socket. It removes the container before writing positive evidence, and refuses a failed cleanup.
 
