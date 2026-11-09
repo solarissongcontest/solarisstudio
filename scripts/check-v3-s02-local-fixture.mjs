@@ -91,7 +91,8 @@ export function validateManifest(manifest, s01) {
       s01.frontier.postCutoverHistoryHoles !== 36 ||
       s01.frontier.sourcePendingAfterHead !== 33)
     throw Error('FAIL CLOSED: dated S01 migration frontier changed; refresh evidence');
-  if (!/^[a-f0-9]{64}$/.test(manifest.sanitizedSchemaSha256 || '') ||
+  if (!/^sha256:[a-f0-9]{64}$/.test(manifest.postgresImageId || '') ||
+      !/^[a-f0-9]{64}$/.test(manifest.sanitizedSchemaSha256 || '') ||
       !Array.isArray(manifest.unknownRequiredObjects) || manifest.unknownRequiredObjects.length ||
       manifest.postgresMajor !== 16)
     throw Error('FAIL CLOSED: missing schema fingerprint, PG16, or unknown required object');
@@ -213,8 +214,8 @@ export function main(args = process.argv.slice(2), env = process.env) {
       ...(opts.input === undefined ? {} : { input: opts.input }),
     }).trim();
   const imageId = docker(['image', 'inspect', '--format', '{{.Id}}', DOCKER_IMAGE]);
-  if (!/^sha256:[a-f0-9]{64}$/.test(imageId))
-    throw Error('FAIL CLOSED: local PostgreSQL 16 image identity not available');
+  if (!/^sha256:[a-f0-9]{64}$/.test(imageId) || imageId !== manifest.postgresImageId)
+    throw Error('FAIL CLOSED: reviewed, immutable PostgreSQL image identity mismatch');
   const name = 'solaris-s02-' + process.pid + '-' + randomBytes(6).toString('hex');
   let containerId;
   let checked;
