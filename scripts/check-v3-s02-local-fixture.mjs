@@ -6,7 +6,7 @@
  *
  * This is a prerequisite check, NOT hosted-equivalence certification.
  */
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -43,19 +43,27 @@ const S01_PATH = 'docs/v3/recovery-candidates/evidence/s01-hosted-source-delta-2
 export function assertLocalEnvironment(env) {
   if (env.SOLARIS_S02_DISPOSABLE_CLUSTER !== 'YES' || env.SOLARIS_S02_TARGET !== 'local')
     throw Error('FAIL CLOSED: explicit disposable LOCAL opt-in required');
-  const port = env.SOLARIS_S02_PGPORT;
-  if (!/^\d{4,5}$/.test(port || '') || Number(port) < 1024 || Number(port) > 65535)
-    throw Error('FAIL CLOSED: dedicated loopback PostgreSQL port required');
   for (const key of [
     'PGHOST','PGHOSTADDR','PGPORT','PGDATABASE','PGSERVICE','PGSERVICEFILE',
     'DATABASE_URL','POSTGRES_URL','SUPABASE_DB_URL','SUPABASE_URL',
     'VITE_SUPABASE_URL','E2E_SUPABASE_URL','VITE_CONFIRMATIONS_SUPABASE_URL',
     'CONFIRMATIONS_SUPABASE_URL','SUPABASE_ACCESS_TOKEN','SUPABASE_DB_PASSWORD',
-    'SUPABASE_SERVICE_ROLE_KEY','PGPASSWORD',
+    'SUPABASE_SERVICE_ROLE_KEY','PGPASSWORD','SOLARIS_S02_PGPORT',
+    'DOCKER_HOST','DOCKER_CONTEXT','DOCKER_TLS_VERIFY','DOCKER_CERT_PATH',
+    'DOCKER_CONFIG',
   ]) {
-    if (env[key]) throw Error('FAIL CLOSED: inherited DB URL/credential/connection alias ' + key);
+    if (env[key]) throw Error('FAIL CLOSED: inherited remote DB/Docker target or credential alias ' + key);
   }
-  return port;
+  return 'disposable-docker-network-none';
+}
+
+export function assertIsolatedContainer(hostConfig, actualImage, reviewedImage) {
+  if (!hostConfig || hostConfig.NetworkMode !== 'none' ||
+      (hostConfig.PortBindings && Object.keys(hostConfig.PortBindings).length !== 0) ||
+      !/^sha256:[a-f0-9]{64}$/.test(actualImage) ||
+      actualImage !== reviewedImage)
+    throw Error('FAIL CLOSED: Docker container must have no network or published ports and use the reviewed image');
+  return true;
 }
 
 function completeMap(map, names, field) {
@@ -165,11 +173,18 @@ export function verifyCatalog(manifest, query) {
   return { postgresVersion: pgVersion, verifiedCatalogCount: verified.length };
 }
 
+const DOCKER_SOCKET = 'unix:///var/run/docker.sock';
+const DOCKER_IMAGE = 'postgres:16';
+
+/**
+ * Only the process-owned, isolated container can be queried. There is no
+ * PostgreSQL port, DNS lookup, linked Supabase client or outbound network.
+ */
 export function main(args = process.argv.slice(2), env = process.env) {
   if (args.length !== 6 || args[0] !== '--manifest' ||
       args[2] !== '--schema' || args[4] !== '--proof')
     throw Error('Usage: node scripts/check-v3-s02-local-fixture.mjs --manifest manifest.json --schema reviewed-schema.sql --proof proof.json');
-  const port = assertLocalEnvironment(env);
+  assertLocalEnvironment(env);
   const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
   const s01 = JSON.parse(readFileSync(resolve(root, S01_PATH), 'utf8'));
   const manifest = JSON.parse(readFileSync(resolve(args[1]), 'utf8'));
@@ -177,31 +192,93 @@ export function main(args = process.argv.slice(2), env = process.env) {
   const schema = readFileSync(resolve(args[3]));
   if (createHash('sha256').update(schema).digest('hex') !== manifest.sanitizedSchemaSha256)
     throw Error('FAIL CLOSED: reviewed sanitized-schema input fingerprint mismatch');
-  // The schema must have been imported by the operator into a disposable PG16
-  // instance. This read-only gate intentionally does not execute arbitrary SQL.
-  const psqlEnv = {
-    PATH: env.PATH || '/usr/bin:/bin', HOME: env.HOME || '/tmp',
-    PGHOST: '127.0.0.1', PGHOSTADDR: '127.0.0.1', PGPORT: port,
-    PGDATABASE: 'postgres', PGUSER: 'postgres', PGSSLMODE: 'disable',
-    PGCONNECT_TIMEOUT: '3', PGPASSWORD: 'postgres',
-  };
-  const query = sql => execFileSync('psql', [
-    '-w','-X','-qAt','-v','ON_ERROR_STOP=1','-h','127.0.0.1',
-    '-p',port,'-U','postgres','-d','postgres','-c',sql,
-  ], { env: psqlEnv, timeout: 15000, encoding: 'utf8',
-    stdio: ['ignore','pipe','pipe'] }).trim();
-  const checked = verifyCatalog(manifest, query);
+
+  // Never inherit a Docker context/endpoint or any libpq connection identity.
+  // Require a locally available PostgreSQL image, do not pull silently.
+  const commandEnv = { PATH: env.PATH || '/usr/bin:/bin', HOME: env.HOME || '/tmp' };
+  const docker = (argv, opts = {}) => execFileSync('docker',
+    ['--host', DOCKER_SOCKET, ...argv], {
+      env: commandEnv, timeout: opts.timeout || 60000,
+      encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'],
+      ...(opts.input === undefined ? {} : { input: opts.input }),
+    }).trim();
+  const imageId = docker(['image', 'inspect', '--format', '{{.Id}}', DOCKER_IMAGE]);
+  if (!/^sha256:[a-f0-9]{64}$/.test(imageId))
+    throw Error('FAIL CLOSED: local PostgreSQL 16 image identity not available');
+  const name = 'solaris-s02-' + process.pid + '-' + randomBytes(6).toString('hex');
+  let containerId;
+  let checked;
+  let stopped = false;
+  try {
+    containerId = docker(['run', '-d', '--rm', '--pull=never', '--network=none',
+      '--name', name, '-e', 'POSTGRES_PASSWORD=solaris_s02_disposable_only',
+      DOCKER_IMAGE], { timeout: 120000 });
+    if (!/^[a-f0-9]{64}$/.test(containerId))
+      throw Error('FAIL CLOSED: isolated Docker container ID not returned');
+    const config = JSON.parse(docker(['inspect', '--format', '{{json .HostConfig}}', containerId]));
+    const activeImage = docker(['inspect', '--format', '{{.Image}}', containerId]);
+    assertIsolatedContainer(config, activeImage, imageId);
+
+    let ready = false;
+    for (let attempt = 0; attempt < 30; attempt++) {
+      try {
+        docker(['exec', containerId, 'pg_isready', '-h', '/var/run/postgresql', '-U', 'postgres'],
+          { timeout: 10000 });
+        ready = true;
+        break;
+      } catch {
+        // Only retry on the explicitly owned container; never look up another DB.
+        execFileSync('sleep', ['1'], { env: commandEnv, timeout: 2000 });
+      }
+    }
+    if (!ready) throw Error('FAIL CLOSED: disposable PostgreSQL never became ready');
+
+    // Exact reviewed DDL is imported into THIS isolated, empty container.
+    // No volumes, external network, database URLs or production data.
+    docker(['exec', '-i', containerId, 'psql', '-w', '-X', '-q',
+      '-v', 'ON_ERROR_STOP=1', '-U', 'postgres', '-d', 'postgres',
+      '--single-transaction', '-f', '-'],
+      { input: schema, timeout: 180000 });
+
+    const query = sql => docker(['exec', containerId, 'psql', '-w', '-X', '-qAt',
+      '-v', 'ON_ERROR_STOP=1', '-U', 'postgres', '-d', 'postgres', '-c', sql],
+    { timeout: 15000 });
+    checked = verifyCatalog(manifest, query);
+    // Recheck container isolation AFTER schema import. SQL itself cannot
+    // create a Docker network or published port on this isolated engine.
+    const afterConfig = JSON.parse(docker(['inspect', '--format',
+      '{{json .HostConfig}}', containerId]));
+    const afterImage = docker(['inspect', '--format', '{{.Image}}', containerId]);
+    assertIsolatedContainer(afterConfig, afterImage, imageId);
+  } finally {
+    if (containerId) {
+      try {
+        docker(['rm', '-f', containerId], { timeout: 30000 });
+        stopped = true;
+      } catch {
+        // No positive proof if the disposable database could not be destroyed.
+        throw Error('FAIL CLOSED: cleanup of the S02 disposable container failed');
+      }
+    }
+  }
+  if (!stopped || !checked)
+    throw Error('FAIL CLOSED: fixture startup/import/catalog/cleanup incomplete');
+
   const proof = {
     task: 'S02', status: 'SCOPED_CATALOG_PROOF_ONLY',
     sourceEvidenceSha: manifest.s01SourceSha, hostedHead: manifest.hostedHead,
     cutover: manifest.cutover, schemaSha256: manifest.sanitizedSchemaSha256,
-    environment: 'disposable-loopback-postgresql:' + port, ...checked,
+    environment: 'disposable-docker-network-none-unix-socket',
+    dockerImage: DOCKER_IMAGE, dockerImageId: imageId,
+    schemaImportedIntoVerifiedIsolatedContainer: true,
+    containerRemovedBeforeProof: stopped, ...checked,
     fullHostedEquivalenceCertified: false, productionDeploymentAuthorized: false,
     rowUpgradeProven: false,
-    limitation: 'Known S01/S13/S14 catalog subset only; requires separately verified sanitized hosted-head reconstruction and S14 upgrade rehearsal',
+    limitation: 'Known S01/S13/S14 catalog subset only; requires independently reviewed sanitized hosted-head source and full S14 upgrade rehearsal',
   };
   writeFileSync(resolve(args[5]), JSON.stringify(proof, null, 2) + '\n', { flag: 'wx' });
-  console.log('PASS: ' + checked.verifiedCatalogCount + ' explicit local catalog assertions (NOT full hosted equivalence)');
+  console.log('PASS: isolated schema import and ' + checked.verifiedCatalogCount +
+    ' catalog assertions (NOT full hosted equivalence)');
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
