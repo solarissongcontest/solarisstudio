@@ -38,7 +38,7 @@ describe("V3 S9/S10 non-deployable forward-only recovery candidate", () => {
     expect(s9).toContain("i.indrelid = to_regclass(v_index.table_name)");
     expect(s9).toContain("i.indnatts = i.indnkeyatts");
     expect(s9).toContain("am.amname = 'btree'");
-    expect(s9).toContain("array_agg(a.attname order by key_number)");
+    expect(s9).toContain("array_agg(a.attname::text order by key_number)");
     expect(s9).toContain("i.indoption[key_number]::integer");
     expect(s9).toContain("array[3,0]::integer[]");
     const canonicalIndexStatements = Array.from(
