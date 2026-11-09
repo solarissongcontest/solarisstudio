@@ -9,6 +9,7 @@ set local statement_timeout = '120s';
 do $s9_frontier_guard$
 declare
   v_target text;
+  v_index record;
 begin
   if to_regprocedure('public.studio2_access_allowed(text,uuid,boolean)') is null then
     raise exception 'S9 blocked: canonical system.read capability engine missing';
@@ -28,19 +29,44 @@ begin
   -- The index stage must have completed without invalid/reused identities.
   -- Stage concurrent indexes separately so this RPC install holds no ledger
   -- index build locks. Name presence ALONE is not sufficient.
-  foreach v_target in array array[
-    'public.studio2_operation_receipts_created_at_idx',
-    'private.v3_domain_events_occurred_at_idx',
-    'private.v3_domain_event_outbox_created_at_idx'
-  ] loop
-    if to_regclass(v_target) is null then
-      raise exception 'S9 blocked: required concurrent index not installed %',v_target;
+  for v_index in
+    select * from (values
+      ('public.studio2_operation_receipts_created_at_idx',
+       'public.studio2_operation_receipts', array['created_at DESC']::text[]),
+      ('private.v3_domain_events_occurred_at_idx',
+       'private.v3_domain_events', array['occurred_at DESC', 'id']::text[]),
+      ('private.v3_domain_event_outbox_created_at_idx',
+       'private.v3_domain_event_outbox',
+       array['created_at DESC', 'event_id', 'consumer_key']::text[])
+    ) as required_index(index_name, table_name, ordered_keys)
+  loop
+    if to_regclass(v_index.index_name) is null then
+      raise exception 'S9 blocked: required concurrent index not installed %',
+        v_index.index_name;
     end if;
+    -- A valid name alone is not the canonical index contract. Reject a
+    -- pre-existing index on the wrong table/columns or with changed ordering,
+    -- including a valid/ready index which would otherwise silently pass.
     if not exists (
-      select 1 from pg_index i
-      where i.indexrelid=to_regclass(v_target) AND i.indisvalid and i.indisready
+      select 1
+      from pg_index i
+      join pg_class c on c.oid = i.indexrelid
+      join pg_am am on am.oid = c.relam
+      where i.indexrelid = to_regclass(v_index.index_name)
+        and i.indrelid = to_regclass(v_index.table_name)
+        and i.indisvalid and i.indisready and not i.indisunique
+        and i.indnkeyatts = array_length(v_index.ordered_keys, 1)
+        and i.indnatts = i.indnkeyatts
+        and i.indpred is null and i.indexprs is null
+        and am.amname = 'btree'
+        and (
+          select array_agg(pg_get_indexdef(i.indexrelid, key_number, true)
+            order by key_number)
+          from generate_series(1, i.indnkeyatts) as keys(key_number)
+        ) = v_index.ordered_keys
     ) then
-      raise exception 'S9 blocked: invalid concurrent index %',v_target;
+      raise exception 'S9 blocked: incompatible concurrent index identity %',
+        v_index.index_name;
     end if;
   end loop;
   if not exists (
