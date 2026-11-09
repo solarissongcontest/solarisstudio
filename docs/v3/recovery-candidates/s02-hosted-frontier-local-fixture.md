@@ -22,6 +22,19 @@
 
 No database query, migration, network access, secret or production rows are introduced in CI. The positive evidence **never** authorizes deployment or production migration.
 
+## Latest S02 Televote and full-frontier metadata (9 November 2026)
+
+The S02 follow-up PR adds a **separate networkless PG17.11 Televote rehearsal** using pinned S14 donor `01865d823c22897fad84629d984506603885850e`. Fresh **read-only hosted** evidence confirms that `private.v3_televote_result_projection_sources`, `private.v3_guard_source_managed_televote_projection()` and the corresponding `public.televote_votes` trigger were absent, while `public.televote_votes`, `televoting.rounds`, and the existing private service-role helper were present. `.github/workflows/v3-s02-televote-hosted-local.yml` checks the previously verified **56-table** schema and ACL before installing the donor guard/source-truth locally, and rejects a second guard install. The first isolated pass is [Actions #42648489650](https://github.com/solarissongcontest/solarisstudio/actions/runs/42648489650).
+
+The complete **production metadata inventory** (no rows, tokens, URLs, or function bodies copied) is now independently observed and fingerprinted:
+
+- **215** tables in `auth`, `private`, `public`, `televoting`, with **2,364** columns, **1,206** constraints, **669** indexes, **289** noninternal triggers and **255** RLS policies. Per-table SHA-256 fingerprints cover definitions and direct grant bits.
+- **727** hosted functions with per-function source SHA-256 fingerprints, security-definer flags and three role-`EXECUTE` privilege bits. Function bodies are **not** exported or imported into the test fixture en masse.
+- The existing Archive fixture reproduces **56/215 tables**, leaving **159 tables** unmodelled (26 auth, 9 private, 112 public, 12 televoting). Several functions are installed/rehearsed for specific Archive and Televote paths, but **complete runtime equivalence of the 727-function surface is not proven**.
+- `scripts/check-v3-s02-frontier-coverage.mjs` verifies the exact dated head/version and object inventory, refuses unknown/missing names and SHA-256 values, reports the 159-table gap, and **always refuses fullHostedEquivalenceCertified**. Its matching negative tests prevent later engineers from confusing an inventory with a complete local reproduction.
+
+**S02 verdict:** The observed S13/Archive/Televote **scoped** local fixture is usable for those explicitly tested recovery candidates. The stronger claim “entire actual hosted migration-frontier equivalent, across all official writer/reader paths” **cannot be made yet**. Remaining work includes the 159 missing table definitions, complete function/routine dependency and role-runtime closure, remaining S14 Televote/Results and data-dependent regression tests, and explicit independent release certification. No CI job is allowed to connect to hosted Supabase, and the full release remains NO-GO until its separate gates pass.
+
 ## Bounded gate added by this candidate
 
 `scripts/check-v3-s02-local-fixture.mjs` reads the committed S01 operator evidence, plus an independently reviewed local-only **schema-only** source file and an operator-created fixture manifest. It checks that every required catalog entry in its limited scope is explicitly true or false, then imports the exact reviewed DDL and runs only `pg_catalog` queries **inside the same newly created networkless PostgreSQL 17.11 container** through `docker exec`. No database port is published. The actual Solaris Studio hosted database was independently checked read-only on 9 November 2026 and returned `server_version = 17.11`, `server_version_num = 170011`; a PostgreSQL 16 fixture is not a version-equivalent baseline.
