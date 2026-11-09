@@ -30,6 +30,10 @@ function fixture() {
     sanitizedSchemaSha256: 'a'.repeat(64),
     unknownRequiredObjects: [],
     coverageReview: 'S13/S14 independently reviewed: test-only scoped evidence',
+    reconstructionReviewedBy: 'S02 offline unit-test fixture (not an actual hosted reviewer)',
+    reconstructionReviewedAt: '2026-11-09',
+    assumptions: ['Offline unit-test manifest is synthetic and cannot verify hosted equivalence'],
+    limitations: ['This only validates the local proof contract; no real database is connected'],
     relations: Object.fromEntries(RELATIONS.map(x => [x, true])),
     s13Tables: Object.fromEntries(MISSING_S13_TABLES.map(x => [x, false])),
     s13Functions: Object.fromEntries(MISSING_S13_FUNCTIONS.map(x => [x, false])),
@@ -61,6 +65,10 @@ describe('S02 local hosted-frontier proof (offline negative checks)', () => {
       m => { m.namedObjects[named[0].id] = false; },
       m => { m.privileges[acl[0].id] = false; },
       m => { m.coverageReview = 'unchecked'; },
+      m => { m.reconstructionReviewedBy = ''; },
+      m => { m.reconstructionReviewedAt = 'not-a-date'; },
+      m => { m.assumptions = []; },
+      m => { m.limitations = ['x']; },
     ];
     for (const change of changes) {
       const manifest = fixture(); change(manifest);
