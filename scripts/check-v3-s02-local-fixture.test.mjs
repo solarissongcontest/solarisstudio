@@ -37,7 +37,6 @@ function fixture() {
     privileges: Object.fromEntries(acl.map(x => [x.id, x.current_evidence_classification === 'present'])),
   };
 }
-const copy = value => structuredClone(value);
 
 describe('S02 local hosted-frontier proof (offline negative checks)', () => {
   it('requires exact S01 frontier, all scoped identities, no unknown objects', () => {
