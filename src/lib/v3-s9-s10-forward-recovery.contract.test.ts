@@ -38,7 +38,9 @@ describe("V3 S9/S10 non-deployable forward-only recovery candidate", () => {
     expect(s9).toContain("i.indrelid = to_regclass(v_index.table_name)");
     expect(s9).toContain("i.indnatts = i.indnkeyatts");
     expect(s9).toContain("am.amname = 'btree'");
-    expect(s9).toContain("array_agg(pg_get_indexdef(i.indexrelid, key_number, true)");
+    expect(s9).toContain("array_agg(a.attname order by key_number)");
+    expect(s9).toContain("i.indoption[key_number]::integer");
+    expect(s9).toContain("array[3,0]::integer[]");
     const canonicalIndexStatements = Array.from(
       baseS9.matchAll(/create index if not exists\s+[\s\S]*?;/gi),
       ([statement]) => statement.replace(/^create index if not exists/i, "create index concurrently"),
@@ -88,7 +90,8 @@ describe("V3 S9/S10 non-deployable forward-only recovery candidate", () => {
     expect(harness).toContain('create index v3_domain_events_occurred_at_idx on private.v3_domain_events (id)');
     expect(harness).toContain('expect_reject "$s9" "S9 blocked: incompatible concurrent index identity"');
     expect(harness).toContain("S9 mutated catalog despite wrong-shaped index rejection");
-    expect(harness).toContain("pg_get_indexdef(i.indexrelid,1,true)");
+    expect(harness).toContain("i.indoption[key_number]::integer");
+    expect(harness).toContain("i.indkey[key_number]");
     expect(harness).toContain("i.indisvalid and i.indisready");
     expect(harness).toContain("before_replay=\"$(fingerprint)\"");
     expect(harness).toContain("after_replay=\"$(fingerprint)\"");
