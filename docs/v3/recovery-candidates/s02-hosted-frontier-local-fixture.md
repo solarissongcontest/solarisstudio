@@ -1,6 +1,6 @@
 # S02: isolated hosted-frontier fixture preflight (candidate, not certification)
 
-**Task:** S02 only. **Status:** PARTIAL / BLOCKED awaiting an approved, sanitized hosted-head schema reconstruction and disposable-database execution. This document is **not** permission to deploy, run hosted SQL, change migration history, or lift production maintenance.
+**Task:** S02 only. **Status:** SCOPED LOCAL RECONSTRUCTION VERIFIED, **FULL HOSTED-HEAD EQUIVALENCE NOT CERTIFIED**. The PG17.11 networkless fixture has been run against the dated hosted-observed S14 catalog and forward-only S13/Archive S14 candidates, but does not represent the entire production schema. This document is **not** permission to deploy, run hosted SQL, change migration history, or lift production maintenance.
 
 ## Evidence and inherited constraints
 
@@ -8,6 +8,18 @@
 - Existing draft [#2390](https://github.com/solarissongcontest/solarisstudio/pull/2390) and [#2391](https://github.com/solarissongcontest/solarisstudio/pull/2391) exercise the original S13 foundation on **synthetic fresh PostgreSQL**. Their tests are useful, but they are not proof of a hosted-head upgrade.
 - Existing draft [#2405](https://github.com/solarissongcontest/solarisstudio/pull/2405) independently compared eight hosted S14 relations against clean-source local. The verified comparison found **30 non-parity metadata leaves**, notably two hosted-only direct-write guards, five source-only triggers, three source-only indexes and four table-grant differences with RLS enabled. Those safeguards cannot be deleted simply to make a local comparison green. The donor PR remains separate; do not duplicate its full catalog comparator.
 - The S01 snapshot has **selected metadata**, not a complete sanitized schema-only export. **A fully reproducible hosted-head-equivalent fixture cannot be asserted from that evidence alone.**
+
+## Verified local S02 Archive coverage (9 November 2026)
+
+**Actual hosted metadata, not clean-source replay.** Read-only catalog observations produced reviewed schema-only snapshots for **56** S14 Archive-related relations: 45 preflight relations, 2 additional dependencies and 9 external FK/RLS parent relations. The 9 parent schemas are now reconstructed from actual hosted PostgreSQL 17.11 metadata rather than synthetic key-only stand-ins. The original S01 **36 missing hosted history entries and 33 post-head source files** remain observational facts, not reconstructed migration rows.
+
+- **Catalog parity:** all 56 locally imported relations must match the 9 November hosted snapshots field by field, including **858 columns, 381 constraints, 220 indexes, 186 triggers and 137 RLS policies**. This is enforced by `scripts/verify-v3-s02-s14-archive-catalog.mjs` and a separate independent nine-parent comparator. Missing and extra relations or security metadata mismatches fail closed.
+- **Disposable replay:** the committed `.github/workflows/v3-s02-isolated-hosted-catalog.yml` starts PostgreSQL **17.11** via a reviewed image SHA-256, with `--network none`, no published ports, no hosted endpoints or production rows. It executes the pinned S13 donor `44f6808d4186e51352d3b746e269e75066aa93b9`, then the pinned **S14 Archive** forward-only SQL against locally reconstructed hosted-observed S14 state.
+- **Negative cases:** S13 duplicate application and Archive duplicate application are expected to reject; the latter is checked for absence of partial catalog changes. The Archive gate table must deny INSERT to `anon`, `authenticated` and `service_role`.
+- **Initial successful exact-SHA S14 rehearsal:** [Actions run #42640938255](https://github.com/solarissongcontest/solarisstudio/actions/runs/42640938255) verified the original 47-table Archive slice. The newer **56-table parity** run is [#42643236484](https://github.com/solarissongcontest/solarisstudio/actions/runs/42643236484). Later PR-head runs supersede these exact-SHA results.
+- **Important scope limit:** the actual hosted database has **215 tables across `auth`, `public`, `private`, `televoting`** (read-only 9 November inventory). These 56 catalog-observed S14 relations and their function dependencies cannot alone certify **all** hosted state, non-Archive S14 domains, live role behavior, or real data-dependent upgrade correctness. No source-clean replay was substituted.
+
+No database query, migration, network access, secret or production rows are introduced in CI. The positive evidence **never** authorizes deployment or production migration.
 
 ## Bounded gate added by this candidate
 
@@ -29,7 +41,7 @@ A separate System/Supabase owner review must produce a sanitized **schema-only**
 
 The verifier cannot certify the reviewer's declaration. Signed evidence of source reconstruction, any required SQL function/trigger body parity, schema import, and S14 upgrade behavior remains a separate S02 completion gate.
 
-## Local-only operator procedure (NOT executed by this candidate)
+## Optional local reproduction (the bounded and expanded checks were executed in GitHub Actions)
 
 On a host with a **local Docker Engine on `/var/run/docker.sock`** and a reviewed sanitized DDL file, first make the exact reviewed PostgreSQL 17.11 image available locally (for example, with an operator-approved `docker pull postgres:17.11`). Record its `sha256:` image ID in the manifest's `postgresImageId` and PostgreSQL minor version; an image-ID mismatch fails before startup. The verifier uses **`--pull=never`**: a missing image is a hard failure, not a reason to switch targets.
 
@@ -59,7 +71,7 @@ node --check scripts/check-v3-s02-local-fixture.test.mjs
 
 The offline tests exercise manifest identity completeness, known S01 effect mismatches, absent S13 objects, hosted endpoint aliases, PG version drift, and an unknown catalog predicate. They do **not** prove fixture startup or hosted-data compatibility.
 
-## Remains blocked until
+## Still required for full hosted-head certification
 
 1. A schema-only, versioned, sanitized local hosted-head reconstruction is supplied and System-owner reviewed. No source-clean equivalence substitution.
 2. A **successful networkless disposable PostgreSQL/Supabase-compatible startup and import** with this exact DDL/manifest, followed by 35 predicates, full PR #2405 eight-table shape comparison and an expanded required-object inventory. Unknown required objects must fail.
