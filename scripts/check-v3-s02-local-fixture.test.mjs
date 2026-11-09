@@ -132,6 +132,10 @@ describe('S02 local hosted-frontier proof (offline negative checks)', () => {
     const guard = queries.find(([, , id]) => id === 'public.admin_notifications/studio2_platform_direct_write_guard');
     expect(guard).toBeDefined();
     expect(guard[1]).toBe(true);
+    expect(guard[0]).toContain("t.tgenabled in ('O','A')");
+    expect(guard[0]).toContain("t.tgfoid=to_regprocedure('private.studio2_guard_direct_client_write()')");
+    expect(queries.find(([, , id]) => id === 'public.notification_deliveries/studio2_platform_direct_write_guard')[0])
+      .toContain("t.tgfoid=to_regprocedure('private.studio2_guard_direct_client_write()')");
     expect(() => verifyCatalog(manifest, sql =>
       sql === guard[0] ? 'f' : sql === 'show server_version_num' ? '160011' : good.get(sql)))
       .toThrow(/FAIL CLOSED.*admin_notifications/);
