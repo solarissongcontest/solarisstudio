@@ -77,6 +77,14 @@ describe("V3 S9/S10 non-deployable forward-only recovery candidate", () => {
     expect(harness).toContain("S10 canonical S13 registration record missing");
     expect(harness).toContain('run -f "$index_stage"');
     expect(harness).toContain('expect_reject "$index_stage"');
+    expect(harness).toContain("S9 index stage blocked: existing index/object");
+    expect(harness).toContain("Partial-index preflight mutated other ledgers");
+    expect(harness).toContain("S9 concurrent index catalog contract FAILED");
+    expect(harness).toContain("pg_get_indexdef(i.indexrelid,1,true)");
+    expect(harness).toContain("i.indisvalid and i.indisready");
+    expect(harness).toContain("before_replay=\"$(fingerprint)\"");
+    expect(harness).toContain("after_replay=\"$(fingerprint)\"");
+    expect(harness).toContain("S9/S10 failed-closed rerun changed catalog or registry");
     expect(harness).not.toContain("dkxmnvekiopyesuzggeu");
   });
 });
