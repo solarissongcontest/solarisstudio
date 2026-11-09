@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
   RELATIONS, MISSING_S13_TABLES, MISSING_S13_FUNCTIONS,
-  assertLocalEnvironment, validateManifest, catalogQueries, verifyCatalog,
+  assertLocalEnvironment, assertIsolatedContainer, validateManifest, catalogQueries, verifyCatalog,
 } from './check-v3-s02-local-fixture.mjs';
 
 const s01 = JSON.parse(readFileSync(
@@ -85,19 +85,36 @@ describe('S02 local hosted-frontier proof (offline negative checks)', () => {
     }
   });
 
-  it('refuses hosted env aliases, implicit targets and non-loopback connection settings', () => {
-    const safe = { SOLARIS_S02_DISPOSABLE_CLUSTER: 'YES',
-      SOLARIS_S02_TARGET: 'local', SOLARIS_S02_PGPORT: '54399' };
-    expect(assertLocalEnvironment(safe)).toBe('54399');
+  it('refuses remote Docker contexts, any DB alias or implicit disposable target', () => {
+    const safe = { SOLARIS_S02_DISPOSABLE_CLUSTER: 'YES', SOLARIS_S02_TARGET: 'local' };
+    expect(assertLocalEnvironment(safe)).toBe('disposable-docker-network-none');
     for (const alias of ['SUPABASE_URL','VITE_SUPABASE_URL','E2E_SUPABASE_URL',
       'DATABASE_URL','POSTGRES_URL','SUPABASE_DB_URL','PGHOST','PGHOSTADDR',
-      'PGPORT','PGSERVICE','SUPABASE_ACCESS_TOKEN','SUPABASE_SERVICE_ROLE_KEY','PGPASSWORD']) {
+      'PGPORT','PGSERVICE','SUPABASE_ACCESS_TOKEN','SUPABASE_SERVICE_ROLE_KEY',
+      'PGPASSWORD','SOLARIS_S02_PGPORT','DOCKER_HOST','DOCKER_CONTEXT',
+      'DOCKER_TLS_VERIFY','DOCKER_CERT_PATH','DOCKER_CONFIG']) {
       expect(() => assertLocalEnvironment({ ...safe, [alias]: 'https://host.invalid' }))
         .toThrow(/FAIL CLOSED/);
     }
     expect(() => assertLocalEnvironment({ ...safe, SOLARIS_S02_TARGET: 'hosted' })).toThrow();
-    expect(() => assertLocalEnvironment({ ...safe, SOLARIS_S02_PGPORT: '54399;evil' })).toThrow();
     expect(() => assertLocalEnvironment({ ...safe, SOLARIS_S02_DISPOSABLE_CLUSTER: 'NO' })).toThrow();
+  });
+
+  it('requires verified networkless Docker and the exact local PostgreSQL image', () => {
+    const digest = 'sha256:' + 'a'.repeat(64);
+    expect(assertIsolatedContainer({ NetworkMode: 'none', PortBindings: {} }, digest, digest))
+      .toBe(true);
+    for (const host of [
+      { NetworkMode: 'bridge', PortBindings: {} },
+      { NetworkMode: 'host', PortBindings: {} },
+      { NetworkMode: 'none', PortBindings: { '5432/tcp': [{ HostIp: '0.0.0.0', HostPort: '54322' }] } },
+    ]) {
+      expect(() => assertIsolatedContainer(host, digest, digest)).toThrow(/FAIL CLOSED/);
+    }
+    expect(() => assertIsolatedContainer({ NetworkMode: 'none', PortBindings: {} },
+      'sha256:' + 'b'.repeat(64), digest)).toThrow(/FAIL CLOSED/);
+    expect(() => assertIsolatedContainer({ NetworkMode: 'none', PortBindings: {} },
+      'unknown', digest)).toThrow(/FAIL CLOSED/);
   });
 
   it('rejects live catalog drift, absent hosted guard, and wrong PostgreSQL major', () => {
