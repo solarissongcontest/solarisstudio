@@ -23,6 +23,7 @@ A separate System/Supabase owner review must produce a sanitized **schema-only**
 
 - `formatVersion: 1`, `fixtureClass: "sanitized-hosted-frontier-s13-s14"`, `reconstruction: "operator-reviewed-hosted-schema"`, `cleanSourceReplay: false`, `schemaOnly: true`, `containsProductionRows: false`, `containsProductionSecrets: false`.
 - The exact `hostedHead`, `cutover`, `s01SourceSha`, `postgresMajor: 16`, `sanitizedSchemaSha256`, and independently reviewed `coverageReview` beginning `S13/S14 independently reviewed:`.
+- `reconstructionReviewedBy` (nonempty reviewer/owner identity), `reconstructionReviewedAt` (YYYY-MM-DD), and nonempty arrays `assumptions` and `limitations` documenting the reviewed input's reconstruction and what remains unproven. These declarations are included in the proof and **are not independently certified** by the checker.
 - Complete maps `relations` (8), `s13Tables` (5), `s13Functions` (7), `namedObjects` (10) and `privileges` (4), using the exact identities from S01 and the verifier's exported allowlists. Every value is a boolean. No missing identities.
 - `unknownRequiredObjects: []` **only** when the reviewer has genuinely resolved all required dependencies; do not silently set unknowns to absent.
 
@@ -46,7 +47,7 @@ SOLARIS_S02_DISPOSABLE_CLUSTER=YES SOLARIS_S02_TARGET=local \
 
 Do not run this command with any live production environment variables, secrets or connection strings. Do not use a tunnel or remote Docker daemon: the verifier targets only the local Unix Docker socket and creates the database itself. It **never** fetches a schema or hosted SQL automatically.
 
-The schema SHA-256 in the manifest must match the provided DDL exactly; the imported SQL uses that same byte input. In addition to the 35 checked identities, the output records the image fingerprint, PG16 runtime version and successful container cleanup. An independently verified schema export/source reconstruction and **full** catalog/behavioral comparison remain separate prerequisites.
+The schema SHA-256 in the manifest must match the provided DDL exactly; the imported SQL uses that same byte input. In addition to the 35 checked identities, the output records the image fingerprint, PG16 runtime version, documented reconstruction assumptions/limitations and successful container cleanup. An independently verified schema export/source reconstruction and **full** catalog/behavioral comparison remain separate prerequisites.
 
 ### Focused negative checks
 
