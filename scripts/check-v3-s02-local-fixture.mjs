@@ -94,8 +94,8 @@ export function validateManifest(manifest, s01) {
   if (!/^sha256:[a-f0-9]{64}$/.test(manifest.postgresImageId || '') ||
       !/^[a-f0-9]{64}$/.test(manifest.sanitizedSchemaSha256 || '') ||
       !Array.isArray(manifest.unknownRequiredObjects) || manifest.unknownRequiredObjects.length ||
-      manifest.postgresMajor !== 16)
-    throw Error('FAIL CLOSED: missing schema fingerprint, PG16, or unknown required object');
+      manifest.postgresMajor !== 17)
+    throw Error('FAIL CLOSED: missing schema fingerprint, PG17, or unknown required object');
   if (typeof manifest.coverageReview !== 'string' ||
       !manifest.coverageReview.startsWith('S13/S14 independently reviewed:') ||
       typeof manifest.reconstructionReviewedBy !== 'string' ||
@@ -179,13 +179,13 @@ export function verifyCatalog(manifest, query) {
     verified.push(id);
   }
   const pgVersion = query('show server_version_num');
-  if (!/^16\d{4}$/.test(pgVersion))
-    throw Error('FAIL CLOSED: fixture must use PostgreSQL 16');
+  if (pgVersion !== '170011')
+    throw Error('FAIL CLOSED: fixture must use hosted PostgreSQL 17.11 (170011)');
   return { postgresVersion: pgVersion, verifiedCatalogCount: verified.length };
 }
 
 const DOCKER_SOCKET = 'unix:///var/run/docker.sock';
-const DOCKER_IMAGE = 'postgres:16';
+const DOCKER_IMAGE = 'postgres:17.11';
 
 /**
  * Only the process-owned, isolated container can be queried. There is no
