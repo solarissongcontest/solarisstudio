@@ -1,0 +1,103 @@
+name: V3 S02 isolated hosted-observed catalog fixture (PG17)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/check-v3-s02-local-fixture.mjs"
+      - "scripts/check-v3-s02-local-fixture.test.mjs"
+      - "scripts/v3-s02-hosted-catalog-local.sql"
+      - "scripts/verify-v3-s02-s14-catalog.mjs"
+      - "scripts/verify-v3-s02-s14-catalog.test.mjs"
+      - "docs/v3/recovery-candidates/evidence/s02-*"
+      - "docs/v3/recovery-candidates/s02-hosted-frontier-local-fixture.md"
+      - ".github/workflows/v3-s02-isolated-hosted-catalog.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s02-catalog-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  bounded-catalog-fixture:
+    name: S02 offline hosted-observed subset on disposable PG17.11
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      EXACT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      SOLARIS_S02_TARGET: local
+      SOLARIS_S02_DISPOSABLE_CLUSTER: YES
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Reject stale SHA and all remote database endpoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$EXACT_SHA" ]] || exit 1
+          for key in SUPABASE_URL VITE_SUPABASE_URL E2E_SUPABASE_URL CONFIRMATIONS_SUPABASE_URL VITE_CONFIRMATIONS_SUPABASE_URL DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_SERVICE_ROLE_KEY PGHOST PGHOSTADDR PGPORT PGSERVICE PGSERVICEFILE DOCKER_HOST DOCKER_CONTEXT; do
+            if [[ -n "$(printenv "$key" || true)" ]]; then echo "::error::Refusing inherited DB/Docker endpoint $key"; exit 1; fi
+          done
+          [[ -f docs/v3/recovery-candidates/evidence/s02-hosted-s14-catalog-scoped-fixture.sql ]] || exit 1
+
+      - name: Setup pinned Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Obtain disposable PostgreSQL 17.11 from public registry only
+        run: |
+          set -euo pipefail
+          docker pull postgres:17.11
+          docker image inspect --format '{{.Id}}' postgres:17.11 | tee /tmp/v3-s02-image-id.txt
+          grep -Eq '^sha256:[0-9a-f]{64}$' /tmp/v3-s02-image-id.txt
+
+      - name: Import and strictly inspect disposable isolated schema-only fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="solaris-s02-catalog-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          cid=""
+          cleanup() {
+            status=$?
+            if [[ -n "$cid" ]]; then
+              docker rm -f "$cid" >/dev/null || status=1
+            fi
+            exit "$status"
+          }
+          trap cleanup EXIT
+          cid="$(docker run -d --rm --pull=never --network none --name "$name" -e POSTGRES_PASSWORD=s02_disposable postgres:17.11)"
+          [[ "$cid" =~ ^[a-f0-9]{64}$ ]] || exit 1
+          [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
+          [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
+          [[ "$(docker inspect --format '{{.Image}}' "$cid")" == "$(cat /tmp/v3-s02-image-id.txt)" ]] || exit 1
+          ready=false
+          for n in $(seq 1 45); do
+            if docker exec "$cid" pg_isready -h /var/run/postgresql -U postgres >/dev/null; then ready=true; break; fi
+            sleep 1
+          done
+          [[ "$ready" == true ]] || { echo "::error::Disposable PostgreSQL startup failed"; exit 1; }
+          docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-catalog-scoped-fixture.sql
+          docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < scripts/v3-s02-hosted-catalog-local.sql > /tmp/v3-s02-local-catalog.json
+          [[ "$(docker exec "$cid" psql -w -X -qAt -U postgres -d postgres -c 'show server_version_num')" == 170011 ]] || exit 1
+          node scripts/verify-v3-s02-s14-catalog.mjs /tmp/v3-s02-local-catalog.json s02-scoped-catalog-proof.json
+          [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
+          [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
+          docker rm -f "$cid" >/dev/null
+          cid=""
+          echo "PASS: schema-only scoped S14 catalog; no network; no production rows/secrets."
+
+      - name: Upload scoped local proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s02-scoped-local-pg17-${{ github.event.pull_request.head.sha || github.sha }}
+          path: s02-scoped-catalog-proof.json
+          if-no-files-found: ignore
+          retention-days: 14
