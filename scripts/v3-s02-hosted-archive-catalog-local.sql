@@ -2,11 +2,15 @@
 -- owner-approved read-only snapshot of eight S14 relations on 2026-11-09.
 -- NEVER execute this file against hosted Supabase from CI/Playwright.
 WITH targets(s,t) AS (
-  VALUES ('private','v3_domain_event_consumer_receipts'),
+  VALUES ('auth','users'),
+    ('private','v3_domain_event_consumer_receipts'),
     ('private','v3_domain_event_outbox'),
     ('private','v3_domain_events'),
     ('private','v3_result_versions'),
     ('public','admin_notifications'),
+    ('public','contest_entities'),
+    ('public','countries'),
+    ('public','country_accounts'),
     ('public','editions'),
     ('public','entries'),
     ('public','internal_entries'),
@@ -22,6 +26,7 @@ WITH targets(s,t) AS (
     ('public','participants'),
     ('public','results'),
     ('public','shows'),
+    ('public','studio2_capabilities'),
     ('public','studio2_confirmation_requirements'),
     ('public','studio2_contest_events'),
     ('public','studio2_edition_runtime'),
@@ -37,9 +42,12 @@ WITH targets(s,t) AS (
     ('public','submissions'),
     ('public','televote_votes'),
     ('public','televoting_round_bindings'),
+    ('public','themes'),
     ('public','voters'),
     ('televoting','combined_televote_component_results'),
     ('televoting','combined_televote_results'),
+    ('televoting','countries'),
+    ('televoting','editions'),
     ('televoting','round_countries'),
     ('televoting','round_entries'),
     ('televoting','round_results'),
@@ -48,6 +56,7 @@ WITH targets(s,t) AS (
     ('televoting','televote_aggregation_sources'),
     ('televoting','televote_aggregations'),
     ('televoting','vote_entries'),
+    ('televoting','vote_preflight_checks'),
     ('televoting','vote_submissions')
 ), objects AS (
  SELECT jsonb_build_object(
