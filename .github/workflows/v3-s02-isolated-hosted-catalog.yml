@@ -198,15 +198,15 @@ jobs:
             if docker exec "$cid" pg_isready -h /var/run/postgresql -U postgres >/dev/null; then break; fi
             sleep 1
           done
-          docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-archive-45-table-dependency-fixture.sql
+          docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-archive-54-table-schema-fixture.sql
           docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-archive-extra-2-dependencies-local.sql
           docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < scripts/v3-s02-hosted-archive-catalog-local.sql > /tmp/v3-s02-expanded-archive-local-catalog.json
           node scripts/verify-v3-s02-s14-archive-catalog.mjs /tmp/v3-s02-expanded-archive-local-catalog.json s02-expanded-archive-catalog-proof.json
           n="$(docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -c "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private','televoting') and c.relkind='r';")"
-          [[ "$n" -ge 45 ]] || { echo "::error::Incomplete expanded fixture relation catalog"; exit 1; }
+          [[ "$n" -ge 54 ]] || { echo "::error::Incomplete expanded fixture relation catalog"; exit 1; }
           docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s13-prerequisite-local.sql
           docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < s02-s13-s14-donor/docs/v3/recovery-candidates/forward-only-s13-foundation.sql
-          echo "PASS: 45-table hosted-observed dependency fixture and S13 forward candidate imported"
+          echo "PASS: 54-table hosted-observed dependency fixture and S13 forward candidate imported"
           # Full Archive SQL MUST succeed to certify this job; unknown objects fail closed.
           docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < s02-s13-s14-donor/docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql
           echo "PASS: real S14 Archive forward-only SQL applied to local hosted-scoped baseline"
