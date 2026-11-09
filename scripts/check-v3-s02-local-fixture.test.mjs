@@ -27,6 +27,7 @@ function fixture() {
     cutover: '20261014020000',
     s01SourceSha: s01.sourceMainSha,
     postgresMajor: 16,
+    postgresImageId: 'sha256:' + 'a'.repeat(64),
     sanitizedSchemaSha256: 'a'.repeat(64),
     unknownRequiredObjects: [],
     coverageReview: 'S13/S14 independently reviewed: test-only scoped evidence',
@@ -85,6 +86,7 @@ describe('S02 local hosted-frontier proof (offline negative checks)', () => {
       m => { m.s01SourceSha = 'stale'; },
       m => { m.hostedHead = '20261109000000'; },
       m => { m.postgresMajor = 17; },
+      m => { m.postgresImageId = 'latest'; },
       m => { m.sanitizedSchemaSha256 = 'missing'; },
     ];
     for (const change of changes) {
