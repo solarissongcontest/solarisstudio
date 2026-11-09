@@ -26,7 +26,7 @@ function fixture() {
     hostedHead: '20261101181812',
     cutover: '20261014020000',
     s01SourceSha: s01.sourceMainSha,
-    postgresMajor: 16,
+    postgresMajor: 17,
     postgresImageId: 'sha256:' + 'a'.repeat(64),
     sanitizedSchemaSha256: 'a'.repeat(64),
     unknownRequiredObjects: [],
@@ -52,8 +52,8 @@ describe('S02 local hosted-frontier proof (offline negative checks)', () => {
     expect(queries).toHaveLength(35); // 8 relations + 5 absent S13 tables + 7 absent RPC + 10 named + 4 grants + RLS
     const expected = new Map(queries.map(([query, state]) => [query, state ? 't' : 'f']));
     const proof = verifyCatalog(manifest, sql =>
-      sql === 'show server_version_num' ? '160011' : expected.get(sql));
-    expect(proof).toEqual({ postgresVersion: '160011', verifiedCatalogCount: 35 });
+      sql === 'show server_version_num' ? '170011' : expected.get(sql));
+    expect(proof).toEqual({ postgresVersion: '170011', verifiedCatalogCount: 35 });
   });
 
   it('rejects unknown required objects and all missing/extra expected identities', () => {
@@ -85,7 +85,7 @@ describe('S02 local hosted-frontier proof (offline negative checks)', () => {
       m => { m.containsProductionSecrets = true; },
       m => { m.s01SourceSha = 'stale'; },
       m => { m.hostedHead = '20261109000000'; },
-      m => { m.postgresMajor = 17; },
+      m => { m.postgresMajor = 16; },
       m => { m.postgresImageId = 'latest'; },
       m => { m.sanitizedSchemaSha256 = 'missing'; },
     ];
@@ -139,13 +139,13 @@ describe('S02 local hosted-frontier proof (offline negative checks)', () => {
     expect(queries.find(([, , id]) => id === 'public.notification_deliveries/studio2_platform_direct_write_guard')[0])
       .toContain("t.tgfoid=to_regprocedure('private.studio2_guard_direct_client_write()')");
     expect(() => verifyCatalog(manifest, sql =>
-      sql === guard[0] ? 'f' : sql === 'show server_version_num' ? '160011' : good.get(sql)))
+      sql === guard[0] ? 'f' : sql === 'show server_version_num' ? '170011' : good.get(sql)))
       .toThrow(/FAIL CLOSED.*admin_notifications/);
     expect(() => verifyCatalog(manifest, sql =>
-      sql === 'show server_version_num' ? '150009' : good.get(sql)))
-      .toThrow(/PostgreSQL 16/);
+      sql === 'show server_version_num' ? '160011' : good.get(sql)))
+      .toThrow(/PostgreSQL 17.11/);
     expect(() => verifyCatalog(manifest, sql =>
-      sql === queries[0][0] ? '' : sql === 'show server_version_num' ? '160011' : good.get(sql)))
+      sql === queries[0][0] ? '' : sql === 'show server_version_num' ? '170011' : good.get(sql)))
       .toThrow(/unknown\/mismatched/);
   });
 });
