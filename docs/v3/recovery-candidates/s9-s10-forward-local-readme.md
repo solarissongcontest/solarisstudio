@@ -27,6 +27,15 @@ Read-only catalog inspection confirmed the relevant ledger columns and the RLS s
 5. `.github/workflows/v3-s9-s10-forward-local.yml`: GitHub Actions isolated PostgreSQL 17.11 on loopback; explicit refusal of production credentials/DB host/environment, exact reviewed SHA checkout and cleanup.
 6. `src/lib/v3-s9-s10-forward-recovery.contract.test.ts`: static source-integrity and privacy/authorization assertions.
 
+
+## S04 scope and S02/S03 adoption (9 November 2026)
+
+The S02 bounded hosted-observed fixture gate was source-integrated through [#2423](https://github.com/solarissongcontest/solarisstudio/pull/2423) and [#2424](https://github.com/solarissongcontest/solarisstudio/pull/2424); S03's **local-only** S13 foundation was source-integrated through [#2393](https://github.com/solarissongcontest/solarisstudio/pull/2393). None of these merges applies its recovery SQL to hosted Supabase. S02 models only 56 of 215 observed tables, and has not reproduced all 727 routine behaviors. Consequently, S04's synthetic S2/S4 ledger fixture proves a **narrow local S9/S10 runtime and privacy contract**, not complete hosted-head-equivalent recovery.
+
+The focused S04 rehearsal exercises missing-index refusal, a one-index partial-install collision, explicit local-only cleanup and retry, complete three-index catalog shapes (including table, key order, readiness and validity), S9/S10/S13 ordering, and a fingerprint comparison proving rejected repeat executions do not change the two RPC definitions, index definitions or S10 registration count. **A rejected replay is fail-closed idempotency, not a successful SQL no-op.** The first index drop occurs only in a disposable synthetic PostgreSQL database; production operators must not copy that recovery procedure without a separate risk review.
+
+The concurrent index stage is a proposed local proof, **not** a safe production roll-forward plan. Real hosted DB reconciliation still needs an explicit partial-index recovery procedure, lock/statement/transaction budget, complete dependency/authorization review, migration owner approval and separate deployment permission. No SLO targets, dashboards, alerts or other observability platform work is implied by S04.
+
 ## Important limits
 
 - **Index concurrency and recovery:** The staged local design now **separates** the three indexes into `CREATE INDEX CONCURRENTLY`, outside a transaction, before the S9 function transaction. Concurrent builds reduce ordinary writer blocking but can still wait for transactions and can leave an **invalid partial index** if interrupted. The preflight intentionally refuses any existing index name, valid or invalid. An actual production rollout needs a lock/wait budget, documented recovery for partial completion, and owner approval; these scripts remain **non-deployable candidates**.
