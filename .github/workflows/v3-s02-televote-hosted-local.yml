@@ -6,6 +6,10 @@ on:
     paths:
       - ".github/workflows/v3-s02-televote-hosted-local.yml"
       - "docs/v3/recovery-candidates/evidence/s02-hosted-televote-preflight-2026-11-09.json"
+      - "docs/v3/recovery-candidates/evidence/s02-hosted-215-relation-fingerprints-2026-11-09.json"
+      - "docs/v3/recovery-candidates/evidence/s02-hosted-727-routine-fingerprints-2026-11-09.json"
+      - "scripts/check-v3-s02-frontier-coverage.mjs"
+      - "scripts/check-v3-s02-frontier-coverage.test.mjs"
   workflow_dispatch:
 
 permissions:
@@ -37,6 +41,7 @@ jobs:
           for key in DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_URL VITE_SUPABASE_URL E2E_SUPABASE_URL SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_SERVICE_ROLE_KEY PGHOST PGHOSTADDR PGPORT PGSERVICE PGSERVICEFILE PGSSLMODE DOCKER_HOST DOCKER_CONTEXT DOCKER_TLS_VERIFY DOCKER_CERT_PATH; do
             [[ -z "$(printenv "$key" || true)" ]] || { echo "::error::Untrusted database/docker alias: $key"; exit 1; }
           done
+          node scripts/check-v3-s02-frontier-coverage.mjs s02-frontier-coverage-gap-proof.json
           node - <<'JS'
           const a=require("./docs/v3/recovery-candidates/evidence/s02-hosted-televote-preflight-2026-11-09.json");
           const b=a.observed;
@@ -138,5 +143,6 @@ jobs:
             s02-tv-baseline-catalog-proof.json
             s02-tv-baseline-acl-proof.json
             s02-televote-local-forward-proof.json
+            s02-frontier-coverage-gap-proof.json
           retention-days: 14
           if-no-files-found: ignore
