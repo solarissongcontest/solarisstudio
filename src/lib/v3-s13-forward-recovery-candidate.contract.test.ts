@@ -70,6 +70,22 @@ describe("System V3 S13 forward-only candidate source and safety", () => {
     expect(fixture).not.toContain("dkxmnvekiopyesuzggeu");
   });
 
+  it("covers safe restart, fully-present no-mutation and version-conflict rejection", () => {
+    expect(rehearsal).toContain("Retry after a failed preflight in the SAME disposable DB");
+    expect(rehearsal).toContain("if [[ \"$name\" == partialrpc ]]");
+    expect(rehearsal).toContain('run_in_db "$probe_db" -f "$candidate"');
+    expect(rehearsal).toContain('before_catalog="$(catalog_fingerprint "$db")"');
+    expect(rehearsal).toContain('after_catalog="$(catalog_fingerprint "$db")"');
+    expect(rehearsal).toContain('before_registry="$(run -c');
+    expect(rehearsal).toContain('before_compat="$(run -c');
+    expect(rehearsal).toContain("S13 already-present retry altered catalog");
+    expect(rehearsal).toContain("Migration contract semantic conflict");
+    expect(rehearsal).toContain("Backfill definition version conflict");
+    expect(rehearsal).toContain("S13 version conflict mutated backfill");
+    expect(rehearsal).toContain("Private S13 ACL drift");
+    expect(rehearsal).toContain("Historical S13 RLS parity changed");
+  });
+
   it("remains staged outside the deployable migration directory", () => {
     expect(candidate).toContain("not a tracked migration");
     expect(candidate).toContain("Do not paste into hosted Supabase");
