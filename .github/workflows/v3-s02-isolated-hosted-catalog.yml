@@ -58,6 +58,14 @@ jobs:
           docker image inspect --format '{{.Id}}' postgres:17.11 | tee /tmp/v3-s02-image-id.txt
           grep -Eq '^sha256:[0-9a-f]{64}$' /tmp/v3-s02-image-id.txt
 
+      - name: Read-only checkout of exact reviewed S13 forward candidate
+        uses: actions/checkout@v4
+        with:
+          repository: solarissongcontest/solarisstudio
+          ref: 44f6808d4186e51352d3b746e269e75066aa93b9
+          path: s02-s13-donor
+          fetch-depth: 1
+
       - name: Import and strictly inspect disposable isolated schema-only fixture
         shell: bash
         run: |
@@ -88,6 +96,23 @@ jobs:
           [[ "$(docker exec "$cid" psql -w -X -qAt -U postgres -d postgres -c 'show server_version_num')" == 170011 ]] || exit 1
           node scripts/verify-v3-s02-s14-catalog.mjs /tmp/v3-s02-local-catalog.json s02-scoped-catalog-proof.json
           node scripts/check-v3-s02-local-fixture.mjs --manifest docs/v3/recovery-candidates/evidence/s02-hosted-catalog-scoped-manifest-2026-11-09.json --schema docs/v3/recovery-candidates/evidence/s02-hosted-s14-catalog-scoped-fixture.sql --proof s02-scoped-object-proof.json
+
+          # Independently materialize the bounded hosted-observed S13 precondition,
+          # then rehearse only the reviewed, pinned donor S13 SQL on this disposable DB.
+          [[ "$(git -C s02-s13-donor rev-parse HEAD)" == 44f6808d4186e51352d3b746e269e75066aa93b9 ]] || exit 1
+          docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s13-prerequisite-local.sql
+          docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < s02-s13-donor/docs/v3/recovery-candidates/forward-only-s13-foundation.sql
+          s13_state="$(docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -c "select (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='private' and c.relname in ('v3_migration_contracts','v3_schema_compatibility','v3_schema_compatibility_history','v3_backfill_jobs','v3_migration_parity_runs') and c.relkind='r')::text || '|' || (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in ('v3_schema_compatibility','v3_register_migration_contract','v3_claim_backfill','v3_checkpoint_backfill','v3_fail_backfill','v3_record_migration_parity','v3_set_schema_compatibility'))::text || '|' || has_function_privilege('service_role','public.v3_register_migration_contract(text,integer,text,boolean,text,text)','EXECUTE')::text || '|' || has_function_privilege('anon','public.v3_register_migration_contract(text,integer,text,boolean,text,text)','EXECUTE')::text;")"
+          [[ "$s13_state" == "5|7|true|false" ]] || { echo "::error::S13 scoped foundation failed: $s13_state"; exit 1; }
+          # The tested forward candidate deliberately fails closed on a second
+          # application; never rewrite source/hosted migration-history records.
+          if docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < s02-s13-donor/docs/v3/recovery-candidates/forward-only-s13-foundation.sql >/tmp/v3-s02-replay.txt 2>&1; then
+            echo "::error::S13 forward candidate unexpectedly allowed a second application"
+            exit 1
+          fi
+          node -e 'require("fs").writeFileSync("s02-s13-local-upgrade-proof.json",JSON.stringify({task:"S02",candidateSha:process.env.EXACT_SHA,reviewedDonorSha:"44f6808d4186e51352d3b746e269e75066aa93b9",scope:"S13 foundation only on bounded hosted-S14 schema subset",tables:5,rpcs:7,serviceGrant:true,anonDenied:true,repeatRejected:true,fullHostedEquivalenceCertified:false,productionDeploymentAuthorized:false},null,2)+"\n",{flag:"wx"});'
+          echo "PASS: S13 local forward candidate on hosted-observed S14 scoped fixture"
+
           [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
           [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
           docker rm -f "$cid" >/dev/null
@@ -102,5 +127,6 @@ jobs:
           path: |
             s02-scoped-catalog-proof.json
             s02-scoped-object-proof.json
+            s02-s13-local-upgrade-proof.json
           if-no-files-found: ignore
           retention-days: 14
