@@ -3,17 +3,19 @@ import {readFileSync} from 'node:fs';
 import {compareArchiveCatalog} from './verify-v3-s02-s14-archive-catalog.mjs';
 const read=n=>JSON.parse(readFileSync(new URL('../docs/v3/recovery-candidates/evidence/'+n,import.meta.url),'utf8'));
 const first=read('s02-hosted-s14-archive-45-table-catalog-2026-11-09.json'),extra=read('s02-hosted-s14-archive-extra-2-tables-2026-11-09.json');
+const parents=read('s02-hosted-s14-nine-parent-tables-2026-11-09.json');
 const copy=x=>JSON.parse(JSON.stringify(x));
-const observed=[...first.tables,...extra.tables];
-describe('S02 47-table hosted S14 archive catalog (offline)',()=>{
+const observed=[...first.tables,...extra.tables,...parents.tables];
+describe('S02 56-table hosted S14 archive catalog (offline)',()=>{
  it('accepts complete exact observed source scope without pretending full equivalence',()=>{
   const proof=compareArchiveCatalog(copy(observed));
-  expect(proof).toMatchObject({relations:47,columns:722,constraints:339,triggers:166,policies:107,fullHostedEquivalenceCertified:false});
+  expect(proof).toMatchObject({relations:56,columns:858,constraints:381,indexes:220,triggers:186,policies:137,fullHostedEquivalenceCertified:false});
  });
  it('fails closed on missing/extra tables or incomplete observations',()=>{
   expect(()=>compareArchiveCatalog(observed.slice(1))).toThrow(/FAIL CLOSED/);
   expect(()=>compareArchiveCatalog(observed,{...first,serverVersionNum:'160011'},extra)).toThrow(/FAIL CLOSED/);
   expect(()=>compareArchiveCatalog(observed,first,{...extra,tables:[]})).toThrow(/FAIL CLOSED/);
+  expect(()=>compareArchiveCatalog(observed,first,extra,{...parents,tables:[]})).toThrow(/FAIL CLOSED/);
  });
  it('detects mutation of a security-critical policy, index, trigger, column or RLS bit',()=>{
   const edits=[
