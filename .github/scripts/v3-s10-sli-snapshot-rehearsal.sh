@@ -4,11 +4,19 @@ set -euo pipefail
 log() { printf '\n[v3-s10-sli] %s\n' "$*"; }
 fail() { printf '\n[v3-s10-sli] FAIL: %s\n' "$*" >&2; exit 1; }
 
-eval "$(supabase status -o env)"
-: "${API_URL:?missing local Supabase API_URL}"
-: "${DB_URL:?missing local Supabase DB_URL}"
-case "$API_URL" in http://127.0.0.1:*|http://localhost:*) ;; *) fail "Refusing hosted Supabase rehearsal: $API_URL" ;; esac
-case "$DB_URL" in postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;; *) fail "Refusing non-local database rehearsal" ;; esac
+if ! status_output="$(supabase status -o env)"; then
+  fail "Local Supabase status unavailable; refusing to run S10 rehearsal"
+fi
+if ! safe_endpoints="$(printf '%s\n' "$status_output" | node scripts/check-v3-s10-local-rehearsal-targets.mjs)"; then
+  fail "Local endpoint verification failed; refusing to run S10 rehearsal"
+fi
+mapfile -t endpoints <<< "$safe_endpoints"
+if [[ "${#endpoints[@]}" -ne 2 ]]; then
+  fail "Local endpoint checker returned an incomplete result"
+fi
+API_URL="${endpoints[0]}"
+DB_URL="${endpoints[1]}"
+unset status_output safe_endpoints endpoints
 
 db_exec() { psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "$1" >/dev/null; }
 db_scalar() { psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c "$1"; }

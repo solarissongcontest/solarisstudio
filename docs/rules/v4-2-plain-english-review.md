@@ -1,6 +1,8 @@
 # SSC Rules v4.2 Plain-English Candidate
 
-Status: draft code change for organizer review, **not an automatically published change to the official Rules**.
+**Publication update (8 November 2026):** v4.2 was officially published through the Rules Manager on 7 November 2026 at 21:34:41 UTC, with 113 distinct recorded rule changes. This file remains a historical editorial working paper, not the authoritative Current rulebook or a release certificate. Prepublication statements below describe the draft phase and should not be read as the present live status. The public-help wording correction is merged in PR #2398; independent teen comprehension testing, complete Results compatibility and Chapter 22 supplemental-field provenance still require separate sign-off.
+
+**Original candidate status (before 7 November publication):** draft code change for organizer review, not an automatically published change to the official Rules.
 
 ## Scope
 

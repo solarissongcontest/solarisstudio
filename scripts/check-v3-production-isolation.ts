@@ -10,6 +10,10 @@ const SUPABASE_URL_KEYS = [
 ] as const;
 
 const DATABASE_URL_KEYS = ["DATABASE_URL", "POSTGRES_URL", "SUPABASE_DB_URL", "DB_URL"] as const;
+const REQUIRED_QUALITY_SUPABASE_URL_KEYS = [
+  "VITE_SUPABASE_URL", "SUPABASE_URL", "E2E_SUPABASE_URL",
+  "VITE_CONFIRMATIONS_SUPABASE_URL", "CONFIRMATIONS_SUPABASE_URL",
+] as const;
 const PROJECT_ID_KEYS = [
   "SUPABASE_PROJECT_ID",
   "SUPABASE_PROJECT_REF",
@@ -27,6 +31,8 @@ const SERVICE_ROLE_KEYS = [
 ] as const;
 const TARGET_KEYS = ["V3_VERIFICATION_TARGET", "V3_SEED_TARGET", "V3_CLEANUP_TARGET", "E2E_TARGET"] as const;
 const DESTRUCTIVE_MODE_KEYS = ["V3_DESTRUCTIVE_VERIFICATION", "V3_REHEARSAL_DESTRUCTIVE", "E2E_DESTRUCTIVE"] as const;
+const POSTGRES_HOST_ENV_KEYS = ["PGHOST", "PGHOSTADDR"] as const;
+const POSTGRES_SERVICE_ENV_KEYS = ["PGSERVICE", "PGSERVICEFILE"] as const;
 const KNOWN_HOSTED_PROJECT_REFS = new Set(["dkxmnvekiopyesuzggeu"]);
 const LOCAL_TARGET_MARKERS = new Set([
   "local",
@@ -60,6 +66,17 @@ function assertLocalUrl(key: string, rawValue: string) {
     throw new Error(`${key} is set but is not a valid URL; refusing automated V3 verification`);
   }
 
+  const databaseUrl = (DATABASE_URL_KEYS as readonly string[]).includes(key);
+  const validProtocol = databaseUrl
+    ? ["postgres:", "postgresql:"].includes(parsed.protocol)
+    : ["http:", "https:"].includes(parsed.protocol);
+  if (!validProtocol) {
+    throw new Error(`${key} has an invalid protocol for a local Supabase/database target`);
+  }
+  if (!databaseUrl && (parsed.username || parsed.password || parsed.pathname !== "/" || parsed.search || parsed.hash)) {
+    throw new Error(`${key} must be a bare, unauthenticated loopback Supabase origin`);
+  }
+
   // A libpq URI's query parameters can redirect a loopback-looking DB URL.
   // Deny all explicit connection-authority overrides before any test traffic.
   const overrideKeys = new Set(["host", "hostaddr", "service"]);
@@ -79,6 +96,23 @@ function assertLocalUrl(key: string, rawValue: string) {
 
   if (parsed.hostname.endsWith(".supabase.co")) {
     throw new Error(`${key} points at hosted Supabase; production/test-project traffic is forbidden in automated V3 verification`);
+  }
+}
+
+// libpq may take its connection authority from PGHOSTADDR / PGHOST even when
+// a separate Supabase or database URL looks local. A service definition is
+// opaque at this boundary and could silently redirect the same psql process.
+function assertLocalPostgresHost(key: string, rawValue: string) {
+  const value = rawValue.trim();
+  const hosts = value.split(",");
+  const permitted = key === "PGHOSTADDR"
+    ? value === "127.0.0.1" || value === "::1"
+    : loopbackHost(value);
+
+  if (hosts.length !== 1 || !permitted) {
+    throw new Error(
+      `${key} is not an explicit single loopback PostgreSQL host; refusing non-local or ambiguous libpq routing in automated V3 verification`,
+    );
   }
 }
 
@@ -118,6 +152,40 @@ export function assertV3ProductionIsolation(environment: NodeJS.ProcessEnv = pro
     } catch (error) {
       errors.push(error instanceof Error ? error.message : String(error));
     }
+  }
+
+  if (truthy(environment.CI)) {
+    if (configuredLocalUrls === 0) {
+      errors.push("CI requires at least one explicit verified loopback Supabase/database URL; missing local configuration must fail closed");
+    }
+    // Quality builds the browser bundle before starting any database. All
+    // client/legacy Confirmation endpoints must therefore be explicit, never
+    // inferred from the repository's tracked production .env.
+    if (environment.GITHUB_WORKFLOW === "Quality" || environment.GITHUB_JOB === "quality") {
+      for (const key of REQUIRED_QUALITY_SUPABASE_URL_KEYS) {
+        if (!environment[key]?.trim()) {
+          errors.push(`Quality CI is missing ${key}; refusing .env or hosted backend fallback`);
+        }
+      }
+    }
+  }
+
+  // libpq resolves these independently of DATABASE_URL. Inspect them even
+  // when another configuration entry already points at loopback.
+  for (const key of POSTGRES_HOST_ENV_KEYS) {
+    const value = environment[key]?.trim();
+    if (!value) continue;
+    inspected.push(key);
+    try {
+      assertLocalPostgresHost(key, value);
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+  for (const key of POSTGRES_SERVICE_ENV_KEYS) {
+    if (!environment[key]?.trim()) continue;
+    inspected.push(key);
+    errors.push(`${key} configures an opaque PostgreSQL service override; automated V3 verification requires direct, verified loopback authority`);
   }
 
   const dynamicProjectKeys = Object.keys(environment).filter((key) => /SUPABASE.*(?:PROJECT_ID|PROJECT_REF)$/i.test(key));

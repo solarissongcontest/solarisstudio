@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "scope": "owner_only_beta",
+  "requiredPilotFlows": [
+    "one-owner authentication and server-enforced access",
+    "Confirmation → Entry and Media",
+    "Jury → Televote → Results and publication",
+    "Archive and recovery of official contest state",
+    "isolated local full-contest rehearsal and candidate-specific integrity evidence",
+    "safe installed-app shell/navigation for the tested client"
+  ],
+  "forbiddenOperations": [
+    "hosted database migration",
+    "production deploy or Worker promotion",
+    "disable maintenance or reopen public writes",
+    "modify production secrets or bypass RLS",
+    "automated tests, previews or browser audits against hosted Supabase"
+  ],
+  "conditionalReviews": {
+    "PUBLIC-PARITY": {
+      "owner": "Public 2A/2B",
+      "pilotNeed": "Mandatory Confirmation/Entry/Media/Jury/Televote/Results privacy, routes and participant flows remain in scope; optional discovery/fan screens require owner-approved, proven disabled/unreachable exclusions.",
+      "scopeApproved": false
+    },
+    "ORG-PARITY": {
+      "owner": "Organizer/Voting",
+      "pilotNeed": "Organizer actions and exact edition/show/actor state used in the one-owner lifecycle remain in scope; unused specialist workspaces cannot be silently declared excluded.",
+      "scopeApproved": false
+    },
+    "DESIGN-3X": {
+      "owner": "Navigation/Public/Organizer",
+      "pilotNeed": "Tested installed PWA safe zones, floating dock clearance, auth/focus and core workflow usability remain required; full three-experience polish requires an explicit excluded-client rollout decision.",
+      "scopeApproved": false
+    },
+    "WORLD-SCOPE": {
+      "owner": "World/Release manager",
+      "pilotNeed": "World/Governance is a proposed pilot exclusion only; require approved feature flags, route/RPC inaccessibility and no ability to mutate pilot canonical state.",
+      "scopeApproved": false
+    },
+    "PROD-AUTH": {
+      "owner": "Owner/Release manager",
+      "pilotNeed": "No production operation is authorized by this task. If beta runs on any hosted/production surface, each required migration, deploy and write-reopen approval is a separate mandatory gate.",
+      "scopeApproved": false
+    }
+  },
+  "trackedDebt": [],
+  "replacedWork": [
+    {
+      "id": "QA-WAVE5-DONORS",
+      "owner": "QA/Integrator",
+      "reason": "Unmerged donor PRs #2408, #2409, #2410 and #2414 were consolidated into merged QA integration PR #2415; this is replaced implementation work, not resolved release safety.",
+      "replacementUrl": "https://github.com/solarissongcontest/solarisstudio/pull/2415",
+      "evidenceUrls": [
+        "https://github.com/solarissongcontest/solarisstudio/pull/2408",
+        "https://github.com/solarissongcontest/solarisstudio/pull/2409",
+        "https://github.com/solarissongcontest/solarisstudio/pull/2410",
+        "https://github.com/solarissongcontest/solarisstudio/pull/2414"
+      ]
+    }
+  ],
+  "proposedExclusions": [
+    {
+      "id": "EXC-WORLD-GOVERNANCE",
+      "owner": "World owner/Release manager",
+      "verified": false,
+      "reason": "Full institutional GUARD/UNITY/World workflows are outside the proposed one-owner contest test; neither explicit final owner approval nor runtime disable/unreachable and mutation-isolation proof is recorded."
+    },
+    {
+      "id": "EXC-FAN-EXTRAS",
+      "owner": "Public 2A/2B/Release manager",
+      "verified": false,
+      "reason": "Fantasy, Predictions, advanced public analytics, broader archive and optional fan screens may be deferred only after exact rollout and backend safety proof; full V3 requirements remain open."
+    },
+    {
+      "id": "EXC-UNUSED-CLIENTS",
+      "owner": "Navigation/Release manager",
+      "verified": false,
+      "reason": "Full mobile-browser/desktop visual parity is not yet proven excluded from an installed-app-only owner test, nor is their inaccessibility established."
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "UNKNOWN-CURRENT-CI",
+      "owner": "QA/Integrator",
+      "reason": "No independently verified passing set of exact-current-candidate Quality, isolated Browser, S13/S14/S15/S16, security and full-contest acceptance is supplied by the source matrix."
+    },
+    {
+      "id": "UNKNOWN-HOSTED-EFFECTS",
+      "owner": "System/Supabase",
+      "reason": "The 7 November migration-history counts and the 8 November 30-leaf-field #2405 comparison are dated partial observations, not a fresh complete hosted/schema-effect verdict."
+    },
+    {
+      "id": "UNKNOWN-BETA-ACCESS",
+      "owner": "System/Release manager",
+      "reason": "Server-enforced one-owner access, isolation from public users, and the exact pilot infrastructure/runtime boundary lack a verified signed-off proof."
+    },
+    {
+      "id": "UNKNOWN-FULL-INVENTORY",
+      "owner": "QA/Integrator + Public/Organizer/System",
+      "reason": "The canonical full-V3 matrix declares partial coverage; capability, consequence, route and physical-ownership registry gaps need current source generation and separate safety triage, not arithmetic reuse of old counts."
+    }
+  ]
+}

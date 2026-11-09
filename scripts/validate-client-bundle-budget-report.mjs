@@ -1,5 +1,6 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { gzipSync } from "node:zlib";
 
 const reportPath =
   process.argv[2] ??
@@ -56,6 +57,12 @@ if (typeof report.withinBudget !== "boolean") {
 if (report.overBudgetBytes > 0 && report.withinBudget) {
   fail("withinBudget cannot be true while aggregate payload exceeds the threshold");
 }
+if (!Array.isArray(report.failures) || !report.failures.every((failure) => typeof failure === "string" && failure.length > 0)) {
+  fail("failures must be an array of non-empty diagnostic strings");
+}
+if (report.withinBudget !== (report.failures.length === 0)) {
+  fail("withinBudget must match whether reported budget checks failed");
+}
 if (typeof report.assetRoot !== "string" || !report.assetRoot) {
   fail("assetRoot must identify the measured production tree");
 }
@@ -75,7 +82,13 @@ for (const asset of report.assets) {
   if (!Number.isInteger(asset.gzipBytes) || asset.gzipBytes < 0) fail(`invalid gzipBytes for ${asset.path}`);
   const assetPath = join(report.assetRoot, asset.path);
   if (!existsSync(assetPath)) fail(`reported asset does not exist: ${assetPath}`);
-  if (statSync(assetPath).size !== asset.rawBytes) fail(`raw byte count does not match ${asset.path}`);
+  // Recompute from the deployed bytes, not the report's asserted gzip size.
+  // A self-consistent but falsified report must never become green evidence.
+  const assetBytes = readFileSync(assetPath);
+  if (assetBytes.byteLength !== asset.rawBytes) fail(`raw byte count does not match ${asset.path}`);
+  if (gzipSync(assetBytes, { level: 9 }).byteLength !== asset.gzipBytes) {
+    fail(`gzip byte count does not match ${asset.path}`);
+  }
   if (asset.type === "js") {
     jsCount += 1;
     jsGzip += asset.gzipBytes;

@@ -66,13 +66,34 @@ jobs:
         with:
           node-version: 22
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: 2.113.0
+      # Both legacy v1 (CLI asset) and v3 (nested Bun 1.3.10 installer) failed
+      # on unrelated GitHub release HTTP 504 downloads. Use the official npm
+      # package at the SAME exact CLI version, outside the application tree.
+      # This does not contact hosted Supabase and never substitutes remote data.
+      - name: Install pinned Supabase CLI in disposable runner directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLI_ROOT="$RUNNER_TEMP/solaris-browser-supabase-cli"
+          mkdir -p "$CLI_ROOT"
+          npm install --prefix "$CLI_ROOT" --no-save --no-package-lock --no-audit --no-fund --ignore-scripts=false supabase@2.113.0
+          CLI_BIN="$CLI_ROOT/node_modules/.bin/supabase"
+          if [ ! -x "$CLI_BIN" ]; then
+            echo "::error::Pinned local Supabase CLI was not installed"
+            exit 1
+          fi
+          actual="$("$CLI_BIN" --version | tr -d '\r')"
+          if [ "$actual" != "2.113.0" ]; then
+            echo "::error::Supabase CLI version mismatch: expected 2.113.0, got $actual"
+            exit 1
+          fi
+          echo "$CLI_ROOT/node_modules/.bin" >> "$GITHUB_PATH"
 
       - name: Install app dependencies
         run: bun install --frozen-lockfile
+
+      - name: Regress fail-closed Playwright/Supabase target guards (offline)
+        run: node --test scripts/lib/require-local-playwright-target.contract.mjs
 
       - name: Production build
         env:
@@ -84,6 +105,10 @@ jobs:
           VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY: sb_publishable_browser_audit_local_only
           CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
           CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY: sb_publishable_browser_audit_local_only
+          SUPABASE_PROJECT_ID: local
+          SUPABASE_PROJECT_REF: local
+          VITE_SUPABASE_PROJECT_ID: local
+          VITE_SUPABASE_PROJECT_REF: local
         run: bun run build
 
       - name: Enforce client performance budget
@@ -124,13 +149,17 @@ jobs:
             exit 1
           fi
 
-          case "$local_url" in
-            http://127.0.0.1:*|http://localhost:*) ;;
-            *)
-              echo "Refusing browser audit against non-local Supabase URL: $local_url"
-              exit 1
-              ;;
-          esac
+          # Parse the actual URL before any curl. Shell prefix patterns also
+          # accept deceptive userinfo such as 127.0.0.1:54321@hosted.example.
+          LOCAL_SUPABASE_URL="$local_url" node --input-type=module <<'NODE'
+          const target = new URL(process.env.LOCAL_SUPABASE_URL ?? "");
+          if (target.protocol !== "http:" ||
+              !["127.0.0.1", "localhost", "[::1]", "::1"].includes(target.hostname) ||
+              !target.port || target.username || target.password ||
+              target.pathname !== "/" || target.search || target.hash) {
+            throw new Error("Refusing browser audit against non-local Supabase URL or ambiguous Supabase CLI API_URL");
+          }
+          NODE
 
           {
             echo "VITE_SUPABASE_URL=$local_url"
@@ -143,6 +172,14 @@ jobs:
             echo "VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=$local_key"
             echo "CONFIRMATIONS_SUPABASE_URL=$local_url"
             echo "CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=$local_key"
+            # SUPABASE_PROJECT_ID and SUPABASE_PROJECT_REF both affect the
+            # Supabase CLI's Docker container selection. After 'supabase start'
+            # uses the disposable project_id from supabase/config.toml, do NOT
+            # export either override to later CLI commands: the seed helper's
+            # 'supabase status' would seek nonexistent supabase_db_local.
+            # Keep browser VITE aliases and the separate local Worker bindings.
+            echo "VITE_SUPABASE_PROJECT_ID=local"
+            echo "VITE_SUPABASE_PROJECT_REF=local"
           } >> "$GITHUB_ENV"
 
           # Fail in seconds, not after a forty-minute browser matrix, if the
@@ -156,6 +193,20 @@ jobs:
             cat /tmp/solaris-browser-rest-probe.json || true
             exit 1
           fi
+
+      - name: Verify assembled browser environment before seeding or navigation
+        # Scoped only to application/guard commands, never to Supabase CLI.
+        # Bun loads tracked .env values when these keys are unset.
+        env:
+          SUPABASE_PROJECT_ID: local
+          SUPABASE_PROJECT_REF: local
+        run: |
+          set -euo pipefail
+          bun run scripts/check-v3-production-isolation.ts
+          node --input-type=module <<'NODE'
+          import { requireLocalPlaywrightSupabaseEnvironment } from "./scripts/lib/require-local-playwright-target.mjs";
+          requireLocalPlaywrightSupabaseEnvironment(process.env);
+          NODE
 
       - name: Ensure PostgreSQL client for local E2E seeding
         shell: bash
@@ -198,6 +249,8 @@ jobs:
         shell: bash
         env:
           SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
+          SUPABASE_PROJECT_ID: local
+          SUPABASE_PROJECT_REF: local
         run: |
           set -euo pipefail
 
@@ -222,6 +275,8 @@ jobs:
         shell: bash
         env:
           SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
+          SUPABASE_PROJECT_ID: local
+          SUPABASE_PROJECT_REF: local
         run: |
           set -euo pipefail
 
@@ -247,6 +302,10 @@ jobs:
             --var "CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY:$CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY" \
             --var "VITE_CONFIRMATIONS_SUPABASE_URL:$VITE_CONFIRMATIONS_SUPABASE_URL" \
             --var "VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY:$VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY" \
+            --var "SUPABASE_PROJECT_ID:local" \
+            --var "SUPABASE_PROJECT_REF:local" \
+            --var "VITE_SUPABASE_PROJECT_ID:local" \
+            --var "VITE_SUPABASE_PROJECT_REF:local" \
             --var "SOLARIS_E2E_BYPASS_MAINTENANCE:1" \
             > /tmp/solaris-audit-server.log 2>&1 &
           echo $! > /tmp/solaris-audit-server.pid
@@ -387,6 +446,8 @@ jobs:
         env:
           E2E_BASE_URL: http://127.0.0.1:4173
           SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
+          SUPABASE_PROJECT_ID: local
+          SUPABASE_PROJECT_REF: local
         run: bun run test:e2e:organizer-preflight
 
       - name: Summarize organizer preflight
@@ -432,6 +493,8 @@ jobs:
         env:
           E2E_BASE_URL: http://127.0.0.1:4173
           SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
+          SUPABASE_PROJECT_ID: local
+          SUPABASE_PROJECT_REF: local
           SOLARIS_PR455_PREFLIGHT_ALREADY_PASSED: "1"
           # Pull requests and main pushes run the representative smoke set. Exhaustive
           # and visual certification are explicit manual actions, so temporary release

@@ -2,7 +2,7 @@ import { SSC_RULE_CHAPTERS } from "@/lib/ssc-rules/current";
 import { withPlainLanguage } from "@/lib/ssc-rules/plain-language-v42";
 
 /**
- * A zero-network, public preview of the v4.2 proposal during global maintenance.
+ * A zero-network reference copy of the v4.2 candidate during global maintenance.
  * The Worker serves this document directly: it does not initialize the app,
  * resolve an account, call Supabase, or change the official rulebook pointer.
  */
@@ -60,7 +60,7 @@ export function renderV42MaintenancePreview(): string {
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex,nofollow">
   <meta name="color-scheme" content="dark">
-  <title>DRAFT v4.2 SSC Regulations · Solaris Studio</title>
+  <title>v4.2 SSC Regulations reference text · Solaris Studio</title>
   <style>
     :root { color-scheme: dark; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #080e1c; color: #f0f5ff; }
     * { box-sizing: border-box; }
@@ -95,12 +95,12 @@ export function renderV42MaintenancePreview(): string {
 <body>
   <main>
     <a class="toplink" href="/">← Solaris Studio maintenance</a>
-    <div class="eyebrow">Public review copy · Not effective</div>
+    <div class="eyebrow">Public reference copy · Not a release record</div>
     <h1>SSC General Regulations v4.2</h1>
-    <p class="intro">All ${TOTAL_RULES} proposed plain-English rules across ${CHAPTERS.length} chapters are available below. Expand a rule to read its complete proposed text, conditions and examples. This preview is independent of the live rules database.</p>
-    <div class="notice" role="status"><strong>DRAFT · NOT OFFICIAL.</strong> The current official release remains authoritative. This v4.2 wording requires formal TSBC approval and governed publication. YouTube video priority, bonus-point penalties and negative final scores are proposed policy decisions, not ratified rules.</div>
-    <div class="meta"><span>${TOTAL_RULES} proposed rules</span><span>${CHAPTERS.length} chapters</span><span>Read-only · No sign-in required</span></div>
-    <nav aria-label="Draft rulebook chapters" class="chapters-nav">
+    <p class="intro">This static reading copy contains ${TOTAL_RULES} v4.2 rule texts across ${CHAPTERS.length} chapters. Expand a rule to read its text and examples. It is independent of the live rules database.</p>
+    <div class="notice" role="status"><strong>REFERENCE COPY · NOT AUTHORITATIVE.</strong> Publication status and effective wording come from the governed Current Rules release, not this static page. A version may already have been published or superseded. This reference copy does not approve or publish changes.</div>
+    <div class="meta"><span>${TOTAL_RULES} reference rules</span><span>${CHAPTERS.length} chapters</span><span>Read-only · No sign-in required</span></div>
+    <nav aria-label="Reference rulebook chapters" class="chapters-nav">
       ${CHAPTERS.map((chapter) => `<a href="#chapter-${chapter.number}">${chapter.number} · ${escapeHtml(chapter.title)}</a>`).join("")}
     </nav>
     ${chapters}
