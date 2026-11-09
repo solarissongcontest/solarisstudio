@@ -1,0 +1,92 @@
+-- S02: bounded LOCAL-only catalog probe. Same pg_catalog fields used in the
+-- owner-approved read-only snapshot of eight S14 relations on 2026-11-09.
+-- NEVER execute this file against hosted Supabase from CI/Playwright.
+WITH targets(s,t) AS (
+  VALUES ('private','v3_domain_event_consumer_receipts'),
+    ('private','v3_domain_event_outbox'),
+    ('private','v3_domain_events'),
+    ('private','v3_result_versions'),
+    ('public','admin_notifications'),
+    ('public','editions'),
+    ('public','entries'),
+    ('public','internal_entries'),
+    ('public','jury_ballot_statuses'),
+    ('public','jury_ballot_submissions'),
+    ('public','jury_votes'),
+    ('public','jury_voting_windows'),
+    ('public','national_final_entries'),
+    ('public','national_finals'),
+    ('public','next_in_line_responses'),
+    ('public','next_in_line_submissions'),
+    ('public','notification_deliveries'),
+    ('public','participants'),
+    ('public','results'),
+    ('public','shows'),
+    ('public','studio2_confirmation_requirements'),
+    ('public','studio2_contest_events'),
+    ('public','studio2_edition_runtime'),
+    ('public','studio2_eligibility_overrides'),
+    ('public','studio2_media_asset_reviews'),
+    ('public','studio2_next_in_line_windows'),
+    ('public','studio2_operation_receipts'),
+    ('public','studio2_organizer_tasks'),
+    ('public','studio2_result_operations'),
+    ('public','studio2_show_publication_controls'),
+    ('public','studio2_transition_approval_requests'),
+    ('public','submission_rounds'),
+    ('public','submissions'),
+    ('public','televote_votes'),
+    ('public','televoting_round_bindings'),
+    ('public','voters'),
+    ('televoting','combined_televote_component_results'),
+    ('televoting','combined_televote_results'),
+    ('televoting','round_countries'),
+    ('televoting','round_entries'),
+    ('televoting','round_results'),
+    ('televoting','rounds'),
+    ('televoting','televote_aggregation_participants'),
+    ('televoting','televote_aggregation_sources'),
+    ('televoting','televote_aggregations'),
+    ('televoting','vote_entries'),
+    ('televoting','vote_submissions')
+), objects AS (
+ SELECT jsonb_build_object(
+  'schema',n.nspname,'name',c.relname,'owner',pg_get_userbyid(c.relowner),
+  'rls',c.relrowsecurity,'force_rls',c.relforcerowsecurity,
+  'columns',(SELECT jsonb_agg(jsonb_build_object(
+    'name',a.attname,'type',format_type(a.atttypid,a.atttypmod),
+    'notnull',a.attnotnull,'identity',a.attidentity::text,
+    'generated',a.attgenerated::text,'default',pg_get_expr(d.adbin,d.adrelid)
+    ) ORDER BY a.attnum) FROM pg_attribute a
+    LEFT JOIN pg_attrdef d ON d.adrelid=a.attrelid AND d.adnum=a.attnum
+    WHERE a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped),
+  'constraints',(SELECT COALESCE(jsonb_agg(jsonb_build_object(
+    'name',k.conname,'type',k.contype::text,
+    'definition',pg_get_constraintdef(k.oid,true),'validated',k.convalidated
+    ) ORDER BY k.conname),'[]'::jsonb) FROM pg_constraint k WHERE k.conrelid=c.oid),
+  'indexes',(SELECT COALESCE(jsonb_agg(jsonb_build_object(
+    'name',x.relname,'definition',pg_get_indexdef(x.oid),'primary',ix.indisprimary,
+    'unique',ix.indisunique,'valid',ix.indisvalid
+    ) ORDER BY x.relname),'[]'::jsonb) FROM pg_index ix
+    JOIN pg_class x ON x.oid=ix.indexrelid WHERE ix.indrelid=c.oid),
+  'triggers',(SELECT COALESCE(jsonb_agg(jsonb_build_object(
+    'name',tr.tgname,'definition',pg_get_triggerdef(tr.oid,true),
+    'enabled',tr.tgenabled::text,'func',tr.tgfoid::regprocedure::text
+    ) ORDER BY tr.tgname),'[]'::jsonb) FROM pg_trigger tr
+    WHERE tr.tgrelid=c.oid AND NOT tr.tgisinternal),
+  'policies',(SELECT COALESCE(jsonb_agg(jsonb_build_object(
+    'name',p.polname,'command',p.polcmd::text,
+    'permissive',p.polpermissive,
+    'roles',(SELECT COALESCE(jsonb_agg(
+      CASE WHEN rid=0 THEN 'PUBLIC' ELSE pg_get_userbyid(rid) END
+      ORDER BY CASE WHEN rid=0 THEN 'PUBLIC' ELSE pg_get_userbyid(rid) END
+    ),'[]'::jsonb) FROM unnest(p.polroles) rid),
+    'using',pg_get_expr(p.polqual,p.polrelid),
+    'check',pg_get_expr(p.polwithcheck,p.polrelid)
+    ) ORDER BY p.polname),'[]'::jsonb) FROM pg_policy p WHERE p.polrelid=c.oid)
+ ) AS meta
+ FROM targets x JOIN pg_namespace n ON n.nspname=x.s
+ JOIN pg_class c ON c.relnamespace=n.oid AND c.relname=x.t AND c.relkind IN ('r','p')
+)
+SELECT COALESCE(jsonb_agg(meta ORDER BY meta->>'schema',meta->>'name'),'[]'::jsonb)::text
+FROM objects;
