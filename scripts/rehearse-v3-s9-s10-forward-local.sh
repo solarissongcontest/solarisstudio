@@ -89,7 +89,21 @@ index_contract="$(run -c "select (
     and (spec.k2 is null or pg_get_indexdef(i.indexrelid,2,true)=spec.k2)
     and (spec.k3 is null or pg_get_indexdef(i.indexrelid,3,true)=spec.k3)
   )::text")"
-[[ "$index_contract" == true ]] || { echo 'S9 concurrent index catalog contract FAILED' >&2; exit 1; }
+if [[ "$index_contract" != true ]]; then
+  echo 'S9 concurrent index catalog contract FAILED; local-only catalog detail:' >&2
+  run -c "select i.indexrelid::regclass, i.indrelid::regclass,
+    am.amname, i.indnkeyatts, i.indnatts, i.indisvalid, i.indisready,
+    pg_get_indexdef(i.indexrelid), pg_get_indexdef(i.indexrelid,1,true),
+    pg_get_indexdef(i.indexrelid,2,true), pg_get_indexdef(i.indexrelid,3,true)
+    from pg_index i join pg_class c on c.oid=i.indexrelid
+    join pg_am am on am.oid=c.relam
+    where i.indexrelid in (
+      to_regclass('public.studio2_operation_receipts_created_at_idx'),
+      to_regclass('private.v3_domain_events_occurred_at_idx'),
+      to_regclass('private.v3_domain_event_outbox_created_at_idx')
+    ) order by 1" >&2
+  exit 1
+fi
 expect_reject "$index_stage" "S9 index stage blocked: existing index/object"
 
 # A valid and ready index with the right NAME but wrong KEY order/identity must
