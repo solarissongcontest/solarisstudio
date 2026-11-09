@@ -91,6 +91,19 @@ index_contract="$(run -c "select (
   )::text")"
 [[ "$index_contract" == true ]] || { echo 'S9 concurrent index catalog contract FAILED' >&2; exit 1; }
 expect_reject "$index_stage" "S9 index stage blocked: existing index/object"
+
+# A valid and ready index with the right NAME but wrong KEY order/identity must
+# NOT pass S9's forward preflight. This is synthetic local catalog damage only;
+# never automate a production DROP INDEX after a partial concurrent build.
+run -c "drop index private.v3_domain_events_occurred_at_idx" >/dev/null
+run -c "create index v3_domain_events_occurred_at_idx on private.v3_domain_events (id)" >/dev/null
+expect_reject "$s9" "S9 blocked: incompatible concurrent index identity"
+no_s9_from_bad_index="$(run -c "select (to_regprocedure('public.admin_system_observability_snapshot(integer)') is null)::text")"
+[[ "$no_s9_from_bad_index" == true ]] || {
+  echo 'S9 mutated catalog despite wrong-shaped index rejection' >&2; exit 1;
+}
+run -c "drop index private.v3_domain_events_occurred_at_idx" >/dev/null
+run -c "create index concurrently v3_domain_events_occurred_at_idx on private.v3_domain_events (occurred_at desc, id)" >/dev/null
 run -f "$s9" >/dev/null
 expect_reject "$s10" "S10 blocked: canonical S13 registry missing"
 
