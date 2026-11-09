@@ -4,8 +4,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { Radio } from "lucide-react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { AdminCard, AdminEmptyState } from "@/components/admin/AdminUI";
 import { getMergedTelevotingRoundsPage } from "@/integrations/televoting/rounds.functions";
+import { votingRoundActorScopeKey } from "@/lib/v3-organizer-voting-round-actor-scope";
 
 export const Route = createFileRoute("/televoting/admin/rounds/$id")({
   component: VotingRoundEditionGuard,
@@ -14,18 +16,24 @@ export const Route = createFileRoute("/televoting/admin/rounds/$id")({
 function VotingRoundEditionGuard() {
   const { id: roundId } = Route.useParams();
   const { editionId } = useAdminContext();
+  const actorId = useAuthenticatedUser().id;
   const getRoundsPage = useServerFn(getMergedTelevotingRoundsPage);
 
   const scopeQuery = useQuery({
-    queryKey: ["v3-organizer-voting-round-scope", editionId ?? "unscoped", roundId],
-    enabled: Boolean(editionId && roundId),
+    queryKey: votingRoundActorScopeKey(actorId, editionId, roundId),
+    enabled: Boolean(actorId && editionId && roundId),
     queryFn: () => {
-      if (!editionId) {
+      if (!actorId || !editionId) {
         throw new Error("Voting round access requires an explicit Organizer edition scope.");
       }
       return getRoundsPage({ data: { editionId } });
     },
-    staleTime: 10_000,
+    // Private verification never survives as a fresh read across a remount,
+    // permission change, or account transition. A refetch hides child controls.
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+    retry: false,
   });
 
   if (!editionId) {
@@ -47,7 +55,7 @@ function VotingRoundEditionGuard() {
     );
   }
 
-  if (scopeQuery.isLoading) {
+  if (scopeQuery.isPending || scopeQuery.isFetching) {
     return (
       <div className="admin-page mx-auto max-w-5xl pb-5" data-v3-organizer-voting-round-scope="checking">
         <AdminCard>
@@ -59,7 +67,7 @@ function VotingRoundEditionGuard() {
     );
   }
 
-  if (scopeQuery.error) {
+  if (scopeQuery.error || !scopeQuery.isSuccess) {
     return (
       <div className="admin-page mx-auto max-w-5xl pb-5" data-v3-organizer-voting-round-scope="error">
         <AdminCard>

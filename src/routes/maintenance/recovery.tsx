@@ -33,6 +33,8 @@ export const Route = createFileRoute("/maintenance/recovery")({
   component: MaintenanceRecoveryPage,
 });
 
+type V42ImportStatus = "checking" | "eligible" | "published" | "blocked";
+
 type PendingRecovery = {
   actorId: string;
   preview: PlatformModeChangePreview;
@@ -58,6 +60,7 @@ function MaintenanceRecoveryPage() {
   const [completed, setCompleted] = useState(false);
   const [draftProgress, setDraftProgress] = useState<number | null>(null);
   const [draftPrepared, setDraftPrepared] = useState(false);
+  const [v42ImportStatus, setV42ImportStatus] = useState<V42ImportStatus>("checking");
   const actorRef = useRef<string | null>(null);
   actorRef.current = actorId;
 
@@ -93,6 +96,33 @@ function MaintenanceRecoveryPage() {
     });
     return () => { active = false; };
   }, []);
+
+  // Check publication status only for the signed-in organizer in the protected
+  // recovery route. A failed read must never expose the obsolete draft action.
+  useEffect(() => {
+    if (!GLOBAL_MAINTENANCE_MODE || !actorId || snapshot?.mode !== "degraded") {
+      setV42ImportStatus("checking");
+      return;
+    }
+    let active = true;
+    setV42ImportStatus("checking");
+    void fetchAdminRulebookReleases()
+      .then((releases) => {
+        if (!active) return;
+        const current = releases.find((release) => release.is_current);
+        if (current?.version === "4.2" && current.status === "published") {
+          setV42ImportStatus("published");
+        } else if (current?.version === "4.1" && current.status === "published") {
+          setV42ImportStatus("eligible");
+        } else {
+          setV42ImportStatus("blocked");
+        }
+      })
+      .catch(() => {
+        if (active) setV42ImportStatus("blocked");
+      });
+    return () => { active = false; };
+  }, [actorId, snapshot?.mode]);
 
   const signIn = async (event: FormEvent) => {
     event.preventDefault();
@@ -212,7 +242,7 @@ function MaintenanceRecoveryPage() {
       setCompleted(true);
       await refresh();
       setMessage(
-        "The separate emergency Worker maintenance gate remains active. Canonical mode is Degraded. An authorized organizer may now prepare the v4.2 draft below, without publishing it.",
+        "The separate emergency Worker maintenance gate remains active. Canonical mode is Degraded. Rulebook publication status is checked separately; this recovery page cannot publish rules.",
       );
     } catch (err) {
       setMessage(errorText(err));
@@ -226,7 +256,7 @@ function MaintenanceRecoveryPage() {
   // operational mode must independently allow every write. The Worker remains
   // in global maintenance, no release publication RPC is exposed here.
   const prepareV42Draft = async () => {
-    if (!actorId || snapshot?.mode !== "degraded" || busy) return;
+    if (!actorId || snapshot?.mode !== "degraded" || v42ImportStatus !== "eligible" || busy) return;
     setBusy(true);
     setMessage(null);
     setDraftProgress(0);
@@ -396,7 +426,21 @@ function MaintenanceRecoveryPage() {
 
             {snapshot?.mode === "degraded" ? (
               <div className="space-y-3 rounded-xl border border-sky-200/25 bg-sky-200/5 p-4">
-                <h3 className="font-bold">Prepare SSC Regulations v4.2 draft</h3>
+                {v42ImportStatus === "published" ? (
+                  <>
+                    <h3 className="font-bold">SSC Regulations v4.2 is published</h3>
+                    <p className="text-sm leading-6 text-slate-300">
+                      v4.2 is already the Current rulebook. There is no draft to prepare.
+                      The separate Worker maintenance restriction remains active until
+                      the remaining release checks pass.
+                    </p>
+                    <a href="/rules/v4-2-preview" className="text-sm font-semibold text-sky-200 underline">
+                      Read the static v4.2 reference copy
+                    </a>
+                  </>
+                ) : v42ImportStatus === "eligible" ? (
+                  <>
+                    <h3 className="font-bold">Prepare SSC Regulations v4.2 draft</h3>
                 <p className="text-sm leading-6 text-slate-300">
                   This is an organizer-only, <strong>draft-only</strong> import of all
                   113 proposed changes into the existing Rules Manager database.
@@ -416,13 +460,24 @@ function MaintenanceRecoveryPage() {
                       : "Prepare v4.2 draft (unpublished)"}
                 </button>
                 <p className="text-xs text-slate-400">
-                  Approval of the YouTube video rule, bonus-point penalties and
-                  negative final scores remains outstanding. Publishing stays
-                  disabled until the normal authorized release workflow returns.
+                  The SSC owner/TSBC approval is recorded. Independent meaning
+                  and readability review, negative-score Results verification,
+                  and the normal authorized publication workflow remain required.
                 </p>
                 <a href="/rules/v4-2-preview" className="text-sm font-semibold text-sky-200 underline">
-                  Read the public draft preview
+                  Read the static v4.2 reference copy
                 </a>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="font-bold">v4.2 draft import unavailable</h3>
+                    <p className="text-sm leading-6 text-slate-300">
+                      {v42ImportStatus === "checking"
+                        ? "Checking which rulebook is currently published…"
+                        : "The current rulebook could not be confirmed as v4.1. This old draft tool is disabled."}
+                    </p>
+                  </>
+                )}
               </div>
             ) : null}
 

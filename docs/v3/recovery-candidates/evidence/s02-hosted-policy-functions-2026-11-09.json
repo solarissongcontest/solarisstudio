@@ -1,0 +1,16 @@
+{
+  "task": "S02",
+  "date": "2026-11-09",
+  "schemaOnly": true,
+  "source": "manual read-only hosted policy dependency function definitions",
+  "functions": [
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION auth.uid()\n RETURNS uuid\n LANGUAGE sql\n STABLE\nAS $function$\n  select \n  coalesce(\n    nullif(current_setting('request.jwt.claim.sub', true), ''),\n    (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')\n  )::uuid\n$function$\n",
+      "signature": "auth.uid()"
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.studio2_access_allowed(p_capability text, p_edition_id uuid DEFAULT NULL::uuid, p_strict_before_cutover boolean DEFAULT false)\n RETURNS boolean\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public', 'private'\nAS $function$\ndeclare\n  v_actor uuid := auth.uid();\n  v_has_capability boolean := false;\n  v_access_level text;\n  v_mode text := 'normal';\nbegin\n  if private.studio2_request_is_service_role() then\n    return true;\n  end if;\n\n  if v_actor is null then\n    return false;\n  end if;\n\n  v_has_capability := private.studio2_user_has_capability(\n    v_actor,\n    p_capability,\n    p_edition_id\n  );\n\n  if not v_has_capability then\n    return false;\n  end if;\n\n  select capability.access_level\n  into v_access_level\n  from public.studio2_capabilities capability\n  where capability.key = p_capability;\n\n  if v_access_level is null then\n    return false;\n  end if;\n\n  select state.mode\n  into v_mode\n  from public.studio2_platform_operational_state state\n  where state.singleton = true;\n\n  return private.studio2_capability_allowed_in_platform_mode(\n    p_capability,\n    v_access_level,\n    coalesce(v_mode, 'normal')\n  );\nend\n$function$\n",
+      "signature": "studio2_access_allowed(text,uuid,boolean)"
+    }
+  ]
+}

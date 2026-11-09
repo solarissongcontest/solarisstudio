@@ -1,0 +1,760 @@
+{
+  "task": "S02",
+  "date": "2026-11-09",
+  "version": "17.11",
+  "donorArchiveSha": "44f6808d4186e51352d3b746e269e75066aa93b9",
+  "sourcedFrom": "read-only pg_catalog; S14 Archive donor preflight literal references only",
+  "caveat": "Presence does not prove complete schema/SQL effect parity; some preflight names denote planned new objects, not required existing objects",
+  "rows": [
+    {
+      "kind": "catalog",
+      "name": "private.studio2_claim_operation",
+      "regproc": "private.studio2_claim_operation(uuid,text,text,text,jsonb)",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.studio2_complete_operation",
+      "regproc": "private.studio2_complete_operation(uuid,jsonb)",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.studio2_default_subsystems",
+      "regproc": "private.studio2_default_subsystems(text)",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.studio2_normalise_publication_config",
+      "regproc": "private.studio2_normalise_publication_config(jsonb)",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.studio2_prune_stale_task_notifications",
+      "regproc": "private.studio2_prune_stale_task_notifications(uuid)",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.studio2_reconcile_all_organizer_tasks",
+      "regproc": "private.studio2_reconcile_all_organizer_tasks(uuid)",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.studio2_reconcile_confirmation_requirement_tasks",
+      "regproc": "private.studio2_reconcile_confirmation_requirement_tasks(uuid)",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.studio2_reconcile_confirmation_sync_tasks",
+      "regproc": "private.studio2_reconcile_confirmation_sync_tasks()",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.studio2_reconcile_jury_ballot_review_tasks",
+      "regproc": "private.studio2_reconcile_jury_ballot_review_tasks(uuid)",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.studio2_reconcile_organizer_tasks",
+      "regproc": "private.studio2_reconcile_organizer_tasks(uuid)",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.studio2_reconcile_organizer_tasks_operational",
+      "regproc": "private.studio2_reconcile_organizer_tasks_operational(uuid)",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.studio2_reconcile_organizer_tasks_truth",
+      "regproc": "private.studio2_reconcile_organizer_tasks_truth(uuid)",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.studio2_reconcile_permission_approval_tasks",
+      "regproc": "private.studio2_reconcile_permission_approval_tasks()",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.studio2_reconcile_system_job_tasks",
+      "regproc": "private.studio2_reconcile_system_job_tasks()",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.studio2_repair_jury_missing_ballot_tasks",
+      "regproc": "private.studio2_repair_jury_missing_ballot_tasks(uuid)",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.studio2_request_is_service_role",
+      "regproc": "private.studio2_request_is_service_role()",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.studio2_sync_task_notifications",
+      "regproc": "private.studio2_sync_task_notifications(uuid)",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.studio2_task_recipient_eligible",
+      "regproc": "private.studio2_task_recipient_eligible(uuid,uuid)",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.studio2_transition_edition_v3",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.studio2_transition_risk",
+      "regproc": "private.studio2_transition_risk(text,text)",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_archive_runtime_transition_gates",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_archive_task_reconciliation_gate_active",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_archive_task_reconciliation_gates",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_archive_task_type_is_current_workflow",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_archived_workflow_row_edition",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_arm_archive_runtime_transition_gate",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_domain_event_outbox",
+      "regproc": null,
+      "relation": "private.v3_domain_event_outbox"
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_domain_events",
+      "regproc": null,
+      "relation": "private.v3_domain_events"
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_edition_final_results_ready",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_emit_domain_event",
+      "regproc": "private.v3_emit_domain_event(text,text,text,bigint,uuid,uuid,uuid,jsonb,integer,text[])",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_guard_archive_runtime_transition",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_guard_archived_edition_task_resurrection",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_guard_archived_edition_workflow_write",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_guard_archived_legacy_edition_status",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_guard_archived_televote_write",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_migration_contracts",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_publication_result_version_release_ready",
+      "regproc": "private.v3_publication_result_version_release_ready(uuid,bigint)",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_reconcile_resolved_task_notifications",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_resolve_archived_edition_workflow_tasks",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_result_versions",
+      "regproc": null,
+      "relation": "private.v3_result_versions"
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_sync_archived_edition_legacy_status",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "private.v3_televote_row_solaris_editions",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "public.admin_notifications",
+      "regproc": null,
+      "relation": "admin_notifications"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.editions",
+      "regproc": null,
+      "relation": "editions"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.entries",
+      "regproc": null,
+      "relation": "entries"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.internal_entries",
+      "regproc": null,
+      "relation": "internal_entries"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.jury_ballot_statuses",
+      "regproc": null,
+      "relation": "jury_ballot_statuses"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.jury_ballot_submissions",
+      "regproc": null,
+      "relation": "jury_ballot_submissions"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.jury_votes",
+      "regproc": null,
+      "relation": "jury_votes"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.jury_voting_windows",
+      "regproc": null,
+      "relation": "jury_voting_windows"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.national_final_entries",
+      "regproc": null,
+      "relation": "national_final_entries"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.national_finals",
+      "regproc": null,
+      "relation": "national_finals"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.next_in_line_responses",
+      "regproc": null,
+      "relation": "next_in_line_responses"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.next_in_line_submissions",
+      "regproc": null,
+      "relation": "next_in_line_submissions"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.notification_deliveries",
+      "regproc": null,
+      "relation": "notification_deliveries"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.participants",
+      "regproc": null,
+      "relation": "participants"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.results",
+      "regproc": null,
+      "relation": "results"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.shows",
+      "regproc": null,
+      "relation": "shows"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.studio2_access_allowed",
+      "regproc": "studio2_access_allowed(text,uuid,boolean)",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "public.studio2_complete_domain_event_delivery",
+      "regproc": "studio2_complete_domain_event_delivery(uuid,text,text,jsonb)",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "public.studio2_confirmation_requirements",
+      "regproc": null,
+      "relation": "studio2_confirmation_requirements"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.studio2_contest_events",
+      "regproc": null,
+      "relation": "studio2_contest_events"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.studio2_edition_runtime",
+      "regproc": null,
+      "relation": "studio2_edition_runtime"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.studio2_eligibility_overrides",
+      "regproc": null,
+      "relation": "studio2_eligibility_overrides"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.studio2_media_asset_reviews",
+      "regproc": null,
+      "relation": "studio2_media_asset_reviews"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.studio2_next_in_line_windows",
+      "regproc": null,
+      "relation": "studio2_next_in_line_windows"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.studio2_operation_receipts",
+      "regproc": null,
+      "relation": "studio2_operation_receipts"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.studio2_organizer_tasks",
+      "regproc": null,
+      "relation": "studio2_organizer_tasks"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.studio2_process_edition_domain_event",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "public.studio2_result_operations",
+      "regproc": null,
+      "relation": "studio2_result_operations"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.studio2_show_publication_controls",
+      "regproc": null,
+      "relation": "studio2_show_publication_controls"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.studio2_transition_edition_v2",
+      "regproc": "studio2_transition_edition_v2(uuid,text,text,uuid)",
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "public.studio2_transition_edition_v3",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "public.submission_rounds",
+      "regproc": null,
+      "relation": "submission_rounds"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.submissions",
+      "regproc": null,
+      "relation": "submissions"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.televote_votes",
+      "regproc": null,
+      "relation": "televote_votes"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.televoting_round_bindings",
+      "regproc": null,
+      "relation": "televoting_round_bindings"
+    },
+    {
+      "kind": "catalog",
+      "name": "public.v3_register_migration_contract",
+      "regproc": null,
+      "relation": null
+    },
+    {
+      "kind": "catalog",
+      "name": "public.voters",
+      "regproc": null,
+      "relation": "voters"
+    },
+    {
+      "kind": "catalog",
+      "name": "televoting.combined_televote_component_results",
+      "regproc": null,
+      "relation": "televoting.combined_televote_component_results"
+    },
+    {
+      "kind": "catalog",
+      "name": "televoting.combined_televote_results",
+      "regproc": null,
+      "relation": "televoting.combined_televote_results"
+    },
+    {
+      "kind": "catalog",
+      "name": "televoting.round_countries",
+      "regproc": null,
+      "relation": "televoting.round_countries"
+    },
+    {
+      "kind": "catalog",
+      "name": "televoting.round_entries",
+      "regproc": null,
+      "relation": "televoting.round_entries"
+    },
+    {
+      "kind": "catalog",
+      "name": "televoting.round_results",
+      "regproc": null,
+      "relation": "televoting.round_results"
+    },
+    {
+      "kind": "catalog",
+      "name": "televoting.rounds",
+      "regproc": null,
+      "relation": "televoting.rounds"
+    },
+    {
+      "kind": "catalog",
+      "name": "televoting.televote_aggregation_participants",
+      "regproc": null,
+      "relation": "televoting.televote_aggregation_participants"
+    },
+    {
+      "kind": "catalog",
+      "name": "televoting.televote_aggregation_sources",
+      "regproc": null,
+      "relation": "televoting.televote_aggregation_sources"
+    },
+    {
+      "kind": "catalog",
+      "name": "televoting.televote_aggregations",
+      "regproc": null,
+      "relation": "televoting.televote_aggregations"
+    },
+    {
+      "kind": "catalog",
+      "name": "televoting.vote_entries",
+      "regproc": null,
+      "relation": "televoting.vote_entries"
+    },
+    {
+      "kind": "catalog",
+      "name": "televoting.vote_submissions",
+      "regproc": null,
+      "relation": "televoting.vote_submissions"
+    },
+    {
+      "kind": "signature",
+      "name": "private.studio2_claim_operation(uuid,text,uuid,text,text,jsonb,jsonb)",
+      "signature": "private.studio2_claim_operation(uuid,text,uuid,text,text,jsonb,jsonb)"
+    },
+    {
+      "kind": "signature",
+      "name": "private.studio2_complete_operation(uuid,jsonb)",
+      "signature": "private.studio2_complete_operation(uuid,jsonb)"
+    },
+    {
+      "kind": "signature",
+      "name": "private.studio2_default_subsystems(text)",
+      "signature": "private.studio2_default_subsystems(text)"
+    },
+    {
+      "kind": "signature",
+      "name": "private.studio2_normalise_publication_config(jsonb)",
+      "signature": "private.studio2_normalise_publication_config(jsonb)"
+    },
+    {
+      "kind": "signature",
+      "name": "private.studio2_prune_stale_task_notifications(uuid)",
+      "signature": "private.studio2_prune_stale_task_notifications(uuid)"
+    },
+    {
+      "kind": "signature",
+      "name": "private.studio2_reconcile_all_organizer_tasks(uuid)",
+      "signature": "private.studio2_reconcile_all_organizer_tasks(uuid)"
+    },
+    {
+      "kind": "signature",
+      "name": "private.studio2_reconcile_confirmation_requirement_tasks(uuid)",
+      "signature": "private.studio2_reconcile_confirmation_requirement_tasks(uuid)"
+    },
+    {
+      "kind": "signature",
+      "name": "private.studio2_reconcile_confirmation_sync_tasks()",
+      "signature": "private.studio2_reconcile_confirmation_sync_tasks()"
+    },
+    {
+      "kind": "signature",
+      "name": "private.studio2_reconcile_jury_ballot_review_tasks(uuid)",
+      "signature": "private.studio2_reconcile_jury_ballot_review_tasks(uuid)"
+    },
+    {
+      "kind": "signature",
+      "name": "private.studio2_reconcile_organizer_tasks_operational(uuid)",
+      "signature": "private.studio2_reconcile_organizer_tasks_operational(uuid)"
+    },
+    {
+      "kind": "signature",
+      "name": "private.studio2_reconcile_organizer_tasks_truth(uuid)",
+      "signature": "private.studio2_reconcile_organizer_tasks_truth(uuid)"
+    },
+    {
+      "kind": "signature",
+      "name": "private.studio2_reconcile_organizer_tasks(uuid)",
+      "signature": "private.studio2_reconcile_organizer_tasks(uuid)"
+    },
+    {
+      "kind": "signature",
+      "name": "private.studio2_reconcile_permission_approval_tasks()",
+      "signature": "private.studio2_reconcile_permission_approval_tasks()"
+    },
+    {
+      "kind": "signature",
+      "name": "private.studio2_reconcile_system_job_tasks()",
+      "signature": "private.studio2_reconcile_system_job_tasks()"
+    },
+    {
+      "kind": "signature",
+      "name": "private.studio2_repair_jury_missing_ballot_tasks(uuid)",
+      "signature": "private.studio2_repair_jury_missing_ballot_tasks(uuid)"
+    },
+    {
+      "kind": "signature",
+      "name": "private.studio2_request_is_service_role()",
+      "signature": "private.studio2_request_is_service_role()"
+    },
+    {
+      "kind": "signature",
+      "name": "private.studio2_sync_task_notifications(uuid)",
+      "signature": "private.studio2_sync_task_notifications(uuid)"
+    },
+    {
+      "kind": "signature",
+      "name": "private.studio2_task_recipient_eligible(uuid,uuid)",
+      "signature": "private.studio2_task_recipient_eligible(uuid,uuid)"
+    },
+    {
+      "kind": "signature",
+      "name": "private.studio2_transition_edition_v3(uuid,text,text,uuid,bigint,uuid,text)",
+      "signature": null
+    },
+    {
+      "kind": "signature",
+      "name": "private.studio2_transition_risk(text,text)",
+      "signature": "private.studio2_transition_risk(text,text)"
+    },
+    {
+      "kind": "signature",
+      "name": "private.v3_archive_task_reconciliation_gate_active(uuid)",
+      "signature": null
+    },
+    {
+      "kind": "signature",
+      "name": "private.v3_archive_task_type_is_current_workflow(text)",
+      "signature": null
+    },
+    {
+      "kind": "signature",
+      "name": "private.v3_archived_workflow_row_edition(jsonb)",
+      "signature": null
+    },
+    {
+      "kind": "signature",
+      "name": "private.v3_arm_archive_runtime_transition_gate(uuid)",
+      "signature": null
+    },
+    {
+      "kind": "signature",
+      "name": "private.v3_edition_final_results_ready(uuid)",
+      "signature": null
+    },
+    {
+      "kind": "signature",
+      "name": "private.v3_emit_domain_event(text,text,text,bigint,uuid,uuid,uuid,jsonb,integer,text[])",
+      "signature": "private.v3_emit_domain_event(text,text,text,bigint,uuid,uuid,uuid,jsonb,integer,text[])"
+    },
+    {
+      "kind": "signature",
+      "name": "private.v3_guard_archive_runtime_transition()",
+      "signature": null
+    },
+    {
+      "kind": "signature",
+      "name": "private.v3_guard_archived_edition_task_resurrection()",
+      "signature": null
+    },
+    {
+      "kind": "signature",
+      "name": "private.v3_guard_archived_edition_workflow_write()",
+      "signature": null
+    },
+    {
+      "kind": "signature",
+      "name": "private.v3_guard_archived_legacy_edition_status()",
+      "signature": null
+    },
+    {
+      "kind": "signature",
+      "name": "private.v3_guard_archived_televote_write()",
+      "signature": null
+    },
+    {
+      "kind": "signature",
+      "name": "private.v3_publication_result_version_release_ready(uuid,bigint)",
+      "signature": "private.v3_publication_result_version_release_ready(uuid,bigint)"
+    },
+    {
+      "kind": "signature",
+      "name": "private.v3_reconcile_resolved_task_notifications(uuid)",
+      "signature": null
+    },
+    {
+      "kind": "signature",
+      "name": "private.v3_resolve_archived_edition_workflow_tasks(uuid)",
+      "signature": null
+    },
+    {
+      "kind": "signature",
+      "name": "private.v3_sync_archived_edition_legacy_status()",
+      "signature": null
+    },
+    {
+      "kind": "signature",
+      "name": "private.v3_televote_row_solaris_editions(text,jsonb)",
+      "signature": null
+    },
+    {
+      "kind": "signature",
+      "name": "public.studio2_access_allowed(text,uuid,boolean)",
+      "signature": "studio2_access_allowed(text,uuid,boolean)"
+    },
+    {
+      "kind": "signature",
+      "name": "public.studio2_complete_domain_event_delivery(uuid,text,text,jsonb)",
+      "signature": "studio2_complete_domain_event_delivery(uuid,text,text,jsonb)"
+    },
+    {
+      "kind": "signature",
+      "name": "public.studio2_process_edition_domain_event(uuid,text,text)",
+      "signature": null
+    },
+    {
+      "kind": "signature",
+      "name": "public.studio2_transition_edition_v2(uuid,text,text,uuid)",
+      "signature": "studio2_transition_edition_v2(uuid,text,text,uuid)"
+    },
+    {
+      "kind": "signature",
+      "name": "public.studio2_transition_edition_v3(uuid,text,text,uuid,bigint,uuid,text)",
+      "signature": null
+    },
+    {
+      "kind": "signature",
+      "name": "public.v3_register_migration_contract(text,integer,text,boolean,text,text)",
+      "signature": null
+    }
+  ]
+}
