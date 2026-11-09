@@ -1,0 +1,80 @@
+name: V3 S14 Televote provenance guard local regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/v3-s14-televote-guard-local.yml"
+      - "scripts/rehearse-v3-s14-televote-guard-local.sh"
+      - "docs/v3/recovery-candidates/forward-only-s14-televote-provenance-guard-local.sql"
+      - "docs/v3/recovery-candidates/fixtures/s14-televote-guard-catalog-subset-local.sql"
+      - "src/lib/v3-s14-televote-guard-forward.contract.test.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  s14-guard:
+    name: Isolated S14 provenance and historical bypass regression
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      REVIEWED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      SOLARIS_RUN_LOCAL_DB_REHEARSAL: "YES"
+      SOLARIS_VERIFICATION_TARGET: local
+      SOLARIS_LOCAL_DB_PORT: "54322"
+      SOLARIS_LOCAL_DB_PASSWORD: postgres
+      SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PROJECT_REF: local
+      SUPABASE_PROJECT_ID: local
+    services:
+      postgres:
+        image: postgres:17.11-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - "127.0.0.1:54322:5432"
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Check reviewed commit and refuse production credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$REVIEWED_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          [[ "$(git rev-parse HEAD)" == "$REVIEWED_SHA" ]] || exit 1
+          [[ "$SUPABASE_URL" == "http://127.0.0.1:54321" ]] || exit 1
+          [[ "$SOLARIS_VERIFICATION_TARGET" == local ]] || exit 1
+          for key in DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN PGSERVICE PGSERVICEFILE PGHOSTADDR PGHOST; do
+            [[ -z "${!key:-}" ]] || { echo "::error::Remote DB credentials not allowed: $key"; exit 1; }
+          done
+      - name: Install local PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+      - name: Check Bash syntax
+        run: bash -n scripts/rehearse-v3-s14-televote-guard-local.sh
+      - name: Run Televote provenance guard local regression
+        run: bash scripts/rehearse-v3-s14-televote-guard-local.sh
+      - name: Assert temporary local DBs were cleaned up
+        shell: bash
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          left="$(psql -w -X -qAt -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -c "select count(*) from pg_database where datname like 'solaris_v3_s14guard_local_%'")"
+          [[ "$left" == 0 ]] || { echo "::error::Local fixture leak: $left"; exit 1; }
+      - name: State test scope
+        run: |
+          echo "S14 managed-vote guard only; no Televote published-source replay or live contest data."
+          echo "The guard rejects forged JWT claims and transaction markers; hosted role grants and service entry points remain pending System-owner verification."
+          echo "No production migration or release authority."

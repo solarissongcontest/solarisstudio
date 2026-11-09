@@ -2,13 +2,10 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-const route = readFileSync(
-  "src/routes/_authenticated/admin/televote/$slug.tsx",
-  "utf8",
-);
+const route = readFileSync("src/routes/_authenticated/admin/televote/$slug.tsx", "utf8");
 
 describe("V3 Organizer Televote totals context", () => {
-  it("binds route reads to the exact selected Organizer edition", () => {
+  it("binds the read-only view to the exact selected Organizer edition", () => {
     expect(route).toContain("useAdminContext()");
     expect(route).toContain('key={editionId || "unscoped"}');
     expect(route).toContain(
@@ -17,27 +14,16 @@ describe("V3 Organizer Televote totals context", () => {
     expect(route).toContain("useShows(scopedEditionId)");
     expect(route).toContain("useParticipants(scopedEditionId)");
     expect(route).toContain("useContestEntities(scopedEditionId)");
-    expect(route).toContain("const contextMismatch = Boolean(edition && organizerEditionId !== edition.id)");
+    expect(route).toContain(
+      "const contextMismatch = Boolean(edition && organizerEditionId !== edition.id)",
+    );
     expect(route).toContain('title="Edition context mismatch"');
     expect(route).toContain("Reads and saves stay blocked until the contexts match");
   });
 
-  it("reasserts edition, show and frozen review scope before any legacy aggregate write", () => {
-    expect(route).toContain("validateEditionCommandScope");
-    expect(route).toContain("routeEditionId: edition.id");
-    expect(route).toContain("commandEditionId: review?.editionId ?? organizerEditionId");
-    expect(route).toContain("entityEditionId: review?.showEditionId ?? selectedShow.edition_id");
-    expect(route).toContain("capabilityEditionId: organizerEditionId");
-    expect(route).toContain("review.editionId !== edition.id || review.showId !== selectedShow.id");
-    expect(route).toContain("const commandEditionId = assertTelevoteEditionScope(review)");
-    expect(route).toContain("edition_id: commandEditionId");
-    expect(route.indexOf("validateEditionCommandScope")).toBeLessThan(
-      route.indexOf('supabase.from("televote_votes")'),
-    );
-  });
-
-  it("does not claim the legacy direct-write surface is the final V3 authority", () => {
-    expect(route).toContain('supabase.from("televote_votes")');
-    expect(route).not.toContain("executeGovernedTelevoteTotalsCommand");
+  it("does not expose a direct Televote projection writer", () => {
+    expect(route).not.toContain(".update({ points:");
+    expect(route).not.toContain(".insert({");
+    expect(route).not.toContain("setDraft");
   });
 });

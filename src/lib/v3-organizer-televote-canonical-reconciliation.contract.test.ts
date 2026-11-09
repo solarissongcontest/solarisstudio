@@ -1,0 +1,46 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+const route = readFileSync("src/routes/_authenticated/admin/televote/$slug.tsx", "utf8");
+const combinedRoute = readFileSync("src/routes/televoting/admin/combined.tsx", "utf8");
+const combinedMath = readFileSync("src/integrations/televoting/combined-math.ts", "utf8");
+const combinedFunctions = readFileSync("src/integrations/televoting/combined.functions.ts", "utf8");
+const combinedServer = readFileSync("src/integrations/televoting/combined.server.ts", "utf8");
+const contextServer = readFileSync(
+  "src/integrations/televoting/combined-context.server.ts",
+  "utf8",
+);
+
+describe("V3 Organizer Televote correction dependency", () => {
+  it("routes corrections to the Televoting-owned workflow", () => {
+    expect(route).toContain('to="/televoting/admin/combined"');
+    expect(route).toContain(
+      'search={{ editionId: edition.id, showId: selectedShow?.id, view: "corrections" }}',
+    );
+    expect(route).toContain(
+      'search={{ editionId: edition.id, showId: selectedShow?.id, view: "health" }}',
+    );
+    expect(route).toContain(
+      "Corrections, sanctions and deductions must be created and published through the Televoting correction workflow.",
+    );
+    expect(route).not.toContain("reconcileOrganizerTelevoteTotals");
+  });
+
+  it("preserves negative corrections and publication controls in the owner workflow", () => {
+    expect(combinedRoute).toContain('["correction", "Correction"]');
+    expect(combinedRoute).toContain("setMergedCombinedStatus");
+    expect(combinedRoute).toContain("recalculateMergedCombined");
+    expect(combinedMath).toContain(
+      "finalCombinedPoints: totalVotingPoints + totalActivityPoints + finalCorrection",
+    );
+    expect(combinedMath).toContain("Final, reviewed point deductions must be applied in full");
+    expect(combinedRoute).toContain("Correction context preserved from Solaris Organizer");
+    expect(combinedRoute).toContain(
+      "refuse publication unless every enabled source resolves to that same bound show",
+    );
+    expect(combinedFunctions).toContain("expectedEditionId");
+    expect(combinedFunctions).toContain("expectedShowId");
+    expect(combinedServer).toContain("assertCombinedPublicationContextServer");
+    expect(contextServer).toContain("resolveCombinedPublicationTarget");
+  });
+});
