@@ -74,25 +74,37 @@ run -f "$index_stage" >/dev/null
 index_contract="$(run -c "select (
   select count(*)=3 from (
     values
-      ('public.studio2_operation_receipts_created_at_idx', 'public.studio2_operation_receipts', 1, 'created_at DESC', null::text, null::text),
-      ('private.v3_domain_events_occurred_at_idx', 'private.v3_domain_events', 2, 'occurred_at DESC', 'id', null::text),
-      ('private.v3_domain_event_outbox_created_at_idx', 'private.v3_domain_event_outbox', 3, 'created_at DESC', 'event_id', 'consumer_key')
-  ) spec(idx,tbl,keys,k1,k2,k3)
+      ('public.studio2_operation_receipts_created_at_idx',
+       'public.studio2_operation_receipts',
+       array['created_at']::text[], array[3]::integer[]),
+      ('private.v3_domain_events_occurred_at_idx',
+       'private.v3_domain_events',
+       array['occurred_at','id']::text[], array[3,0]::integer[]),
+      ('private.v3_domain_event_outbox_created_at_idx',
+       'private.v3_domain_event_outbox',
+       array['created_at','event_id','consumer_key']::text[],
+       array[3,0,0]::integer[])
+  ) spec(idx,tbl,key_names,sort_flags)
   join pg_class c on c.oid=to_regclass(spec.idx)
   join pg_index i on i.indexrelid=c.oid
   join pg_am am on am.oid=c.relam
   where i.indrelid=to_regclass(spec.tbl)
     and i.indisvalid and i.indisready and not i.indisunique
-    and i.indnkeyatts=spec.keys and am.amname='btree'
+    and i.indnkeyatts=array_length(spec.key_names,1)
+    and i.indnatts=i.indnkeyatts and am.amname='btree'
     and i.indpred is null and i.indexprs is null
-    and pg_get_indexdef(i.indexrelid,1,true)=spec.k1
-    and (spec.k2 is null or pg_get_indexdef(i.indexrelid,2,true)=spec.k2)
-    and (spec.k3 is null or pg_get_indexdef(i.indexrelid,3,true)=spec.k3)
+    and (select array_agg(a.attname order by key_number)
+      from generate_series(0,i.indnkeyatts-1) keys(key_number)
+      join pg_attribute a on a.attrelid=i.indrelid
+       and a.attnum=i.indkey[key_number])=spec.key_names
+    and (select array_agg(i.indoption[key_number]::integer order by key_number)
+      from generate_series(0,i.indnkeyatts-1) keys(key_number))=spec.sort_flags
   )::text")"
 if [[ "$index_contract" != true ]]; then
   echo 'S9 concurrent index catalog contract FAILED; local-only catalog detail:' >&2
   run -c "select i.indexrelid::regclass, i.indrelid::regclass,
     am.amname, i.indnkeyatts, i.indnatts, i.indisvalid, i.indisready,
+    i.indkey::text, i.indoption::text,
     pg_get_indexdef(i.indexrelid), pg_get_indexdef(i.indexrelid,1,true),
     pg_get_indexdef(i.indexrelid,2,true), pg_get_indexdef(i.indexrelid,3,true)
     from pg_index i join pg_class c on c.oid=i.indexrelid
