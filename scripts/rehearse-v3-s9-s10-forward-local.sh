@@ -54,9 +54,42 @@ expect_reject() {
 
 # The S10 projection must never install without its S9 source and S13 owner.
 expect_reject "$s10" "S10 blocked: canonical S9 projection missing"
+expect_reject "$s9" "S9 blocked: required concurrent index not installed"
+# Simulate an interrupted/manual first-index install. The staged preflight must
+# refuse the name collision *before* creating the other two indexes.
+run -c "create index studio2_operation_receipts_created_at_idx on public.studio2_operation_receipts (created_at desc)" >/dev/null
+expect_reject "$index_stage" "S9 index stage blocked: existing index/object"
+partial="$(run -c "select
+  (to_regclass('private.v3_domain_events_occurred_at_idx') is null
+   and to_regclass('private.v3_domain_event_outbox_created_at_idx') is null)::text")"
+[[ "$partial" == true ]] || { echo 'Partial-index preflight mutated other ledgers' >&2; exit 1; }
+# A human-reviewed local reconciliation drops the synthetic blocker. Never
+# automate dropping a possibly-live invalid production index.
+run -c "drop index public.studio2_operation_receipts_created_at_idx" >/dev/null
 # CREATE INDEX CONCURRENTLY must execute outside an explicit transaction and
 # before the small S9 RPC-install transaction. A second pass must fail closed.
 run -f "$index_stage" >/dev/null
+# Check exact table, access method, leading key order, validity and readiness;
+# checking mere index-name existence would accept an unrelated/invalid object.
+index_contract="$(run -c "select (
+  select count(*)=3 from (
+    values
+      ('public.studio2_operation_receipts_created_at_idx', 'public.studio2_operation_receipts', 1, 'created_at DESC', null::text, null::text),
+      ('private.v3_domain_events_occurred_at_idx', 'private.v3_domain_events', 2, 'occurred_at DESC', 'id', null::text),
+      ('private.v3_domain_event_outbox_created_at_idx', 'private.v3_domain_event_outbox', 3, 'created_at DESC', 'event_id', 'consumer_key')
+  ) spec(idx,tbl,keys,k1,k2,k3)
+  join pg_class c on c.oid=to_regclass(spec.idx)
+  join pg_index i on i.indexrelid=c.oid
+  join pg_am am on am.oid=c.relam
+  where i.indrelid=to_regclass(spec.tbl)
+    and i.indisvalid and i.indisready and not i.indisunique
+    and i.indnkeyatts=spec.keys and am.amname='btree'
+    and i.indpred is null and i.indexprs is null
+    and pg_get_indexdef(i.indexrelid,1,true)=spec.k1
+    and (spec.k2 is null or pg_get_indexdef(i.indexrelid,2,true)=spec.k2)
+    and (spec.k3 is null or pg_get_indexdef(i.indexrelid,3,true)=spec.k3)
+  )::text")"
+[[ "$index_contract" == true ]] || { echo 'S9 concurrent index catalog contract FAILED' >&2; exit 1; }
 expect_reject "$index_stage" "S9 index stage blocked: existing index/object"
 run -f "$s9" >/dev/null
 expect_reject "$s10" "S10 blocked: canonical S13 registry missing"
@@ -69,9 +102,34 @@ run -f "$migrations/20261019112900_v3_s13_migration_registration_context.sql" >/
 run -f "$migrations/20261019113300_v3_s13_strict_registration_restore.sql" >/dev/null
 run -f "$s10" >/dev/null
 
-# Fail closed on accidental reapplication of the same object names.
+# The exact candidate must reject reapplication without changing objects,
+# migration registration, or index/catalog definitions (fail-closed idempotency).
+fingerprint() {
+  run -c "select md5(
+    coalesce((select string_agg(pg_get_indexdef(i.indexrelid), E'\\n' order by c.relname)
+      from pg_index i join pg_class c on c.oid=i.indexrelid
+      where c.oid in (
+        to_regclass('public.studio2_operation_receipts_created_at_idx'),
+        to_regclass('private.v3_domain_events_occurred_at_idx'),
+        to_regclass('private.v3_domain_event_outbox_created_at_idx')
+      )), '') ||
+    coalesce((select string_agg(pg_get_functiondef(p.oid), E'\\n' order by p.proname)
+      from pg_proc p where p.oid in (
+        to_regprocedure('public.admin_system_observability_snapshot(integer)'),
+        to_regprocedure('public.admin_system_v3_sli_snapshot(integer)')
+      )), '') ||
+    (select count(*)::text from private.v3_migration_contracts
+      where migration_key='v3.s10.sli-snapshot')
+  )"
+}
+before_replay="$(fingerprint)"
 expect_reject "$s9" "S9 blocked:"
 expect_reject "$s10" "S10 blocked: existing SLI function"
+expect_reject "$index_stage" "S9 index stage blocked: existing index/object"
+after_replay="$(fingerprint)"
+[[ "$before_replay" == "$after_replay" ]] || {
+  echo 'S9/S10 failed-closed rerun changed catalog or registry' >&2; exit 1;
+}
 
 counts="$(run -c "select
   (to_regprocedure('public.admin_system_observability_snapshot(integer)') is not null)::text || '|' ||
@@ -129,5 +187,5 @@ registered="$(run -c "select count(*) from private.v3_migration_contracts
   echo "S10 canonical S13 registration record missing: $registered" >&2; exit 1;
 }
 
-echo 'PASS: S9+S10 local PG17 recovery: concurrent independent 3-index stage, S13 dependency, 2 RPCs, authorization, window bounds, S9->S10 source binding and private-data canaries'
+echo 'PASS: S9+S10 local PG17 recovery: partial-index collision/reconciliation, 3 exact valid/ready index contracts, S13 dependency, 2 RPCs, non-mutating reruns, authorization, window bounds, S9->S10 source binding and private-data canaries'
 echo 'LIMITATION: observed ledger COLUMN subset and synthetic records only. No hosted-schema-equivalence, index lock-cost proof or migration-history repair.'
