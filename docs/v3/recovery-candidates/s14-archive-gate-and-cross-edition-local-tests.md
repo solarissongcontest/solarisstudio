@@ -35,3 +35,19 @@ Prior read-only catalog observation showed `public.studio2_edition_runtime` pres
 These tests require the complete **local Supabase migration chain** and never run against hosted Supabase. The CI workflow retains isolated local Supabase start/reset, exact feature SHA checks, clean-replay and current-main-upgrade jobs, and forced stop on exit.
 
 **NO-GO:** do not replay historical migrations, fabricate migration-history rows, alter real edition runtime, change feature flags or deploy Archive from this PR. Full hosted-head-equivalent parity, forward-only recovery design, security/Task/Televote coupling and owner approval remain prerequisites to production DDL.
+
+## S05 acceptance-matrix traceability
+
+The new regression checks above run alongside the existing real-RPC local rehearsals, rather than substituting static strings for behavioral execution:
+
+| Negative case | Executed behavioral fixture | Canonical truth checked |
+| --- | --- | --- |
+| Duplicate exact Archive request | `.github/scripts/v3-s14-archive-system-rehearsal.sh` | Receipt is replayed; one domain event and unchanged legacy event count |
+| Same operation with changed semantics | `v3-s14-archive-system-rehearsal.sh` | Idempotency conflict; historical result and pre-existing receipts intact |
+| Reordered Archive before `post_edition` | `.github/scripts/v3-s14-archive-guard-rehearsal.sh` | `STATE_CHANGED`; results-state edition unchanged |
+| Stale expected version | `v3-s14-archive-guard-rehearsal.sh` | `VERSION_CONFLICT`; no processing receipt or premature Task resolution |
+| Unauthorized actor | `v3-s14-archive-guard-rehearsal.sh` | `AUTHORIZATION`; runtime and current-workflow Task unchanged |
+| Wrong edition or transaction-bound one-shot gate | `.github/scripts/v3-s14-archive-delete-guard-rehearsal.sh` | Exact `42501` guard denial, no cross-edition transition or reusable capability |
+| Cross-edition Task projection reconciliation | `.github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh` | Archived task terminal; independent active task, Inbox and pending delivery stay actionable; failed delivery and governance evidence retained |
+
+`src/lib/v3-s14-archive-gate-scope-and-reconciliation.contract.test.ts` pins the matrix and workflow wiring to the canonical source. The database checks, not the string-contract assertions, are the behavioral acceptance evidence. A green run only certifies that exact candidate commit on disposable Supabase; it does not authorize hosted migration or wider V3 release.

@@ -9,6 +9,8 @@ const convergence = source("supabase/migrations/20261021202000_v3_s14_archive_re
 const failedEvidence = source("supabase/migrations/20261021163000_v3_s14_failed_task_delivery_evidence.sql");
 const guardTest = source(".github/scripts/v3-s14-archive-delete-guard-rehearsal.sh");
 const taskTest = source(".github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh");
+const lifecycleDenialTest = source(".github/scripts/v3-s14-archive-guard-rehearsal.sh");
+const lifecycleReplayTest = source(".github/scripts/v3-s14-archive-system-rehearsal.sh");
 const workflow = source(".github/workflows/v3-s14-archive-system-rehearsal.yml");
 
 describe("V3 S14 Archive one-shot authority and scoped consequence verification", () => {
@@ -58,6 +60,28 @@ describe("V3 S14 Archive one-shot authority and scoped consequence verification"
     expect(taskTest).toContain("repeat scoped Task reconcile suppressed control Inbox");
     expect(taskTest).toContain("repeat scoped Task reconcile suppressed control delivery");
     expect(taskTest).toContain("task resolution rewrote historical failed-delivery evidence");
+  });
+
+  it("retains the full S05 negative matrix around the same canonical transition RPC", () => {
+    // These source assertions pin the independently executed database rehearsals.
+    // The Archive System workflow runs both scripts on disposable local Supabase.
+    expect(lifecycleDenialTest).toContain("archive without edition.archive");
+    expect(lifecycleDenialTest).toContain('"AUTHORIZATION"');
+    expect(lifecycleDenialTest).toContain("unauthorized archive changed runtime");
+    expect(lifecycleDenialTest).toContain("archive with stale expected version");
+    expect(lifecycleDenialTest).toContain('"VERSION_CONFLICT"');
+    expect(lifecycleDenialTest).toContain("failed stale transition left a processing receipt");
+    expect(lifecycleDenialTest).toContain("results directly to archived");
+    expect(lifecycleDenialTest).toContain('"STATE_CHANGED"');
+    expect(lifecycleDenialTest).toContain("invalid archive source changed runtime");
+    expect(lifecycleReplayTest).toContain("Exact archive retry replays the receipt without duplicate facts");
+    expect(lifecycleReplayTest).toContain("archive retry was not identified as replay");
+    expect(lifecycleReplayTest).toContain("archive retry duplicated canonical event");
+    expect(lifecycleReplayTest).toContain("archive retry duplicated legacy event");
+    expect(lifecycleReplayTest).toContain("archive semantic idempotency conflict");
+    expect(lifecycleReplayTest).toContain("Immutable results, publication provenance and pre-existing receipts survive Archive");
+    expect(workflow).toContain("v3-s14-archive-system-rehearsal.sh");
+    expect(workflow).toContain("v3-s14-archive-guard-rehearsal.sh");
   });
 
   it("requires clean-replay and current-main upgrade against isolated local Supabase", () => {

@@ -109,4 +109,36 @@ describe("V3 contest-domain experience projection", () => {
     expect(projectV3Experience(snapshot({ edition: "cancelled" })).mode).toBe("cancelled");
     expect(projectV3Experience(snapshot({ edition: "archived" })).mode).toBe("archived");
   });
+
+  it("never presents cancelled edition as live, voting-open or published despite stale signals", () => {
+    for (const results of ["published", "corrected"] as const) {
+      expect(projectV3Experience(snapshot({
+        edition: "cancelled",
+        show: "live",
+        televote: "extended",
+        results,
+        publication: "public",
+      }))).toEqual({
+        mode: "cancelled",
+        live: false,
+        votingOpen: false,
+        resultsPublic: false,
+      });
+    }
+  });
+
+  it("keeps archived voting and live closed while preserving published historical Results", () => {
+    expect(projectV3Experience(snapshot({
+      edition: "archived",
+      show: "paused",
+      televote: "open",
+      results: "published",
+      publication: "public",
+    }))).toEqual({
+      mode: "archived",
+      live: false,
+      votingOpen: false,
+      resultsPublic: true,
+    });
+  });
 });
