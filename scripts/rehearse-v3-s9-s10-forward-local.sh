@@ -93,7 +93,7 @@ index_contract="$(run -c "select (
     and i.indnkeyatts=array_length(spec.key_names,1)
     and i.indnatts=i.indnkeyatts and am.amname='btree'
     and i.indpred is null and i.indexprs is null
-    and (select array_agg(a.attname order by key_number)
+    and (select array_agg(a.attname::text order by key_number)
       from generate_series(0,i.indnkeyatts-1) keys(key_number)
       join pg_attribute a on a.attrelid=i.indrelid
        and a.attnum=i.indkey[key_number])=spec.key_names
