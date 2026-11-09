@@ -287,6 +287,42 @@ if run -c "select public.v3_register_migration_contract('20261019113000_v3_s6_no
 fi
 replayed="$(run -c "select public.v3_register_migration_contract('v3.s13.strict-registration-restore',1,'forward_fix_only',false,null,'Restore strict semantic migration-key validation after the bounded S6 notification alias window.') ->> 'replayed'")"
 [[ "$replayed" == true ]] || { echo 'Strict registration replay failed' >&2; exit 1; }
+# Semantic version conflicts must be rejected without overwriting historical keys.
+if version_conflict="$(run -c "select set_config('request.jwt.claim.role','service_role',false);
+  select public.v3_register_migration_contract(
+  'v3.s13.strict-registration-restore',2,'forward_fix_only',false,null,
+  'Restore strict semantic migration-key validation after the bounded S6 notification alias window.')" 2>&1)"; then
+  echo 'S13 accepted conflicting migration contract version' >&2; exit 1
+fi
+[[ "$version_conflict" == *'Migration contract semantic conflict'* ]] || {
+  echo "S13 unexpected migration conflict result: $version_conflict" >&2; exit 1
+}
+strict_version="$(run -c "select schema_version from private.v3_migration_contracts
+  where migration_key='v3.s13.strict-registration-restore'")"
+[[ "$strict_version" == 1 ]] || { echo "S13 version was overwritten: $strict_version" >&2; exit 1; }
+
+# Backfill worker retries must not silently change definition versions.
+run -c "select set_config('request.jwt.claim.role','service_role',false);
+  select public.v3_register_migration_contract(
+  'v3.s13.local-version-probe',1,'forward_fix_only',false,
+  'v3.s13.local-version-probe','Disposable local backfill version check')" >/dev/null
+run -c "select set_config('request.jwt.claim.role','service_role',false);
+  select public.v3_claim_backfill(
+  'v3.s13.local-version-probe',1,10,'local-worker',60,null)" >/dev/null
+if backfill_conflict="$(run -c "select set_config('request.jwt.claim.role','service_role',false);
+  select public.v3_claim_backfill(
+  'v3.s13.local-version-probe',2,10,'local-worker',60,null)" 2>&1)"; then
+  echo 'S13 accepted conflicting backfill definition version' >&2; exit 1
+fi
+[[ "$backfill_conflict" == *'Backfill definition version conflict'* ]] || {
+  echo "S13 unexpected backfill conflict result: $backfill_conflict" >&2; exit 1
+}
+backfill_version="$(run -c "select definition_version::text || '|' || status
+  from private.v3_backfill_jobs where backfill_key='v3.s13.local-version-probe'")"
+[[ "$backfill_version" == '1|running' ]] || {
+  echo "S13 version conflict mutated backfill: $backfill_version" >&2; exit 1
+}
+
 if run -c "set role anon; select public.v3_register_migration_contract('v3.s13.denied-test',1,'forward_fix_only',false,null,'Unauthorized')" >/dev/null 2>&1; then
  echo 'Anonymous user can register migration contracts' >&2; exit 1
 fi
