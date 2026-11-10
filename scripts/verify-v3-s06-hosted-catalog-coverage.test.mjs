@@ -81,3 +81,22 @@ test('out-of-scope schema and invalid digest are rejected', () => {
   b.routines[0].definition_md5 = 'not-a-fingerprint';
   assert.throws(() => inspectManifest(b), /Invalid MD5/);
 });
+
+test('S02 exact 56 relation identities leave 159 independently inventoried hosted relations', () => {
+  const localTargets = readFileSync(
+    new URL('./v3-s02-hosted-archive-catalog-local.sql', import.meta.url), 'utf8'
+  );
+  const known = new Set([...localTargets.matchAll(/\('(auth|public|private|televoting)','([^']+)'\)/g)]
+    .map(m => m[1] + '.' + m[2]));
+  const all = new Set(baseline.relations.map(r => r.schema_name + '.' + r.object_name));
+  const outside = [...all].filter(k => !known.has(k)).sort();
+  const report = JSON.parse(readFileSync(
+    new URL('../docs/v3/recovery-candidates/evidence/s06-hosted-relation-coverage-gap-20261110.json', import.meta.url), 'utf8'
+  ));
+  assert.equal(known.size, 56);
+  assert.equal(outside.length, 159);
+  assert.deepEqual(outside, report.unmodeled.relations
+    .map(r => r.schema_name + '.' + r.object_name).sort());
+  assert.equal(report.unmodeled.columns, 1506);
+  assert.equal(report.status, 'BLOCKED_FULL_HOSTED_EQUIVALENCE');
+});
