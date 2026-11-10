@@ -193,7 +193,7 @@ test("exact-head CI repeats clean local replay and reuses S02 networkless hosted
   assert.match(workflow, /verify-v3-s02-56-acl\.mjs/);
   assert.match(workflow, /forward-only-s13-foundation\.sql/);
   assert.match(workflow, /forward-only-s14-archive-integrated-local\.sql/);
-  assert.match(workflow, /LIMITATION: 56\/215 tables/);
+  assert.match(workflow, /LIMITATION: 63\/215 table names/);
   assert.doesNotMatch(workflow, /supabase db (push|dump --db-url)/);
 });
 
@@ -241,4 +241,32 @@ test("resolved-Task notification recovery includes original generic synchronizer
   assert.match(preflight, /'v3\.s14\.resolved-task-notification-invariant'/);
   assert.match(rehearsal, /v3_project_resolved_task_delivery_state/);
   assert.match(workflow, /20261019112500_v3_s14_resolved_task_notification_invariant\.sql/);
+});
+
+
+test("S06 integrates all seven independent hosted-observed tables into the 56-table isolated Archive upgrade", () => {
+  assert.match(workflow, /s06-hosted-seven-no-fk-relations-local\.sql/);
+  assert.match(workflow, /verify-v3-s06-seven-relation-parity\.mjs/);
+  assert.match(workflow, /verify-v3-s06-seven-relation-parity\.test\.mjs/);
+  const a = workflow.indexOf("s02-hosted-s14-archive-54-table-schema-fixture.sql", workflow.indexOf("hosted-observed-archive-scope:"));
+  const b = workflow.indexOf("s02-hosted-s14-archive-extra-2-dependencies-local.sql", a);
+  const c = workflow.indexOf("sql -f - < docs/v3/recovery-candidates/evidence/s06-hosted-seven-no-fk-relations-local.sql", b);
+  const d = workflow.indexOf("node scripts/verify-v3-s06-seven-relation-parity.mjs", c);
+  const e = workflow.indexOf("S14 Archive recovery BLOCKED: S13 governance foundation absent", d);
+  assert.ok(a >= 0 && b > a && c > b && d > c && e > d,
+    "the seven-table exact-digest check must occur in the SAME networkless S13->S14 fixture before recovery");
+  assert.match(workflow, /d\.relations\.length !== 63/);
+  assert.match(workflow, /actual\.tables\.length !== 63/);
+  assert.match(workflow, /found\.size !== 63/);
+  assert.match(workflow, /S06 fail closed: 56 frozen S02 identities \+ seven known extras not exact/);
+  assert.match(workflow, /verify-v3-s02-56-acl\.mjs \/tmp\/s06-acl-56-scoped\.json/);
+  assert.match(workflow, /result\.observed\.relations !== 63/);
+  assert.match(workflow, /result\.status !== 'S06_CATALOG_COVERAGE_BLOCKED'/);
+  assert.match(workflow, /--network none/);
+  assert.match(workflow, /docker inspect --format '\{\{json \.HostConfig\.PortBindings\}\}'/);
+  assert.match(workflow, /full hosted equivalence REJECTED/);
+  assert.match(workflow, /seven complete table fingerprints unchanged after S13->S14/);
+  assert.match(workflow, /assert\.deepEqual\(actual, pre\.relations/);
+  assert.match(workflow, /LIMITATION: 63\/215 table names/);
+  assert.doesNotMatch(workflow, /supabase db push/);
 });
