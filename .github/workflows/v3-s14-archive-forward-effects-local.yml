@@ -332,6 +332,9 @@ jobs:
             /tmp/s06-five-in-76-local.json /tmp/s06-five-76-proof.json
           cp /tmp/s06-seven-76-proof.json s06-seven-76-proof.json
           cp /tmp/s06-five-76-proof.json s06-five-76-proof.json
+          # Bounded metadata-only diagnostics for two index digest mismatches.
+          # No application rows, body definitions, credentials or production calls.
+          sql -c "SELECT c.relname || ': ' || jsonb_agg(pg_get_indexdef(i.indexrelid) ORDER BY i.indexrelid::regclass::text)::text FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace JOIN pg_index i ON i.indrelid=c.oid WHERE n.nspname='public' AND c.relname IN ('ssc_rulebook_releases','studio2_next_in_line_submission_revisions') GROUP BY c.relname ORDER BY c.relname"
           node scripts/verify-v3-s06-eight-relation-parity.mjs \
             docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
             /tmp/s06-eight-in-76-local.json /tmp/s06-eight-76-proof.json
