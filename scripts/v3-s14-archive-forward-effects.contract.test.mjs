@@ -193,7 +193,7 @@ test("exact-head CI repeats clean local replay and reuses S02 networkless hosted
   assert.match(workflow, /verify-v3-s02-56-acl\.mjs/);
   assert.match(workflow, /forward-only-s13-foundation\.sql/);
   assert.match(workflow, /forward-only-s14-archive-integrated-local\.sql/);
-  assert.match(workflow, /LIMITATION: 83\/215 table names/);
+  assert.match(workflow, /LIMITATION: 100\/215 table names/);
   assert.doesNotMatch(workflow, /supabase db (push|dump --db-url)/);
 });
 
@@ -244,7 +244,7 @@ test("resolved-Task notification recovery includes original generic synchronizer
 });
 
 
-test("S06 integrates 83 distinct hosted-observed table identities in one networkless S13-S14 replay", () => {
+test("S06 integrates 100 distinct hosted-observed table identities in one networkless S13-S14 replay", () => {
   assert.match(workflow, /s06-hosted-seven-no-fk-relations-local\.sql/);
   assert.match(workflow, /s06-five-version-ledgers-local\.sql/);
   assert.match(workflow, /s06-hosted-eight-fk-closed-relations-local\.sql/);
@@ -254,6 +254,12 @@ test("S06 integrates 83 distinct hosted-observed table identities in one network
   assert.match(workflow, /verify-v3-s06-eight-relation-parity\.test\.mjs/);
   assert.match(workflow, /verify-v3-s06-seven-secure-relation-parity\.test\.mjs/);
   assert.match(workflow, /s06-hosted-seven-jury-integrity-account-local\.sql/);
+  assert.match(workflow, /s06-hosted-seventeen-next-relations-local\.sql/);
+  assert.match(workflow, /verify-v3-s06-seventeen-relation-parity\.mjs/);
+  assert.match(workflow, /verify-v3-s06-seventeen-relation-parity\.test\.mjs/);
+  assert.match(workflow, /seventeenActual\.length !== 17/);
+  assert.match(workflow, /fortyFour\.length !== 44/);
+  assert.match(workflow, /combined44\.size !== 44/);
   assert.match(workflow, /verify-v3-s06-seven-secure-relation-parity\.mjs/);
   const a = workflow.indexOf("s02-hosted-s14-archive-54-table-schema-fixture.sql", workflow.indexOf("hosted-observed-archive-scope:"));
   const b = workflow.indexOf("s02-hosted-s14-archive-extra-2-dependencies-local.sql", a);
@@ -268,24 +274,24 @@ test("S06 integrates 83 distinct hosted-observed table identities in one network
     "56+7+5+8 tables and all three exact catalog digest checks must precede isolated S13->S14 recovery");
   assert.match(workflow, /POSTGRES_INITDB_ARGS="--locale-provider=icu --icu-locale=en-US"/);
   assert.match(workflow, /datlocprovider='i' and datlocale='en-US'/);
-  assert.match(workflow, /d\.relations\.length !== 83/);
+  assert.match(workflow, /d\.relations\.length !== 100/);
   assert.match(workflow, /secureActual\.length !== 7/);
   assert.match(workflow, /twentySeven\.length !== 27/);
-  assert.match(workflow, /actual\.tables\.length !== 83/);
-  assert.match(workflow, /found\.size !== 83/);
-  assert.match(workflow, /added\.size !== 27/);
+  assert.match(workflow, /actual\.tables\.length !== 100/);
+  assert.match(workflow, /found\.size !== 100/);
+  assert.match(workflow, /added\.size !== 44/);
   assert.match(workflow, /twentySeven\.length !== 27/);
-  assert.match(workflow, /S06 fail closed: 56 frozen S02 identities \+ 27 known extras not exact/);
+  assert.match(workflow, /S06 fail closed: 56 frozen S02 identities \+ 44 known extras not exact/);
   assert.match(workflow, /verify-v3-s02-56-acl\.mjs \/tmp\/s06-acl-56-scoped\.json/);
-  assert.match(workflow, /result\.observed\.relations !== 83/);
+  assert.match(workflow, /result\.observed\.relations !== 100/);
   assert.match(workflow, /result\.status !== 'S06_CATALOG_COVERAGE_BLOCKED'/);
   assert.match(workflow, /--network none/);
   assert.match(workflow, /docker inspect --format '\{\{json \.HostConfig\.PortBindings\}\}'/);
   assert.match(workflow, /full hosted equivalence REJECTED/);
-  assert.match(workflow, /27 complete table fingerprints unchanged after S13->S14/);
+  assert.match(workflow, /44 complete table fingerprints unchanged after S13->S14/);
   assert.match(workflow, /assert\.deepEqual\(actual, pre\.relations/);
   assert.match(workflow, /s06-eight-76-proof\.json/);
   assert.match(workflow, /s06-secure-83-proof\.json/);
-  assert.match(workflow, /LIMITATION: 83\/215 table names/);
+  assert.match(workflow, /LIMITATION: 100\/215 table names/);
   assert.doesNotMatch(workflow, /supabase db push/);
 });
