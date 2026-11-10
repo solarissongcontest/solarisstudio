@@ -296,6 +296,47 @@ fi
   fail 'Rejected critical-column drift left behind partial Archive DDL'
 sql -c "alter table public.studio2_edition_runtime alter column updated_at set not null" >/dev/null
 
+# Dependency failure injection: a required upstream helper must be checked
+# before the first Archive DDL. Rename only inside disposable local Supabase.
+# This is a reversible negative test, not a production operation.
+gap_before="$(fingerprint)"
+sql -c "alter function private.studio2_task_recipient_eligible(uuid,uuid) rename to studio2_task_recipient_eligible_s06_missing" >/dev/null
+if missing_rpc="$(sql -f "$candidate" 2>&1)"; then
+  fail 'Archive recovery accepted a missing upstream RPC'
+fi
+[[ "$missing_rpc" == *"S14 Archive recovery BLOCKED: required upstream RPC missing private.studio2_task_recipient_eligible(uuid,uuid)"* ]] ||
+  fail "Missing upstream RPC refused for an unexpected reason: $missing_rpc"
+[[ "$(sql -c "select (to_regprocedure('private.v3_resolve_archived_edition_workflow_tasks(uuid)') is null and to_regclass('private.v3_archive_runtime_transition_gates') is null)::text")" == true ]] ||
+  fail 'Missing upstream dependency left partial Archive DDL'
+sql -c "alter function private.studio2_task_recipient_eligible_s06_missing(uuid,uuid) rename to studio2_task_recipient_eligible" >/dev/null
+[[ "$(fingerprint)" == "$gap_before" ]] ||
+  fail 'Missing dependency failure changed the Archive catalog'
+
+# Interrupt after the first genuine Archive CREATE FUNCTION and REVOKE in a
+# single transaction, then restart against the very same local database.
+# Failure must roll back all new DDL and leave S13/upstream effects untouched.
+injected_sql="$(mktemp)"
+trap 'rm -f "$injected_sql"' EXIT
+node - "$candidate" "$injected_sql" <<'S06_INJECT'
+const fs = require('node:fs');
+const [candidatePath, outputPath] = process.argv.slice(2);
+const source = fs.readFileSync(candidatePath, 'utf8');
+const anchor = 'revoke all on function private.v3_resolve_archived_edition_workflow_tasks(uuid)\n  from public, anon, authenticated;';
+if (!source.includes(anchor)) throw new Error('S06 post-DDL failure injection anchor missing');
+const failpoint = "do $s06_failure$ begin raise exception 'S06 injected post-DDL failure'; end; $s06_failure$;";
+fs.writeFileSync(outputPath, source.replace(anchor, anchor + '\n' + failpoint + '\n'));
+S06_INJECT
+if interrupted="$(sql -f "$injected_sql" 2>&1)"; then
+  fail 'S06 injected transaction interruption unexpectedly committed'
+fi
+[[ "$interrupted" == *"S06 injected post-DDL failure"* ]] ||
+  fail "Failure injection stopped for an unexpected reason: $interrupted"
+[[ "$(fingerprint)" == "$gap_before" ]] ||
+  fail 'Interrupted Archive recovery left partial DDL or changed upstream catalog'
+[[ "$(sql -c "select (to_regprocedure('private.v3_resolve_archived_edition_workflow_tasks(uuid)') is null and to_regclass('private.v3_archive_runtime_transition_gates') is null)::text")" == true ]] ||
+  fail 'Interrupted Archive recovery left its first function or gate installed'
+echo 'PASS: missing upstream RPC failed before mutation; injected post-DDL interruption rolled back; same-database restart is safe'
+
 sql -f "$candidate" >/dev/null
 after="$(fingerprint)"
 if [[ "$before" != "$after" ]]; then
