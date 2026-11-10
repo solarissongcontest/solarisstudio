@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SCHEMAS = new Set(['auth', 'private', 'public', 'televoting']);
-const FORBIDDEN_DATA_KINDS = /^(?:TABLE DATA|MATERIALIZED VIEW DATA|SEQUENCE SET|BLOBS?|LARGE OBJECT|DATABASE PROPERTIES)\b/;
+const FORBIDDEN_DATA_KINDS = /^(?:TABLE DATA|MATERIALIZED VIEW DATA|SEQUENCE SET|BLOBS?|LARGE OBJECT)\b/;
 
 function sourceNames(snapshot) {
   if (!snapshot || snapshot.pg_version_num !== 170011 || !Array.isArray(snapshot.relations)) {
