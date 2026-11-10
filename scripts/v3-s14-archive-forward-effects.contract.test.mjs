@@ -204,7 +204,7 @@ test("networkless hosted-observed fixture rolls back after real Archive DDL and 
   const duplicate = workflow.indexOf("Archive forward candidate allowed duplicate application", restart);
   assert.ok(afterS13 > 0 && digest > afterS13 && injection > digest && rollback > injection &&
     restart > rollback && duplicate > restart, "S06 hosted-fixture interruption, rollback, restart, duplicate stages are out of order");
-  assert.match(workflow, /pg_dump -U postgres -d postgres --schema-only --no-comments/);
+  assert.match(workflow, /pg_dump -U postgres -d postgres --schema-only --no-comments --restrict-key=S06LocalOnlyStable/);
   assert.match(workflow, /source\.index\(trigger\) < source\.index\(next_function\)/);
   assert.match(workflow, /create trigger v3_guard_archive_runtime_transition/);
   assert.match(workflow, /create or replace function private\.v3_edition_final_results_ready/);
