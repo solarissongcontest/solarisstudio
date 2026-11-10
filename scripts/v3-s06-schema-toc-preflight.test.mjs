@@ -55,3 +55,19 @@ test('never treat a fingerprint or TOC alone as an executed S13-S14 recovery tes
   assert.ok(result.missingIndependentProof.some(x => /isolated PG17.11 import/.test(x)));
   assert.ok(result.missingIndependentProof.some(x => /synthetic/.test(x)));
 });
+
+test('no caller-provided metadata may turn offline evidence into certification', () => {
+  const result = inspectSchemaToc(toc, ids, {
+    fullHostedEquivalenceCertified: true,
+    productionSqlExecutedByThisChecker: true,
+    status: 'CERTIFIED'
+  });
+  assert.equal(result.fullHostedEquivalenceCertified, false);
+  assert.equal(result.productionSqlExecutedByThisChecker, false);
+  assert.equal(result.status, 'TOC_SCHEMA_ONLY_PREFLIGHT_NOT_CERTIFIED');
+});
+
+test('unexpected or malformed schema TABLE objects fail closed', () => {
+  assert.throws(() => inspectSchemaToc(toc + '14; 1259 104 TABLE storage objects postgres\n', ids), /out-of-scope/);
+  assert.throws(() => inspectSchemaToc(toc + '14; 1259 104 TABLE public "mixedCase" postgres\n', ids), /malformed/);
+});
