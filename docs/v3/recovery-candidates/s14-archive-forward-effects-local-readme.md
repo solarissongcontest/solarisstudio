@@ -41,7 +41,10 @@ This advances from *object-name-only* detection to a **production-observed schem
 
 ## Forward-only candidate SQL
 
-`docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql` stages the combined effects of **eleven existing immutable historical Archive source files**, in dependency order:
+The original 11-stage candidate **omitted** the `20261019112500` canonical Task notification projection, leaving its corrected `private.studio2_sync_task_notifications(uuid)` and `private.v3_project_resolved_task_delivery_state()` trigger uninstalled on a genuine pre-S14 hosted baseline. The clean-chain test had previously retained those effects during its simulated S14 gap. The twelfth stage now preserves the exact historical effect body (except its old registration) and the local gap replays the authentic earlier Oct 03 synchronizer before applying the candidate. A passing local replay still cannot prove compatibility with the unreconstructed 159 hosted relations or every real runtime dependency.
+
+
+`docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql` stages the combined effects of **twelve existing immutable historical Archive source files**, in dependency order:
 
 | Source migration | Effect |
 | --- | --- |
@@ -49,6 +52,7 @@ This advances from *object-name-only* detection to a **production-observed schem
 | `20261019112200` | **Final Results readiness hardening:** publicly released Results layer and exact immutable result version required |
 | `20261019112300` | Deterministic HTTP409 conflicts and canonical transition event identity |
 | `20261019112400` | Canonical Archive Task vocabulary, blocker resolution and non-resurrection guard |
+| `20261019112500` | **Resolved Task notification invariant:** replace the generic synchronizer and install immediate post-resolution Inbox/delivery trigger |
 | `20261019202636` | Pending/processing notification-delivery suppression after Task resolution |
 | `20261020130000` | Irreversible runtime, legacy compatibility and workflow freeze |
 | `20261020140000` | Dedicated runtime UPDATE guard; superseded by the later one-shot transition guard |
@@ -57,15 +61,15 @@ This advances from *object-name-only* detection to a **production-observed schem
 | `20261021163000` | Failed-delivery evidence, Televote/eligibility terminal safeguards, reconciliation gate |
 | `20261021202000` | Final repeatable Archive Task/Inbox/delivery convergence |
 
-The historical source SQL bodies remain intact and appear in the same order, except that each *old* migration-contract INSERT is omitted and replaced by a single newly named `v3.s14.archive-forward-effect-recovery` declaration. This records **one future forward effect**, not eleven historical applications. **It does not edit `supabase_migrations.schema_migrations`.**
+The historical source SQL bodies remain intact and appear in the same order, except that each *old* migration-contract INSERT is omitted and replaced by a single newly named `v3.s14.archive-forward-effect-recovery` declaration. This records **one future forward effect**, not twelve historical applications. **It does not edit `supabase_migrations.schema_migrations`.**
 
 The first locally simulated replay detected an exact catalog mismatch in `private.v3_edition_final_results_ready(uuid)`, because an intermediate final-results hardening migration had been omitted. That stage is now explicitly included. Three other intervening Archive stages were also added to preserve the full source order. Each local rehearsal must still pass before this candidate can be considered validated.
 
-The entire candidate is bounded in one transaction with a short lock timeout and fails closed if S13 is missing, any required relation or upstream function is missing, any new Archive target already exists, any owned Archive trigger name collides, or any of the eleven historical Archive semantic keys is already registered. Postconditions require the two gate tables, both transition entry points, the guards and enabled runtime trigger, protect private gate access, and refuse fictional historical keys.
+The entire candidate is bounded in one transaction with a short lock timeout and fails closed if S13 is missing, any required relation or upstream function is missing, any new Archive target already exists, any owned Archive trigger name collides, or any of the twelve historical Archive semantic keys is already registered. Postconditions require the two gate tables, both transition entry points, the guards and enabled runtime trigger, protect private gate access, and refuse fictional historical keys.
 
 ### Why this is not production-ready
 
-A single 87-kB transaction is a **staging vehicle for local effects verification**, not an approved rollout. Production may require breaking the DDL into separately reviewed, forward-only batches with bounded locks; source migrations may include row-level projection behavior and cross-domain side effects. There is no verified production-head-equivalent clean baseline yet. **Do not paste or run this file in Supabase SQL Editor.**
+A single approximately 110-kB transaction is a **staging vehicle for local effects verification**, not an approved rollout. Production may require breaking the DDL into separately reviewed, forward-only batches with bounded locks; source migrations may include row-level projection behavior and cross-domain side effects. There is no verified production-head-equivalent clean baseline yet. **Do not paste or run this file in Supabase SQL Editor.**
 
 More importantly, S13 is still absent on live production, and the existing S4/S5/S6/Results/Televote dependency effects have separate unresolved history gaps. Even if this combined candidate passes all local tests, applying it before S13 plus full effect reconciliation would be unsafe.
 
