@@ -32,6 +32,42 @@ function includesAllUnique(value: unknown, required: readonly string[]): boolean
   return observed.size === value.length && required.every((item) => observed.has(item));
 }
 
+// S15 is meaningful only if the zero-orphan scanner actually inspected its
+// declared domains, runtime routes and physical tables. A pruned JSON artifact
+// with zero findings is not proof of a zero-gap inventory.
+const S15_INVENTORY_KEYS = [
+  "systemDomains", "systemConcepts", "systemCommands", "systemEvents",
+  "systemProjections", "systemBackgroundConsumers", "domainConsequences",
+  "apiCapabilities", "searchProviders", "notificationCategories",
+  "notificationProviders", "notificationDeepLinks", "dynamicNotificationDeepLinks",
+  "publicCapabilities", "organizerCapabilities", "runtimeRoutes",
+  "publicRuntimeRoutes", "organizerRuntimeRoutes", "apiRuntimeRoutes",
+  "legacyAliases", "v3FeatureFlags", "organizerControls", "publicSourceSurfaces",
+  "v3IntegrationAdapters", "edgeFunctions", "scheduledJobs",
+  "physicalOwnershipDomains", "uniquePhysicalTables",
+  "domainTableAssignments", "explicitlySharedTables",
+] as const;
+
+function hasCompleteS15Inventory(value: unknown): boolean {
+  const inventory = record(value);
+  if (!inventory || !S15_INVENTORY_KEYS.every((key) => nonnegativeInteger(inventory[key]))) {
+    return false;
+  }
+  for (const key of [
+    "systemDomains", "systemConcepts", "publicCapabilities",
+    "organizerCapabilities", "runtimeRoutes", "physicalOwnershipDomains",
+    "uniquePhysicalTables",
+  ] as const) {
+    if (inventory[key] === 0) return false;
+  }
+  return inventory.runtimeRoutes ===
+      (inventory.publicRuntimeRoutes as number) +
+      (inventory.organizerRuntimeRoutes as number) +
+      (inventory.apiRuntimeRoutes as number) &&
+    (inventory.dynamicNotificationDeepLinks as number) <= (inventory.notificationDeepLinks as number) &&
+    (inventory.uniquePhysicalTables as number) <= (inventory.domainTableAssignments as number);
+}
+
 const S14_STAGES = [
   "stage-1-setup", "stage-2-delegation-onboarding", "stage-3-confirmations",
   "stage-4-entries", "stage-5-running-orders", "stage-6-jury",
@@ -110,8 +146,8 @@ export function releaseEvidenceConsistencyFailure(
 
   if (filename === "s15-zero-orphan.json" && evidence.zeroOrphans === true) {
     if (!nonnegativeInteger(evidence.schemaVersion) || evidence.schemaVersion < 4 ||
-        !record(evidence.inventory)) {
-      return "s15-zero-orphan.json claims zeroOrphans=true without the S15 inventory contract";
+        !hasCompleteS15Inventory(evidence.inventory)) {
+      return "s15-zero-orphan.json claims zeroOrphans=true without the complete S15 domain, route and physical inventory contract";
     }
     if (!Array.isArray(evidence.findings) || evidence.findings.length !== 0) {
       return "s15-zero-orphan.json claims zeroOrphans=true without an empty findings array";

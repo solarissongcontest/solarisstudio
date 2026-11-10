@@ -41,6 +41,8 @@ jobs:
             echo "VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_quality_ci_local_only"
             echo "SUPABASE_URL=http://127.0.0.1:54321"
             echo "SUPABASE_PUBLISHABLE_KEY=sb_publishable_quality_ci_local_only"
+            echo "E2E_SUPABASE_URL=http://127.0.0.1:54321"
+            echo "E2E_SUPABASE_PUBLISHABLE_KEY=sb_publishable_quality_ci_local_only"
             echo "SUPABASE_PROJECT_ID=local"
             echo "SUPABASE_PROJECT_REF=local"
             echo "VITE_SUPABASE_PROJECT_ID=local"
@@ -67,6 +69,9 @@ jobs:
 
       - name: Verify V3 production isolation
         run: bun run scripts/check-v3-production-isolation.ts
+
+      - name: Regress fail-closed Playwright/Supabase target guards (offline)
+        run: node --test scripts/lib/require-local-playwright-target.contract.mjs
 
       - name: Regress cross-system sweep classifier (no database or network)
         run: node --test scripts/v3-s14-runtime-defect-sweep.contract.mjs

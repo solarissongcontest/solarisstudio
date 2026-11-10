@@ -1,0 +1,1142 @@
+{
+  "task": "S02",
+  "observedDate": "2026-11-09",
+  "source": "read-only hosted has_table_privilege for three role categories against 56 observed S14 relations",
+  "schemaOnly": true,
+  "serverVersionNum": "170011",
+  "relations": 56,
+  "privilegeBits": 672,
+  "positivePrivilegeBits": 452,
+  "roleNames": [
+    "anon",
+    "authenticated",
+    "service_role"
+  ],
+  "privileges": {
+    "auth.users": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      }
+    },
+    "private.v3_domain_event_consumer_receipts": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      }
+    },
+    "private.v3_domain_event_outbox": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      }
+    },
+    "private.v3_domain_events": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      }
+    },
+    "private.v3_result_versions": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": false,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": false
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      }
+    },
+    "public.admin_notifications": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": true,
+        "UPDATE": false
+      }
+    },
+    "public.contest_entities": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.countries": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.country_accounts": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.editions": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.entries": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.internal_entries": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.jury_ballot_statuses": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": true,
+        "UPDATE": false
+      }
+    },
+    "public.jury_ballot_submissions": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.jury_votes": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.jury_voting_windows": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.national_final_entries": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.national_finals": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.next_in_line_responses": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.next_in_line_submissions": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": true,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": true,
+        "UPDATE": false
+      }
+    },
+    "public.notification_deliveries": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.participants": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.results": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.shows": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.studio2_capabilities": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": true,
+        "UPDATE": false
+      }
+    },
+    "public.studio2_confirmation_requirements": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      }
+    },
+    "public.studio2_contest_events": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": true,
+        "UPDATE": false
+      }
+    },
+    "public.studio2_edition_runtime": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": true,
+        "UPDATE": false
+      }
+    },
+    "public.studio2_eligibility_overrides": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      }
+    },
+    "public.studio2_media_asset_reviews": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      }
+    },
+    "public.studio2_next_in_line_windows": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      }
+    },
+    "public.studio2_operation_receipts": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      }
+    },
+    "public.studio2_organizer_tasks": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      }
+    },
+    "public.studio2_result_operations": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      }
+    },
+    "public.studio2_show_publication_controls": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      }
+    },
+    "public.studio2_transition_approval_requests": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": true,
+        "UPDATE": false
+      }
+    },
+    "public.submission_rounds": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.submissions": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.televote_votes": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.televoting_round_bindings": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.themes": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "public.voters": {
+      "anon": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "televoting.combined_televote_component_results": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": true,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "televoting.combined_televote_results": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": true,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "televoting.countries": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": true,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "televoting.editions": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": true,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "televoting.round_countries": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": true,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "televoting.round_entries": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": true,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "televoting.round_results": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": true,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "televoting.rounds": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": true,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "televoting.televote_aggregation_participants": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": true,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "televoting.televote_aggregation_sources": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "televoting.televote_aggregations": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": true,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "televoting.vote_entries": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    },
+    "televoting.vote_preflight_checks": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "authenticated": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      }
+    },
+    "televoting.vote_submissions": {
+      "anon": {
+        "DELETE": false,
+        "INSERT": false,
+        "SELECT": false,
+        "UPDATE": false
+      },
+      "service_role": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      },
+      "authenticated": {
+        "DELETE": true,
+        "INSERT": true,
+        "SELECT": true,
+        "UPDATE": true
+      }
+    }
+  },
+  "limitations": [
+    "Role privilege bits do not prove RLS row-level behavior",
+    "Only three Data API roles and four CRUD operations tested",
+    "Schema grants and function EXECUTE rights are independent"
+  ]
+}

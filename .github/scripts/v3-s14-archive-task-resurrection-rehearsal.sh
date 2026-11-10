@@ -81,12 +81,16 @@ new_uuid() {
 
 RUN_TOKEN="$(new_uuid)"
 EDITION_ID="$(new_uuid)"
+CONTROL_EDITION_ID="$(new_uuid)"
+CONTROL_TASK_ID="$(new_uuid)"
 INCIDENT_ID="$(new_uuid)"
 BLOCKER_ID="$(new_uuid)"
 NEW_TASK_ID="$(new_uuid)"
 ARCHIVE_OPERATION="$(new_uuid)"
 EDITION_NUMBER="$(python3 -c 'import sys,uuid; print(100000 + (int(uuid.UUID(sys.argv[1]).hex[:8],16) % 800000))' "$EDITION_ID")"
+CONTROL_EDITION_NUMBER=$((EDITION_NUMBER + 1000000))
 BLOCKER_SOURCE_KEY="v3-s14-archive-task-${RUN_TOKEN}:edition-blocker"
+CONTROL_SOURCE_KEY="v3-s14-archive-task-${RUN_TOKEN}:unarchived-edition-blocker"
 NEW_TASK_SOURCE_KEY="v3-s14-archive-task-${RUN_TOKEN}:post-archive-results"
 PENDING_DEDUPE_PREFIX="s14-archive-preserve-pending-${RUN_TOKEN}"
 FAILED_ERROR='S14 preserved failed delivery evidence'
@@ -146,9 +150,39 @@ insert into public.studio2_organizer_tasks(
 );
 
 select private.studio2_sync_task_notifications('$EDITION_ID'::uuid);
+
+-- Control edition remains in post_edition; only the other edition is archived.
+-- The scoped Archive resolver and repeated Task reconstruction must not close
+-- this live current-workflow task or suppress its Inbox/delivery projections.
+insert into public.editions(id,name,slug,edition_number,year,status,published)
+values ('$CONTROL_EDITION_ID','S14 Active Control Edition',
+        's14-active-control-$RUN_TOKEN',$CONTROL_EDITION_NUMBER,2026,'active',false);
+update public.studio2_edition_runtime
+set state='post_edition',
+    subsystems=private.studio2_default_subsystems('post_edition'),
+    version=1, updated_by=null
+where edition_id='$CONTROL_EDITION_ID'::uuid;
+insert into public.studio2_capability_grants(user_id,capability,edition_id)
+values ('$AUTHORIZED_ID'::uuid,'edition.manage','$CONTROL_EDITION_ID'::uuid)
+on conflict do nothing;
+insert into public.studio2_organizer_tasks(
+  id,edition_id,assigned_to,source_kind,source_id,source_key,task_type,required_capability,
+  priority,state,title,description,href,resolution_predicate
+) values (
+ '$CONTROL_TASK_ID','$CONTROL_EDITION_ID','$AUTHORIZED_ID'::uuid,
+ 'edition','unarchived-control','$CONTROL_SOURCE_KEY','edition.blocker','edition.manage',
+ 'high','open','Active edition work must remain open',
+ 'Control task for cross-edition Archive reconciliation isolation.',
+ '/admin/control-room','{}'::jsonb
+);
+select private.studio2_sync_task_notifications('$CONTROL_EDITION_ID'::uuid);
 "
 
 [[ "$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_ID'::uuid;")" == 'post_edition' ]] || fail "self-contained task fixture runtime was not prepared in post_edition"
+[[ "$(db_value "select state from public.studio2_edition_runtime where edition_id='$CONTROL_EDITION_ID'::uuid;")" == 'post_edition' ]] || fail "unarchived control edition runtime was not prepared"
+[[ "$(db_value "select state from public.studio2_organizer_tasks where id='$CONTROL_TASK_ID'::uuid;")" == 'open' ]] || fail "control task was not open before Archive"
+[[ "$(db_value "select count(*) from public.admin_notifications where recipient_id='$AUTHORIZED_ID'::uuid and source_key='$CONTROL_SOURCE_KEY' and resolution_mode='domain' and requires_action and resolved_at is null;")" == '1' ]] || fail "control Inbox was not actionable before Archive"
+[[ "$(db_value "select count(*) from public.notification_deliveries where subject_id='$CONTROL_TASK_ID' and category='organizer_tasks' and status in ('pending','processing');")" -ge '1' ]] || fail "control delivery was not pending before Archive"
 [[ "$(db_value "select state from public.studio2_organizer_tasks where source_kind='incident' and source_id='$INCIDENT_ID';")" == 'open' ]] || fail "incident governance task was not created"
 [[ "$(db_value "select state from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")" == 'open' ]] || fail "canonical edition.blocker fixture was not open before archive"
 [[ "$(db_value "select count(*) from public.admin_notifications where recipient_id='$AUTHORIZED_ID'::uuid and source_key='$BLOCKER_SOURCE_KEY' and resolution_mode='domain' and requires_action and resolved_at is null;")" == '1' ]] || fail "canonical edition.blocker Inbox projection was not actionable before archive"
@@ -165,6 +199,11 @@ as_service "select private.studio2_reconcile_all_organizer_tasks('$EDITION_ID'::
 [[ "$(db_value "select count(*) from public.admin_notifications where recipient_id='$AUTHORIZED_ID'::uuid and source_key='$BLOCKER_SOURCE_KEY' and not requires_action and resolved_at is not null;")" == '1' ]] || fail "archive did not leave the blocker Inbox projection resolved"
 [[ "$(db_value "select state from public.studio2_organizer_tasks where source_kind='incident' and source_id='$INCIDENT_ID';")" == 'open' ]] || fail "archive incorrectly resolved legitimate incident governance work"
 [[ "$(db_value "select count(*) from public.studio2_incidents where id='$INCIDENT_ID'::uuid and status='detected';")" == '1' ]] || fail "archive mutated incident history/state"
+log "Archive consequence reconciliation must not affect a different active edition"
+[[ "$(db_value "select state from public.studio2_edition_runtime where edition_id='$CONTROL_EDITION_ID'::uuid;")" == 'post_edition' ]] || fail "Archive transitioned unrelated control edition"
+[[ "$(db_value "select state from public.studio2_organizer_tasks where id='$CONTROL_TASK_ID'::uuid;")" == 'open' ]] || fail "Archive resolved unrelated control task"
+[[ "$(db_value "select count(*) from public.admin_notifications where recipient_id='$AUTHORIZED_ID'::uuid and source_key='$CONTROL_SOURCE_KEY' and requires_action and resolved_at is null;")" == '1' ]] || fail "Archive suppressed unrelated control Inbox"
+[[ "$(db_value "select count(*) from public.notification_deliveries where subject_id='$CONTROL_TASK_ID' and category='organizer_tasks' and status in ('pending','processing');")" -ge '1' ]] || fail "Archive suppressed unrelated control delivery"
 
 log "Poison the resolved notification projection with one pending attempt and one retained failed attempt"
 db_exec "
@@ -232,6 +271,9 @@ select private.studio2_reconcile_all_organizer_tasks('$EDITION_ID'::uuid);
 [[ "$(db_value "select resolved_at::text from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")" == "$RESOLVED_AT_BEFORE" ]] || fail "aggregate reconciliation rewrote archived blocker resolution timestamp"
 [[ "$(db_value "select state from public.studio2_organizer_tasks where source_kind='incident' and source_id='$INCIDENT_ID';")" == 'open' ]] || fail "aggregate reconciliation suppressed legitimate incident governance work"
 [[ "$(db_value "select count(*) from public.studio2_incidents where id='$INCIDENT_ID'::uuid and status='detected';")" == '1' ]] || fail "aggregate reconciliation mutated incident domain state"
+[[ "$(db_value "select state from public.studio2_organizer_tasks where id='$CONTROL_TASK_ID'::uuid;")" == 'open' ]] || fail "repeat scoped Task reconcile resolved unrelated active work"
+[[ "$(db_value "select count(*) from public.admin_notifications where recipient_id='$AUTHORIZED_ID'::uuid and source_key='$CONTROL_SOURCE_KEY' and requires_action and resolved_at is null;")" == '1' ]] || fail "repeat scoped Task reconcile suppressed control Inbox"
+[[ "$(db_value "select count(*) from public.notification_deliveries where subject_id='$CONTROL_TASK_ID' and category='organizer_tasks' and status in ('pending','processing');")" -ge '1' ]] || fail "repeat scoped Task reconcile suppressed control delivery"
 
 # Reassert the already-terminal state without changing historical domain fields.
 # The Archive guard explicitly permits housekeeping timestamp updates on a

@@ -1,0 +1,162 @@
+name: V3 S02 hosted-observed Televote local forward rehearsal
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/v3-s02-televote-hosted-local.yml"
+      - "docs/v3/recovery-candidates/evidence/s02-hosted-televote-preflight-2026-11-09.json"
+      - "docs/v3/recovery-candidates/evidence/s02-hosted-215-relation-fingerprints-2026-11-09.json"
+      - "docs/v3/recovery-candidates/evidence/s02-hosted-727-routine-fingerprints-2026-11-09.json"
+      - "scripts/check-v3-s02-frontier-coverage.mjs"
+      - "scripts/check-v3-s02-frontier-coverage.test.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s02-televote-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  hosted-televote:
+    name: Networkless PG17 S14 Televote guard and projection recovery
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      EXACT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      SOLARIS_S02_TARGET: local
+    steps:
+      - name: Checkout exact S02 head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Refuse hosted target aliases and stale PR head
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$EXACT_SHA" ]] || exit 1
+          for key in DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_URL VITE_SUPABASE_URL E2E_SUPABASE_URL SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_SERVICE_ROLE_KEY PGHOST PGHOSTADDR PGPORT PGSERVICE PGSERVICEFILE PGSSLMODE DOCKER_HOST DOCKER_CONTEXT DOCKER_TLS_VERIFY DOCKER_CERT_PATH; do
+            [[ -z "$(printenv "$key" || true)" ]] || { echo "::error::Untrusted database/docker alias: $key"; exit 1; }
+          done
+          node scripts/check-v3-s02-frontier-coverage.mjs s02-frontier-coverage-gap-proof.json
+          node - <<'JS'
+          const a=require("./docs/v3/recovery-candidates/evidence/s02-hosted-televote-preflight-2026-11-09.json");
+          const b=a.observed;
+          if(a.databaseVersionNum!=="170011" || a.migrationHead!=="20261101181812" || a.containsApplicationRows!==false ||
+             b["private.v3_televote_result_projection_sources"]!==false ||
+             b["private.v3_guard_source_managed_televote_projection()"]!==false ||
+             b["public.televote_votes/v3_guard_source_managed_televote_projection"]!==false ||
+             b["public.televote_votes"]!==true || b["televoting.rounds"]!==true ||
+             b["private.studio2_request_is_service_role()"]!==true)
+             throw Error("FAIL CLOSED: incomplete S02 hosted Televote preflight");
+          JS
+
+      - name: Checkout pinned S14 Televote donor (read-only)
+        uses: actions/checkout@v4
+        with:
+          repository: solarissongcontest/solarisstudio
+          ref: 01865d823c22897fad84629d984506603885850e
+          path: s02-televote-donor
+          fetch-depth: 1
+
+      - name: Pull exact disposable PostgreSQL 17.11 image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull postgres:17.11
+          [[ "$(docker image inspect --format '{{.Id}}' postgres:17.11)" == "sha256:eb0fb2377534e65aad04f37838956b3dfb888e1a3dd3c1acf957bc6557eb6c7d" ]] || exit 1
+
+      - name: Verify real hosted-observed baseline and rehearse Televote recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git -C s02-televote-donor rev-parse HEAD)" == 01865d823c22897fad84629d984506603885850e ]] || exit 1
+          cid=""
+          cleanup() {
+            status=$?
+            if [[ -n "$cid" ]]; then
+              docker rm -f "$cid" >/dev/null || status=1
+            fi
+            exit "$status"
+          }
+          trap cleanup EXIT
+          cid="$(docker run -d --rm --pull=never --network none --name "solaris-s02-tv-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" -e POSTGRES_PASSWORD=disposable_s02_only postgres:17.11)"
+          [[ "$cid" =~ ^[0-9a-f]{64}$ ]] || exit 1
+          [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
+          [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
+          [[ "$(docker inspect --format '{{.Image}}' "$cid")" == "sha256:eb0fb2377534e65aad04f37838956b3dfb888e1a3dd3c1acf957bc6557eb6c7d" ]] || exit 1
+
+          ready=false
+          for i in $(seq 1 50); do
+            if docker exec "$cid" pg_isready -h /var/run/postgresql -U postgres >/dev/null; then ready=true; break; fi
+            sleep 1
+          done
+          [[ "$ready" == true ]] || exit 1
+          [[ "$(docker exec "$cid" psql -w -X -qAt -U postgres -d postgres -c 'show server_version_num')" == 170011 ]] || exit 1
+
+          docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-archive-54-table-schema-fixture.sql
+          docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-archive-extra-2-dependencies-local.sql
+          docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-56-table-grants-local.sql
+          docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < scripts/v3-s02-hosted-archive-catalog-local.sql > /tmp/s02-tv-hosted-base-catalog.json
+          node scripts/verify-v3-s02-s14-archive-catalog.mjs /tmp/s02-tv-hosted-base-catalog.json s02-tv-baseline-catalog-proof.json
+          docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < scripts/v3-s02-hosted-56-acl-local.sql > /tmp/s02-tv-hosted-base-acl.json
+          node scripts/verify-v3-s02-56-acl.mjs /tmp/s02-tv-hosted-base-acl.json s02-tv-baseline-acl-proof.json
+
+          before="$(docker exec "$cid" psql -w -X -qAt -U postgres -d postgres -c "select (to_regclass('private.v3_televote_result_projection_sources') is null)::text || '|' || (to_regprocedure('private.v3_guard_source_managed_televote_projection()') is null)::text || '|' || (to_regclass('public.televote_votes') is not null)::text;")"
+          [[ "$before" == 'true|true|true' ]] || { echo "::error::S02 Televote preflight catalog drift $before"; exit 1; }
+
+          # Only the pinned source candidate is applied, NEVER hosted.
+          docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < s02-televote-donor/docs/v3/recovery-candidates/forward-only-s14-televote-provenance-guard-local.sql
+          docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < s02-televote-donor/docs/v3/recovery-candidates/forward-only-s14-televote-source-truth-local.sql
+
+          result="$(docker exec "$cid" psql -w -X -qAt -U postgres -d postgres -c "select
+            (to_regclass('private.v3_televote_result_projection_sources') is not null)::text || '|' ||
+            (to_regprocedure('private.v3_apply_published_televote_projection(uuid,uuid,text,text,integer,timestamptz,jsonb)') is not null)::text || '|' ||
+            (to_regprocedure('private.v3_sync_published_televote_round(uuid)') is not null)::text || '|' ||
+            (to_regprocedure('private.v3_sync_published_televote_aggregation(uuid)') is not null)::text || '|' ||
+            (to_regprocedure('public.studio2_televote_projection_status(uuid)') is not null)::text || '|' ||
+            exists(select 1 from pg_trigger t where t.tgrelid=to_regclass('public.televote_votes') and t.tgname='v3_guard_source_managed_televote_projection' and t.tgenabled in ('O','A') and not t.tgisinternal)::text || '|' ||
+            has_table_privilege('anon','private.v3_televote_result_projection_sources','SELECT')::text || '|' ||
+            has_table_privilege('authenticated','private.v3_televote_result_projection_sources','SELECT')::text;")"
+          [[ "$result" == "true|true|true|true|true|true|false|false" ]] || { echo "::error::S02 Televote candidate catalog/ACL mismatch $result"; exit 1; }
+
+          # Actual role-execution checks, not only has_*_privilege catalog bits.
+          # A caller-controlled JWT setting must never grant authenticated SQL
+          # role access to private provenance records.
+          for role in anon authenticated; do
+            if docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d postgres -c "set role $role; select set_config('request.jwt.claim.role','service_role',false); select count(*) from private.v3_televote_result_projection_sources;" >/tmp/s02-tv-$role-denied.log 2>&1; then
+              echo "::error::$role could read Televote provenance via forged JWT setting"
+              exit 1
+            fi
+            grep -q '42501' "/tmp/s02-tv-$role-denied.log" || { echo "::error::Unexpected $role failure, not an authorization denial"; tail -n 12 "/tmp/s02-tv-$role-denied.log"; exit 1; }
+          done
+          actual_service_count="$(docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -c "set role service_role; select count(*) from private.v3_televote_result_projection_sources;" | tail -n 1)"
+          [[ "$actual_service_count" == 0 ]] || { echo "::error::Expected empty synthetic provenance ledger"; exit 1; }
+          echo "PASS: anon/authenticated denied at SQL execution despite forged JWT role; service_role can read empty ledger"
+
+          if docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < s02-televote-donor/docs/v3/recovery-candidates/forward-only-s14-televote-provenance-guard-local.sql >/tmp/s02-tv-guard-repeat.log 2>&1; then
+            echo "::error::Provenance guard should reject repeated installation"
+            exit 1
+          fi
+          grep -q 'S14 provenance blocked:' /tmp/s02-tv-guard-repeat.log || { echo "::error::Guard replay failed for unrelated reason"; tail -n 10 /tmp/s02-tv-guard-repeat.log; exit 1; }
+
+          node -e 'require("fs").writeFileSync("s02-televote-local-forward-proof.json",JSON.stringify({task:"S02",candidateSha:process.env.EXACT_SHA,donorSha:"01865d823c22897fad84629d984506603885850e",database:"networkless-disposable-postgres-17.11",baseline:"56 hosted-observed S14 Archive relations with exact ACL",hostedSourceTableOriginallyAbsent:true,guardApplied:true,sourceTruthApplied:true,anonAndAuthSourceReadDenied:true,forgedJwtRoleDenied:true,actualSqlRoleAuthTest:true,serviceRoleCanReadEmptySource:true,repeatGuardRejected:true,syntheticDataNotRequired:true,fullHostedEquivalenceCertified:false,productionDeploymentAuthorized:false,limitation:"No real vote rows or live published-results behavior; complete remaining hosted dependency closure not proven"},null,2)+"\n",{flag:"wx"});'
+          docker rm -f "$cid" >/dev/null
+          cid=""
+          echo 'PASS: hosted-observed local Televote guard and source-truth forward recovery in networkless PostgreSQL 17.11'
+
+      - name: Upload scoped Televote local-only proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s02-hosted-televote-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            s02-tv-baseline-catalog-proof.json
+            s02-tv-baseline-acl-proof.json
+            s02-televote-local-forward-proof.json
+            s02-frontier-coverage-gap-proof.json
+          retention-days: 14
+          if-no-files-found: ignore

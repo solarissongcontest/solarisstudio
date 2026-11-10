@@ -1,0 +1,2176 @@
+{
+  "task": "S02",
+  "date": "2026-11-09",
+  "scope": "9 actual hosted S14 external FK/RLS parent table schemas, no rows",
+  "schemaOnly": true,
+  "serverVersionNum": "170011",
+  "counts": {
+    "columns": 136,
+    "constraints": 42,
+    "indexes": 36,
+    "triggers": 20,
+    "policies": 30
+  },
+  "tables": [
+    {
+      "rls": true,
+      "name": "users",
+      "owner": "supabase_auth_admin",
+      "schema": "auth",
+      "columns": [
+        {
+          "name": "instance_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "aud",
+          "type": "character varying(255)",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "role",
+          "type": "character varying(255)",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "email",
+          "type": "character varying(255)",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "encrypted_password",
+          "type": "character varying(255)",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "email_confirmed_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "invited_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "confirmation_token",
+          "type": "character varying(255)",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "confirmation_sent_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "recovery_token",
+          "type": "character varying(255)",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "recovery_sent_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "email_change_token_new",
+          "type": "character varying(255)",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "email_change",
+          "type": "character varying(255)",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "email_change_sent_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "last_sign_in_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "raw_app_meta_data",
+          "type": "jsonb",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "raw_user_meta_data",
+          "type": "jsonb",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "is_super_admin",
+          "type": "boolean",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "default": "NULL::character varying",
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "phone_confirmed_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "phone_change",
+          "type": "text",
+          "default": "''::character varying",
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "phone_change_token",
+          "type": "character varying(255)",
+          "default": "''::character varying",
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "phone_change_sent_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "confirmed_at",
+          "type": "timestamp with time zone",
+          "default": "LEAST(email_confirmed_at, phone_confirmed_at)",
+          "notnull": false,
+          "identity": "",
+          "generated": "s"
+        },
+        {
+          "name": "email_change_token_current",
+          "type": "character varying(255)",
+          "default": "''::character varying",
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "email_change_confirm_status",
+          "type": "smallint",
+          "default": "0",
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "banned_until",
+          "type": "timestamp with time zone",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "reauthentication_token",
+          "type": "character varying(255)",
+          "default": "''::character varying",
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "reauthentication_sent_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "is_sso_user",
+          "type": "boolean",
+          "default": "false",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "is_anonymous",
+          "type": "boolean",
+          "default": "false",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "confirmation_token_idx",
+          "valid": true,
+          "unique": true,
+          "primary": false,
+          "definition": "CREATE UNIQUE INDEX confirmation_token_idx ON auth.users USING btree (confirmation_token) WHERE ((confirmation_token)::text !~ '^[0-9 ]*$'::text)"
+        },
+        {
+          "name": "email_change_token_current_idx",
+          "valid": true,
+          "unique": true,
+          "primary": false,
+          "definition": "CREATE UNIQUE INDEX email_change_token_current_idx ON auth.users USING btree (email_change_token_current) WHERE ((email_change_token_current)::text !~ '^[0-9 ]*$'::text)"
+        },
+        {
+          "name": "email_change_token_new_idx",
+          "valid": true,
+          "unique": true,
+          "primary": false,
+          "definition": "CREATE UNIQUE INDEX email_change_token_new_idx ON auth.users USING btree (email_change_token_new) WHERE ((email_change_token_new)::text !~ '^[0-9 ]*$'::text)"
+        },
+        {
+          "name": "idx_users_created_at_desc",
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition": "CREATE INDEX idx_users_created_at_desc ON auth.users USING btree (created_at DESC)"
+        },
+        {
+          "name": "idx_users_email",
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition": "CREATE INDEX idx_users_email ON auth.users USING btree (email)"
+        },
+        {
+          "name": "idx_users_last_sign_in_at_desc",
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition": "CREATE INDEX idx_users_last_sign_in_at_desc ON auth.users USING btree (last_sign_in_at DESC)"
+        },
+        {
+          "name": "idx_users_name",
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition": "CREATE INDEX idx_users_name ON auth.users USING btree (((raw_user_meta_data ->> 'name'::text))) WHERE ((raw_user_meta_data ->> 'name'::text) IS NOT NULL)"
+        },
+        {
+          "name": "reauthentication_token_idx",
+          "valid": true,
+          "unique": true,
+          "primary": false,
+          "definition": "CREATE UNIQUE INDEX reauthentication_token_idx ON auth.users USING btree (reauthentication_token) WHERE ((reauthentication_token)::text !~ '^[0-9 ]*$'::text)"
+        },
+        {
+          "name": "recovery_token_idx",
+          "valid": true,
+          "unique": true,
+          "primary": false,
+          "definition": "CREATE UNIQUE INDEX recovery_token_idx ON auth.users USING btree (recovery_token) WHERE ((recovery_token)::text !~ '^[0-9 ]*$'::text)"
+        },
+        {
+          "name": "users_email_partial_key",
+          "valid": true,
+          "unique": true,
+          "primary": false,
+          "definition": "CREATE UNIQUE INDEX users_email_partial_key ON auth.users USING btree (email) WHERE (is_sso_user = false)"
+        },
+        {
+          "name": "users_instance_id_email_idx",
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition": "CREATE INDEX users_instance_id_email_idx ON auth.users USING btree (instance_id, lower((email)::text))"
+        },
+        {
+          "name": "users_instance_id_idx",
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition": "CREATE INDEX users_instance_id_idx ON auth.users USING btree (instance_id)"
+        },
+        {
+          "name": "users_is_anonymous_idx",
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition": "CREATE INDEX users_is_anonymous_idx ON auth.users USING btree (is_anonymous)"
+        },
+        {
+          "name": "users_phone_key",
+          "valid": true,
+          "unique": true,
+          "primary": false,
+          "definition": "CREATE UNIQUE INDEX users_phone_key ON auth.users USING btree (phone)"
+        },
+        {
+          "name": "users_pkey",
+          "valid": true,
+          "unique": true,
+          "primary": true,
+          "definition": "CREATE UNIQUE INDEX users_pkey ON auth.users USING btree (id)"
+        }
+      ],
+      "policies": [],
+      "triggers": [],
+      "force_rls": false,
+      "constraints": [
+        {
+          "name": "users_email_change_confirm_status_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (email_change_confirm_status >= 0 AND email_change_confirm_status <= 2)"
+        },
+        {
+          "name": "users_phone_key",
+          "type": "u",
+          "validated": true,
+          "definition": "UNIQUE (phone)"
+        },
+        {
+          "name": "users_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (id)"
+        }
+      ]
+    },
+    {
+      "rls": true,
+      "name": "contest_entities",
+      "owner": "postgres",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "default": "gen_random_uuid()",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "edition_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "entity_type",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "country_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "display_name",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "abbreviation",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "flag_image",
+          "type": "text",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "region",
+          "type": "text",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "historical_identity_override",
+          "type": "boolean",
+          "default": "false",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "contest_entities_country_id_idx",
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition": "CREATE INDEX contest_entities_country_id_idx ON public.contest_entities USING btree (country_id)"
+        },
+        {
+          "name": "contest_entities_edition_abbr_key",
+          "valid": true,
+          "unique": true,
+          "primary": false,
+          "definition": "CREATE UNIQUE INDEX contest_entities_edition_abbr_key ON public.contest_entities USING btree (edition_id, lower(btrim(abbreviation)))"
+        },
+        {
+          "name": "contest_entities_edition_country_key",
+          "valid": true,
+          "unique": true,
+          "primary": false,
+          "definition": "CREATE UNIQUE INDEX contest_entities_edition_country_key ON public.contest_entities USING btree (edition_id, country_id) WHERE (country_id IS NOT NULL)"
+        },
+        {
+          "name": "contest_entities_edition_idx",
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition": "CREATE INDEX contest_entities_edition_idx ON public.contest_entities USING btree (edition_id)"
+        },
+        {
+          "name": "contest_entities_pkey",
+          "valid": true,
+          "unique": true,
+          "primary": true,
+          "definition": "CREATE UNIQUE INDEX contest_entities_pkey ON public.contest_entities USING btree (id)"
+        }
+      ],
+      "policies": [
+        {
+          "name": "contest entities capability write delete",
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "studio2_access_allowed('edition.manage'::text, edition_id, true)",
+          "command": "d",
+          "permissive": true
+        },
+        {
+          "name": "contest entities capability write insert",
+          "check": "studio2_access_allowed('edition.manage'::text, edition_id, true)",
+          "roles": [
+            "authenticated"
+          ],
+          "using": null,
+          "command": "a",
+          "permissive": true
+        },
+        {
+          "name": "contest entities capability write update",
+          "check": "studio2_access_allowed('edition.manage'::text, edition_id, true)",
+          "roles": [
+            "authenticated"
+          ],
+          "using": "studio2_access_allowed('edition.manage'::text, edition_id, true)",
+          "command": "w",
+          "permissive": true
+        },
+        {
+          "name": "solaris consolidated anon read",
+          "check": null,
+          "roles": [
+            "anon"
+          ],
+          "using": "((EXISTS ( SELECT 1\n   FROM participants p\n  WHERE ((p.edition_id = contest_entities.edition_id) AND ((p.contest_entity_id = contest_entities.id) OR ((contest_entities.country_id IS NOT NULL) AND (p.country_id = contest_entities.country_id))) AND (((p.show_id IS NOT NULL) AND show_publication_enabled(p.show_id, 'participants'::text)) OR ((p.show_id IS NULL) AND (EXISTS ( SELECT 1\n           FROM editions e\n          WHERE ((e.id = p.edition_id) AND (e.published = true))))))))) OR studio2_access_allowed('edition.read'::text, edition_id, false))",
+          "command": "r",
+          "permissive": true
+        },
+        {
+          "name": "solaris consolidated authenticated read",
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "(studio2_access_allowed('edition.manage'::text, edition_id, true) OR ((EXISTS ( SELECT 1\n   FROM participants p\n  WHERE ((p.edition_id = contest_entities.edition_id) AND ((p.contest_entity_id = contest_entities.id) OR ((contest_entities.country_id IS NOT NULL) AND (p.country_id = contest_entities.country_id))) AND (((p.show_id IS NOT NULL) AND show_publication_enabled(p.show_id, 'participants'::text)) OR ((p.show_id IS NULL) AND (EXISTS ( SELECT 1\n           FROM editions e\n          WHERE ((e.id = p.edition_id) AND (e.published = true))))))))) OR studio2_access_allowed('edition.read'::text, edition_id, false)))",
+          "command": "r",
+          "permissive": true
+        }
+      ],
+      "triggers": [
+        {
+          "func": "update_updated_at_column()",
+          "name": "contest_entities_updated_at",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER contest_entities_updated_at BEFORE UPDATE ON contest_entities FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()"
+        },
+        {
+          "func": "private.studio2_guard_direct_client_write()",
+          "name": "studio2_platform_direct_write_guard",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER studio2_platform_direct_write_guard BEFORE INSERT OR DELETE OR UPDATE ON contest_entities FOR EACH STATEMENT EXECUTE FUNCTION private.studio2_guard_direct_client_write()"
+        },
+        {
+          "func": "private.v3_guard_jury_entity_reference_scope()",
+          "name": "v3_guard_jury_entity_reference_scope",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER v3_guard_jury_entity_reference_scope BEFORE UPDATE OF edition_id, country_id ON contest_entities FOR EACH ROW EXECUTE FUNCTION private.v3_guard_jury_entity_reference_scope()"
+        }
+      ],
+      "force_rls": false,
+      "constraints": [
+        {
+          "name": "contest_entities_abbr_chk",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (length(btrim(abbreviation)) > 0)"
+        },
+        {
+          "name": "contest_entities_country_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (country_id) REFERENCES countries(id) ON DELETE RESTRICT"
+        },
+        {
+          "name": "contest_entities_edition_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (edition_id) REFERENCES editions(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "contest_entities_entity_type_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (entity_type = ANY (ARRAY['global'::text, 'custom'::text]))"
+        },
+        {
+          "name": "contest_entities_identity_chk",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (entity_type = 'global'::text AND country_id IS NOT NULL OR entity_type = 'custom'::text AND country_id IS NULL)"
+        },
+        {
+          "name": "contest_entities_name_chk",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (length(btrim(display_name)) > 0)"
+        },
+        {
+          "name": "contest_entities_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (id)"
+        }
+      ]
+    },
+    {
+      "rls": true,
+      "name": "countries",
+      "owner": "postgres",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "default": "gen_random_uuid()",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "short_code",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "flag_image",
+          "type": "text",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "region",
+          "type": "text",
+          "default": "'Terra Solaris'::text",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "accent_color",
+          "type": "text",
+          "default": "'#7dd3fc'::text",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "first_participation",
+          "type": "integer",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "statistics",
+          "type": "jsonb",
+          "default": "'{}'::jsonb",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "native_name",
+          "type": "text",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "flag_crop_x",
+          "type": "numeric",
+          "default": "50",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "flag_crop_y",
+          "type": "numeric",
+          "default": "50",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "flag_crop_zoom",
+          "type": "numeric",
+          "default": "1",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "countries_name_key",
+          "valid": true,
+          "unique": true,
+          "primary": false,
+          "definition": "CREATE UNIQUE INDEX countries_name_key ON public.countries USING btree (name)"
+        },
+        {
+          "name": "countries_pkey",
+          "valid": true,
+          "unique": true,
+          "primary": true,
+          "definition": "CREATE UNIQUE INDEX countries_pkey ON public.countries USING btree (id)"
+        },
+        {
+          "name": "countries_short_code_key",
+          "valid": true,
+          "unique": true,
+          "primary": false,
+          "definition": "CREATE UNIQUE INDEX countries_short_code_key ON public.countries USING btree (short_code)"
+        }
+      ],
+      "policies": [
+        {
+          "name": "countries capability write delete",
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "studio2_access_allowed('delegation.manage'::text, NULL::uuid, true)",
+          "command": "d",
+          "permissive": true
+        },
+        {
+          "name": "countries capability write insert",
+          "check": "studio2_access_allowed('delegation.manage'::text, NULL::uuid, true)",
+          "roles": [
+            "authenticated"
+          ],
+          "using": null,
+          "command": "a",
+          "permissive": true
+        },
+        {
+          "name": "countries capability write update",
+          "check": "studio2_access_allowed('delegation.manage'::text, NULL::uuid, true)",
+          "roles": [
+            "authenticated"
+          ],
+          "using": "studio2_access_allowed('delegation.manage'::text, NULL::uuid, true)",
+          "command": "w",
+          "permissive": true
+        },
+        {
+          "name": "solaris consolidated anon read",
+          "check": null,
+          "roles": [
+            "anon"
+          ],
+          "using": "true",
+          "command": "r",
+          "permissive": true
+        },
+        {
+          "name": "solaris consolidated authenticated read",
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "(studio2_access_allowed('delegation.manage'::text, NULL::uuid, true) OR true)",
+          "command": "r",
+          "permissive": true
+        }
+      ],
+      "triggers": [
+        {
+          "func": "bump_country_edition_revisions()",
+          "name": "countries_bump_edition_revision",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER countries_bump_edition_revision AFTER UPDATE ON countries FOR EACH ROW EXECUTE FUNCTION bump_country_edition_revisions()"
+        },
+        {
+          "func": "private.reset_country_flag_crop_on_replace()",
+          "name": "reset_country_flag_crop_on_replace",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER reset_country_flag_crop_on_replace BEFORE UPDATE OF flag_image ON countries FOR EACH ROW EXECUTE FUNCTION private.reset_country_flag_crop_on_replace()"
+        },
+        {
+          "func": "private.studio2_guard_direct_client_write()",
+          "name": "studio2_platform_direct_write_guard",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER studio2_platform_direct_write_guard BEFORE INSERT OR DELETE OR UPDATE ON countries FOR EACH STATEMENT EXECUTE FUNCTION private.studio2_guard_direct_client_write()"
+        },
+        {
+          "func": "update_updated_at_column()",
+          "name": "update_countries_updated_at",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER update_countries_updated_at BEFORE UPDATE ON countries FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()"
+        },
+        {
+          "func": "private.v3_supersede_stale_media_reviews()",
+          "name": "v3_s3_supersede_country_flag_reviews",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER v3_s3_supersede_country_flag_reviews AFTER UPDATE OF flag_image ON countries FOR EACH ROW EXECUTE FUNCTION private.v3_supersede_stale_media_reviews()"
+        }
+      ],
+      "force_rls": false,
+      "constraints": [
+        {
+          "name": "countries_flag_crop_x_range",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (flag_crop_x >= 0::numeric AND flag_crop_x <= 100::numeric)"
+        },
+        {
+          "name": "countries_flag_crop_y_range",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (flag_crop_y >= 0::numeric AND flag_crop_y <= 100::numeric)"
+        },
+        {
+          "name": "countries_flag_crop_zoom_range",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (flag_crop_zoom >= 1::numeric AND flag_crop_zoom <= 2::numeric)"
+        },
+        {
+          "name": "countries_name_key",
+          "type": "u",
+          "validated": true,
+          "definition": "UNIQUE (name)"
+        },
+        {
+          "name": "countries_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (id)"
+        }
+      ]
+    },
+    {
+      "rls": true,
+      "name": "country_accounts",
+      "owner": "postgres",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "country_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "default": "'active'::text",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "suspension_reason",
+          "type": "text",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "suspended_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "suspended_by",
+          "type": "uuid",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "instagram_username",
+          "type": "text",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "display_name",
+          "type": "text",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "hod_auto_assign_future",
+          "type": "boolean",
+          "default": "true",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "country_accounts_country_id_key",
+          "valid": true,
+          "unique": true,
+          "primary": false,
+          "definition": "CREATE UNIQUE INDEX country_accounts_country_id_key ON public.country_accounts USING btree (country_id)"
+        },
+        {
+          "name": "country_accounts_instagram_username_lower_uidx",
+          "valid": true,
+          "unique": true,
+          "primary": false,
+          "definition": "CREATE UNIQUE INDEX country_accounts_instagram_username_lower_uidx ON public.country_accounts USING btree (lower(instagram_username)) WHERE (instagram_username IS NOT NULL)"
+        },
+        {
+          "name": "country_accounts_pkey",
+          "valid": true,
+          "unique": true,
+          "primary": true,
+          "definition": "CREATE UNIQUE INDEX country_accounts_pkey ON public.country_accounts USING btree (user_id)"
+        }
+      ],
+      "policies": [
+        {
+          "name": "country accounts capability manage delete",
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "studio2_access_allowed('delegation.manage'::text, NULL::uuid, true)",
+          "command": "d",
+          "permissive": true
+        },
+        {
+          "name": "country accounts capability manage insert",
+          "check": "studio2_access_allowed('delegation.manage'::text, NULL::uuid, true)",
+          "roles": [
+            "authenticated"
+          ],
+          "using": null,
+          "command": "a",
+          "permissive": true
+        },
+        {
+          "name": "country accounts capability manage update",
+          "check": "studio2_access_allowed('delegation.manage'::text, NULL::uuid, true)",
+          "roles": [
+            "authenticated"
+          ],
+          "using": "studio2_access_allowed('delegation.manage'::text, NULL::uuid, true)",
+          "command": "w",
+          "permissive": true
+        },
+        {
+          "name": "solaris consolidated authenticated read",
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "(studio2_access_allowed('delegation.manage'::text, NULL::uuid, true) OR (user_id = ( SELECT auth.uid() AS uid)))",
+          "command": "r",
+          "permissive": true
+        }
+      ],
+      "triggers": [
+        {
+          "func": "private.ensure_country_account_hod_role()",
+          "name": "ensure_country_account_hod_role",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER ensure_country_account_hod_role AFTER INSERT OR UPDATE OF user_id ON country_accounts FOR EACH ROW EXECUTE FUNCTION private.ensure_country_account_hod_role()"
+        },
+        {
+          "func": "private.studio2_guard_direct_client_write()",
+          "name": "studio2_platform_direct_write_guard",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER studio2_platform_direct_write_guard BEFORE INSERT OR DELETE OR UPDATE ON country_accounts FOR EACH STATEMENT EXECUTE FUNCTION private.studio2_guard_direct_client_write()"
+        },
+        {
+          "func": "touch_country_content_updated_at()",
+          "name": "touch_country_accounts_updated_at",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER touch_country_accounts_updated_at BEFORE UPDATE ON country_accounts FOR EACH ROW EXECUTE FUNCTION touch_country_content_updated_at()"
+        }
+      ],
+      "force_rls": false,
+      "constraints": [
+        {
+          "name": "country_accounts_country_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (country_id) REFERENCES countries(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "country_accounts_country_id_key",
+          "type": "u",
+          "validated": true,
+          "definition": "UNIQUE (country_id)"
+        },
+        {
+          "name": "country_accounts_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (user_id)"
+        },
+        {
+          "name": "country_accounts_user_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+        }
+      ]
+    },
+    {
+      "rls": true,
+      "name": "studio2_capabilities",
+      "owner": "postgres",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "key",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "domain",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "label",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "access_level",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "studio2_capabilities_pkey",
+          "valid": true,
+          "unique": true,
+          "primary": true,
+          "definition": "CREATE UNIQUE INDEX studio2_capabilities_pkey ON public.studio2_capabilities USING btree (key)"
+        }
+      ],
+      "policies": [
+        {
+          "name": "studio2_capabilities_authenticated_read",
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "true",
+          "command": "r",
+          "permissive": true
+        }
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "constraints": [
+        {
+          "name": "studio2_capabilities_access_level_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (access_level = ANY (ARRAY['read'::text, 'operate'::text, 'approve'::text, 'administer'::text]))"
+        },
+        {
+          "name": "studio2_capabilities_description_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (length(btrim(description)) > 0)"
+        },
+        {
+          "name": "studio2_capabilities_label_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (length(btrim(label)) > 0)"
+        },
+        {
+          "name": "studio2_capabilities_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (key)"
+        }
+      ]
+    },
+    {
+      "rls": true,
+      "name": "themes",
+      "owner": "postgres",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "default": "gen_random_uuid()",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "config",
+          "type": "jsonb",
+          "default": "'{}'::jsonb",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "is_public",
+          "type": "boolean",
+          "default": "false",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "themes_pkey",
+          "valid": true,
+          "unique": true,
+          "primary": true,
+          "definition": "CREATE UNIQUE INDEX themes_pkey ON public.themes USING btree (id)"
+        }
+      ],
+      "policies": [
+        {
+          "name": "solaris consolidated anon read",
+          "check": null,
+          "roles": [
+            "anon"
+          ],
+          "using": "(is_public OR (EXISTS ( SELECT 1\n   FROM shows s\n  WHERE ((s.theme_id = themes.id) AND (s.published = true)))) OR (EXISTS ( SELECT 1\n   FROM editions e\n  WHERE ((e.theme_id = themes.id) AND (e.published = true)))) OR ((( SELECT auth.uid() AS uid) IS NOT NULL) AND studio2_access_allowed('edition.manage'::text, NULL::uuid, false)))",
+          "command": "r",
+          "permissive": true
+        },
+        {
+          "name": "solaris consolidated authenticated read",
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "(studio2_access_allowed('edition.manage'::text, NULL::uuid, false) OR (is_public OR (EXISTS ( SELECT 1\n   FROM shows s\n  WHERE ((s.theme_id = themes.id) AND (s.published = true)))) OR (EXISTS ( SELECT 1\n   FROM editions e\n  WHERE ((e.theme_id = themes.id) AND (e.published = true)))) OR ((( SELECT auth.uid() AS uid) IS NOT NULL) AND studio2_access_allowed('edition.manage'::text, NULL::uuid, false))))",
+          "command": "r",
+          "permissive": true
+        },
+        {
+          "name": "themes organizer write delete",
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "studio2_access_allowed('edition.manage'::text, NULL::uuid, false)",
+          "command": "d",
+          "permissive": true
+        },
+        {
+          "name": "themes organizer write insert",
+          "check": "studio2_access_allowed('edition.manage'::text, NULL::uuid, false)",
+          "roles": [
+            "authenticated"
+          ],
+          "using": null,
+          "command": "a",
+          "permissive": true
+        },
+        {
+          "name": "themes organizer write update",
+          "check": "studio2_access_allowed('edition.manage'::text, NULL::uuid, false)",
+          "roles": [
+            "authenticated"
+          ],
+          "using": "studio2_access_allowed('edition.manage'::text, NULL::uuid, false)",
+          "command": "w",
+          "permissive": true
+        }
+      ],
+      "triggers": [
+        {
+          "func": "private.studio2_guard_direct_client_write()",
+          "name": "studio2_platform_direct_write_guard",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER studio2_platform_direct_write_guard BEFORE INSERT OR DELETE OR UPDATE ON themes FOR EACH STATEMENT EXECUTE FUNCTION private.studio2_guard_direct_client_write()"
+        },
+        {
+          "func": "update_updated_at_column()",
+          "name": "themes_updated_at",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER themes_updated_at BEFORE UPDATE ON themes FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()"
+        }
+      ],
+      "force_rls": false,
+      "constraints": [
+        {
+          "name": "themes_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (id)"
+        }
+      ]
+    },
+    {
+      "rls": true,
+      "name": "countries",
+      "owner": "postgres",
+      "schema": "televoting",
+      "columns": [
+        {
+          "name": "code",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "flag",
+          "type": "text",
+          "default": "'✦'::text",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "flag_url",
+          "type": "text",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "countries_pkey",
+          "valid": true,
+          "unique": true,
+          "primary": true,
+          "definition": "CREATE UNIQUE INDEX countries_pkey ON televoting.countries USING btree (code)"
+        }
+      ],
+      "policies": [
+        {
+          "name": "solaris consolidated anon read",
+          "check": null,
+          "roles": [
+            "anon"
+          ],
+          "using": "true",
+          "command": "r",
+          "permissive": true
+        },
+        {
+          "name": "solaris consolidated authenticated read",
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "(studio2_access_allowed('voting.manage'::text, NULL::uuid, false) OR true)",
+          "command": "r",
+          "permissive": true
+        },
+        {
+          "name": "televoting organizer full access delete",
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "studio2_access_allowed('voting.manage'::text, NULL::uuid, false)",
+          "command": "d",
+          "permissive": true
+        },
+        {
+          "name": "televoting organizer full access insert",
+          "check": "studio2_access_allowed('voting.manage'::text, NULL::uuid, false)",
+          "roles": [
+            "authenticated"
+          ],
+          "using": null,
+          "command": "a",
+          "permissive": true
+        },
+        {
+          "name": "televoting organizer full access update",
+          "check": "studio2_access_allowed('voting.manage'::text, NULL::uuid, false)",
+          "roles": [
+            "authenticated"
+          ],
+          "using": "studio2_access_allowed('voting.manage'::text, NULL::uuid, false)",
+          "command": "w",
+          "permissive": true
+        }
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "constraints": [
+        {
+          "name": "countries_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (code)"
+        }
+      ]
+    },
+    {
+      "rls": true,
+      "name": "editions",
+      "owner": "postgres",
+      "schema": "televoting",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "default": "gen_random_uuid()",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "is_active",
+          "type": "boolean",
+          "default": "false",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "is_archived",
+          "type": "boolean",
+          "default": "false",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "editions_pkey",
+          "valid": true,
+          "unique": true,
+          "primary": true,
+          "definition": "CREATE UNIQUE INDEX editions_pkey ON televoting.editions USING btree (id)"
+        },
+        {
+          "name": "televoting_editions_single_active_idx",
+          "valid": true,
+          "unique": true,
+          "primary": false,
+          "definition": "CREATE UNIQUE INDEX televoting_editions_single_active_idx ON televoting.editions USING btree (is_active) WHERE (is_active = true)"
+        }
+      ],
+      "policies": [
+        {
+          "name": "solaris consolidated anon read",
+          "check": null,
+          "roles": [
+            "anon"
+          ],
+          "using": "true",
+          "command": "r",
+          "permissive": true
+        },
+        {
+          "name": "solaris consolidated authenticated read",
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "(studio2_access_allowed('voting.manage'::text, NULL::uuid, false) OR true)",
+          "command": "r",
+          "permissive": true
+        },
+        {
+          "name": "televoting organizer full access delete",
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "studio2_access_allowed('voting.manage'::text, NULL::uuid, false)",
+          "command": "d",
+          "permissive": true
+        },
+        {
+          "name": "televoting organizer full access insert",
+          "check": "studio2_access_allowed('voting.manage'::text, NULL::uuid, false)",
+          "roles": [
+            "authenticated"
+          ],
+          "using": null,
+          "command": "a",
+          "permissive": true
+        },
+        {
+          "name": "televoting organizer full access update",
+          "check": "studio2_access_allowed('voting.manage'::text, NULL::uuid, false)",
+          "roles": [
+            "authenticated"
+          ],
+          "using": "studio2_access_allowed('voting.manage'::text, NULL::uuid, false)",
+          "command": "w",
+          "permissive": true
+        }
+      ],
+      "triggers": [
+        {
+          "func": "televoting.keep_single_active_edition()",
+          "name": "keep_single_active_edition",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER keep_single_active_edition BEFORE INSERT OR UPDATE OF is_active ON televoting.editions FOR EACH ROW EXECUTE FUNCTION televoting.keep_single_active_edition()"
+        },
+        {
+          "func": "televoting.update_updated_at_column()",
+          "name": "televoting_editions_updated_at",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER televoting_editions_updated_at BEFORE UPDATE ON televoting.editions FOR EACH ROW EXECUTE FUNCTION televoting.update_updated_at_column()"
+        }
+      ],
+      "force_rls": false,
+      "constraints": [
+        {
+          "name": "editions_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (id)"
+        }
+      ]
+    },
+    {
+      "rls": true,
+      "name": "vote_preflight_checks",
+      "owner": "postgres",
+      "schema": "televoting",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "default": "gen_random_uuid()",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "round_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "username_normalized",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "country_code",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "ballot_map",
+          "type": "jsonb",
+          "default": "'{}'::jsonb",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "ip_hash",
+          "type": "text",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "fingerprint_hash",
+          "type": "text",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "device_token_hash",
+          "type": "text",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "ip_country",
+          "type": "text",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "is_vpn",
+          "type": "boolean",
+          "default": "false",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "hod_person_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "relationship_risk",
+          "type": "integer",
+          "default": "0",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "risk_score",
+          "type": "integer",
+          "default": "0",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "severity",
+          "type": "text",
+          "default": "'none'::text",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "requires_attestation",
+          "type": "boolean",
+          "default": "false",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "findings",
+          "type": "jsonb",
+          "default": "'[]'::jsonb",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "technical_signals",
+          "type": "jsonb",
+          "default": "'[]'::jsonb",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "history_summary",
+          "type": "jsonb",
+          "default": "'{}'::jsonb",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "statement_version",
+          "type": "integer",
+          "default": "1",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "attested_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "signed_name",
+          "type": "text",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "attestation_text",
+          "type": "text",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "attestation_ip_hash",
+          "type": "text",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "submission_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "submitted_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "default": "(now() + '00:20:00'::interval)",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "channel",
+          "type": "text",
+          "default": "'televote'::text",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "canonical_edition_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "show_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "account_user_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "jury_ballot_submission_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "model_version",
+          "type": "text",
+          "default": "'friend-voting-model-v3'::text",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "confidence",
+          "type": "integer",
+          "default": "0",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "intervention_level",
+          "type": "text",
+          "default": "'none'::text",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "voter_reason_categories",
+          "type": "jsonb",
+          "default": "'[]'::jsonb",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "admin_evidence",
+          "type": "jsonb",
+          "default": "'{}'::jsonb",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "declaration_version",
+          "type": "bigint",
+          "default": "1",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "declaration_invalidated_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "declaration_invalidated_by",
+          "type": "uuid",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "declaration_invalidation_reason",
+          "type": "text",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "televoting_vote_preflight_attestation_idx",
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition": "CREATE INDEX televoting_vote_preflight_attestation_idx ON televoting.vote_preflight_checks USING btree (requires_attestation, attested_at, created_at DESC)"
+        },
+        {
+          "name": "televoting_vote_preflight_country_idx",
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition": "CREATE INDEX televoting_vote_preflight_country_idx ON televoting.vote_preflight_checks USING btree (country_code, created_at DESC)"
+        },
+        {
+          "name": "televoting_vote_preflight_round_idx",
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition": "CREATE INDEX televoting_vote_preflight_round_idx ON televoting.vote_preflight_checks USING btree (round_id, created_at DESC)"
+        },
+        {
+          "name": "vote_preflight_checks_pkey",
+          "valid": true,
+          "unique": true,
+          "primary": true,
+          "definition": "CREATE UNIQUE INDEX vote_preflight_checks_pkey ON televoting.vote_preflight_checks USING btree (id)"
+        },
+        {
+          "name": "vote_preflight_checks_televote_submission_v3_idx",
+          "valid": true,
+          "unique": true,
+          "primary": false,
+          "definition": "CREATE UNIQUE INDEX vote_preflight_checks_televote_submission_v3_idx ON televoting.vote_preflight_checks USING btree (submission_id) WHERE ((channel = 'televote'::text) AND (submission_id IS NOT NULL))"
+        }
+      ],
+      "policies": [],
+      "triggers": [
+        {
+          "func": "private.studio2_touch_voting_declaration_version()",
+          "name": "studio2_touch_voting_declaration_version",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER studio2_touch_voting_declaration_version BEFORE UPDATE OF attested_at, signed_name, attestation_text, statement_version, submission_id, submitted_at, declaration_invalidated_at, declaration_invalidated_by, declaration_invalidation_reason ON televoting.vote_preflight_checks FOR EACH ROW EXECUTE FUNCTION private.studio2_touch_voting_declaration_version()"
+        },
+        {
+          "func": "televoting.block_sanctioned_preflight()",
+          "name": "trg_block_sanctioned_preflight",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER trg_block_sanctioned_preflight BEFORE INSERT ON televoting.vote_preflight_checks FOR EACH ROW EXECUTE FUNCTION televoting.block_sanctioned_preflight()"
+        },
+        {
+          "func": "private.v3_bridge_televote_submission_operation()",
+          "name": "v3_bridge_televote_submission_operation",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER v3_bridge_televote_submission_operation AFTER UPDATE OF submission_id, submitted_at ON televoting.vote_preflight_checks FOR EACH ROW WHEN (old.submission_id IS DISTINCT FROM new.submission_id AND new.submission_id IS NOT NULL AND new.submitted_at IS NOT NULL) EXECUTE FUNCTION private.v3_bridge_televote_submission_operation()"
+        },
+        {
+          "func": "private.v3_validate_jury_preflight_ballot_link()",
+          "name": "v3_s3_validate_jury_preflight_ballot_link",
+          "enabled": "O",
+          "definition": "CREATE CONSTRAINT TRIGGER v3_s3_validate_jury_preflight_ballot_link AFTER INSERT OR UPDATE ON televoting.vote_preflight_checks DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION private.v3_validate_jury_preflight_ballot_link()"
+        },
+        {
+          "func": "private.v3_validate_televote_preflight_link()",
+          "name": "v3_s3_validate_televote_preflight_link",
+          "enabled": "O",
+          "definition": "CREATE CONSTRAINT TRIGGER v3_s3_validate_televote_preflight_link AFTER INSERT OR UPDATE ON televoting.vote_preflight_checks DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION private.v3_validate_televote_preflight_link()"
+        }
+      ],
+      "force_rls": false,
+      "constraints": [
+        {
+          "name": "v3_s3_validate_jury_preflight_ballot_link",
+          "type": "t",
+          "validated": true,
+          "definition": "TRIGGER DEFERRABLE INITIALLY DEFERRED"
+        },
+        {
+          "name": "v3_s3_validate_televote_preflight_link",
+          "type": "t",
+          "validated": true,
+          "definition": "TRIGGER DEFERRABLE INITIALLY DEFERRED"
+        },
+        {
+          "name": "vote_preflight_checks_canonical_edition_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (canonical_edition_id) REFERENCES editions(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "vote_preflight_checks_channel_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (channel = ANY (ARRAY['televote'::text, 'jury'::text]))"
+        },
+        {
+          "name": "vote_preflight_checks_context_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (channel = 'televote'::text AND round_id IS NOT NULL OR channel = 'jury'::text AND show_id IS NOT NULL AND canonical_edition_id IS NOT NULL AND account_user_id IS NOT NULL)"
+        },
+        {
+          "name": "vote_preflight_checks_declaration_invalidated_by_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (declaration_invalidated_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "vote_preflight_checks_intervention_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (intervention_level = ANY (ARRAY['none'::text, 'notice'::text, 'review'::text, 'declaration'::text, 'enhanced_declaration'::text, 'provisional_review'::text]))"
+        },
+        {
+          "name": "vote_preflight_checks_jury_ballot_submission_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (jury_ballot_submission_id) REFERENCES jury_ballot_submissions(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "vote_preflight_checks_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "vote_preflight_checks_relationship_risk_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (relationship_risk >= 0 AND relationship_risk <= 100)"
+        },
+        {
+          "name": "vote_preflight_checks_risk_score_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (risk_score >= 0 AND risk_score <= 100)"
+        },
+        {
+          "name": "vote_preflight_checks_round_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (round_id) REFERENCES televoting.rounds(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "vote_preflight_checks_severity_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (severity = ANY (ARRAY['none'::text, 'notable'::text, 'review'::text, 'strong'::text, 'high'::text, 'critical'::text]))"
+        },
+        {
+          "name": "vote_preflight_checks_show_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (show_id) REFERENCES shows(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "vote_preflight_checks_submission_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (submission_id) REFERENCES televoting.vote_submissions(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "vote_preflight_checks_televote_binding_state_v3_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (channel <> 'televote'::text OR submission_id IS NULL AND submitted_at IS NULL OR submission_id IS NOT NULL AND submitted_at IS NOT NULL)"
+        }
+      ]
+    }
+  ]
+}

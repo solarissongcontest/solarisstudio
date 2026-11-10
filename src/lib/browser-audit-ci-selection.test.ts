@@ -2,6 +2,10 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
+import {
+  requireLocalPlaywrightTarget,
+  requireLocalPlaywrightSupabaseEnvironment,
+} from "../../scripts/lib/require-local-playwright-target.mjs";
 
 const compiled = ts.transpileModule(readFileSync("playwright.config.ts", "utf8"), {
   compilerOptions: {
@@ -33,6 +37,10 @@ function configFor(environment: Record<string, string | undefined>) {
       }
       if (name === "./src/lib/maintenance") {
         return { GLOBAL_MAINTENANCE_MODE: false };
+      }
+      if (name === "./scripts/lib/require-local-playwright-target.mjs") {
+        // Execute the real, dependency-free guard before evaluating any project selection.
+        return { requireLocalPlaywrightTarget, requireLocalPlaywrightSupabaseEnvironment };
       }
       throw new Error(`Unexpected config dependency: ${name}`);
     },
