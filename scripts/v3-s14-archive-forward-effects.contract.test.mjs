@@ -261,5 +261,8 @@ test("S06 integrates all seven independent hosted-observed tables into the 56-ta
   assert.match(workflow, /--network none/);
   assert.match(workflow, /docker inspect --format '\{\{json \.HostConfig\.PortBindings\}\}'/);
   assert.match(workflow, /full hosted equivalence REJECTED/);
+  assert.match(workflow, /seven complete table fingerprints unchanged after S13->S14/);
+  assert.match(workflow, /assert\.deepEqual\(actual, pre\.relations/);
+  assert.match(workflow, /LIMITATION: 63\/215 table names/);
   assert.doesNotMatch(workflow, /supabase db push/);
 });
