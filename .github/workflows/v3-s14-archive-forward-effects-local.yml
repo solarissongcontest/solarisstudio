@@ -215,7 +215,7 @@ jobs:
           next_function = 'create or replace function private.v3_edition_final_results_ready('
           assert source.count(next_function) >= 1, 'S14 source anchor missing'
           assert 0 < source.index(trigger) < source.index(next_function), 'Archive trigger must precede injection'
-          exception = "do $s06_local_interrupt$ begin raise exception 'S06 hosted-fixture injected post-DDL failure'; end $s06_local_interrupt$;\\n\\n"
+          exception = "do $s06_local_interrupt$ begin raise exception 'S06 hosted-fixture injected post-DDL failure'; end $s06_local_interrupt$;\n\n"
           injected = source.replace(next_function, exception + next_function, 1)
           assert injected != source
           Path('/tmp/s06-hosted-interrupted.sql').write_text(injected)
