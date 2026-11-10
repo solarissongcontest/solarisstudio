@@ -323,6 +323,9 @@ jobs:
           node scripts/verify-v3-s06-five-ledger-parity.mjs \
             docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
             /tmp/s06-five-in-74-local.json /tmp/s06-five-74-proof.json
+          # Diagnostic: bounded, schema-only index definitions for the single
+          # mismatching local object. No function bodies/rows/secrets.
+          sql -c "select pg_get_indexdef(i.indexrelid) from pg_index i join pg_class c on c.oid=i.indrelid where c.oid='public.studio2_next_in_line_submission_revisions'::regclass order by i.indexrelid::regclass::text"
           node scripts/verify-v3-s06-six-relation-parity.mjs \
             docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
             /tmp/s06-six-in-74-local.json /tmp/s06-six-74-proof.json
