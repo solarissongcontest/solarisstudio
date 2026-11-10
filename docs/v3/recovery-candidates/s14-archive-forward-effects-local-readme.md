@@ -112,6 +112,14 @@ The S06 networkless PostgreSQL 17.11 CI fixture now probes these same catalog fi
 
 This reduces one specific missing *upstream definition/security metadata* uncertainty. **It still does not certify the remaining 159 hosted tables, untracked function closure across 727 functions, real data, effective inherited-role privileges, all RLS/policies, cross-domain forward effects or full migration-history parity.** The staged recovery remains **not deployable**. Passing the new test does not authorize production migration, an Archive transition or release.
 
+## S06 hosted-observed fixture interruption and same-database restart (10 November 2026)
+
+The networkless PostgreSQL 17.11 job previously verified the bounded hosted-observed **56-of-215 relation** catalog, nine dependent parent relations, table/schema grants, the **21 exact upstream RPC definition/security fingerprints**, missing-S13 guard and duplicate refusal, but did not independently fail the *hosted-observed fixture* after real Archive DDL. The separate full-source local Supabase job already had its own post-DDL failure injection.
+
+The networkless job now installs S13, hashes a full **schema-only `pg_dump`** (including function/trigger definitions and grants) and records the semantic-contract row count. It writes **only a temporary copy** of the unchanged S14 forward candidate and inserts a deliberately raised exception **after the first Archive runtime trigger DDL**, before the next Archive function. The interrupted `psql` session must fail with that exact exception; after the connection ends and PostgreSQL rolls the transaction back, the schema dump hash and semantic-contract count must be unchanged, and the new Archive trigger function/private gate must remain absent. Only then does the CI job apply the **original** S14 candidate on the **same disposable database**, without resetting S13, and verify duplicate rejection and private gate INSERT denial.
+
+This is an additional deterministic crash/retry **regression on the production-observed subset**, not a test against production, a multi-transaction outage guarantee or a sanitized full hosted-head-equivalent upgrade. `pg_dump --schema-only` does not establish row/data semantics; the matching hash is a same-process *before/after rollback* comparison, not a comparison with an unavailable full hosted dump. The other **159 hosted relations**, complete runtime closure of **727 functions**, representative data, external dependencies, production migration frontier and independent deployment certification remain open. Automated CI keeps `docker --network none`, no published database ports and no hosted credentials.
+
 ## Local rehearsal and actual tests
 
 `.github/workflows/v3-s14-archive-forward-effects-local.yml` starts disposable **local Supabase**, resets the **full source migration chain**, and runs `scripts/rehearse-v3-s14-archive-forward-effects-local.sh`. That script:
