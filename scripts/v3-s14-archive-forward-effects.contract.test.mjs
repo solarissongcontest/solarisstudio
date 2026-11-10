@@ -193,7 +193,7 @@ test("exact-head CI repeats clean local replay and reuses S02 networkless hosted
   assert.match(workflow, /verify-v3-s02-56-acl\.mjs/);
   assert.match(workflow, /forward-only-s13-foundation\.sql/);
   assert.match(workflow, /forward-only-s14-archive-integrated-local\.sql/);
-  assert.match(workflow, /LIMITATION: 76\/215 table names/);
+  assert.match(workflow, /LIMITATION: 83\/215 table names/);
   assert.doesNotMatch(workflow, /supabase db (push|dump --db-url)/);
 });
 
@@ -262,14 +262,14 @@ test("S06 integrates 83 distinct hosted-observed table identities in one network
   const h = workflow.indexOf("node scripts/verify-v3-s06-eight-relation-parity.mjs", g);
   const i = workflow.indexOf("S14 Archive recovery BLOCKED: S13 governance foundation absent", h);
   assert.ok(a >= 0 && b > a && c > b && d > c && e > d && f > e && g > f && h > g && i > h,
-    "56+7+5+8+7 tables and all three exact catalog digest checks must precede isolated S13->S14 recovery");
+    "56+7+5+8+7 tables and all four exact catalog digest checks must precede isolated S13->S14 recovery");
   assert.match(workflow, /POSTGRES_INITDB_ARGS="--locale-provider=icu --icu-locale=en-US"/);
   assert.match(workflow, /datlocprovider='i' and datlocale='en-US'/);
   assert.match(workflow, /d\.relations\.length !== 83/);
   assert.match(workflow, /actual\.tables\.length !== 83/);
   assert.match(workflow, /found\.size !== 83/);
-  assert.match(workflow, /added\.size !== 20/);
-  assert.match(workflow, /twenty\.length !== 20/);
+  assert.match(workflow, /added\.size !== 27/);
+  assert.match(workflow, /twentySeven\.length !== 27/);
   assert.match(workflow, /S06 fail closed: 56 frozen S02 identities \+ twenty-seven known extras not exact/);
   assert.match(workflow, /verify-v3-s02-56-acl\.mjs \/tmp\/s06-acl-56-scoped\.json/);
   assert.match(workflow, /result\.observed\.relations !== 83/);
@@ -286,14 +286,14 @@ test("S06 integrates 83 distinct hosted-observed table identities in one network
 
 test("S06 seven-table schema is local-only and adds no production rows", () => {
   const sql = read("docs/v3/recovery-candidates/evidence/s06-hosted-seven-jury-integrity-account-local.sql");
-  assert.equal((sql.match(/CREATE TABLE (private|public|televoting)\\./g) || []).length, 7);
-  assert.match(sql, /CREATE TABLE private\\.v3_jury_drafts/);
-  assert.match(sql, /CREATE TABLE televoting\\.vote_integrity_decisions/);
-  assert.match(sql, /CREATE TABLE televoting\\.voter_sanctions/);
-  assert.match(sql, /CREATE TABLE televoting\\.integrity_action_audit/);
-  assert.match(sql, /REFERENCES televoting\\.vote_integrity_decisions\\(id\\)/);
-  assert.match(sql, /REFERENCES televoting\\.voter_sanctions\\(id\\)/);
-  assert.doesNotMatch(sql, /\\bINSERT\\s+INTO\\b|\\bCOPY\\s+|\\bUPDATE\\s+|\\bDELETE\\s+FROM\\b/i);
+  assert.equal((sql.match(/CREATE TABLE (private|public|televoting)\./g) || []).length, 7);
+  assert.match(sql, /CREATE TABLE private\.v3_jury_drafts/);
+  assert.match(sql, /CREATE TABLE televoting\.vote_integrity_decisions/);
+  assert.match(sql, /CREATE TABLE televoting\.voter_sanctions/);
+  assert.match(sql, /CREATE TABLE televoting\.integrity_action_audit/);
+  assert.match(sql, /REFERENCES televoting\.vote_integrity_decisions\(id\)/);
+  assert.match(sql, /REFERENCES televoting\.voter_sanctions\(id\)/);
+  assert.doesNotMatch(sql, /\bINSERT\s+INTO\b|\bCOPY\s+|\bUPDATE\s+|\bDELETE\s+FROM\b/i);
   assert.match(workflow, /--network none/);
-  assert.match(workflow, /s06-hosted-seven-jury-integrity-account-local\\.sql/);
+  assert.match(workflow, /s06-hosted-seven-jury-integrity-account-local\.sql/);
 });
