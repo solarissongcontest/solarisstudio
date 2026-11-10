@@ -1,0 +1,217 @@
+name: V3 S14 Archive forward-effects recovery local proof
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/v3-s14-archive-forward-effects-local.yml"
+      - "scripts/rehearse-v3-s14-archive-forward-effects-local.sh"
+      - "scripts/v3-s14-archive-forward-effects.contract.test.mjs"
+      - "docs/v3/recovery-candidates/forward-only-s13-foundation.sql"
+      - "docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql"
+      - "supabase/migrations/20261019112100_v3_s14_archive_consequence_reconciliation.sql"
+      - "supabase/migrations/20261019112200_v3_s14_final_results_readiness_hardening.sql"
+      - "supabase/migrations/20261019202636_v3_s14_resolved_task_delivery_reconciliation.sql"
+      - "supabase/migrations/20261020140000_v3_s14_archive_runtime_update_guard.sql"
+      - "supabase/migrations/20261021161000_v3_s14_task_reconciliation_service_boundary.sql"
+      - "supabase/migrations/20261019112300_v3_s14_transition_http409.sql"
+      - "supabase/migrations/20261019112400_v3_s14_archive_task_registry_alignment.sql"
+      - "supabase/migrations/20261020130000_v3_s14_archive_invariant_forward_fixes.sql"
+      - "supabase/migrations/20261021110000_v3_s14_archive_guard_authority_forward_fix.sql"
+      - "supabase/migrations/20261021163000_v3_s14_failed_task_delivery_evidence.sql"
+      - "supabase/migrations/20261021202000_v3_s14_archive_reconciliation_convergence.sql"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s14-archive-forward-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  local-forward-upgrade:
+    name: Local full-chain -> Archive-gap -> forward-effects -> canonical behavior
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    env:
+      REVIEWED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      SOLARIS_RUN_LOCAL_DB_REHEARSAL: "YES"
+      SOLARIS_VERIFICATION_TARGET: local
+      SUPABASE_PROJECT_ID: local
+      SUPABASE_PROJECT_REF: local
+      SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+    steps:
+      - name: Checkout reviewed exact commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Refuse hosted config and stale source
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$REVIEWED_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          [[ "$(git rev-parse HEAD)" == "$REVIEWED_SHA" ]] || exit 1
+          [[ "$SOLARIS_VERIFICATION_TARGET" == local ]] || exit 1
+          [[ "$SUPABASE_URL" == http://127.0.0.1:54321 ]] || exit 1
+          for name in DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN PGSERVICE PGSERVICEFILE PGHOST PGHOSTADDR; do
+            [[ -z "${!name:-}" ]] || { echo "::error::Refusing remote DB config $name"; exit 1; }
+          done
+
+      - name: Verify Archive source-integrity tests without dependencies
+        run: node --test scripts/v3-s14-archive-forward-effects.contract.test.mjs
+
+      - name: Check shell syntax
+        run: bash -n scripts/rehearse-v3-s14-archive-forward-effects-local.sh
+
+      - name: Set up Bun for canonical Archive integration scripts
+        uses: oven-sh/setup-bun@v2
+
+      - name: Set up Supabase CLI (pinned)
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Start isolated local Supabase
+        run: bash .github/scripts/v3-start-disposable-supabase.sh
+
+      - name: Rebuild disposable full source migration chain
+        run: supabase db reset --local --no-seed
+
+      - name: Simulate missing S13 and S14 effects, restore in dependency order
+        env:
+          SOLARIS_INCLUDE_S13_FORWARD_RECOVERY: "YES"
+        run: bash scripts/rehearse-v3-s14-archive-forward-effects-local.sh
+
+      - name: Rehearse governed Archive, results, receipt and S4 consequence behavior
+        run: bash .github/scripts/v3-s14-archive-system-rehearsal.sh
+
+      - name: Test Archive authorization, invalid transitions and irreversible state
+        run: bash .github/scripts/v3-s14-archive-guard-rehearsal.sh
+
+      - name: Test archive runtime deletion and terminal boundaries
+        run: bash .github/scripts/v3-s14-archive-delete-guard-rehearsal.sh
+
+      - name: Test terminal Tasks, failed delivery evidence and notification convergence
+        run: bash .github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh
+
+      - name: Second independent clean replay and interrupted-restart proof
+        env:
+          SOLARIS_INCLUDE_S13_FORWARD_RECOVERY: "YES"
+        run: |
+          set -euo pipefail
+          supabase db reset --local --no-seed
+          bash scripts/rehearse-v3-s14-archive-forward-effects-local.sh
+          bash .github/scripts/v3-s14-archive-system-rehearsal.sh
+
+      - name: State release boundary
+        run: |
+          echo "This used only synthetic local Supabase and a simulated Archive gap."
+          echo "It does NOT reproduce full hosted production schema/migration history, certify release readiness, or authorize hosted DDL."
+
+      - name: Stop disposable local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
+
+
+  hosted-observed-archive-scope:
+    name: Networkless PG17.11 hosted-observed Archive-scope upgrade
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      EXACT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      SOLARIS_S02_TARGET: local
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Reject remote database and Docker aliases
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$EXACT_SHA" ]] || exit 1
+          for key in SUPABASE_URL VITE_SUPABASE_URL E2E_SUPABASE_URL CONFIRMATIONS_SUPABASE_URL VITE_CONFIRMATIONS_SUPABASE_URL DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_SERVICE_ROLE_KEY PGHOST PGHOSTADDR PGPORT PGSERVICE PGSERVICEFILE DOCKER_HOST DOCKER_CONTEXT; do
+            [[ -z "$(printenv "$key" || true)" ]] || { echo "::error::Remote target alias forbidden: $key"; exit 1; }
+          done
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify and obtain pinned PG17.11
+        run: |
+          set -euo pipefail
+          docker pull postgres:17.11
+          [[ "$(docker image inspect --format '{{.Id}}' postgres:17.11)" == "sha256:eb0fb2377534e65aad04f37838956b3dfb888e1a3dd3c1acf957bc6557eb6c7d" ]] || exit 1
+      - name: Rehearse exact SHA with the S02 56-table hosted-observed schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          cid=""
+          cleanup() {
+            code=$?
+            if [[ -n "$cid" ]]; then docker rm -f "$cid" >/dev/null || code=1; fi
+            exit "$code"
+          }
+          trap cleanup EXIT
+          cid="$(docker run -d --rm --pull=never --network none --name "solaris-s06-hosted-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" -e POSTGRES_PASSWORD=s06_disposable postgres:17.11)"
+          [[ "$cid" =~ ^[0-9a-f]{64}$ ]] || exit 1
+          [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
+          [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
+          ready=false
+          for n in $(seq 1 45); do
+            if docker exec "$cid" pg_isready -h /var/run/postgresql -U postgres >/dev/null; then ready=true; break; fi
+            sleep 1
+          done
+          [[ "$ready" == true ]] || exit 1
+          sql() { docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres "$@"; }
+          sql -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-archive-54-table-schema-fixture.sql
+          sql -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-archive-extra-2-dependencies-local.sql
+          sql -f - < scripts/v3-s02-hosted-archive-catalog-local.sql > /tmp/s06-archive-catalog.json
+          node scripts/verify-v3-s02-s14-archive-catalog.mjs /tmp/s06-archive-catalog.json s06-archive-catalog-proof.json
+          sql -f - < scripts/v3-s02-hosted-nine-parent-catalog-local.sql > /tmp/s06-parent-catalog.json
+          node scripts/verify-v3-s02-parent-catalog.mjs /tmp/s06-parent-catalog.json s06-parent-catalog-proof.json
+          sql -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-56-table-grants-local.sql
+          sql -f - < scripts/v3-s02-hosted-56-acl-local.sql > /tmp/s06-acl.json
+          node scripts/verify-v3-s02-56-acl.mjs /tmp/s06-acl.json s06-acl-proof.json
+          [[ "$(sql -c 'show server_version_num')" == 170011 ]] || exit 1
+
+          # Missing S13 must fail before Archive DDL, with a catalog proof.
+          if sql -f - < docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql > /tmp/s06-s13-absent.log 2>&1; then
+            echo "::error::S14 accepted missing S13 foundation"; exit 1
+          fi
+          grep -q 'S14 Archive recovery BLOCKED: S13 governance foundation absent' /tmp/s06-s13-absent.log || exit 1
+          [[ "$(sql -c "select (to_regclass('private.v3_archive_runtime_transition_gates') is null)::text")" == true ]] || exit 1
+
+          sql -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s13-prerequisite-local.sql
+          sql -f - < docs/v3/recovery-candidates/forward-only-s13-foundation.sql
+          sql -f - < docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql
+          before="$(sql -c "select (select count(*) from private.v3_migration_contracts)::text || '|' || (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='private' and c.relname like 'v3_archive_%')::text")"
+          if sql -f - < docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql > /tmp/s06-duplicate.log 2>&1; then
+            echo "::error::Archive forward candidate allowed duplicate application"; exit 1
+          fi
+          grep -q 'S14 Archive recovery BLOCKED:' /tmp/s06-duplicate.log || exit 1
+          after="$(sql -c "select (select count(*) from private.v3_migration_contracts)::text || '|' || (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='private' and c.relname like 'v3_archive_%')::text")"
+          [[ "$before" == "$after" ]] || { echo "::error::Duplicate Archive attempt changed catalog"; exit 1; }
+          denied="$(sql -c "select has_table_privilege('anon','private.v3_archive_runtime_transition_gates','INSERT')::text || '|' || has_table_privilege('authenticated','private.v3_archive_runtime_transition_gates','INSERT')::text || '|' || has_table_privilege('service_role','private.v3_archive_runtime_transition_gates','INSERT')::text")"
+          [[ "$denied" == 'false|false|false' ]] || exit 1
+          [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
+          [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
+          docker rm -f "$cid" >/dev/null
+          cid=""
+          echo "PASS: S13 then S14 exact-head upgrade against 56 hosted-observed PG17.11 relations and ACLs; missing S13/duplicate fail closed."
+          echo "LIMITATION: 56/215 tables; no production rows; no full hosted-equivalent certification."
+
+      - name: Retain scoped proof without implying production parity
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s06-hosted-observed-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            s06-archive-catalog-proof.json
+            s06-parent-catalog-proof.json
+            s06-acl-proof.json
+          if-no-files-found: ignore
+          retention-days: 14
