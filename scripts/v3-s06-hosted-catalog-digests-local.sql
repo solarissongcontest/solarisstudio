@@ -17,7 +17,10 @@ WITH relation_objects AS (
          (SELECT md5(COALESCE(jsonb_agg(jsonb_build_array(
                        a.attnum,a.attname,format_type(a.atttypid,a.atttypmod),
                        a.attnotnull,a.attidentity,a.attgenerated,
-                       a.attcollation::text,
+                       COALESCE((SELECT coll_ns.nspname || '.' || coll.collname
+                         FROM pg_collation coll JOIN pg_namespace coll_ns
+                           ON coll_ns.oid=coll.collnamespace
+                        WHERE coll.oid=a.attcollation),''),
                        pg_get_expr(d.adbin,d.adrelid)
                      ) ORDER BY a.attnum)::text,'[]'))
             FROM pg_attribute a LEFT JOIN pg_attrdef d
@@ -35,7 +38,9 @@ WITH relation_objects AS (
             FROM pg_index i WHERE i.indrelid=c.oid) AS indexes_md5,
          (SELECT count(*)::int FROM pg_policy p WHERE p.polrelid=c.oid) AS policy_count,
          (SELECT md5(COALESCE(jsonb_agg(jsonb_build_array(
-                     p.polname,p.polcmd,p.polpermissive,p.polroles::text,
+                     p.polname,p.polcmd,p.polpermissive,ARRAY(SELECT pg_get_userbyid(rr.oid)
+                           FROM unnest(p.polroles) AS rr(oid)
+                          ORDER BY pg_get_userbyid(rr.oid))::text,
                      pg_get_expr(p.polqual,p.polrelid),
                      pg_get_expr(p.polwithcheck,p.polrelid)
                    ) ORDER BY p.polname)::text,'[]'))
