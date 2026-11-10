@@ -166,3 +166,17 @@ Building on the [previous 63-table integrated rehearsal](https://github.com/sola
 - The all-hosted **215-relation / 727-routine** manifest comparison MUST fail closed. A full equivalence success from a 68-table fixture is itself a test failure.
 
 **Release boundary:** This proves 56 scoped fixture identities coexisting with 12 new **full-field metadata-parity** identities. It does not establish complete 68-table full-digest parity, 727 routine definition/runtime closure, production auth role memberships, default privileges, extensions, real row-dependent behavior, migration-history closure, S06 certification, S07 authorization or production rollout safety. CI never receives production credentials or connects to hosted Supabase. This is not a migration or deployment.
+
+## S06 integrated 74-table extension (10 November 2026)
+
+Read-only production `pg_catalog` yielded six further no-policy/no-trigger FK-closed relations, staged ONLY in the source-only local file `evidence/s06-hosted-six-fk-closed-relations-local.sql`:
+
+- `private.v3_confirmation_account_drafts` has FKs to previously reproduced `public.submission_rounds` and `public.countries`.
+- `private.v3_televote_recovery_handles` has an FK to `televoting.vote_preflight_checks`; the fixture uses **no real recovery secrets or application rows**.
+- `public.studio2_eligibility_override_versions` has FKs to `public.editions` and `public.countries`.
+- `public.studio2_next_in_line_submission_revisions` has FKs to `public.next_in_line_submissions` and `public.studio2_operation_receipts`.
+- `public.studio2_platform_operational_state` and `public.studio2_voting_declaration_policy` have FKs to `auth.users`.
+
+The S14 Archive networkless PG17.11 CI job now imports 56 existing S02 relations + the earlier seven + five + these six into **one** networkless local database. It demands 74 unique physical relation identities, preserves the original 56-table ACL/cataloɡ scope checks unchanged, and verifies all **18 newly added** relation identities against separate frozen read-only-hosted 17-field catalog fingerprints (columns, defaults, indexes, constraints, owner, ACL/RLS and trigger/policy digests). Their full local metadata must remain identical after withheld-S13 refusal, injected rollback, exact S13→S14 forward recovery, same-database restart and duplicate refusal. The complete 215/727 catalog gate MUST reject the partial local fixture.
+
+This is **74/215 represented table names**, not 74 full-field equivalent tables and not a hosted-head-equivalent schema. The original 56 retain independently scoped checks; 141 table identities remain unmodeled. The 727 routine implementations/security, extension and default-role grant closure, production data shape, incomplete hosted migration frontier, acceptance and production release are NOT certified. No hosted SQL writes, credential handling, application data export, production deployment, migration history edits or S07.
