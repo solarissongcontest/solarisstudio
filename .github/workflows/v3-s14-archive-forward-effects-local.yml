@@ -33,7 +33,7 @@ jobs:
   local-forward-upgrade:
     name: Local full-chain -> Archive-gap -> forward-effects -> canonical behavior
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 70
     env:
       REVIEWED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       SOLARIS_RUN_LOCAL_DB_REHEARSAL: "YES"
@@ -97,6 +97,15 @@ jobs:
 
       - name: Test terminal Tasks, failed delivery evidence and notification convergence
         run: bash .github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh
+
+      - name: Second independent clean replay and interrupted-restart proof
+        env:
+          SOLARIS_INCLUDE_S13_FORWARD_RECOVERY: "YES"
+        run: |
+          set -euo pipefail
+          supabase db reset --local --no-seed
+          bash scripts/rehearse-v3-s14-archive-forward-effects-local.sh
+          bash .github/scripts/v3-s14-archive-system-rehearsal.sh
 
       - name: State release boundary
         run: |
