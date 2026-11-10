@@ -194,3 +194,28 @@ test("exact-head CI repeats clean local replay and reuses S02 networkless hosted
   assert.match(workflow, /LIMITATION: 56\/215 tables/);
   assert.doesNotMatch(workflow, /supabase db (push|dump --db-url)/);
 });
+
+test("networkless hosted-observed fixture rolls back after real Archive DDL and resumes on the same database", () => {
+  const afterS13 = workflow.indexOf("sql -f - < docs/v3/recovery-candidates/forward-only-s13-foundation.sql", workflow.indexOf("hosted-observed-archive-scope:"));
+  const digest = workflow.indexOf('schema_before="$(archive_schema_digest)"', afterS13);
+  const injection = workflow.indexOf("S06 hosted-fixture injected post-DDL failure", digest);
+  const rollback = workflow.indexOf("Post-DDL interruption changed hosted-observed fixture schema/ACL", injection);
+  const restart = workflow.indexOf("PASS: hosted-observed fixture post-DDL rollback and same-DB S14 restart", rollback);
+  const duplicate = workflow.indexOf("Archive forward candidate allowed duplicate application", restart);
+  assert.ok(afterS13 > 0 && digest > afterS13 && injection > digest && rollback > injection &&
+    restart > rollback && duplicate > restart, "S06 hosted-fixture interruption, rollback, restart, duplicate stages are out of order");
+  assert.match(workflow, /pg_dump -U postgres -d postgres --schema-only --no-comments --restrict-key=S06LocalOnlyStable/);
+  assert.match(workflow, /source\.index\(trigger\) < source\.index\(next_function\)/);
+  assert.match(workflow, /create trigger v3_guard_archive_runtime_transition/);
+  assert.match(workflow, /create or replace function private\.v3_edition_final_results_ready/);
+  assert.match(workflow, /python3 - <<'PY'/);
+  assert.match(workflow, /S06 hosted-fixture injected post-DDL failure/);
+  assert.match(workflow, /Post-DDL interruption changed semantic registry records/);
+  assert.match(workflow, /Post-DDL interruption left a partial Archive function\/gate/);
+  assert.match(workflow, /same-DB S14 restart/);
+  assert.match(workflow, /--network none/);
+  assert.match(workflow, /'\$schema_before'|\$schema_before/);
+  assert.doesNotMatch(workflow, /supabase db push/);
+  assert.ok(candidate.indexOf("create trigger v3_guard_archive_runtime_transition") <
+    candidate.indexOf("create or replace function private.v3_edition_final_results_ready("));
+});
