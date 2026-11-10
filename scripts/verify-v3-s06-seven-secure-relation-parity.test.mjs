@@ -51,3 +51,13 @@ test('strict source-only limitations and no production side effects',()=>{
  assert.equal(r.reviewerApprovalOutstanding,true);
  assert.match(r.limitations,/No complete 83-table digest parity/);
 });
+
+test('networkless SQL installs parent PKs before dependent audit FKs',()=>{
+ const sql=readFileSync(new URL('../docs/v3/recovery-candidates/evidence/s06-hosted-seven-jury-integrity-account-local.sql',import.meta.url),'utf8');
+ const decision=sql.indexOf('ALTER TABLE televoting.vote_integrity_decisions ADD CONSTRAINT "vote_integrity_decisions_pkey"');
+ const sanction=sql.indexOf('ALTER TABLE televoting.voter_sanctions ADD CONSTRAINT "voter_sanctions_pkey"');
+ const audit=sql.indexOf('ALTER TABLE televoting.integrity_action_audit ADD CONSTRAINT "integrity_action_audit_decision_id_fkey"');
+ assert.ok(decision>0 && sanction>decision && audit>sanction,'FK parent uniqueness must be established before dependent audit constraints');
+ assert.match(sql,/LOCAL FIXTURE ONLY/);
+ assert.doesNotMatch(sql,/\\b(?:insert into|copy\\s+.+from|drop table)\\b/i);
+});
