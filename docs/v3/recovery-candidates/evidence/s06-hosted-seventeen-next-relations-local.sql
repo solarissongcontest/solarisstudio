@@ -439,6 +439,10 @@ RESET ROLE;
 
 -- Exact observed relation ACL entries (order and grant options retained): auth.oauth_client_states
 SET ROLE "supabase_auth_admin";
+-- Unlike the other auth tables, hosted pg_class.relacl lists postgres first.
+-- Clear the initial owner default ACL locally, then grant in observed array order.
+-- Ownership is retained; this changes NO production state or grant policy.
+REVOKE ALL ON TABLE "auth"."oauth_client_states" FROM "supabase_auth_admin";
 GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON TABLE "auth"."oauth_client_states" TO "postgres";
 GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON TABLE "auth"."oauth_client_states" TO "supabase_auth_admin";
 GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON TABLE "auth"."oauth_client_states" TO "dashboard_user";
