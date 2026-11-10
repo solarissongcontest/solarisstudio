@@ -25,6 +25,9 @@ on:
       - "docs/v3/recovery-candidates/evidence/s06-hosted-seven-jury-integrity-account-local.sql"
       - "scripts/verify-v3-s06-seven-secure-relation-parity.mjs"
       - "scripts/verify-v3-s06-seven-secure-relation-parity.test.mjs"
+      - "docs/v3/recovery-candidates/evidence/s06-hosted-seventeen-next-relations-local.sql"
+      - "scripts/verify-v3-s06-seventeen-relation-parity.mjs"
+      - "scripts/verify-v3-s06-seventeen-relation-parity.test.mjs"
       - "scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs"
       - "docs/v3/recovery-candidates/evidence/s06-hosted-upstream-rpc-fingerprints-20261110.json"
       - "docs/v3/recovery-candidates/evidence/s06-hosted-upstream-rpc-acls-local.sql"
@@ -172,6 +175,7 @@ jobs:
           node --test scripts/verify-v3-s06-five-ledger-parity.test.mjs
           node --test scripts/verify-v3-s06-eight-relation-parity.test.mjs
           node --test scripts/verify-v3-s06-seven-secure-relation-parity.test.mjs
+          node --test scripts/verify-v3-s06-seventeen-relation-parity.test.mjs
       - name: Verify and obtain pinned PG17.11
         run: |
           set -euo pipefail
@@ -217,6 +221,8 @@ jobs:
           sql -f - < docs/v3/recovery-candidates/evidence/s06-hosted-eight-fk-closed-relations-local.sql
           # Seven new FK-closed tables: Jury, Televoting integrity, account sessions. Zero rows.
           sql -f - < docs/v3/recovery-candidates/evidence/s06-hosted-seven-jury-integrity-account-local.sql
+          # 17 new hosted-observed zero-row tables; auth ownership + FK closure verified strictly.
+          sql -f - < docs/v3/recovery-candidates/evidence/s06-hosted-seventeen-next-relations-local.sql
           sql -f - < scripts/v3-s02-hosted-archive-catalog-local.sql > /tmp/s06-archive-catalog.json
           node scripts/verify-v3-s02-s14-archive-catalog.mjs /tmp/s06-archive-catalog.json s06-archive-catalog-proof.json
           sql -f - < scripts/v3-s02-hosted-nine-parent-catalog-local.sql > /tmp/s06-parent-catalog.json
@@ -261,19 +267,36 @@ jobs:
             'televoting.integrity_action_audit',
             'televoting.vote_integrity_decisions',
             'televoting.voter_sanctions',
+            'auth.audit_log_entries',
+            'auth.instances',
+            'auth.oauth_client_states',
+            'auth.schema_migrations',
+            'public.ssc_rule_interpretations',
+            'public.ssc_rulebook_change_items',
+            'public.studio2_country_media_upload_tokens',
+            'public.studio2_host_bids',
+            'public.studio2_host_bid_evaluations',
+            'public.studio2_host_operation_executions',
+            'public.studio2_host_operations',
+            'public.studio2_platform_exit_preflights',
+            'public.studio2_story_operation_executions',
+            'public.studio2_storyline_items',
+            'public.studio2_storylines',
+            'public.studio2_upload_authorizations',
+            'televoting.round_influence_results',
           ]);
           const identities = actual.tables.map(t => t.relation);
           const found = new Set(identities);
-          if (scoped.size !== 56 || added.size !== 27 || actual.tables.length !== 83
-            || found.size !== 83 || actual.schemas.length !== 4
+          if (scoped.size !== 56 || added.size !== 44 || actual.tables.length !== 100
+            || found.size !== 100 || actual.schemas.length !== 4
             || ![...scoped, ...added].every(k => found.has(k))
             || identities.some(k => !scoped.has(k) && !added.has(k))) {
-            throw Error('S06 fail closed: 56 frozen S02 identities + 27 known extras not exact');
+            throw Error('S06 fail closed: 56 frozen S02 identities + 44 known extras not exact');
           }
           fs.writeFileSync('/tmp/s06-acl-56-scoped.json', JSON.stringify({
             tables: actual.tables.filter(t => scoped.has(t.relation)), schemas: actual.schemas
           }));
-          console.log('S06: scoped exact 56 ACL identities without dropping 27 table evidence');
+          console.log('S06: scoped exact 56 ACL identities without dropping 44 table evidence');
           NODE
           node scripts/verify-v3-s02-56-acl.mjs /tmp/s06-acl-56-scoped.json s06-acl-proof.json
           # Compare 21 exact upstream RPCs to bounded read-only hosted catalog
@@ -327,34 +350,52 @@ jobs:
             'televoting.vote_integrity_decisions',
             'televoting.voter_sanctions',
           ]);
+          const seventeen = new Set([
+            'auth.audit_log_entries',
+            'auth.instances',
+            'auth.oauth_client_states',
+            'auth.schema_migrations',
+            'public.ssc_rule_interpretations',
+            'public.ssc_rulebook_change_items',
+            'public.studio2_country_media_upload_tokens',
+            'public.studio2_host_bids',
+            'public.studio2_host_bid_evaluations',
+            'public.studio2_host_operation_executions',
+            'public.studio2_host_operations',
+            'public.studio2_platform_exit_preflights',
+            'public.studio2_story_operation_executions',
+            'public.studio2_storyline_items',
+            'public.studio2_storylines',
+            'public.studio2_upload_authorizations',
+            'televoting.round_influence_results',
+          ]);
           const id = r => r.schema_name + '.' + r.object_name;
           const actual = d.relations.filter(r => names.has(id(r)));
           const fiveActual = d.relations.filter(r => five.has(id(r)));
           const eightActual = d.relations.filter(r => eight.has(id(r)));
           const secureActual = d.relations.filter(r => secure.has(id(r)));
-          const twentySeven = d.relations.filter(r => names.has(id(r)) || five.has(id(r)) || eight.has(id(r)) || secure.has(id(r)));
-          if (d.pg_version_num !== 170011 || d.relations.length !== 83
-            || actual.length !== 7 || fiveActual.length !== 5 || eightActual.length !== 8 || secureActual.length !== 7
-            || twentySeven.length !== 27 || new Set(d.relations.map(id)).size !== 83
-            || new Set([...names,...five,...eight,...secure]).size !== 27) {
-            throw Error('S06 combined fixture must contain exactly 83 distinct tables: 56 + 7 + 5 + 8 + 7');
+          const seventeenActual = d.relations.filter(r => seventeen.has(id(r)));
+          const prior27 = new Set([...names,...five,...eight,...secure]);
+          const combined44 = new Set([...prior27,...seventeen]);
+          const twentySeven = d.relations.filter(r => prior27.has(id(r)));
+          const fortyFour = d.relations.filter(r => combined44.has(id(r)));
+          if (d.pg_version_num !== 170011 || d.relations.length !== 100
+            || actual.length !== 7 || fiveActual.length !== 5 || eightActual.length !== 8
+            || secureActual.length !== 7 || seventeenActual.length !== 17
+            || twentySeven.length !== 27 || fortyFour.length !== 44
+            || new Set(d.relations.map(id)).size !== 100 || combined44.size !== 44) {
+            throw Error('S06 combined fixture must contain exactly 100: original 56 scoped + 44 fully checked');
           }
-          fs.writeFileSync('/tmp/s06-seven-in-76-local.json', JSON.stringify({
-            pg_version_num: d.pg_version_num, relations: actual
-          }));
-          fs.writeFileSync('/tmp/s06-five-in-76-local.json', JSON.stringify({
-            pg_version_num: d.pg_version_num, relations: fiveActual
-          }));
-          fs.writeFileSync('/tmp/s06-eight-in-76-local.json', JSON.stringify({
-            pg_version_num: d.pg_version_num, relations: eightActual
-          }));
-          fs.writeFileSync('/tmp/s06-secure-in-83-local.json', JSON.stringify({
-            pg_version_num: d.pg_version_num, relations: secureActual
-          }));
-          fs.writeFileSync('/tmp/s06-twentyseven-in-83-local.json', JSON.stringify({
-            pg_version_num: d.pg_version_num, relations: twentySeven
-          }));
-          console.log('S06: exactly 83 distinct tables installed in one networkless PG17.11 fixture');
+          for(const [file,rows] of [
+            ['/tmp/s06-seven-in-76-local.json',actual],
+            ['/tmp/s06-five-in-76-local.json',fiveActual],
+            ['/tmp/s06-eight-in-76-local.json',eightActual],
+            ['/tmp/s06-secure-in-83-local.json',secureActual],
+            ['/tmp/s06-seventeen-in-100-local.json',seventeenActual],
+            ['/tmp/s06-twentyseven-in-83-local.json',twentySeven],
+            ['/tmp/s06-fortyfour-in-100-local.json',fortyFour]
+          ]) fs.writeFileSync(file,JSON.stringify({pg_version_num:d.pg_version_num,relations:rows}));
+          console.log('S06: exactly 100 distinct tables installed in one networkless PG17.11 fixture');
           NODE
           node scripts/verify-v3-s06-seven-relation-parity.mjs \
             docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
@@ -372,6 +413,10 @@ jobs:
             docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
             /tmp/s06-secure-in-83-local.json /tmp/s06-secure-83-proof.json
           cp /tmp/s06-secure-83-proof.json s06-secure-83-proof.json
+          node scripts/verify-v3-s06-seventeen-relation-parity.mjs \
+            docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
+            /tmp/s06-seventeen-in-100-local.json /tmp/s06-seventeen-100-proof.json
+          cp /tmp/s06-seventeen-100-proof.json s06-seventeen-100-proof.json
           # The remaining 56 host-observed objects retain their existing scope
           # comparators. DO NOT treat 27-table parity as full 76-table parity.
           set +e
@@ -386,11 +431,11 @@ jobs:
           const result = JSON.parse(fs.readFileSync('/tmp/s06-full-coverage-result.json', 'utf8'));
           if (result.status !== 'S06_CATALOG_COVERAGE_BLOCKED'
               || result.expected.relations !== 215 || result.expected.routines !== 727
-              || result.observed.relations !== 83
+              || result.observed.relations !== 100
               || result.observed.routines >= 727) {
             throw Error('Unexpected S06 full-hosted coverage finding');
           }
-          console.log('PASS: INTEGRATED 83-TABLE FIXTURE; full hosted equivalence REJECTED; S06 remains PARTIAL/BLOCKED.');
+          console.log('PASS: INTEGRATED 100-TABLE FIXTURE; full hosted equivalence REJECTED; S06 remains PARTIAL/BLOCKED.');
           console.log('Observed local relations: ' + result.observed.relations + '/215.');
           console.log('Observed local functions: ' + result.observed.routines + '/727.');
           NODE
@@ -466,20 +511,20 @@ jobs:
           node - <<'NODE'
           const fs = require('node:fs');
           const assert = require('node:assert/strict');
-          const pre = JSON.parse(fs.readFileSync('/tmp/s06-twentyseven-in-83-local.json','utf8'));
+          const pre = JSON.parse(fs.readFileSync('/tmp/s06-fortyfour-in-100-local.json','utf8'));
           const post = JSON.parse(fs.readFileSync('/tmp/s06-post-s14-full-catalog-local.json','utf8'));
           const names = new Set(pre.relations.map(r => r.schema_name + '.' + r.object_name));
           const actual = post.relations.filter(r => names.has(r.schema_name + '.' + r.object_name));
-          assert.equal(actual.length, 27, '27 observed relations must survive S13->S14');
-          assert.deepEqual(actual, pre.relations, '27 hosted-observed table definitions, RLS and grants drifted through S13->S14');
-          console.log('PASS: 27 complete table fingerprints unchanged after S13->S14, restart and duplicate refusal');
+          assert.equal(actual.length, 44, '44 observed relations must survive S13->S14');
+          assert.deepEqual(actual, pre.relations, '44 hosted-observed table definitions, RLS and grants drifted through S13->S14');
+          console.log('PASS: 44 complete table fingerprints unchanged after S13->S14, restart and duplicate refusal');
           NODE
           [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
           [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
           docker rm -f "$cid" >/dev/null
           cid=""
-          echo "PASS: S13 then S14 against integrated 83 hosted-observed PG17.11 tables (56 scoped + 27 full fingerprints); missing S13/duplicate fail closed."
-          echo "LIMITATION: 83/215 table names, only 27 new full-field digests; no production rows; NOT fully hosted-equivalent or S06 certified."
+          echo "PASS: S13 then S14 against integrated 100 hosted-observed PG17.11 tables (56 scoped + 44 full fingerprints); missing S13/duplicate fail closed."
+          echo "LIMITATION: 100/215 table names, only 44 additional full-field digests; no production rows; NOT fully hosted-equivalent or S06 certified."
 
       - name: Retain scoped proof without implying production parity
         if: always()
@@ -495,5 +540,6 @@ jobs:
             s06-five-76-proof.json
             s06-eight-76-proof.json
             s06-secure-83-proof.json
+            s06-seventeen-100-proof.json
           if-no-files-found: ignore
           retention-days: 14
