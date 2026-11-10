@@ -244,7 +244,7 @@ test("resolved-Task notification recovery includes original generic synchronizer
 });
 
 
-test("S06 integrates 76 distinct hosted-observed table identities in one networkless S13-S14 replay", () => {
+test("S06 integrates 83 distinct hosted-observed table identities in one networkless S13-S14 replay", () => {
   assert.match(workflow, /s06-hosted-seven-no-fk-relations-local\.sql/);
   assert.match(workflow, /s06-five-version-ledgers-local\.sql/);
   assert.match(workflow, /s06-hosted-eight-fk-closed-relations-local\.sql/);
@@ -262,24 +262,38 @@ test("S06 integrates 76 distinct hosted-observed table identities in one network
   const h = workflow.indexOf("node scripts/verify-v3-s06-eight-relation-parity.mjs", g);
   const i = workflow.indexOf("S14 Archive recovery BLOCKED: S13 governance foundation absent", h);
   assert.ok(a >= 0 && b > a && c > b && d > c && e > d && f > e && g > f && h > g && i > h,
-    "56+7+5+8 tables and all three exact catalog digest checks must precede isolated S13->S14 recovery");
+    "56+7+5+8+7 tables and all three exact catalog digest checks must precede isolated S13->S14 recovery");
   assert.match(workflow, /POSTGRES_INITDB_ARGS="--locale-provider=icu --icu-locale=en-US"/);
   assert.match(workflow, /datlocprovider='i' and datlocale='en-US'/);
-  assert.match(workflow, /d\.relations\.length !== 76/);
-  assert.match(workflow, /actual\.tables\.length !== 76/);
-  assert.match(workflow, /found\.size !== 76/);
+  assert.match(workflow, /d\.relations\.length !== 83/);
+  assert.match(workflow, /actual\.tables\.length !== 83/);
+  assert.match(workflow, /found\.size !== 83/);
   assert.match(workflow, /added\.size !== 20/);
   assert.match(workflow, /twenty\.length !== 20/);
-  assert.match(workflow, /S06 fail closed: 56 frozen S02 identities \+ twenty known extras not exact/);
+  assert.match(workflow, /S06 fail closed: 56 frozen S02 identities \+ twenty-seven known extras not exact/);
   assert.match(workflow, /verify-v3-s02-56-acl\.mjs \/tmp\/s06-acl-56-scoped\.json/);
-  assert.match(workflow, /result\.observed\.relations !== 76/);
+  assert.match(workflow, /result\.observed\.relations !== 83/);
   assert.match(workflow, /result\.status !== 'S06_CATALOG_COVERAGE_BLOCKED'/);
   assert.match(workflow, /--network none/);
   assert.match(workflow, /docker inspect --format '\{\{json \.HostConfig\.PortBindings\}\}'/);
   assert.match(workflow, /full hosted equivalence REJECTED/);
-  assert.match(workflow, /twenty complete table fingerprints unchanged after S13->S14/);
+  assert.match(workflow, /twenty-seven complete table fingerprints unchanged after S13->S14/);
   assert.match(workflow, /assert\.deepEqual\(actual, pre\.relations/);
-  assert.match(workflow, /s06-eight-76-proof\.json/);
-  assert.match(workflow, /LIMITATION: 76\/215 table names/);
+  assert.match(workflow, /s06-eight-83-proof\.json/);
+  assert.match(workflow, /LIMITATION: 83\/215 table names/);
   assert.doesNotMatch(workflow, /supabase db push/);
+});
+
+test("S06 seven-table schema is local-only and adds no production rows", () => {
+  const sql = read("docs/v3/recovery-candidates/evidence/s06-hosted-seven-jury-integrity-account-local.sql");
+  assert.equal((sql.match(/CREATE TABLE (private|public|televoting)\\./g) || []).length, 7);
+  assert.match(sql, /CREATE TABLE private\\.v3_jury_drafts/);
+  assert.match(sql, /CREATE TABLE televoting\\.vote_integrity_decisions/);
+  assert.match(sql, /CREATE TABLE televoting\\.voter_sanctions/);
+  assert.match(sql, /CREATE TABLE televoting\\.integrity_action_audit/);
+  assert.match(sql, /REFERENCES televoting\\.vote_integrity_decisions\\(id\\)/);
+  assert.match(sql, /REFERENCES televoting\\.voter_sanctions\\(id\\)/);
+  assert.doesNotMatch(sql, /\\bINSERT\\s+INTO\\b|\\bCOPY\\s+|\\bUPDATE\\s+|\\bDELETE\\s+FROM\\b/i);
+  assert.match(workflow, /--network none/);
+  assert.match(workflow, /s06-hosted-seven-jury-integrity-account-local\\.sql/);
 });
