@@ -8,6 +8,11 @@ on:
       - "scripts/rehearse-v3-s14-archive-forward-effects-local.sh"
       - "scripts/v3-s14-archive-forward-effects.contract.test.mjs"
       - "scripts/v3-s06-hosted-upstream-rpc-catalog-local.sql"
+      - "scripts/v3-s06-hosted-catalog-digests-local.sql"
+      - "scripts/verify-v3-s06-hosted-catalog-coverage.mjs"
+      - "scripts/verify-v3-s06-hosted-catalog-coverage.test.mjs"
+      - "docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json"
+      - "docs/v3/recovery-candidates/evidence/s06-hosted-relation-coverage-gap-20261110.json"
       - "scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs"
       - "docs/v3/recovery-candidates/evidence/s06-hosted-upstream-rpc-fingerprints-20261110.json"
       - "docs/v3/recovery-candidates/evidence/s06-hosted-upstream-rpc-acls-local.sql"
@@ -146,6 +151,8 @@ jobs:
           node-version: "22"
       - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
         run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
+      - name: Assert all-hosted catalog digests and incomplete-fixture rejection (offline only)
+        run: node --test scripts/verify-v3-s06-hosted-catalog-coverage.test.mjs
       - name: Verify and obtain pinned PG17.11
         run: |
           set -euo pipefail
@@ -188,6 +195,32 @@ jobs:
           sql -f - < scripts/v3-s06-hosted-upstream-rpc-catalog-local.sql > /tmp/s06-upstream-rpc.json
           node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs /tmp/s06-upstream-rpc.json s06-upstream-rpc-proof.json
           [[ "$(sql -c 'show server_version_num')" == 170011 ]] || exit 1
+
+          # S06 FULL COVERAGE NEGATIVE: 56-table scope must NEVER pass a
+          # 215-relation / 727-function hosted-equivalence fingerprint gate.
+          # This step is NOT S06 certification. It only proves safe refusal.
+          sql -f - < scripts/v3-s06-hosted-catalog-digests-local.sql > /tmp/s06-full-catalog-local.json
+          set +e
+          node scripts/verify-v3-s06-hosted-catalog-coverage.mjs \
+            docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
+            /tmp/s06-full-catalog-local.json > /tmp/s06-full-coverage-result.json
+          coverage_rc="$?"
+          set -e
+          [[ "$coverage_rc" == 1 ]] || { echo "::error::Incomplete fixture did not fail closed"; exit 1; }
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const result = JSON.parse(fs.readFileSync('/tmp/s06-full-coverage-result.json', 'utf8'));
+          if (result.status !== 'S06_CATALOG_COVERAGE_BLOCKED'
+              || result.expected.relations !== 215 || result.expected.routines !== 727
+              || result.observed.relations < 56 || result.observed.relations >= 215
+              || result.observed.routines >= 727) {
+            throw Error('Unexpected S06 full-hosted coverage finding');
+          }
+          console.log('PASS: INCOMPLETE HOSTED FIXTURE REJECTED; full S06 remains PARTIAL/BLOCKED.');
+          console.log('Observed local relations: ' + result.observed.relations + '/215.');
+          console.log('Observed local functions: ' + result.observed.routines + '/727.');
+          NODE
+
 
           # Missing S13 must fail before Archive DDL, with a catalog proof.
           if sql -f - < docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql > /tmp/s06-s13-absent.log 2>&1; then
