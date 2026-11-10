@@ -13,6 +13,7 @@ const ordered = [
   "20261019112200_v3_s14_final_results_readiness_hardening.sql",
   "20261019112300_v3_s14_transition_http409.sql",
   "20261019112400_v3_s14_archive_task_registry_alignment.sql",
+  "20261019112500_v3_s14_resolved_task_notification_invariant.sql",
   "20261019202636_v3_s14_resolved_task_delivery_reconciliation.sql",
   "20261020130000_v3_s14_archive_invariant_forward_fixes.sql",
   "20261020140000_v3_s14_archive_runtime_update_guard.sql",
@@ -23,7 +24,7 @@ const ordered = [
 ];
 const registration = /insert into private\.v3_migration_contracts\s*\([\s\S]*?\)\s*values\s*\([\s\S]*?\)\s*on conflict\s*\(migration_key\)\s*do\s+(?:nothing|update\s*set[\s\S]*?)\s*;/gi;
 
-test("eleven canonical Archive effect bodies are unchanged and ordered", () => {
+test("twelve canonical Archive effect bodies are unchanged and ordered", () => {
   let previous = -1;
   for (const name of ordered) {
     let source = read("supabase/migrations/" + name);
@@ -62,6 +63,7 @@ test("only one new semantic recovery declaration is inserted, never legacy histo
     "v3.s14.archive-consequence-reconciliation",
     "v3.s14.transition-http409",
     "v3.s14.archive-task-registry-alignment",
+    "v3.s14.resolved-task-notification-invariant",
     "v3.s14.archive-invariant-forward-fixes",
     "v3.s14.archive-guard-authority-forward-fix",
     "v3.s14.failed-task-delivery-evidence",
@@ -218,4 +220,25 @@ test("networkless hosted-observed fixture rolls back after real Archive DDL and 
   assert.doesNotMatch(workflow, /supabase db push/);
   assert.ok(candidate.indexOf("create trigger v3_guard_archive_runtime_transition") <
     candidate.indexOf("create or replace function private.v3_edition_final_results_ready("));
+});
+
+
+test("resolved-Task notification recovery includes original generic synchronizer and immediate trigger", () => {
+  const sourceName = "20261019112500_v3_s14_resolved_task_notification_invariant.sql";
+  const before = candidate.indexOf(sourceName);
+  const firstSync = candidate.indexOf("create or replace function private.studio2_sync_task_notifications(", before);
+  const projection = candidate.indexOf("create or replace function private.v3_project_resolved_task_delivery_state()", firstSync);
+  const trigger = candidate.indexOf("create trigger v3_project_resolved_task_delivery_state", projection);
+  const nextStage = candidate.indexOf("20261019202636_v3_s14_resolved_task_delivery_reconciliation.sql", trigger);
+  assert.ok(before > 0 && firstSync > before && projection > firstSync && trigger > projection && nextStage > trigger,
+    "missing or misordered Task-resolution projection effect");
+  assert.match(candidate.slice(firstSync, nextStage), /requires_action = task.state <> 'resolved'/);
+  assert.match(candidate.slice(projection, nextStage), /delivery.status in \('pending', 'processing'\)/);
+  assert.doesNotMatch(candidate.slice(projection, nextStage), /delivery.status in \('pending', 'processing', 'failed'\)/);
+  const preflight = candidate.slice(0, candidate.indexOf("end\n$s14_forward_archive_preflight$;"));
+  assert.match(preflight, /'private\.v3_project_resolved_task_delivery_state\(\)'/);
+  assert.match(preflight, /'v3_project_resolved_task_delivery_state'/);
+  assert.match(preflight, /'v3\.s14\.resolved-task-notification-invariant'/);
+  assert.match(rehearsal, /v3_project_resolved_task_delivery_state/);
+  assert.match(workflow, /20261019112500_v3_s14_resolved_task_notification_invariant\.sql/);
 });
