@@ -5,6 +5,9 @@
 BEGIN;
 SET LOCAL search_path = public, private, auth, televoting, pg_catalog;
 SET LOCAL lock_timeout = '5s';
+-- Hosted pgcrypto lives in extensions; install only in this disposable local database.
+CREATE SCHEMA IF NOT EXISTS extensions;
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 DO $s06roles$ BEGIN
  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='dashboard_user') THEN CREATE ROLE dashboard_user NOLOGIN; END IF;
 END $s06roles$;
