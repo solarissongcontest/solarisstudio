@@ -7,6 +7,7 @@ const read = (path) => readFileSync(path, "utf8");
 const candidate = read("docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql");
 const rehearsal = read("scripts/rehearse-v3-s14-archive-forward-effects-local.sh");
 const s13 = read("docs/v3/recovery-candidates/forward-only-s13-foundation.sql");
+const workflow = read(".github/workflows/v3-s14-archive-forward-effects-local.yml");
 const ordered = [
   "20261019112100_v3_s14_archive_consequence_reconciliation.sql",
   "20261019112200_v3_s14_final_results_readiness_hardening.sql",
@@ -173,4 +174,23 @@ test("injected post-DDL failure rolls back transaction and permits same-database
   const normalApply = rehearsal.lastIndexOf('sql -f "$candidate" >/dev/null');
   assert.ok(failure >= 0 && normalApply > failure, "normal recovery must follow rollback injection");
   assert.doesNotMatch(rehearsal, /(?:^|\n)\s*supabase db push\b/im);
+});
+
+
+test("exact-head CI repeats clean local replay and reuses S02 networkless hosted-observed Archive fixture", () => {
+  assert.match(workflow, /Second independent clean replay and interrupted-restart proof/);
+  assert.match(workflow, /supabase db reset --local --no-seed/);
+  assert.match(workflow, /hosted-observed-archive-scope:/);
+  assert.match(workflow, /--network none/);
+  assert.match(workflow, /--pull=never/);
+  assert.match(workflow, /postgres:17\.11/);
+  assert.match(workflow, /s02-hosted-s14-archive-54-table-schema-fixture\.sql/);
+  assert.match(workflow, /s02-hosted-s14-archive-extra-2-dependencies-local\.sql/);
+  assert.match(workflow, /verify-v3-s02-s14-archive-catalog\.mjs/);
+  assert.match(workflow, /verify-v3-s02-parent-catalog\.mjs/);
+  assert.match(workflow, /verify-v3-s02-56-acl\.mjs/);
+  assert.match(workflow, /forward-only-s13-foundation\.sql/);
+  assert.match(workflow, /forward-only-s14-archive-integrated-local\.sql/);
+  assert.match(workflow, /LIMITATION: 56\/215 tables/);
+  assert.doesNotMatch(workflow, /supabase db (push|dump --db-url)/);
 });
