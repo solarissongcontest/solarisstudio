@@ -203,7 +203,10 @@ jobs:
           # partially created Archive functions, triggers, grants or records.
           # This is a disposable, networkless container; never production.
           archive_schema_digest() {
-            docker exec "$cid" pg_dump -U postgres -d postgres --schema-only --no-comments |
+            # PG17.11 uses a random pg_dump \\restrict key by default. The
+            # fixed test-only key makes two LOCAL schema dumps comparable.
+            # Never pin a restrict key on untrusted/hosted SQL dumps.
+            docker exec "$cid" pg_dump -U postgres -d postgres --schema-only --no-comments --restrict-key=S06LocalOnlyStable |
               sha256sum | awk '{print $1}'
           }
           schema_before="$(archive_schema_digest)"
