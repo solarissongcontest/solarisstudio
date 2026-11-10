@@ -263,6 +263,8 @@ test("S06 integrates 76 distinct hosted-observed table identities in one network
   const i = workflow.indexOf("S14 Archive recovery BLOCKED: S13 governance foundation absent", h);
   assert.ok(a >= 0 && b > a && c > b && d > c && e > d && f > e && g > f && h > g && i > h,
     "56+7+5+8 tables and all three exact catalog digest checks must precede isolated S13->S14 recovery");
+  assert.match(workflow, /POSTGRES_INITDB_ARGS="--locale-provider=icu --icu-locale=en-US"/);
+  assert.match(workflow, /datlocprovider='i' and datlocale='en-US'/);
   assert.match(workflow, /d\.relations\.length !== 76/);
   assert.match(workflow, /actual\.tables\.length !== 76/);
   assert.match(workflow, /found\.size !== 76/);
