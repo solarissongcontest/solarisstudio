@@ -322,12 +322,27 @@ jobs:
           [[ "$before" == "$after" ]] || { echo "::error::Duplicate Archive attempt changed catalog"; exit 1; }
           denied="$(sql -c "select has_table_privilege('anon','private.v3_archive_runtime_transition_gates','INSERT')::text || '|' || has_table_privilege('authenticated','private.v3_archive_runtime_transition_gates','INSERT')::text || '|' || has_table_privilege('service_role','private.v3_archive_runtime_transition_gates','INSERT')::text")"
           [[ "$denied" == 'false|false|false' ]] || exit 1
+          # Explicitly re-read seven table fingerprints AFTER S13, successful
+          # S14, duplicate refusal and rollback/restart. No evidence of drift
+          # in the same DB is stronger than pre-recovery-only checking.
+          sql -f - < scripts/v3-s06-hosted-catalog-digests-local.sql > /tmp/s06-post-s14-full-catalog-local.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const assert = require('node:assert/strict');
+          const pre = JSON.parse(fs.readFileSync('/tmp/s06-seven-in-63-local.json','utf8'));
+          const post = JSON.parse(fs.readFileSync('/tmp/s06-post-s14-full-catalog-local.json','utf8'));
+          const names = new Set(pre.relations.map(r => r.schema_name + '.' + r.object_name));
+          const actual = post.relations.filter(r => names.has(r.schema_name + '.' + r.object_name));
+          assert.equal(actual.length, 7, 'seven observed relations must survive S13->S14');
+          assert.deepEqual(actual, pre.relations, 'seven hosted-observed table definitions, RLS and grants drifted through S13->S14');
+          console.log('PASS: seven complete table fingerprints unchanged after S13->S14, restart and duplicate refusal');
+          NODE
           [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
           [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
           docker rm -f "$cid" >/dev/null
           cid=""
-          echo "PASS: S13 then S14 exact-head upgrade against 56 hosted-observed PG17.11 relations and ACLs; missing S13/duplicate fail closed."
-          echo "LIMITATION: 56/215 tables; no production rows; no full hosted-equivalent certification."
+          echo "PASS: S13 then S14 against integrated 63 hosted-observed PG17.11 tables (56 scoped + seven full fingerprints); missing S13/duplicate fail closed."
+          echo "LIMITATION: 63/215 table names, only seven new full-field digests; no production rows; NOT fully hosted-equivalent or S06 certified."
 
       - name: Retain scoped proof without implying production parity
         if: always()
@@ -339,5 +354,6 @@ jobs:
             s06-parent-catalog-proof.json
             s06-acl-proof.json
             s06-upstream-rpc-proof.json
+            /tmp/s06-seven-63-proof.json
           if-no-files-found: ignore
           retention-days: 14
