@@ -4,7 +4,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 
-const root = process.cwd();
 const evidencePath = 'docs/v3/recovery-candidates/evidence/s06-hosted-upstream-rpc-fingerprints-20261110.json';
 const candidatePath = 'docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql';
 const catalogPath = 'scripts/v3-s06-hosted-upstream-rpc-catalog-local.sql';
