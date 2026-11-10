@@ -103,7 +103,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       throw new Error('Usage: node scripts/verify-v3-s06-seven-relation-parity.mjs <frozen215.json> <local_catalog.json> <new_report.json>');
     }
     const [frozenPath, localPath, reportPath] = process.argv.slice(2);
-    const paths = [frozenPath, localPath, reportPath].map(resolve);
+    const paths = [frozenPath, localPath, reportPath].map(p => resolve(p));
     if (new Set(paths).size !== paths.length) throw new Error('Refusing to overwrite evidence inputs');
     const hosted = JSON.parse(readFileSync(frozenPath, 'utf8'));
     const local = JSON.parse(readFileSync(localPath, 'utf8'));
