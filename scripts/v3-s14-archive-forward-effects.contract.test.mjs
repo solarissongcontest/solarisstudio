@@ -256,6 +256,10 @@ test("S06 integrates all seven independent hosted-observed tables into the 56-ta
   assert.ok(a >= 0 && b > a && c > b && d > c && e > d,
     "the seven-table exact-digest check must occur in the SAME networkless S13->S14 fixture before recovery");
   assert.match(workflow, /d\.relations\.length !== 63/);
+  assert.match(workflow, /actual\.tables\.length !== 63/);
+  assert.match(workflow, /found\.size !== 63/);
+  assert.match(workflow, /S06 fail closed: 56 frozen S02 identities \+ seven known extras not exact/);
+  assert.match(workflow, /verify-v3-s02-56-acl\.mjs \/tmp\/s06-acl-56-scoped\.json/);
   assert.match(workflow, /result\.observed\.relations !== 63/);
   assert.match(workflow, /result\.status !== 'S06_CATALOG_COVERAGE_BLOCKED'/);
   assert.match(workflow, /--network none/);
