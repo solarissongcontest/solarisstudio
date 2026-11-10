@@ -12,6 +12,10 @@ DO $s06roles$ BEGIN
  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='dashboard_user') THEN CREATE ROLE dashboard_user NOLOGIN; END IF;
 END $s06roles$;
 
+-- Local fixture prerequisite only: the recreated auth owner must resolve auth.* to issue ACL grants.
+-- This is NOT a claim of hosted schema/role membership equivalence.
+GRANT USAGE ON SCHEMA auth TO supabase_auth_admin;
+
 CREATE TABLE "auth"."audit_log_entries" (
   "instance_id" uuid,
   "id" uuid NOT NULL,
