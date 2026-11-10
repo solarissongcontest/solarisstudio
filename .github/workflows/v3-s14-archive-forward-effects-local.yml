@@ -10,6 +10,7 @@ on:
       - "scripts/v3-s06-hosted-upstream-rpc-catalog-local.sql"
       - "scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs"
       - "docs/v3/recovery-candidates/evidence/s06-hosted-upstream-rpc-fingerprints-20261110.json"
+      - "docs/v3/recovery-candidates/evidence/s06-hosted-upstream-rpc-acls-local.sql"
       - "docs/v3/recovery-candidates/forward-only-s13-foundation.sql"
       - "docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql"
       - "supabase/migrations/20261019112100_v3_s14_archive_consequence_reconciliation.sql"
@@ -183,6 +184,7 @@ jobs:
           node scripts/verify-v3-s02-56-acl.mjs /tmp/s06-acl.json s06-acl-proof.json
           # Compare 21 exact upstream RPCs to bounded read-only hosted catalog
           # fingerprints: definitions, owner, privileges and security flags.
+          sql -f - < docs/v3/recovery-candidates/evidence/s06-hosted-upstream-rpc-acls-local.sql
           sql -f - < scripts/v3-s06-hosted-upstream-rpc-catalog-local.sql > /tmp/s06-upstream-rpc.json
           node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs /tmp/s06-upstream-rpc.json s06-upstream-rpc-proof.json
           [[ "$(sql -c 'show server_version_num')" == 170011 ]] || exit 1
