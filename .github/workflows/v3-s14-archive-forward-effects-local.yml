@@ -197,8 +197,40 @@ jobs:
           sql -f - < scripts/v3-s02-hosted-nine-parent-catalog-local.sql > /tmp/s06-parent-catalog.json
           node scripts/verify-v3-s02-parent-catalog.mjs /tmp/s06-parent-catalog.json s06-parent-catalog-proof.json
           sql -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-56-table-grants-local.sql
-          sql -f - < scripts/v3-s02-hosted-56-acl-local.sql > /tmp/s06-acl.json
-          node scripts/verify-v3-s02-56-acl.mjs /tmp/s06-acl.json s06-acl-proof.json
+          # The original S02 comparison is strictly 56 IDs. Keep that
+          # comparator UNCHANGED; explicitly prove the seven other tables are
+          # exactly the expected known additions, then scope its JSON input.
+          sql -f - < scripts/v3-s02-hosted-56-acl-local.sql > /tmp/s06-acl-63.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const actual = JSON.parse(fs.readFileSync('/tmp/s06-acl-63.json','utf8'));
+          const frozen = JSON.parse(fs.readFileSync(
+            'docs/v3/recovery-candidates/evidence/s02-hosted-s14-56-table-acls-2026-11-09.json','utf8'
+          ));
+          const scoped = new Set(Object.keys(frozen.privileges));
+          const added = new Set([
+            'private.country_auth_rate_limits',
+            'private.studio2_platform_exit_write_probe',
+            'public.ssc_rule_registry',
+            'public.studio2_televote_global_versions',
+            'public.studio2_televote_round_versions',
+            'televoting.legacy_friend_voting_relationships',
+            'televoting.legacy_import_metadata',
+          ]);
+          const identities = actual.tables.map(t => t.relation);
+          const found = new Set(identities);
+          if (scoped.size !== 56 || added.size !== 7 || actual.tables.length !== 63
+            || found.size !== 63 || actual.schemas.length !== 4
+            || ![...scoped, ...added].every(k => found.has(k))
+            || identities.some(k => !scoped.has(k) && !added.has(k))) {
+            throw Error('S06 fail closed: 56 frozen S02 identities + seven known extras not exact');
+          }
+          fs.writeFileSync('/tmp/s06-acl-56-scoped.json', JSON.stringify({
+            tables: actual.tables.filter(t => scoped.has(t.relation)), schemas: actual.schemas
+          }));
+          console.log('S06: scoped exact 56 ACL identities without dropping seven table evidence');
+          NODE
+          node scripts/verify-v3-s02-56-acl.mjs /tmp/s06-acl-56-scoped.json s06-acl-proof.json
           # Compare 21 exact upstream RPCs to bounded read-only hosted catalog
           # fingerprints: definitions, owner, privileges and security flags.
           sql -f - < docs/v3/recovery-candidates/evidence/s06-hosted-upstream-rpc-acls-local.sql
