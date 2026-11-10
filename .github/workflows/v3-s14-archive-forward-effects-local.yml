@@ -13,6 +13,9 @@ on:
       - "scripts/verify-v3-s06-hosted-catalog-coverage.test.mjs"
       - "docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json"
       - "docs/v3/recovery-candidates/evidence/s06-hosted-relation-coverage-gap-20261110.json"
+      - "docs/v3/recovery-candidates/evidence/s06-hosted-seven-no-fk-relations-local.sql"
+      - "scripts/verify-v3-s06-seven-relation-parity.mjs"
+      - "scripts/verify-v3-s06-seven-relation-parity.test.mjs"
       - "scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs"
       - "docs/v3/recovery-candidates/evidence/s06-hosted-upstream-rpc-fingerprints-20261110.json"
       - "docs/v3/recovery-candidates/evidence/s06-hosted-upstream-rpc-acls-local.sql"
@@ -154,7 +157,9 @@ jobs:
       - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
         run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
       - name: Assert all-hosted catalog digests and incomplete-fixture rejection (offline only)
-        run: node --test scripts/verify-v3-s06-hosted-catalog-coverage.test.mjs
+        run: |
+          node --test scripts/verify-v3-s06-hosted-catalog-coverage.test.mjs
+          node --test scripts/verify-v3-s06-seven-relation-parity.test.mjs
       - name: Verify and obtain pinned PG17.11
         run: |
           set -euo pipefail
@@ -184,6 +189,9 @@ jobs:
           sql() { docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres "$@"; }
           sql -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-archive-54-table-schema-fixture.sql
           sql -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-archive-extra-2-dependencies-local.sql
+          # Reuse independently proven S06 seven-object zero-row fixture in
+          # the SAME isolated database, not a separate synthetic test.
+          sql -f - < docs/v3/recovery-candidates/evidence/s06-hosted-seven-no-fk-relations-local.sql
           sql -f - < scripts/v3-s02-hosted-archive-catalog-local.sql > /tmp/s06-archive-catalog.json
           node scripts/verify-v3-s02-s14-archive-catalog.mjs /tmp/s06-archive-catalog.json s06-archive-catalog-proof.json
           sql -f - < scripts/v3-s02-hosted-nine-parent-catalog-local.sql > /tmp/s06-parent-catalog.json
@@ -198,10 +206,37 @@ jobs:
           node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs /tmp/s06-upstream-rpc.json s06-upstream-rpc-proof.json
           [[ "$(sql -c 'show server_version_num')" == 170011 ]] || exit 1
 
-          # S06 FULL COVERAGE NEGATIVE: 56-table scope must NEVER pass a
+          # S06 FULL COVERAGE NEGATIVE: integrated 63-table scope must NEVER pass a
           # 215-relation / 727-function hosted-equivalence fingerprint gate.
           # This step is NOT S06 certification. It only proves safe refusal.
           sql -f - < scripts/v3-s06-hosted-catalog-digests-local.sql > /tmp/s06-full-catalog-local.json
+          # Assert exactly 56 original + 7 independent names and isolate seven
+          # actual catalog entries for complete per-field digest comparison.
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const d = JSON.parse(fs.readFileSync('/tmp/s06-full-catalog-local.json', 'utf8'));
+          const names = new Set([
+            'private.country_auth_rate_limits',
+            'private.studio2_platform_exit_write_probe',
+            'public.ssc_rule_registry',
+            'public.studio2_televote_global_versions',
+            'public.studio2_televote_round_versions',
+            'televoting.legacy_friend_voting_relationships',
+            'televoting.legacy_import_metadata',
+          ]);
+          const actual = d.relations.filter(r => names.has(r.schema_name + '.' + r.object_name));
+          if (d.relations.length !== 63 || actual.length !== 7
+             || new Set(d.relations.map(r => r.schema_name + '.' + r.object_name)).size !== 63) {
+            throw Error('S06 combined fixture must contain exactly 63 distinct tables, including all seven new identities');
+          }
+          fs.writeFileSync('/tmp/s06-seven-in-63-local.json', JSON.stringify({
+            pg_version_num: d.pg_version_num, relations: actual
+          }));
+          console.log('S06: exactly 63 distinct tables installed in one networkless PG17.11 fixture');
+          NODE
+          node scripts/verify-v3-s06-seven-relation-parity.mjs             docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json             /tmp/s06-seven-in-63-local.json /tmp/s06-seven-63-proof.json
+          # The remaining 56 host-observed objects retain their existing scope
+          # comparators. DO NOT treat seven-table parity as full 63-table parity.
           set +e
           node scripts/verify-v3-s06-hosted-catalog-coverage.mjs \
             docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
@@ -214,11 +249,11 @@ jobs:
           const result = JSON.parse(fs.readFileSync('/tmp/s06-full-coverage-result.json', 'utf8'));
           if (result.status !== 'S06_CATALOG_COVERAGE_BLOCKED'
               || result.expected.relations !== 215 || result.expected.routines !== 727
-              || result.observed.relations < 56 || result.observed.relations >= 215
+              || result.observed.relations !== 63
               || result.observed.routines >= 727) {
             throw Error('Unexpected S06 full-hosted coverage finding');
           }
-          console.log('PASS: INCOMPLETE HOSTED FIXTURE REJECTED; full S06 remains PARTIAL/BLOCKED.');
+          console.log('PASS: INTEGRATED 63-TABLE FIXTURE; full hosted equivalence REJECTED; S06 remains PARTIAL/BLOCKED.');
           console.log('Observed local relations: ' + result.observed.relations + '/215.');
           console.log('Observed local functions: ' + result.observed.routines + '/727.');
           NODE
