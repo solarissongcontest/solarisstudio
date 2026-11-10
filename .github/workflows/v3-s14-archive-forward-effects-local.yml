@@ -184,7 +184,7 @@ jobs:
             exit "$code"
           }
           trap cleanup EXIT
-          cid="$(docker run -d --rm --pull=never --network none --name "solaris-s06-hosted-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" -e POSTGRES_PASSWORD=s06_disposable postgres:17.11)"
+          cid="$(docker run -d --rm --pull=never --network none --name "solaris-s06-hosted-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" -e POSTGRES_PASSWORD=s06_disposable -e POSTGRES_INITDB_ARGS='--locale-provider=icu --icu-locale=en-US' postgres:17.11)"
           [[ "$cid" =~ ^[0-9a-f]{64}$ ]] || exit 1
           [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
           [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
@@ -195,6 +195,12 @@ jobs:
           done
           [[ "$ready" == true ]] || exit 1
           sql() { docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres "$@"; }
+          # Hosted PG17.11 database uses ICU en-US. Different locale providers
+          # can reverse index-name collation order in the frozen 17-field digest
+          # even if every index definition itself is identical. Match the DB
+          # provider rather than silently ignoring an index hash.
+          [[ "$(sql -c "select datlocprovider::text || '|' || datlocale from pg_database where datname=current_database()")" == 'i|en-US' ]] ||
+            { echo "::error::Local PostgreSQL ICU locale does not match hosted PG17.11"; exit 1; }
           sql -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-archive-54-table-schema-fixture.sql
           sql -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-archive-extra-2-dependencies-local.sql
           # Reuse independently proven S06 seven-object zero-row fixture in
@@ -323,9 +329,6 @@ jobs:
           node scripts/verify-v3-s06-five-ledger-parity.mjs \
             docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
             /tmp/s06-five-in-74-local.json /tmp/s06-five-74-proof.json
-          # Diagnostic: bounded, schema-only index definitions for the single
-          # mismatching local object. No function bodies/rows/secrets.
-          sql -c "select pg_get_indexdef(i.indexrelid) from pg_index i join pg_class c on c.oid=i.indrelid where c.oid='public.studio2_next_in_line_submission_revisions'::regclass order by i.indexrelid::regclass::text"
           node scripts/verify-v3-s06-six-relation-parity.mjs \
             docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
             /tmp/s06-six-in-74-local.json /tmp/s06-six-74-proof.json
