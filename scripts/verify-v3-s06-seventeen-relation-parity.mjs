@@ -172,7 +172,7 @@ export function compareSeventeen(frozen,local) {
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  try {
    if(process.argv.length!==5)throw Error('Usage: node verifier <frozen215.json> <local17.json> <new-report.json>');
-   const paths=process.argv.slice(2).map(resolve);
+   const paths=process.argv.slice(2).map(p=>resolve(p));
    if(new Set(paths).size!==3)throw Error('S06 output must not overwrite evidence');
    const report=compareSeventeen(JSON.parse(readFileSync(paths[0],'utf8')),JSON.parse(readFileSync(paths[1],'utf8')));
    writeFileSync(paths[2],JSON.stringify(report,null,2)+'\n',{flag:'wx',mode:0o600});
