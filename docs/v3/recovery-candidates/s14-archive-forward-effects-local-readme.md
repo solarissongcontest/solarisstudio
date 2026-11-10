@@ -141,3 +141,28 @@ This is an additional deterministic crash/retry **regression on the production-o
 **Critical limitation:** this is a **simulated local Archive gap** on a fully migrated source schema. It is NOT a faithful clone of production's incomplete migration history or existing data, and cannot certify a hosted upgrade. Clean local proofs do not substitute for an isolated sanitized hosted-head-equivalent upgrade, semantic-effect ledger closure, representative synthetic data, permissions/RLS review, staging rehearsal, release verification, rollback plan or separate explicit owner approval.
 
 **NO-GO remains in force for all hosted DDL, migration history repairs, flags, merges intended to release these effects, and real Archive transitions.**
+
+
+## S06 integrated 63-table isolated rehearsal (10 November 2026)
+
+The previously merged [#2430](https://github.com/solarissongcontest/solarisstudio/pull/2430) independently proved seven additional hosted-observed tables by their full 17-field `pg_catalog` fingerprints against the frozen 215-relation metadata manifest, using a private no-network PG17.11 fixture. The current S06 integration extends the **existing networkless S14 Archive-scope job** by applying those same seven observed table definitions *after* the S02 54-table and 2-table fixtures, all within **one disposable PG17.11 database**. It then:
+
+- Fails if the combined database does not contain exactly **63 distinct physical table identities**.
+- Re-extracts the full local catalog in that same database; compares all seven new table digests against the existing independently frozen hosted manifest, including permissions, constraints, indexes and RLS, before starting S13→S14 migration recovery.
+- Preserves the earlier 56-table scoped Archive and nine-parent checks, 21 hosted-observed RPC fingerprint checks, grants, behavior, rollback and interrupted same-database restart proof.
+- Explicitly requires the **full 215-relation and 727-routine hosted-equivalence verifier to REJECT** this incomplete 63-table database. A success exit from the comparison would make the job fail.
+
+**Limitations:** The seven-table check and the older 56-table Archive checks have **different verification scopes**. This job does not assert full catalog digest equality for all 63 tables, nor any full hosted-head-equivalence, default-role membership, independent authentication, data parity or production migration authority. The remaining 152 unmodeled table identities and the broader function/role/security/migration-history compatibility gaps remain NO-GO for S06 release. GitHub Actions must never connect to hosted Supabase. Production was not modified.
+
+## S06 68-table integrated extension (10 November 2026)
+
+Building on the [previous 63-table integrated rehearsal](https://github.com/solarissongcontest/solarisstudio/pull/2431) and the separately verified [five FK-bound version ledgers](https://github.com/solarissongcontest/solarisstudio/pull/2432), this **isolated PG17.11 job** installs all 68 observed hosted physical relation identities in the **same** disposable database:
+
+- Original **56** S02/S14 Archive-scope tables, with the original exact 56-table catalog, nine-parent catalog, 56-table ACL and 21 upstream RPC scope checks retained.
+- **Seven** independent hosted-observed no-FK tables, with all frozen relation catalog fingerprints checked before S13→S14 recovery.
+- **Five** newly observed version-ledger tables using real foreign keys to the existing 56 parents, with all frozen relation catalog fingerprints checked separately.
+- The comparison refuses any unexpected/duplicate/missing relation identity and insists on exactly **68** real physical relations.
+- After the missing-S13 refusal, S13 prereq, injected S14 DDL rollback, same-DB restart, idempotency refusal and negative permission tests, the full 12-table digest projection must be byte-for-byte identical to its pre-recovery catalog.
+- The all-hosted **215-relation / 727-routine** manifest comparison MUST fail closed. A full equivalence success from a 68-table fixture is itself a test failure.
+
+**Release boundary:** This proves 56 scoped fixture identities coexisting with 12 new **full-field metadata-parity** identities. It does not establish complete 68-table full-digest parity, 727 routine definition/runtime closure, production auth role memberships, default privileges, extensions, real row-dependent behavior, migration-history closure, S06 certification, S07 authorization or production rollout safety. CI never receives production credentials or connects to hosted Supabase. This is not a migration or deployment.
