@@ -166,3 +166,19 @@ Building on the [previous 63-table integrated rehearsal](https://github.com/sola
 - The all-hosted **215-relation / 727-routine** manifest comparison MUST fail closed. A full equivalence success from a 68-table fixture is itself a test failure.
 
 **Release boundary:** This proves 56 scoped fixture identities coexisting with 12 new **full-field metadata-parity** identities. It does not establish complete 68-table full-digest parity, 727 routine definition/runtime closure, production auth role memberships, default privileges, extensions, real row-dependent behavior, migration-history closure, S06 certification, S07 authorization or production rollout safety. CI never receives production credentials or connects to hosted Supabase. This is not a migration or deployment.
+
+## S06 76-table integrated fixture (10 November 2026)
+
+Following merge of [#2433](https://github.com/solarissongcontest/solarisstudio/pull/2433), 68 hosted-observed table names already coexist in one **networkless disposable PostgreSQL 17.11** S13→S14 Archive recovery fixture. The next source-only local extension adds **eight** additional hosted-observed tables with no RLS policies and no ordinary triggers:
+
+- `private.v3_confirmation_account_drafts` and `private.v3_televote_recovery_handles`
+- `public.studio2_voting_declaration_policy`, `public.studio2_eligibility_override_versions`
+- `public.ssc_rulebook_releases` and its child `public.ssc_rulebook_events`
+- `public.studio2_next_in_line_submission_revisions`
+- `public.studio2_platform_operational_state`
+
+All their real FK parents already occur in the preceding 68 hosted-observed fixture, except `ssc_rulebook_events` which references `ssc_rulebook_releases` created earlier in this same additional fixture. The SQL creates **no application rows**. It reproduces read-only catalog-observed columns/defaults, FK and CHECK constraints, indexes including partial unique indexes, RLS state and table ACLs. The new `scripts/verify-v3-s06-eight-relation-parity.mjs` compares all 17 per-table frozen hosted catalog fields, refuses an incorrect PG17.11 baseline, changed hosted table shape, extra or duplicated identities, and drift in any column/constraint/index/ACL/RLS/trigger fields.
+
+The updated networkless S14 job requires **exactly 76 distinct local physical table names (56 scoped S02 + 7 + 5 + 8)**, runs the original 56-table and 21 RPC scope verifiers unchanged, checks the last **20** tables' complete 17-field fingerprints separately, and asserts those 20 are unchanged after missing-S13 refusal, interrupted S14 rollback, same-DB restart and duplicate-install denial. The **215 relations / 727 routines** global hosted-equivalence verifier MUST continue to reject 76 as incomplete. CI has no Supabase credentials, remote DB aliases, ports or external network connectivity.
+
+**Explicit NO-GO:** This validates coexistence and selected metadata parity, not complete 76-table full-field parity or 727 routine definitions and runtime semantics, production auth/roles/extensions, real data behavior, migration-history reconciliation, deployment approval or S07. **139 unmodeled table names remain** outside the new 76-table fixture. No production database or migration was modified. A separate source and security review plus exact-head CI is required before merging this source-only addition.
