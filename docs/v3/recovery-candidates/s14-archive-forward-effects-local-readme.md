@@ -85,6 +85,18 @@ This closes a missing **dependency-order verification gap**, not the production-
 
 The combined test intentionally does **not** perform or permit live Supabase migration-history updates, production SQL, or any business-data backfill.
 
+## S06 ordered-recovery regression extension (10 November 2026)
+
+After S03 (#2393) and S05 (#2400) were merged, the S06 branch was synchronized with current main via an **additive two-parent commit**. The S13 forward candidate has exactly the same Git blob (`f49b8212e2983dd0cde46d80dd6b5661e49df6a5`) as the merged S03 source; it is reused, not rewritten. No schema/runtime authority or original historical migrations change in this source-only PR.
+
+In addition to the original S13-first/Archive-first negative tests, this local-only runner now:
+
+1. Temporarily renames a required upstream Task eligibility RPC in disposable PostgreSQL, verifies the Archive preflight reports its exact missing signature, asserts no new Archive function/gate was installed, restores the RPC, and checks catalog stability.
+2. Injects a test-only PostgreSQL exception **after the first real Archive function DDL** into a temporary copy of the SQL (the canonical candidate is not modified), proves the single transaction rolls back, checks the Archive and upstream catalog is unchanged, then reruns the original SQL successfully on **the same local DB**.
+3. Rejects a duplicate application without changing the recovered Archive catalog. The CI workflow additionally resets a **second, independent disposable local database** through `supabase db reset --local --no-seed` and repeats the S13→S14 restoration and canonical Archive behavioral rehearsal.
+
+Full source-state migration reset and the staged candidate are **not** a sanitized hosted-head-equivalent upgrade. Real hosted table/column/ACL/history/data parity is still unproven, and only the 31 specifically audited critical column contracts are checked at preflight. S06 therefore cannot be certified DONE for the stated hosted-equivalent acceptance criterion from these synthetic rehearsals alone. Neither a green local CI run nor merging these inert recovery-candidate files authorizes hosted migrations, SQL Editor usage, real Archive transitions or the full S14 contest release.
+
 ## Local rehearsal and actual tests
 
 `.github/workflows/v3-s14-archive-forward-effects-local.yml` starts disposable **local Supabase**, resets the **full source migration chain**, and runs `scripts/rehearse-v3-s14-archive-forward-effects-local.sh`. That script:
