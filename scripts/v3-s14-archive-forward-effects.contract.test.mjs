@@ -152,3 +152,25 @@ test("integrated recovery uses the exact reviewed S13 donor and enforces S13 →
     !/^\s*(?:#|--)/.test(line)).join("\n");
   assert.doesNotMatch(executableLines, /^\s*drop\s+(?:function|table|schema|trigger)[^\n]*\bcascade\b/im);
 });
+
+
+test("preflight rejects a missing hosted-observed upstream RPC before any Archive mutation", () => {
+  const guard = candidate.indexOf("S14 Archive recovery BLOCKED: required upstream RPC missing");
+  const firstArchiveDDL = candidate.indexOf("create or replace function private.v3_resolve_archived_edition_workflow_tasks(");
+  assert.ok(guard > 0 && firstArchiveDDL > guard, "required RPC guard must precede new Archive DDL");
+  assert.match(rehearsal, /alter function private\.studio2_task_recipient_eligible\(uuid,uuid\) rename to studio2_task_recipient_eligible_s06_missing/);
+  assert.match(rehearsal, /required upstream RPC missing private\.studio2_task_recipient_eligible\(uuid,uuid\)/);
+  assert.match(rehearsal, /Missing upstream dependency left partial Archive DDL/);
+  assert.match(rehearsal, /rename to studio2_task_recipient_eligible"/);
+});
+
+test("injected post-DDL failure rolls back transaction and permits same-database restart", () => {
+  assert.match(rehearsal, /gap_before="\$\(fingerprint\)"/);
+  assert.match(rehearsal, /S06 injected post-DDL failure/);
+  assert.match(rehearsal, /Interrupted Archive recovery left partial DDL or changed upstream catalog/);
+  assert.match(rehearsal, /Interrupted Archive recovery left its first function or gate installed/);
+  const failure = rehearsal.indexOf("S06 injected post-DDL failure");
+  const normalApply = rehearsal.lastIndexOf('sql -f "$candidate" >/dev/null');
+  assert.ok(failure >= 0 && normalApply > failure, "normal recovery must follow rollback injection");
+  assert.doesNotMatch(rehearsal, /(?:^|\n)\s*supabase db push\b/im);
+});
