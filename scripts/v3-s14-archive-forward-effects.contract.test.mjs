@@ -193,7 +193,7 @@ test("exact-head CI repeats clean local replay and reuses S02 networkless hosted
   assert.match(workflow, /verify-v3-s02-56-acl\.mjs/);
   assert.match(workflow, /forward-only-s13-foundation\.sql/);
   assert.match(workflow, /forward-only-s14-archive-integrated-local\.sql/);
-  assert.match(workflow, /LIMITATION: 56\/215 tables/);
+  assert.match(workflow, /LIMITATION: 63\/215 table names/);
   assert.doesNotMatch(workflow, /supabase db (push|dump --db-url)/);
 });
 
