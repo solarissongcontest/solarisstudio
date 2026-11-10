@@ -46,6 +46,8 @@ fingerprint() {
     where (n.nspname='private' and p.proname=any(array[
        'v3_resolve_archived_edition_workflow_tasks',
        'v3_reconcile_resolved_task_notifications',
+       'v3_project_resolved_task_delivery_state',
+       'studio2_sync_task_notifications',
        'studio2_reconcile_all_organizer_tasks',
        'studio2_prune_stale_task_notifications',
        'v3_guard_archive_runtime_transition',
@@ -76,6 +78,7 @@ fingerprint() {
        'v3_guard_archive_runtime_insert',
        'v3_guard_archive_runtime_delete',
        'v3_guard_archived_edition_task_resurrection',
+       'v3_project_resolved_task_delivery_state',
        'v3_guard_archived_edition_workflow_write',
        'v3_guard_archived_televote_write',
        'v3_sync_archived_edition_legacy_status',
@@ -185,6 +188,7 @@ begin
       'v3_guard_archive_runtime_insert',
       'v3_guard_archive_runtime_delete',
       'v3_guard_archived_edition_task_resurrection',
+      'v3_project_resolved_task_delivery_state',
       'v3_guard_archived_edition_workflow_write',
       'v3_guard_archived_televote_write',
       'v3_sync_archived_edition_legacy_status',
@@ -205,6 +209,7 @@ drop function if exists private.v3_guard_archived_edition_task_resurrection();
 drop function if exists private.v3_guard_archived_televote_write();
 drop function if exists private.v3_resolve_archived_edition_workflow_tasks(uuid);
 drop function if exists private.v3_reconcile_resolved_task_notifications(uuid);
+drop function if exists private.v3_project_resolved_task_delivery_state();
 drop function if exists private.v3_edition_final_results_ready(uuid);
 drop function if exists private.v3_archive_task_type_is_current_workflow(text);
 drop function if exists private.v3_sync_archived_edition_legacy_status();
@@ -221,6 +226,7 @@ delete from private.v3_migration_contracts where migration_key=any(array[
  'v3.s14.archive-consequence-reconciliation',
  'v3.s14.transition-http409',
  'v3.s14.archive-task-registry-alignment',
+ 'v3.s14.resolved-task-notification-invariant',
  'v3.s14.archive-invariant-forward-fixes',
  'v3.s14.archive-guard-authority-forward-fix',
  'v3.s14.failed-task-delivery-evidence',
@@ -232,6 +238,24 @@ delete from private.v3_migration_contracts where migration_key=any(array[
 ]);
 commit;
 SQL
+
+# The clean-chain baseline already contains the missing 125 effect. Restore the
+# actual earlier Oct 03 synchronizer in this disposable local simulation or a
+# false-positive can pass without testing its source-dependent replacement.
+command -v node >/dev/null || fail 'Node required for pre-gap RPC source'
+node --input-type=module -e '
+  import { readFileSync } from "node:fs";
+  const src = readFileSync("supabase/migrations/20261003003000_organisation_os_v5_task_notifications.sql", "utf8");
+  const start = src.indexOf("create or replace function private.studio2_sync_task_notifications(");
+  const end = src.indexOf("\n$sync$;", start);
+  if (start < 0 || end < start) { console.error("Original pre-gap RPC unavailable"); process.exit(1); }
+  process.stdout.write(src.slice(start, end + "\n$sync$;".length) +
+    "\nrevoke all on function private.studio2_sync_task_notifications(uuid) from public, anon, authenticated;\n");
+' | sql -f - >/dev/null
+[[ "$(sql -c "select pg_get_functiondef('private.studio2_sync_task_notifications(uuid)'::regprocedure) like '%requires_action = true%'")" == t ]] ||
+  fail 'Original pre-125 notification synchronizer not restored'
+[[ "$(sql -c "select to_regprocedure('private.v3_project_resolved_task_delivery_state()') is null")" == t ]] ||
+  fail 'Local gap retained immediate Task-resolution trigger function'
 
 if [[ "$include_s13" == YES ]]; then
   # Strip only explicitly named S13 effects from this local fixture.
@@ -349,7 +373,8 @@ fi
  fail 'Missing new forward-only semantic recovery marker'
 [[ "$(sql -c "select count(*) from private.v3_migration_contracts where migration_key=any(array[
  'v3.s14.archive-consequence-reconciliation','v3.s14.transition-http409',
- 'v3.s14.archive-task-registry-alignment','v3.s14.archive-invariant-forward-fixes',
+ 'v3.s14.archive-task-registry-alignment',
+ 'v3.s14.resolved-task-notification-invariant','v3.s14.archive-invariant-forward-fixes',
  'v3.s14.archive-guard-authority-forward-fix','v3.s14.failed-task-delivery-evidence',
  'v3.s14.final-results-readiness-hardening',
  'v3.s14.resolved-task-delivery-reconciliation',
@@ -365,5 +390,5 @@ fi
  fail "Duplicate apply refused for unexpected reason: $replay"
 [[ "$(fingerprint)" == "$before" ]] ||
  fail 'Duplicate-refusal modified Archive catalog'
-echo 'PASS: eleven-stage S14 forward-only recovery matches canonical local functions, privileges, triggers and gate-table catalog; S13 required; replays refused; eleven historical keys not forged'
+echo 'PASS: twelve-stage S14 forward-only recovery matches canonical local functions, privileges, triggers and gate-table catalog; S13 required; replays refused; twelve historical keys not forged'
 echo 'LIMITATION: simulated local Archive gaps do NOT establish hosted-head-equivalent production upgrade safety'
