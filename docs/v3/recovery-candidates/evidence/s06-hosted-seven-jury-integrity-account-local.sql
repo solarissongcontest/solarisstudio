@@ -101,6 +101,7 @@ CREATE TABLE televoting.voter_sanctions (
   "revocation_reason" text
 );
 
+-- Install referenced decision and sanction keys before the dependent audit FKs.
 ALTER TABLE private.v3_jury_drafts ADD CONSTRAINT "v3_jury_drafts_device_id_bounded" CHECK (device_id IS NULL OR length(device_id) <= 120);
 ALTER TABLE private.v3_jury_drafts ADD CONSTRAINT "v3_jury_drafts_payload_bounded" CHECK (octet_length(payload::text) <= 32768);
 ALTER TABLE private.v3_jury_drafts ADD CONSTRAINT "v3_jury_drafts_payload_object" CHECK (jsonb_typeof(payload) = 'object'::text);
@@ -148,15 +149,6 @@ ALTER TABLE televoting.historical_vote_observations ENABLE ROW LEVEL SECURITY;
 GRANT ALL ON TABLE televoting.historical_vote_observations TO postgres;
 GRANT SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER ON TABLE televoting.historical_vote_observations TO service_role;
 
-ALTER TABLE televoting.integrity_action_audit ADD CONSTRAINT "integrity_action_audit_decision_id_fkey" FOREIGN KEY (decision_id) REFERENCES televoting.vote_integrity_decisions(id) ON DELETE SET NULL;
-ALTER TABLE televoting.integrity_action_audit ADD CONSTRAINT "integrity_action_audit_pkey" PRIMARY KEY (id);
-ALTER TABLE televoting.integrity_action_audit ADD CONSTRAINT "integrity_action_audit_preflight_id_fkey" FOREIGN KEY (preflight_id) REFERENCES televoting.vote_preflight_checks(id) ON DELETE SET NULL;
-ALTER TABLE televoting.integrity_action_audit ADD CONSTRAINT "integrity_action_audit_sanction_id_fkey" FOREIGN KEY (sanction_id) REFERENCES televoting.voter_sanctions(id) ON DELETE SET NULL;
-ALTER TABLE televoting.integrity_action_audit ADD CONSTRAINT "integrity_action_audit_submission_id_fkey" FOREIGN KEY (submission_id) REFERENCES televoting.vote_submissions(id) ON DELETE SET NULL;
-CREATE INDEX integrity_action_audit_created_idx ON televoting.integrity_action_audit USING btree (created_at DESC);
-ALTER TABLE televoting.integrity_action_audit ENABLE ROW LEVEL SECURITY;
-GRANT ALL ON TABLE televoting.integrity_action_audit TO postgres;
-
 ALTER TABLE televoting.vote_integrity_decisions ADD CONSTRAINT "vote_integrity_decisions_decision_check" CHECK (decision = ANY (ARRAY['cleared'::text, 'monitor'::text, 'false_declaration_confirmed'::text, 'ballot_excluded'::text]));
 ALTER TABLE televoting.vote_integrity_decisions ADD CONSTRAINT "vote_integrity_decisions_pkey" PRIMARY KEY (id);
 ALTER TABLE televoting.vote_integrity_decisions ADD CONSTRAINT "vote_integrity_decisions_preflight_id_fkey" FOREIGN KEY (preflight_id) REFERENCES televoting.vote_preflight_checks(id) ON DELETE CASCADE;
@@ -179,5 +171,14 @@ CREATE INDEX voter_sanctions_hod_idx ON televoting.voter_sanctions USING btree (
 CREATE INDEX voter_sanctions_username_idx ON televoting.voter_sanctions USING btree (lower(username_normalized)) WHERE (username_normalized IS NOT NULL);
 ALTER TABLE televoting.voter_sanctions ENABLE ROW LEVEL SECURITY;
 GRANT ALL ON TABLE televoting.voter_sanctions TO postgres;
+
+ALTER TABLE televoting.integrity_action_audit ADD CONSTRAINT "integrity_action_audit_decision_id_fkey" FOREIGN KEY (decision_id) REFERENCES televoting.vote_integrity_decisions(id) ON DELETE SET NULL;
+ALTER TABLE televoting.integrity_action_audit ADD CONSTRAINT "integrity_action_audit_pkey" PRIMARY KEY (id);
+ALTER TABLE televoting.integrity_action_audit ADD CONSTRAINT "integrity_action_audit_preflight_id_fkey" FOREIGN KEY (preflight_id) REFERENCES televoting.vote_preflight_checks(id) ON DELETE SET NULL;
+ALTER TABLE televoting.integrity_action_audit ADD CONSTRAINT "integrity_action_audit_sanction_id_fkey" FOREIGN KEY (sanction_id) REFERENCES televoting.voter_sanctions(id) ON DELETE SET NULL;
+ALTER TABLE televoting.integrity_action_audit ADD CONSTRAINT "integrity_action_audit_submission_id_fkey" FOREIGN KEY (submission_id) REFERENCES televoting.vote_submissions(id) ON DELETE SET NULL;
+CREATE INDEX integrity_action_audit_created_idx ON televoting.integrity_action_audit USING btree (created_at DESC);
+ALTER TABLE televoting.integrity_action_audit ENABLE ROW LEVEL SECURITY;
+GRANT ALL ON TABLE televoting.integrity_action_audit TO postgres;
 
 COMMIT;
