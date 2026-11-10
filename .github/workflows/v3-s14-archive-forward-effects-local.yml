@@ -300,6 +300,8 @@ jobs:
           node scripts/verify-v3-s06-five-ledger-parity.mjs \
             docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
             /tmp/s06-five-in-68-local.json /tmp/s06-five-68-proof.json
+          cp /tmp/s06-seven-68-proof.json s06-seven-68-proof.json
+          cp /tmp/s06-five-68-proof.json s06-five-68-proof.json
           # The remaining 56 host-observed objects retain their existing scope
           # comparators. DO NOT treat twelve-table parity as full 68-table parity.
           set +e
@@ -419,6 +421,7 @@ jobs:
             s06-parent-catalog-proof.json
             s06-acl-proof.json
             s06-upstream-rpc-proof.json
-            /tmp/s06-seven-63-proof.json
+            s06-seven-68-proof.json
+            s06-five-68-proof.json
           if-no-files-found: ignore
           retention-days: 14
