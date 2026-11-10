@@ -22,7 +22,7 @@ function sourceNames(snapshot) {
   return ids;
 }
 
-export function inspectSchemaToc(toc, hostedRelationIds, options = {}) {
+export function inspectSchemaToc(toc, hostedRelationIds) {
   if (typeof toc !== 'string' || toc.length > 5_000_000 || !toc.trim()) {
     throw Error('S06 blocked: invalid or oversized pg_restore TOC');
   }
@@ -50,9 +50,17 @@ export function inspectSchemaToc(toc, hostedRelationIds, options = {}) {
     }
     const k = rest.match(/^([A-Z][A-Z ]+?)\s+(?:auth|private|public|televoting|-)\s+/);
     if (k) counts[k[1]] = (counts[k[1]] || 0) + 1;
-    const t = rest.match(/^TABLE\s+(auth|private|public|televoting)\s+([a-z_][a-z_0-9]*)\s+/);
-    if (t) {
-      const id = t[1] + '.' + t[2];
+    // Fail closed on out-of-scope tables and malformed table identities.
+    const anyTable = rest.match(/^TABLE\s+(\S+)\s+(\S+)(?:\s|$)/);
+    if (rest.startsWith('TABLE ') && !anyTable) {
+      throw Error('S06 blocked: malformed TABLE TOC entry');
+    }
+    if (anyTable) {
+      const [, schema, name] = anyTable;
+      if (!SCHEMAS.has(schema) || !/^[a-z_][a-z_0-9]*$/.test(name)) {
+        throw Error('S06 blocked: out-of-scope or malformed TABLE identity');
+      }
+      const id = schema + '.' + name;
       if (found.has(id)) throw Error('S06 blocked: duplicate table TOC entry: ' + id);
       found.add(id);
     }
@@ -86,8 +94,7 @@ export function inspectSchemaToc(toc, hostedRelationIds, options = {}) {
       'Inspect missing extension objects, role inheritance and default privileges',
       'Verify 215-relation/727-routine full catalog digests after local import',
       'Seed synthetic Archive/Results/Televote/Tasks/notification state and run complete S13-to-S14 recovery'
-    ],
-    ...options
+    ]
   };
 }
 
