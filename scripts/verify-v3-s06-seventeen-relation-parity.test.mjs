@@ -37,3 +37,21 @@ test('missing or stale full-hosted baseline and host field manipulation are neve
  const broken=structuredClone(frozen);const i=broken.relations.findIndex(x=>names.has(x.schema_name+'.'+x.object_name));broken.relations[i].constraint_count+=1;
  assert.throws(()=>compareSeventeen(broken,local()),/S06/);
 });
+
+test('offline CLI resolves three distinct paths without treating map callback arguments as paths',async()=>{
+ const {mkdtempSync,writeFileSync,readFileSync,rmSync}=await import('node:fs');
+ const {tmpdir}=await import('node:os');
+ const {join}=await import('node:path');
+ const {execFileSync}=await import('node:child_process');
+ const dir=mkdtempSync(join(tmpdir(),'s06-17-'));
+ try{
+   const input=join(dir,'local.json'),output=join(dir,'proof.json');
+   writeFileSync(input,JSON.stringify(local()));
+   const stdout=execFileSync(process.execPath,[
+     'scripts/verify-v3-s06-seventeen-relation-parity.mjs',
+     'docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json',
+     input,output],{encoding:'utf8'});
+   assert.match(stdout,/SEVENTEEN_METADATA_PARITY_NOT_CERTIFIED/);
+   assert.equal(JSON.parse(readFileSync(output,'utf8')).equal,true);
+ } finally {rmSync(dir,{recursive:true,force:true});}
+});
