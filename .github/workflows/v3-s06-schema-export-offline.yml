@@ -3,12 +3,15 @@ name: V3 S06 Schema Export TOC Offline
 on:
   pull_request:
     branches: [main]
-    paths:
+    paths: &s06_toc_paths
       - ".github/workflows/v3-s06-schema-export-offline.yml"
       - "scripts/v3-s06-schema-toc-preflight.mjs"
       - "scripts/v3-s06-schema-toc-preflight.test.mjs"
       - "docs/v3/recovery-candidates/s06-schema-export-operator-runbook.md"
       - "docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json"
+  push:
+    branches: [main]
+    paths: *s06_toc_paths
   workflow_dispatch:
 
 permissions:
