@@ -10,6 +10,16 @@ SET LOCAL check_function_bodies=off;
 -- They contain no application values and are not counted as table identities.
 CREATE SEQUENCE IF NOT EXISTS auth.refresh_tokens_id_seq;
 CREATE SEQUENCE IF NOT EXISTS public.admin_audit_log_id_seq;
+-- Two additional hosted policy symbols are catalog dependencies, NOT verified bodies.
+-- Local-only fail-closed replacements prevent falsely claiming live authorization parity.
+CREATE OR REPLACE FUNCTION private.studio2_can_manage_permissions(p_user_id uuid)
+RETURNS boolean LANGUAGE plpgsql AS $s06_unverified_policy$ BEGIN
+  RAISE EXCEPTION 'S06 catalog-only authorization placeholder must never execute';
+END $s06_unverified_policy$;
+CREATE OR REPLACE FUNCTION private.solaris_confirmation_admin_allowed()
+RETURNS boolean LANGUAGE plpgsql AS $s06_unverified_policy$ BEGIN
+  RAISE EXCEPTION 'S06 catalog-only authorization placeholder must never execute';
+END $s06_unverified_policy$;
 DO $s06_enum$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace WHERE n.nspname='auth' AND t.typname='aal_level') THEN CREATE TYPE "auth"."aal_level" AS ENUM ('aal1', 'aal2', 'aal3'); END IF; END $s06_enum$;
 DO $s06_enum$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace WHERE n.nspname='auth' AND t.typname='code_challenge_method') THEN CREATE TYPE "auth"."code_challenge_method" AS ENUM ('s256', 'plain'); END IF; END $s06_enum$;
 DO $s06_enum$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace WHERE n.nspname='auth' AND t.typname='factor_status') THEN CREATE TYPE "auth"."factor_status" AS ENUM ('unverified', 'verified'); END IF; END $s06_enum$;
