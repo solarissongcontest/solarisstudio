@@ -28,6 +28,9 @@ on:
       - "docs/v3/recovery-candidates/evidence/s06-hosted-seventeen-next-relations-local.sql"
       - "scripts/verify-v3-s06-seventeen-relation-parity.mjs"
       - "scripts/verify-v3-s06-seventeen-relation-parity.test.mjs"
+      - "docs/v3/recovery-candidates/evidence/s06-hosted-fifty-next-relations-local.sql"
+      - "scripts/verify-v3-s06-fifty-relation-parity.mjs"
+      - "scripts/verify-v3-s06-fifty-relation-parity.test.mjs"
       - "scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs"
       - "docs/v3/recovery-candidates/evidence/s06-hosted-upstream-rpc-fingerprints-20261110.json"
       - "docs/v3/recovery-candidates/evidence/s06-hosted-upstream-rpc-acls-local.sql"
@@ -176,6 +179,7 @@ jobs:
           node --test scripts/verify-v3-s06-eight-relation-parity.test.mjs
           node --test scripts/verify-v3-s06-seven-secure-relation-parity.test.mjs
           node --test scripts/verify-v3-s06-seventeen-relation-parity.test.mjs
+          node --test scripts/verify-v3-s06-fifty-relation-parity.test.mjs
       - name: Verify and obtain pinned PG17.11
         run: |
           set -euo pipefail
@@ -197,12 +201,17 @@ jobs:
           [[ "$cid" =~ ^[0-9a-f]{64}$ ]] || exit 1
           [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
           [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
+          # Docker's first pg_isready can observe the SHORT-LIVED initdb server,
+          # which shuts down before the real PG17.11 server starts. Never race it.
           ready=false
-          for n in $(seq 1 45); do
-            if docker exec "$cid" pg_isready -h /var/run/postgresql -U postgres >/dev/null; then ready=true; break; fi
+          for n in $(seq 1 75); do
+            if docker logs "$cid" 2>&1 | grep -Fq 'PostgreSQL init process complete; ready for start up.' \
+              && docker exec "$cid" pg_isready -h /var/run/postgresql -U postgres >/dev/null; then
+              ready=true; break
+            fi
             sleep 1
           done
-          [[ "$ready" == true ]] || exit 1
+          [[ "$ready" == true ]] || { docker logs "$cid" 2>&1 | tail -80; exit 1; }
           sql() { docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres "$@"; }
           # Hosted catalog probe confirmed PG17.11 with datlocprovider=i and
           # datlocale=en-US. Preserve hosted ICU collation for deterministic
@@ -223,14 +232,17 @@ jobs:
           sql -f - < docs/v3/recovery-candidates/evidence/s06-hosted-seven-jury-integrity-account-local.sql
           # 17 new hosted-observed zero-row tables; auth ownership + FK closure verified strictly.
           sql -f - < docs/v3/recovery-candidates/evidence/s06-hosted-seventeen-next-relations-local.sql
+          # Fifty additional FK-closed hosted-observed metadata identities, NO application rows.
+          # Trigger placeholders are fail-closed catalog fixtures; not runtime function parity.
+          sql -f - < docs/v3/recovery-candidates/evidence/s06-hosted-fifty-next-relations-local.sql
           sql -f - < scripts/v3-s02-hosted-archive-catalog-local.sql > /tmp/s06-archive-catalog.json
           node scripts/verify-v3-s02-s14-archive-catalog.mjs /tmp/s06-archive-catalog.json s06-archive-catalog-proof.json
           sql -f - < scripts/v3-s02-hosted-nine-parent-catalog-local.sql > /tmp/s06-parent-catalog.json
           node scripts/verify-v3-s02-parent-catalog.mjs /tmp/s06-parent-catalog.json s06-parent-catalog-proof.json
           sql -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-56-table-grants-local.sql
           # The original S02 comparison is strictly 56 IDs. Keep that
-          # comparator UNCHANGED; explicitly prove all 27 new identities
-          # are the only additions, then scope its original JSON input.
+          # comparator UNCHANGED; explicitly prove the original 44 additions and
+          # another 50 distinct new identities, then scope its original JSON input.
           sql -f - < scripts/v3-s02-hosted-56-acl-local.sql > /tmp/s06-acl-76.json
           node - <<'NODE'
           const fs = require('node:fs');
@@ -285,18 +297,22 @@ jobs:
             'public.studio2_upload_authorizations',
             'televoting.round_influence_results',
           ]);
+          const fifty = new Set([...fs.readFileSync(
+            "docs/v3/recovery-candidates/evidence/s06-hosted-fifty-next-relations-local.sql", "utf8"
+          ).matchAll(/CREATE TABLE "([a-z]+)"\."([a-z_0-9]+)"/g)].map(m => m[1]+"."+m[2]));
           const identities = actual.tables.map(t => t.relation);
           const found = new Set(identities);
-          if (scoped.size !== 56 || added.size !== 44 || actual.tables.length !== 100
-            || found.size !== 100 || actual.schemas.length !== 4
-            || ![...scoped, ...added].every(k => found.has(k))
-            || identities.some(k => !scoped.has(k) && !added.has(k))) {
-            throw Error('S06 fail closed: 56 frozen S02 identities + 44 known extras not exact');
+          if (scoped.size !== 56 || added.size !== 44 || fifty.size !== 50
+            || [...fifty].some(k => scoped.has(k) || added.has(k))
+            || actual.tables.length !== 150 || found.size !== 150 || actual.schemas.length !== 4
+            || ![...scoped, ...added, ...fifty].every(k => found.has(k))
+            || identities.some(k => !scoped.has(k) && !added.has(k) && !fifty.has(k))) {
+            throw Error('S06 fail closed: 56 frozen S02 identities + 44 prior + 50 new not exact');
           }
           fs.writeFileSync('/tmp/s06-acl-56-scoped.json', JSON.stringify({
             tables: actual.tables.filter(t => scoped.has(t.relation)), schemas: actual.schemas
           }));
-          console.log('S06: scoped exact 56 ACL identities without dropping 44 table evidence');
+          console.log('S06: scoped 56 original ACL identities, retaining 44 prior + 50 new tables');
           NODE
           node scripts/verify-v3-s02-56-acl.mjs /tmp/s06-acl-56-scoped.json s06-acl-proof.json
           # Compare 21 exact upstream RPCs to bounded read-only hosted catalog
@@ -306,12 +322,12 @@ jobs:
           node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs /tmp/s06-upstream-rpc.json s06-upstream-rpc-proof.json
           [[ "$(sql -c 'show server_version_num')" == 170011 ]] || exit 1
 
-          # S06 FULL COVERAGE NEGATIVE: integrated 83-table scope must NEVER pass a
+          # S06 FULL COVERAGE NEGATIVE: integrated 150-table scope must NEVER pass a
           # 215-relation / 727-function hosted-equivalence fingerprint gate.
           # This step is NOT S06 certification. It only proves safe refusal.
           sql -f - < scripts/v3-s06-hosted-catalog-digests-local.sql > /tmp/s06-full-catalog-local.json
-          # Assert exactly 56 original + 27 independently observed names;
-          # test seven, five, eight and seven secure full-field digests separately.
+          # Assert 56 original + 44 prior + 50 new catalog identities;
+          # compare all 94 newer tables with complete 17-field catalog digests.
           node - <<'NODE'
           const fs = require('node:fs');
           const d = JSON.parse(fs.readFileSync('/tmp/s06-full-catalog-local.json', 'utf8'));
@@ -369,6 +385,9 @@ jobs:
             'public.studio2_upload_authorizations',
             'televoting.round_influence_results',
           ]);
+          const fifty = new Set([...fs.readFileSync(
+            'docs/v3/recovery-candidates/evidence/s06-hosted-fifty-next-relations-local.sql','utf8'
+          ).matchAll(/CREATE TABLE "([a-z]+)"\."([a-z_0-9]+)"/g)].map(m=>m[1]+'.'+m[2]));
           const id = r => r.schema_name + '.' + r.object_name;
           const actual = d.relations.filter(r => names.has(id(r)));
           const fiveActual = d.relations.filter(r => five.has(id(r)));
@@ -379,12 +398,17 @@ jobs:
           const combined44 = new Set([...prior27,...seventeen]);
           const twentySeven = d.relations.filter(r => prior27.has(id(r)));
           const fortyFour = d.relations.filter(r => combined44.has(id(r)));
-          if (d.pg_version_num !== 170011 || d.relations.length !== 100
+          const ninetyFour = new Set([...combined44,...fifty]);
+          const fiftyActual = d.relations.filter(r => fifty.has(id(r)));
+          const ninetyFourActual = d.relations.filter(r => ninetyFour.has(id(r)));
+          if (d.pg_version_num !== 170011 || d.relations.length !== 150
             || actual.length !== 7 || fiveActual.length !== 5 || eightActual.length !== 8
             || secureActual.length !== 7 || seventeenActual.length !== 17
             || twentySeven.length !== 27 || fortyFour.length !== 44
-            || new Set(d.relations.map(id)).size !== 100 || combined44.size !== 44) {
-            throw Error('S06 combined fixture must contain exactly 100: original 56 scoped + 44 fully checked');
+            || fiftyActual.length !== 50 || ninetyFourActual.length !== 94
+            || new Set(d.relations.map(id)).size !== 150 || combined44.size !== 44
+            || ninetyFour.size !== 94 || fifty.size !== 50) {
+            throw Error('S06 combined fixture must contain exactly 150: original 56 scoped + 94 fully checked');
           }
           for(const [file,rows] of [
             ['/tmp/s06-seven-in-76-local.json',actual],
@@ -393,9 +417,11 @@ jobs:
             ['/tmp/s06-secure-in-83-local.json',secureActual],
             ['/tmp/s06-seventeen-in-100-local.json',seventeenActual],
             ['/tmp/s06-twentyseven-in-83-local.json',twentySeven],
-            ['/tmp/s06-fortyfour-in-100-local.json',fortyFour]
+            ['/tmp/s06-fortyfour-in-100-local.json',fortyFour],
+            ['/tmp/s06-fifty-in-150-local.json',fiftyActual],
+            ['/tmp/s06-ninetyfour-in-150-local.json',ninetyFourActual]
           ]) fs.writeFileSync(file,JSON.stringify({pg_version_num:d.pg_version_num,relations:rows}));
-          console.log('S06: exactly 100 distinct tables installed in one networkless PG17.11 fixture');
+          console.log('S06: exactly 150 distinct table identities in one networkless PG17.11 fixture');
           NODE
           node scripts/verify-v3-s06-seven-relation-parity.mjs \
             docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
@@ -417,8 +443,12 @@ jobs:
             docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
             /tmp/s06-seventeen-in-100-local.json /tmp/s06-seventeen-100-proof.json
           cp /tmp/s06-seventeen-100-proof.json s06-seventeen-100-proof.json
+          node scripts/verify-v3-s06-fifty-relation-parity.mjs \
+            docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
+            /tmp/s06-fifty-in-150-local.json /tmp/s06-fifty-150-proof.json
+          cp /tmp/s06-fifty-150-proof.json s06-fifty-150-proof.json
           # The remaining 56 host-observed objects retain their existing scope
-          # comparators. DO NOT treat 27-table parity as full 76-table parity.
+          # comparators. Do not treat 94-table full-field parity as 150-table parity.
           set +e
           node scripts/verify-v3-s06-hosted-catalog-coverage.mjs \
             docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
@@ -431,11 +461,11 @@ jobs:
           const result = JSON.parse(fs.readFileSync('/tmp/s06-full-coverage-result.json', 'utf8'));
           if (result.status !== 'S06_CATALOG_COVERAGE_BLOCKED'
               || result.expected.relations !== 215 || result.expected.routines !== 727
-              || result.observed.relations !== 100
+              || result.observed.relations !== 150
               || result.observed.routines >= 727) {
             throw Error('Unexpected S06 full-hosted coverage finding');
           }
-          console.log('PASS: INTEGRATED 100-TABLE FIXTURE; full hosted equivalence REJECTED; S06 remains PARTIAL/BLOCKED.');
+          console.log('PASS: INTEGRATED 150-TABLE FIXTURE; full hosted equivalence REJECTED; S06 remains PARTIAL/BLOCKED.');
           console.log('Observed local relations: ' + result.observed.relations + '/215.');
           console.log('Observed local functions: ' + result.observed.routines + '/727.');
           NODE
@@ -504,27 +534,27 @@ jobs:
           [[ "$before" == "$after" ]] || { echo "::error::Duplicate Archive attempt changed catalog"; exit 1; }
           denied="$(sql -c "select has_table_privilege('anon','private.v3_archive_runtime_transition_gates','INSERT')::text || '|' || has_table_privilege('authenticated','private.v3_archive_runtime_transition_gates','INSERT')::text || '|' || has_table_privilege('service_role','private.v3_archive_runtime_transition_gates','INSERT')::text")"
           [[ "$denied" == 'false|false|false' ]] || exit 1
-          # Explicitly re-read seven table fingerprints AFTER S13, successful
+          # Explicitly re-read all 94 additional table fingerprints AFTER S13, successful
           # S14, duplicate refusal and rollback/restart. No evidence of drift
           # in the same DB is stronger than pre-recovery-only checking.
           sql -f - < scripts/v3-s06-hosted-catalog-digests-local.sql > /tmp/s06-post-s14-full-catalog-local.json
           node - <<'NODE'
           const fs = require('node:fs');
           const assert = require('node:assert/strict');
-          const pre = JSON.parse(fs.readFileSync('/tmp/s06-fortyfour-in-100-local.json','utf8'));
+          const pre = JSON.parse(fs.readFileSync('/tmp/s06-ninetyfour-in-150-local.json','utf8'));
           const post = JSON.parse(fs.readFileSync('/tmp/s06-post-s14-full-catalog-local.json','utf8'));
           const names = new Set(pre.relations.map(r => r.schema_name + '.' + r.object_name));
           const actual = post.relations.filter(r => names.has(r.schema_name + '.' + r.object_name));
-          assert.equal(actual.length, 44, '44 observed relations must survive S13->S14');
-          assert.deepEqual(actual, pre.relations, '44 hosted-observed table definitions, RLS and grants drifted through S13->S14');
-          console.log('PASS: 44 complete table fingerprints unchanged after S13->S14, restart and duplicate refusal');
+          assert.equal(actual.length, 94, '94 additional observed relations must survive S13->S14');
+          assert.deepEqual(actual, pre.relations, '94 hosted-observed table definitions, RLS and grants drifted through S13->S14');
+          console.log('PASS: 94 complete table fingerprints unchanged after S13->S14, restart and duplicate refusal');
           NODE
           [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
           [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
           docker rm -f "$cid" >/dev/null
           cid=""
-          echo "PASS: S13 then S14 against integrated 100 hosted-observed PG17.11 tables (56 scoped + 44 full fingerprints); missing S13/duplicate fail closed."
-          echo "LIMITATION: 100/215 table names, only 44 additional full-field digests; no production rows; NOT fully hosted-equivalent or S06 certified."
+          echo "PASS: S13 then S14 against 150 hosted-observed PG17.11 table identities (56 scoped + 94 exact fingerprints); missing S13/duplicate fail closed."
+          echo "LIMITATION: 150/215 table names, 94 additional full-field digests, 65 absent; catalog-only trigger placeholders, no production rows, no runtime/function equivalence; NOT fully hosted-equivalent or S06 certified."
 
       - name: Retain scoped proof without implying production parity
         if: always()
@@ -541,5 +571,6 @@ jobs:
             s06-eight-76-proof.json
             s06-secure-83-proof.json
             s06-seventeen-100-proof.json
+            s06-fifty-150-proof.json
           if-no-files-found: ignore
           retention-days: 14
