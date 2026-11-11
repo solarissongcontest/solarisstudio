@@ -208,7 +208,7 @@ export function compareFinalFifteen(frozen, local){
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  try {
   if(process.argv.length!==5)throw Error('Usage: node verify-v3-s06-final-fifteen-relation-parity.mjs <frozen.json> <local15.json> <new_report.json>');
-  const [frozenPath,localPath,outputPath]=process.argv.slice(2).map(resolve);
+  const [frozenPath,localPath,outputPath]=process.argv.slice(2).map(p=>resolve(p));
   if(new Set([frozenPath,localPath,outputPath]).size!==3)throw Error('Refusing to overwrite evidence');
   const report=compareFinalFifteen(JSON.parse(readFileSync(frozenPath,'utf8')),JSON.parse(readFileSync(localPath,'utf8')));
   writeFileSync(outputPath,JSON.stringify(report,null,2)+'\n',{flag:'wx',mode:0o600});
