@@ -201,12 +201,17 @@ jobs:
           [[ "$cid" =~ ^[0-9a-f]{64}$ ]] || exit 1
           [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
           [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
+          # Docker's first pg_isready can observe the SHORT-LIVED initdb server,
+          # which shuts down before the real PG17.11 server starts. Never race it.
           ready=false
-          for n in $(seq 1 45); do
-            if docker exec "$cid" pg_isready -h /var/run/postgresql -U postgres >/dev/null; then ready=true; break; fi
+          for n in $(seq 1 75); do
+            if docker logs "$cid" 2>&1 | grep -Fq 'PostgreSQL init process complete; ready for start up.' \
+              && docker exec "$cid" pg_isready -h /var/run/postgresql -U postgres >/dev/null; then
+              ready=true; break
+            fi
             sleep 1
           done
-          [[ "$ready" == true ]] || exit 1
+          [[ "$ready" == true ]] || { docker logs "$cid" 2>&1 | tail -80; exit 1; }
           sql() { docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres "$@"; }
           # Hosted catalog probe confirmed PG17.11 with datlocprovider=i and
           # datlocale=en-US. Preserve hosted ICU collation for deterministic
