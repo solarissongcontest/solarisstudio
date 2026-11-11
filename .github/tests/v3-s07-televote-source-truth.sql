@@ -207,6 +207,30 @@ select extensions.v3_assert(
   'stale round displaced newer Combined truth');
 select extensions.v3_assert((select count(*)=2 from private.s07_result_sync_calls),
   'Combined replay duplicated downstream consequences');
+-- Preserve current Rule 17.2 signed Combined deductions; raw round allocations
+-- remain nonnegative. Source provenance and replay must survive negative totals.
+select extensions.s07_expect_sqlstate(format(
+  'select private.v3_apply_published_televote_projection(%L,%L,''round'',''negative-round'',1,now(),''[{"country_id":"00000000-0000-0000-0000-000000000011","points":-4}]''::jsonb)',
+  :'edition',:'show'),'22023');
+insert into televoting.combined_televote_results values
+  (:'combined',2,'AA',-4),(:'combined',2,'BB',0);
+update televoting.televote_aggregations set calculation_version=2,
+  calculated_at='2026-01-04T00:00:00Z' where id=:'combined';
+set role service_role;
+select extensions.v3_assert(
+  (private.v3_sync_published_televote_aggregation(:'combined')->>'replayed')::boolean,
+  'signed Combined replay not stable');
+reset role;
+select extensions.v3_assert(
+  (select source_type='combined' and source_id=:'combined' and source_version=2
+    and points_total=-4 and projection_revision=3
+    from private.v3_televote_result_projection_sources),
+  'current signed Combined behavior or provenance regressed');
+select extensions.v3_assert(
+  (select sum(points)=-4 and count(*)=2 from public.televote_votes),
+  'signed Combined official projection lost recipients or deductions');
+select extensions.v3_assert((select count(*)=3 from private.s07_result_sync_calls),
+  'signed Combined retry duplicated Results work');
 select extensions.v3_assert(
   (select count(*)=1 and bool_and(status='accepted') from televoting.vote_submissions),
   'published-result recovery changed accepted ballots');

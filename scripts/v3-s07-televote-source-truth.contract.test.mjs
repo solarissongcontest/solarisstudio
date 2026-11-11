@@ -16,6 +16,7 @@ function definitions(sql) {
 test("recovery preserves current canonical adapters, materializer and replay behavior", () => {
   const truth = definitions(readFileSync(SOURCES[0], "utf8"));
   const replay = definitions(readFileSync(SOURCES[1], "utf8"));
+  const latest = definitions(readFileSync(SOURCES[2], "utf8"));
   const staged = definitions(stageSourceTruth());
   for (const name of [
     "private.v3_sync_published_televote_round",
@@ -27,7 +28,7 @@ test("recovery preserves current canonical adapters, materializer and replay beh
     assert.ok(truth.get(name), name);
     assert.equal(staged.get(name), truth.get(name), name);
   }
-  for (const [name, body] of replay) {
+  for (const [name, body] of new Map([...replay,...latest])) {
     const actual=staged.get(name)?.replace(CONTEXT_ENTER,"").replace(CONTEXT_LEAVE,"");
     assert.equal(actual,body,name);
   }

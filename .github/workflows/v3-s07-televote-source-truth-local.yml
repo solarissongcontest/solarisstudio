@@ -13,6 +13,7 @@ on:
       - "docs/v3/recovery-candidates/fixtures/s07-televote-source-truth-local.sql"
       - "supabase/migrations/20261017001000_v3_s14_televote_result_truth.sql"
       - "supabase/migrations/20261017001020_v3_s14_televote_projection_replay_hardening.sql"
+      - "supabase/migrations/20261108004000_v3_s14_signed_combined_projection.sql"
       - ".github/scripts/v3-s14-televote-result-truth-rehearsal.sh"
       - ".github/scripts/v3-s14-televote-result-truth-replay-hardening-rehearsal.sh"
       - ".github/scripts/v3-s3-televote-invariants-rehearsal.sh"
