@@ -3,7 +3,7 @@ name: V3 S14 Archive forward-effects recovery local proof
 on:
   pull_request:
     branches: [main]
-    paths:
+    paths: &s06_archive_paths
       - ".github/workflows/v3-s14-archive-forward-effects-local.yml"
       - "scripts/rehearse-v3-s14-archive-forward-effects-local.sh"
       - "scripts/v3-s14-archive-forward-effects.contract.test.mjs"
@@ -40,6 +40,7 @@ on:
       - "scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs"
       - "docs/v3/recovery-candidates/evidence/s06-hosted-upstream-rpc-fingerprints-20261110.json"
       - "docs/v3/recovery-candidates/evidence/s06-hosted-upstream-rpc-acls-local.sql"
+      - "docs/v3/recovery-candidates/s06-schema-export-operator-runbook.md"
       - "docs/v3/recovery-candidates/forward-only-s13-foundation.sql"
       - "docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql"
       - "supabase/migrations/20261003003000_organisation_os_v5_task_notifications.sql"
@@ -55,6 +56,9 @@ on:
       - "supabase/migrations/20261021110000_v3_s14_archive_guard_authority_forward_fix.sql"
       - "supabase/migrations/20261021163000_v3_s14_failed_task_delivery_evidence.sql"
       - "supabase/migrations/20261021202000_v3_s14_archive_reconciliation_convergence.sql"
+  push:
+    branches: [main]
+    paths: *s06_archive_paths
   workflow_dispatch:
 
 permissions:
