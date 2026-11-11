@@ -29,7 +29,7 @@ test('every material catalog field and digest fails closed if drifted',()=>{
  ['policy_count',99],['trigger_count',99],['rls_enabled',false],
  ['rls_forced',true],['owner_name','unknown_role']
  ]) {
-   const d=local();d.relations[0][field]=value;
+   const d=local();d.relations[0][field]=typeof d.relations[0][field]==='boolean' ? !d.relations[0][field] : value;
    try {const r=compareFifty(frozen,d);assert.equal(r.equal,false,field);}catch(e){assert.match(e.message,/S06/,field);}
  }
 });
