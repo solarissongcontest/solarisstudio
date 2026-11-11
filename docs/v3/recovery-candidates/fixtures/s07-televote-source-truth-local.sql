@@ -141,4 +141,4 @@ insert into televoting.vote_submissions values (1,'accepted');
 
 
 -- Canonical published-round metadata is owned by the server role in this fixture.
-grant update on televoting.rounds to service_role;
+grant select, update on televoting.rounds to service_role;

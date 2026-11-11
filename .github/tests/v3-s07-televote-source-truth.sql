@@ -8,15 +8,15 @@
 -- so a P0001 assertion cannot accidentally satisfy a P0001 negative test.
 create function extensions.s07_expect_sqlstate(statement text, expected text)
 returns void language plpgsql as $$
-declare observed text;
+declare observed text; observed_message text;
 begin
   begin
     execute statement;
   exception when others then
-    get stacked diagnostics observed=returned_sqlstate;
+    get stacked diagnostics observed=returned_sqlstate, observed_message=message_text;
   end;
   if observed is distinct from expected then
-    raise exception 'S07 expected SQLSTATE %, got % for %',expected,coalesce(observed,'SUCCESS'),statement
+    raise exception 'S07 expected SQLSTATE %, got % (%) for %',expected,coalesce(observed,'SUCCESS'),coalesce(observed_message,'no error'),statement
       using errcode='XX000';
   end if;
 end $$;
