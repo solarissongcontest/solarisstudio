@@ -385,7 +385,8 @@ ALTER TABLE "public"."studio2_show_publication_executions" ADD CONSTRAINT "studi
 ALTER TABLE "public"."submission_review_history" ADD CONSTRAINT "submission_review_history_action_check" CHECK (action = ANY (ARRAY['pending'::text, 'accepted'::text, 'declined'::text, 'removed'::text, 'winner_selected'::text, 'winner_cleared'::text]));
 ALTER TABLE "public"."submission_review_history" ADD CONSTRAINT "submission_review_history_pkey" PRIMARY KEY (id);
 ALTER TABLE "public"."submission_review_history" ADD CONSTRAINT "submission_review_history_target_type_check" CHECK (target_type = ANY (ARRAY['internal'::text, 'national_final'::text]));
-ALTER TABLE "public"."submission_review_history" ADD CONSTRAINT "v3_s3_validate_review_history_scope" TRIGGER DEFERRABLE;
+-- The pg_constraint trigger ('t') is instantiated by CREATE CONSTRAINT TRIGGER below;
+-- ALTER TABLE ADD CONSTRAINT ... TRIGGER is not valid SQL.
 -- All external and cyclic FK targets now exist; build FK constraints.
 ALTER TABLE "private"."v3_entry_reviews" ADD CONSTRAINT "v3_entry_reviews_version_id_fkey" FOREIGN KEY (version_id) REFERENCES private.v3_entry_versions(id);
 ALTER TABLE "private"."v3_entry_versions" ADD CONSTRAINT "v3_entry_versions_parent_version_id_fkey" FOREIGN KEY (parent_version_id) REFERENCES private.v3_entry_versions(id);
