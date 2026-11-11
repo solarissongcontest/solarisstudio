@@ -185,6 +185,7 @@ CREATE TABLE "auth"."oauth_authorizations" (
 ALTER TABLE "auth"."oauth_authorizations" OWNER TO "supabase_auth_admin";
 CREATE TABLE "auth"."oauth_clients" (
   "id" uuid NOT NULL,
+  "_s06_dropped_attnum_2" text,
   "client_secret_hash" text,
   "registration_type" auth.oauth_registration_type NOT NULL,
   "redirect_uris" text NOT NULL,
@@ -198,6 +199,9 @@ CREATE TABLE "auth"."oauth_clients" (
   "client_type" auth.oauth_client_type DEFAULT 'confidential'::auth.oauth_client_type NOT NULL,
   "token_endpoint_auth_method" text NOT NULL
 );
+-- Preserve hosted PG17.11 attnum tombstone 2, not historical data.
+-- This DROP is ONLY on a newly created, empty, networkless local fixture table.
+ALTER TABLE "auth"."oauth_clients" DROP COLUMN "_s06_dropped_attnum_2";
 ALTER TABLE "auth"."oauth_clients" OWNER TO "supabase_auth_admin";
 CREATE TABLE "auth"."oauth_consents" (
   "id" uuid NOT NULL,
@@ -249,10 +253,14 @@ CREATE TABLE "auth"."saml_relay_states" (
   "request_id" text NOT NULL,
   "for_email" text,
   "redirect_to" text,
+  "_s06_dropped_attnum_6" text,
   "created_at" timestamp with time zone,
   "updated_at" timestamp with time zone,
   "flow_state_id" uuid
 );
+-- Preserve hosted PG17.11 attnum tombstone 6, not historical data.
+-- This DROP is ONLY on a newly created, empty, networkless local fixture table.
+ALTER TABLE "auth"."saml_relay_states" DROP COLUMN "_s06_dropped_attnum_6";
 ALTER TABLE "auth"."saml_relay_states" OWNER TO "supabase_auth_admin";
 CREATE TABLE "auth"."scim_tokens" (
   "id" uuid NOT NULL,
