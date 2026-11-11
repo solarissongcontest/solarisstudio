@@ -318,3 +318,20 @@ test("S06 integrates 215 distinct hosted-observed table identities in one networ
   assert.match(workflow, /LIMITATION: 215\/215 table names/);
   assert.doesNotMatch(workflow, /supabase db push/);
 });
+
+
+test("S06 operator-only runbook reflects the merged twelve-stage source contract without claiming hosted equivalence", () => {
+  const runbook = read("docs/v3/recovery-candidates/s06-schema-export-operator-runbook.md");
+  assert.match(runbook, /all 12 canonical historical Archive\/Task\/notification effects in source order/i);
+  assert.match(runbook, /`20261019112500`/);
+  assert.match(runbook, /node --test scripts\/v3-s14-archive-forward-effects\.contract\.test\.mjs/);
+  assert.match(runbook, /215\/215 distinct physical table identities/);
+  assert.match(runbook, /199\/727/);
+  assert.match(runbook, /not.*a substitute for the actual hosted-head-equivalent isolated baseline/i);
+  assert.match(runbook, /separate approval for the read-only schema export/);
+  assert.match(runbook, /networkless, unexposed PostgreSQL 17\.11/);
+  assert.match(runbook, /keep the S06 checkbox \*\*unchecked\*\*/);
+  assert.doesNotMatch(runbook, /check whether source migration 20261019112500/i);
+  assert.doesNotMatch(runbook, /candidate stages eleven effects/i);
+  assert.doesNotMatch(runbook, /covers only 56\/215 relation identities/i);
+});
