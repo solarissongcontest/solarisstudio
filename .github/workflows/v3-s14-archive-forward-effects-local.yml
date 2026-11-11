@@ -101,6 +101,7 @@ jobs:
           done
 
       - name: Verify Archive source-integrity tests without dependencies
+        id: source_contract
         run: node --test scripts/v3-s14-archive-forward-effects.contract.test.mjs
 
       - name: Check shell syntax
@@ -118,26 +119,33 @@ jobs:
         run: bash .github/scripts/v3-start-disposable-supabase.sh
 
       - name: Rebuild disposable full source migration chain
+        id: clean_replay
         run: supabase db reset --local --no-seed
 
       - name: Simulate missing S13 and S14 effects, restore in dependency order
+        id: ordered_recovery
         env:
           SOLARIS_INCLUDE_S13_FORWARD_RECOVERY: "YES"
         run: bash scripts/rehearse-v3-s14-archive-forward-effects-local.sh
 
       - name: Rehearse governed Archive, results, receipt and S4 consequence behavior
+        id: archive_behavior
         run: bash .github/scripts/v3-s14-archive-system-rehearsal.sh
 
       - name: Test Archive authorization, invalid transitions and irreversible state
+        id: authorization
         run: bash .github/scripts/v3-s14-archive-guard-rehearsal.sh
 
       - name: Test archive runtime deletion and terminal boundaries
+        id: terminal_boundaries
         run: bash .github/scripts/v3-s14-archive-delete-guard-rehearsal.sh
 
       - name: Test terminal Tasks, failed delivery evidence and notification convergence
+        id: task_convergence
         run: bash .github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh
 
       - name: Second independent clean replay and interrupted-restart proof
+        id: second_replay
         env:
           SOLARIS_INCLUDE_S13_FORWARD_RECOVERY: "YES"
         run: |
@@ -150,6 +158,41 @@ jobs:
         run: |
           echo "This used only synthetic local Supabase and a simulated Archive gap."
           echo "It does NOT reproduce full hosted production schema/migration history, certify release readiness, or authorize hosted DDL."
+
+      - name: Record scoped machine-readable recovery outcomes
+        if: always()
+        env:
+          S06_STEP_OUTCOMES: ${{ toJSON(steps) }}
+        run: |
+          # S06 structured evidence: actual CI outcomes, never hosted certification.
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          import { createHash } from 'node:crypto';
+          import { execFileSync } from 'node:child_process';
+          const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+          if (!/^[a-f0-9]{40}$/.test(sha) || sha !== process.env.REVIEWED_SHA) throw Error('S06 evidence SHA mismatch');
+          const expected = ['source_contract','clean_replay','ordered_recovery','archive_behavior','authorization','terminal_boundaries','task_convergence','second_replay'];
+          const steps = JSON.parse(process.env.S06_STEP_OUTCOMES || '{}');
+          const outcomes = Object.fromEntries(expected.map(key => [key, steps[key]?.outcome || 'not_executed']));
+          const passed = Object.values(outcomes).every(value => value === 'success');
+          const files = ['docs/v3/recovery-candidates/forward-only-s13-foundation.sql','docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql'];
+          const report = { task: 'S06', schemaVersion: 1, candidateSha: sha, runId: process.env.GITHUB_RUN_ID || null,
+            evidenceLevel: 'REPRODUCED_IN_ISOLATION', fixture: 'clean-source-chain-with-simulated-S13-S14-effect-gap',
+            sourceHashes: Object.fromEntries(files.map(path => [path, createHash('sha256').update(readFileSync(path)).digest('hex')])),
+            outcomes, status: passed ? 'ISOLATED_RECOVERY_PASSED_NOT_HOSTED_EQUIVALENT' : 'ISOLATED_RECOVERY_INCOMPLETE',
+            hostedEquivalent: false, productionRecoveryEligible: false, ownerOnlyBetaApproved: false };
+          writeFileSync(process.env.S06_REPORT_PATH || 's06-isolated-recovery-proof.json', JSON.stringify(report, null, 2) + '\n');
+          if (!passed) process.exitCode = 1;
+          NODE
+
+      - name: Retain exact-SHA isolated recovery proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s06-isolated-recovery-${{ github.event.pull_request.head.sha || github.sha }}
+          path: s06-isolated-recovery-proof.json
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Stop disposable local Supabase
         if: always()

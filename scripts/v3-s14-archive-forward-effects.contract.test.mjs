@@ -386,3 +386,27 @@ test("S06 rejects libpq query routing before executing any SQL", () => {
     }
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+
+test("S06 execution evidence fails closed on missing stages and cannot certify hosting", () => {
+  const code = workflow.split('# S06 structured evidence:')[1].split("<<'NODE'\n")[1].split('\n          NODE')[0];
+  const dir = mkdtempSync(join(tmpdir(), 's06-evidence-'));
+  try {
+    const sha = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
+    const names = ['source_contract','clean_replay','ordered_recovery','archive_behavior','authorization','terminal_boundaries','task_convergence','second_replay'];
+    const good = Object.fromEntries(names.map(name => [name, { outcome: 'success' }]));
+    for (const [index, steps] of [{}, good, { ...good, authorization: { outcome: 'failure' } }].entries()) {
+      const path = join(dir, index + '.json');
+      const result = spawnSync(process.execPath, ['--input-type=module', '-e', code], { encoding: 'utf8', env: {
+        PATH: process.env.PATH, REVIEWED_SHA: sha, S06_STEP_OUTCOMES: JSON.stringify(steps), S06_REPORT_PATH: path,
+      } });
+      assert.equal(result.status, index === 1 ? 0 : 1, result.stderr);
+      const report = JSON.parse(readFileSync(path, 'utf8'));
+      assert.equal(report.candidateSha, sha);
+      assert.equal(report.hostedEquivalent, false);
+      assert.equal(report.productionRecoveryEligible, false);
+      assert.equal(report.ownerOnlyBetaApproved, false);
+      assert.equal(Object.keys(report.sourceHashes).length, 2);
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
