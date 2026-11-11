@@ -76,31 +76,31 @@ create table televoting.combined_televote_results (
 -- The observed helper's implementation; no privileged-current_user stub.
 create function private.studio2_request_is_service_role()
 returns boolean language sql stable set search_path=pg_catalog
-as $ select coalesce(current_setting('request.jwt.claim.role',true),'') = 'service_role' $;
+as $$ select coalesce(current_setting('request.jwt.claim.role',true),'') = 'service_role' $$;
 revoke all on function private.studio2_request_is_service_role() from public,anon,authenticated,service_role;
 create function public.studio2_access_allowed(text, uuid, boolean)
-returns boolean language sql stable as $ select false $;
+returns boolean language sql stable as $$ select false $$;
 -- Dependency spy only: the separate full-source job exercises real Results.
 create table private.s07_result_sync_calls(show_id uuid not null);
 create function public.sync_show_results_from_votes(uuid)
-returns void language plpgsql security definer set search_path=pg_catalog,public,private as $
+returns void language plpgsql security definer set search_path=pg_catalog,public,private as $$
 begin
   if current_setting('solaris.s07_fail_results_sync',true)='1' then
     raise exception 'S07 injected Results failure' using errcode='P0001';
   end if;
   insert into private.s07_result_sync_calls values ($1);
-end $;
+end $$;
 create function public.sync_results_after_vote_change() returns trigger
-language plpgsql security definer set search_path=pg_catalog,public,private as $
+language plpgsql security definer set search_path=pg_catalog,public,private as $$
 begin
   perform public.sync_show_results_from_votes(coalesce(new.show_id,old.show_id));
   return coalesce(new,old);
-end $;
+end $$;
 create trigger s07_legacy_row_results_sync after insert or update or delete
 on public.televote_votes for each row execute function public.sync_results_after_vote_change();
 create function extensions.v3_assert(boolean, text)
 returns void language plpgsql as $$
-begin if $1 is distinct from true then raise exception '%', $2; end if; end $;
+begin if $1 is distinct from true then raise exception '%', $2; end if; end $$;
 grant usage on schema public, private, extensions to app_user;
 grant insert, update, delete, select on public.televote_votes to app_user;
 grant usage on schema public, private, televoting, extensions to service_role;
