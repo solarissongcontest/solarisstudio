@@ -51,4 +51,5 @@ jobs:
         run: |
           echo 'PASS: offline TOC shape and fail-closed tests only.'
           echo 'No pg_dump, network connection to Supabase, production SQL or migration execution.'
-          echo 'S06 hosted-equivalence acceptance remains BLOCKED pending operator export and independent review.'
+          echo 'S06 hosted-equivalence remains UNVERIFIED; this offline check cannot establish it.'
+          echo 'Use agent-executable equivalent evidence under the owner-directed policy; no owner-operated export or external reviewer is implied.'
