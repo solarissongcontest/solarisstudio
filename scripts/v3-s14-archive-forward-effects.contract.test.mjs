@@ -341,9 +341,9 @@ test("S06 dedicated local-only evidence executes on integrated main with the sam
   const s14 = read(".github/workflows/v3-s14-archive-forward-effects-local.yml");
   const toc = read(".github/workflows/v3-s06-schema-export-offline.yml");
   for (const [yaml, anchor] of [[s14, "s06_archive_paths"], [toc, "s06_toc_paths"]]) {
-    assert.ok(yaml.includes("  pull_request:\\n    branches: [main]\\n    paths: &" + anchor),
+    assert.ok(yaml.includes(["  pull_request:", "    branches: [main]", "    paths: &" + anchor].join(String.fromCharCode(10))),
       "S06 PR scope must be the shared authoritative path filter");
-    assert.ok(yaml.includes("  push:\\n    branches: [main]\\n    paths: *" + anchor),
+    assert.ok(yaml.includes(["  push:", "    branches: [main]", "    paths: *" + anchor].join(String.fromCharCode(10))),
       "S06 merged-main proof must use the identical path filter");
     assert.match(yaml, /github\.event\.pull_request\.head\.sha \|\| github\.sha/);
     assert.match(yaml, /git rev-parse HEAD/);
