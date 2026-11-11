@@ -566,7 +566,7 @@ export function compareFifty(frozen, local) {
 if (process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   try {
     if (process.argv.length!==5) throw Error('Usage: node verify-fifty <frozen215.json> <local50.json> <report.json>');
-    const [frozenFile,localFile,outputFile]=process.argv.slice(2).map(resolve);
+    const [frozenFile,localFile,outputFile]=process.argv.slice(2).map(p=>resolve(p));
     if (new Set([frozenFile,localFile,outputFile]).size!==3) throw Error('S06 output cannot overwrite input');
     const report=compareFifty(JSON.parse(readFileSync(frozenFile,'utf8')),JSON.parse(readFileSync(localFile,'utf8')));
     writeFileSync(outputFile,JSON.stringify(report,null,2)+'\n',{flag:'wx',mode:0o600});
