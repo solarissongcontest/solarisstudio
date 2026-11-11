@@ -1,5 +1,19 @@
 # S06: obtain and review hosted-head schema definitions (OPERATOR-ONLY)
 
+## Owner constraint and agent-first alternative (11 November 2026)
+
+**The owner has no install-capable computer. Do not instruct them to install PostgreSQL, download a database dump, paste connection credentials, find an operator or request more Cloudflare/Supabase connection screenshots.** See [the project-wide agent-verifiable evidence policy](../agent-verifiable-evidence-policy.md).
+
+**Operational replacement for the owner-facing S06 workflow:**
+
+1. A connected ChatGPT session verifies the exact GitHub main/PR SHA and the *Solaris Studio* Supabase project using read-only connector metadata, table/column inventory, recorded migrations, extensions and available security advisors. Capture only sanitized identities, counts, hashes, risk classifications and timestamps.
+2. The session checks all accessible source contracts and networkless CI results, including the 215-table catalog inventory and S13→S14 local recovery. Report exact source/fixture scope, missing routines, unresolved role grants and any other unobserved semantics.
+3. The session prepares a **tool-verifiable evidence matrix** with `DIRECTLY OBSERVED`, `REPRODUCED IN ISOLATION`, `SOURCE-INFERRED` and `UNKNOWN` statuses. Do not equate local source proof with a complete hosted-head restore.
+4. The integrator continues unrelated V3 tasks and an explicitly scoped owner-only beta **without** using this incomplete proof to authorize unsafe hosted migration, official-write workflows or a full production-grade S06 certification.
+5. If production release of a high-risk operation genuinely depends on the missing full hosted definitions/roles, that operation remains **BLOCKED** until safe equivalent evidence becomes available. The owner is asked for a scope decision, **not** to perform database engineering.
+
+The following manual-export procedure is retained strictly as an **optional future high-assurance method**, not the default next action or a prerequisite for the agent-first path. The absence of an export cannot be papered over by declaring S06 DONE.
+
 **STATUS: PARTIAL/BLOCKED.** This is a source-only runbook and offline checker. It is not an export, a migration, production SQL permission, a successful local reconstruction, or S06 certification. Never run production database exports in GitHub Actions, Playwright, automated QA or previews. Do not start S07.
 
 ## Source observations and current offline scope, 10–11 November 2026
