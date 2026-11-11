@@ -110,12 +110,24 @@ jobs:
               !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) ||
               !url.port || url.search || url.hash) throw Error("Non-local S07 database target");
           JS
+      - name: Install the same writer boundary in the real local schema
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          node scripts/stage-v3-s07-televote-source-truth.mjs --writer-boundary > "$RUNNER_TEMP/s07-writer-boundary.sql"
+          psql "$DB_URL" -X -q -v ON_ERROR_STOP=1 -f "$RUNNER_TEMP/s07-writer-boundary.sql"
       - name: Existing canonical ballot invariants
         run: bash .github/scripts/v3-s3-televote-invariants-rehearsal.sh
       - name: Existing real Results/source publication integration
         run: bash .github/scripts/v3-s14-televote-result-truth-rehearsal.sh
       - name: Existing canonical no-churn replay and atomic repair
         run: bash .github/scripts/v3-s14-televote-result-truth-replay-hardening-rehearsal.sh
+      - name: Verify writer context cleanup and real API-role denial
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          [[ "$(psql "$DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c 'select count(*) from private.v3_televote_projection_write_context')" == 0 ]]
+          [[ "$(psql "$DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c "select bool_and(not has_table_privilege(r,'private.v3_televote_projection_write_context','INSERT')) from unnest(array['anon','authenticated','service_role']) r")" == t ]]
       - name: Stop only this disposable project
         if: always()
         run: supabase stop --no-backup || true

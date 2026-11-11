@@ -33,12 +33,18 @@ insert into public.televote_votes(edition_id,show_id,country_id,points) values
   (:'edition',:'show','00000000-0000-0000-0000-000000000012',999);
 truncate private.s07_result_sync_calls;
 
-set role service_role;
-select set_config('request.jwt.claim.role','service_role',false);
-select extensions.v3_assert(
-  (private.v3_sync_published_televote_round(:'round')->>'ok')::boolean,
-  'official round rejected');
+-- Real PostgreSQL authenticated role enters the existing publication trigger.
+-- No role bypass: only the canonical materializer can create writer context.
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.role','authenticated',true);
+update televoting.rounds set results_status='published' where id=:'round';
+select extensions.s07_expect_sqlstate('update public.televote_votes set points=999','42501');
 reset role;
+select extensions.v3_assert((select count(*)=0 from private.v3_televote_projection_write_context),
+  'canonical writer context leaked to its caller in the same transaction');
+commit;
+select set_config('request.jwt.claim.role','service_role',false);
 
 select extensions.v3_assert(
   (select source_type='round' and source_id=:'round' and source_version=1
@@ -122,6 +128,17 @@ select extensions.v3_assert(
   (select votes=(select jsonb_agg(to_jsonb(v) order by v.id) from public.televote_votes v) from s07_saved),
   'refused source mutated existing votes');
 
+set role authenticated;
+select extensions.s07_expect_sqlstate(
+  'insert into private.v3_televote_projection_write_context values(pg_current_xact_id(),gen_random_uuid())','42501');
+reset role;
+set role service_role;
+select extensions.s07_expect_sqlstate(
+  'insert into private.v3_televote_projection_write_context values(pg_current_xact_id(),gen_random_uuid())','42501');
+reset role;
+select extensions.v3_assert((select count(*)=0 from private.v3_televote_projection_write_context),
+  'failed operation retained writer context');
+
 -- Trusted adapters own materialization; even the service API cannot invent a
 -- payload/source receipt through the internal arbitrary-payload helper.
 set role service_role;
@@ -193,4 +210,6 @@ select extensions.v3_assert((select count(*)=2 from private.s07_result_sync_call
 select extensions.v3_assert(
   (select count(*)=1 and bool_and(status='accepted') from televoting.vote_submissions),
   'published-result recovery changed accepted ballots');
+select extensions.v3_assert((select count(*)=0 from private.v3_televote_projection_write_context),
+  'source operations leaked persistent writer context');
 select 'PASS S07: official source identity, owner-only payload writer, no-op replay, atomic failure and no fallback';

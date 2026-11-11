@@ -121,7 +121,7 @@ insert into public.televoting_round_bindings values
    '00000000-0000-0000-0000-000000000001',
    '00000000-0000-0000-0000-000000000002');
 insert into televoting.rounds values
-  ('00000000-0000-0000-0000-000000000003', 'published', false, 'round', 1,
+  ('00000000-0000-0000-0000-000000000003', 'draft', false, 'round', 1,
    '2026-01-01T00:00:00Z', now());
 insert into televoting.round_results values
   ('00000000-0000-0000-0000-000000000003', 1, 'AA', 12),
@@ -142,3 +142,9 @@ insert into televoting.vote_submissions values (1,'accepted');
 
 -- Canonical published-round metadata is owned by the server role in this fixture.
 grant select, update on televoting.rounds to service_role;
+
+-- Already-authorized Organizer publication is authenticated, not service_role.
+grant usage on schema televoting to authenticated;
+grant select,update on televoting.rounds to authenticated;
+grant select,insert,update,delete on public.televote_votes to authenticated;
+grant usage,select on all sequences in schema public to authenticated;

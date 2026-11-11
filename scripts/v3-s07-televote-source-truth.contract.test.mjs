@@ -4,7 +4,7 @@ import { readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { stageSourceTruth, transactionBody, SOURCES } from "./stage-v3-s07-televote-source-truth.mjs";
+import { stageSourceTruth, stageWriterBoundary, transactionBody, SOURCES, CONTEXT_ENTER, CONTEXT_LEAVE } from "./stage-v3-s07-televote-source-truth.mjs";
 
 function definitions(sql) {
   const result = new Map();
@@ -27,14 +27,17 @@ test("recovery preserves current canonical adapters, materializer and replay beh
     assert.ok(truth.get(name), name);
     assert.equal(staged.get(name), truth.get(name), name);
   }
-  for (const [name, body] of replay) assert.equal(staged.get(name), body, name);
+  for (const [name, body] of replay) {
+    const actual=staged.get(name)?.replace(CONTEXT_ENTER,"").replace(CONTEXT_LEAVE,"");
+    assert.equal(actual,body,name);
+  }
 });
-test("only the guard changes, preserving OLD and NEW source scope without trusting markers", () => {
+test("the guard binds OLD and NEW scope to private transaction context, never caller markers", () => {
   const staged = definitions(stageSourceTruth());
   const body = staged.get("private.v3_guard_source_managed_televote_projection");
-  assert.match(body, /current_setting\('role', true\)/);
-  assert.match(body, /source.show_id = v_previous_show_id/);
-  assert.doesNotMatch(body, /request.jwt.claim.role|session_user|solaris.v3_televote_projection_write/);
+  assert.match(body, /writer.transaction_id=pg_current_xact_id\(\)/);
+  assert.match(body, /source.show_id=v_previous_show_id/);
+  assert.doesNotMatch(body, /current_setting|session_user|solaris.v3_televote_projection_write/);
 });
 test("recovery composes one transaction and refuses malformed canonical transactions", () => {
   const sql = stageSourceTruth();
@@ -80,4 +83,14 @@ test("rehearsal owns an unnamed networkless container and never deletes a caller
   assert.match(shell, /--network none/);
   assert.doesNotMatch(shell, /--name|V3_S14_PG_CONTAINER/);
   assert.match(shell, /docker rm -f "\$cid"/);
+});
+
+test("the full-schema test installs the same bounded writer context without replacing source truth",()=>{
+  const sql=stageWriterBoundary();
+  assert.match(sql,/requires exact canonical replay source/);
+  assert.match(sql,/p.prosrc is distinct from/);
+  assert.match(sql,/revoke all on private.v3_televote_projection_write_context/);
+  assert.ok(sql.includes(CONTEXT_ENTER));
+  assert.ok(sql.includes(CONTEXT_LEAVE));
+  assert.doesNotMatch(sql,/create table if not exists private.v3_televote_result_projection_sources/);
 });
