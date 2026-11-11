@@ -199,3 +199,24 @@ The zero-row, **nonmigration** fixture at `evidence/s06-hosted-seven-jury-integr
 The new fail-closed 17-field catalog comparator checks against the **unchanged frozen 215-table/727-routine hosted evidence**, including grants, RLS, policy/trigger absence, indexes, constraints, columns and ownership. The integrated CI is intended to verify **83 distinct table identities**, retain the original 56 scoped checks, the previous 20 full-field added-table checks and 21 upstream RPC checks, and add seven more full-field comparisons before and after the same interrupted S13→S14 rollback/restart/duplicate recovery sequence. The full 215-table/727-routine gate must still reject the incomplete fixture.
 
 **Explicit NO-GO:** 83 table names locally is *not* full 83-table catalog parity (the original 56 remain scope-limited), nor full routine bodies, authorization roles/default grants, extension dependencies, migration-frontier compatibility, production rows, S06 certification, S07 authorization, deployment or production migration. **132 table identities remain outside this proposed fixture.** Run source-level tests and exact-head isolated CI before independent integrator review; a PR or green limited check does not constitute release approval.
+
+
+## S06 100-name candidate: 17 additional isolated metadata-only relations (2026-11-10)
+
+**STATUS: DRAFT CANDIDATE, NOT VALIDATED OR MERGED; S06 HOSTED EQUIVALENCE BLOCKED.** This is a continuation of S06's 83-table source-only reconstruction, not a migration, application launch or change to production. The separate parked duplicate #2437 remains outside this candidate.
+
+The additional 17 hosted-catalog-observed physical identities are:
+
+- `auth.audit_log_entries`, `auth.instances`, `auth.oauth_client_states`, `auth.schema_migrations` (auth-owned, local role/ACL reconstruction only);
+- `public.ssc_rule_interpretations`, `public.ssc_rulebook_change_items`;
+- `public.studio2_country_media_upload_tokens`, `public.studio2_upload_authorizations`;
+- `public.studio2_host_bids`, `public.studio2_host_bid_evaluations`, `public.studio2_host_operations`, `public.studio2_host_operation_executions`;
+- `public.studio2_platform_exit_preflights`;
+- `public.studio2_storylines`, `public.studio2_storyline_items`, `public.studio2_story_operation_executions`;
+- `televoting.round_influence_results`.
+
+Bounded read-only `pg_catalog` inspections observed **no RLS policies, no noninternal triggers**, and complete FK closure against the prior 83 tables or within the new set. This local candidate stages zero user/application/voting rows; no function bodies, secrets, privileges or production configuration were exported from runtime data. The local-only extension creation mirrors hosted pgcrypto in the `extensions` schema to reproduce one hosted default. Role ACLs remain strict catalog comparison targets and **must not** be assumed correct before CI passes.
+
+The existing no-port `--network none` PostgreSQL 17.11 en-US ICU workflow is designed to check **100/215** hosted physical table names: 56 original S02 scoped relation/ACL checks plus 44 newer complete 17-field fingerprints (original 27 plus new 17). It repeats exact metadata after S13→S14 interrupted rollback, restart and duplicate-refusal proofs, and deliberately **REJECTS** full 215-table/727-routine equivalence. Only an exact-head successful workflow can prove the new local fixture matches these frozen catalog fields.
+
+Even after a successful PR check and eventual integration, **115 table names remain unmodeled**; 56 originals are not yet uniformly full-field-proven; 727 routine implementations/security, actual role membership/default ACLs, extensions as a global dependency set, data/sequence behavior, migration-history effects and independent end-to-end certification remain unresolved. This cannot certify hosted-equivalent recovery, S07, production DDL/DML, production CI traffic, a deploy, a beta launch or public writes.
