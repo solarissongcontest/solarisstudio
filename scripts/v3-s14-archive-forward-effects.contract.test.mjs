@@ -335,3 +335,23 @@ test("S06 operator-only runbook reflects the merged twelve-stage source contract
   assert.doesNotMatch(runbook, /candidate stages eleven effects/i);
   assert.doesNotMatch(runbook, /covers only 56\/215 relation identities/i);
 });
+
+
+test("S06 dedicated local-only evidence executes on integrated main with the same scoped source paths", () => {
+  const s14 = read(".github/workflows/v3-s14-archive-forward-effects-local.yml");
+  const toc = read(".github/workflows/v3-s06-schema-export-offline.yml");
+  for (const [yaml, anchor] of [[s14, "s06_archive_paths"], [toc, "s06_toc_paths"]]) {
+    assert.ok(yaml.includes("  pull_request:\\n    branches: [main]\\n    paths: &" + anchor),
+      "S06 PR scope must be the shared authoritative path filter");
+    assert.ok(yaml.includes("  push:\\n    branches: [main]\\n    paths: *" + anchor),
+      "S06 merged-main proof must use the identical path filter");
+    assert.match(yaml, /github\.event\.pull_request\.head\.sha \|\| github\.sha/);
+    assert.match(yaml, /git rev-parse HEAD/);
+    assert.match(yaml, /workflow_dispatch:/);
+  }
+  assert.match(s14, /docs\/v3\/recovery-candidates\/s06-schema-export-operator-runbook\.md/);
+  assert.match(s14, /--network none/);
+  assert.match(s14, /SOLARIS_VERIFICATION_TARGET: local/);
+  assert.match(toc, /Refusing database environment/);
+  assert.match(toc, /No pg_dump, network connection to Supabase, production SQL or migration execution/);
+});
