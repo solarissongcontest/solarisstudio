@@ -281,6 +281,8 @@ test("S06 integrates 150 distinct hosted-observed table identities in one networ
     "56+7+5+8 tables and all three exact catalog digest checks must precede isolated S13->S14 recovery");
   assert.match(workflow, /POSTGRES_INITDB_ARGS="--locale-provider=icu --icu-locale=en-US"/);
   assert.match(workflow, /datlocprovider='i' and datlocale='en-US'/);
+  assert.match(workflow, /PostgreSQL init process complete; ready for start up/);
+  assert.match(workflow, /docker exec "\$cid" pg_isready/);
   assert.match(workflow, /d\.relations\.length !== 150/);
   assert.match(workflow, /secureActual\.length !== 7/);
   assert.match(workflow, /twentySeven\.length !== 27/);
