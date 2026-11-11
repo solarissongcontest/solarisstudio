@@ -5,7 +5,7 @@ set -euo pipefail
 fail() { echo "::error::$*" >&2; exit 1; }
 [[ "${SOLARIS_RUN_LOCAL_DB_REHEARSAL:-}" == YES ]] || fail 'Local opt-in required'
 [[ "${SOLARIS_VERIFICATION_TARGET:-}" == local ]] || fail 'Local target required'
-for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_URL POSTGRES_URL PGSERVICE PGSERVICEFILE PGHOST PGHOSTADDR; do
+for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_URL DATABASE_URL POSTGRES_URL PGSERVICE PGSERVICEFILE PGHOST PGHOSTADDR; do
   [[ -z "${!name:-}" ]] || fail "Forbidden inherited remote database config: $name"
 done
 command -v psql >/dev/null || fail 'Local psql missing'
@@ -19,9 +19,19 @@ case "$DB_URL" in
   postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;;
   *) fail 'Refusing noncanonical hosted DB URL';;
 esac
+# A loopback-looking libpq URI can route remotely through query options.
+# A disposable stack needs no query/fragment options; reject before any psql.
+case "$DB_URL" in *\?*|*\#*) fail 'Refusing database connection options';; esac
 export SUPABASE_URL="$API_URL" E2E_SUPABASE_URL="$API_URL" VITE_SUPABASE_URL="$API_URL"
 export CONFIRMATIONS_SUPABASE_URL="$API_URL" VITE_CONFIRMATIONS_SUPABASE_URL="$API_URL"
 export SUPABASE_PROJECT_ID=local SUPABASE_PROJECT_REF=local DATABASE_URL="$DB_URL"
+command -v bun >/dev/null || fail 'Bun isolation checker missing'
+# Reuse the canonical URL/project/credential guard, including legacy clients.
+bun run scripts/check-v3-production-isolation.ts
+# Do not inherit libpq options that can change execution semantics or route via
+# a service/credential file. All connection authority is in the verified URI.
+for name in ${!PG@}; do unset "$name"; done
+export PGCONNECT_TIMEOUT=5
 candidate="$root/docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql"
 [[ -f "$candidate" ]] || fail 'Missing reviewed candidate'
 sql() { psql "$DB_URL" -X -qAt -v ON_ERROR_STOP=1 "$@"; }

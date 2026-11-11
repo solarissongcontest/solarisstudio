@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, mkdtempSync, writeFileSync, rmSync, existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 
 const read = (path) => readFileSync(path, "utf8");
@@ -354,4 +357,24 @@ test("S06 dedicated local-only evidence executes on integrated main with the sam
   assert.match(s14, /SOLARIS_VERIFICATION_TARGET: local/);
   assert.match(toc, /Refusing database environment/);
   assert.match(toc, /No pg_dump, network connection to Supabase, production SQL or migration execution/);
+});
+
+
+test("S06 rejects libpq query routing before executing any SQL", () => {
+  const dir = mkdtempSync(join(tmpdir(), "s06-routing-"));
+  try {
+    const marker = join(dir, "psql-was-called");
+    writeFileSync(join(dir, "supabase"), '#!/bin/sh\nprintf \'API_URL=http://127.0.0.1:54321\\nDB_URL=%s\\n\' "$S06_TEST_DB_URL"\n', { mode: 0o700 });
+    writeFileSync(join(dir, "psql"), '#!/bin/sh\ntouch "$S06_SQL_MARKER"\nexit 99\n', { mode: 0o700 });
+    for (const suffix of ["?host=hosted.invalid", "?hostaddr=203.0.113.1", "?service=production", "?options=unsafe", "#fragment"]) {
+      const env = { PATH: dir + ":" + process.env.PATH, HOME: dir,
+        SOLARIS_RUN_LOCAL_DB_REHEARSAL: "YES", SOLARIS_VERIFICATION_TARGET: "local",
+        S06_TEST_DB_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres" + suffix,
+        S06_SQL_MARKER: marker };
+      const result = spawnSync("bash", ["scripts/rehearse-v3-s14-archive-forward-effects-local.sh"], { env, encoding: "utf8" });
+      assert.notEqual(result.status, 0, suffix);
+      assert.match(result.stderr, /Refusing database connection options/, suffix);
+      assert.equal(existsSync(marker), false, "SQL executed despite unsafe routing: " + suffix);
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
