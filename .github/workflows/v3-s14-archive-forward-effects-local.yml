@@ -317,7 +317,7 @@ jobs:
           ).matchAll(/CREATE TABLE "([a-z]+)"\."([a-z_0-9]+)"/g)].map(m => m[1]+"."+m[2]));
           const finalFifteen = new Set([...fs.readFileSync(
             "docs/v3/recovery-candidates/evidence/s06-hosted-final-fifteen-relations-local.sql", "utf8"
-          ).matchAll(/CREATE TABLE "([a-z]+)"\\."([a-z_0-9]+)"/g)].map(m => m[1]+"."+m[2]));
+          ).matchAll(/CREATE TABLE "([a-z]+)"\."([a-z_0-9]+)"/g)].map(m => m[1]+"."+m[2]));
           const identities = actual.tables.map(t => t.relation);
           const found = new Set(identities);
           if (scoped.size !== 56 || added.size !== 44 || fifty.size !== 50 || secondFifty.size !== 50
@@ -426,7 +426,7 @@ jobs:
           const oneFortyFour = new Set([...ninetyFour,...secondFifty]);
           const finalFifteen = new Set([...fs.readFileSync(
             'docs/v3/recovery-candidates/evidence/s06-hosted-final-fifteen-relations-local.sql','utf8'
-          ).matchAll(/CREATE TABLE "([a-z]+)"\\."([a-z_0-9]+)"/g)].map(m=>m[1]+'.'+m[2]));
+          ).matchAll(/CREATE TABLE "([a-z]+)"\."([a-z_0-9]+)"/g)].map(m=>m[1]+'.'+m[2]));
           const oneFiftyNine = new Set([...oneFortyFour,...finalFifteen]);
           const fiftyActual = d.relations.filter(r => fifty.has(id(r)));
           const ninetyFourActual = d.relations.filter(r => ninetyFour.has(id(r)));
