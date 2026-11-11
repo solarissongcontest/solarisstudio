@@ -25,6 +25,8 @@ case "$DB_URL" in *\?*|*\#*) fail 'Refusing database connection options';; esac
 export SUPABASE_URL="$API_URL" E2E_SUPABASE_URL="$API_URL" VITE_SUPABASE_URL="$API_URL"
 export CONFIRMATIONS_SUPABASE_URL="$API_URL" VITE_CONFIRMATIONS_SUPABASE_URL="$API_URL"
 export SUPABASE_PROJECT_ID=local SUPABASE_PROJECT_REF=local DATABASE_URL="$DB_URL"
+export E2E_SUPABASE_PROJECT_ID=local E2E_SUPABASE_PROJECT_REF=local
+export VITE_SUPABASE_PROJECT_ID=local VITE_SUPABASE_PROJECT_REF=local
 command -v bun >/dev/null || fail 'Bun isolation checker missing'
 # Reuse the canonical URL/project/credential guard, including legacy clients.
 bun run scripts/check-v3-production-isolation.ts

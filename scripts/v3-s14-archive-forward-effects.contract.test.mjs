@@ -360,6 +360,14 @@ test("S06 dedicated local-only evidence executes on integrated main with the sam
 });
 
 
+test("S06 uses the shared isolation gate with all local project markers and no inherited libpq options", () => {
+  for (const marker of ["SUPABASE_PROJECT_ID", "SUPABASE_PROJECT_REF", "E2E_SUPABASE_PROJECT_ID", "E2E_SUPABASE_PROJECT_REF", "VITE_SUPABASE_PROJECT_ID", "VITE_SUPABASE_PROJECT_REF"]) {
+    assert.ok(rehearsal.includes(marker + "=local"), marker);
+  }
+  assert.ok(rehearsal.includes("bun run scripts/check-v3-production-isolation.ts"));
+  assert.ok(rehearsal.includes('for name in ${!PG@}; do unset "$name"; done'));
+});
+
 test("S06 rejects libpq query routing before executing any SQL", () => {
   const dir = mkdtempSync(join(tmpdir(), "s06-routing-"));
   try {
