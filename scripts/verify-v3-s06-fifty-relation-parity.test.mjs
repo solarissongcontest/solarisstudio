@@ -60,6 +60,10 @@ test('no hosted test traffic or production approval is represented in fixture so
  const tables=[...sql.matchAll(/CREATE TABLE "([a-z]+)"\."([a-z_0-9]+)"/g)].map(x=>x[1]+'.'+x[2]);
  assert.equal(tables.length,50);assert.equal(new Set(tables).size,50);
  assert.deepEqual(new Set(tables),names);
+ // Two historical auth columns were dropped on hosted PG17; attnum gaps are part
+ // of the frozen column digests and must be recreated ONLY in zero-row local SQL.
+ assert.match(sql, /"auth"\."oauth_clients" DROP COLUMN "_s06_dropped_attnum_2"/);
+ assert.match(sql, /"auth"\."saml_relay_states" DROP COLUMN "_s06_dropped_attnum_6"/);
  assert.match(sql,/S06 catalog-only trigger placeholder/);
  assert.doesNotMatch(sql,/https:\/\/[^\s]+supabase\.co/);
 });
