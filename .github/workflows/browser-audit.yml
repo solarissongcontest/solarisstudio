@@ -118,7 +118,23 @@ jobs:
         run: test "$(bunx playwright --version)" = "Version 1.55.0"
 
       - name: Install browser-audit browser binaries
-        run: bunx playwright install --with-deps chromium webkit
+        timeout-minutes: 15
+        run: |
+          # Hosted runners' Azure apt mirror can fail DNS and stall for half an
+          # hour. Keep Ubuntu's signed package sources, using primary mirrors.
+          if [[ -f /etc/apt/apt-mirrors.txt ]]; then
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          fi
+          if [[ -f /etc/apt/apt-mirrors-security.txt ]]; then
+            printf '%s\n' 'https://security.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors-security.txt >/dev/null
+          fi
+          printf '%s\n' 'Acquire::Retries "3";' 'Acquire::http::Timeout "30";' 'Acquire::https::Timeout "30";' \
+            | sudo tee /etc/apt/apt.conf.d/80-solaris-browser-network >/dev/null
+          # apt normally treats failed index downloads as warnings and then
+          # uses stale indexes, which can request removed package versions.
+          # Require a fresh signed index; DNS failure must fail this step.
+          sudo apt-get -o APT::Update::Error-Mode=any update
+          bunx playwright install --with-deps chromium webkit
 
       - name: Start isolated local Supabase for browser audit
         shell: bash

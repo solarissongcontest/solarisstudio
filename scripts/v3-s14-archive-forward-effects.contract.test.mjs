@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, mkdtempSync, writeFileSync, rmSync, existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 
 const read = (path) => readFileSync(path, "utf8");
@@ -334,4 +337,76 @@ test("S06 operator-only runbook reflects the merged twelve-stage source contract
   assert.doesNotMatch(runbook, /check whether source migration 20261019112500/i);
   assert.doesNotMatch(runbook, /candidate stages eleven effects/i);
   assert.doesNotMatch(runbook, /covers only 56\/215 relation identities/i);
+});
+
+
+test("S06 dedicated local-only evidence executes on integrated main with the same scoped source paths", () => {
+  const s14 = read(".github/workflows/v3-s14-archive-forward-effects-local.yml");
+  const toc = read(".github/workflows/v3-s06-schema-export-offline.yml");
+  for (const [yaml, anchor] of [[s14, "s06_archive_paths"], [toc, "s06_toc_paths"]]) {
+    assert.ok(yaml.includes(["  pull_request:", "    branches: [main]", "    paths: &" + anchor].join(String.fromCharCode(10))),
+      "S06 PR scope must be the shared authoritative path filter");
+    assert.ok(yaml.includes(["  push:", "    branches: [main]", "    paths: *" + anchor].join(String.fromCharCode(10))),
+      "S06 merged-main proof must use the identical path filter");
+    assert.match(yaml, /github\.event\.pull_request\.head\.sha \|\| github\.sha/);
+    assert.match(yaml, /git rev-parse HEAD/);
+    assert.match(yaml, /workflow_dispatch:/);
+  }
+  assert.match(s14, /docs\/v3\/recovery-candidates\/s06-schema-export-operator-runbook\.md/);
+  assert.match(s14, /--network none/);
+  assert.match(s14, /SOLARIS_VERIFICATION_TARGET: local/);
+  assert.match(toc, /Refusing database environment/);
+  assert.match(toc, /No pg_dump, network connection to Supabase, production SQL or migration execution/);
+});
+
+
+test("S06 uses the shared isolation gate with all local project markers and no inherited libpq options", () => {
+  for (const marker of ["SUPABASE_PROJECT_ID", "SUPABASE_PROJECT_REF", "E2E_SUPABASE_PROJECT_ID", "E2E_SUPABASE_PROJECT_REF", "VITE_SUPABASE_PROJECT_ID", "VITE_SUPABASE_PROJECT_REF"]) {
+    assert.ok(rehearsal.includes(marker + "=local"), marker);
+  }
+  assert.ok(rehearsal.includes("bun run scripts/check-v3-production-isolation.ts"));
+  assert.ok(rehearsal.includes('for name in ${!PG@}; do unset "$name"; done'));
+});
+
+test("S06 rejects libpq query routing before executing any SQL", () => {
+  const dir = mkdtempSync(join(tmpdir(), "s06-routing-"));
+  try {
+    const marker = join(dir, "psql-was-called");
+    writeFileSync(join(dir, "supabase"), '#!/bin/sh\nprintf \'API_URL=http://127.0.0.1:54321\\nDB_URL=%s\\n\' "$S06_TEST_DB_URL"\n', { mode: 0o700 });
+    writeFileSync(join(dir, "psql"), '#!/bin/sh\ntouch "$S06_SQL_MARKER"\nexit 99\n', { mode: 0o700 });
+    for (const suffix of ["?host=hosted.invalid", "?hostaddr=203.0.113.1", "?service=production", "?options=unsafe", "#fragment"]) {
+      const env = { PATH: dir + ":" + process.env.PATH, HOME: dir,
+        SOLARIS_RUN_LOCAL_DB_REHEARSAL: "YES", SOLARIS_VERIFICATION_TARGET: "local",
+        S06_TEST_DB_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres" + suffix,
+        S06_SQL_MARKER: marker };
+      const result = spawnSync("bash", ["scripts/rehearse-v3-s14-archive-forward-effects-local.sh"], { env, encoding: "utf8" });
+      assert.notEqual(result.status, 0, suffix);
+      assert.match(result.stderr, /Refusing database connection options/, suffix);
+      assert.equal(existsSync(marker), false, "SQL executed despite unsafe routing: " + suffix);
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+
+test("S06 execution evidence fails closed on missing stages and cannot certify hosting", () => {
+  const code = workflow.split('# S06 structured evidence:')[1].split("<<'NODE'\n")[1].split('\n          NODE')[0];
+  const dir = mkdtempSync(join(tmpdir(), 's06-evidence-'));
+  try {
+    const sha = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
+    const names = ['source_contract','clean_replay','ordered_recovery','archive_behavior','authorization','terminal_boundaries','task_convergence','second_replay'];
+    const good = Object.fromEntries(names.map(name => [name, { outcome: 'success' }]));
+    for (const [index, steps] of [{}, good, { ...good, authorization: { outcome: 'failure' } }].entries()) {
+      const path = join(dir, index + '.json');
+      const result = spawnSync(process.execPath, ['--input-type=module', '-e', code], { encoding: 'utf8', env: {
+        PATH: process.env.PATH, REVIEWED_SHA: sha, S06_STEP_OUTCOMES: JSON.stringify(steps), S06_REPORT_PATH: path,
+      } });
+      assert.equal(result.status, index === 1 ? 0 : 1, result.stderr);
+      const report = JSON.parse(readFileSync(path, 'utf8'));
+      assert.equal(report.candidateSha, sha);
+      assert.equal(report.hostedEquivalent, false);
+      assert.equal(report.productionRecoveryEligible, false);
+      assert.equal(report.ownerOnlyBetaApproved, false);
+      assert.equal(Object.keys(report.sourceHashes).length, 2);
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
