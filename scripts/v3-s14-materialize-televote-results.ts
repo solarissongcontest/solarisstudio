@@ -57,12 +57,13 @@ async function main() {
 
   const { data: round, error: roundError } = await tv
     .from("rounds")
-    .select("id,status,total_points_to_distribute,rank_exponent,televote_engine_version,ballot_exponent,breadth_floor,breadth_exponent,support_exponent,rank_boost_strength,rank_boost_shape,calculation_version,results_status")
+    .select("id,edition_id,status,participant_mode,total_points_to_distribute,rank_exponent,televote_engine_version,ballot_exponent,breadth_floor,breadth_exponent,support_exponent,rank_boost_strength,rank_boost_shape,calculation_version,results_status")
     .eq("id", roundId)
     .maybeSingle();
   if (roundError) fail(roundError.message);
   if (!round) fail(`round ${roundId} not found`);
   if (round.status !== "closed") fail(`round ${roundId} must be closed before calculation`);
+  if (round.participant_mode !== "countries") fail(`round ${roundId} must use canonical country entries for S14`);
 
   const engineVersion = round.televote_engine_version ?? CALC_ENGINE_VERSION;
   if (![CALC_ENGINE_VERSION, ROBUST_TELEVOTE_ENGINE_VERSION].includes(engineVersion)) {
@@ -71,13 +72,66 @@ async function main() {
 
   const { data: entries, error: entryError } = await tv
     .from("round_entries")
-    .select("country_code,entry_key,display_order")
+    .select("entry_type,country_code,display_order")
     .eq("round_id", roundId)
     .order("display_order", { ascending: true });
   if (entryError) fail(entryError.message);
-  const participants = (entries ?? []).map((row) => String(row.country_code ?? row.entry_key ?? "").trim().toUpperCase());
+  const participants = (entries ?? []).map((row) => {
+    if (row.entry_type !== "country" || typeof row.country_code !== "string" || !row.country_code.trim()) {
+      fail(`round ${roundId} contains an unsupported non-country Televote entry`);
+    }
+    return row.country_code.trim().toUpperCase();
+  });
   if (!participants.length || participants.some((code) => !code)) fail(`round ${roundId} has invalid participant codes`);
   if (new Set(participants).size !== participants.length) fail(`round ${roundId} has duplicate participant codes`);
+
+  // Validate the canonical frozen remote-round → Solaris show binding before any
+  // destructive local rehearsal write. Matching country codes alone are not a
+  // unique show identity when two shows share the same participant roster.
+  const { data: binding, error: bindingError } = await db
+    .from("televoting_round_bindings")
+    .select("remote_round_id,remote_edition_id,edition_id,show_id,source_mode,frozen_at")
+    .eq("remote_round_id", roundId)
+    .maybeSingle();
+  if (bindingError) fail(bindingError.message);
+  if (
+    !binding || String(binding.remote_round_id) !== roundId
+    || String(binding.remote_edition_id) !== String(round.edition_id)
+    || binding.source_mode !== "show"
+    || String(binding.show_id) !== showId
+    || String(binding.edition_id) !== editionId
+    || !binding.frozen_at
+  ) {
+    fail(`round ${roundId} must have an exact frozen binding to Solaris show ${showId} in edition ${editionId}`);
+  }
+
+  const { data: show, error: showError } = await db
+    .from("shows")
+    .select("id,edition_id")
+    .eq("id", showId)
+    .maybeSingle();
+  if (showError) fail(showError.message);
+  if (!show || show.edition_id !== editionId) fail(`show ${showId} is not in edition ${editionId}`);
+
+  const { data: showParticipants, error: showParticipantError } = await db
+    .from("participants")
+    .select("country_id,participation_status")
+    .eq("show_id", showId);
+  if (showParticipantError) fail(showParticipantError.message);
+  const active = (showParticipants ?? []).filter((row) => !row.participation_status || row.participation_status === "confirmed");
+  const countryIds = active.map((row) => String(row.country_id));
+  const { data: countries, error: countryError } = await db
+    .from("countries")
+    .select("id,short_code")
+    .in("id", countryIds);
+  if (countryError) fail(countryError.message);
+  const countryByCode = new Map((countries ?? []).map((row) => [String(row.short_code).toUpperCase(), String(row.id)]));
+  const expectedCodes = [...countryByCode.keys()].sort();
+  const resultCodes = [...participants].sort();
+  if (JSON.stringify(expectedCodes) !== JSON.stringify(resultCodes)) {
+    fail(`published Televote result does not exactly match show ${showId}`);
+  }
+
 
   const { data: submissions, error: submissionError } = await tv
     .from("vote_submissions")
@@ -117,10 +171,6 @@ async function main() {
 
   const version = Number(round.calculation_version ?? 0) + 1;
   const calculatedAt = new Date().toISOString();
-  const { error: clearResultError } = await tv.from("round_results").delete().eq("round_id", roundId);
-  if (clearResultError) fail(clearResultError.message);
-  const { error: clearInfluenceError } = await tv.from("round_influence_results").delete().eq("round_id", roundId);
-  if (clearInfluenceError) fail(clearInfluenceError.message);
 
   let zeroWeight: boolean;
   let totalPoints: number;
@@ -247,6 +297,11 @@ async function main() {
     }));
   }
 
+  const { error: clearResultError } = await tv.from("round_results").delete().eq("round_id", roundId);
+  if (clearResultError) fail(clearResultError.message);
+  const { error: clearInfluenceError } = await tv.from("round_influence_results").delete().eq("round_id", roundId);
+  if (clearInfluenceError) fail(clearInfluenceError.message);
+
   const { error: resultInsertError } = await tv.from("round_results").insert(rows);
   if (resultInsertError) fail(resultInsertError.message);
   if (influenceRows.length) {
@@ -277,33 +332,6 @@ async function main() {
     .update({ results_status: "published" })
     .eq("id", roundId);
   if (publishUpdateError) fail(publishUpdateError.message);
-
-  const { data: show, error: showError } = await db
-    .from("shows")
-    .select("id,edition_id")
-    .eq("id", showId)
-    .maybeSingle();
-  if (showError) fail(showError.message);
-  if (!show || show.edition_id !== editionId) fail(`show ${showId} is not in edition ${editionId}`);
-
-  const { data: showParticipants, error: showParticipantError } = await db
-    .from("participants")
-    .select("country_id,participation_status")
-    .eq("show_id", showId);
-  if (showParticipantError) fail(showParticipantError.message);
-  const active = (showParticipants ?? []).filter((row) => !row.participation_status || row.participation_status === "confirmed");
-  const countryIds = active.map((row) => String(row.country_id));
-  const { data: countries, error: countryError } = await db
-    .from("countries")
-    .select("id,short_code")
-    .in("id", countryIds);
-  if (countryError) fail(countryError.message);
-  const countryByCode = new Map((countries ?? []).map((row) => [String(row.short_code).toUpperCase(), String(row.id)]));
-  const expectedCodes = [...countryByCode.keys()].sort();
-  const resultCodes = rows.map((row) => row.country_code).sort();
-  if (JSON.stringify(expectedCodes) !== JSON.stringify(resultCodes)) {
-    fail(`published Televote result does not exactly match show ${showId}`);
-  }
 
   const expectedCanonical = rows.map((row) => ({
     country_id: countryByCode.get(row.country_code) ?? null,

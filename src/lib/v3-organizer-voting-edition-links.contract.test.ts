@@ -62,7 +62,10 @@ describe("V3 Organizer voting edition-link boundary", () => {
     expect(route).toContain("Needs repair");
     expect(route).toContain("Viewing this page is read-only");
     expect(route).toContain("const repairMutation = useMutation({");
-    expect(route).toContain("mutationFn: () => syncCatalog()");
+    expect(route).toContain("mutationFn: async (reviewActorId: string) => {");
+    expect(route).toContain("if (!reviewActorId || reviewActorId !== currentActorRef.current)");
+    expect(route).toContain("return syncCatalog();");
+    expect(route).toContain("repairMutation.mutate(actorId)");
     expect(route).toContain("AdminConfirmSheet");
     expect(route).toContain('title="Repair voting edition links?"');
     expect(route).toContain('confirmLabel="Repair edition links"');

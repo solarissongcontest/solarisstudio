@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildV3PrIntegrationReport,
   formatV3PrIntegrationReportMarkdown,
+  v3PrStrictEvidenceFailures,
+  V3_PR_STRICT_REQUIRED_CHECKS,
   type V3PrIntegrationCandidate,
 } from "./v3-pr-integration-state";
 
@@ -257,6 +259,49 @@ describe("V3 current-PR integration state", () => {
         }),
       ),
     ).toThrow(/duplicate check evidence names/);
+  });
+
+  it("rejects a vacuously green empty PR list in strict integration mode", () => {
+    const report = reportFor();
+    expect(report.candidateCount).toBe(0);
+    expect(v3PrStrictEvidenceFailures(report)).toEqual([
+      expect.stringMatching(/at least one PR/),
+    ]);
+  });
+
+  it("does not trust a caller-pruned required-check manifest as full integration proof", () => {
+    const report = reportFor(candidate());
+    expect(report.candidates[0]?.state).toBe("exact_head_verified");
+    const failures = v3PrStrictEvidenceFailures(report);
+    expect(failures).toEqual([
+      expect.stringMatching(/omits required integration checks:.*Browser audit/),
+    ]);
+    expect(failures[0]).toContain("V3 PR Main Freshness");
+    expect(failures[0]).toContain("Client bundle budget evidence");
+  });
+
+  it("requires all six current-head gates to pass, rejecting stale evidence", () => {
+    const checks = V3_PR_STRICT_REQUIRED_CHECKS.map((name) => ({
+      name,
+      headSha: HEAD_SHA,
+      status: "completed" as const,
+      conclusion: "success" as const,
+    }));
+    const complete = reportFor(candidate({
+      requiredChecks: [...V3_PR_STRICT_REQUIRED_CHECKS],
+      checks,
+    }));
+    expect(complete.candidates[0]?.state).toBe("exact_head_verified");
+    expect(v3PrStrictEvidenceFailures(complete)).toEqual([]);
+
+    const stale = reportFor(candidate({
+      requiredChecks: [...V3_PR_STRICT_REQUIRED_CHECKS],
+      checks: checks.map((check) =>
+        check.name === "Browser audit" ? { ...check, headSha: OLD_SHA } : check),
+    }));
+    expect(v3PrStrictEvidenceFailures(stale)).toEqual([
+      expect.stringMatching(/stale_evidence/),
+    ]);
   });
 
   it("keeps the evaluator and CLI local/read-only with no Supabase or arbitrary HTTP client", () => {

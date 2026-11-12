@@ -115,6 +115,19 @@ describe("projectV3Participate", () => {
     expect(projection.next).toEqual([]);
   });
 
+  it("never advertises optional upcoming work as available now", () => {
+    const upcoming = action("future-public-vote", {
+      kind: "televote",
+      deliveryClass: "optional",
+      sourceState: "upcoming",
+      opensAt: "2026-11-14T18:00:00Z",
+    });
+    const projection = projectV3Participate({ actions: [upcoming], journey: [] });
+    expect(projection.optionalNow).toEqual([]);
+    expect(projection.needsAttention).toEqual([]);
+    expect(projection.next).toEqual([upcoming]);
+  });
+
   it("projects jury and public televote into one voting overview without changing their responsibility classes", () => {
     const jury = action("jury-open", {
       kind: "jury",
