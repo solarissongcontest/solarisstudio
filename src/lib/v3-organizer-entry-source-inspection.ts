@@ -4,7 +4,10 @@
  */
 export function safeOrganizerEntrySourceUrl(source: string | null | undefined): string | null {
   // Check the original bytes before trim can discard leading/trailing controls.
-  if (!source || /[\u0000-\u001f\u007f]/.test(source)) return null;
+  if (!source || [...source].some((char) => {
+    const code = char.charCodeAt(0);
+    return code <= 0x1f || code === 0x7f;
+  })) return null;
   const value = source.trim();
   if (!value) return null;
   try {
