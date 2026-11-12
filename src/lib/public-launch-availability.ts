@@ -23,6 +23,8 @@ export const PUBLIC_LAUNCH_ROUTES = [
     "/scorecharts",
     "/pulse",
     "/next-in-line",
+    // Compatibility route redirects to the deferred Next in Line command.
+    "/confirmations/next-in-line",
     "/fans",
     "/tools",
     "/time-machine",
