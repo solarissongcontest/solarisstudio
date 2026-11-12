@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { AppShell, Panel } from "@/components/AppShell";
@@ -9,7 +9,6 @@ import { PublicResponsiveDataView, type PublicDataColumn } from "@/components/pu
 import { supabase } from "@/integrations/supabase/client";
 import { editionLabel, useEditions } from "@/lib/data";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
-import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 
 export const Route = createFileRoute("/prediction-league/")({
   head: () => ({
@@ -58,25 +57,23 @@ const standingColumns: readonly PublicDataColumn<Standing>[] = [
 ];
 
 function PredictionLeaguePage() {
-  const { isAppMode, platformResolved } = useSolarisApp();
-  const rollout = useV3RolloutProbe(platformResolved && isAppMode);
+  const { platformResolved } = useSolarisApp();
 
-  if (!platformResolved || (isAppMode && rollout.isLoading)) {
+  if (!platformResolved) {
     return (
       <main className="mx-auto w-full max-w-5xl px-4 py-10" data-v3-prediction-league-cutover="resolving">
         <h1 className="text-xl font-semibold tracking-[-0.02em] text-foreground">
           Prediction League
         </h1>
         <p className="mt-2 text-sm text-muted-foreground" role="status" aria-live="polite">
-          Opening Predictions…
+          Opening Prediction League…
         </p>
       </main>
     );
   }
 
-  if (isAppMode && !rollout.isError && rollout.data?.enabled === true) {
-    return <Navigate to="/predictions" replace />;
-  }
+  // This is the approved league read surface. Installed V3 must not redirect
+  // an eligible league visitor into the independently deferred Prediction Arena.
 
   return <LegacyPredictionLeaguePage />;
 }
