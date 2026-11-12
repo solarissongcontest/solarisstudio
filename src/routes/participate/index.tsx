@@ -9,7 +9,7 @@ import {
   Vote,
   AlertTriangle,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { AppTaskCenter } from "@/components/app/AppTaskCenter";
@@ -34,6 +34,7 @@ import {
 import { buildParticipationTasks, type VotingTaskInput } from "@/lib/participation-os";
 import { projectJurySummary, type JurySummary } from "@/lib/public-participation-jury-summary";
 import { computeAvailability } from "@/lib/ssc";
+import { publicParticipationJuryAction } from "@/lib/public-participation-jury-action";
 
 export const Route = createFileRoute("/participate/")({
   head: () => ({
@@ -93,7 +94,9 @@ async function loadTelevoteSummary(): Promise<TelevoteSummary> {
     .from("rounds")
     .select("id,name,closed_at,editions(name)")
     .eq("status", "open")
-    .limit(1)
+    // Match the booth’s single-round contract. Two rows expose ambiguity
+    // without downloading every round or silently selecting another show.
+    .limit(2)
     .maybeSingle();
 
   if (error) throw error;
@@ -123,6 +126,14 @@ function ParticipatePage() {
 
 function LegacyParticipatePage() {
   const { isAppMode } = useSolarisApp();
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    const update = () => setNow(Date.now());
+    update();
+    // Local presentation clock only. No polling or submission is triggered.
+    const timer = window.setInterval(update, 1_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const confirmationsQuery = useQuery({
     queryKey: ["participate-confirmation-rounds"],
     queryFn: () => getPublicRounds(),
@@ -192,39 +203,7 @@ function LegacyParticipatePage() {
             priority: 10,
           };
 
-    const jury = juryQuery.data;
-    const juryAction: ParticipationAction = jury?.openRound
-      ? {
-          id: "jury",
-          status: "available",
-          title: "Jury voting is open",
-          description: `Submit your official ballot for ${jury.openRound.name}. Friend-voting integrity checks apply before submission.`,
-          to: "/jury-voting",
-          priority: 20,
-        }
-      : jury?.completedOpenRound
-        ? {
-            id: "jury",
-            status: "complete",
-            title: "Jury ballot submitted",
-            description: `Your ballot for ${jury.completedOpenRound.name} is already submitted.`,
-            to: "/jury-voting",
-            priority: 20,
-          }
-        : {
-            id: "jury",
-            status: "unavailable",
-            title: "Jury voting",
-            description: jury?.restriction === "account_suspended"
-              ? "Your country account is suspended. Contact the Organizer before attempting jury voting."
-              : jury?.restriction === "country_account_required"
-                ? "This account does not have an assigned country delegation."
-                : jury?.signedIn
-                  ? "No jury ballot currently needs your delegation. Friend-voting integrity checks apply when voting opens."
-                  : "Country account required. Sign in to check official jury voting; friend-voting integrity checks apply before submission.",
-            to: "/jury-voting",
-            priority: 20,
-          };
+    const juryAction = publicParticipationJuryAction(juryQuery.data, now ?? 0);
 
     const televote = televoteQuery.data?.openRound;
     const televoteAction: ParticipationAction = televote
@@ -255,6 +234,7 @@ function LegacyParticipatePage() {
       ...(!juryQuery.isError ? [juryAction] : []),
     ]);
   }, [
+    now,
     confirmationsQuery.data,
     confirmationsQuery.isError,
     juryQuery.data,
@@ -264,8 +244,8 @@ function LegacyParticipatePage() {
   ]);
 
   const appTasks = useMemo(() => {
-    const rounds = confirmationsQuery.data ?? [];
-    const access = confirmationAccessQuery.data;
+    const rounds = confirmationsQuery.isError ? [] : confirmationsQuery.data ?? [];
+    const access = confirmationAccessQuery.isError ? undefined : confirmationAccessQuery.data;
     const participantRounds =
       access?.authenticated && access.country ? rounds : [];
     const currentRound =
@@ -275,7 +255,7 @@ function LegacyParticipatePage() {
           new Date(b.opens_at ?? 0).getTime() - new Date(a.opens_at ?? 0).getTime(),
       )[0] ?? null;
 
-    const jury = juryQuery.data;
+    const jury = juryQuery.isError ? undefined : juryQuery.data;
     const juryTask: VotingTaskInput | null = jury?.openRound
       ? {
           id: jury.openRound.id,
@@ -300,7 +280,7 @@ function LegacyParticipatePage() {
           }
         : null;
 
-    const televote = televoteQuery.data?.openRound;
+    const televote = televoteQuery.isError ? null : televoteQuery.data?.openRound;
     const televoteTask: VotingTaskInput | null = televote
       ? {
           id: televote.id,
@@ -321,6 +301,7 @@ function LegacyParticipatePage() {
         ? `SSC ${currentRound.edition_number} · ${currentRound.edition_name}`
         : null,
       tasks: buildParticipationTasks({
+        now: now ?? 0,
         editionId: currentRound?.edition_id ?? null,
         responses: access?.responses ?? [],
         requirements: access?.requirements ?? [],
@@ -330,10 +311,15 @@ function LegacyParticipatePage() {
       }),
     };
   }, [
+    now,
     confirmationAccessQuery.data,
+    confirmationAccessQuery.isError,
     confirmationsQuery.data,
+    confirmationsQuery.isError,
     juryQuery.data,
+    juryQuery.isError,
     televoteQuery.data,
+    televoteQuery.isError,
   ]);
 
   const primary = primaryParticipationAction(actions);
@@ -361,6 +347,7 @@ function LegacyParticipatePage() {
     }
   };
   const loading =
+    now === null ||
     confirmationsQuery.isLoading ||
     juryQuery.isLoading ||
     televoteQuery.isLoading ||
