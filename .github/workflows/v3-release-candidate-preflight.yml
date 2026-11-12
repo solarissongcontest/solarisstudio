@@ -120,6 +120,10 @@ jobs:
             exit 1
           fi
 
+      - name: Reject incomplete or stale final-week release blocker matrix
+        shell: bash
+        run: node scripts/check-v3-final-week-blockers.mjs --release --candidate-sha "$V3_CANDIDATE_SHA"
+
       - name: Enforce release-strict preconditions
         env:
           V3_RELEASE_EVIDENCE_DIR: v3-release-preflight

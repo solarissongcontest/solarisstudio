@@ -1,0 +1,309 @@
+{
+  "task": "S02",
+  "source": "read-only hosted pg_catalog for two S14 Archive donor referenced but preflight-unlisted dependencies",
+  "date": "2026-11-09",
+  "schemaOnly": true,
+  "tables": [
+    {
+      "rls": false,
+      "name": "v3_domain_event_consumer_receipts",
+      "owner": "postgres",
+      "schema": "private",
+      "columns": [
+        {
+          "name": "event_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "consumer_key",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "result_metadata",
+          "type": "jsonb",
+          "default": "'{}'::jsonb",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "v3_domain_event_consumer_receipts_pkey",
+          "valid": true,
+          "unique": true,
+          "primary": true,
+          "definition": "CREATE UNIQUE INDEX v3_domain_event_consumer_receipts_pkey ON private.v3_domain_event_consumer_receipts USING btree (event_id, consumer_key)"
+        }
+      ],
+      "policies": [],
+      "triggers": [
+        {
+          "func": "private.v3_reject_domain_event_receipt_mutation()",
+          "name": "v3_domain_event_consumer_receipts_immutable",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER v3_domain_event_consumer_receipts_immutable BEFORE DELETE OR UPDATE ON private.v3_domain_event_consumer_receipts FOR EACH ROW EXECUTE FUNCTION private.v3_reject_domain_event_receipt_mutation()"
+        }
+      ],
+      "force_rls": false,
+      "constraints": [
+        {
+          "name": "v3_domain_event_consumer_receipts_consumer_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (consumer_key ~ '^[a-z][a-z0-9_.:-]{0,159}$'::text)"
+        },
+        {
+          "name": "v3_domain_event_consumer_receipts_event_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (event_id) REFERENCES private.v3_domain_events(id) ON DELETE RESTRICT"
+        },
+        {
+          "name": "v3_domain_event_consumer_receipts_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (event_id, consumer_key)"
+        },
+        {
+          "name": "v3_domain_event_consumer_receipts_result_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (jsonb_typeof(result_metadata) = 'object'::text AND pg_column_size(result_metadata) <= 8192)"
+        }
+      ]
+    },
+    {
+      "rls": true,
+      "name": "studio2_transition_approval_requests",
+      "owner": "postgres",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "default": "gen_random_uuid()",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "edition_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "from_state",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "to_state",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "requested_by",
+          "type": "uuid",
+          "default": null,
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "requested_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "default": "(now() + '00:15:00'::interval)",
+          "notnull": true,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "approved_by",
+          "type": "uuid",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "approved_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        },
+        {
+          "name": "consumed_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "notnull": false,
+          "identity": "",
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "studio2_transition_approval_active_idx",
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition": "CREATE INDEX studio2_transition_approval_active_idx ON public.studio2_transition_approval_requests USING btree (edition_id, from_state, to_state, requested_at DESC) WHERE (consumed_at IS NULL)"
+        },
+        {
+          "name": "studio2_transition_approval_approved_by_idx",
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition": "CREATE INDEX studio2_transition_approval_approved_by_idx ON public.studio2_transition_approval_requests USING btree (approved_by)"
+        },
+        {
+          "name": "studio2_transition_approval_requested_by_idx",
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition": "CREATE INDEX studio2_transition_approval_requested_by_idx ON public.studio2_transition_approval_requests USING btree (requested_by)"
+        },
+        {
+          "name": "studio2_transition_approval_requests_pkey",
+          "valid": true,
+          "unique": true,
+          "primary": true,
+          "definition": "CREATE UNIQUE INDEX studio2_transition_approval_requests_pkey ON public.studio2_transition_approval_requests USING btree (id)"
+        }
+      ],
+      "policies": [
+        {
+          "name": "studio2_transition_approval_capability_read",
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "studio2_access_allowed('edition.manage'::text, edition_id, false)",
+          "command": "r",
+          "permissive": true
+        }
+      ],
+      "triggers": [
+        {
+          "func": "private.route_organizer_transition_approval()",
+          "name": "organizer_inbox_transition_approval_insert",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER organizer_inbox_transition_approval_insert AFTER INSERT ON studio2_transition_approval_requests FOR EACH ROW EXECUTE FUNCTION private.route_organizer_transition_approval()"
+        },
+        {
+          "func": "private.sync_organizer_inbox_transition_resolution()",
+          "name": "organizer_inbox_transition_resolution",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER organizer_inbox_transition_resolution AFTER UPDATE ON studio2_transition_approval_requests FOR EACH ROW EXECUTE FUNCTION private.sync_organizer_inbox_transition_resolution()"
+        },
+        {
+          "func": "private.reconcile_organizer_notification_state()",
+          "name": "organizer_inbox_transition_state",
+          "enabled": "O",
+          "definition": "CREATE TRIGGER organizer_inbox_transition_state AFTER UPDATE OF consumed_at ON studio2_transition_approval_requests FOR EACH ROW EXECUTE FUNCTION private.reconcile_organizer_notification_state()"
+        }
+      ],
+      "force_rls": false,
+      "constraints": [
+        {
+          "name": "studio2_transition_approval_approver_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (approved_by IS NULL OR approved_by <> requested_by)"
+        },
+        {
+          "name": "studio2_transition_approval_expiry_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (expires_at > requested_at)"
+        },
+        {
+          "name": "studio2_transition_approval_reason_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (length(btrim(reason)) > 0)"
+        },
+        {
+          "name": "studio2_transition_approval_requests_approved_by_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (approved_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "studio2_transition_approval_requests_edition_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (edition_id) REFERENCES editions(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "studio2_transition_approval_requests_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "studio2_transition_approval_requests_requested_by_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (requested_by) REFERENCES auth.users(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "studio2_transition_approval_state_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK ((from_state = ANY (ARRAY['planning'::text, 'confirmations'::text, 'submissions'::text, 'jury_voting'::text, 'televoting'::text, 'live_show'::text, 'vote_verification'::text, 'results'::text, 'post_edition'::text, 'archived'::text])) AND (to_state = ANY (ARRAY['planning'::text, 'confirmations'::text, 'submissions'::text, 'jury_voting'::text, 'televoting'::text, 'live_show'::text, 'vote_verification'::text, 'results'::text, 'post_edition'::text, 'archived'::text])))"
+        }
+      ]
+    }
+  ],
+  "counts": {
+    "columns": 15,
+    "constraints": 12,
+    "indexes": 5,
+    "triggers": 4,
+    "policies": 1
+  }
+}

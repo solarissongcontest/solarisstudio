@@ -54,6 +54,7 @@ describe("shared-browser private state", () => {
       ["jury_votes", "show", "show-1"],
       ["jury_ballot_statuses", "actor-A", "edition-1", "show", "show-1"],
       ["jury_ballot_submissions", "actor-A", "edition-1", "show", "show-1"],
+      ["v3-jury-receipt", "actor-A", "country-1", "edition-1", "show-1"],
       ["merged-televoting-conversion", "actor-A", "edition-1", "round-1"],
       ["merged-televoting-admin", "actor-A"],
       ["merged-combined-detail", "actor-A", "combined-1"],

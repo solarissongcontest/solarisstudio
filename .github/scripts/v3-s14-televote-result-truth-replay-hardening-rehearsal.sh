@@ -141,9 +141,12 @@ log "PASS: healthy replay performs zero result-row updates"
 log "Privileged projection drift is repaired without semantic revision churn"
 db_exec "
 begin;
-select set_config('solaris.v3_televote_projection_write','1',true);
+-- Explicit isolated DBA corruption: caller-settable markers cannot bypass
+-- the canonical writer boundary. The guard is restored before commit.
+alter table public.televote_votes disable trigger v3_guard_source_managed_televote_projection;
 update public.televote_votes set points=99
 where show_id='$SHOW_ID'::uuid and country_id='$COUNTRY_A'::uuid;
+alter table public.televote_votes enable trigger v3_guard_source_managed_televote_projection;
 commit;
 truncate private.v3_s14_replay_result_updates;
 "

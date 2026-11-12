@@ -9,6 +9,7 @@ const PRIVATE_VOTING_QUERY_ROOTS = new Set([
   "jury_votes",
   "jury_ballot_statuses",
   "jury_ballot_submissions",
+  "v3-jury-receipt",
   "integrity-human-moderation",
   "televoting-result-integrity",
 ]);

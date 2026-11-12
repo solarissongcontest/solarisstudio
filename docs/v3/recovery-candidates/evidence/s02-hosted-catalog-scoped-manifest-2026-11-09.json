@@ -1,0 +1,76 @@
+{
+  "formatVersion": 1,
+  "fixtureClass": "sanitized-hosted-frontier-s13-s14",
+  "schemaOnly": true,
+  "containsProductionRows": false,
+  "containsProductionSecrets": false,
+  "reconstruction": "operator-reviewed-hosted-schema",
+  "cleanSourceReplay": false,
+  "hostedHead": "20261101181812",
+  "cutover": "20261014020000",
+  "s01SourceSha": "1297490c9367cf7c002f68059d681a1a094f739a",
+  "postgresMajor": 17,
+  "postgresImageId": "sha256:eb0fb2377534e65aad04f37838956b3dfb888e1a3dd3c1acf957bc6557eb6c7d",
+  "sanitizedSchemaSha256": "cabd76d7f65f4032511e108a8f21525d6fe68f96e0274b3470103ab16ceee1de",
+  "unknownRequiredObjects": [],
+  "coverageReview": "S13/S14 independently reviewed: scoped catalog identities and dated S01 evidence only; not full hosted-head semantics",
+  "reconstructionReviewedBy": "S02 automated catalog reconstruction with owner approval; independent full-schema review PENDING",
+  "reconstructionReviewedAt": "2026-11-09",
+  "assumptions": [
+    "Eight S14 ledger relations captured directly from hosted read-only PostgreSQL 17.11 catalog metadata",
+    "Five referenced parent tables are synthetic shells with required FK key shapes only, not complete hosted table definitions",
+    "Nineteen trigger function bodies are sourced from hosted pg_get_functiondef but external dependencies are not fully closed",
+    "S13 private foundation tables and RPC signatures are absent in the hosted observation, not replayed here",
+    "Migration-history versions are observational metadata only; no local migration history rows are manufactured"
+  ],
+  "limitations": [
+    "S02 fixture models only eight S14 relations, five parent stubs, policy dependencies and current S01 missing-S13 facts",
+    "Runtime behavior of external canonical functions and full RLS authorization are untested against the complete hosted dependency graph",
+    "A real S13/S14 forward-recovery upgrade from this hosted-scope fixture has not yet been certified",
+    "Human independent full-schema validation and actual hosted production upgrade authorization are not implied"
+  ],
+  "relations": {
+    "private.v3_domain_event_outbox": true,
+    "private.v3_domain_events": true,
+    "private.v3_result_versions": true,
+    "public.admin_notifications": true,
+    "public.notification_deliveries": true,
+    "public.studio2_edition_runtime": true,
+    "public.studio2_operation_receipts": true,
+    "public.studio2_organizer_tasks": true
+  },
+  "s13Tables": {
+    "private.v3_migration_contracts": false,
+    "private.v3_schema_compatibility": false,
+    "private.v3_schema_compatibility_history": false,
+    "private.v3_backfill_jobs": false,
+    "private.v3_migration_parity_runs": false
+  },
+  "s13Functions": {
+    "public.v3_schema_compatibility(integer)": false,
+    "public.v3_register_migration_contract(text,integer,text,boolean,text,text)": false,
+    "public.v3_claim_backfill(text,integer,integer,text,integer,bigint)": false,
+    "public.v3_checkpoint_backfill(text,text,jsonb,integer,integer,text,boolean)": false,
+    "public.v3_fail_backfill(text,text,text)": false,
+    "public.v3_record_migration_parity(text,text,bigint,bigint,bigint,bigint,integer,jsonb)": false,
+    "public.v3_set_schema_compatibility(integer,integer,integer,text,text,text)": false
+  },
+  "namedObjects": {
+    "public.admin_notifications/studio2_platform_direct_write_guard": true,
+    "public.notification_deliveries/studio2_platform_direct_write_guard": true,
+    "public.studio2_edition_runtime/v3_guard_archive_runtime_transition": false,
+    "public.studio2_edition_runtime/v3_sync_archived_edition_legacy_status": false,
+    "public.studio2_organizer_tasks/v3_guard_archived_edition_task_resurrection": false,
+    "public.notification_deliveries/v3_project_resolved_task_delivery_state": false,
+    "public.studio2_operation_receipts/v3_emit_entry_submission_event": false,
+    "private.v3_domain_event_outbox/v3_domain_event_outbox_created_at_idx": false,
+    "private.v3_domain_events/v3_domain_events_occurred_at_idx": false,
+    "public.studio2_operation_receipts/studio2_operation_receipts_created_at_idx": false
+  },
+  "privileges": {
+    "public.notification_deliveries/anon/SELECT": true,
+    "public.notification_deliveries/anon/INSERT": true,
+    "public.notification_deliveries/authenticated/INSERT": true,
+    "public.notification_deliveries/authenticated/UPDATE": true
+  }
+}

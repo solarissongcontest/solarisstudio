@@ -1,0 +1,668 @@
+{
+  "task": "S02",
+  "date": "2026-11-09",
+  "source": "read-only hosted pg_constraint FK targets outside 45 S14 Archive relevant relations",
+  "scope": "FK key metadata only, parent relation bodies not imported",
+  "foreignKeys": [
+    {
+      "child": "admin_notifications",
+      "constraint": "admin_notifications_recipient_id_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "jury_ballot_statuses",
+      "constraint": "jury_ballot_statuses_changed_by_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "jury_ballot_submissions",
+      "constraint": "jury_ballot_submissions_reviewed_by_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "next_in_line_submissions",
+      "constraint": "next_in_line_submissions_submitted_by_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "notification_deliveries",
+      "constraint": "notification_deliveries_user_id_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_confirmation_requirements",
+      "constraint": "studio2_confirmation_requirements_created_by_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_confirmation_requirements",
+      "constraint": "studio2_confirmation_requirements_invalidated_by_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_contest_events",
+      "constraint": "studio2_contest_events_actor_user_id_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_edition_runtime",
+      "constraint": "studio2_edition_runtime_updated_by_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_eligibility_overrides",
+      "constraint": "studio2_eligibility_overrides_created_by_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_eligibility_overrides",
+      "constraint": "studio2_eligibility_overrides_revoked_by_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_media_asset_reviews",
+      "constraint": "studio2_media_asset_reviews_reviewed_by_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_next_in_line_windows",
+      "constraint": "studio2_next_in_line_windows_changed_by_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_operation_receipts",
+      "constraint": "studio2_operation_receipts_actor_id_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_organizer_tasks",
+      "constraint": "studio2_organizer_tasks_assigned_to_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_result_operations",
+      "constraint": "studio2_result_operations_last_calculated_by_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_result_operations",
+      "constraint": "studio2_result_operations_locked_by_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_result_operations",
+      "constraint": "studio2_result_operations_reveal_ready_by_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_result_operations",
+      "constraint": "studio2_result_operations_reviewed_by_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_show_publication_controls",
+      "constraint": "studio2_show_publication_controls_scheduled_by_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_show_publication_controls",
+      "constraint": "studio2_show_publication_controls_updated_by_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "private.v3_domain_events",
+      "constraint": "v3_domain_events_actor_id_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "private.v3_result_versions",
+      "constraint": "v3_result_versions_created_by_fkey",
+      "parent_name": "users",
+      "parent_schema": "auth",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "entries",
+      "constraint": "entries_contest_entity_id_fkey",
+      "parent_name": "contest_entities",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "jury_ballot_statuses",
+      "constraint": "jury_ballot_statuses_voter_entity_id_fkey",
+      "parent_name": "contest_entities",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "jury_ballot_submissions",
+      "constraint": "jury_ballot_submissions_voter_entity_id_fkey",
+      "parent_name": "contest_entities",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "jury_votes",
+      "constraint": "jury_votes_receiving_entity_id_fkey",
+      "parent_name": "contest_entities",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "jury_votes",
+      "constraint": "jury_votes_voter_entity_id_fkey",
+      "parent_name": "contest_entities",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "participants",
+      "constraint": "participants_contest_entity_id_fkey",
+      "parent_name": "contest_entities",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "results",
+      "constraint": "results_contest_entity_id_fkey",
+      "parent_name": "contest_entities",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "televote_votes",
+      "constraint": "televote_votes_contest_entity_id_fkey",
+      "parent_name": "contest_entities",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "voters",
+      "constraint": "voters_contest_entity_id_fkey",
+      "parent_name": "contest_entities",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "editions",
+      "constraint": "editions_host_country_id_fkey",
+      "parent_name": "countries",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "entries",
+      "constraint": "entries_country_id_fkey",
+      "parent_name": "countries",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "jury_ballot_statuses",
+      "constraint": "jury_ballot_statuses_voter_country_id_fkey",
+      "parent_name": "countries",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "jury_ballot_submissions",
+      "constraint": "jury_ballot_submissions_voter_country_id_fkey",
+      "parent_name": "countries",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "jury_votes",
+      "constraint": "jury_votes_receiving_country_id_fkey",
+      "parent_name": "countries",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "jury_votes",
+      "constraint": "jury_votes_voter_country_id_fkey",
+      "parent_name": "countries",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "national_finals",
+      "constraint": "national_finals_country_id_fkey",
+      "parent_name": "countries",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "participants",
+      "constraint": "participants_country_id_fkey",
+      "parent_name": "countries",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "results",
+      "constraint": "results_country_id_fkey",
+      "parent_name": "countries",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "shows",
+      "constraint": "shows_host_country_id_fkey",
+      "parent_name": "countries",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_confirmation_requirements",
+      "constraint": "studio2_confirmation_requirements_country_id_fkey",
+      "parent_name": "countries",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_eligibility_overrides",
+      "constraint": "studio2_eligibility_overrides_country_id_fkey",
+      "parent_name": "countries",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_media_asset_reviews",
+      "constraint": "studio2_media_asset_reviews_country_id_fkey",
+      "parent_name": "countries",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_organizer_tasks",
+      "constraint": "studio2_organizer_tasks_country_id_fkey",
+      "parent_name": "countries",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "televote_votes",
+      "constraint": "televote_votes_country_id_fkey",
+      "parent_name": "countries",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "voters",
+      "constraint": "voters_country_id_fkey",
+      "parent_name": "countries",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "studio2_organizer_tasks",
+      "constraint": "studio2_organizer_tasks_required_capability_fkey",
+      "parent_name": "studio2_capabilities",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "key",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "child": "editions",
+      "constraint": "editions_theme_id_fkey",
+      "parent_name": "themes",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "shows",
+      "constraint": "shows_theme_id_fkey",
+      "parent_name": "themes",
+      "parent_schema": "public",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "televoting.round_countries",
+      "constraint": "round_countries_country_code_fkey",
+      "parent_name": "countries",
+      "parent_schema": "televoting",
+      "referenced_columns": [
+        {
+          "name": "code",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "child": "televoting.rounds",
+      "constraint": "rounds_edition_id_fkey",
+      "parent_name": "editions",
+      "parent_schema": "televoting",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "televoting.televote_aggregations",
+      "constraint": "televote_aggregations_edition_id_fkey",
+      "parent_name": "editions",
+      "parent_schema": "televoting",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "child": "jury_ballot_submissions",
+      "constraint": "jury_ballot_submissions_preflight_id_fkey",
+      "parent_name": "vote_preflight_checks",
+      "parent_schema": "televoting",
+      "referenced_columns": [
+        {
+          "name": "id",
+          "type": "uuid"
+        }
+      ]
+    }
+  ]
+}
