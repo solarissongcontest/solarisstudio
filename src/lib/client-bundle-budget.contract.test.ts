@@ -42,13 +42,13 @@ afterEach(() => {
 });
 
 describe("client bundle performance budget", () => {
-  it("keeps the canonical production threshold at 1.8 MiB", () => {
+  it("enforces the reduced 1,200 KiB combined gzip hard limit", () => {
     expect(budget).toContain("maxSingleJsRaw: 1_050 * 1024");
     expect(budget).toContain("maxSingleJsGzip: 300 * 1024");
     expect(budget).toContain("maxSingleCssGzip: 45 * 1024");
-    expect(budget).toContain("maxTotalJsCssGzip: 1_800 * 1024");
-    expect(budget).not.toContain("maxTotalJsCssGzip: 2_200 * 1024");
-    expect(validator).toContain("const CANONICAL_THRESHOLD_BYTES = 1_800 * 1024");
+    expect(budget).toContain("maxTotalJsCssGzip: 1_200 * 1024");
+    expect(budget).not.toContain("maxTotalJsCssGzip: 1_800 * 1024");
+    expect(validator).toContain("const CANONICAL_THRESHOLD_BYTES = 1_200 * 1024");
   });
 
   it("routes production, Quality and Browser Audit through the same canonical budget owner", () => {
@@ -95,7 +95,7 @@ describe("client bundle performance budget", () => {
     const result = runBudget(assetRoot, reportPath);
     expect(result.status).toBe(0);
     const report = JSON.parse(readFileSync(reportPath, "utf8"));
-    expect(report.thresholdBytes).toBe(1_800 * 1024);
+    expect(report.thresholdBytes).toBe(1_200 * 1024);
     expect(report.withinBudget).toBe(true);
     expect(report.aggregateGzipBytes).toBe(
       report.javascriptGzipBytes + report.cssGzipBytes,
@@ -121,13 +121,30 @@ describe("client bundle performance budget", () => {
     expect(report.javascriptGzipBytes).toBe(expectedGzip);
     expect(report.cssGzipBytes).toBe(0);
     expect(report.aggregateGzipBytes).toBe(expectedGzip);
-    expect(report.overBudgetBytes).toBe(expectedGzip - 1_800 * 1024);
+    expect(report.overBudgetBytes).toBe(expectedGzip - 1_200 * 1024);
     expect(report.withinBudget).toBe(false);
 
     const validation = spawnSync(process.execPath, [validatorScript, reportPath], {
       encoding: "utf8",
     });
     expect(validation.status).toBe(0);
+  });
+
+  it("rejects an oversized aggregate even when every individual JavaScript chunk fits", () => {
+    const { assetRoot, reportPath } = fixtureRoot();
+    for (let index = 0; index < 5; index += 1) {
+      writeFileSync(join(assetRoot, `chunk-${index}.js`), randomBytes(250_000));
+    }
+
+    const result = runBudget(assetRoot, reportPath);
+    const report = JSON.parse(readFileSync(reportPath, "utf8"));
+    expect(result.status).not.toBe(0);
+    expect(report.thresholdBytes).toBe(1_200 * 1024);
+    expect(report.aggregateGzipBytes).toBeGreaterThan(1_200 * 1024);
+    expect(report.assets).toHaveLength(5);
+    expect(report.assets.every((asset: { gzipBytes: number }) => asset.gzipBytes < 300 * 1024)).toBe(true);
+    expect(report.failures.some((failure: string) => failure.includes("Total JS + CSS gzip"))).toBe(true);
+    expect(report.failures.every((failure: string) => failure.includes("Total JS + CSS gzip"))).toBe(true);
   });
 
   it("fails explicitly when the production asset tree is missing without fabricating zero-byte success", () => {
