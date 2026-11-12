@@ -30,6 +30,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getSolarisAnniversary } from "@/lib/anniversary";
 import { getAnniversaryPreviewPhase } from "@/lib/anniversary-preview";
 import { getCurrentAccountAccess, type AccountAccess } from "@/lib/country-account";
+import { createAppShellAccountAccessCoordinator } from "@/lib/app-shell-account-access";
 import {
   consumeAppNavigationRestore,
   rememberAppLocation,
@@ -103,34 +104,31 @@ export function AppShell({ children }: { children: ReactNode }) {
   const appScreen = resolveSolarisAppScreen(pathname, searchStr);
 
   useEffect(() => {
-    let alive = true;
+    const accountAccess = createAppShellAccountAccessCoordinator({
+      load: getCurrentAccountAccess,
+      setEmail,
+      setAccess,
+      emptyAccess: EMPTY_ACCESS,
+      // Do not invoke Supabase-dependent access RPCs inside the auth callback.
+      defer: (callback) => { window.setTimeout(callback, 0); },
+    });
 
-    const refresh = async (userId?: string | null, userEmail?: string | null) => {
-      if (!alive) return;
-      setEmail(userEmail ?? null);
-
-      if (!userId) {
-        setAccess(EMPTY_ACCESS);
-        return;
-      }
-
-      const next = await getCurrentAccountAccess(userId);
-      if (alive) setAccess(next);
-    };
-
-    void supabase.auth
-      .getUser()
-      .then(({ data }) => refresh(data.user?.id ?? null, data.user?.email ?? null));
+    void supabase.auth.getUser().then(({ data, error }) => {
+      accountAccess.initial({
+        id: error ? null : (data.user?.id ?? null),
+        email: error ? null : (data.user?.email ?? null),
+      });
+    }).catch(() => accountAccess.initial({ id: null, email: null }));
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      window.setTimeout(
-        () => void refresh(session?.user?.id ?? null, session?.user?.email ?? null),
-        0,
-      );
+      accountAccess.authChanged({
+        id: session?.user?.id ?? null,
+        email: session?.user?.email ?? null,
+      });
     });
 
     return () => {
-      alive = false;
+      accountAccess.dispose();
       subscription.subscription.unsubscribe();
     };
   }, []);
