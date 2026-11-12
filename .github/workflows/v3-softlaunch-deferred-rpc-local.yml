@@ -1,0 +1,69 @@
+name: V3 Soft Launch deferred RPC local-only authorization rehearsal
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - docs/v3/recovery-candidates/forward-only-softlaunch-deferred-rpc-rollout-local.sql
+      - .github/scripts/v3-softlaunch-deferred-rpc-local-rehearsal.sh
+      - .github/workflows/v3-softlaunch-deferred-rpc-local.yml
+      - src/lib/v3-softlaunch-deferred-rpc-rollout.contract.test.ts
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-softlaunch-deferred-rpc-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-guards:
+    name: Isolated Fantasy and Prediction caller-edition authority
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      SOLARIS_VERIFICATION_TARGET: local
+      SUPABASE_PROJECT_REF: local
+      SUPABASE_PROJECT_ID: local
+      V3_EXACT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Refuse hosted targets or inherited credentials before network activity
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$V3_EXACT_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          [[ "$(git rev-parse HEAD)" == "$V3_EXACT_SHA" ]] || exit 1
+          [[ "$SOLARIS_VERIFICATION_TARGET" == local ]] || exit 1
+          [[ "$SUPABASE_URL" == http://127.0.0.1:54321 ]] || exit 1
+          [[ "$VITE_SUPABASE_URL" == http://127.0.0.1:54321 ]] || exit 1
+          for name in DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN PGSERVICE PGSERVICEFILE PGHOST PGHOSTADDR; do
+            [[ -z "$(printenv "$name" || true)" ]] || { echo "::error::Unexpected $name"; exit 1; }
+          done
+          bash -n .github/scripts/v3-softlaunch-deferred-rpc-local-rehearsal.sh
+      - name: Set up pinned Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Install local PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+      - name: Start disposable isolated local Supabase
+        run: bash .github/scripts/v3-start-disposable-supabase.sh
+      - name: Rebuild clean source migrations exclusively on local Supabase
+        run: supabase db reset --local --no-seed
+      - name: Test actor/canonical-edition flag denial and authorized retry
+        run: bash .github/scripts/v3-softlaunch-deferred-rpc-local-rehearsal.sh
+      - name: State limits of runtime evidence
+        if: success()
+        run: |
+          echo 'Exact-head source-clean local PostgreSQL authority tests passed.'
+          echo 'NOT hosted-head equivalent, NOT production-tested, NOT launch-certified.'
+      - name: Stop only this isolated Supabase stack
+        if: always()
+        run: supabase stop --no-backup || true
