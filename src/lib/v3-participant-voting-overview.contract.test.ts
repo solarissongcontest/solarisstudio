@@ -32,7 +32,8 @@ describe("V3 participant voting overview", () => {
     expect(screen).toContain('title="Voting"');
     expect(screen).toContain('data-v3-voting-overview="canonical-actions"');
     expect(screen).toContain("Public voting stays optional even when it is time-sensitive.");
-    expect(screen).toContain("Solaris has no canonical");
+    expect(screen).toContain("There is no {optional ? \"public vote\" : \"jury ballot\"}");
+    expect(screen).not.toContain("official delegation voting projection");
     expect(screen).not.toContain("useQuery(");
     expect(screen).not.toContain("supabase");
   });
