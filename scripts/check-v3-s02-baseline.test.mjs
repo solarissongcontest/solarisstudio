@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import {PROFILE,dependencyGraph,validateFreshSource,qualifySourceBeta} from './check-v3-s02-baseline.mjs';
 const sha='1'.repeat(40),fingerprint='a'.repeat(64);
 function catalog(){
- return {formatVersion:1,serverVersionNum:170011,databaseIdentity:'postgres:one-start',migrationVersions:['1'],seedCounts:{users:0,ballots:0},
+ return {formatVersion:1,serverVersionNum:170011,databaseImage:'sha256:'+fingerprint,databaseIdentity:'postgres:one-start',migrationVersions:['1'],seedCounts:{users:0,ballots:0},
  nodes:PROFILE.roots.map((name,i)=>({id:'f:'+i,identity:name+'()',name,kind:'function',schema:name.split('.')[0],
- definitionSha256:fingerprint,language:'plpgsql',securityDefiner:true,privileges:{anon:false,authenticated:false,service_role:false}})),edges:[],schemas:[]};
+ owner:'postgres',settingsMd5:'b'.repeat(32),aclMd5:'c'.repeat(32),definitionSha256:fingerprint,language:'plpgsql',securityDefiner:true,privileges:{anon:false,authenticated:false,service_role:false}})),edges:[],schemas:[]};
 }
 function input(){
  return {candidateSha:sha,before:catalog(),after:catalog(),second:catalog(),migrationVersions:['1'],sourceHashes:{source:fingerprint},
@@ -55,7 +55,7 @@ test('call, trigger and observed runtime edges extend the actual required closur
  assert.equal(g.permissions.find(p=>p.identity==='public.vote:anon:UPDATE').hostedClassification,'unknown');
 });
 test('equal hashes require equal security and grants; mismatches do not imply semantic drift',()=>{
- const c=catalog(),n=c.nodes[0],old={id:n.identity,sha256:fingerprint,language:n.language,securityDefiner:true,exec:{...n.privileges}};
+ const c=catalog(),n=c.nodes[0],old={id:n.identity,sha256:fingerprint,language:n.language,securityDefiner:true,exec:{...n.privileges},ownerMetadata:{owner_name:n.owner,settings_md5:n.settingsMd5,acl_md5:n.aclMd5}};
  assert.equal(dependencyGraph(c,[old]).nodes[0].hostedClassification,'verified-equivalent');
  c.nodes[0].privileges.anon=true;
  assert.equal(dependencyGraph(c,[old]).nodes[0].hostedClassification,'verified-different');
@@ -74,4 +74,11 @@ test('inherited hosted/libpq/remote Docker targets refuse before invoking any to
    assert.throws(()=>readFileSync(marker),{code:'ENOENT'});
   }
  }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
+test('security owner, ACL/configuration and effective EXECUTE cannot drift behind equal body hashes',()=>{
+ for(const [key,value] of [['owner','attacker'],['aclMd5','d'.repeat(32)],['settingsMd5','e'.repeat(32)]]){
+  const v=input();v.after.nodes[0][key]=value;assert.throws(()=>qualifySourceBeta(v),/Protected security changed/);
+ }
+ const v=input();v.second.nodes[0].privileges.authenticated=true;assert.throws(()=>qualifySourceBeta(v),/Protected EXECUTE changed/);
 });

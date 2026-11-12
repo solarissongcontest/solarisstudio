@@ -24,7 +24,8 @@ export function dependencyGraph(c,expected=frozen.functions,roots=PROFILE.roots)
   const old=expectedById.get(n.identity);let status='unknown',evidence='No equivalent executable hosted witness';
   if(!reachable.has(n.id)){status='unnecessary-for-observed-operation';evidence='Outside conservative roots/observed calls; NOT a whole-platform exclusion';}
   else if(n.kind==='function'&&old){
-   const same=n.definitionSha256===old.sha256 && n.securityDefiner===old.securityDefiner && n.language===old.language &&
+   const attributes=frozenCatalog.routines.find(r=>r.signature===n.identity)||old.ownerMetadata;
+   const same=attributes && n.owner===attributes.owner_name && n.settingsMd5===attributes.settings_md5 && n.aclMd5===attributes.acl_md5 && n.definitionSha256===old.sha256 && n.securityDefiner===old.securityDefiner && n.language===old.language &&
     Object.entries(old.exec).every(([r,v])=>n.privileges?.[r]===v);
    status=same?'verified-equivalent':'verified-different';
    evidence=same?'Exact frozen definition/security/EXECUTE representation; tested behavior only':'Different catalog bytes, NOT proof of semantic drift';
@@ -38,6 +39,14 @@ export function dependencyGraph(c,expected=frozen.functions,roots=PROFILE.roots)
     evidence='Relation structural/security fingerprints from existing S06 collector; not row-level behavior equivalence';
    }
   }
+  else if(n.kind==='trigger'&&reachable.has(n.id)){
+   const relation=n.identity.split('.').slice(0,2).join('.');
+   const local=c.fingerprints?.relations?.find(r=>r.schema_name+'.'+r.object_name===relation);
+   const oldRelation=frozenCatalog.relations.find(r=>r.schema_name+'.'+r.object_name===relation);
+   if(local&&oldRelation&&local.triggers_md5===oldRelation.triggers_md5){
+    status='verified-equivalent';evidence='Exact whole-relation frozen trigger-definition/enabled-state aggregate; function behavior classified separately';
+   }
+  }
   return {...n,reachable:reachable.has(n.id),hostedClassification:status,evidence};
  });
  const permissions=[];
@@ -45,6 +54,10 @@ export function dependencyGraph(c,expected=frozen.functions,roots=PROFILE.roots)
   check(typeof allowed==='boolean','Unknown effective privilege');
   permissions.push({kind:'permission',identity:n.identity+':'+right,allowed,hostedClassification:n.kind==='function'?n.hostedClassification:'unknown',
    evidence:'Effective local role privilege; not a row-level authorization assertion'});
+ }
+ for(const n of classified.filter(n=>n.reachable))for(const [column,allowed] of Object.entries(n.columnUpdates||{})){
+  check(typeof allowed==='boolean','Unknown column privilege');
+  permissions.push({kind:'column-permission',identity:n.identity+':'+column+':UPDATE',allowed,hostedClassification:'unknown',evidence:'Effective local column UPDATE; historical role inheritance not certified'});
  }
  return {schemaVersion:1,databaseIdentity:c.databaseIdentity,serverVersionNum:c.serverVersionNum,
   analysis:'pg_depend, conservative qualified references, actual function statistics. Dynamic/unqualified/unexecuted branches are NOT claimed exhaustive.',
@@ -60,11 +73,13 @@ export function validateFreshSource(c,versions){
  check(c.migrationVersions?.join(',')===versions.join(','),'Source migration history mismatch');
  check(c.seedCounts?.users===0&&c.seedCounts?.ballots===0,'Source baseline has pre-existing user/ballot state');
  check(c.databaseIdentity,'Missing local database identity');
+ check(/^sha256:[a-f0-9]{64}$/.test(c.databaseImage||''),'Missing actual database image identity');
 }
 export function qualifySourceBeta({candidateSha,before,after,second,stages,lifecycle,migrationVersions,sourceHashes}){
  check(/^[a-f0-9]{40}$/.test(candidateSha),'Exact candidate SHA required');
  validateFreshSource(before,migrationVersions);validateFreshSource(second,migrationVersions);
  check(before.databaseIdentity===after.databaseIdentity,'Database changed during lifecycle/recovery');
+ check(before.databaseImage===second.databaseImage,'Database image changed during repeat');
  for(const name of PROFILE.requiredStages)check(stages[name]==='success','Incomplete stage: '+name);
  const expectedStages=['stage-1-setup','stage-2-delegation-onboarding','stage-3-confirmations','stage-4-entries','stage-5-running-orders','stage-6-jury','stage-7-public-voting','stage-8-results','stage-9-publication','stage-10-archive'];
  const expectedExtensions=['grand-final-qualifier-bridge','grand-final-voting','grand-final-results','grand-final-publication'];
@@ -81,11 +96,13 @@ export function qualifySourceBeta({candidateSha,before,after,second,stages,lifec
  for(const n of first.nodes.filter(n=>n.kind==='function'&&n.reachable)){
   const a=final.nodes.find(x=>x.identity===n.identity),b=repeat.nodes.find(x=>x.identity===n.identity);
   check(a?.definitionSha256===n.definitionSha256&&b?.definitionSha256===n.definitionSha256,'Protected source definition changed: '+n.identity);
+  for(const k of ['owner','securityDefiner','settingsMd5','aclMd5'])check(a[k]===n[k]&&b[k]===n[k],'Protected security changed: '+n.identity+' '+k);
+  for(const r of ['anon','authenticated','service_role'])check(a.privileges?.[r]===n.privileges?.[r]&&b.privileges?.[r]===n.privileges?.[r],'Protected EXECUTE changed: '+n.identity);
  }
  check(Object.keys(sourceHashes||{}).length>0&&Object.values(sourceHashes).every(h=>/^[a-f0-9]{64}$/.test(h)),'Missing source provenance');
  return {task:'S02',contract:'S02-BETA-SOURCE',schemaVersion:1,candidateSha,
   status:'SOURCE_DEFINED_ISOLATED_BASELINE_QUALIFIED',evidenceLevel:'REPRODUCED_IN_ISOLATION',
-  sourceHashes,migrationVersions,stages,serverVersionNum:before.serverVersionNum,...PROFILE.constraints,
+  sourceHashes,migrationVersions,stages,databaseImage:before.databaseImage,serverVersionNum:before.serverVersionNum,...PROFILE.constraints,
   betaSourcePrerequisiteSatisfied:true,originalHostedS02Satisfied:false,fullHostedEquivalenceCertified:false,
   overallBetaReleaseApproved:false,dependencyReports:{before:first,after:final,second:repeat},
   limitation:'Qualified only for fresh isolated source-defined beta. Existing hosted upgrade, production S02/S06 and live beta authorization remain separate.'};

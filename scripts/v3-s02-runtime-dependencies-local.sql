@@ -24,6 +24,21 @@ with funcs as (
  union select 'r:'||r.identity,'f:'||f.oid,'policy-expression' from pg_policy pol
  join rels r on r.oid=pol.polrelid join pg_depend d on d.classid='pg_policy'::regclass and d.objid=pol.oid
  join funcs f on d.refclassid='pg_proc'::regclass and d.refobjid=f.oid
+ union select 'r:'||r.identity,'f:'||f.oid,'constraint-expression' from pg_constraint con
+ join rels r on r.oid=con.conrelid join pg_depend d on d.classid='pg_constraint'::regclass and d.objid=con.oid
+ join funcs f on d.refclassid='pg_proc'::regclass and d.refobjid=f.oid
+ union select 'r:'||r.identity,'f:'||f.oid,'column-expression' from pg_attrdef a
+ join rels r on r.oid=a.adrelid join pg_depend d on d.classid='pg_attrdef'::regclass and d.objid=a.oid
+ join funcs f on d.refclassid='pg_proc'::regclass and d.refobjid=f.oid
+ union select 'r:'||r.identity,'f:'||f.oid,'index-expression' from pg_index ix
+ join rels r on r.oid=ix.indrelid join pg_depend d on d.classid='pg_class'::regclass and d.objid=ix.indexrelid
+ join funcs f on d.refclassid='pg_proc'::regclass and d.refobjid=f.oid
+ union select 'r:'||r.identity,'f:'||f.oid,'view-expression' from pg_rewrite rw
+ join rels r on r.oid=rw.ev_class join pg_depend d on d.classid='pg_rewrite'::regclass and d.objid=rw.oid
+ join funcs f on d.refclassid='pg_proc'::regclass and d.refobjid=f.oid
+ union select 'r:'||r.identity,'r:'||target.identity,'view-relation' from pg_rewrite rw
+ join rels r on r.oid=rw.ev_class join pg_depend d on d.classid='pg_rewrite'::regclass and d.objid=rw.oid
+ join rels target on d.refclassid='pg_class'::regclass and d.refobjid=target.oid
  union select 'r:'||a.identity,'r:'||b.identity,'foreign-key' from pg_constraint con
  join rels a on a.oid=con.conrelid join rels b on b.oid=con.confrelid where con.contype='f'
  union select 'r:'||r.identity,'t:'||r.identity||'.'||t.tgname,'trigger'
@@ -34,12 +49,14 @@ with funcs as (
  select jsonb_build_object('id','f:'||f.oid,'kind','function','identity',f.identity,'name',f.name,'schema',f.nspname,
  'owner',pg_get_userbyid(f.proowner),'securityDefiner',f.prosecdef,'language',(select lanname from pg_language where oid=f.prolang),
  'definitionSha256',encode(extensions.digest(convert_to(pg_get_functiondef(f.oid),'UTF8'),'sha256'),'hex'),
- 'bodyMd5',md5(f.prosrc),'settingsMd5',md5(coalesce(array_to_string(f.proconfig,','),'')),
+ 'bodyMd5',md5(f.prosrc),'settingsMd5',md5(coalesce(f.proconfig::text,'')),'aclMd5',md5(coalesce(f.proacl::text,'')),
  'dynamicSql',f.prosrc ~* '\mexecute\M','runtimeCalls',coalesce((select calls from pg_stat_user_functions s where s.funcid=f.oid),0),
  'privileges',(select jsonb_object_agg(role,has_function_privilege(role,f.oid,'EXECUTE'))
  from unnest(array['anon','authenticated','service_role']) role)) as value from funcs f
  union all select jsonb_build_object('id','r:'||r.identity,'kind','relation','identity',r.identity,'schema',r.nspname,
  'owner',pg_get_userbyid(r.relowner),'rls',r.relrowsecurity,'forceRls',r.relforcerowsecurity,
+ 'columnUpdates',(select jsonb_object_agg(role||':'||a.attname,has_column_privilege(role,r.oid,a.attnum,'UPDATE'))
+ from pg_attribute a,unnest(array['anon','authenticated','service_role']) role where a.attrelid=r.oid and a.attnum>0 and not a.attisdropped),
  'privileges',(select jsonb_object_agg(role||':'||right_name,has_table_privilege(role,r.oid,right_name))
  from unnest(array['anon','authenticated','service_role']) role,unnest(array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE']) right_name)) from rels r
  union all select jsonb_build_object('id','t:'||r.identity||'.'||t.tgname,'kind','trigger',

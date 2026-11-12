@@ -17,6 +17,8 @@ expected_project="archive-v3-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-$job_namespa
 actual_project="$(python3 -c 'import tomllib; print(tomllib.load(open("supabase/config.toml","rb"))["project_id"])')"
 [[ "$actual_project" == "$expected_project" ]] || fail 'Not this run-owned disposable project'
 export DOCKER_HOST=unix:///var/run/docker.sock
+export S02_DATABASE_IMAGE="$(docker inspect --format '{{.Image}}' "supabase_db_$expected_project")"
+[[ "$S02_DATABASE_IMAGE" =~ ^sha256:[a-f0-9]{64}$ ]] || fail 'Missing owned database image'
 out=s02-source-evidence
 [[ ! -e "$out" ]] || fail 'Refusing stale/reused evidence directory'
 mkdir "$out"
@@ -83,6 +85,11 @@ boundary(){
 collect(){
  sql -f scripts/v3-s02-runtime-dependencies-local.sql > "$out/$1.json"
  sql -f scripts/v3-s06-hosted-catalog-digests-local.sql > "$out/fingerprints-$1.json"
+ S02_CATALOG="$out/$1.json" node --input-type=module <<'JS'
+import {readFileSync,writeFileSync} from 'node:fs';
+const p=process.env.S02_CATALOG,c=JSON.parse(readFileSync(p));c.databaseImage=process.env.S02_DATABASE_IMAGE;
+writeFileSync(p,JSON.stringify(c)+'\n');
+JS
 }
 current=fresh-source
 boundary
