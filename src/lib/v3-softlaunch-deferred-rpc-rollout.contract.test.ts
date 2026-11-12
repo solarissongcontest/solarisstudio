@@ -53,6 +53,12 @@ describe("V3 deferred RPC rollout candidate (local-only, not release-certified)"
     expect(guard).toBeLessThan(staged.indexOf("update public.fantasy_games"));
     expect(staged).toContain("private.studio2_feature_enabled_for(v_user, 'fantasy_ssc', v_game.edition_id)");
     expect(staged).toContain("v_game.edition_id is null");
+    expect(staged).toContain("v_game.show_id is null");
+    expect(staged).toContain("from public.shows canonical_show");
+    expect(staged).toContain("canonical_show.id = v_game.show_id");
+    expect(staged).toContain("canonical_show.edition_id = v_game.edition_id");
+    expect(staged.indexOf("canonical_show.edition_id = v_game.edition_id"))
+      .toBeLessThan(staged.indexOf("private.studio2_feature_enabled_for(v_user, 'fantasy_ssc'"));
     expect(staged).toContain("errcode = '42501'");
     expect(staged).toContain("to authenticated, service_role;");
   });
