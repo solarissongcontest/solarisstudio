@@ -8,4 +8,8 @@ CREATE OR REPLACE FUNCTION private.studio2_request_is_service_role()
 AS $function$
   select coalesce(current_setting('request.jwt.claim.role', true), '') = 'service_role'
 $function$;
+-- Match the independently observed helper ACL (postgres only), rather than
+-- inheriting CREATE FUNCTION's PUBLIC EXECUTE default in this local fixture.
+REVOKE ALL ON FUNCTION private.studio2_request_is_service_role()
+  FROM PUBLIC, anon, authenticated, service_role;
 GRANT USAGE ON SCHEMA private TO service_role;

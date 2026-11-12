@@ -33,6 +33,11 @@ describe("System V3 S13 forward-only candidate source and safety", () => {
     expect(candidate).toContain("S13 recovery blocked: target already exists");
     expect(candidate).toContain("private.studio2_request_is_service_role()");
     expect(candidate).toContain("has_schema_privilege('service_role', 'private', 'USAGE')");
+    expect(candidate).toContain("authority helper differs from reviewed catalog");
+    expect(candidate).toContain("pg_get_userbyid(p.proowner) = 'postgres'");
+    expect(candidate).toContain("84d3f05e5f537908732a3875ba0178e6");
+    expect(candidate).toContain("341a58cafc38a872c684592babc76f83");
+    expect(candidate).toContain("e286234abe6f6ed2ec1560aab124057e");
   });
 
   it("is transaction-atomic, bounded and strictly least-privileged", () => {
@@ -61,6 +66,9 @@ describe("System V3 S13 forward-only candidate source and safety", () => {
     expect(rehearsal).toContain("20261019112900_v3_s13_migration_registration_context.sql");
     expect(rehearsal).toContain("expect_preflight_rejection nohelper");
     expect(rehearsal).toContain("expect_preflight_rejection nogrant");
+    expect(rehearsal).toContain("expect_preflight_rejection helperbody");
+    expect(rehearsal).toContain("expect_preflight_rejection helperacl");
+    expect(rehearsal).toContain("expect_preflight_rejection helperowner");
     expect(rehearsal).toContain("expect_preflight_rejection partialtable");
     expect(rehearsal).toContain("expect_preflight_rejection partialrpc");
     expect(rehearsal).toContain("expect_preflight_rejection partialindex");
@@ -90,5 +98,22 @@ describe("System V3 S13 forward-only candidate source and safety", () => {
     expect(candidate).toContain("not a tracked migration");
     expect(candidate).toContain("Do not paste into hosted Supabase");
     expect(candidate).not.toContain("SOLARIS_PRODUCTION_COMMIT=YES");
+  });
+
+  it("tests real session loss after DDL and registry effects without modifying the candidate", () => {
+    expect(rehearsal).toContain("for interruption in after_tables before_commit");
+    expect(rehearsal).toContain("pg_terminate_backend(pg_backend_pid())");
+    expect(rehearsal).toContain("S13_LOCAL_INTERRUPTION_REACHED_");
+    expect(rehearsal).toContain("terminating connection due to administrator command");
+    expect(rehearsal).toContain('before_interruption="$(interruption_fingerprint "$probe_db")"');
+    expect(rehearsal).toContain('after_interruption="$(interruption_fingerprint "$probe_db")"');
+    expect(rehearsal).toContain("S13 original-candidate retry did not recover canonical objects");
+    expect(rehearsal).toContain("S13 recovery removed existing baseline write guard");
+    expect(rehearsal).toContain('fault_sql="$(mktemp)"');
+    expect(rehearsal).toContain('rm -f -- "$fault_sql"');
+    expect(rehearsal).toContain("20261102205000_v3_service_role_claim_compatibility.sql");
+    expect(rehearsal).toContain("s02-hosted-s13-prerequisite-local.sql");
+    expect(rehearsal).toContain("S02 prerequisite did not produce the reviewed S13 recovery contract");
+    expect(load(".github/workflows/v3-s13-forward-recovery-local.yml")).toContain("image: postgres:17.11-alpine");
   });
 });
