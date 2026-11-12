@@ -11,6 +11,8 @@ describe("mobile browser section disclosure route identity", () => {
     // next route and undo that click. A keyed instance cannot inherit it.
     expect(appShell).toContain("<PublicMobileSectionNav key={pathname} pathname={pathname} />");
     expect(appShell).not.toContain("<PublicMobileSectionNav pathname={pathname} />");
+    // A redundant after-mount close can still race a fast click on the new route.
+    expect(disclosure).not.toContain('useEffect(() => setOpen(false), [pathname])');
   });
 
   it("keeps keyboard, outside tap and resize dismissal safety on each keyed instance", () => {
