@@ -1,9 +1,13 @@
-import { createElement, type ReactNode } from "react";
+import { createElement, type ReactNode, type ElementType } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 const routeState = vi.hoisted(() => ({ pathname: "/" }));
 vi.mock("@tanstack/react-router", () => ({
+  createLink:
+    (component: ElementType) =>
+    ({ to, ...props }: { to: string }) =>
+      createElement(component, { ...props, href: to }),
   useRouterState: ({ select }: { select: (state: { location: { pathname: string } }) => string }) =>
     select({ location: { pathname: routeState.pathname } }),
   Link: ({ to, children, ...props }: { to: string; children?: ReactNode }) =>
@@ -14,6 +18,7 @@ vi.mock("@/components/AppShell", () => ({
 }));
 import { PublicLaunchContext } from "./public-launch-context";
 import { PublicLaunchRouteBoundary } from "@/components/public/PublicLaunchRouteBoundary";
+import { PublicLaunchLink } from "@/components/public/PublicLaunchLink";
 import { V3ActionCard } from "@/components/v3/V3Foundation";
 import { PublicSecondaryLinks } from "@/components/public/PublicSecondaryLinks";
 import type { PublicLaunchFlags } from "./public-launch-availability";
@@ -103,6 +108,24 @@ describe("soft-launch rendered public entry points", () => {
     expect(hidden).toContain('href="/jury-voting"');
     expect(hidden).toContain('href="/rules"');
     expect(render(children, { fantasy_ssc: true })).toContain('href="/fantasy"');
+  });
+  it("filters legacy raw links and redirect aliases without changing core link classes", () => {
+    const children = (
+      <>
+        <PublicLaunchLink to="/analysis" className="preserved-link">
+          Deferred analysis
+        </PublicLaunchLink>
+        <PublicLaunchLink to="/my-solaris/predictions">Old predictions</PublicLaunchLink>
+        <PublicLaunchLink to="/results" className="preserved-link">
+          Official results
+        </PublicLaunchLink>
+      </>
+    );
+    const html = render(children);
+    expect(html).not.toContain("Deferred analysis");
+    expect(html).not.toContain("Old predictions");
+    expect(html).toContain('href="/results"');
+    expect(html).toContain('class="preserved-link"');
   });
   it("omits an empty optional-links section instead of leaving a coming-soon dashboard", () => {
     expect(

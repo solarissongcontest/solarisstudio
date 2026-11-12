@@ -11,6 +11,7 @@ export const PUBLIC_LAUNCH_ROUTES = [
   { path: "/world", flag: "terra_world_public" },
   ...[
     "/predictions",
+    "/my-solaris/predictions",
     "/archive-games",
     "/analysis",
     "/compare",

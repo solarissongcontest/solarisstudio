@@ -3,7 +3,8 @@ import { V3MeRoot } from "@/components/v3/V3MeRoot";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { FlagFrame } from "@/components/FlagMedia";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { PublicLaunchLink as Link } from "@/components/public/PublicLaunchLink";
+import { createFileRoute} from "@tanstack/react-router";
 import {
   CalendarClock,
   CheckCircle2,

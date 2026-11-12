@@ -36,6 +36,15 @@ describe("soft-launch entry-point integration", () => {
     ).toHaveLength(2);
     expect(search).toContain("if (!allows(item.href)) continue;");
   });
+  it("keeps legacy Home, Results, Country and account navigation on the same typed link adapter", () => {
+    for (const path of ["src/routes/index.tsx", "src/routes/results/index.tsx", "src/routes/countries/$code.tsx", "src/routes/countries/index.tsx", "src/routes/_authenticated/my-solaris/index.tsx", "src/components/country/ProfileActivityPanel.tsx", "src/components/mysolaris/MySolarisPersonalPage.tsx"]) {
+      expect(source(path)).toContain("PublicLaunchLink as Link");
+    }
+    const adapter = source("src/components/public/PublicLaunchLink.tsx");
+    expect(adapter).toContain("createLink(LaunchAnchor)");
+    expect(adapter).toContain("allows(href)");
+    expect(adapter).not.toContain("supabase");
+  });
   it("uses caller-evaluated flags and the established account cache, without a local tester bypass or polling", () => {
     const provider = source("src/components/public/PublicLaunchAvailability.tsx");
     expect(provider).toContain("isStudio2FeatureEnabled(flag)");
