@@ -10,6 +10,8 @@ on:
       - ".github/scripts/v3-full-contest-rehearsal.sh"
       - ".github/workflows/v3-s14-full-contest-rehearsal.yml"
       - "scripts/v3-s14-full-contest-spec.ts"
+      - "scripts/v3_s14_final_seed.py"
+      - "scripts/test_v3_s14_final_seed.py"
       - "scripts/check-v3-s14-rehearsal-readiness.ts"
       - "src/lib/v3-s14-*.test.ts"
   workflow_dispatch:
@@ -55,6 +57,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 -m unittest -v scripts/test_v3_s14_final_seed.py
+          python3 -m py_compile scripts/v3_s14_final_seed.py
           bunx vitest run \
             src/lib/ci-egress-safety.contract.test.ts \
             src/lib/v3-s14-stage7-deadline-command-identity.contract.test.ts \
