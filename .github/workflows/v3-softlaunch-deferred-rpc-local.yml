@@ -8,6 +8,8 @@ on:
       - .github/scripts/v3-softlaunch-deferred-rpc-local-rehearsal.sh
       - .github/workflows/v3-softlaunch-deferred-rpc-local.yml
       - src/lib/v3-softlaunch-deferred-rpc-rollout.contract.test.ts
+      - scripts/v3-softlaunch-deferred-rpc-pg17-contract.mjs
+      - scripts/v3-softlaunch-deferred-rpc-pg17-contract.test.mjs
   workflow_dispatch:
 
 permissions:
@@ -67,3 +69,75 @@ jobs:
       - name: Stop only this isolated Supabase stack
         if: always()
         run: supabase stop --no-backup || true
+
+  pinned-pg17-definition-parity:
+    name: Networkless PG17.11 original-hosted fingerprint and guarded replacement
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      EXACT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact source head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Refuse hosted credentials, aliases and stale source
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EXACT_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 1
+          [[ "$(git rev-parse HEAD)" == "$EXACT_SHA" ]] || exit 1
+          for name in DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_URL VITE_SUPABASE_URL E2E_SUPABASE_URL CONFIRMATIONS_SUPABASE_URL VITE_CONFIRMATIONS_SUPABASE_URL SUPABASE_ACCESS_TOKEN SUPABASE_SERVICE_ROLE_KEY PGHOST PGHOSTADDR PGPORT PGSERVICE PGSERVICEFILE DOCKER_HOST DOCKER_CONTEXT; do
+            [[ -z "$(printenv "$name" || true)" ]] || { echo "::error::Unexpected hosted alias $name"; exit 1; }
+          done
+      - name: Node 22 pinned offline generator and negative contract tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify checked-in source and frozen PG17.11 catalog metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/v3-softlaunch-deferred-rpc-pg17-contract.mjs
+          node --test scripts/v3-softlaunch-deferred-rpc-pg17-contract.test.mjs
+          node scripts/v3-softlaunch-deferred-rpc-pg17-contract.mjs > "$RUNNER_TEMP/v3-softlaunch-pg17.sql"
+      - name: Pull and verify exact PostgreSQL 17.11 image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull postgres:17.11
+          actual="$(docker image inspect --format '{{.Id}}' postgres:17.11)"
+          [[ "$actual" == "sha256:eb0fb2377534e65aad04f37838956b3dfb888e1a3dd3c1acf957bc6557eb6c7d" ]] || {
+            echo "::error::PostgreSQL 17.11 image digest changed. Refusing unreviewed image."
+            exit 1
+          }
+      - name: Parse original and guarded functions in a networkless disposable PG17.11
+        shell: bash
+        run: |
+          set -euo pipefail
+          cid=""
+          cleanup() {
+            result=$?
+            if [[ -n "$cid" ]]; then docker rm -f "$cid" >/dev/null || result=1; fi
+            exit "$result"
+          }
+          trap cleanup EXIT
+          cid="$(docker run -d --rm --pull=never --network none -e POSTGRES_PASSWORD=disposable-pg17-guard postgres:17.11)"
+          [[ "$cid" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]]
+          [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]]
+          for i in $(seq 1 40); do
+            if docker exec "$cid" pg_isready -h /var/run/postgresql -U postgres >/dev/null 2>&1; then break; fi
+            [[ "$i" -lt 40 ]] || { echo "::error::Owned PG17.11 not ready"; exit 1; }
+            sleep 1
+          done
+          [[ "$(docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -c 'show server_version_num;')" == 170011 ]]
+          docker exec -i "$cid" psql -w -X -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -f - < "$RUNNER_TEMP/v3-softlaunch-pg17.sql"
+          echo 'Original PG17.11 frozen hosted-source hashes, two guarded DDL replacements, ACL and writer-count preservation PASS.'
+      - name: State strictly scoped PG17.11 evidence limits
+        run: |
+          echo 'PASS: PostgreSQL 17.11 definition/SQL parser, source-frozen Nov10 fingerprint, ACL preservation.'
+          echo 'No application data rows, no runtime function calls in this synthetic PG17.11 fixture.'
+          echo 'Separate live behavior checks use disposable local Supabase PG17.6, not hosted PG17.11.'
+          echo 'No network from PG container, no hosted Supabase, no current hosted-head parity or production authorization.'
