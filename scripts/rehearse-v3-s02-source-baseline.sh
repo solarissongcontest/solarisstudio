@@ -18,11 +18,15 @@ actual_project="$(python3 -c 'import tomllib; print(tomllib.load(open("supabase/
 [[ "$actual_project" == "$expected_project" ]] || fail 'Not this run-owned disposable project'
 [[ "${S02_CLI_PROJECT_ID:-}" == "$expected_project" && "${S02_NETWORK_ID:-}" == "s02-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$job_namespace" ]] || fail 'Missing pinned CLI/network identity'
 export DOCKER_HOST=unix:///var/run/docker.sock
-[[ "$(docker network inspect --format '{{.Internal}}' "$S02_NETWORK_ID")" == true ]] || fail 'Database network permits external routing'
+network_id="$(docker network inspect --format '{{.Id}}' "$S02_NETWORK_ID")"
+bridge="br-${network_id:0:12}"
+subnet="$(docker network inspect --format '{{(index .IPAM.Config 0).Subnet}}' "$S02_NETWORK_ID")"
+sudo iptables -C DOCKER-USER -i "$bridge" ! -d "$subnet" -m conntrack --ctstate NEW -j REJECT || fail 'Container egress not denied'
+sudo iptables -C INPUT -i "$bridge" -m conntrack --ctstate NEW -j REJECT || fail 'Container-to-host proxy path not denied'
 containers="$(docker network inspect --format '{{range $id,$c := .Containers}}{{$id}} {{end}}' "$S02_NETWORK_ID")"
 [[ -n "$containers" ]] || fail 'Empty owned network'
 for cid in $containers; do
- docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid" | node --input-type=module -e '
+ docker inspect --format '{{json .NetworkSettings.Ports}}' "$cid" | node --input-type=module -e '
  let s="";for await(const c of process.stdin)s+=c;
  for(const bindings of Object.values(JSON.parse(s)||{}))for(const b of bindings||[])
   if(!["127.0.0.1","::1"].includes(b.HostIp))throw Error("Non-loopback published port");
@@ -55,10 +59,14 @@ finish(){
  if [[ "$status" != 0 && -n "$current" ]]; then record "$current" failure || true; fi
  if supabase stop --no-backup > "$out/cleanup.log" 2>&1; then
   if docker network ls --format '{{.Name}}' | grep -Fx "$S02_NETWORK_ID" >/dev/null; then
+   sudo iptables -D DOCKER-USER -i "$bridge" ! -d "$subnet" -m conntrack --ctstate NEW -j REJECT
+   sudo iptables -D INPUT -i "$bridge" -m conntrack --ctstate NEW -j REJECT
    if docker network rm "$S02_NETWORK_ID" >/dev/null; then record cleanup success; else record cleanup failure; status=1; fi
   else record cleanup success; fi
  else record cleanup failure; status=1; fi
- if [[ "$status" == 0 ]]; then node scripts/check-v3-s02-baseline.mjs qualify "$out" || status=1
+ if [[ "$status" == 0 ]]; then
+  node scripts/check-v3-s02-baseline.mjs qualify "$out" || status=1
+  if [[ "$status" == 0 ]]; then node scripts/check-v3-s02-baseline.mjs dependency "$out" || status=1; fi
  else echo 'S02 qualification INCOMPLETE; no passing certificate emitted' >&2; fi
  exit "$status"
 }
@@ -102,7 +110,7 @@ collect(){
  sql -f scripts/v3-s06-hosted-catalog-digests-local.sql > "$out/fingerprints-$1.json"
  S02_CATALOG="$out/$1.json" node --input-type=module <<'JS'
 import {readFileSync,writeFileSync} from 'node:fs';
-const p=process.env.S02_CATALOG,c=JSON.parse(readFileSync(p));c.databaseImage=process.env.S02_DATABASE_IMAGE;c.networkIsolation={internal:true,loopbackOnly:true,identity:process.env.S02_NETWORK_ID};
+const p=process.env.S02_CATALOG,c=JSON.parse(readFileSync(p));c.databaseImage=process.env.S02_DATABASE_IMAGE;c.networkIsolation={externalEgressDenied:true,hostProxyDenied:true,loopbackOnly:true,identity:process.env.S02_NETWORK_ID};
 writeFileSync(p,JSON.stringify(c)+'\n');
 JS
 }

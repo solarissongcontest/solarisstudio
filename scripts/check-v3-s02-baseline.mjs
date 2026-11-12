@@ -74,7 +74,7 @@ export function validateFreshSource(c,versions){
  check(c.seedCounts?.users===0&&c.seedCounts?.ballots===0,'Source baseline has pre-existing user/ballot state');
  check(c.databaseIdentity,'Missing local database identity');
  check(c.trackFunctions==='all','Function-call telemetry not enabled');
- check(c.networkIsolation?.internal===true&&c.networkIsolation?.loopbackOnly===true&&/^s02-/.test(c.networkIsolation.identity),'Missing closed-network evidence');
+ check(c.networkIsolation?.externalEgressDenied===true&&c.networkIsolation?.hostProxyDenied===true&&c.networkIsolation?.loopbackOnly===true&&/^s02-/.test(c.networkIsolation.identity),'Missing closed-network evidence');
  check(/^sha256:[a-f0-9]{64}$/.test(c.databaseImage||''),'Missing actual database image identity');
 }
 export function qualifySourceBeta({candidateSha,before,after,second,stages,lifecycle,migrationVersions,sourceHashes}){
@@ -109,6 +109,16 @@ export function qualifySourceBeta({candidateSha,before,after,second,stages,lifec
   overallBetaReleaseApproved:false,dependencyReports:{before:first,after:final,second:repeat},
   limitation:'Qualified only for fresh isolated source-defined beta. Existing hosted upgrade, production S02/S06 and live beta authorization remain separate.'};
 }
+export function assertBaselineDependency(proof,{target,candidateSha}={}){
+ check(target==='fresh-isolated-source-beta','Historical/hosted targets require original S02 evidence; source proof cannot substitute');
+ check(proof?.contract==='S02-BETA-SOURCE'&&proof.status==='SOURCE_DEFINED_ISOLATED_BASELINE_QUALIFIED','Source baseline not qualified');
+ check(/^[a-f0-9]{40}$/.test(candidateSha||'')&&proof.candidateSha===candidateSha,'Stale baseline prerequisite');
+ check(proof.betaSourcePrerequisiteSatisfied===true&&proof.originalHostedS02Satisfied===false,'Invalid baseline scope');
+ for(const [key,value] of Object.entries(PROFILE.constraints))check(proof[key]===value,'Changed qualification constraint: '+key);
+ check(proof.fullHostedEquivalenceCertified===false&&proof.overallBetaReleaseApproved===false,'Qualification cannot approve a release');
+ for(const stage of PROFILE.requiredStages)check(proof.stages?.[stage]==='success','Missing prerequisite stage: '+stage);
+ return {baselinePrerequisiteSatisfied:true,target,candidateSha,historicalHostedAcceptance:false,productionRecoveryEligible:false,liveBetaDeploymentAuthorized:false};
+}
 const json=p=>JSON.parse(readFileSync(p,'utf8'));
 const catalog=(dir,name)=>({...json(dir+'/'+name+'.json'),fingerprints:json(dir+'/fingerprints-'+name+'.json')});
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
@@ -116,6 +126,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).hr
  const migrationVersions=readdirSync('supabase/migrations').filter(n=>/^\d+.*\.sql$/.test(n)).map(n=>n.split('_')[0]).sort();
  if(command==='fresh'){validateFreshSource(json(dir+'/before.json'),migrationVersions);console.log('PASS fresh source history and empty user/ballot state');}
  else if(command==='graph')writeFileSync(dir+'/dependency-graph.json',JSON.stringify(dependencyGraph(catalog(dir,name)),null,2)+'\n');
+ else if(command==='dependency')console.log(JSON.stringify(assertBaselineDependency(json(dir+'/s02-source-beta-proof.json'),{target:process.env.S02_BASELINE_TARGET,candidateSha:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim()})));
  else if(command==='qualify'){
   const candidateSha=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
   execFileSync('git',['diff','--exit-code','--quiet','--','.',':!supabase/config.toml']);
@@ -124,5 +135,5 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).hr
   const proof=qualifySourceBeta({candidateSha,before:catalog(dir,'before'),after:catalog(dir,'after'),second:catalog(dir,'second'),stages:json(dir+'/stages.json'),lifecycle:json(dir+'/lifecycle.json'),migrationVersions,sourceHashes});
   writeFileSync(dir+'/s02-source-beta-proof.json',JSON.stringify(proof,null,2)+'\n',{flag:'wx'});
   console.log('PASS S02-BETA-SOURCE '+candidateSha+'; NOT hosted-equivalent or live beta/production authorization');
- }else throw Error('Use graph or qualify');
+ }else throw Error('Use fresh, graph, qualify or dependency');
 }

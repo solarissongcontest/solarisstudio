@@ -24,7 +24,7 @@ The sole technical replacement is **baseline provenance** for this fresh isolate
 
 ## What qualification does and does not unlock
 
-A passing, integrated exact-SHA `SOURCE_DEFINED_ISOLATED_BASELINE_QUALIFIED` report may satisfy the **baseline dependency** of S06/S07-style testing **only when explicitly selecting this fresh source-defined beta target**. S06's original historical hosted-upgrade checkbox remains unproven. S07 source/behavior acceptance can use this fully declared source baseline instead of being recursively blocked on unrelated historical parity.
+The executable dependency consumer `assertBaselineDependency` (CLI `dependency`, explicit `S02_BASELINE_TARGET=fresh-isolated-source-beta`) rejects stale proof, changed constraints, missing stages and every hosted/existing-database target. It never enables a runtime write. A passing, integrated exact-SHA `SOURCE_DEFINED_ISOLATED_BASELINE_QUALIFIED` report may satisfy the **baseline dependency** of S06/S07-style testing **only when explicitly selecting this fresh source-defined beta target**. S06's original historical hosted-upgrade checkbox remains unproven. S07 source/behavior acceptance can use this fully declared source baseline instead of being recursively blocked on unrelated historical parity.
 
 No report may approve an existing hosted upgrade, live beta, overall beta release, production recovery, public writes or a deployment. These fields are always false. Source qualification is not a server-enforced one-owner hosted rollout: access isolation, other beta release gates, actual infrastructure and any deployment authorization still have to be verified for that rollout. No owner terminal work or external technical reviewer is required by this contract.
 
