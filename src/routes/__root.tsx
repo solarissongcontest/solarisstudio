@@ -1,3 +1,5 @@
+import { PublicLaunchAvailabilityProvider } from "@/components/public/PublicLaunchAvailability";
+import { PublicLaunchRouteBoundary } from "@/components/public/PublicLaunchRouteBoundary";
 import { AccountCacheIsolation } from "@/components/app/AccountCacheIsolation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -371,7 +373,15 @@ function RootComponent() {
           {!fullAdmin ? <SolarisAmbientBackground /> : null}
         </>
       ) : null}
-      {maintenanceRecovery ? content : <V3RootLegacyCutover>{content}</V3RootLegacyCutover>}
+      {isolatedRoute || fullAdmin ? (
+        maintenanceRecovery ? content : <V3RootLegacyCutover>{content}</V3RootLegacyCutover>
+      ) : (
+        <PublicLaunchAvailabilityProvider>
+          <PublicLaunchRouteBoundary pathname={pathname}>
+            <V3RootLegacyCutover>{content}</V3RootLegacyCutover>
+          </PublicLaunchRouteBoundary>
+        </PublicLaunchAvailabilityProvider>
+      )}
       {!isolatedRoute ? <ToolQuickGuide pathname={pathname} /> : null}
       {!isolatedRoute ? <Toaster /> : null}
     </QueryClientProvider>

@@ -1,3 +1,4 @@
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, type LucideIcon } from "lucide-react";
 import { useRef } from "react";
@@ -30,6 +31,8 @@ export function PublicPrimaryAction({
     typeof performance !== "undefined" ? performance.now() : 0,
   );
 
+  const { allows } = usePublicLaunchAvailability();
+  if (to?.startsWith("/") && !allows(to)) return null;
   return (
     <Link
       to={to as any}

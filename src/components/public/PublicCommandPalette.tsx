@@ -1,3 +1,4 @@
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useRouterState } from "@tanstack/react-router";
 import { Command as CommandIcon, Search, X } from "lucide-react";
@@ -339,6 +340,7 @@ function AppPublicPaletteDialog({
   originPath,
   initialQuery,
 }: PublicPaletteDialogProps) {
+  const { allows } = usePublicLaunchAvailability();
   const router = useRouter();
   const initialSearchState = useMemo(() => readAppSearchState(), []);
   const [query, setQuery] = useState(() => initialQuery ?? initialSearchState.lastQuery);
@@ -429,7 +431,7 @@ function AppPublicPaletteDialog({
     [visibleRecents],
   );
 
-  const searchResults = useMemo<PublicSearchResult[]>(() => {
+  const unfilteredSearchResults = useMemo<PublicSearchResult[]>(() => {
     if (!normalized) return [];
 
     const remoteResults = (
@@ -460,16 +462,19 @@ function AppPublicPaletteDialog({
     return limitV3PublicSearchGroups(rankV3PublicSearchResults(dedupePublicSearchResults([...local, ...remoteResults]), normalized));
   }, [actionResults, normalized, awaitingRemote, remote.data, remote.isError]);
 
+  const searchResults = useMemo(() => unfilteredSearchResults.filter(item => allows(item.href)), [unfilteredSearchResults, allows]);
+
   const grouped = useMemo(() => {
     const source = normalized ? searchResults : [...recentResults, ...actionResults];
     const map = new Map<string, PublicSearchResult[]>();
     for (const item of source) {
+      if (!allows(item.href)) continue;
       const values = map.get(item.group) ?? [];
       values.push(item);
       map.set(item.group, values);
     }
     return [...map.entries()];
-  }, [actionResults, normalized, recentResults, searchResults]);
+  }, [actionResults, normalized, recentResults, searchResults, allows]);
 
   useEffect(() => {
     if (normalized.length < 2) return;
@@ -601,6 +606,7 @@ function WebPublicPaletteDialog({
   setOpen,
   access,
 }: PublicPaletteDialogProps) {
+  const { allows } = usePublicLaunchAvailability();
   const router = useRouter();
   const webSearchInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
@@ -709,12 +715,13 @@ function WebPublicPaletteDialog({
   const idleGroups = useMemo(() => {
     const map = new Map<string, PublicSearchResult[]>();
     for (const item of [...recentResults, ...actionResults]) {
+      if (!allows(item.href)) continue;
       const values = map.get(item.group) ?? [];
       values.push(item);
       map.set(item.group, values);
     }
     return [...map.entries()];
-  }, [actionResults, recentResults]);
+  }, [actionResults, recentResults, allows]);
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
@@ -792,6 +799,7 @@ function WebSearchArchiveResults({
   actionResults: PublicSearchResult[];
   setOpen: (open: boolean) => void;
 }) {
+  const { allows } = usePublicLaunchAvailability();
   const router = useRouter();
   const { preferences } = useAppExperiencePreferences();
   const showsQuery = useAllShows();
@@ -901,7 +909,7 @@ function WebSearchArchiveResults({
     [countries, spoilerSafeRecordArchive, spoilerPreviewVerificationPending, participantsQuery.isSuccess, participantsQuery.isError],
   );
 
-  const searchResults = useMemo(() => {
+  const unfilteredSearchResults = useMemo(() => {
     const values: PublicSearchResult[] = [
       ...actionResults.filter((item) =>
         matchesV3PublicSearch(
@@ -1114,6 +1122,8 @@ function WebSearchArchiveResults({
     spoilerPreviewVerificationPending,
   ]);
 
+  const searchResults = useMemo(() => unfilteredSearchResults.filter(item => allows(item.href)), [unfilteredSearchResults, allows]);
+
   const isFetching =
     showsQuery.isFetching ||
     participantsQuery.isFetching ||
@@ -1166,12 +1176,13 @@ function WebSearchArchiveResults({
   const grouped = useMemo(() => {
     const map = new Map<string, PublicSearchResult[]>();
     for (const item of searchResults) {
+      if (!allows(item.href)) continue;
       const values = map.get(item.group) ?? [];
       values.push(item);
       map.set(item.group, values);
     }
     return [...map.entries()];
-  }, [searchResults]);
+  }, [searchResults, allows]);
 
   return (
     <CommandList className="max-h-[min(68dvh,34rem)]">

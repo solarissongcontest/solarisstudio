@@ -1,3 +1,4 @@
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, type LucideIcon } from "lucide-react";
 
@@ -17,6 +18,9 @@ export function PublicSecondaryLinks({
   eyebrow?: string;
   items: PublicSecondaryLink[];
 }) {
+  const { allows } = usePublicLaunchAvailability();
+  const visibleItems = items.filter(item => allows(item.to));
+  if (!visibleItems.length) return null;
   return (
     <section className="public-hub-section" aria-label={title}>
       <div className="public-hub-section-heading">
@@ -24,7 +28,7 @@ export function PublicSecondaryLinks({
         <h2>{title}</h2>
       </div>
       <div className="public-secondary-links">
-        {items.map(({ to, title: itemTitle, description, icon: Icon }) => (
+        {visibleItems.map(({ to, title: itemTitle, description, icon: Icon }) => (
           <Link key={to} to={to as any} className="public-secondary-link group">
             {Icon ? (
               <span className="public-secondary-link-icon">

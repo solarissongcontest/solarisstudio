@@ -1,3 +1,4 @@
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { Link } from "@tanstack/react-router";
 
 import {
@@ -21,13 +22,14 @@ export function PublicDrawerNavigation({
   pathname: string;
   user: PublicUserContext;
 }) {
+  const { allows } = usePublicLaunchAvailability();
   const area = publicAreaForPath(pathname);
   const globalAreas = publicGlobalAreasForContext(user);
   const areaRoot = PUBLIC_GLOBAL_AREAS.find((item) => item.id === area)?.to ?? null;
   const localItems =
     area === "home" || area === "me"
       ? []
-      : publicDestinationsForArea(area, { includeContextual: false }).filter(
+      : publicDestinationsForArea(area, { includeContextual: false }).filter(item => allows(item.to)).filter(
           (item) => item.to !== areaRoot,
         );
 

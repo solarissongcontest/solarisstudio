@@ -1,3 +1,4 @@
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { Link } from "@tanstack/react-router";
 import { BarChart3, CalendarDays, Check, ChevronRight, History, Search, SlidersHorizontal, X } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
@@ -59,6 +60,8 @@ export function V3DirectoryFamilyIndex({
   /** Rules owns its own governed rollout shell. */
   noShell?: boolean;
 }) {
+  const { allows } = usePublicLaunchAvailability();
+  groups = groups.map(group => ({ ...group, items: group.items.filter(item => allows(item.to)) }));
   const { platformResolved } = useSolarisApp();
   const presentation = useV3DirectoryPresentation();
   const [search, setSearch] = useState("");

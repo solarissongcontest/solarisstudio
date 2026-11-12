@@ -1,3 +1,4 @@
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { Link } from "@tanstack/react-router";
 import type { HTMLAttributes, ReactNode } from "react";
 import {
@@ -187,6 +188,8 @@ export function V3ActionCard({
   to?: string;
   trailing?: boolean;
 }) {
+  const { allows } = usePublicLaunchAvailability();
+  if (to?.startsWith("/") && !allows(to)) return null;
   const Icon = icon ?? actionIcon(tone);
   const actionable = Boolean(to || onClick);
   const contents = (
