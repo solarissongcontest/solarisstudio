@@ -17,7 +17,9 @@ describe("V3 mobile-browser and desktop section-navigation accessibility", () =>
     expect(mobile).toContain('aria-controls={"public-mobile-section-panel-" + area}');
     expect(mobile).toContain('hidden={!open}');
     expect(css).toContain(".public-mobile-section-panel[hidden] {\n  display: none;");
-    expect(mobile).toContain('useEffect(() => setOpen(false), [pathname])');
+    const appShell = source("src/components/AppShell.tsx");
+    expect(appShell).toContain("<PublicMobileSectionNav key={pathname} pathname={pathname} />");
+    expect(mobile).not.toContain('useEffect(() => setOpen(false), [pathname])');
     expect(mobile).toContain('window.matchMedia("(min-width: 768px)")');
     expect(mobile).toContain('wideWebsite.addEventListener("change", closeForWideWebsite)');
     expect(mobile).toContain('wideWebsite.removeEventListener("change", closeForWideWebsite)');
