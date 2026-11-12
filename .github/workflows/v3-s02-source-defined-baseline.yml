@@ -1,0 +1,87 @@
+name: V3 S02 source-defined isolated beta baseline
+on:
+  pull_request:
+    branches: [main]
+    paths: &s02_source_paths
+      - ".github/workflows/v3-s02-source-defined-baseline.yml"
+      - ".github/tests/v3-s02-source-security.sql"
+      - "scripts/check-v3-s02-baseline*"
+      - "scripts/v3-s02-runtime-dependencies-local.sql"
+      - "scripts/rehearse-v3-s02-source-baseline.sh"
+      - "docs/v3/recovery-candidates/s02-baseline-profiles.json"
+      - "docs/v3/recovery-candidates/s02-source-defined-beta-contract.md"
+      - "supabase/migrations/**"
+      - ".github/scripts/v3-s14-*.sh"
+      - ".github/scripts/v3-full-contest-rehearsal.sh"
+      - "scripts/stage-v3-s07-televote-source-truth.mjs"
+      - "docs/v3/recovery-candidates/s07-televote-managed-source-guard.sql"
+      - "scripts/rehearse-v3-s14-archive-forward-effects-local.sh"
+      - "docs/v3/recovery-candidates/forward-only-s13-foundation.sql"
+      - "docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql"
+  push:
+    branches: [main]
+    paths: *s02_source_paths
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: s02-source-baseline-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  source-defined-beta:
+    name: Complete source-defined lifecycle and recovery qualification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      REVIEWED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      SOLARIS_RUN_LOCAL_DB_REHEARSAL: "YES"
+      SOLARIS_VERIFICATION_TARGET: local
+      SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      E2E_SUPABASE_URL: http://127.0.0.1:54321
+      CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+      - name: Verify source and refusal contracts before startup
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$REVIEWED_SHA" ]]
+          node --check scripts/check-v3-s02-baseline.mjs
+          bash -n scripts/rehearse-v3-s02-source-baseline.sh
+          node --test scripts/check-v3-s02-baseline.test.mjs
+          for key in DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN SUPABASE_SERVICE_ROLE_KEY SUPABASE_DB_PASSWORD DOCKER_HOST DOCKER_CONTEXT DOCKER_TLS_VERIFY DOCKER_CERT_PATH ${!PG@}; do
+            [[ -z "${!key:-}" ]] || { echo "::error::Inherited connection authority $key"; exit 1; }
+          done
+      - run: bun install --frozen-lockfile
+      - name: Install the existing lifecycle browser
+        timeout-minutes: 10
+        run: bunx playwright install --with-deps chromium
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Start this run's owned disposable source database
+        run: bash .github/scripts/v3-start-disposable-supabase.sh
+      - name: Qualify source-only baseline through canonical workflows
+        run: bash scripts/rehearse-v3-s02-source-baseline.sh
+      - name: Preserve bounded metadata and actual outcomes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s02-source-defined-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            s02-source-evidence/*.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Stop only this project's remaining stack
+        if: always()
+        run: supabase stop --no-backup
