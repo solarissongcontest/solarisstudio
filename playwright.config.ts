@@ -1,50 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 
 import { GLOBAL_MAINTENANCE_MODE } from "./src/lib/maintenance";
+import { requireLocalPlaywrightTarget, requireLocalPlaywrightSupabaseEnvironment } from "./scripts/lib/require-local-playwright-target.mjs";
 
-const REQUIRED_TEST_SUPABASE_URL_VARS = [
-  "VITE_SUPABASE_URL",
-  "SUPABASE_URL",
-  "E2E_SUPABASE_URL",
-  "VITE_CONFIRMATIONS_SUPABASE_URL",
-  "CONFIRMATIONS_SUPABASE_URL",
-] as const;
-
-function isLoopbackUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return ["127.0.0.1", "localhost", "::1", "[::1]"].includes(url.hostname);
-  } catch {
-    return false;
-  }
-}
-
-function assertPlaywrightSupabaseIsolation() {
-  for (const name of REQUIRED_TEST_SUPABASE_URL_VARS) {
-    const value = process.env[name];
-    if (!value) {
-      throw new Error(
-        `[Playwright safety] Missing ${name}. Automated browser tests require explicit local Supabase configuration and never fall back to .env/production.`,
-      );
-    }
-    if (!isLoopbackUrl(value)) {
-      throw new Error(
-        `[Playwright safety] Refusing non-local Supabase endpoint in ${name}: ${value}`,
-      );
-    }
-  }
-
-  for (const [name, value] of Object.entries(process.env)) {
-    if (!value || !/SUPABASE.*URL/i.test(name)) continue;
-    if (!isLoopbackUrl(value)) {
-      throw new Error(
-        `[Playwright safety] Refusing hosted/non-loopback Supabase URL from ${name}: ${value}`,
-      );
-    }
-  }
-}
-
-assertPlaywrightSupabaseIsolation();
+// Validate before Playwright can launch a browser or start a web server.
+// This covers legacy Confirmations, CLI aliases and dynamically named URLs.
+requireLocalPlaywrightSupabaseEnvironment(process.env);
 
 const fullAuditRequested = process.env.E2E_FULL_AUDIT === "1";
 const routineMainPush =
@@ -94,7 +55,7 @@ const personalityViewportMatrix = fullAudit
       { width: 390, height: 844 },
       { width: 1440, height: 900 },
     ] as const);
-const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:4173";
+const baseURL = requireLocalPlaywrightTarget(process.env.E2E_BASE_URL, "http://127.0.0.1:4173");
 const maintenanceAuditBypass = process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1";
 const appAuditStorageState = maintenanceAuditBypass
   ? {
@@ -129,7 +90,7 @@ const maintenanceProjects = [
 
 const publicProjects = publicViewportMatrix.map(({ width, height }) => ({
   name: `public-${width}`,
-  testMatch: /public-routes\.e2e\.ts/,
+  testMatch: /(?:public-routes|records-mobile-web|public-section-navigation)\.e2e\.ts/,
   use: { viewport: { width, height } },
 }));
 
@@ -142,12 +103,12 @@ const personalityProjects = personalityViewportMatrix.map(({ width, height }) =>
 const representativeCiProjects = [
   {
     name: "public-390",
-    testMatch: /public-routes\.e2e\.ts/,
+    testMatch: /(?:public-routes|records-mobile-web|public-section-navigation)\.e2e\.ts/,
     use: { viewport: { width: 390, height: 844 } },
   },
   {
     name: "public-1440",
-    testMatch: /public-routes\.e2e\.ts/,
+    testMatch: /(?:public-routes|records-mobile-web|public-section-navigation)\.e2e\.ts/,
     use: { viewport: { width: 1440, height: 900 } },
   },
   {
@@ -165,11 +126,12 @@ const representativeCiProjects = [
     use: { viewport: { width: 1440, height: 1000 } },
   },
   {
-    // One installed-app shell path proves the mobile chrome without running the
-    // exhaustive PWA launch/geometry certification suite on every pull request.
+    // Representative installed-app geometry and interrupted-lens recovery run
+    // against isolated loopback Supabase on every PR. The exhaustive launch,
+    // geometry and visual certification remains a separate explicit audit.
     name: "ios-pwa-portrait",
     testMatch: /installed-app\.e2e\.ts/,
-    grep: /installed app shell survives representative navigation without duplicate chrome/,
+    grep: /installed app shell survives representative navigation without duplicate chrome|installed Liquid dock cancels held gestures/,
     use: {
       ...devices["iPhone 13"],
       browserName: "webkit" as const,
@@ -296,14 +258,17 @@ export default defineConfig({
   grepInvert: fullAudit ? undefined : /installed-app route invariant crawl/,
   outputDir: "test-results/playwright",
   // Routine PR and main-push CI is release feedback, not an exhaustive crawler.
-  // The broad inventory stays available for explicit/manual and release-branch
-  // certification; routine CI runs a deterministic representative matrix after
-  // the separate Organizer fail-fast preflight.
+  // The broad inventory stays available for explicit/manual certification;
+  // routine CI runs a deterministic representative matrix after the separate
+  // Organizer fail-fast preflight.
   timeout: representativeCI ? 90_000 : process.env.CI ? 8 * 60_000 : 5 * 60_000,
   expect: { timeout: 20_000 },
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
-  retries: representativeCI ? 0 : process.env.CI ? 1 : 0,
+  // Certification evidence must reflect the first deterministic execution.
+  // A retry may collect more information locally, but CI must never turn a
+  // reproducible first failure into a green certification result.
+  retries: 0,
   // The representative CI matrix is already bounded. Do not stop after the first
   // failure: one run must report the whole actionable browser failure set.
   maxFailures: 0,

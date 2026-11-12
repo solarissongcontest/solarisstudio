@@ -1,9 +1,9 @@
 export const GLOBAL_MAINTENANCE_MODE = true;
 
-export const MAINTENANCE_RETURN_DATE = "25 October 2026";
-export const MAINTENANCE_LAST_UPDATED = "23 October 2026";
+export const MAINTENANCE_RETURN_DATE = "15 November 2026";
+export const MAINTENANCE_LAST_UPDATED = "29 October 2026";
 // Public estimate only. The maintenance/release gate remains authoritative.
-export const TERRAOS3_ESTIMATED_LAUNCH_AT = "2026-10-25T20:00:00+02:00";
+export const TERRAOS3_ESTIMATED_LAUNCH_AT = "2026-11-15T20:00:00+02:00";
 export const MAINTENANCE_CONFIRMATION_API_PATH = "/api/maintenance-confirmation";
 
 export function maintenanceHodAccessEnabled(rawValue: string | null | undefined) {
@@ -28,4 +28,21 @@ export function isMaintenanceHodAppRouteAllowed(
   if (pathname === "/auth/reset" || pathname === "/auth/reset/") return true;
 
   return false;
+}
+
+/**
+ * This is the sole public maintenance exception for authenticated platform
+ * recovery. The GET document is inert until a real Solaris organizer signs in.
+ * The POST transport only records protected, server-attested exit preflights.
+ * Normal writes, Rules Manager mutations and generic server functions stay
+ * blocked by the emergency Worker gate.
+ */
+export const MAINTENANCE_PLATFORM_RECOVERY_PATH = "/maintenance/recovery";
+export const MAINTENANCE_PLATFORM_PREFLIGHT_PATH = "/api/maintenance-platform-preflight";
+
+export function isMaintenancePlatformRecoveryRouteAllowed(pathname: string, method: string) {
+  if (pathname === MAINTENANCE_PLATFORM_RECOVERY_PATH) {
+    return method === "GET" || method === "HEAD";
+  }
+  return pathname === MAINTENANCE_PLATFORM_PREFLIGHT_PATH && method === "POST";
 }

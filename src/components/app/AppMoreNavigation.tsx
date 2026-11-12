@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   Tv2,
   UserRound,
+  X,
 } from "lucide-react";
 
 import { SheetClose } from "@/components/ui/sheet";
@@ -33,11 +34,20 @@ export function AppMoreNavigation({
 }) {
   return (
     <div className="solaris-app-more">
-      <div className="solaris-app-more-header">
+      <div className="solaris-app-more-header flex items-center justify-between gap-3">
         <div>
           <p className="solaris-app-more-eyebrow">Solaris Studio</p>
           <h2 className="text-xl font-semibold">More</h2>
         </div>
+        <SheetClose asChild>
+          <button
+            type="button"
+            className="grid size-11 shrink-0 place-items-center rounded-xl border border-border bg-surface"
+            aria-label="Close More menu"
+          >
+            <X className="size-5" aria-hidden="true" />
+          </button>
+        </SheetClose>
       </div>
 
       <nav
@@ -74,10 +84,12 @@ export function AppMoreNavigation({
 
       <div className="mt-5 border-t border-border/70 pt-4">
         {signedIn ? (
-          <button type="button" onClick={onSignOut} className="solaris-app-more-link w-full">
-            <LogOut className="size-4" aria-hidden="true" />
-            <span>Sign out</span>
-          </button>
+          <SheetClose asChild>
+            <button type="button" onClick={onSignOut} className="solaris-app-more-link w-full">
+              <LogOut className="size-4" aria-hidden="true" />
+              <span>Sign out</span>
+            </button>
+          </SheetClose>
         ) : (
           <SheetClose asChild>
             <Link to="/auth" className="solaris-app-more-primary">

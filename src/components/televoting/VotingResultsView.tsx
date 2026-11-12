@@ -33,6 +33,7 @@ import {
   checkMergedPublicationReadiness,
   getMergedTelevoteConversion,
   recalculateMergedConversion,
+  retryPublishedTelevoteSync,
   setMergedResultsStatus,
   updateMergedConversionConfig,
 } from "@/integrations/televoting/conversion.functions";
@@ -55,6 +56,7 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
   const recalculate = useServerFn(recalculateMergedConversion);
   const checkReadiness = useServerFn(checkMergedPublicationReadiness);
   const setStatus = useServerFn(setMergedResultsStatus);
+  const retrySync = useServerFn(retryPublishedTelevoteSync);
 
   const [roundId, setRoundId] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -91,9 +93,10 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
   const effectiveRoundId = selectedRoundStillInEdition
     ? roundId
     : scopedRounds.find((round) => round.status === "closed")?.id ?? scopedRounds[0]?.id ?? "";
+  const conversionQueryKey = ["merged-televoting-conversion", editionId, effectiveRoundId] as const;
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["merged-televoting-conversion", editionId, effectiveRoundId],
+    queryKey: conversionQueryKey,
     queryFn: () => getConversion({ data: { roundId: effectiveRoundId } }),
     enabled: Boolean(admin && effectiveRoundId),
   });
@@ -117,7 +120,7 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
 
   const invalidate = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["merged-televoting-conversion", editionId, effectiveRoundId] }),
+      queryClient.invalidateQueries({ queryKey: conversionQueryKey }),
       queryClient.invalidateQueries({ queryKey: ["merged-televoting-published-results"] }),
       queryClient.invalidateQueries({ queryKey: ["merged-televoting-admin-overview"] }),
     ]);
@@ -149,13 +152,47 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
   });
 
   const recalcMutation = useMutation({
-    mutationFn: (confirmProtected: boolean) => recalculate({ data: { roundId: effectiveRoundId, confirm: confirmProtected } }),
-    onSuccess: async (result) => {
+    // The selected edition/round can change while a calculation is awaiting
+    // its transactional RPC and authoritative readback. Capture both identities
+    // with the mutation, rather than consulting whichever tab is selected later.
+    mutationFn: (target: { roundId: string; editionId: string; confirmProtected: boolean }) =>
+      recalculate({ data: { roundId: target.roundId, confirm: target.confirmProtected } }),
+    onSuccess: async (result, target) => {
       setProtectedRecalcOpen(false);
+      const completedQueryKey = ["merged-televoting-conversion", target.editionId, target.roundId] as const;
+      if (result.state.round.id === target.roundId) {
+        queryClient.setQueryData(completedQueryKey, result.state);
+      } else {
+        toast.error("Calculation readback returned another round; refreshing canonical results");
+      }
       toast.success(`Calculation v${result.version} stored · ${result.distributedTotal}/${result.totalPoints} points distributed`);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: completedQueryKey }),
+        queryClient.invalidateQueries({ queryKey: ["merged-televoting-published-results"] }),
+        queryClient.invalidateQueries({ queryKey: ["merged-televoting-admin-overview"] }),
+      ]);
+    },
+    onError: async (caught, target) => {
+      // A post-commit readback/network failure leaves the result uncertain.
+      // Refresh the actual attempted round, even if the selector has moved.
+      toast.error(caught instanceof Error ? caught.message : "Calculation outcome uncertain; refresh before retrying");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["merged-televoting-conversion", target.editionId, target.roundId] }),
+        queryClient.invalidateQueries({ queryKey: ["merged-televoting-published-results"] }),
+        queryClient.invalidateQueries({ queryKey: ["merged-televoting-admin-overview"] }),
+      ]);
+    },
+  });
+
+
+  const retrySyncMutation = useMutation({
+    mutationFn: () => retrySync({ data: { roundId: effectiveRoundId } }),
+    onSuccess: async (outcome) => {
+      toast.success(`Solaris synchronization complete · ${outcome.imported ?? 0} entries`);
       await invalidate();
     },
-    onError: (caught) => toast.error(caught instanceof Error ? caught.message : "Calculation failed"),
+    onError: (caught) =>
+      toast.error(caught instanceof Error ? caught.message : "Solaris synchronization failed"),
   });
 
   async function runReadiness() {
@@ -219,8 +256,18 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
               <AdminActionItem icon={RefreshCw} title="Recalculate result" description="Re-run the versioned conversion using current ballots and settings." onClick={() => {
                 const protectedResult = data?.round.results_status === "locked" || data?.round.results_status === "published";
                 if (protectedResult) setProtectedRecalcOpen(true);
-                else recalcMutation.mutate(false);
+                else recalcMutation.mutate({ roundId: effectiveRoundId, editionId, confirmProtected: false });
               }} disabled={!data || recalcMutation.isPending} />
+
+              {data?.round.results_status === "published" ? (
+                <AdminActionItem
+                  icon={RefreshCw}
+                  title="Retry Solaris synchronization"
+                  description="Reconcile the already-published Televote with an unreleased Solaris show."
+                  onClick={() => retrySyncMutation.mutate()}
+                  disabled={retrySyncMutation.isPending}
+                />
+              ) : null}
               <Link to="/televoting/results" className="admin-action-row">
                 <span className="admin-action-row-icon"><ExternalLink className="size-4" /></span>
                 <span className="min-w-0 flex-1 text-left"><span className="block text-sm font-semibold">Open public results</span><span className="mt-1 block text-xs text-muted-foreground">Preview the visitor-facing results route.</span></span>
@@ -347,7 +394,7 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
         </div>
       </AdminSheet>
 
-      <AdminConfirmSheet open={protectedRecalcOpen} onClose={() => setProtectedRecalcOpen(false)} onConfirm={() => recalcMutation.mutate(true)} title="Replace protected calculation?" description="This result is locked or published. Recalculation will replace the saved conversion using the current line-up, selected versioned engine and settings. Official SSC results are not changed by this tool." confirmLabel="Recalculate result" danger busy={recalcMutation.isPending} />
+      <AdminConfirmSheet open={protectedRecalcOpen} onClose={() => setProtectedRecalcOpen(false)} onConfirm={() => recalcMutation.mutate({ roundId: effectiveRoundId, editionId, confirmProtected: true })} title="Replace protected calculation?" description="This result is locked or published. Recalculation will replace the saved conversion using the current line-up, selected versioned engine and settings. Official SSC results are not changed by this tool." confirmLabel="Recalculate result" danger busy={recalcMutation.isPending} />
       <AdminConfirmSheet open={publishOpen} onClose={() => setPublishOpen(false)} onConfirm={() => changeStatus("published")} title="Publish televote result?" description="The stored converted televote will become available on the public Televoting Results page. The publication readiness check has passed for this round." confirmLabel="Publish result" busy={statusBusy} />
     </div>
   );
@@ -357,7 +404,7 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
       return <Link to="/televoting/admin/rounds" className="admin-action-primary w-full"><LockKeyhole className="size-4" /> Close voting first</Link>;
     }
     if (current.round.calculation_version <= 0 || current.round.results_outdated || !storedRows.length) {
-      return <button type="button" disabled={recalcMutation.isPending} onClick={() => recalcMutation.mutate(false)} className="admin-action-primary w-full"><Calculator className="size-4" /> {recalcMutation.isPending ? "Calculating…" : current.round.results_outdated ? "Recalculate official result" : "Calculate official result"}</button>;
+      return <button type="button" disabled={recalcMutation.isPending} onClick={() => recalcMutation.mutate({ roundId: effectiveRoundId, editionId, confirmProtected: false })} className="admin-action-primary w-full"><Calculator className="size-4" /> {recalcMutation.isPending ? "Calculating…" : current.round.results_outdated ? "Recalculate official result" : "Calculate official result"}</button>;
     }
     if (current.round.results_status === "calculated" || current.round.results_status === "draft") {
       return <button type="button" disabled={statusBusy} onClick={() => void changeStatus("locked")} className="admin-action-primary w-full"><LockKeyhole className="size-4" /> {statusBusy ? "Working…" : "Lock official result"}</button>;

@@ -1,5 +1,5 @@
-import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
-import { televotingAdmin } from "@/integrations/televoting/client.server";
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
+import { redactVotingAuditPayload } from "@/lib/v3-voting-audit-redaction.server";
 
 export type AuditJson =
   | string
@@ -28,7 +28,10 @@ export async function listMergedAuditLogServer(filters: {
   targetType?: string | null;
   limit?: number;
 }): Promise<MergedAuditRow[]> {
-  await requireMergedTelevotingAdminServer();
+  // This history spans editions and may contain private vote-operation details.
+  // Require a global canonical Voting read grant before opening the service client.
+  await requireSolarisCapabilityServer("voting.read", null);
+  const { televotingAdmin } = await import("@/integrations/televoting/client.server");
 
   let query = televotingAdmin
     .from("admin_audit_log")
@@ -50,8 +53,8 @@ export async function listMergedAuditLogServer(filters: {
     action: String(row.action ?? "unknown"),
     target_type: row.target_type == null ? null : String(row.target_type),
     target_id: row.target_id == null ? null : String(row.target_id),
-    old_values: (row.old_values ?? null) as AuditJson | null,
-    new_values: (row.new_values ?? null) as AuditJson | null,
+    old_values: redactVotingAuditPayload((row.old_values ?? null) as AuditJson) as AuditJson,
+    new_values: redactVotingAuditPayload((row.new_values ?? null) as AuditJson) as AuditJson,
     reason: row.reason == null ? null : String(row.reason),
     created_at: String(row.created_at),
   }));

@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { inspectV3CronMigrations } from "./v3-s15-scheduled-job-audit";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -22,14 +23,16 @@ function discover() {
     .map((entry) => entry.name)
     .sort();
 
-  const scheduledJobNames = new Set<string>();
   const migrationsRoot = resolve(root, "supabase/migrations");
-  for (const name of readdirSync(migrationsRoot).filter((item) => item.endsWith(".sql")).sort()) {
-    const source = readFileSync(resolve(migrationsRoot, name), "utf8");
-    for (const match of source.matchAll(/cron\.schedule\s*\(\s*'([^']+)'/g)) scheduledJobNames.add(match[1]);
-  }
-
-  return { integrationPaths, edgeFunctionNames, scheduledJobNames: [...scheduledJobNames].sort() };
+  const cronAudit = inspectV3CronMigrations(
+    readdirSync(migrationsRoot).filter((name) => name.endsWith(".sql")).map((name) => ({
+      path: "supabase/migrations/" + name,
+      sql: readFileSync(resolve(migrationsRoot, name), "utf8"),
+    })),
+    V3_SYSTEM_SCHEDULED_JOB_REGISTRY,
+  );
+  expect(cronAudit.findings).toEqual([]);
+  return { integrationPaths, edgeFunctionNames, scheduledJobNames: cronAudit.scheduledJobNames };
 }
 
 describe("System V3 S15 zero-orphan audit", () => {
@@ -46,12 +49,16 @@ describe("System V3 S15 zero-orphan audit", () => {
     }
   });
 
-  it("pins scheduled jobs to migrations that still schedule the exact job name", () => {
-    for (const job of V3_SYSTEM_SCHEDULED_JOB_REGISTRY) {
-      const source = readFileSync(resolve(root, job.evidence), "utf8");
-      expect(source, job.evidence).toContain("cron.schedule");
-      expect(source, job.evidence).toContain(`'${job.name}'`);
-    }
+  it("pins scheduled jobs to their latest real cron.schedule calls", () => {
+    const migrationsRoot = resolve(root, "supabase/migrations");
+    const report = inspectV3CronMigrations(
+      readdirSync(migrationsRoot).filter((name) => name.endsWith(".sql")).map((name) => ({
+        path: "supabase/migrations/" + name,
+        sql: readFileSync(resolve(migrationsRoot, name), "utf8"),
+      })),
+      V3_SYSTEM_SCHEDULED_JOB_REGISTRY,
+    );
+    expect(report.findings).toEqual([]);
   });
 
   it("fails closed when a new integration, Edge Function or scheduled job appears without an owner", () => {

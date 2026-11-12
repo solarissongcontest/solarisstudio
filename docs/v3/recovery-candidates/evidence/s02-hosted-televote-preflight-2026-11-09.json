@@ -1,0 +1,23 @@
+{
+  "task": "S02",
+  "date": "2026-11-09",
+  "method": "owner-approved read-only hosted pg_catalog/to_regclass/to_regprocedure",
+  "databaseVersionNum": "170011",
+  "migrationHead": "20261101181812",
+  "containsApplicationRows": false,
+  "containsSecrets": false,
+  "observed": {
+    "private.v3_televote_result_projection_sources": false,
+    "private.v3_guard_source_managed_televote_projection()": false,
+    "public.televote_votes/v3_guard_source_managed_televote_projection": false,
+    "private.studio2_request_is_service_role()": true,
+    "public.televote_votes": true,
+    "televoting.rounds": true
+  },
+  "donorCandidateSha": "01865d823c22897fad84629d984506603885850e",
+  "limits": [
+    "This catalog probe is a bounded presence/absence check, not proof of a full hosted-equivalent upgrade",
+    "No production rows were copied or queried",
+    "Forward-only donor must run on a disposable networkless PostgreSQL 17.11 fixture only"
+  ]
+}

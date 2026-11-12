@@ -127,12 +127,14 @@ select '$TV_ROUND_ID'::uuid,c.short_code,p.running_order
 from public.participants p
 join public.countries c on c.id=p.country_id
 where p.show_id='$SEMI_ONE_ID'::uuid
+  and coalesce(p.participation_status,'confirmed')='confirmed'
 order by p.running_order;
 insert into televoting.round_countries(round_id,country_code,display_order)
 select '$TV_ROUND_TWO_ID'::uuid,c.short_code,p.running_order
 from public.participants p
 join public.countries c on c.id=p.country_id
 where p.show_id='$SEMI_TWO_ID'::uuid
+  and coalesce(p.participation_status,'confirmed')='confirmed'
 order by p.running_order;
 
 insert into televoting.round_entries(round_id,entry_type,entry_key,country_code,short_name,entry_code,display_order)
@@ -140,12 +142,14 @@ select '$TV_ROUND_ID'::uuid,'country',c.short_code,c.short_code,'S14 '||c.short_
 from public.participants p
 join public.countries c on c.id=p.country_id
 where p.show_id='$SEMI_ONE_ID'::uuid
+  and coalesce(p.participation_status,'confirmed')='confirmed'
 order by p.running_order;
 insert into televoting.round_entries(round_id,entry_type,entry_key,country_code,short_name,entry_code,display_order)
 select '$TV_ROUND_TWO_ID'::uuid,'country',c.short_code,c.short_code,'S14 '||c.short_code,c.short_code,p.running_order
 from public.participants p
 join public.countries c on c.id=p.country_id
 where p.show_id='$SEMI_TWO_ID'::uuid
+  and coalesce(p.participation_status,'confirmed')='confirmed'
 order by p.running_order;
 
 insert into public.televoting_round_bindings(
@@ -161,8 +165,15 @@ on conflict (remote_round_id) do update set
   for pair in "$TV_ROUND_ID:$SEMI_ONE_ID" "$TV_ROUND_TWO_ID:$SEMI_TWO_ID"; do
     round_id="${pair%%:*}"
     show_id="${pair##*:}"
-    [[ "$(db_scalar "select count(*) from televoting.round_entries where round_id='$round_id'::uuid;")" == "33" ]] || fail "S14 Televote round $round_id does not contain exactly 33 entries"
-    [[ "$(db_scalar "select count(*) from televoting.round_entries re join public.countries c on c.short_code=re.country_code join public.participants p on p.country_id=c.id and p.show_id='$show_id'::uuid where re.round_id='$round_id'::uuid;")" == "33" ]] || fail "S14 Televote round $round_id does not exactly project its bound Solaris show"
+    active_count="$(db_scalar "select count(*) from public.participants where show_id='$show_id'::uuid and coalesce(participation_status,'confirmed')='confirmed';")"
+    round_entry_count="$(db_scalar "select count(*) from televoting.round_entries where round_id='$round_id'::uuid;")"
+    round_country_count="$(db_scalar "select count(*) from televoting.round_countries where round_id='$round_id'::uuid;")"
+    matched_count="$(db_scalar "select count(*) from televoting.round_entries re join public.countries c on c.short_code=re.country_code join public.participants p on p.country_id=c.id and p.show_id='$show_id'::uuid and coalesce(p.participation_status,'confirmed')='confirmed' where re.round_id='$round_id'::uuid;")"
+
+    [[ "$active_count" =~ ^[1-9][0-9]*$ ]] || fail "S14 bound show $show_id has no active Televote lineup"
+    [[ "$round_entry_count" == "$active_count" ]] || fail "S14 Televote round $round_id entry count $round_entry_count does not match active show lineup $active_count"
+    [[ "$round_country_count" == "$active_count" ]] || fail "S14 Televote round $round_id country count $round_country_count does not match active show lineup $active_count"
+    [[ "$matched_count" == "$active_count" ]] || fail "S14 Televote round $round_id does not exactly project its active bound Solaris show"
     [[ "$(db_scalar "select total_points_to_distribute from televoting.rounds where id='$round_id'::uuid;")" == "20" ]] || fail "S14 Televote round $round_id metadata does not match the authoritative 20-point ballot contract"
   done
 

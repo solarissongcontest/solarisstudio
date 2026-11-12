@@ -176,7 +176,8 @@ describe("final UI completion contracts", () => {
     const pulse = source("src/routes/pulse/index.tsx");
 
     expect(editions).not.toContain("BackgroundFlag");
-    expect(editions).toContain("overflow-hidden rounded-2xl");
+    expect(editions).toContain("v3-directory-desktop-grid");
+    expect(editions).toContain("v3-directory-mobile-list");
     expect(pulse).toContain("Important");
     expect(pulse).toContain("More updates");
     expect(pulse).toContain("More from Solaris");

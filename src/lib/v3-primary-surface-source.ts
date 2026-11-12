@@ -20,6 +20,8 @@ import {
   type VotingTaskInput,
 } from "./participation-os";
 import { isShowPublic, showPublishesResults } from "./publication";
+import { formatEventDateTime } from "./public-time";
+import { showModeConfig } from "./show-mode";
 import type { PublicRound } from "./confirmation-rounds.functions";
 import type { V3ShowState } from "./v3-domain-state";
 import type {
@@ -165,19 +167,46 @@ function showHasPublishedResult(show: Show, results: readonly ResultRow[]) {
 function upcomingItems(
   shows: readonly Show[],
   results: readonly ResultRow[],
+  serverTimeMs: number,
 ): readonly V3PrimaryHomeListItem[] {
-  return [...shows]
-    .filter(
-      (show) =>
-        UPCOMING_STATUSES.has(normalizedStatus(show)) &&
-        !showHasPublishedResult(show, results),
+  // Canonical show schedule takes precedence over running order. Do not
+  // advertise a past or invalid announced start as an upcoming public event.
+  // Legacy shows without a schedule remain browsable, after timed events.
+  const scheduled = shows.flatMap<{ show: Show; startsAt: number | null }>((show) => {
+    if (
+      !UPCOMING_STATUSES.has(normalizedStatus(show)) ||
+      showHasPublishedResult(show, results)
+    ) return [];
+
+    const mode = showModeConfig(show);
+    if (mode.phase !== "scheduled") return [];
+    if (!mode.scheduledStart) return [{ show, startsAt: null }];
+
+    const startsAt = Date.parse(mode.scheduledStart);
+    if (!Number.isFinite(startsAt) || startsAt <= serverTimeMs) return [];
+    return [{ show, startsAt }];
+  });
+
+  return scheduled
+    .sort(
+      (left, right) =>
+        (left.startsAt === null && right.startsAt !== null
+          ? 1
+          : right.startsAt === null && left.startsAt !== null
+            ? -1
+            : left.startsAt !== null && right.startsAt !== null
+              ? left.startsAt - right.startsAt
+              : 0) ||
+        left.show.sort_order - right.show.sort_order ||
+        left.show.id.localeCompare(right.show.id),
     )
-    .sort((a, b) => a.sort_order - b.sort_order)
     .slice(0, 3)
-    .map((show) => ({
+    .map(({ show, startsAt }) => ({
       id: `show:${show.id}`,
       title: show.name,
-      description: "Public show information is available.",
+      description: startsAt === null
+        ? "Public show information is available."
+        : `Scheduled ${formatEventDateTime(new Date(startsAt), { locale: "en-GB" })}`,
       to: `/shows/${show.id}`,
     }));
 }
@@ -186,10 +215,13 @@ function latestItems(input: {
   shows: readonly Show[];
   results: readonly ResultRow[];
   fallback: { label: string; to: string } | null;
+  allowLive: boolean;
   headline: string;
   description: string;
 }): readonly V3PrimaryHomeListItem[] {
-  const live = input.shows.find((show) => LIVE_STATUSES.has(normalizedStatus(show)));
+  const live = input.allowLive
+    ? input.shows.find((show) => LIVE_STATUSES.has(normalizedStatus(show)))
+    : undefined;
   const completed = [...input.shows]
     .filter((show) => showHasPublishedResult(show, input.results))
     .sort((a, b) => b.sort_order - a.sort_order);
@@ -250,11 +282,28 @@ function assertAnonymousIsolation(input: V3PrimarySurfaceReadModel) {
     input.confirmationRequirements.length > 0 ||
     input.acknowledgementTasks > 0 ||
     input.jury ||
-    (input.additionalTasks?.length ?? 0) > 0
+    (input.additionalTasks?.length ?? 0) > 0 ||
+    // Progress is personal task evidence even when no task rows are present.
+    // Anonymous Home must not accidentally echo another viewer's completion.
+    Object.keys(input.progressByActionId ?? {}).length > 0
   ) {
     throw new Error(
       "Anonymous V3 bootstrap cannot contain participant-scoped evidence.",
     );
+  }
+}
+
+function assertAdditionalTaskEditionScope(
+  tasks: readonly SolarisTask[],
+  selectedEditionId: string | null,
+) {
+  for (const task of tasks) {
+    // Edition-specific HOD actions belong to the exact selected edition.
+    // Unscoped global actions are allowed, but foreign edition tasks must not
+    // silently enter Home/Participate after a source/query regression.
+    if (task.editionId !== null && task.editionId !== selectedEditionId) {
+      throw new Error("V3 additional task belongs to a different Solaris edition.");
+    }
   }
 }
 
@@ -273,7 +322,12 @@ function runtimeForOpenTelevote(input: {
   liveShow: Show | undefined;
   televote: VotingTaskInput | null;
 }): { runtime: EditionRuntimeState | null; show: V3ShowState | null } {
-  if (!input.edition || input.televote?.status !== "open") {
+  if (
+    !input.edition ||
+    input.publicPhase === "post_edition" ||
+    input.publicPhase === "between_editions" ||
+    input.televote?.status !== "open"
+  ) {
     return { runtime: null, show: null };
   }
 
@@ -324,6 +378,13 @@ export function assembleV3PrimarySurfaceSnapshot(
         results: editionResults,
       });
 
+  // Historical Home and Participate share this read model. An open vote in
+  // another edition must never revive an archived contest or create a task.
+  const terminalHome =
+    publicContest.phase === "post_edition" ||
+    publicContest.phase === "between_editions";
+  const scopedTelevote = terminalHome ? null : input.televote;
+
   const participationTasks = input.viewer
     ? buildParticipationTasks({
         editionId: edition?.id ?? null,
@@ -332,10 +393,13 @@ export function assembleV3PrimarySurfaceSnapshot(
         rounds: input.rounds,
         acknowledgementTasks: input.acknowledgementTasks,
         jury: input.jury,
-        televote: input.televote,
+        televote: scopedTelevote,
         now: serverTime.ms,
       })
     : [];
+  if (input.viewer) {
+    assertAdditionalTaskEditionScope(input.additionalTasks ?? [], edition?.id ?? null);
+  }
   const tasks = input.viewer
     ? mergeTasks(participationTasks, input.additionalTasks ?? [])
     : [];
@@ -347,7 +411,7 @@ export function assembleV3PrimarySurfaceSnapshot(
     edition,
     publicPhase: publicContest.phase,
     liveShow,
-    televote: input.televote,
+    televote: scopedTelevote,
   });
 
   return {
@@ -367,11 +431,12 @@ export function assembleV3PrimarySurfaceSnapshot(
     generatedAt: generatedAt.value,
     hideResultSpoilers: input.hideResultSpoilers ?? false,
     primarySurfaces: {
-      upcoming: upcomingItems(publicShows, editionResults),
+      upcoming: terminalHome ? [] : upcomingItems(publicShows, editionResults, serverTime.ms),
       latest: latestItems({
         shows: publicShows,
         results: editionResults,
         fallback: publicContest.primaryAction,
+        allowLive: !terminalHome && publicContest.phase === "live",
         headline: publicContest.headline,
         description: publicContest.description,
       }),

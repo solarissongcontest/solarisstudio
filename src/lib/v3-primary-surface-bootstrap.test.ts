@@ -97,6 +97,7 @@ describe("Solaris Studio V3 primary surface bootstrap", () => {
 
     expect(bundle.home.currentContest).toEqual({
       title: "Hanvør 2026",
+      href: "/editions/hanvor-2026",
       headline: "SSC 22 is the current Solaris edition",
       meta: "Delegations are preparing their entries.",
       stats: [
@@ -106,6 +107,36 @@ describe("Solaris Studio V3 primary surface bootstrap", () => {
       liveHeadline: null,
       resultsHeadline: null,
     });
+  });
+
+  it("derives and safely encodes the canonical published Home edition action", async () => {
+    const published = await loadV3PrimarySurfaceBundle(request, {
+      loadSnapshot: async () => snapshot(),
+    });
+    expect(published.home.currentContest.href).toBe("/editions/hanvor-2026");
+
+    const encodedSlug = await loadV3PrimarySurfaceBundle(request, {
+      loadSnapshot: async () => snapshot({
+        publicContest: {
+          ...publicContest,
+          edition: { ...publicContest.edition!, slug: "hanvør 2026" },
+        },
+      }),
+    });
+    expect(encodedSlug.home.currentContest.href).toBe("/editions/hanv%C3%B8r%202026");
+  });
+
+  it("never creates a direct edition action for missing, unpublished or blank-slug editions", async () => {
+    for (const edition of [
+      null,
+      { ...publicContest.edition!, published: false },
+      { ...publicContest.edition!, slug: "   " },
+    ]) {
+      const bundle = await loadV3PrimarySurfaceBundle({ ...request, editionId: edition?.id ?? null }, {
+        loadSnapshot: async () => snapshot({ publicContest: { ...publicContest, edition } }),
+      });
+      expect(bundle.home.currentContest.href).toBeNull();
+    }
   });
 
   it("carries Coming up and Latest from the shared snapshot rather than inventing another loader", async () => {
@@ -194,6 +225,44 @@ describe("Solaris Studio V3 primary surface bootstrap", () => {
     ).rejects.toThrow(/internal Solaris route/);
   });
 
+  it("rejects Home links that escape the origin through URL-normalized separators", async () => {
+    // Browsers interpret "/\external.example" and "/<newline>/external.example"
+    // as authority separators even though neither string begins with "//".
+    for (const to of ["/\\external.example", "/\n/external.example", "/\t/external.example"]) {
+      await expect(
+        loadV3PrimarySurfaceBundle(request, {
+          loadSnapshot: async () =>
+            snapshot({
+              primarySurfaces: {
+                upcoming: [
+                  { id: "unsafe", title: "Unsafe", description: "Unsafe link", to },
+                ],
+                latest: [],
+              },
+            }),
+        }),
+      ).rejects.toThrow(/internal Solaris route/);
+    }
+
+    const safe = await loadV3PrimarySurfaceBundle(request, {
+      loadSnapshot: async () =>
+        snapshot({
+          primarySurfaces: {
+            upcoming: [
+              {
+                id: "safe",
+                title: "Show",
+                description: "Public show",
+                to: "/shows/show-1?view=running-order#performances",
+              },
+            ],
+            latest: [],
+          },
+        }),
+    });
+    expect(safe.home.upcoming[0]?.to).toBe("/shows/show-1?view=running-order#performances");
+  });
+
   it("validates Participate progress without creating workflow truth", async () => {
     const bundle = await loadV3PrimarySurfaceBundle(request, {
       loadSnapshot: async () => snapshot(),
@@ -261,4 +330,130 @@ describe("Solaris Studio V3 primary surface bootstrap", () => {
     );
     expect(results.home.currentContest.liveHeadline).toBeNull();
   });
+  it("keeps published winner details out of a spoiler-protected Home projection", async () => {
+    const protectedSnapshot = snapshot({
+      publicContest: {
+        ...publicContest,
+        phase: "results_published",
+        statusKey: "published",
+        statusLabel: "Results",
+        headline: "Oland wins SSC 22 with 500 points",
+        description: "Oland finishes first ahead of Aotea.",
+      },
+      hideResultSpoilers: true,
+      primarySurfaces: {
+        upcoming: [],
+        latest: [
+          {
+            id: "results:final",
+            title: "Oland takes first place",
+            description: "500 points put Oland on top.",
+            to: "/shows/final",
+          },
+          {
+            id: "contest:/editions/hanvor-2026",
+            title: "Oland wins SSC 22",
+            description: "First place for Oland.",
+            to: "/editions/hanvor-2026",
+          },
+          {
+            id: "story:non-results",
+            title: "The broadcast schedule",
+            description: "Production news without result spoilers.",
+            to: "/stories/broadcast",
+          },
+        ],
+        contestStats: [{ value: "Oland", label: "Winner" }],
+        resultsLabel: "Oland is the winner",
+      },
+    });
+    const bundle = await loadV3PrimarySurfaceBundle(request, {
+      loadSnapshot: async () => protectedSnapshot,
+    });
+
+    expect(bundle.home.currentContest).toMatchObject({
+      headline: "Hanvør 2026 results are published",
+      meta: "Official results are available. Open Results when you're ready.",
+      stats: [],
+      resultsHeadline: null,
+    });
+    expect(bundle.home.resultsLabel).toBe("Results available to reveal");
+    expect(bundle.home.latest.map(({ title }) => title)).toEqual([
+      "Published results",
+      "Published results",
+      "The broadcast schedule",
+    ]);
+    expect(bundle.home.latest.map(({ to }) => to)).toEqual([
+      "/shows/final",
+      "/editions/hanvor-2026",
+      "/stories/broadcast",
+    ]);
+    expect(JSON.stringify(bundle.home)).not.toContain("Oland wins");
+    expect(JSON.stringify(bundle.home)).not.toContain("500 points");
+  });
+
+  it("preserves published result previews when spoiler hiding is disabled", async () => {
+    const resultContest: PublicContestState = {
+      ...publicContest,
+      phase: "results_published",
+      statusKey: "published",
+      statusLabel: "Results",
+      headline: "Oland wins SSC 22",
+      description: "Published winner coverage.",
+    };
+    const bundle = await loadV3PrimarySurfaceBundle(request, {
+      loadSnapshot: async () => snapshot({
+        publicContest: resultContest,
+        hideResultSpoilers: false,
+        primarySurfaces: {
+          upcoming: [],
+          latest: [{
+            id: "results:final",
+            title: "Oland wins",
+            description: "Publicly available results.",
+            to: "/shows/final",
+          }],
+          contestStats: [{ value: "Oland", label: "Winner" }],
+          resultsLabel: "Oland wins",
+        },
+      }),
+    });
+    expect(bundle.home.currentContest.headline).toBe("Oland wins SSC 22");
+    expect(bundle.home.currentContest.resultsHeadline).toBe("Oland wins SSC 22");
+    expect(bundle.home.currentContest.stats).toEqual([{ value: "Oland", label: "Winner" }]);
+    expect(bundle.home.latest[0]?.title).toBe("Oland wins");
+    expect(bundle.home.resultsLabel).toBe("Oland wins");
+  });
+
+  it("redacts completed-show result teasers even while another show is live", async () => {
+    const bundle = await loadV3PrimarySurfaceBundle(request, {
+      loadSnapshot: async () => snapshot({
+        publicContest: {
+          ...publicContest,
+          phase: "live",
+          statusKey: "live",
+          statusLabel: "Live",
+          headline: "SSC 22 is live",
+        },
+        hideResultSpoilers: true,
+        primarySurfaces: {
+          upcoming: [],
+          latest: [{
+            id: "results:semi-final",
+            title: "Oland qualifies in first place",
+            description: "A result spoiler from an earlier show.",
+            to: "/shows/semi-final",
+          }],
+        },
+      }),
+    });
+    expect(bundle.home.currentContest.headline).toBe("SSC 22 is live");
+    expect(bundle.home.latest[0]).toEqual({
+      id: "results:semi-final",
+      title: "Published results",
+      description: "Official results are available to reveal in Results.",
+      to: "/shows/semi-final",
+    });
+  });
+
 });

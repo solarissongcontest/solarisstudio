@@ -1,5 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { CheckCircle2, RefreshCw, Trophy, Wrench } from "lucide-react";
@@ -13,7 +13,7 @@ import {
   AdminPageHeader,
   AdminStatus,
 } from "@/components/admin/AdminUI";
-import { getMergedTelevotingAdmin } from "@/integrations/televoting/admin-auth.functions";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import {
   getMergedTelevotingEditionLinks,
 } from "@/integrations/televoting/edition-links.functions";
@@ -32,21 +32,19 @@ export const Route = createFileRoute("/televoting/admin/editions")({
 });
 
 function TelevotingEditionsPage() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const getAdmin = useServerFn(getMergedTelevotingAdmin);
+  const actorId = useAuthenticatedUser().id;
+  const currentActorRef = useRef(actorId);
+  currentActorRef.current = actorId;
   const getEditionLinks = useServerFn(getMergedTelevotingEditionLinks);
   const syncCatalog = useServerFn(syncMergedTelevotingEditionCatalog);
-  const [repairOpen, setRepairOpen] = useState(false);
-
-  const { data: admin, isLoading: adminLoading } = useQuery({
-    queryKey: ["merged-televoting-admin"],
-    queryFn: () => getAdmin(),
-  });
-
+  // A review belongs to its opening actor, not merely to this mounted route.
+  const [repairReviewActorId, setRepairReviewActorId] = useState<string | null>(null);
+  const repairOpen = repairReviewActorId === actorId;
   useEffect(() => {
-    if (!adminLoading && !admin) void navigate({ to: "/televoting/admin/sign-in" });
-  }, [admin, adminLoading, navigate]);
+    // Also defeats A -> B -> A restoration of an abandoned confirmation.
+    setRepairReviewActorId(null);
+  }, [actorId]);
 
   const {
     data: editions = [],
@@ -54,10 +52,16 @@ function TelevotingEditionsPage() {
     error,
     isFetching,
   } = useQuery({
-    queryKey: ["merged-televoting-edition-links"],
+    // Never reuse privileged diagnostics after an Organizer account switch.
+    queryKey: ["merged-televoting-edition-links", actorId],
     queryFn: () => getEditionLinks(),
-    enabled: Boolean(admin),
+    enabled: Boolean(actorId),
     staleTime: 15_000,
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: false,
   });
 
   async function refresh() {
@@ -65,18 +69,27 @@ function TelevotingEditionsPage() {
   }
 
   const repairMutation = useMutation({
-    mutationFn: () => syncCatalog(),
-    onSuccess: async () => {
-      setRepairOpen(false);
-      toast.success("Voting edition links repaired");
+    mutationFn: async (reviewActorId: string) => {
+      if (!reviewActorId || reviewActorId !== currentActorRef.current) {
+        throw new Error("Voting edition repair review expired after account change. Open a new review.");
+      }
+      return syncCatalog();
+    },
+    onSuccess: async (_result, reviewActorId) => {
+      if (currentActorRef.current === reviewActorId) {
+        setRepairReviewActorId(null);
+        toast.success("Voting edition links repaired");
+      }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["merged-televoting-edition-links"] }),
         queryClient.invalidateQueries({ queryKey: ["merged-televoting-rounds"] }),
         queryClient.invalidateQueries({ queryKey: ["merged-televoting-admin-overview"] }),
       ]);
     },
-    onError: (caught) =>
-      toast.error(caught instanceof Error ? caught.message : "Voting edition links could not be repaired"),
+    onError: (caught, reviewActorId) => {
+      if (currentActorRef.current !== reviewActorId) return;
+      toast.error(caught instanceof Error ? caught.message : "Voting edition links could not be repaired");
+    },
   });
 
   const repairCount = editions.filter((edition) => edition.health !== "linked").length;
@@ -100,8 +113,8 @@ function TelevotingEditionsPage() {
             </button>
             <button
               type="button"
-              disabled={adminLoading || isLoading || repairMutation.isPending}
-              onClick={() => setRepairOpen(true)}
+              disabled={isLoading || isFetching || Boolean(error) || repairMutation.isPending}
+              onClick={() => setRepairReviewActorId(actorId)}
               className="admin-action-primary"
             >
               <Wrench className="size-4" />
@@ -124,7 +137,7 @@ function TelevotingEditionsPage() {
         />
       </AdminCard>
 
-      {adminLoading || isLoading ? (
+      {isLoading ? (
         <AdminCard>
           <p className="py-8 text-center text-sm text-muted-foreground">Checking edition links…</p>
         </AdminCard>
@@ -193,8 +206,12 @@ function TelevotingEditionsPage() {
 
       <AdminConfirmSheet
         open={repairOpen}
-        onClose={() => !repairMutation.isPending && setRepairOpen(false)}
-        onConfirm={() => repairMutation.mutate()}
+        onClose={() => !repairMutation.isPending && setRepairReviewActorId(null)}
+        onConfirm={() => {
+          if (repairOpen && !error && !isLoading && !isFetching && !repairMutation.isPending) {
+            repairMutation.mutate(actorId);
+          }
+        }}
         title="Repair voting edition links?"
         description="This explicitly reconciles Televoting edition projections and Solaris integration links. It may create missing voting projections and update their name, active state or archive state to match Solaris."
         confirmLabel="Repair edition links"

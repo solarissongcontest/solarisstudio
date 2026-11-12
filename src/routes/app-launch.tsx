@@ -49,26 +49,25 @@ function AppLaunchPage() {
       <ScriptOnce>{APP_LAUNCH_BOOTSTRAP_SCRIPT}</ScriptOnce>
       <main
         id="main-content"
-        className="grid min-h-[100svh] place-items-center bg-background px-6 text-center"
+        className="grid min-h-[100svh] place-items-center bg-[#020817] px-6 text-center text-white"
         aria-busy="true"
         aria-live="polite"
       >
-        <div>
+        <div className="flex flex-col items-center">
           <img
-            src="/icon-192.png?v=img2340-20260929"
+            src="/solaris-studio-mark.png"
             alt=""
-            className="mx-auto size-20 rounded-[1.35rem]"
+            aria-hidden="true"
+            width={256}
+            height={256}
+            className="size-16 object-contain"
           />
-          <p className="mt-5 text-[10px] font-black uppercase tracking-[.16em] text-primary">
+          <p className="mt-4 text-[10px] font-black uppercase tracking-[.16em] text-white/78">
             Solaris Studio
           </p>
-          <h1 className="mt-2 text-2xl font-bold tracking-[-.03em]">Opening your app…</h1>
-          <div
-            className="mx-auto mt-5 h-1 w-28 overflow-hidden rounded-full bg-white/10"
-            aria-hidden="true"
-          >
-            <span className="block h-full w-1/2 animate-pulse rounded-full bg-primary" />
-          </div>
+          <p className="sr-only" role="status">
+            Opening Solaris Studio.
+          </p>
         </div>
       </main>
     </>

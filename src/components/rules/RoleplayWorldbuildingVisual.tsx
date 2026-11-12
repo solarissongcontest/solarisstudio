@@ -1,0 +1,228 @@
+import {
+  ArrowRight,
+  CheckCircle2,
+  Clock3,
+  Flag,
+  History,
+  Map,
+  ShieldCheck,
+  UsersRound,
+  type LucideIcon,
+} from "lucide-react";
+
+const DORMANCY_EDITIONS = [1, 2, 3, 4, 5, 6] as const;
+
+export function RoleplayWorldbuildingVisual({ usePlainCountryTerms = false }: { usePlainCountryTerms?: boolean }) {
+  return (
+    <section
+      className="space-y-4"
+      aria-labelledby="roleplay-visual-guide"
+      data-roleplay-worldbuilding-visual=""
+    >
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary/75">
+            Visual guide
+          </p>
+          <h2 id="roleplay-visual-guide" className="mt-1 text-lg font-bold tracking-[-0.02em]">
+            Who controls what?
+          </h2>
+        </div>
+        <Map className="size-5 text-primary/70" aria-hidden="true" />
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <VisualLane
+          icon={Flag}
+          eyebrow="Your country"
+          title="You control the internal story"
+          detail="Your government, culture, cities, local events and the people you control."
+          accent="emerald"
+        />
+        <VisualLane
+          icon={UsersRound}
+          eyebrow="Shared story"
+          title="Other countries need permission for lasting changes"
+          detail="You can play out wars together, but you cannot take over another Protected country without permission."
+          accent="amber"
+        />
+        <VisualLane
+          icon={Map}
+          eyebrow="Official canon"
+          title="One official map"
+          detail="TSBC must record lasting border changes so everyone uses the same world map."
+          accent="sky"
+        />
+      </div>
+
+      <div className="overflow-hidden rounded-[1.35rem] border border-indigo-300/15 bg-indigo-300/[0.045] p-4 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-indigo-200/70">
+              {usePlainCountryTerms ? "Six-edition protection rule" : "Dormancy clock"}
+            </p>
+            <h3 className="mt-1 text-base font-bold">Six completed editions without an active HoD</h3>
+          </div>
+          <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-indigo-200/15 bg-black/10 px-3 text-[11px] font-bold text-indigo-100">
+            <Clock3 className="size-3.5" aria-hidden="true" />
+            Completed Editions only
+          </span>
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6">
+          {DORMANCY_EDITIONS.map((edition) => (
+            <div
+              key={edition}
+              className={
+                edition === 6
+                  ? "rounded-xl border border-indigo-200/25 bg-indigo-200/10 px-2 py-3 text-center"
+                  : "rounded-xl border border-white/[0.07] bg-black/10 px-2 py-3 text-center"
+              }
+            >
+              <span className="block font-mono text-[10px] font-black text-muted-foreground">
+                NO ACTIVE HOD
+              </span>
+              <span className="mt-1 block text-xl font-black">{edition}</span>
+              <span className="mt-1 block text-[10px] leading-4 text-muted-foreground">
+                {edition === 6 ? (usePlainCountryTerms ? "Unprotected after completion" : "Dormant after completion") : "Still protected"}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 flex items-start gap-2 rounded-xl border border-white/[0.07] bg-black/10 px-3 py-3 text-xs leading-5 text-muted-foreground">
+          <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+          <span>
+            If a country has an active Head of Delegation (HoD) at any time during an edition, that edition does not count toward the six. The count restarts.
+          </span>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <StatusCard
+          icon={ShieldCheck}
+          label="Protected"
+          title="An active HoD, or fewer than six finished editions in a row without one"
+          items={[
+            "May be invaded in roleplay",
+            "Other people cannot take it over or erase it without permission",
+            "Withdrawal alone does not remove protection",
+          ]}
+          tone="emerald"
+        />
+        <StatusCard
+          icon={Map}
+          label={usePlainCountryTerms ? "Unprotected" : "Dormant"}
+          title="Six finished editions in a row without an active HoD at any time"
+          items={[
+            "Other countries may take it over or split its land",
+            "It may be removed from today's official map",
+            "Historical SSC records remain untouched",
+          ]}
+          tone="indigo"
+        />
+      </div>
+
+      <div className="rounded-[1.35rem] border border-white/[0.08] bg-black/10 p-4 sm:p-5">
+        <div className="flex items-center gap-2">
+          <History className="size-4.5 text-primary" aria-hidden="true" />
+          <h3 className="text-sm font-bold">If an HOD returns</h3>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+          <ReturnState
+            label="Before elimination"
+            title="Protection resumes"
+            detail="The country becomes Protected right away. Others can no longer take it over without permission."
+          />
+          <ArrowRight className="mx-auto hidden size-4 text-muted-foreground sm:block" aria-hidden="true" />
+          <ReturnState
+            label="After official removal from the map"
+            title="A new outcome is needed"
+            detail="The country can return through a new story and official map decision, but does not simply get its old land back."
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function VisualLane({
+  icon: Icon,
+  eyebrow,
+  title,
+  detail,
+  accent,
+}: {
+  icon: LucideIcon;
+  eyebrow: string;
+  title: string;
+  detail: string;
+  accent: "emerald" | "amber" | "sky";
+}) {
+  const accentClass =
+    accent === "emerald"
+      ? "border-emerald-300/15 bg-emerald-300/[0.05] text-emerald-200"
+      : accent === "amber"
+        ? "border-amber-300/15 bg-amber-300/[0.05] text-amber-200"
+        : "border-sky-300/15 bg-sky-300/[0.05] text-sky-200";
+
+  return (
+    <article className={`rounded-[1.25rem] border p-4 ${accentClass}`}>
+      <div className="flex items-center gap-2">
+        <span className="grid size-9 place-items-center rounded-xl border border-current/15 bg-black/10">
+          <Icon className="size-4" aria-hidden="true" />
+        </span>
+        <span className="text-[10px] font-black uppercase tracking-[0.14em] opacity-75">{eyebrow}</span>
+      </div>
+      <h3 className="mt-3 text-sm font-bold text-foreground">{title}</h3>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">{detail}</p>
+    </article>
+  );
+}
+
+function StatusCard({
+  icon: Icon,
+  label,
+  title,
+  items,
+  tone,
+}: {
+  icon: LucideIcon;
+  label: string;
+  title: string;
+  items: string[];
+  tone: "emerald" | "indigo";
+}) {
+  const classes =
+    tone === "emerald"
+      ? "border-emerald-300/15 bg-emerald-300/[0.045] text-emerald-200"
+      : "border-indigo-300/15 bg-indigo-300/[0.045] text-indigo-200";
+
+  return (
+    <article className={`rounded-[1.35rem] border p-4 sm:p-5 ${classes}`}>
+      <div className="flex items-center gap-2">
+        <Icon className="size-4" aria-hidden="true" />
+        <span className="text-[10px] font-black uppercase tracking-[0.15em]">{label}</span>
+      </div>
+      <h3 className="mt-2 text-sm font-bold text-foreground">{title}</h3>
+      <ul className="mt-3 space-y-2">
+        {items.map((item) => (
+          <li key={item} className="flex gap-2 text-xs leading-5 text-muted-foreground">
+            <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-current" aria-hidden="true" />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </article>
+  );
+}
+
+function ReturnState({ label, title, detail }: { label: string; title: string; detail: string }) {
+  return (
+    <article className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3.5">
+      <p className="text-[10px] font-black uppercase tracking-[0.13em] text-primary/75">{label}</p>
+      <p className="mt-1.5 text-sm font-bold">{title}</p>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">{detail}</p>
+    </article>
+  );
+}

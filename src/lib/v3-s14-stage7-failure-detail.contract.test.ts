@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
@@ -92,4 +93,23 @@ describe("S14 Stage 7 failure detail evidence", () => {
     );
     expect(diagnostics).toContain("S14_STAGE7_DIAGNOSTIC");
   });
+  it("keeps Grand Final extension identity intact when Stage 7 helpers are reused", () => {
+    const markerFunction = diagnostics.match(/s14_stage7_mark\(\) \{[\s\S]*?\n\}/)?.[0];
+    expect(markerFunction).toBeDefined();
+    const script = [
+      "set -euo pipefail",
+      "log() { :; }",
+      markerFunction ?? "",
+      "for phase in grand-final-qualifier-bridge grand-final-voting grand-final-results grand-final-publication; do",
+      '  CURRENT_STAGE="$phase"',
+      '  s14_stage7_mark "deadline-set:final"',
+      '  [[ "$CURRENT_STAGE" == "$phase" ]]',
+      "done",
+      "CURRENT_STAGE=stage-7-public-voting",
+      's14_stage7_mark "round-status:open:semi"',
+      '[[ "$CURRENT_STAGE" == "stage-7-public-voting:round-status:open:semi" ]]',
+    ].join("\n");
+    expect(() => execFileSync("bash", ["-c", script], { stdio: "pipe" })).not.toThrow();
+  });
+
 });

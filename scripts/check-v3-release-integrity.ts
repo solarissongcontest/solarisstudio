@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join, resolve } from "node:path";
+import { releaseEvidenceConsistencyFailure } from "./v3-release-evidence-consistency";
+import { resolveV3ReleaseCandidateIdentity } from "./v3-release-candidate-identity";
 import {
   V3_DOMAIN_CONSEQUENCE_REGISTRY,
   V3_ORGANIZER_CAPABILITY_REGISTRY,
@@ -36,12 +38,13 @@ function currentCommitSha() {
   }
 }
 
-const checkedOutSha = currentCommitSha();
-const requestedCandidateSha = process.env.V3_CANDIDATE_SHA?.trim().toLowerCase() || null;
-if (requestedCandidateSha && checkedOutSha && requestedCandidateSha !== checkedOutSha) {
-  errors.push(`V3_CANDIDATE_SHA ${requestedCandidateSha} does not match checked-out SHA ${checkedOutSha}`);
-}
-const evidenceCandidateSha = requestedCandidateSha || checkedOutSha;
+const identity = resolveV3ReleaseCandidateIdentity({
+  checkedOutSha: currentCommitSha(),
+  requestedCandidateSha: process.env.V3_CANDIDATE_SHA || null,
+  strictRelease,
+});
+errors.push(...identity.errors);
+const evidenceCandidateSha = identity.evidenceCandidateSha;
 
 for (const duplicate of duplicateValues(V3_PUBLIC_CAPABILITIES.map((item) => item.id))) errors.push(`duplicate Public capability: ${duplicate}`);
 for (const duplicate of duplicateValues(V3_ORGANIZER_CAPABILITY_REGISTRY.map((item) => item.legacyId))) errors.push(`duplicate Organizer capability: ${duplicate}`);
@@ -113,6 +116,8 @@ for (const filename of exactCandidateEvidence) {
     else if (artifactSha !== evidenceCandidateSha) blockers.push(`${filename} certifies ${artifactSha}, not exact candidate ${evidenceCandidateSha}`);
     const semanticFailure = semanticEvidenceFailure(filename, evidence);
     if (semanticFailure) blockers.push(semanticFailure);
+    const consistencyFailure = releaseEvidenceConsistencyFailure(filename, evidence);
+    if (consistencyFailure) blockers.push(consistencyFailure);
   } catch {
     blockers.push(`${filename} is not valid JSON exact-candidate evidence`);
   }

@@ -1,0 +1,238 @@
+{
+  "evidence": "S06 bounded read-only hosted PG17.11 pg_catalog audit on 2026-11-10; only identities, 21 definition hashes, ownership, flags, explicit ACL and search-path config. NO hosted SQL in CI, no business rows.",
+  "postgresVersion": "17.11",
+  "sourceCandidate": "docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql",
+  "functions": [
+    {
+      "identity": "private.studio2_claim_operation(uuid,text,uuid,text,text,jsonb,jsonb)",
+      "definition_md5": "d487a13bc4391cc889637ae259a66144",
+      "owner": "postgres",
+      "security_definer": true,
+      "strict": false,
+      "volatility": "v",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres}",
+      "config": "search_path=pg_catalog, public, private, extensions"
+    },
+    {
+      "identity": "private.studio2_complete_operation(uuid,jsonb)",
+      "definition_md5": "1e115b5ed42de2ecd1c10c75eaa4ab70",
+      "owner": "postgres",
+      "security_definer": true,
+      "strict": false,
+      "volatility": "v",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres}",
+      "config": "search_path=pg_catalog, public, private"
+    },
+    {
+      "identity": "private.studio2_default_subsystems(text)",
+      "definition_md5": "a9749055e1fe15014d18430dd1497f3d",
+      "owner": "postgres",
+      "security_definer": false,
+      "strict": false,
+      "volatility": "i",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres}",
+      "config": "search_path=pg_catalog"
+    },
+    {
+      "identity": "private.studio2_normalise_publication_config(jsonb)",
+      "definition_md5": "abeca16653c73103087e1d311eff2247",
+      "owner": "postgres",
+      "security_definer": false,
+      "strict": false,
+      "volatility": "i",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres}",
+      "config": "search_path=pg_catalog"
+    },
+    {
+      "identity": "private.studio2_reconcile_confirmation_requirement_tasks(uuid)",
+      "definition_md5": "fd9bd40c9fa314fa8dd71170dc778abe",
+      "owner": "postgres",
+      "security_definer": true,
+      "strict": false,
+      "volatility": "v",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres}",
+      "config": "search_path=pg_catalog, public, private"
+    },
+    {
+      "identity": "private.studio2_reconcile_confirmation_sync_tasks()",
+      "definition_md5": "b887cd2132a9f5fbe7c5e445d012a5c2",
+      "owner": "postgres",
+      "security_definer": true,
+      "strict": false,
+      "volatility": "v",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres}",
+      "config": "search_path=pg_catalog, public, private"
+    },
+    {
+      "identity": "private.studio2_reconcile_jury_ballot_review_tasks(uuid)",
+      "definition_md5": "2688bb4118b192f4ead4c13c2edae9c4",
+      "owner": "postgres",
+      "security_definer": true,
+      "strict": false,
+      "volatility": "v",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres}",
+      "config": "search_path=pg_catalog, public, private"
+    },
+    {
+      "identity": "private.studio2_reconcile_organizer_tasks_operational(uuid)",
+      "definition_md5": "f664eb9fa8a4d954bae3eaa3b16b37ff",
+      "owner": "postgres",
+      "security_definer": true,
+      "strict": false,
+      "volatility": "v",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres}",
+      "config": "search_path=pg_catalog, public, private, televoting"
+    },
+    {
+      "identity": "private.studio2_reconcile_organizer_tasks_truth(uuid)",
+      "definition_md5": "965fd680976aceafbc618f31aacbdc93",
+      "owner": "postgres",
+      "security_definer": true,
+      "strict": false,
+      "volatility": "v",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres}",
+      "config": "search_path=pg_catalog, public, private, televoting"
+    },
+    {
+      "identity": "private.studio2_reconcile_organizer_tasks(uuid)",
+      "definition_md5": "c8410ff7007529b9620c7410f2933cfd",
+      "owner": "postgres",
+      "security_definer": true,
+      "strict": false,
+      "volatility": "v",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres}",
+      "config": "search_path=pg_catalog, public, private"
+    },
+    {
+      "identity": "private.studio2_reconcile_permission_approval_tasks()",
+      "definition_md5": "e762e42ea019bab32afa13ddd1fb1a45",
+      "owner": "postgres",
+      "security_definer": true,
+      "strict": false,
+      "volatility": "v",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres}",
+      "config": "search_path=pg_catalog, public, private, auth"
+    },
+    {
+      "identity": "private.studio2_reconcile_system_job_tasks()",
+      "definition_md5": "4e7ada6a58abd094d96af3a457765a44",
+      "owner": "postgres",
+      "security_definer": true,
+      "strict": false,
+      "volatility": "v",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres}",
+      "config": "search_path=pg_catalog, public, private"
+    },
+    {
+      "identity": "private.studio2_repair_jury_missing_ballot_tasks(uuid)",
+      "definition_md5": "dd2213f9c9f29785f0d66f9f01d7243e",
+      "owner": "postgres",
+      "security_definer": true,
+      "strict": false,
+      "volatility": "v",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres}",
+      "config": "search_path=pg_catalog, public, private"
+    },
+    {
+      "identity": "private.studio2_sync_task_notifications(uuid)",
+      "definition_md5": "918e88472a50072f9a61e19c1db13c80",
+      "owner": "postgres",
+      "security_definer": true,
+      "strict": false,
+      "volatility": "v",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres}",
+      "config": "search_path=pg_catalog, public, private, auth"
+    },
+    {
+      "identity": "private.studio2_task_recipient_eligible(uuid,uuid)",
+      "definition_md5": "27a1745f610651cdb3dd2a91e6647421",
+      "owner": "postgres",
+      "security_definer": true,
+      "strict": false,
+      "volatility": "s",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres}",
+      "config": "search_path=pg_catalog, public, private"
+    },
+    {
+      "identity": "private.studio2_transition_risk(text,text)",
+      "definition_md5": "ae41cd2aa07118f4019d668b6e0a348f",
+      "owner": "postgres",
+      "security_definer": false,
+      "strict": true,
+      "volatility": "i",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres}",
+      "config": "search_path=pg_catalog"
+    },
+    {
+      "identity": "private.v3_emit_domain_event(text,text,text,bigint,uuid,uuid,uuid,jsonb,integer,text[])",
+      "definition_md5": "3c58756906c41cd931232a6c3dc55945",
+      "owner": "postgres",
+      "security_definer": true,
+      "strict": false,
+      "volatility": "v",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres}",
+      "config": "search_path=pg_catalog, public, private, auth"
+    },
+    {
+      "identity": "private.v3_publication_result_version_release_ready(uuid,bigint)",
+      "definition_md5": "e7e1a32f91de1a3ec9734c988270e4fa",
+      "owner": "postgres",
+      "security_definer": true,
+      "strict": false,
+      "volatility": "s",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres}",
+      "config": "search_path=pg_catalog, public, private"
+    },
+    {
+      "identity": "public.studio2_access_allowed(text,uuid,boolean)",
+      "definition_md5": "30823dbc77015353a47149b76e96e37d",
+      "owner": "postgres",
+      "security_definer": true,
+      "strict": false,
+      "volatility": "s",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres,anon=X/postgres}",
+      "config": "search_path=pg_catalog, public, private"
+    },
+    {
+      "identity": "public.studio2_complete_domain_event_delivery(uuid,text,text,jsonb)",
+      "definition_md5": "34e5caf641551ef0624779ab1726f2a3",
+      "owner": "postgres",
+      "security_definer": true,
+      "strict": false,
+      "volatility": "v",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "config": "search_path=pg_catalog, public, private"
+    },
+    {
+      "identity": "public.studio2_transition_edition_v2(uuid,text,text,uuid)",
+      "definition_md5": "4ef023751dbfc3d7ee142e83bd983974",
+      "owner": "postgres",
+      "security_definer": true,
+      "strict": false,
+      "volatility": "v",
+      "parallel": "u",
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": "search_path=pg_catalog, public, private"
+    }
+  ]
+}

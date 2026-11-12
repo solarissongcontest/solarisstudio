@@ -92,6 +92,60 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
     ]);
   });
 
+  it("orders Coming up by public show time and never presents past or malformed schedules", () => {
+    const scheduled = (id: string, sortOrder: number, scheduledStart: string) => ({
+      ...show,
+      id,
+      name: id,
+      sort_order: sortOrder,
+      broadcast_config: { showMode: { phase: "scheduled", scheduledStart } },
+    }) as Show;
+    const snapshot = assembleV3PrimarySurfaceSnapshot({
+      ...base(),
+      shows: [
+        scheduled("later", 1, "2026-10-12T09:00:00.000Z"),
+        scheduled("past", 2, "2026-10-11T09:00:00.000Z"),
+        scheduled("earliest", 99, "2026-10-12T07:00:00.000Z"),
+        scheduled("invalid", 3, "not-a-date"),
+        { ...show, id: "legacy", name: "legacy", sort_order: 4 } as Show,
+        scheduled("last", 10, "2026-10-12T12:00:00.000Z"),
+      ],
+    });
+    expect(snapshot.primarySurfaces.upcoming.map((item) => item.id)).toEqual([
+      "show:earliest",
+      "show:later",
+      "show:last",
+    ]);
+    // Canonical Europe/Helsinki: 07:00 UTC is 10:00 EEST on 12 October.
+    expect(snapshot.primarySurfaces.upcoming[0]?.description).toContain("12 Oct 2026");
+    expect(snapshot.primarySurfaces.upcoming[0]?.description).toContain("10:00");
+    expect(snapshot.primarySurfaces.upcoming[1]?.description).toContain("12:00");
+    expect(snapshot.primarySurfaces.upcoming[2]?.description).toContain("15:00");
+  });
+
+  it("retains undated legacy upcoming shows but excludes terminal Show Mode phases", () => {
+    const snapshot = assembleV3PrimarySurfaceSnapshot({
+      ...base(),
+      shows: [
+        { ...show, id: "legacy-late", sort_order: 8 } as Show,
+        { ...show, id: "legacy-early", sort_order: 2 } as Show,
+        {
+          ...show,
+          id: "manual-live",
+          status: "scheduled",
+          broadcast_config: { showMode: { phase: "live", scheduledStart: "2026-10-12T09:00:00.000Z" } },
+        } as Show,
+      ],
+    });
+    expect(snapshot.primarySurfaces.upcoming.map((item) => item.id)).toEqual([
+      "show:legacy-early",
+      "show:legacy-late",
+    ]);
+    expect(snapshot.primarySurfaces.upcoming.every((item) =>
+      item.description === "Public show information is available.",
+    )).toBe(true);
+  });
+
   it("deduplicates country/entity aliases across mixed canonical and show rows", () => {
     expect(
       countDistinctV3Delegations([
@@ -136,6 +190,23 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
         capabilities: ["official_communications"],
       }),
     ).toThrow(/Anonymous V3 bootstrap cannot contain participant-scoped evidence/);
+  });
+
+  it("fails closed on anonymous Home progress even without participant tasks", () => {
+    expect(() =>
+      assembleV3PrimarySurfaceSnapshot({
+        ...base(),
+        progressByActionId: {
+          "confirmation:private": { current: 2, total: 3, label: "Private submission" },
+        },
+      }),
+    ).toThrow(/Anonymous V3 bootstrap cannot contain participant-scoped evidence/);
+
+    const anonymous = assembleV3PrimarySurfaceSnapshot({
+      ...base(),
+      progressByActionId: {},
+    });
+    expect(anonymous.primarySurfaces.progressByActionId).toEqual({});
   });
 
   it("derives signed-in confirmation work using the captured server time", () => {
@@ -213,6 +284,46 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
     });
 
     expect(snapshot.tasks).toContainEqual(hodTask);
+
+    const globalTask: SolarisTask = {
+      ...hodTask,
+      id: "global:organizer-notice",
+      editionId: null,
+      title: "General notice",
+    };
+    const withGlobal = assembleV3PrimarySurfaceSnapshot({
+      ...base(),
+      viewer: { id: "user-1", displayName: null },
+      delegation: { id: "country-oland", name: "Oland" },
+      additionalTasks: [hodTask, globalTask],
+    });
+    expect(withGlobal.tasks).toContainEqual(globalTask);
+
+    expect(() =>
+      assembleV3PrimarySurfaceSnapshot({
+        ...base(),
+        viewer: { id: "user-1", displayName: null },
+        delegation: { id: "country-oland", name: "Oland" },
+        additionalTasks: [{
+          ...hodTask,
+          editionId: "edition-21",
+          priority: 999,
+        }],
+      }),
+    ).toThrow(/additional task belongs to a different Solaris edition/);
+
+    // Malformed source rows must not acquire global-task authority merely
+    // because the required editionId field was accidentally omitted.
+    expect(() =>
+      assembleV3PrimarySurfaceSnapshot({
+        ...base(),
+        viewer: { id: "user-1", displayName: null },
+        additionalTasks: [{
+          ...hodTask,
+          editionId: undefined as unknown as string,
+        }],
+      }),
+    ).toThrow(/additional task belongs to a different Solaris edition/);
   });
 
   it("keeps open public televoting in signed-in Participate parity", () => {
@@ -359,6 +470,40 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
       description: "Published results are available.",
       to: "/shows/show-1",
     });
+  });
+
+  it("does not offer stale upcoming, live or televote actions on archived Home", async () => {
+    const historicalEdition: Edition = { ...edition, status: "archived" };
+    for (const status of ["live", "scheduled"]) {
+      const snapshot = assembleV3PrimarySurfaceSnapshot({
+        ...base(),
+        editions: [historicalEdition],
+        shows: [{ ...show, status } as Show],
+        viewer: { id: "user-1", displayName: null },
+        televote: {
+          id: "unrelated-current-round",
+          title: "Current edition public voting",
+          route: "/televoting",
+          eligible: true,
+          submitted: false,
+          status: "open",
+          required: false,
+        },
+      });
+
+      expect(snapshot.publicContest.phase, status).toBe("post_edition");
+      expect(snapshot.primarySurfaces.upcoming, status).toEqual([]);
+      expect(snapshot.primarySurfaces.latest.some((item) => item.id.startsWith("live:")), status).toBe(false);
+      expect(snapshot.tasks.some((task) => task.kind === "televote"), status).toBe(false);
+      expect(snapshot.runtime, status).toBeNull();
+
+      const bootstrap = await loadV3BootstrapProjection(
+        { viewerId: "user-1", editionId: edition.id, delegationId: null },
+        { loadSnapshot: async () => snapshot },
+      );
+      expect(bootstrap.experience.mode, status).toBe("archived");
+      expect(bootstrap.experience.votingOpen, status).toBe(false);
+    }
   });
 
   it("rejects backwards generated time and invalid counts", () => {

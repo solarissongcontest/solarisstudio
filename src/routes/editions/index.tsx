@@ -1,13 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Check, ChevronRight, Search, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { SolarisSearchField } from "@/components/app/SolarisSearchField";
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useV3DirectoryPresentation, type V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
+import { directoryCountLabel } from "@/lib/v3-directory-count";
+import "@/styles/v3-directory-family.css";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
   AppEmptyState,
   AppGroupedList,
   AppScreen,
-  AppSectionHeader,
 } from "@/components/app/AppPrimitives";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
@@ -55,8 +60,11 @@ type EditionCard = {
 };
 
 function EditionsPage() {
-  const { isAppMode } = useSolarisApp();
+  const { isAppMode, platformResolved } = useSolarisApp();
+  const presentation = useV3DirectoryPresentation();
   const [resultsEnabled, setResultsEnabled] = useState(!isAppMode);
+  const [search, setSearch] = useState("");
+  const [scope, setScope] = useState<EditionDirectoryScope>("all");
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
   const resultsQuery = useAllResults({ enabled: resultsEnabled });
@@ -168,21 +176,43 @@ function EditionsPage() {
   );
 
   const latest = cards[0] ?? null;
-  const archive = cards.slice(1);
+  const normalizedSearch = search.trim().toLowerCase();
+  const searched = cards.filter((card) => {
+    const hostNames = card.hosts
+      .map((host) => [host.city, host.country?.name].filter(Boolean).join(" "))
+      .join(" ");
+    return [
+      editionLabel(card.edition),
+      card.edition.slug,
+      card.edition.edition_number,
+      hostNames,
+      card.winner?.name,
+    ].filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch);
+  });
+  const latestCount = latest && searched.some((card) => card.edition.id === latest.edition.id) ? 1 : 0;
+  const pastCount = searched.length - latestCount;
+  const visible = searched.filter((card) => (
+    scope === "all"
+    || (scope === "latest" && card.edition.id === latest?.edition.id)
+    || (scope === "past" && card.edition.id !== latest?.edition.id)
+  ));
+  const visibleLatest = visible.find((card) => card.edition.id === latest?.edition.id) ?? null;
+  const visiblePast = visible.filter((card) => card.edition.id !== latest?.edition.id);
   const archiveQueries = isAppMode
     ? [editionsQuery, showsQuery, countriesQuery]
     : [editionsQuery, showsQuery, resultsQuery, countriesQuery];
 
+  // Never flash website navigation before the installed runtime is resolved.
+  if (!platformResolved) {
+    return <div data-directory-boot="" role="status" aria-label="Opening editions" className="min-h-20" />;
+  }
+
   if (archiveIsLoading(...archiveQueries)) {
     return (
       <AppShell>
-        {isAppMode ? null : (
-          <PageHeader
-            eyebrow="Contest archive"
-            title="Editions"
-            description="Every published Solaris chapter, from the latest contest back through the archive."
-          />
-        )}
+        {presentation === "desktop-web" ? (
+          <PageHeader eyebrow="Contest archive" title="Editions" description="Browse the published Solaris Song Contest editions." />
+        ) : null}
         <ArchiveDataLoading label={isAppMode ? "Loading editions…" : "Loading editions and results…"} />
       </AppShell>
     );
@@ -190,87 +220,253 @@ function EditionsPage() {
   if (archiveHasError(...archiveQueries)) {
     return (
       <AppShell>
-        {isAppMode ? null : (
-          <PageHeader
-            eyebrow="Contest archive"
-            title="Editions"
-            description="Every published Solaris chapter, from the latest contest back through the archive."
-          />
-        )}
+        {presentation === "desktop-web" ? (
+          <PageHeader eyebrow="Contest archive" title="Editions" description="Browse the published Solaris Song Contest editions." />
+        ) : null}
         <ArchiveDataError />
       </AppShell>
     );
   }
 
-  if (isAppMode) {
-    return (
-      <AppShell>
-        <AppScreen>
-          {latest ? <LatestEdition card={latest} appMode /> : null}
-
-          {archive.length > 0 ? (
-            <section aria-labelledby="app-edition-archive">
-              <AppSectionHeader
-                eyebrow={`${cards.length} editions`}
-                title="Past editions"
-                id="app-edition-archive"
-              />
-              <AppGroupedList>
-                {archive.map((card) => (
-                  <ArchiveEdition key={card.edition.id} card={card} appMode />
-                ))}
-              </AppGroupedList>
-            </section>
-          ) : null}
-
-          {!cards.length ? (
-            <AppEmptyState
-              title="No public editions yet"
-              description="Published Solaris Song Contest editions will appear here."
-              action={
-                <Link to="/explore" className="solaris-app-empty-action">
-                  Back to Explore
-                </Link>
-              }
-            />
-          ) : null}
-        </AppScreen>
-      </AppShell>
-    );
-  }
+  const searchLabel = "Search editions";
+  const reset = () => { setSearch(""); setScope("all"); };
+  const control = (
+    <EditionDirectoryControls
+      presentation={presentation}
+      search={search}
+      setSearch={setSearch}
+      scope={scope}
+      setScope={setScope}
+      latestCount={latestCount}
+      pastCount={pastCount}
+      searchLabel={searchLabel}
+    />
+  );
 
   return (
     <AppShell>
-      <PageHeader
-        eyebrow="Contest archive"
-        title="Editions"
-        description="Every published Solaris chapter, from the latest contest back through the archive."
-      />
-
-      {latest && <LatestEdition card={latest} />}
-
-      {archive.length > 0 && (
-        <section className="mt-7 sm:mt-9">
-          <div className="mb-4 flex items-end justify-between gap-4 border-b border-border/60 pb-3">
-            <div className="min-w-0">
-              <p className="text-[9px] font-black uppercase tracking-[0.22em] text-primary">Archive desk</p>
-              <h2 className="display-headline mt-1 text-xl sm:text-2xl">Past editions</h2>
+      <div className="v3-directory-family v3-editions-directory" data-directory-experience={presentation}>
+        {presentation === "installed-app" ? (
+          <AppScreen>
+            <header className="v3-directory-app-heading">
+              <p className="v3-directory-eyebrow">CONTEST HISTORY</p>
+              <h1>Editions</h1>
+              <p>Explore the latest edition and past contests.</p>
+            </header>
+            {control}
+            <p className="v3-directory-results-count" role="status" aria-live="polite">{directoryCountLabel({ available: cards.length, matches: visible.length, rendered: visible.length, noun: "published editions" })}</p>
+            {visibleLatest ? <LatestEdition card={visibleLatest} appMode /> : null}
+            {visiblePast.length ? (
+              <section className="v3-directory-group" aria-labelledby="app-edition-archive">
+                <h2 id="app-edition-archive" className="v3-directory-group-title">Past editions <span className="v3-directory-group-count">{visiblePast.length}</span></h2>
+                <AppGroupedList>
+                  {visiblePast.map((card) => <ArchiveEdition key={card.edition.id} card={card} appMode />)}
+                </AppGroupedList>
+              </section>
+            ) : null}
+            {!visible.length ? <EditionDirectoryEmpty onReset={reset} /> : null}
+          </AppScreen>
+        ) : (
+          <>
+            {presentation === "mobile-web" ? (
+              <header className="v3-directory-mobile-header" data-directory-mobile-header="">
+                <p className="v3-directory-eyebrow">CONTEST ARCHIVE</p>
+                <h1>Editions</h1>
+                <p>Explore every published SSC edition, from the latest contest back through history.</p>
+              </header>
+            ) : (
+              <PageHeader
+                eyebrow="Contest archive"
+                title="Editions"
+                description="Every published Solaris chapter, from the latest contest back through the archive."
+              />
+            )}
+            <div className="v3-directory-workspace">
+              {presentation === "desktop-web" ? (
+                <EditionDirectoryRail
+                  scope={scope}
+                  setScope={setScope}
+                  latestCount={latestCount}
+                  pastCount={pastCount}
+                />
+              ) : null}
+              <div className="v3-directory-results">
+                {control}
+                <p className="v3-directory-results-count" role="status" aria-live="polite">{directoryCountLabel({ available: cards.length, matches: visible.length, rendered: visible.length, noun: "published editions" })}</p>
+                {visibleLatest ? <LatestEdition card={visibleLatest} /> : null}
+                {visiblePast.length ? (
+                  <section className="v3-directory-group v3-editions-history" aria-labelledby="editions-archive-heading">
+                    <h2 id="editions-archive-heading" className="v3-directory-group-title">Past editions</h2>
+                    {presentation === "mobile-web" ? (
+                      <div className="v3-directory-mobile-list">
+                        {visiblePast.map((card) => <EditionMobileRow key={card.edition.id} card={card} />)}
+                      </div>
+                    ) : (
+                      <div className="v3-directory-desktop-grid">
+                        {visiblePast.map((card) => <EditionDesktopCard key={card.edition.id} card={card} />)}
+                      </div>
+                    )}
+                  </section>
+                ) : null}
+                {!visible.length ? <EditionDirectoryEmpty onReset={reset} /> : null}
+              </div>
             </div>
-            <p className="numeric shrink-0 text-xs text-muted-foreground">{cards.length} editions</p>
-          </div>
+          </>
+        )}
+      </div>
+    </AppShell>
+  );
+}
 
-          <div className="overflow-hidden rounded-2xl border border-border/70 bg-surface/55 divide-y divide-border/60">
-            {archive.map((card) => (
-              <ArchiveEdition key={card.edition.id} card={card} />
+type EditionDirectoryScope = "all" | "latest" | "past";
+
+function EditionDirectoryControls({
+  presentation,
+  search,
+  setSearch,
+  scope,
+  setScope,
+  latestCount,
+  pastCount,
+  searchLabel,
+}: {
+  presentation: V3DirectoryPresentation;
+  search: string;
+  setSearch: (value: string) => void;
+  scope: EditionDirectoryScope;
+  setScope: (value: EditionDirectoryScope) => void;
+  latestCount: number;
+  pastCount: number;
+  searchLabel: string;
+}) {
+  const options = [
+    { id: "all", label: "All editions", count: latestCount + pastCount },
+    { id: "latest", label: "Latest edition", count: latestCount },
+    { id: "past", label: "Past editions", count: pastCount },
+  ] as const;
+  const webSearch = (
+    <div className="v3-directory-search" role="search">
+      <Search size={18} aria-hidden="true" />
+      <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
+        aria-label={searchLabel} placeholder="Search editions, hosts or winners…" autoComplete="off" />
+      {search ? (
+        <button type="button" className="v3-directory-search-clear" aria-label="Clear search" onClick={() => setSearch("")}>
+          <X size={16} aria-hidden="true" />
+        </button>
+      ) : null}
+    </div>
+  );
+  if (presentation === "desktop-web") {
+    return <div className="v3-directory-controls">{webSearch}</div>;
+  }
+  if (presentation === "mobile-web") {
+    return (
+      <div className="v3-directory-controls">
+        {webSearch}
+        <label className="v3-directory-area-select">
+          <span className="sr-only">Browse edition history</span>
+          <select aria-label="Browse edition history" value={scope}
+            onChange={(event) => setScope(event.target.value as EditionDirectoryScope)}>
+            {options.map((option) => (
+              <option key={option.id} value={option.id}>{option.label} ({option.count})</option>
+            ))}
+          </select>
+        </label>
+      </div>
+    );
+  }
+  return (
+    <div className="v3-directory-controls">
+      <SolarisSearchField value={search} onChange={setSearch} label={searchLabel} placeholder="Search editions or hosts…" />
+      <Sheet>
+        <SheetTrigger asChild>
+          <button type="button" className="v3-directory-sheet-trigger" aria-label="Filter editions">
+            <SlidersHorizontal size={18} aria-hidden="true" />
+            <span>{options.find((option) => option.id === scope)?.label}</span>
+            <span className="v3-directory-count">{options.find((option) => option.id === scope)?.count}</span>
+          </button>
+        </SheetTrigger>
+        <SheetContent side="bottom" aria-label="Filter editions" className="max-h-[80dvh] overflow-y-auto">
+          <h2 className="mb-3 text-lg font-bold">Browse edition history</h2>
+          <div className="v3-directory-sheet-options">
+            {options.map((option) => (
+              <SheetClose asChild key={option.id}>
+                <button type="button" aria-pressed={scope === option.id} onClick={() => setScope(option.id)}>
+                  <span className="v3-directory-option-label">{scope === option.id ? <Check size={17} aria-hidden="true" /> : null}{option.label}</span>
+                  <span>{option.count}</span>
+                </button>
+              </SheetClose>
             ))}
           </div>
-        </section>
-      )}
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
 
-      {cards.length === 0 && (
-        <div className="glass p-5 text-sm text-muted-foreground">No editions are public yet.</div>
-      )}
-    </AppShell>
+function EditionDirectoryRail({
+  scope,
+  setScope,
+  latestCount,
+  pastCount,
+}: {
+  scope: EditionDirectoryScope;
+  setScope: (value: EditionDirectoryScope) => void;
+  latestCount: number;
+  pastCount: number;
+}) {
+  const options = [
+    { id: "all", label: "All editions", count: latestCount + pastCount },
+    { id: "latest", label: "Latest edition", count: latestCount },
+    { id: "past", label: "Past editions", count: pastCount },
+  ] as const;
+  return (
+    <aside className="v3-directory-desktop-rail" aria-label="Filter editions">
+      <h2>Browse history</h2>
+      {options.map((option) => (
+        <button key={option.id} type="button" aria-pressed={scope === option.id}
+          onClick={() => setScope(option.id)}>
+          <span className="v3-directory-option-label">{scope === option.id ? <Check size={15} aria-hidden="true" /> : null}{option.label}</span><span>{option.count}</span>
+        </button>
+      ))}
+    </aside>
+  );
+}
+
+function EditionMobileRow({ card }: { card: EditionCard }) {
+  return (
+    <Link to="/editions/$slug" params={{ slug: card.edition.slug }} className="v3-directory-mobile-row">
+      <span className="min-w-0 flex-1">
+        <strong>{editionLabel(card.edition)}</strong>
+        <span>{card.editionShows.length} public show{card.editionShows.length === 1 ? "" : "s"} · <HostLine hosts={card.hosts} /></span>
+      </span>
+      <ChevronRight size={19} aria-hidden="true" />
+    </Link>
+  );
+}
+
+function EditionDesktopCard({ card }: { card: EditionCard }) {
+  return (
+    <Link to="/editions/$slug" params={{ slug: card.edition.slug }} className="v3-directory-desktop-card">
+      <span className="v3-directory-eyebrow">SSC {card.edition.edition_number ?? "archive"}</span>
+      <span className="v3-directory-card-top">
+        <strong>{editionLabel(card.edition)}</strong>
+        <ChevronRight size={19} aria-hidden="true" />
+      </span>
+      <span className="v3-directory-card-description">{card.editionShows.length} published show{card.editionShows.length === 1 ? "" : "s"}</span>
+      <span className="v3-directory-card-description">Host: <HostLine hosts={card.hosts} /></span>
+      <span className="v3-directory-card-description">Winner: <WinnerLine winner={card.winner} points={card.winnerResult?.total_points} /></span>
+    </Link>
+  );
+}
+
+function EditionDirectoryEmpty({ onReset }: { onReset: () => void }) {
+  return (
+    <AppEmptyState
+      title="No matching editions"
+      description="Try another edition number, country or host city."
+      action={<button type="button" onClick={onReset} className="solaris-app-empty-action">Clear filters</button>}
+    />
   );
 }
 
@@ -321,17 +517,17 @@ function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?:
   return (
     <section aria-labelledby="current-edition-heading">
       <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-primary">
-        {edition.status === "completed" ? "Latest published edition" : "Current edition"}
+        {edition.status === "active" ? "Current edition" : "Latest published edition"}
       </p>
       <Link
         to="/editions/$slug"
         params={{ slug: edition.slug }}
-        className={appMode ? "solaris-app-card solaris-app-edition-current group block" : "group block rounded-2xl border border-primary/20 bg-surface p-4 transition-colors hover:bg-surface-strong sm:p-5"}
+        className={appMode ? "v3-editions-feature solaris-app-card solaris-app-edition-current group block" : "v3-editions-feature group block rounded-2xl border border-primary/20 bg-surface p-4 transition-colors hover:bg-surface-strong sm:p-5"}
       >
         <div className="flex min-w-0 items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-muted-foreground">
-              {edition.status === "completed" ? "Completed" : "In progress"}
+              {edition.status === "completed" ? "Completed" : "Published edition"}
             </p>
             <h2 id="current-edition-heading" className={appMode ? "mt-1 break-words text-xl font-bold tracking-[-.025em]" : "mt-1 break-words text-2xl font-bold tracking-[-.035em] sm:text-3xl"}>
               {editionLabel(edition)}
@@ -340,10 +536,10 @@ function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?:
           <span className="shrink-0 text-lg font-semibold text-primary transition-transform group-hover:translate-x-0.5">→</span>
         </div>
 
-        <div className="mt-4 grid gap-2 border-t border-border/60 pt-4 text-sm sm:grid-cols-3">
+        <div className="v3-editions-feature-meta mt-3 grid gap-1.5 border-t border-border/60 pt-3 text-sm sm:grid-cols-3">
           <p><span className="text-muted-foreground">Shows:</span> {editionShows.length}</p>
           <p className="min-w-0"><span className="text-muted-foreground">Host:</span> <HostLine hosts={hosts} /></p>
-          <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} /></p>
+          {winner ? <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} /></p> : null}
         </div>
       </Link>
     </section>

@@ -71,7 +71,9 @@ export function projectV3Participate(
     }
 
     if (isOptional(action)) {
-      optionalNow.push(action);
+      if (action.sourceState === "available") optionalNow.push(action);
+      else if (action.sourceState === "upcoming") next.push(action);
+      else waiting.push(action);
       continue;
     }
 

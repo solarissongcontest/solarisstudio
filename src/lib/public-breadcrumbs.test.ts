@@ -66,4 +66,29 @@ describe("public breadcrumbs", () => {
       { label: "Grand Final" },
     ]);
   });
+
+  it.each([
+    "/countries/%E0%A4%A",
+    "/wiki/%FF",
+    "/editions/%E0%A4%A",
+    "/stories/%FF",
+    "/shows/%FF",
+    "/rules/%FF",
+  ])("retains stable breadcrumbs for malformed percent-encoded deep links (%s)", (pathname) => {
+    const crumbs = publicBreadcrumbsForPath(pathname);
+    expect(crumbs.length).toBeGreaterThanOrEqual(2);
+    expect(crumbs[crumbs.length - 1]?.label).toBeTruthy();
+  });
+
+  it("still resolves correctly encoded detail paths", () => {
+    expect(
+      publicBreadcrumbsForPath("/editions/ssc%32%32", {
+        editions: [{ id: "edition-22", edition_number: 22, name: "SSC 22", slug: "ssc22" }],
+      }).at(-1),
+    ).toEqual({ label: "SSC 22" });
+
+    expect(publicBreadcrumbsForPath("/rules/11%2E2").at(-1)).toEqual({
+      label: "Rule 11.2",
+    });
+  });
 });

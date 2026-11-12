@@ -1,6 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
+import { requireLocalPlaywrightTarget, requireLocalPlaywrightSupabaseEnvironment } from "./scripts/lib/require-local-playwright-target.mjs";
 
-const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:4178";
+requireLocalPlaywrightSupabaseEnvironment(process.env);
+const baseURL = requireLocalPlaywrightTarget(process.env.E2E_BASE_URL, "http://127.0.0.1:4178");
 
 export default defineConfig({
   testDir: "./e2e",
@@ -30,7 +32,7 @@ export default defineConfig({
     ? undefined
     : {
         command: "bun run dev --host 127.0.0.1 --port 4178 --strictPort",
-        url: "http://127.0.0.1:4178",
+        url: "http://127.0.0.1:4178/@vite/client",
         reuseExistingServer: false,
         timeout: 120_000,
       },

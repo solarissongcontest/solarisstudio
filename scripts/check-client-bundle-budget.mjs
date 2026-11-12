@@ -1,5 +1,5 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { gzipSync } from "node:zlib";
 
 const ROOTS = [
@@ -7,14 +7,9 @@ const ROOTS = [
   "dist/client/assets",
   "dist/assets",
 ];
-
-const assetRoot = ROOTS.find((root) => existsSync(root));
-if (!assetRoot) {
-  console.error(
-    "Solaris client budget: no production asset directory found. Run the production build first.",
-  );
-  process.exit(1);
-}
+const PUBLIC_ASSET_ROOT = "public/assets";
+const REPORT_PATH =
+  process.env.CLIENT_BUNDLE_BUDGET_REPORT ?? "client-bundle-budget-report.json";
 
 const BUDGETS = {
   maxSingleJsRaw: 1_050 * 1024,
@@ -25,21 +20,81 @@ const BUDGETS = {
   maxGlobalStylesCssGzip: 48 * 1024,
 };
 
-const files = readdirSync(assetRoot)
-  .filter((name) => /\.(?:js|css)$/.test(name))
+function writeReport(report) {
+  const parent = dirname(REPORT_PATH);
+  if (parent && parent !== ".") mkdirSync(parent, { recursive: true });
+  writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`);
+}
+
+function failBeforeMeasurement(message) {
+  writeReport({
+    schemaVersion: 1,
+    thresholdBytes: BUDGETS.maxTotalJsCssGzip,
+    withinBudget: false,
+    error: message,
+  });
+  console.error(message);
+  process.exit(1);
+}
+
+const configuredRoot = process.env.CLIENT_BUNDLE_ASSET_ROOT;
+const assetRoot = configuredRoot ?? ROOTS.find((root) => existsSync(root));
+if (!assetRoot || !existsSync(assetRoot)) {
+  failBeforeMeasurement(
+    "Solaris client budget: no production asset directory found. Run the production build first.",
+  );
+}
+
+function measureAsset(name, bytes) {
+  return {
+    name,
+    type: name.endsWith(".js") ? "js" : "css",
+    raw: bytes.byteLength,
+    gzip: gzipSync(bytes, { level: 9 }).byteLength,
+  };
+}
+
+function isPublicPassthrough(name, outputBytes) {
+  const sourcePath = join(PUBLIC_ASSET_ROOT, name);
+  if (!existsSync(sourcePath)) return false;
+
+  const sourceBytes = readFileSync(sourcePath);
+  return sourceBytes.equals(outputBytes);
+}
+
+// Generated Vite assets may be organized under subdirectories. A flat scan
+// silently undercounts nested bundles and can falsely certify an oversized app.
+function generatedAssetPaths(root, relative = "") {
+  const directory = join(root, relative);
+  return readdirSync(directory, { withFileTypes: true })
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .flatMap((entry) => {
+      const name = relative ? join(relative, entry.name) : entry.name;
+      if (entry.isDirectory()) return generatedAssetPaths(root, name);
+      if (entry.isSymbolicLink()) {
+        // Do not allow generated JS/CSS to bypass measurement through links.
+        failBeforeMeasurement(`Solaris client budget: symlink in generated assets: ${name}`);
+      }
+      return entry.isFile() && /\.(?:js|css)$/.test(entry.name) ? [name] : [];
+    });
+}
+
+const measuredAssets = generatedAssetPaths(assetRoot)
   .map((name) => {
     const bytes = readFileSync(join(assetRoot, name));
     return {
-      name,
-      type: name.endsWith(".js") ? "js" : "css",
-      raw: bytes.byteLength,
-      gzip: gzipSync(bytes, { level: 9 }).byteLength,
+      ...measureAsset(name, bytes),
+      publicPassthrough: isPublicPassthrough(name, bytes),
     };
   });
 
+const publicPassthrough = measuredAssets.filter((file) => file.publicPassthrough);
+const files = measuredAssets.filter((file) => !file.publicPassthrough);
+
 if (!files.length) {
-  console.error(`Solaris client budget: no JS/CSS assets found in ${assetRoot}.`);
-  process.exit(1);
+  failBeforeMeasurement(
+    `Solaris client budget: no generated JS/CSS assets found in ${assetRoot}.`,
+  );
 }
 
 const js = files.filter((file) => file.type === "js");
@@ -47,9 +102,17 @@ const css = files.filter((file) => file.type === "css");
 const largestJsRaw = [...js].sort((a, b) => b.raw - a.raw)[0];
 const largestJsGzip = [...js].sort((a, b) => b.gzip - a.gzip)[0];
 const largestCssGzip = [...css].sort((a, b) => b.gzip - a.gzip)[0];
-const totalGzip = files.reduce((sum, file) => sum + file.gzip, 0);
-const appShell = css.find((file) => /^app-shell-.*\.css$/.test(file.name));
-const globalStyles = css.find((file) => /^styles-.*\.css$/.test(file.name));
+const javascriptGzipBytes = js.reduce((sum, file) => sum + file.gzip, 0);
+const cssGzipBytes = css.reduce((sum, file) => sum + file.gzip, 0);
+const totalGzip = javascriptGzipBytes + cssGzipBytes;
+const passthroughGzip = publicPassthrough.reduce(
+  (sum, file) => sum + file.gzip,
+  0,
+);
+const appShell = css.filter((file) => /^app-shell-.*\.css$/.test(basename(file.name)));
+const globalStyles = css.filter((file) => /^styles-.*\.css$/.test(basename(file.name)));
+const appShellGzip = appShell.reduce((total, file) => total + file.gzip, 0);
+const globalStylesGzip = globalStyles.reduce((total, file) => total + file.gzip, 0);
 
 const kb = (bytes) => (bytes / 1024).toFixed(1);
 const failures = [];
@@ -58,6 +121,20 @@ function enforce(label, actual, limit, file) {
   if (actual <= limit) return;
   failures.push(
     `${label}: ${kb(actual)} KiB > ${kb(limit)} KiB${file ? ` (${file})` : ""}`,
+  );
+}
+
+function escapeWorkflowCommand(value) {
+  return String(value)
+    .replaceAll("%", "%25")
+    .replaceAll("\r", "%0D")
+    .replaceAll("\n", "%0A");
+}
+
+function emitWorkflowAnnotation(level, title, message) {
+  if (!process.env.GITHUB_ACTIONS) return;
+  console.log(
+    `::${level} title=${escapeWorkflowCommand(title)}::${escapeWorkflowCommand(message)}`,
   );
 }
 
@@ -80,25 +157,74 @@ enforce(
   largestCssGzip?.name,
 );
 enforce("Total JS + CSS gzip", totalGzip, BUDGETS.maxTotalJsCssGzip);
-if (appShell) {
+if (appShell.length) {
   enforce(
     "App shell CSS gzip",
-    appShell.gzip,
+    appShellGzip,
     BUDGETS.maxAppShellCssGzip,
-    appShell.name,
+    appShell.map((file) => file.name).join(", "),
   );
 }
-if (globalStyles) {
+if (globalStyles.length) {
   enforce(
     "Global styles CSS gzip",
-    globalStyles.gzip,
+    globalStylesGzip,
     BUDGETS.maxGlobalStylesCssGzip,
-    globalStyles.name,
+    globalStyles.map((file) => file.name).join(", "),
   );
 }
 
+const report = {
+  schemaVersion: 1,
+  assetRoot,
+  thresholdBytes: BUDGETS.maxTotalJsCssGzip,
+  javascriptGzipBytes,
+  cssGzipBytes,
+  aggregateGzipBytes: totalGzip,
+  overBudgetBytes: Math.max(0, totalGzip - BUDGETS.maxTotalJsCssGzip),
+  withinBudget: failures.length === 0,
+  assetCount: files.length,
+  javascriptAssetCount: js.length,
+  cssAssetCount: css.length,
+  publicPassthroughAssetCount: publicPassthrough.length,
+  publicPassthroughGzipBytes: passthroughGzip,
+  assets: [...files]
+    .sort((a, b) => b.gzip - a.gzip)
+    .map((file) => ({
+      path: file.name,
+      type: file.type,
+      rawBytes: file.raw,
+      gzipBytes: file.gzip,
+    })),
+  failures,
+};
+writeReport(report);
+
+const diagnosticSummary = [
+  `root=${assetRoot}`,
+  `generated=${files.length}`,
+  `passthrough=${publicPassthrough.length}`,
+  `passthrough_gzip=${kb(passthroughGzip)} KiB`,
+  `javascript_gzip=${kb(javascriptGzipBytes)} KiB`,
+  `css_gzip=${kb(cssGzipBytes)} KiB`,
+  `largest_js_raw=${largestJsRaw?.name ?? "n/a"}:${kb(largestJsRaw?.raw ?? 0)} KiB`,
+  `largest_js_gzip=${largestJsGzip?.name ?? "n/a"}:${kb(largestJsGzip?.gzip ?? 0)} KiB`,
+  `largest_css_gzip=${largestCssGzip?.name ?? "n/a"}:${kb(largestCssGzip?.gzip ?? 0)} KiB`,
+  `total_gzip=${kb(totalGzip)} KiB`,
+  `app_shell_gzip=${appShell.length ? `${kb(appShellGzip)} KiB` : "n/a"}`,
+  `global_styles_gzip=${globalStyles.length ? `${kb(globalStylesGzip)} KiB` : "n/a"}`,
+  `report=${REPORT_PATH}`,
+].join("; ");
+
 console.log("Solaris Studio client performance budget");
-console.log(`  assets: ${files.length} from ${assetRoot}`);
+console.log(`  generated assets: ${files.length} from ${assetRoot}`);
+if (publicPassthrough.length) {
+  console.log(
+    `  public passthrough assets: ${publicPassthrough.length} excluded · ${kb(passthroughGzip)} KiB gzip`,
+  );
+}
+console.log(`  JavaScript gzip: ${javascriptGzipBytes} bytes · ${kb(javascriptGzipBytes)} KiB`);
+console.log(`  CSS gzip: ${cssGzipBytes} bytes · ${kb(cssGzipBytes)} KiB`);
 console.log(
   `  largest JS raw: ${largestJsRaw?.name ?? "n/a"} · ${kb(largestJsRaw?.raw ?? 0)} KiB`,
 );
@@ -108,14 +234,23 @@ console.log(
 console.log(
   `  largest CSS gzip: ${largestCssGzip?.name ?? "n/a"} · ${kb(largestCssGzip?.gzip ?? 0)} KiB`,
 );
-console.log(`  total JS + CSS gzip: ${kb(totalGzip)} KiB`);
-if (appShell) console.log(`  app shell CSS gzip: ${kb(appShell.gzip)} KiB`);
-if (globalStyles) console.log(`  global styles CSS gzip: ${kb(globalStyles.gzip)} KiB`);
+console.log(
+  `  total JS + CSS gzip: ${totalGzip} bytes · ${kb(totalGzip)} KiB / ${BUDGETS.maxTotalJsCssGzip} bytes`,
+);
+console.log(`  machine-readable report: ${REPORT_PATH}`);
+if (appShell.length) console.log(`  app shell CSS gzip: ${kb(appShellGzip)} KiB`);
+if (globalStyles.length) console.log(`  global styles CSS gzip: ${kb(globalStylesGzip)} KiB`);
 
 if (failures.length) {
   console.error("\nClient performance budget exceeded:");
   for (const failure of failures) console.error(`  - ${failure}`);
+  emitWorkflowAnnotation(
+    "error",
+    "Client performance budget exceeded",
+    `${failures.join(" | ")} | ${diagnosticSummary}`,
+  );
   process.exit(1);
 }
 
+emitWorkflowAnnotation("notice", "Client performance budget", diagnosticSummary);
 console.log("Client performance budget passed.");
