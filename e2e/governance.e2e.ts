@@ -87,14 +87,14 @@ test.describe("Rules and Integrity governance discovery", () => {
     );
 
     const problems = failOnGovernanceConsoleProblems(page);
-    await page.goto("/analysis");
+    await page.goto("/records");
 
     const localNavigation = page.getByRole("complementary", { name: "Results navigation" });
     await expect(localNavigation).toBeVisible();
 
     const expand = page.getByRole("button", { name: "Expand Results navigation" });
     await expect(expand).toBeVisible();
-    await expect(localNavigation.locator('a[href="/scorecharts"]')).not.toBeVisible();
+    await expect(localNavigation.locator('a[href="/records"]')).not.toBeVisible();
 
     await page.waitForLoadState("networkidle", { timeout: 4_000 }).catch(() => undefined);
     await expand.scrollIntoViewIfNeeded();
@@ -103,7 +103,7 @@ test.describe("Rules and Integrity governance discovery", () => {
     await expect(
       page.getByRole("button", { name: "Collapse Results navigation" }),
     ).toBeVisible();
-    await expect(localNavigation.locator('a[href="/scorecharts"]')).toBeVisible();
+    await expect(localNavigation.locator('a[href="/records"]')).toBeVisible();
 
     await expectNoHorizontalOverflow(page);
     expect(problems, "Collapsing the results rail must stay hydration-clean").toEqual([]);

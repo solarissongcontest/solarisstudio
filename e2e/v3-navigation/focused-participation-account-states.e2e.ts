@@ -151,8 +151,8 @@ async function setFeatureForCountry(
 
 async function expectFocusedParticipationChrome(
   page: Page,
-  pathname: "/confirmations" | "/jury-voting" | "/televoting" | "/next-in-line",
-  title: "Confirmations" | "Jury voting" | "Televoting" | "Next in Line",
+  pathname: "/confirmations" | "/jury-voting" | "/televoting",
+  title: "Confirmations" | "Jury voting" | "Televoting",
 ) {
   await page.goto(pathname, { waitUntil: "domcontentloaded" });
 
@@ -191,7 +191,12 @@ test("critical participation tasks own focused chrome while non-critical sibling
     await expectFocusedParticipationChrome(page, "/confirmations", "Confirmations");
     await expectFocusedParticipationChrome(page, "/jury-voting", "Jury voting");
     await expectFocusedParticipationChrome(page, "/televoting", "Televoting");
-    await expectFocusedParticipationChrome(page, "/next-in-line", "Next in Line");
+    // Next in Line is deferred for the soft launch. It must not mount the
+    // task shell (or its workflow) merely because its historical route exists.
+    await page.goto("/next-in-line", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "This experience is not available", exact: true })).toBeVisible();
+    await expect(page.locator('[data-v3-focused-task-shell="participation.task"]')).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "Available Solaris destinations" })).toBeVisible();
 
     await page.goto("/televoting/how-to-vote", { waitUntil: "domcontentloaded" });
     await expect(page.locator('[data-v3-focused-task-shell="participation.task"]')).toHaveCount(0);

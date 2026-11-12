@@ -141,6 +141,10 @@ test("Public directory family distinguishes mobile website from desktop explorer
   const mobile = testInfo.project.name === "public-390";
   for (const route of ["/site-directory", "/tools"]) {
     await page.goto(route, { waitUntil: "domcontentloaded" });
+    if (route === "/tools") {
+      await expect(page.getByRole("heading", { name: "This experience is not available", exact: true })).toBeVisible();
+      await expect(page.locator("[data-directory-experience]")).toHaveCount(0);
+    } else {
     const directory = page.locator("[data-directory-experience]");
     await expect(directory).toHaveAttribute(
       "data-directory-experience", mobile ? "mobile-web" : "desktop-web",
@@ -171,6 +175,8 @@ test("Public directory family distinguishes mobile website from desktop explorer
     await expect(directory.getByText(route === "/tools" ? "No matching tools" : "No matching pages")).toBeVisible();
     await search.fill("");
     await expect(directory.locator("a[href^='/']").first()).toBeVisible();
+
+    }
 
     const overflow = await page.evaluate(() =>
       Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
@@ -481,10 +487,10 @@ test("captures the final visual archetypes for review", async ({ page }, testInf
 
   const archetypes = [
     ["directory", "/editions"],
-    ["data", "/result-lab"],
+    ["deferred-result-lab", "/result-lab"],
     ["operational", "/confirmations"],
     ["governance", "/rules"],
-    ["feed", "/pulse"],
+    ["deferred-pulse", "/pulse"],
   ] as const;
 
   const context = page.context();
@@ -558,4 +564,28 @@ test("Rulebook chapter directory preserves all 22 links across mobile web and de
     body: await page.screenshot({ fullPage: true }),
     contentType: "image/png",
   });
+});
+
+
+test("soft launch hides deferred discovery and rejects direct links without mounting the tools", async ({ page }, testInfo) => {
+  test.skip(!["public-390", "public-1440"].includes(testInfo.project.name), "Phone and desktop public launch acceptance");
+  await page.goto("/site-directory", { waitUntil: "domcontentloaded" });
+  const directory = page.locator("[data-directory-experience]");
+  await expect(directory.getByRole("heading", { name: "All Solaris pages", exact: true })).toBeVisible();
+  for (const href of ["/fantasy", "/prediction-league", "/voting-dna", "/analysis", "/scorecharts", "/result-lab", "/tools"]) {
+    await expect(directory.locator(`a[href="${href}"]`)).toHaveCount(0);
+  }
+  await page.goto("/results", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: /^(Official results|Results)$/ })).toBeVisible();
+  await expect(page.getByText("More result tools", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "More result analysis", exact: true })).toHaveCount(0);
+  for (const route of ["/analysis", "/tools", "/fantasy", "/prediction-league", "/world/organizations"]) {
+    await page.goto(route, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "This experience is not available", exact: true })).toBeVisible();
+    const recovery = page.getByRole("navigation", { name: "Available Solaris destinations" });
+    await expect(recovery).toBeVisible();
+    for (const href of ["/", "/explore", "/participate", "/results", "/me"]) {
+      await expect(recovery.locator(`a[href="${href}"]`)).toBeVisible();
+    }
+  }
 });

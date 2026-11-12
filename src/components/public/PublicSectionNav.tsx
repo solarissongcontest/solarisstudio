@@ -1,3 +1,4 @@
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -19,8 +20,9 @@ export function PublicSectionNav({
   pathname: string;
   collapsible?: boolean;
 }) {
+  const { allows } = usePublicLaunchAvailability();
   const area = publicAreaForPath(pathname);
-  const items = publicDestinationsForArea(area, { includeContextual: false });
+  const items = publicDestinationsForArea(area, { includeContextual: false }).filter(item => allows(item.to));
   const activeTo = items
     .filter((item) => publicPathMatches(pathname, item.to))
     .sort((a, b) => b.to.length - a.to.length)[0]?.to;

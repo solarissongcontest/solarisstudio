@@ -11,6 +11,7 @@ import {
 import { V3ResultsScreen } from "@/components/v3/V3ResultsScreen";
 import type { Country } from "./data";
 import type { V3ResultProjectionInput } from "./v3-results";
+import { PublicLaunchContext } from "./public-launch-context";
 
 const country: Country = {
   id: "country-1",
@@ -65,6 +66,19 @@ async function renderScreen(element: React.ReactNode) {
 }
 
 describe("production Results screen", () => {
+  it("preserves the official ranking while hiding deferred tools and empty discovery sections", async () => {
+    const html = await renderScreen(
+      <PublicLaunchContext.Provider value={{ active: true, flags: {}, checking: false, error: false, retry: () => {} }}>
+        <V3ResultsScreen input={input} countries={countries} hideSpoilers={false} />
+      </PublicLaunchContext.Provider>,
+    );
+    expect(html).toContain(country.name);
+    expect(html).toContain("112233");
+    expect(html).toContain("Open full official result");
+    for (const hidden of ["ANALYSIS-SECRET", 'href="/scorecharts"', "Explore this result", "More analysis", "More result analysis"])
+      expect(html).not.toContain(hidden);
+  });
+
   it("does not invent a global-country destination for a custom delegation", async () => {
     const custom = { ...country, entityType: "custom" as const };
     const html = await renderScreen(

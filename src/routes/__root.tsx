@@ -1,3 +1,5 @@
+import { PublicLaunchAvailabilityProvider } from "@/components/public/PublicLaunchAvailability";
+import { PublicLaunchRouteBoundary } from "@/components/public/PublicLaunchRouteBoundary";
 import { AccountCacheIsolation } from "@/components/app/AccountCacheIsolation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -41,7 +43,7 @@ import { useHydrationSafeRouterLocation } from "../lib/hydration-safe-router-loc
 import { startPublicWebVitals } from "../lib/public-web-vitals";
 
 const SITE_DESCRIPTION =
-  "Solaris Studio is the home of Solaris Song Contest editions, results, voting analytics, predictions, records and interactive archive tools.";
+  "Solaris Studio is the home of Solaris Song Contest information, official rules, participation and published results.";
 const SITE_URL = "https://studio.solaris-song-contest.workers.dev";
 const SOCIAL_PREVIEW_URL = `${SITE_URL}/solaris-studio-social.jpg?v=2`;
 const TERRAOS_TEASER_PREVIEW_PATH = "/terraos-teaser-preview";
@@ -371,8 +373,16 @@ function RootComponent() {
           {!fullAdmin ? <SolarisAmbientBackground /> : null}
         </>
       ) : null}
-      {maintenanceRecovery ? content : <V3RootLegacyCutover>{content}</V3RootLegacyCutover>}
-      {!isolatedRoute ? <ToolQuickGuide pathname={pathname} /> : null}
+      {isolatedRoute || fullAdmin ? (
+        maintenanceRecovery ? content : <V3RootLegacyCutover>{content}</V3RootLegacyCutover>
+      ) : (
+        <PublicLaunchAvailabilityProvider enabled={!publicParticipation && !pathname.startsWith("/jury-voting") && pathname !== "/auth"}>
+          <PublicLaunchRouteBoundary pathname={pathname}>
+            <V3RootLegacyCutover>{content}</V3RootLegacyCutover>
+            <ToolQuickGuide pathname={pathname} />
+          </PublicLaunchRouteBoundary>
+        </PublicLaunchAvailabilityProvider>
+      )}
       {!isolatedRoute ? <Toaster /> : null}
     </QueryClientProvider>
   );

@@ -1,3 +1,4 @@
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -12,6 +13,7 @@ import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
 export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
+  const { allows } = usePublicLaunchAvailability();
   const area = publicAreaForPath(pathname);
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -51,7 +53,7 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
   // Entity pages already have a breadcrumb and global Explore navigation.
   if (/^\/(?:countries|editions|shows|wiki)\/[^/]+/.test(pathname)) return null;
 
-  const items = publicDestinationsForArea(area, { includeContextual: false });
+  const items = publicDestinationsForArea(area, { includeContextual: false }).filter(item => allows(item.to));
   const active = items
     .filter((item) => publicPathMatches(pathname, item.to))
     .sort((a, b) => b.to.length - a.to.length)[0];

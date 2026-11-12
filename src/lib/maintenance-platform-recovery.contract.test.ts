@@ -91,7 +91,10 @@ describe("emergency organizer platform recovery lane", () => {
   it("keeps the recovery page independent of disabled public app work and visibly fails closed", () => {
     expect(root).toContain('maintenanceRecovery = pathname === "/maintenance/recovery"');
     expect(root).toContain("const isolatedRoute = teaserPreview || maintenanceRecovery");
-    expect(root).toContain("{maintenanceRecovery ? content : <V3RootLegacyCutover>{content}</V3RootLegacyCutover>}");
+    const isolatedBranch = root.slice(root.indexOf("{isolatedRoute || fullAdmin ? ("), root.indexOf("<PublicLaunchAvailabilityProvider"));
+    expect(isolatedBranch).toContain("maintenanceRecovery ? content : <V3RootLegacyCutover>{content}</V3RootLegacyCutover>");
+    expect(isolatedBranch).not.toContain("<PublicLaunchAvailabilityProvider");
+    expect(root).toContain('<PublicLaunchRouteBoundary pathname={pathname}>');
     expect(root).toContain("{!isolatedRoute ? <Toaster /> : null}");
     expect(appRuntime).toContain("if (!platform.isAppMode || maintenanceRecovery) return");
     expect(appRuntime).toContain("!platform.canInstallServiceWorker || maintenanceRecovery");

@@ -24,9 +24,9 @@ test("mobile browser section navigation supports keyboard disclosure, Escape, an
   await expect(trigger).toHaveAttribute("aria-expanded", "true");
   await expect(panel).toBeVisible();
 
-  const scorechartsLink = panel.getByRole("link", { name: /Scorecharts/i });
-  await expect(scorechartsLink).toBeVisible();
-  await scorechartsLink.focus();
+  const recordsLink = panel.getByRole("link", { name: /Records/i });
+  await expect(recordsLink).toBeVisible();
+  await recordsLink.focus();
   await page.keyboard.press("Escape");
 
   await expect(trigger).toBeFocused();
@@ -54,8 +54,8 @@ test("mobile browser section navigation supports keyboard disclosure, Escape, an
   await expect(panel).toBeHidden();
 
   await trigger.click();
-  await scorechartsLink.click();
-  await expect(page).toHaveURL(/\/scorecharts\/?(?:[?#].*)?$/);
+  await recordsLink.click();
+  await expect(page).toHaveURL(/\/records\/?(?:[?#].*)?$/);
   await expect(nav.locator(".public-mobile-section-trigger")).toHaveAttribute("aria-expanded", "false");
 
   // Back/forward must not carry an expanded disclosure into another route.
@@ -67,48 +67,32 @@ test("mobile browser section navigation supports keyboard disclosure, Escape, an
   await expect(panel).toBeHidden();
 });
 
-test("tablet browser keeps Advanced destinations keyboard-accessible with readable touch targets", async ({ page }, testInfo) => {
+test("tablet browser keeps released destinations keyboard-accessible and deferred tools absent", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "public-390", "One deterministic tablet resize from web mode");
-
   await page.setViewportSize({ width: 820, height: 1180 });
   await page.goto("/results", { waitUntil: "domcontentloaded" });
-
   await expect(page.locator(".public-mobile-section-nav")).toBeHidden();
   const sidebar = page.locator(".public-site-sidebar");
   await expect(sidebar).toBeVisible();
-
-  const advanced = sidebar.locator("nav > details");
-  const summary = advanced.locator("summary");
-  await expect(advanced).toBeVisible();
-  await expect(summary).toBeVisible();
-
-  await summary.focus();
-  await page.keyboard.press("Enter");
-  await expect(advanced).toHaveAttribute("open", "");
-
-  const firstLink = advanced.getByRole("link").first();
-  await expect(firstLink).toBeVisible();
-  const size = await firstLink.evaluate((element) => element.getBoundingClientRect().height);
-  expect(size, "Tablet destinations need at least a 44px touch target").toBeGreaterThanOrEqual(43.9);
-
-  // Escape from an Advanced link should close the disclosure and restore
-  // keyboard focus to its summary, not leave focus in hidden links.
-  await firstLink.focus();
-  await page.keyboard.press("Escape");
-  await expect(advanced).not.toHaveAttribute("open", "");
-  await expect(summary).toBeFocused();
-
-  const overflow = await page.evaluate(() =>
-    Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) - innerWidth,
-  );
-  expect(overflow, "The tablet rail should scroll inside itself, not overflow the page").toBeLessThanOrEqual(2);
+  await expect(sidebar.locator('a[href="/scorecharts"],a[href="/result-lab"],a[href="/analysis"]')).toHaveCount(0);
+  await expect(sidebar.locator("nav > details")).toHaveCount(0);
+  const records = sidebar.getByRole("link", { name: "Records", exact: true });
+  await expect(records).toBeVisible();
+  expect(await records.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(43.9);
+  await records.focus();
+  await expect(records).toBeFocused();
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Shift+Tab");
+  await expect(records).toBeFocused();
+  const overflow = await page.evaluate(() => Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) - innerWidth);
+  expect(overflow).toBeLessThanOrEqual(2);
 });
 
 test("desktop website collapse control references and restores its actual navigation", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "public-1440", "Representative desktop browser behavior");
 
-  // Scorecharts is a data-explorer archetype, where the public sidebar can collapse.
-  await page.goto("/scorecharts", { waitUntil: "domcontentloaded" });
+  // Published Records retains the data-explorer navigation behavior during soft launch.
+  await page.goto("/records", { waitUntil: "domcontentloaded" });
 
   const sidebar = page.locator(".public-section-navigation");
   const toggle = sidebar.locator(".public-section-nav-toggle");
@@ -207,61 +191,21 @@ test("reduced motion disables browser navigation disclosure and sidebar animatio
   expect(sidebarTransitions.every((duration) => duration === 0)).toBe(true);
 });
 
-test("desktop advanced section follows deep links and browser history", async ({ page }, testInfo) => {
+test("desktop deferred deep links and browser history remain fail-closed", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "public-1440", "Desktop browser section route behavior");
-
   await page.goto("/results", { waitUntil: "domcontentloaded" });
-
   const sidebar = page.locator(".public-section-navigation");
-  const advanced = sidebar.locator("nav.public-section-nav-body > details");
-  const summary = advanced.locator("summary");
-  await expect(advanced).toBeVisible();
-
-  // Ordinary result tools start folded so they do not crowd the main rail.
-  await expect(advanced).not.toHaveAttribute("open", "");
-
-  await summary.click();
-  await expect(advanced).toHaveAttribute("open", "");
-
-  const resultLab = advanced.getByRole("link", { name: "Result Lab", exact: true });
-  await expect(resultLab).toBeVisible();
-
-  await resultLab.focus();
-  await page.keyboard.press("Escape");
-  await expect(advanced).not.toHaveAttribute("open", "");
-  await expect(summary).toBeFocused();
-
-  await summary.click();
-  await expect(advanced).toHaveAttribute("open", "");
-  await resultLab.click();
-  await expect(page).toHaveURL(/\/result-lab\/?(?:[?#].*)?$/);
-  await expect(advanced).toHaveAttribute("open", "");
-  await expect(resultLab).toHaveAttribute("aria-current", "page");
-
+  await expect(sidebar.locator('a[href="/result-lab"],a[href="/compare"]')).toHaveCount(0);
+  await expect(sidebar.locator("nav.public-section-nav-body > details")).toHaveCount(0);
+  await page.goto("/result-lab", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "This experience is not available", exact: true })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Available Solaris destinations" })).toBeVisible();
   await page.goBack({ waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/results\/?(?:[?#].*)?$/);
-  await expect(advanced).not.toHaveAttribute("open", "");
-
+  await expect(sidebar.locator('a[href="/result-lab"]')).toHaveCount(0);
   await page.goForward({ waitUntil: "domcontentloaded" });
-  await expect(page).toHaveURL(/\/result-lab\/?(?:[?#].*)?$/);
-  await expect(advanced).toHaveAttribute("open", "");
-  await expect(resultLab).toHaveAttribute("aria-current", "page");
-
-  // A direct deep-link reload must expose the active link, not just set the
-  // details element's open attribute inside an otherwise collapsed sidebar.
+  await expect(page.getByRole("heading", { name: "This experience is not available", exact: true })).toBeVisible();
   await page.reload({ waitUntil: "domcontentloaded" });
-  // The collapse button only mounts after hydration. Wait for it before
-  // checking visibility so pre-hydration SSR cannot give a false pass.
-  const toggle = sidebar.locator(".public-section-nav-toggle");
-  await expect(toggle).toBeVisible();
-  await expect(sidebar).not.toHaveClass(/is-collapsed/);
-  await expect(advanced).toBeVisible();
-  await expect(advanced).toHaveAttribute("open", "");
-  await expect(resultLab).toBeVisible();
-  await expect(resultLab).toHaveAttribute("aria-current", "page");
-
-  // Manual collapse remains available after the current route was exposed.
-  await toggle.click();
-  await expect(sidebar).toHaveClass(/is-collapsed/);
-  await expect(resultLab).toBeHidden();
+  await expect(page.getByRole("heading", { name: "This experience is not available", exact: true })).toBeVisible();
+  await expect(page.locator('a[href="/result-lab"]')).toHaveCount(0);
 });

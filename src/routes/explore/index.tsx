@@ -1,3 +1,4 @@
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   BookOpen,
@@ -92,6 +93,7 @@ const SECONDARY_DESTINATIONS = [
 ];
 
 function ExplorePage() {
+  const { allows } = usePublicLaunchAvailability();
   const { isAppMode } = useSolarisApp();
 
   const legacy = (
@@ -113,7 +115,7 @@ function ExplorePage() {
             <h2 id="explore-primary-title">Explore</h2>
           </div>
           <div className="solaris-app-grouped-list">
-            {[...PRIMARY_DESTINATIONS, ...SECONDARY_DESTINATIONS].map((destination) => {
+            {[...PRIMARY_DESTINATIONS, ...SECONDARY_DESTINATIONS].filter(item => allows(item.to)).map((destination) => {
               const Icon = destination.icon;
               return (
                 <Link key={destination.to} to={destination.to as any} className="solaris-app-list-row">

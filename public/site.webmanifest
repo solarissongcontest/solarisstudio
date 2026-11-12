@@ -1,7 +1,7 @@
 {
   "name": "Solaris Studio",
   "short_name": "Solaris Studio",
-  "description": "Solaris Studio is the home of Solaris Song Contest editions, results, voting analytics, predictions, records and interactive archive tools.",
+  "description": "Solaris Studio is the home of Solaris Song Contest information, official rules, participation and published results.",
   "id": "/",
   "start_url": "/app-launch",
   "scope": "/",

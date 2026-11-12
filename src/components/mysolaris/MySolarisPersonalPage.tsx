@@ -1,4 +1,5 @@
-import { Link } from "@tanstack/react-router";
+import { PublicLaunchLink as Link } from "@/components/public/PublicLaunchLink";
+
 import { Bookmark, ChevronRight, Sparkles } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
 

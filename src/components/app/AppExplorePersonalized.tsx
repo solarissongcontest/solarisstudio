@@ -1,3 +1,4 @@
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { Link } from "@tanstack/react-router";
 import { ChevronRight, Clock3, Star } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -13,6 +14,7 @@ import {
 } from "@/lib/public-recents";
 
 export function AppExplorePersonalized() {
+  const { allows } = usePublicLaunchAvailability();
   const [recents, setRecents] = useState<PublicRecentDestination[]>([]);
   const user = useFanSession();
   const follows = useMyFollows(user.data?.id);
@@ -28,8 +30,8 @@ export function AppExplorePersonalized() {
     [shows.data, publicEditions],
   );
   const visibleRecents = useMemo(
-    () => visibleRecentShowDestinations(recents, publicShows).slice(0, 4),
-    [recents, publicShows],
+    () => visibleRecentShowDestinations(recents, publicShows).filter(item => allows(item.path)).slice(0, 4),
+    [recents, publicShows, allows],
   );
 
   useEffect(() => {

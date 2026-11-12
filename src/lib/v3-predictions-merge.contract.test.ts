@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { publicLaunchAllows } from "./public-launch-availability";
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 const hub = () => read("src/components/v3/V3PredictionsScreen.tsx");
@@ -13,11 +14,15 @@ const dataAdapter = () => read("src/lib/prediction-league-data.ts");
 const projection = () => read("src/lib/v3-predictions.ts");
 
 describe("V3 Predictions + Prediction League merge", () => {
-  it("uses /predictions as the installed-app merged product", () => {
+  it("preserves the V3 merged Predictions implementation while the soft launch defers its route", () => {
     expect(arena()).toContain("<V3PredictionsRouteContent />");
     expect(boundary()).toContain("<V3PredictionsScreen />");
     expect(arena()).toContain("rollout.data?.enabled === true");
-    expect(league()).toContain('<Navigate to="/predictions" replace />');
+    // Prediction League can be opted in without authorizing the broader Arena.
+    expect(league()).not.toContain('<Navigate to="/predictions" replace />');
+    expect(league()).toContain("return <LegacyPredictionLeaguePage />;");
+    expect(publicLaunchAllows("/prediction-league", { prediction_league: true })).toBe(true);
+    expect(publicLaunchAllows("/predictions", { prediction_league: true })).toBe(false);
     expect(my()).toContain('<Navigate to="/predictions" replace />');
   });
 
@@ -25,7 +30,10 @@ describe("V3 Predictions + Prediction League merge", () => {
     expect(arena()).toContain("<LegacyPredictionArenaPage />");
     expect(league()).toContain("<LegacyPredictionLeaguePage />");
     expect(arena()).toContain("!rollout.isError");
-    expect(league()).toContain("!rollout.isError");
+    // League remains a separately verified read surface when the V3 Arena is withheld.
+    expect(league()).toContain("feature.isError || feature.data !== true");
+    expect(league()).toContain("enabled: feature.data === true");
+    expect(league()).not.toContain("useV3RolloutProbe");
   });
 
   it("does not project a signed-in user's round state until private submission history is authoritative", () => {

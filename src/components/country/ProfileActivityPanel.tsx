@@ -1,4 +1,5 @@
-import { Link } from "@tanstack/react-router";
+import { PublicLaunchLink as Link } from "@/components/public/PublicLaunchLink";
+
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 

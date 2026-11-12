@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { PublicLaunchLink as Link } from "@/components/public/PublicLaunchLink";
+import { createFileRoute} from "@tanstack/react-router";
 import { ArrowRight, BarChart3, Beaker, ChevronRight, GitCompareArrows, Table2, Trophy } from "lucide-react";
 import { useMemo } from "react";
 
@@ -36,6 +37,7 @@ import { V3ResultsScreen } from "@/components/v3/V3ResultsScreen";
 import { V3Screen } from "@/components/v3/V3Foundation";
 import { useNotificationPreferences } from "@/lib/engagement-data";
 import { resolveV3ResultsSpoilerProtection } from "@/lib/v3-results";
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 
 export const Route = createFileRoute("/results/")({
   head: () => ({
@@ -70,6 +72,7 @@ function ResultsOverviewPage() {
 }
 
 function LegacyResultsOverviewPage() {
+  const { allows } = usePublicLaunchAvailability();
   const { isAppMode, platformResolved } = useSolarisApp();
   const { preferences } = useAppExperiencePreferences();
   const editionsQuery = useEditions();
@@ -511,7 +514,7 @@ function LegacyResultsOverviewPage() {
         ]}
       />
 
-      <PublicAdvancedDisclosure
+      {["/compare", "/result-lab", "/predictions", "/taste-dna", "/broadcast-intelligence"].some(allows) && <PublicAdvancedDisclosure
         label="More result tools"
         description="Compare, simulate, predict, replay or explore your personal voting taste."
       >
@@ -549,7 +552,7 @@ function LegacyResultsOverviewPage() {
             description="Replay the biggest lead changes and result turning points."
           />
         </PublicDestinationGrid>
-      </PublicAdvancedDisclosure>
+      </PublicAdvancedDisclosure>}
 
       {!hideSpoilers && latestShow && latestRows.length > 0 && (
         <Panel
