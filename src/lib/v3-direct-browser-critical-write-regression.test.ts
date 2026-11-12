@@ -58,9 +58,6 @@ const KNOWN_DIRECT_WRITE_DEBT: Readonly<Record<string, Readonly<Record<string, R
   "src/routes/_authenticated/admin/shows/$slug.tsx": {
     shows: { update: 2, insert: 1, delete: 1 },
   },
-  "src/routes/_authenticated/admin/televote/$slug.tsx": {
-    televote_votes: { update: 1, insert: 1 },
-  },
   "src/routes/_authenticated/admin/voting-system/$slug.tsx": {
     results: { update: 1 }, shows: { update: 1 },
   },
@@ -234,6 +231,16 @@ describe("V3 critical browser-mutation regression guard", () => {
     expect(files).toContain("src/lib/visual-theme.ts");
     expect(files).not.toContain("src/integrations/televoting/results-sync.server.ts");
     expect(files).not.toContain("src/lib/public.functions.ts");
+  });
+
+  it("does not grandfather the retired Organizer Televote writer", () => {
+    expect(KNOWN_DIRECT_WRITE_DEBT).not.toHaveProperty(
+      "src/routes/_authenticated/admin/televote/$slug.tsx",
+    );
+    const writes = directCriticalWrites(
+      join(BROWSER_SOURCE_ROOT, "routes/_authenticated/admin/televote/$slug.tsx"),
+    );
+    expect(writes.filter((write) => write.table === "televote_votes")).toEqual([]);
   });
 
   it("does not bless currently clean official Jury mutation tables", () => {

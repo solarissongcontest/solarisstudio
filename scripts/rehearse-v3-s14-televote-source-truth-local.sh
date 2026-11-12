@@ -56,6 +56,22 @@ if sql < "$temporary/source-truth.sql" > "$temporary/repeat.log" 2>&1; then
 fi
 grep -q 'S07 source truth already or partially installed' "$temporary/repeat.log" || { cat "$temporary/repeat.log"; fail 'Wrong repeat failure'; }
 
+# S08 is staged ONLY after S07 acceptance. Model the 12 Nov hosted
+# Televote table-GRANT SHAPE on this disposable fixture, without claiming its
+# RLS, function graph, runtime or migration history match the hosted project.
+# The all-show guard must remove these broad privileges before S08 acceptance.
+sql <<'SQL'
+grant insert, update, delete on public.televote_votes
+  to anon, authenticated, service_role;
+select extensions.v3_assert(
+  (select bool_and(has_table_privilege(role_name, 'public.televote_votes', privilege))
+   from (values ('anon'), ('authenticated'), ('service_role')) roles(role_name)
+   cross join (values ('INSERT'), ('UPDATE'), ('DELETE')) verbs(privilege)),
+  'S08 fixture did not reproduce the hosted pre-cutover Televote ACL shape');
+SQL
+sql < docs/v3/recovery-candidates/s08-televote-single-writer-local.sql
+sql < .github/tests/v3-s08-televote-mutation-scope.sql
+
 # Cleanup is part of success. No report claims proof before it succeeds.
 docker rm -f "$cid" >/dev/null
 cid=""
@@ -65,7 +81,9 @@ import { createHash } from "node:crypto";
 import { SOURCES, GUARD } from "./scripts/stage-v3-s07-televote-source-truth.mjs";
 const files = [...SOURCES, GUARD,
   "docs/v3/recovery-candidates/fixtures/s07-televote-source-truth-local.sql",
-  ".github/tests/v3-s07-televote-source-truth.sql"];
+  ".github/tests/v3-s07-televote-source-truth.sql",
+  "docs/v3/recovery-candidates/s08-televote-single-writer-local.sql",
+  ".github/tests/v3-s08-televote-mutation-scope.sql"];
 const sourceHashes = Object.fromEntries(files.map(path => [path,
   createHash("sha256").update(readFileSync(path)).digest("hex")]));
 writeFileSync("s07-local-source-truth-proof.json", JSON.stringify({
@@ -76,8 +94,12 @@ writeFileSync("s07-local-source-truth-proof.json", JSON.stringify({
   healthyReplayPreservesIdentity: true, duplicateConsequencesRejected: true,
   unpublishedAndUnboundSourcesRefused: true, missingDependenciesRefusedBeforeMutation: true,
   atomicFailureRollback: true, forgedMarkersDenied: true, acceptedBallotsUnchanged: true,
+  s08AllShowWriterGuardTested: true, s08FreshCanonicalRevisionAccepted: true,
+  s08WrongActorAndMovedShowDenied: true,
+  s08HostedLikeBroadAclRevocationTested: true,
+  s08DuplicateAndStaleVersionDenied: true, s08ApprovedForProduction: false,
   cleanupSucceeded: true, fullHostedEquivalenceCertified: false,
   productionDeploymentAuthorized: false
 }, null, 2) + "\n", { flag: "wx" });
 JS
-echo 'PASS S07 isolated source-truth integration; no hosted equivalence or production authorization'
+echo 'PASS S07 + S08 isolated source truth and single-writer regression; NO hosted equivalence or production approval'
