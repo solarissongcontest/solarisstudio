@@ -25,13 +25,21 @@ describe("public guide soft-launch availability", () => {
       expect(source).toContain(`requires: "${route}"`);
     }
     expect(source).toContain("usePublicLaunchAvailability()");
-    expect(source).toContain('allows(question.requires)');
+    expect(source).toContain("typeof question.requires === \"string\"");
+    expect(source).toContain("allows(question.requires)");
     expect(source).toContain("<GuideFAQ sections={visibleSections} />");
     expect(source).toContain(".filter((section) => section.questions.length > 0)");
   });
 
   it("keeps essential public help and an official published-results route", () => {
-    for (const route of ["/results", "/participate", "/auth", "/rules", "/explore", "/site-directory"]) {
+    for (const route of [
+      "/results",
+      "/participate",
+      "/auth",
+      "/rules",
+      "/explore",
+      "/site-directory",
+    ]) {
       expect(publicLaunchAllows(route)).toBe(true);
       expect(source).toContain(`to="${route}"`);
     }
