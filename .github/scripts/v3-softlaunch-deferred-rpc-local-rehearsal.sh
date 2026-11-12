@@ -119,6 +119,24 @@ deny 'cross-edition Fantasy' "$USER_A" "$FANTASY" 'Fantasy is not available'
 deny 'cross-edition Prediction' "$USER_A" "$PRED" 'Prediction League is not available'
 sql "update public.studio2_feature_flags set edition_ids=array['$ED_A'::uuid] where key in ('fantasy_ssc','prediction_league');"
 
+# An explicitly user/edition-allowed fan still cannot bypass admins_only.
+# The canonical private rollout helper requires separate rollout.read capability.
+sql "update public.studio2_feature_flags set admins_only=true where key in ('fantasy_ssc','prediction_league');"
+deny 'admins-only Fantasy for ordinary tester' "$USER_A" "$FANTASY" 'Fantasy is not available'
+deny 'admins-only Prediction for ordinary tester' "$USER_A" "$PRED" 'Prediction League is not available'
+eq_count 'admins-only Fantasy no writes' "select count(*) from public.fantasy_teams where game_id='$GAME';" 0
+eq_count 'admins-only Prediction no writes' "select count(*) from public.prediction_entries where round_id='$ROUND';" 0
+sql "update public.studio2_feature_flags set admins_only=false where key in ('fantasy_ssc','prediction_league');"
+
+# A synthetic corrupted game must not borrow an allowed ED_B feature decision
+# when the canonical show still belongs to ED_A. This proves the strengthened
+# exact game/show-edition consistency predicate at runtime (not just source text).
+sql "update public.fantasy_games set edition_id='$ED_B' where id='$GAME';"
+deny 'canonical Fantasy game/show edition mismatch' "$USER_A" "$FANTASY" 'Fantasy is not available'
+eq_count 'inconsistent Fantasy game no writes' "select count(*) from public.fantasy_teams where game_id='$GAME';" 0
+sql "update public.fantasy_games set edition_id='$ED_A' where id='$GAME';"
+eq_count 'restored game canonical edition' "select count(*) from public.fantasy_games where id='$GAME' and edition_id='$ED_A' and show_id='$SHOW_A';" 1
+
 role_call "$USER_A" "$FANTASY" >/dev/null
 role_call "$USER_A" "$PRED" >/dev/null
 eq_count 'authorized Fantasy team' "select count(*) from public.fantasy_teams where game_id='$GAME' and profile_id='$USER_A';" 1
