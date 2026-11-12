@@ -1,7 +1,7 @@
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
+import { createSolarisAuthenticatedClientServer } from "@/integrations/supabase/organizer.server";
 import { listIntegrityDeclarationsServer, type IntegrityDeclarationRow } from "@/integrations/televoting/integrity-declarations.server";
-import { televotingAdmin } from "@/integrations/televoting/client.server";
 
 export type IntegrityHumanDecision = "cleared" | "monitor" | "false_declaration_confirmed" | "ballot_excluded";
 export type IntegritySanctionType = "temporary" | "permanent";
@@ -49,12 +49,17 @@ function ensureReason(value: string, minimum = 5) {
   return reason;
 }
 
+function authenticatedTelevotingClient() {
+  return (createSolarisAuthenticatedClientServer() as any).schema("televoting");
+}
+
 export async function loadIntegrityModerationServer(input?: { editionId?: string }) {
-  await requireMergedTelevotingAdminServer();
   const editionId = String(input?.editionId ?? "").trim();
   if (!editionId) {
     throw new Error("Choose an edition before loading integrity moderation.");
   }
+  await requireSolarisCapabilityServer("integrity.read", editionId);
+
   const declarations = await listIntegrityDeclarationsServer({ editionId, limit: 750, signedOnly: false });
   const tv = (supabaseAdmin as any).schema("televoting");
 
@@ -98,9 +103,8 @@ export async function recordIntegrityDecisionServer(input: {
   reason: string;
   evidenceNotes?: string | null;
 }) {
-  await requireMergedTelevotingAdminServer();
   const reason = ensureReason(input.reason);
-  const { data, error } = await (televotingAdmin as any).rpc("organizer_record_integrity_decision", {
+  const { data, error } = await authenticatedTelevotingClient().rpc("organizer_record_integrity_decision", {
     p_preflight_id: input.preflightId,
     p_decision: input.decision,
     p_reason: reason,
@@ -111,9 +115,8 @@ export async function recordIntegrityDecisionServer(input: {
 }
 
 export async function excludeIntegrityBallotServer(input: { preflightId: string; reason: string }) {
-  await requireMergedTelevotingAdminServer();
   const reason = ensureReason(input.reason);
-  const { data, error } = await (televotingAdmin as any).rpc("organizer_exclude_integrity_ballot", {
+  const { data, error } = await authenticatedTelevotingClient().rpc("organizer_exclude_integrity_ballot", {
     p_preflight_id: input.preflightId,
     p_reason: reason,
   });
@@ -127,14 +130,13 @@ export async function createIntegritySanctionServer(input: {
   expiresAt?: string | null;
   reason: string;
 }) {
-  await requireMergedTelevotingAdminServer();
   const reason = ensureReason(input.reason, 8);
   const expiresAt = input.sanctionType === "temporary" ? String(input.expiresAt ?? "") : null;
   if (input.sanctionType === "temporary") {
     const timestamp = new Date(expiresAt || "").getTime();
     if (!Number.isFinite(timestamp) || timestamp <= Date.now()) throw new Error("Choose a future end time for the temporary suspension.");
   }
-  const { data, error } = await (televotingAdmin as any).rpc("organizer_create_integrity_sanction", {
+  const { data, error } = await authenticatedTelevotingClient().rpc("organizer_create_integrity_sanction", {
     p_preflight_id: input.preflightId,
     p_sanction_type: input.sanctionType,
     p_expires_at: expiresAt || null,
@@ -145,9 +147,8 @@ export async function createIntegritySanctionServer(input: {
 }
 
 export async function revokeIntegritySanctionServer(input: { sanctionId: string; reason: string }) {
-  await requireMergedTelevotingAdminServer();
   const reason = ensureReason(input.reason);
-  const { data, error } = await (televotingAdmin as any).rpc("organizer_revoke_integrity_sanction", {
+  const { data, error } = await authenticatedTelevotingClient().rpc("organizer_revoke_integrity_sanction", {
     p_sanction_id: input.sanctionId,
     p_reason: reason,
   });
