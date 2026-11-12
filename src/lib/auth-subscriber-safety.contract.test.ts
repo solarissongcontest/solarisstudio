@@ -22,8 +22,13 @@ describe("auth subscriber lifecycle audit", () => {
     expect(accountIsolation).toContain("lifecycle.deactivate()");
     expect(accountCache).toContain('client.setQueryData(["fan-session"]');
     expect(accountCache).toContain("clearPrivateAccountQueries(client)");
-    expect(appShell).toContain("if (!alive) return;");
-    expect(appShell).toContain("if (alive) setAccess(next);");
+    expect(appShell).toContain("createAppShellAccountAccessCoordinator");
+    expect(appShell).toContain("accountAccess.authChanged");
+    expect(appShell).toContain("accountAccess.dispose()");
+    const coordinator = source("src/lib/app-shell-account-access.ts");
+    expect(coordinator).toContain("ticket === generation");
+    expect(coordinator).toContain("currentActorId === requestedActor");
+    expect(coordinator).toContain("options.setAccess(options.emptyAccess)");
     expect(settings).toContain("useFanSession");
     expect(settings).not.toContain("supabase.auth.onAuthStateChange");
     expect(settings).not.toContain("supabase.auth.getUser");
