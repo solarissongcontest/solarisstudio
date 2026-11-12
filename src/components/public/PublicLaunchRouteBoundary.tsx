@@ -32,11 +32,36 @@ export function PublicLaunchRouteBoundary({
           </button>
         ) : null}
         <nav className="mt-6 flex flex-wrap gap-4" aria-label="Available Solaris destinations">
-          <a href="/">Home</a>
-          <a href="/explore">Explore</a>
-          <a href="/participate">Participate</a>
-          <a href="/results">Results</a>
-          <a href="/me">Me</a>
+          <a
+            className="inline-flex min-h-11 items-center rounded-lg px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            href="/"
+          >
+            Home
+          </a>
+          <a
+            className="inline-flex min-h-11 items-center rounded-lg px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            href="/explore"
+          >
+            Explore
+          </a>
+          <a
+            className="inline-flex min-h-11 items-center rounded-lg px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            href="/participate"
+          >
+            Participate
+          </a>
+          <a
+            className="inline-flex min-h-11 items-center rounded-lg px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            href="/results"
+          >
+            Results
+          </a>
+          <a
+            className="inline-flex min-h-11 items-center rounded-lg px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            href="/me"
+          >
+            Me
+          </a>
         </nav>
       </section>
     </AppShell>
