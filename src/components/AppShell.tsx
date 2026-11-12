@@ -432,7 +432,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 collapsible={publicArchetype === "data-explorer"}
               />
               <div className="public-site-content min-w-0">
-                <PublicMobileSectionNav pathname={pathname} />
+                {/* Each URL gets a new disclosure instance; a previous route's async
+                    close effect must not undo a fresh tap after navigation. */}
+                <PublicMobileSectionNav key={pathname} pathname={pathname} />
                 {showHomeAnniversaryTakeover && (
                   <Suspense fallback={null}>
                     <LazyHomeAnniversaryTakeover />
