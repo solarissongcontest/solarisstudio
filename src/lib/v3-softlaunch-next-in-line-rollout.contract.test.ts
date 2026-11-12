@@ -77,6 +77,17 @@ describe("Next in Line deferred soft-launch candidate (source-only, not deployab
     expect(localCandidate).not.toMatch(/(insert into|update) public.studio2_feature_flags/);
   });
 
+  it("narrowly extends the existing feature key whitelist without enabling Next in Line", () => {
+    expect(localCandidate).toContain("pg_get_constraintdef(c.oid)");
+    expect(localCandidate).toContain("studio2_feature_flags_key_check");
+    expect(localCandidate).toContain("v_expression := substring(v_definition from 8");
+    expect(localCandidate).toContain("check ((%s) or key = %L)");
+    expect(localCandidate).toContain("'next_in_line'");
+    expect(localCandidate).toContain("raise exception 'Unexpected feature flag whitelist definition'");
+    expect(localCandidate).not.toMatch(/insert into public.studio2_feature_flags/i);
+    expect(localCandidate).not.toMatch(/update public.studio2_feature_flags/i);
+  });
+
   it("cannot be mistaken for an adopted migration or runtime certification", () => {
     expect(localCandidate).toContain("LOCAL-ONLY REVIEW CANDIDATE");
     expect(localCandidate).toContain("NOT A TRACKED MIGRATION");
