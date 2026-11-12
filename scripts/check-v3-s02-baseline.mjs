@@ -8,6 +8,12 @@ const frozen=JSON.parse(readFileSync(new URL('../docs/v3/recovery-candidates/evi
 const frozenCatalog=JSON.parse(readFileSync(new URL('../docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json',import.meta.url)));
 const check=(v,m)=>{if(!v)throw Error(m);};
 const hash=b=>createHash('sha256').update(b).digest('hex');
+export function ownedProjectIdentity({runId,attempt,jobId}){
+ check(/^[0-9]+$/.test(runId||'')&&/^[0-9]+$/.test(attempt||'')&&/^[A-Za-z0-9_-]+$/.test(jobId||''),'Invalid CI project identity');
+ const name='archive-v3-'+runId+'-'+attempt+'-'+jobId.replaceAll('_','-').toLowerCase();
+ check(name.length<=40,'CLI project identity exceeds the 40-character compatibility boundary');
+ return name;
+}
 export function dependencyGraph(c,expected=frozen.functions,roots=PROFILE.roots) {
  check(c.formatVersion===1 && Array.isArray(c.nodes) && Array.isArray(c.edges),'Invalid dependency catalog');
  const nodes=new Map(), adjacent=new Map();

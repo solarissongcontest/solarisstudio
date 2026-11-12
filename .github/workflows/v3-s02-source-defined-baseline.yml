@@ -29,7 +29,7 @@ concurrency:
   group: s02-source-baseline-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
-  source-defined-beta:
+  beta:
     name: Complete source-defined lifecycle and recovery qualification
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -77,7 +77,7 @@ jobs:
           # CLI dotenv can override config.toml's project_id. Pin it for CLI
           # subprocesses only; application isolation markers remain "local".
           job_namespace="${GITHUB_JOB//_/-}"; job_namespace="${job_namespace,,}"
-          export S02_CLI_PROJECT_ID="archive-v3-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$job_namespace"
+          export S02_CLI_PROJECT_ID="$(node --input-type=module -e 'import {ownedProjectIdentity} from "./scripts/check-v3-s02-baseline.mjs"; process.stdout.write(ownedProjectIdentity({runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT,jobId:process.env.GITHUB_JOB}))')"
           export S02_NETWORK_ID="supabase_network_$S02_CLI_PROJECT_ID"
           export S02_SUPABASE_BINARY="$(command -v supabase)"
           docker network create --driver bridge --opt com.docker.network.bridge.host_binding_ipv4=127.0.0.1 "$S02_NETWORK_ID"

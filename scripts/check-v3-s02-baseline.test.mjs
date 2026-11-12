@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {PROFILE,dependencyGraph,validateFreshSource,qualifySourceBeta,assertBaselineDependency} from './check-v3-s02-baseline.mjs';
+import {PROFILE,dependencyGraph,validateFreshSource,qualifySourceBeta,assertBaselineDependency,ownedProjectIdentity} from './check-v3-s02-baseline.mjs';
 const sha='1'.repeat(40),fingerprint='a'.repeat(64);
 function catalog(){
  return {formatVersion:1,serverVersionNum:170011,trackFunctions:'all',networkIsolation:{externalEgressDenied:true,hostProxyDenied:true,loopbackOnly:true,identity:'supabase_network_archive-v3-test'},databaseImage:'sha256:'+fingerprint,databaseIdentity:'postgres:one-start',migrationVersions:['1'],seedCounts:{users:0,ballots:0},
@@ -97,4 +97,10 @@ test('unresolved qualified references stay visible as required unknowns',()=>{
  const c=catalog();c.nodes.push({id:'u:private.unknown',kind:'unresolved-reference',identity:'private.unknown',schema:'private'});
  c.edges.push({source:'f:0',target:'u:private.unknown',kind:'unresolved-qualified-reference'});
  assert.ok(dependencyGraph(c,[]).hostedUnknowns.includes('private.unknown'));
+});
+
+test('CLI helper/container names cannot diverge across the 40-character boundary',()=>{
+ assert.equal(ownedProjectIdentity({runId:'43159575963',attempt:'1',jobId:'beta'}),'archive-v3-43159575963-1-beta');
+ assert.throws(()=>ownedProjectIdentity({runId:'43159575963',attempt:'1',jobId:'source-defined-beta'}),/40-character/);
+ assert.throws(()=>ownedProjectIdentity({runId:'../other',attempt:'1',jobId:'beta'}),/Invalid CI/);
 });

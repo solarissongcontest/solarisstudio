@@ -13,7 +13,7 @@ sha="$(git rev-parse HEAD)"
 git diff --exit-code --quiet -- . ':!supabase/config.toml' || fail 'Tracked source changed'
 [[ "${GITHUB_ACTIONS:-}" == true && "${GITHUB_RUN_ID:-}" =~ ^[0-9]+$ && "${GITHUB_RUN_ATTEMPT:-}" =~ ^[0-9]+$ && "${GITHUB_JOB:-}" =~ ^[A-Za-z0-9_-]+$ ]] || fail 'Qualification requires its owned disposable CI job'
 job_namespace="${GITHUB_JOB//_/-}"; job_namespace="${job_namespace,,}"
-expected_project="archive-v3-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-$job_namespace"
+expected_project="$(node --input-type=module -e 'import {ownedProjectIdentity} from "./scripts/check-v3-s02-baseline.mjs"; process.stdout.write(ownedProjectIdentity({runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT,jobId:process.env.GITHUB_JOB}))')"
 actual_project="$(python3 -c 'import tomllib; print(tomllib.load(open("supabase/config.toml","rb"))["project_id"])')"
 [[ "$actual_project" == "$expected_project" ]] || fail 'Not this run-owned disposable project'
 [[ "${S02_CLI_PROJECT_ID:-}" == "$expected_project" && "${S02_NETWORK_ID:-}" == "supabase_network_$expected_project" ]] || fail 'Missing pinned CLI/network identity'
