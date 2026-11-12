@@ -28,6 +28,11 @@ describe("Public soft-launch presentation policy", () => {
     for (const path of core) expect(publicLaunchAllows(path)).toBe(true);
   });
   it("fails closed for every deferred family and nested/notification link", () => {
+    // A legacy Confirmation alias must not appear available while its
+    // redirect destination is deliberately held behind soft-launch gating.
+    expect(publicLaunchAllows("/confirmations")).toBe(true);
+    expect(publicLaunchAllows("/confirmations/next-in-line")).toBe(false);
+    expect(publicLaunchAllows("/confirmations/next-in-line?notice=1")).toBe(false);
     for (const { path } of PUBLIC_LAUNCH_ROUTES) {
       expect(publicLaunchAllows(path)).toBe(false);
       expect(publicLaunchAllows(`${path}/detail?notice=1#section`)).toBe(false);
