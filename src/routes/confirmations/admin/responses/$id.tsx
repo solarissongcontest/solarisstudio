@@ -7,7 +7,7 @@ import {
 } from "@/lib/v3-organizer-entry-source-inspection";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -25,7 +25,6 @@ import {
 import { toast } from "sonner";
 
 import { ConfirmationAccessSettingsSheet } from "@/components/admin/ConfirmationAccessSettingsSheet";
-import { useAdminContext } from "@/components/admin/AdminContext";
 import {
   AdminActionItem,
   AdminCard,
@@ -41,7 +40,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
-import { isConfirmationDetailInOrganizerScope, isPendingConfirmationEntryReviewInScope, isSuccessfulConfirmationEntryReviewReceipt } from "@/lib/confirmation-detail-edition-guard";
 import { reconcileSystemOperation } from "@/lib/system-operation.functions";
 import { normalizeSystemReceipt } from "@/lib/system-receipt";
 import { toSystemError } from "@/lib/system-error";
@@ -133,8 +131,6 @@ type ResponseDetail = {
 };
 
 type TechnicalData = {
-  edition_id: string;
-  submission_id: string;
   ip_history: Array<{
     id: string;
     ip_address: string;
@@ -185,7 +181,6 @@ function detailState(data: ResponseDetail): DetailState {
     const reviewStates = entries.map(reviewLabel);
     if (reviewStates.includes("declined")) return "issue";
     if (reviewStates.some((status) => status !== "accepted")) return "review";
-    // A missing, removed or foreign winner does not make an accepted NF ready.
     const winnerId = data.national_final?.winning_entry_id;
     return winnerId && entries.some((entry) => entry.id === winnerId) ? "ready" : "neutral";
   }
@@ -257,7 +252,7 @@ function TechnicalRows({ entry }: { entry: ReviewEntry }) {
             </a>
           ) : (
             <p className="mt-1 text-xs font-semibold text-amber-100">
-              {entry.replacement_video_url?.trim() ? 'Required · URL unsafe' : 'Required · URL missing'}
+              {entry.replacement_video_url?.trim() ? "Required · URL unsafe" : "Required · URL missing"}
             </p>
           )
         ) : (
@@ -303,7 +298,6 @@ function EntryReviewCard({
   onChanged,
   onWinner,
   onClearWinner,
-  isScopeCurrent,
 }: {
   entry: ReviewEntry;
   targetType: "internal" | "national_final";
@@ -311,7 +305,6 @@ function EntryReviewCard({
   submissionId: string;
   winner?: boolean;
   onChanged: () => Promise<void>;
-  isScopeCurrent: () => boolean;
   onWinner?: (reason: string) => Promise<void>;
   onClearWinner?: (reason: string) => Promise<void>;
 }) {
@@ -320,39 +313,21 @@ function EntryReviewCard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<SystemReceipt | null>(null);
-  const mutationInFlightRef = useRef(false);
-  const unresolvedReviewOperationRef = useRef<{
-    operationId: string;
-    entryId: string;
-    submissionId: string;
-    editionId: string | null;
-    targetType: "internal" | "national_final";
-    nextStatus: "pending" | "accepted" | "declined" | "removed";
-  } | null>(null);
   const reconcileOperation = useServerFn(reconcileSystemOperation);
   const status = reviewLabel(entry);
   const inspection = inspectOrganizerEntrySource(entry);
   const sourceIssues = inspection.checks.filter((check) => check.status === "attention").length;
 
   async function recoverReview(operationId: string) {
-    if (!isScopeCurrent()) return false;
     const reconciliation = await reconcileOperation({ data: { operationId } });
-    if (!isScopeCurrent()) return false;
-    if (!reconciliation.ok || reconciliation.receipt.operationId !== operationId) return false;
-    if (reconciliation.receipt.status === "failed") {
-      unresolvedReviewOperationRef.current = null;
+    if (!reconciliation.ok) return false;
+    setReceipt(reconciliation.receipt);
+    if (reconciliation.receipt.status !== "succeeded") {
       throw new Error(
         reconciliation.receipt.error?.message ??
-          "This Entry review failed authoritatively. Reopen the current response before another decision.",
+          "This review is still being processed. Keep the operation receipt and retry reconciliation.",
       );
     }
-    if (!isSuccessfulConfirmationEntryReviewReceipt(reconciliation.receipt, operationId)) {
-      throw new Error(
-        "This Entry review is still processing. Reconcile the same operation before another decision.",
-      );
-    }
-    unresolvedReviewOperationRef.current = null;
-    setReceipt(reconciliation.receipt);
     toast.success("Entry review confirmed after reconnecting");
     setOpen(false);
     await onChanged();
@@ -360,38 +335,14 @@ function EntryReviewCard({
   }
 
   async function review(nextStatus: "pending" | "accepted" | "declined" | "removed") {
-    if (mutationInFlightRef.current) return;
-    if (!isScopeCurrent()) {
-      setError("Organizer edition or response changed. Reopen the current submission before reviewing.");
-      return;
-    }
-    if (!unresolvedReviewOperationRef.current && nextStatus !== "accepted" && !reason.trim()) {
+    if (nextStatus !== "accepted" && !reason.trim()) {
       setError("Add an organiser reason first.");
       return;
     }
 
-    mutationInFlightRef.current = true;
     setBusy(true);
     setError(null);
     try {
-      const unresolved = unresolvedReviewOperationRef.current;
-      if (unresolved) {
-        if (!isPendingConfirmationEntryReviewInScope(unresolved, {
-          entryId: entry.id,
-          submissionId,
-          editionId: editionId ?? null,
-          targetType,
-        })) {
-          throw new Error(
-            "A previous Entry review still has an unresolved operation. Reopen its exact response and reconcile it before another decision.",
-          );
-        }
-        if (await recoverReview(unresolved.operationId)) return;
-        throw new Error(
-          "A previous Entry review has an uncertain outcome. Reconcile operation " +
-          unresolved.operationId + " before submitting another decision.",
-        );
-      }
       const { data: previewData, error: previewError } = await confirmationsSupabase.rpc(
         "studio2_confirmation_entry_review_preview",
         {
@@ -405,14 +356,10 @@ function EntryReviewCard({
         expectedVersion?: number;
         currentVersionId?: string | null;
       } | null;
-      if (!preview || typeof preview.expectedVersion !== "number" ||
-          !Number.isSafeInteger(preview.expectedVersion) || preview.expectedVersion < 0) {
-        throw new Error("Selection review preview did not return a valid version.");
+      if (!preview || typeof preview.expectedVersion !== "number") {
+        throw new Error("Selection review preview did not return a version.");
       }
 
-      if (!isScopeCurrent()) {
-        throw new Error("Organizer edition changed during Entry review preflight. Nothing was applied.");
-      }
       assertDisplayedEntryVersion(entry.current_version_id, preview.currentVersionId);
 
       const command = createOrganisationCommand({
@@ -435,20 +382,6 @@ function EntryReviewCard({
         reason: reason.trim() || null,
         expectedVersion: preview.expectedVersion,
       });
-      if (!isScopeCurrent()) {
-        throw new Error("Organizer edition changed before the reviewed Entry command. Nothing was applied.");
-      }
-      // Once the command is sent, a missing HTTP response does not establish
-      // whether the canonical mutation committed. Preserve its operation ID
-      // until a matching authoritative receipt or reconciliation resolves it.
-      unresolvedReviewOperationRef.current = {
-        operationId: command.operationId,
-        entryId: entry.id,
-        submissionId,
-        editionId: editionId ?? null,
-        targetType,
-        nextStatus,
-      };
       let mutation;
       try {
         mutation = await confirmationsSupabase.rpc("studio2_apply_confirmation_entry_review", {
@@ -474,16 +407,11 @@ function EntryReviewCard({
         throw new Error(systemError.message);
       }
       const canonicalReceipt = normalizeSystemReceipt(mutation.data);
-      if (!isSuccessfulConfirmationEntryReviewReceipt(canonicalReceipt, command.operationId)) {
+      if (!canonicalReceipt || canonicalReceipt.status !== "succeeded") {
         if (await recoverReview(command.operationId)) return;
         throw new Error(
           "The review response could not be verified. Reconcile the operation before retrying.",
         );
-      }
-      unresolvedReviewOperationRef.current = null;
-      if (!isScopeCurrent()) {
-        toast.warning("Entry review completed for a previous edition. Verify its canonical receipt before retrying.");
-        return;
       }
       setReceipt(canonicalReceipt);
       toast.success(
@@ -498,56 +426,46 @@ function EntryReviewCard({
       setOpen(false);
       await onChanged();
     } catch (caught) {
-      const unresolved = unresolvedReviewOperationRef.current;
-      setError(toSystemError(caught).message + (unresolved
-        ? ` The prior operation ${unresolved.operationId} must be reconciled before another decision.`
-        : ""));
+      setError(toSystemError(caught).message);
     } finally {
-      mutationInFlightRef.current = false;
       setBusy(false);
     }
   }
 
   async function chooseWinner() {
-    if (mutationInFlightRef.current || !onWinner || !isScopeCurrent()) return;
+    if (!onWinner) return;
     if (!reason.trim()) {
       setError("Add an organiser reason before selecting the winner.");
       return;
     }
-    mutationInFlightRef.current = true;
     setBusy(true);
     setError(null);
     try {
       await onWinner(reason.trim());
-      if (!isScopeCurrent()) return;
       toast.success("National Final winner selected");
       setOpen(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Winner could not be selected.");
     } finally {
-      mutationInFlightRef.current = false;
       setBusy(false);
     }
   }
 
   async function clearWinner() {
-    if (mutationInFlightRef.current || !onClearWinner || !isScopeCurrent()) return;
+    if (!onClearWinner) return;
     if (!reason.trim()) {
       setError("Add an organiser reason before clearing the winner.");
       return;
     }
-    mutationInFlightRef.current = true;
     setBusy(true);
     setError(null);
     try {
       await onClearWinner(reason.trim());
-      if (!isScopeCurrent()) return;
       toast.success("National Final winner cleared");
       setOpen(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Winner could not be cleared.");
     } finally {
-      mutationInFlightRef.current = false;
       setBusy(false);
     }
   }
@@ -734,10 +652,8 @@ function EntryReviewCard({
 
 function ResponseDetailPage() {
   const { id } = Route.useParams();
-  const { editionId: organizerEditionId } = useAdminContext();
   const navigate = useNavigate();
   const syncToSolaris = useServerFn(syncConfirmationSnapshotToSolaris);
-  const reconcileWinnerOperation = useServerFn(reconcileSystemOperation);
   const [data, setData] = useState<ResponseDetail | null>(null);
   const [technical, setTechnical] = useState<TechnicalData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -745,65 +661,28 @@ function ResponseDetailPage() {
   const [technicalError, setTechnicalError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [deleteReviewOpen, setDeleteReviewOpen] = useState(false);
-  const [syncReviewOpen, setSyncReviewOpen] = useState(false);
   const [solarisSync, setSolarisSync] = useState<ConfirmationSolarisSyncResult | null>(null);
   const [solarisSyncError, setSolarisSyncError] = useState<string | null>(null);
   const [syncingSolaris, setSyncingSolaris] = useState(false);
-  const [syncReviewBusy, setSyncReviewBusy] = useState(false);
   const [linkType, setLinkType] = useState<"reusable" | "one_time">("reusable");
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [creatingLink, setCreatingLink] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const responseLoadGenerationRef = useRef(0);
-  const lastLoadedResponseScopeRef = useRef<{ responseId: string; editionId: string } | null>(null);
-  const syncInFlightRef = useRef(false);
-  const winnerInFlightRef = useRef(false);
-  const unresolvedWinnerOperationRef = useRef<{
-    operationId: string;
-    responseId: string;
-    editionId: string;
-    action: "select" | "clear";
-    entryId: string | null;
-  } | null>(null);
-  const currentScopeRef = useRef({ responseId: id, editionId: organizerEditionId });
-
-  useEffect(() => {
-    currentScopeRef.current = { responseId: id, editionId: organizerEditionId };
-    // Purge private data immediately when the Organizer context changes.
-    lastLoadedResponseScopeRef.current = null;
-    setData(null);
-    setTechnical(null);
-    setGeneratedLink(null);
-    setSolarisSync(null);
-    setSolarisSyncError(null);
-    setSettingsOpen(false);
-    setDeleteReviewOpen(false);
-    setSyncReviewOpen(false);
-  }, [id, organizerEditionId]);
 
   const syncSnapshot = useCallback(
     async (detail: ResponseDetail) => {
-      const generation = responseLoadGenerationRef.current;
-      const scopeIsCurrent = () =>
-        generation === responseLoadGenerationRef.current &&
-        currentScopeRef.current.responseId === detail.id &&
-        currentScopeRef.current.editionId === detail.edition?.id;
       setSyncingSolaris(true);
       setSolarisSyncError(null);
       try {
         const result = await syncToSolaris({ data: { snapshot: detail } });
-        if (scopeIsCurrent()) {
-          setSolarisSync(result);
-          if (!result.ok) setSolarisSyncError(result.message ?? "Solaris sync needs attention.");
-        }
+        setSolarisSync(result);
+        if (!result.ok) setSolarisSyncError(result.message ?? "Solaris sync needs attention.");
         return result;
       } catch (caught) {
-        if (scopeIsCurrent()) {
-          setSolarisSync(null);
-          const message =
-            caught instanceof Error ? caught.message : "Could not sync this response to Solaris.";
-          setSolarisSyncError(message);
-        }
+        setSolarisSync(null);
+        const message =
+          caught instanceof Error ? caught.message : "Could not sync this response to Solaris.";
+        setSolarisSyncError(message);
         throw caught;
       } finally {
         setSyncingSolaris(false);
@@ -812,248 +691,113 @@ function ResponseDetailPage() {
     [syncToSolaris],
   );
 
-  const loadTechnical = useCallback(async (generation = responseLoadGenerationRef.current) => {
-    if (!organizerEditionId) return;
+  const loadTechnical = useCallback(async () => {
     setTechnicalError(null);
     const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
-      "admin_confirmation_technical_for_edition",
-      { _edition_id: organizerEditionId, _submission_id: id },
+      "admin_confirmation_technical",
+      {
+        _submission_id: id,
+      },
     );
-    if (responseLoadGenerationRef.current !== generation ||
-        currentScopeRef.current.responseId !== id ||
-        currentScopeRef.current.editionId !== organizerEditionId) return;
     if (rpcError) {
       setTechnicalError(rpcError.message);
       return;
     }
-    const technicalDetail = result as unknown as TechnicalData | null;
-    if (!technicalDetail ||
-        technicalDetail.edition_id !== organizerEditionId ||
-        technicalDetail.submission_id !== id) {
-      setTechnical(null);
-      setTechnicalError("Technical data did not match the exact Organizer edition and response.");
-      return;
-    }
-    setTechnical(technicalDetail);
-  }, [id, organizerEditionId]);
+    setTechnical(result as unknown as TechnicalData);
+  }, [id]);
 
   const load = useCallback(async () => {
-    // Late review callbacks from another edition must not invalidate a newer load.
-    if (currentScopeRef.current.responseId !== id ||
-        currentScopeRef.current.editionId !== organizerEditionId) return;
-    const alreadyLoadedInScope = lastLoadedResponseScopeRef.current?.responseId === id &&
-      lastLoadedResponseScopeRef.current.editionId === organizerEditionId;
-    const generation = ++responseLoadGenerationRef.current;
-    const isCurrent = () =>
-      responseLoadGenerationRef.current === generation &&
-      currentScopeRef.current.responseId === id &&
-      currentScopeRef.current.editionId === organizerEditionId;
     setError(null);
-    setTechnicalError(null);
-    // Keep review cards mounted on same-response refreshes so operation receipts survive.
-    if (!alreadyLoadedInScope) {
-      setData(null);
-      setTechnical(null);
+    const { data: sessionData } = await confirmationsSupabase.auth.getSession();
+    if (!sessionData.session) {
+      await navigate({ to: "/confirmations/admin/sign-in" });
+      return;
     }
-    setLoading(Boolean(organizerEditionId) && !alreadyLoadedInScope);
 
-    if (!organizerEditionId) return;
+    const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
+      "admin_confirmation_response",
+      {
+        _submission_id: id,
+      },
+    );
+
+    if (rpcError) {
+      setError(rpcError.message);
+      setLoading(false);
+      return;
+    }
+
+    const detail = result as unknown as ResponseDetail;
+    setData(detail);
+    setLoading(false);
+
+    await loadTechnical();
 
     try {
-      const { data: sessionData } = await confirmationsSupabase.auth.getSession();
-      if (!isCurrent()) return;
-      if (!sessionData.session) {
-        await navigate({ to: "/confirmations/admin/sign-in" });
-        return;
-      }
-
-      const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
-        "admin_confirmation_response_for_edition",
-        { _edition_id: organizerEditionId, _submission_id: id },
-      );
-      if (!isCurrent()) return;
-      if (rpcError) throw rpcError;
-
-      const detail = result as unknown as ResponseDetail | null;
-      if (!isConfirmationDetailInOrganizerScope(detail, id, organizerEditionId)) {
-        throw new Error(
-          "This confirmation response does not belong to the selected Organizer edition. Select its edition before opening private details.",
-        );
-      }
-
-      lastLoadedResponseScopeRef.current = { responseId: id, editionId: organizerEditionId };
-      setData(detail);
-      setLoading(false);
-      await loadTechnical(generation);
-      // Loading a response is read-only. Never invoke the privileged Solaris
-      // reconciliation path without an explicit Organizer decision.
-    } catch (caught) {
-      if (!isCurrent()) return;
-      lastLoadedResponseScopeRef.current = null;
-      setData(null);
-      setTechnical(null);
-      setError(caught instanceof Error ? caught.message : "Could not load this response.");
-      setLoading(false);
+      await syncSnapshot(detail);
+    } catch {
+      // The review screen stays usable even if the canonical sync is temporarily unavailable.
     }
-  }, [id, organizerEditionId, loadTechnical, navigate]);
+  }, [id, loadTechnical, navigate, syncSnapshot]);
 
   useEffect(() => {
     void load();
-    return () => {
-      // Also excludes late A → B → A RPC completions and unmounted pages.
-      responseLoadGenerationRef.current += 1;
-    };
   }, [load]);
 
   async function changeWinner(action: "select" | "clear", reason: string, entryId: string | null) {
-    if (winnerInFlightRef.current) return;
-    if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId) || !data.national_final) {
-      throw new Error("Organizer response or edition changed. The National Final winner was not applied.");
+    if (!data?.national_final) return;
+
+    const { data: previewData, error: previewError } = await confirmationsSupabase.rpc(
+      "studio2_confirmation_winner_change_preview",
+      {
+        p_national_final_id: data.national_final.id,
+        p_action: action,
+        p_entry_id: entryId,
+      },
+    );
+    if (previewError) throw previewError;
+    const preview = previewData as {
+      expectedVersion?: number;
+      currentVersionId?: string | null;
+    } | null;
+    if (!preview || typeof preview.expectedVersion !== "number") {
+      throw new Error("National Final winner preview did not return a version.");
     }
-    winnerInFlightRef.current = true;
-    const requestedGeneration = responseLoadGenerationRef.current;
-    const stillCurrent = () =>
-      requestedGeneration === responseLoadGenerationRef.current &&
-      currentScopeRef.current.responseId === id &&
-      currentScopeRef.current.editionId === organizerEditionId;
-    try {
-      // A missing transport response is NOT evidence that the server rejected
-      // the operation. Never generate a second operation while one is unresolved.
-      const unresolved = unresolvedWinnerOperationRef.current;
-      if (unresolved) {
-        const recovered = await reconcileWinnerOperation({
-          data: { operationId: unresolved.operationId },
-        });
-        if (recovered.ok && recovered.receipt.operationId === unresolved.operationId &&
-            recovered.receipt.status === "succeeded") {
-          unresolvedWinnerOperationRef.current = null;
-          const sameReviewedIntent = unresolved.responseId === id &&
-            unresolved.editionId === organizerEditionId &&
-            unresolved.action === action &&
-            unresolved.entryId === entryId;
-          if (stillCurrent() && unresolved.responseId === id &&
-              unresolved.editionId === organizerEditionId) await load();
-          if (!sameReviewedIntent || !stillCurrent()) {
-            throw new Error(
-              "An earlier National Final winner operation was confirmed. Reopen the current response and review the latest winner before issuing a different decision.",
-            );
-          }
-          return;
-        }
-        if (recovered.ok && recovered.receipt.operationId === unresolved.operationId &&
-            recovered.receipt.status === "failed") {
-          unresolvedWinnerOperationRef.current = null;
-          throw new Error("The prior winner operation failed authoritatively. Reopen the response before issuing a new decision.");
-        }
-        throw new Error(
-          "A prior National Final winner operation has an unresolved outcome. Reconcile operation " +
-          unresolved.operationId + " before submitting another winner change.",
-        );
-      }
 
-      const { data: previewData, error: previewError } = await confirmationsSupabase.rpc(
-        "studio2_confirmation_winner_change_preview",
-        {
-          p_national_final_id: data.national_final.id,
-          p_action: action,
-          p_entry_id: entryId,
-        },
-      );
-      if (previewError) throw previewError;
-      const preview = previewData as {
-        expectedVersion?: number;
-        currentVersionId?: string | null;
-      } | null;
-      if (!preview || typeof preview.expectedVersion !== "number" ||
-          !Number.isSafeInteger(preview.expectedVersion) || preview.expectedVersion < 0) {
-        throw new Error("National Final winner preview did not return a valid version.");
-      }
-      if (!stillCurrent()) {
-        throw new Error("Organizer edition or response changed during National Final review. Nothing was applied.");
-      }
-
-      if (action === "select") {
-        const displayedEntry = data.national_final.entries.find((entry) => entry.id === entryId);
-        assertDisplayedEntryVersion(displayedEntry?.current_version_id, preview.currentVersionId);
-      }
-
-      const command = createOrganisationCommand({
-        command: `confirmation.nf_winner.${action}`,
-        riskClass: "R2",
-        scope: { editionId: organizerEditionId, entityId: data.national_final.id },
-        payload: { action, entryId },
-        expectedVersion: preview.expectedVersion!,
-      });
-      if (!stillCurrent()) {
-        throw new Error("Organizer context changed before applying the reviewed National Final winner. Nothing was applied.");
-      }
-      unresolvedWinnerOperationRef.current = {
-        operationId: command.operationId,
-        responseId: id,
-        editionId: organizerEditionId!,
-        action,
-        entryId,
-      };
-
-      let receipt: SystemReceipt | null = null;
-      let failureMessage = "The National Final winner result could not be confirmed.";
-      try {
-        const { data: applyData, error: rpcError } = await confirmationsSupabase.rpc(
-          "studio2_apply_confirmation_winner_change",
-          {
-            p_national_final_id: data.national_final.id,
-            p_action: action,
-            p_entry_id: entryId,
-            p_reason: reason,
-            p_operation_id: command.operationId,
-            p_idempotency_key: command.idempotencyKey,
-            p_expected_version: preview.expectedVersion,
-            ...(action === "select" &&
-            data.national_final.entries.find((entry) => entry.id === entryId)?.current_version_id
-              ? {
-                  p_expected_entry_version: data.national_final.entries.find(
-                    (entry) => entry.id === entryId,
-                  )!.current_version_id,
-                }
-              : {}),
-          },
-        );
-        if (rpcError) {
-          failureMessage = toSystemError(rpcError).message;
-        } else {
-          receipt = normalizeSystemReceipt(applyData);
-        }
-      } catch (caught) {
-        failureMessage = toSystemError(caught).message;
-      }
-
-      if (!receipt || receipt.status !== "succeeded" || receipt.operationId !== command.operationId) {
-        // Server receipt reconciliation distinguishes a committed mutation from
-        // an HTTP timeout, an invalid response, or an incomplete operation.
-        const recovered = await reconcileWinnerOperation({
-          data: { operationId: command.operationId },
-        });
-        if (recovered.ok && recovered.receipt.operationId === command.operationId &&
-            recovered.receipt.status === "succeeded") {
-          receipt = recovered.receipt;
-        } else {
-          if (recovered.ok && recovered.receipt.operationId === command.operationId &&
-              recovered.receipt.status === "failed") {
-            unresolvedWinnerOperationRef.current = null;
-            throw new Error("National Final winner operation failed. " + failureMessage);
-          }
-          throw new Error(
-            failureMessage + " The outcome is uncertain. Reconcile operation " +
-            command.operationId + " before trying another winner change.",
-          );
-        }
-      }
-      unresolvedWinnerOperationRef.current = null;
-      if (stillCurrent()) await load();
-      else toast.warning("National Final change completed for another edition. Reopen that edition to verify the result.");
-    } finally {
-      winnerInFlightRef.current = false;
+    if (action === "select") {
+      const displayedEntry = data.national_final.entries.find((entry) => entry.id === entryId);
+      assertDisplayedEntryVersion(displayedEntry?.current_version_id, preview.currentVersionId);
     }
+
+    const command = createOrganisationCommand({
+      command: `confirmation.nf_winner.${action}`,
+      riskClass: "R2",
+      scope: { entityId: data.national_final.id },
+      payload: { action, entryId },
+      expectedVersion: preview.expectedVersion,
+    });
+    const { error: rpcError } = await confirmationsSupabase.rpc(
+      "studio2_apply_confirmation_winner_change",
+      {
+        p_national_final_id: data.national_final.id,
+        p_action: action,
+        p_entry_id: entryId,
+        p_reason: reason,
+        p_operation_id: command.operationId,
+        p_idempotency_key: command.idempotencyKey,
+        p_expected_version: preview.expectedVersion,
+        ...(action === "select" &&
+        data.national_final.entries.find((entry) => entry.id === entryId)?.current_version_id
+          ? {
+              p_expected_entry_version: data.national_final.entries.find(
+                (entry) => entry.id === entryId,
+              )!.current_version_id,
+            }
+          : {}),
+      },
+    );
+    if (rpcError) throw rpcError;
+    await load();
   }
 
   async function setWinner(entry: ReviewEntry, reason: string) {
@@ -1065,66 +809,13 @@ function ResponseDetailPage() {
   }
 
   async function manualSync() {
-    if (syncInFlightRef.current || !syncReviewOpen) return;
-    if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId) ||
-        currentScopeRef.current.responseId !== id ||
-        currentScopeRef.current.editionId !== organizerEditionId) {
-      setSyncReviewOpen(false);
-      toast.error("Select the response's exact Organizer edition before syncing.");
-      return;
-    }
-    syncInFlightRef.current = true;
-    // Busy covers the entire fresh-read preflight as well as the mutation.
-    setSyncReviewBusy(true);
-    const requestedGeneration = responseLoadGenerationRef.current;
-    const reviewedSnapshot = JSON.stringify(data);
-    let mutationStarted = false;
-    const isStillCurrent = () =>
-      requestedGeneration === responseLoadGenerationRef.current &&
-      currentScopeRef.current.responseId === id &&
-      currentScopeRef.current.editionId === organizerEditionId;
+    if (!data) return;
     try {
-      // Recheck the exact response immediately before entering the privileged
-      // reconciliation boundary. The confirmation sheet reviewed the current
-      // response, not a mutable or outdated historical snapshot.
-      const fresh = await confirmationsSupabase.rpc("admin_confirmation_response_for_edition", {
-        _edition_id: organizerEditionId,
-        _submission_id: id,
-      });
-      if (fresh.error) throw fresh.error;
-      if (!isStillCurrent()) {
-        throw new Error("Organizer edition changed during reconciliation preflight. Nothing was submitted.");
-      }
-      const liveDetail = fresh.data as unknown as ResponseDetail | null;
-      if (!isConfirmationDetailInOrganizerScope(liveDetail, id, organizerEditionId) ||
-          JSON.stringify(liveDetail) !== reviewedSnapshot) {
-        setSyncReviewOpen(false);
-        throw new Error("This Confirmation changed since it was reviewed. Reload the exact edition and review its current state before applying.");
-      }
-      mutationStarted = true;
-      const result = await syncSnapshot(liveDetail);
-      if (!isStillCurrent()) {
-        toast.warning("Reconciliation completed after an edition switch. Verify the previous edition's canonical state before retrying.");
-      } else if (result.ok) {
-        toast.success("Synced with Solaris Studio");
-      } else {
-        toast.error(result.message ?? "Solaris sync needs attention. Reconcile the current state before retrying.");
-      }
+      const result = await syncSnapshot(data);
+      if (result.ok) toast.success("Synced with Solaris Studio");
+      else toast.error(result.message ?? "Solaris sync needs attention");
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "Could not sync with Solaris Studio";
-      if (isStillCurrent()) {
-        toast.error(
-          mutationStarted
-            ? message + " Inspect the canonical state before retrying an uncertain operation."
-            : message,
-        );
-      } else if (mutationStarted) {
-        toast.warning("A previous edition's reconciliation may have completed. Inspect its canonical state before retrying.");
-      }
-    } finally {
-      syncInFlightRef.current = false;
-      setSyncReviewBusy(false);
-      setSyncReviewOpen(false);
+      toast.error(caught instanceof Error ? caught.message : "Could not sync with Solaris Studio");
     }
   }
 
@@ -1142,7 +833,7 @@ function ResponseDetailPage() {
   }
 
   async function createEditLink() {
-    if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId)) return;
+    if (!data) return;
     setCreatingLink(true);
     try {
       const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
@@ -1156,10 +847,6 @@ function ResponseDetailPage() {
       if (rpcError) throw rpcError;
       const token = (result as { token?: string } | null)?.token;
       if (!token) throw new Error("The edit token was not returned.");
-      if (currentScopeRef.current.responseId !== id ||
-          currentScopeRef.current.editionId !== organizerEditionId) {
-        throw new Error("Organizer edition changed while the token was issued. Inspect the original response before issuing another token.");
-      }
       const url = `${window.location.origin}/confirmations/edit/${token}`;
       setGeneratedLink(url);
       await navigator.clipboard.writeText(url);
@@ -1173,7 +860,6 @@ function ResponseDetailPage() {
   }
 
   async function revokeToken(tokenId: string) {
-    if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId)) return;
     const { error: rpcError } = await confirmationsSupabase.rpc(
       "admin_confirmation_revoke_edit_token",
       {
@@ -1190,7 +876,7 @@ function ResponseDetailPage() {
   }
 
   async function deleteResponse() {
-    if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId) || deleting) return;
+    if (!data || deleting) return;
 
     setDeleting(true);
     try {
@@ -1221,7 +907,7 @@ function ResponseDetailPage() {
     );
   }
 
-  if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId)) {
+  if (!data) {
     return (
       <div className="admin-page pb-5">
         <AdminPageHeader
@@ -1236,18 +922,13 @@ function ResponseDetailPage() {
         <AdminCard>
           <AdminEmptyState
             title="Response not found"
-            description={error ?? "This response is unavailable in the selected Organizer edition. No private details or controls were loaded."}
+            description={error ?? "This response could not be loaded."}
           />
         </AdminCard>
       </div>
     );
   }
 
-  const displayedGeneration = responseLoadGenerationRef.current;
-  const isDisplayedResponseCurrent = () =>
-    displayedGeneration === responseLoadGenerationRef.current &&
-    currentScopeRef.current.responseId === id &&
-    currentScopeRef.current.editionId === organizerEditionId;
   const activeNfEntries = (data.national_final?.entries ?? []).filter(
     (entry) => !entry.removed && entry.review_status !== "removed",
   );
@@ -1289,10 +970,10 @@ function ResponseDetailPage() {
                 />
                 <AdminActionItem
                   icon={RefreshCw}
-                  title="Review Solaris reconciliation"
-                  description="Review the exact response before changing official participation or entry state."
+                  title="Sync with Solaris Studio"
+                  description="Refresh participation and official entry details from Solaris."
                   disabled={syncingSolaris}
-                  onClick={() => setSyncReviewOpen(true)}
+                  onClick={() => void manualSync()}
                   trailing={
                     <AdminStatus
                       tone={solarisSync?.ok ? "ready" : solarisSyncError ? "attention" : "neutral"}
@@ -1389,7 +1070,6 @@ function ResponseDetailPage() {
               editionId={data.edition?.id}
               submissionId={data.id}
               onChanged={load}
-              isScopeCurrent={isDisplayedResponseCurrent}
             />
           </section>
         ) : null}
@@ -1451,7 +1131,6 @@ function ResponseDetailPage() {
                   submissionId={data.id}
                   winner={data.national_final?.winning_entry_id === entry.id}
                   onChanged={load}
-                  isScopeCurrent={isDisplayedResponseCurrent}
                   onWinner={(reason) => setWinner(entry, reason)}
                   onClearWinner={
                     data.national_final?.winning_entry_id === entry.id ? clearWinner : undefined
@@ -1674,36 +1353,6 @@ function ResponseDetailPage() {
         editingAllowed={data.editing_allowed}
         locked={data.locked}
         adminNotes={data.admin_notes}
-      />
-
-      <AdminConfirmSheet
-        open={syncReviewOpen && isConfirmationDetailInOrganizerScope(data, id, organizerEditionId)}
-        onClose={() => { if (!syncInFlightRef.current) setSyncReviewOpen(false); }}
-        onConfirm={() => void manualSync()}
-        title="Reconcile this Confirmation with Solaris?"
-        description={
-          <div className="space-y-3 text-sm leading-relaxed">
-            <p>
-              This is a consequential Organizer action that may update official participation,
-              entry and reveal state. Merely viewing a Confirmation never starts it.
-            </p>
-            <p>
-              Exact scope: <strong>{data.country}</strong> ·{" "}
-              <strong>SSC {data.edition?.edition_number} · {data.edition?.name}</strong> ·{" "}
-              {data.round?.name ?? "Confirmation"}.
-            </p>
-            <p className="text-amber-100">
-              The current legacy reconciliation is not guaranteed atomic. A timeout may
-              leave partial progress. Verify canonical state before retrying an uncertain result.
-              System #598 remains a prerequisite for fully governed, receipted bulk reconciliation.
-            </p>
-          </div>
-        }
-        confirmLabel="Apply reviewed Solaris reconciliation"
-        confirmationText={data.country}
-        confirmationHint={`Type ${data.country} to confirm this official-state change`}
-        busy={syncReviewBusy || syncingSolaris}
-        danger
       />
 
       <AdminConfirmSheet

@@ -106,6 +106,7 @@ function votingStateLabel(action: V3ActionProjection) {
   if (action.completed) return action.kind === "jury" ? "Submitted" : "Finished";
   if (action.sourceState === "problem") return "Needs attention";
   if (action.sourceState === "available") return "Open";
+  if (action.sourceState === "upcoming") return "Upcoming";
   if (action.sourceState === "waiting") return action.opensAt ? "Upcoming" : "Waiting";
   return "Current";
 }
@@ -129,7 +130,7 @@ function VotingOverviewCard({
             <div>
               <p className="text-sm font-semibold">{label}</p>
               <p className="mt-1 text-xs leading-5 text-white/48">
-                Solaris has no canonical {optional ? "public voting" : "jury responsibility"} action for this account and edition right now.
+                There is no {optional ? "public vote" : "jury ballot"} to complete for this account and edition right now.
               </p>
             </div>
             <V3StatusChip>{optional ? "Optional" : "Official"}</V3StatusChip>
@@ -159,7 +160,7 @@ function VotingOverviewCard({
         <p className="px-1 pb-1 pt-2 text-[11px] leading-5 text-white/38">
           {optional
             ? "Public voting stays optional even when it is time-sensitive."
-            : "Jury status comes from the official delegation voting projection and outranks optional fan participation when action is required."}
+            : "Your delegation’s official jury responsibilities appear before optional activities."}
         </p>
       </div>
     </V3Surface>
@@ -225,7 +226,7 @@ export function V3ParticipateScreen({
           <V3Surface className="p-4">
             <p className="text-sm font-semibold">No official responsibilities right now</p>
             <p className="mt-1 text-xs leading-5 text-white/48">
-              Solaris will add a journey step only when the underlying workflow provides real evidence for it.
+              Your delegation’s confirmations, entries and voting responsibilities will appear here when available.
             </p>
           </V3Surface>
         )}

@@ -1,0 +1,1775 @@
+{
+  "task": "S01",
+  "authority": "NON-AUTHORITATIVE operator evidence snapshot; does not replace #2417 canonical candidate or approve production changes",
+  "date": "2026-11-09 EET",
+  "sourceMainSha": "1297490c9367cf7c002f68059d681a1a094f739a",
+  "productionProjectRef": "dkxmnvekiopyesuzggeu",
+  "method": "Explicit owner-approved, bounded, manual read-only migration metadata and pg_catalog queries, with source Git tree and existing PR evidence. No application rows.",
+  "frontier": {
+    "sourceFileCount": 495,
+    "hostedHistoryRecords": 497,
+    "hostedHead": "20261101181812",
+    "immutableCutover": "20261014020000",
+    "postCutoverHistoryHoles": 36,
+    "sourcePendingAfterHead": 33,
+    "postCutoverHostedOnly": 0,
+    "postCutoverNameMismatches": 0,
+    "extraPendingFile": "20261108004000_v3_s14_signed_combined_projection.sql"
+  },
+  "currentCatalogProbe": {
+    "identityCount": 38,
+    "identitiesPresent": 0,
+    "deterministicConflictFunctionsChecked": 28,
+    "deterministicConflictFunctionsExist": 28,
+    "containSqlstate40001": 28,
+    "containPt409": 0,
+    "eightRelations": {
+      "relations": 8,
+      "columns": 114,
+      "constraints": 69,
+      "indexes": 30,
+      "triggers": 20,
+      "policies": 4
+    },
+    "hostedOnlyGuardsPresent": 2,
+    "sourceOnlyNamedObjectsAbsent": 8,
+    "notificationDeliveriesRls": true,
+    "notificationDeliveriesDirectPrivilegeBitsPresent": 4,
+    "aggregateTaskReconcilerExists": true,
+    "aggregateTaskServiceRoleExecute": false,
+    "aggregateTaskDefinitionMd5": "756db08b6994b189992bd527f97c4b37",
+    "serviceRoleEntryPublishedEventExecute": true
+  },
+  "reviewedEffects": [
+    {
+      "id": "20261017001000_v3_s14_televote_result_truth.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "s14-televote-source-truth",
+      "dependencies": [
+        "s14-vote-projection"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Televote domain owner",
+      "remediation_direction": "establish source-managed projection contract before guard recovery",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261017001010_v3_s14_televote_projection_guard_hardening.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "s14-televote-guard-absent",
+      "dependencies": [
+        "s14-televote-source-truth"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Televote domain owner",
+      "remediation_direction": "integrate the owned S14 guard candidate after source truth",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261017001020_v3_s14_televote_projection_replay_hardening.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "s14-televote-replay-snapshot-absent",
+      "dependencies": [
+        "s14-televote-source-truth"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Televote domain owner",
+      "remediation_direction": "define projection snapshot and compare legacy result-sync semantics",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261017123000_v3_s5_acknowledgement_consequences.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "partial",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "acknowledgement-rpc-present",
+      "dependencies": [
+        "s4-domain-outbox"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Entry/Participant domain owner",
+      "remediation_direction": "add event consequence emission without replacing acknowledgement receipts",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261018024500_v3_entry_review_conflict_http409.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "partial",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "entry-review-rpc-40001",
+      "dependencies": [
+        "s8-conflict-contract"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Entry/Participant domain owner",
+      "remediation_direction": "review bounded conflict mapping for the existing entry-review command",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261018031000_v3_http409_deterministic_conflicts.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "28-signature-40001-scan",
+      "dependencies": [
+        "s8-conflict-contract"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult System/Platform owner",
+      "remediation_direction": "classify and update only the allowlisted deterministic conflict signatures",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261018053000_v3_s6_confirmation_requirement_reconciliation.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "confirmation-requirement-rpc-absent",
+      "dependencies": [
+        "confirmation-domain"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Confirmation domain owner",
+      "remediation_direction": "define scoped confirmation requirement verification",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261018081500_v3_s5_entry_lifecycle_consequences.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "partial",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "entry-event-processor-present",
+      "dependencies": [
+        "s4-domain-outbox"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Entry/Participant domain owner",
+      "remediation_direction": "add missing entry lifecycle emitters with one canonical producer",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261018111500_v3_confirmation_sync_service_role_privileges.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "partial",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "confirmation-select-grants-partial-audit",
+      "dependencies": [
+        "confirmation-domain"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Confirmation domain owner",
+      "remediation_direction": "complete exact grant comparison before changing privileges",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261018122500_v3_voting_declaration_expected_edition_scope.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "partial",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "legacy-voting-rpcs-present",
+      "dependencies": [
+        "voting-declaration-domain"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Voting domain owner",
+      "remediation_direction": "verify expected-edition overload signatures and ACLs",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261019000500_v3_confirmation_sync_publication_event_service_role.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "partial",
+      "current_evidence_classification": "partial",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "publication-event-service-grant-present",
+      "dependencies": [
+        "publication-domain"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Confirmation domain owner",
+      "remediation_direction": "retain existing grant and prove full source privilege parity",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261019013000_v3_public_live_rollout_flag.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "live-rollout-key-absent",
+      "dependencies": [
+        "public-rollout-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Public/Live rollout owner",
+      "remediation_direction": "prepare guarded flag support without enabling Live",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261019110000_v3_s9_safe_metrics.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "s9-rpc-and-indexes-absent",
+      "dependencies": [
+        "s13-foundation"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Reliability/Observability owner",
+      "remediation_direction": "integrate owned S9 candidate after S13 authority",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261019111000_v3_s13_migration_hardening.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "s13-five-tables-seven-rpcs-absent",
+      "dependencies": [
+        "migration-owner-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult System/Platform owner",
+      "remediation_direction": "integrate the tested S13 forward-only foundation candidate",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261019112000_v3_s10_sli_snapshot.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "s10-rpc-absent",
+      "dependencies": [
+        "s9-safe-metrics",
+        "s13-foundation"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Reliability/Observability owner",
+      "remediation_direction": "integrate owned S10 candidate after S9 and S13",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261019112100_v3_s14_archive_consequence_reconciliation.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "archive-transition-rpc-absent",
+      "dependencies": [
+        "s14-archive-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Archive/Organizer Task domain owner",
+      "remediation_direction": "define archive transition contract against hosted-equivalent lifecycle state",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261019112200_v3_s14_final_results_readiness_hardening.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "final-results-readiness-absent",
+      "dependencies": [
+        "canonical-results",
+        "publication"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Results domain owner",
+      "remediation_direction": "bind archive readiness to immutable published Results",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261019112300_v3_s14_transition_http409.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/docs/v3/recovery-candidates/six-effect-catalog-evidence-20261108.md"
+      ],
+      "evidence_key": "edition-transition-rpc-absent-catalog-20261108",
+      "dependencies": [
+        "s14-archive-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Archive/Organizer Task domain owner",
+      "remediation_direction": "compare conflict semantics after the versioned transition command exists",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261019112400_v3_s14_archive_task_registry_alignment.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "archive-task-guards-absent",
+      "dependencies": [
+        "s14-archive-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Archive/Organizer Task domain owner",
+      "remediation_direction": "add terminal archive task registry and resurrection guards",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261019112500_v3_s14_resolved_task_notification_invariant.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "resolved-task-projection-absent",
+      "dependencies": [
+        "s6-notification-reconciliation"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Notifications domain owner",
+      "remediation_direction": "add resolved-task delivery invariant without rewriting outcomes",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261019112900_v3_s13_migration_registration_context.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/docs/v3/recovery-candidates/six-effect-catalog-evidence-20261108.md"
+      ],
+      "evidence_key": "s13-registration-rpc-and-registry-absent-catalog-20261108",
+      "dependencies": [
+        "s13-foundation",
+        "s6-notification-window"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Notifications domain owner",
+      "remediation_direction": "review semantic registration context after the strict S13 foundation",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261019113000_v3_s6_notification_reconciliation.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "notification-reconciliation-rpcs-absent",
+      "dependencies": [
+        "s13-foundation"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Notifications domain owner",
+      "remediation_direction": "define service-only notification candidate and verifier",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261019113100_v3_s6_notification_reactivation.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "notification-reactivation-absent",
+      "dependencies": [
+        "s6-notification-reconciliation"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Notifications domain owner",
+      "remediation_direction": "reactivate only unresolved notifications without rewriting sent or failed outcomes",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261019113200_v3_s6_notification_failure_visibility.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "notification-verifier-absent",
+      "dependencies": [
+        "s6-notification-reconciliation"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Notifications domain owner",
+      "remediation_direction": "expose drift as failure evidence rather than healthy convergence",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261019113300_v3_s13_strict_registration_restore.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/docs/v3/recovery-candidates/six-effect-catalog-evidence-20261108.md"
+      ],
+      "evidence_key": "s13-strict-registry-and-rpc-absent-catalog-20261108",
+      "dependencies": [
+        "s13-foundation",
+        "s6-notification-window"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Notifications domain owner",
+      "remediation_direction": "retain the tested strict semantic registration contract",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261019202636_v3_s14_resolved_task_delivery_reconciliation.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "resolved-task-reconciler-absent",
+      "dependencies": [
+        "s14-task-registry",
+        "s6-notification-reconciliation"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Notifications domain owner",
+      "remediation_direction": "add bounded resolved-task delivery reconciliation",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261020130000_v3_s14_archive_invariant_forward_fixes.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "archive-runtime-guards-absent",
+      "dependencies": [
+        "s14-archive-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Archive/Organizer Task domain owner",
+      "remediation_direction": "add archive insert/delete invariants",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261020140000_v3_s14_archive_runtime_update_guard.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "archive-update-guard-absent",
+      "dependencies": [
+        "s14-archive-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Archive/Organizer Task domain owner",
+      "remediation_direction": "add archive runtime update guard",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261021110000_v3_s14_archive_guard_authority_forward_fix.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "archive-one-shot-gate-absent",
+      "dependencies": [
+        "s14-archive-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Archive/Organizer Task domain owner",
+      "remediation_direction": "use unforgeable one-shot transition authority",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261021161000_v3_s14_task_reconciliation_service_boundary.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "partial",
+      "current_evidence_classification": "partial",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/docs/v3/recovery-candidates/six-effect-catalog-evidence-20261108.md"
+      ],
+      "evidence_key": "aggregate-task-reconciler-service-execute-false-catalog-20261108",
+      "dependencies": [
+        "s14-task-registry"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Archive/Organizer Task domain owner",
+      "remediation_direction": "complete exact service-role execution and dependency comparison",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261021163000_v3_s14_failed_task_delivery_evidence.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "failed-delivery-gate-absent",
+      "dependencies": [
+        "s14-task-registry",
+        "s6-notification-reconciliation"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Notifications domain owner",
+      "remediation_direction": "preserve failed delivery evidence through archive reconciliation",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261021202000_v3_s14_archive_reconciliation_convergence.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "partial",
+      "current_evidence_classification": "partial",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/docs/v3/recovery-candidates/six-effect-catalog-evidence-20261108.md"
+      ],
+      "evidence_key": "task-reconciler-present-archive-gate-and-terminal-calls-absent-catalog-20261108",
+      "dependencies": [
+        "s14-task-registry",
+        "s14-archive-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Archive/Organizer Task domain owner",
+      "remediation_direction": "compare exact archive resolver and notification convergence semantics",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261022151607_batch_running_order_result_sync.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "running-order-sync-trigger-absent",
+      "dependencies": [
+        "canonical-results"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Results domain owner",
+      "remediation_direction": "add statement-level running-order result synchronization",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261023205400_v3_s13_adopt_batch_running_order_result_sync.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/docs/v3/recovery-candidates/six-effect-catalog-evidence-20261108.md"
+      ],
+      "evidence_key": "s13-registry-running-order-statement-trigger-and-batch-function-absent-catalog-20261108",
+      "dependencies": [
+        "s13-foundation",
+        "running-order-sync"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Results domain owner",
+      "remediation_direction": "adopt running-order synchronization only after compatibility proof",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261024170500_v3_public_published_result_snapshot.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "published-result-snapshot-absent",
+      "dependencies": [
+        "canonical-results",
+        "publication"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Results domain owner",
+      "remediation_direction": "add immutable publication-bound Results snapshot",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261024200300_v3_s6_confirmation_requirement_bounded_repair.sql",
+      "section": "history-gap",
+      "history_status": "not_recorded_at_hosted_tip",
+      "classification": "absent",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "specific named effect only, NOT entire migration/behavior",
+      "evidence_date": "2026-11-07/08; selected object checks 2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/1f772d7f91e81adefa992f643801b81f54acebbd/docs/v3/production-schema-effect-reconciliation-2026-11-07.md",
+        "https://github.com/solarissongcontest/solarisstudio/blob/5961c982980d78e900c6558e5c534854ceed16c1/src/lib/v3-production-schema-effect-matrix.ts"
+      ],
+      "evidence_key": "bounded-repair-rpc-absent",
+      "dependencies": [
+        "confirmation-domain",
+        "s13-foundation"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Confirmation domain owner",
+      "remediation_direction": "add scoped requirement repair without direct canonical rewrites",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "public.admin_notifications/studio2_platform_direct_write_guard",
+      "section": "catalog-object",
+      "kind": "trigger",
+      "history_status": "catalog_differential",
+      "classification": "present",
+      "current_evidence_classification": "present",
+      "evidence_scope": "exact named object on exact target relation",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/cf6896bc1a54f48653255333751dd438c9e318e3/docs/v3/recovery-candidates/evidence/s14-hosted-schema-local-parity-method-2026-11-08.md"
+      ],
+      "evidence_key": "trigger public.admin_notifications studio2_platform_direct_write_guard",
+      "dependencies": [
+        "public.admin_notifications"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Notifications domain owner",
+      "remediation_direction": "Preserve the hosted-only direct-write guard and reconcile grant-driven installation",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "public.notification_deliveries/studio2_platform_direct_write_guard",
+      "section": "catalog-object",
+      "kind": "trigger",
+      "history_status": "catalog_differential",
+      "classification": "present",
+      "current_evidence_classification": "present",
+      "evidence_scope": "exact named object on exact target relation",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/cf6896bc1a54f48653255333751dd438c9e318e3/docs/v3/recovery-candidates/evidence/s14-hosted-schema-local-parity-method-2026-11-08.md"
+      ],
+      "evidence_key": "trigger public.notification_deliveries studio2_platform_direct_write_guard",
+      "dependencies": [
+        "public.notification_deliveries"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Notifications domain owner",
+      "remediation_direction": "Preserve hosted write guard; review RLS and notification ACLs separately",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "public.studio2_edition_runtime/v3_guard_archive_runtime_transition",
+      "section": "catalog-object",
+      "kind": "trigger",
+      "history_status": "catalog_differential",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "exact named object on exact target relation",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/cf6896bc1a54f48653255333751dd438c9e318e3/docs/v3/recovery-candidates/evidence/s14-hosted-schema-local-parity-method-2026-11-08.md"
+      ],
+      "evidence_key": "trigger public.studio2_edition_runtime v3_guard_archive_runtime_transition",
+      "dependencies": [
+        "public.studio2_edition_runtime"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Archive/Organizer Task domain owner",
+      "remediation_direction": "Review forward-only Archive transition guard after S13 foundation",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "public.studio2_edition_runtime/v3_sync_archived_edition_legacy_status",
+      "section": "catalog-object",
+      "kind": "trigger",
+      "history_status": "catalog_differential",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "exact named object on exact target relation",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/cf6896bc1a54f48653255333751dd438c9e318e3/docs/v3/recovery-candidates/evidence/s14-hosted-schema-local-parity-method-2026-11-08.md"
+      ],
+      "evidence_key": "trigger public.studio2_edition_runtime v3_sync_archived_edition_legacy_status",
+      "dependencies": [
+        "public.studio2_edition_runtime"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Archive/Organizer Task domain owner",
+      "remediation_direction": "Reconcile legacy edition mirror before Archive repair",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "public.studio2_organizer_tasks/v3_guard_archived_edition_task_resurrection",
+      "section": "catalog-object",
+      "kind": "trigger",
+      "history_status": "catalog_differential",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "exact named object on exact target relation",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/cf6896bc1a54f48653255333751dd438c9e318e3/docs/v3/recovery-candidates/evidence/s14-hosted-schema-local-parity-method-2026-11-08.md"
+      ],
+      "evidence_key": "trigger public.studio2_organizer_tasks v3_guard_archived_edition_task_resurrection",
+      "dependencies": [
+        "public.studio2_organizer_tasks"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Archive/Organizer Task domain owner",
+      "remediation_direction": "Safely restore terminal-task invariant in local hosted-equivalent rehearsal",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "public.notification_deliveries/v3_project_resolved_task_delivery_state",
+      "section": "catalog-object",
+      "kind": "trigger",
+      "history_status": "catalog_differential",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "exact named object on exact target relation",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/cf6896bc1a54f48653255333751dd438c9e318e3/docs/v3/recovery-candidates/evidence/s14-hosted-schema-local-parity-method-2026-11-08.md"
+      ],
+      "evidence_key": "trigger public.notification_deliveries v3_project_resolved_task_delivery_state",
+      "dependencies": [
+        "public.notification_deliveries"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Notifications domain owner",
+      "remediation_direction": "Protect sent/failed notification states and add reviewed projection invariant",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "public.studio2_operation_receipts/v3_emit_entry_submission_event",
+      "section": "catalog-object",
+      "kind": "trigger",
+      "history_status": "catalog_differential",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "exact named object on exact target relation",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/cf6896bc1a54f48653255333751dd438c9e318e3/docs/v3/recovery-candidates/evidence/s14-hosted-schema-local-parity-method-2026-11-08.md"
+      ],
+      "evidence_key": "trigger public.studio2_operation_receipts v3_emit_entry_submission_event",
+      "dependencies": [
+        "public.studio2_operation_receipts"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Entry/Participant domain owner",
+      "remediation_direction": "Prove one canonical receipt-to-event emitter before restoring",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "private.v3_domain_event_outbox/v3_domain_event_outbox_created_at_idx",
+      "section": "catalog-object",
+      "kind": "index",
+      "history_status": "catalog_differential",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "exact named object on exact target relation",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/cf6896bc1a54f48653255333751dd438c9e318e3/docs/v3/recovery-candidates/evidence/s14-hosted-schema-local-parity-method-2026-11-08.md"
+      ],
+      "evidence_key": "index private.v3_domain_event_outbox v3_domain_event_outbox_created_at_idx",
+      "dependencies": [
+        "private.v3_domain_event_outbox"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult System/Platform owner",
+      "remediation_direction": "Evaluate outbox query plans and safe index deployment cost",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "private.v3_domain_events/v3_domain_events_occurred_at_idx",
+      "section": "catalog-object",
+      "kind": "index",
+      "history_status": "catalog_differential",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "exact named object on exact target relation",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/cf6896bc1a54f48653255333751dd438c9e318e3/docs/v3/recovery-candidates/evidence/s14-hosted-schema-local-parity-method-2026-11-08.md"
+      ],
+      "evidence_key": "index private.v3_domain_events v3_domain_events_occurred_at_idx",
+      "dependencies": [
+        "private.v3_domain_events"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult System/Platform owner",
+      "remediation_direction": "Evaluate event ledger query plans before index changes",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "public.studio2_operation_receipts/studio2_operation_receipts_created_at_idx",
+      "section": "catalog-object",
+      "kind": "index",
+      "history_status": "catalog_differential",
+      "classification": "absent",
+      "current_evidence_classification": "absent",
+      "evidence_scope": "exact named object on exact target relation",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/cf6896bc1a54f48653255333751dd438c9e318e3/docs/v3/recovery-candidates/evidence/s14-hosted-schema-local-parity-method-2026-11-08.md"
+      ],
+      "evidence_key": "index public.studio2_operation_receipts studio2_operation_receipts_created_at_idx",
+      "dependencies": [
+        "public.studio2_operation_receipts"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult System/Platform owner",
+      "remediation_direction": "Evaluate receipt index necessity/performance separately",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "public.notification_deliveries/anon/SELECT",
+      "section": "table-acl",
+      "kind": "grant_posture",
+      "history_status": "catalog_differential",
+      "classification": "present",
+      "current_evidence_classification": "present",
+      "evidence_scope": "table-level privilege bit ONLY; RLS enabled, no row-access inference",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/cf6896bc1a54f48653255333751dd438c9e318e3/docs/v3/recovery-candidates/evidence/s14-hosted-schema-local-parity-method-2026-11-08.md"
+      ],
+      "evidence_key": "has_table_privilege('anon','public.notification_deliveries','SELECT') = true",
+      "dependencies": [
+        "notification RLS",
+        "delivery authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Security/RLS and Notifications owners",
+      "remediation_direction": "Review intended table grants and RLS policies on disposable local data; do not equate table grant with data exposure or remove protections",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "public.notification_deliveries/anon/INSERT",
+      "section": "table-acl",
+      "kind": "grant_posture",
+      "history_status": "catalog_differential",
+      "classification": "present",
+      "current_evidence_classification": "present",
+      "evidence_scope": "table-level privilege bit ONLY; RLS enabled, no row-access inference",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/cf6896bc1a54f48653255333751dd438c9e318e3/docs/v3/recovery-candidates/evidence/s14-hosted-schema-local-parity-method-2026-11-08.md"
+      ],
+      "evidence_key": "has_table_privilege('anon','public.notification_deliveries','INSERT') = true",
+      "dependencies": [
+        "notification RLS",
+        "delivery authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Security/RLS and Notifications owners",
+      "remediation_direction": "Review intended table grants and RLS policies on disposable local data; do not equate table grant with data exposure or remove protections",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "public.notification_deliveries/authenticated/INSERT",
+      "section": "table-acl",
+      "kind": "grant_posture",
+      "history_status": "catalog_differential",
+      "classification": "present",
+      "current_evidence_classification": "present",
+      "evidence_scope": "table-level privilege bit ONLY; RLS enabled, no row-access inference",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/cf6896bc1a54f48653255333751dd438c9e318e3/docs/v3/recovery-candidates/evidence/s14-hosted-schema-local-parity-method-2026-11-08.md"
+      ],
+      "evidence_key": "has_table_privilege('authenticated','public.notification_deliveries','INSERT') = true",
+      "dependencies": [
+        "notification RLS",
+        "delivery authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Security/RLS and Notifications owners",
+      "remediation_direction": "Review intended table grants and RLS policies on disposable local data; do not equate table grant with data exposure or remove protections",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "public.notification_deliveries/authenticated/UPDATE",
+      "section": "table-acl",
+      "kind": "grant_posture",
+      "history_status": "catalog_differential",
+      "classification": "present",
+      "current_evidence_classification": "present",
+      "evidence_scope": "table-level privilege bit ONLY; RLS enabled, no row-access inference",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/blob/cf6896bc1a54f48653255333751dd438c9e318e3/docs/v3/recovery-candidates/evidence/s14-hosted-schema-local-parity-method-2026-11-08.md"
+      ],
+      "evidence_key": "has_table_privilege('authenticated','public.notification_deliveries','UPDATE') = true",
+      "dependencies": [
+        "notification RLS",
+        "delivery authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Security/RLS and Notifications owners",
+      "remediation_direction": "Review intended table grants and RLS policies on disposable local data; do not equate table grant with data exposure or remove protections",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261102170500_v3_tg1_world_country_control_foundation.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261102170500_v3_tg1_world_country_control_foundation.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "world-system-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult World domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261102171500_v3_tg2_world_institution_core.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261102171500_v3_tg2_world_institution_core.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "world-system-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult World domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261102171600_v3_tg2_world_institution_access.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261102171600_v3_tg2_world_institution_access.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "world-system-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult World domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261102171700_v3_tg2_world_office_term_canonical_alignment.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261102171700_v3_tg2_world_office_term_canonical_alignment.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "world-system-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult World domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261102171800_v3_tg2_world_office_term_dependents.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261102171800_v3_tg2_world_office_term_dependents.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "world-system-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult World domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261102171950_v3_tg1_current_controller_identity_guard.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261102171950_v3_tg1_current_controller_identity_guard.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "world-system-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult World domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261102205000_v3_service_role_claim_compatibility.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261102205000_v3_service_role_claim_compatibility.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "cross-cutting-runtime"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult System/Platform owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261103004500_v3_s14_atomic_televote_calculation.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261103004500_v3_s14_atomic_televote_calculation.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "results-publication-televote"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Televote domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261103004600_v3_canonical_result_recalculation.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261103004600_v3_canonical_result_recalculation.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "results-publication-televote"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Results domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261103004700_v3_result_reconciliation_hardening.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261103004700_v3_result_reconciliation_hardening.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "results-publication-televote"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Results domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261103004800_v3_s14_televoting_round_bindings_runtime_access.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261103004800_v3_s14_televoting_round_bindings_runtime_access.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "results-publication-televote"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Voting domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261103004900_v3_result_countback_parity.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261103004900_v3_result_countback_parity.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "results-publication-televote"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Results domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261103090202_v3_results_jury_review_invalidation.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261103090202_v3_results_jury_review_invalidation.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "results-publication-televote"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Results domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261103194500_v3_s14_televote_sync_service_role_acl.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261103194500_v3_s14_televote_sync_service_role_acl.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "results-publication-televote"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Televote domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261103210000_v3_s14_televote_sync_audit_rpc.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261103210000_v3_s14_televote_sync_audit_rpc.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "results-publication-televote"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Televote domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261103220000_v3_s14_atomic_televote_recovery.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261103220000_v3_s14_atomic_televote_recovery.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "results-publication-televote"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Televote domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261103220001_v3_qualification_null_rank_reset.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261103220001_v3_qualification_null_rank_reset.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "results-publication-televote"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult System/Platform owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261104110000_v3_reference_literal_search.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261104110000_v3_reference_literal_search.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "cross-cutting-runtime"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult System/Platform owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261104115831_v3_tg2_world_identity_linkage_privacy.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261104115831_v3_tg2_world_identity_linkage_privacy.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "world-system-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult World domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261104120600_v3_tg1_controller_login_privacy.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261104120600_v3_tg1_controller_login_privacy.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "world-system-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult World domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261104120800_v3_tg2_nonpublic_organ_office_privacy.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261104120800_v3_tg2_nonpublic_organ_office_privacy.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "world-system-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult World domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261104120900_v3_tg2_cross_organization_organ_integrity.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261104120900_v3_tg2_cross_organization_organ_integrity.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "world-system-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult World domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261104121000_v3_tg3_world_public_rollout_flag.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261104121000_v3_tg3_world_public_rollout_flag.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "world-system-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Public/Live rollout owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261104121500_v3_tg2_office_term_effective_authority.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261104121500_v3_tg2_office_term_effective_authority.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "world-system-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult World domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261104121600_v3_tg2_membership_effective_representation.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261104121600_v3_tg2_membership_effective_representation.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "world-system-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult World domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261104132500_v3_s14_results_reconciliation_authority.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261104132500_v3_s14_results_reconciliation_authority.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "results-publication-televote"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Results domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261104135245_v3_results_active_snapshot_and_qualification.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261104135245_v3_results_active_snapshot_and_qualification.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "results-publication-televote"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Results domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261104165500_v3_tg8_exact_rational_legislative_tally.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261104165500_v3_tg8_exact_rational_legislative_tally.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "world-system-authority"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult World domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261104185330_v3_publication_control_initialization_retry.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261104185330_v3_publication_control_initialization_retry.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "results-publication-televote"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult System/Platform owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261105045922_v3_pending_nf_winner_worker_authority.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261105045922_v3_pending_nf_winner_worker_authority.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "cross-cutting-runtime"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult System/Platform owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261105115452_v3_edition_metadata_command.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261105115452_v3_edition_metadata_command.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "cross-cutting-runtime"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult System/Platform owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261105140500_v3_televote_influence_role_runtime_access.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261105140500_v3_televote_influence_role_runtime_access.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "results-publication-televote"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult Televote domain owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    },
+    {
+      "id": "20261108004000_v3_s14_signed_combined_projection.sql",
+      "section": "source-pending",
+      "history_status": "source_newer_than_hosted_tip",
+      "classification": "unknown",
+      "current_evidence_classification": "unknown",
+      "evidence_scope": "missing migration-history record after hosted tip; SQL effect not individually proven absent",
+      "evidence_date": "2026-11-09",
+      "evidence_refs": [
+        "https://github.com/solarissongcontest/solarisstudio/tree/1297490c9367cf7c002f68059d681a1a094f739a/supabase/migrations"
+      ],
+      "evidence_key": "source file 20261108004000_v3_s14_signed_combined_projection.sql; hosted history head 20261101181812",
+      "dependencies": [
+        "cross-cutting-runtime"
+      ],
+      "dependency_owner": "System/Supabase migration owner; consult System/Platform owner",
+      "remediation_direction": "Keep pending; assess source contract and authorized forward-only dependency order on hosted-equivalent disposable local fixture; do not infer missing effect from absent history",
+      "history_action": "preserve",
+      "production_change_authorized": false
+    }
+  ]
+}

@@ -426,7 +426,10 @@ export function computeCombined(options: {
       totalVotingPoints,
       totalActivityPoints,
       finalCorrection,
-      finalCombinedPoints: Math.max(0, totalVotingPoints + totalActivityPoints + finalCorrection),
+      // Final, reviewed point deductions must be applied in full, even below zero.
+      // Source pools remain non-negative; only the post-pool correction can
+      // produce a negative official score (SSC Regulations v4.2, Rule 17.2).
+      finalCombinedPoints: totalVotingPoints + totalActivityPoints + finalCorrection,
       finalRank: 0,
       finalTieBreakData: { tied: false },
     };

@@ -68,7 +68,9 @@ describe("archive readiness", () => {
     expect(shell).toContain("Back to Participate");
     expect(shell).toContain('aria-label="Participation task navigation"');
 
-    for (const route of ["/confirmations", "/jury-voting", "/televoting", "/next-in-line"]) {
+    expect(hub).toContain("publicParticipationJuryAction(juryQuery.data, now ?? 0)");
+    expect(source("lib/public-participation-jury-action.ts")).toContain('to: "/jury-voting"');
+    for (const route of ["/confirmations", "/televoting", "/next-in-line"]) {
       expect(hub).toContain(`to: "${route}"`);
     }
     expect(hub).not.toContain("Revolutionary, apparently");

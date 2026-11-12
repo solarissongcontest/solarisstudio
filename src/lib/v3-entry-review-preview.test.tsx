@@ -99,10 +99,6 @@ it("the real Organizer review handler rejects an unseen preview before mutation"
       submissionId: "submission",
       reason: "",
       assertDisplayedEntryVersion,
-      mutationInFlightRef: { current: false },
-      unresolvedReviewOperationRef: { current: null },
-      isScopeCurrent: () => true,
-      isSuccessfulConfirmationEntryReviewReceipt: (receipt: {status: string; operationId: string}, operationId: string) => receipt.status === "succeeded" && receipt.operationId === operationId,
       setBusy: () => {},
       setError: (error: unknown) => {
         if (error) errors.push(error);
@@ -121,12 +117,12 @@ it("the real Organizer review handler rejects an unseen preview before mutation"
         idempotencyKey: "key",
         correlationId: "correlation",
       }),
-      normalizeSystemReceipt: () => ({ status: "succeeded", operationId: "operation" }),
+      normalizeSystemReceipt: () => ({ status: "succeeded" }),
       toSystemError: (error: unknown) => ({
         message: error instanceof Error ? error.message : "Review action failed.",
       }),
       setReceipt: () => {},
-      toast: { success: () => {}, warning: () => {} },
+      toast: { success: () => {} },
       onChanged: async () => {
         changed = true;
       },

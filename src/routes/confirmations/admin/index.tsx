@@ -29,6 +29,8 @@ import {
   type ConfirmationEdition,
 } from "@/integrations/confirmations/admin";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import { deriveConfirmationNationalFinalTriage } from "@/lib/confirmation-national-final-triage";
+import { latestConfirmationResponsesByCountry } from "@/lib/confirmation-overview-current-response";
 
 type Entry = {
   id: string;
@@ -40,6 +42,7 @@ type Entry = {
 type ResponseRow = {
   id: string;
   country: string;
+  submitted_at: string;
   participating: boolean;
   selection_method: string | null;
   entry_unknown: boolean;
@@ -65,12 +68,6 @@ export const Route = createFileRoute("/confirmations/admin/")({
   component: DelegationsAdminOverview,
 });
 
-function activeNfEntries(row: ResponseRow) {
-  return (row.national_finals?.national_final_entries ?? []).filter(
-    (entry) => !entry.removed && entry.review_status !== "removed",
-  );
-}
-
 function responseCardState(row: ResponseRow): CardState {
   if (!row.participating) return "neutral";
 
@@ -84,12 +81,11 @@ function responseCardState(row: ResponseRow): CardState {
   }
 
   if (row.selection_method === "national_final") {
-    const entries = activeNfEntries(row);
-    if (!entries.length || row.nf_entries_unknown) return "neutral";
-    if (entries.some((entry) => entry.review_status === "declined")) return "issue";
-    if (entries.some((entry) => !entry.review_status || entry.review_status === "pending")) return "review";
-    if (!row.national_finals?.winning_entry_id) return "neutral";
-    return "ready";
+    return deriveConfirmationNationalFinalTriage(
+      row.national_finals?.national_final_entries ?? [],
+      row.national_finals?.winning_entry_id ?? null,
+      row.nf_entries_unknown,
+    );
   }
 
   return "neutral";
@@ -144,13 +140,19 @@ function DelegationsAdminOverview() {
     [activeEdition?.id, responses],
   );
 
+  // Each country has only one current answer. Past responses remain in the
+  // history queue, but cannot inflate today's readiness or review counts.
+  const currentCountryResponses = useMemo(
+    () => latestConfirmationResponsesByCountry(activeResponses),
+    [activeResponses],
+  );
   const triageCounts = useMemo(() => {
     const counts = { review: 0, issue: 0, ready: 0, neutral: 0 };
-    activeResponses.forEach((response) => {
+    for (const response of currentCountryResponses ?? []) {
       counts[responseCardState(response)] += 1;
-    });
+    }
     return counts;
-  }, [activeResponses]);
+  }, [currentCountryResponses]);
 
   const activeOpenRounds = activeEdition?.rounds.filter((round) => round.status === "open") ?? [];
 
@@ -227,6 +229,14 @@ function DelegationsAdminOverview() {
             description="Select an edition from Organizer context before opening delegation submissions. Solaris will not substitute the globally active confirmation edition or another edition for missing or stale context."
           />
         </AdminCard>
+      ) : currentCountryResponses === null ? (
+        <AdminCard>
+          <AdminEmptyState
+            icon={CircleAlert}
+            title="Current delegation state could not be verified"
+            description="At least one response has ambiguous or invalid country/timestamp evidence. No readiness or review counters are shown until the underlying Confirmation history can be reconciled."
+          />
+        </AdminCard>
       ) : (
         <div className="space-y-4">
           <AdminCard strong>
@@ -267,7 +277,7 @@ function DelegationsAdminOverview() {
             <div className="mb-2 flex items-end justify-between gap-3 px-0.5">
               <div>
                 <p className="admin-section-label">Response status</p>
-                <p className="mt-1 text-xs text-muted-foreground">Click a status to open the response queue.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Latest response per country. Open the response queue for full history.</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
