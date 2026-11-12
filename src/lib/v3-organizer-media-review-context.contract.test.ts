@@ -31,7 +31,13 @@ describe("V3 Organizer Media Review exact-edition safety", () => {
     expect(route).toContain("selectedEdition.id !== review.commandEditionId || editionId !== review.commandEditionId");
     expect(route).toContain("editionId: review.commandEditionId");
     expect(route).toContain("variables.commandEditionId");
-    expect(route).toContain("if (editionId !== variables.commandEditionId) return;");
+    // The old closure-scoped edition check was replaced with live actor +
+    // edition guards, both before and after the awaited private readback.
+    expect(
+      route.split(
+        "if (liveActorRef.current !== variables.commandActorId || liveEditionRef.current !== variables.commandEditionId) return;",
+      ).length - 1,
+    ).toBe(2);
     expect(service).toContain("p_edition_id: input.editionId");
   });
 
