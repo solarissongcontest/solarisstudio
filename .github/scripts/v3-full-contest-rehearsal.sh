@@ -292,7 +292,19 @@ write_final_evidence() {
     fail "release-grade S14 evidence is missing retained Results/publication/Archive provenance"
   [[ "$archive_consumer_receipt_count" == "1" ]] || fail "release-grade S14 evidence requires exactly one Archive consequence consumer receipt"
 
-  python3 - "$FINAL_PATH" "$CANDIDATE_SHA" "$S14_RUN_ID" "$EDITION_ID" "$DATABASE_FINGERPRINT" "$result_hash" "$publication_hash" "$receipt_count" "$S14_RESULTS_RECONCILE_OPERATION_ID" "$S14_POST_EDITION_OPERATION_ID" "$S14_ARCHIVE_OPERATION_ID" "$archive_event_id" "$archive_outbox_id" <<'PY'
+  # The final record must describe the persisted contest AFTER all stages.
+  # Initial setup counts are insufficient: later stages must not erase or add
+  # delegations, shows, participants, or active HOD delegation assignments.
+  local edition_count delegation_count show_count participant_count active_hod_delegation_count seed_json
+  edition_count="$(db_scalar "select count(*) from public.editions where id='$EDITION_ID'::uuid;")"
+  delegation_count="$(db_scalar "select count(*) from public.countries where region='S14';")"
+  show_count="$(db_scalar "select count(*) from public.shows where edition_id='$EDITION_ID'::uuid;")"
+  participant_count="$(db_scalar "select count(*) from public.participants where edition_id='$EDITION_ID'::uuid;")"
+  active_hod_delegation_count="$(db_scalar "select count(*) from public.country_accounts ca join public.countries c on c.id=ca.country_id where c.region='S14' and ca.status='active';")"
+  seed_json="$(python3 scripts/v3_s14_final_seed.py "$edition_count" "$delegation_count" "$show_count" "$participant_count" "$active_hod_delegation_count")" || \
+    fail "release-grade S14 final contest seed evidence does not match the retained 66-delegation state"
+
+  python3 - "$FINAL_PATH" "$CANDIDATE_SHA" "$S14_RUN_ID" "$EDITION_ID" "$DATABASE_FINGERPRINT" "$result_hash" "$publication_hash" "$receipt_count" "$S14_RESULTS_RECONCILE_OPERATION_ID" "$S14_POST_EDITION_OPERATION_ID" "$S14_ARCHIVE_OPERATION_ID" "$archive_event_id" "$archive_outbox_id" "$seed_json" <<'PY'
 import json, sys
 (
     path,
@@ -308,7 +320,9 @@ import json, sys
     archive_operation_id,
     archive_event_id,
     archive_outbox_id,
+    seed_json,
 ) = sys.argv[1:]
+seed = json.loads(seed_json)
 payload = {
     "schemaVersion": 3,
     "candidateSha": sha,
@@ -357,7 +371,7 @@ payload = {
         "two-organizers",
         "supabase-outage",
     ],
-    "seed": {"editionCount": 1, "delegationCount": 66, "showCount": 3},
+    "seed": seed,
     "runIdentity": {
         "runId": run_id,
         "editionId": edition_id,
