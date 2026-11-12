@@ -1,3 +1,4 @@
+import { useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
 import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
@@ -10,7 +11,10 @@ export function PublicLaunchRouteBoundary({
   children: ReactNode;
 }) {
   const availability = usePublicLaunchAvailability();
-  if (availability.allows(pathname)) return <>{children}</>;
+  // Root chrome intentionally reconciles onResolved. The Outlet can advance
+  // first, so check the live router scope as well before mounting its child.
+  const currentPathname = useRouterState({ select: (state) => state.location.pathname });
+  if (availability.allows(pathname) && availability.allows(currentPathname)) return <>{children}</>;
   return (
     <AppShell>
       <section className="mx-auto max-w-xl px-4 py-10" aria-labelledby="public-launch-unavailable">

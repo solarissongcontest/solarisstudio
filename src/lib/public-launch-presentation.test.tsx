@@ -2,7 +2,10 @@ import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+const routeState = vi.hoisted(() => ({ pathname: "/" }));
 vi.mock("@tanstack/react-router", () => ({
+  useRouterState: ({ select }: { select: (state: { location: { pathname: string } }) => string }) =>
+    select({ location: { pathname: routeState.pathname } }),
   Link: ({ to, children, ...props }: { to: string; children?: ReactNode }) =>
     createElement("a", { ...props, href: to }, children),
 }));
@@ -48,6 +51,20 @@ describe("soft-launch rendered public entry points", () => {
     expect(html).toContain("This experience is not available");
     for (const href of ["/", "/explore", "/participate", "/results", "/me"])
       expect(html).toContain(`href="${href}"`);
+  });
+  it("does not let a stale resolved chrome path admit a newly selected deferred Outlet", () => {
+    routeState.pathname = "/fantasy";
+    try {
+      expect(
+        render(
+          <PublicLaunchRouteBoundary pathname="/">
+            <p>must not mount</p>
+          </PublicLaunchRouteBoundary>,
+        ),
+      ).not.toContain("must not mount");
+    } finally {
+      routeState.pathname = "/";
+    }
   });
   it("renders a tester’s permitted feature and closes it again when rollout is revoked", () => {
     const child = (
