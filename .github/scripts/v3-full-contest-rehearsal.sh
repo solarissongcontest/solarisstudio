@@ -292,17 +292,29 @@ write_final_evidence() {
     fail "release-grade S14 evidence is missing retained Results/publication/Archive provenance"
   [[ "$archive_consumer_receipt_count" == "1" ]] || fail "release-grade S14 evidence requires exactly one Archive consequence consumer receipt"
 
-  # The final record must describe the persisted contest AFTER all stages.
-  # Initial setup counts are insufficient: later stages must not erase or add
-  # delegations, shows, participants, or active HOD delegation assignments.
+  # Participants hold both show appearances and canonical edition entries.
+  # Stage 1 seeds 33+33 semifinal appearances, the Organizer promotes 20
+  # Grand Final qualifiers, and Stage 4 syncs 01/04 into two show_id=NULL
+  # edition entries. The latter must not be counted as extra competitors.
+  # Verify all composition boundaries, not merely the total row count.
   local edition_count delegation_count show_count participant_count active_hod_delegation_count seed_json
+  local semi_one_count semi_two_count grand_final_count edition_entry_count expected_synced_entry_count
+  local distinct_country_count duplicate_appearance_group_count null_country_count
   edition_count="$(db_scalar "select count(*) from public.editions where id='$EDITION_ID'::uuid;")"
   delegation_count="$(db_scalar "select count(*) from public.countries where region='S14';")"
   show_count="$(db_scalar "select count(*) from public.shows where edition_id='$EDITION_ID'::uuid;")"
   participant_count="$(db_scalar "select count(*) from public.participants where edition_id='$EDITION_ID'::uuid;")"
   active_hod_delegation_count="$(db_scalar "select count(*) from public.country_accounts ca join public.countries c on c.id=ca.country_id where c.region='S14' and ca.status='active';")"
-  seed_json="$(python3 scripts/v3_s14_final_seed.py "$edition_count" "$delegation_count" "$show_count" "$participant_count" "$active_hod_delegation_count")" || \
-    fail "release-grade S14 final contest seed evidence does not match the retained 66-delegation state"
+  semi_one_count="$(db_scalar "select count(*) from public.participants where edition_id='$EDITION_ID'::uuid and show_id='$SEMI_ONE_ID'::uuid;")"
+  semi_two_count="$(db_scalar "select count(*) from public.participants where edition_id='$EDITION_ID'::uuid and show_id='$SEMI_TWO_ID'::uuid;")"
+  grand_final_count="$(db_scalar "select count(*) from public.participants where edition_id='$EDITION_ID'::uuid and show_id='$FINAL_ID'::uuid;")"
+  edition_entry_count="$(db_scalar "select count(*) from public.participants where edition_id='$EDITION_ID'::uuid and show_id is null;")"
+  expected_synced_entry_count="$(db_scalar "select count(*) from public.participants where edition_id='$EDITION_ID'::uuid and show_id is null and country_id in ('14000000-0000-4000-8000-000000000001'::uuid,'14000000-0000-4000-8000-000000000004'::uuid);")"
+  distinct_country_count="$(db_scalar "select count(distinct country_id) from public.participants where edition_id='$EDITION_ID'::uuid;")"
+  duplicate_appearance_group_count="$(db_scalar "select count(*) from (select show_id,country_id from public.participants where edition_id='$EDITION_ID'::uuid and show_id is not null group by show_id,country_id having count(*)>1) duplicate_groups;")"
+  null_country_count="$(db_scalar "select count(*) from public.participants where edition_id='$EDITION_ID'::uuid and country_id is null;")"
+  seed_json="$(python3 scripts/v3_s14_final_seed.py "$edition_count" "$delegation_count" "$show_count" "$participant_count" "$active_hod_delegation_count" "$semi_one_count" "$semi_two_count" "$grand_final_count" "$edition_entry_count" "$expected_synced_entry_count" "$distinct_country_count" "$duplicate_appearance_group_count" "$null_country_count")" || \
+    fail "release-grade S14 final contest composition evidence does not match the retained 66-delegation state"
 
   python3 - "$FINAL_PATH" "$CANDIDATE_SHA" "$S14_RUN_ID" "$EDITION_ID" "$DATABASE_FINGERPRINT" "$result_hash" "$publication_hash" "$receipt_count" "$S14_RESULTS_RECONCILE_OPERATION_ID" "$S14_POST_EDITION_OPERATION_ID" "$S14_ARCHIVE_OPERATION_ID" "$archive_event_id" "$archive_outbox_id" "$seed_json" <<'PY'
 import json, sys

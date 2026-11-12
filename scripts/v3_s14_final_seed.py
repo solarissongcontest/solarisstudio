@@ -12,14 +12,22 @@ EXPECTED = {
     "editionCount": 1,
     "delegationCount": 66,
     "showCount": 3,
-    "participantCount": 66,
+    "participantCount": 88,
     "activeHodDelegationCount": 66,
+    "semiOneAppearanceCount": 33,
+    "semiTwoAppearanceCount": 33,
+    "grandFinalAppearanceCount": 20,
+    "editionEntryCount": 2,
+    "expectedSyncedEditionEntryCount": 2,
+    "distinctParticipantCountryCount": 66,
+    "duplicateAppearanceGroupCount": 0,
+    "nullCountryCount": 0,
 }
 
 
 def validate_final_seed(raw_counts):
     if len(raw_counts) != len(EXPECTED):
-        raise ValueError("S14 final-seed proof needs exactly five database counts")
+        raise ValueError("S14 final-seed proof needs exactly thirteen database counts")
     actual = {}
     for (name, expected), raw in zip(EXPECTED.items(), raw_counts):
         if not isinstance(raw, str) or re.fullmatch(r"(?:0|[1-9][0-9]*)", raw) is None:
