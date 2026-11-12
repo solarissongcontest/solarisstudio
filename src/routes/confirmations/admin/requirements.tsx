@@ -384,25 +384,7 @@ function ConfirmationRequirementsPage() {
             </div>
           </AdminCard>
 
-          {requirementsQuery.isLoading ? (
-            <AdminCard className="mt-4">
-              <p className="py-12 text-center text-sm text-muted-foreground">
-                Loading confirmation requirements…
-              </p>
-            </AdminCard>
-          ) : requirementsQuery.error ? (
-            <AdminCard className="mt-4">
-              <AdminEmptyState
-                icon={CircleAlert}
-                title="Requirements could not be loaded"
-                description={
-                  requirementsQuery.error instanceof Error
-                    ? requirementsQuery.error.message
-                    : "The canonical requirement projection is unavailable."
-                }
-              />
-            </AdminCard>
-          ) : visible.length ? (
+          {visible.length ? (
             <section className="mt-4 space-y-3">
               {visible.map((requirement) => (
                 <AdminCard key={requirement.id} className="!p-4">
