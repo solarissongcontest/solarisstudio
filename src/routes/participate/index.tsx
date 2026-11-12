@@ -94,7 +94,9 @@ async function loadTelevoteSummary(): Promise<TelevoteSummary> {
     .from("rounds")
     .select("id,name,closed_at,editions(name)")
     .eq("status", "open")
-    .limit(1)
+    // Match the booth’s single-round contract. Two rows expose ambiguity
+    // without downloading every round or silently selecting another show.
+    .limit(2)
     .maybeSingle();
 
   if (error) throw error;

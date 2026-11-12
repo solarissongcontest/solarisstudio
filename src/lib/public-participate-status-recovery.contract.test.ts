@@ -28,6 +28,9 @@ describe("legacy Public Participate status recovery", () => {
     expect(read).toContain("if (error) throw error;");
     expect(read).toContain("if (!data) return { openRound: null };");
     expect(read).not.toContain("if (error || !data)");
+    expect(read).toContain('.limit(2)');
+    expect(read).toContain('.maybeSingle()');
+    expect(read).not.toContain('.limit(1)');
   });
 
   it("keeps unverified services out of inactive actions, rather than inventing unavailable status", () => {
