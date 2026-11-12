@@ -91,4 +91,18 @@ describe("System V3 S13 forward-only candidate source and safety", () => {
     expect(candidate).toContain("Do not paste into hosted Supabase");
     expect(candidate).not.toContain("SOLARIS_PRODUCTION_COMMIT=YES");
   });
+
+  it("tests real session loss after DDL and registry effects without modifying the candidate", () => {
+    expect(rehearsal).toContain("for interruption in after_tables before_commit");
+    expect(rehearsal).toContain("pg_terminate_backend(pg_backend_pid())");
+    expect(rehearsal).toContain("S13_LOCAL_INTERRUPTION_REACHED_");
+    expect(rehearsal).toContain("terminating connection due to administrator command");
+    expect(rehearsal).toContain('before_interruption="$(interruption_fingerprint "$probe_db")"');
+    expect(rehearsal).toContain('after_interruption="$(interruption_fingerprint "$probe_db")"');
+    expect(rehearsal).toContain("S13 original-candidate retry did not recover canonical objects");
+    expect(rehearsal).toContain("S13 recovery removed existing baseline write guard");
+    expect(rehearsal).toContain('fault_sql="$(mktemp)"');
+    expect(rehearsal).toContain('rm -f -- "$fault_sql"');
+    expect(load(".github/workflows/v3-s13-forward-recovery-local.yml")).toContain("image: postgres:17.11-alpine");
+  });
 });

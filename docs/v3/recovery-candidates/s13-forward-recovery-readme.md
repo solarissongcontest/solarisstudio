@@ -35,6 +35,25 @@ The rehearsal also rejects and checks non-mutation for (a) a previously register
 
 The source historical migration sequence remains exactly three files; no historical file or `supabase_migrations.schema_migrations` entry is changed. The candidate intentionally retains only two semantic S13 registration keys and no transient S6 alias key. Full production frontier repair, migration packaging, and any hosted execution require separate review and explicit approval.
 
+## Interrupted-session recovery acceptance
+
+The S13 rehearsal also terminates its **own disposable PostgreSQL session** at
+two verified points in a temporary copy: after all five tables exist, and just
+before commit after all seven RPCs and both registry records exist. A failure
+before the intended point does not count as a passing interruption. Fresh
+connections must observe the identical baseline catalog, ownership, ACLs,
+columns, constraints, indexes, default privileges, RLS policies, triggers and
+synthetic rows. The unchanged candidate is then retried in that same database;
+its S13 catalog must match the normally recovered database. An existing synthetic
+row-filter policy and write-denying trigger must still enforce their boundaries.
+
+The workflow pins **PostgreSQL 17.11**, matching the fixture's strict version and
+helper fingerprints. These tests prove transactional rollback and restart on the
+**observed S13 dependency subset**, with additional synthetic preservation
+sentinels. They do not reconstruct the remaining hosted schema/data, prove an
+operating-system crash or interrupted durable COMMIT, or authorize adoption.
+No recovery candidate SQL or historical migration is modified by fault injection.
+
 ## Remaining blockers before production
 
 - This test uses the **exact S13 external helper definition/ACL and schema-usage footprint** observed in production. Still build/review an isolated **sanitized hosted-head-equivalent** PostgreSQL/Supabase schema including other schemas, caller routines and representative synthetic data shapes.

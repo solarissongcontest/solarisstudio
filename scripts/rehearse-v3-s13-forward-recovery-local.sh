@@ -8,6 +8,7 @@ for key in DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN PGSER
   [[ -z "${!key:-}" ]] || { echo "Blocked inherited $key" >&2; exit 2; }
 done
 command -v psql >/dev/null
+command -v python3 >/dev/null
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 db="solaris_v3_s13_local_$$"
 export PGHOST=127.0.0.1 PGHOSTADDR=127.0.0.1 PGPORT="$SOLARIS_LOCAL_DB_PORT" PGUSER=postgres
@@ -19,7 +20,9 @@ run() { "${args[@]}" -d "$db" "$@"; }
 created=no
 probe_db=""
 reference_db=""
+fault_sql=""
 cleanup() {
+  if [[ -n "$fault_sql" ]]; then rm -f -- "$fault_sql"; fi
   if [[ -n "$probe_db" ]]; then
     master -c "drop database $probe_db with (force)" >/dev/null
   fi
@@ -172,6 +175,132 @@ catalog_fingerprint() {
   )
   select md5(string_agg(record,E'\\n' order by record)) from evidence"
 }
+# An aborted preflight never reaches DDL. Independently prove transaction loss
+# AFTER DDL, and AFTER RPC/ACL/registry changes, on fresh observed-subset DBs.
+# The sentinel is SYNTHETIC regression data/security, not claimed hosted data.
+interruption_fingerprint() {
+  run_in_db "$1" -c "with evidence(record) as (
+    select 'schema|' || nspname || '|' || pg_get_userbyid(nspowner) || '|' || coalesce(nspacl::text,'')
+      from pg_namespace where nspname in ('public','private')
+    union all
+    select 'relation|' || n.nspname || '.' || c.relname || '|' || c.relkind::text || '|' ||
+      pg_get_userbyid(c.relowner) || '|' || coalesce(c.relacl::text,'') || '|' ||
+      c.relrowsecurity::text || '|' || c.relforcerowsecurity::text
+      from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private')
+    union all
+    select 'column|' || n.nspname || '.' || c.relname || '.' || a.attname || '|' ||
+      a.attnum::text || '|' || format_type(a.atttypid,a.atttypmod) || '|' || a.attnotnull::text ||
+      '|' || coalesce(pg_get_expr(d.adbin,d.adrelid),'') || '|' || a.attidentity::text || '|' || a.attgenerated::text
+      from pg_attribute a join pg_class c on c.oid=a.attrelid join pg_namespace n on n.oid=c.relnamespace
+      left join pg_attrdef d on d.adrelid=a.attrelid and d.adnum=a.attnum
+      where n.nspname in ('public','private') and a.attnum>0 and not a.attisdropped
+    union all
+    select 'function|' || pg_get_functiondef(p.oid) || '|' || pg_get_userbyid(p.proowner) || '|' || coalesce(p.proacl::text,'')
+      from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private')
+    union all
+    select 'constraint|' || n.nspname || '.' || c.relname || '|' || k.conname || '|' || pg_get_constraintdef(k.oid)
+      from pg_constraint k join pg_class c on c.oid=k.conrelid join pg_namespace n on n.oid=c.relnamespace
+      where n.nspname in ('public','private')
+    union all
+    select 'index|' || pg_get_indexdef(c.oid) from pg_class c join pg_namespace n on n.oid=c.relnamespace
+      where n.nspname in ('public','private') and c.relkind in ('i','I')
+    union all
+    select 'trigger|' || pg_get_triggerdef(t.oid) || '|' || t.tgenabled::text
+      from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace
+      where n.nspname in ('public','private') and not t.tgisinternal
+    union all
+    select 'policy|' || p.polname || '|' || p.polcmd::text || '|' || p.polpermissive::text || '|' ||
+      p.polroles::text || '|' || coalesce(pg_get_expr(p.polqual,p.polrelid),'') || '|' || coalesce(pg_get_expr(p.polwithcheck,p.polrelid),'')
+      from pg_policy p join pg_class c on c.oid=p.polrelid join pg_namespace n on n.oid=c.relnamespace
+      where n.nspname in ('public','private')
+    union all
+    select 'default-acl|' || pg_get_userbyid(d.defaclrole) || '|' || n.nspname || '|' || d.defaclobjtype::text || '|' || d.defaclacl::text
+      from pg_default_acl d join pg_namespace n on n.oid=d.defaclnamespace where n.nspname in ('public','private')
+    union all
+    select 'sentinel|' || to_jsonb(s)::text from public.s13_local_preserved s
+  ) select md5(string_agg(record,E'\\n' order by record)) from evidence"
+}
+
+for interruption in after_tables before_commit; do
+  probe_db="${db}_${interruption}"
+  master -c "create database $probe_db" >/dev/null
+  run_in_db "$probe_db" -f "$fixture" >/dev/null
+  run_in_db "$probe_db" <<'SQL' >/dev/null
+create table public.s13_local_preserved(id integer primary key, payload text not null);
+insert into public.s13_local_preserved values (1, 'synthetic-existing-record'), (2, 'synthetic-private-record');
+alter table public.s13_local_preserved enable row level security;
+grant select on public.s13_local_preserved to authenticated;
+create policy s13_local_read on public.s13_local_preserved for select to authenticated using (id=1);
+create function private.s13_local_preservation_guard() returns trigger language plpgsql set search_path=pg_catalog as $guard$
+begin raise exception 'Synthetic S13 baseline guard'; end
+$guard$;
+revoke all on function private.s13_local_preservation_guard() from public, anon, authenticated, service_role;
+create trigger s13_local_preservation_guard before update or delete on public.s13_local_preserved
+for each row execute function private.s13_local_preservation_guard();
+SQL
+  before_interruption="$(interruption_fingerprint "$probe_db")"
+  fault_sql="$(mktemp)"
+  # Edit only a temporary copy. The reviewed candidate stays byte-for-byte intact.
+  python3 - "$candidate" "$fault_sql" "$interruption" <<'PY'
+from pathlib import Path
+import sys
+source, output, point = sys.argv[1:]
+sql = Path(source).read_text()
+marker = "create or replace function public.v3_schema_compatibility(" if point == "after_tables" else "\ncommit;"
+assert sql.count(marker) == 1, "S13 interruption marker changed; review fixture"
+# The canonical core inserts migration-hardening before the first RPC DDL.
+expected_rpcs, expected_records = (0, 1) if point == "after_tables" else (7, 2)
+fault = f"""
+do $local_s13_interrupt$
+declare v_tables integer; v_rpcs integer; v_records integer;
+begin
+  select count(*) into v_tables from pg_class c join pg_namespace n on n.oid=c.relnamespace
+    where n.nspname='private' and c.relkind='r' and c.relname like 'v3_%';
+  select count(*) into v_rpcs from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='public' and p.proname like 'v3_%';
+  select count(*) into v_records from private.v3_migration_contracts;
+  if v_tables <> 5 or v_rpcs <> {expected_rpcs} or v_records <> {expected_records} then
+    raise exception 'S13 interruption did not reach intended effects: %, %, %', v_tables, v_rpcs, v_records;
+  end if;
+  raise notice 'S13_LOCAL_INTERRUPTION_REACHED_{point}';
+  perform pg_terminate_backend(pg_backend_pid());
+end $local_s13_interrupt$;
+"""
+Path(output).write_text(sql.replace(marker, fault + marker, 1))
+PY
+  if interrupted_output="$(run_in_db "$probe_db" -f "$fault_sql" 2>&1)"; then
+    echo "S13 interrupted session unexpectedly succeeded: $interruption" >&2; exit 1
+  fi
+  [[ "$interrupted_output" == *"S13_LOCAL_INTERRUPTION_REACHED_${interruption}"* &&
+     "$interrupted_output" == *"terminating connection due to administrator command"* ]] || {
+    echo "Unexpected S13 interruption outcome: $interrupted_output" >&2; exit 1;
+  }
+  rm -f -- "$fault_sql"
+  fault_sql=""
+  # New connections must see the original catalog/ACLs, RLS, trigger and row.
+  after_interruption="$(interruption_fingerprint "$probe_db")"
+  [[ "$before_interruption" == "$after_interruption" ]] || {
+    echo "S13 interrupted transaction left committed effects: $interruption" >&2; exit 1;
+  }
+  run_in_db "$probe_db" -f "$candidate" >/dev/null
+  [[ "$(catalog_fingerprint "$probe_db")" == "$(catalog_fingerprint "$db")" ]] || {
+    echo "S13 original-candidate retry did not recover canonical objects: $interruption" >&2; exit 1;
+  }
+  [[ "$(run_in_db "$probe_db" -c "set role authenticated; select string_agg(payload,',' order by id) from public.s13_local_preserved")" == 'synthetic-existing-record' ]] || {
+    echo 'S13 recovery changed baseline read policy/data' >&2; exit 1;
+  }
+  if guard_output="$(run_in_db "$probe_db" -c "update public.s13_local_preserved set payload='forbidden' where id=1" 2>&1)"; then
+    echo 'S13 recovery removed existing baseline write guard' >&2; exit 1
+  fi
+  [[ "$guard_output" == *'Synthetic S13 baseline guard'* ]] || {
+    echo "Unexpected baseline write rejection: $guard_output" >&2; exit 1;
+  }
+  [[ "$(run_in_db "$probe_db" -c 'select count(*) from private.v3_migration_contracts')" == 2 ]] || exit 1
+  echo "PASS: S13 $interruption session loss rolled back; original recovery retried; baseline guard/data preserved"
+  master -c "drop database $probe_db with (force)" >/dev/null
+  probe_db=""
+done
+
 recovered_hash="$(catalog_fingerprint "$db")"
 canonical_hash="$(catalog_fingerprint "$reference_db")"
 [[ -n "$recovered_hash" && "$recovered_hash" == "$canonical_hash" ]] || {
