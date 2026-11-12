@@ -212,13 +212,19 @@ export function normalizeJuryShareVotes(votes: readonly JuryShareVote[]): JurySh
   return sorted;
 }
 
-export function buildDefaultJuryShareModel(projection: JuryShareProjection): DefaultJuryShareModel {
+// A local fail-closed boundary in addition to the server's ballot and publication checks.
+// Both image and text exports must refuse unpublished or private Jury data.
+function assertJurySharePublication(projection: JuryShareProjection): void {
   if (!projection.publication.shareable) {
     throw new JuryShareFoundationError(
       projection.publication.reason,
       `Jury share card is unavailable: ${projection.publication.reason}`,
     );
   }
+}
+
+export function buildDefaultJuryShareModel(projection: JuryShareProjection): DefaultJuryShareModel {
+  assertJurySharePublication(projection);
 
   const votes = normalizeJuryShareVotes(projection.votes);
 
@@ -273,6 +279,7 @@ export function buildJuryShareRenderKeyMaterial(input: {
 }
 
 export function formatJuryShareText(projection: JuryShareProjection): string {
+  assertJurySharePublication(projection);
   const votes = normalizeJuryShareVotes(projection.votes);
   const sourceCountry = projection.source.shortDisplayName ?? projection.source.displayName;
   const lines = votes.map(
