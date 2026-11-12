@@ -56,6 +56,11 @@ if sql < "$temporary/source-truth.sql" > "$temporary/repeat.log" 2>&1; then
 fi
 grep -q 'S07 source truth already or partially installed' "$temporary/repeat.log" || { cat "$temporary/repeat.log"; fail 'Wrong repeat failure'; }
 
+# S08 is intentionally staged only AFTER S07 has proven the original
+# published-source and legacy compatibility contract. No hosted targets.
+sql < docs/v3/recovery-candidates/s08-televote-single-writer-local.sql
+sql < .github/tests/v3-s08-televote-mutation-scope.sql
+
 # Cleanup is part of success. No report claims proof before it succeeds.
 docker rm -f "$cid" >/dev/null
 cid=""
@@ -65,7 +70,9 @@ import { createHash } from "node:crypto";
 import { SOURCES, GUARD } from "./scripts/stage-v3-s07-televote-source-truth.mjs";
 const files = [...SOURCES, GUARD,
   "docs/v3/recovery-candidates/fixtures/s07-televote-source-truth-local.sql",
-  ".github/tests/v3-s07-televote-source-truth.sql"];
+  ".github/tests/v3-s07-televote-source-truth.sql",
+  "docs/v3/recovery-candidates/s08-televote-single-writer-local.sql",
+  ".github/tests/v3-s08-televote-mutation-scope.sql"];
 const sourceHashes = Object.fromEntries(files.map(path => [path,
   createHash("sha256").update(readFileSync(path)).digest("hex")]));
 writeFileSync("s07-local-source-truth-proof.json", JSON.stringify({
@@ -76,8 +83,11 @@ writeFileSync("s07-local-source-truth-proof.json", JSON.stringify({
   healthyReplayPreservesIdentity: true, duplicateConsequencesRejected: true,
   unpublishedAndUnboundSourcesRefused: true, missingDependenciesRefusedBeforeMutation: true,
   atomicFailureRollback: true, forgedMarkersDenied: true, acceptedBallotsUnchanged: true,
+  s08AllShowWriterGuardTested: true, s08FreshCanonicalRevisionAccepted: true,
+  s08WrongActorAndMovedShowDenied: true,
+  s08DuplicateAndStaleVersionDenied: true, s08ApprovedForProduction: false,
   cleanupSucceeded: true, fullHostedEquivalenceCertified: false,
   productionDeploymentAuthorized: false
 }, null, 2) + "\n", { flag: "wx" });
 JS
-echo 'PASS S07 isolated source-truth integration; no hosted equivalence or production authorization'
+echo 'PASS S07 + S08 isolated source truth and single-writer regression; NO hosted equivalence or production approval'
