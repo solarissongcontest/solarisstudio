@@ -74,7 +74,7 @@ export function validateFreshSource(c,versions){
  check(c.seedCounts?.users===0&&c.seedCounts?.ballots===0,'Source baseline has pre-existing user/ballot state');
  check(c.databaseIdentity,'Missing local database identity');
  check(c.trackFunctions==='all','Function-call telemetry not enabled');
- check(c.networkIsolation?.externalEgressDenied===true&&c.networkIsolation?.hostProxyDenied===true&&c.networkIsolation?.loopbackOnly===true&&/^s02-/.test(c.networkIsolation.identity),'Missing closed-network evidence');
+ check(c.networkIsolation?.externalEgressDenied===true&&c.networkIsolation?.hostProxyDenied===true&&c.networkIsolation?.loopbackOnly===true&&/^supabase_network_archive-v3-/.test(c.networkIsolation.identity),'Missing closed-network evidence');
  check(/^sha256:[a-f0-9]{64}$/.test(c.databaseImage||''),'Missing actual database image identity');
 }
 export function qualifySourceBeta({candidateSha,before,after,second,stages,lifecycle,migrationVersions,sourceHashes}){

@@ -15,8 +15,13 @@ with funcs as (
  select f.oid,lower(m[1]||'.'||m[2]) as target from funcs f
  cross join lateral regexp_matches(f.prosrc,
  '(auth|private|public|televoting|extensions)[[:space:]]*\.[[:space:]]*([a-zA-Z_][a-zA-Z_0-9]*)','g') m
+), unresolved as (
+ select distinct r.target from refs r
+ where not exists(select 1 from funcs f where f.name=r.target)
+   and not exists(select 1 from rels t where t.identity=r.target)
 ), edges as (
  select 'f:'||a.oid as source,'f:'||b.oid as target,'qualified-reference' as kind from refs a join funcs b on b.name=a.target
+ union select 'f:'||a.oid,'u:'||b.target,'unresolved-qualified-reference' from refs a join unresolved b on b.target=a.target
  union select 'f:'||a.oid,'r:'||b.identity,'qualified-reference' from refs a join rels b on b.identity=a.target
  union select 'f:'||a.oid,'f:'||b.oid,'pg_depend' from pg_depend d
  join funcs a on d.classid='pg_proc'::regclass and a.oid=d.objid
@@ -53,6 +58,8 @@ with funcs as (
  'dynamicSql',f.prosrc ~* '\mexecute\M','runtimeCalls',coalesce((select calls from pg_stat_user_functions s where s.funcid=f.oid),0),
  'privileges',(select jsonb_object_agg(role,has_function_privilege(role,f.oid,'EXECUTE'))
  from unnest(array['anon','authenticated','service_role']) role)) as value from funcs f
+ union all select jsonb_build_object('id','u:'||u.target,'kind','unresolved-reference','identity',u.target,
+ 'schema',split_part(u.target,'.',1),'resolution','Unknown: may be type, string literal, procedure or dynamic branch; never silently dropped') from unresolved u
  union all select jsonb_build_object('id','r:'||r.identity,'kind','relation','identity',r.identity,'schema',r.nspname,
  'owner',pg_get_userbyid(r.relowner),'rls',r.relrowsecurity,'forceRls',r.relforcerowsecurity,
  'columnUpdates',(select jsonb_object_agg(role||':'||a.attname,has_column_privilege(role,r.oid,a.attnum,'UPDATE'))

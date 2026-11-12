@@ -78,9 +78,8 @@ jobs:
           # subprocesses only; application isolation markers remain "local".
           job_namespace="${GITHUB_JOB//_/-}"; job_namespace="${job_namespace,,}"
           export S02_CLI_PROJECT_ID="archive-v3-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$job_namespace"
-          export S02_NETWORK_ID="s02-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$job_namespace"
+          export S02_NETWORK_ID="supabase_network_$S02_CLI_PROJECT_ID"
           export S02_SUPABASE_BINARY="$(command -v supabase)"
-          "$S02_SUPABASE_BINARY" --help | grep -F -- '--network-id' >/dev/null
           docker network create --driver bridge --opt com.docker.network.bridge.host_binding_ipv4=127.0.0.1 "$S02_NETWORK_ID"
           network_id="$(docker network inspect --format '{{.Id}}' "$S02_NETWORK_ID")"
           bridge="br-${network_id:0:12}"
@@ -95,7 +94,7 @@ jobs:
           set -euo pipefail
           : "${S02_CLI_PROJECT_ID:?}" "${S02_NETWORK_ID:?}" "${S02_SUPABASE_BINARY:?}"
           export SUPABASE_PROJECT_ID="$S02_CLI_PROJECT_ID"
-          exec "$S02_SUPABASE_BINARY" --network-id "$S02_NETWORK_ID" "$@"
+          exec "$S02_SUPABASE_BINARY" "$@"
           SH
           chmod +x "$RUNNER_TEMP/s02-bin/supabase"
           echo "$RUNNER_TEMP/s02-bin" >> "$GITHUB_PATH"

@@ -16,7 +16,7 @@ job_namespace="${GITHUB_JOB//_/-}"; job_namespace="${job_namespace,,}"
 expected_project="archive-v3-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-$job_namespace"
 actual_project="$(python3 -c 'import tomllib; print(tomllib.load(open("supabase/config.toml","rb"))["project_id"])')"
 [[ "$actual_project" == "$expected_project" ]] || fail 'Not this run-owned disposable project'
-[[ "${S02_CLI_PROJECT_ID:-}" == "$expected_project" && "${S02_NETWORK_ID:-}" == "s02-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$job_namespace" ]] || fail 'Missing pinned CLI/network identity'
+[[ "${S02_CLI_PROJECT_ID:-}" == "$expected_project" && "${S02_NETWORK_ID:-}" == "supabase_network_$expected_project" ]] || fail 'Missing pinned CLI/network identity'
 export DOCKER_HOST=unix:///var/run/docker.sock
 network_id="$(docker network inspect --format '{{.Id}}' "$S02_NETWORK_ID")"
 bridge="br-${network_id:0:12}"

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {PROFILE,dependencyGraph,validateFreshSource,qualifySourceBeta,assertBaselineDependency} from './check-v3-s02-baseline.mjs';
 const sha='1'.repeat(40),fingerprint='a'.repeat(64);
 function catalog(){
- return {formatVersion:1,serverVersionNum:170011,trackFunctions:'all',networkIsolation:{externalEgressDenied:true,hostProxyDenied:true,loopbackOnly:true,identity:'s02-test'},databaseImage:'sha256:'+fingerprint,databaseIdentity:'postgres:one-start',migrationVersions:['1'],seedCounts:{users:0,ballots:0},
+ return {formatVersion:1,serverVersionNum:170011,trackFunctions:'all',networkIsolation:{externalEgressDenied:true,hostProxyDenied:true,loopbackOnly:true,identity:'supabase_network_archive-v3-test'},databaseImage:'sha256:'+fingerprint,databaseIdentity:'postgres:one-start',migrationVersions:['1'],seedCounts:{users:0,ballots:0},
  nodes:PROFILE.roots.map((name,i)=>({id:'f:'+i,identity:name+'()',name,kind:'function',schema:name.split('.')[0],
  owner:'postgres',settingsMd5:'b'.repeat(32),aclMd5:'c'.repeat(32),definitionSha256:fingerprint,language:'plpgsql',securityDefiner:true,privileges:{anon:false,authenticated:false,service_role:false}})),edges:[],schemas:[]};
 }
@@ -91,4 +91,10 @@ test('source baseline can satisfy only the explicit fresh isolated target at thi
  assert.throws(()=>assertBaselineDependency(p,{...options,candidateSha:'2'.repeat(40)}),/Stale/);
  for(const key of ['hostedEquivalent','productionRecoveryEligible','liveBetaDeploymentAuthorized','overallBetaReleaseApproved'])
   assert.throws(()=>assertBaselineDependency({...p,[key]:true},options));
+});
+
+test('unresolved qualified references stay visible as required unknowns',()=>{
+ const c=catalog();c.nodes.push({id:'u:private.unknown',kind:'unresolved-reference',identity:'private.unknown',schema:'private'});
+ c.edges.push({source:'f:0',target:'u:private.unknown',kind:'unresolved-qualified-reference'});
+ assert.ok(dependencyGraph(c,[]).hostedUnknowns.includes('private.unknown'));
 });
