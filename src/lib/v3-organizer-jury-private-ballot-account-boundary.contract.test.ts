@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const source = readFileSync("src/routes/_authenticated/admin/jury/$slug.tsx", "utf8");
 const privateVotes = readFileSync("src/lib/v3-organizer-jury-private-votes.ts", "utf8");
+const privateReadAdapter = readFileSync("src/integrations/organizer/jury-private-reads.ts", "utf8");
 
 describe("Organizer Jury private ballot account/show isolation", () => {
   it("resets prepared correction, DNV and ballot review state when actor or route context changes", () => {
@@ -59,9 +60,14 @@ describe("Organizer Jury private ballot account/show isolation", () => {
     expect(privateVotes).toContain('["jury_votes", "organizer-private", actorId, editionId, showId]');
     expect(privateVotes).toContain('["voters", "organizer-private", actorId, editionId, showId]');
     expect(privateVotes).toContain('enabled: Boolean(actorId && editionId && showId)');
-    expect(privateVotes).toContain('.from("jury_votes")');
-    expect(privateVotes).toContain('.eq("edition_id", editionId)');
-    expect(privateVotes).toContain('.eq("show_id", showId)');
+    expect(privateVotes).not.toContain("integrations/supabase");
+    expect(privateVotes).not.toContain('.from("');
+    expect(privateVotes).toContain("loadOrganizerJuryVoteRows(editionId, showId)");
+    expect(privateVotes).toContain("loadOrganizerShowVoterRows(editionId, showId)");
+    expect(privateReadAdapter).toContain('.from("jury_votes")');
+    expect(privateReadAdapter).toContain('.from("voters")');
+    expect(privateReadAdapter.split('.eq("edition_id", editionId)').length - 1).toBe(2);
+    expect(privateReadAdapter.split('.eq("show_id", showId)').length - 1).toBe(2);
     for (const option of ["gcTime: 0", "retry: false", "refetchInterval: false", "refetchOnWindowFocus: false", "refetchOnReconnect: false"]) {
       expect(privateVotes.split(option).length - 1).toBe(2);
     }

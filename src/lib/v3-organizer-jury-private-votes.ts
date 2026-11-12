@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { supabase } from "@/integrations/supabase/client";
+import { loadOrganizerJuryVoteRows, loadOrganizerShowVoterRows } from "@/integrations/organizer/jury-private-reads";
 import type { JuryVote, Voter } from "@/lib/data";
 
 type OrganizerJuryScope = {
@@ -19,18 +19,8 @@ export function useOrganizerJuryVotes({ actorId, editionId, showId }: OrganizerJ
       if (!actorId || !editionId || !showId) {
         throw new Error("Organizer Jury vote reads require authenticated actor, edition and show");
       }
-      // The user's Supabase session and database RLS remain the authoritative
-      // read boundary. Account-specific cache partitioning is additional defense.
-      const { data, error } = await supabase
-        .from("jury_votes")
-        .select("*")
-        .eq("edition_id", editionId)
-        .eq("show_id", showId);
-      if (error) throw error;
-      return (data ?? []).map((row) => ({
-        ...row,
-        receiving_country_id: row.receiving_country_id ?? row.receiving_entity_id ?? "",
-      })) as JuryVote[];
+      // RLS-authorized I/O stays in integrations. This hook owns cache scope.
+      return loadOrganizerJuryVoteRows(editionId, showId);
     },
     gcTime: 0,
     retry: false,
@@ -49,14 +39,7 @@ export function useOrganizerShowVoters({ actorId, editionId, showId }: Organizer
       if (!actorId || !editionId || !showId) {
         throw new Error("Organizer Jury roster reads require authenticated actor, edition and show");
       }
-      const { data, error } = await supabase
-        .from("voters")
-        .select("*")
-        .eq("edition_id", editionId)
-        .eq("show_id", showId)
-        .order("sort_order");
-      if (error) throw error;
-      return (data ?? []) as Voter[];
+      return loadOrganizerShowVoterRows(editionId, showId);
     },
     gcTime: 0,
     retry: false,
