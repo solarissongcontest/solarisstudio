@@ -3,6 +3,7 @@ import { BookOpen, CircleHelp, Flag, ListTree, ShieldCheck, User, Vote } from "l
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { GuideFAQ } from "@/components/GuideFAQ";
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 
 export const Route = createFileRoute("/guide/")({
   head: () => ({
@@ -27,8 +28,8 @@ const SECTIONS = [
         answer: (
           <>
             Solaris Studio is the website for following Solaris Song Contest. You can look through editions,
-            countries, entries, shows, results, records and voting history. Some pages also let you make
-            predictions or take part in voting.
+            countries, entries, shows, published results and voting history. Eligible participants can also
+            confirm participation or vote during an open round.
           </>
         ),
       },
@@ -37,7 +38,7 @@ const SECTIONS = [
         answer: (
           <>
             No. Most public pages work without an account. You only need to sign in for things linked to you,
-            such as your country account or predictions.
+            such as your country account, submissions or voting responsibilities.
           </>
         ),
       },
@@ -101,7 +102,17 @@ const SECTIONS = [
     title: "Results and voting",
     questions: [
       {
+        question: "Where can I see official results?",
+        answer: (
+          <>
+            Open <Link to="/results" className="font-semibold text-primary">Results</Link> to see
+            officially published rankings and other available result details.
+          </>
+        ),
+      },
+      {
         question: "Where can I see full voting details?",
+        requires: "/scorecharts",
         answer: (
           <>
             Open <Link to="/scorecharts" className="font-semibold text-primary">Full Scorecharts</Link>. Choose a
@@ -111,6 +122,7 @@ const SECTIONS = [
       },
       {
         question: "What is Result Lab?",
+        requires: "/result-lab",
         answer: (
           <>
             Result Lab lets you test a different version of an already published result. For example, you can
@@ -120,6 +132,7 @@ const SECTIONS = [
       },
       {
         question: "What is Relationships?",
+        requires: "/relationships",
         answer: (
           <>
             Relationships shows countries that often give each other points or have similar voting habits over
@@ -138,6 +151,7 @@ const SECTIONS = [
       },
       {
         question: "What is Analysis?",
+        requires: "/analysis",
         answer: (
           <>
             Analysis turns published results into easier-to-read comparisons and stories. It helps you see things
@@ -147,6 +161,7 @@ const SECTIONS = [
       },
       {
         question: "What is Solaris Pulse?",
+        requires: "/pulse",
         answer: (
           <>
             Pulse is the quick-update page. It collects recent contest and country activity so you can catch up
@@ -161,6 +176,7 @@ const SECTIONS = [
     questions: [
       {
         question: "How do predictions work?",
+        requires: "/predictions",
         answer: (
           <>
             Open <Link to="/predictions" className="font-semibold text-primary">Predictions</Link>, choose an
@@ -171,6 +187,7 @@ const SECTIONS = [
       },
       {
         question: "What is Taste DNA?",
+        requires: "/taste-dna",
         answer: (
           <>
             Taste DNA compares your ranking with the jury, televote and overall results. It shows which one was
@@ -180,6 +197,7 @@ const SECTIONS = [
       },
       {
         question: "What is Broadcast Intelligence?",
+        requires: "/broadcast-intelligence",
         answer: (
           <>
             Broadcast Intelligence replays a published result and points out the biggest lead changes, jumps and
@@ -189,6 +207,7 @@ const SECTIONS = [
       },
       {
         question: "What are Archive Games?",
+        requires: "/archive-games",
         answer: (
           <>
             Archive Games are small games made from old Solaris results. They are another way to explore contest
@@ -198,6 +217,7 @@ const SECTIONS = [
       },
       {
         question: "Where are all the tools?",
+        requires: "/tools",
         answer: (
           <>
             Open <Link to="/tools" className="font-semibold text-primary">Tools</Link> to see result, prediction,
@@ -313,6 +333,17 @@ const SECTIONS = [
 ];
 
 function PublicGuidePage() {
+  const { allows } = usePublicLaunchAvailability();
+  // The guide is public discovery too: do not advertise tools that the same
+  // caller cannot open. Empty deferred sections disappear, core help remains.
+  const visibleSections = SECTIONS.map((section) => ({
+    ...section,
+    questions: section.questions.filter(
+      (question) =>
+        !("requires" in question) ||
+        (typeof question.requires === "string" && allows(question.requires)),
+    ),
+  })).filter((section) => section.questions.length > 0);
   return (
     <AppShell>
       <PageHeader
@@ -331,7 +362,7 @@ function PublicGuidePage() {
         <HelpRoute to="/site-directory" icon={ListTree} title="All Solaris pages" description="Browse the complete searchable directory when you know a page exists but not where it lives." />
       </section>
 
-      <GuideFAQ sections={SECTIONS} />
+      <GuideFAQ sections={visibleSections} />
     </AppShell>
   );
 }
