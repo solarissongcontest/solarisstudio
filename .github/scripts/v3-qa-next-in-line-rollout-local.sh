@@ -81,6 +81,7 @@ check_count "Canonical real window open" "select count(*) from public.studio2_ne
 PAYLOAD="{\"edition_id\":\"$ED\",\"source_submission_id\":\"$SOURCE\",\"selection_type\":\"internal\",\"artist\":\"Replacement Artist\",\"song_title\":\"Replacement Song\",\"preview_start\":\"00:10\",\"preview_end\":\"00:30\"}"
 COMMAND="select public.v3_submit_next_in_line('$PAYLOAD'::jsonb,'$OP'::uuid,'nline-fixture-a');"
 deny "missing rollout rule" "$ACTOR" "$COMMAND" "FEATURE_UNAVAILABLE"
+deny "legacy adapter cannot bypass missing rollout" "$ACTOR" "select public.submit_next_in_line('$PAYLOAD'::jsonb);" "FEATURE_UNAVAILABLE"
 check_count "missing rollout no writer row" "select count(*) from public.next_in_line_submissions where edition_id='$ED';" 0
 check_count "missing rollout no receipt" "select count(*) from public.studio2_operation_receipts where operation_id='$OP';" 0
 sql "insert into public.studio2_feature_flags(key,enabled,admins_only,user_ids,edition_ids)
@@ -91,6 +92,11 @@ deny "non-tester caller" "$ACTOR" "$COMMAND" "FEATURE_UNAVAILABLE"
 sql "update public.studio2_feature_flags set user_ids=array['$ACTOR'::uuid],edition_ids=array['$ED2'::uuid] where key='next_in_line';"
 deny "different rollout edition" "$ACTOR" "$COMMAND" "FEATURE_UNAVAILABLE"
 sql "update public.studio2_feature_flags set edition_ids=array['$ED'::uuid] where key='next_in_line';"
+# Positive rollout alone never substitutes for canonical country/delegation authority.
+sql "update public.studio2_feature_flags set user_ids=array['$OTHER'::uuid] where key='next_in_line';"
+deny "rollout-authorized but unassigned account" "$OTHER" "$COMMAND" "AUTHORIZATION"
+check_count "unauthorized account no writer rows" "select count(*) from public.next_in_line_submissions where edition_id='$ED';" 0
+sql "update public.studio2_feature_flags set user_ids=array['$ACTOR'::uuid] where key='next_in_line';"
 role_call "$ACTOR" "$COMMAND" >/dev/null
 check_count "allowed writes one canonical row" "select count(*) from public.next_in_line_submissions where edition_id='$ED' and source_submission_id='$SOURCE';" 1
 role_call "$ACTOR" "$COMMAND" >/dev/null
