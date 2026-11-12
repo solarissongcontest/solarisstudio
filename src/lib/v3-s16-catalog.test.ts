@@ -13,6 +13,33 @@ describe("S16 trustworthy catalog evidence",()=>{
   expect(potentialS16Write('INSERT INTO "public" . "editions" values (1)',"public.editions",null)).toBe(true);
  });
  it("keeps unresolved unqualified SQL as a candidate",()=>expect(potentialS16Write("update editions set name='x'","public.editions",null)).toBe(true));
+ it("detects PostgreSQL-legal DML when comments separate tokens and qualified names",()=>{
+  for(const sql of [
+    "UPDATE /* audit */ public.editions SET name = 'x'",
+    "UPDATE /* nested /* inner */ outer */ public.editions SET name = 'x'",
+    "INSERT/* trace */INTO public.editions(id) VALUES (1)",
+    "DELETE-- explanatory comment\nFROM public.editions WHERE id = 1",
+    "MERGE /* stage */ INTO public.editions USING source ON true WHEN MATCHED THEN DELETE",
+    "TRUNCATE/* maintenance */TABLE public.editions",
+    'UPDATE "public" /* scope */ . /* object */ "editions" SET name = $1',
+  ]) {
+    expect(potentialS16Write(sql,"public.editions","public")).toBe(true);
+  }
+ });
+ it("does not omit later tables in multi-target TRUNCATE statements",()=>{
+  expect(potentialS16Write("TRUNCATE TABLE public.safe_table, public.editions RESTART IDENTITY","public.editions","public")).toBe(true);
+  expect(potentialS16Write('TRUNCATE ONLY "public"."safe,table", ONLY "public"."editions" CASCADE',"public.editions","public")).toBe(true);
+  expect(potentialS16Write("TRUNCATE TABLE /* context */ public.safe_table, /* scope */ editions","public.editions",null)).toBe(true);
+  expect(potentialS16Write("TRUNCATE public.safe_table, televoting.editions","public.editions","public")).toBe(false);
+  expect(potentialS16Write("TRUNCATE public.safe_table, editions","public.editions","private")).toBe(false);
+ });
+ it("preserves conservative dynamic-SQL candidate detection without treating comments as writes",()=>{
+  expect(potentialS16Write("EXECUTE 'UPDATE /* audit */ public.editions SET name = 1'","public.editions","public")).toBe(true);
+  expect(potentialS16Write("/* UPDATE public.editions SET name = 1 */ SELECT 1","public.editions","public")).toBe(false);
+  expect(potentialS16Write("-- UPDATE public.editions SET name=1\nSELECT 1","public.editions","public")).toBe(false);
+  expect(potentialS16Write("UPDATE /* audit */ televoting.editions SET name='x'","public.editions","public")).toBe(false);
+  expect(potentialS16Write("UPDATE /* audit */ editions SET name='x'","public.editions",null)).toBe(true);
+ });
  it("does not match functions across schemas",()=>expect(matchingS16Functions(fixture(),"private.write_state")).toEqual([]));
  it("does not hide an unsafe overload behind a safe first overload",()=>{
   const c=fixture();c.functions=[...c.functions,{...c.functions[0],identity:"public.write_state(text)",executeRoles:["PUBLIC"]}];

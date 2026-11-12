@@ -22,7 +22,7 @@ export const GOVERNANCE_LIBRARY_DESTINATIONS: GovernanceLibraryResult[] = [
     kind: "destination",
     group: "Rules & governance",
     title: "Official SSC Rules",
-    description: "Explore the complete 21-chapter Solaris Song Contest General Regulations.",
+    description: "Explore the complete 22-chapter Solaris Song Contest General Regulations.",
     to: "/rules",
     badge: "Rulebook",
     keywords: ["rules", "rulebook", "regulations", "ssc rules", "contest rules", "general regulations", "rule map"],

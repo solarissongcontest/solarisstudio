@@ -30,7 +30,7 @@ describe('Rules search quick-answer evidence', () => {
 
   it('keeps the official rulebook search alongside controlled quick answers', () => {
     const route = readFileSync(resolve(process.cwd(), 'src/routes/rules/search.tsx'), 'utf8');
-    expect(route).toContain('findRuleSearchQuickAnswer(q)');
+    expect(route).toContain('findRuleSearchQuickAnswer(q, version)');
     expect(route).toContain('key={q}');
     expect(route).toContain('defaultValue={q}');
     expect(route).toContain('searchSscRules(q).slice(0, 20)');

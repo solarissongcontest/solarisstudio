@@ -1,0 +1,1952 @@
+{
+  "task": "S02",
+  "observationDate": "2026-11-09",
+  "provenance": "read-only hosted pg_catalog, no production rows, no SQL body leakage",
+  "hostedHead": "20261101181812",
+  "serverVersionNum": "170011",
+  "scope": "215 user-facing/auth/televoting/private base relations; SHA256 over stable catalog metadata including ACL",
+  "tables": 215,
+  "columns": 2364,
+  "constraints": 1206,
+  "indexes": 669,
+  "triggers": 289,
+  "policies": 255,
+  "relations": [
+    {
+      "id": "auth.audit_log_entries",
+      "sha256": "1037458aa51c3f60b01f32492c27d24ca77ec7c211dd27046360181a8e0efabf",
+      "columns": 5,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 1
+    },
+    {
+      "id": "auth.custom_oauth_providers",
+      "sha256": "84d4fcbcd9ca4912a1e032e70df29f944f149f93a1ec50b97d7291ebf2137b40",
+      "columns": 25,
+      "indexes": 6,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 20
+    },
+    {
+      "id": "auth.flow_state",
+      "sha256": "bf995a90ec5492544d2d1f95800d510b1edaa6bebf67cac120d38d59436ffe3b",
+      "columns": 17,
+      "indexes": 4,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 1
+    },
+    {
+      "id": "auth.identities",
+      "sha256": "85cf31e3f51205a2974c2b4e01975c981b944a380107d624f2ed990b20f35188",
+      "columns": 9,
+      "indexes": 4,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "auth.instances",
+      "sha256": "fae3af6c004ce131fdcf41b70467d55bb8fc9c56bd893d3d97d4c5c9d13ff3e3",
+      "columns": 5,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 1
+    },
+    {
+      "id": "auth.mfa_amr_claims",
+      "sha256": "300e9988e7be196182c491a3d7fd0c41e289d2ce70f961cc511833e5ef45f64d",
+      "columns": 5,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "auth.mfa_challenges",
+      "sha256": "8816adba33c8d65100b79c93ac70d5ec02108a4fd0cac1879e29957fed0eee0b",
+      "columns": 7,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 2
+    },
+    {
+      "id": "auth.mfa_factors",
+      "sha256": "bcb4f8eaa074e84c0b9b32b85642a38c457dd397c6e8d3e15e164cefd4da5b2a",
+      "columns": 13,
+      "indexes": 6,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "auth.mfa_recovery_code_sets",
+      "sha256": "4ce3d63bed33f6960dc3ec96b269614427993fe0b1a16389dfaaf07171212300",
+      "columns": 7,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 6
+    },
+    {
+      "id": "auth.mfa_recovery_codes",
+      "sha256": "ef3e0052564b1e7b37a1fe2edd9b00bc9cdc8c2028c994ecf3cbda0cef8d4cd0",
+      "columns": 5,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 2
+    },
+    {
+      "id": "auth.oauth_authorizations",
+      "sha256": "7bea3623748f35779a7ba8d83f73ce0a4c2133f9cfa3ef99c2e7df5cd3742ba4",
+      "columns": 17,
+      "indexes": 4,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 13
+    },
+    {
+      "id": "auth.oauth_client_states",
+      "sha256": "761f3f1f16b5f14701f0594811bbe1169e570983c506b22687182ed9c85e5c72",
+      "columns": 4,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 1
+    },
+    {
+      "id": "auth.oauth_clients",
+      "sha256": "bc3c99f2c6cbd92a3c0a858921d2a3dd4bc57123705ad01d7932bece3c04971f",
+      "columns": 13,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 5
+    },
+    {
+      "id": "auth.oauth_consents",
+      "sha256": "91d895839b381bc525ba82189b476d4c42222595390fb2feaae206459267cf9a",
+      "columns": 6,
+      "indexes": 5,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 7
+    },
+    {
+      "id": "auth.one_time_tokens",
+      "sha256": "6c0cdc25adf42cc3789830c271a17fe50cd02905e6aa29280049ee110da65010",
+      "columns": 8,
+      "indexes": 4,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "auth.refresh_tokens",
+      "sha256": "68f82d0dbd857f3e382222dd27ebfea5e33d62748a05655f9a927874c4cb133c",
+      "columns": 9,
+      "indexes": 7,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "auth.saml_providers",
+      "sha256": "fb0c5f192a4d02524b7bb78b1cde78bbaab67c13435406e590f67d3b1d984bb1",
+      "columns": 9,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 6
+    },
+    {
+      "id": "auth.saml_relay_states",
+      "sha256": "1f3cf4d6d107ac7fcf737fcd58a5a14a3f603bde060f0694a568d86347a3a3e0",
+      "columns": 8,
+      "indexes": 4,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 4
+    },
+    {
+      "id": "auth.schema_migrations",
+      "sha256": "596d26ff29702f89667bd3d348c833b996c78b6f7b2c28563b6e739417a8cb9c",
+      "columns": 1,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 1
+    },
+    {
+      "id": "auth.scim_tokens",
+      "sha256": "89731a718e1ed9f8c666e947be02086643b88352b9f824060acd0853de72bbac",
+      "columns": 8,
+      "indexes": 5,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 5
+    },
+    {
+      "id": "auth.scim_users",
+      "sha256": "00e7ea9710b9be2221a8b367ba4ad4828817354872060c174e7a4cf9daa28191",
+      "columns": 10,
+      "indexes": 10,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "auth.sessions",
+      "sha256": "1ab999e8ac61b4985f5a65c5e0d642218935ac0371c8497b64f5af74c58888ed",
+      "columns": 15,
+      "indexes": 5,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 4
+    },
+    {
+      "id": "auth.sso_domains",
+      "sha256": "fa15150fc8090bba847c1287ccb8719ab54e1a2379f9411f796809ff2c52548e",
+      "columns": 5,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "auth.sso_providers",
+      "sha256": "bfe1518cbca9631ed6e580053c8579d509cd40feeb9dcfca2011c211f233ed7a",
+      "columns": 5,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 2
+    },
+    {
+      "id": "auth.users",
+      "sha256": "7c170ca25b0cadc4ddd5a581b1aaabf2e90f0d09ca6b02438777276bc3122c2e",
+      "columns": 35,
+      "indexes": 15,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "auth.webauthn_challenges",
+      "sha256": "c0c5dd982567b0e8921e9d1165defb09007604a6e5bbf9c06e04e6d712c1d2f6",
+      "columns": 6,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "auth.webauthn_credentials",
+      "sha256": "1fb34535f70a7888c15fd12011bc9781d06047af423c4281b92d0641d6262426",
+      "columns": 14,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 2
+    },
+    {
+      "id": "private.country_auth_rate_limits",
+      "sha256": "dead990868ee71f4bcee9a8ce2af7429cb2c0119d2ee1d6eb032eb024cf76590",
+      "columns": 5,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 2
+    },
+    {
+      "id": "private.studio2_platform_exit_write_probe",
+      "sha256": "07d5d8d2ab6ac7533284bed36d7b6ac463e32a783fd9010117e49314472346b0",
+      "columns": 3,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 1
+    },
+    {
+      "id": "private.v3_confirmation_account_drafts",
+      "sha256": "8b9e02c9e73f31699a9f55817bbbcbe269e457a7e1bd7ac42d4ebb0fd8da515a",
+      "columns": 6,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 4
+    },
+    {
+      "id": "private.v3_confirmation_operations",
+      "sha256": "e95a7199dd508abf6e2222cfadbb4f44c4ae150d8e8f40efe206f88bc53330cd",
+      "columns": 7,
+      "indexes": 4,
+      "policies": 0,
+      "triggers": 1,
+      "constraints": 5
+    },
+    {
+      "id": "private.v3_domain_event_consumer_receipts",
+      "sha256": "f82a975d42553bf387762fc204cabda9ce67ad578b4bf846d5827ca7b62f69f1",
+      "columns": 4,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 1,
+      "constraints": 4
+    },
+    {
+      "id": "private.v3_domain_event_outbox",
+      "sha256": "90cbca24841e67f19e0d3ad1dc8ace1063dfc498ef07d5ad0a9a852d3d9c7082",
+      "columns": 13,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 8
+    },
+    {
+      "id": "private.v3_domain_events",
+      "sha256": "89278de6a1c2b894a41cf15f6619b30716ff6df86823f4debb78c3e9f0398c10",
+      "columns": 13,
+      "indexes": 5,
+      "policies": 0,
+      "triggers": 1,
+      "constraints": 12
+    },
+    {
+      "id": "private.v3_entry_reviews",
+      "sha256": "e7c51218fa2980f29506b7ce8df112f6d1d7361ed208da9d421deed06fd5698a",
+      "columns": 6,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 1,
+      "constraints": 3
+    },
+    {
+      "id": "private.v3_entry_versions",
+      "sha256": "10f150a6b95df87e8f65c985a8c4084e94386474e9adefc781998bcbf532c8b2",
+      "columns": 13,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 2,
+      "constraints": 7
+    },
+    {
+      "id": "private.v3_jury_drafts",
+      "sha256": "e01929a53f28acef7abbf6416a8e9a010f9f4d0a3be6c357a8e7bf6d7bc7a880",
+      "columns": 10,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 9
+    },
+    {
+      "id": "private.v3_jury_operations",
+      "sha256": "007844b904ce277a2b532ed3c1ae1e06d0a2f1fd020978bdc2d692ba25ace257",
+      "columns": 10,
+      "indexes": 4,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 8
+    },
+    {
+      "id": "private.v3_result_versions",
+      "sha256": "73ad2fecc9a4b6731d1566ae1fb369b6431e321f76aa0090590b5d152f04b964",
+      "columns": 7,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 1,
+      "constraints": 6
+    },
+    {
+      "id": "private.v3_televote_recovery_handles",
+      "sha256": "c8b1dac64610a9ecb1eee46354844d87cd4042d86eff84f40d23f436c8040e6d",
+      "columns": 4,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 4
+    },
+    {
+      "id": "public.admin_audit_log",
+      "sha256": "c2bf126dbf49e7e06e5f2163428ebc7ba37e81b2af626fdf36694c2212733577",
+      "columns": 10,
+      "indexes": 7,
+      "policies": 1,
+      "triggers": 0,
+      "constraints": 4
+    },
+    {
+      "id": "public.admin_beta_test_submissions",
+      "sha256": "071a2329e8f39726f276f13ed4ae96974ae41d04db7c6c6505e25c89dd2102aa",
+      "columns": 11,
+      "indexes": 2,
+      "policies": 2,
+      "triggers": 2,
+      "constraints": 3
+    },
+    {
+      "id": "public.admin_deadlines",
+      "sha256": "9cd6d912a32f94ebfe2cad3674923537d3f5796e101710ce67c1fcc2b310c3fd",
+      "columns": 11,
+      "indexes": 3,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 4
+    },
+    {
+      "id": "public.admin_notifications",
+      "sha256": "088ce9705322758a454172e14721ac74579c8c8933276d9edf033891d98c4cea",
+      "columns": 13,
+      "indexes": 4,
+      "policies": 2,
+      "triggers": 3,
+      "constraints": 5
+    },
+    {
+      "id": "public.admin_preferences",
+      "sha256": "1cdb7769afd8b725a100894dd0e892ed16698f2ab834f93f34896b5cd4102282",
+      "columns": 7,
+      "indexes": 1,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 4
+    },
+    {
+      "id": "public.app_push_subscriptions",
+      "sha256": "91683eeeb6feb7b03cea3f1cac682fbc4d2f337310565c736bbb04f40528f8e1",
+      "columns": 10,
+      "indexes": 3,
+      "policies": 4,
+      "triggers": 1,
+      "constraints": 3
+    },
+    {
+      "id": "public.beta2_test_submissions",
+      "sha256": "3eebdcb8e1daeefa0d362046c0aa776a6674612f7c869bf38e8df323fb782c4b",
+      "columns": 18,
+      "indexes": 2,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 2
+    },
+    {
+      "id": "public.beta3_test_submissions",
+      "sha256": "0d372ded07217a59a58218fef474113fc7423c505083fdaa92517d5b6c14045e",
+      "columns": 11,
+      "indexes": 2,
+      "policies": 2,
+      "triggers": 2,
+      "constraints": 8
+    },
+    {
+      "id": "public.beta_test_submissions",
+      "sha256": "3b0b71742e9fbc7e40adba296fe15a514ffaefb335588c9204a6c464f41f362d",
+      "columns": 11,
+      "indexes": 2,
+      "policies": 2,
+      "triggers": 2,
+      "constraints": 3
+    },
+    {
+      "id": "public.content_events",
+      "sha256": "2feb92b603290bb75770a9b7211ebcc6dcc12d90a9beb2b4a793afc3f67ac5c6",
+      "columns": 12,
+      "indexes": 2,
+      "policies": 5,
+      "triggers": 1,
+      "constraints": 2
+    },
+    {
+      "id": "public.contest_entities",
+      "sha256": "e2c8d47b1175e21e3f906def9b4329018b3e03c09d3854b7574f37896751db19",
+      "columns": 11,
+      "indexes": 5,
+      "policies": 5,
+      "triggers": 3,
+      "constraints": 7
+    },
+    {
+      "id": "public.countries",
+      "sha256": "c06e0f24eba23e3be731c7d90bc34c24a823e7b21251ee9eb1a5bc7a624226c9",
+      "columns": 15,
+      "indexes": 3,
+      "policies": 5,
+      "triggers": 5,
+      "constraints": 5
+    },
+    {
+      "id": "public.country_accounts",
+      "sha256": "53f8b325a96616f1b0cf7abc85bb69a3290d14892a4fb91c7cae9791fde77df6",
+      "columns": 11,
+      "indexes": 3,
+      "policies": 4,
+      "triggers": 3,
+      "constraints": 4
+    },
+    {
+      "id": "public.country_design_presets",
+      "sha256": "6abfe2016c09dfaf54825a79d2efbd5b46b7b7f12d16cdb7f1f1d0a592c01709",
+      "columns": 8,
+      "indexes": 1,
+      "policies": 4,
+      "triggers": 1,
+      "constraints": 5
+    },
+    {
+      "id": "public.country_edition_identities",
+      "sha256": "6bccc4dfc6d3ba5645ebd1d2719fbbf2e79e61b6edc11adab2ccf1b5af3df166",
+      "columns": 7,
+      "indexes": 2,
+      "policies": 2,
+      "triggers": 2,
+      "constraints": 5
+    },
+    {
+      "id": "public.country_font_assets",
+      "sha256": "8641944ceafa4b2783b27cb45adeaac8118f38bf12c2a1f9ffab0c959ffc8fab",
+      "columns": 9,
+      "indexes": 2,
+      "policies": 3,
+      "triggers": 1,
+      "constraints": 6
+    },
+    {
+      "id": "public.country_hod_edition_claims",
+      "sha256": "ee896dd510dbe113b79f16612094dd582b78f0ea48678d11c37fa6374cc0d21e",
+      "columns": 5,
+      "indexes": 3,
+      "policies": 4,
+      "triggers": 1,
+      "constraints": 5
+    },
+    {
+      "id": "public.country_media",
+      "sha256": "17b57e3b4510fb6f6e80283ea7334ca340be7194f5391b5d8d1f3415f41f8959",
+      "columns": 8,
+      "indexes": 3,
+      "policies": 5,
+      "triggers": 1,
+      "constraints": 3
+    },
+    {
+      "id": "public.country_profile_sections",
+      "sha256": "80ac061cc3dca3b2e81d66e1c52dfc347e89c88e5c9cbe9cacfe51cbd8788df4",
+      "columns": 17,
+      "indexes": 2,
+      "policies": 5,
+      "triggers": 2,
+      "constraints": 6
+    },
+    {
+      "id": "public.country_profiles",
+      "sha256": "623eeb0111bea4573adaff14b8fcdd21f26d52e942aabeddfd53adf2e04c4370",
+      "columns": 13,
+      "indexes": 1,
+      "policies": 5,
+      "triggers": 2,
+      "constraints": 2
+    },
+    {
+      "id": "public.country_themes",
+      "sha256": "ac88a06770c862b0da52055d8bd624216ba9f6bf024ff13a0cb24253f0858ec7",
+      "columns": 24,
+      "indexes": 1,
+      "policies": 5,
+      "triggers": 2,
+      "constraints": 19
+    },
+    {
+      "id": "public.delegation_hod_assignments",
+      "sha256": "2dde5b59e866db669c9e6da5f19effa5c26bf43746c4a9ffb4eea709797cfbad",
+      "columns": 10,
+      "indexes": 5,
+      "policies": 1,
+      "triggers": 2,
+      "constraints": 7
+    },
+    {
+      "id": "public.delegation_people",
+      "sha256": "078c7b5589cb5358a3d486dcb53909cf94041d407ab18c617bc8bf38a372bbca",
+      "columns": 6,
+      "indexes": 2,
+      "policies": 1,
+      "triggers": 2,
+      "constraints": 4
+    },
+    {
+      "id": "public.edit_tokens",
+      "sha256": "65d4edc7283f2c0420fda537b8ad3cd76c54bfc22092d331aba10b68043c8e80",
+      "columns": 9,
+      "indexes": 2,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 3
+    },
+    {
+      "id": "public.editions",
+      "sha256": "c15be05873d6b80bd2a5fa5d9cb582ffaf87d66e09187c22347f4649698ab369",
+      "columns": 22,
+      "indexes": 3,
+      "policies": 5,
+      "triggers": 9,
+      "constraints": 4
+    },
+    {
+      "id": "public.entries",
+      "sha256": "f19fc22ca8f64a94d351789784f9a89df932014ef9cfe37295230189a6d16132",
+      "columns": 14,
+      "indexes": 5,
+      "policies": 5,
+      "triggers": 6,
+      "constraints": 6
+    },
+    {
+      "id": "public.fan_event_reads",
+      "sha256": "0dc69236abcd20ef642c89a37cba715d221b2cf4a335e446415a0c7b2378e933",
+      "columns": 3,
+      "indexes": 1,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 3
+    },
+    {
+      "id": "public.fan_follows",
+      "sha256": "c3bfac4e44c68725bfc056f6ca71503958c8cb0cb71dc4209f2ffa4f2ec3273c",
+      "columns": 8,
+      "indexes": 2,
+      "policies": 1,
+      "triggers": 3,
+      "constraints": 4
+    },
+    {
+      "id": "public.fan_profiles",
+      "sha256": "25481cd695c27715be22edd9d5e8a42aa99bdcf1d0d088c53a2a2f6bd8332d1c",
+      "columns": 9,
+      "indexes": 1,
+      "policies": 4,
+      "triggers": 2,
+      "constraints": 4
+    },
+    {
+      "id": "public.fan_taste_ballots",
+      "sha256": "bf74b00fef421b46cb2ebc1f0c78ebffa7cb64bb2c937c220bbe68c202653a93",
+      "columns": 6,
+      "indexes": 4,
+      "policies": 4,
+      "triggers": 2,
+      "constraints": 4
+    },
+    {
+      "id": "public.fantasy_game_entries",
+      "sha256": "bc6b7f6a0a4a73180f71401b8253732ffac8644438e7339af99867ce756e03d9",
+      "columns": 5,
+      "indexes": 1,
+      "policies": 2,
+      "triggers": 1,
+      "constraints": 3
+    },
+    {
+      "id": "public.fantasy_games",
+      "sha256": "04bef524184096b4388c44bf57e169f3284eb10c6c8d1cfa60cd4386e1698884",
+      "columns": 14,
+      "indexes": 5,
+      "policies": 2,
+      "triggers": 1,
+      "constraints": 11
+    },
+    {
+      "id": "public.fantasy_team_entries",
+      "sha256": "8b4090b7c359fc8d1b557302330e497ae56ed6eec2d82438c581fccc855f3726",
+      "columns": 5,
+      "indexes": 1,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 4
+    },
+    {
+      "id": "public.fantasy_teams",
+      "sha256": "18726f52ac98ee1e8232b3456930fafd2cc3777842280ce4b81188c9bff5ea88",
+      "columns": 12,
+      "indexes": 4,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 5
+    },
+    {
+      "id": "public.friend_voting_settings",
+      "sha256": "ba3dcec8068a9cdade8896d9f29e09f0d4a2901a48616812673afd1b29d0865d",
+      "columns": 27,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 2,
+      "constraints": 8
+    },
+    {
+      "id": "public.integration_events",
+      "sha256": "e685dcfed9e9b569143bdbbafd5a439ede49ed1527b8ed8bf1811bf10f830391",
+      "columns": 15,
+      "indexes": 4,
+      "policies": 1,
+      "triggers": 2,
+      "constraints": 4
+    },
+    {
+      "id": "public.integration_links",
+      "sha256": "0253957e151b1dd3550001f9f60509954b8507098068e08fe9a659c07c760947",
+      "columns": 11,
+      "indexes": 5,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 6
+    },
+    {
+      "id": "public.integrity_case_access",
+      "sha256": "1cc2cac910d8f641a6496437bb88eab15f56f197caabe6a698d2fb6293011448",
+      "columns": 3,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 2
+    },
+    {
+      "id": "public.integrity_case_appeals",
+      "sha256": "9fa02f9eb8c5ea4f7853f2f40c026a777964437da108a5217d8a3a96284c1f02",
+      "columns": 19,
+      "indexes": 4,
+      "policies": 0,
+      "triggers": 2,
+      "constraints": 11
+    },
+    {
+      "id": "public.integrity_case_events",
+      "sha256": "25f73557189614153f198770175723c4f7c14d164b71f07354e4e8e1eab8cf93",
+      "columns": 7,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "public.integrity_case_evidence",
+      "sha256": "cc0044834363c902321abed0e3366dfd8d99ddc90095fba07a224f608bfbbaed",
+      "columns": 22,
+      "indexes": 5,
+      "policies": 0,
+      "triggers": 2,
+      "constraints": 12
+    },
+    {
+      "id": "public.integrity_case_findings",
+      "sha256": "82e2cce778fbf1bc2bb9b9ac91e9dcf93322a929cc83af83d4998f8089b152ae",
+      "columns": 9,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 4
+    },
+    {
+      "id": "public.integrity_case_internal_notes",
+      "sha256": "f9fca1d9949fb2e97cb10d00407b971bd59149d4465747e91fc9fa9fa95d21fb",
+      "columns": 5,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "public.integrity_case_messages",
+      "sha256": "4e751195ba3298a37dc15f9a827ec20b581b180b9d583ade47caf896aea005a0",
+      "columns": 7,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 4
+    },
+    {
+      "id": "public.integrity_case_relations",
+      "sha256": "3bb1975babfcfa560163e909b6db9d4d9c75ecfeecb924b2bff17d54f1618862",
+      "columns": 7,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 7
+    },
+    {
+      "id": "public.integrity_case_requests",
+      "sha256": "974ade05a80281f4d311949d354809da65d6ffcca3242f24b2e6941ea03a361a",
+      "columns": 9,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 5
+    },
+    {
+      "id": "public.integrity_case_reviewers",
+      "sha256": "7c7f4fbe6935a42a593ed5b114a4eefe246197b8fdab4768094c4ef2e28eb3c6",
+      "columns": 7,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 5
+    },
+    {
+      "id": "public.integrity_case_rule_links",
+      "sha256": "ecb5ba90d13bee78e52374033c1dd83850f15257221d80559b71c9d519ccfb95",
+      "columns": 7,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 5
+    },
+    {
+      "id": "public.integrity_case_sanctions",
+      "sha256": "48a7595eed260aa8213bc580b9136af0ebbb3510ec22a0a6f9bcba2b777a5a84",
+      "columns": 17,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 11
+    },
+    {
+      "id": "public.integrity_cases",
+      "sha256": "ed17db501b5c7e161e6e0172022a29a451120cd2d26e5a3dc90e43b7f2391a00",
+      "columns": 19,
+      "indexes": 5,
+      "policies": 0,
+      "triggers": 3,
+      "constraints": 11
+    },
+    {
+      "id": "public.integrity_evidence_access_log",
+      "sha256": "4053312ef54d71ba3c22ecf844570b35892146ab608d209b482696a23e16922a",
+      "columns": 8,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 6
+    },
+    {
+      "id": "public.integrity_evidence_upload_tokens",
+      "sha256": "fc9681cf1b21ae21c10a3041aff1f508ebb993900620d332c6728d740ba39c83",
+      "columns": 12,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 7
+    },
+    {
+      "id": "public.integrity_identity_disclosure_requests",
+      "sha256": "a3e2c2d2985a038a2bb94f1b55afc0c4001eb835374579b0ec89740d724bdb57",
+      "columns": 11,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 2,
+      "constraints": 6
+    },
+    {
+      "id": "public.integrity_preclearance_rulings",
+      "sha256": "a0413f7b53ed2f5269d6624f91f199df729d5d1e3e0cb48b0165111e6beb2da2",
+      "columns": 8,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 5
+    },
+    {
+      "id": "public.integrity_public_decisions",
+      "sha256": "65733554c36c75c5cc7707dfa74b6d75a88be155d141f2f76bd3e421f6ca11e6",
+      "columns": 9,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "public.internal_entries",
+      "sha256": "eadf0f1086b5a47a3c58f85fedc8c1f190a5b57181fce052d7ffb410d002a229",
+      "columns": 19,
+      "indexes": 2,
+      "policies": 1,
+      "triggers": 7,
+      "constraints": 6
+    },
+    {
+      "id": "public.jury_ballot_statuses",
+      "sha256": "005c44036e99c2c9006ed2fb0762b72e92d6baa3edc4afc2422e2ba48eacc803",
+      "columns": 13,
+      "indexes": 4,
+      "policies": 1,
+      "triggers": 3,
+      "constraints": 11
+    },
+    {
+      "id": "public.jury_ballot_submissions",
+      "sha256": "99c25dbbfebba9c89f4e05a58b41060fafbe851f9b436a08715f3bca4f13deac",
+      "columns": 16,
+      "indexes": 4,
+      "policies": 1,
+      "triggers": 5,
+      "constraints": 14
+    },
+    {
+      "id": "public.jury_votes",
+      "sha256": "c750c1fee3fb9cbf4f6af12236acaa03fa42b824619ecd4d24d0aec72b4134a2",
+      "columns": 11,
+      "indexes": 12,
+      "policies": 5,
+      "triggers": 5,
+      "constraints": 14
+    },
+    {
+      "id": "public.jury_voting_windows",
+      "sha256": "999ee504934597e49a9efcca285ea8628154778617eb7920753e90060a805088",
+      "columns": 7,
+      "indexes": 3,
+      "policies": 4,
+      "triggers": 3,
+      "constraints": 5
+    },
+    {
+      "id": "public.national_final_entries",
+      "sha256": "2d70211b9016f7c444569d91d82239bc096f69891d28ed97343c3ffe14044dcb",
+      "columns": 24,
+      "indexes": 3,
+      "policies": 1,
+      "triggers": 10,
+      "constraints": 5
+    },
+    {
+      "id": "public.national_finals",
+      "sha256": "c869d0532462698d9f470d1064aa4955f08ffe0168568187a6f358997c18b7e1",
+      "columns": 13,
+      "indexes": 3,
+      "policies": 1,
+      "triggers": 7,
+      "constraints": 10
+    },
+    {
+      "id": "public.next_in_line_responses",
+      "sha256": "607ba18ce0914a262160d0b6687ab28519b12f153c4867bdbd710af395f8b27b",
+      "columns": 17,
+      "indexes": 2,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 5
+    },
+    {
+      "id": "public.next_in_line_submissions",
+      "sha256": "2dec887c4d77ab53baaab64c48366f13982b4f008f071ad5130131fc5f9f9eb6",
+      "columns": 18,
+      "indexes": 3,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 14
+    },
+    {
+      "id": "public.notification_deliveries",
+      "sha256": "6a30e8c760f696f4c72a54a3a387a465ec5b4503a4aace5dcd0748939c3016e6",
+      "columns": 22,
+      "indexes": 5,
+      "policies": 1,
+      "triggers": 3,
+      "constraints": 5
+    },
+    {
+      "id": "public.notification_preferences",
+      "sha256": "51b27eb220721b3a2effe305db8296b081697a2eca1199c51f05ad0bc39af5ef",
+      "columns": 10,
+      "indexes": 1,
+      "policies": 4,
+      "triggers": 1,
+      "constraints": 3
+    },
+    {
+      "id": "public.participants",
+      "sha256": "92ce39f59a462165b62dd008741c7c75fb6ac7c7c51d0cd8c1e2c5c31e504a18",
+      "columns": 23,
+      "indexes": 8,
+      "policies": 5,
+      "triggers": 14,
+      "constraints": 10
+    },
+    {
+      "id": "public.permission_evaluation_events",
+      "sha256": "88e7cb74b849b69dc08bb744b73241e9d5f5280a21625f3fcd0fe631bddc3b90",
+      "columns": 9,
+      "indexes": 6,
+      "policies": 1,
+      "triggers": 0,
+      "constraints": 6
+    },
+    {
+      "id": "public.prediction_consensus_snapshots",
+      "sha256": "900c58a221f57ad3260aaf9e4eeaec5e96d40abc48be746a295fc15153f6b923",
+      "columns": 6,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 1,
+      "constraints": 4
+    },
+    {
+      "id": "public.prediction_entries",
+      "sha256": "73f148a84d35660f7a2bafe2a56ab533d211696bacfc5ae11064a833d1890cf2",
+      "columns": 10,
+      "indexes": 3,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 5
+    },
+    {
+      "id": "public.prediction_entry_versions",
+      "sha256": "e27dbd316a76a3046c3218f9a5cdc56130589fe4143cd4bd2428cd935c8d2d13",
+      "columns": 5,
+      "indexes": 2,
+      "policies": 1,
+      "triggers": 2,
+      "constraints": 4
+    },
+    {
+      "id": "public.prediction_items",
+      "sha256": "4b3611a91c1e77185c53691da2b6ea4a623e79de13757a85679c4e9da634d7dc",
+      "columns": 7,
+      "indexes": 2,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 6
+    },
+    {
+      "id": "public.prediction_rounds",
+      "sha256": "08124b463749b67c3cf933fb6f76f6d67c4aa1882de539b575454f2a4b86c8bd",
+      "columns": 10,
+      "indexes": 2,
+      "policies": 5,
+      "triggers": 2,
+      "constraints": 5
+    },
+    {
+      "id": "public.prediction_scores",
+      "sha256": "039937ef9f1cfbee0bda6536d72e723106edafa23a3c58e9fa84f05566b9181c",
+      "columns": 6,
+      "indexes": 1,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 4
+    },
+    {
+      "id": "public.public_ia_rollout_state",
+      "sha256": "a401d86b0a5c384f0349a8da76352bd66c7328f253e27f460ff3f0321b2508ed",
+      "columns": 5,
+      "indexes": 1,
+      "policies": 2,
+      "triggers": 1,
+      "constraints": 4
+    },
+    {
+      "id": "public.public_televote_country_contributions",
+      "sha256": "df61f7dc00c682ba353c52f8c71d544272f8738ab2267c3052c1cebbe541e7c7",
+      "columns": 12,
+      "indexes": 1,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 3
+    },
+    {
+      "id": "public.public_ux_events",
+      "sha256": "de33c015d93c3843bb0ae8c82ec0cc96d170abdc173238454fb10d3417ef2c04",
+      "columns": 8,
+      "indexes": 6,
+      "policies": 2,
+      "triggers": 1,
+      "constraints": 16
+    },
+    {
+      "id": "public.public_web_vitals",
+      "sha256": "0b7de00fdb82424d35ce620f4d0bbb22a20132866c6f6f42165012c5c044ec8e",
+      "columns": 11,
+      "indexes": 4,
+      "policies": 2,
+      "triggers": 1,
+      "constraints": 9
+    },
+    {
+      "id": "public.results",
+      "sha256": "bfd2af820469d12bed78d994ad1a806089a88f8a70c6e82dbbc40cca4d2d3a51",
+      "columns": 11,
+      "indexes": 7,
+      "policies": 5,
+      "triggers": 3,
+      "constraints": 8
+    },
+    {
+      "id": "public.round_stats",
+      "sha256": "599066cb93cf0c9f8a699a2e88f7355d677c47403153ed4ae6cf64021cb62f79",
+      "columns": 3,
+      "indexes": 1,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 2
+    },
+    {
+      "id": "public.shows",
+      "sha256": "a1a6b6f5070fc148ca8330891c525105c9b8d7808d8d79411cebca416ce900f2",
+      "columns": 17,
+      "indexes": 2,
+      "policies": 5,
+      "triggers": 16,
+      "constraints": 6
+    },
+    {
+      "id": "public.ssc_rule_interpretation_sources",
+      "sha256": "4ff6168f366fe5600a35317e5ed48c20dd4b189f4a418b07762e7ef35aa3d53c",
+      "columns": 5,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 5
+    },
+    {
+      "id": "public.ssc_rule_interpretations",
+      "sha256": "8eb05419b94c40f529c0377aad26a338635b900d3a4f076177a5a3452c356745",
+      "columns": 15,
+      "indexes": 4,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 9
+    },
+    {
+      "id": "public.ssc_rule_registry",
+      "sha256": "cab815138f31b5e7a5a4ad708c69d74647ea78dffd19fee8868b8f583bbcb738",
+      "columns": 3,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 2
+    },
+    {
+      "id": "public.ssc_rulebook_change_items",
+      "sha256": "b978b68670f2e402b613a96c4113c6694c7ab3c784c8421c23372b9388482638",
+      "columns": 10,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 8
+    },
+    {
+      "id": "public.ssc_rulebook_events",
+      "sha256": "dfddfe02fd1af03c03bfe83a952992cc13c688d8b3e91c3351f5e4caf0a2d44a",
+      "columns": 6,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "public.ssc_rulebook_releases",
+      "sha256": "368d0d40f9abf0544912722d762fa795fd3d4eeaa313ae85ddd7f7d51b9c5b9d",
+      "columns": 12,
+      "indexes": 4,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 6
+    },
+    {
+      "id": "public.studio2_access_roles",
+      "sha256": "296bed7bb451859a644573b60fcabde77e26c038e9750cffcf6c5b9783438d9d",
+      "columns": 5,
+      "indexes": 1,
+      "policies": 1,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "public.studio2_account_session_revocations",
+      "sha256": "eecb4a610302b00e5657d7e51e052a486122ef1838add21b42ed461d7512091b",
+      "columns": 7,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 6
+    },
+    {
+      "id": "public.studio2_capabilities",
+      "sha256": "06c967136718c3abc2e8508840a98693f206e33cecda714449a1f5b9f72899e5",
+      "columns": 6,
+      "indexes": 1,
+      "policies": 1,
+      "triggers": 0,
+      "constraints": 4
+    },
+    {
+      "id": "public.studio2_capability_grants",
+      "sha256": "9b56006250647b177c678ee8a87bef49a8bb5b9020ec22cd141e35717abc3cc3",
+      "columns": 7,
+      "indexes": 6,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 6
+    },
+    {
+      "id": "public.studio2_confirmation_requirements",
+      "sha256": "370dde0434152b4f282bb757638404439bc23fd93591575a6d2afdca0f8c7ace",
+      "columns": 16,
+      "indexes": 5,
+      "policies": 0,
+      "triggers": 1,
+      "constraints": 13
+    },
+    {
+      "id": "public.studio2_confirmation_review_versions",
+      "sha256": "6585639ff3982cc9fc57c45f87ee087ad9643b0ba656f605f3c840034d5ceb79",
+      "columns": 3,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "public.studio2_confirmation_round_versions",
+      "sha256": "aaf4fe3e1035285f37b1f0a87d682663d48469f6a079f842cdbdca34077aa3bf",
+      "columns": 3,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "public.studio2_contest_events",
+      "sha256": "82c04384a624bc64a36006b75e644166a7e89b93fbb4f2b18d1ee8f7b49832a1",
+      "columns": 8,
+      "indexes": 4,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 5
+    },
+    {
+      "id": "public.studio2_country_media_upload_tokens",
+      "sha256": "896e98c556374b4dab5b5db2a8196791933f63d9e872db2e44591bf5632b9b3a",
+      "columns": 11,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 8
+    },
+    {
+      "id": "public.studio2_delegation_settings",
+      "sha256": "398679abceb6ec15883a7b7f26ec7589c5c15a5752a61e0b0ec7399db0265a25",
+      "columns": 6,
+      "indexes": 3,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 5
+    },
+    {
+      "id": "public.studio2_edition_runtime",
+      "sha256": "248a1a6df7594601c1724f926b4fbad9b0eec7213872a22060059a8d3b8572b9",
+      "columns": 7,
+      "indexes": 2,
+      "policies": 1,
+      "triggers": 2,
+      "constraints": 7
+    },
+    {
+      "id": "public.studio2_eligibility_override_versions",
+      "sha256": "a19e516cf8c0d7f8560c35a49a659224227930707ab7b2d8a590c6a20560ec7d",
+      "columns": 5,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 4
+    },
+    {
+      "id": "public.studio2_eligibility_overrides",
+      "sha256": "56c235738b700c281578755d35f1d6c66ecf1423b79ee318f0643d97ae50a47a",
+      "columns": 11,
+      "indexes": 6,
+      "policies": 0,
+      "triggers": 1,
+      "constraints": 8
+    },
+    {
+      "id": "public.studio2_feature_flags",
+      "sha256": "368e1a090c2e978ed0218947fd62c7e884c8176fcb3b19c113a21201e71746e1",
+      "columns": 8,
+      "indexes": 2,
+      "policies": 1,
+      "triggers": 2,
+      "constraints": 3
+    },
+    {
+      "id": "public.studio2_host_bid_evaluations",
+      "sha256": "411c81e2c34c5d5f4fe5925e69bd0aee4aa7d49972592d7b259ee9779bdee6c3",
+      "columns": 8,
+      "indexes": 5,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 7
+    },
+    {
+      "id": "public.studio2_host_bids",
+      "sha256": "4102555ad3fe547abfa5c2545b912b62ee80b340a057eec4bbe592efcc15b951",
+      "columns": 26,
+      "indexes": 6,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 14
+    },
+    {
+      "id": "public.studio2_host_operation_executions",
+      "sha256": "46b75c34dc7892573e146996a86e459b2a7445920babfbce2f81c8f5b978841f",
+      "columns": 9,
+      "indexes": 5,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 8
+    },
+    {
+      "id": "public.studio2_host_operations",
+      "sha256": "bdb5ce875d64f5e8cd508974650171852f94c7bf77b481f090cce185503f0a23",
+      "columns": 18,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 6
+    },
+    {
+      "id": "public.studio2_incidents",
+      "sha256": "826eba31125dac95c59c73e2570e8772437e1bf3ff910116560c0f6a91eb816b",
+      "columns": 21,
+      "indexes": 5,
+      "policies": 1,
+      "triggers": 2,
+      "constraints": 12
+    },
+    {
+      "id": "public.studio2_jury_members",
+      "sha256": "b5b0018be076ccf11155e7981e8f195c97c9fe016f6bbee07029e0a26dccd543",
+      "columns": 11,
+      "indexes": 7,
+      "policies": 1,
+      "triggers": 3,
+      "constraints": 9
+    },
+    {
+      "id": "public.studio2_jury_window_versions",
+      "sha256": "dd575e92c04ba4fa0ea2de8aa16d662ff86639d9ffb4d1e81f0c3b092c7b6b71",
+      "columns": 3,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "public.studio2_media_asset_reviews",
+      "sha256": "1bac3a8b2fb7173bf96a2fa0677e1dc5b4e34b43921a61547856eb273a2b7bb1",
+      "columns": 12,
+      "indexes": 7,
+      "policies": 0,
+      "triggers": 1,
+      "constraints": 13
+    },
+    {
+      "id": "public.studio2_next_in_line_submission_revisions",
+      "sha256": "4ceeadd19665a66d2b99a4cdfbdaf71fb5c03b2483133b69ae32f7df3c95bed7",
+      "columns": 6,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 6
+    },
+    {
+      "id": "public.studio2_next_in_line_windows",
+      "sha256": "54a8a15b369456c100ac451ac90bf4305391900e72023b4a9c346bc603706c14",
+      "columns": 10,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 6
+    },
+    {
+      "id": "public.studio2_notice_receipts",
+      "sha256": "47ae984fb22e8c15e973bdb192e5129799269a369bed9960c198352784b5c899",
+      "columns": 6,
+      "indexes": 2,
+      "policies": 1,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "public.studio2_notice_versions",
+      "sha256": "10d928e5c8ebd5849994df4f0780cc380aefff1110f309e512af7c4ca27af64d",
+      "columns": 18,
+      "indexes": 2,
+      "policies": 1,
+      "triggers": 0,
+      "constraints": 5
+    },
+    {
+      "id": "public.studio2_official_notices",
+      "sha256": "4474f9c54acdd3303a5b557b6c1e0293cd34854e65708760a020082a8153817b",
+      "columns": 27,
+      "indexes": 7,
+      "policies": 1,
+      "triggers": 2,
+      "constraints": 18
+    },
+    {
+      "id": "public.studio2_operation_receipts",
+      "sha256": "32ae14568fd2d61d9512962a340b1af2fed9bdfa8b41d31ecd6027eb1d6248eb",
+      "columns": 17,
+      "indexes": 5,
+      "policies": 0,
+      "triggers": 10,
+      "constraints": 10
+    },
+    {
+      "id": "public.studio2_organizer_tasks",
+      "sha256": "fd897e346e95db28d30ca15104be4fdbb1d00212ee2919691b34d580fa6b3dd1",
+      "columns": 22,
+      "indexes": 5,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 16
+    },
+    {
+      "id": "public.studio2_participation_status_versions",
+      "sha256": "6ad36226c230ce85a1495149c08af494102b14076938615fcb12c743cdc84065",
+      "columns": 4,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "public.studio2_permission_change_approval_requests",
+      "sha256": "3de6aab7ae10569fd6a6a636283f44b3e7c8bdb1c78c155641fd49d5bbb4fb4e",
+      "columns": 17,
+      "indexes": 4,
+      "policies": 0,
+      "triggers": 1,
+      "constraints": 13
+    },
+    {
+      "id": "public.studio2_permission_subject_versions",
+      "sha256": "12e4a65b637811d8b0448e4fc86416bea253f3029c6612447958efc60f6b0743",
+      "columns": 3,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "public.studio2_platform_exit_preflights",
+      "sha256": "7982a6847fdda48d599dd8a1aeb7ce79f3eee93ffd5736a956d99d235767378a",
+      "columns": 11,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 7
+    },
+    {
+      "id": "public.studio2_platform_operational_state",
+      "sha256": "9019d7d9eedc1759a7a663a2f282fcb94edb522ce8936a5f9ae064f300fba835",
+      "columns": 9,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 5
+    },
+    {
+      "id": "public.studio2_prediction_round_versions",
+      "sha256": "5cd8d2132bb61c61e3cd7aeffafdc345f61e958847bd3a32ebbde62a3c76ee78",
+      "columns": 3,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "public.studio2_prediction_score_versions",
+      "sha256": "c5d0a0b6c50009b9c489f8e6595bd4606901a49c47b3adc730cfbd50cafccabe",
+      "columns": 3,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "public.studio2_result_operation_executions",
+      "sha256": "a0eaa1e2fc7997ef905ac0e590f124c625ff74046e3620ff85729272b11fff41",
+      "columns": 10,
+      "indexes": 5,
+      "policies": 0,
+      "triggers": 1,
+      "constraints": 11
+    },
+    {
+      "id": "public.studio2_result_operations",
+      "sha256": "2d4aaf63d4ff9812f316172d28aee609cf58a7498551a923ae571383e3aeefa1",
+      "columns": 15,
+      "indexes": 6,
+      "policies": 0,
+      "triggers": 3,
+      "constraints": 16
+    },
+    {
+      "id": "public.studio2_role_assignments",
+      "sha256": "89f60611bc414ac97188d69370e9c770e36c623489eb6c179ee5536a5e729b00",
+      "columns": 7,
+      "indexes": 6,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 7
+    },
+    {
+      "id": "public.studio2_role_capabilities",
+      "sha256": "45ae75019af3edf0793dfa3727a28c6e78852469e5bc4c1dea59253088e9f755",
+      "columns": 3,
+      "indexes": 2,
+      "policies": 1,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "public.studio2_show_publication_controls",
+      "sha256": "77f7f663c7c6404dea35551d517788f4b0adcd68d730c0077fbf808af53727e4",
+      "columns": 16,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 2,
+      "constraints": 15
+    },
+    {
+      "id": "public.studio2_show_publication_executions",
+      "sha256": "3acc59633a999aa860014235d9abd59c67ac059b7ea078720fd9f3c707fa4511",
+      "columns": 11,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 3,
+      "constraints": 10
+    },
+    {
+      "id": "public.studio2_story_operation_executions",
+      "sha256": "154c518d885fcdd73ae0ce82e00b8d6099358ff11891857500e9752c94b1659d",
+      "columns": 10,
+      "indexes": 6,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 9
+    },
+    {
+      "id": "public.studio2_storyline_items",
+      "sha256": "9ebc501c784fb0cd2596847147b55b258636250a6016c4044290cad429a1ff3e",
+      "columns": 16,
+      "indexes": 6,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 9
+    },
+    {
+      "id": "public.studio2_storylines",
+      "sha256": "0d622b99b7c911dc5fdcbda927636f1ae3ade0249582f72515e21624f3e0f7c2",
+      "columns": 15,
+      "indexes": 6,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 11
+    },
+    {
+      "id": "public.studio2_televote_global_versions",
+      "sha256": "dfde8e5c46dee943c595431ee83b21f64b33680772ea7f116316ee820f57633d",
+      "columns": 3,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 3
+    },
+    {
+      "id": "public.studio2_televote_round_versions",
+      "sha256": "f5dffbe08b99115d3283384b332c6c55115b6788ff3f67f18d198e664accd9d2",
+      "columns": 3,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 2
+    },
+    {
+      "id": "public.studio2_transition_approval_requests",
+      "sha256": "f32296fe618e47e8f82f9aee1cac0cc8621485c60af71d4b2b3e9f56f109f313",
+      "columns": 11,
+      "indexes": 4,
+      "policies": 1,
+      "triggers": 3,
+      "constraints": 8
+    },
+    {
+      "id": "public.studio2_upload_authorizations",
+      "sha256": "d4ef196c0985fb6148d66cb37ea1f5fe11b70876222a0e02984c691afbef2e27",
+      "columns": 20,
+      "indexes": 4,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 9
+    },
+    {
+      "id": "public.studio2_voting_declaration_policy",
+      "sha256": "bdd31587da56170c2cf53ddb1ef11703ba717233053196233eb9cef04e87bae3",
+      "columns": 4,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 4
+    },
+    {
+      "id": "public.submission_browser_sessions",
+      "sha256": "c393c51c05e11ff4fee2fedcf7a0312236010d7744ce20424ffa7dbcb14738a4",
+      "columns": 5,
+      "indexes": 2,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 3
+    },
+    {
+      "id": "public.submission_drafts",
+      "sha256": "9f537e9952b8d64aeb0dab1660905bd7d5b6833ed4586e10fcc721f0dd25e63d",
+      "columns": 12,
+      "indexes": 2,
+      "policies": 1,
+      "triggers": 2,
+      "constraints": 5
+    },
+    {
+      "id": "public.submission_ip_history",
+      "sha256": "6b93ea7928eb37c8757b37b6405a4ce8ade466d9be87fb23c8163bd5ec835cdd",
+      "columns": 5,
+      "indexes": 2,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 3
+    },
+    {
+      "id": "public.submission_review_history",
+      "sha256": "83c8db3deec31048f4bb9b573c6851011a87a5f1d002a2fd539ed0e2785991ca",
+      "columns": 11,
+      "indexes": 1,
+      "policies": 1,
+      "triggers": 5,
+      "constraints": 5
+    },
+    {
+      "id": "public.submission_rounds",
+      "sha256": "1e24aaa9d8b9bae556df501a9c3c7108b91ca60ac9930001a48827675c34ded6",
+      "columns": 9,
+      "indexes": 1,
+      "policies": 5,
+      "triggers": 5,
+      "constraints": 2
+    },
+    {
+      "id": "public.submission_versions",
+      "sha256": "80be0ed9b25706c6c19b865f446da63be36f45f30274a5cac978f0a30448a863",
+      "columns": 9,
+      "indexes": 3,
+      "policies": 2,
+      "triggers": 0,
+      "constraints": 6
+    },
+    {
+      "id": "public.submissions",
+      "sha256": "2f1ce049e92e5be46216fb51972a8b02fd14701651f1bc280089d419b3670317",
+      "columns": 32,
+      "indexes": 4,
+      "policies": 1,
+      "triggers": 9,
+      "constraints": 3
+    },
+    {
+      "id": "public.televote_votes",
+      "sha256": "7cdc36e427ac36a0bb744191a04f061180bcf87d5c7ecb37cca0ff15cd2bbbde",
+      "columns": 7,
+      "indexes": 7,
+      "policies": 5,
+      "triggers": 3,
+      "constraints": 6
+    },
+    {
+      "id": "public.televoting_round_bindings",
+      "sha256": "7386e6919c5efb0258172084ea39835cfa87181edc61795eca6465547e5e7339",
+      "columns": 10,
+      "indexes": 3,
+      "policies": 1,
+      "triggers": 2,
+      "constraints": 4
+    },
+    {
+      "id": "public.themes",
+      "sha256": "f8d5efd7554dcc3a0dbf61033d0607ef5a544d1ce4d96fe2367daed91eae6852",
+      "columns": 7,
+      "indexes": 1,
+      "policies": 5,
+      "triggers": 2,
+      "constraints": 1
+    },
+    {
+      "id": "public.user_roles",
+      "sha256": "59ed7af11432069d6d35ce6305aa73be7c71d9d6739b2b6f2f6b84de089ee82d",
+      "columns": 4,
+      "indexes": 2,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 2
+    },
+    {
+      "id": "public.voters",
+      "sha256": "851583a87897dabbddbf3c661084befe457a151696781328095135a6a92b574e",
+      "columns": 11,
+      "indexes": 5,
+      "policies": 5,
+      "triggers": 3,
+      "constraints": 5
+    },
+    {
+      "id": "televoting.admin_audit_log",
+      "sha256": "3128240499b41785932ca83624a3737c1ca62d4691f0f1c6b5b5c2e4675a3392",
+      "columns": 10,
+      "indexes": 3,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 1
+    },
+    {
+      "id": "televoting.anti_abuse_events",
+      "sha256": "2fc507afc35f7c65573218ab51caed08e31c74c281cf9e416c89f982236ca041",
+      "columns": 13,
+      "indexes": 1,
+      "policies": 1,
+      "triggers": 0,
+      "constraints": 2
+    },
+    {
+      "id": "televoting.combined_televote_component_results",
+      "sha256": "13eaadd53e1692b7d9abae1031ddee8eb37771070a940ac69eead38ac50c412f",
+      "columns": 26,
+      "indexes": 3,
+      "policies": 5,
+      "triggers": 0,
+      "constraints": 4
+    },
+    {
+      "id": "televoting.combined_televote_results",
+      "sha256": "718cb1888716109685d6fed204b8810b236caac8da77854660d598ac0f1bbb39",
+      "columns": 32,
+      "indexes": 2,
+      "policies": 5,
+      "triggers": 1,
+      "constraints": 2
+    },
+    {
+      "id": "televoting.countries",
+      "sha256": "2fdd5bb726a2846f6aa1829ebe60fc50204b7314e411c499a9975320e9a35852",
+      "columns": 4,
+      "indexes": 1,
+      "policies": 5,
+      "triggers": 0,
+      "constraints": 1
+    },
+    {
+      "id": "televoting.editions",
+      "sha256": "024f65eb32c973f9f1ff7a968c4df0aa46e029d6303a4c189c6d8cca2ef466f8",
+      "columns": 6,
+      "indexes": 2,
+      "policies": 5,
+      "triggers": 2,
+      "constraints": 1
+    },
+    {
+      "id": "televoting.external_score_entries",
+      "sha256": "45f07e78f83fa031f80fa9fd6bff48ef1a56018b5b3b593e32226d4f4c511302",
+      "columns": 9,
+      "indexes": 2,
+      "policies": 1,
+      "triggers": 2,
+      "constraints": 3
+    },
+    {
+      "id": "televoting.external_score_entry_log",
+      "sha256": "569d23a1630af5e1feb4d5cf6d6b65bf4f2ca02650472aa99133d1223336dcec",
+      "columns": 11,
+      "indexes": 1,
+      "policies": 1,
+      "triggers": 0,
+      "constraints": 1
+    },
+    {
+      "id": "televoting.historical_vote_observations",
+      "sha256": "c7dc4b6e1daefdab4a0bb843a8469411760eb2ad555ef6962ce1faaeb03ffe01",
+      "columns": 12,
+      "indexes": 5,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 4
+    },
+    {
+      "id": "televoting.integrity_action_audit",
+      "sha256": "6db1d34e968cf5ed00a810f4fdfcb06b2f78727fee52b7d6e996f31093edb494",
+      "columns": 10,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 5
+    },
+    {
+      "id": "televoting.legacy_friend_voting_relationships",
+      "sha256": "6bc3d2e9a38a7bdbd2246efe2e448098ac900f3c7506e215f8ac671ab0e21237",
+      "columns": 10,
+      "indexes": 2,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 1
+    },
+    {
+      "id": "televoting.legacy_import_metadata",
+      "sha256": "44b9affb28e2f07b5cb33fe77ca0fa35a660641638599168897c6c3204efee2e",
+      "columns": 3,
+      "indexes": 1,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 1
+    },
+    {
+      "id": "televoting.round_countries",
+      "sha256": "1e83d4b12778b23d5f1e02a81f647c200308027f8d94bc09a4e2042695acb55f",
+      "columns": 4,
+      "indexes": 3,
+      "policies": 5,
+      "triggers": 1,
+      "constraints": 5
+    },
+    {
+      "id": "televoting.round_entries",
+      "sha256": "72eb497ab5361c8c84fa913b44c41616c6b7145553d48b456b8c69d6dd6a76b5",
+      "columns": 14,
+      "indexes": 3,
+      "policies": 5,
+      "triggers": 4,
+      "constraints": 5
+    },
+    {
+      "id": "televoting.round_influence_results",
+      "sha256": "430604861649cd643382076cd51c6fa9dfafe85159820215926d4231abaf4b4e",
+      "columns": 13,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 4
+    },
+    {
+      "id": "televoting.round_results",
+      "sha256": "ba3ae02c5764f7f57d8113b8659198d741179595a121301a8e7d1bba2f934781",
+      "columns": 33,
+      "indexes": 3,
+      "policies": 5,
+      "triggers": 1,
+      "constraints": 3
+    },
+    {
+      "id": "televoting.rounds",
+      "sha256": "793aa52ca74a81158b80e734f47cec4c96c1adfa7298afac2ef36c38e7aadc51",
+      "columns": 29,
+      "indexes": 2,
+      "policies": 5,
+      "triggers": 5,
+      "constraints": 7
+    },
+    {
+      "id": "televoting.televote_aggregation_participants",
+      "sha256": "2ceae967f84e50f9ef715970314afe1c6941d154d06dfc8d8640af3f2357879e",
+      "columns": 5,
+      "indexes": 2,
+      "policies": 5,
+      "triggers": 1,
+      "constraints": 3
+    },
+    {
+      "id": "televoting.televote_aggregation_sources",
+      "sha256": "fbea398176d4bfab0fdff82b6daa8e3619e8a5d3e6312e3b623e49af6d725b1a",
+      "columns": 22,
+      "indexes": 1,
+      "policies": 1,
+      "triggers": 3,
+      "constraints": 5
+    },
+    {
+      "id": "televoting.televote_aggregations",
+      "sha256": "5eb9adab1479df8ee0608cc132c333a5433c2adcd3cb08161fbaca81f8ad9872",
+      "columns": 18,
+      "indexes": 1,
+      "policies": 5,
+      "triggers": 1,
+      "constraints": 2
+    },
+    {
+      "id": "televoting.vote_entries",
+      "sha256": "2d2bbf6e1c8206583d8a499c4698850d1ef3ac1f12eb3a0d240fd8999300c00e",
+      "columns": 5,
+      "indexes": 4,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 4
+    },
+    {
+      "id": "televoting.vote_integrity_decisions",
+      "sha256": "ce9e342a2a955ba2c2b27579f4521db4bcbdcfd05babd79d568cc3b56107044a",
+      "columns": 10,
+      "indexes": 3,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 5
+    },
+    {
+      "id": "televoting.vote_moderation_events",
+      "sha256": "1e765212437739e61fee84bbeca60559b8e1f36978288169eaa41f7367b25a5a",
+      "columns": 12,
+      "indexes": 4,
+      "policies": 1,
+      "triggers": 1,
+      "constraints": 2
+    },
+    {
+      "id": "televoting.vote_preflight_checks",
+      "sha256": "e77660896bb783c2e8278b54c00054c135d591b85282736c4c20953be7da8a9a",
+      "columns": 41,
+      "indexes": 5,
+      "policies": 0,
+      "triggers": 5,
+      "constraints": 16
+    },
+    {
+      "id": "televoting.vote_submissions",
+      "sha256": "6032fbc4d4900e74cb5ebf8909350fb3a3d57ebbd43f6b8666e81102f96087cf",
+      "columns": 23,
+      "indexes": 11,
+      "policies": 1,
+      "triggers": 3,
+      "constraints": 4
+    },
+    {
+      "id": "televoting.voter_sanctions",
+      "sha256": "a50949413af79b7c3d71285a13085152b1df218dfe2ab83debcf797f38da00ba",
+      "columns": 16,
+      "indexes": 5,
+      "policies": 0,
+      "triggers": 0,
+      "constraints": 7
+    }
+  ],
+  "completeHostedEquivalence": false
+}

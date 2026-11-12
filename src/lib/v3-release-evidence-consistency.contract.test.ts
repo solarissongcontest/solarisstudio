@@ -3,6 +3,19 @@ import { releaseEvidenceConsistencyFailure as check } from "../../scripts/v3-rel
 
 const SHA = "a".repeat(40);
 
+const completeS15Inventory = {
+  systemDomains: 39, systemConcepts: 50, systemCommands: 75, systemEvents: 60,
+  systemProjections: 28, systemBackgroundConsumers: 5, domainConsequences: 17,
+  apiCapabilities: 12, searchProviders: 7, notificationCategories: 9,
+  notificationProviders: 10, notificationDeepLinks: 14, dynamicNotificationDeepLinks: 2,
+  publicCapabilities: 43, organizerCapabilities: 70,
+  runtimeRoutes: 80, publicRuntimeRoutes: 60, organizerRuntimeRoutes: 14, apiRuntimeRoutes: 6,
+  legacyAliases: 150, v3FeatureFlags: 3, organizerControls: 35, publicSourceSurfaces: 40,
+  v3IntegrationAdapters: 7, edgeFunctions: 15, scheduledJobs: 3,
+  physicalOwnershipDomains: 32, uniquePhysicalTables: 140,
+  domainTableAssignments: 154, explicitlySharedTables: 4,
+};
+
 function fullContestEvidence() {
   return {
     candidateSha: SHA,
@@ -132,7 +145,7 @@ describe("V3 release evidence truthfulness", () => {
       schemaVersion: 4,
       candidateSha: SHA,
       zeroOrphans: true,
-      inventory: { domains: 1 },
+      inventory: completeS15Inventory,
       findings: [],
       physicalOwnership: { zeroOwnershipConflicts: true, findings: [] },
     };
@@ -150,7 +163,7 @@ describe("V3 release evidence truthfulness", () => {
 
   it("rejects an S15 physical-owner success flag contradicted by nested diagnostics", () => {
     const valid = {
-      schemaVersion: 4, inventory: {}, zeroOrphans: true, findings: [],
+      schemaVersion: 4, inventory: completeS15Inventory, zeroOrphans: true, findings: [],
       physicalOwnership: { zeroOwnershipConflicts: true, findings: [] },
     };
     expect(check("s15-zero-orphan.json", valid)).toBeNull();
@@ -162,6 +175,24 @@ describe("V3 release evidence truthfulness", () => {
         ...valid,
         physicalOwnership: { zeroOwnershipConflicts: true, findings },
       })).not.toBeNull();
+    }
+  });
+
+  it("rejects truncated S15 zero-gap reports despite empty findings", () => {
+    const valid = {
+      schemaVersion: 4, candidateSha: SHA, zeroOrphans: true,
+      inventory: completeS15Inventory, findings: [],
+      physicalOwnership: { zeroOwnershipConflicts: true },
+    };
+    expect(check("s15-zero-orphan.json", valid)).toBeNull();
+    for (const inventory of [
+      {},
+      { ...completeS15Inventory, organizerRuntimeRoutes: undefined },
+      { ...completeS15Inventory, publicRuntimeRoutes: -1 },
+      { ...completeS15Inventory, runtimeRoutes: 1 },
+      { ...completeS15Inventory, physicalOwnershipDomains: 0 },
+    ]) {
+      expect(check("s15-zero-orphan.json", { ...valid, inventory })).toMatch(/complete S15/);
     }
   });
 
