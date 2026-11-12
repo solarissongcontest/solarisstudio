@@ -22,10 +22,9 @@ import {
   type Televote,
 } from "@/lib/data";
 import { entityDisplayMap } from "@/lib/entities";
+import { parseTelevoteShowSearch } from "@/lib/v3-organizer-televote-show-search";
 import { hasPublishedResults, resolveShowPublication } from "@/lib/publication";
 import { resolveVoting } from "@/lib/voting";
-
-type TelevoteSearch = { show?: string };
 
 type Identity = {
   country_id: string | null;
@@ -36,9 +35,7 @@ export const Route = createFileRoute("/_authenticated/admin/televote/$slug")({
   head: () => ({
     meta: [{ title: "Televote totals — Solaris Studio" }, { name: "robots", content: "noindex" }],
   }),
-  validateSearch: (search: Record<string, unknown>): TelevoteSearch => ({
-    show: typeof search.show === "string" && search.show ? search.show : undefined,
-  }),
+  validateSearch: parseTelevoteShowSearch,
   component: TelevoteTotalsRoute,
 });
 
@@ -79,9 +76,11 @@ function TelevoteTotalsWorkspace() {
   );
   // A stale, renamed, or cross-edition show link must never silently select a
   // different show's official totals. The read hook is disabled with no show.
-  const selectedShow = search.show
-    ? orderedShows.find((show) => show.id === search.show) ?? null
-    : orderedShows[0] ?? null;
+  const selectedShow = search.invalidShow
+    ? null
+    : search.show
+      ? orderedShows.find((show) => show.id === search.show) ?? null
+      : orderedShows[0] ?? null;
   const participants = useMemo(
     () =>
       allParticipants
@@ -185,7 +184,7 @@ function TelevoteTotalsWorkspace() {
     );
   }
 
-  if (search.show && !selectedShow) {
+  if ((search.invalidShow || search.show) && !selectedShow) {
     return (
       <AdminPage>
         <AdminCard>
