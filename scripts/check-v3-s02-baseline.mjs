@@ -140,6 +140,14 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).hr
   const sourceHashes=Object.fromEntries(files.map(p=>[p,hash(readFileSync(p))]));
   const proof=qualifySourceBeta({candidateSha,before:catalog(dir,'before'),after:catalog(dir,'after'),second:catalog(dir,'second'),stages:json(dir+'/stages.json'),lifecycle:json(dir+'/lifecycle.json'),migrationVersions,sourceHashes});
   writeFileSync(dir+'/s02-source-beta-proof.json',JSON.stringify(proof,null,2)+'\n',{flag:'wx'});
+  const graph=proof.dependencyReports.after;
+  const counts={};
+  for(const n of graph.nodes.filter(n=>n.reachable))counts[n.hostedClassification]=(counts[n.hostedClassification]||0)+1;
+  const dual=graph.nodes.find(n=>n.name==='private.studio2_require_strict_dual');
+  console.log(JSON.stringify({S02EvidenceSummary:{candidateSha,contract:proof.contract,serverVersionNum:proof.serverVersionNum,databaseImage:proof.databaseImage,
+   networkIsolation:proof.networkIsolation,reachableClassifications:counts,runtimeObservedFunctionCount:graph.nodes.filter(n=>n.runtimeCalls>0).length,
+   dynamicSqlCount:graph.dynamicSql.length,hostedEquivalent:false,productionRecoveryEligible:false,
+   strictDual:dual?{identity:dual.identity,definitionSha256:dual.definitionSha256,bodyMd5:dual.bodyMd5,owner:dual.owner,securityDefiner:dual.securityDefiner,privileges:dual.privileges,hostedClassification:dual.hostedClassification}:null}}));
   console.log('PASS S02-BETA-SOURCE '+candidateSha+'; NOT hosted-equivalent or live beta/production authorization');
  }else throw Error('Use fresh, graph, qualify or dependency');
 }

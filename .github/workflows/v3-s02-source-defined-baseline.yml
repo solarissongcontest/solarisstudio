@@ -65,6 +65,8 @@ jobs:
             [[ -z "${!key:-}" ]] || { echo "::error::Inherited connection authority $key"; exit 1; }
           done
       - run: bun install --frozen-lockfile
+      - name: Verify existing CI egress contracts before expensive startup
+        run: bunx vitest run src/lib/ci-egress-safety.contract.test.ts
       - name: Install the existing lifecycle browser
         timeout-minutes: 10
         run: bunx playwright install --with-deps chromium
@@ -125,8 +127,22 @@ jobs:
           chmod +x "$RUNNER_TEMP/s02-bin/supabase"
           echo "$RUNNER_TEMP/s02-bin" >> "$GITHUB_PATH"
           for key in S02_CLI_PROJECT_ID S02_NETWORK_ID S02_SUPABASE_BINARY; do echo "$key=${!key}" >> "$GITHUB_ENV"; done
-      - name: Start this run's owned disposable source database
+      - name: Start this run's owned disposable source database (supabase start)
         run: bash .github/scripts/v3-start-disposable-supabase.sh
+      - name: Verify actual local endpoints before browser or SQL workflows
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'JS'
+          import {execFileSync} from 'node:child_process';
+          const status=execFileSync('supabase',['status','-o','env'],{encoding:'utf8'});
+          for(const [key,protocols] of [['API_URL',['http:']],['DB_URL',['postgres:','postgresql:']]]){
+            const lines=status.split(/\r?\n/).filter(l=>l.startsWith(key+'='));
+            if(lines.length!==1)throw Error('Missing/duplicate local endpoint');
+            const value=JSON.parse(lines[0].slice(key.length+1)),u=new URL(value);
+            if(!protocols.includes(u.protocol)||!['127.0.0.1','localhost','[::1]'].includes(u.hostname)||!u.port||u.search||u.hash||
+              (key==='API_URL'&&(u.username||u.password)))throw Error('Refusing audit server with hosted Supabase URL');
+          }
+          JS
       - name: Qualify source-only baseline through canonical workflows
         run: bash scripts/rehearse-v3-s02-source-baseline.sh
       - name: Preserve bounded metadata and actual outcomes
