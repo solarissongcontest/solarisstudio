@@ -69,6 +69,28 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: 2.113.0
+      - name: Pin CLI identity and deny container internet/public bindings
+        run: |
+          set -euo pipefail
+          # CLI dotenv can override config.toml's project_id. Pin it for CLI
+          # subprocesses only; application isolation markers remain "local".
+          job_namespace="${GITHUB_JOB//_/-}"; job_namespace="${job_namespace,,}"
+          export S02_CLI_PROJECT_ID="archive-v3-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$job_namespace"
+          export S02_NETWORK_ID="s02-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$job_namespace"
+          export S02_SUPABASE_BINARY="$(command -v supabase)"
+          "$S02_SUPABASE_BINARY" --help | grep -F -- '--network-id' >/dev/null
+          docker network create --internal --driver bridge --opt com.docker.network.bridge.host_binding_ipv4=127.0.0.1 "$S02_NETWORK_ID"
+          mkdir "$RUNNER_TEMP/s02-bin"
+          cat > "$RUNNER_TEMP/s02-bin/supabase" <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          : "${S02_CLI_PROJECT_ID:?}" "${S02_NETWORK_ID:?}" "${S02_SUPABASE_BINARY:?}"
+          export SUPABASE_PROJECT_ID="$S02_CLI_PROJECT_ID"
+          exec "$S02_SUPABASE_BINARY" --network-id "$S02_NETWORK_ID" "$@"
+          SH
+          chmod +x "$RUNNER_TEMP/s02-bin/supabase"
+          echo "$RUNNER_TEMP/s02-bin" >> "$GITHUB_PATH"
+          for key in S02_CLI_PROJECT_ID S02_NETWORK_ID S02_SUPABASE_BINARY; do echo "$key=${!key}" >> "$GITHUB_ENV"; done
       - name: Start this run's owned disposable source database
         run: bash .github/scripts/v3-start-disposable-supabase.sh
       - name: Qualify source-only baseline through canonical workflows
@@ -84,4 +106,7 @@ jobs:
           retention-days: 14
       - name: Stop only this project's remaining stack
         if: always()
-        run: supabase stop --no-backup
+        run: |
+          set -euo pipefail
+          supabase stop --no-backup
+          if docker network ls --format '{{.Name}}' | grep -Fx "$S02_NETWORK_ID" >/dev/null; then docker network rm "$S02_NETWORK_ID"; fi

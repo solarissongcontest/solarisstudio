@@ -74,6 +74,7 @@ export function validateFreshSource(c,versions){
  check(c.seedCounts?.users===0&&c.seedCounts?.ballots===0,'Source baseline has pre-existing user/ballot state');
  check(c.databaseIdentity,'Missing local database identity');
  check(c.trackFunctions==='all','Function-call telemetry not enabled');
+ check(c.networkIsolation?.internal===true&&c.networkIsolation?.loopbackOnly===true&&/^s02-/.test(c.networkIsolation.identity),'Missing closed-network evidence');
  check(/^sha256:[a-f0-9]{64}$/.test(c.databaseImage||''),'Missing actual database image identity');
 }
 export function qualifySourceBeta({candidateSha,before,after,second,stages,lifecycle,migrationVersions,sourceHashes}){
@@ -103,7 +104,7 @@ export function qualifySourceBeta({candidateSha,before,after,second,stages,lifec
  check(Object.keys(sourceHashes||{}).length>0&&Object.values(sourceHashes).every(h=>/^[a-f0-9]{64}$/.test(h)),'Missing source provenance');
  return {task:'S02',contract:'S02-BETA-SOURCE',schemaVersion:1,candidateSha,
   status:'SOURCE_DEFINED_ISOLATED_BASELINE_QUALIFIED',evidenceLevel:'REPRODUCED_IN_ISOLATION',
-  sourceHashes,migrationVersions,stages,databaseImage:before.databaseImage,serverVersionNum:before.serverVersionNum,...PROFILE.constraints,
+  sourceHashes,migrationVersions,stages,databaseImage:before.databaseImage,networkIsolation:before.networkIsolation,serverVersionNum:before.serverVersionNum,...PROFILE.constraints,
   betaSourcePrerequisiteSatisfied:true,originalHostedS02Satisfied:false,fullHostedEquivalenceCertified:false,
   overallBetaReleaseApproved:false,dependencyReports:{before:first,after:final,second:repeat},
   limitation:'Qualified only for fresh isolated source-defined beta. Existing hosted upgrade, production S02/S06 and live beta authorization remain separate.'};
