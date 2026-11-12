@@ -37,7 +37,7 @@ describe("soft-launch entry-point integration", () => {
     expect(search).toContain("if (!allows(item.href)) continue;");
   });
   it("keeps legacy Home, Results, Country and account navigation on the same typed link adapter", () => {
-    for (const path of ["src/routes/index.tsx", "src/routes/results/index.tsx", "src/routes/countries/$code.tsx", "src/routes/countries/index.tsx", "src/routes/_authenticated/my-solaris/index.tsx", "src/components/country/ProfileActivityPanel.tsx", "src/components/mysolaris/MySolarisPersonalPage.tsx"]) {
+    for (const path of ["src/routes/index.tsx", "src/routes/results/index.tsx", "src/routes/countries/$code.tsx", "src/routes/countries/index.tsx", "src/routes/_authenticated/my-solaris/index.tsx", "src/components/country/ProfileActivityPanel.tsx", "src/components/mysolaris/MySolarisPersonalPage.tsx", "src/components/app/AppAdaptiveWorkspace.tsx"]) {
       expect(source(path)).toContain("PublicLaunchLink as Link");
     }
     const adapter = source("src/components/public/PublicLaunchLink.tsx");

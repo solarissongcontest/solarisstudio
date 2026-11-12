@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { PublicLaunchLink as Link } from "@/components/public/PublicLaunchLink";
 import {
   BarChart3,
   BookOpen,
