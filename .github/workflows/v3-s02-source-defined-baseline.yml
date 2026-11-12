@@ -10,6 +10,7 @@ on:
       - "scripts/rehearse-v3-s02-source-baseline.sh"
       - "docs/v3/recovery-candidates/s02-baseline-profiles.json"
       - "docs/v3/recovery-candidates/s02-source-defined-beta-contract.md"
+      - "docs/v3/recovery-candidates/s02-hosted-frontier-local-fixture.md"
       - "supabase/migrations/**"
       - ".github/scripts/v3-s14-*.sh"
       - ".github/scripts/v3-full-contest-rehearsal.sh"
