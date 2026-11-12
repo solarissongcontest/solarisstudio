@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const source = readFileSync("src/routes/participate/index.tsx", "utf8");
+const juryAction = readFileSync("src/lib/public-participation-jury-action.ts", "utf8");
 const projection = readFileSync("src/lib/public-participation-jury-summary.ts", "utf8");
 
 describe("legacy Public Participate status recovery", () => {
@@ -16,8 +17,8 @@ describe("legacy Public Participate status recovery", () => {
   it("recognizes an ordinary fan account and suspended delegation as canonical denials", () => {
     expect(projection).toContain('context.error === "country_account_required"');
     expect(projection).toContain('context.error === "account_suspended"');
-    expect(source).toContain("Your country account is suspended.");
-    expect(source).toContain("This account does not have an assigned country delegation.");
+    expect(juryAction).toContain("Your country account is suspended.");
+    expect(juryAction).toContain("This account does not have an assigned country delegation.");
   });
 
   it("treats failed public Televote reads as unknown rather than closed", () => {
@@ -48,6 +49,15 @@ describe("legacy Public Participate status recovery", () => {
     expect(source).toContain('role="alert"');
     expect(source).toContain('onClick={onRetry}');
     expect(source).toContain("min-h-11");
+  });
+
+  it("recomputes window presentation locally and discards failed cached task inputs", () => {
+    expect(source).toContain("publicParticipationJuryAction(juryQuery.data, now ?? 0)");
+    expect(source).toContain("window.clearInterval(timer)");
+    expect(source).toContain("confirmationsQuery.isError ? [] : confirmationsQuery.data");
+    expect(source).toContain("confirmationAccessQuery.isError ? undefined : confirmationAccessQuery.data");
+    expect(source).toContain("juryQuery.isError ? undefined : juryQuery.data");
+    expect(source).toContain("televoteQuery.isError ? null : televoteQuery.data?.openRound");
   });
 
   it("reads canonical jury window timestamps rather than assuming incompatible aliases", () => {
