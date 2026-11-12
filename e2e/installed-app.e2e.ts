@@ -428,7 +428,11 @@ test("installed app shell survives representative navigation without duplicate c
       await expect(directory.getByRole("searchbox", { name: "Search Rulebook chapters" })).toBeVisible();
       await expect(directory.locator(".v3-directory-mobile-list,.v3-directory-desktop-rail")).toHaveCount(0);
     }
-    if (route === "/site-directory" || route === "/tools") {
+    if (route === "/tools") {
+      await expect(page.getByRole("heading", { name: "This experience is not available", exact: true })).toBeVisible();
+      await expect(page.locator("[data-directory-experience]")).toHaveCount(0);
+    }
+    if (route === "/site-directory") {
       const directory = page.locator("[data-directory-experience]");
       await expect(directory).toHaveAttribute("data-directory-experience", "installed-app");
       await expect(directory.locator(".v3-directory-desktop-rail")).toHaveCount(0);
