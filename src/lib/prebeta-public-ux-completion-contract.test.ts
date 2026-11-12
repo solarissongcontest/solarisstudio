@@ -22,7 +22,7 @@ describe("Pre-Beta public UX completion contract", () => {
 
   it("mounts real mobile local-section navigation with a full-directory escape hatch", () => {
     expect(appShell).toContain("PublicMobileSectionNav");
-    expect(appShell).toContain("<PublicMobileSectionNav pathname={pathname} />");
+    expect(appShell).toContain("<PublicMobileSectionNav key={pathname} pathname={pathname} />");
     expect(mobileNav).toContain('aria-expanded={open}');
     expect(mobileNav).toContain('to="/site-directory"');
     expect(mobileNav).toContain("All Solaris pages");

@@ -19,8 +19,8 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const navigationRef = useRef<HTMLElement>(null);
 
-  // Browser history and direct links must not carry an expanded menu to a new page.
-  useEffect(() => setOpen(false), [pathname]);
+  // AppShell keys this disclosure by pathname. A new route starts closed via
+  // useState(false), without a post-mount effect that could undo a rapid click.
 
   // The tablet/desktop rail replaces this disclosure at 768px. If the user
   // rotates or resizes back to mobile, do not resurrect a stale open panel.
