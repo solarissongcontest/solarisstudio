@@ -14,6 +14,8 @@ import {
 
 export type V3HomeContestView = {
   title: string;
+  /** Canonical published edition destination, or null without an eligible current edition. */
+  href?: string | null;
   headline: string;
   meta?: string | null;
   stats?: readonly { value: string; label: string }[];
@@ -80,20 +82,33 @@ function homeNowContent({
   switch (bootstrap.home.primaryMode) {
     case "attention": {
       const count = bootstrap.attention.badgeCount;
+      const remainingCount = Math.max(0, count - (primary ? 1 : 0));
       return {
         headerTitle: greeting ?? "What matters now",
         eyebrow: "Right now",
         title: `${count} thing${count === 1 ? "" : "s"} need your attention`,
         count: count as number | "✓",
-        child: primary ? (
-          <V3ActionCard
-            title={primary.title}
-            description={primary.description}
-            tone={urgencyTone(primary)}
-            to={primary.route}
-            meta={actionMetaNodes(primary, actionMeta?.[primary.id])}
-          />
-        ) : null,
+        child: (
+          <div className="grid gap-3">
+            {primary ? (
+              <V3ActionCard
+                title={primary.title}
+                description={primary.description}
+                tone={urgencyTone(primary)}
+                to={primary.route}
+                meta={actionMetaNodes(primary, actionMeta?.[primary.id])}
+              />
+            ) : null}
+            {remainingCount > 0 ? (
+              <V3ActionCard
+                title={`View ${remainingCount} more in Participate`}
+                description="See the rest of your current responsibilities and participation actions."
+                tone="neutral"
+                to="/participate"
+              />
+            ) : null}
+          </div>
+        ),
       };
     }
     case "show-day":
@@ -278,6 +293,16 @@ export function V3HomeScreen({
               ))}
             </div>
           ) : null}
+          <div className="mt-4" data-v3-home-contest-entry="">
+            <V3ActionCard
+              title={currentContest.href ? "Explore current edition" : "Browse editions"}
+              description={currentContest.href
+                ? "Open the official edition overview, schedule and published content."
+                : "Discover published Solaris editions in the archive."}
+              tone="neutral"
+              to={currentContest.href ?? "/editions"}
+            />
+          </div>
         </V3Surface>
       </V3Section>
 
