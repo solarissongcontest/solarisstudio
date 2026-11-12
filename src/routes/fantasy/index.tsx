@@ -12,15 +12,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCountries } from "@/lib/data";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 import {
-  canEditV3FantasyRoster,
+  fantasyBoundaryRefreshDelayMs,
   fantasyBudgetUsed,
-  resolveV3FantasyState,
   restoreV3FantasyRoster,
-  type V3FantasyChoice,
   type V3FantasyGame,
+  type V3FantasyProjection,
   type V3FantasyStanding,
-  type V3FantasyTeam,
-  type V3FantasyTeamEntry,
+  type V3FantasySubmitResult,
 } from "@/lib/v3-fantasy";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 
@@ -47,99 +45,113 @@ function FantasyPage() {
   const [gameId, setGameId] = useState<string>("");
   const [selected, setSelected] = useState<string[]>([]);
   const [captain, setCaptain] = useState<string>("");
-  const [nowMs, setNowMs] = useState(() => Date.now());
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const timer = window.setInterval(() => setNowMs(Date.now()), 15_000);
-    return () => window.clearInterval(timer);
-  }, []);
-
+  // Discovery remains on the existing publication-gated table policy. Lifecycle
+  // state, caller roster and editability come from v3_fantasy_game below.
   const games = useQuery({
     enabled: feature.data === true,
     queryKey: ["fantasy-games"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("fantasy_games").select("*").neq("status", "cancelled").order("locks_at", { ascending: false });
+      const { data, error } = await (supabase as any)
+        .from("fantasy_games")
+        .select("*")
+        .neq("status", "cancelled")
+        .order("locks_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as V3FantasyGame[];
     },
-    refetchInterval: 60_000,
     refetchOnWindowFocus: true,
   });
-  const activeGame = games.data?.find((game) => game.id === gameId) ?? games.data?.[0] ?? null;
+  const activeGameSeed = games.data?.find((game) => game.id === gameId) ?? games.data?.[0] ?? null;
 
-  const choices = useQuery({
-    enabled: Boolean(activeGame),
-    queryKey: ["fantasy-choices", activeGame?.id],
+  const fantasyProjection = useQuery({
+    enabled: Boolean(activeGameSeed),
+    queryKey: ["fantasy-v3-game", activeGameSeed?.id],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("fantasy_game_entries").select("game_id,country_id,cost,eligible").eq("game_id", activeGame!.id).eq("eligible", true).order("cost", { ascending: false });
+      const { data, error } = await (supabase as any).rpc("v3_fantasy_game", {
+        p_game_id: activeGameSeed!.id,
+      });
       if (error) throw error;
-      return (data ?? []) as V3FantasyChoice[];
+      return (data ?? null) as V3FantasyProjection | null;
     },
+    refetchOnWindowFocus: true,
   });
 
-  const myTeam = useQuery({
-    enabled: Boolean(activeGame),
-    queryKey: ["fantasy-my-team", activeGame?.id],
-    queryFn: async () => {
-      const user = (await supabase.auth.getUser()).data.user;
-      if (!user) return null;
-      const { data, error } = await (supabase as any).from("fantasy_teams").select("*").eq("game_id", activeGame!.id).eq("profile_id", user.id).maybeSingle();
-      if (error) throw error;
-      return data as V3FantasyTeam | null;
-    },
-  });
-
-  const myTeamEntries = useQuery({
-    enabled: Boolean(myTeam.data?.id),
-    queryKey: ["fantasy-my-team-entries", myTeam.data?.id],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("fantasy_team_entries")
-        .select("team_id,country_id,cost_locked")
-        .eq("team_id", myTeam.data!.id)
-        .order("country_id", { ascending: true });
-      if (error) throw error;
-      return (data ?? []) as V3FantasyTeamEntry[];
-    },
-  });
+  const activeGame = fantasyProjection.data?.game ?? activeGameSeed;
+  const choices = fantasyProjection.data?.choices ?? [];
+  const myTeam = fantasyProjection.data?.team ?? null;
+  const myTeamEntries = fantasyProjection.data?.teamEntries ?? [];
 
   useEffect(() => {
-    if (myTeam.isLoading || myTeamEntries.isLoading) return;
-    const restored = restoreV3FantasyRoster(myTeam.data, myTeamEntries.data);
+    if (fantasyProjection.isLoading) return;
+    const restored = restoreV3FantasyRoster(myTeam, myTeamEntries);
     setSelected(restored.selected);
     setCaptain(restored.captain);
-  }, [activeGame?.id, myTeam.data, myTeam.isLoading, myTeamEntries.data, myTeamEntries.isLoading]);
+  }, [activeGameSeed?.id, fantasyProjection.isLoading, myTeam, myTeamEntries]);
+
+  // A one-shot boundary refresh uses serverTime as its clock origin. No polling,
+  // and a fast/slow device clock cannot open or extend the roster window.
+  useEffect(() => {
+    const delay = fantasyBoundaryRefreshDelayMs(fantasyProjection.data);
+    if (delay == null || !activeGameSeed) return;
+    const timer = window.setTimeout(() => {
+      void queryClient.invalidateQueries({ queryKey: ["fantasy-v3-game", activeGameSeed.id] });
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [activeGameSeed, fantasyProjection.data, queryClient]);
 
   const leaderboard = useQuery({
-    enabled: Boolean(activeGame),
-    queryKey: ["fantasy-leaderboard", activeGame?.id],
+    enabled: Boolean(activeGameSeed),
+    queryKey: ["fantasy-leaderboard", activeGameSeed?.id],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("fantasy_leaderboard", { _game_id: activeGame!.id });
+      const { data, error } = await (supabase as any).rpc("fantasy_leaderboard", {
+        _game_id: activeGameSeed!.id,
+      });
       if (error) throw error;
       return (data ?? []) as V3FantasyStanding[];
     },
   });
 
   const submit = useMutation({
-    mutationFn: async () => {
-      if (!activeGame) throw new Error("Fantasy game is unavailable.");
-      const { error } = await (supabase as any).rpc("submit_fantasy_team", {
-        _game_id: activeGame.id,
-        _country_ids: selected,
-        _captain_country_id: captain || null,
+    mutationFn: async ({ operationId }: { operationId: string }) => {
+      if (!activeGameSeed || !fantasyProjection.data) {
+        throw new Error("Fantasy game is unavailable.");
+      }
+
+      const { data, error } = await (supabase as any).rpc("v3_submit_fantasy_team", {
+        p_game_id: activeGameSeed.id,
+        p_country_ids: selected,
+        p_captain_country_id: captain || null,
+        p_expected_revision: fantasyProjection.data.stateVersion,
+        p_operation_id: operationId,
+        p_idempotency_key: operationId,
+        p_correlation_id: operationId,
       });
-      if (error) throw error;
+
+      if (!error) return data as V3FantasySubmitResult;
+
+      // If the network lost the success response after commit, recover the same
+      // canonical operation instead of submitting the roster a second time.
+      const { data: reconciled, error: reconcileError } = await (supabase as any).rpc(
+        "studio2_reconcile_operation",
+        { p_operation_id: operationId },
+      );
+      const recovery = reconciled as V3FantasySubmitResult | null;
+      if (!reconcileError && recovery?.status === "succeeded") return recovery;
+      throw error;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["fantasy-my-team", activeGame?.id] });
-      await queryClient.invalidateQueries({ queryKey: ["fantasy-my-team-entries"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["fantasy-v3-game", activeGameSeed?.id] }),
+        queryClient.invalidateQueries({ queryKey: ["fantasy-games"] }),
+      ]);
     },
   });
 
-  const cost = fantasyBudgetUsed(selected, choices.data ?? []);
-  const fantasyState = resolveV3FantasyState({ game: activeGame, team: myTeam.data ?? null, nowMs });
-  const editable = canEditV3FantasyRoster(fantasyState);
+  const cost = fantasyBudgetUsed(selected, choices);
+  const fantasyState = fantasyProjection.data?.effectiveState ?? "unavailable";
+  const editable = fantasyProjection.data?.canEdit === true;
   const locked = !editable;
   const windowDescription = !activeGame
     ? ""
@@ -166,19 +178,33 @@ function FantasyPage() {
     });
   };
 
+  const submitRoster = () => {
+    if (typeof crypto === "undefined" || typeof crypto.randomUUID !== "function") {
+      return;
+    }
+    submit.mutate({ operationId: crypto.randomUUID() });
+  };
+
   if (!platformResolved || (isAppMode && rollout.isLoading)) {
     return <main className="mx-auto max-w-3xl px-4 py-10"><h1 className="text-3xl font-bold">Fantasy SSC</h1><p role="status" className="mt-3">Opening Fantasy…</p></main>;
   }
 
   if (v3Enabled) {
-    if (games.isLoading || choices.isLoading || myTeam.isLoading || myTeamEntries.isLoading) {
+    if (games.isLoading || fantasyProjection.isLoading) {
       return (
         <V3AppShell editionLabel="Solaris Studio" phaseLabel="Fantasy">
           <V3Screen><V3Surface className="p-5"><p role="status">Loading Fantasy game…</p></V3Surface></V3Screen>
         </V3AppShell>
       );
     }
-    if (!activeGame) {
+    if (games.isError || fantasyProjection.isError) {
+      return (
+        <V3AppShell editionLabel="Solaris Studio" phaseLabel="Fantasy">
+          <V3Screen><V3Surface className="p-5"><h1 className="text-xl font-semibold">Fantasy could not be verified</h1><p className="mt-2 text-sm text-[var(--v3-text-secondary)]">Reload to fetch the latest authoritative roster state.</p></V3Surface></V3Screen>
+        </V3AppShell>
+      );
+    }
+    if (!activeGame || !fantasyProjection.data) {
       return (
         <V3AppShell editionLabel="Solaris Studio" phaseLabel="Fantasy">
           <V3Screen><V3Surface className="p-5"><h1 className="text-xl font-semibold">No Fantasy game is available</h1><p className="mt-2 text-sm text-[var(--v3-text-secondary)]">An Organizer has not published an eligible Fantasy roster window.</p></V3Surface></V3Screen>
@@ -189,20 +215,20 @@ function FantasyPage() {
       <V3AppShell editionLabel="Solaris Studio" phaseLabel="Fantasy">
         <V3FantasyScreen
           game={activeGame}
-          choices={choices.data ?? []}
+          choices={choices}
           countries={countryMap}
           selected={selected}
           captain={captain}
           cost={cost}
           state={fantasyState}
-          team={myTeam.data ?? null}
+          team={myTeam}
           standings={leaderboard.data ?? []}
           viewerId={rollout.data?.userId ?? null}
           submitting={submit.isPending}
           submitError={submit.isError ? (submit.error instanceof Error ? submit.error.message : "Roster could not be saved.") : null}
           onToggle={toggle}
           onCaptain={setCaptain}
-          onSubmit={() => submit.mutate()}
+          onSubmit={submitRoster}
         />
       </V3AppShell>
     );
@@ -220,9 +246,11 @@ function FantasyPage() {
         <Panel><p className="text-sm text-muted-foreground">Checking Fantasy rollout…</p></Panel>
       ) : feature.isError || feature.data !== true ? (
         <Panel title="Fantasy SSC is not enabled yet"><p className="text-sm text-muted-foreground">The product is installed but remains behind its rollout flag until production verification is complete.</p></Panel>
-      ) : games.isLoading ? (
-        <Panel><p className="text-sm text-muted-foreground">Loading Fantasy games…</p></Panel>
-      ) : !activeGame ? (
+      ) : games.isLoading || fantasyProjection.isLoading ? (
+        <Panel><p className="text-sm text-muted-foreground">Loading authoritative Fantasy state…</p></Panel>
+      ) : games.isError || fantasyProjection.isError ? (
+        <Panel title="Fantasy state could not be verified"><p className="text-sm text-muted-foreground">Reload before changing a roster. Solaris will not guess whether the submission window is open.</p></Panel>
+      ) : !activeGame || !fantasyProjection.data ? (
         <Panel title="No Fantasy game is open"><p className="text-sm text-muted-foreground">An Organizer has not published a Fantasy roster window yet.</p></Panel>
       ) : (
         <>
@@ -245,7 +273,7 @@ function FantasyPage() {
           </Panel>
 
           <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {(choices.data ?? []).map((choice) => {
+            {choices.map((choice) => {
               const country = countryMap.get(choice.country_id);
               if (!country) return null;
               const checked = selected.includes(choice.country_id);
@@ -271,14 +299,14 @@ function FantasyPage() {
             <button
               type="button"
               disabled={locked || submit.isPending || selected.length !== activeGame.roster_size || cost > activeGame.budget}
-              onClick={() => submit.mutate()}
+              onClick={submitRoster}
               className="min-h-11 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {myTeam.data ? "Update roster" : "Save roster"}
+              {myTeam ? "Update roster" : "Save roster"}
             </button>
             {cost > activeGame.budget ? <p className="text-sm text-destructive">Budget exceeded.</p> : null}
             {submit.isError ? <p className="text-sm text-destructive">{submit.error instanceof Error ? submit.error.message : "Roster could not be saved."}</p> : null}
-            {myTeam.data ? <p className="text-sm text-muted-foreground">Saved · {myTeam.data.state}{myTeam.data.score != null ? ` · ${myTeam.data.score.toFixed(1)} pts` : ""}</p> : null}
+            {myTeam ? <p className="text-sm text-muted-foreground">Saved · {myTeam.state}{myTeam.score != null ? ` · ${myTeam.score.toFixed(1)} pts` : ""}</p> : null}
           </div>
 
           <Panel title="Leaderboard" className="mt-5">
