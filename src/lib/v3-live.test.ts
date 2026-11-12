@@ -155,6 +155,28 @@ describe("Public V3 LiveExperience", () => {
     }
   });
 
+  it("does not expose an open vote while the show is interrupted or terminal", () => {
+    for (const status of ["paused", "delayed", "cancelled"] as const) {
+      const experience = projectV3LiveExperience({
+        ...base,
+        show: show({ status }),
+        televoteRound: {
+          id: "round-1",
+          name: "Grand Final vote",
+          status: "open",
+          openedAt: "2026-10-18T19:55:00.000Z",
+          closedAt: null,
+        },
+      });
+
+      expect(experience.voting).toMatchObject({
+        state: "unavailable",
+        label: "Voting unavailable",
+        roundId: "round-1",
+      });
+    }
+  });
+
   it("refuses unsafe broadcast URLs", () => {
     const experience = projectV3LiveExperience({
       ...base,
