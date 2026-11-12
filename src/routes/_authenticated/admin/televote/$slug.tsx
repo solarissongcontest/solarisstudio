@@ -77,8 +77,11 @@ function TelevoteTotalsWorkspace() {
     () => [...shows].sort((a, b) => a.sort_order - b.sort_order),
     [shows],
   );
-  const selectedShow =
-    orderedShows.find((show) => show.id === search.show) ?? orderedShows[0] ?? null;
+  // A stale, renamed, or cross-edition show link must never silently select a
+  // different show's official totals. The read hook is disabled with no show.
+  const selectedShow = search.show
+    ? orderedShows.find((show) => show.id === search.show) ?? null
+    : orderedShows[0] ?? null;
   const participants = useMemo(
     () =>
       allParticipants
@@ -179,6 +182,25 @@ function TelevoteTotalsWorkspace() {
       <AdminCard>
         <p className="py-8 text-center text-sm text-muted-foreground">Loading televote totals…</p>
       </AdminCard>
+    );
+  }
+
+  if (search.show && !selectedShow) {
+    return (
+      <AdminPage>
+        <AdminCard>
+          <AdminEmptyState
+            icon={TriangleAlert}
+            title="Show link is no longer valid"
+            description="This show link does not resolve inside the selected Organizer edition. No other show's Televote totals were substituted. Choose a show from the edition workspace."
+            action={
+              <Link to="/admin/$slug" params={{ slug }} className="admin-action-secondary">
+                Back to edition
+              </Link>
+            }
+          />
+        </AdminCard>
+      </AdminPage>
     );
   }
 
