@@ -10,6 +10,8 @@ on:
       - ".github/scripts/v3-full-contest-rehearsal.sh"
       - ".github/workflows/v3-s14-full-contest-rehearsal.yml"
       - "scripts/v3-s14-full-contest-spec.ts"
+      - "scripts/v3_s14_final_seed.py"
+      - "scripts/test_v3_s14_final_seed.py"
       - "scripts/check-v3-s14-rehearsal-readiness.ts"
       - "src/lib/v3-s14-*.test.ts"
   workflow_dispatch:
@@ -55,6 +57,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 -m unittest -v scripts/test_v3_s14_final_seed.py
+          python3 -m py_compile scripts/v3_s14_final_seed.py
           bunx vitest run \
             src/lib/ci-egress-safety.contract.test.ts \
             src/lib/v3-s14-stage7-deadline-command-identity.contract.test.ts \
@@ -123,6 +127,7 @@ jobs:
           import os
           import subprocess
           from pathlib import Path
+          from scripts.v3_s14_final_seed import validate_final_seed_artifact
 
           final_path = Path("v3-release-evidence/s14-full-contest.json")
           partial_path = Path("v3-release-evidence/s14-full-contest.partial.json")
@@ -194,9 +199,10 @@ jobs:
                   raise SystemExit(f"S14 omitted required invariant evidence: {missing_invariants}")
               if missing_failures:
                   raise SystemExit(f"S14 omitted required failure-injection evidence: {missing_failures}")
-              seed = data.get("seed", {})
-              if seed.get("editionCount") != 1 or seed.get("delegationCount") != 66 or seed.get("showCount", 0) < 3:
-                  raise SystemExit(f"S14 seed evidence is not the bounded 66-delegation contest: {seed}")
+              try:
+                  validate_final_seed_artifact(data.get("seed"))
+              except ValueError as exc:
+                  raise SystemExit(f"S14 persisted final seed evidence invalid: {exc}") from exc
               identity = data.get("runIdentity", {})
               if identity.get("candidateSha") != sha or not identity.get("editionId") or not identity.get("databaseFingerprint"):
                   raise SystemExit("S14 run identity is incomplete or not exact-SHA bound")
