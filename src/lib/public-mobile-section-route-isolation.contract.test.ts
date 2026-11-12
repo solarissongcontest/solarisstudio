@@ -17,13 +17,15 @@ describe("mobile browser section disclosure route identity", () => {
     expect(disclosure).toContain('event.key !== "Escape" || !open');
     expect(disclosure).toContain('window.matchMedia("(min-width: 768px)")');
     expect(disclosure).toContain('document.addEventListener("pointerdown", onOutsidePointerDown)');
-    expect(disclosure).toContain('onNavigate={() => setOpen(false)}');
+    expect(disclosure).toContain("onNavigate={() => setOpen(false)}");
   });
 
   it("retains a real browser regression for immediate disclosure use after a navigation", () => {
-    expect(regression).toContain('await recordsLink.click()');
+    expect(regression).toContain("await recordsLink.click()");
     expect(regression).toContain('await nav.locator(".public-mobile-section-trigger").click()');
-    expect(regression).toContain('await expect(nav.locator(".public-mobile-section-trigger")).toHaveAttribute("aria-expanded", "true")');
+    expect(regression).toContain(
+      'await expect(nav.locator(".public-mobile-section-trigger")).toHaveAttribute("aria-expanded", "true")',
+    );
     expect(regression).toContain('await page.goBack({ waitUntil: "domcontentloaded" })');
   });
 });
