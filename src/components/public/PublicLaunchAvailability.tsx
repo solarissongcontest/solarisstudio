@@ -32,13 +32,24 @@ export function PublicLaunchAvailabilityProvider({
     staleTime: 0,
     gcTime: 0,
     retry: false,
+    // React Query may change query keys after a same-user session refresh.
+    // Reuse only that actor's last confirmed decision during revalidation.
+    // Account changes, first loads, errors and revoked decisions still deny.
+    placeholderData: (previous) => (previous?.actor === actor ? previous : undefined),
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
   });
   const error = session.isError || flags.isError;
+  const sameActorVerified = flags.isSuccess && flags.data?.actor === actor;
+  // Never unmount an authorized form for a same-actor background recheck.
+  // An unknown/new actor still fails closed; a revoked or failed answer
+  // immediately clears the decision when the request settles.
   const checking =
-    !error && (session.isPending || session.isFetching || flags.isPending || flags.isFetching);
-  const verified = enabled && !checking && !error && flags.data?.actor === actor;
+    !error &&
+    (session.isPending ||
+      flags.isPending ||
+      ((session.isFetching || flags.isFetching) && !sameActorVerified));
+  const verified = enabled && !checking && !error && sameActorVerified;
   return (
     <PublicLaunchContext.Provider
       value={{
