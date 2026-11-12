@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {PROFILE,dependencyGraph,validateFreshSource,qualifySourceBeta} from './check-v3-s02-baseline.mjs';
 const sha='1'.repeat(40),fingerprint='a'.repeat(64);
 function catalog(){
- return {formatVersion:1,serverVersionNum:170011,databaseImage:'sha256:'+fingerprint,databaseIdentity:'postgres:one-start',migrationVersions:['1'],seedCounts:{users:0,ballots:0},
+ return {formatVersion:1,serverVersionNum:170011,trackFunctions:'all',databaseImage:'sha256:'+fingerprint,databaseIdentity:'postgres:one-start',migrationVersions:['1'],seedCounts:{users:0,ballots:0},
  nodes:PROFILE.roots.map((name,i)=>({id:'f:'+i,identity:name+'()',name,kind:'function',schema:name.split('.')[0],
  owner:'postgres',settingsMd5:'b'.repeat(32),aclMd5:'c'.repeat(32),definitionSha256:fingerprint,language:'plpgsql',securityDefiner:true,privileges:{anon:false,authenticated:false,service_role:false}})),edges:[],schemas:[]};
 }

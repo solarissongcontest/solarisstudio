@@ -75,8 +75,8 @@ export V3_VERIFICATION_TARGET=local V3_SEED_TARGET=local V3_CLEANUP_TARGET=local
 DATABASE_URL="$DB_URL" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" bun run scripts/check-v3-production-isolation.ts
 sql(){ psql "$DB_URL" -X -qAt -v ON_ERROR_STOP=1 "$@"; }
 # Local observability only. No permissions or authorization checks are loosened.
-sql -c "alter system set track_functions='all';"
-sql -c 'select pg_reload_conf();'
+docker exec "supabase_db_$expected_project" psql -w -X -h /var/run/postgresql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -c "alter system set track_functions='all';"
+docker exec "supabase_db_$expected_project" psql -w -X -h /var/run/postgresql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -c 'select pg_reload_conf();'
 boundary(){
  node scripts/stage-v3-s07-televote-source-truth.mjs --writer-boundary > "$out/writer-boundary.sql"
  sql -f "$out/writer-boundary.sql"

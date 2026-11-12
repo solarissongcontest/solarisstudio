@@ -27,8 +27,8 @@ export function dependencyGraph(c,expected=frozen.functions,roots=PROFILE.roots)
    const attributes=frozenCatalog.routines.find(r=>r.signature===n.identity)||old.ownerMetadata;
    const same=attributes && n.owner===attributes.owner_name && n.settingsMd5===attributes.settings_md5 && n.aclMd5===attributes.acl_md5 && n.definitionSha256===old.sha256 && n.securityDefiner===old.securityDefiner && n.language===old.language &&
     Object.entries(old.exec).every(([r,v])=>n.privileges?.[r]===v);
-   status=same?'verified-equivalent':'verified-different';
-   evidence=same?'Exact frozen definition/security/EXECUTE representation; tested behavior only':'Different catalog bytes, NOT proof of semantic drift';
+   status=same?'verified-equivalent':(!attributes && n.definitionSha256===old.sha256?'unknown':'verified-different');
+   evidence=status==='unknown'?'Missing frozen owner/configuration metadata':same?'Exact frozen definition/security/EXECUTE representation; tested behavior only':'Different catalog bytes, NOT proof of semantic drift';
   }
   else if(n.kind==='relation'&&reachable.has(n.id)){
    const local=c.fingerprints?.relations?.find(r=>r.schema_name+'.'+r.object_name===n.identity);
@@ -73,6 +73,7 @@ export function validateFreshSource(c,versions){
  check(c.migrationVersions?.join(',')===versions.join(','),'Source migration history mismatch');
  check(c.seedCounts?.users===0&&c.seedCounts?.ballots===0,'Source baseline has pre-existing user/ballot state');
  check(c.databaseIdentity,'Missing local database identity');
+ check(c.trackFunctions==='all','Function-call telemetry not enabled');
  check(/^sha256:[a-f0-9]{64}$/.test(c.databaseImage||''),'Missing actual database image identity');
 }
 export function qualifySourceBeta({candidateSha,before,after,second,stages,lifecycle,migrationVersions,sourceHashes}){

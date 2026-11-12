@@ -64,7 +64,7 @@ with funcs as (
  from pg_trigger t join rels r on r.oid=t.tgrelid where not t.tgisinternal
 )
 select jsonb_build_object('formatVersion',1,'serverVersionNum',current_setting('server_version_num')::integer,
- 'databaseIdentity',current_database()||':'||pg_postmaster_start_time()::text,
+ 'trackFunctions',current_setting('track_functions'),'databaseIdentity',current_database()||':'||pg_postmaster_start_time()::text,
  'migrationVersions',(select jsonb_agg(version order by version) from supabase_migrations.schema_migrations),
  'seedCounts',jsonb_build_object('users',(select count(*) from auth.users),'ballots',(select count(*) from televoting.vote_submissions)),
  'nodes',(select jsonb_agg(value order by value->>'id') from nodes),
