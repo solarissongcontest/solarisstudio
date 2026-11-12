@@ -17,12 +17,21 @@ import type { PublicLaunchFlags } from "./public-launch-availability";
 
 function render(children: ReactNode, flags: PublicLaunchFlags = {}) {
   return renderToStaticMarkup(
-    <PublicLaunchContext.Provider value={{ flags, checking: false, error: false, retry: () => {} }}>
+    <PublicLaunchContext.Provider
+      value={{ active: true, flags, checking: false, error: false, retry: () => {} }}
+    >
       {children}
     </PublicLaunchContext.Provider>,
   );
 }
 describe("soft-launch rendered public entry points", () => {
+  it("does not change shared Organizer widgets outside the Public provider", () => {
+    expect(
+      renderToStaticMarkup(
+        <V3ActionCard title="Existing lab" description="Organizer-owned" to="/analysis" />,
+      ),
+    ).toContain('href="/analysis"');
+  });
   it("does not mount an unavailable deep-link child or its domain hooks", () => {
     let mounts = 0;
     function DeferredPage() {

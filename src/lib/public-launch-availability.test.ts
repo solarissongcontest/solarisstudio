@@ -46,6 +46,13 @@ describe("Public soft-launch presentation policy", () => {
       expect(publicLaunchAllows("/fantasy", { fantasy_ssc: evaluated })).toBe(expected);
     }
   });
+  it("does not reuse an edition-only opt-in as a global discovery grant", () => {
+    const rule = { enabled: true, editionIds: ["approved-edition"] };
+    for (const editionId of [null, "another-edition"]) {
+      expect(publicLaunchAllows("/fantasy", { fantasy_ssc: evaluateFeatureFlag(rule, { userId: "tester", editionId }) })).toBe(false);
+    }
+    expect(publicLaunchAllows("/fantasy", { fantasy_ssc: evaluateFeatureFlag(rule, { userId: "tester", editionId: "approved-edition" }) })).toBe(true);
+  });
   it("reacts to a revoked/disabled decision without treating existence or truthy strings as approval", () => {
     expect(publicLaunchAllows("/world/organizations", { terra_world_public: true })).toBe(true);
     for (const decision of [false, undefined, null, "true", 1]) {
@@ -58,6 +65,8 @@ describe("Public soft-launch presentation policy", () => {
   it("does not open similarly named protected routes or hide unrelated published routes", () => {
     expect(publicLaunchAllows("/worldbuilding-rules")).toBe(true);
     expect(publicLaunchAllows("/%77orld/organizations")).toBe(false);
+    expect(publicLaunchAllows("/WORLD/organizations")).toBe(false);
+    expect(publicLaunchAllows("/broadcast-intelligence")).toBe(false);
     expect(publicLaunchAllows("/world%2forganizations")).toBe(false);
     for (const bad of [
       "//evil.example/fantasy",

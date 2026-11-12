@@ -376,7 +376,7 @@ function RootComponent() {
       {isolatedRoute || fullAdmin ? (
         maintenanceRecovery ? content : <V3RootLegacyCutover>{content}</V3RootLegacyCutover>
       ) : (
-        <PublicLaunchAvailabilityProvider>
+        <PublicLaunchAvailabilityProvider enabled={!publicParticipation && !pathname.startsWith("/jury-voting") && pathname !== "/auth"}>
           <PublicLaunchRouteBoundary pathname={pathname}>
             <V3RootLegacyCutover>{content}</V3RootLegacyCutover>
           </PublicLaunchRouteBoundary>

@@ -9,12 +9,18 @@ import { PublicLaunchContext } from "@/lib/public-launch-context";
  * No cohort lists, local tester override, new flag, polling or mutation API.
  * studio2-* uses the existing private account-cache eviction boundary.
  */
-export function PublicLaunchAvailabilityProvider({ children }: { children: ReactNode }) {
+export function PublicLaunchAvailabilityProvider({
+  children,
+  enabled = true,
+}: {
+  children: ReactNode;
+  enabled?: boolean;
+}) {
   const session = useFanSession();
   const actor = session.data?.id ?? null;
   const flags = useQuery({
     queryKey: ["studio2-public-launch", actor, session.dataUpdatedAt],
-    enabled: session.isSuccess && !session.isFetching,
+    enabled: enabled && session.isSuccess && !session.isFetching,
     queryFn: async () => {
       const decisions = await Promise.all(
         PUBLIC_LAUNCH_FLAGS.map(
@@ -29,12 +35,14 @@ export function PublicLaunchAvailabilityProvider({ children }: { children: React
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
   });
-  const checking = session.isPending || session.isFetching || flags.isPending || flags.isFetching;
   const error = session.isError || flags.isError;
-  const verified = !checking && !error && flags.data?.actor === actor;
+  const checking =
+    !error && (session.isPending || session.isFetching || flags.isPending || flags.isFetching);
+  const verified = enabled && !checking && !error && flags.data?.actor === actor;
   return (
     <PublicLaunchContext.Provider
       value={{
+        active: true,
         flags: verified ? flags.data!.flags : {},
         checking,
         error,

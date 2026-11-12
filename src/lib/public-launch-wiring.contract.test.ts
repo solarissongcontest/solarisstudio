@@ -6,6 +6,7 @@ describe("soft-launch entry-point integration", () => {
   it("keeps one root presentation boundary around public route content and leaves maintenance/admin isolation", () => {
     const root = source("src/routes/__root.tsx");
     expect(root).toContain("isolatedRoute || fullAdmin");
+    expect(root).toContain('enabled={!publicParticipation && !pathname.startsWith("/jury-voting") && pathname !== "/auth"}');
     expect(root).toContain("<PublicLaunchRouteBoundary pathname={pathname}>");
     expect(root).toContain("<V3RootLegacyCutover>{content}</V3RootLegacyCutover>");
     expect(root).toContain('pathname === "/maintenance/recovery"');
@@ -21,6 +22,7 @@ describe("soft-launch entry-point integration", () => {
       expect(source(path)).toContain("usePublicLaunchAvailability");
       expect(source(path)).toContain("allows(item.to)");
     }
+    expect(source("src/components/app/AppExplorePersonalized.tsx")).toContain("allows(item.path)");
     const search = source("src/components/public/PublicCommandPalette.tsx");
     expect(
       search.match(/unfilteredSearchResults.filter\(item => allows\(item.href\)\)/g),
