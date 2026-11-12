@@ -339,7 +339,9 @@ function PublicGuidePage() {
   const visibleSections = SECTIONS.map((section) => ({
     ...section,
     questions: section.questions.filter(
-      (question) => !("requires" in question) || allows(question.requires),
+      (question) =>
+        !("requires" in question) ||
+        (typeof question.requires === "string" && allows(question.requires)),
     ),
   })).filter((section) => section.questions.length > 0);
   return (
