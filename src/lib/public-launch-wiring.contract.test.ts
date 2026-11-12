@@ -56,6 +56,15 @@ describe("soft-launch entry-point integration", () => {
     expect(provider).not.toContain("refetchInterval");
     expect(provider).not.toContain("isOrganizer");
   });
+  it("keeps eligible Prediction League standings reachable without advertising the deferred Arena", () => {
+    expect(publicLaunchAllows("/prediction-league", { prediction_league: true })).toBe(true);
+    expect(publicLaunchAllows("/predictions", { prediction_league: true })).toBe(false);
+    const league = source("src/routes/prediction-league/index.tsx");
+    expect(league).toContain("return <LegacyPredictionLeaguePage />;");
+    expect(league).not.toContain('<Navigate to="/predictions" replace />');
+    const header = source("src/components/predictions/PredictionWorkspaceHeader.tsx");
+    expect(header).toContain("PublicLaunchLink as Link");
+  });
   it("keeps every installed PWA shortcut on a core destination", () => {
     const manifest = JSON.parse(source("public/site.webmanifest"));
     for (const shortcut of manifest.shortcuts) expect(publicLaunchAllows(shortcut.url)).toBe(true);
