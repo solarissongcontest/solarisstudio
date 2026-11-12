@@ -59,7 +59,15 @@ begin
   -- Edition scope comes only from the locked canonical game row.
   -- An authenticated caller cannot bypass a hidden/tester-only rollout
   -- by invoking the older SECURITY DEFINER function directly.
+  -- A game must not borrow a rollout decision from a different edition
+  -- than its canonical show, even if its stored edition_id is corrupted.
   if v_game.edition_id is null
+     or v_game.show_id is null
+     or not exists (
+       select 1 from public.shows canonical_show
+       where canonical_show.id = v_game.show_id
+         and canonical_show.edition_id = v_game.edition_id
+     )
      or not coalesce(
        private.studio2_feature_enabled_for(v_user, 'fantasy_ssc', v_game.edition_id),
        false
