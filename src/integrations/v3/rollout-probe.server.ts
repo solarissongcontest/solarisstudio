@@ -94,13 +94,21 @@ function disabledProbe(input?: {
   };
 }
 
-async function evaluateV3Rollout(
+export async function evaluateV3Rollout(
   publicClient: RolloutClient,
   editionId: string | null,
 ): Promise<V3RolloutProbe> {
   const { client, userId } = await rolloutClientForRequest(publicClient);
+  // The global switch is authoritative. With V3 disabled or uncertain, do not
+  // issue fifteen unnecessary per-capability RPCs. This is fail-closed and
+  // preserves the authenticated caller's rollout scope when enabled.
+  const globalFlag = await client.rpc("studio2_feature_enabled", {
+    p_key: "solaris_app_v3", p_edition_id: editionId,
+  });
+  if (globalFlag.error) return disabledProbe({ editionId, userId });
+  if (globalFlag.data !== true) return disabledProbe({ editionId, userId });
+
   const [
-    globalFlag,
     confirmationFlag,
     scoreboardFlag,
     accountSettingsFlag,
@@ -117,7 +125,6 @@ async function evaluateV3Rollout(
     liveFlag,
     organizerFlag,
   ] = await Promise.all([
-    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3", p_edition_id: editionId }),
     client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_confirmation", p_edition_id: editionId }),
     client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_scoreboard", p_edition_id: editionId }),
     client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_account_settings", p_edition_id: editionId }),
@@ -134,8 +141,6 @@ async function evaluateV3Rollout(
     client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_live", p_edition_id: editionId }),
     client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_organizer", p_edition_id: editionId }),
   ]);
-
-  if (globalFlag.error) return disabledProbe({ editionId, userId });
 
   const enabled = globalFlag.data === true;
   const confirmationEnabled = enabled && !confirmationFlag.error && confirmationFlag.data === true;
