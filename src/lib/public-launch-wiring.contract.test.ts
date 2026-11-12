@@ -9,6 +9,13 @@ describe("soft-launch entry-point integration", () => {
     expect(root).toContain('enabled={!publicParticipation && !pathname.startsWith("/jury-voting") && pathname !== "/auth"}');
     expect(root).toContain("<PublicLaunchRouteBoundary pathname={pathname}>");
     expect(root).toContain("<V3RootLegacyCutover>{content}</V3RootLegacyCutover>");
+    const gate = root.slice(
+      root.indexOf("<PublicLaunchRouteBoundary pathname={pathname}>"),
+      root.indexOf("</PublicLaunchRouteBoundary>"),
+    );
+    // A hidden route must also hide its floating quick-guide content.
+    expect(gate).toContain("<ToolQuickGuide pathname={pathname} />");
+    expect(root).not.toContain("{!isolatedRoute ? <ToolQuickGuide pathname={pathname} /> : null}");
     expect(root).toContain('pathname === "/maintenance/recovery"');
   });
   it("filters catalog, installed and browser search results, recents and menus", () => {
