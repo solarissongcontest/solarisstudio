@@ -94,6 +94,32 @@ jobs:
           set -euo pipefail
           : "${S02_CLI_PROJECT_ID:?}" "${S02_NETWORK_ID:?}" "${S02_SUPABASE_BINARY:?}"
           export SUPABASE_PROJECT_ID="$S02_CLI_PROJECT_ID"
+          if [[ "${1:-}" == start ]]; then
+            log="$RUNNER_TEMP/s02-start-private.log"
+            result=0
+            "$S02_SUPABASE_BINARY" --debug "$@" > "$log" 2>&1 || result=$?
+            if [[ "$result" == 0 ]]; then
+              echo 'Owned local Supabase source initialization succeeded'
+            else
+              python3 - "$log" <<'PY'
+          import re,sys
+          lines=open(sys.argv[1],errors="replace").read().splitlines()
+          errors=[]
+          for line in lines:
+              line=re.sub(r"\x1b\[[0-9;]*m","",line)
+              if not re.search(r"error|failed|fatal|exception|nxdomain|econn|timeout|denied",line,re.I): continue
+              if re.search(r'"Type":\\s*"(?:Query|Parse)"',line): continue
+              if re.search(r"statement:|SQL statement|create or replace|^20\S+ \[debug\].*(?:SELECT|INSERT|UPDATE|DELETE)",line,re.I): continue
+              line=re.sub(r"(postgres(?:ql)?://)[^@\s]+@",r"\1[redacted]@",line)
+              line=re.sub(r"(?i)(password|secret|token|api[_-]?key)\s*[=:]\s*[^\s,;\]]+",r"\1=[redacted]",line)
+              line=re.sub(r"eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+","[redacted-jwt]",line)
+              errors.append(line[:700])
+          print("\n".join(errors[-25:]) or "Local startup failed without a safe terminal diagnostic")
+          PY
+            fi
+            rm -f "$log"
+            exit "$result"
+          fi
           exec "$S02_SUPABASE_BINARY" "$@"
           SH
           chmod +x "$RUNNER_TEMP/s02-bin/supabase"
