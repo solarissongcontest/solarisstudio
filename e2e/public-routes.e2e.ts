@@ -575,6 +575,10 @@ test("soft launch hides deferred discovery and rejects direct links without moun
   for (const href of ["/fantasy", "/prediction-league", "/voting-dna", "/analysis", "/scorecharts", "/result-lab", "/tools"]) {
     await expect(directory.locator(`a[href="${href}"]`)).toHaveCount(0);
   }
+  await page.goto("/results", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: /^(Official results|Results)$/ })).toBeVisible();
+  await expect(page.getByText("More result tools", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "More result analysis", exact: true })).toHaveCount(0);
   for (const route of ["/analysis", "/tools", "/fantasy", "/prediction-league", "/world/organizations"]) {
     await page.goto(route, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "This experience is not available", exact: true })).toBeVisible();

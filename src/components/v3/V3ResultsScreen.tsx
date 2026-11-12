@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import type { Country } from "@/lib/data";
 import {
   buildV3ResultsProjection,
@@ -25,6 +26,7 @@ export function V3ResultsScreen({
   changingResult?: boolean;
   onResultChange?: (showId: string) => void;
 }) {
+  const { allows } = usePublicLaunchAvailability();
   const [revealed, setRevealed] = useState(false);
   const [selectedMode, setSelectedMode] = useState<V3ResultMode>("combined");
   const projection = buildV3ResultsProjection({
@@ -199,7 +201,11 @@ export function V3ResultsScreen({
             {([
               ["Explore this result", "Explore this result", projection.exploreThisResult],
               ["More analysis", "More result analysis", projection.moreAnalysis],
-            ] as const).map(([title, ariaLabel, links]) => (
+            ] as const).map(([title, ariaLabel, links]) => ({
+              title,
+              ariaLabel,
+              links: links.filter((link) => allows(link.href)),
+            })).filter(({ links }) => links.length > 0).map(({ title, ariaLabel, links }) => (
               <V3Section key={title} title={title}>
                 <nav aria-label={ariaLabel} className="grid gap-2">
                   {links.map((link) => (
