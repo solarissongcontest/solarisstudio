@@ -382,6 +382,38 @@ export function buildV3PrIntegrationReport(
   };
 }
 
+/** Core checks for a strict PR integration evidence assertion.
+ * This remains a read-only snapshot assessment, not merge/release authorization.
+ */
+export const V3_PR_STRICT_REQUIRED_CHECKS = [
+  "Quality",
+  "Browser audit",
+  "V3 S13 Migration Adoption",
+  "V3 S15 independent ownership and cutover evidence",
+  "Client bundle budget evidence",
+  "V3 PR Main Freshness",
+] as const;
+
+/** Reject vacuous success and caller-pruned check manifests. */
+export function v3PrStrictEvidenceFailures(report: V3PrIntegrationReport): string[] {
+  const failures: string[] = [];
+  if (report.candidates.length === 0) {
+    failures.push("No PR candidates supplied; strict exact-head verification requires at least one PR");
+  }
+  for (const candidate of report.candidates) {
+    const omitted = V3_PR_STRICT_REQUIRED_CHECKS.filter(
+      (gate) => !candidate.requiredChecks.includes(gate),
+    );
+    if (omitted.length) {
+      failures.push(`PR #${candidate.number} omits required integration checks: ${omitted.join(", ")}`);
+    }
+    if (candidate.state !== "exact_head_verified") {
+      failures.push(`PR #${candidate.number} is ${candidate.state}, not exact_head_verified`);
+    }
+  }
+  return failures;
+}
+
 export function formatV3PrIntegrationReportMarkdown(report: V3PrIntegrationReport) {
   const lines = [
     "# V3 Current-PR Integration State",
