@@ -18,6 +18,7 @@ actual_project="$(python3 -c 'import tomllib; print(tomllib.load(open("supabase/
 [[ "$actual_project" == "$expected_project" ]] || fail 'Not this run-owned disposable project'
 [[ "${S02_CLI_PROJECT_ID:-}" == "$expected_project" && "${S02_NETWORK_ID:-}" == "supabase_network_$expected_project" ]] || fail 'Missing pinned CLI/network identity'
 export DOCKER_HOST=unix:///var/run/docker.sock
+verify_boundary(){
 network_id="$(docker network inspect --format '{{.Id}}' "$S02_NETWORK_ID")"
 bridge="br-${network_id:0:12}"
 subnet="$(docker network inspect --format '{{(index .IPAM.Config 0).Subnet}}' "$S02_NETWORK_ID")"
@@ -34,6 +35,8 @@ for cid in $containers; do
 done
 export S02_DATABASE_IMAGE="$(docker inspect --format '{{.Image}}' "supabase_db_$expected_project")"
 [[ "$S02_DATABASE_IMAGE" =~ ^sha256:[a-f0-9]{64}$ ]] || fail 'Missing owned database image'
+}
+verify_boundary
 out=s02-source-evidence
 [[ ! -e "$out" ]] || fail 'Refusing stale/reused evidence directory'
 mkdir "$out"
@@ -106,6 +109,7 @@ boundary(){
  rm "$out/writer-boundary.sql"
 }
 collect(){
+ verify_boundary
  sql -f scripts/v3-s02-runtime-dependencies-local.sql > "$out/$1.json"
  sql -f scripts/v3-s06-hosted-catalog-digests-local.sql > "$out/fingerprints-$1.json"
  S02_CATALOG="$out/$1.json" node --input-type=module <<'JS'
@@ -137,6 +141,9 @@ collect after
 run dependency-after node scripts/check-v3-s02-baseline.mjs graph "$out" after
 current=second-source-replay
 supabase db reset --local --no-seed
+verify_boundary
+docker exec "supabase_db_$expected_project" psql -w -X -h /var/run/postgresql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -c "alter system set track_functions='all';"
+docker exec "supabase_db_$expected_project" psql -w -X -h /var/run/postgresql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -c 'select pg_reload_conf();'
 boundary
 sql -f .github/tests/v3-s02-source-security.sql
 bash scripts/rehearse-v3-s14-archive-forward-effects-local.sh

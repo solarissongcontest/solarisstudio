@@ -26,7 +26,7 @@ test('every required executable stage, including cleanup and second replay, is m
  for(const stage of PROFILE.requiredStages){const v=input();v.stages[stage]='not_executed';assert.throws(()=>qualifySourceBeta(v),/Incomplete stage/);}
 });
 test('wrong version, unknown history and pre-existing ballots/users fail closed',()=>{
- for(const patch of [{serverVersionNum:160011},{migrationVersions:['2']},{seedCounts:{users:1,ballots:0}},{seedCounts:{users:0,ballots:1}}])
+ for(const patch of [{networkIsolation:{externalEgressDenied:false,hostProxyDenied:true,loopbackOnly:true,identity:'supabase_network_archive-v3-test'}},{databaseImage:'unknown'},{trackFunctions:'none'},{serverVersionNum:160011},{migrationVersions:['2']},{seedCounts:{users:1,ballots:0}},{seedCounts:{users:0,ballots:1}}])
  assert.throws(()=>validateFreshSource({...catalog(),...patch},['1']));
 });
 test('lifecycle evidence cannot be stale, partial, another database or missing safety scenarios',()=>{
