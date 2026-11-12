@@ -2,6 +2,8 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { assertV3ProductionIsolation } from "../../scripts/check-v3-production-isolation";
+
 const source = (path: string) => readFileSync(path, "utf8");
 const stage4 = source(".github/scripts/v3-s14-stage-4-entries.sh");
 const runtime = source(".github/scripts/v3-s14-lib.sh");
@@ -24,6 +26,36 @@ describe("S14 Stage 4 canonical projection hardening", () => {
     expect(syncRunner).toContain("127\\.0\\.0\\.1|localhost");
     expect(syncRunner).toContain("S14 canonical sync refuses non-local Supabase URL");
     expect(syncRunner).toContain("S14 canonical sync requires the local Supabase service-role key");
+    expect(syncRunner).toContain('import { assertV3ProductionIsolation } from "./check-v3-production-isolation"');
+    expect(syncRunner.indexOf("assertV3ProductionIsolation()")).toBeLessThan(
+      syncRunner.indexOf("await syncConfirmationSubmissionToSolarisInternal(submissionId)"),
+    );
+  });
+
+  it("refuses secondary hosted Confirmations and database targets before privileged sync", () => {
+    const local = {
+      SUPABASE_URL: "http://127.0.0.1:54321",
+      VITE_SUPABASE_URL: "http://127.0.0.1:54321",
+      SUPABASE_SERVICE_ROLE_KEY: "s14-disposable-local-fixture-only",
+      V3_SERVICE_ROLE_SCOPE: "local",
+    };
+    expect(() => assertV3ProductionIsolation(local)).not.toThrow();
+    expect(() => assertV3ProductionIsolation({
+      ...local,
+      CONFIRMATIONS_SUPABASE_URL: "https://production.supabase.co",
+    })).toThrow(/non-local host|hosted Supabase/i);
+    expect(() => assertV3ProductionIsolation({
+      ...local,
+      VITE_CONFIRMATIONS_SUPABASE_URL: "https://hosted.example.test",
+    })).toThrow(/non-local host|hosted Supabase/i);
+    expect(() => assertV3ProductionIsolation({
+      ...local,
+      DATABASE_URL: "postgresql://postgres:password@db.example.test:5432/postgres",
+    })).toThrow(/non-local host|hosted Supabase/i);
+    expect(() => assertV3ProductionIsolation({
+      ...local,
+      V3_SERVICE_ROLE_SCOPE: "production",
+    })).toThrow(/service-role credential.*V3_SERVICE_ROLE_SCOPE/i);
   });
 
   it("projects media replacement from a new participant Entry revision and rebinds exact review evidence", () => {

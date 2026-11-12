@@ -25,6 +25,7 @@ on:
       - "src/lib/v3-s14-failed-task-delivery-evidence.contract.test.ts"
       - "src/lib/v3-s14-resolved-task-notification-invariant.contract.test.ts"
       - "src/lib/v3-s14-archive-terminal-boundary.contract.test.ts"
+      - "src/lib/v3-s14-archive-gate-scope-and-reconciliation.contract.test.ts"
       - "src/lib/v3-s14-transition-http409.contract.test.ts"
       - "src/lib/v3-edition-transition-client.ts"
       - "src/lib/v3-edition-transition-client.test.ts"

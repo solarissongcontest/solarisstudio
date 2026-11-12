@@ -321,6 +321,10 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const { pathname } = useHydrationSafeRouterLocation();
   const teaserPreview = pathname === TERRAOS_TEASER_PREVIEW_PATH;
+  // Recovery must render without the public application services. During the
+  // Worker 503 gate these effects would initialize unrelated, unavailable APIs.
+  const maintenanceRecovery = pathname === "/maintenance/recovery";
+  const isolatedRoute = teaserPreview || maintenanceRecovery;
   const serviceAdmin =
     pathname.startsWith("/confirmations/admin") || pathname.startsWith("/televoting/admin");
   const fullAdmin = pathname.startsWith("/admin") || serviceAdmin;
@@ -353,7 +357,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {!teaserPreview ? (
+      {!isolatedRoute ? (
         <>
           <AccountCacheIsolation />
           <AppLaunchRestoreCoordinator />
@@ -367,9 +371,9 @@ function RootComponent() {
           {!fullAdmin ? <SolarisAmbientBackground /> : null}
         </>
       ) : null}
-      <V3RootLegacyCutover>{content}</V3RootLegacyCutover>
-      {!teaserPreview ? <ToolQuickGuide pathname={pathname} /> : null}
-      {!teaserPreview ? <Toaster /> : null}
+      {maintenanceRecovery ? content : <V3RootLegacyCutover>{content}</V3RootLegacyCutover>}
+      {!isolatedRoute ? <ToolQuickGuide pathname={pathname} /> : null}
+      {!isolatedRoute ? <Toaster /> : null}
     </QueryClientProvider>
   );
 }

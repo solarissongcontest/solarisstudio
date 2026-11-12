@@ -91,7 +91,7 @@ describe("Public V3 Live presentation", () => {
   it("never treats a stale open-voting snapshot as permission to advertise voting", () => {
     const screen = source();
 
-    expect(screen).toContain('const voteActionAvailable = !degraded && experience.voting.state === "open"');
+    expect(screen).toMatch(/const voteActionAvailable =\s*!degraded &&\s*experience\.state === "voting" &&\s*experience\.voting\.state === "open"/);
     expect(screen).toContain("{voteActionAvailable ? (");
     expect(screen).toContain('data-v3-live-voting-unverified=""');
     expect(screen).toContain("Voting status unverified");

@@ -1,50 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 
 import { GLOBAL_MAINTENANCE_MODE } from "./src/lib/maintenance";
+import { requireLocalPlaywrightTarget, requireLocalPlaywrightSupabaseEnvironment } from "./scripts/lib/require-local-playwright-target.mjs";
 
-const REQUIRED_TEST_SUPABASE_URL_VARS = [
-  "VITE_SUPABASE_URL",
-  "SUPABASE_URL",
-  "E2E_SUPABASE_URL",
-  "VITE_CONFIRMATIONS_SUPABASE_URL",
-  "CONFIRMATIONS_SUPABASE_URL",
-] as const;
-
-function isLoopbackUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return ["127.0.0.1", "localhost", "::1", "[::1]"].includes(url.hostname);
-  } catch {
-    return false;
-  }
-}
-
-function assertPlaywrightSupabaseIsolation() {
-  for (const name of REQUIRED_TEST_SUPABASE_URL_VARS) {
-    const value = process.env[name];
-    if (!value) {
-      throw new Error(
-        `[Playwright safety] Missing ${name}. Automated browser tests require explicit local Supabase configuration and never fall back to .env/production.`,
-      );
-    }
-    if (!isLoopbackUrl(value)) {
-      throw new Error(
-        `[Playwright safety] Refusing non-local Supabase endpoint in ${name}: ${value}`,
-      );
-    }
-  }
-
-  for (const [name, value] of Object.entries(process.env)) {
-    if (!value || !/SUPABASE.*URL/i.test(name)) continue;
-    if (!isLoopbackUrl(value)) {
-      throw new Error(
-        `[Playwright safety] Refusing hosted/non-loopback Supabase URL from ${name}: ${value}`,
-      );
-    }
-  }
-}
-
-assertPlaywrightSupabaseIsolation();
+// Validate before Playwright can launch a browser or start a web server.
+// This covers legacy Confirmations, CLI aliases and dynamically named URLs.
+requireLocalPlaywrightSupabaseEnvironment(process.env);
 
 const fullAuditRequested = process.env.E2E_FULL_AUDIT === "1";
 const routineMainPush =
@@ -94,7 +55,7 @@ const personalityViewportMatrix = fullAudit
       { width: 390, height: 844 },
       { width: 1440, height: 900 },
     ] as const);
-const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:4173";
+const baseURL = requireLocalPlaywrightTarget(process.env.E2E_BASE_URL, "http://127.0.0.1:4173");
 const maintenanceAuditBypass = process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1";
 const appAuditStorageState = maintenanceAuditBypass
   ? {

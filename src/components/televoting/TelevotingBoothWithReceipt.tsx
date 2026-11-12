@@ -19,23 +19,21 @@ import {
   TELEVOTE_SUBMITTED_EVENT,
   type SubmissionReceiptDetail,
 } from "@/lib/submission-receipts";
+import { readTelevoteReceipt, scrubTelevoteReceipts, writeTelevoteReceipt } from "@/lib/v3-televote-receipt-storage";
 
-const receiptKey = (roundId: string) => `ssc_vote_receipt:${roundId}`;
 
 function readStoredReceipt(roundId: string): SubmissionReceiptDetail | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(receiptKey(roundId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as {
-      governance?: SubmissionReceiptDetail["governance"];
-    };
-    return {
-      id: roundId,
-      kind: "televote",
-      governance: parsed.governance ?? null,
-    };
+    const storage = window.localStorage;
+    // Upgrade every legacy round, not just this round: old receipt markers
+    // contained voter names and unpublished ballot breakdowns.
+    scrubTelevoteReceipts(storage);
+    const stored = readTelevoteReceipt(storage, roundId);
+    if (!stored) return null;
+    return { id: roundId, kind: "televote", governance: stored.governance };
   } catch {
+    // Browser storage can be disabled; a local marker is never authoritative.
     return null;
   }
 }
@@ -49,15 +47,7 @@ function persistRecoveredReceipt(
     acknowledgedAt: receipt.accepted_at ?? null,
   });
   try {
-    localStorage.setItem(
-      receiptKey(roundId),
-      JSON.stringify({
-        governance,
-        recovered: true,
-        submissionId: receipt.id,
-        acceptedAt: receipt.accepted_at ?? null,
-      }),
-    );
+    writeTelevoteReceipt(window.localStorage, roundId, governance);
   } catch {
     // The authoritative receipt still came from the server.
   }

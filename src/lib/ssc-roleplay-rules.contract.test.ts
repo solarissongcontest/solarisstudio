@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { withPlainLanguage } from "@/lib/ssc-rules/plain-language-v42";
 
 import {
   BUNDLED_RULEBOOK_META,
@@ -13,9 +14,10 @@ import {
 } from "@/lib/ssc-rules-v4";
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
+const draftRule = (id: string) => { const rule = getRuleById(id); return rule ? withPlainLanguage(rule) : null; };
 
 describe("SSC Roleplay & Worldbuilding contract", () => {
-  it("ships Chapter 22 as the v4.1 current canon without renumbering prior chapters", () => {
+  it("keeps Chapter 22 and published v4.1 current while v4.2 awaits formal publication", () => {
     expect(SSC_RULEBOOK.version).toBe("4.1");
     expect(BUNDLED_RULEBOOK_META.version).toBe("4.1");
     expect(SSC_RULE_CHAPTERS).toHaveLength(22);
@@ -25,22 +27,22 @@ describe("SSC Roleplay & Worldbuilding contract", () => {
     expect(getRuleById("22.1")?.chapterNumber).toBe(22);
   });
 
-  it("carries the already-published v4.0.1 definitions into the bundled v4.1 canon", () => {
-    const terms = getRuleById("2.1")?.body.join(" ") ?? "";
-    expect(terms).toContain("Appeal: A formal request for TSBC to review a decision");
+  it("retains the meaning of published definitions while rewording v4.2 in plain English", () => {
+    const terms = draftRule("2.1")?.body.join(" ") ?? "";
+    expect(terms).toContain("Appeal: A request for TSBC to review a decision");
     expect(terms).toContain("Head of Delegation (HoD)");
-    expect(terms).toContain("Withdrawal: The formal removal of a Country from an Edition");
+    expect(terms).toContain("Withdrawal: When a country formally leaves an edition");
   });
 
   it("makes the six-completed-edition threshold explicit and searchable", () => {
-    const dormant = getRuleById("22.5");
-    const protectedCountry = getRuleById("22.4");
-    const elimination = getRuleById("22.6");
+    const unprotected = draftRule("22.5");
+    const protectedCountry = draftRule("22.4");
+    const elimination = draftRule("22.6");
 
-    expect(dormant?.body.join(" ")).toContain("six consecutive SSC Editions");
-    expect(dormant?.body.join(" ")).toContain("no active Head of Delegation at any point");
-    expect(protectedCountry?.body.join(" ")).toContain("Withdrawal");
-    expect(elimination?.body.join(" ")).toContain("completely eliminated");
+    expect(unprotected?.body.join(" ")).toContain("six SSC editions in a row");
+    expect(unprotected?.body.join(" ")).toContain("without an active Head of Delegation (HoD) at any point");
+    expect(protectedCountry?.body.join(" ")).toContain("A suspension, withdrawal, temporary absence or skipped edition does not immediately remove protection");
+    expect(elimination?.body.join(" ")).toContain("remove that country from the current Solaris map");
 
     expect(searchSscRules("hodless country").some((rule) => rule.id === "22.5")).toBe(true);
     expect(searchSscRules("annex dormant country").some((rule) => rule.id === "22.6")).toBe(true);
@@ -80,6 +82,9 @@ describe("SSC Roleplay & Worldbuilding contract", () => {
     expect(home).toContain("Roleplay & Worldbuilding");
     expect(home).toContain("env(safe-area-inset-bottom)");
     expect(roleplayVisual).toContain("Dormancy clock");
+    expect(roleplayVisual).toContain('usePlainCountryTerms ? "Unprotected" : "Dormant"');
+    expect(chapter).toContain('compareRulebookVersions(publishedRulebookVersion, "4.2") >= 0');
+    expect(chapter).toContain("usePublishedRulebook()");
     expect(roleplayVisual).toContain("grid-cols-3");
     expect(roleplayVisual).toContain("sm:grid-cols-6");
     expect(chapter).toContain("RoleplayWorldbuildingVisual");
@@ -88,12 +93,12 @@ describe("SSC Roleplay & Worldbuilding contract", () => {
     expect(detail).toContain("Examples");
     expect(checker).toContain("min-h-12");
     expect(journey).toContain("md:grid-cols-2");
-    expect(search).toContain("findRuleSearchQuickAnswer(q)");
+    expect(search).toContain("findRuleSearchQuickAnswer(q, version)");
     expect(search).not.toContain("findRoleplayQuickAnswer");
     // The canonical matcher preserves authored roleplay answers but declines
     // to invent a verdict for generic or unrelated question strings.
     const quickAnswers = source("src/lib/v3-rules-quick-answer-search.ts");
-    expect(quickAnswers).toContain("ROLEPLAY_QUICK_ANSWERS");
+    expect(quickAnswers).toContain("roleplayQuickAnswersForVersion");
     expect(quickAnswers).toContain("GOVERNANCE_QUICK_ANSWERS");
     expect(navigation).toContain("Browse all 22 chapters");
     expect(navigation).toContain('"/rules/chapters/roleplay-worldbuilding"');

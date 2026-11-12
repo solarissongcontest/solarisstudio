@@ -91,9 +91,11 @@ describe("country account jury voting contract", () => {
 
   it("shows Jury voting as a separate country-account service on Participate", () => {
     const participate = source("src/routes/participate/index.tsx");
-    expect(participate).toContain('to: "/jury-voting"');
-    expect(participate).toContain('title: "Jury voting"');
-    expect(participate).toContain("Country account required");
-    expect(participate).toContain("Friend-voting integrity checks");
+    const juryAction = source("src/lib/public-participation-jury-action.ts");
+    expect(participate).toContain("publicParticipationJuryAction(juryQuery.data, now ?? 0)");
+    expect(juryAction).toContain('to: "/jury-voting"');
+    expect(juryAction).toContain('title: "Jury voting"');
+    expect(juryAction).toContain("Country account required");
+    expect(juryAction).toContain("Friend-voting integrity checks");
   });
 });

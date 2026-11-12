@@ -185,11 +185,26 @@ describe("Solaris UI craft foundations", () => {
     expect(controlFocus).not.toContain("outline: none");
   });
 
-  it("keeps scoreboard movement meaningful and avoids near-zero award materialization", () => {
+  it("preserves score-row movement and visible award animation without shipping a motion runtime", () => {
     const scoreboard = source("src/components/Scoreboard.tsx");
-    expect(scoreboard).toContain("useReducedMotion");
-    expect(scoreboard).toContain("0.92");
-    expect(scoreboard).toContain("0.96");
-    expect(scoreboard).not.toContain("isTwelve ? 0.2 : 0.6");
+    const broadcast = source("src/components/broadcast/ScoreboardBoard.tsx");
+    const cards = source("src/components/broadcast/CountryCard.tsx");
+    const overlay = source("src/routes/broadcast/$showId.tsx");
+    const nativeRows = source("src/components/AnimatedListItem.tsx");
+    const nativeStyles = source("src/components/scoreboard-motion.css");
+
+    expect(scoreboard).toContain("<AnimatedListItem");
+    expect(broadcast).toContain("<CountryCard");
+    expect(cards).toContain("<AnimatedListItem");
+    expect(overlay).toContain("solaris-native-broadcast-enter");
+    expect(nativeRows).toContain("getBoundingClientRect");
+    expect(nativeRows).toContain("node.animate");
+    expect(nativeRows).toContain("prefers-reduced-motion: reduce");
+    expect(nativeStyles).toContain("scale(0.92)");
+    expect(nativeStyles).toContain("scale(0.96)");
+    expect(nativeStyles).toContain("140ms ease-out");
+    for (const content of [scoreboard, broadcast, cards, overlay]) {
+      expect(content).not.toContain('from "framer-motion"');
+    }
   });
 });

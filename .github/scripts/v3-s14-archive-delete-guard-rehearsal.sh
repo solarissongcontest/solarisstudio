@@ -339,6 +339,117 @@ SELECT pg_temp.assert_true(
   'Edition B must remain in results after the rejected delete+insert statement.'
 );
 
+\echo '[v3-s14-archive-delete-guard] Verify private one-shot Archive authorization cannot cross editions or transactions'
+-- Canonical Archive's transaction capability must be consumed once as part
+-- of the runtime transition, and may not persist for a later direct command.
+SELECT pg_temp.assert_true(
+  'canonical Archive consumes its one-shot edition gate',
+  NOT EXISTS (
+    SELECT 1
+    FROM private.v3_archive_runtime_transition_gates
+    WHERE edition_id = :'EDITION_A'::uuid
+  ),
+  'The canonical command left a reusable Archive gate for Edition A.'
+);
+
+-- These tests intentionally seed PRIVATE gate rows as the superuser inside
+-- this disposable transaction only. No external actor can perform these
+-- inserts: the next assertions prove direct service/browser gate access is
+-- revoked. This models mismatched or stale capabilities, not a public API.
+INSERT INTO private.v3_archive_runtime_transition_gates(edition_id, transaction_id)
+VALUES (:'EDITION_A'::uuid, txid_current());
+
+SET ROLE service_role;
+SELECT set_config('request.jwt.claims', json_build_object('role','service_role')::text, true);
+SELECT pg_temp.assert_archive_guard(
+  'a gate for edition A cannot archive edition B',
+  '42501',
+  'Archive transition must use the canonical V3 lifecycle command.',
+  format(
+    'update public.studio2_edition_runtime set state=''archived'' where edition_id=%L::uuid',
+    :'EDITION_B'
+  ),
+  'public.studio2_edition_runtime'::regclass
+);
+RESET ROLE;
+
+SELECT pg_temp.assert_true(
+  'cross-edition gate attempt preserves the unrelated runtime',
+  EXISTS (
+    SELECT 1 FROM public.studio2_edition_runtime
+    WHERE edition_id = :'EDITION_B'::uuid AND state = 'results'
+  ),
+  'A gate for Edition A changed the lifecycle state of Edition B.'
+);
+DELETE FROM private.v3_archive_runtime_transition_gates
+WHERE edition_id = :'EDITION_A'::uuid;
+
+-- Transaction affinity must be checked even for the correct edition.
+-- A gate from a different transaction cannot authorize a current write.
+INSERT INTO private.v3_archive_runtime_transition_gates(edition_id, transaction_id)
+VALUES (:'EDITION_B'::uuid, txid_current() + 1);
+
+SET ROLE service_role;
+SELECT set_config('request.jwt.claims', json_build_object('role','service_role')::text, true);
+SELECT pg_temp.assert_archive_guard(
+  'wrong-transaction gate cannot archive its own edition',
+  '42501',
+  'Archive transition must use the canonical V3 lifecycle command.',
+  format(
+    'update public.studio2_edition_runtime set state=''archived'' where edition_id=%L::uuid',
+    :'EDITION_B'
+  ),
+  'public.studio2_edition_runtime'::regclass
+);
+RESET ROLE;
+
+SELECT pg_temp.assert_true(
+  'wrong-transaction gate cannot change runtime or consume unrelated provenance',
+  EXISTS (
+    SELECT 1 FROM public.studio2_edition_runtime
+    WHERE edition_id = :'EDITION_B'::uuid AND state = 'results'
+  )
+  AND EXISTS (
+    SELECT 1 FROM private.v3_archive_runtime_transition_gates
+    WHERE edition_id = :'EDITION_B'::uuid
+      AND transaction_id = txid_current() + 1
+  ),
+  'An invalid Archive transaction capability mutated Edition B or gate history.'
+);
+DELETE FROM private.v3_archive_runtime_transition_gates
+WHERE edition_id = :'EDITION_B'::uuid;
+
+SELECT pg_temp.assert_true(
+  'private Archive gate cannot be armed or forged by browser or service roles',
+  NOT has_table_privilege(
+    'anon', 'private.v3_archive_runtime_transition_gates', 'INSERT'
+  )
+  AND NOT has_table_privilege(
+    'authenticated', 'private.v3_archive_runtime_transition_gates', 'INSERT'
+  )
+  AND NOT has_table_privilege(
+    'service_role', 'private.v3_archive_runtime_transition_gates', 'INSERT'
+  )
+  AND NOT has_function_privilege(
+    'anon', 'private.v3_arm_archive_runtime_transition_gate(uuid)', 'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'authenticated', 'private.v3_arm_archive_runtime_transition_gate(uuid)', 'EXECUTE'
+  )
+  AND NOT has_function_privilege(
+    'service_role', 'private.v3_arm_archive_runtime_transition_gate(uuid)', 'EXECUTE'
+  ),
+  'A non-owner role can forge the one-shot Archive authorization capability.'
+);
+SELECT pg_temp.assert_true(
+  'cross-edition and stale-capability tests remove all injected gate records',
+  NOT EXISTS (
+    SELECT 1 FROM private.v3_archive_runtime_transition_gates
+    WHERE edition_id IN (:'EDITION_A'::uuid, :'EDITION_B'::uuid)
+  ),
+  'One-shot gate test left a private authorization capability behind.'
+);
+
 \echo '[v3-s14-archive-delete-guard] Assert archived show/result/legacy lifecycle guards'
 -- Exercise the workflow-freeze trigger boundary as the database owner. The
 -- runtime authority assertions above intentionally stay service_role tests;

@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - "scripts/v3-release-evidence-consistency.ts"
+      - "scripts/check-v3-final-week-blockers.mjs"
+      - "scripts/check-v3-final-week-blockers.test.mjs"
+      - "docs/v3/final-week-release-blocker-matrix.json"
       - "scripts/v3-dashboard-exact-sha.ts"
       - "scripts/generate-v3-completion-dashboard.ts"
       - "src/lib/v3-dashboard-exact-sha.contract.test.ts"
@@ -67,6 +70,11 @@ jobs:
 
       - name: Fail closed against hosted Supabase
         run: bun run scripts/check-v3-production-isolation.ts
+
+      - name: Validate final-week blocker inventory and false-closure regressions
+        run: |
+          node --test scripts/check-v3-final-week-blockers.test.mjs
+          node scripts/check-v3-final-week-blockers.mjs
 
       - name: Validate release evidence contracts
         run: bunx vitest run src/lib/v3-release-evidence-consistency.contract.test.ts src/lib/v3-dashboard-exact-sha.contract.test.ts

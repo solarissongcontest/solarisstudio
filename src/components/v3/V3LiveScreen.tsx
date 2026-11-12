@@ -173,7 +173,10 @@ export function V3LiveScreen({
   const presentation = showStatePresentation(experience.state);
   // A cached 'open' round is historical truth, not evidence that voting is
   // still open after the authoritative refresh has failed.
-  const voteActionAvailable = !degraded && experience.voting.state === "open";
+  const voteActionAvailable =
+    !degraded &&
+    experience.state === "voting" &&
+    experience.voting.state === "open";
   const exactPerformanceKnown = Boolean(experience.currentPerformance);
   const timingRows = liveTimingRows(experience);
 

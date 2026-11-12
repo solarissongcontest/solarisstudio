@@ -1,0 +1,169 @@
+name: V3 S02 source-defined isolated beta baseline
+on:
+  pull_request:
+    branches: [main]
+    paths: &s02_source_paths
+      - ".github/workflows/v3-s02-source-defined-baseline.yml"
+      - ".github/tests/v3-s02-source-security.sql"
+      - "scripts/check-v3-s02-baseline*"
+      - "scripts/v3-s02-runtime-dependencies-local.sql"
+      - "scripts/rehearse-v3-s02-source-baseline.sh"
+      - "docs/v3/recovery-candidates/s02-baseline-profiles.json"
+      - "docs/v3/recovery-candidates/s02-source-defined-beta-contract.md"
+      - "docs/v3/recovery-candidates/s02-hosted-frontier-local-fixture.md"
+      - "supabase/migrations/**"
+      - ".github/scripts/v3-s14-*.sh"
+      - ".github/scripts/v3-full-contest-rehearsal.sh"
+      - "scripts/stage-v3-s07-televote-source-truth.mjs"
+      - "docs/v3/recovery-candidates/s07-televote-managed-source-guard.sql"
+      - "scripts/rehearse-v3-s14-archive-forward-effects-local.sh"
+      - "docs/v3/recovery-candidates/forward-only-s13-foundation.sql"
+      - "docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql"
+  push:
+    branches: [main]
+    paths: *s02_source_paths
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: s02-source-baseline-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  beta:
+    name: Complete source-defined lifecycle and recovery qualification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      REVIEWED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      SOLARIS_RUN_LOCAL_DB_REHEARSAL: "YES"
+      SOLARIS_VERIFICATION_TARGET: local
+      S02_BASELINE_TARGET: fresh-isolated-source-beta
+      SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      E2E_SUPABASE_URL: http://127.0.0.1:54321
+      CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+      - name: Verify source and refusal contracts before startup
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$REVIEWED_SHA" ]]
+          node --check scripts/check-v3-s02-baseline.mjs
+          bash -n scripts/rehearse-v3-s02-source-baseline.sh
+          node --test scripts/check-v3-s02-baseline.test.mjs
+          for key in DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN SUPABASE_SERVICE_ROLE_KEY SUPABASE_DB_PASSWORD DOCKER_HOST DOCKER_CONTEXT DOCKER_TLS_VERIFY DOCKER_CERT_PATH ${!PG@}; do
+            [[ -z "${!key:-}" ]] || { echo "::error::Inherited connection authority $key"; exit 1; }
+          done
+      - run: bun install --frozen-lockfile
+      - name: Verify existing CI egress contracts before expensive startup
+        run: bunx vitest run src/lib/ci-egress-safety.contract.test.ts
+      - name: Install the existing lifecycle browser
+        timeout-minutes: 10
+        run: bunx playwright install --with-deps chromium
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Pin CLI identity and enforce isolated loopback transport
+        run: |
+          set -euo pipefail
+          # CLI dotenv can override config.toml's project_id. Pin it for CLI
+          # subprocesses only; application isolation markers remain "local".
+          job_namespace="${GITHUB_JOB//_/-}"; job_namespace="${job_namespace,,}"
+          export S02_CLI_PROJECT_ID="$(node --input-type=module -e 'import {ownedProjectIdentity} from "./scripts/check-v3-s02-baseline.mjs"; process.stdout.write(ownedProjectIdentity({runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT,jobId:process.env.GITHUB_JOB}))')"
+          export S02_NETWORK_ID="supabase_network_$S02_CLI_PROJECT_ID"
+          export S02_SUPABASE_BINARY="$(command -v supabase)"
+          docker network create --driver bridge --opt com.docker.network.bridge.host_binding_ipv4=127.0.0.1 "$S02_NETWORK_ID"
+          network_id="$(docker network inspect --format '{{.Id}}' "$S02_NETWORK_ID")"
+          bridge="br-${network_id:0:12}"
+          subnet="$(docker network inspect --format '{{(index .IPAM.Config 0).Subnet}}' "$S02_NETWORK_ID")"
+          [[ "$subnet" =~ ^[0-9.]+/[0-9]+$ ]] && ip link show "$bridge" >/dev/null
+          # Only this newly created bridge; never alter unrelated projects.
+          sudo iptables -I DOCKER-USER 1 -i "$bridge" ! -d "$subnet" -m conntrack --ctstate NEW -j REJECT
+          sudo iptables -I INPUT 1 -i "$bridge" -m conntrack --ctstate NEW -j REJECT
+          mkdir "$RUNNER_TEMP/s02-bin"
+          cat > "$RUNNER_TEMP/s02-bin/supabase" <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          : "${S02_CLI_PROJECT_ID:?}" "${S02_NETWORK_ID:?}" "${S02_SUPABASE_BINARY:?}"
+          export SUPABASE_PROJECT_ID="$S02_CLI_PROJECT_ID"
+          if [[ "${1:-}" == start ]]; then
+            log="$RUNNER_TEMP/s02-start-private.log"
+            result=0
+            "$S02_SUPABASE_BINARY" --debug "$@" > "$log" 2>&1 || result=$?
+            if [[ "$result" == 0 ]]; then
+              echo 'Owned local Supabase source initialization succeeded'
+            else
+              python3 - "$log" <<'PY'
+          import re,sys
+          lines=open(sys.argv[1],errors="replace").read().splitlines()
+          errors=[]
+          for line in lines:
+              line=re.sub(r"\x1b\[[0-9;]*m","",line)
+              if not re.search(r"error|failed|fatal|exception|nxdomain|econn|timeout|denied",line,re.I): continue
+              if re.search(r'"Type":\\s*"(?:Query|Parse)"',line): continue
+              if re.search(r"statement:|SQL statement|create or replace|^20\S+ \[debug\].*(?:SELECT|INSERT|UPDATE|DELETE)",line,re.I): continue
+              line=re.sub(r"(postgres(?:ql)?://)[^@\s]+@",r"\1[redacted]@",line)
+              line=re.sub(r"(?i)(password|secret|token|api[_-]?key)\s*[=:]\s*[^\s,;\]]+",r"\1=[redacted]",line)
+              line=re.sub(r"eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+","[redacted-jwt]",line)
+              errors.append(line[:700])
+          print("\n".join(errors[-25:]) or "Local startup failed without a safe terminal diagnostic")
+          PY
+            fi
+            rm -f "$log"
+            exit "$result"
+          fi
+          exec "$S02_SUPABASE_BINARY" "$@"
+          SH
+          chmod +x "$RUNNER_TEMP/s02-bin/supabase"
+          echo "$RUNNER_TEMP/s02-bin" >> "$GITHUB_PATH"
+          for key in S02_CLI_PROJECT_ID S02_NETWORK_ID S02_SUPABASE_BINARY; do echo "$key=${!key}" >> "$GITHUB_ENV"; done
+      - name: Start this run's owned disposable source database (supabase start)
+        run: bash .github/scripts/v3-start-disposable-supabase.sh
+      - name: Verify actual local endpoints before browser or SQL workflows
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'JS'
+          import {execFileSync} from 'node:child_process';
+          const status=execFileSync('supabase',['status','-o','env'],{encoding:'utf8'});
+          for(const [key,protocols] of [['API_URL',['http:']],['DB_URL',['postgres:','postgresql:']]]){
+            const lines=status.split(/\r?\n/).filter(l=>l.startsWith(key+'='));
+            if(lines.length!==1)throw Error('Missing/duplicate local endpoint');
+            const value=JSON.parse(lines[0].slice(key.length+1)),u=new URL(value);
+            if(!protocols.includes(u.protocol)||!['127.0.0.1','localhost','[::1]'].includes(u.hostname)||!u.port||u.search||u.hash||
+              (key==='API_URL'&&(u.username||u.password)))throw Error('Refusing audit server with hosted Supabase URL');
+          }
+          JS
+      - name: Qualify source-only baseline through canonical workflows
+        run: bash scripts/rehearse-v3-s02-source-baseline.sh
+      - name: Preserve bounded metadata and actual outcomes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s02-source-defined-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            s02-source-evidence/*.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Stop only this project's remaining stack
+        if: always()
+        run: |
+          set -euo pipefail
+          supabase stop --no-backup
+          if docker network ls --format '{{.Name}}' | grep -Fx "$S02_NETWORK_ID" >/dev/null; then
+            network_id="$(docker network inspect --format '{{.Id}}' "$S02_NETWORK_ID")"
+            bridge="br-${network_id:0:12}"
+            subnet="$(docker network inspect --format '{{(index .IPAM.Config 0).Subnet}}' "$S02_NETWORK_ID")"
+            if sudo iptables -C DOCKER-USER -i "$bridge" ! -d "$subnet" -m conntrack --ctstate NEW -j REJECT; then sudo iptables -D DOCKER-USER -i "$bridge" ! -d "$subnet" -m conntrack --ctstate NEW -j REJECT; fi
+            if sudo iptables -C INPUT -i "$bridge" -m conntrack --ctstate NEW -j REJECT; then sudo iptables -D INPUT -i "$bridge" -m conntrack --ctstate NEW -j REJECT; fi
+            docker network rm "$S02_NETWORK_ID"
+          fi
