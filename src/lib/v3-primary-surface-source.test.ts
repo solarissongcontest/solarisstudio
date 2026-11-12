@@ -92,6 +92,60 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
     ]);
   });
 
+  it("orders Coming up by public show time and never presents past or malformed schedules", () => {
+    const scheduled = (id: string, sortOrder: number, scheduledStart: string) => ({
+      ...show,
+      id,
+      name: id,
+      sort_order: sortOrder,
+      broadcast_config: { showMode: { phase: "scheduled", scheduledStart } },
+    }) as Show;
+    const snapshot = assembleV3PrimarySurfaceSnapshot({
+      ...base(),
+      shows: [
+        scheduled("later", 1, "2026-10-12T09:00:00.000Z"),
+        scheduled("past", 2, "2026-10-11T09:00:00.000Z"),
+        scheduled("earliest", 99, "2026-10-12T07:00:00.000Z"),
+        scheduled("invalid", 3, "not-a-date"),
+        { ...show, id: "legacy", name: "legacy", sort_order: 4 } as Show,
+        scheduled("last", 10, "2026-10-12T12:00:00.000Z"),
+      ],
+    });
+    expect(snapshot.primarySurfaces.upcoming.map((item) => item.id)).toEqual([
+      "show:earliest",
+      "show:later",
+      "show:last",
+    ]);
+    // Canonical Europe/Helsinki: 07:00 UTC is 10:00 EEST on 12 October.
+    expect(snapshot.primarySurfaces.upcoming[0]?.description).toContain("12 Oct 2026");
+    expect(snapshot.primarySurfaces.upcoming[0]?.description).toContain("10:00");
+    expect(snapshot.primarySurfaces.upcoming[1]?.description).toContain("12:00");
+    expect(snapshot.primarySurfaces.upcoming[2]?.description).toContain("15:00");
+  });
+
+  it("retains undated legacy upcoming shows but excludes terminal Show Mode phases", () => {
+    const snapshot = assembleV3PrimarySurfaceSnapshot({
+      ...base(),
+      shows: [
+        { ...show, id: "legacy-late", sort_order: 8 } as Show,
+        { ...show, id: "legacy-early", sort_order: 2 } as Show,
+        {
+          ...show,
+          id: "manual-live",
+          status: "scheduled",
+          broadcast_config: { showMode: { phase: "live", scheduledStart: "2026-10-12T09:00:00.000Z" } },
+        } as Show,
+      ],
+    });
+    expect(snapshot.primarySurfaces.upcoming.map((item) => item.id)).toEqual([
+      "show:legacy-early",
+      "show:legacy-late",
+    ]);
+    expect(snapshot.primarySurfaces.upcoming.every((item) =>
+      item.description === "Public show information is available.",
+    )).toBe(true);
+  });
+
   it("deduplicates country/entity aliases across mixed canonical and show rows", () => {
     expect(
       countDistinctV3Delegations([
