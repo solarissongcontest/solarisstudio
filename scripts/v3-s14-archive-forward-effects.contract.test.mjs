@@ -140,15 +140,21 @@ test("pins 31 bounded hosted critical column shapes and tests drift rejection", 
 });
 
 test("integrated recovery uses the exact reviewed S13 donor and enforces S13 → S14", () => {
-  // This git-object SHA is the exact S13 candidate source from draft #2393.
-  // An upstream donor edit requires explicit review and a deliberate repin.
+  // Original donor #2393 plus the preflight-only helper-contract correction
+  // in #2467. Historical S13 effect bodies are independently checked by
+  // v3-s13-forward-recovery-candidate.contract.test.ts. Keep a deliberate pin.
   const blob = createHash("sha1")
     .update("blob " + Buffer.byteLength(s13))
     .update(Buffer.from([0]))
     .update(s13).digest("hex");
-  assert.equal(blob, "f49b8212e2983dd0cde46d80dd6b5661e49df6a5");
+  assert.equal(blob, "083aa84bd6455005e9728b81a7427e0cba7b221c");
   assert.match(s13, /S13 recovery blocked: private schema or service-role authority helper absent/);
   assert.match(s13, /S13 recovery blocked: target already exists/);
+  assert.match(s13, /authority helper differs from reviewed catalog/);
+  for (const digest of ["84d3f05e5f537908732a3875ba0178e6", "e286234abe6f6ed2ec1560aab124057e", "341a58cafc38a872c684592babc76f83"])
+    assert.ok(s13.includes(digest));
+  const prerequisite = read("docs/v3/recovery-candidates/evidence/s02-hosted-s13-prerequisite-local.sql");
+  assert.match(prerequisite, /REVOKE ALL ON FUNCTION private\.studio2_request_is_service_role\(\)\s+FROM PUBLIC, anon, authenticated, service_role/);
   assert.match(rehearsal, /SOLARIS_INCLUDE_S13_FORWARD_RECOVERY/);
   assert.match(rehearsal, /S14 candidate accepted missing S13 governance/);
   assert.match(rehearsal, /S14 Archive recovery BLOCKED: S13 governance foundation absent/);

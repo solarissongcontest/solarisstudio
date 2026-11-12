@@ -8,6 +8,8 @@ on:
       - "scripts/rehearse-v3-s13-forward-recovery-local.sh"
       - "docs/v3/recovery-candidates/forward-only-s13-foundation.sql"
       - "docs/v3/recovery-candidates/fixtures/s13-production-dependency-subset-20261107.sql"
+      - "docs/v3/recovery-candidates/evidence/s02-hosted-s13-prerequisite-local.sql"
+      - "supabase/migrations/20261102205000_v3_service_role_claim_compatibility.sql"
       - "src/lib/v3-s13-forward-recovery-candidate.contract.test.ts"
   workflow_dispatch:
 

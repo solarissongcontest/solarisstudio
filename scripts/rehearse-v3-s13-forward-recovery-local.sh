@@ -235,6 +235,22 @@ for interruption in after_tables before_commit; do
   probe_db="${db}_${interruption}"
   master -c "create database $probe_db" >/dev/null
   run_in_db "$probe_db" -f "$fixture" >/dev/null
+  if [[ "$interruption" == before_commit ]]; then
+    # Reuse the newer canonical source helper verbatim. Its existing owner and
+    # ACL must remain valid; never replace it with the older hosted definition.
+    fault_sql="$(mktemp)"
+    python3 - "$root/supabase/migrations/20261102205000_v3_service_role_claim_compatibility.sql" "$fault_sql" <<'PY'
+from pathlib import Path
+import sys
+source = Path(sys.argv[1]).read_text()
+start = 'create or replace function private.studio2_request_is_service_role()'
+assert source.count(start) == 1 and source.count('notify pgrst') == 1
+Path(sys.argv[2]).write_text(source[source.index(start):source.index('notify pgrst')])
+PY
+    run_in_db "$probe_db" -f "$fault_sql" >/dev/null
+    rm -f -- "$fault_sql"
+    fault_sql=""
+  fi
   run_in_db "$probe_db" <<'SQL' >/dev/null
 create table public.s13_local_preserved(id integer primary key, payload text not null);
 insert into public.s13_local_preserved values (1, 'synthetic-existing-record'), (2, 'synthetic-private-record');
@@ -310,6 +326,23 @@ PY
   master -c "drop database $probe_db with (force)" >/dev/null
   probe_db=""
 done
+
+# The S02/Archive subset creates its helper on a fresh private schema. Exercise
+# that actual prerequisite too: relying on CREATE FUNCTION defaults leaves a
+# PUBLIC EXECUTE grant and must not pass the recovery's reviewed ACL boundary.
+probe_db="${db}_s02_prerequisite"
+master -c "create database $probe_db" >/dev/null
+run_in_db "$probe_db" -c "create schema private authorization postgres;
+  grant usage on schema private to anon, authenticated, service_role;
+  alter default privileges for role postgres in schema public grant execute on functions to anon, authenticated, service_role" >/dev/null
+run_in_db "$probe_db" -f "$root/docs/v3/recovery-candidates/evidence/s02-hosted-s13-prerequisite-local.sql" >/dev/null
+run_in_db "$probe_db" -f "$candidate" >/dev/null
+[[ "$(catalog_fingerprint "$probe_db")" == "$(catalog_fingerprint "$db")" ]] || {
+  echo 'S02 prerequisite did not produce the reviewed S13 recovery contract' >&2; exit 1;
+}
+master -c "drop database $probe_db with (force)" >/dev/null
+probe_db=""
+echo 'PASS: fresh S02 prerequisite preserves reviewed helper ACL and S13 catalog'
 
 recovered_hash="$(catalog_fingerprint "$db")"
 canonical_hash="$(catalog_fingerprint "$reference_db")"

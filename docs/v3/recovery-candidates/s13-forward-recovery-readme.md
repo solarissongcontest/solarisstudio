@@ -8,7 +8,7 @@ The live read-only catalog audit of the actual Solaris Studio Supabase project (
 
 The staged SQL file `forward-only-s13-foundation.sql` contains:
 
-1. A strict **14-name preflight**: abort if the private authority helper or service schema usage is missing, or **any** of the five target S13 tables, seven target RPCs, or two planned index names already exists. The helper must also match the reviewed PG17.11 definition fingerprint, ACL fingerprint and `postgres` owner, not merely its name. Unknown authority drift requires reconciliation. It cannot blindly overwrite a partially applied S13 installation.
+1. A strict **14-name preflight**: abort if the private authority helper or service schema usage is missing, or **any** of the five target S13 tables, seven target RPCs, or two planned index names already exists. The helper must also match either the observed PG17.11 definition or the newer canonical scalar/JSON JWT definition from `20261102205000_v3_service_role_claim_compatibility.sql`, with the reviewed ACL fingerprint and `postgres` owner. Both exact contracts are exercised; no unknown body/owner/grant is accepted merely because its name exists. It cannot blindly overwrite a partially applied S13 installation.
 2. The original immutable `20261019111000_v3_s13_migration_hardening.sql` core, byte-for-byte apart from the surrounding transaction wrapper. This defines the five registries/backfill/parity tables, seven public RPCs, required grants and baseline seed records.
 3. An additive, migration-owner registration record for `v3.s13.strict-registration-restore`, followed by the **strict final** registration function and ACL from `20261019113300_v3_s13_strict_registration_restore.sql`. The temporary S6 filename aliases from `20261019112900` are **not** installed, since future recovered S6 code must use reviewed semantic keys instead of replaying the historical alias window.
 4. Atomic postconditions covering five tables, seven RPCs, service-role EXECUTE and the absence of anonymous/authenticated EXECUTE on the registration RPC.
@@ -27,6 +27,10 @@ dependency-preflight acceptance, not a hosted exploit. The correction adds only
 metadata preconditions; it neither changes the helper nor introduces new
 authorization, grants or canonical writers. Fingerprints are catalog-drift checks
 against the frozen reviewed fixture, not cryptographic actor authentication.
+The newer canonical helper is extracted verbatim from its immutable source SQL
+for the late-interruption probe; recovery preserves that helper rather than
+downgrading it. A separate fresh-schema positive probe reuses the S02 prerequisite
+file and verifies its observed postgres-only helper ACL and resulting S13 catalog.
 
 The original three-stage S13 history creates **three** registration keys (foundation, temporary context, strict restore), whereas forward-only recovery intentionally creates **two** because the temporary migration window was not executed. This is a **known semantic/history difference**, not a history repair. Full reconciliation must account for it explicitly.
 

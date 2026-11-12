@@ -25,13 +25,18 @@ begin
     raise exception 'S13 recovery blocked: service_role lacks private schema usage';
   end if;
   -- The name alone is not the reviewed dependency. Match the independently
-  -- observed PG17.11 helper contract already pinned by the local fixture.
+  -- observed PG17.11 helper or the newer source-owned scalar/JSON JWT helper
+  -- from 20261102205000_v3_service_role_claim_compatibility.sql. Preserve that
+  -- newer helper rather than downgrading it during a source-gap rehearsal.
   -- Unknown definitions, ownership or grants require explicit reconciliation.
   if not exists (
     select 1 from pg_proc p
     where p.oid = to_regprocedure('private.studio2_request_is_service_role()')
       and pg_get_userbyid(p.proowner) = 'postgres'
-      and md5(pg_get_functiondef(p.oid)) = '84d3f05e5f537908732a3875ba0178e6'
+      and md5(pg_get_functiondef(p.oid)) in (
+        '84d3f05e5f537908732a3875ba0178e6',
+        'e286234abe6f6ed2ec1560aab124057e'
+      )
       and md5(coalesce(array_to_string(p.proacl::text[], ','), '')) = '341a58cafc38a872c684592babc76f83'
   ) then
     raise exception 'S13 recovery blocked: authority helper differs from reviewed catalog';

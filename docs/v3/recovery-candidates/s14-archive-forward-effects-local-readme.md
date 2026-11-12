@@ -75,7 +75,7 @@ More importantly, S13 is still absent on live production, and the existing S4/S5
 
 ## Integrated S13 → S14 recovery seam (isolated local only)
 
-This draft also contains an **exact Git-blob copy** of the earlier S13 candidate from draft [#2393](https://github.com/solarissongcontest/solarisstudio/pull/2393), staged at `docs/v3/recovery-candidates/forward-only-s13-foundation.sql`. The source-integrity test pins the donor blob SHA `f49b8212e2983dd0cde46d80dd6b5661e49df6a5`. It is **not** a tracked Supabase migration.
+This draft reuses the earlier S13 candidate from [#2393](https://github.com/solarissongcontest/solarisstudio/pull/2393), staged at `docs/v3/recovery-candidates/forward-only-s13-foundation.sql`. Original blob `f49b8212e2983dd0cde46d80dd6b5661e49df6a5` is historical provenance. The current source-integrity pin is `083aa84bd6455005e9728b81a7427e0cba7b221c`: its only SQL change is a preflight requiring the observed or newer canonical service-role helper definition, reviewed ACL and owner. Historical S13 table/RPC/seed bodies remain byte-for-byte unchanged and independently checked. The S02 prerequisite now reproduces the observed postgres-only helper ACL rather than a default PUBLIC grant. This is **not** a tracked migration, a full hosted-equivalence claim or adoption authorization; independent System review remains required.
 
 With `SOLARIS_INCLUDE_S13_FORWARD_RECOVERY=YES`, the local rehearsal:
 
