@@ -19,6 +19,7 @@ function editionIndex(state: EditionState) {
 }
 
 function v3EditionState(state: EditionState): V3EditionState {
+  if (state === "cancelled") return "cancelled";
   if (state === "archived") return "archived";
   if (state === "post_edition") return "completed";
   if (state === "draft" || state === "planning" || state === "host_selection") {
@@ -88,6 +89,19 @@ export function v3ContestDomainFromRuntime({
   runtime,
   show,
 }: V3RuntimeAdapterInput): V3ContestDomainSnapshot {
+  // An old show or subsystem status cannot resurrect a cancelled edition.
+  if (runtime.edition === "cancelled") {
+    return {
+      edition: "cancelled",
+      confirmationWindow: "cancelled",
+      submissionWindow: "cancelled",
+      show: "cancelled",
+      jury: "closed",
+      televote: "closed",
+      results: "hidden",
+      publication: null,
+    };
+  }
   const results = resultsFromSubsystem(runtime.subsystems.results);
 
   return {
