@@ -84,7 +84,7 @@ test('security owner, ACL/configuration and effective EXECUTE cannot drift behin
 });
 
 test('source baseline can satisfy only the explicit fresh isolated target at this SHA',()=>{
- const p=qualifySourceBeta(input()),options={target:'fresh-isolated-source-beta',candidateSha:sha};
+ const p=qualifySourceBeta(input()),options={target:'fresh-isolated-source-beta',candidateSha:sha,databaseImage:p.databaseImage,serverVersionNum:p.serverVersionNum};
  assert.equal(assertBaselineDependency(p,options).baselinePrerequisiteSatisfied,true);
  for(const target of [undefined,'hosted-upgrade','production','existing-beta'])
   assert.throws(()=>assertBaselineDependency(p,{...options,target}),/Historical\/hosted/);
@@ -103,4 +103,10 @@ test('CLI helper/container names cannot diverge across the 40-character boundary
  assert.equal(ownedProjectIdentity({runId:'43159575963',attempt:'1',jobId:'beta'}),'archive-v3-43159575963-1-beta');
  assert.throws(()=>ownedProjectIdentity({runId:'43159575963',attempt:'1',jobId:'source-defined-beta'}),/40-character/);
  assert.throws(()=>ownedProjectIdentity({runId:'../other',attempt:'1',jobId:'beta'}),/Invalid CI/);
+});
+
+test('baseline proof cannot transfer between database images or PostgreSQL patch versions',()=>{
+ const p=qualifySourceBeta(input()),options={target:'fresh-isolated-source-beta',candidateSha:sha,databaseImage:p.databaseImage,serverVersionNum:p.serverVersionNum};
+ for(const patch of [{databaseImage:undefined},{databaseImage:'sha256:'+'b'.repeat(64)},{serverVersionNum:undefined},{serverVersionNum:170006}])
+  assert.throws(()=>assertBaselineDependency(p,{...options,...patch}),/target database image|target PostgreSQL version/);
 });

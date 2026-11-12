@@ -122,6 +122,9 @@ current=fresh-source
 boundary
 collect before
 run fresh-source node scripts/check-v3-s02-baseline.mjs fresh "$out"
+# Bind the consumer to the actual initial target, independently of the final report.
+export S02_TARGET_DATABASE_IMAGE="$S02_DATABASE_IMAGE"
+export S02_TARGET_SERVER_VERSION="$(sql -c 'show server_version_num;')"
 run dependency-before node scripts/check-v3-s02-baseline.mjs graph "$out" before
 run strict-dual-negative sql -f .github/tests/v3-s02-source-security.sql
 export V3_CANDIDATE_SHA="$sha" V3_S14_ALLOW_PARTIAL=0 V3_S14_REQUIRE_COMPLETE=1 V3_RELEASE_EVIDENCE_DIR="$out/contest"

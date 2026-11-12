@@ -115,15 +115,17 @@ export function qualifySourceBeta({candidateSha,before,after,second,stages,lifec
   overallBetaReleaseApproved:false,dependencyReports:{before:first,after:final,second:repeat},
   limitation:'Qualified only for fresh isolated source-defined beta. Existing hosted upgrade, production S02/S06 and live beta authorization remain separate.'};
 }
-export function assertBaselineDependency(proof,{target,candidateSha}={}){
+export function assertBaselineDependency(proof,{target,candidateSha,databaseImage,serverVersionNum}={}){
  check(target==='fresh-isolated-source-beta','Historical/hosted targets require original S02 evidence; source proof cannot substitute');
  check(proof?.contract==='S02-BETA-SOURCE'&&proof.status==='SOURCE_DEFINED_ISOLATED_BASELINE_QUALIFIED','Source baseline not qualified');
  check(/^[a-f0-9]{40}$/.test(candidateSha||'')&&proof.candidateSha===candidateSha,'Stale baseline prerequisite');
+ check(/^sha256:[a-f0-9]{64}$/.test(databaseImage||'')&&databaseImage===proof.databaseImage,'Missing or mismatched target database image');
+ check(Number.isInteger(serverVersionNum)&&serverVersionNum===proof.serverVersionNum,'Missing or mismatched target PostgreSQL version');
  check(proof.betaSourcePrerequisiteSatisfied===true&&proof.originalHostedS02Satisfied===false,'Invalid baseline scope');
  for(const [key,value] of Object.entries(PROFILE.constraints))check(proof[key]===value,'Changed qualification constraint: '+key);
  check(proof.fullHostedEquivalenceCertified===false&&proof.overallBetaReleaseApproved===false,'Qualification cannot approve a release');
  for(const stage of PROFILE.requiredStages)check(proof.stages?.[stage]==='success','Missing prerequisite stage: '+stage);
- return {baselinePrerequisiteSatisfied:true,target,candidateSha,historicalHostedAcceptance:false,productionRecoveryEligible:false,liveBetaDeploymentAuthorized:false};
+ return {baselinePrerequisiteSatisfied:true,target,candidateSha,databaseImage,serverVersionNum,historicalHostedAcceptance:false,productionRecoveryEligible:false,liveBetaDeploymentAuthorized:false};
 }
 const json=p=>JSON.parse(readFileSync(p,'utf8'));
 const catalog=(dir,name)=>({...json(dir+'/'+name+'.json'),fingerprints:json(dir+'/fingerprints-'+name+'.json')});
@@ -132,7 +134,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).hr
  const migrationVersions=readdirSync('supabase/migrations').filter(n=>/^\d+.*\.sql$/.test(n)).map(n=>n.split('_')[0]).sort();
  if(command==='fresh'){validateFreshSource(json(dir+'/before.json'),migrationVersions);console.log('PASS fresh source history and empty user/ballot state');}
  else if(command==='graph')writeFileSync(dir+'/dependency-graph.json',JSON.stringify(dependencyGraph(catalog(dir,name)),null,2)+'\n');
- else if(command==='dependency')console.log(JSON.stringify(assertBaselineDependency(json(dir+'/s02-source-beta-proof.json'),{target:process.env.S02_BASELINE_TARGET,candidateSha:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim()})));
+ else if(command==='dependency')console.log(JSON.stringify(assertBaselineDependency(json(dir+'/s02-source-beta-proof.json'),{target:process.env.S02_BASELINE_TARGET,databaseImage:process.env.S02_TARGET_DATABASE_IMAGE,serverVersionNum:Number(process.env.S02_TARGET_SERVER_VERSION),candidateSha:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim()})));
  else if(command==='qualify'){
   const candidateSha=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
   execFileSync('git',['diff','--exit-code','--quiet','--','.',':!supabase/config.toml']);
