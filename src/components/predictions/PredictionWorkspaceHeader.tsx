@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { PublicLaunchLink as Link } from "@/components/public/PublicLaunchLink";
 
 import { PageHeader } from "@/components/AppShell";
 import { formatEventDateTime } from "@/lib/public-time";
