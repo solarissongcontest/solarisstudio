@@ -10,6 +10,7 @@ import {
   SolarisDepthSurface,
 } from "@/components/SolarisDepth";
 import { findRuleSearchQuickAnswer } from "@/lib/v3-rules-quick-answer-search";
+import { usePublishedRulebook } from "@/lib/rules-governance";
 import { searchSscRules } from "@/lib/ssc-rules-v4";
 
 export const Route = createFileRoute("/rules/search")({
@@ -27,7 +28,8 @@ export const Route = createFileRoute("/rules/search")({
 
 function RuleSearchPage() {
   const { q } = Route.useSearch();
-  const answer = findRuleSearchQuickAnswer(q);
+  const { version } = usePublishedRulebook();
+  const answer = findRuleSearchQuickAnswer(q, version);
   const results = q.trim() ? searchSscRules(q).slice(0, 20) : [];
 
   return (
@@ -39,7 +41,7 @@ function RuleSearchPage() {
               <SolarisDepthEyebrow tone="primary">Rules search</SolarisDepthEyebrow>
               <h1 className="mt-2 text-2xl font-bold tracking-[-0.03em] sm:text-3xl">Find the rule that applies</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Search by rule number, topic or plain-language question. Terms such as invasion, HODless, Dormant and annexation are indexed too.
+                Search by rule number or topic. You can also ask things like “Can I vote for a friend?” or “When can a country be taken off the map?”
               </p>
               <GovernanceStatusStrip context="rules" className="mt-3" />
             </header>
@@ -127,7 +129,7 @@ function RuleSearchPage() {
             <SolarisDepthSurface variant="quiet" className="text-center">
               <p className="text-sm font-semibold">No official rule matched that phrase</p>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                Try broader words such as confirmation, deadline, voting, privacy, invasion, HODless, Dormant or annexation.
+                Try broader words such as confirmation, deadline, voting, privacy, invasion or country without a representative.
               </p>
             </SolarisDepthSurface>
           ) : (

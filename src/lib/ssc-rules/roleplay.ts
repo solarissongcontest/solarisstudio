@@ -393,7 +393,7 @@ export const ROLEPLAY_QUICK_ANSWERS = [
     question: "Can I invade another HOD's country?",
     answer: "Depends" as const,
     explanation:
-      "You may roleplay an invasion, but you cannot unilaterally make a protected country permanently disappear, lose territory or become annexed.",
+      "You can roleplay an invasion, but you cannot decide on your own that another Protected country permanently loses land or disappears.",
     ruleIds: ["22.3", "22.4"],
     phrases: ["invade country", "invasion", "attack another country", "war another hod", "occupy country"],
   },
@@ -402,7 +402,7 @@ export const ROLEPLAY_QUICK_ANSWERS = [
     question: "Can I annex a country that has no HOD?",
     answer: "Depends" as const,
     explanation:
-      "Not immediately. The country must first complete six consecutive SSC Editions with no active HOD at any point in those Editions and become Dormant.",
+      "Not immediately. The country must first go through six completed editions in a row with no active Head of Delegation (HoD) at any point. Only then does it become Dormant (unprotected from permanent map changes).",
     ruleIds: ["22.4", "22.5", "22.6"],
     phrases: ["annex hodless", "country no hod", "hodless country", "inactive country annex", "abandoned country"],
   },
@@ -411,7 +411,7 @@ export const ROLEPLAY_QUICK_ANSWERS = [
     question: "Can a Dormant country be completely eliminated?",
     answer: "Yes" as const,
     explanation:
-      "A qualifying Dormant country may be conquered, partitioned, absorbed or eliminated from the present-day map, while its historical SSC record remains intact.",
+      "Once the six-edition test is met, a Dormant country may be taken over, divided or removed from today's fictional map. All its past SSC entries and scores stay in the archive.",
     ruleIds: ["22.6", "22.7", "22.10"],
     phrases: ["destroy country", "erase country", "eliminate country", "remove country from map", "wipe country off map"],
   },
@@ -420,7 +420,7 @@ export const ROLEPLAY_QUICK_ANSWERS = [
     question: "Does withdrawing from an Edition make a country Dormant?",
     answer: "No" as const,
     explanation:
-      "Withdrawal does not remove protection. An Edition only counts toward Dormancy when it completes with no active HOD at any point in that Edition.",
+      "Simply withdrawing does not remove protection. An edition counts toward the six only if no one had the Head of Delegation role at any time in that edition.",
     ruleIds: ["22.4", "22.5"],
     phrases: ["withdraw dormant", "withdrawn country", "withdrew mid edition", "hod left mid edition"],
   },
@@ -429,7 +429,7 @@ export const ROLEPLAY_QUICK_ANSWERS = [
     question: "Can a country return after it was canonically annexed or eliminated?",
     answer: "Depends" as const,
     explanation:
-      "A future HOD may return through restoration, a successor state or another canonical continuation, but old borders do not automatically override territory already transferred to other countries.",
+      "A former country can return through a new recognised map outcome, but if it was already officially eliminated, its old borders do not automatically come back.",
     ruleIds: ["22.8", "22.10"],
     phrases: ["return after annexation", "restore country", "country comes back", "successor state", "return eliminated country"],
   },

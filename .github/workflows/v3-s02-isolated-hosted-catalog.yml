@@ -1,0 +1,255 @@
+name: V3 S02 isolated hosted-observed catalog fixture (PG17)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/check-v3-s02-local-fixture.mjs"
+      - "scripts/check-v3-s02-local-fixture.test.mjs"
+      - "scripts/v3-s02-hosted-catalog-local.sql"
+      - "scripts/verify-v3-s02-s14-catalog.mjs"
+      - "scripts/verify-v3-s02-s14-catalog.test.mjs"
+      - "scripts/v3-s02-hosted-nine-parent-catalog-local.sql"
+      - "scripts/verify-v3-s02-parent-catalog.mjs"
+      - "scripts/verify-v3-s02-parent-catalog.test.mjs"
+      - "scripts/v3-s02-hosted-56-acl-local.sql"
+      - "scripts/verify-v3-s02-56-acl.mjs"
+      - "scripts/verify-v3-s02-56-acl.test.mjs"
+      - "docs/v3/recovery-candidates/evidence/s02-*"
+      - "docs/v3/recovery-candidates/s02-hosted-frontier-local-fixture.md"
+      - ".github/workflows/v3-s02-isolated-hosted-catalog.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s02-catalog-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  bounded-catalog-fixture:
+    name: S02 offline hosted-observed subset on disposable PG17.11
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      EXACT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      SOLARIS_S02_TARGET: local
+      SOLARIS_S02_DISPOSABLE_CLUSTER: YES
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Reject stale SHA and all remote database endpoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$EXACT_SHA" ]] || exit 1
+          for key in SUPABASE_URL VITE_SUPABASE_URL E2E_SUPABASE_URL CONFIRMATIONS_SUPABASE_URL VITE_CONFIRMATIONS_SUPABASE_URL DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_SERVICE_ROLE_KEY PGHOST PGHOSTADDR PGPORT PGSERVICE PGSERVICEFILE DOCKER_HOST DOCKER_CONTEXT; do
+            if [[ -n "$(printenv "$key" || true)" ]]; then echo "::error::Refusing inherited DB/Docker endpoint $key"; exit 1; fi
+          done
+          [[ -f docs/v3/recovery-candidates/evidence/s02-hosted-s14-catalog-scoped-fixture.sql ]] || exit 1
+
+      - name: Setup pinned Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Obtain disposable PostgreSQL 17.11 from public registry only
+        run: |
+          set -euo pipefail
+          docker pull postgres:17.11
+          docker image inspect --format '{{.Id}}' postgres:17.11 | tee /tmp/v3-s02-image-id.txt
+          grep -Eq '^sha256:[0-9a-f]{64}$' /tmp/v3-s02-image-id.txt
+
+      - name: Read-only checkout of exact reviewed S13 forward candidate
+        uses: actions/checkout@v4
+        with:
+          repository: solarissongcontest/solarisstudio
+          ref: 44f6808d4186e51352d3b746e269e75066aa93b9
+          path: s02-s13-donor
+          fetch-depth: 1
+
+      - name: Import and strictly inspect disposable isolated schema-only fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="solaris-s02-catalog-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          cid=""
+          cleanup() {
+            status=$?
+            if [[ -n "$cid" ]]; then
+              docker rm -f "$cid" >/dev/null || status=1
+            fi
+            exit "$status"
+          }
+          trap cleanup EXIT
+          cid="$(docker run -d --rm --pull=never --network none --name "$name" -e POSTGRES_PASSWORD=s02_disposable postgres:17.11)"
+          [[ "$cid" =~ ^[a-f0-9]{64}$ ]] || exit 1
+          [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
+          [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
+          [[ "$(docker inspect --format '{{.Image}}' "$cid")" == "$(cat /tmp/v3-s02-image-id.txt)" ]] || exit 1
+          ready=false
+          for n in $(seq 1 45); do
+            if docker exec "$cid" pg_isready -h /var/run/postgresql -U postgres >/dev/null; then ready=true; break; fi
+            sleep 1
+          done
+          [[ "$ready" == true ]] || { echo "::error::Disposable PostgreSQL startup failed"; exit 1; }
+          docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-catalog-scoped-fixture.sql
+          docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < scripts/v3-s02-hosted-catalog-local.sql > /tmp/v3-s02-local-catalog.json
+          [[ "$(docker exec "$cid" psql -w -X -qAt -U postgres -d postgres -c 'show server_version_num')" == 170011 ]] || exit 1
+          node scripts/verify-v3-s02-s14-catalog.mjs /tmp/v3-s02-local-catalog.json s02-scoped-catalog-proof.json
+          node scripts/check-v3-s02-local-fixture.mjs --manifest docs/v3/recovery-candidates/evidence/s02-hosted-catalog-scoped-manifest-2026-11-09.json --schema docs/v3/recovery-candidates/evidence/s02-hosted-s14-catalog-scoped-fixture.sql --proof s02-scoped-object-proof.json
+
+          # Independently materialize the bounded hosted-observed S13 precondition,
+          # then rehearse only the reviewed, pinned donor S13 SQL on this disposable DB.
+          [[ "$(git -C s02-s13-donor rev-parse HEAD)" == 44f6808d4186e51352d3b746e269e75066aa93b9 ]] || exit 1
+          docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s13-prerequisite-local.sql
+          docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < s02-s13-donor/docs/v3/recovery-candidates/forward-only-s13-foundation.sql
+          s13_state="$(docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -c "select (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='private' and c.relname in ('v3_migration_contracts','v3_schema_compatibility','v3_schema_compatibility_history','v3_backfill_jobs','v3_migration_parity_runs') and c.relkind='r')::text || '|' || (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in ('v3_schema_compatibility','v3_register_migration_contract','v3_claim_backfill','v3_checkpoint_backfill','v3_fail_backfill','v3_record_migration_parity','v3_set_schema_compatibility'))::text || '|' || has_function_privilege('service_role','public.v3_register_migration_contract(text,integer,text,boolean,text,text)','EXECUTE')::text || '|' || has_function_privilege('anon','public.v3_register_migration_contract(text,integer,text,boolean,text,text)','EXECUTE')::text;")"
+          [[ "$s13_state" == "5|7|true|false" ]] || { echo "::error::S13 scoped foundation failed: $s13_state"; exit 1; }
+          # The tested forward candidate deliberately fails closed on a second
+          # application; never rewrite source/hosted migration-history records.
+          if docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < s02-s13-donor/docs/v3/recovery-candidates/forward-only-s13-foundation.sql >/tmp/v3-s02-replay.txt 2>&1; then
+            echo "::error::S13 forward candidate unexpectedly allowed a second application"
+            exit 1
+          fi
+          node -e 'require("fs").writeFileSync("s02-s13-local-upgrade-proof.json",JSON.stringify({task:"S02",candidateSha:process.env.EXACT_SHA,reviewedDonorSha:"44f6808d4186e51352d3b746e269e75066aa93b9",scope:"S13 foundation only on bounded hosted-S14 schema subset",tables:5,rpcs:7,serviceGrant:true,anonDenied:true,repeatRejected:true,fullHostedEquivalenceCertified:false,productionDeploymentAuthorized:false},null,2)+"\n",{flag:"wx"});'
+          echo "PASS: S13 local forward candidate on hosted-observed S14 scoped fixture"
+
+          # The S14 Archive candidate requires much more than this bounded
+          # catalog subset. Prove that it REJECTS missing hosted dependencies
+          # before any upgrade rather than silently inventing a green result.
+          if docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < s02-s13-donor/docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql > /tmp/v3-s02-s14-negative.log 2>&1; then
+            echo "::error::S14 unexpectedly succeeded on the known incomplete hosted catalog subset"
+            exit 1
+          fi
+          blocker="$(sed -n 's/.*ERROR:  \(S14 Archive recovery BLOCKED:.*\)/\1/p' /tmp/v3-s02-s14-negative.log | head -n 1)"
+          [[ -n "$blocker" ]] || { echo "::error::Unclassified S14 SQL failure (not a proven missing dependency)"; tail -n 20 /tmp/v3-s02-s14-negative.log; exit 1; }
+          echo "EXPECTED FAIL-CLOSED: $blocker"
+          S14_BLOCKER="$blocker" node -e 'require("fs").writeFileSync("s02-s14-required-dependency-blocker.json",JSON.stringify({task:"S02",candidateSha:process.env.EXACT_SHA,scope:"S14 Archive candidate against eight-table hosted-scoped fixture",status:"BLOCKED_UNKNOWN_REQUIRED_CATALOG",reason:process.env.S14_BLOCKER,productionDeploymentAuthorized:false,s14UpgradeProven:false},null,2)+"\n",{flag:"wx"});'
+
+
+          [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
+          [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
+          docker rm -f "$cid" >/dev/null
+          cid=""
+          echo "PASS: schema-only scoped S14 catalog; no network; no production rows/secrets."
+
+      - name: Upload scoped local proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s02-scoped-local-pg17-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            s02-scoped-catalog-proof.json
+            s02-scoped-object-proof.json
+            s02-s13-local-upgrade-proof.json
+            s02-s14-required-dependency-blocker.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+
+  expanded-s14-archive-recovery:
+    name: S02 expanded 45-table hosted-catalog PG17.11 and Archive forward rehearsal
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      EXACT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      SOLARIS_S02_TARGET: local
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Fail closed on stale SHA and remote DB variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$EXACT_SHA" ]]
+          for key in DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_URL VITE_SUPABASE_URL E2E_SUPABASE_URL SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_SERVICE_ROLE_KEY PGHOST PGHOSTADDR PGPORT PGSERVICE DOCKER_HOST DOCKER_CONTEXT; do
+            [[ -z "$(printenv "$key" || true)" ]] || { echo "::error::Hosted target alias is forbidden: $key"; exit 1; }
+          done
+      - uses: actions/checkout@v4
+        with:
+          repository: solarissongcontest/solarisstudio
+          ref: 44f6808d4186e51352d3b746e269e75066aa93b9
+          path: s02-s13-s14-donor
+          fetch-depth: 1
+      - name: Pull isolated PostgreSQL 17.11
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull postgres:17.11
+          [[ "$(docker image inspect --format '{{.Id}}' postgres:17.11)" == "sha256:eb0fb2377534e65aad04f37838956b3dfb888e1a3dd3c1acf957bc6557eb6c7d" ]] || { echo "::error::Unexpected PostgreSQL image"; exit 1; }
+      - name: Import 45 hosted-observed tables and run ordered S13 then S14 forward SQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git -C s02-s13-s14-donor rev-parse HEAD)" == "44f6808d4186e51352d3b746e269e75066aa93b9" ]]
+          cid=""
+          cleanup() {
+            old_status=$?
+            if [[ -n "$cid" ]]; then docker rm -f "$cid" >/dev/null || old_status=1; fi
+            exit "$old_status"
+          }
+          trap cleanup EXIT
+          cid="$(docker run --rm --pull=never --network none -d --name "solaris-s02-expanded-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" -e POSTGRES_PASSWORD=disposable_s02 postgres:17.11)"
+          [[ "$cid" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]]
+          [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]]
+          for i in $(seq 1 45); do
+            if docker exec "$cid" pg_isready -h /var/run/postgresql -U postgres >/dev/null; then break; fi
+            sleep 1
+          done
+          docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-archive-54-table-schema-fixture.sql
+          docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-archive-extra-2-dependencies-local.sql
+          docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < scripts/v3-s02-hosted-archive-catalog-local.sql > /tmp/v3-s02-expanded-archive-local-catalog.json
+          node scripts/verify-v3-s02-s14-archive-catalog.mjs /tmp/v3-s02-expanded-archive-local-catalog.json s02-expanded-archive-catalog-proof.json
+          docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < scripts/v3-s02-hosted-nine-parent-catalog-local.sql > /tmp/v3-s02-nine-parent-local-catalog.json
+          node scripts/verify-v3-s02-parent-catalog.mjs /tmp/v3-s02-nine-parent-local-catalog.json s02-nine-parent-catalog-proof.json
+          echo "PASS: nine additional hosted-observed parent table catalogs match, no synthetic parent shells"
+          docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-56-table-grants-local.sql
+          docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < scripts/v3-s02-hosted-56-acl-local.sql > /tmp/v3-s02-56-acl-local.json
+          node scripts/verify-v3-s02-56-acl.mjs /tmp/v3-s02-56-acl-local.json s02-56-acl-parity-proof.json
+          echo "PASS: 672 table CRUD and 24 schema privilege bits match dated hosted metadata"
+          n="$(docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -c "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private','televoting') and c.relkind='r';")"
+          [[ "$n" -ge 54 ]] || { echo "::error::Incomplete expanded fixture relation catalog"; exit 1; }
+          docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s13-prerequisite-local.sql
+          docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < s02-s13-s14-donor/docs/v3/recovery-candidates/forward-only-s13-foundation.sql
+          echo "PASS: 54-table hosted-observed dependency fixture and S13 forward candidate imported"
+          # Full Archive SQL MUST succeed to certify this job; unknown objects fail closed.
+          docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < s02-s13-s14-donor/docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql
+          echo "PASS: real S14 Archive forward-only SQL applied to local hosted-scoped baseline"
+
+          before="$(docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -c "select (select count(*) from private.v3_migration_contracts)::text || '|' || (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='private' and c.relname like 'v3_archive_%')::text;")"
+          if docker exec -i "$cid" psql -w -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -f - < s02-s13-s14-donor/docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql > /tmp/v3-s02-repeat-s14.log 2>&1; then
+            echo "::error::Archive recovery unexpectedly allowed a second application"
+            exit 1
+          fi
+          grep -q 'S14 Archive recovery BLOCKED:' /tmp/v3-s02-repeat-s14.log || { echo "::error::Archive retry failed unexpectedly, not via its preflight"; tail -n 8 /tmp/v3-s02-repeat-s14.log; exit 1; }
+          after="$(docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -c "select (select count(*) from private.v3_migration_contracts)::text || '|' || (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='private' and c.relname like 'v3_archive_%')::text;")"
+          [[ "$before" == "$after" ]] || { echo "::error::Archive retry left partial metadata"; exit 1; }
+          deny="$(docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -c "select has_table_privilege('authenticated','private.v3_archive_runtime_transition_gates','INSERT')::text || '|' || has_table_privilege('service_role','private.v3_archive_runtime_transition_gates','INSERT')::text || '|' || has_table_privilege('anon','private.v3_archive_runtime_transition_gates','INSERT')::text;")"
+          [[ "$deny" == "false|false|false" ]] || { echo "::error::Archive gate insert grant leak"; exit 1; }
+          ARCHIVE_BEFORE="$before" node -e 'require("fs").writeFileSync("s02-expanded-s13-s14-forward-proof.json",JSON.stringify({task:"S02",candidateSha:process.env.EXACT_SHA,donorSha:"44f6808d4186e51352d3b746e269e75066aa93b9",database:"disposable-network-none-postgresql-17.11",scope:"47 observed S14 Archive relations plus 9 explicit synthetic parent shells",s13FoundationApplied:true,s14ArchiveForwardApplied:true,repeatRejected:true,repeatRollbackCatalogStable:true,unauthorizedArchiveGateInsertDenied:true,postUpgradeCounts:process.env.ARCHIVE_BEFORE,fullHostedEquivalenceCertified:false,productionDeploymentAuthorized:false},null,2)+"\n",{flag:"wx"});'
+          echo "PASS: S14 second application safely rejected with no catalog mutation; archive gate denied to anon, authenticated and service_role"
+
+          docker rm -f "$cid" >/dev/null
+          cid=""
+
+
+      - name: Upload expanded S14 Archive local-only proofs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s02-expanded-s14-archive-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            s02-expanded-archive-catalog-proof.json
+            s02-nine-parent-catalog-proof.json
+            s02-56-acl-parity-proof.json
+            s02-expanded-s13-s14-forward-proof.json
+          if-no-files-found: ignore
+          retention-days: 14

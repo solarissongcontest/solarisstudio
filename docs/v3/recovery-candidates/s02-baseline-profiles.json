@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "originalContract": "S02: relevant hosted-frontier-equivalent S13/S14 fixture; unknown required objects fail closed",
+  "sourceBetaContract": "S02-BETA-SOURCE: fresh source-defined isolated contest baseline, NOT a hosted upgrade",
+  "roots": [
+    "public.studio2_transition_edition_v3",
+    "public.studio2_process_edition_domain_event",
+    "private.studio2_require_strict_dual",
+    "public.v3_schema_compatibility",
+    "public.v3_register_migration_contract",
+    "public.v3_reconcile_published_televote",
+    "private.v3_sync_published_televote_round",
+    "private.v3_sync_published_televote_aggregation",
+    "public.sync_show_results_from_votes"
+  ],
+  "requiredStages": [
+    "fresh-source",
+    "dependency-before",
+    "strict-dual-negative",
+    "complete-contest",
+    "ordered-archive-recovery",
+    "archive-behavior",
+    "archive-authorization",
+    "archive-terminal",
+    "archive-convergence",
+    "ballot-invariants",
+    "published-source",
+    "replay-and-atomic-repair",
+    "dependency-after",
+    "second-source-replay",
+    "cleanup"
+  ],
+  "constraints": {
+    "isolatedOnly": true,
+    "postgresMajor": 17,
+    "containsProductionRows": false,
+    "hostedEquivalent": false,
+    "productionRecoveryEligible": false,
+    "liveBetaDeploymentAuthorized": false,
+    "paidInfrastructureAuthorized": false
+  }
+}

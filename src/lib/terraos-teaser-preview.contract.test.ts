@@ -16,7 +16,8 @@ describe("TerraOS teaser preview isolation", () => {
 
   it("does not mount account-aware root services in fixture preview frames", () => {
     expect(root).toContain('pathname === TERRAOS_TEASER_PREVIEW_PATH');
-    expect(root).toContain("!teaserPreview ? (");
+    expect(root).toContain("const isolatedRoute = teaserPreview || maintenanceRecovery");
+    expect(root).toContain("!isolatedRoute ? (");
     expect(root).toContain("<AccountCacheIsolation />");
     expect(root).toContain("<RulesGovernanceContext />");
   });

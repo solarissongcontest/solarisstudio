@@ -1,0 +1,1631 @@
+{
+  "phase": "S06",
+  "date": "2026-11-10",
+  "main_basis_sha": "33aa86c67e898d67a4d01992b7d3df703f843c23",
+  "status": "BLOCKED_FULL_HOSTED_EQUIVALENCE",
+  "interpretation": "This is scope inventory, NOT local reproduction and NOT certification. S02 relation names are modeled, but full metadata equality and live behavior of all columns/grants/RLS/routines/history are not proved.",
+  "hosted": {
+    "relations": 215,
+    "columns": 2364,
+    "routines": 727
+  },
+  "s02_coverage": {
+    "relation_names": 56,
+    "upstream_rpc_fingerprints": 21
+  },
+  "unmodeled": {
+    "relation_names": 159,
+    "columns": 1506,
+    "constraints": 825,
+    "indexes": 449,
+    "policies": 118,
+    "triggers": 103,
+    "by_schema": {
+      "auth": 26,
+      "private": 9,
+      "public": 112,
+      "televoting": 12
+    },
+    "relations": [
+      {
+        "schema_name": "auth",
+        "object_name": "audit_log_entries",
+        "columns": 5,
+        "constraints": 1,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "custom_oauth_providers",
+        "columns": 25,
+        "constraints": 20,
+        "indexes": 6,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": false
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "flow_state",
+        "columns": 17,
+        "constraints": 1,
+        "indexes": 4,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "identities",
+        "columns": 9,
+        "constraints": 3,
+        "indexes": 4,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "instances",
+        "columns": 5,
+        "constraints": 1,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "mfa_amr_claims",
+        "columns": 5,
+        "constraints": 3,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "mfa_challenges",
+        "columns": 7,
+        "constraints": 2,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "mfa_factors",
+        "columns": 13,
+        "constraints": 3,
+        "indexes": 6,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "mfa_recovery_code_sets",
+        "columns": 7,
+        "constraints": 6,
+        "indexes": 3,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": false
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "mfa_recovery_codes",
+        "columns": 5,
+        "constraints": 2,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": false
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "oauth_authorizations",
+        "columns": 17,
+        "constraints": 13,
+        "indexes": 4,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": false
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "oauth_client_states",
+        "columns": 4,
+        "constraints": 1,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": false
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "oauth_clients",
+        "columns": 13,
+        "constraints": 5,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": false
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "oauth_consents",
+        "columns": 6,
+        "constraints": 7,
+        "indexes": 5,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": false
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "one_time_tokens",
+        "columns": 8,
+        "constraints": 3,
+        "indexes": 4,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "refresh_tokens",
+        "columns": 9,
+        "constraints": 3,
+        "indexes": 7,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "saml_providers",
+        "columns": 9,
+        "constraints": 6,
+        "indexes": 3,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "saml_relay_states",
+        "columns": 8,
+        "constraints": 4,
+        "indexes": 4,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "schema_migrations",
+        "columns": 1,
+        "constraints": 1,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "scim_tokens",
+        "columns": 8,
+        "constraints": 5,
+        "indexes": 5,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": false
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "scim_users",
+        "columns": 10,
+        "constraints": 3,
+        "indexes": 10,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": false
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "sessions",
+        "columns": 15,
+        "constraints": 4,
+        "indexes": 5,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "sso_domains",
+        "columns": 5,
+        "constraints": 3,
+        "indexes": 3,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "sso_providers",
+        "columns": 5,
+        "constraints": 2,
+        "indexes": 3,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "webauthn_challenges",
+        "columns": 6,
+        "constraints": 3,
+        "indexes": 3,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": false
+      },
+      {
+        "schema_name": "auth",
+        "object_name": "webauthn_credentials",
+        "columns": 14,
+        "constraints": 2,
+        "indexes": 3,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": false
+      },
+      {
+        "schema_name": "private",
+        "object_name": "country_auth_rate_limits",
+        "columns": 5,
+        "constraints": 2,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": false
+      },
+      {
+        "schema_name": "private",
+        "object_name": "studio2_platform_exit_write_probe",
+        "columns": 3,
+        "constraints": 1,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": false
+      },
+      {
+        "schema_name": "private",
+        "object_name": "v3_confirmation_account_drafts",
+        "columns": 6,
+        "constraints": 4,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": false
+      },
+      {
+        "schema_name": "private",
+        "object_name": "v3_confirmation_operations",
+        "columns": 7,
+        "constraints": 5,
+        "indexes": 4,
+        "policies": 0,
+        "triggers": 1,
+        "rls_enabled": false
+      },
+      {
+        "schema_name": "private",
+        "object_name": "v3_entry_reviews",
+        "columns": 6,
+        "constraints": 3,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 1,
+        "rls_enabled": false
+      },
+      {
+        "schema_name": "private",
+        "object_name": "v3_entry_versions",
+        "columns": 13,
+        "constraints": 7,
+        "indexes": 3,
+        "policies": 0,
+        "triggers": 2,
+        "rls_enabled": false
+      },
+      {
+        "schema_name": "private",
+        "object_name": "v3_jury_drafts",
+        "columns": 10,
+        "constraints": 9,
+        "indexes": 3,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": false
+      },
+      {
+        "schema_name": "private",
+        "object_name": "v3_jury_operations",
+        "columns": 10,
+        "constraints": 8,
+        "indexes": 4,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": false
+      },
+      {
+        "schema_name": "private",
+        "object_name": "v3_televote_recovery_handles",
+        "columns": 4,
+        "constraints": 4,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": false
+      },
+      {
+        "schema_name": "public",
+        "object_name": "admin_audit_log",
+        "columns": 10,
+        "constraints": 4,
+        "indexes": 7,
+        "policies": 1,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "admin_beta_test_submissions",
+        "columns": 11,
+        "constraints": 3,
+        "indexes": 2,
+        "policies": 2,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "admin_deadlines",
+        "columns": 11,
+        "constraints": 4,
+        "indexes": 3,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "admin_preferences",
+        "columns": 7,
+        "constraints": 4,
+        "indexes": 1,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "app_push_subscriptions",
+        "columns": 10,
+        "constraints": 3,
+        "indexes": 3,
+        "policies": 4,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "beta2_test_submissions",
+        "columns": 18,
+        "constraints": 2,
+        "indexes": 2,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "beta3_test_submissions",
+        "columns": 11,
+        "constraints": 8,
+        "indexes": 2,
+        "policies": 2,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "beta_test_submissions",
+        "columns": 11,
+        "constraints": 3,
+        "indexes": 2,
+        "policies": 2,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "content_events",
+        "columns": 12,
+        "constraints": 2,
+        "indexes": 2,
+        "policies": 5,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "country_design_presets",
+        "columns": 8,
+        "constraints": 5,
+        "indexes": 1,
+        "policies": 4,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "country_edition_identities",
+        "columns": 7,
+        "constraints": 5,
+        "indexes": 2,
+        "policies": 2,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "country_font_assets",
+        "columns": 9,
+        "constraints": 6,
+        "indexes": 2,
+        "policies": 3,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "country_hod_edition_claims",
+        "columns": 5,
+        "constraints": 5,
+        "indexes": 3,
+        "policies": 4,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "country_media",
+        "columns": 8,
+        "constraints": 3,
+        "indexes": 3,
+        "policies": 5,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "country_profile_sections",
+        "columns": 17,
+        "constraints": 6,
+        "indexes": 2,
+        "policies": 5,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "country_profiles",
+        "columns": 13,
+        "constraints": 2,
+        "indexes": 1,
+        "policies": 5,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "country_themes",
+        "columns": 24,
+        "constraints": 19,
+        "indexes": 1,
+        "policies": 5,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "delegation_hod_assignments",
+        "columns": 10,
+        "constraints": 7,
+        "indexes": 5,
+        "policies": 1,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "delegation_people",
+        "columns": 6,
+        "constraints": 4,
+        "indexes": 2,
+        "policies": 1,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "edit_tokens",
+        "columns": 9,
+        "constraints": 3,
+        "indexes": 2,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "fan_event_reads",
+        "columns": 3,
+        "constraints": 3,
+        "indexes": 1,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "fan_follows",
+        "columns": 8,
+        "constraints": 4,
+        "indexes": 2,
+        "policies": 1,
+        "triggers": 3,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "fan_profiles",
+        "columns": 9,
+        "constraints": 4,
+        "indexes": 1,
+        "policies": 4,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "fan_taste_ballots",
+        "columns": 6,
+        "constraints": 4,
+        "indexes": 4,
+        "policies": 4,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "fantasy_game_entries",
+        "columns": 5,
+        "constraints": 3,
+        "indexes": 1,
+        "policies": 2,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "fantasy_games",
+        "columns": 14,
+        "constraints": 11,
+        "indexes": 5,
+        "policies": 2,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "fantasy_team_entries",
+        "columns": 5,
+        "constraints": 4,
+        "indexes": 1,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "fantasy_teams",
+        "columns": 12,
+        "constraints": 5,
+        "indexes": 4,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "friend_voting_settings",
+        "columns": 27,
+        "constraints": 8,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "integration_events",
+        "columns": 15,
+        "constraints": 4,
+        "indexes": 4,
+        "policies": 1,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "integration_links",
+        "columns": 11,
+        "constraints": 6,
+        "indexes": 5,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "integrity_case_access",
+        "columns": 3,
+        "constraints": 2,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "integrity_case_appeals",
+        "columns": 19,
+        "constraints": 11,
+        "indexes": 4,
+        "policies": 0,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "integrity_case_events",
+        "columns": 7,
+        "constraints": 3,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "integrity_case_evidence",
+        "columns": 22,
+        "constraints": 12,
+        "indexes": 5,
+        "policies": 0,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "integrity_case_findings",
+        "columns": 9,
+        "constraints": 4,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "integrity_case_internal_notes",
+        "columns": 5,
+        "constraints": 3,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "integrity_case_messages",
+        "columns": 7,
+        "constraints": 4,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "integrity_case_relations",
+        "columns": 7,
+        "constraints": 7,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "integrity_case_requests",
+        "columns": 9,
+        "constraints": 5,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "integrity_case_reviewers",
+        "columns": 7,
+        "constraints": 5,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "integrity_case_rule_links",
+        "columns": 7,
+        "constraints": 5,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "integrity_case_sanctions",
+        "columns": 17,
+        "constraints": 11,
+        "indexes": 3,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "integrity_cases",
+        "columns": 19,
+        "constraints": 11,
+        "indexes": 5,
+        "policies": 0,
+        "triggers": 3,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "integrity_evidence_access_log",
+        "columns": 8,
+        "constraints": 6,
+        "indexes": 3,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "integrity_evidence_upload_tokens",
+        "columns": 12,
+        "constraints": 7,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "integrity_identity_disclosure_requests",
+        "columns": 11,
+        "constraints": 6,
+        "indexes": 3,
+        "policies": 0,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "integrity_preclearance_rulings",
+        "columns": 8,
+        "constraints": 5,
+        "indexes": 3,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "integrity_public_decisions",
+        "columns": 9,
+        "constraints": 3,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "notification_preferences",
+        "columns": 10,
+        "constraints": 3,
+        "indexes": 1,
+        "policies": 4,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "permission_evaluation_events",
+        "columns": 9,
+        "constraints": 6,
+        "indexes": 6,
+        "policies": 1,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "prediction_consensus_snapshots",
+        "columns": 6,
+        "constraints": 4,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "prediction_entries",
+        "columns": 10,
+        "constraints": 5,
+        "indexes": 3,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "prediction_entry_versions",
+        "columns": 5,
+        "constraints": 4,
+        "indexes": 2,
+        "policies": 1,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "prediction_items",
+        "columns": 7,
+        "constraints": 6,
+        "indexes": 2,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "prediction_rounds",
+        "columns": 10,
+        "constraints": 5,
+        "indexes": 2,
+        "policies": 5,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "prediction_scores",
+        "columns": 6,
+        "constraints": 4,
+        "indexes": 1,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "public_ia_rollout_state",
+        "columns": 5,
+        "constraints": 4,
+        "indexes": 1,
+        "policies": 2,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "public_televote_country_contributions",
+        "columns": 12,
+        "constraints": 3,
+        "indexes": 1,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "public_ux_events",
+        "columns": 8,
+        "constraints": 16,
+        "indexes": 6,
+        "policies": 2,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "public_web_vitals",
+        "columns": 11,
+        "constraints": 9,
+        "indexes": 4,
+        "policies": 2,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "round_stats",
+        "columns": 3,
+        "constraints": 2,
+        "indexes": 1,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "ssc_rule_interpretation_sources",
+        "columns": 5,
+        "constraints": 5,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "ssc_rule_interpretations",
+        "columns": 15,
+        "constraints": 9,
+        "indexes": 4,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "ssc_rule_registry",
+        "columns": 3,
+        "constraints": 2,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "ssc_rulebook_change_items",
+        "columns": 10,
+        "constraints": 8,
+        "indexes": 3,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "ssc_rulebook_events",
+        "columns": 6,
+        "constraints": 3,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "ssc_rulebook_releases",
+        "columns": 12,
+        "constraints": 6,
+        "indexes": 4,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_access_roles",
+        "columns": 5,
+        "constraints": 3,
+        "indexes": 1,
+        "policies": 1,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_account_session_revocations",
+        "columns": 7,
+        "constraints": 6,
+        "indexes": 3,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_capability_grants",
+        "columns": 7,
+        "constraints": 6,
+        "indexes": 6,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_confirmation_review_versions",
+        "columns": 3,
+        "constraints": 3,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_confirmation_round_versions",
+        "columns": 3,
+        "constraints": 3,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_country_media_upload_tokens",
+        "columns": 11,
+        "constraints": 8,
+        "indexes": 3,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_delegation_settings",
+        "columns": 6,
+        "constraints": 5,
+        "indexes": 3,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_eligibility_override_versions",
+        "columns": 5,
+        "constraints": 4,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_feature_flags",
+        "columns": 8,
+        "constraints": 3,
+        "indexes": 2,
+        "policies": 1,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_host_bid_evaluations",
+        "columns": 8,
+        "constraints": 7,
+        "indexes": 5,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_host_bids",
+        "columns": 26,
+        "constraints": 14,
+        "indexes": 6,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_host_operation_executions",
+        "columns": 9,
+        "constraints": 8,
+        "indexes": 5,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_host_operations",
+        "columns": 18,
+        "constraints": 6,
+        "indexes": 3,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_incidents",
+        "columns": 21,
+        "constraints": 12,
+        "indexes": 5,
+        "policies": 1,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_jury_members",
+        "columns": 11,
+        "constraints": 9,
+        "indexes": 7,
+        "policies": 1,
+        "triggers": 3,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_jury_window_versions",
+        "columns": 3,
+        "constraints": 3,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_next_in_line_submission_revisions",
+        "columns": 6,
+        "constraints": 6,
+        "indexes": 3,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_notice_receipts",
+        "columns": 6,
+        "constraints": 3,
+        "indexes": 2,
+        "policies": 1,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_notice_versions",
+        "columns": 18,
+        "constraints": 5,
+        "indexes": 2,
+        "policies": 1,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_official_notices",
+        "columns": 27,
+        "constraints": 18,
+        "indexes": 7,
+        "policies": 1,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_participation_status_versions",
+        "columns": 4,
+        "constraints": 3,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_permission_change_approval_requests",
+        "columns": 17,
+        "constraints": 13,
+        "indexes": 4,
+        "policies": 0,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_permission_subject_versions",
+        "columns": 3,
+        "constraints": 3,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_platform_exit_preflights",
+        "columns": 11,
+        "constraints": 7,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_platform_operational_state",
+        "columns": 9,
+        "constraints": 5,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_prediction_round_versions",
+        "columns": 3,
+        "constraints": 3,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_prediction_score_versions",
+        "columns": 3,
+        "constraints": 3,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_result_operation_executions",
+        "columns": 10,
+        "constraints": 11,
+        "indexes": 5,
+        "policies": 0,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_role_assignments",
+        "columns": 7,
+        "constraints": 7,
+        "indexes": 6,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_role_capabilities",
+        "columns": 3,
+        "constraints": 3,
+        "indexes": 2,
+        "policies": 1,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_show_publication_executions",
+        "columns": 11,
+        "constraints": 10,
+        "indexes": 3,
+        "policies": 0,
+        "triggers": 3,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_story_operation_executions",
+        "columns": 10,
+        "constraints": 9,
+        "indexes": 6,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_storyline_items",
+        "columns": 16,
+        "constraints": 9,
+        "indexes": 6,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_storylines",
+        "columns": 15,
+        "constraints": 11,
+        "indexes": 6,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_televote_global_versions",
+        "columns": 3,
+        "constraints": 3,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_televote_round_versions",
+        "columns": 3,
+        "constraints": 2,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_upload_authorizations",
+        "columns": 20,
+        "constraints": 9,
+        "indexes": 4,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "studio2_voting_declaration_policy",
+        "columns": 4,
+        "constraints": 4,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "submission_browser_sessions",
+        "columns": 5,
+        "constraints": 3,
+        "indexes": 2,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "submission_drafts",
+        "columns": 12,
+        "constraints": 5,
+        "indexes": 2,
+        "policies": 1,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "submission_ip_history",
+        "columns": 5,
+        "constraints": 3,
+        "indexes": 2,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "submission_review_history",
+        "columns": 11,
+        "constraints": 5,
+        "indexes": 1,
+        "policies": 1,
+        "triggers": 5,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "submission_versions",
+        "columns": 9,
+        "constraints": 6,
+        "indexes": 3,
+        "policies": 2,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "public",
+        "object_name": "user_roles",
+        "columns": 4,
+        "constraints": 2,
+        "indexes": 2,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "televoting",
+        "object_name": "admin_audit_log",
+        "columns": 10,
+        "constraints": 1,
+        "indexes": 3,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "televoting",
+        "object_name": "anti_abuse_events",
+        "columns": 13,
+        "constraints": 2,
+        "indexes": 1,
+        "policies": 1,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "televoting",
+        "object_name": "external_score_entries",
+        "columns": 9,
+        "constraints": 3,
+        "indexes": 2,
+        "policies": 1,
+        "triggers": 2,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "televoting",
+        "object_name": "external_score_entry_log",
+        "columns": 11,
+        "constraints": 1,
+        "indexes": 1,
+        "policies": 1,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "televoting",
+        "object_name": "historical_vote_observations",
+        "columns": 12,
+        "constraints": 4,
+        "indexes": 5,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "televoting",
+        "object_name": "integrity_action_audit",
+        "columns": 10,
+        "constraints": 5,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "televoting",
+        "object_name": "legacy_friend_voting_relationships",
+        "columns": 10,
+        "constraints": 1,
+        "indexes": 2,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "televoting",
+        "object_name": "legacy_import_metadata",
+        "columns": 3,
+        "constraints": 1,
+        "indexes": 1,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "televoting",
+        "object_name": "round_influence_results",
+        "columns": 13,
+        "constraints": 4,
+        "indexes": 3,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "televoting",
+        "object_name": "vote_integrity_decisions",
+        "columns": 10,
+        "constraints": 5,
+        "indexes": 3,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "televoting",
+        "object_name": "vote_moderation_events",
+        "columns": 12,
+        "constraints": 2,
+        "indexes": 4,
+        "policies": 1,
+        "triggers": 1,
+        "rls_enabled": true
+      },
+      {
+        "schema_name": "televoting",
+        "object_name": "voter_sanctions",
+        "columns": 16,
+        "constraints": 7,
+        "indexes": 5,
+        "policies": 0,
+        "triggers": 0,
+        "rls_enabled": true
+      }
+    ]
+  },
+  "remaining_routines_outside_21_fingerprinted": 706,
+  "unknown_critical_requirements": [
+    "independently reviewed sanitized hosted-equivalent DDL fixture",
+    "all relevant reachable RPCs and trigger/policy function dependencies, including dynamic SQL",
+    "execution rights, membership and RLS behavior for real role profiles",
+    "representative sanitized row-state fixtures and conflict/rollback behavior",
+    "source-versus-hosted migration effects and remote migration-history reconciliation",
+    "separate authorized production migration gate"
+  ]
+}

@@ -1,0 +1,249 @@
+{
+  "task": "S02",
+  "date": "2026-11-09",
+  "schemaOnly": true,
+  "noApplicationRows": true,
+  "source": "read-only, observed hosted S14 dependency function definitions",
+  "functions": [
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.append_running_order_for_new_participant()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\ndeclare\n  v_stage text;\n  v_next integer;\nbegin\n  if new.show_id is null or new.running_order is not null then\n    return new;\n  end if;\n  select s.lineup_stage::text into v_stage from public.shows s where s.id = new.show_id;\n  if v_stage = 'running_order' then\n    select coalesce(max(p.running_order), 0) + 1 into v_next from public.participants p where p.show_id = new.show_id;\n    new.running_order := v_next;\n  end if;\n  return new;\nend;\n$function$\n",
+      "owner": "postgres",
+      "signature": "append_running_order_for_new_participant()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.assert_entity_edition()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\nDECLARE\n  v_ids uuid[];\n  v_id uuid;\n  v_ed uuid;\nBEGIN\n  IF TG_TABLE_NAME = 'jury_votes' THEN\n    v_ids := ARRAY[NEW.receiving_entity_id, NEW.voter_entity_id];\n  ELSE\n    v_ids := ARRAY[NEW.contest_entity_id];\n  END IF;\n  FOREACH v_id IN ARRAY v_ids LOOP\n    IF v_id IS NOT NULL THEN\n      SELECT e.edition_id INTO v_ed FROM public.contest_entities e WHERE e.id = v_id;\n      IF v_ed IS NOT NULL AND v_ed <> NEW.edition_id THEN\n        RAISE EXCEPTION 'Contest entity belongs to a different edition.' USING ERRCODE = '23514';\n      END IF;\n    END IF;\n  END LOOP;\n  RETURN NEW;\nEND;\n$function$\n",
+      "owner": "postgres",
+      "signature": "assert_entity_edition()",
+      "securityDefiner": false
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION auth.uid()\n RETURNS uuid\n LANGUAGE sql\n STABLE\nAS $function$\n  select \n  coalesce(\n    nullif(current_setting('request.jwt.claim.sub', true), ''),\n    (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')\n  )::uuid\n$function$\n",
+      "owner": "supabase_auth_admin",
+      "signature": "auth.uid()",
+      "securityDefiner": false
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.auto_assign_country_hod_for_participation()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\ndeclare\n  v_user uuid;\n  v_person uuid;\n  v_status text;\n  v_existing public.delegation_hod_assignments;\nbegin\n  if new.country_id is null\n     or new.show_id is not null\n     or new.participation_status <> 'confirmed' then\n    return new;\n  end if;\n\n  select user_id into v_user\n  from public.country_accounts\n  where country_id=new.country_id\n    and status='active'\n    and hod_auto_assign_future=true\n  limit 1;\n  if v_user is null then return new; end if;\n\n  select status into v_status\n  from public.country_hod_edition_claims\n  where user_id=v_user and country_id=new.country_id and edition_id=new.edition_id;\n  if v_status in ('other','unknown') then return new; end if;\n\n  v_person := public.ensure_account_hod_person(v_user);\n\n  select * into v_existing\n  from public.delegation_hod_assignments\n  where edition_id=new.edition_id and country_id=new.country_id and channel='delegation';\n\n  if v_existing.id is not null and v_existing.person_id <> v_person then\n    insert into public.country_hod_edition_claims(user_id,country_id,edition_id,status,updated_at)\n    values(v_user,new.country_id,new.edition_id,'other',now())\n    on conflict(user_id,country_id,edition_id)\n    do update set status='other',updated_at=now();\n    return new;\n  end if;\n\n  insert into public.country_hod_edition_claims(user_id,country_id,edition_id,status,updated_at)\n  values(v_user,new.country_id,new.edition_id,'mine',now())\n  on conflict(user_id,country_id,edition_id) do nothing;\n\n  if v_existing.id is null then\n    insert into public.delegation_hod_assignments(edition_id,country_id,person_id,channel,source,confidence,notes)\n    values(new.edition_id,new.country_id,v_person,'delegation','country-account-auto',100,'Automatically carried forward for active HOD')\n    on conflict(edition_id,country_id,channel) do nothing;\n  end if;\n\n  return new;\nend;\n$function$\n",
+      "owner": "postgres",
+      "signature": "auto_assign_country_hod_for_participation()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.bump_edition_data_revision()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\ndeclare\n  v_edition_id uuid;\nbegin\n  v_edition_id := case when tg_op = 'DELETE' then old.edition_id else new.edition_id end;\n  if v_edition_id is not null then\n    update public.editions\n    set data_revision = data_revision + 1\n    where id = v_edition_id;\n  end if;\n  return case when tg_op = 'DELETE' then old else new end;\nend;\n$function$\n",
+      "owner": "postgres",
+      "signature": "bump_edition_data_revision()",
+      "securityDefiner": false
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.capture_televoting_binding_revision()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\nbegin\n  if new.last_synced_at is null then\n    new.last_synced_revision := 0;\n  else\n    select e.data_revision into new.last_synced_revision\n    from public.editions e\n    where e.id = new.edition_id;\n    new.last_synced_revision := coalesce(new.last_synced_revision, 0);\n  end if;\n  return new;\nend;\n$function$\n",
+      "owner": "postgres",
+      "signature": "capture_televoting_binding_revision()",
+      "securityDefiner": false
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.compact_running_order_after_delete()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\ndeclare\n  v_stage text;\nbegin\n  if old.show_id is null then return old; end if;\n  select s.lineup_stage::text into v_stage from public.shows s where s.id = old.show_id;\n  if v_stage = 'running_order' then\n    with ordered as (\n      select p.id, row_number() over (order by p.running_order nulls last, p.updated_at, p.id)::integer as new_order\n      from public.participants p\n      where p.show_id = old.show_id\n    )\n    update public.participants p\n       set running_order = ordered.new_order, updated_at = now()\n      from ordered\n     where p.id = ordered.id and p.running_order is distinct from ordered.new_order;\n  end if;\n  return old;\nend;\n$function$\n",
+      "owner": "postgres",
+      "signature": "compact_running_order_after_delete()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.emit_edition_pulse_event()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nbegin\n  if new.published is true\n    and (tg_op = 'INSERT' or old.published is distinct from true)\n  then\n    insert into public.content_events (\n      event_type, entity_type, entity_id, title, summary, route,\n      importance, payload, published_at, dedupe_key\n    ) values (\n      'edition_update', 'edition', new.id,\n      coalesce(nullif(new.name, ''), 'A Solaris edition') || ' is now public',\n      'The edition hub is live with the public information currently released.',\n      '/editions/' || new.slug,\n      'important',\n      jsonb_build_object('editionId', new.id, 'editionNumber', new.edition_number),\n      now(),\n      'edition:' || new.id::text || ':published'\n    )\n    on conflict (dedupe_key) do update set\n      title = excluded.title,\n      summary = excluded.summary,\n      route = excluded.route,\n      payload = excluded.payload,\n      published_at = least(public.content_events.published_at, excluded.published_at);\n  end if;\n  return new;\nend;\n$function$\n",
+      "owner": "postgres",
+      "signature": "emit_edition_pulse_event()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.emit_show_pulse_events()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\ndeclare\n  old_config jsonb := case when tg_op = 'INSERT' then '{}'::jsonb else coalesce(old.publication_config, '{}'::jsonb) end;\n  new_config jsonb := coalesce(new.publication_config, '{}'::jsonb);\n  country_ids jsonb := '[]'::jsonb;\n  contest_entity_ids jsonb := '[]'::jsonb;\n  edition_slug text;\n  show_is_public boolean := new.published is true;\n  old_show_was_public boolean := case when tg_op = 'INSERT' then false else old.published is true end;\nbegin\n  if not show_is_public then return new; end if;\n\n  select\n    coalesce(jsonb_agg(distinct participant.country_id) filter (where participant.country_id is not null), '[]'::jsonb),\n    coalesce(jsonb_agg(distinct participant.contest_entity_id) filter (where participant.contest_entity_id is not null), '[]'::jsonb)\n  into country_ids, contest_entity_ids\n  from public.participants participant\n  where participant.show_id = new.id;\n\n  select edition.slug into edition_slug\n  from public.editions edition\n  where edition.id = new.edition_id;\n\n  if (\n    coalesce((new_config ->> 'songs')::boolean, false)\n    or coalesce((new_config ->> 'artists')::boolean, false)\n  ) and (\n    not old_show_was_public\n    or not (\n      coalesce((old_config ->> 'songs')::boolean, false)\n      or coalesce((old_config ->> 'artists')::boolean, false)\n    )\n  ) then\n    insert into public.content_events (\n      event_type, entity_type, entity_id, title, summary, route,\n      importance, payload, published_at, dedupe_key\n    ) values (\n      'entry_published', 'show', new.id,\n      'Entries are out for ' || new.name,\n      'Artists and songs have been released for this show.',\n      '/shows/' || new.id::text,\n      'important',\n      jsonb_build_object(\n        'showId', new.id,\n        'editionId', new.edition_id,\n        'editionSlug', edition_slug,\n        'countryIds', country_ids,\n        'contestEntityIds', contest_entity_ids\n      ),\n      now(), 'show:' || new.id::text || ':entries'\n    )\n    on conflict (dedupe_key) do update set\n      title = excluded.title, summary = excluded.summary,\n      route = excluded.route, payload = excluded.payload;\n  end if;\n\n  if coalesce((new_config ->> 'running_order')::boolean, false)\n    and (not old_show_was_public or not coalesce((old_config ->> 'running_order')::boolean, false))\n  then\n    insert into public.content_events (\n      event_type, entity_type, entity_id, title, summary, route,\n      importance, payload, published_at, dedupe_key\n    ) values (\n      'running_order_published', 'show', new.id,\n      'Running order published for ' || new.name,\n      'The performance order is now public.',\n      '/shows/' || new.id::text,\n      'normal',\n      jsonb_build_object(\n        'showId', new.id,\n        'editionId', new.edition_id,\n        'editionSlug', edition_slug,\n        'countryIds', country_ids,\n        'contestEntityIds', contest_entity_ids\n      ),\n      now(), 'show:' || new.id::text || ':running-order'\n    )\n    on conflict (dedupe_key) do update set\n      title = excluded.title, summary = excluded.summary,\n      route = excluded.route, payload = excluded.payload;\n  end if;\n\n  if coalesce((new_config ->> 'results')::boolean, false)\n    and (not old_show_was_public or not coalesce((old_config ->> 'results')::boolean, false))\n  then\n    insert into public.content_events (\n      event_type, entity_type, entity_id, title, summary, route,\n      importance, payload, published_at, dedupe_key\n    ) values (\n      'results_published', 'show', new.id,\n      'Results published for ' || new.name,\n      'The scoreboard, jury total and televote total are now public.',\n      '/shows/' || new.id::text,\n      'important',\n      jsonb_build_object(\n        'showId', new.id,\n        'editionId', new.edition_id,\n        'editionSlug', edition_slug,\n        'countryIds', country_ids,\n        'contestEntityIds', contest_entity_ids\n      ),\n      now(), 'show:' || new.id::text || ':results'\n    )\n    on conflict (dedupe_key) do update set\n      title = excluded.title, summary = excluded.summary,\n      route = excluded.route, payload = excluded.payload;\n  end if;\n\n  return new;\nend;\n$function$\n",
+      "owner": "postgres",
+      "signature": "emit_show_pulse_events()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.ensure_submission_recovery_code()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public', 'extensions'\nAS $function$\nbegin\n  if new.recovery_code is null or trim(new.recovery_code) = '' then\n    new.recovery_code := public.generate_recovery_code();\n  else\n    new.recovery_code := upper(trim(new.recovery_code));\n  end if;\n  return new;\nend\n$function$\n",
+      "owner": "postgres",
+      "signature": "ensure_submission_recovery_code()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.inherit_country_entry_listen_links()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\ndeclare v_source public.participants;\nbegin\n  if new.show_id is null then return new; end if;\n  select p.* into v_source from public.participants p\n  where p.edition_id = new.edition_id and p.show_id is null and p.country_id = new.country_id\n  order by p.updated_at desc, p.id desc limit 1;\n  if v_source.id is not null then\n    new.youtube_url := coalesce(new.youtube_url, v_source.youtube_url);\n    new.spotify_url := coalesce(new.spotify_url, v_source.spotify_url);\n    new.apple_music_url := coalesce(new.apple_music_url, v_source.apple_music_url);\n  end if;\n  return new;\nend;\n$function$\n",
+      "owner": "postgres",
+      "signature": "inherit_country_entry_listen_links()",
+      "securityDefiner": false
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.inherit_edition_design_on_show()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\ndeclare e public.editions;\nbegin\n  select * into e from public.editions where id = new.edition_id;\n  if e.id is not null then new.theme_id := e.theme_id; new.broadcast_config := coalesce(e.broadcast_config, '{}'::jsonb); end if;\n  return new;\nend;\n$function$\n",
+      "owner": "postgres",
+      "signature": "inherit_edition_design_on_show()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.keep_historical_entry_public()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public', 'pg_temp'\nAS $function$\ndeclare\n  v_edition_number integer;\n  v_newest_edition_number integer;\nbegin\n  select e.edition_number\n    into v_edition_number\n  from public.editions e\n  where e.id = new.edition_id;\n\n  select max(e.edition_number)\n    into v_newest_edition_number\n  from public.editions e\n  where e.edition_number is not null;\n\n  if v_edition_number is not null\n     and v_newest_edition_number is not null\n     and v_edition_number < v_newest_edition_number\n     and new.publication_status = 'draft'\n     and new.scheduled_publish_at is null\n     and (\n       nullif(trim(new.artist), '') is not null\n       or nullif(trim(new.song), '') is not null\n       or nullif(trim(new.youtube_url), '') is not null\n       or nullif(trim(new.spotify_url), '') is not null\n       or nullif(trim(new.apple_music_url), '') is not null\n     ) then\n    new.publication_status := 'published';\n    new.published_at := coalesce(new.published_at, new.updated_at, new.created_at, now());\n    new.publication_source := coalesce(new.publication_source, 'legacy');\n  end if;\n\n  return new;\nend;\n$function$\n",
+      "owner": "postgres",
+      "signature": "keep_historical_entry_public()",
+      "securityDefiner": false
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.materialize_results_on_show_publish()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\nbegin\n  if new.published = true\n     and coalesce((new.publication_config->>'results')::boolean, false) = true\n     and (\n       tg_op = 'INSERT'\n       or old.published is distinct from new.published\n       or old.publication_config is distinct from new.publication_config\n     )\n  then\n    perform public.materialize_show_results_if_missing(new.id);\n  end if;\n  return new;\nend;\n$function$\n",
+      "owner": "postgres",
+      "signature": "materialize_results_on_show_publish()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.national_final_entry_pulse_trigger()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nbegin if new.review_status='accepted' and coalesce(new.removed,false)=false and (tg_op='INSERT' or old.review_status is distinct from new.review_status or old.removed is distinct from new.removed) then perform public.emit_national_final_event(new.national_final_id,'national_final_lineup'); end if; return new; end; $function$\n",
+      "owner": "postgres",
+      "signature": "national_final_entry_pulse_trigger()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.national_final_pulse_trigger()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nbegin if tg_op='INSERT' then perform public.emit_national_final_event(new.id,'national_final_announced'); elsif tg_op='UPDATE' and new.winning_entry_id is distinct from old.winning_entry_id and new.winning_entry_id is not null then perform public.emit_national_final_event(new.id,'national_final_result'); end if; return new; end; $function$\n",
+      "owner": "postgres",
+      "signature": "national_final_pulse_trigger()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.normalize_show_publication_channels()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\ndeclare\n  jury_enabled boolean := true;\n  televote_enabled boolean := true;\n  jury_weight numeric := 50;\n  televote_weight numeric := 50;\nbegin\n  if new.voting_config is not null then\n    jury_enabled := coalesce((new.voting_config ->> 'juryEnabled')::boolean, true);\n    televote_enabled := coalesce((new.voting_config ->> 'televoteEnabled')::boolean, true);\n    jury_weight := coalesce((new.voting_config -> 'weighting' ->> 'jury')::numeric, 50);\n    televote_weight := coalesce((new.voting_config -> 'weighting' ->> 'televote')::numeric, 50);\n  end if;\n\n  if new.publication_config is not null then\n    if not jury_enabled or jury_weight <= 0 then\n      new.publication_config := jsonb_set(new.publication_config, '{jury_results}', 'false'::jsonb, true);\n    end if;\n\n    if not televote_enabled or televote_weight <= 0 then\n      new.publication_config := jsonb_set(new.publication_config, '{televote_results}', 'false'::jsonb, true);\n    end if;\n  end if;\n\n  return new;\nend;\n$function$\n",
+      "owner": "postgres",
+      "signature": "normalize_show_publication_channels()",
+      "securityDefiner": false
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.owns_country(_country_id uuid)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\n  select exists (select 1 from public.country_accounts ca where ca.user_id = auth.uid() and ca.country_id = _country_id);\n$function$\n",
+      "owner": "postgres",
+      "signature": "owns_country(uuid)",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.preserve_edition_participation_before_show_delete()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nbegin\n  if old.show_id is not null\n     and old.country_id is not null\n     and not exists (\n       select 1\n       from public.participants p\n       where p.edition_id = old.edition_id\n         and p.country_id = old.country_id\n         and p.show_id is null\n     ) then\n    insert into public.participants (\n      edition_id,\n      country_id,\n      artist,\n      song,\n      running_order,\n      semi_final,\n      show_id,\n      qualified,\n      notes,\n      contest_entity_id,\n      participation_status\n    ) values (\n      old.edition_id,\n      old.country_id,\n      old.artist,\n      old.song,\n      null,\n      'final',\n      null,\n      null,\n      coalesce(old.notes, 'Preserved when removed from show line-up'),\n      old.contest_entity_id,\n      old.participation_status\n    )\n    on conflict do nothing;\n  end if;\n\n  return old;\nend;\n$function$\n",
+      "owner": "postgres",
+      "signature": "preserve_edition_participation_before_show_delete()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.preserve_edition_public_design_metadata()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\ndeclare\n  _key text;\n  _keys text[] := array[\n    'publicStyle',\n    'publicRadius',\n    'publicSurfaceStrength',\n    'publicHeroGlow',\n    'publicAccentGradient',\n    'publicSurfaceGradient'\n  ];\nbegin\n  if old.theme_colors is null or jsonb_typeof(old.theme_colors) <> 'object' then\n    return new;\n  end if;\n  if new.theme_colors is null or jsonb_typeof(new.theme_colors) <> 'object' then\n    return new;\n  end if;\n\n  foreach _key in array _keys loop\n    if not (new.theme_colors ? _key) and (old.theme_colors ? _key) then\n      new.theme_colors := new.theme_colors || jsonb_build_object(_key, old.theme_colors -> _key);\n    end if;\n  end loop;\n\n  return new;\nend;\n$function$\n",
+      "owner": "postgres",
+      "signature": "preserve_edition_public_design_metadata()",
+      "securityDefiner": false
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION public.preserve_historical_voter_display()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\ndeclare\n  v_country uuid;\n  v_alias text;\n  v_alias_flag text;\n  v_current_flag text;\nbegin\n  v_country := new.country_id;\n  if v_country is null and new.contest_entity_id is not null then\n    select ce.country_id into v_country\n    from public.contest_entities ce\n    where ce.id = new.contest_entity_id\n      and ce.entity_type = 'global';\n  end if;\n\n  if v_country is null or new.edition_id is null then\n    return new;\n  end if;\n\n  select cei.display_name, cei.flag_image, c.flag_image\n    into v_alias, v_alias_flag, v_current_flag\n  from public.country_edition_identities cei\n  join public.countries c on c.id = cei.country_id\n  where cei.country_id = v_country\n    and cei.edition_id = new.edition_id;\n\n  if found then\n    new.name := v_alias;\n    new.flag_image := coalesce(v_alias_flag, v_current_flag);\n  end if;\n\n  return new;\nend;\n$function$\n",
+      "owner": "postgres",
+      "signature": "preserve_historical_voter_display()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION private.guard_result_publication_requires_reveal_ready()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public', 'private'\nAS $function$\ndeclare\n  v_new_outcome_exposure boolean := false;\n  v_ops public.studio2_result_operations%rowtype;\nbegin\n  if coalesce(new.published, false) then\n    if tg_op = 'INSERT' then\n      v_new_outcome_exposure :=\n        coalesce((new.publication_config ->> 'qualifiers')::boolean, false)\n        or coalesce((new.publication_config ->> 'results')::boolean, false)\n        or coalesce((new.publication_config ->> 'jury_results')::boolean, false)\n        or coalesce((new.publication_config ->> 'televote_results')::boolean, false)\n        or coalesce((new.publication_config ->> 'detailed_voting')::boolean, false);\n    else\n      v_new_outcome_exposure :=\n        (\n          coalesce((new.publication_config ->> 'qualifiers')::boolean, false)\n          and (\n            not coalesce(old.published, false)\n            or not coalesce((old.publication_config ->> 'qualifiers')::boolean, false)\n          )\n        )\n        or (\n          coalesce((new.publication_config ->> 'results')::boolean, false)\n          and (\n            not coalesce(old.published, false)\n            or not coalesce((old.publication_config ->> 'results')::boolean, false)\n          )\n        )\n        or (\n          coalesce((new.publication_config ->> 'jury_results')::boolean, false)\n          and (\n            not coalesce(old.published, false)\n            or not coalesce((old.publication_config ->> 'jury_results')::boolean, false)\n          )\n        )\n        or (\n          coalesce((new.publication_config ->> 'televote_results')::boolean, false)\n          and (\n            not coalesce(old.published, false)\n            or not coalesce((old.publication_config ->> 'televote_results')::boolean, false)\n          )\n        )\n        or (\n          coalesce((new.publication_config ->> 'detailed_voting')::boolean, false)\n          and (\n            not coalesce(old.published, false)\n            or not coalesce((old.publication_config ->> 'detailed_voting')::boolean, false)\n          )\n        );\n    end if;\n  end if;\n\n  if v_new_outcome_exposure then\n    select *\n      into v_ops\n      from public.studio2_result_operations\n      where show_id = new.id;\n\n    if not found\n       or v_ops.calculation_version <= 0\n       or v_ops.reviewed_version is distinct from v_ops.calculation_version\n       or v_ops.locked_version is distinct from v_ops.calculation_version\n       or v_ops.reveal_ready_version is distinct from v_ops.calculation_version then\n      raise exception\n        'Qualification and result outcomes cannot be published until the current calculation is reviewed, locked and marked reveal ready.'\n        using errcode = '23514';\n    end if;\n  end if;\n\n  return new;\nend;\n$function$\n",
+      "owner": "postgres",
+      "signature": "private.guard_result_publication_requires_reveal_ready()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION private.revoke_confirmation_tokens_on_edition_close()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public', 'private'\nAS $function$\nbegin\n  if not coalesce(new.editing_enabled, false) then\n    update public.edit_tokens t set active = false\n    from public.submissions s\n    where s.edition_id = new.id and t.submission_id = s.id and t.active = true;\n  end if;\n  return new;\nend;\n$function$\n",
+      "owner": "postgres",
+      "signature": "private.revoke_confirmation_tokens_on_edition_close()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION private.revoke_confirmation_tokens_on_round_close()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public', 'private'\nAS $function$\nbegin\n  if not coalesce(new.editing_enabled, false) then\n    update public.edit_tokens t set active = false\n    from public.submissions s\n    where s.round_id = new.id and t.submission_id = s.id and t.active = true;\n  end if;\n  return new;\nend;\n$function$\n",
+      "owner": "postgres",
+      "signature": "private.revoke_confirmation_tokens_on_round_close()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION private.revoke_confirmation_tokens_on_submission_close()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public', 'private'\nAS $function$\nbegin\n  if (not coalesce(new.editing_allowed, false)) or coalesce(new.locked, false) then\n    update public.edit_tokens set active = false where submission_id = new.id and active = true;\n  end if;\n  return new;\nend;\n$function$\n",
+      "owner": "postgres",
+      "signature": "private.revoke_confirmation_tokens_on_submission_close()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION private.studio2_bump_notification_activation()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'pg_catalog', 'public', 'private'\nAS $function$\nbegin\n  if old.resolution_mode = 'domain'\n     and old.resolved_at is not null\n     and new.resolved_at is null then\n    new.activation_version := old.activation_version + 1;\n  end if;\n  return new;\nend\n$function$\n",
+      "owner": "postgres",
+      "signature": "private.studio2_bump_notification_activation()",
+      "securityDefiner": false
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION private.studio2_claim_operation(p_operation_id uuid, p_idempotency_key text, p_correlation_id uuid, p_command text, p_risk_class text, p_scope jsonb, p_semantic_request jsonb)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public', 'private', 'extensions'\nAS $function$\ndeclare\n  v_actor uuid := auth.uid();\n  v_key text := nullif(btrim(coalesce(p_idempotency_key, '')), '');\n  v_command text := nullif(btrim(coalesce(p_command, '')), '');\n  v_correlation_id uuid := coalesce(p_correlation_id, p_operation_id);\n  v_scope jsonb := coalesce(p_scope, '{}'::jsonb);\n  v_fingerprint text;\n  v_receipt public.studio2_operation_receipts;\nbegin\n  if v_actor is null then\n    raise exception using errcode = '42501', message = 'AUTHENTICATION';\n  end if;\n  if p_operation_id is null or v_key is null or v_command is null then\n    raise exception using errcode = '22023', message = 'VALIDATION';\n  end if;\n  if p_risk_class not in ('R0', 'R1', 'R2', 'R3') then\n    raise exception using errcode = '22023', message = 'VALIDATION';\n  end if;\n  if jsonb_typeof(v_scope) <> 'object'\n     or jsonb_typeof(coalesce(p_semantic_request, '{}'::jsonb)) <> 'object' then\n    raise exception using errcode = '22023', message = 'VALIDATION';\n  end if;\n\n  v_fingerprint := private.studio2_request_fingerprint(\n    v_command,\n    p_risk_class,\n    v_scope,\n    p_semantic_request\n  );\n\n  select receipt.*\n  into v_receipt\n  from public.studio2_operation_receipts receipt\n  where receipt.operation_id = p_operation_id\n     or (\n       receipt.actor_id = v_actor\n       and receipt.command = v_command\n       and receipt.idempotency_key = v_key\n     )\n  order by case when receipt.operation_id = p_operation_id then 0 else 1 end\n  limit 1\n  for update;\n\n  if v_receipt.operation_id is not null then\n    if v_receipt.actor_id is distinct from v_actor\n       or v_receipt.command is distinct from v_command\n       or v_receipt.idempotency_key is distinct from v_key\n       or v_receipt.request_fingerprint is distinct from v_fingerprint then\n      raise exception using\n        errcode = 'P0001',\n        message = 'IDEMPOTENCY_CONFLICT',\n        hint = 'Use the original semantic request or a new idempotency key.';\n    end if;\n\n    return jsonb_build_object(\n      'replayed', true,\n      'operationId', v_receipt.operation_id,\n      'correlationId', v_receipt.correlation_id,\n      'status', v_receipt.status,\n      'result', v_receipt.result,\n      'error', case\n        when v_receipt.error_code is null then null\n        else jsonb_build_object(\n          'code', v_receipt.error_code,\n          'metadata', coalesce(v_receipt.error_metadata, '{}'::jsonb)\n        )\n      end\n    );\n  end if;\n\n  if not coalesce(private.studio2_platform_mutation_allowed(v_command), false) then\n    raise exception using errcode = '25006', message = 'STATE_CHANGED';\n  end if;\n\n  insert into public.studio2_operation_receipts (\n    operation_id,\n    actor_id,\n    idempotency_key,\n    correlation_id,\n    request_fingerprint,\n    command,\n    risk_class,\n    scope\n  )\n  values (\n    p_operation_id,\n    v_actor,\n    v_key,\n    v_correlation_id,\n    v_fingerprint,\n    v_command,\n    p_risk_class,\n    v_scope\n  )\n  on conflict do nothing;\n\n  select receipt.*\n  into v_receipt\n  from public.studio2_operation_receipts receipt\n  where receipt.operation_id = p_operation_id\n     or (\n       receipt.actor_id = v_actor\n       and receipt.command = v_command\n       and receipt.idempotency_key = v_key\n     )\n  order by case when receipt.operation_id = p_operation_id then 0 else 1 end\n  limit 1\n  for update;\n\n  if v_receipt.operation_id is null then\n    raise exception using errcode = 'P0001', message = 'DATABASE';\n  end if;\n\n  if v_receipt.actor_id is distinct from v_actor\n     or v_receipt.command is distinct from v_command\n     or v_receipt.idempotency_key is distinct from v_key\n     or v_receipt.request_fingerprint is distinct from v_fingerprint then\n    raise exception using\n      errcode = 'P0001',\n      message = 'IDEMPOTENCY_CONFLICT',\n      hint = 'Use the original semantic request or a new idempotency key.';\n  end if;\n\n  if v_receipt.operation_id is distinct from p_operation_id then\n    return jsonb_build_object(\n      'replayed', true,\n      'operationId', v_receipt.operation_id,\n      'correlationId', v_receipt.correlation_id,\n      'status', v_receipt.status,\n      'result', v_receipt.result,\n      'error', case\n        when v_receipt.error_code is null then null\n        else jsonb_build_object(\n          'code', v_receipt.error_code,\n          'metadata', coalesce(v_receipt.error_metadata, '{}'::jsonb)\n        )\n      end\n    );\n  end if;\n\n  return jsonb_build_object(\n    'replayed', false,\n    'operationId', v_receipt.operation_id,\n    'correlationId', v_receipt.correlation_id,\n    'status', v_receipt.status\n  );\nend\n$function$\n",
+      "owner": "postgres",
+      "signature": "private.studio2_claim_operation(uuid,text,uuid,text,text,jsonb,jsonb)",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION private.studio2_complete_operation(p_operation_id uuid, p_result jsonb)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public', 'private'\nAS $function$\ndeclare\n  v_actor uuid := auth.uid();\n  v_receipt public.studio2_operation_receipts;\nbegin\n  select receipt.*\n  into v_receipt\n  from public.studio2_operation_receipts receipt\n  where receipt.operation_id = p_operation_id\n    and receipt.actor_id = v_actor\n  for update;\n\n  if v_receipt.operation_id is null then\n    raise exception using errcode = 'P0002', message = 'UNKNOWN';\n  end if;\n\n  if v_receipt.status = 'succeeded' then\n    return coalesce(v_receipt.result, '{}'::jsonb);\n  end if;\n  if v_receipt.status <> 'processing' then\n    raise exception using errcode = 'P0001', message = 'STATE_CHANGED';\n  end if;\n\n  update public.studio2_operation_receipts\n  set\n    status = 'succeeded',\n    result = coalesce(p_result, '{}'::jsonb),\n    error_code = null,\n    error_metadata = null,\n    completed_at = now(),\n    updated_at = now()\n  where operation_id = p_operation_id;\n\n  return coalesce(p_result, '{}'::jsonb);\nend\n$function$\n",
+      "owner": "postgres",
+      "signature": "private.studio2_complete_operation(uuid,jsonb)",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION private.studio2_confirmation_submission_requirement_trigger()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public', 'private'\nAS $function$\ndeclare\n  v_new_country_id uuid;\n  v_old_country_id uuid;\nbegin\n  if tg_op <> 'DELETE' then\n    v_new_country_id := private.studio2_confirmation_country_id(new.country);\n    perform private.studio2_reconcile_confirmation_requirement(new.edition_id, v_new_country_id);\n  end if;\n\n  if tg_op <> 'INSERT' then\n    v_old_country_id := private.studio2_confirmation_country_id(old.country);\n    if tg_op = 'DELETE'\n       or old.edition_id is distinct from new.edition_id\n       or v_old_country_id is distinct from v_new_country_id then\n      perform private.studio2_reconcile_confirmation_requirement(old.edition_id, v_old_country_id);\n    end if;\n  end if;\n\n  if tg_op = 'DELETE' then\n    return old;\n  end if;\n\n  return new;\nend\n$function$\n",
+      "owner": "postgres",
+      "signature": "private.studio2_confirmation_submission_requirement_trigger()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION private.studio2_create_show_publication_control()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public', 'private'\nAS $function$\nbegin\n  insert into public.studio2_show_publication_controls (\n    show_id,\n    edition_id,\n    state,\n    frozen_config,\n    source_show_updated_at\n  )\n  values (\n    new.id,\n    new.edition_id,\n    case\n      when new.published\n        and private.studio2_publication_has_any(new.publication_config)\n      then 'public'\n      else 'draft'\n    end,\n    private.studio2_normalise_publication_config(new.publication_config),\n    new.updated_at\n  )\n  on conflict (show_id) do nothing;\n\n  return new;\nend\n$function$\n",
+      "owner": "postgres",
+      "signature": "private.studio2_create_show_publication_control()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION private.studio2_default_subsystems(p_state text)\n RETURNS jsonb\n LANGUAGE plpgsql\n IMMUTABLE\n SET search_path TO 'pg_catalog'\nAS $function$\ndeclare\n  v_states constant text[] := array[\n    'draft', 'planning', 'host_selection', 'confirmations', 'submissions',\n    'pre_show', 'rehearsals', 'jury_voting', 'live_show', 'televoting',\n    'vote_verification', 'results', 'post_edition', 'archived'\n  ];\n  v_index integer;\nbegin\n  v_index := array_position(v_states, p_state);\n  if v_index is null then\n    raise exception 'Unknown Studio 2 edition state: %', p_state using errcode = '22023';\n  end if;\n\n  return jsonb_build_object(\n    'confirmations', case\n      when p_state = 'confirmations' then 'open'\n      when v_index > array_position(v_states, 'confirmations') then 'locked'\n      else 'not_started'\n    end,\n    'submissions', case\n      when p_state = 'submissions' then 'open'\n      when v_index > array_position(v_states, 'submissions') then 'locked'\n      else 'not_started'\n    end,\n    'juryVoting', case\n      when p_state = 'jury_voting' then 'open'\n      when v_index > array_position(v_states, 'jury_voting') then 'locked'\n      else 'not_started'\n    end,\n    'televoting', case\n      when p_state = 'televoting' then 'open'\n      when v_index > array_position(v_states, 'televoting') then 'locked'\n      else 'not_started'\n    end,\n    'results', case\n      when v_index >= array_position(v_states, 'results') then 'published'\n      else 'not_started'\n    end,\n    'predictions', case\n      when p_state in ('confirmations', 'submissions', 'pre_show', 'rehearsals') then 'open'\n      when v_index >= array_position(v_states, 'jury_voting') then 'locked'\n      else 'not_started'\n    end\n  );\nend\n$function$\n",
+      "owner": "postgres",
+      "signature": "private.studio2_default_subsystems(text)",
+      "securityDefiner": false
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION private.studio2_enforce_locked_rundown_live_state()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public', 'private'\nAS $function$\ndeclare\n  v_rundown jsonb;\nbegin\n  if new.broadcast_config is not distinct from old.broadcast_config then\n    return new;\n  end if;\n\n  v_rundown := new.broadcast_config -> 'studio2Rundown';\n  if v_rundown is null then\n    return new;\n  end if;\n\n  if exists (\n    select 1\n    from jsonb_array_elements(coalesce(v_rundown -> 'segments', '[]'::jsonb)) as items(segment)\n    where segment ->> 'status' = 'live'\n  ) and nullif(v_rundown ->> 'lockedAt', '') is null then\n    raise exception 'Lock the broadcast rundown before taking a segment live' using errcode = '55000';\n  end if;\n\n  return new;\nend\n$function$\n",
+      "owner": "postgres",
+      "signature": "private.studio2_enforce_locked_rundown_live_state()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION private.studio2_guard_confirmation_resolution_scope()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public', 'private'\nAS $function$\ndeclare\n  v_submission public.submissions;\n  v_submission_country_id uuid;\nbegin\n  if new.resolved_by_submission_id is null then\n    return new;\n  end if;\n\n  if new.status not in ('satisfied', 'waived') then\n    raise exception\n      'A confirmation resolution submission requires satisfied or waived status'\n      using errcode = '23514';\n  end if;\n\n  select submission.*\n  into v_submission\n  from public.submissions submission\n  where submission.id = new.resolved_by_submission_id;\n\n  if v_submission.id is null then\n    return new; -- The foreign key supplies the canonical missing-row error.\n  end if;\n\n  v_submission_country_id := private.studio2_confirmation_country_id(v_submission.country);\n\n  if v_submission.edition_id is distinct from new.edition_id\n     or v_submission_country_id is distinct from new.country_id\n     or coalesce(v_submission.updated_at, v_submission.submitted_at) < new.valid_from then\n    raise exception\n      'Confirmation resolution submission is outside the requirement generation scope'\n      using errcode = '23514';\n  end if;\n\n  return new;\nend\n$function$\n",
+      "owner": "postgres",
+      "signature": "private.studio2_guard_confirmation_resolution_scope()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION private.studio2_guard_direct_client_write()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public', 'private'\nAS $function$\ndeclare\n  v_mode text;\nbegin\n  if session_user in ('postgres', 'supabase_admin')\n     or pg_has_role(session_user, 'postgres', 'member') then\n    return null;\n  end if;\n\n  if coalesce(current_setting('studio2.platform_recovery_write', true), '') = 'on' then\n    return null;\n  end if;\n\n  select state.mode\n  into v_mode\n  from public.studio2_platform_operational_state state\n  where state.singleton = true;\n\n  -- This marker is set only by the exact Confirmation RPC allowlist in the\n  -- pre-request gate above. Never honor it in full maintenance mode.\n  if v_mode = 'read_only'\n     and coalesce(current_setting('studio2.confirmation_maintenance_write', true), '') = 'on' then\n    return null;\n  end if;\n\n  if v_mode in ('read_only', 'maintenance') then\n    raise exception 'Solaris is currently %, so this write is unavailable', v_mode\n      using errcode = '25006';\n  end if;\n\n  if v_mode is null then\n    raise exception 'Solaris platform operational state is unavailable'\n      using errcode = '25006';\n  end if;\n\n  return null;\nend;\n$function$\n",
+      "owner": "postgres",
+      "signature": "private.studio2_guard_direct_client_write()",
+      "securityDefiner": true
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION private.studio2_guard_direct_confirmation_review_transition()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'pg_catalog', 'public', 'private'\nAS $function$\nbegin\n  if current_user in ('authenticated', 'anon') then\n    raise exception 'Selection review transitions must use the Organisation OS V5 operation contract.'\n      using errcode = '42501';\n  end if;\n  return coalesce(new, old);\nend\n$function$\n",
+      "owner": "postgres",
+      "signature": "private.studio2_guard_direct_confirmation_review_transition()",
+      "securityDefiner": false
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION private.studio2_guard_direct_confirmation_round_mutation()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'pg_catalog'\nAS $function$\nbegin\n  if current_user in ('authenticated', 'anon') then\n    if tg_op = 'INSERT' then\n      raise exception\n        'Confirmation rounds must be created through the Organisation OS operation contract.'\n        using errcode = '42501';\n    end if;\n\n    if tg_op = 'DELETE' then\n      raise exception\n        'Confirmation rounds must be deleted through the Organisation OS operation contract.'\n        using errcode = '42501';\n    end if;\n\n    if\n      new.name is distinct from old.name\n      or new.status is distinct from old.status\n      or new.opens_at is distinct from old.opens_at\n      or new.closes_at is distinct from old.closes_at\n      or new.response_limit is distinct from old.response_limit\n      or new.editing_enabled is distinct from old.editing_enabled\n      or new.edition_id is distinct from old.edition_id\n    then\n      raise exception\n        'Confirmation round changes must use the Organisation OS operation contract.'\n        using errcode = '42501';\n    end if;\n  end if;\n\n  if tg_op = 'DELETE' then\n    return old;\n  end if;\n  return new;\nend\n$function$\n",
+      "owner": "postgres",
+      "signature": "private.studio2_guard_direct_confirmation_round_mutation()",
+      "securityDefiner": false
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION private.studio2_guard_direct_show_publication_write()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'pg_catalog', 'public', 'private'\nAS $function$\nbegin\n  if current_user in ('authenticated', 'anon') then\n    raise exception 'Show publication must use the Organisation OS V5 publication operation contract.'\n      using errcode = '42501';\n  end if;\n  return new;\nend\n$function$\n",
+      "owner": "postgres",
+      "signature": "private.studio2_guard_direct_show_publication_write()",
+      "securityDefiner": false
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION private.studio2_guard_direct_televote_status()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'pg_catalog'\nAS $function$\nbegin\n  if new.status is distinct from old.status\n     and current_user in ('authenticated', 'anon') then\n    raise exception\n      'Televote round status must use the Organisation OS operation contract.'\n      using errcode = '42501';\n  end if;\n  return new;\nend\n$function$\n",
+      "owner": "postgres",
+      "signature": "private.studio2_guard_direct_televote_status()",
+      "securityDefiner": false
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION private.studio2_guard_domain_notification_resolution()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'pg_catalog', 'public', 'private'\nAS $function$\nbegin\n  if current_user in ('authenticated', 'anon')\n     and (\n       (to_jsonb(new) - array['read_at', 'resolved_at']::text[])\n       is distinct from\n       (to_jsonb(old) - array['read_at', 'resolved_at']::text[])\n     ) then\n    raise exception\n      'Notification delivery fields are server-authoritative.'\n      using errcode = '42501';\n  end if;\n\n  if old.resolution_mode = 'domain'\n     and current_user in ('authenticated', 'anon')\n     and new.resolved_at is distinct from old.resolved_at then\n    raise exception\n      'Task-backed notifications may only be marked seen; task state follows authoritative domain state.'\n      using errcode = '42501';\n  end if;\n\n  return new;\nend\n$function$\n",
+      "owner": "postgres",
+      "signature": "private.studio2_guard_domain_notification_resolution()",
+      "securityDefiner": false
+    },
+    {
+      "ddl": "CREATE OR REPLACE FUNCTION private.studio2_guard_duplicate_confirmation_submission()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public', 'private'\nAS $function$\ndeclare\n  v_country_id uuid;\n  v_requirement_status text;\n  v_requirement_generation integer;\nbegin\n  if tg_op = 'UPDATE'\n     and old.country is not distinct from new.country\n     and old.edition_id is not distinct from new.edition_id then\n    return new;\n  end if;\n\n  v_country_id := private.studio2_confirmation_country_id(new.country);\n\n  if v_country_id is null then\n    return new;\n  end if;\n\n  -- Serialize destination-country claims so two browser requests cannot both\n  -- observe the requirement as available and then satisfy it concurrently.\n  perform pg_advisory_xact_lock(\n    hashtextextended(\n      'studio2-confirmation-requirement:' || new.edition_id::text || ':' || v_country_id::text,\n      0\n    )\n  );\n\n  select requirement.status, requirement.generation\n  into v_requirement_status, v_requirement_generation\n  from public.studio2_confirmation_requirements requirement\n  where requirement.edition_id = new.edition_id\n    and requirement.country_id = v_country_id\n    and requirement.superseded_at is null\n  limit 1\n  for update;\n\n  if v_requirement_status in ('satisfied', 'waived') then\n    raise exception\n      'This delegation already completed confirmation requirement generation %. A new submission requires explicit reconfirmation.',\n      v_requirement_generation\n      using errcode = '23505';\n  end if;\n\n  return new;\nend\n$function$\n",
+      "owner": "postgres",
+      "signature": "private.studio2_guard_duplicate_confirmation_submission()",
+      "securityDefiner": true
+    }
+  ]
+}

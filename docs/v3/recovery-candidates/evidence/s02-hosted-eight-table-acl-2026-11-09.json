@@ -1,0 +1,192 @@
+{
+  "task": "S02",
+  "date": "2026-11-09",
+  "schemaOnly": true,
+  "source": "bounded read-only has_table_privilege for three role categories and eight S14 tables (RLS is separate)",
+  "rolesByRelation": [
+    {
+      "roles": {
+        "anon": {
+          "DELETE": false,
+          "INSERT": false,
+          "SELECT": false,
+          "UPDATE": false
+        },
+        "service_role": {
+          "DELETE": false,
+          "INSERT": false,
+          "SELECT": false,
+          "UPDATE": false
+        },
+        "authenticated": {
+          "DELETE": false,
+          "INSERT": false,
+          "SELECT": false,
+          "UPDATE": false
+        }
+      },
+      "relation": "private.v3_domain_event_outbox"
+    },
+    {
+      "roles": {
+        "anon": {
+          "DELETE": false,
+          "INSERT": false,
+          "SELECT": false,
+          "UPDATE": false
+        },
+        "service_role": {
+          "DELETE": false,
+          "INSERT": false,
+          "SELECT": false,
+          "UPDATE": false
+        },
+        "authenticated": {
+          "DELETE": false,
+          "INSERT": false,
+          "SELECT": false,
+          "UPDATE": false
+        }
+      },
+      "relation": "private.v3_domain_events"
+    },
+    {
+      "roles": {
+        "anon": {
+          "DELETE": false,
+          "INSERT": false,
+          "SELECT": false,
+          "UPDATE": false
+        },
+        "service_role": {
+          "DELETE": false,
+          "INSERT": true,
+          "SELECT": true,
+          "UPDATE": false
+        },
+        "authenticated": {
+          "DELETE": false,
+          "INSERT": false,
+          "SELECT": false,
+          "UPDATE": false
+        }
+      },
+      "relation": "private.v3_result_versions"
+    },
+    {
+      "roles": {
+        "anon": {
+          "DELETE": false,
+          "INSERT": false,
+          "SELECT": false,
+          "UPDATE": false
+        },
+        "service_role": {
+          "DELETE": true,
+          "INSERT": true,
+          "SELECT": true,
+          "UPDATE": true
+        },
+        "authenticated": {
+          "DELETE": false,
+          "INSERT": false,
+          "SELECT": true,
+          "UPDATE": false
+        }
+      },
+      "relation": "public.admin_notifications"
+    },
+    {
+      "roles": {
+        "anon": {
+          "DELETE": true,
+          "INSERT": true,
+          "SELECT": true,
+          "UPDATE": true
+        },
+        "service_role": {
+          "DELETE": true,
+          "INSERT": true,
+          "SELECT": true,
+          "UPDATE": true
+        },
+        "authenticated": {
+          "DELETE": true,
+          "INSERT": true,
+          "SELECT": true,
+          "UPDATE": true
+        }
+      },
+      "relation": "public.notification_deliveries"
+    },
+    {
+      "roles": {
+        "anon": {
+          "DELETE": false,
+          "INSERT": false,
+          "SELECT": false,
+          "UPDATE": false
+        },
+        "service_role": {
+          "DELETE": true,
+          "INSERT": true,
+          "SELECT": true,
+          "UPDATE": true
+        },
+        "authenticated": {
+          "DELETE": false,
+          "INSERT": false,
+          "SELECT": true,
+          "UPDATE": false
+        }
+      },
+      "relation": "public.studio2_edition_runtime"
+    },
+    {
+      "roles": {
+        "anon": {
+          "DELETE": false,
+          "INSERT": false,
+          "SELECT": false,
+          "UPDATE": false
+        },
+        "service_role": {
+          "DELETE": true,
+          "INSERT": true,
+          "SELECT": true,
+          "UPDATE": true
+        },
+        "authenticated": {
+          "DELETE": false,
+          "INSERT": false,
+          "SELECT": false,
+          "UPDATE": false
+        }
+      },
+      "relation": "public.studio2_operation_receipts"
+    },
+    {
+      "roles": {
+        "anon": {
+          "DELETE": false,
+          "INSERT": false,
+          "SELECT": false,
+          "UPDATE": false
+        },
+        "service_role": {
+          "DELETE": true,
+          "INSERT": true,
+          "SELECT": true,
+          "UPDATE": true
+        },
+        "authenticated": {
+          "DELETE": false,
+          "INSERT": false,
+          "SELECT": false,
+          "UPDATE": false
+        }
+      },
+      "relation": "public.studio2_organizer_tasks"
+    }
+  ]
+}

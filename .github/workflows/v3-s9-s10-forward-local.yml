@@ -1,0 +1,82 @@
+name: V3 S9-S10 isolated observability recovery rehearsal
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/v3-s9-s10-forward-local.yml"
+      - "scripts/rehearse-v3-s9-s10-forward-local.sh"
+      - "docs/v3/recovery-candidates/forward-only-s9-observability-local.sql"
+      - "docs/v3/recovery-candidates/forward-only-s9-indexes-concurrent-local.sql"
+      - "docs/v3/recovery-candidates/forward-only-s10-sli-local.sql"
+      - "docs/v3/recovery-candidates/fixtures/s9-s10-production-ledger-subset-20261107.sql"
+      - "src/lib/v3-s9-s10-forward-recovery.contract.test.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-s9-s10:
+    name: Local-only S9/S10 effect and privacy proof
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      REVIEWED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      SOLARIS_RUN_LOCAL_DB_REHEARSAL: "YES"
+      SOLARIS_VERIFICATION_TARGET: local
+      SOLARIS_LOCAL_DB_PORT: "54322"
+      SOLARIS_LOCAL_DB_PASSWORD: postgres
+      SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PROJECT_ID: local
+      SUPABASE_PROJECT_REF: local
+    services:
+      postgres:
+        image: postgres:17.11-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - "127.0.0.1:54322:5432"
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout reviewed exact SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Fail closed on hosted credentials and stale checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$REVIEWED_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          [[ "$(git rev-parse HEAD)" == "$REVIEWED_SHA" ]] || exit 1
+          [[ "$SOLARIS_VERIFICATION_TARGET" == local ]] || exit 1
+          [[ "$SUPABASE_URL" == "http://127.0.0.1:54321" ]] || exit 1
+          for key in DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN PGSERVICE PGSERVICEFILE PGHOSTADDR PGHOST; do
+            [[ -z "${!key:-}" ]] || { echo "::error::Hosted/remote $key not allowed in local CI"; exit 1; }
+          done
+      - name: Install local PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+      - name: Verify shell syntax
+        run: bash -n scripts/rehearse-v3-s9-s10-forward-local.sh
+      - name: Test S9/S10 projections with synthetic local ledger rows
+        run: bash scripts/rehearse-v3-s9-s10-forward-local.sh
+      - name: Confirm disposable local database cleaned up
+        env:
+          PGPASSWORD: postgres
+        shell: bash
+        run: |
+          set -euo pipefail
+          left="$(psql -w -X -qAt -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -c "select count(*) from pg_database where datname like 'solaris_v3_s9s10_local_%'")"
+          [[ "$left" == 0 ]] || { echo "::error::Local fixture DB still exists: $left"; exit 1; }
+      - name: State limitations
+        run: |
+          echo "Isolated PostgreSQL 17.11 with synthetic ledger rows only."
+          echo "No hosted production connection, no real user or contest records, no production migration, no full hosted-equivalent upgrade verification."

@@ -1,0 +1,101 @@
+name: V3 S06 seven hosted-observed relations networkless metadata parity
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/v3-s06-seven-relation-networkless.yml"
+      - "docs/v3/recovery-candidates/evidence/s06-hosted-seven-no-fk-relations-local.sql"
+      - "docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json"
+      - "scripts/v3-s06-hosted-catalog-digests-local.sql"
+      - "scripts/verify-v3-s06-seven-relation-parity.mjs"
+      - "scripts/verify-v3-s06-seven-relation-parity.test.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s06-seven-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  networkless-pg17-seven-relations:
+    name: Seven catalog-exact physical relations, no hosted DB, no application rows
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    env:
+      EXACT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact reviewed commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Refuse stale source and inherited database/cloud aliases
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EXACT_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$EXACT_SHA" ]]
+          for key in SUPABASE_URL VITE_SUPABASE_URL E2E_SUPABASE_URL CONFIRMATIONS_SUPABASE_URL VITE_CONFIRMATIONS_SUPABASE_URL DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_SERVICE_ROLE_KEY PGHOST PGHOSTADDR PGPORT PGSERVICE PGSERVICEFILE DOCKER_HOST DOCKER_CONTEXT; do
+            [[ -z "$(printenv "$key" || true)" ]] || { echo "::error::Refusing inherited hosted database alias $key"; exit 1; }
+          done
+
+      - name: Node syntax and offline negative tests
+        run: |
+          node --check scripts/verify-v3-s06-seven-relation-parity.mjs
+          node --test scripts/verify-v3-s06-seven-relation-parity.test.mjs
+
+      - name: Verify pinned PostgreSQL 17.11 image is available
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull postgres:17.11
+          [[ "$(docker image inspect --format '{{.Id}}' postgres:17.11)" == "sha256:eb0fb2377534e65aad04f37838956b3dfb888e1a3dd3c1acf957bc6557eb6c7d" ]] ||
+            { echo "::error::PostgreSQL 17.11 image digest changed: review before use"; exit 1; }
+
+      - name: Create seven tables in networkless disposable PostgreSQL and compare FULL relation digests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cid=""
+          cleanup() {
+            code=$?
+            if [[ -n "$cid" ]]; then docker rm -f "$cid" >/dev/null || code=1; fi
+            exit "$code"
+          }
+          trap cleanup EXIT
+          cid="$(docker run -d --rm --pull=never --network none \
+            --name "solaris-s06-seven-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+            -e POSTGRES_PASSWORD=s06-disposable-only postgres:17.11)"
+          [[ "$cid" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]]
+          [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]]
+          ready=false
+          for i in $(seq 1 45); do
+            if docker exec "$cid" pg_isready -h /var/run/postgresql -U postgres >/dev/null; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          [[ "$ready" == true ]]
+          sql() { docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres "$@"; }
+          sql -f - < docs/v3/recovery-candidates/evidence/s06-hosted-seven-no-fk-relations-local.sql >/dev/null
+          [[ "$(sql -c "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind='r' and n.nspname in ('auth','public','private','televoting')")" == 7 ]] ||
+            { echo "::error::Unexpected physical relation count"; exit 1; }
+          sql -f - < scripts/v3-s06-hosted-catalog-digests-local.sql \
+            > "$RUNNER_TEMP/s06-seven-local-catalog.json"
+          node scripts/verify-v3-s06-seven-relation-parity.mjs \
+            docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
+            "$RUNNER_TEMP/s06-seven-local-catalog.json" \
+            "$RUNNER_TEMP/s06-seven-metadata-proof.json"
+          echo "Metadata parity only: seven hosted-observed relations, no function or full schema certification."
+
+      - name: Explicit release and privacy boundary
+        run: |
+          echo "No hosted network, production credential, database application row, prod DDL or migration was used."
+          echo "This reproduces only seven of 159 previously missing table NAMES."
+          echo "NOT a production-equivalent schema and NOT S06/S13-S14 release certification."

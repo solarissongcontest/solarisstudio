@@ -3,9 +3,22 @@ import { describe, expect, it } from "vitest";
 
 import { releaseEvidenceConsistencyFailure } from "../../scripts/v3-release-evidence-consistency";
 
+const completeS15Inventory = {
+  systemDomains: 39, systemConcepts: 50, systemCommands: 75, systemEvents: 60,
+  systemProjections: 28, systemBackgroundConsumers: 5, domainConsequences: 17,
+  apiCapabilities: 12, searchProviders: 7, notificationCategories: 9,
+  notificationProviders: 10, notificationDeepLinks: 14, dynamicNotificationDeepLinks: 2,
+  publicCapabilities: 43, organizerCapabilities: 70,
+  runtimeRoutes: 80, publicRuntimeRoutes: 60, organizerRuntimeRoutes: 14, apiRuntimeRoutes: 6,
+  legacyAliases: 150, v3FeatureFlags: 3, organizerControls: 35, publicSourceSurfaces: 40,
+  v3IntegrationAdapters: 7, edgeFunctions: 15, scheduledJobs: 3,
+  physicalOwnershipDomains: 32, uniquePhysicalTables: 140,
+  domainTableAssignments: 154, explicitlySharedTables: 4,
+};
+
 const s15 = {
   schemaVersion: 4,
-  inventory: { systemDomains: 39 },
+  inventory: completeS15Inventory,
   candidateSha: "a".repeat(40),
   zeroOrphans: true,
   findings: [],
@@ -57,6 +70,24 @@ describe("S16 release evidence consistency", () => {
         physicalOwnership: undefined,
       }),
     ).toMatch(/physical ownership/);
+  });
+
+  it("rejects pruned, fabricated or inconsistent S15 zero-orphan inventory", () => {
+    for (const inventory of [
+      {},
+      { ...completeS15Inventory, systemDomains: undefined },
+      { ...completeS15Inventory, publicCapabilities: 0 },
+      { ...completeS15Inventory, uniquePhysicalTables: null },
+      { ...completeS15Inventory, apiCapabilities: -1 },
+      { ...completeS15Inventory, scheduledJobs: 0.5 },
+      { ...completeS15Inventory, runtimeRoutes: 79 },
+      { ...completeS15Inventory, dynamicNotificationDeepLinks: 15 },
+      { ...completeS15Inventory, domainTableAssignments: 139 },
+    ]) {
+      expect(
+        releaseEvidenceConsistencyFailure("s15-zero-orphan.json", { ...s15, inventory }),
+      ).toMatch(/complete S15 domain, route and physical inventory/);
+    }
   });
 
   it("rejects security-ready reports carrying classified release blockers", () => {
