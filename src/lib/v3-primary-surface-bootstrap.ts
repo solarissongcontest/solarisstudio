@@ -58,6 +58,7 @@ export type V3PrimarySurfaceBundle = {
     bootstrap: V3BootstrapProjection;
     currentContest: {
       title: string;
+      href: string | null;
       headline: string;
       meta: string | null;
       stats: readonly V3PrimaryHomeStat[];
@@ -229,6 +230,11 @@ function projectPrimarySurfaceBundle(
       bootstrap,
       currentContest: {
         title: contestTitle(snapshot, bootstrap),
+        // The same published edition from canonical contest state is the only
+        // permitted direct Home edition target. Never synthesize a draft link.
+        href: publicContest.edition?.published === true && publicContest.edition.slug?.trim()
+          ? `/editions/${encodeURIComponent(publicContest.edition.slug.trim())}`
+          : null,
         headline: hidePublishedResultSummary
           ? spoilerSafeHeadline
           : required(publicContest.headline, "publicContest.headline"),
