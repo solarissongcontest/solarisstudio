@@ -1,3 +1,4 @@
+import { publicLaunchAllows } from "@/lib/public-launch-availability";
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 
@@ -99,7 +100,9 @@ export const Route = createFileRoute("/sitemap.xml")({
           // Static routes are still returned if public data cannot be loaded.
         }
 
-        const urls = entries.map((entry) =>
+        // A shared, cacheable public index cannot inherit a tester's opt-in.
+        // Optional cohorts remain discoverable in their evaluated in-app UI.
+        const urls = entries.filter(entry => publicLaunchAllows(entry.path)).map((entry) =>
           [
             `  <url>`,
             `    <loc>${baseUrl}${entry.path}</loc>`,
