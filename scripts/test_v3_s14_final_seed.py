@@ -5,7 +5,7 @@ import subprocess
 import sys
 import unittest
 
-from scripts.v3_s14_final_seed import EXPECTED, validate_final_seed
+from scripts.v3_s14_final_seed import EXPECTED, validate_final_seed, validate_final_seed_artifact
 
 
 class FinalSeedProofTests(unittest.TestCase):
@@ -29,7 +29,7 @@ class FinalSeedProofTests(unittest.TestCase):
     def test_absent_or_extra_counts_fail_closed(self):
         for counts in ([], self.valid[:-1], self.valid + ["1"]):
             with self.subTest(counts=counts):
-                with self.assertRaisesRegex(ValueError, "exactly thirteen"):
+                with self.assertRaisesRegex(ValueError, f"exactly {len(EXPECTED)}"):
                     validate_final_seed(counts)
 
     def test_inexact_or_unsafe_numeric_encodings_fail_closed(self):
@@ -52,6 +52,36 @@ class FinalSeedProofTests(unittest.TestCase):
         self.assertEqual(EXPECTED["expectedSyncedEditionEntryCount"], EXPECTED["editionEntryCount"])
         self.assertEqual(EXPECTED["duplicateAppearanceGroupCount"], 0)
         self.assertEqual(EXPECTED["nullCountryCount"], 0)
+        self.assertEqual(EXPECTED["semiFinalCountrySetMismatchCount"], 0)
+
+
+    def test_exact_persisted_artifact_contract(self):
+        self.assertEqual(validate_final_seed_artifact(dict(EXPECTED)), EXPECTED)
+        for name, expected in EXPECTED.items():
+            with self.subTest(name=name, issue="count"):
+                changed = dict(EXPECTED)
+                changed[name] = expected + 1
+                with self.assertRaisesRegex(ValueError, name):
+                    validate_final_seed_artifact(changed)
+            with self.subTest(name=name, issue="missing"):
+                changed = dict(EXPECTED)
+                del changed[name]
+                with self.assertRaisesRegex(ValueError, "field mismatch"):
+                    validate_final_seed_artifact(changed)
+            with self.subTest(name=name, issue="boolean"):
+                changed = dict(EXPECTED)
+                changed[name] = (expected != 0)
+                with self.assertRaisesRegex(ValueError, name):
+                    validate_final_seed_artifact(changed)
+            with self.subTest(name=name, issue="float"):
+                changed = dict(EXPECTED)
+                changed[name] = float(expected)
+                with self.assertRaisesRegex(ValueError, name):
+                    validate_final_seed_artifact(changed)
+        for malformed in (None, [], "66", {"unexpected": 1}, {**EXPECTED, "unexpected": 0}):
+            with self.subTest(malformed=malformed):
+                with self.assertRaises(ValueError):
+                    validate_final_seed_artifact(malformed)
 
     def test_cli_emits_the_actual_validated_counts_only(self):
         script = Path(__file__).with_name("v3_s14_final_seed.py")

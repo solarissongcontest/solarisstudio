@@ -299,7 +299,7 @@ write_final_evidence() {
   # Verify all composition boundaries, not merely the total row count.
   local edition_count delegation_count show_count participant_count active_hod_delegation_count seed_json
   local semi_one_count semi_two_count grand_final_count edition_entry_count expected_synced_entry_count
-  local distinct_country_count duplicate_appearance_group_count null_country_count
+  local distinct_country_count duplicate_appearance_group_count null_country_count semi_final_country_set_mismatch_count
   edition_count="$(db_scalar "select count(*) from public.editions where id='$EDITION_ID'::uuid;")"
   delegation_count="$(db_scalar "select count(*) from public.countries where region='S14';")"
   show_count="$(db_scalar "select count(*) from public.shows where edition_id='$EDITION_ID'::uuid;")"
@@ -313,7 +313,24 @@ write_final_evidence() {
   distinct_country_count="$(db_scalar "select count(distinct country_id) from public.participants where edition_id='$EDITION_ID'::uuid;")"
   duplicate_appearance_group_count="$(db_scalar "select count(*) from (select show_id,country_id from public.participants where edition_id='$EDITION_ID'::uuid and show_id is not null group by show_id,country_id having count(*)>1) duplicate_groups;")"
   null_country_count="$(db_scalar "select count(*) from public.participants where edition_id='$EDITION_ID'::uuid and country_id is null;")"
-  seed_json="$(python3 scripts/v3_s14_final_seed.py "$edition_count" "$delegation_count" "$show_count" "$participant_count" "$active_hod_delegation_count" "$semi_one_count" "$semi_two_count" "$grand_final_count" "$edition_entry_count" "$expected_synced_entry_count" "$distinct_country_count" "$duplicate_appearance_group_count" "$null_country_count")" || \
+  # Prove the *identities*, not just cardinality: each of the 66 S14 countries
+  # must occur in exactly one semifinal, and no non-S14 country may substitute.
+  semi_final_country_set_mismatch_count="$(db_scalar "
+with expected as (
+  select c.id from public.countries c where c.region='S14'
+), actual as (
+  select distinct p.country_id
+  from public.participants p
+  where p.edition_id='$EDITION_ID'::uuid
+    and p.show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid)
+)
+select count(*) from (
+  (select id from expected except select country_id from actual)
+  union all
+  (select country_id from actual except select id from expected)
+) mismatches;
+")"
+  seed_json="$(python3 scripts/v3_s14_final_seed.py "$edition_count" "$delegation_count" "$show_count" "$participant_count" "$active_hod_delegation_count" "$semi_one_count" "$semi_two_count" "$grand_final_count" "$edition_entry_count" "$expected_synced_entry_count" "$distinct_country_count" "$duplicate_appearance_group_count" "$null_country_count" "$semi_final_country_set_mismatch_count")" || \
     fail "release-grade S14 final contest composition evidence does not match the retained 66-delegation state"
 
   python3 - "$FINAL_PATH" "$CANDIDATE_SHA" "$S14_RUN_ID" "$EDITION_ID" "$DATABASE_FINGERPRINT" "$result_hash" "$publication_hash" "$receipt_count" "$S14_RESULTS_RECONCILE_OPERATION_ID" "$S14_POST_EDITION_OPERATION_ID" "$S14_ARCHIVE_OPERATION_ID" "$archive_event_id" "$archive_outbox_id" "$seed_json" <<'PY'
