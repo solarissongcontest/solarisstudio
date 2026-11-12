@@ -105,7 +105,8 @@ export async function evaluateV3Rollout(
   const globalFlag = await client.rpc("studio2_feature_enabled", {
     p_key: "solaris_app_v3", p_edition_id: editionId,
   });
-  if (globalFlag.error || globalFlag.data !== true) return disabledProbe({ editionId, userId });
+  if (globalFlag.error) return disabledProbe({ editionId, userId });
+  if (globalFlag.data !== true) return disabledProbe({ editionId, userId });
 
   const [
     confirmationFlag,
