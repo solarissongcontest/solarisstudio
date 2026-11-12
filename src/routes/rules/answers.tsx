@@ -10,9 +10,8 @@ import {
   SolarisDepthSurface,
 } from "@/components/SolarisDepth";
 import { GOVERNANCE_QUICK_ANSWERS } from "@/lib/governance-v5";
-import { ROLEPLAY_QUICK_ANSWERS } from "@/lib/ssc-rules/roleplay";
-
-const QUICK_ANSWERS = [...ROLEPLAY_QUICK_ANSWERS, ...GOVERNANCE_QUICK_ANSWERS];
+import { roleplayQuickAnswersForVersion } from "@/lib/ssc-rules/roleplay-quick-answers";
+import { usePublishedRulebook } from "@/lib/rules-governance";
 
 export const Route = createFileRoute("/rules/answers")({
   head: () => ({
@@ -25,6 +24,8 @@ export const Route = createFileRoute("/rules/answers")({
 });
 
 function RuleAnswersPage() {
+  const { version } = usePublishedRulebook();
+  const quickAnswers = [...roleplayQuickAnswersForVersion(version), ...GOVERNANCE_QUICK_ANSWERS];
   return (
     <RulesRouteShell resolvingTitle="Opening quick rule answers">
       <SolarisDepthPage tone="rules">
@@ -35,13 +36,13 @@ function RuleAnswersPage() {
                 <SolarisDepthEyebrow tone="primary">Rules</SolarisDepthEyebrow>
                 <h1 className="mt-2 text-2xl font-bold tracking-[-0.03em] sm:text-3xl">Quick answers</h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Direct answers first, with the exact official rule immediately behind each one. Worldbuilding questions now sit beside contest, integrity and eligibility questions.
+                  Straight answers to common questions about songs, voting, deadlines and country stories. Every answer links to the rule behind it.
                 </p>
                 <GovernanceStatusStrip context="rules" className="mt-3" />
               </div>
               <span className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[0.08] bg-black/10 px-3 text-xs text-muted-foreground">
                 <MessageCircleQuestion className="size-4 text-primary" aria-hidden="true" />
-                {QUICK_ANSWERS.length} common situations
+                {quickAnswers.length} common questions
               </span>
             </header>
           </SolarisDepthSurface>
@@ -49,7 +50,7 @@ function RuleAnswersPage() {
 
         <SolarisDepthSafeZone className="mt-5">
           <div className="grid gap-3 md:grid-cols-2">
-            {QUICK_ANSWERS.map((answer) => (
+            {quickAnswers.map((answer) => (
               <article
                 id={answer.id}
                 key={answer.id}

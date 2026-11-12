@@ -1,0 +1,71 @@
+{
+  "task": "S02",
+  "date": "2026-11-09",
+  "source": "read-only hosted has_schema_privilege four S14 schema namespaces",
+  "roleNames": [
+    "anon",
+    "authenticated",
+    "service_role"
+  ],
+  "privileges": {
+    "auth": {
+      "anon": {
+        "USAGE": true,
+        "CREATE": false
+      },
+      "service_role": {
+        "USAGE": true,
+        "CREATE": false
+      },
+      "authenticated": {
+        "USAGE": true,
+        "CREATE": false
+      }
+    },
+    "private": {
+      "anon": {
+        "USAGE": true,
+        "CREATE": false
+      },
+      "service_role": {
+        "USAGE": true,
+        "CREATE": false
+      },
+      "authenticated": {
+        "USAGE": true,
+        "CREATE": false
+      }
+    },
+    "public": {
+      "anon": {
+        "USAGE": true,
+        "CREATE": false
+      },
+      "service_role": {
+        "USAGE": true,
+        "CREATE": false
+      },
+      "authenticated": {
+        "USAGE": true,
+        "CREATE": false
+      }
+    },
+    "televoting": {
+      "anon": {
+        "USAGE": true,
+        "CREATE": false
+      },
+      "service_role": {
+        "USAGE": true,
+        "CREATE": false
+      },
+      "authenticated": {
+        "USAGE": true,
+        "CREATE": false
+      }
+    }
+  },
+  "limitations": [
+    "Schema GRANT parity alone does not imply row-level authorization"
+  ]
+}

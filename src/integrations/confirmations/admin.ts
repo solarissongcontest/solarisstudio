@@ -1,4 +1,5 @@
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import { validateConfirmationRequirementsProjection } from "@/integrations/confirmations/confirmation-requirements-projection";
 import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { supabase as solarisSupabase } from "@/integrations/supabase/client";
 
@@ -285,7 +286,9 @@ export async function loadConfirmationRequirements(
     p_edition_id: editionId,
   });
   if (error) throw error;
-  return Array.isArray(data) ? (data as unknown as ConfirmationRequirement[]) : [];
+  // The backend promises an array (including [] for a legitimately empty edition).
+  // A null/malformed/cross-edition response is UNKNOWN, never an all-clear.
+  return validateConfirmationRequirementsProjection(data, editionId);
 }
 
 export async function ensureConfirmationRequirements(

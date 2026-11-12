@@ -1,0 +1,55 @@
+name: V3 S06 Schema Export TOC Offline
+
+on:
+  pull_request:
+    branches: [main]
+    paths: &s06_toc_paths
+      - ".github/workflows/v3-s06-schema-export-offline.yml"
+      - "scripts/v3-s06-schema-toc-preflight.mjs"
+      - "scripts/v3-s06-schema-toc-preflight.test.mjs"
+      - "docs/v3/recovery-candidates/s06-schema-export-operator-runbook.md"
+      - "docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json"
+  push:
+    branches: [main]
+    paths: *s06_toc_paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  toc-negative-contract:
+    name: Offline TOC guard (no database or hosted traffic)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      REVIEWED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact reviewed source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Refuse stale checkout or remote database configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$REVIEWED_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 1
+          [[ "$(git rev-parse HEAD)" == "$REVIEWED_SHA" ]] || exit 1
+          for name in DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_URL VITE_SUPABASE_URL E2E_SUPABASE_URL SUPABASE_ACCESS_TOKEN PGPASSFILE PGHOST PGHOSTADDR; do
+            [[ -z "${!name:-}" ]] || { echo "::error::Refusing database environment $name"; exit 1; }
+          done
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Syntax-check source-only checker
+        run: node --check scripts/v3-s06-schema-toc-preflight.mjs
+      - name: Prove offline negative and non-certification cases
+        run: node --test scripts/v3-s06-schema-toc-preflight.test.mjs
+      - name: State proof limits
+        run: |
+          echo 'PASS: offline TOC shape and fail-closed tests only.'
+          echo 'No pg_dump, network connection to Supabase, production SQL or migration execution.'
+          echo 'S06 hosted-equivalence remains UNVERIFIED; this offline check cannot establish it.'
+          echo 'Use agent-executable equivalent evidence under the owner-directed policy; no owner-operated export or external reviewer is implied.'

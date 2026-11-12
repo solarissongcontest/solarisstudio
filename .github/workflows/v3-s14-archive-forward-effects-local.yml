@@ -1,0 +1,673 @@
+name: V3 S14 Archive forward-effects recovery local proof
+
+on:
+  pull_request:
+    branches: [main]
+    paths: &s06_archive_paths
+      - ".github/workflows/v3-s14-archive-forward-effects-local.yml"
+      - "scripts/rehearse-v3-s14-archive-forward-effects-local.sh"
+      - "scripts/v3-s14-archive-forward-effects.contract.test.mjs"
+      - "scripts/v3-s06-hosted-upstream-rpc-catalog-local.sql"
+      - "scripts/v3-s06-hosted-catalog-digests-local.sql"
+      - "scripts/verify-v3-s06-hosted-catalog-coverage.mjs"
+      - "scripts/verify-v3-s06-hosted-catalog-coverage.test.mjs"
+      - "docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json"
+      - "docs/v3/recovery-candidates/evidence/s06-hosted-relation-coverage-gap-20261110.json"
+      - "docs/v3/recovery-candidates/evidence/s06-hosted-seven-no-fk-relations-local.sql"
+      - "scripts/verify-v3-s06-seven-relation-parity.mjs"
+      - "scripts/verify-v3-s06-seven-relation-parity.test.mjs"
+      - "docs/v3/recovery-candidates/evidence/s06-five-version-ledgers-local.sql"
+      - "scripts/verify-v3-s06-five-ledger-parity.mjs"
+      - "scripts/verify-v3-s06-five-ledger-parity.test.mjs"
+      - "docs/v3/recovery-candidates/evidence/s06-hosted-eight-fk-closed-relations-local.sql"
+      - "scripts/verify-v3-s06-eight-relation-parity.mjs"
+      - "scripts/verify-v3-s06-eight-relation-parity.test.mjs"
+      - "docs/v3/recovery-candidates/evidence/s06-hosted-seven-jury-integrity-account-local.sql"
+      - "scripts/verify-v3-s06-seven-secure-relation-parity.mjs"
+      - "scripts/verify-v3-s06-seven-secure-relation-parity.test.mjs"
+      - "docs/v3/recovery-candidates/evidence/s06-hosted-seventeen-next-relations-local.sql"
+      - "scripts/verify-v3-s06-seventeen-relation-parity.mjs"
+      - "scripts/verify-v3-s06-seventeen-relation-parity.test.mjs"
+      - "docs/v3/recovery-candidates/evidence/s06-hosted-fifty-next-relations-local.sql"
+      - "scripts/verify-v3-s06-fifty-relation-parity.mjs"
+      - "scripts/verify-v3-s06-fifty-relation-parity.test.mjs"
+      - "docs/v3/recovery-candidates/evidence/s06-hosted-second-fifty-relations-local.sql"
+      - "scripts/verify-v3-s06-second-fifty-relation-parity.mjs"
+      - "scripts/verify-v3-s06-second-fifty-relation-parity.test.mjs"
+      - "docs/v3/recovery-candidates/evidence/s06-hosted-final-fifteen-relations-local.sql"
+      - "scripts/verify-v3-s06-final-fifteen-relation-parity.mjs"
+      - "scripts/verify-v3-s06-final-fifteen-relation-parity.test.mjs"
+      - "scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs"
+      - "docs/v3/recovery-candidates/evidence/s06-hosted-upstream-rpc-fingerprints-20261110.json"
+      - "docs/v3/recovery-candidates/evidence/s06-hosted-upstream-rpc-acls-local.sql"
+      - "docs/v3/recovery-candidates/s06-schema-export-operator-runbook.md"
+      - "docs/v3/recovery-candidates/forward-only-s13-foundation.sql"
+      - "docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql"
+      - "supabase/migrations/20261003003000_organisation_os_v5_task_notifications.sql"
+      - "supabase/migrations/20261019112100_v3_s14_archive_consequence_reconciliation.sql"
+      - "supabase/migrations/20261019112200_v3_s14_final_results_readiness_hardening.sql"
+      - "supabase/migrations/20261019202636_v3_s14_resolved_task_delivery_reconciliation.sql"
+      - "supabase/migrations/20261020140000_v3_s14_archive_runtime_update_guard.sql"
+      - "supabase/migrations/20261021161000_v3_s14_task_reconciliation_service_boundary.sql"
+      - "supabase/migrations/20261019112300_v3_s14_transition_http409.sql"
+      - "supabase/migrations/20261019112400_v3_s14_archive_task_registry_alignment.sql"
+      - "supabase/migrations/20261019112500_v3_s14_resolved_task_notification_invariant.sql"
+      - "supabase/migrations/20261020130000_v3_s14_archive_invariant_forward_fixes.sql"
+      - "supabase/migrations/20261021110000_v3_s14_archive_guard_authority_forward_fix.sql"
+      - "supabase/migrations/20261021163000_v3_s14_failed_task_delivery_evidence.sql"
+      - "supabase/migrations/20261021202000_v3_s14_archive_reconciliation_convergence.sql"
+  push:
+    branches: [main]
+    paths: *s06_archive_paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s14-archive-forward-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  local-forward-upgrade:
+    name: Local full-chain -> Archive-gap -> forward-effects -> canonical behavior
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    env:
+      REVIEWED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      SOLARIS_RUN_LOCAL_DB_REHEARSAL: "YES"
+      SOLARIS_VERIFICATION_TARGET: local
+      SUPABASE_PROJECT_ID: local
+      SUPABASE_PROJECT_REF: local
+      SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+    steps:
+      - name: Checkout reviewed exact commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Refuse hosted config and stale source
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$REVIEWED_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          [[ "$(git rev-parse HEAD)" == "$REVIEWED_SHA" ]] || exit 1
+          [[ "$SOLARIS_VERIFICATION_TARGET" == local ]] || exit 1
+          [[ "$SUPABASE_URL" == http://127.0.0.1:54321 ]] || exit 1
+          for name in DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN PGSERVICE PGSERVICEFILE PGHOST PGHOSTADDR; do
+            [[ -z "${!name:-}" ]] || { echo "::error::Refusing remote DB config $name"; exit 1; }
+          done
+
+      - name: Verify Archive source-integrity tests without dependencies
+        id: source_contract
+        run: node --test scripts/v3-s14-archive-forward-effects.contract.test.mjs
+
+      - name: Check shell syntax
+        run: bash -n scripts/rehearse-v3-s14-archive-forward-effects-local.sh
+
+      - name: Set up Bun for canonical Archive integration scripts
+        uses: oven-sh/setup-bun@v2
+
+      - name: Set up Supabase CLI (pinned)
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Start isolated local Supabase
+        run: bash .github/scripts/v3-start-disposable-supabase.sh
+
+      - name: Rebuild disposable full source migration chain
+        id: clean_replay
+        run: supabase db reset --local --no-seed
+
+      - name: Simulate missing S13 and S14 effects, restore in dependency order
+        id: ordered_recovery
+        env:
+          SOLARIS_INCLUDE_S13_FORWARD_RECOVERY: "YES"
+        run: bash scripts/rehearse-v3-s14-archive-forward-effects-local.sh
+
+      - name: Rehearse governed Archive, results, receipt and S4 consequence behavior
+        id: archive_behavior
+        run: bash .github/scripts/v3-s14-archive-system-rehearsal.sh
+
+      - name: Test Archive authorization, invalid transitions and irreversible state
+        id: authorization
+        run: bash .github/scripts/v3-s14-archive-guard-rehearsal.sh
+
+      - name: Test archive runtime deletion and terminal boundaries
+        id: terminal_boundaries
+        run: bash .github/scripts/v3-s14-archive-delete-guard-rehearsal.sh
+
+      - name: Test terminal Tasks, failed delivery evidence and notification convergence
+        id: task_convergence
+        run: bash .github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh
+
+      - name: Second independent clean replay and interrupted-restart proof
+        id: second_replay
+        env:
+          SOLARIS_INCLUDE_S13_FORWARD_RECOVERY: "YES"
+        run: |
+          set -euo pipefail
+          supabase db reset --local --no-seed
+          bash scripts/rehearse-v3-s14-archive-forward-effects-local.sh
+          bash .github/scripts/v3-s14-archive-system-rehearsal.sh
+
+      - name: State release boundary
+        run: |
+          echo "This used only synthetic local Supabase and a simulated Archive gap."
+          echo "It does NOT reproduce full hosted production schema/migration history, certify release readiness, or authorize hosted DDL."
+
+      - name: Record scoped machine-readable recovery outcomes
+        if: always()
+        env:
+          S06_STEP_OUTCOMES: ${{ toJSON(steps) }}
+        run: |
+          # S06 structured evidence: actual CI outcomes, never hosted certification.
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          import { createHash } from 'node:crypto';
+          import { execFileSync } from 'node:child_process';
+          const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+          if (!/^[a-f0-9]{40}$/.test(sha) || sha !== process.env.REVIEWED_SHA) throw Error('S06 evidence SHA mismatch');
+          const expected = ['source_contract','clean_replay','ordered_recovery','archive_behavior','authorization','terminal_boundaries','task_convergence','second_replay'];
+          const steps = JSON.parse(process.env.S06_STEP_OUTCOMES || '{}');
+          const outcomes = Object.fromEntries(expected.map(key => [key, steps[key]?.outcome || 'not_executed']));
+          const passed = Object.values(outcomes).every(value => value === 'success');
+          const files = ['docs/v3/recovery-candidates/forward-only-s13-foundation.sql','docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql'];
+          const report = { task: 'S06', schemaVersion: 1, candidateSha: sha, runId: process.env.GITHUB_RUN_ID || null,
+            evidenceLevel: 'REPRODUCED_IN_ISOLATION', fixture: 'clean-source-chain-with-simulated-S13-S14-effect-gap',
+            sourceHashes: Object.fromEntries(files.map(path => [path, createHash('sha256').update(readFileSync(path)).digest('hex')])),
+            outcomes, status: passed ? 'ISOLATED_RECOVERY_PASSED_NOT_HOSTED_EQUIVALENT' : 'ISOLATED_RECOVERY_INCOMPLETE',
+            hostedEquivalent: false, productionRecoveryEligible: false, ownerOnlyBetaApproved: false };
+          writeFileSync(process.env.S06_REPORT_PATH || 's06-isolated-recovery-proof.json', JSON.stringify(report, null, 2) + '\n');
+          if (!passed) process.exitCode = 1;
+          NODE
+
+      - name: Retain exact-SHA isolated recovery proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s06-isolated-recovery-${{ github.event.pull_request.head.sha || github.sha }}
+          path: s06-isolated-recovery-proof.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Stop disposable local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
+
+
+  hosted-observed-archive-scope:
+    name: Networkless PG17.11 hosted-observed Archive-scope upgrade
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      EXACT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      SOLARIS_S02_TARGET: local
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Reject remote database and Docker aliases
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$EXACT_SHA" ]] || exit 1
+          for key in SUPABASE_URL VITE_SUPABASE_URL E2E_SUPABASE_URL CONFIRMATIONS_SUPABASE_URL VITE_CONFIRMATIONS_SUPABASE_URL DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_SERVICE_ROLE_KEY PGHOST PGHOSTADDR PGPORT PGSERVICE PGSERVICEFILE DOCKER_HOST DOCKER_CONTEXT; do
+            [[ -z "$(printenv "$key" || true)" ]] || { echo "::error::Remote target alias forbidden: $key"; exit 1; }
+          done
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
+        run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
+      - name: Assert all-hosted catalog digests and incomplete-fixture rejection (offline only)
+        run: |
+          node --test scripts/verify-v3-s06-hosted-catalog-coverage.test.mjs
+          node --test scripts/verify-v3-s06-seven-relation-parity.test.mjs
+          node --test scripts/verify-v3-s06-five-ledger-parity.test.mjs
+          node --test scripts/verify-v3-s06-eight-relation-parity.test.mjs
+          node --test scripts/verify-v3-s06-seven-secure-relation-parity.test.mjs
+          node --test scripts/verify-v3-s06-seventeen-relation-parity.test.mjs
+          node --test scripts/verify-v3-s06-fifty-relation-parity.test.mjs
+          node --test scripts/verify-v3-s06-second-fifty-relation-parity.test.mjs
+          node --test scripts/verify-v3-s06-final-fifteen-relation-parity.test.mjs
+      - name: Verify and obtain pinned PG17.11
+        run: |
+          set -euo pipefail
+          docker pull postgres:17.11
+          [[ "$(docker image inspect --format '{{.Id}}' postgres:17.11)" == "sha256:eb0fb2377534e65aad04f37838956b3dfb888e1a3dd3c1acf957bc6557eb6c7d" ]] || exit 1
+      - name: Rehearse exact SHA with the S02 56-table hosted-observed schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          cid=""
+          cleanup() {
+            code=$?
+            if [[ -n "$cid" ]]; then docker rm -f "$cid" >/dev/null || code=1; fi
+            exit "$code"
+          }
+          trap cleanup EXIT
+          cid="$(docker run -d --rm --pull=never --network none --name "solaris-s06-hosted-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" -e POSTGRES_PASSWORD=s06_disposable \
+            -e POSTGRES_INITDB_ARGS="--locale-provider=icu --icu-locale=en-US" postgres:17.11)"
+          [[ "$cid" =~ ^[0-9a-f]{64}$ ]] || exit 1
+          [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
+          [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
+          # Docker's first pg_isready can observe the SHORT-LIVED initdb server,
+          # which shuts down before the real PG17.11 server starts. Never race it.
+          ready=false
+          for n in $(seq 1 75); do
+            if docker logs "$cid" 2>&1 | grep -Fq 'PostgreSQL init process complete; ready for start up.' \
+              && docker exec "$cid" pg_isready -h /var/run/postgresql -U postgres >/dev/null; then
+              ready=true; break
+            fi
+            sleep 1
+          done
+          [[ "$ready" == true ]] || { docker logs "$cid" 2>&1 | tail -80; exit 1; }
+          sql() { docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres "$@"; }
+          # Hosted catalog probe confirmed PG17.11 with datlocprovider=i and
+          # datlocale=en-US. Preserve hosted ICU collation for deterministic
+          # index-name ordering inside the original unchanged digest query.
+          [[ "$(sql -c "select (datlocprovider='i' and datlocale='en-US')::text from pg_database where datname=current_database()")" == true ]] ||
+            { echo "::error::S06 requires hosted en-US ICU database collation"; exit 1; }
+          sql -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-archive-54-table-schema-fixture.sql
+          sql -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-archive-extra-2-dependencies-local.sql
+          # Reuse independently proven S06 seven-object zero-row fixture in
+          # the SAME isolated database, not a separate synthetic test.
+          sql -f - < docs/v3/recovery-candidates/evidence/s06-hosted-seven-no-fk-relations-local.sql
+          # Five hosted-observed FK ledgers have real parents in the 56 S02 tables.
+          sql -f - < docs/v3/recovery-candidates/evidence/s06-five-version-ledgers-local.sql
+          # All eight newly observed objects are FK-closed by 68 prior tables
+          # or by the staged releases->events order; no application rows.
+          sql -f - < docs/v3/recovery-candidates/evidence/s06-hosted-eight-fk-closed-relations-local.sql
+          # Seven new FK-closed tables: Jury, Televoting integrity, account sessions. Zero rows.
+          sql -f - < docs/v3/recovery-candidates/evidence/s06-hosted-seven-jury-integrity-account-local.sql
+          # 17 new hosted-observed zero-row tables; auth ownership + FK closure verified strictly.
+          sql -f - < docs/v3/recovery-candidates/evidence/s06-hosted-seventeen-next-relations-local.sql
+          # Fifty additional FK-closed hosted-observed metadata identities, NO application rows.
+          # Trigger placeholders are fail-closed catalog fixtures; not runtime function parity.
+          sql -f - < docs/v3/recovery-candidates/evidence/s06-hosted-fifty-next-relations-local.sql
+          # 50 more dependency-closed catalog-only relations; the first 150 must remain unchanged.
+          sql -f - < docs/v3/recovery-candidates/evidence/s06-hosted-second-fifty-relations-local.sql
+          # Final 15 zero-row catalog-only identities; never deployed.
+          sql -f - < docs/v3/recovery-candidates/evidence/s06-hosted-final-fifteen-relations-local.sql
+          sql -f - < scripts/v3-s02-hosted-archive-catalog-local.sql > /tmp/s06-archive-catalog.json
+          node scripts/verify-v3-s02-s14-archive-catalog.mjs /tmp/s06-archive-catalog.json s06-archive-catalog-proof.json
+          sql -f - < scripts/v3-s02-hosted-nine-parent-catalog-local.sql > /tmp/s06-parent-catalog.json
+          node scripts/verify-v3-s02-parent-catalog.mjs /tmp/s06-parent-catalog.json s06-parent-catalog-proof.json
+          sql -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-56-table-grants-local.sql
+          # The original S02 comparison is strictly 56 IDs. Keep that
+          # comparator UNCHANGED; explicitly prove the original 44 additions and
+          # another 50 distinct new identities, then scope its original JSON input.
+          sql -f - < scripts/v3-s02-hosted-56-acl-local.sql > /tmp/s06-acl-76.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const actual = JSON.parse(fs.readFileSync('/tmp/s06-acl-76.json','utf8'));
+          const frozen = JSON.parse(fs.readFileSync(
+            'docs/v3/recovery-candidates/evidence/s02-hosted-s14-56-table-acls-2026-11-09.json','utf8'
+          ));
+          const scoped = new Set(Object.keys(frozen.privileges));
+          const added = new Set([
+            'private.country_auth_rate_limits',
+            'private.studio2_platform_exit_write_probe',
+            'public.ssc_rule_registry',
+            'public.studio2_televote_global_versions',
+            'public.studio2_televote_round_versions',
+            'televoting.legacy_friend_voting_relationships',
+            'televoting.legacy_import_metadata',
+            'public.studio2_confirmation_review_versions',
+            'public.studio2_confirmation_round_versions',
+            'public.studio2_jury_window_versions',
+            'public.studio2_participation_status_versions',
+            'public.studio2_permission_subject_versions',
+            'private.v3_confirmation_account_drafts',
+            'private.v3_televote_recovery_handles',
+            'public.ssc_rulebook_events',
+            'public.ssc_rulebook_releases',
+            'public.studio2_eligibility_override_versions',
+            'public.studio2_next_in_line_submission_revisions',
+            'public.studio2_platform_operational_state',
+            'public.studio2_voting_declaration_policy',
+            'private.v3_jury_drafts',
+            'private.v3_jury_operations',
+            'public.studio2_account_session_revocations',
+            'televoting.historical_vote_observations',
+            'televoting.integrity_action_audit',
+            'televoting.vote_integrity_decisions',
+            'televoting.voter_sanctions',
+            'auth.audit_log_entries',
+            'auth.instances',
+            'auth.oauth_client_states',
+            'auth.schema_migrations',
+            'public.ssc_rule_interpretations',
+            'public.ssc_rulebook_change_items',
+            'public.studio2_country_media_upload_tokens',
+            'public.studio2_host_bids',
+            'public.studio2_host_bid_evaluations',
+            'public.studio2_host_operation_executions',
+            'public.studio2_host_operations',
+            'public.studio2_platform_exit_preflights',
+            'public.studio2_story_operation_executions',
+            'public.studio2_storyline_items',
+            'public.studio2_storylines',
+            'public.studio2_upload_authorizations',
+            'televoting.round_influence_results',
+          ]);
+          const fifty = new Set([...fs.readFileSync(
+            "docs/v3/recovery-candidates/evidence/s06-hosted-fifty-next-relations-local.sql", "utf8"
+          ).matchAll(/CREATE TABLE "([a-z]+)"\."([a-z_0-9]+)"/g)].map(m => m[1]+"."+m[2]));
+          const secondFifty = new Set([...fs.readFileSync(
+            "docs/v3/recovery-candidates/evidence/s06-hosted-second-fifty-relations-local.sql", "utf8"
+          ).matchAll(/CREATE TABLE "([a-z]+)"\."([a-z_0-9]+)"/g)].map(m => m[1]+"."+m[2]));
+          const finalFifteen = new Set([...fs.readFileSync(
+            "docs/v3/recovery-candidates/evidence/s06-hosted-final-fifteen-relations-local.sql", "utf8"
+          ).matchAll(/CREATE TABLE "([a-z]+)"\."([a-z_0-9]+)"/g)].map(m => m[1]+"."+m[2]));
+          const identities = actual.tables.map(t => t.relation);
+          const found = new Set(identities);
+          if (scoped.size !== 56 || added.size !== 44 || fifty.size !== 50 || secondFifty.size !== 50
+            || [...fifty].some(k => scoped.has(k) || added.has(k))
+            || [...secondFifty].some(k => scoped.has(k) || added.has(k) || fifty.has(k))
+            || [...finalFifteen].some(k => scoped.has(k) || added.has(k) || fifty.has(k) || secondFifty.has(k))
+            || actual.tables.length !== 215 || found.size !== 215 || actual.schemas.length !== 4
+            || finalFifteen.size !== 15
+            || ![...scoped, ...added, ...fifty, ...secondFifty, ...finalFifteen].every(k => found.has(k))
+            || identities.some(k => !scoped.has(k) && !added.has(k) && !fifty.has(k) && !secondFifty.has(k) && !finalFifteen.has(k))) {
+            throw Error('S06 fail closed: 56 frozen S02 + 44 prior + 50 first + 50 second not exact');
+          }
+          fs.writeFileSync('/tmp/s06-acl-56-scoped.json', JSON.stringify({
+            tables: actual.tables.filter(t => scoped.has(t.relation)), schemas: actual.schemas
+          }));
+          console.log('S06: scoped 56 original ACL identities, retaining 159 strict full-field tables');
+          NODE
+          node scripts/verify-v3-s02-56-acl.mjs /tmp/s06-acl-56-scoped.json s06-acl-proof.json
+          # Compare 21 exact upstream RPCs to bounded read-only hosted catalog
+          # fingerprints: definitions, owner, privileges and security flags.
+          sql -f - < docs/v3/recovery-candidates/evidence/s06-hosted-upstream-rpc-acls-local.sql
+          sql -f - < scripts/v3-s06-hosted-upstream-rpc-catalog-local.sql > /tmp/s06-upstream-rpc.json
+          node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs /tmp/s06-upstream-rpc.json s06-upstream-rpc-proof.json
+          [[ "$(sql -c 'show server_version_num')" == 170011 ]] || exit 1
+
+          # S06 FULL COVERAGE NEGATIVE: 215 table names must NEVER pass a
+          # 215-relation / 727-function hosted-equivalence fingerprint gate.
+          # This step is NOT S06 certification. It only proves safe refusal.
+          sql -f - < scripts/v3-s06-hosted-catalog-digests-local.sql > /tmp/s06-full-catalog-local.json
+          # Assert 56 original + 44 prior + 50 first + 50 second catalog identities;
+          # compare all 159 newer tables with complete 17-field catalog digests.
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const d = JSON.parse(fs.readFileSync('/tmp/s06-full-catalog-local.json', 'utf8'));
+          const names = new Set([
+            'private.country_auth_rate_limits',
+            'private.studio2_platform_exit_write_probe',
+            'public.ssc_rule_registry',
+            'public.studio2_televote_global_versions',
+            'public.studio2_televote_round_versions',
+            'televoting.legacy_friend_voting_relationships',
+            'televoting.legacy_import_metadata',
+          ]);
+          const five = new Set([
+            'public.studio2_confirmation_review_versions',
+            'public.studio2_confirmation_round_versions',
+            'public.studio2_jury_window_versions',
+            'public.studio2_participation_status_versions',
+            'public.studio2_permission_subject_versions',
+          ]);
+          const eight = new Set([
+            'private.v3_confirmation_account_drafts',
+            'private.v3_televote_recovery_handles',
+            'public.ssc_rulebook_events',
+            'public.ssc_rulebook_releases',
+            'public.studio2_eligibility_override_versions',
+            'public.studio2_next_in_line_submission_revisions',
+            'public.studio2_platform_operational_state',
+            'public.studio2_voting_declaration_policy',
+          ]);
+          const secure = new Set([
+            'private.v3_jury_drafts',
+            'private.v3_jury_operations',
+            'public.studio2_account_session_revocations',
+            'televoting.historical_vote_observations',
+            'televoting.integrity_action_audit',
+            'televoting.vote_integrity_decisions',
+            'televoting.voter_sanctions',
+          ]);
+          const seventeen = new Set([
+            'auth.audit_log_entries',
+            'auth.instances',
+            'auth.oauth_client_states',
+            'auth.schema_migrations',
+            'public.ssc_rule_interpretations',
+            'public.ssc_rulebook_change_items',
+            'public.studio2_country_media_upload_tokens',
+            'public.studio2_host_bids',
+            'public.studio2_host_bid_evaluations',
+            'public.studio2_host_operation_executions',
+            'public.studio2_host_operations',
+            'public.studio2_platform_exit_preflights',
+            'public.studio2_story_operation_executions',
+            'public.studio2_storyline_items',
+            'public.studio2_storylines',
+            'public.studio2_upload_authorizations',
+            'televoting.round_influence_results',
+          ]);
+          const fifty = new Set([...fs.readFileSync(
+            'docs/v3/recovery-candidates/evidence/s06-hosted-fifty-next-relations-local.sql','utf8'
+          ).matchAll(/CREATE TABLE "([a-z]+)"\."([a-z_0-9]+)"/g)].map(m=>m[1]+'.'+m[2]));
+          const secondFifty = new Set([...fs.readFileSync(
+            'docs/v3/recovery-candidates/evidence/s06-hosted-second-fifty-relations-local.sql','utf8'
+          ).matchAll(/CREATE TABLE "([a-z]+)"\."([a-z_0-9]+)"/g)].map(m=>m[1]+'.'+m[2]));
+          const id = r => r.schema_name + '.' + r.object_name;
+          const actual = d.relations.filter(r => names.has(id(r)));
+          const fiveActual = d.relations.filter(r => five.has(id(r)));
+          const eightActual = d.relations.filter(r => eight.has(id(r)));
+          const secureActual = d.relations.filter(r => secure.has(id(r)));
+          const seventeenActual = d.relations.filter(r => seventeen.has(id(r)));
+          const prior27 = new Set([...names,...five,...eight,...secure]);
+          const combined44 = new Set([...prior27,...seventeen]);
+          const twentySeven = d.relations.filter(r => prior27.has(id(r)));
+          const fortyFour = d.relations.filter(r => combined44.has(id(r)));
+          const ninetyFour = new Set([...combined44,...fifty]);
+          const oneFortyFour = new Set([...ninetyFour,...secondFifty]);
+          const finalFifteen = new Set([...fs.readFileSync(
+            'docs/v3/recovery-candidates/evidence/s06-hosted-final-fifteen-relations-local.sql','utf8'
+          ).matchAll(/CREATE TABLE "([a-z]+)"\."([a-z_0-9]+)"/g)].map(m=>m[1]+'.'+m[2]));
+          const oneFiftyNine = new Set([...oneFortyFour,...finalFifteen]);
+          const fiftyActual = d.relations.filter(r => fifty.has(id(r)));
+          const ninetyFourActual = d.relations.filter(r => ninetyFour.has(id(r)));
+          const secondFiftyActual = d.relations.filter(r => secondFifty.has(id(r)));
+          const oneFortyFourActual = d.relations.filter(r => oneFortyFour.has(id(r)));
+          const finalFifteenActual = d.relations.filter(r => finalFifteen.has(id(r)));
+          const oneFiftyNineActual = d.relations.filter(r => oneFiftyNine.has(id(r)));
+          if (d.pg_version_num !== 170011 || d.relations.length !== 215
+            || actual.length !== 7 || fiveActual.length !== 5 || eightActual.length !== 8
+            || secureActual.length !== 7 || seventeenActual.length !== 17
+            || twentySeven.length !== 27 || fortyFour.length !== 44
+            || fiftyActual.length !== 50 || ninetyFourActual.length !== 94
+            || secondFiftyActual.length !== 50 || oneFortyFourActual.length !== 144
+            || finalFifteenActual.length !== 15 || oneFiftyNineActual.length !== 159
+            || new Set(d.relations.map(id)).size !== 215 || combined44.size !== 44
+            || ninetyFour.size !== 94 || fifty.size !== 50 || secondFifty.size !== 50 || oneFortyFour.size !== 144
+            || finalFifteen.size !== 15 || oneFiftyNine.size !== 159) {
+            throw Error('S06 combined fixture must contain exactly 215: original 56 scoped + 159 fully checked');
+          }
+          for(const [file,rows] of [
+            ['/tmp/s06-seven-in-76-local.json',actual],
+            ['/tmp/s06-five-in-76-local.json',fiveActual],
+            ['/tmp/s06-eight-in-76-local.json',eightActual],
+            ['/tmp/s06-secure-in-83-local.json',secureActual],
+            ['/tmp/s06-seventeen-in-100-local.json',seventeenActual],
+            ['/tmp/s06-twentyseven-in-83-local.json',twentySeven],
+            ['/tmp/s06-fortyfour-in-100-local.json',fortyFour],
+            ['/tmp/s06-fifty-in-150-local.json',fiftyActual],
+            ['/tmp/s06-ninetyfour-in-150-local.json',ninetyFourActual],
+            ['/tmp/s06-second-fifty-in-200-local.json',secondFiftyActual],
+            ['/tmp/s06-onefortyfour-in-200-local.json',oneFortyFourActual],
+            ['/tmp/s06-final-fifteen-in-215-local.json',finalFifteenActual],
+            ['/tmp/s06-onefiftynine-in-215-local.json',oneFiftyNineActual]
+          ]) fs.writeFileSync(file,JSON.stringify({pg_version_num:d.pg_version_num,relations:rows}));
+          console.log('S06: exactly 215 distinct table identities in one networkless PG17.11 fixture');
+          NODE
+          node scripts/verify-v3-s06-seven-relation-parity.mjs \
+            docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
+            /tmp/s06-seven-in-76-local.json /tmp/s06-seven-76-proof.json
+          node scripts/verify-v3-s06-five-ledger-parity.mjs \
+            docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
+            /tmp/s06-five-in-76-local.json /tmp/s06-five-76-proof.json
+          cp /tmp/s06-seven-76-proof.json s06-seven-76-proof.json
+          cp /tmp/s06-five-76-proof.json s06-five-76-proof.json
+          node scripts/verify-v3-s06-eight-relation-parity.mjs \
+            docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
+            /tmp/s06-eight-in-76-local.json /tmp/s06-eight-76-proof.json
+          cp /tmp/s06-eight-76-proof.json s06-eight-76-proof.json
+          node scripts/verify-v3-s06-seven-secure-relation-parity.mjs \
+            docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
+            /tmp/s06-secure-in-83-local.json /tmp/s06-secure-83-proof.json
+          cp /tmp/s06-secure-83-proof.json s06-secure-83-proof.json
+          node scripts/verify-v3-s06-seventeen-relation-parity.mjs \
+            docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
+            /tmp/s06-seventeen-in-100-local.json /tmp/s06-seventeen-100-proof.json
+          cp /tmp/s06-seventeen-100-proof.json s06-seventeen-100-proof.json
+          node scripts/verify-v3-s06-fifty-relation-parity.mjs \
+            docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
+            /tmp/s06-fifty-in-150-local.json /tmp/s06-fifty-150-proof.json
+          cp /tmp/s06-fifty-150-proof.json s06-fifty-150-proof.json
+          node scripts/verify-v3-s06-second-fifty-relation-parity.mjs \
+            docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
+            /tmp/s06-second-fifty-in-200-local.json /tmp/s06-second-fifty-200-proof.json
+          cp /tmp/s06-second-fifty-200-proof.json s06-second-fifty-200-proof.json
+          node scripts/verify-v3-s06-final-fifteen-relation-parity.mjs \
+            docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
+            /tmp/s06-final-fifteen-in-215-local.json /tmp/s06-final-fifteen-215-proof.json
+          cp /tmp/s06-final-fifteen-215-proof.json s06-final-fifteen-215-proof.json
+          # The original 56 host-observed objects retain their existing scope
+          # comparators. Do not treat 159-table full-field parity as full 215-table parity.
+          set +e
+          node scripts/verify-v3-s06-hosted-catalog-coverage.mjs \
+            docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json \
+            /tmp/s06-full-catalog-local.json > /tmp/s06-full-coverage-result.json
+          coverage_rc="$?"
+          set -e
+          [[ "$coverage_rc" == 1 ]] || { echo "::error::Incomplete fixture did not fail closed"; exit 1; }
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const result = JSON.parse(fs.readFileSync('/tmp/s06-full-coverage-result.json', 'utf8'));
+          if (result.status !== 'S06_CATALOG_COVERAGE_BLOCKED'
+              || result.expected.relations !== 215 || result.expected.routines !== 727
+              || result.observed.relations !== 215
+              || result.observed.routines >= 727) {
+            throw Error('Unexpected S06 full-hosted coverage finding');
+          }
+          console.log('PASS: INTEGRATED 215 TABLE IDENTITIES; full hosted equivalence REJECTED; S06 remains PARTIAL/BLOCKED.');
+          console.log('Observed local relations: ' + result.observed.relations + '/215.');
+          console.log('Observed local functions: ' + result.observed.routines + '/727.');
+          NODE
+
+
+          # Missing S13 must fail before Archive DDL, with a catalog proof.
+          if sql -f - < docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql > /tmp/s06-s13-absent.log 2>&1; then
+            echo "::error::S14 accepted missing S13 foundation"; exit 1
+          fi
+          grep -q 'S14 Archive recovery BLOCKED: S13 governance foundation absent' /tmp/s06-s13-absent.log || exit 1
+          [[ "$(sql -c "select (to_regclass('private.v3_archive_runtime_transition_gates') is null)::text")" == true ]] || exit 1
+
+          sql -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s13-prerequisite-local.sql
+          sql -f - < docs/v3/recovery-candidates/forward-only-s13-foundation.sql
+
+          # A failed install on the hosted-observed fixture must leave no
+          # partially created Archive functions, triggers, grants or records.
+          # This is a disposable, networkless container; never production.
+          archive_schema_digest() {
+            # PG17.11 uses a random pg_dump \\restrict key by default. The
+            # fixed test-only key makes two LOCAL schema dumps comparable.
+            # Never pin a restrict key on untrusted/hosted SQL dumps.
+            docker exec "$cid" pg_dump -U postgres -d postgres --schema-only --no-comments --restrict-key=S06LocalOnlyStable |
+              sha256sum | awk '{print $1}'
+          }
+          schema_before="$(archive_schema_digest)"
+          contracts_before="$(sql -c "select count(*) from private.v3_migration_contracts")"
+          python3 - <<'PY'
+          from pathlib import Path
+          source = Path('docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql').read_text()
+          trigger = 'create trigger v3_guard_archive_runtime_transition'
+          next_function = 'create or replace function private.v3_edition_final_results_ready('
+          assert source.count(next_function) >= 1, 'S14 source anchor missing'
+          assert 0 < source.index(trigger) < source.index(next_function), 'Archive trigger must precede injection'
+          exception = "do $s06_local_interrupt$ begin raise exception 'S06 hosted-fixture injected post-DDL failure'; end $s06_local_interrupt$;\n\n"
+          injected = source.replace(next_function, exception + next_function, 1)
+          assert injected != source
+          Path('/tmp/s06-hosted-interrupted.sql').write_text(injected)
+          PY
+          if sql -f - < /tmp/s06-hosted-interrupted.sql > /tmp/s06-hosted-interrupted.log 2>&1; then
+            echo "::error::Injected hosted-fixture failure did not interrupt Archive"; exit 1
+          fi
+          grep -Fq 'S06 hosted-fixture injected post-DDL failure' /tmp/s06-hosted-interrupted.log || {
+            echo "::error::Unexpected Archive interruption error"; exit 1;
+          }
+          [[ "$schema_before" == "$(archive_schema_digest)" ]] || {
+            echo "::error::Post-DDL interruption changed hosted-observed fixture schema/ACL"; exit 1;
+          }
+          [[ "$contracts_before" == "$(sql -c "select count(*) from private.v3_migration_contracts")" ]] || {
+            echo "::error::Post-DDL interruption changed semantic registry records"; exit 1;
+          }
+          [[ "$(sql -c "select (to_regprocedure('private.v3_guard_archive_runtime_transition()') is null and to_regclass('private.v3_archive_runtime_transition_gates') is null)::text")" == true ]] || {
+            echo "::error::Post-DDL interruption left a partial Archive function/gate"; exit 1;
+          }
+
+          # Restart on the SAME disposable hosted-observed database, without
+          # modifying the original candidate or resetting the S13 foundation.
+          sql -f - < docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql
+          echo "PASS: hosted-observed fixture post-DDL rollback and same-DB S14 restart"
+          before="$(sql -c "select (select count(*) from private.v3_migration_contracts)::text || '|' || (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='private' and c.relname like 'v3_archive_%')::text")"
+          if sql -f - < docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql > /tmp/s06-duplicate.log 2>&1; then
+            echo "::error::Archive forward candidate allowed duplicate application"; exit 1
+          fi
+          grep -q 'S14 Archive recovery BLOCKED:' /tmp/s06-duplicate.log || exit 1
+          after="$(sql -c "select (select count(*) from private.v3_migration_contracts)::text || '|' || (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='private' and c.relname like 'v3_archive_%')::text")"
+          [[ "$before" == "$after" ]] || { echo "::error::Duplicate Archive attempt changed catalog"; exit 1; }
+          denied="$(sql -c "select has_table_privilege('anon','private.v3_archive_runtime_transition_gates','INSERT')::text || '|' || has_table_privilege('authenticated','private.v3_archive_runtime_transition_gates','INSERT')::text || '|' || has_table_privilege('service_role','private.v3_archive_runtime_transition_gates','INSERT')::text")"
+          [[ "$denied" == 'false|false|false' ]] || exit 1
+          # Explicitly re-read all 159 additional table fingerprints AFTER S13, successful
+          # S14, duplicate refusal and rollback/restart. No evidence of drift
+          # in the same DB is stronger than pre-recovery-only checking.
+          sql -f - < scripts/v3-s06-hosted-catalog-digests-local.sql > /tmp/s06-post-s14-full-catalog-local.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const assert = require('node:assert/strict');
+          const pre = JSON.parse(fs.readFileSync('/tmp/s06-onefiftynine-in-215-local.json','utf8'));
+          const post = JSON.parse(fs.readFileSync('/tmp/s06-post-s14-full-catalog-local.json','utf8'));
+          const names = new Set(pre.relations.map(r => r.schema_name + '.' + r.object_name));
+          const actual = post.relations.filter(r => names.has(r.schema_name + '.' + r.object_name));
+          assert.equal(actual.length, 159, '159 additional observed relations must survive S13->S14');
+          assert.deepEqual(actual, pre.relations, '159 hosted-observed table definitions, RLS and grants drifted through S13->S14');
+          console.log('PASS: 159 complete table fingerprints unchanged after S13->S14, restart and duplicate refusal');
+          NODE
+          [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
+          [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
+          docker rm -f "$cid" >/dev/null
+          cid=""
+          echo "PASS: S13 then S14 against 215 hosted-observed PG17.11 table identities (56 scoped + 159 exact fingerprints); missing S13/duplicate fail closed."
+          echo "LIMITATION: 215/215 table names, 159 additional full-field digests (original 56 scoped), 727 routine and data/role/history equivalence still unproven; NOT fully hosted-equivalent or S06 certified."
+
+      - name: Retain scoped proof without implying production parity
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s06-hosted-observed-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            s06-archive-catalog-proof.json
+            s06-parent-catalog-proof.json
+            s06-acl-proof.json
+            s06-upstream-rpc-proof.json
+            s06-seven-76-proof.json
+            s06-five-76-proof.json
+            s06-eight-76-proof.json
+            s06-secure-83-proof.json
+            s06-seventeen-100-proof.json
+            s06-fifty-150-proof.json
+            s06-second-fifty-200-proof.json
+            s06-final-fifteen-215-proof.json
+          if-no-files-found: ignore
+          retention-days: 14

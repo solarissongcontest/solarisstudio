@@ -1,0 +1,134 @@
+name: V3 S07 Televote source-of-truth integration
+
+on:
+  pull_request:
+    branches: [main]
+    paths: &s07_paths
+      - ".github/workflows/v3-s07-televote-source-truth-local.yml"
+      - ".github/tests/v3-s07-televote-source-truth.sql"
+      - "scripts/stage-v3-s07-televote-source-truth.mjs"
+      - "scripts/rehearse-v3-s14-televote-source-truth-local.sh"
+      - "scripts/v3-s07-televote-source-truth.contract.test.mjs"
+      - "docs/v3/recovery-candidates/s07-televote-managed-source-guard.sql"
+      - "docs/v3/recovery-candidates/fixtures/s07-televote-source-truth-local.sql"
+      - "supabase/migrations/20261017001000_v3_s14_televote_result_truth.sql"
+      - "supabase/migrations/20261017001020_v3_s14_televote_projection_replay_hardening.sql"
+      - "supabase/migrations/20261108004000_v3_s14_signed_combined_projection.sql"
+      - ".github/scripts/v3-s14-televote-result-truth-rehearsal.sh"
+      - ".github/scripts/v3-s14-televote-result-truth-replay-hardening-rehearsal.sh"
+      - ".github/scripts/v3-s3-televote-invariants-rehearsal.sh"
+  push:
+    branches: [main]
+    paths: *s07_paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: s07-source-truth-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  source-recovery:
+    name: Networkless PG17.11 source identity and replay
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      REVIEWED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      SOLARIS_RUN_LOCAL_DB_REHEARSAL: "YES"
+      SOLARIS_VERIFICATION_TARGET: local
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify exact source and syntax
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$REVIEWED_SHA" ]]
+          node --check scripts/stage-v3-s07-televote-source-truth.mjs
+          bash -n scripts/rehearse-v3-s14-televote-source-truth-local.sh
+      - name: Focused source and offline isolation contracts
+        run: node --test scripts/v3-s07-televote-source-truth.contract.test.mjs
+      - name: Execute source recovery and hostile-role SQL
+        run: bash scripts/rehearse-v3-s14-televote-source-truth-local.sh
+      - name: Retain scoped exact-SHA proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: s07-source-truth-${{ github.event.pull_request.head.sha || github.sha }}
+          path: s07-local-source-truth-proof.json
+          if-no-files-found: error
+
+  canonical-consumers:
+    name: Canonical ballot and Results compatibility
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      REVIEWED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      SOLARIS_RUN_LOCAL_DB_REHEARSAL: "YES"
+      SOLARIS_VERIFICATION_TARGET: local
+      SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      E2E_SUPABASE_URL: http://127.0.0.1:54321
+      CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+      - name: Refuse inherited hosted credentials and stale checkout
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$REVIEWED_SHA" ]]
+          for key in DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN SUPABASE_SERVICE_ROLE_KEY SUPABASE_DB_PASSWORD PGHOST PGHOSTADDR PGSERVICE PGSERVICEFILE DOCKER_HOST DOCKER_CONTEXT DOCKER_TLS_VERIFY DOCKER_CERT_PATH; do
+            [[ -z "${!key:-}" ]] || { echo "::error::Untrusted target $key"; exit 1; }
+          done
+      - name: Install pinned Supabase CLI
+        run: |
+          set -euo pipefail
+          cli_root="$RUNNER_TEMP/s07-supabase-cli"
+          npm install --prefix "$cli_root" --no-save --no-package-lock --no-audit --no-fund supabase@2.113.0
+          [[ "$("$cli_root/node_modules/.bin/supabase" --version)" == 2.113.0 ]]
+          echo "$cli_root/node_modules/.bin" >> "$GITHUB_PATH"
+      - run: bun install --frozen-lockfile
+      - name: Start clean isolated Supabase through the existing bootstrap
+        run: bash .github/scripts/v3-start-disposable-supabase.sh
+      - name: Check the actual database target before SQL
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          S07_DATABASE_URL="$DB_URL" node --input-type=module <<'JS'
+          const url = new URL(process.env.S07_DATABASE_URL);
+          if (!["postgres:", "postgresql:"].includes(url.protocol) ||
+              !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) ||
+              !url.port || url.search || url.hash) throw Error("Non-local S07 database target");
+          JS
+      - name: Install the same writer boundary in the real local schema
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          node scripts/stage-v3-s07-televote-source-truth.mjs --writer-boundary > "$RUNNER_TEMP/s07-writer-boundary.sql"
+          psql "$DB_URL" -X -q -v ON_ERROR_STOP=1 -f "$RUNNER_TEMP/s07-writer-boundary.sql"
+      - name: Existing canonical ballot invariants
+        run: bash .github/scripts/v3-s3-televote-invariants-rehearsal.sh
+      - name: Existing real Results/source publication integration
+        run: bash .github/scripts/v3-s14-televote-result-truth-rehearsal.sh
+      - name: Existing canonical no-churn replay and atomic repair
+        run: bash .github/scripts/v3-s14-televote-result-truth-replay-hardening-rehearsal.sh
+      - name: Verify writer context cleanup and real API-role denial
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          [[ "$(psql "$DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c 'select count(*) from private.v3_televote_projection_write_context')" == 0 ]]
+          [[ "$(psql "$DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c "select bool_and(not has_table_privilege(r,'private.v3_televote_projection_write_context','INSERT')) from unnest(array['anon','authenticated','service_role']) r")" == t ]]
+      - name: Stop only this disposable project
+        if: always()
+        run: supabase stop --no-backup || true

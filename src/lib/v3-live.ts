@@ -124,6 +124,7 @@ function resolvePublicShowState(input: {
 
 function votingState(
   round: ShowModeTelevoteRound | null,
+  showState: V3PublicShowState,
 ): V3LiveVotingState {
   if (!round) {
     return {
@@ -132,6 +133,15 @@ function votingState(
       roundId: null,
       openedAt: null,
       closedAt: null,
+    };
+  }
+  if (round.status === "open" && showState !== "voting") {
+    return {
+      state: "unavailable",
+      label: "Voting unavailable",
+      roundId: round.id,
+      openedAt: round.openedAt,
+      closedAt: round.closedAt,
     };
   }
   if (round.status === "open") {
@@ -220,7 +230,7 @@ export function projectV3LiveExperience(input: {
         (a.runningOrder ?? Number.MAX_SAFE_INTEGER) -
         (b.runningOrder ?? Number.MAX_SAFE_INTEGER),
     ),
-    voting: votingState(input.televoteRound),
+    voting: votingState(input.televoteRound, state),
     timing: {
       scheduledStart: companion.config.scheduledStart,
       liveStartedAt: companion.config.liveStartedAt,
