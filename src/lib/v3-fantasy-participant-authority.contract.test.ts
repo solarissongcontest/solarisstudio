@@ -103,6 +103,26 @@ describe("V3 Fantasy participant System authority", () => {
     expect(migration).toContain("v_revision,");
   });
 
+  it("enforces caller-and-edition feature rollout on both direct Fantasy RPC paths", () => {
+    const projection = migration.slice(
+      migration.indexOf("create or replace function public.v3_fantasy_game("),
+      migration.indexOf("revoke all on function public.v3_fantasy_game("),
+    );
+    const submit = migration.slice(
+      migration.indexOf("create or replace function public.v3_submit_fantasy_team("),
+      migration.indexOf("revoke all on function public.v3_submit_fantasy_team("),
+    );
+    const featureCheck =
+      "private.studio2_feature_enabled_for(v_actor, 'fantasy_ssc', v_game.edition_id)";
+    expect(projection).toContain(featureCheck);
+    expect(submit).toContain(featureCheck);
+    expect(projection.indexOf(featureCheck)).toBeGreaterThan(projection.indexOf("if v_game.id is null then"));
+    expect(submit.indexOf(featureCheck)).toBeGreaterThan(submit.indexOf("if v_game.id is null then"));
+    expect(submit.indexOf(featureCheck)).toBeLessThan(submit.indexOf("private.studio2_claim_operation("));
+    expect(submit).toContain("raise exception using errcode = '42501', message = 'FEATURE_UNAVAILABLE'");
+    expect(submit).not.toContain("p_rollout_enabled");
+  });
+
   it("cuts browser callers off the legacy submit writer", () => {
     expect(migration).toContain(
       "revoke all on function public.submit_fantasy_team(uuid, uuid[], uuid)",

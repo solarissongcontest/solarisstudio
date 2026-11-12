@@ -69,6 +69,16 @@ begin
     return null;
   end if;
 
+  -- A hidden or tester-only Fantasy slice must also be unavailable through
+  -- direct RPC calls. This check uses the caller's authenticated identity and
+  -- this game's canonical edition, not browser-provided rollout state.
+  if not coalesce(
+    private.studio2_feature_enabled_for(v_actor, 'fantasy_ssc', v_game.edition_id),
+    false
+  ) then
+    return null;
+  end if;
+
   if v_actor is not null then
     v_is_organizer := public.studio2_access_allowed(
       'edition.manage',
@@ -231,6 +241,16 @@ begin
 
   if v_game.id is null then
     raise exception using errcode = 'P0002', message = 'VALIDATION';
+  end if;
+
+  -- HIDDEN denies ordinary API callers; TESTING permits only users and
+  -- editions selected by the existing server-owned feature-flag policy.
+  -- Deny before claiming any new operation or entering the writer path.
+  if not coalesce(
+    private.studio2_feature_enabled_for(v_actor, 'fantasy_ssc', v_game.edition_id),
+    false
+  ) then
+    raise exception using errcode = '42501', message = 'FEATURE_UNAVAILABLE';
   end if;
 
   select coalesce(jsonb_agg(country_id order by country_id), '[]'::jsonb)
