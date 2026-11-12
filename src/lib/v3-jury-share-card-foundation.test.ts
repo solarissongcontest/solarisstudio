@@ -193,12 +193,17 @@ describe("V3 Jury Share Card foundation", () => {
     expect(anotherEdition.editionLabel).toBe("Solaris Song Contest 23");
   });
 
-  it("refuses to build even a preview model from unpublished authoritative state", () => {
-    expect(() =>
-      buildDefaultJuryShareModel(
-        projection({ publication: { shareable: false, reason: "RESULTS_NOT_PUBLISHED" } }),
-      ),
-    ).toThrow(/RESULTS_NOT_PUBLISHED/);
+  it("refuses image previews AND text exports for every unpublished/private ballot reason", () => {
+    for (const reason of [
+      "BALLOT_UNAVAILABLE",
+      "BALLOT_NOT_FINAL",
+      "RESULTS_NOT_PUBLISHED",
+      "JURY_BREAKDOWN_PRIVATE",
+    ] as const) {
+      const blocked = projection({ publication: { shareable: false, reason } });
+      expect(() => buildDefaultJuryShareModel(blocked)).toThrow(reason);
+      expect(() => formatJuryShareText(blocked)).toThrow(reason);
+    }
   });
 
   it("changes render key material when result, historical identity or theme version changes", () => {
