@@ -1,0 +1,25 @@
+/* Exact source order from CountryPersonalityStyles; browser-extracted stylesheet
+   experiment. Preserve the single 'personality' cascade layer and all adapters. */
+@import "../country-button-theme.css" layer(personality);
+@import "../country-personality-shared-foundation.css" layer(personality);
+@import "../country-wiki-v8.css" layer(personality);
+@import "../country-wiki-components-v8.css" layer(personality);
+@import "../country-personality-source-foundation.css" layer(personality);
+@import "./personalities/minimal-source.adapter.css" layer(personality);
+@import "./personalities/retro-source.adapter.css" layer(personality);
+@import "./personalities/editorial-source.adapter.css" layer(personality);
+@import "./personalities/poster-source.adapter.css" layer(personality);
+@import "./personalities/diplomatic-source.adapter.css" layer(personality);
+@import "./personalities/broadcast-source.adapter.css" layer(personality);
+@import "./personalities/heritage-source.adapter.css" layer(personality);
+@import "./personalities/brutalist-source.adapter.css" layer(personality);
+@import "./personalities/luxury-source.adapter.css" layer(personality);
+@import "./personalities/scientific-source.adapter.css" layer(personality);
+@import "./personalities/civic-source.adapter.css" layer(personality);
+@import "./personalities/festival-source.adapter.css" layer(personality);
+@import "./personalities/newspaper-source.adapter.css" layer(personality);
+@import "./personalities/avant-garde-source.adapter.css" layer(personality);
+@import "./personalities/passport-source.adapter.css" layer(personality);
+@import "./personalities/atlas-source.adapter.css" layer(personality);
+@import "./personalities/glass-source.adapter.css" layer(personality);
+@import "./personality-compositions.css" layer(personality);
