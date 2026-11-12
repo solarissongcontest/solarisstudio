@@ -379,10 +379,10 @@ function RootComponent() {
         <PublicLaunchAvailabilityProvider enabled={!publicParticipation && !pathname.startsWith("/jury-voting") && pathname !== "/auth"}>
           <PublicLaunchRouteBoundary pathname={pathname}>
             <V3RootLegacyCutover>{content}</V3RootLegacyCutover>
+            <ToolQuickGuide pathname={pathname} />
           </PublicLaunchRouteBoundary>
         </PublicLaunchAvailabilityProvider>
       )}
-      {!isolatedRoute ? <ToolQuickGuide pathname={pathname} /> : null}
       {!isolatedRoute ? <Toaster /> : null}
     </QueryClientProvider>
   );
