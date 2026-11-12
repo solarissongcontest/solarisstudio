@@ -72,6 +72,26 @@ export const TERRA_GOVERNANCE_DOMAIN_REGISTRY: readonly TerraGovernanceDomainOwn
     ],
   },
   {
+    id: "world-legal-documents",
+    wave: "TG3+",
+    implementationState: "foundation",
+    canonicalOwner: "canonical institutional documents and immutable published versions",
+    canonicalTables: ["public.world_documents", "public.world_document_versions"],
+    existingSolarisOwnersReused: ["public.world_organizations", "public.v3_domain_events"],
+    commands: [],
+    projections: [
+      "public.world_list_public_legal_documents_v1",
+      "public.world_get_public_legal_archive_v1",
+    ],
+    eventTypes: [],
+    capabilities: [],
+    notes: [
+      "Public archive is a projection over immutable document versions, not a second history store.",
+      "Draft full text and private provenance are excluded from browser-readable responses.",
+      "Mutation commands and amendment workflows remain a later TG4/TG7 owner slice.",
+    ],
+  },
+  {
     id: "world-memberships",
     wave: "TG2",
     implementationState: "foundation",
