@@ -44,6 +44,26 @@ select
   (select coalesce(jsonb_agg(to_jsonb(b) order by b.id),'[]'::jsonb)
    from televoting.vote_submissions b) as ballot_rows;
 
+-- S08 must close the actual *table-grant* shape observed in the
+-- hosted Solaris Studio catalog on 12 November 2026. This networkless fixture
+-- models the pre-cutover grants only, NOT the hosted RLS or complete runtime.
+-- Neither the anonymous actor nor the privileged API role may independently
+-- mutate official totals after the staged single-writer guard is installed.
+select extensions.v3_assert(
+  (select not coalesce(bool_or(has_table_privilege(role_name, 'public.televote_votes', privilege)),false)
+   from (values ('anon'), ('authenticated'), ('service_role')) roles(role_name)
+   cross join (values ('INSERT'), ('UPDATE'), ('DELETE')) verbs(privilege)),
+  'S08 failed to revoke direct official Televote mutation from API roles');
+set role anon;
+select extensions.s07_expect_sqlstate(format(
+  'insert into public.televote_votes(edition_id,show_id,country_id,points) values(%L,%L,%L,4)',
+  :'edition',:'moved_show','00000000-0000-0000-0000-000000000011'),'42501');
+reset role;
+set role service_role;
+select extensions.s07_expect_sqlstate(format(
+  'update public.televote_votes set points=777 where show_id=%L',:'show'),'42501');
+reset role;
+
 -- Real authenticated API role cannot write even a previously unmanaged show.
 -- Marker spoofing never becomes authority.
 set role authenticated;

@@ -56,8 +56,19 @@ if sql < "$temporary/source-truth.sql" > "$temporary/repeat.log" 2>&1; then
 fi
 grep -q 'S07 source truth already or partially installed' "$temporary/repeat.log" || { cat "$temporary/repeat.log"; fail 'Wrong repeat failure'; }
 
-# S08 is intentionally staged only AFTER S07 has proven the original
-# published-source and legacy compatibility contract. No hosted targets.
+# S08 is staged ONLY after S07 acceptance. Model the 12 Nov hosted
+# Televote table-GRANT SHAPE on this disposable fixture, without claiming its
+# RLS, function graph, runtime or migration history match the hosted project.
+# The all-show guard must remove these broad privileges before S08 acceptance.
+sql <<'SQL'
+grant insert, update, delete on public.televote_votes
+  to anon, authenticated, service_role;
+select extensions.v3_assert(
+  (select bool_and(has_table_privilege(role_name, 'public.televote_votes', privilege))
+   from (values ('anon'), ('authenticated'), ('service_role')) roles(role_name)
+   cross join (values ('INSERT'), ('UPDATE'), ('DELETE')) verbs(privilege)),
+  'S08 fixture did not reproduce the hosted pre-cutover Televote ACL shape');
+SQL
 sql < docs/v3/recovery-candidates/s08-televote-single-writer-local.sql
 sql < .github/tests/v3-s08-televote-mutation-scope.sql
 
@@ -85,6 +96,7 @@ writeFileSync("s07-local-source-truth-proof.json", JSON.stringify({
   atomicFailureRollback: true, forgedMarkersDenied: true, acceptedBallotsUnchanged: true,
   s08AllShowWriterGuardTested: true, s08FreshCanonicalRevisionAccepted: true,
   s08WrongActorAndMovedShowDenied: true,
+  s08HostedLikeBroadAclRevocationTested: true,
   s08DuplicateAndStaleVersionDenied: true, s08ApprovedForProduction: false,
   cleanupSucceeded: true, fullHostedEquivalenceCertified: false,
   productionDeploymentAuthorized: false
