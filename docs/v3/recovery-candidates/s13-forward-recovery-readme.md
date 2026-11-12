@@ -8,7 +8,7 @@ The live read-only catalog audit of the actual Solaris Studio Supabase project (
 
 The staged SQL file `forward-only-s13-foundation.sql` contains:
 
-1. A strict **14-name preflight**: abort if the private authority helper or service schema usage is missing, or **any** of the five target S13 tables, seven target RPCs, or two planned index names already exists. It cannot blindly overwrite a partially applied S13 installation.
+1. A strict **14-name preflight**: abort if the private authority helper or service schema usage is missing, or **any** of the five target S13 tables, seven target RPCs, or two planned index names already exists. The helper must also match the reviewed PG17.11 definition fingerprint, ACL fingerprint and `postgres` owner, not merely its name. Unknown authority drift requires reconciliation. It cannot blindly overwrite a partially applied S13 installation.
 2. The original immutable `20261019111000_v3_s13_migration_hardening.sql` core, byte-for-byte apart from the surrounding transaction wrapper. This defines the five registries/backfill/parity tables, seven public RPCs, required grants and baseline seed records.
 3. An additive, migration-owner registration record for `v3.s13.strict-registration-restore`, followed by the **strict final** registration function and ACL from `20261019113300_v3_s13_strict_registration_restore.sql`. The temporary S6 filename aliases from `20261019112900` are **not** installed, since future recovered S6 code must use reviewed semantic keys instead of replaying the historical alias window.
 4. Atomic postconditions covering five tables, seven RPCs, service-role EXECUTE and the absence of anonymous/authenticated EXECUTE on the registration RPC.
@@ -19,7 +19,14 @@ No historical migration version is marked applied, and no existing record is upd
 
 `.github/workflows/v3-s13-forward-recovery-local.yml` launches disposable **PostgreSQL 17.11** over loopback. The shell rehearsal creates its own database and installs local roles using `fixtures/s13-production-dependency-subset-20261107.sql` instead of an invented security helper. This fixture is based on bounded **read-only** production metadata and pins the real `private.studio2_request_is_service_role()` definition fingerprint, function-ACL fingerprint, schema-level USAGE grants, owner, search path and SQL invoker semantics. **No production rows, credentials or hosted endpoints enter CI.**
 
-The rehearsal compares the forward-recovery S13 objects to the **original three-stage S13 migration sequence**, executed in a second disposable DB cloned from the same production-observed dependency fixture. It hashes the definitions and ACLs of all seven public S13 RPCs, plus five private tables' columns, constraints, indexes, owners and privileges. It checks strict registration and tests authorization, replay refusal, and **five failure states**: missing authority helper, missing schema privilege, pre-existing S13 table, pre-existing S13 RPC and collision with a planned S13 index name. Failures must abort without introducing S13 objects. It also verifies browser-role denial and direct-write denial for the service role.
+The rehearsal compares the forward-recovery S13 objects to the **original three-stage S13 migration sequence**, executed in a second disposable DB cloned from the same production-observed dependency fixture. It hashes the definitions and ACLs of all seven public S13 RPCs, plus five private tables' columns, constraints, indexes, owners and privileges. It checks strict registration and tests authorization, replay refusal, and **eight failure states**: missing authority helper, missing schema privilege, altered helper body, altered helper ACL, altered helper owner, pre-existing S13 table, pre-existing S13 RPC and collision with a planned S13 index name. Failures must abort without introducing S13 objects. It also verifies browser-role denial and direct-write denial for the service role.
+
+The helper-body case was reproduced against the earlier staged candidate: it
+accepted a same-signature helper returning `true`. This demonstrates an unsafe
+dependency-preflight acceptance, not a hosted exploit. The correction adds only
+metadata preconditions; it neither changes the helper nor introduces new
+authorization, grants or canonical writers. Fingerprints are catalog-drift checks
+against the frozen reviewed fixture, not cryptographic actor authentication.
 
 The original three-stage S13 history creates **three** registration keys (foundation, temporary context, strict restore), whereas forward-only recovery intentionally creates **two** because the temporary migration window was not executed. This is a **known semantic/history difference**, not a history repair. Full reconciliation must account for it explicitly.
 

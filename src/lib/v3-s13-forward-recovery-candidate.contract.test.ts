@@ -33,6 +33,10 @@ describe("System V3 S13 forward-only candidate source and safety", () => {
     expect(candidate).toContain("S13 recovery blocked: target already exists");
     expect(candidate).toContain("private.studio2_request_is_service_role()");
     expect(candidate).toContain("has_schema_privilege('service_role', 'private', 'USAGE')");
+    expect(candidate).toContain("authority helper differs from reviewed catalog");
+    expect(candidate).toContain("pg_get_userbyid(p.proowner) = 'postgres'");
+    expect(candidate).toContain("84d3f05e5f537908732a3875ba0178e6");
+    expect(candidate).toContain("341a58cafc38a872c684592babc76f83");
   });
 
   it("is transaction-atomic, bounded and strictly least-privileged", () => {
@@ -61,6 +65,9 @@ describe("System V3 S13 forward-only candidate source and safety", () => {
     expect(rehearsal).toContain("20261019112900_v3_s13_migration_registration_context.sql");
     expect(rehearsal).toContain("expect_preflight_rejection nohelper");
     expect(rehearsal).toContain("expect_preflight_rejection nogrant");
+    expect(rehearsal).toContain("expect_preflight_rejection helperbody");
+    expect(rehearsal).toContain("expect_preflight_rejection helperacl");
+    expect(rehearsal).toContain("expect_preflight_rejection helperowner");
     expect(rehearsal).toContain("expect_preflight_rejection partialtable");
     expect(rehearsal).toContain("expect_preflight_rejection partialrpc");
     expect(rehearsal).toContain("expect_preflight_rejection partialindex");

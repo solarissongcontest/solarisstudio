@@ -24,6 +24,18 @@ begin
   if not has_schema_privilege('service_role', 'private', 'USAGE') then
     raise exception 'S13 recovery blocked: service_role lacks private schema usage';
   end if;
+  -- The name alone is not the reviewed dependency. Match the independently
+  -- observed PG17.11 helper contract already pinned by the local fixture.
+  -- Unknown definitions, ownership or grants require explicit reconciliation.
+  if not exists (
+    select 1 from pg_proc p
+    where p.oid = to_regprocedure('private.studio2_request_is_service_role()')
+      and pg_get_userbyid(p.proowner) = 'postgres'
+      and md5(pg_get_functiondef(p.oid)) = '84d3f05e5f537908732a3875ba0178e6'
+      and md5(coalesce(array_to_string(p.proacl::text[], ','), '')) = '341a58cafc38a872c684592babc76f83'
+  ) then
+    raise exception 'S13 recovery blocked: authority helper differs from reviewed catalog';
+  end if;
   select e.kind || ':' || e.s || '.' || e.n
     into v_existing
   from (values
