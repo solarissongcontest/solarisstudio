@@ -128,6 +128,53 @@ describe("offline frontier CLI on isolated synthetic repositories", () => {
     expect(f.run().report.migrationSourcesClean).toBe(false);
   });
 
+  it("accepts explicitly bound production evidence and rejects Preview project evidence", () => {
+    const f = fixture();
+    const productionProject = "dkxmnvekiopyesuzggeu";
+    const previewProject = "oxtbskojiexkaspputvo";
+    const historyPath = join(f.root, "history.json");
+    const migrations = JSON.parse(readFileSync(historyPath, "utf8"));
+    writeFileSync(historyPath, JSON.stringify({ projectRef: productionProject, migrations }));
+    const matching = f.run("--require-reconciled", "--expected-project-ref", productionProject);
+    expect(matching.code).toBe(0);
+    expect(matching.report).toMatchObject({
+      evidenceProjectRef: productionProject,
+      expectedProjectRef: productionProject,
+      projectRefMatchesExpected: true,
+      projectRefError: null,
+      auditorSourcesClean: true,
+    });
+    const mistaken = f.run("--require-reconciled", "--expected-project-ref", previewProject);
+    expect(mistaken.code).toBe(1);
+    expect(mistaken.report).toMatchObject({
+      evidenceProjectRef: productionProject,
+      projectRefMatchesExpected: false,
+      requirementsSatisfied: false,
+      projectRefError: "hosted history projectRef does not match --expected-project-ref",
+    });
+    // Existing offline history-array diagnostics and unbound operator use stay valid.
+    expect(f.run("--require-reconciled").code).toBe(0);
+  });
+
+  it("refuses project-bound certification when history carries no project identity", () => {
+    const f = fixture();
+    const checked = f.run(
+      "--require-reconciled",
+      "--expected-project-ref",
+      "dkxmnvekiopyesuzggeu",
+    );
+    expect(checked.code).toBe(1);
+    expect(checked.report).toMatchObject({
+      evidenceProjectRef: null,
+      projectRefMatchesExpected: false,
+      requirementsSatisfied: false,
+      projectRefError: "hosted history must include projectRef when --expected-project-ref is used",
+    });
+    const malformed = f.run("--require-reconciled", "--expected-project-ref", "not/a/ref");
+    expect(malformed.code).toBe(1);
+    expect(malformed.report.projectRefError).toBe("--expected-project-ref requires a valid project ref");
+  });
+
   it("refuses edited auditor implementation with clean migrations and an unchanged HEAD", () => {
     const f = fixture();
     const auditorPath = join(f.root, "src/lib/v3-production-migration-frontier.ts");
