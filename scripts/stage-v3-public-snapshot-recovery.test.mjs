@@ -7,6 +7,7 @@ import {
   CAPTURE_SOURCE,
   SNAPSHOT_SOURCE,
   QUALIFIER_SOURCE,
+  PARTICIPATION_KEY_SOURCE,
   stagedQualificationHelpers,
 } from "./stage-v3-public-snapshot-recovery.mjs";
 import { extractDefinition } from "./v3-s13-s14-authorization-dependencies.mjs";
@@ -58,17 +59,21 @@ test("new observation is catalog-only and preserves immutable/version and public
 
 test("local-only qualification fixture restores the two observed full source functions without broadening access", () => {
   const sql = stagedQualificationHelpers();
-  const source = readFileSync(QUALIFIER_SOURCE, "utf8");
-  for (const name of [
-    "public.refresh_edition_qualifications",
-    "public.refresh_show_qualifiers",
+  for (const [name, signature, path] of [
+    ["private.studio2_participation_subject_key", "(uuid,uuid)", PARTICIPATION_KEY_SOURCE],
+    ["public.refresh_edition_qualifications", "(uuid)", QUALIFIER_SOURCE],
+    ["public.refresh_show_qualifiers", "(uuid)", QUALIFIER_SOURCE],
   ]) {
-    assert.equal(extractDefinition(sql, name), extractDefinition(source, name));
-    assert.ok(sql.includes("Hosted qualification helper fingerprint or authorization drift: " + name + "(uuid)"));
+    assert.equal(
+      extractDefinition(sql, name),
+      extractDefinition(readFileSync(path, "utf8"), name),
+    );
+    assert.ok(sql.includes("Hosted qualification helper fingerprint or authorization drift: " + name + signature));
   }
   assert.match(sql, /not has_function_privilege\('anon'/);
   assert.match(sql, /not has_function_privilege\('authenticated'/);
   assert.match(sql, /has_function_privilege\('service_role'/);
+
   assert.match(sql, /begin;[\s\S]*commit;\s*$/);
   assert.doesNotMatch(stagePublicSnapshot(), /create or replace function public\.refresh_edition_qualifications/);
 });

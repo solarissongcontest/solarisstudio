@@ -18,6 +18,8 @@ export const HELPER_SOURCE =
 // disposable hosted-observed PG fixture. They are not part of the recovery DDL.
 export const QUALIFIER_SOURCE =
   "supabase/migrations/20260822212800_result_rank_is_qualification_source.sql";
+export const PARTICIPATION_KEY_SOURCE =
+  "supabase/migrations/20261003015000_organisation_os_v5_participation_status_operations.sql";
 export const QUALIFIER_EVIDENCE =
   "docs/v3/recovery-candidates/evidence/s02-hosted-727-routine-fingerprints-2026-11-09.json";
 export const CAPTURE_SOURCE =
@@ -131,44 +133,65 @@ export function stagedQualificationHelpers(root = process.cwd()) {
   )
     throw Error("Unreviewed hosted qualification fixture observation");
   const expected = [
-    ["public.refresh_edition_qualifications", "public.refresh_edition_qualifications(_edition_id uuid)"],
-    ["public.refresh_show_qualifiers", "public.refresh_show_qualifiers(_show_id uuid)"],
+    {
+      name: "private.studio2_participation_subject_key",
+      id: "private.studio2_participation_subject_key(p_country_id uuid, p_contest_entity_id uuid)",
+      signature: "private.studio2_participation_subject_key(uuid,uuid)",
+      source: PARTICIPATION_KEY_SOURCE,
+      securityDefiner: false,
+      serviceRole: false,
+    },
+    {
+      name: "public.refresh_edition_qualifications",
+      id: "public.refresh_edition_qualifications(_edition_id uuid)",
+      signature: "public.refresh_edition_qualifications(uuid)",
+      source: QUALIFIER_SOURCE,
+      securityDefiner: true,
+      serviceRole: true,
+    },
+    {
+      name: "public.refresh_show_qualifiers",
+      id: "public.refresh_show_qualifiers(_show_id uuid)",
+      signature: "public.refresh_show_qualifiers(uuid)",
+      source: QUALIFIER_SOURCE,
+      securityDefiner: true,
+      serviceRole: true,
+    },
   ];
-  const source = read(QUALIFIER_SOURCE);
   let sql = "begin;\n";
-  for (const [name, id] of expected) {
+  for (const { name, id, signature, source, securityDefiner, serviceRole } of expected) {
     const matches = evidence.functions.filter((r) => r.id === id);
     if (
       matches.length !== 1 ||
       matches[0].language !== "plpgsql" ||
-      matches[0].securityDefiner !== true ||
+      matches[0].securityDefiner !== securityDefiner ||
       matches[0].exec.anon !== false ||
       matches[0].exec.authenticated !== false ||
-      matches[0].exec.service_role !== true ||
+      matches[0].exec.service_role !== serviceRole ||
       !/^[0-9a-f]{64}$/.test(matches[0].sha256)
     )
-      throw Error("Missing or unreviewed hosted qualification helper: " + id);
-    const signature = name + "(uuid)";
+      throw Error("Missing or unreviewed hosted qualification dependency: " + id);
     sql += `do $guard$ begin
   if to_regprocedure('${signature}') is not null then
     raise exception 'Local qualifier fixture refuses existing ${signature}';
   end if;
 end $guard$;
 `;
-    sql += extractDefinition(source, name) + "\n";
+    sql += extractDefinition(read(source), name) + "\n";
     sql += `revoke all on function ${signature} from public,anon,authenticated,service_role;
-grant execute on function ${signature} to service_role;
-do $verify$ begin
+`;
+    if (serviceRole) sql += `grant execute on function ${signature} to service_role;\n`;
+    sql += `do $verify$ begin
   if not exists (
     select 1 from pg_proc p
     where p.oid=to_regprocedure('${signature}')
       and pg_get_userbyid(p.proowner)='postgres'
-      and p.prosecdef
+      and p.prosecdef=${securityDefiner}
       and p.prolang=(select oid from pg_language where lanname='plpgsql')
       and encode(sha256(convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex')='${matches[0].sha256}'
       and not has_function_privilege('anon','${signature}','EXECUTE')
       and not has_function_privilege('authenticated','${signature}','EXECUTE')
-      and has_function_privilege('service_role','${signature}','EXECUTE')
+      and has_function_privilege('service_role','${signature}','EXECUTE')=${serviceRole}
   ) then raise exception 'Hosted qualification helper fingerprint or authorization drift: ${signature}';
   end if;
 end $verify$;
