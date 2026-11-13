@@ -31,7 +31,7 @@ function ResolvingPrimarySurface({ surface }: { surface: V3PrimarySurface }) {
         <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
           {home
             ? "Follow the current contest, explore delegations and editions, and open published Solaris results and show information."
-            : "Open the official participation area for delegation confirmations, jury voting, televoting and other available contest actions."}
+            : "Your available participation actions will appear after the app checks your account and current contest access."}
         </p>
       </header>
 
@@ -55,20 +55,11 @@ function ResolvingPrimarySurface({ surface }: { surface: V3PrimarySurface }) {
             </a>
           </>
         ) : (
-          <>
-            <a className="text-primary hover:underline" href="/confirmations">
-              Confirmations
-            </a>
-            <a className="text-primary hover:underline" href="/jury-voting">
-              Jury voting
-            </a>
-            <a className="text-primary hover:underline" href="/televoting">
-              Televoting
-            </a>
-            <a className="text-primary hover:underline" href="/">
-              Solaris Today
-            </a>
-          </>
+          // The server has not resolved this viewer's permissions or voting
+          // windows yet. Do not advertise protected workflows from bootstrap.
+          <a className="text-primary hover:underline" href="/">
+            Solaris Today
+          </a>
         )}
       </nav>
 
