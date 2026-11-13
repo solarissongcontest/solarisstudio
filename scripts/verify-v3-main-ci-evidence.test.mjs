@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { collectCompleteWorkflowRuns, evaluateMainCiEvidence, fetchGithubJson } from "./verify-v3-main-ci-evidence.mjs";
 
@@ -187,4 +188,10 @@ test("refuses malformed, duplicated, or over-budget GitHub workflow run metadata
     () => collectCompleteWorkflowRuns(null),
     /page reader/,
   );
+});
+
+test("Public/Organizer contracts run on every merged main SHA so exact-main evidence is available", () => {
+  const workflow = readFileSync(".github/workflows/v3-public-organizer-integration-contracts.yml", "utf8");
+  assert.match(workflow, /(?:^|\n)  push:\n    branches: \[main\]\n  workflow_dispatch:/);
+  assert.match(workflow, /(?:^|\n)  pull_request:\n    branches: \[main\]\n    paths:/);
 });
