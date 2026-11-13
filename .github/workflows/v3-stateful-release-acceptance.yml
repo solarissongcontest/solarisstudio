@@ -13,6 +13,18 @@ on:
       - "scripts/verify-v3-release-acceptance-evidence.py"
       - "scripts/test_verify_v3_release_acceptance_evidence.py"
       - ".github/workflows/v3-stateful-release-acceptance.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "supabase/migrations/**"
+      - ".github/scripts/v3-s14-*.sh"
+      - ".github/scripts/v3-full-contest-rehearsal.sh"
+      - "scripts/v3-s14-*.ts"
+      - "scripts/v3_s14_final_seed.py"
+      - "scripts/verify-v3-release-acceptance-evidence.py"
+      - "scripts/test_verify_v3_release_acceptance_evidence.py"
+      - ".github/workflows/v3-stateful-release-acceptance.yml"
   workflow_dispatch:
 
 permissions:
