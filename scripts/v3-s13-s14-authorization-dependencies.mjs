@@ -181,6 +181,40 @@ export function reconstructionSql() {
          or has_function_privilege('service_role',${oid},'EXECUTE')
       then raise exception 'External authorization helper EXECUTE: ${signature}'; end if;`);
   }
+  // This historical RPC name is misleading: the final immutable migration
+  // replaced legacy shadow comparison with authoritative capability telemetry.
+  // Never restore the older role-based fallback or bypass its event ledger.
+  const shadowSignature = 'public.studio2_check_capability_shadow(text,uuid,text,text)';
+  const shadowIdentity = 'public.studio2_check_capability_shadow(p_capability text, p_edition_id uuid, p_action text, p_route text)';
+  const shadowFrozen = frozen.routines.find(f => f.signature === shadowIdentity);
+  const shadowFingerprint = fingerprints.functions.find(f => f.id === shadowIdentity);
+  assert.ok(shadowFrozen && shadowFingerprint, 'Missing frozen authoritative shadow-RPC contract');
+  assert.equal(shadowFrozen.owner_name, 'postgres');
+  assert.equal(shadowFrozen.definition_md5, '128ba5a80ec97062250c7cb0f7f69bc8');
+  assert.equal(shadowFingerprint.sha256, '08b88c99394101d4c53534a37a8280607447a607a6226fd3ce4ad51b945ac9bf');
+  assert.deepEqual(shadowFingerprint.exec, { anon: false, service_role: true, authenticated: true });
+  const shadowOid = 'to_regprocedure(' + literal(shadowSignature) + ')';
+  guards.push("if " + shadowOid + " is not null then raise exception 'Authorization dependency already exists: " + shadowSignature + "'; end if;");
+  const shadowSource = 'supabase/migrations/20260918205750_permission_engine_v2_authoritative_cutover.sql';
+  const shadowDefinition = extractDefinition(read(shadowSource), 'public.studio2_check_capability_shadow');
+  assert.match(shadowDefinition, /'mode', 'authoritative'/);
+  assert.doesNotMatch(shadowDefinition, /v_legacy_allowed|public\.has_role/);
+  bodies.push(shadowDefinition,
+    'revoke all on function ' + shadowSignature + ' from public, anon, authenticated, service_role;',
+    'grant execute on function ' + shadowSignature + ' to authenticated, service_role;');
+  checks.push("if not exists (select 1 from pg_proc p where p.oid=" + shadowOid
+    + " and pg_get_userbyid(p.proowner)='postgres'"
+    + " and md5(pg_get_functiondef(p.oid))='128ba5a80ec97062250c7cb0f7f69bc8'"
+    + " and encode(pg_catalog.sha256(pg_catalog.convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex')='08b88c99394101d4c53534a37a8280607447a607a6226fd3ce4ad51b945ac9bf'"
+    + " and md5(coalesce(p.proacl::text,''))='d1707186c8e5f1577bde2338d7541aec'"
+    + " and md5(coalesce(p.proconfig::text,''))='f4d108644d77d4da19cf67dcdd506153'"
+    + " and p.prosecdef and not p.proisstrict and not p.proleakproof"
+    + " and p.provolatile='v' and p.proparallel='u' and p.prorettype='jsonb'::regtype)"
+    + " then raise exception 'Hosted authoritative shadow RPC contract mismatch'; end if;"
+    + " if has_function_privilege('anon'," + shadowOid + ",'EXECUTE')"
+    + " or not has_function_privilege('authenticated'," + shadowOid + ",'EXECUTE')"
+    + " or not has_function_privilege('service_role'," + shadowOid + ",'EXECUTE')"
+    + " then raise exception 'Hosted authoritative shadow RPC EXECUTE drift'; end if;");
   return `-- GENERATED LOCAL-ONLY fixture, NOT a migration; source bodies unchanged.
 begin;
 set local lock_timeout='5s';
@@ -231,7 +265,7 @@ export function recoveryManifest(catalog, candidateSha) {
     platformAuthHelper: {
       identity: 'auth.role()', owner: 'supabase_auth_admin', source: 'existing immutable auth.uid() hosted-observed fixture',
       exactDefinitionSha256: 'c96a9358b02089b03f3962fd85c5f83c9d64f32240481915c0efe74398dc761b',
-      provenance: 'source-derived provider role claim; PG17.11 ACL/owner/definition verified separately from five private helpers',
+      provenance: 'source-derived provider role claim; PG17.11 ACL/owner/definition verified separately from seven private helpers',
       rawHostedBodyCommitted: false
     },
     inspectionPolicy: { separatelyAuthorizedOperatorOnly: true, maxRoutineIdentitiesPerBatch: 20,
@@ -246,20 +280,26 @@ export function recoveryManifest(catalog, candidateSha) {
       transformation: 'deterministic whitespace-only normalization; original source prosrc MD5 and hosted prosrc MD5 both pinned',
       exactHostedDefinitionSha256: 'fd29f6aa3d37caf0c4052305ef6fbf45c99b6aefc9e87ec6a84fb848822d1b11',
       executableAndSecurityParity: 'PG17.11 postcondition must pass; not attested by metadata manifest alone',
-      nextNestedDependencies: ['private.studio2_permission_engine_authoritative() (reconstructed candidate)', 'public.studio2_check_capability_shadow (frozen signature, not yet reconstructed)'],
-      runtimeActorPathCertification: false
+      nextNestedDependencies: ['private.studio2_permission_engine_authoritative() (PG17.11 verified)', 'public.studio2_check_capability_shadow (separately pinned source candidate)'],
+      runtimeActorPathCertification: 'ONLY isolated authoritative and legacy-mode flag paths; not full hosted parity'
     }],
-    blockedRuntime: [{
+    authoritativeTelemetryRpc: {
       identity: 'public.studio2_check_capability_shadow(text,uuid,text,text)',
-      blockedOperation: 'pre-authoritative (legacy strict-dual) actor path and full mode-transition parity',
-      runtimeWitness: 'No hosted-executable shadow function installed in local bounded fixture; pre-cutover actor path remains fail-closed',
-      status: 'NESTED_SHADOW_AUTHORITY_UNVERIFIED',
-      sourceCandidate: 'Review immutable Permission Engine shadow migration and frozen hosted metadata before reconstructing',
-      exactHostedExecutableParity: false,
-      furtherDependencies: ['legacy user role rows and permission engine shadow projections'],
-      requiredNextStep: 'Source/hosted hash and nested role dependency analysis offline first; request additional hosted query only with separate approval if unavoidable',
-      releaseBlocks: ['pre-authoritative actor acceptance', 'full hosted S13/S14 authorization parity']
-    }],
+      sourceFile: 'supabase/migrations/20260918205750_permission_engine_v2_authoritative_cutover.sql',
+      sourceBehavior: 'Despite its legacy name, final source reports both decisions from capability and mode=authoritative',
+      expectedHostedSha256: '08b88c99394101d4c53534a37a8280607447a607a6226fd3ce4ad51b945ac9bf',
+      expectedApiExecute: { anon: false, authenticated: true, service_role: true },
+      verification: 'Exact PG17.11 definition, ACL, owner, security flags, and runtime telemetry required',
+      legacyOrganizerFallbackRestored: false,
+      productionDeploymentAuthorized: false
+    },
+    blockedRuntime: [],
+    remainingReleaseBlocks: [
+      '215 hosted-observed table names, only 159 additional full digests; original 56 scoped',
+      '727 hosted routine identities remain incompletely reconstructed, source/runtime parity incomplete',
+      'Hosted extension/role/data/history parity and observable full contest workflows unverified',
+      'Supabase Preview remote/local migration-version mismatch remains unresolved'
+    ],
     remainingInspection: relevant.filter(n => n.hostedClassification !== 'verified-equivalent').map(n => ({
       identity: n.identity, schema: n.schema, kind: n.kind,
       status: n.hostedClassification === 'verified-different' ? 'LOCALLY_DIFFERENT / BLOCKING' : 'UNKNOWN / BLOCKING',
@@ -272,7 +312,7 @@ export function recoveryManifest(catalog, candidateSha) {
       'Relation/policy/trigger fingerprints do not establish data-shape or role-membership runtime equivalence',
       'Synthetic runtime probes are not production rows or complete workflow certification'],
     runtimeCoverage: { assertionSource: 'scripts/v3-s13-s14-authorization-runtime-local.sql',
-      intendedAssertions: ['global actor capability', 'grant/role expiry and revocation', 'task recipient/resolution', 'platform-mode restrictions', 'edition-scoped authoritative actor allow/deny', 'missing pre-cutover shadow fails closed'],
+      intendedAssertions: ['global actor capability', 'grant/role expiry and revocation', 'task recipient/resolution', 'platform-mode restrictions', 'edition-scoped authoritative actor allow/deny', 'authoritative telemetry RPC rejects anon and audits actor', 'flag-off capability/strict-dual acceptance without reviving legacy role fallback'],
       executionResult: 'NOT_ATTESTED_BY_THIS_METADATA_MANIFEST',
       editionScopedAcceptance: 'PENDING_EXACT_HEAD_LOCAL_RUNTIME_LOG', fullTaskReconciliation: 'NOT_VERIFIED',
       note: 'Require the separate exact-head PostgreSQL job/assertion output; metadata alone cannot attest runtime success' },

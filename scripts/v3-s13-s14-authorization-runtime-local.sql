@@ -146,38 +146,79 @@ select pg_temp.assert_recovery(
  not private.studio2_permission_engine_authoritative(),
  'absent permission-engine rollout flag is non-authoritative');
 
--- Shadow-mode legacy actor path is not faked. Its separately observed
--- authoritative implementation and dependent legacy projections still require
--- source-vs-hosted parity review. A missing function must not mutate the row.
+-- The final hosted fingerprint describes the cutover implementation, which
+-- returns 'authoritative' even though this historical RPC retains 'shadow' in
+-- its name. Do not quietly restore the superseded legacy-role shadow body.
+select pg_temp.assert_recovery(
+ to_regprocedure('public.studio2_check_capability_shadow(text,uuid,text,text)') is not null,
+ 'source-derived authoritative telemetry RPC installed with hosted metadata');
+
+-- Use the real API-granted RPC with an authenticated role. Before a grant the
+-- RPC is a non-authorizing telemetry read/insert, not a shadow role fallback.
+set local role authenticated;
 select set_config('request.jwt.claim.role','authenticated',true);
 select set_config('request.jwt.claim.sub','a1300000-0000-4000-8000-000000000001',true);
-do $shadow_blocked$
+select pg_temp.assert_recovery(
+ (select (v->>'mode')='authoritative' and (v->>'allowed')='false'
+      and (v->>'legacyAllowed')='false' and (v->>'capabilityAllowed')='false'
+  from (select public.studio2_check_capability_shadow(
+     'edition.manage','e1300000-0000-4000-8000-000000000001',
+     'recovery.flag-off-denial',null) v) q),
+ 'final authoritative telemetry denies ungranted capability with no legacy fallback');
+select set_config('request.jwt.claim.sub','',true);
+do $shadow_missing_actor$
 declare v_message text;
 begin
   begin
-    update public.studio2_edition_runtime
-    set updated_by='a1300000-0000-4000-8000-000000000001'
-    where edition_id='e1300000-0000-4000-8000-000000000001';
-    raise exception 'Pre-authoritative strict-dual unexpectedly allowed without shadow helper';
-  exception when undefined_function then
+    perform public.studio2_check_capability_shadow('edition.manage',null,'recovery.missing-actor',null);
+    raise exception 'Telemetry RPC accepted missing JWT actor';
+  exception when insufficient_privilege then
     get stacked diagnostics v_message=message_text;
-    if position('studio2_check_capability_shadow' in v_message)=0 then raise; end if;
+    if v_message <> 'Authentication required' then raise; end if;
   end;
-  if (select updated_by from public.studio2_edition_runtime
-    where edition_id='e1300000-0000-4000-8000-000000000001') is not null
-  then raise exception 'Missing shadow helper left partial edition-runtime update'; end if;
-  raise notice 'BLOCKED: legacy pre-authoritative shadow path needs source/hosted reconciliation; failed update leaves no rows';
-end $shadow_blocked$;
+  raise notice 'PASS: authoritative telemetry RPC rejects missing JWT actor';
+end $shadow_missing_actor$;
+reset role;
+select set_config('request.jwt.claim.role','',true);
+
+select pg_temp.assert_recovery(
+ exists (select 1 from public.permission_evaluation_events
+  where user_id='a1300000-0000-4000-8000-000000000001'
+    and edition_id='e1300000-0000-4000-8000-000000000001'
+    and action='recovery.flag-off-denial'
+    and legacy_allowed=false and capability_allowed=false),
+ 'real hosted-observed permission telemetry retains authoritative denial event');
+
+-- Flag-off mode: the production-cutover RPC is still authoritative, so BOTH
+-- output booleans come from the capability resolver, not legacy user_roles.
+insert into public.studio2_capability_grants(user_id,capability,edition_id)
+values ('a1300000-0000-4000-8000-000000000001','edition.manage','e1300000-0000-4000-8000-000000000001');
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','a1300000-0000-4000-8000-000000000001',true);
+update public.studio2_edition_runtime
+  set updated_by='a1300000-0000-4000-8000-000000000001'
+  where edition_id='e1300000-0000-4000-8000-000000000001';
+select pg_temp.assert_recovery(
+  (select updated_by='a1300000-0000-4000-8000-000000000001'
+   from public.studio2_edition_runtime
+   where edition_id='e1300000-0000-4000-8000-000000000001'),
+  'flag-off strict-dual permits scoped actor only through exact cutover telemetry');
 select set_config('request.jwt.claim.role','',true);
 select set_config('request.jwt.claim.sub','',true);
+select pg_temp.assert_recovery(
+ exists (select 1 from public.permission_evaluation_events
+   where user_id='a1300000-0000-4000-8000-000000000001'
+     and edition_id='e1300000-0000-4000-8000-000000000001'
+     and action='edition.runtime.update'
+     and legacy_allowed and capability_allowed),
+ 'flag-off strict-dual path saves real positive capability telemetry event');
 
 -- Owner-only local fixture setup, not a production rollout change.
 insert into public.studio2_feature_flags (key,enabled,admins_only,user_ids,edition_ids)
 values ('permission_engine_v2',true,false,'{}'::uuid[],'{}'::uuid[]);
 select pg_temp.assert_recovery(private.studio2_permission_engine_authoritative(),
  'global rollout flag enables exact hosted authoritative checker');
-insert into public.studio2_capability_grants(user_id,capability,edition_id)
-values ('a1300000-0000-4000-8000-000000000001','edition.manage','e1300000-0000-4000-8000-000000000001');
+-- Reuse the locally scoped grant exercised above, without duplicate writes.
 
 -- Authentication claims are synthetic, but these DO exercise the real
 -- strict-dual trigger, authoritative helper, capability grant, edition table

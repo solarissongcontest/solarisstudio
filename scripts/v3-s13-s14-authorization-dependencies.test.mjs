@@ -58,6 +58,20 @@ test('authorized strict-dual body is SOURCE-DERIVED and byte-matches frozen host
   assert.doesNotMatch(reconstructionSql(), /disable trigger|session_replication_role|drop function/i);
 });
 
+test('historical shadow RPC now uses final authoritative source with hosted ACL and telemetry', () => {
+  const source = read('supabase/migrations/20260918205750_permission_engine_v2_authoritative_cutover.sql');
+  const block = extractDefinition(source, 'public.studio2_check_capability_shadow');
+  assert.match(block, /'mode', 'authoritative'/);
+  assert.doesNotMatch(block, /v_legacy_allowed|public\.has_role/);
+  assert.match(block, /insert into public\.permission_evaluation_events/);
+  const sql = reconstructionSql();
+  assert.match(sql, /Hosted authoritative shadow RPC contract mismatch/);
+  assert.match(sql, /08b88c99394101d4c53534a37a8280607447a607a6226fd3ce4ad51b945ac9bf/);
+  assert.match(sql, /d1707186c8e5f1577bde2338d7541aec/);
+  assert.match(sql, /grant execute on function public\.studio2_check_capability_shadow\(text,uuid,text,text\) to authenticated, service_role/);
+  assert.doesNotMatch(sql, /disable trigger|session_replication_role|drop function/i);
+});
+
 test('ambiguous or missing source never picks a default definition', () => {
   const d = dependencies[0], s = extractDefinition(read(d.source), d.name);
   assert.throws(() => extractDefinition('', d.name), /absent/);
@@ -88,9 +102,10 @@ test('manifest keeps seven verified leaves separate from unknown closure and dep
   assert.equal(m.deploymentAuthorized, false);
   assert.equal(m.runtimeCoverage.editionScopedAcceptance, 'PENDING_EXACT_HEAD_LOCAL_RUNTIME_LOG');
   assert.equal(m.runtimeCoverage.executionResult, 'NOT_ATTESTED_BY_THIS_METADATA_MANIFEST');
-  assert.equal(m.blockedRuntime.length, 1);
-  assert.equal(m.blockedRuntime[0].identity, 'public.studio2_check_capability_shadow(text,uuid,text,text)');
-  assert.equal(m.blockedRuntime[0].exactHostedExecutableParity, false);
+  assert.equal(m.blockedRuntime.length, 0);
+  assert.equal(m.authoritativeTelemetryRpc.identity, 'public.studio2_check_capability_shadow(text,uuid,text,text)');
+  assert.equal(m.authoritativeTelemetryRpc.legacyOrganizerFallbackRestored, false);
+  assert.ok(m.remainingReleaseBlocks.length >= 3);
   assert.equal(m.verifiedRuntimeBody[0].identity, 'private.studio2_require_strict_dual(text,uuid,text)');
   assert.equal(m.verifiedRuntimeBody[0].rawHostedDefinitionCommitted, false);
 });
