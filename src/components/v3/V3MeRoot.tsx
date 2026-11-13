@@ -9,6 +9,7 @@ import { useFanProfile } from "@/lib/prediction-data";
 import { CONFIRMATION_SUBMITTED_EVENT } from "@/lib/submission-receipts";
 import { buildV3MeProjection } from "@/lib/v3-me";
 import { V3AppShell } from "./V3AppShell";
+import { V3ActionCard } from "./V3Foundation";
 import { V3MeScreen } from "./V3MeScreen";
 
 export function V3MeRoot({ viewerId, editionId }: { viewerId: string; editionId: string | null }) {
@@ -31,8 +32,32 @@ export function V3MeRoot({ viewerId, editionId }: { viewerId: string; editionId:
     return () => window.removeEventListener(CONFIRMATION_SUBMITTED_EVENT, refresh);
   }, [queryClient, viewerId]);
 
-  if (!ownsIdentity || workspace.isLoading) {
+  if (workspace.isLoading) {
     return <V3AppShell editionLabel="Solaris Studio" phaseLabel="Me" activeArea="me"><p role="status" className="p-6">Opening your account…</p></V3AppShell>;
+  }
+
+  // A resolved but mismatched viewer is not a loading state. Keep private
+  // projections hidden and offer a deliberate recovery path after account
+  // switching instead of displaying a spinner that can never resolve.
+  if (!ownsIdentity) {
+    return (
+      <V3AppShell editionLabel="Solaris Studio" phaseLabel="Me" activeArea="me">
+        <main className="mx-auto w-full max-w-xl p-6" role="alert">
+          <h1 className="text-xl font-semibold">Account verification required</h1>
+          <p className="mt-3 text-sm leading-6 text-white/70">
+            The current session could not be verified for this account. No personal details are shown.
+          </p>
+          <div className="mt-5">
+            <V3ActionCard
+              title="Return to sign in"
+              description="Refresh your Solaris account session before opening Me."
+              tone="neutral"
+              to="/auth"
+            />
+          </div>
+        </main>
+      </V3AppShell>
+    );
   }
   const current = editions.data?.find((edition) => edition.id === editionId) ?? null;
   const scoped = !summary.isError && isScopedV3MeSummary(summary.data, viewerId, account?.country?.id);
