@@ -88,7 +88,9 @@ test('manifest keeps five verified leaves separate from unknown closure and depl
   assert.equal(m.deploymentAuthorized, false);
   assert.equal(m.runtimeCoverage.editionScopedAcceptance, 'PENDING_EXACT_HEAD_LOCAL_RUNTIME_LOG');
   assert.equal(m.runtimeCoverage.executionResult, 'NOT_ATTESTED_BY_THIS_METADATA_MANIFEST');
-  assert.equal(m.blockedRuntime.length, 0);
+  assert.equal(m.blockedRuntime.length, 1);
+  assert.equal(m.blockedRuntime[0].identity, 'private.studio2_permission_engine_authoritative()');
+  assert.equal(m.blockedRuntime[0].exactHostedExecutableParity, false);
   assert.equal(m.verifiedRuntimeBody[0].identity, 'private.studio2_require_strict_dual(text,uuid,text)');
   assert.equal(m.verifiedRuntimeBody[0].rawHostedDefinitionCommitted, false);
 });
