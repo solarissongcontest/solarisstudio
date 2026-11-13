@@ -28,6 +28,9 @@ export const dependencies = [
     identity: 'private.studio2_require_strict_dual(p_capability text, p_edition_id uuid, p_action text)',
     source: 'supabase/migrations/20260914174742_permission_engine_v2_core_rls_cutover.sql',
     sourceFormat: 'hosted-observed-core-cutover-20261113' },
+  { name: 'private.studio2_permission_engine_authoritative', args: '',
+    identity: 'private.studio2_permission_engine_authoritative()',
+    source: 'supabase/migrations/20260914174742_permission_engine_v2_core_rls_cutover.sql' },
 ];
 
 export function extractDefinition(source, name) {
@@ -239,20 +242,19 @@ export function recoveryManifest(catalog, candidateSha) {
       transformation: 'deterministic whitespace-only normalization; original source prosrc MD5 and hosted prosrc MD5 both pinned',
       exactHostedDefinitionSha256: 'fd29f6aa3d37caf0c4052305ef6fbf45c99b6aefc9e87ec6a84fb848822d1b11',
       executableAndSecurityParity: 'PG17.11 postcondition must pass; not attested by metadata manifest alone',
-      nextNestedDependencies: ['private.studio2_permission_engine_authoritative()', 'public.studio2_check_capability_shadow (signature unresolved)'],
+      nextNestedDependencies: ['private.studio2_permission_engine_authoritative() (reconstructed candidate)', 'public.studio2_check_capability_shadow (frozen signature, not yet reconstructed)'],
       runtimeActorPathCertification: false
     }],
     blockedRuntime: [{
-      identity: 'private.studio2_permission_engine_authoritative()',
-      blockedOperation: 'authenticated edition-runtime mutation through real strict-dual trigger',
-      runtimeWitness: 'PG17.11 actor-scoped update raises undefined_function and rolls back without partial edition-runtime mutation',
-      status: 'NESTED_AUTHORITY_MISSING_IN_DISPOSABLE_HOSTED_OBSERVED_FIXTURE',
-      sourceCandidate: 'supabase/migrations/20260914174742_permission_engine_v2_core_rls_cutover.sql',
+      identity: 'public.studio2_check_capability_shadow(text,uuid,text,text)',
+      blockedOperation: 'pre-authoritative (legacy strict-dual) actor path and full mode-transition parity',
+      runtimeWitness: 'No hosted-executable shadow function installed in local bounded fixture; pre-cutover actor path remains fail-closed',
+      status: 'NESTED_SHADOW_AUTHORITY_UNVERIFIED',
+      sourceCandidate: 'Review immutable Permission Engine shadow migration and frozen hosted metadata before reconstructing',
       exactHostedExecutableParity: false,
-      furtherDependencies: ['public.studio2_feature_flags relation (not present in bounded fixture)',
-        'public.studio2_check_capability_shadow (pre-authoritative fallback; signature unresolved)'],
-      requiredNextStep: 'Resolve immutable source versus frozen hosted hash and table/role/feature-flag prerequisites offline first. No hosted query without separate approval.',
-      releaseBlocks: ['actor-scoped strict-dual acceptance', 'hosted S13/S14 runtime-equivalence certification']
+      furtherDependencies: ['legacy user role rows and permission engine shadow projections'],
+      requiredNextStep: 'Source/hosted hash and nested role dependency analysis offline first; request additional hosted query only with separate approval if unavoidable',
+      releaseBlocks: ['pre-authoritative actor acceptance', 'full hosted S13/S14 authorization parity']
     }],
     remainingInspection: relevant.filter(n => n.hostedClassification !== 'verified-equivalent').map(n => ({
       identity: n.identity, schema: n.schema, kind: n.kind,
@@ -266,7 +268,7 @@ export function recoveryManifest(catalog, candidateSha) {
       'Relation/policy/trigger fingerprints do not establish data-shape or role-membership runtime equivalence',
       'Synthetic runtime probes are not production rows or complete workflow certification'],
     runtimeCoverage: { assertionSource: 'scripts/v3-s13-s14-authorization-runtime-local.sql',
-      intendedAssertions: ['global actor capability', 'grant/role expiry and revocation', 'task recipient/resolution', 'platform-mode restrictions'],
+      intendedAssertions: ['global actor capability', 'grant/role expiry and revocation', 'task recipient/resolution', 'platform-mode restrictions', 'edition-scoped authoritative actor allow/deny', 'missing pre-cutover shadow fails closed'],
       executionResult: 'NOT_ATTESTED_BY_THIS_METADATA_MANIFEST',
       editionScopedAcceptance: 'PENDING_EXACT_HEAD_LOCAL_RUNTIME_LOG', fullTaskReconciliation: 'NOT_VERIFIED',
       note: 'Require the separate exact-head PostgreSQL job/assertion output; metadata alone cannot attest runtime success' },
