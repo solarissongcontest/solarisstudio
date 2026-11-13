@@ -74,6 +74,31 @@ export function sourceDerivedStrictDualDefinition(item) {
   return definition.replace(sourceBody, normalized);
 }
 
+
+// auth.role() is a standard Supabase platform helper absent from the bounded
+// catalog-only PG17.11 fixture. The existing hosted-observed auth.uid() fixture
+// shares its exact documented claim resolution shape. Derive the provider
+// counterpart from that immutable source, never a permissive JWT mock.
+export function sourceDerivedAuthRoleDefinition() {
+  const uid = extractDefinition(
+    read('docs/v3/recovery-candidates/evidence/s02-hosted-s14-archive-54-table-schema-fixture.sql'),
+    'auth.uid');
+  const pgDefinition = source => source.replace(/;$/, '') + '\n';
+  assert.equal(createHash('sha256').update(pgDefinition(uid)).digest('hex'),
+    '7c1ff2ecbe653c9358b3115a2607db9573f88a2944ae4eca9e296a89cc5186a7',
+    'Frozen auth.uid source shape changed');
+  const role = uid.replace('auth.uid()', 'auth.role()')
+    .replace('RETURNS uuid', 'RETURNS text')
+    .replace('claim.sub', 'claim.role')
+    .replace("'sub'", "'role'")
+    .replace('::uuid\n', '::text\n');
+  assert.notEqual(role, uid);
+  assert.equal(createHash('sha256').update(pgDefinition(role)).digest('hex'),
+    'c96a9358b02089b03f3962fd85c5f83c9d64f32240481915c0efe74398dc761b',
+    'Source-derived auth.role differs from frozen hosted SQL');
+  return role;
+}
+
 const literal = x => "'" + String(x).replaceAll("'", "''") + "'";
 export function expectedContract(item) {
   const metadata = frozen.routines.find(f => f.signature === item.identity);
@@ -86,6 +111,36 @@ export function expectedContract(item) {
 
 export function reconstructionSql() {
   const guards = [], bodies = [], checks = [];
+  // The hosted function calls auth.role() during variable initialization,
+  // including privileged no-JWT edition seeds. Recreate the verified Supabase
+  // platform helper with its exact owner/ACL/definition and fail closed.
+  const authOid = "to_regprocedure('auth.role()')";
+  const authFrozen = frozen.routines.find(f => f.signature === 'auth.role()');
+  const authFingerprint = fingerprints.functions.find(f => f.id === 'auth.role()');
+  assert.ok(authFrozen && authFingerprint);
+  assert.equal(authFrozen.owner_name, 'supabase_auth_admin');
+  assert.deepEqual(authFingerprint.exec, { anon: true, service_role: true, authenticated: true });
+  guards.push("if " + authOid + " is not null then raise exception 'Authorization dependency already exists: auth.role()'; end if;");
+  bodies.push(sourceDerivedAuthRoleDefinition(), [
+    "do $local_dashboard_role$ begin if not exists (select 1 from pg_roles where rolname='dashboard_user') then create role dashboard_user nologin; end if; end $local_dashboard_role$;",
+    "alter function auth.role() owner to supabase_auth_admin;",
+    "set role supabase_auth_admin;",
+    "grant execute on function auth.role() to dashboard_user;",
+    "reset role;"
+  ].join('\n'));
+  checks.push("if not exists (select 1 from pg_proc p where p.oid=" + authOid
+    + " and pg_get_userbyid(p.proowner)='supabase_auth_admin'"
+    + " and md5(pg_get_functiondef(p.oid))='8a3e05459e07e0633d43c6fba2a2cdf4'"
+    + " and encode(pg_catalog.sha256(pg_catalog.convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex')='c96a9358b02089b03f3962fd85c5f83c9d64f32240481915c0efe74398dc761b'"
+    + " and md5(coalesce(p.proacl::text,''))='879a0ead5da3e8d4e349768dff681d4d'"
+    + " and md5(coalesce(p.proconfig::text,''))='d41d8cd98f00b204e9800998ecf8427e'"
+    + " and not p.prosecdef and not p.proisstrict and not p.proleakproof"
+    + " and p.provolatile='s' and p.proparallel='u' and p.prorettype='text'::regtype)"
+    + " then raise exception 'Hosted auth role helper contract mismatch'; end if;"
+    + " if not has_function_privilege('anon'," + authOid + ",'EXECUTE')"
+    + " or not has_function_privilege('authenticated'," + authOid + ",'EXECUTE')"
+    + " or not has_function_privilege('service_role'," + authOid + ",'EXECUTE')"
+    + " then raise exception 'Hosted auth role grants differ'; end if;");
   for (const item of dependencies) {
     const signature = item.name + '(' + item.args + ')';
     const expected = expectedContract(item);
@@ -166,6 +221,12 @@ export function recoveryManifest(catalog, candidateSha) {
     observedEvidenceDate: '2026-11-09 / 2026-11-10; separately approved one-signature read-only inspection 2026-11-13',
     roots: ['public.studio2_access_allowed(text,uuid,boolean)', 'private.studio2_task_recipient_eligible(uuid,uuid)'],
     reconstructed, ...graph, nodes, edges,
+    platformAuthHelper: {
+      identity: 'auth.role()', owner: 'supabase_auth_admin', source: 'existing immutable auth.uid() hosted-observed fixture',
+      exactDefinitionSha256: 'c96a9358b02089b03f3962fd85c5f83c9d64f32240481915c0efe74398dc761b',
+      provenance: 'source-derived provider role claim; PG17.11 ACL/owner/definition verified separately from five private helpers',
+      rawHostedBodyCommitted: false
+    },
     inspectionPolicy: { separatelyAuthorizedOperatorOnly: true, maxRoutineIdentitiesPerBatch: 20,
       collect: ['exact signature', 'sanitized pg_get_functiondef', 'owner', 'language/security flags', 'ACL and role membership', 'search_path', 'attached trigger/policy definitions'],
       prohibit: ['application rows', 'credentials', 'CI hosted queries', 'invented stubs'],
