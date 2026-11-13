@@ -7,6 +7,12 @@ on:
       - ".github/workflows/v3-s14-archive-forward-effects-local.yml"
       - "scripts/rehearse-v3-s14-archive-forward-effects-local.sh"
       - "scripts/v3-s14-archive-forward-effects.contract.test.mjs"
+      - "scripts/v3-s13-s14-catalog-export.mjs"
+      - "scripts/v3-s13-s14-catalog-export.test.mjs"
+      - "docs/v3/recovery-candidates/s13-s14-voting-dependency-inspection-readonly.sql"
+      - "docs/v3/recovery-candidates/evidence/s13-s14-voting-dependencies-observed-2026-11-13.json"
+      - "docs/v3/recovery-candidates/evidence/s13-s14-catalog-observed-2026-11-13.json"
+      - "docs/v3/recovery-candidates/evidence/s13-s14-observed-acls-local-2026-11-13.sql"
       - "scripts/v3-s13-s14-authorization-dependencies.mjs"
       - "scripts/v3-s13-s14-authorization-dependencies.test.mjs"
       - "scripts/v3-s13-s14-authorization-runtime-local.sql"
@@ -229,6 +235,8 @@ jobs:
           node-version: "22"
       - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
         run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
+      - name: Verify bounded catalog export and drift refusals
+        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs
       - name: Test authorization dependency reconstruction and incomplete-manifest refusal
         run: node --test scripts/v3-s13-s14-authorization-dependencies.test.mjs
       - name: Assert all-hosted catalog digests and incomplete-fixture rejection (offline only)
@@ -577,6 +585,14 @@ jobs:
           # source, only if their full hosted fingerprints match. Preserve the
           # real subject-version trigger attachments; never disable a guard.
           sql -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s13-prerequisite-local.sql
+          # Fresh authorized catalog scope: preserve actual observed ACLs,
+          # including TRUNCATE bits; these are NOT recommended production grants.
+          sql -f - < docs/v3/recovery-candidates/evidence/s13-s14-observed-acls-local-2026-11-13.sql
+          node scripts/v3-s13-s14-catalog-export.mjs --sql /tmp/s13-s14-current-catalog.sql
+          sql -f - < /tmp/s13-s14-current-catalog.sql > s13-s14-current-catalog-before.json
+          node scripts/v3-s13-s14-catalog-export.mjs --compare s13-s14-current-catalog-before.json docs/v3/recovery-candidates/evidence/s13-s14-catalog-observed-2026-11-13.json
+          sql -f - < docs/v3/recovery-candidates/s13-s14-voting-dependency-inspection-readonly.sql > s13-s14-current-downstream-before.json
+          node scripts/v3-s13-s14-catalog-export.mjs --downstream s13-s14-current-downstream-before.json
           node scripts/v3-s13-s14-authorization-dependencies.mjs --sql /tmp/s13-authorization.sql
           auth_guard_fingerprint() {
             sql -c "select md5(pg_get_functiondef(p.oid)||pg_get_userbyid(p.proowner)||coalesce(p.proacl::text,'')||coalesce(p.proconfig::text,'')) from pg_proc p where p.oid='private.studio2_touch_permission_subject_version()'::regprocedure"
@@ -693,6 +709,10 @@ jobs:
           NODE
           [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
           [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
+          sql -f - < /tmp/s13-s14-current-catalog.sql > s13-s14-current-catalog-after.json
+          node scripts/v3-s13-s14-catalog-export.mjs --recovered s13-s14-current-catalog-before.json s13-s14-current-catalog-after.json > s13-s14-current-recovery-proof.json
+          sql -f - < docs/v3/recovery-candidates/s13-s14-voting-dependency-inspection-readonly.sql > s13-s14-current-downstream-after.json
+          node scripts/v3-s13-s14-catalog-export.mjs --downstream s13-s14-current-downstream-after.json
           docker rm -f "$cid" >/dev/null
           cid=""
           echo "PASS: S13 then S14 against 215 hosted-observed PG17.11 table identities (56 scoped + 159 exact fingerprints); missing S13/duplicate fail closed."
@@ -709,6 +729,7 @@ jobs:
             s06-acl-proof.json
             s06-upstream-rpc-proof.json
             s13-s14-authorization-dependency-manifest.json
+            s13-s14-current-*.json
             s06-seven-76-proof.json
             s06-five-76-proof.json
             s06-eight-76-proof.json
