@@ -68,7 +68,7 @@ jobs:
         run: bunx vitest run src/lib/v3-production-frontier-cli.test.ts src/lib/v3-production-migration-frontier.test.ts src/lib/v3-production-operator-gates.test.ts src/lib/v3-production-migration-race.test.ts
 
       - name: Validate offline SQL Editor CSV adapter and evidence custody
-        run: bunx vitest run scripts/convert-v3-migration-csv-offline.test.mjs
+        run: node --test scripts/convert-v3-migration-csv-offline.test.mjs
 
       - name: Setup pinned CLI for synthetic networkless Preview regression
         uses: supabase/setup-cli@v1
