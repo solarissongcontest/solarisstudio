@@ -46,6 +46,6 @@ describe("V3 Me resolved identity boundary", () => {
     expect(source).not.toContain("if (!ownsIdentity || workspace.isLoading)");
     expect(source).toContain("Account verification required");
     expect(source).toContain("No personal details are shown.");
-    expect(source).toContain('to="/auth"');
+    expect(source).toContain('to="/auth?redirect=%2Fmy-solaris"');
   });
 });
