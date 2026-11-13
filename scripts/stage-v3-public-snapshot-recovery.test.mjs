@@ -6,6 +6,8 @@ import {
   OBSERVATION,
   CAPTURE_SOURCE,
   SNAPSHOT_SOURCE,
+  QUALIFIER_SOURCE,
+  stagedQualificationHelpers,
 } from "./stage-v3-public-snapshot-recovery.mjs";
 import { extractDefinition } from "./v3-s13-s14-authorization-dependencies.mjs";
 test("candidate preserves canonical capture/read model and does not install partial ranking authority", () => {
@@ -52,4 +54,21 @@ test("new observation is catalog-only and preserves immutable/version and public
     sql.indexOf("private.v3_capture_result_version()\nreturns trigger") <
       sql.indexOf("create or replace function public.v3_public_published_result_snapshot"),
   );
+});
+
+test("local-only qualification fixture restores the two observed full source functions without broadening access", () => {
+  const sql = stagedQualificationHelpers();
+  const source = readFileSync(QUALIFIER_SOURCE, "utf8");
+  for (const name of [
+    "public.refresh_edition_qualifications",
+    "public.refresh_show_qualifiers",
+  ]) {
+    assert.equal(extractDefinition(sql, name), extractDefinition(source, name));
+    assert.ok(sql.includes("Hosted qualification helper fingerprint or authorization drift: " + name + "(uuid)"));
+  }
+  assert.match(sql, /not has_function_privilege\('anon'/);
+  assert.match(sql, /not has_function_privilege\('authenticated'/);
+  assert.match(sql, /has_function_privilege\('service_role'/);
+  assert.match(sql, /begin;[\s\S]*commit;\s*$/);
+  assert.doesNotMatch(stagePublicSnapshot(), /create or replace function public\.refresh_edition_qualifications/);
 });

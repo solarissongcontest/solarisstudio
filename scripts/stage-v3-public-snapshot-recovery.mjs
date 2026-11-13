@@ -14,6 +14,12 @@ export const IDENTITY_SOURCE =
   "supabase/migrations/20260818195904_canonical_edition_participations.sql";
 export const HELPER_SOURCE =
   "supabase/migrations/20261003203000_organisation_os_v5_show_publication_lifecycle.sql";
+// Historical, source-exact qualification helpers are reconstructed ONLY in the
+// disposable hosted-observed PG fixture. They are not part of the recovery DDL.
+export const QUALIFIER_SOURCE =
+  "supabase/migrations/20260822212800_result_rank_is_qualification_source.sql";
+export const QUALIFIER_EVIDENCE =
+  "docs/v3/recovery-candidates/evidence/s02-hosted-727-routine-fingerprints-2026-11-09.json";
 export const CAPTURE_SOURCE =
   "supabase/migrations/20261104135245_v3_results_active_snapshot_and_qualification.sql";
 export const SNAPSHOT_SOURCE =
@@ -115,7 +121,66 @@ export function stagedPublicationHelpers(root = process.cwd()) {
   }
   return sql + "commit;\n";
 }
+export function stagedQualificationHelpers(root = process.cwd()) {
+  const read = (p) => readFileSync(resolve(root, p), "utf8");
+  const evidence = JSON.parse(read(QUALIFIER_EVIDENCE));
+  if (
+    evidence.serverVersionNum !== "170011" ||
+    evidence.hostedHead !== "20261101181812" ||
+    evidence.containsProductionRows !== false
+  )
+    throw Error("Unreviewed hosted qualification fixture observation");
+  const expected = [
+    ["public.refresh_edition_qualifications", "public.refresh_edition_qualifications(_edition_id uuid)"],
+    ["public.refresh_show_qualifiers", "public.refresh_show_qualifiers(_show_id uuid)"],
+  ];
+  const source = read(QUALIFIER_SOURCE);
+  let sql = "begin;\n";
+  for (const [name, id] of expected) {
+    const matches = evidence.functions.filter((r) => r.id === id);
+    if (
+      matches.length !== 1 ||
+      matches[0].language !== "plpgsql" ||
+      matches[0].securityDefiner !== true ||
+      matches[0].exec.anon !== false ||
+      matches[0].exec.authenticated !== false ||
+      matches[0].exec.service_role !== true ||
+      !/^[0-9a-f]{64}$/.test(matches[0].sha256)
+    )
+      throw Error("Missing or unreviewed hosted qualification helper: " + id);
+    const signature = name + "(uuid)";
+    sql += `do $guard$ begin
+  if to_regprocedure('${signature}') is not null then
+    raise exception 'Local qualifier fixture refuses existing ${signature}';
+  end if;
+end $guard$;
+`;
+    sql += extractDefinition(source, name) + "\n";
+    sql += `revoke all on function ${signature} from public,anon,authenticated,service_role;
+grant execute on function ${signature} to service_role;
+do $verify$ begin
+  if not exists (
+    select 1 from pg_proc p
+    where p.oid=to_regprocedure('${signature}')
+      and pg_get_userbyid(p.proowner)='postgres'
+      and p.prosecdef
+      and p.prolang=(select oid from pg_language where lanname='plpgsql')
+      and encode(sha256(convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex')='${matches[0].sha256}'
+      and not has_function_privilege('anon','${signature}','EXECUTE')
+      and not has_function_privilege('authenticated','${signature}','EXECUTE')
+      and has_function_privilege('service_role','${signature}','EXECUTE')
+  ) then raise exception 'Hosted qualification helper fingerprint or authorization drift: ${signature}';
+  end if;
+end $verify$;
+`;
+  }
+  return sql + "commit;\n";
+}
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href)
   process.stdout.write(
-    process.argv.includes("--local-helpers") ? stagedPublicationHelpers() : stagePublicSnapshot(),
+    process.argv.includes("--local-qualification-helpers")
+      ? stagedQualificationHelpers()
+      : process.argv.includes("--local-helpers")
+        ? stagedPublicationHelpers()
+        : stagePublicSnapshot(),
   );

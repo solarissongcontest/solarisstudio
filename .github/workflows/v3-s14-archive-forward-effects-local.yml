@@ -755,6 +755,10 @@ jobs:
           sql -f - < supabase/migrations/20261103004500_v3_s14_atomic_televote_calculation.sql
           sql -f - < supabase/migrations/20261113211759_v3_atomic_calculation_actor_binding.sql
           sql -f - < .github/tests/v3-atomic-calculation-actor.sql
+          # Restore two source-exact, hosted-fingerprinted qualification dependencies
+          # in the LOCAL fixture; never include them in the recovery migration.
+          node scripts/stage-v3-public-snapshot-recovery.mjs --local-qualification-helpers > /tmp/qualification-helper-fixture.sql
+          sql -f - < /tmp/qualification-helper-fixture.sql
           # Reconstruct four observed existing helpers missing from the fixture.
           node scripts/stage-v3-public-snapshot-recovery.mjs --local-helpers > /tmp/publication-helper-fixture.sql
           sql -f - < /tmp/publication-helper-fixture.sql
