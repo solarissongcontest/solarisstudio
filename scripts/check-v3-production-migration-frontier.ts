@@ -34,10 +34,37 @@ if (!remotePath || remotePath.startsWith("--")) {
 
 try {
   const historyBytes = readFileSync(resolve(remotePath), "utf8");
-  const source = JSON.parse(historyBytes) as { migrations: HostedMigration[] } | HostedMigration[];
+  const source = JSON.parse(historyBytes) as
+    | { migrations: HostedMigration[]; projectRef?: unknown }
+    | HostedMigration[];
   const hosted = Array.isArray(source) ? source : source.migrations;
   if (!Array.isArray(hosted))
     throw new Error("Hosted evidence must be a JSON array or {migrations: array}");
+  // Supabase Preview and the canonical production project are distinct.
+  // This optional provenance gate rejects accidental cross-project evidence.
+  // The operator must still independently authenticate the exported project label.
+  const expectedProjectRefProvided = args.includes("--expected-project-ref");
+  const expectedProjectRef = flagValue("--expected-project-ref");
+  const evidenceProjectRef = Array.isArray(source)
+    ? null
+    : typeof source.projectRef === "string"
+      ? source.projectRef
+      : null;
+  const validProjectRef = /^[a-z0-9]{10,64}$/;
+  const projectRefMatchesExpected =
+    expectedProjectRefProvided &&
+    expectedProjectRef !== null &&
+    validProjectRef.test(expectedProjectRef) &&
+    evidenceProjectRef === expectedProjectRef;
+  const projectRefError = !expectedProjectRefProvided
+    ? null
+    : !expectedProjectRef || !validProjectRef.test(expectedProjectRef)
+      ? "--expected-project-ref requires a valid project ref"
+      : evidenceProjectRef === null
+        ? "hosted history must include projectRef when --expected-project-ref is used"
+        : !projectRefMatchesExpected
+          ? "hosted history projectRef does not match --expected-project-ref"
+          : null;
 
   const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
   const repositoryFiles = readdirSync(resolve(root, "supabase/migrations"));
@@ -148,6 +175,7 @@ try {
   const requirementsSatisfied =
     migrationSourcesClean &&
     auditorSourcesClean &&
+    projectRefError === null &&
     identity.acceptable &&
     (!strictReconciliation || audit.historyReconciled) &&
     (!requirePreview || audit.previewHistoryCompatible);
@@ -156,6 +184,10 @@ try {
     migrationSourcesClean,
     auditorSourcesClean,
     auditorSourceSha256,
+    evidenceProjectRef,
+    expectedProjectRef,
+    projectRefMatchesExpected,
+    projectRefError,
     sourceInventorySha256,
     historyEvidenceSha256: createHash("sha256").update(historyBytes).digest("hex"),
     ...audit,
@@ -207,6 +239,7 @@ try {
     if (!auditorSourcesClean)
       console.error("AUDITOR DRIFT: executable frontier sources differ from the candidate commit");
     if (identity.error) console.error(`CANDIDATE IDENTITY: ${identity.error}`);
+    if (projectRefError) console.error(`PROJECT EVIDENCE: ${projectRefError}`);
   }
 
   if (!requirementsSatisfied) process.exit(1);
