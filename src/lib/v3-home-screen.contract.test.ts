@@ -18,6 +18,12 @@ describe("V3 Home screen attention budget", () => {
     expect(source).toContain('to="/participate"');
   });
 
+  it("shows the projected requirement class rather than treating every low-urgency action as required", () => {
+    expect(source).toContain("homeActionRequirementLabel(action.deliveryClass)");
+    expect(source).toContain("homeActionTone(primary)");
+    expect(source).not.toContain("urgencyTone(primary)");
+  });
+
   it("does not duplicate the task list or re-rank secondary actions inside Home", () => {
     expect(source).not.toContain("bootstrap.attention.secondary.map");
     expect(source).not.toContain("bootstrap.attention.secondary.slice");
