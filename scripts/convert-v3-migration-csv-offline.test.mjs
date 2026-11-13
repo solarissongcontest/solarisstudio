@@ -84,7 +84,11 @@ describe("isolated CSV-to-JSON frontier conversion", () => {
     const content = readFileSync(f.output, "utf8");
     expect(JSON.parse(content).migrations).toHaveLength(1);
     const repoOutput = "scripts/forbidden-history.json";
-    const rejected = f.run("--output", repoOutput);
+    const rejected = spawnSync(
+      "node",
+      ["scripts/convert-v3-migration-csv-offline.mjs", "--input", f.input, "--output", repoOutput],
+      { cwd: new URL("..", import.meta.url), encoding: "utf8" },
+    );
     expect(rejected.status).toBe(1);
     expect(rejected.stderr).toMatch(/Refusing to write migration evidence inside repository/);
   });
