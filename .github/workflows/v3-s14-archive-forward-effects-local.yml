@@ -8,6 +8,10 @@ on:
       - "scripts/rehearse-v3-s14-archive-forward-effects-local.sh"
       - "scripts/v3-s14-archive-forward-effects.contract.test.mjs"
       - "scripts/stage-v3-s07-televote-source-truth.mjs"
+      - "supabase/migrations/20261113211759_v3_atomic_calculation_actor_binding.sql"
+      - ".github/tests/v3-atomic-calculation-actor.sql"
+      - "scripts/v3-atomic-calculation-actor.test.mjs"
+      - "supabase/migrations/20261103004500_v3_s14_atomic_televote_calculation.sql"
       - "scripts/stage-v3-hosted-result-sync.mjs"
       - "scripts/stage-v3-hosted-result-sync.test.mjs"
       - "docs/v3/recovery-candidates/s07-televote-managed-source-guard.sql"
@@ -241,7 +245,7 @@ jobs:
       - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
         run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
       - name: Verify bounded catalog export and drift refusals
-        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs
+        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs
       - name: Test authorization dependency reconstruction and incomplete-manifest refusal
         run: node --test scripts/v3-s13-s14-authorization-dependencies.test.mjs
       - name: Assert all-hosted catalog digests and incomplete-fixture rejection (offline only)
@@ -742,6 +746,10 @@ jobs:
           grep -Fq 'S07 source truth already or partially installed' /tmp/s07-ordered-duplicate.log
           [[ "$(archive_schema_digest)" == "$ordered_after" ]] || exit 1
           echo "PASS: ordered S13 -> Archive -> canonical S07; actual ACL denial, interruption rollback and duplicate refusal"
+          # Canonical atomic source reference followed by the forward actor repair.
+          sql -f - < supabase/migrations/20261103004500_v3_s14_atomic_televote_calculation.sql
+          sql -f - < supabase/migrations/20261113211759_v3_atomic_calculation_actor_binding.sql
+          sql -f - < .github/tests/v3-atomic-calculation-actor.sql
           docker rm -f "$cid" >/dev/null
           cid=""
           echo "PASS: S13 then S14 against 215 hosted-observed PG17.11 table identities (56 scoped + 159 exact fingerprints); missing S13/duplicate fail closed."
