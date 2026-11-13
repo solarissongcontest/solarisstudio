@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { AlertTriangle, Inbox, RotateCcw, UserRound } from "lucide-react";
+import { useEffect } from "react";
 
 import { useMyCountryAccount } from "@/lib/country-account";
 import {
@@ -37,7 +38,7 @@ export function V3OfficialNoticesRouteContent({
   const access = account.data?.access;
   const country = account.data?.country;
 
-  if (account.isLoading) {
+  if (account.isPending || account.isLoading) {
     return (
       <V3AppShell editionLabel="Solaris Studio" phaseLabel="Official notices" activeArea="me">
         <V3Screen>
@@ -91,8 +92,10 @@ export function V3OfficialNoticesRouteContent({
 
   return (
     <V3OfficialNoticesBoundInbox
+      key={`${userId}:${country.id}:${editionId ?? "current"}`}
       userId={userId}
       editionId={editionId}
+      countryId={country.id}
       countryName={country.name}
     />
   );
@@ -101,14 +104,26 @@ export function V3OfficialNoticesRouteContent({
 function V3OfficialNoticesBoundInbox({
   userId,
   editionId,
+  countryId,
   countryName,
 }: {
   userId: string;
   editionId: string | null;
+  countryId: string;
   countryName: string;
 }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  // A mounted private inbox is bound to one actor, delegation and edition.
+  // On context switch/logout, do not leave a previous delegation's private
+  // response or pending fetch available for reuse by the next context.
+  useEffect(() => {
+    const queryKey = ["v3-delegation-notices", userId, countryId, editionId ?? "current"];
+    return () => {
+      void queryClient.cancelQueries({ queryKey, exact: true });
+      queryClient.removeQueries({ queryKey, exact: true });
+    };
+  }, [queryClient, userId, countryId, editionId]);
   const locationSearch = useRouterState({ select: (state) => state.location.search }) as RouteSearch;
   const selectedId =
     typeof locationSearch.notice === "string" && locationSearch.notice
@@ -117,7 +132,7 @@ function V3OfficialNoticesBoundInbox({
   const filter = parseV3OfficialNoticeFilter(locationSearch.state);
 
   const feature = useQuery({
-    queryKey: ["studio2-feature", "official_communications", editionId ?? "current"],
+    queryKey: ["studio2-feature", "official_communications", userId, countryId, editionId ?? "current"],
     queryFn: () => isStudio2FeatureEnabled("official_communications", editionId),
     staleTime: 30_000,
     refetchOnWindowFocus: true,
@@ -125,7 +140,7 @@ function V3OfficialNoticesBoundInbox({
   });
 
   const inbox = useQuery({
-    queryKey: ["v3-delegation-notices", userId, editionId ?? "current"],
+    queryKey: ["v3-delegation-notices", userId, countryId, editionId ?? "current"],
     enabled: feature.data === true,
     queryFn: () => loadStudio2RecipientNoticeInbox(editionId),
     staleTime: 20_000,
@@ -136,7 +151,7 @@ function V3OfficialNoticesBoundInbox({
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({
-        queryKey: ["v3-delegation-notices", userId, editionId ?? "current"],
+        queryKey: ["v3-delegation-notices", userId, countryId, editionId ?? "current"],
       }),
       queryClient.invalidateQueries({
         queryKey: ["v3-notifications-inbox", userId, editionId ?? "current"],

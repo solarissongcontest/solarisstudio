@@ -21,7 +21,6 @@ describe("MySolaris dashboard", () => {
     }
     for (const section of [
       "Home",
-      "Tasks",
       "Entry",
       "Voting",
       "Notices",
@@ -35,6 +34,7 @@ describe("MySolaris dashboard", () => {
     ]) {
       expect(navigation).toContain(`label: "${section}"`);
     }
+    expect(navigation).not.toContain('label: "Tasks"');
     expect(workspaceNav).toContain('aria-label="MySolaris sections"');
     expect(workspaceNav).toContain('aria-label="MySolaris mobile sections"');
   });

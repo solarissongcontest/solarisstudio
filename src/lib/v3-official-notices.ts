@@ -49,6 +49,20 @@ export function v3OfficialNoticeAcknowledgementState(
   return "required";
 }
 
+/**
+ * Archiving is a presentation choice, not a receipt of acknowledgement.
+ * Explicitly count outstanding archived requirements without confusing an
+ * already-acknowledged archived notice with work that is still due.
+ */
+export function v3OfficialNoticeOutstandingAcknowledgement(
+  notice: Pick<OperationalNotice, "acknowledgementRequired">,
+  inboxState: NoticeInboxState,
+  receipt?: Pick<NoticeReceipt, "acknowledgedAt"> | null,
+): boolean {
+  const state = v3OfficialNoticeAcknowledgementState(notice, inboxState, receipt);
+  return state === "required" || state === "archived-unacknowledged";
+}
+
 export function v3OfficialNoticeResolved(state: NoticeInboxState): boolean {
   return state === "acknowledged" || state === "archived" || state === "read";
 }

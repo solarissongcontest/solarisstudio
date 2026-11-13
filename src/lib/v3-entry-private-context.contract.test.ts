@@ -1,0 +1,63 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const source = readFileSync(
+  resolve(process.cwd(), "src/components/mysolaris/modules/MySolarisEntryModule.tsx"),
+  "utf8",
+);
+
+describe("V3 MySolaris Entry private context", () => {
+  it("never substitutes the viewing Organizer's own country when an inspection target is invalid", () => {
+    expect(source).toContain("const organizerInspection = Boolean(access?.isOrganizer && targetCountryId)");
+    expect(source).toContain("const country = organizerInspection ? organizerCountry : ownCountry");
+    expect(source).not.toContain("const country = organizerCountry ?? ownCountry");
+    expect(source).toContain("!organizerInspection");
+  });
+
+  it("keys participant Entry and Confirmation reads to the authenticated actor", () => {
+    expect(source).toContain('queryKey: ["studio2-readiness-editions", actorId, country?.id ?? "none"]');
+    expect(source).toContain('queryKey: ["studio2-entry-readiness-flags", actorId]');
+    expect(source).toContain("enabled: Boolean(actorId)");
+    expect(source).toMatch(/"studio2-entry-readiness",\s+actorId,\s+country\?\.id/);
+    expect(source).toContain('queryKey: ["country-confirmation-access", "mysolaris-entry", actorId, ownCountry?.id ?? "none"]');
+    expect(source).toContain("Boolean(actorId && ownCountry && !organizerInspection)");
+    expect(source).toContain("Boolean(actorId && country?.id && editionId)");
+  });
+
+  it("cancels and evicts private Entry cache on actor or delegation changes", () => {
+    expect(source).toContain("queryClient.cancelQueries({ queryKey })");
+    expect(source).toContain("queryClient.removeQueries({ queryKey })");
+    expect(source).toContain("}, [queryClient, actorId, country?.id, ownCountry?.id])");
+  });
+
+  it("refuses stale edit-token handoffs after the viewer context changes", () => {
+    expect(source).toContain("advanceConfirmationEditScope(editScopeRef.current, editScopeInput)");
+    expect(source).toContain("canUseConfirmationEditToken(scope, editScopeRef.current)");
+    expect(source).toContain("return { token: result.token, scope };");
+    expect(source).toContain("scope: { ...editScopeRef.current }");
+    expect(source).toContain("Your account or submission changed while opening the editor");
+    expect(source).toContain("editScopeInput.authorized");
+  });
+
+  it("binds sensitive entry projections to the currently resolved session", () => {
+    expect(source).toContain("const session = useFanSession()");
+    expect(source).toContain("account.data?.access.userId === session.data.id");
+    expect(source).toContain("const ownCountry = access ? account.data?.country : null");
+    expect(source).toContain("Confirmation edit permissions could not be verified.");
+    expect(source).toContain("confirmationAccessQuery.refetch()");
+  });
+
+  it("distinguishes failed access from an empty entry", () => {
+    expect(source).toContain("session.isError ||");
+    expect(source).toContain("account.isError ||");
+    expect(source).toContain("featureQuery.isError ||");
+    expect(source).toContain("allEditions.isError ||");
+    expect(source).toContain("session.isPending ||");
+    expect(source).toContain("account.isPending ||");
+    expect(source).toContain("Entry access could not be verified");
+    expect(source).toContain("Retry access check");
+    expect(source).toContain("void session.refetch()");
+    expect(source).toContain("void account.refetch()");
+  });
+});
