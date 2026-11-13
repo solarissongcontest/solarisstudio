@@ -687,7 +687,12 @@
       "launchRole": "launch-critical",
       "forwardCandidate": "s07-televote-managed-source-guard.sql (source-only donor; integration pending)",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Private source-managed televote projection table; published-round/aggregation synchronizers; guarded public.televote_votes projection",
+      "securitySignificance": "vote-authority",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261017001010",
@@ -704,7 +709,12 @@
       "launchRole": "launch-critical",
       "forwardCandidate": "s07-televote-managed-source-guard.sql (source-only donor; integration pending)",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Harden the private projection guard so direct or forged write-context bypasses fail",
+      "securitySignificance": "vote-authority",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261017001020",
@@ -721,7 +731,12 @@
       "launchRole": "launch-critical",
       "forwardCandidate": "s07-televote-managed-source-guard.sql (source-only donor; integration pending)",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Projection snapshot and bulk-replay-safe result synchronization, avoiding double result calculation",
+      "securitySignificance": "result-integrity",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261017123000",
@@ -738,7 +753,12 @@
       "launchRole": "launch-critical",
       "forwardCandidate": "none verified as full forward-only hosted adoption candidate",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Notice acknowledgement preservation and event-emitting triggers with operation receipts",
+      "securitySignificance": "event-auth",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261018024500",
@@ -755,7 +775,12 @@
       "launchRole": "launch-critical",
       "forwardCandidate": "none verified as full forward-only hosted adoption candidate",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Versioned confirmation entry review command with deterministic conflict semantics",
+      "securitySignificance": "entry-authorization",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261018031000",
@@ -772,7 +797,12 @@
       "launchRole": "launch-critical",
       "forwardCandidate": "none verified as full forward-only hosted adoption candidate",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Normalize deterministic conflict SQLSTATE/PT409 behavior across a bounded function set",
+      "securitySignificance": "api-conflict",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261018053000",
@@ -789,7 +819,12 @@
       "launchRole": "launch-critical",
       "forwardCandidate": "none verified as full forward-only hosted adoption candidate",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Service-scoped confirmation requirement verifier RPC",
+      "securitySignificance": "confirmation-authorization",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261018081500",
@@ -806,7 +841,12 @@
       "launchRole": "launch-critical",
       "forwardCandidate": "none verified as full forward-only hosted adoption candidate",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Entry lifecycle/submission version triggers and canonical domain outbox emissions",
+      "securitySignificance": "event-auth",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261018111500",
@@ -823,7 +863,12 @@
       "launchRole": "launch-critical",
       "forwardCandidate": "none verified as full forward-only hosted adoption candidate",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Service-role privileges on confirmation synchronization tables",
+      "securitySignificance": "service-role-acl",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261018122500",
@@ -840,7 +885,12 @@
       "launchRole": "launch-critical",
       "forwardCandidate": "none verified as full forward-only hosted adoption candidate",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Voting declaration invalidation RPC overloads scoped to expected edition",
+      "securitySignificance": "vote-authorization",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261019000500",
@@ -857,7 +907,12 @@
       "launchRole": "launch-critical",
       "forwardCandidate": "none verified as full forward-only hosted adoption candidate",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Service-role EXECUTE for entry publication event emission",
+      "securitySignificance": "service-role-acl",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261019013000",
@@ -874,7 +929,12 @@
       "launchRole": "prerequisite",
       "forwardCandidate": "none verified as full forward-only hosted adoption candidate",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Guarded public Live feature-flag key and initial disabled configuration",
+      "securitySignificance": "rollout-authority",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261019110000",
@@ -891,7 +951,12 @@
       "launchRole": "prerequisite",
       "forwardCandidate": "forward-only-s9-observability-local.sql",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "S9 receipt/event indexes and privileged admin observability snapshot",
+      "securitySignificance": "service-role-acl",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261019111000",
@@ -908,7 +973,12 @@
       "launchRole": "launch-critical",
       "forwardCandidate": "forward-only-s13-foundation.sql",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Five private migration/backfill registries and seven public registration/compatibility RPCs",
+      "securitySignificance": "migration-auth",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261019112000",
@@ -926,7 +996,12 @@
       "launchRole": "prerequisite",
       "forwardCandidate": "forward-only-s10-sli-local.sql",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "S10 privileged admin SLI snapshot over observability data",
+      "securitySignificance": "service-role-acl",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261019112100",
@@ -943,7 +1018,12 @@
       "launchRole": "prerequisite",
       "forwardCandidate": "forward-only-s14-archive-integrated-local.sql",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Archive edition transition, task resolution, notification reconciliation and runtime transition guard",
+      "securitySignificance": "archive-authority",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261019112200",
@@ -961,7 +1041,12 @@
       "launchRole": "launch-critical",
       "forwardCandidate": "none verified as full forward-only hosted adoption candidate",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Private final-results-readiness predicate for a versioned Archive transition",
+      "securitySignificance": "result-integrity",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261019112300",
@@ -978,7 +1063,12 @@
       "launchRole": "launch-critical",
       "forwardCandidate": "forward-only-s14-archive-integrated-local.sql",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Archive transition command HTTP409/version conflict behavior",
+      "securitySignificance": "api-conflict",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261019112400",
@@ -995,7 +1085,12 @@
       "launchRole": "prerequisite",
       "forwardCandidate": "forward-only-s14-archive-integrated-local.sql",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Archive task-type registry, archived task resolution and resurrection-prevention trigger",
+      "securitySignificance": "archive-authority",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261019112500",
@@ -1012,7 +1107,12 @@
       "launchRole": "prerequisite",
       "forwardCandidate": "forward-only-s14-archive-integrated-local.sql",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Resolved task notification delivery-state projection and trigger",
+      "securitySignificance": "notification-integrity",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261019112900",
@@ -1030,7 +1130,12 @@
       "launchRole": "launch-critical",
       "forwardCandidate": "forward-only-s13-foundation.sql",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Intermediate S13 registration context and RPC authorization contract",
+      "securitySignificance": "migration-auth",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261019113000",
@@ -1047,7 +1152,12 @@
       "launchRole": "prerequisite",
       "forwardCandidate": "none verified as full forward-only hosted adoption candidate",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "S6 expected notification deliveries, stale suppression, enqueue, verify and reconciliation RPCs",
+      "securitySignificance": "notification-integrity",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261019113100",
@@ -1064,7 +1174,12 @@
       "launchRole": "prerequisite",
       "forwardCandidate": "none verified as full forward-only hosted adoption candidate",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "S6 reactivation of only still-expected unresolved delivery records",
+      "securitySignificance": "notification-integrity",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261019113200",
@@ -1081,7 +1196,12 @@
       "launchRole": "prerequisite",
       "forwardCandidate": "none verified as full forward-only hosted adoption candidate",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "S6 notification failure/drift verifier RPC, not silent success",
+      "securitySignificance": "notification-integrity",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261019113300",
@@ -1099,7 +1219,12 @@
       "launchRole": "launch-critical",
       "forwardCandidate": "forward-only-s13-foundation.sql",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Strict S13 migration registration restore with canonical semantic keys",
+      "securitySignificance": "migration-auth",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261019202636",
@@ -1117,7 +1242,12 @@
       "launchRole": "conditional",
       "forwardCandidate": "forward-only-s14-archive-integrated-local.sql",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Reconcile terminal resolved-task notification and delivery states without changing outcomes",
+      "securitySignificance": "notification-integrity",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261020130000",
@@ -1134,7 +1264,12 @@
       "launchRole": "prerequisite",
       "forwardCandidate": "forward-only-s14-archive-integrated-local.sql",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Archive insertion/deletion constraints and legacy-edition/workflow-write guards",
+      "securitySignificance": "archive-authority",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261020140000",
@@ -1151,7 +1286,12 @@
       "launchRole": "prerequisite",
       "forwardCandidate": "forward-only-s14-archive-integrated-local.sql",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Archive runtime UPDATE guard trigger",
+      "securitySignificance": "archive-authority",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261021110000",
@@ -1168,7 +1308,12 @@
       "launchRole": "prerequisite",
       "forwardCandidate": "forward-only-s14-archive-integrated-local.sql",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Unforgeable private one-shot Archive transition gate plus transition RPC and task guard enforcement",
+      "securitySignificance": "archive-authority",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261021161000",
@@ -1185,7 +1330,12 @@
       "launchRole": "prerequisite",
       "forwardCandidate": "forward-only-s14-archive-integrated-local.sql",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Private aggregate task reconciler EXECUTE restricted to service role",
+      "securitySignificance": "service-role-acl",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261021163000",
@@ -1203,7 +1353,12 @@
       "launchRole": "prerequisite",
       "forwardCandidate": "forward-only-s14-archive-integrated-local.sql",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Failed delivery evidence retention, archived Televote write guards and task reconciliation gate",
+      "securitySignificance": "archive-authority",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261021202000",
@@ -1221,7 +1376,12 @@
       "launchRole": "prerequisite",
       "forwardCandidate": "forward-only-s14-archive-integrated-local.sql",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Convergent aggregate task reconciliation under private Archive gate",
+      "securitySignificance": "archive-authority",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261022151607",
@@ -1238,7 +1398,12 @@
       "launchRole": "launch-critical",
       "forwardCandidate": "none verified as full forward-only hosted adoption candidate",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Statement-level participant running-order trigger and admin reorder RPC for result sync",
+      "securitySignificance": "result-integrity",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261023205400",
@@ -1256,7 +1421,12 @@
       "launchRole": "launch-critical",
       "forwardCandidate": "none verified as full forward-only hosted adoption candidate",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "S13 semantic adoption record of running-order batch sync",
+      "securitySignificance": "migration-auth",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261024170500",
@@ -1274,7 +1444,12 @@
       "launchRole": "launch-critical",
       "forwardCandidate": "none verified as full forward-only hosted adoption candidate",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Published version-bound public Results snapshot RPC",
+      "securitySignificance": "publication-authority",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261024200300",
@@ -1292,7 +1467,12 @@
       "launchRole": "launch-critical",
       "forwardCandidate": "none verified as full forward-only hosted adoption candidate",
       "currentHostedEffectVerified": false,
-      "requiresUpdatedCatalog": true
+      "requiresUpdatedCatalog": true,
+      "sourceSqlEffectSummary": "Bounded confirmation requirement reconciler RPC without direct canonical rewrites",
+      "securitySignificance": "confirmation-authorization",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     }
   ],
   "newerSourceMigrations": [
@@ -1306,7 +1486,13 @@
       "launchRole": "deferred",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "World country controller identity/control terms table, RLS and bind RPC",
+      "securitySignificance": "world-privacy",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261102171500",
@@ -1318,7 +1504,13 @@
       "launchRole": "deferred",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "World institutions, organs, memberships, offices, term and capability tables with RLS",
+      "securitySignificance": "world-privacy",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261102171600",
@@ -1330,7 +1522,13 @@
       "launchRole": "deferred",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "World access helper, scoped policies and organization projection/assignment RPCs",
+      "securitySignificance": "world-privacy",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261102171700",
@@ -1342,7 +1540,13 @@
       "launchRole": "deferred",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Canonical office-term constraints and status/type alignment",
+      "securitySignificance": "world-integrity",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261102171800",
@@ -1354,7 +1558,13 @@
       "launchRole": "deferred",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "World effective access and organization projection helper replacement",
+      "securitySignificance": "world-privacy",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261102171950",
@@ -1366,7 +1576,13 @@
       "launchRole": "conditional",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Current controller identity read boundary and RPC grants",
+      "securitySignificance": "world-privacy",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261102205000",
@@ -1378,7 +1594,13 @@
       "launchRole": "prerequisite",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Replace private studio2_request_is_service_role identity helper with compatible JWT claim path",
+      "securitySignificance": "migration-auth",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261103004500",
@@ -1390,7 +1612,13 @@
       "launchRole": "launch-critical",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Atomic official Televote round result and influence commit, with organizer RLS",
+      "securitySignificance": "vote-authority",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261103004600",
@@ -1402,7 +1630,13 @@
       "launchRole": "launch-critical",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Internal canonical show result recalculation RPC",
+      "securitySignificance": "result-integrity",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261103004700",
@@ -1414,7 +1648,13 @@
       "launchRole": "launch-critical",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Results reconciliation, precondition checks and result operation authority",
+      "securitySignificance": "result-integrity",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261103004800",
@@ -1426,7 +1666,13 @@
       "launchRole": "conditional",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Televoting round-binding runtime table privileges",
+      "securitySignificance": "service-role-acl",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261103004900",
@@ -1438,7 +1684,13 @@
       "launchRole": "launch-critical",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Canonical show result sync and countback parity",
+      "securitySignificance": "result-integrity",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261103090202",
@@ -1450,7 +1702,13 @@
       "launchRole": "launch-critical",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Versioned result input revision table/approval guard and Jury-review invalidation trigger",
+      "securitySignificance": "result-integrity",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261103194500",
@@ -1462,7 +1720,13 @@
       "launchRole": "launch-critical",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Service-role SELECT/UPDATE ACL for Televote sync tables",
+      "securitySignificance": "service-role-acl",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261103210000",
@@ -1474,7 +1738,13 @@
       "launchRole": "launch-critical",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Privileged auditable Televote synchronization event RPC",
+      "securitySignificance": "vote-authority",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261103220000",
@@ -1486,7 +1756,13 @@
       "launchRole": "launch-critical",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Published Televote round reconciliation RPC and binding synchronization",
+      "securitySignificance": "vote-authority",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261103220001",
@@ -1498,7 +1774,13 @@
       "launchRole": "launch-critical",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Reset invalid/null qualification ranks in edition qualification refresh",
+      "securitySignificance": "result-integrity",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261104110000",
@@ -1510,7 +1792,13 @@
       "launchRole": "deferred",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Public literal search RPC and read EXECUTE grants",
+      "securitySignificance": "public-read",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261104115831",
@@ -1522,7 +1810,13 @@
       "launchRole": "deferred",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "World office term identity privacy helper and scoped read RLS",
+      "securitySignificance": "world-privacy",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261104120600",
@@ -1534,7 +1828,13 @@
       "launchRole": "deferred",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Controller login identity privacy RLS policy",
+      "securitySignificance": "world-privacy",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261104120800",
@@ -1546,7 +1846,13 @@
       "launchRole": "deferred",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Nonpublic organ/office privacy policies and world projection filtering",
+      "securitySignificance": "world-privacy",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261104120900",
@@ -1558,7 +1864,13 @@
       "launchRole": "deferred",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Cross-organization office/organ integrity constraints and uniqueness",
+      "securitySignificance": "world-integrity",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261104121000",
@@ -1570,7 +1882,13 @@
       "launchRole": "deferred",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "World public rollout flag constraint and disabled seed",
+      "securitySignificance": "rollout-authority",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261104121500",
@@ -1582,7 +1900,13 @@
       "launchRole": "deferred",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Effective office term world access and projection authority",
+      "securitySignificance": "world-privacy",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261104121600",
@@ -1594,7 +1918,13 @@
       "launchRole": "deferred",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Effective World representative membership assignment authorization",
+      "securitySignificance": "world-privacy",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261104132500",
@@ -1606,7 +1936,13 @@
       "launchRole": "launch-critical",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Televote sync audit, expected ranks, result sync and reconciliation authority",
+      "securitySignificance": "result-integrity",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261104135245",
@@ -1618,7 +1954,13 @@
       "launchRole": "launch-critical",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Versioned active Results snapshot, qualification refresh and published visibility",
+      "securitySignificance": "publication-authority",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261104165500",
@@ -1630,7 +1972,13 @@
       "launchRole": "conditional",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Exact rational legislative World tally helper",
+      "securitySignificance": "world-integrity",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261104185330",
@@ -1642,7 +1990,13 @@
       "launchRole": "launch-critical",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Idempotent show-publication control initialization helper",
+      "securitySignificance": "publication-authority",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261105045922",
@@ -1654,7 +2008,13 @@
       "launchRole": "conditional",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Pending National Final winner worker write guard trigger",
+      "securitySignificance": "result-integrity",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261105115452",
@@ -1666,7 +2026,13 @@
       "launchRole": "deferred",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Edition metadata command with revision and audit events",
+      "securitySignificance": "entry-authorization",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261105140500",
@@ -1678,7 +2044,13 @@
       "launchRole": "launch-critical",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Televote influence-results RLS and service-role privilege boundary",
+      "securitySignificance": "service-role-acl",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     },
     {
       "version": "20261108004000",
@@ -1690,7 +2062,13 @@
       "launchRole": "conditional",
       "sourceSqlNotAppliedByHistory": true,
       "actualHostedSqlEffect": "unknown",
-      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push"
+      "releaseGate": "replay on hosted-shaped disposable PG 17.11 after 36-gap effect reconciliation; never batch db push",
+      "sourceSqlEffectSummary": "Signed combined Televote projection replacing private projection routine and signed totals constraint",
+      "securitySignificance": "vote-authority",
+      "sourceSqlInspectedAtMainSha": "8ece96834445e953b1ad060acc8f1043461885f2",
+      "currentHostedEffectVerified": false,
+      "replayHistoricalFilenameInProduction": false,
+      "requiresHostedShapedUpgradeAndDependencyTest": true
     }
   ],
   "notes": [
@@ -1698,6 +2076,7 @@
     "CSV alone cannot authenticate production project identity or establish SQL-effect parity.",
     "All named effect classifications are dated 7-9 November, selected scope only.",
     "Both raw Preview-style identity comparison and historical reconciliation fail against the supplied rows; no Preview project query was performed.",
-    "Hosted-only direct-write guards on admin_notifications and notification_deliveries must be preserved; not parity defects."
+    "Hosted-only direct-write guards on admin_notifications and notification_deliveries must be preserved; not parity defects.",
+    "Source effect descriptions summarize SQL statements inspected at exact main SHA; no SQL was executed against production or Preview."
   ]
 }
