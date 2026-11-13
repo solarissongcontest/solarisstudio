@@ -35,7 +35,7 @@ describe("V3 Participate screen contract", () => {
 
   it("keeps every completed record accessible in the expanded activity list", () => {
     expect(participate).toContain("participate.completed.map((action) => (");
-    expect(participate).not.toMatch(/participate\\.completed\\.slice\\(/);
+    expect(participate).not.toMatch(/participate\.completed\.slice\(/);
     expect(participate).toContain("<details>");
     expect(participate).toContain("View completed activity");
   });
