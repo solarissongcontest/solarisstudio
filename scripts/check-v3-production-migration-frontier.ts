@@ -145,6 +145,8 @@ try {
       console.error(
         `PREVIEW REMOTE VERSION MISSING LOCALLY: ${f.version} ${f.name ?? "unnamed"}${f.version <= audit.bootstrapCutover ? " (immutable bootstrap representation; not permission to manufacture history)" : " (post-cutover unknown)"}`,
       );
+    for (const f of audit.previewLocalVersionsMissingRemotely)
+      console.error(`PREVIEW LOCAL VERSION MISSING REMOTELY BEFORE HOSTED HEAD: ${f.filename}`);
     console.log(`Newer repository candidates: ${audit.pendingAfterHostedHead.length}`);
     for (const f of audit.holesBeforeHostedHead) console.error(`UNAPPLIED HOLE: ${f.filename}`);
     for (const f of audit.unknownHostedPostCutover)
