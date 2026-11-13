@@ -24,6 +24,17 @@ export const dependencies = [
   { name: 'private.studio2_normalize_legacy_edition_status', args: 'text',
     identity: 'private.studio2_normalize_legacy_edition_status(p_status text)',
     source: 'supabase/migrations/20260910220000_studio2_persistence_schema.sql' },
+  { name: 'private.studio2_require_strict_dual', args: 'text,uuid,text',
+    identity: 'private.studio2_require_strict_dual(p_capability text, p_edition_id uuid, p_action text)',
+    source: 'supabase/migrations/20260914174742_permission_engine_v2_core_rls_cutover.sql',
+    sourceFormat: 'hosted-observed-core-cutover-20261113' },
+  { name: 'private.studio2_permission_engine_authoritative', args: '',
+    identity: 'private.studio2_permission_engine_authoritative()',
+    source: 'supabase/migrations/20260914174742_permission_engine_v2_core_rls_cutover.sql' },
+  { name: 'private.studio2_guard_feature_flag_strict_dual', args: '',
+    identity: 'private.studio2_guard_feature_flag_strict_dual()',
+    source: 'supabase/migrations/20260914140500_permission_engine_v2_strict_dual_guards.sql',
+    placeholder: true },
 ];
 
 export function extractDefinition(source, name) {
@@ -39,6 +50,62 @@ export function extractDefinition(source, name) {
   return tail.slice(0, end + tag[1].length + 1);
 }
 
+
+// The separately authorized 2026-11-13 one-signature catalog inspection proved
+// the hosted PL/pgSQL body differs from the later immutable source ONLY by
+// formatting. Derive the exact bytes from source. No hosted raw body is stored,
+// copied into the repository or acquired by CI.
+export function sourceDerivedStrictDualDefinition(item) {
+  assert.equal(item.sourceFormat, 'hosted-observed-core-cutover-20261113');
+  const definition = extractDefinition(read(item.source), item.name);
+  const quoted = /\bas\s+(\$[a-z0-9_]*\$)([\s\S]*?)\1;/i.exec(definition);
+  assert.ok(quoted, 'Strict-dual source body missing');
+  const sourceBody = quoted[2];
+  assert.equal(createHash('md5').update(sourceBody).digest('hex'),
+    '96000d67d401cd29345528a5adb4d5a9', 'Strict-dual immutable source changed');
+
+  const normalized = sourceBody
+    .replace(/\n[ \t]*\n/g, '\n')
+    .replace(/(if private\.studio2_request_is_service_role\(\) then)\s+return;\s+end if;/g,
+      '$1 return; end if;')
+    .replace(/private\.studio2_user_has_capability\(\s*v_actor,\s*p_capability,\s*p_edition_id\s*\)/g,
+      'private.studio2_user_has_capability(v_actor, p_capability, p_edition_id)')
+    .replace(/public\.studio2_check_capability_shadow\(\s*p_capability,\s*p_edition_id,\s*p_action,\s*null\s*\)/g,
+      'public.studio2_check_capability_shadow(p_capability, p_edition_id, p_action, null)')
+    .replace(/(raise exception 'Strict dual authorization requires Organizer role and capability: %',)\s*p_capability\s*using errcode/g,
+      '$1 p_capability using errcode');
+  assert.equal(createHash('md5').update(normalized).digest('hex'),
+    '294d562ce20e3de09ea864b3359b97d6',
+    'Strict-dual source-derived body differs from authorized hosted prosrc');
+  assert.ok(!/--/.test(normalized), 'Strict-dual hosted body must not inherit source comments');
+  return definition.replace(sourceBody, normalized);
+}
+
+
+// auth.role() is a standard Supabase platform helper absent from the bounded
+// catalog-only PG17.11 fixture. The existing hosted-observed auth.uid() fixture
+// shares its exact documented claim resolution shape. Derive the provider
+// counterpart from that immutable source, never a permissive JWT mock.
+export function sourceDerivedAuthRoleDefinition() {
+  const uid = extractDefinition(
+    read('docs/v3/recovery-candidates/evidence/s02-hosted-s14-archive-54-table-schema-fixture.sql'),
+    'auth.uid');
+  const pgDefinition = source => source.replace(/;$/, '') + '\n';
+  assert.equal(createHash('sha256').update(pgDefinition(uid)).digest('hex'),
+    '7c1ff2ecbe653c9358b3115a2607db9573f88a2944ae4eca9e296a89cc5186a7',
+    'Frozen auth.uid source shape changed');
+  const role = uid.replace('auth.uid()', 'auth.role()')
+    .replace('RETURNS uuid', 'RETURNS text')
+    .replace('claim.sub', 'claim.role')
+    .replace("'sub'", "'role'")
+    .replace('::uuid\n', '::text\n');
+  assert.notEqual(role, uid);
+  assert.equal(createHash('sha256').update(pgDefinition(role)).digest('hex'),
+    'c96a9358b02089b03f3962fd85c5f83c9d64f32240481915c0efe74398dc761b',
+    'Source-derived auth.role differs from frozen hosted SQL');
+  return role;
+}
+
 const literal = x => "'" + String(x).replaceAll("'", "''") + "'";
 export function expectedContract(item) {
   const metadata = frozen.routines.find(f => f.signature === item.identity);
@@ -51,6 +118,36 @@ export function expectedContract(item) {
 
 export function reconstructionSql() {
   const guards = [], bodies = [], checks = [];
+  // The hosted function calls auth.role() during variable initialization,
+  // including privileged no-JWT edition seeds. Recreate the verified Supabase
+  // platform helper with its exact owner/ACL/definition and fail closed.
+  const authOid = "to_regprocedure('auth.role()')";
+  const authFrozen = frozen.routines.find(f => f.signature === 'auth.role()');
+  const authFingerprint = fingerprints.functions.find(f => f.id === 'auth.role()');
+  assert.ok(authFrozen && authFingerprint);
+  assert.equal(authFrozen.owner_name, 'supabase_auth_admin');
+  assert.deepEqual(authFingerprint.exec, { anon: true, service_role: true, authenticated: true });
+  guards.push("if " + authOid + " is not null then raise exception 'Authorization dependency already exists: auth.role()'; end if;");
+  bodies.push(sourceDerivedAuthRoleDefinition(), [
+    "do $local_dashboard_role$ begin if not exists (select 1 from pg_roles where rolname='dashboard_user') then create role dashboard_user nologin; end if; end $local_dashboard_role$;",
+    "alter function auth.role() owner to supabase_auth_admin;",
+    "set role supabase_auth_admin;",
+    "grant execute on function auth.role() to dashboard_user;",
+    "reset role;"
+  ].join('\n'));
+  checks.push("if not exists (select 1 from pg_proc p where p.oid=" + authOid
+    + " and pg_get_userbyid(p.proowner)='supabase_auth_admin'"
+    + " and md5(pg_get_functiondef(p.oid))='8a3e05459e07e0633d43c6fba2a2cdf4'"
+    + " and encode(pg_catalog.sha256(pg_catalog.convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex')='c96a9358b02089b03f3962fd85c5f83c9d64f32240481915c0efe74398dc761b'"
+    + " and md5(coalesce(p.proacl::text,''))='879a0ead5da3e8d4e349768dff681d4d'"
+    + " and md5(coalesce(p.proconfig::text,''))='d41d8cd98f00b204e9800998ecf8427e'"
+    + " and not p.prosecdef and not p.proisstrict and not p.proleakproof"
+    + " and p.provolatile='s' and p.proparallel='u' and p.prorettype='text'::regtype)"
+    + " then raise exception 'Hosted auth role helper contract mismatch'; end if;"
+    + " if not has_function_privilege('anon'," + authOid + ",'EXECUTE')"
+    + " or not has_function_privilege('authenticated'," + authOid + ",'EXECUTE')"
+    + " or not has_function_privilege('service_role'," + authOid + ",'EXECUTE')"
+    + " then raise exception 'Hosted auth role grants differ'; end if;");
   for (const item of dependencies) {
     const signature = item.name + '(' + item.args + ')';
     const expected = expectedContract(item);
@@ -67,7 +164,7 @@ export function reconstructionSql() {
     } else {
       guards.push(`if ${oid} is not null then raise exception 'Authorization dependency already exists: ${signature}'; end if;`);
     }
-    bodies.push(extractDefinition(read(item.source), item.name),
+    bodies.push(item.sourceFormat ? sourceDerivedStrictDualDefinition(item) : extractDefinition(read(item.source), item.name),
       `revoke all on function ${signature} from public, anon, authenticated, service_role;`);
     checks.push(`if not exists (select 1 from pg_proc p where p.oid=${oid}
       and pg_get_userbyid(p.proowner)=${literal(expected.owner_name)}
@@ -128,21 +225,41 @@ export function recoveryManifest(catalog, candidateSha) {
     databaseImage: catalog.databaseImage, networkIsolation: catalog.networkIsolation,
     extensionEvidence: { local: catalog.extensions ?? null, hosted: null, status: 'UNKNOWN / BLOCKING',
       requirement: 'Separately approved pg_extension name/version/schema/owner metadata; image identity alone is not hosted extension parity' },
-    observedEvidenceDate: '2026-11-09 / 2026-11-10; not a fresh hosted inspection',
+    observedEvidenceDate: '2026-11-09 / 2026-11-10; separately approved one-signature read-only inspection 2026-11-13',
     roots: ['public.studio2_access_allowed(text,uuid,boolean)', 'private.studio2_task_recipient_eligible(uuid,uuid)'],
     reconstructed, ...graph, nodes, edges,
+    platformAuthHelper: {
+      identity: 'auth.role()', owner: 'supabase_auth_admin', source: 'existing immutable auth.uid() hosted-observed fixture',
+      exactDefinitionSha256: 'c96a9358b02089b03f3962fd85c5f83c9d64f32240481915c0efe74398dc761b',
+      provenance: 'source-derived provider role claim; PG17.11 ACL/owner/definition verified separately from five private helpers',
+      rawHostedBodyCommitted: false
+    },
     inspectionPolicy: { separatelyAuthorizedOperatorOnly: true, maxRoutineIdentitiesPerBatch: 20,
       collect: ['exact signature', 'sanitized pg_get_functiondef', 'owner', 'language/security flags', 'ACL and role membership', 'search_path', 'attached trigger/policy definitions'],
       prohibit: ['application rows', 'credentials', 'CI hosted queries', 'invented stubs'],
       dynamicAndUnqualifiedCalls: 'Resolve from reviewed definitions and bounded runtime cases before certifying closure' },
-    blockedRuntime: [{ identity: 'private.studio2_require_strict_dual(text,uuid,text)',
-      evidence: 'docs/v3/recovery-candidates/s02-source-defined-beta-contract.md',
-      inspectionSpecification: 'docs/v3/recovery-candidates/s13-s14-authorization-runtime-inspection.md',
-      requiredRuntimeWitness: 'Real edition seed trigger raises undefined_function; failed statement leaves no edition/runtime row',
-      hostedAttributesObserved: true, hostedExecutableDefinitionAvailable: false, locallyReconstructed: false,
-      sourceParity: 'The approved observation differs from both immutable source variants; do not substitute or stub',
-      blocks: ['edition-scoped positive/negative runtime acceptance', 'complete hosted-equivalent recovery certification'],
-      requiredInspection: 'Separately authorized, one-signature pg_catalog SELECT of sanitized pg_get_functiondef, owner, ACL, settings, version and effective role grants. No function invocation or application rows.' }],
+    verifiedRuntimeBody: [{
+      identity: 'private.studio2_require_strict_dual(text,uuid,text)',
+      hostedExecutableDefinitionAvailableToAuthorizedOperator: true,
+      rawHostedDefinitionCommitted: false,
+      sourceVariant: '20260914174742_permission_engine_v2_core_rls_cutover.sql',
+      transformation: 'deterministic whitespace-only normalization; original source prosrc MD5 and hosted prosrc MD5 both pinned',
+      exactHostedDefinitionSha256: 'fd29f6aa3d37caf0c4052305ef6fbf45c99b6aefc9e87ec6a84fb848822d1b11',
+      executableAndSecurityParity: 'PG17.11 postcondition must pass; not attested by metadata manifest alone',
+      nextNestedDependencies: ['private.studio2_permission_engine_authoritative() (reconstructed candidate)', 'public.studio2_check_capability_shadow (frozen signature, not yet reconstructed)'],
+      runtimeActorPathCertification: false
+    }],
+    blockedRuntime: [{
+      identity: 'public.studio2_check_capability_shadow(text,uuid,text,text)',
+      blockedOperation: 'pre-authoritative (legacy strict-dual) actor path and full mode-transition parity',
+      runtimeWitness: 'No hosted-executable shadow function installed in local bounded fixture; pre-cutover actor path remains fail-closed',
+      status: 'NESTED_SHADOW_AUTHORITY_UNVERIFIED',
+      sourceCandidate: 'Review immutable Permission Engine shadow migration and frozen hosted metadata before reconstructing',
+      exactHostedExecutableParity: false,
+      furtherDependencies: ['legacy user role rows and permission engine shadow projections'],
+      requiredNextStep: 'Source/hosted hash and nested role dependency analysis offline first; request additional hosted query only with separate approval if unavoidable',
+      releaseBlocks: ['pre-authoritative actor acceptance', 'full hosted S13/S14 authorization parity']
+    }],
     remainingInspection: relevant.filter(n => n.hostedClassification !== 'verified-equivalent').map(n => ({
       identity: n.identity, schema: n.schema, kind: n.kind,
       status: n.hostedClassification === 'verified-different' ? 'LOCALLY_DIFFERENT / BLOCKING' : 'UNKNOWN / BLOCKING',
@@ -155,9 +272,9 @@ export function recoveryManifest(catalog, candidateSha) {
       'Relation/policy/trigger fingerprints do not establish data-shape or role-membership runtime equivalence',
       'Synthetic runtime probes are not production rows or complete workflow certification'],
     runtimeCoverage: { assertionSource: 'scripts/v3-s13-s14-authorization-runtime-local.sql',
-      intendedAssertions: ['global actor capability', 'grant/role expiry and revocation', 'task recipient/resolution', 'platform-mode restrictions'],
+      intendedAssertions: ['global actor capability', 'grant/role expiry and revocation', 'task recipient/resolution', 'platform-mode restrictions', 'edition-scoped authoritative actor allow/deny', 'missing pre-cutover shadow fails closed'],
       executionResult: 'NOT_ATTESTED_BY_THIS_METADATA_MANIFEST',
-      editionScopedAcceptance: 'BLOCKED', fullTaskReconciliation: 'NOT_VERIFIED',
+      editionScopedAcceptance: 'PENDING_EXACT_HEAD_LOCAL_RUNTIME_LOG', fullTaskReconciliation: 'NOT_VERIFIED',
       note: 'Require the separate exact-head PostgreSQL job/assertion output; metadata alone cannot attest runtime success' },
     fullHostedEquivalenceCertified: false, productionRecoveryEligible: false, deploymentAuthorized: false };
 }
