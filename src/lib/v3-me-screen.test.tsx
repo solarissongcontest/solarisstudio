@@ -4,8 +4,11 @@ import { describe, expect, it } from "vitest";
 import { V3MeScreen } from "@/components/v3/V3MeScreen";
 import { buildV3MeProjection } from "./v3-me";
 
-async function renderMe(canEnterOrganizer = false, count: number | null = null) {
-  const projection = buildV3MeProjection({ identity: { userId: "own-user", displayName: "Own identity", delegationName: "Own delegation", delegationFlagUrl: null, displayRole: "Head of Delegation" }, currentMembership: null, history: [], historyAvailable: false, activity: { verifiedReceiptCount: count, awaitingAuthoritativeReceiptCount: null, href: "/my-solaris/activity" }, following: { followedCountryCount: null, followedContentCount: null, href: "/my-solaris/activity" }, preferenceLinks: [{ key: "settings", label: "Preferences", href: "/settings" }], accountLinks: [], canEnterOrganizer, organizerHref: "/admin" });
+async function renderMe(canEnterOrganizer = false, count: number | null = null, historyCount = 0) {
+  const projection = buildV3MeProjection({ identity: { userId: "own-user", displayName: "Own identity", delegationName: "Own delegation", delegationFlagUrl: null, displayRole: "Head of Delegation" }, currentMembership: null, history: Array.from({ length: historyCount }, (_, i) => ({
+    editionId: `edition-${i + 1}`, editionName: `SSC ${i + 1}`,
+    roleLabel: "Historical delegation", completed: true, href: "/my-solaris/history",
+  })), historyAvailable: historyCount > 0, activity: { verifiedReceiptCount: count, awaitingAuthoritativeReceiptCount: null, href: "/my-solaris/activity" }, following: { followedCountryCount: null, followedContentCount: null, href: "/my-solaris/activity" }, preferenceLinks: [{ key: "settings", label: "Preferences", href: "/settings" }], accountLinks: [], canEnterOrganizer, organizerHref: "/admin" });
   const root = createRootRoute({ component: Outlet });
   const route = createRoute({ getParentRoute: () => root, path: "/my-solaris", component: () => <V3MeScreen projection={projection} /> });
   const router = createRouter({ routeTree: root.addChildren([route]), history: createMemoryHistory({ initialEntries: ["/my-solaris"] }) });
@@ -22,6 +25,18 @@ describe("production Me composition", () => {
     expect(html).toContain("—");
     expect(html).not.toContain("Switch to Organizer");
     expect(html).not.toContain("No past editions yet");
+  });
+  it("exposes all recorded editions through the canonical history route without unbounding Me", async () => {
+    const html = await renderMe(false, null, 6);
+    expect(html).toContain("View all 6 editions");
+    expect(html).toContain("Browse your complete delegation history");
+    expect(html).toContain("/my-solaris/history");
+    expect(html).toContain("SSC 4");
+    expect(html).not.toContain("SSC 5");
+    expect(html).not.toContain("SSC 6");
+
+    const bounded = await renderMe(false, null, 4);
+    expect(bounded).not.toContain("View all 4 editions");
   });
   it("shows Organizer only after capability-resolved access is passed", async () => {
     expect(await renderMe(true)).toContain("Switch to Organizer");
