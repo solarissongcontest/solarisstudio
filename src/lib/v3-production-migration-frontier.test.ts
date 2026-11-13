@@ -181,6 +181,22 @@ describe("raw Preview identities versus SQL effects", () => {
     expect(report.previewHistoryCompatible).toBe(false);
   });
 
+  it("rejects pre-cutover local-only versions for Preview while preserving bootstrap reconciliation", () => {
+    const earlierBootstrap = "20261014010000_legacy_bootstrap.sql";
+    const report = auditV3ProductionMigrationFrontier(
+      [earlierBootstrap, canonical],
+      [migration(canonical)],
+    );
+    expect(report.historicalRepoOnlyCount).toBe(1);
+    expect(report.holesBeforeHostedHead).toEqual([]);
+    expect(report.remoteVersionsMissingLocally).toEqual([]);
+    expect(report.previewLocalVersionsMissingRemotely.map((item) => item.version)).toEqual([
+      "20261014010000",
+    ]);
+    expect(report.historyReconciled).toBe(true);
+    expect(report.previewHistoryCompatible).toBe(false);
+  });
+
   it("accepts identical valid history but makes no SQL-effect assertion", () => {
     const report = auditV3ProductionMigrationFrontier(
       [historicRepo, canonical],
