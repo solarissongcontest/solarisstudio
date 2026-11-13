@@ -66,6 +66,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--evidence", required=True, type=Path)
     parser.add_argument("--sha", required=True)
+    parser.add_argument("--browser-summary", type=Path, action="append", default=[])
     args = parser.parse_args()
     if not args.evidence.is_file():
         parser.error(f"required evidence missing: {args.evidence}")
@@ -74,6 +75,18 @@ def main():
     except (ValueError, OSError) as exc:
         parser.error(f"invalid evidence: {exc}")
     errors = validate(evidence, args.sha)
+    for path in args.browser_summary:
+        if not path.is_file():
+            errors.append(f"required browser summary missing: {path}")
+            continue
+        try:
+            summary = json.loads(path.read_text(encoding="utf-8"))
+            stats = summary["stats"]
+            if (stats.get("expected", 0) < 1 or stats.get("skipped", 0) != 0
+                    or stats.get("unexpected", 0) != 0 or stats.get("flaky", 0) != 0):
+                errors.append(f"browser summary contains no passing tests or skipped/failed/flaky tests: {path}")
+        except (ValueError, OSError, KeyError, TypeError, AttributeError) as exc:
+            errors.append(f"invalid browser summary {path}: {exc}")
     if errors:
         for error in errors:
             print(f"FAIL: {error}", file=sys.stderr)
