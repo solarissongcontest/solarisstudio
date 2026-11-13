@@ -83,7 +83,10 @@ jobs:
         run: |
           set -euo pipefail
           eval "$(supabase status -o env)"
-          test "$API_URL" = "$LOCAL_SUPABASE_URL"
+          if [[ "$API_URL" != "$LOCAL_SUPABASE_URL" ]]; then
+            echo "::error::Refusing audit server with hosted Supabase URL: $API_URL"
+            exit 1
+          fi
           test -n "$DB_URL"
           # The local CLI stack is not necessarily PostgreSQL 17.11. Record its
           # actual version; the separately owned ordered-recovery CI pins 17.11.
