@@ -16,7 +16,7 @@ describe("Archived Televote results", () => {
     const workspace = source("components/televoting/VotingResultsWorkspace.tsx");
     expect(workspace).toContain("useAdminContext");
     expect(workspace).toContain("getMergedTelevotingRoundsPage");
-    expect(workspace).toContain('["merged-televoting-results-edition", editionId]');
+    expect(workspace).toContain('["merged-televoting-results-edition", actorId, editionId]');
     expect(workspace).not.toContain('import { getMergedTelevotingRounds }');
     expect(workspace).not.toContain("useServerFn(getMergedTelevotingRounds);");
   });

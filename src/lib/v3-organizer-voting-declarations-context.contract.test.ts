@@ -35,8 +35,8 @@ describe("V3 Organizer voting declaration edition scope", () => {
 
   it("remounts pending operations when Organizer edition context changes", () => {
     expect(route).toContain("useAdminContext()");
-    expect(route).toContain('<IntegrityDeclarationsPage key={editionId} editionId={editionId} />');
-    expect(route).toContain('["merged-integrity-declarations", editionId]');
+    expect(route).toContain('<IntegrityDeclarationsPage key={`${actorId}:${editionId}`} editionId={editionId} />');
+    expect(route).toContain('["merged-integrity-declarations", actorId, editionId]');
     expect(route).toContain("data: { editionId, limit: 500, signedOnly: false }");
     expect(route).toContain("row.canonical_edition_id !== editionId");
     expect(route).toContain("pending.editionId !== editionId");
@@ -49,4 +49,27 @@ describe("V3 Organizer voting declaration edition scope", () => {
     expect(route).toContain("idempotencyKey");
     expect(route).toContain("applyVotingDeclarationInvalidation");
   });
+  it("does not redirect on transient identity failures and permits the Organizer read to retry", () => {
+    expect(route).toContain("error: adminError, refetch: retryAdmin");
+    expect(route).toContain("!admin && !adminError");
+    expect(route).toContain("const unavailableError = adminError ?? error");
+    expect(route).toContain("disabled={adminLoading || adminFetching || isFetching || (!admin && !adminError)}");
+    expect(route).toContain("onClick={() => void (adminError ? retryAdmin() : refetch())}");
+    expect(route).toContain("!adminFetching && !adminError");
+  });
+
+  it("never reuses another account's private declarations or allows unverified invalidation", () => {
+    expect(route).toContain('const actorId = useAuthenticatedUser().id;');
+    expect(route).toContain('["merged-televoting-admin", actorId]');
+    expect(route).toContain('["merged-integrity-declarations", actorId, editionId]');
+    expect(route).toContain("enabled: Boolean(actorId && admin)");
+    expect(route.match(/gcTime: 0/g)?.length).toBe(2);
+    expect(route.match(/refetchInterval: false/g)?.length).toBe(2);
+    expect(route).toContain("if (!readVerified) {");
+    expect(route).toContain("Retry declarations");
+    expect(route).toContain("if (!readVerified) setPendingInvalidation(null)");
+    expect(route).toContain("pending.actorId !== actorId");
+    expect(route).toContain("actorId,");
+  });
+
 });

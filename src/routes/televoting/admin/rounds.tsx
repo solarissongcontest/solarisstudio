@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { VotingRoundsView } from "@/components/televoting/VotingRoundsView";
 
 export const Route = createFileRoute("/televoting/admin/rounds")({
@@ -15,9 +16,10 @@ export const Route = createFileRoute("/televoting/admin/rounds")({
 
 function VotingRoundsRoute() {
   const { editionId } = useAdminContext();
+  const actorId = useAuthenticatedUser().id;
 
   // VotingRoundsView owns draft/rename/delete/status confirmation state. Remount
-  // it when Organizer scope changes so commands prepared for edition A cannot
-  // survive into edition B after the global edition selector changes.
-  return <VotingRoundsView key={editionId ?? "unscoped"} />;
+  // it when Organizer scope or authenticated actor changes so commands prepared
+  // for another edition or account cannot survive in a new user's workspace.
+  return <VotingRoundsView key={`${actorId}:${editionId ?? "unscoped"}`} />;
 }
