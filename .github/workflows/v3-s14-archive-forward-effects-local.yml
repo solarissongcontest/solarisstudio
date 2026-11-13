@@ -9,6 +9,7 @@ on:
       - "scripts/v3-s14-archive-forward-effects.contract.test.mjs"
       - "scripts/stage-v3-s07-televote-source-truth.mjs"
       - "scripts/stage-v3-hosted-result-sync.mjs"
+      - "scripts/stage-v3-hosted-result-sync.test.mjs"
       - "docs/v3/recovery-candidates/s07-televote-managed-source-guard.sql"
       - ".github/tests/v3-ordered-televote-recovery.sql"
       - "scripts/v3-s13-s14-catalog-export.mjs"
@@ -240,7 +241,7 @@ jobs:
       - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
         run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
       - name: Verify bounded catalog export and drift refusals
-        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs
+        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs
       - name: Test authorization dependency reconstruction and incomplete-manifest refusal
         run: node --test scripts/v3-s13-s14-authorization-dependencies.test.mjs
       - name: Assert all-hosted catalog digests and incomplete-fixture rejection (offline only)

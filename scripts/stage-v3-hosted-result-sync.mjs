@@ -1,10 +1,16 @@
 // LOCAL fixture only: restore the existing hosted Results dependency, never a new writer.
-import {readFileSync} from 'node:fs';
-import {extractDefinition} from './v3-s13-s14-authorization-dependencies.mjs';
+import { readFileSync } from "node:fs";
+import { extractDefinition } from "./v3-s13-s14-authorization-dependencies.mjs";
 export function stagedHostedSync() {
- const source=readFileSync(new URL('../supabase/migrations/20261003195500_organisation_os_v5_jury_result_truth.sql',import.meta.url),'utf8');
- const definition=extractDefinition(source,'public.sync_show_results_from_votes');
- return `begin;
+  const source = readFileSync(
+    new URL(
+      "../supabase/migrations/20261003195500_organisation_os_v5_jury_result_truth.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const definition = extractDefinition(source, "public.sync_show_results_from_votes");
+  return `begin;
 do $pre$ begin
 if to_regprocedure('public.sync_show_results_from_votes(uuid)') is not null then
  raise exception 'Hosted Results fixture function already exists; refuse overwrite'; end if;
@@ -23,4 +29,5 @@ if not exists(select 1 from pg_proc p where p.oid=to_regprocedure('public.sync_s
 end $post$;
 commit;\n`;
 }
-if(process.argv[1]?.endsWith('stage-v3-hosted-result-sync.mjs')) process.stdout.write(stagedHostedSync());
+if (process.argv[1]?.endsWith("stage-v3-hosted-result-sync.mjs"))
+  process.stdout.write(stagedHostedSync());
