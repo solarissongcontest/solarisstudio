@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
 
   const { data: descriptorData, error: descriptorError } = await authClient.rpc(descriptorRpc, descriptorArgs);
   if (descriptorError) {
-    return json({ error: descriptorError.message || "Evidence lifecycle action is not available." }, 403);
+    return json({ error: "Evidence lifecycle action is not available." }, 403);
   }
 
   const descriptor = descriptorData as DeletionDescriptor | null;
@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
   const { data: finalized, error: finalizeError } = await authClient.rpc(finalizeRpc, finalizeArgs);
   if (finalizeError) {
     console.error("[integrity-evidence-lifecycle] Storage changed but finalization failed", finalizeError);
-    return json({ error: finalizeError.message || "Evidence storage was changed but lifecycle finalization failed." }, 409);
+    return json({ error: "Evidence storage was changed but lifecycle finalization failed." }, 409);
   }
 
   return json({ ok: true, result: finalized });
