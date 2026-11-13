@@ -10,6 +10,7 @@ on:
       - "scripts/stage-v3-s07-televote-source-truth.mjs"
       - "supabase/migrations/20261113211759_v3_atomic_calculation_actor_binding.sql"
       - ".github/tests/v3-atomic-calculation-actor.sql"
+      - "scripts/v3-atomic-calculation-actor.test.mjs"
       - "supabase/migrations/20261103004500_v3_s14_atomic_televote_calculation.sql"
       - "scripts/stage-v3-hosted-result-sync.mjs"
       - "scripts/stage-v3-hosted-result-sync.test.mjs"
@@ -244,7 +245,7 @@ jobs:
       - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
         run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
       - name: Verify bounded catalog export and drift refusals
-        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs
+        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs
       - name: Test authorization dependency reconstruction and incomplete-manifest refusal
         run: node --test scripts/v3-s13-s14-authorization-dependencies.test.mjs
       - name: Assert all-hosted catalog digests and incomplete-fixture rejection (offline only)
