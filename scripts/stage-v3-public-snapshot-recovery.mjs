@@ -18,6 +18,8 @@ export const HELPER_SOURCE =
 // disposable hosted-observed PG fixture. They are not part of the recovery DDL.
 export const QUALIFIER_SOURCE =
   "supabase/migrations/20260822212800_result_rank_is_qualification_source.sql";
+export const MATERIALIZE_SOURCE =
+  "supabase/migrations/20261003195500_organisation_os_v5_jury_result_truth.sql";
 export const RELEASE_READINESS_SOURCE =
   "supabase/migrations/20261015164100_v3_s3_publication_invariants.sql";
 export const PARTICIPATION_KEY_SOURCE =
@@ -195,6 +197,15 @@ export function stagedQualificationHelpers(root = process.cwd()) {
       securityDefiner: true,
       serviceRole: false,
       language: "sql",
+    },
+    {
+      name: "public.materialize_show_results_if_missing",
+      id: "public.materialize_show_results_if_missing(_show_id uuid)",
+      signature: "public.materialize_show_results_if_missing(uuid)",
+      source: MATERIALIZE_SOURCE,
+      securityDefiner: true,
+      serviceRole: true,
+      language: "plpgsql",
     },
     {
       language: "plpgsql",
