@@ -762,6 +762,12 @@ jobs:
           # Reconstruct four observed existing helpers missing from the fixture.
           node scripts/stage-v3-public-snapshot-recovery.mjs --local-helpers > /tmp/publication-helper-fixture.sql
           sql -f - < /tmp/publication-helper-fixture.sql
+          # The S02 56-table fixture replayed only CRUD grants, while the later
+          # read-only hosted result-catalog observation established additional
+          # service_role rights on these TWO tables. Reconstruct the observed
+          # ACL only in this networkless disposable PG17.11 fixture.
+          sql -c "GRANT TRUNCATE, REFERENCES, TRIGGER ON TABLE public.studio2_result_operations TO service_role; GRANT TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON TABLE public.studio2_show_publication_controls TO service_role;"
+          [[ "$(sql -c "select ((select relacl::text from pg_class where oid='public.studio2_result_operations'::regclass)='{postgres=arwdDxtm/postgres,service_role=arwdDxt/postgres}' and (select relacl::text from pg_class where oid='public.studio2_show_publication_controls'::regclass)='{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}')::text")" == true ]] || { echo "::error::Hosted-observed snapshot table ACL reconstruction drift"; exit 1; }
           # Preserve the old immutable evidence before installing active capture.
           sql -v snapshot_before=true -f - < .github/tests/v3-public-snapshot-recovery.sql
           node scripts/stage-v3-public-snapshot-recovery.mjs > /tmp/public-snapshot-recovery.sql

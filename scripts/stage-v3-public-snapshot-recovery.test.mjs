@@ -80,3 +80,14 @@ test("local-only qualification fixture restores the two observed full source fun
   assert.match(sql, /begin;[\s\S]*commit;\s*$/);
   assert.doesNotMatch(stagePublicSnapshot(), /create or replace function public\.refresh_edition_qualifications/);
 });
+
+test("local snapshot CI reconstructs the two stronger hosted-observed table ACLs without changing recovery DDL", () => {
+  const workflow = readFileSync(".github/workflows/v3-s14-archive-forward-effects-local.yml", "utf8");
+  assert.match(workflow, /GRANT TRUNCATE, REFERENCES, TRIGGER ON TABLE public\.studio2_result_operations TO service_role/);
+  assert.match(workflow, /GRANT TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON TABLE public\.studio2_show_publication_controls TO service_role/);
+  assert.ok(
+    workflow.indexOf("Hosted-observed snapshot table ACL reconstruction drift") <
+      workflow.indexOf("snapshot_before=true -f - < .github/tests/v3-public-snapshot-recovery.sql"),
+  );
+  assert.doesNotMatch(stagePublicSnapshot(), /GRANT TRUNCATE|GRANT MAINTAIN/i);
+});
