@@ -20,6 +20,10 @@ function fixture() {
     copyFileSync(new URL(`../../${path}`, import.meta.url), join(root, path));
   const migration = "supabase/migrations/20261101181812_tip.sql";
   writeFileSync(join(root, migration), "select 1;\n");
+  writeFileSync(
+    join(root, "supabase/migrations/20261014010000_local_bootstrap.sql"),
+    "select 1;\n",
+  );
   const history = [
     { version: "20261001202836", name: "synthetic_bootstrap" },
     { version: "20261101181812", name: "tip" },
@@ -77,6 +81,22 @@ describe("offline frontier CLI on isolated synthetic repositories", () => {
     expect(readFileSync(join(f.root, "history.json"), "utf8")).toBe(before);
     expect(reconciled.report.sourceInventorySha256).toMatch(/^[a-f0-9]{64}$/);
     expect(reconciled.report.historyEvidenceSha256).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it("strict Preview rejects a local bootstrap hole without blocking approved historical reconciliation", () => {
+    const f = fixture();
+    writeFileSync(
+      join(f.root, "history.json"),
+      JSON.stringify([{ version: "20261101181812", name: "tip" }]),
+    );
+    const reconciliation = f.run("--require-reconciled");
+    expect(reconciliation.code).toBe(0);
+    expect(reconciliation.report.historyReconciled).toBe(true);
+    expect(reconciliation.report.remoteVersionsMissingLocally).toEqual([]);
+    expect(reconciliation.report.previewLocalVersionsMissingRemotely).toHaveLength(1);
+    const preview = f.run("--require-preview-compatible");
+    expect(preview.code).toBe(1);
+    expect(preview.report.previewHistoryCompatible).toBe(false);
   });
 
   it("refuses tracked SQL changes even when filename, history and expected commit match", () => {
