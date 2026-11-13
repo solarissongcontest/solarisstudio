@@ -114,12 +114,12 @@ test("collects every exact-SHA run from a stable bounded GitHub page sequence", 
   const runs = await collectCompleteWorkflowRuns(async (page) => {
     calls += 1;
     return {
-      total_count: 3,
-      workflow_runs: page === 1 ? [good(names[0])] : [good(names[1]), good(names[2])],
+      total_count: 4,
+      workflow_runs: page === 1 ? [good(names[0])] : [good(names[1]), good(names[2]), good(names[3])],
     };
   });
   assert.equal(calls, 2);
-  assert.deepEqual(runs.map((run) => run.id), [1, 2, 3]);
+  assert.deepEqual(runs.map((run) => run.id), [1, 2, 3, 4]);
   assert.equal(verify({ workflowRuns: runs }).passed, true);
   assert.deepEqual(await collectCompleteWorkflowRuns(async () => ({
     total_count: 0,
