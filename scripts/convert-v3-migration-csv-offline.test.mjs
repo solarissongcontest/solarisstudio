@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -27,69 +28,65 @@ describe("isolated CSV-to-JSON frontier conversion", () => {
     const text = "version,name\r\n20261001202836,bootstrap_first\r\n20261101181812,v3_s13_adopt_rules\r\n";
     writeFileSync(f.input, text);
     const result = f.run("--expected-rows", "2", "--expected-tip", "20261101181812");
-    expect(result.status).toBe(0);
+    assert.equal(result.status, 0);
     const data = JSON.parse(readFileSync(f.output, "utf8"));
-    expect(data).toEqual({ migrations: [
+    assert.deepEqual(data, { migrations: [
       { version: "20261001202836", name: "bootstrap_first" },
       { version: "20261101181812", name: "v3_s13_adopt_rules" },
     ] });
     const summary = JSON.parse(result.stdout);
-    expect(summary).toMatchObject({
+    assert.deepEqual({ rows: summary.rows, latestVersion: summary.latestVersion,
+      projectIdentityVerified: summary.projectIdentityVerified,
+      hostedSqlEffectsVerified: summary.hostedSqlEffectsVerified,
+      productionDeploymentAuthorized: summary.productionDeploymentAuthorized }, {
       rows: 2, latestVersion: "20261101181812",
       projectIdentityVerified: false, hostedSqlEffectsVerified: false,
       productionDeploymentAuthorized: false,
     });
-    expect(summary.csvSha256).toMatch(/^[a-f0-9]{64}$/);
+    assert.match(summary.csvSha256, /^[a-f0-9]{64}$/);
   });
 
   it("accepts the optional actual export index only when exactly sequential", () => {
     const csv = "index,version,name\n0,20261001202836,\"bootstrap,first\"\n1,20261101181812,\"last\"\"migration\"\n";
-    expect(parseMigrationHistoryCsv(csv)).toEqual([
+    assert.deepEqual(parseMigrationHistoryCsv(csv), [
       { version: "20261001202836", name: "bootstrap,first" },
       { version: "20261101181812", name: 'last"migration' },
     ]);
-    expect(() => parseMigrationHistoryCsv(csv.replace("1,2026", "3,2026")))
-      .toThrow(/Invalid export index/);
+    assert.throws(() => parseMigrationHistoryCsv(csv.replace("1,2026", "3,2026")), /Invalid export index/);
   });
 
   it("rejects duplicate, descending, malformed and missing-name evidence", () => {
     const base = "version,name\n20261001202836,first\n";
-    expect(() => parseMigrationHistoryCsv(base + "20261001202836,duplicate\n"))
-      .toThrow(/Duplicate migration version/);
-    expect(() => parseMigrationHistoryCsv(base + "20261001202835,older\n"))
-      .toThrow(/not strictly ascending/);
-    expect(() => parseMigrationHistoryCsv("version,name\n202610012028,invalid\n"))
-      .toThrow(/Invalid migration version/);
-    expect(() => parseMigrationHistoryCsv("version,name\n20261001202836,\n"))
-      .toThrow(/Missing migration name/);
-    expect(() => parseMigrationHistoryCsv("version,name\n20261001202836,\"unfinished"))
-      .toThrow(/Unterminated quoted/);
-    expect(() => parseMigrationHistoryCsv("version,name\n20261001202836,safe,extra\n"))
-      .toThrow(/Malformed CSV row/);
+    assert.throws(() => parseMigrationHistoryCsv(base + "20261001202836,duplicate\n"), /Duplicate migration version/);
+    assert.throws(() => parseMigrationHistoryCsv(base + "20261001202835,older\n"), /not strictly ascending/);
+    assert.throws(() => parseMigrationHistoryCsv("version,name\n202610012028,invalid\n"), /Invalid migration version/);
+    assert.throws(() => parseMigrationHistoryCsv("version,name\n20261001202836,\n"), /Missing migration name/);
+    assert.throws(() => parseMigrationHistoryCsv("version,name\n20261001202836,\"unfinished"), /Unterminated quoted/);
+    assert.throws(() => parseMigrationHistoryCsv("version,name\n20261001202836,safe,extra\n"), /Malformed CSV row/);
   });
 
   it("does not write any evidence when a count/tip check fails", () => {
     const f = fixture();
     writeFileSync(f.input, "version,name\n20261101181812,tip\n");
-    expect(f.run("--expected-rows", "497").status).toBe(1);
-    expect(f.run("--expected-tip", "20261101181813").status).toBe(1);
-    expect(() => readFileSync(f.output)).toThrow();
+    assert.equal(f.run("--expected-rows", "497").status, 1);
+    assert.equal(f.run("--expected-tip", "20261101181813").status, 1);
+    assert.throws(() => readFileSync(f.output));
   });
 
   it("refuses overwrites and repository-local output paths", () => {
     const f = fixture();
     writeFileSync(f.input, "version,name\n20261101181812,tip\n");
-    expect(f.run().status).toBe(0);
-    expect(f.run().status).toBe(1);
+    assert.equal(f.run().status, 0);
+    assert.equal(f.run().status, 1);
     const content = readFileSync(f.output, "utf8");
-    expect(JSON.parse(content).migrations).toHaveLength(1);
+    assert.equal(JSON.parse(content).migrations.length, 1);
     const repoOutput = "scripts/forbidden-history.json";
     const rejected = spawnSync(
       "node",
       ["scripts/convert-v3-migration-csv-offline.mjs", "--input", f.input, "--output", repoOutput],
       { cwd: new URL("..", import.meta.url), encoding: "utf8" },
     );
-    expect(rejected.status).toBe(1);
-    expect(rejected.stderr).toMatch(/Refusing to write migration evidence inside repository/);
+    assert.equal(rejected.status, 1);
+    assert.match(rejected.stderr, /Refusing to write migration evidence inside repository/);
   });
 });
