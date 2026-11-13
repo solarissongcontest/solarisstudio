@@ -171,9 +171,38 @@ without changing the immutable bootstrap exception used by `historyReconciled`.
 Use `--require-preview-compatible --expected-sha <full SHA>` to fail on that
 identity mismatch independently of `--require-reconciled`. The auditor remains
 completely offline. It fingerprints the supplied history bytes and current SQL
-file contents, refuses changed/untracked migration sources, and always records
-`sqlEffectsVerified: false` and `productionDeploymentAuthorized: false`.
+file contents, refuses changed/untracked migration sources, and compares the
+**executed auditor script and imported implementation** byte-for-byte against
+committed blobs. Staged, ignored-status and skip-worktree changes to those auditor
+sources cannot borrow an exact-HEAD result. The output separately records
+`auditorSourcesClean` and `auditorSourceSha256` so operators can distinguish
+code drift from migration SQL drift. This is checkout integrity evidence, not
+a cryptographic guarantee against a maliciously altered executable environment.
+The report always records `sqlEffectsVerified: false` and
+`productionDeploymentAuthorized: false`.
 A diagnostic of older evidence is not a new hosted observation.
+
+To avoid accidentally comparing **Preview's** migration history against the
+separately identified **production** project, an authorized operator can also
+bind the offline audit to an expected Supabase project ref. Keep this optional
+for existing legacy array-only diagnostics; an evidence bundle used for a
+project-specific qualification should contain the independently verified ref:
+
+```json
+{
+  "projectRef": "approved-project-ref-from-operator",
+  "migrations": [{"version": "20261101181812", "name": "example"}]
+}
+```
+
+Pass `--expected-project-ref <verified-ref>` alongside `--expected-sha`.
+When bound, a missing, malformed or mismatched `projectRef` fails closed,
+without ever contacting Supabase. This identifies *which project the evidence
+claims to describe*, but a user-editable JSON label is **not independent
+authentication**: retain the authorized export's project ref, capture time,
+operator provenance, raw SHA-256 and access-controlled custody separately.
+Never substitute Preview project evidence for production, and do not copy
+credentials into this JSON or into CI.
 
 The existing offline-preflight workflow reproduces the actual pinned CLI
 2.113.0 refusal on PostgreSQL 17.11 with **network=none**, no ports/mounts and

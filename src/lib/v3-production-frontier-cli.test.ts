@@ -74,12 +74,14 @@ describe("offline frontier CLI on isolated synthetic repositories", () => {
       historyReconciled: true,
       previewHistoryCompatible: false,
       migrationSourcesClean: true,
+      auditorSourcesClean: true,
       sqlEffectsVerified: false,
       productionDeploymentAuthorized: false,
     });
     expect(f.run("--require-preview-compatible").code).toBe(1);
     expect(readFileSync(join(f.root, "history.json"), "utf8")).toBe(before);
     expect(reconciled.report.sourceInventorySha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(reconciled.report.auditorSourceSha256).toMatch(/^[a-f0-9]{64}$/);
     expect(reconciled.report.historyEvidenceSha256).toMatch(/^[a-f0-9]{64}$/);
   });
 
@@ -124,6 +126,95 @@ describe("offline frontier CLI on isolated synthetic repositories", () => {
     writeFileSync(join(f.root, f.migration), "select 5;\n");
     expect(f.run().code).toBe(1);
     expect(f.run().report.migrationSourcesClean).toBe(false);
+  });
+
+  it("accepts explicitly bound production evidence and rejects Preview project evidence", () => {
+    const f = fixture();
+    const productionProject = "dkxmnvekiopyesuzggeu";
+    const previewProject = "oxtbskojiexkaspputvo";
+    const historyPath = join(f.root, "history.json");
+    const migrations = JSON.parse(readFileSync(historyPath, "utf8"));
+    writeFileSync(historyPath, JSON.stringify({ projectRef: productionProject, migrations }));
+    const matching = f.run("--require-reconciled", "--expected-project-ref", productionProject);
+    expect(matching.code).toBe(0);
+    expect(matching.report).toMatchObject({
+      evidenceProjectRef: productionProject,
+      expectedProjectRef: productionProject,
+      projectRefMatchesExpected: true,
+      projectRefError: null,
+      auditorSourcesClean: true,
+    });
+    const mistaken = f.run("--require-reconciled", "--expected-project-ref", previewProject);
+    expect(mistaken.code).toBe(1);
+    expect(mistaken.report).toMatchObject({
+      evidenceProjectRef: productionProject,
+      projectRefMatchesExpected: false,
+      requirementsSatisfied: false,
+      projectRefError: "hosted history projectRef does not match --expected-project-ref",
+    });
+    // Existing offline history-array diagnostics and unbound operator use stay valid.
+    expect(f.run("--require-reconciled").code).toBe(0);
+  });
+
+  it("refuses project-bound certification when history carries no project identity", () => {
+    const f = fixture();
+    const checked = f.run(
+      "--require-reconciled",
+      "--expected-project-ref",
+      "dkxmnvekiopyesuzggeu",
+    );
+    expect(checked.code).toBe(1);
+    expect(checked.report).toMatchObject({
+      evidenceProjectRef: null,
+      projectRefMatchesExpected: false,
+      requirementsSatisfied: false,
+      projectRefError: "hosted history must include projectRef when --expected-project-ref is used",
+    });
+    const malformed = f.run("--require-reconciled", "--expected-project-ref", "not/a/ref");
+    expect(malformed.code).toBe(1);
+    expect(malformed.report.projectRefError).toBe("--expected-project-ref requires a valid project ref");
+  });
+
+  it("refuses edited auditor implementation with clean migrations and an unchanged HEAD", () => {
+    const f = fixture();
+    const auditorPath = join(f.root, "src/lib/v3-production-migration-frontier.ts");
+    const clean = f.run("--require-reconciled");
+    expect(clean.code).toBe(0);
+    writeFileSync(auditorPath, readFileSync(auditorPath, "utf8") + "\n// local drift\n");
+    const changed = f.run("--require-reconciled");
+    expect(changed.code).toBe(1);
+    expect(changed.report).toMatchObject({
+      migrationSourcesClean: true,
+      auditorSourcesClean: false,
+      candidateSha: f.sha,
+      requirementsSatisfied: false,
+    });
+    expect(changed.report.auditorSourceSha256).not.toBe(clean.report.auditorSourceSha256);
+  });
+
+  it("rejects staged auditor script changes without rewriting the candidate commit", () => {
+    const f = fixture();
+    const script = "scripts/check-v3-production-migration-frontier.ts";
+    const path = join(f.root, script);
+    writeFileSync(path, readFileSync(path, "utf8") + "\n// staged drift\n");
+    execFileSync("git", ["add", script], { cwd: f.root });
+    const changed = f.run("--require-reconciled");
+    expect(changed.code).toBe(1);
+    expect(changed.report.auditorSourcesClean).toBe(false);
+    expect(changed.report.migrationSourcesClean).toBe(true);
+    expect(changed.report.candidateSha).toBe(f.sha);
+  });
+
+  it("rejects auditor implementation edits hidden by skip-worktree", () => {
+    const f = fixture();
+    const script = "src/lib/v3-production-migration-frontier.ts";
+    execFileSync("git", ["update-index", "--skip-worktree", script], { cwd: f.root });
+    const path = join(f.root, script);
+    writeFileSync(path, readFileSync(path, "utf8") + "\n// hidden drift\n");
+    const changed = f.run("--require-reconciled");
+    expect(changed.code).toBe(1);
+    expect(changed.report.auditorSourcesClean).toBe(false);
+    expect(changed.report.migrationSourcesClean).toBe(true);
   });
 
   it("refuses untracked SQL instead of treating a matching HEAD as exact-source proof", () => {
