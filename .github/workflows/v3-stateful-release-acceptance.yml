@@ -1,0 +1,136 @@
+name: V3 stateful release acceptance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "supabase/migrations/**"
+      - ".github/scripts/v3-s14-*.sh"
+      - ".github/scripts/v3-full-contest-rehearsal.sh"
+      - "scripts/v3-s14-*.ts"
+      - "scripts/v3_s14_final_seed.py"
+      - "scripts/verify-v3-release-acceptance-evidence.py"
+      - "scripts/test_verify_v3_release_acceptance_evidence.py"
+      - ".github/workflows/v3-stateful-release-acceptance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-stateful-release-acceptance-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  full-contest:
+    name: Stateful 66-country DB and browser release acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      V3_RELEASE_EVIDENCE_DIR: v3-release-evidence
+      V3_S14_ALLOW_PARTIAL: "0"
+      V3_S14_REQUIRE_COMPLETE: "1"
+      LOCAL_SUPABASE_URL: http://127.0.0.1:54321
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Enforce exact SHA
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          echo "Exact candidate: $EXPECTED_SHA"
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install frozen dependencies
+        run: bun install --frozen-lockfile
+      - name: Install local Chromium for real application boundary
+        run: bunx playwright install --with-deps chromium
+      - name: Verify offline contracts and evidence validator
+        run: |
+          set -euo pipefail
+          python3 -m unittest -v scripts/test_v3_s14_final_seed.py scripts/test_verify_v3_release_acceptance_evidence.py
+          python3 -m py_compile scripts/verify-v3-release-acceptance-evidence.py
+          bunx vitest run \
+            src/lib/ci-egress-safety.contract.test.ts \
+            src/lib/v3-s14-playwright-local-target.test.ts \
+            src/lib/v3-s14-grand-final-failure-evidence.contract.test.ts
+          bash -n .github/scripts/v3-full-contest-rehearsal.sh
+      - name: Install pinned local Supabase CLI
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/solaris-supabase-cli"
+          npm install --prefix "$RUNNER_TEMP/solaris-supabase-cli" --no-save --no-package-lock --no-audit --no-fund supabase@2.113.0
+          test "$("$RUNNER_TEMP/solaris-supabase-cli/node_modules/.bin/supabase" --version)" = "2.113.0"
+          echo "$RUNNER_TEMP/solaris-supabase-cli/node_modules/.bin" >> "$GITHUB_PATH"
+      - name: Start disposable local database and API
+        run: |
+          set -euo pipefail
+          supabase start
+          supabase db reset --local --no-seed
+      - name: Verify database and production isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          if [[ "$API_URL" != "$LOCAL_SUPABASE_URL" ]]; then
+            echo "::error::Refusing audit server with hosted Supabase URL: $API_URL"
+            exit 1
+          fi
+          test -n "$DB_URL"
+          # The local CLI stack is not necessarily PostgreSQL 17.11. Record its
+          # actual version; the separately owned ordered-recovery CI pins 17.11.
+          psql "$DB_URL" -Atqc "show server_version" | tee v3-local-postgres-version.txt
+          export VITE_SUPABASE_URL="$API_URL" SUPABASE_URL="$API_URL" E2E_SUPABASE_URL="$API_URL"
+          export VITE_CONFIRMATIONS_SUPABASE_URL="$API_URL" CONFIRMATIONS_SUPABASE_URL="$API_URL"
+          export DATABASE_URL="$DB_URL"
+          export SUPABASE_PROJECT_ID=local SUPABASE_PROJECT_REF=local
+          export E2E_SUPABASE_PROJECT_ID=local E2E_SUPABASE_PROJECT_REF=local
+          export VITE_SUPABASE_PROJECT_ID=local VITE_SUPABASE_PROJECT_REF=local
+          bun run scripts/check-v3-production-isolation.ts
+      - name: Run persistent database-backed 66-country lifecycle and Grand Final browser
+        id: rehearsal
+        run: |
+          set -euo pipefail
+          export V3_CANDIDATE_SHA="$(git rev-parse HEAD)"
+          bash .github/scripts/v3-full-contest-rehearsal.sh
+      - name: Require complete, exact-SHA, non-partial acceptance evidence
+        if: always()
+        env:
+          REHEARSAL_OUTCOME: ${{ steps.rehearsal.outcome }}
+        run: |
+          set -euo pipefail
+          test "$REHEARSAL_OUTCOME" = "success"
+          test ! -e v3-release-evidence/s14-full-contest.partial.json
+          python3 scripts/verify-v3-release-acceptance-evidence.py \
+            --evidence v3-release-evidence/s14-full-contest.json \
+            --sha "$(git rev-parse HEAD)" \
+            --browser-summary playwright-s14-grand-final-summary.json \
+            --browser-summary playwright-s14-grand-final-results-summary.json
+      - name: Upload exact-SHA evidence and browser failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-release-acceptance-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            v3-release-evidence/
+            v3-local-postgres-version.txt
+            playwright-s14-grand-final-summary.json
+            playwright-s14-grand-final-results-summary.json
+            test-results/v3-s14-grand-final/
+            test-results/v3-s14-grand-final-results/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Destroy disposable local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
