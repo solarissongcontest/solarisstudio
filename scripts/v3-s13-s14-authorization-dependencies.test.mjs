@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { dependencies, extractDefinition, expectedContract, reconstructionSql, recoveryManifest, sourceDerivedStrictDualDefinition, sourceDerivedAuthRoleDefinition } from './v3-s13-s14-authorization-dependencies.mjs';
+import { dependencies, extractDefinition, expectedContract, reconstructionSql, recoveryManifest, sourceDerivedStrictDualDefinition, sourceDerivedAuthRoleDefinition, shadowDependency, expectedShadowContract } from './v3-s13-s14-authorization-dependencies.mjs';
 import { validateFreshSource } from './check-v3-s02-baseline.mjs';
 const read = p => readFileSync(p, 'utf8');
 const sha = '1'.repeat(40);
@@ -14,11 +14,19 @@ function catalog() {
       definitionSha256: c.definition_sha256, settingsMd5: c.settings_md5, aclMd5: c.acl_md5,
       privileges: { anon: false, authenticated: false, service_role: false }, runtimeCalls: 0 };
   });
+  const shadow = expectedShadowContract();
+  nodes.push({ id: 'public:shadow', kind: 'function', name: shadowDependency.name,
+    schema: 'public', identity: shadowDependency.identity,
+    owner: shadow.owner_name, securityDefiner: shadow.security_definer,
+    language: 'plpgsql', definitionSha256: shadow.definition_sha256,
+    settingsMd5: shadow.settings_md5, aclMd5: shadow.acl_md5,
+    privileges: { anon: false, authenticated: true, service_role: true }, runtimeCalls: 0 });
   for (const [i, name] of ['public.studio2_access_allowed', 'private.studio2_task_recipient_eligible'].entries())
     nodes.push({ ...nodes[0], id: 'root:' + i, name, identity: name + '()', schema: name.split('.')[0] });
   return { formatVersion: 1, serverVersionNum: 170011, baselineProfile: 'hosted-observed-recovery-subset',
     networkIsolation: { networkMode: 'none', publishedPorts: [] }, databaseImage: 'sha256:' + 'a'.repeat(64),
-    nodes, edges: nodes.slice(0, dependencies.length).map(n => ({ source: 'root:0', target: n.id, kind: 'qualified-reference' })) };
+    nodes, edges: nodes.slice(0, dependencies.length).map(n => ({ source: 'root:0', target: n.id, kind: 'qualified-reference' }))
+      .concat({ source: 'root:0', target: 'public:shadow', kind: 'qualified-reference' }) };
 }
 test('extracts exactly the immutable function body, not migration data changes or siblings', () => {
   for (const d of dependencies) {
@@ -58,6 +66,20 @@ test('authorized strict-dual body is SOURCE-DERIVED and byte-matches frozen host
   assert.doesNotMatch(reconstructionSql(), /disable trigger|session_replication_role|drop function/i);
 });
 
+test('public shadow RPC keeps exact hosted source and restricted execute grants', () => {
+  const expected = expectedShadowContract();
+  const source = extractDefinition(read(shadowDependency.source), shadowDependency.name);
+  assert.ok(read(shadowDependency.source).includes(source));
+  assert.match(source, /'mode', 'authoritative'/);
+  assert.doesNotMatch(source, /v_legacy_allowed/);
+  assert.equal(expected.definition_sha256, '08b88c99394101d4c53534a37a8280607447a607a6226fd3ce4ad51b945ac9bf');
+  const sql = reconstructionSql();
+  assert.match(sql, /Hosted shadow authorization contract mismatch/);
+  assert.match(sql, /Shadow authorization API role EXECUTE drift/);
+  assert.match(sql, /grant execute on function public.studio2_check_capability_shadow\(text,uuid,text,text\) to authenticated, service_role/);
+  assert.doesNotMatch(sql, /disable trigger|session_replication_role|drop function/i);
+});
+
 test('ambiguous or missing source never picks a default definition', () => {
   const d = dependencies[0], s = extractDefinition(read(d.source), d.name);
   assert.throws(() => extractDefinition('', d.name), /absent/);
@@ -88,9 +110,10 @@ test('manifest keeps seven verified leaves separate from unknown closure and dep
   assert.equal(m.deploymentAuthorized, false);
   assert.equal(m.runtimeCoverage.editionScopedAcceptance, 'PENDING_EXACT_HEAD_LOCAL_RUNTIME_LOG');
   assert.equal(m.runtimeCoverage.executionResult, 'NOT_ATTESTED_BY_THIS_METADATA_MANIFEST');
-  assert.equal(m.blockedRuntime.length, 1);
-  assert.equal(m.blockedRuntime[0].identity, 'public.studio2_check_capability_shadow(text,uuid,text,text)');
-  assert.equal(m.blockedRuntime[0].exactHostedExecutableParity, false);
+  assert.equal(m.blockedRuntime.length, 0);
+  assert.equal(m.reconstructedPublicShadow.identity, shadowDependency.identity);
+  assert.equal(m.reconstructedPublicShadow.productionRecoveryEligible, false);
+  assert.match(m.reconstructedPublicShadow.exactHostedSha256, /^[a-f0-9]{64}$/);
   assert.equal(m.verifiedRuntimeBody[0].identity, 'private.studio2_require_strict_dual(text,uuid,text)');
   assert.equal(m.verifiedRuntimeBody[0].rawHostedDefinitionCommitted, false);
 });
@@ -99,6 +122,15 @@ test('owner, body, settings and effective execute drift block reconstructed clas
     { settingsMd5: '0'.repeat(32) }, { privileges: { anon: true, authenticated: false, service_role: false } }]) {
     const c = catalog(); Object.assign(c.nodes[0], patch);
     assert.throws(() => recoveryManifest(c, sha), /Reconstructed dependency drift/);
+  }
+});
+test('shadow RPC owner, fingerprint and execute drift refuse manifest certification', () => {
+  for (const patch of [{ owner: 'authenticated' }, { definitionSha256: '0'.repeat(64) },
+    { settingsMd5: 'f'.repeat(32) }, { aclMd5: '0'.repeat(32) },
+    { privileges: { anon: true, authenticated: true, service_role: true } }]) {
+    const c = catalog(), node = c.nodes.find(n => n.identity === shadowDependency.identity);
+    Object.assign(node, patch);
+    assert.throws(() => recoveryManifest(c, sha), /Shadow RPC/);
   }
 });
 test('unknown version, provenance or candidate fails closed', () => {
