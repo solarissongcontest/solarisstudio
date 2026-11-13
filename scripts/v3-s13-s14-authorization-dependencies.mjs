@@ -122,7 +122,10 @@ export function recoveryManifest(catalog, candidateSha) {
     remainingInspection: relevant.filter(n => n.hostedClassification !== 'verified-equivalent').map(n => ({
       identity: n.identity, schema: n.schema, kind: n.kind,
       status: n.hostedClassification === 'verified-different' ? 'LOCALLY_DIFFERENT / BLOCKING' : 'UNKNOWN / BLOCKING',
-      reason: n.evidence, requiredEvidence: 'Bounded schema-only identity/definition/owner/ACL/settings/attachment metadata; no application rows',
+      reason: n.resolution || n.evidence,
+      requiredEvidence: n.kind === 'unresolved-reference'
+        ? 'Review originating source and dynamic SQL first: this lexical reference may be a type, comment or string, not a callable object. Resolve an exact signature before any bounded metadata request.'
+        : 'Bounded schema-only identity/definition/owner/ACL/settings/attachment metadata; no application rows',
     })),
     limitations: ['Conservative pg_depend/qualified-reference graph; dynamic SQL and unqualified/overloaded calls require independent review',
       'Relation/policy/trigger fingerprints do not establish data-shape or role-membership runtime equivalence',

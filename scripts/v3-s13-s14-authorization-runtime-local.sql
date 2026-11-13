@@ -47,6 +47,16 @@ select pg_temp.assert_recovery(private.studio2_user_has_capability('a1300000-000
 update public.studio2_role_assignments set expires_at=now()-interval '1 hour' where role_key='recovery-tester';
 select pg_temp.assert_recovery(not private.studio2_user_has_capability('a1300000-0000-4000-8000-000000000002','confirmation.manage',null),'expired role assignment denied');
 
+update public.studio2_capability_grants set expires_at=null where user_id='a1300000-0000-4000-8000-000000000001';
+insert into public.studio2_organizer_tasks(id,assigned_to,source_kind,source_id,source_key,task_type,required_capability,priority,title,href)
+values ('a1300000-0000-4000-8000-000000000010','a1300000-0000-4000-8000-000000000001','system','synthetic-recovery','synthetic-recovery','permission-review','confirmation.manage','normal','Synthetic task','/participate');
+select pg_temp.assert_recovery(private.studio2_task_recipient_eligible('a1300000-0000-4000-8000-000000000010','a1300000-0000-4000-8000-000000000001'),'assigned capable task recipient eligible');
+select pg_temp.assert_recovery(not private.studio2_task_recipient_eligible('a1300000-0000-4000-8000-000000000010','a1300000-0000-4000-8000-000000000002'),'incapable task recipient denied');
+update public.studio2_organizer_tasks set assigned_to='a1300000-0000-4000-8000-000000000002' where id='a1300000-0000-4000-8000-000000000010';
+select pg_temp.assert_recovery(private.studio2_task_recipient_eligible('a1300000-0000-4000-8000-000000000010','a1300000-0000-4000-8000-000000000001'),'revoked assignee does not block capable fallback recipient');
+update public.studio2_organizer_tasks set state='resolved',resolved_at=now() where id='a1300000-0000-4000-8000-000000000010';
+select pg_temp.assert_recovery(not private.studio2_task_recipient_eligible('a1300000-0000-4000-8000-000000000010','a1300000-0000-4000-8000-000000000001'),'resolved task is no longer actionable');
+
 select pg_temp.assert_recovery(private.studio2_capability_allowed_in_platform_mode('voting.manage','operate','normal'),'normal operations allowed');
 select pg_temp.assert_recovery(not private.studio2_capability_allowed_in_platform_mode('voting.manage','operate','read_only'),'read-only voting mutation denied');
 select pg_temp.assert_recovery(private.studio2_capability_allowed_in_platform_mode('confirmation.manage','operate','read_only'),'canonical Confirmation read-only exception retained');
