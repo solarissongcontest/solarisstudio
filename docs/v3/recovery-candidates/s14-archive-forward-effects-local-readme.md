@@ -2,6 +2,35 @@
 
 **STATUS: DRAFT / NOT A DEPLOYABLE MIGRATION / NEVER RUN ON HOSTED SUPABASE.**
 
+## 13 November: authorization dependency reconstruction
+
+The local fixture can reconstruct three previously missing/non-executable
+authorization dependencies using unchanged canonical source bodies:
+`private.studio2_user_has_capability(uuid,text,uuid)`,
+`private.studio2_capability_allowed_in_platform_mode(text,text,text)` and
+`private.studio2_touch_permission_subject_version()`. Installation refuses any
+existing unknown definition; only the exact catalog-only trigger placeholder is
+replaceable. The transaction checks both frozen definition hashes, ownership,
+SECURITY DEFINER/settings/ACL metadata and effective external EXECUTE denial.
+An injected fingerprint mismatch must roll back the entire reconstruction.
+
+`scripts/v3-s13-s14-authorization-dependencies.mjs` extracts the three source
+bodies deterministically. Its manifest reuses the existing S02 dependency graph
+and frozen evidence; verified leaf objects, reachable unknowns/differences,
+dynamic SQL, role metadata and inspection requirements remain separate. The
+collector's explicit hosted-subset mode reports migration history and seed
+counts as **unknown**, never invented empty ledgers. Source-mode collection
+retains real history/counts and the existing qualification requirements.
+
+The runtime SQL uses synthetic actors/grants on the real reconstructed tables,
+retains constraints and triggers, and rolls its rows back. These component tests
+do not certify all task mutations, edition creation, complete role inheritance,
+data-dependent upgrade safety or unqualified/dynamic call resolution. The
+generated manifest always denies full hosted equivalence and deployment
+eligibility. No historical migration, production RPC, hosted schema or rollout
+setting changes. Further metadata collection requires separately authorized,
+bounded schema-only inspection of the manifest's unresolved identities.
+
 This bundle is the next dependency step after the previous read-only hosted migration gap audit and the passing one-shot authorization and cross-edition task isolation tests in PR #2400. It is deliberately located outside `supabase/migrations/` and cannot be picked up by an ordinary `supabase db push`.
 
 ## Read-only evidence from the actual hosted database
