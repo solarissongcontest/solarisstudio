@@ -18,6 +18,8 @@ export const HELPER_SOURCE =
 // disposable hosted-observed PG fixture. They are not part of the recovery DDL.
 export const QUALIFIER_SOURCE =
   "supabase/migrations/20260822212800_result_rank_is_qualification_source.sql";
+export const RELEASE_READINESS_SOURCE =
+  "supabase/migrations/20261015164100_v3_s3_publication_invariants.sql";
 export const PARTICIPATION_KEY_SOURCE =
   "supabase/migrations/20261003015000_organisation_os_v5_participation_status_operations.sql";
 export const QUALIFIER_EVIDENCE =
@@ -177,6 +179,7 @@ export function stagedQualificationHelpers(root = process.cwd()) {
     throw Error("Unreviewed hosted qualification fixture observation");
   const expected = [
     {
+      language: "plpgsql",
       name: "private.studio2_participation_subject_key",
       id: "private.studio2_participation_subject_key(p_country_id uuid, p_contest_entity_id uuid)",
       signature: "private.studio2_participation_subject_key(uuid,uuid)",
@@ -185,6 +188,16 @@ export function stagedQualificationHelpers(root = process.cwd()) {
       serviceRole: false,
     },
     {
+      name: "private.studio2_result_release_ready",
+      id: "private.studio2_result_release_ready(p_show_id uuid)",
+      signature: "private.studio2_result_release_ready(uuid)",
+      source: RELEASE_READINESS_SOURCE,
+      securityDefiner: true,
+      serviceRole: false,
+      language: "sql",
+    },
+    {
+      language: "plpgsql",
       name: "public.refresh_edition_qualifications",
       id: "public.refresh_edition_qualifications(_edition_id uuid)",
       signature: "public.refresh_edition_qualifications(uuid)",
@@ -193,6 +206,7 @@ export function stagedQualificationHelpers(root = process.cwd()) {
       serviceRole: true,
     },
     {
+      language: "plpgsql",
       name: "public.refresh_show_qualifiers",
       id: "public.refresh_show_qualifiers(_show_id uuid)",
       signature: "public.refresh_show_qualifiers(uuid)",
@@ -202,11 +216,11 @@ export function stagedQualificationHelpers(root = process.cwd()) {
     },
   ];
   let sql = "begin;\n";
-  for (const { name, id, signature, source, securityDefiner, serviceRole } of expected) {
+  for (const { name, id, signature, source, securityDefiner, serviceRole, language } of expected) {
     const matches = evidence.functions.filter((r) => r.id === id);
     if (
       matches.length !== 1 ||
-      matches[0].language !== "plpgsql" ||
+      matches[0].language !== language ||
       matches[0].securityDefiner !== securityDefiner ||
       matches[0].exec.anon !== false ||
       matches[0].exec.authenticated !== false ||
@@ -230,7 +244,7 @@ end $guard$;
     where p.oid=to_regprocedure('${signature}')
       and pg_get_userbyid(p.proowner)='postgres'
       and p.prosecdef=${securityDefiner}
-      and p.prolang=(select oid from pg_language where lanname='plpgsql')
+      and p.prolang=(select oid from pg_language where lanname='${language}')
       and encode(sha256(convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex')='${matches[0].sha256}'
       and not has_function_privilege('anon','${signature}','EXECUTE')
       and not has_function_privilege('authenticated','${signature}','EXECUTE')

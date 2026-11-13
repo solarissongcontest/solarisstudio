@@ -8,6 +8,7 @@ import {
   SNAPSHOT_SOURCE,
   QUALIFIER_SOURCE,
   PARTICIPATION_KEY_SOURCE,
+  RELEASE_READINESS_SOURCE,
   stagedQualificationHelpers,
 } from "./stage-v3-public-snapshot-recovery.mjs";
 import { extractDefinition } from "./v3-s13-s14-authorization-dependencies.mjs";
@@ -64,6 +65,7 @@ test("local-only qualification fixture restores the two observed full source fun
   const sql = stagedQualificationHelpers();
   for (const [name, signature, path] of [
     ["private.studio2_participation_subject_key", "(uuid,uuid)", PARTICIPATION_KEY_SOURCE],
+    ["private.studio2_result_release_ready", "(uuid)", RELEASE_READINESS_SOURCE],
     ["public.refresh_edition_qualifications", "(uuid)", QUALIFIER_SOURCE],
     ["public.refresh_show_qualifiers", "(uuid)", QUALIFIER_SOURCE],
   ]) {
