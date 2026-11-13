@@ -13,8 +13,11 @@
     "captureUtc": null,
     "declaredProductionRef": "dkxmnvekiopyesuzggeu",
     "verifiedSourceProjectRef": null,
-    "projectProvenance": "unverified; SQL Editor export rows do not encode project identity",
-    "separatePreviewRef": "oxtbskojiexkaspputvo"
+    "projectProvenance": "owner-confirmed in chat on 2026-11-13: exporter personally selected the canonical production project dkxmnvekiopyesuzggeu, not Preview; identity is NOT independently verifiable from CSV bytes",
+    "separatePreviewRef": "oxtbskojiexkaspputvo",
+    "ownerConfirmedProductionProjectRef": "dkxmnvekiopyesuzggeu",
+    "ownerAttestationDate": "2026-11-13",
+    "projectIdentityProvenanceStatus": "OWNER_ATTESTED_NOT_EMBEDDED_IN_CSV"
   },
   "comparison": {
     "repository": "solarissongcontest/solarisstudio",
@@ -1910,7 +1913,7 @@
   ],
   "decisions": {
     "productionLaunch20261114": "NO-GO",
-    "immediateDependency": "Separately approved bounded current production schema/function/ACL effect verification to close remaining S13/S14 and voting/Results compatibility unknowns; confirm CSV project provenance",
+    "immediateDependency": "Separately approved bounded current production schema/function/ACL effect verification to close S13/S14 and Televote/Results compatibility unknowns; supplied CSV production origin was owner-attested, not independently verified by file",
     "previewProjectMetadataRequiredSeparately": true,
     "productionSqlWritesAuthorized": false
   }
