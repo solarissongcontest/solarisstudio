@@ -408,14 +408,10 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
 
   const submitMutation = useMutation({
     mutationFn: async (token: string) => {
+      // A disabled reliability rollout must not resurrect the legacy direct
+      // ballot writer. Only the governed command can issue an official receipt.
       if (!v3ReliabilityEnabled) {
-        const { error } = await supabase.rpc("submit_country_jury_ballot", {
-          _show_id: round.show_id,
-          _entries: ballot,
-          _preflight_id: token,
-        });
-        if (error) throw error;
-        return null;
+        throw new Error("Jury submission is unavailable until the secure voting service is enabled.");
       }
       const fingerprint = JSON.stringify(ballot);
       const prepared = prepareV3JuryOperation({
