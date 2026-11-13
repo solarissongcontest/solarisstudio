@@ -86,7 +86,7 @@ test('subset collection does not invent history, seed counts or a pgcrypto depen
   const collector = read('scripts/v3-s02-runtime-dependencies-local.sql');
   assert.match(collector, /recovery_subset/);
   assert.match(collector, /"migrationVersions":null,"seedCounts":null/);
-  assert.match(collector, /encode\(sha256\(convert_to/);
+  assert.match(collector, /encode\(pg_catalog\.sha256\(pg_catalog\.convert_to/);
   assert.doesNotMatch(collector, /extensions\.digest|create table|insert into/i);
   assert.throws(() => validateFreshSource({ serverVersionNum: 170011, migrationVersions: null, seedCounts: null }, []), /history mismatch/);
 });

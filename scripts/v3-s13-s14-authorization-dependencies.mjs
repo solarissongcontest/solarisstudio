@@ -72,7 +72,7 @@ export function reconstructionSql() {
     checks.push(`if not exists (select 1 from pg_proc p where p.oid=${oid}
       and pg_get_userbyid(p.proowner)=${literal(expected.owner_name)}
       and md5(pg_get_functiondef(p.oid))=${literal(expected.definition_md5)}
-      and encode(sha256(convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex')=${literal(expected.definition_sha256)}
+      and encode(pg_catalog.sha256(pg_catalog.convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex')=${literal(expected.definition_sha256)}
       and md5(coalesce(p.proacl::text,''))=${literal(expected.acl_md5)}
       and md5(coalesce(p.proconfig::text,''))=${literal(expected.settings_md5)}
       and p.prosecdef=${expected.security_definer} and p.proisstrict=${expected.strict}
@@ -135,6 +135,7 @@ export function recoveryManifest(catalog, candidateSha) {
       dynamicAndUnqualifiedCalls: 'Resolve from reviewed definitions and bounded runtime cases before certifying closure' },
     blockedRuntime: [{ identity: 'private.studio2_require_strict_dual(text,uuid,text)',
       evidence: 'docs/v3/recovery-candidates/s02-source-defined-beta-contract.md',
+      inspectionSpecification: 'docs/v3/recovery-candidates/s13-s14-authorization-runtime-inspection.md',
       requiredRuntimeWitness: 'Real edition seed trigger raises undefined_function; failed statement leaves no edition/runtime row',
       hostedAttributesObserved: true, hostedExecutableDefinitionAvailable: false, locallyReconstructed: false,
       sourceParity: 'The approved observation differs from both immutable source variants; do not substitute or stub',

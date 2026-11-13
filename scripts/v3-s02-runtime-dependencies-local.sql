@@ -65,7 +65,7 @@ with funcs as (
 ), nodes as (
  select jsonb_build_object('id','f:'||f.oid,'kind','function','identity',f.identity,'name',f.name,'schema',f.nspname,
  'owner',pg_get_userbyid(f.proowner),'securityDefiner',f.prosecdef,'language',(select lanname from pg_language where oid=f.prolang),
- 'definitionSha256',encode(sha256(convert_to(pg_get_functiondef(f.oid),'UTF8')),'hex'),
+ 'definitionSha256',encode(pg_catalog.sha256(pg_catalog.convert_to(pg_get_functiondef(f.oid),'UTF8')),'hex'),
  'settings',coalesce(to_jsonb(f.proconfig),'[]'::jsonb),
  'bodyMd5',md5(f.prosrc),'settingsMd5',md5(coalesce(f.proconfig::text,'')),'aclMd5',md5(coalesce(f.proacl::text,'')),
  'dynamicSql',f.prosrc ~* '\mexecute\M','runtimeCalls',coalesce((select calls from pg_stat_user_functions s where s.funcid=f.oid),0),
