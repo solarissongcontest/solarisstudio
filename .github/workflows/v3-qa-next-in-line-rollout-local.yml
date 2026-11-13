@@ -1,0 +1,68 @@
+name: V3 QA Next in Line deferred RPC local-only rehearsal
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - docs/v3/recovery-candidates/next-in-line-softlaunch-rollout-local.sql
+      - src/lib/v3-softlaunch-next-in-line-rollout.contract.test.ts
+      - .github/scripts/v3-qa-next-in-line-rollout-local.sh
+      - .github/workflows/v3-qa-next-in-line-rollout-local.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-qa-next-in-line-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  local-next-in-line:
+    name: Disposable local Supabase Next in Line RPC authority
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      SOLARIS_VERIFICATION_TARGET: local
+      SUPABASE_PROJECT_REF: local
+      SUPABASE_PROJECT_ID: local
+      V3_EXACT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Refuse hosted targets or inherited credentials before network access
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$V3_EXACT_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          [[ "$(git rev-parse HEAD)" == "$V3_EXACT_SHA" ]] || exit 1
+          [[ "$SOLARIS_VERIFICATION_TARGET" == local ]] || exit 1
+          [[ "$SUPABASE_URL" == http://127.0.0.1:54321 ]] || exit 1
+          [[ "$VITE_SUPABASE_URL" == http://127.0.0.1:54321 ]] || exit 1
+          for name in DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN SUPABASE_SERVICE_ROLE_KEY PGSERVICE PGSERVICEFILE PGHOST PGHOSTADDR; do
+            [[ -z "$(printenv "$name" || true)" ]] || { echo "::error::Inherited $name"; exit 1; }
+          done
+          bash -n .github/scripts/v3-qa-next-in-line-rollout-local.sh
+      - name: Install pinned Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Install local PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+      - name: Start explicitly disposable Supabase
+        run: bash .github/scripts/v3-start-disposable-supabase.sh
+      - name: Reset exclusively local source database
+        run: supabase db reset --local --no-seed
+      - name: Apply guard and run real actor/edition/flag/replay tests
+        run: bash .github/scripts/v3-qa-next-in-line-rollout-local.sh
+      - name: State limited evidence
+        if: success()
+        run: |
+          echo 'PASS on source-clean local Supabase. NOT hosted-head PG17.11 equivalence.'
+          echo 'No production migrations, no deployment, no rollout authorization.'
+      - name: Stop disposable local stack
+        if: always()
+        run: supabase stop --no-backup || true
