@@ -24,6 +24,10 @@ export const RELEASE_READINESS_SOURCE =
   "supabase/migrations/20261015164100_v3_s3_publication_invariants.sql";
 export const PARTICIPATION_KEY_SOURCE =
   "supabase/migrations/20261003015000_organisation_os_v5_participation_status_operations.sql";
+export const CURRENT_QUALIFIER_EVIDENCE =
+  "docs/v3/recovery-candidates/evidence/qualification-prerequisites-observed-2026-11-13.json";
+export const CURRENT_TRIGGER_EVIDENCE =
+  "docs/v3/recovery-candidates/evidence/snapshot-trigger-prerequisites-observed-2026-11-13.json";
 export const QUALIFIER_EVIDENCE =
   "docs/v3/recovery-candidates/evidence/s02-hosted-727-routine-fingerprints-2026-11-09.json";
 export const CAPTURE_SOURCE =
@@ -226,11 +230,46 @@ export function stagedQualificationHelpers(root = process.cwd()) {
       serviceRole: true,
     },
   ];
+  const observations = [CURRENT_QUALIFIER_EVIDENCE, CURRENT_TRIGGER_EVIDENCE].map((path) =>
+    JSON.parse(read(path)),
+  );
+  if (
+    observations.some(
+      (row) =>
+        row.projectRef !== "dkxmnvekiopyesuzggeu" ||
+        row.server_version_num !== "170011" ||
+        row.read_only !== "on" ||
+        row.applicationRowsRead !== false ||
+        row.rawFunctionBodiesExported !== false,
+    )
+  )
+    throw Error("Unreviewed current Results helper observation");
+  const current = observations.flatMap((x) => x.routines);
+  if (
+    current.length !== expected.length ||
+    new Set(current.map((x) => x.identity)).size !== expected.length ||
+    current.some((x) => !expected.some((y) => y.signature === x.identity))
+  )
+    throw Error("Current Results helper observation scope drift");
   let sql = "begin;\n";
   for (const { name, id, signature, source, securityDefiner, serviceRole, language } of expected) {
+    const observed = current.find((x) => x.identity === signature);
+    const expectedAcl = serviceRole
+      ? "{postgres=X/postgres,service_role=X/postgres}"
+      : "{postgres=X/postgres}";
+    if (
+      !observed.exists ||
+      observed.owner !== "postgres" ||
+      observed.acl !== expectedAcl ||
+      observed.security_definer !== securityDefiner ||
+      !/^[a-f0-9]{32}$/.test(observed.definition_md5) ||
+      !Array.isArray(observed.config)
+    )
+      throw Error("Unqualified current helper authority: " + signature);
     const matches = evidence.functions.filter((r) => r.id === id);
     if (
       matches.length !== 1 ||
+      matches[0].sha256 !== observed.definition_sha256 ||
       matches[0].language !== language ||
       matches[0].securityDefiner !== securityDefiner ||
       matches[0].exec.anon !== false ||
@@ -255,6 +294,9 @@ end $guard$;
     where p.oid=to_regprocedure('${signature}')
       and pg_get_userbyid(p.proowner)='postgres'
       and p.prosecdef=${securityDefiner}
+      and p.proacl::text='${observed.acl}'
+      and p.proconfig=array[${observed.config.map((x) => "'" + x + "'").join(",")}]::text[]
+      and md5(pg_get_functiondef(p.oid))='${observed.definition_md5}'
       and p.prolang=(select oid from pg_language where lanname='${language}')
       and encode(sha256(convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex')='${matches[0].sha256}'
       and not has_function_privilege('anon','${signature}','EXECUTE')

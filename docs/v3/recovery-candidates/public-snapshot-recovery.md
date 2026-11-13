@@ -31,6 +31,23 @@ the full fixture and are protected by the earlier security checkpoint.
 
 Production is NOT repaired or certified by this stage. Complete relevant
 column/data/role equivalence, all Results authority dependencies, backup readiness,
-independent review, exact SQL/hash/source approval and post-adoption catalog
+risk-tiered source review, exact SQL/hash/source approval and post-adoption catalog
 verification are still required. No production SQL, deployment or activation is
 authorized by this local artifact.
+
+## Current nested helper qualification
+
+The owner-authorized catalog-only observations at 2026-11-13T21:46:27Z and
+21:49:08Z qualify the existing edition/show qualifier refreshers, participation
+subject key, publication readiness wrapper and missing-result materializer.
+Their definition SHA256 values match the prior 727-routine evidence; current
+owner, complete ACL, configuration/search path and MD5 are now asserted in the
+same real PG17.11 reconstruction. Unknown or mismatched scope, project, role,
+privileges or definitions fail closed. These are pre-existing hosted helpers,
+not new production functions installed by the snapshot candidate.
+
+Runtime tests additionally attempt owner mutation of stored immutable evidence
+and anonymous direct reads, check every returned identity, and exclude private
+Jury/Televote component fields from every anonymous row. These tests complement
+source-exact calculation/capture checks; they do not qualify all production data
+shapes or unresolved canonical Results/qualification recovery stages.

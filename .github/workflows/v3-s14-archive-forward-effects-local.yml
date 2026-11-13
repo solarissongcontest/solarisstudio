@@ -16,6 +16,8 @@ on:
       - "docs/v3/recovery-candidates/evidence/public-snapshot-prerequisites-observed-2026-11-13.json"
       - "docs/v3/recovery-candidates/evidence/publication-helper-prerequisites-observed-2026-11-13.json"
       - "docs/v3/recovery-candidates/evidence/participant-identity-prerequisite-observed-2026-11-13.json"
+      - "docs/v3/recovery-candidates/evidence/qualification-prerequisites-observed-2026-11-13.json"
+      - "docs/v3/recovery-candidates/evidence/snapshot-trigger-prerequisites-observed-2026-11-13.json"
       - "supabase/migrations/20261103004500_v3_s14_atomic_televote_calculation.sql"
       - "scripts/stage-v3-hosted-result-sync.mjs"
       - "scripts/stage-v3-hosted-result-sync.test.mjs"

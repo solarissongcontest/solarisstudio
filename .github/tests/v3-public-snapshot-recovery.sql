@@ -24,6 +24,11 @@ do $capture$ declare s uuid; before_rows jsonb; begin
   update public.studio2_result_operations set calculation_version=2,last_calculated_at=now(),reviewed_version=2,reviewed_at=now(),locked_version=2,locked_at=now(),reveal_ready_version=2,reveal_ready_at=now() where show_id=s;
   if not exists(select 1 from private.v3_result_versions where show_id=s and version=1 and result_row_count=5 and result_rows=before_rows) then raise exception 'Historical frozen evidence changed'; end if;
   if not exists(select 1 from private.v3_result_versions where show_id=s and version=2 and result_row_count=2 and (result_rows->0->>'countryId')::uuid in ('51000000-0000-4000-8000-000000000011','51000000-0000-4000-8000-000000000012')) then raise exception 'New capture did not exclude inactive identities'; end if;
+  if exists(select 1 from private.v3_result_versions v cross join lateral jsonb_array_elements(v.result_rows) x(row) where v.show_id=s and v.version=2 and x.row->>'countryId' not in ('51000000-0000-4000-8000-000000000011','51000000-0000-4000-8000-000000000012')) then raise exception 'Captured an inactive result identity'; end if;
+  begin
+   update private.v3_result_versions set result_rows='[]'::jsonb where show_id=s and version=1;
+   raise exception 'Historical snapshot mutation accepted' using errcode='XX000';
+  exception when sqlstate '55000' then if sqlerrm<>'Result version evidence is immutable' then raise; end if; end;
   if (select count(*) from public.results where show_id=s)<>5 then raise exception 'Stored historical Results lost'; end if;
   if public.v3_public_published_result_snapshot(s) is not null then raise exception 'Hidden Results exposed'; end if;
   update public.shows set published=true,publication_config=private.studio2_normalise_publication_config('{"results":true}'::jsonb),updated_at=now() where id=s;
@@ -35,7 +40,12 @@ set constraints all immediate;
 set local role anon;
 do $public$ declare s uuid; payload jsonb; begin
  foreach s in array array['51000000-0000-4000-8000-000000000002'::uuid,'51000000-0000-4000-8000-000000000003'::uuid] loop
+  begin
+   perform 1 from private.v3_result_versions where show_id=s;
+   raise exception 'Anonymous raw private snapshot read accepted' using errcode='XX000';
+  exception when insufficient_privilege then null; end;
   payload:=public.v3_public_published_result_snapshot(s);
+  if exists(select 1 from jsonb_array_elements(payload->'rows') x(row) where x.row ?| array['juryPoints','televotePoints','televoteComponents'] or x.row->>'countryId' not in ('51000000-0000-4000-8000-000000000011','51000000-0000-4000-8000-000000000012')) then raise exception 'Private component or inactive identity exposed'; end if;
   if payload is null or (payload->>'rowCount')::integer<>2 or (payload->>'resultVersion')::integer<>2 or jsonb_array_length(payload->'rows')<>2 or payload->'rows'->0->>'finalRank'<>'1' or payload->'rows'->0 ? 'juryPoints' then raise exception 'Anonymous publication readback/count/rank or private allocation boundary failed: %',payload; end if;
  end loop;
  if public.v3_public_published_result_snapshot('51000000-0000-4000-8000-000000000099') is not null then raise exception 'Unknown show returned data'; end if;
