@@ -593,7 +593,7 @@ jobs:
             echo "::error::Authorization reconstruction accepted a bad hosted fingerprint"; exit 1
           fi
           grep -Fq 'Hosted authorization contract mismatch' /tmp/s13-authorization-denial.log
-          [[ "$(sql -c "select (to_regprocedure('private.studio2_user_has_capability(uuid,text,uuid)') is null and to_regprocedure('private.studio2_capability_allowed_in_platform_mode(text,text,text)') is null and to_regprocedure('private.studio2_normalize_legacy_edition_status(text)') is null)::text")" == true ]]
+          [[ "$(sql -c "select (to_regprocedure('private.studio2_user_has_capability(uuid,text,uuid)') is null and to_regprocedure('private.studio2_capability_allowed_in_platform_mode(text,text,text)') is null and to_regprocedure('private.studio2_normalize_legacy_edition_status(text)') is null and to_regprocedure('private.studio2_require_strict_dual(text,uuid,text)') is null)::text")" == true ]]
           [[ "$(auth_guard_fingerprint)" == "$before_auth" ]]
           sql -f - < /tmp/s13-authorization.sql
           if sql -f - < /tmp/s13-authorization.sql > /tmp/s13-authorization-duplicate.log 2>&1; then
