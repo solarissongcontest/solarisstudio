@@ -146,30 +146,71 @@ select pg_temp.assert_recovery(
  not private.studio2_permission_engine_authoritative(),
  'absent permission-engine rollout flag is non-authoritative');
 
--- Shadow-mode legacy actor path is not faked. Its separately observed
--- authoritative implementation and dependent legacy projections still require
--- source-vs-hosted parity review. A missing function must not mutate the row.
+-- The independently frozen current hosted RPC keeps the historical "shadow"
+-- name but returns capability-authoritative decisions. This is NOT proof that
+-- older pre-cutover migration history has the same behavior.
+select pg_temp.assert_recovery(
+ to_regprocedure('public.studio2_check_capability_shadow(text,uuid,text,text)') is not null,
+ 'current hosted-observed shadow RPC installed with exact definition and privileges');
+select pg_temp.assert_recovery(
+ not has_function_privilege('anon',
+   'public.studio2_check_capability_shadow(text,uuid,text,text)', 'EXECUTE')
+ and has_function_privilege('authenticated',
+   'public.studio2_check_capability_shadow(text,uuid,text,text)', 'EXECUTE'),
+ 'shadow RPC callable by authenticated but not anonymous');
+
+insert into public.studio2_capability_grants(user_id,capability,edition_id)
+values ('a1300000-0000-4000-8000-000000000001','edition.manage','e1300000-0000-4000-8000-000000000001');
 select set_config('request.jwt.claim.role','authenticated',true);
 select set_config('request.jwt.claim.sub','a1300000-0000-4000-8000-000000000001',true);
-do $shadow_blocked$
+select pg_temp.assert_recovery(
+  (public.studio2_check_capability_shadow(
+    'edition.manage','e1300000-0000-4000-8000-000000000001',
+    'edition.runtime.update',null)->>'mode')='authoritative',
+  'historical shadow RPC name now returns authoritative capability mode');
+update public.studio2_edition_runtime
+set updated_by='a1300000-0000-4000-8000-000000000001'
+where edition_id='e1300000-0000-4000-8000-000000000001';
+select pg_temp.assert_recovery(
+ (select updated_by='a1300000-0000-4000-8000-000000000001'
+  from public.studio2_edition_runtime
+  where edition_id='e1300000-0000-4000-8000-000000000001'),
+ 'pre-global-flag actor with scoped capability passes current hosted-observed shadow path');
+select pg_temp.assert_recovery(
+ exists (select 1 from public.permission_evaluation_events
+   where user_id='a1300000-0000-4000-8000-000000000001'
+   and edition_id='e1300000-0000-4000-8000-000000000001'
+   and capability='edition.manage' and legacy_allowed and capability_allowed
+   and action='edition.runtime.update'),
+ 'real historical RPC writes transaction-scoped capability audit evidence');
+
+do $shadow_wrong_edition$
 declare v_message text;
 begin
   begin
     update public.studio2_edition_runtime
     set updated_by='a1300000-0000-4000-8000-000000000001'
-    where edition_id='e1300000-0000-4000-8000-000000000001';
-    raise exception 'Pre-authoritative strict-dual unexpectedly allowed without shadow helper';
-  exception when undefined_function then
+    where edition_id='e1300000-0000-4000-8000-000000000002';
+    raise exception 'Shadow RPC unexpectedly authorized wrong edition';
+  exception when insufficient_privilege then
     get stacked diagnostics v_message=message_text;
-    if position('studio2_check_capability_shadow' in v_message)=0 then raise; end if;
+    if position('Strict dual authorization requires Organizer role and capability: edition.manage' in v_message)=0
+    then raise; end if;
   end;
   if (select updated_by from public.studio2_edition_runtime
-    where edition_id='e1300000-0000-4000-8000-000000000001') is not null
-  then raise exception 'Missing shadow helper left partial edition-runtime update'; end if;
-  raise notice 'BLOCKED: legacy pre-authoritative shadow path needs source/hosted reconciliation; failed update leaves no rows';
-end $shadow_blocked$;
+    where edition_id='e1300000-0000-4000-8000-000000000002') is not null
+  then raise exception 'Wrong-edition shadow denial left partial runtime mutation'; end if;
+  raise notice 'PASS: pre-global-flag shadow path denies wrong edition and rolls back';
+end $shadow_wrong_edition$;
 select set_config('request.jwt.claim.role','',true);
 select set_config('request.jwt.claim.sub','',true);
+delete from public.studio2_capability_grants
+where user_id='a1300000-0000-4000-8000-000000000001'
+  and capability='edition.manage'
+  and edition_id='e1300000-0000-4000-8000-000000000001';
+-- Restore initial value for an independent authoritative-branch check.
+update public.studio2_edition_runtime set updated_by=null
+where edition_id='e1300000-0000-4000-8000-000000000001';
 
 -- Owner-only local fixture setup, not a production rollout change.
 insert into public.studio2_feature_flags (key,enabled,admins_only,user_ids,edition_ids)
