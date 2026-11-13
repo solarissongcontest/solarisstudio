@@ -75,6 +75,49 @@ try {
       ["status", "--porcelain", "--untracked-files=all", "--", "supabase/migrations"],
       { cwd: root, encoding: "utf8" },
     ).trim() === "";
+  // A matching Git HEAD and clean migration SQL do not certify a locally edited
+  // auditor. Compare the *executed* script and its imported implementation against
+  // committed blobs, including staged and skip-worktree/assume-unchanged edits.
+  const auditorPaths = [
+    "scripts/check-v3-production-migration-frontier.ts",
+    "src/lib/v3-production-migration-frontier.ts",
+  ];
+  const committedAuditorSources = execFileSync(
+    "git",
+    ["ls-tree", "-r", "HEAD", "--", ...auditorPaths],
+    { cwd: root, encoding: "utf8" },
+  )
+    .trim()
+    .split("\n");
+  const actualAuditorBlobs = execFileSync(
+    "git",
+    ["hash-object", "--no-filters", "--stdin-paths"],
+    { cwd: root, encoding: "utf8", input: auditorPaths.join("\n") + "\n" },
+  )
+    .trim()
+    .split("\n");
+  const auditorSourcesClean =
+    committedAuditorSources.length === auditorPaths.length &&
+    auditorPaths.every(
+      (path, index) =>
+        lstatSync(resolve(root, path)).isFile() &&
+        committedAuditorSources.includes("100644 blob " + actualAuditorBlobs[index] + "\t" + path),
+    ) &&
+    execFileSync(
+      "git",
+      ["status", "--porcelain", "--untracked-files=all", "--", ...auditorPaths],
+      { cwd: root, encoding: "utf8" },
+    ).trim() === "";
+  const auditorSourceSha256 = createHash("sha256")
+    .update(
+      JSON.stringify(
+        auditorPaths.map((path) => ({
+          path,
+          sha256: createHash("sha256").update(readFileSync(resolve(root, path))).digest("hex"),
+        })),
+      ),
+    )
+    .digest("hex");
   const sourceInventorySha256 = createHash("sha256")
     .update(
       JSON.stringify(
@@ -104,12 +147,15 @@ try {
   );
   const requirementsSatisfied =
     migrationSourcesClean &&
+    auditorSourcesClean &&
     identity.acceptable &&
     (!strictReconciliation || audit.historyReconciled) &&
     (!requirePreview || audit.previewHistoryCompatible);
   const result = {
     candidateSha,
     migrationSourcesClean,
+    auditorSourcesClean,
+    auditorSourceSha256,
     sourceInventorySha256,
     historyEvidenceSha256: createHash("sha256").update(historyBytes).digest("hex"),
     ...audit,
@@ -158,6 +204,8 @@ try {
     for (const error of audit.errors) console.error(`INVALID EVIDENCE: ${error}`);
     if (!migrationSourcesClean)
       console.error("SOURCE DRIFT: migration files differ from the candidate commit");
+    if (!auditorSourcesClean)
+      console.error("AUDITOR DRIFT: executable frontier sources differ from the candidate commit");
     if (identity.error) console.error(`CANDIDATE IDENTITY: ${identity.error}`);
   }
 
