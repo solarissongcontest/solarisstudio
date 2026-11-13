@@ -242,7 +242,18 @@ export function recoveryManifest(catalog, candidateSha) {
       nextNestedDependencies: ['private.studio2_permission_engine_authoritative()', 'public.studio2_check_capability_shadow (signature unresolved)'],
       runtimeActorPathCertification: false
     }],
-    blockedRuntime: [],
+    blockedRuntime: [{
+      identity: 'private.studio2_permission_engine_authoritative()',
+      blockedOperation: 'authenticated edition-runtime mutation through real strict-dual trigger',
+      runtimeWitness: 'PG17.11 actor-scoped update raises undefined_function and rolls back without partial edition-runtime mutation',
+      status: 'NESTED_AUTHORITY_MISSING_IN_DISPOSABLE_HOSTED_OBSERVED_FIXTURE',
+      sourceCandidate: 'supabase/migrations/20260914174742_permission_engine_v2_core_rls_cutover.sql',
+      exactHostedExecutableParity: false,
+      furtherDependencies: ['public.studio2_feature_flags relation (not present in bounded fixture)',
+        'public.studio2_check_capability_shadow (pre-authoritative fallback; signature unresolved)'],
+      requiredNextStep: 'Resolve immutable source versus frozen hosted hash and table/role/feature-flag prerequisites offline first. No hosted query without separate approval.',
+      releaseBlocks: ['actor-scoped strict-dual acceptance', 'hosted S13/S14 runtime-equivalence certification']
+    }],
     remainingInspection: relevant.filter(n => n.hostedClassification !== 'verified-equivalent').map(n => ({
       identity: n.identity, schema: n.schema, kind: n.kind,
       status: n.hostedClassification === 'verified-different' ? 'LOCALLY_DIFFERENT / BLOCKING' : 'UNKNOWN / BLOCKING',
