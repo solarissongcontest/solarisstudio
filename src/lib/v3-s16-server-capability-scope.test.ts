@@ -66,6 +66,16 @@ describe("S16 capability scope resolution on the authenticated server", () => {
     },
   );
 
+  it("normalizes uppercase UUID scopes without changing authorization meaning", async () => {
+    state.rows.studio2_capability_grants = [
+      { capability: "edition.read", edition_id: EDITION_A, expires_at: null },
+    ];
+    const context = await getSolarisCapabilitiesServer(EDITION_A.toUpperCase());
+    expect(context.capabilities).toEqual(["edition.read"]);
+    expect(state.filters.find((f) => f.table === "studio2_capability_grants" && f.kind === "or")?.value)
+      .toContain(EDITION_A);
+  });
+
   it("never promotes expired or another edition's direct grants into authority", async () => {
     state.rows.studio2_capability_grants = [
       { capability: "voting.manage", edition_id: EDITION_B, expires_at: active },

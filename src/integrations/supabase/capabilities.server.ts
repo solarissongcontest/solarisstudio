@@ -43,7 +43,7 @@ export async function getSolarisCapabilitiesServer(
   if (editionId != null && (typeof editionId !== 'string' || !EDITION_UUID.test(editionId))) {
     throw new Error('Invalid edition scope');
   }
-  const scope = editionId ?? null;
+  const scope = editionId?.toLowerCase() ?? null;
   const token = getSolarisAccessTokenServer();
   const client = createSolarisAuthenticatedClientServer();
 
