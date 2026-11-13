@@ -75,8 +75,51 @@ begin
  for expected in select value from jsonb_array_elements(${literal(evidence.tables)}) loop
   identity:=expected->>'identity';
   select * into c from pg_class where oid=to_regclass(identity);
-  actual:=jsonb_build_object('identity',identity,'exists',c.oid is not null,'owner',pg_get_userbyid(c.relowner),'rls',c.relrowsecurity,'force_rls',c.relforcerowsecurity,'acl',c.relacl::text,'triggers',(select coalesce(jsonb_agg(jsonb_build_object('name',t.tgname,'enabled',t.tgenabled,'definition_md5',md5(pg_get_triggerdef(t.oid))) order by t.tgname),'[]'::jsonb) from pg_trigger t where t.tgrelid=c.oid and not t.tgisinternal));
-  if actual is distinct from expected then raise exception 'Snapshot recovery table security/trigger drift: %',identity using errcode='55000'; end if;
+  -- The ordered LOCAL S14 forward recovery installs precisely one additional
+  -- archive write guard on each of these existing hosted-observed relations.
+  -- Require its exact trigger mode, target and authority; never broadly ignore
+  -- extra triggers or relax the frozen hosted fingerprint of other triggers.
+  if identity in (
+    'public.studio2_result_operations',
+    'public.studio2_show_publication_controls'
+  ) and not exists (
+    select 1 from pg_trigger guard
+    where guard.tgrelid=c.oid
+      and guard.tgname='v3_guard_archived_edition_workflow_write'
+      and guard.tgenabled='O'
+      and not guard.tgisinternal
+      and guard.tgfoid=to_regprocedure('private.v3_guard_archived_edition_workflow_write()')
+      and guard.tgtype=31 -- BEFORE INSERT, DELETE and UPDATE, FOR EACH ROW
+      and guard.tgqual is null
+      and guard.tgconstraint=0
+  ) then
+    raise exception 'Snapshot recovery requires the exact S14 forward archive guard: %',identity using errcode='55000';
+  end if;
+  actual:=jsonb_build_object(
+    'identity',identity,'exists',c.oid is not null,
+    'owner',pg_get_userbyid(c.relowner),
+    'rls',c.relrowsecurity,'force_rls',c.relforcerowsecurity,
+    'acl',c.relacl::text,
+    'triggers',(
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'name',t.tgname,'enabled',t.tgenabled,
+        'definition_md5',md5(pg_get_triggerdef(t.oid))
+      ) order by t.tgname),'[]'::jsonb)
+      from pg_trigger t
+      where t.tgrelid=c.oid
+        and not t.tgisinternal
+        and not (
+          identity in (
+            'public.studio2_result_operations',
+            'public.studio2_show_publication_controls'
+          )
+          and t.tgname='v3_guard_archived_edition_workflow_write'
+        )
+    )
+  );
+  if actual is distinct from expected then
+    raise exception 'Snapshot recovery table security/trigger drift: %, expected %, actual %',identity,expected,actual using errcode='55000';
+  end if;
  end loop;
 end $snapshot_preflight$;
 -- Install unchanged canonical active capture before exposing the public read model.

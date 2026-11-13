@@ -25,6 +25,9 @@ test("candidate preserves canonical capture/read model and does not install part
   assert.doesNotMatch(sql, /['"]v3.results.active-snapshot-and-qualification['"]/);
   assert.match(sql, /Snapshot recovery routine drift or partial installation/);
   assert.match(sql, /Snapshot recovery table security\/trigger drift/);
+  assert.match(sql, /Snapshot recovery requires the exact S14 forward archive guard/);
+  assert.match(sql, /guard\.tgtype=31/);
+  assert.match(sql, /guard\.tgfoid=to_regprocedure\('private\.v3_guard_archived_edition_workflow_write\(\)'\)/);
   assert.match(sql, /set local lock_timeout='5s'/);
   assert.match(sql, /begin;[\s\S]*commit;\s*$/);
 });
