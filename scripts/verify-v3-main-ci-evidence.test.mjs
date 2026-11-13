@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { collectCompleteWorkflowRuns, evaluateMainCiEvidence, fetchGithubJson } from "./verify-v3-main-ci-evidence.mjs";
 
 const sha = "a".repeat(40);
 const other = "b".repeat(40);
-const names = ["Quality", "Browser audit", "V3 S13 Migration Adoption"];
+const names = ["Quality", "Browser audit", "V3 S13 Migration Adoption", "V3 Public Organizer integration contracts"];
 const good = (name, overrides = {}) => ({
   id: names.indexOf(name) + 1,
   name,
@@ -32,8 +33,24 @@ test("passes only fully successful push workflows on the same exact current main
   const report = verify();
   assert.equal(report.passed, true);
   assert.equal(report.releaseCertified, false);
-  assert.equal(report.workflows.length, 3);
+  assert.equal(report.workflows.length, 4);
   assert.ok(report.workflows.every((run) => run.passed && run.url));
+});
+
+test("requires Public/Organizer contracts on the exact merged main SHA", () => {
+  const missing = names.filter((name) => name !== "V3 Public Organizer integration contracts").map((name) => good(name));
+  const report = verify({ workflowRuns: missing });
+  assert.equal(report.passed, false);
+  assert.equal(report.workflows[3].status, "missing");
+
+  const stale = [...missing, good("V3 Public Organizer integration contracts", { head_sha: other })];
+  assert.equal(verify({ workflowRuns: stale }).passed, false);
+
+  const prOnly = [...missing, good("V3 Public Organizer integration contracts", { event: "pull_request" })];
+  assert.equal(verify({ workflowRuns: prOnly }).passed, false);
+
+  const failed = [...missing, good("V3 Public Organizer integration contracts", { conclusion: "failure" })];
+  assert.equal(verify({ workflowRuns: failed }).passed, false);
 });
 
 test("rejects missing or cancelled Browser Audit, even if an older main/browser commit passed", () => {
@@ -98,12 +115,12 @@ test("collects every exact-SHA run from a stable bounded GitHub page sequence", 
   const runs = await collectCompleteWorkflowRuns(async (page) => {
     calls += 1;
     return {
-      total_count: 3,
-      workflow_runs: page === 1 ? [good(names[0])] : [good(names[1]), good(names[2])],
+      total_count: 4,
+      workflow_runs: page === 1 ? [good(names[0])] : [good(names[1]), good(names[2]), good(names[3])],
     };
   });
   assert.equal(calls, 2);
-  assert.deepEqual(runs.map((run) => run.id), [1, 2, 3]);
+  assert.deepEqual(runs.map((run) => run.id), [1, 2, 3, 4]);
   assert.equal(verify({ workflowRuns: runs }).passed, true);
   assert.deepEqual(await collectCompleteWorkflowRuns(async () => ({
     total_count: 0,
@@ -171,4 +188,10 @@ test("refuses malformed, duplicated, or over-budget GitHub workflow run metadata
     () => collectCompleteWorkflowRuns(null),
     /page reader/,
   );
+});
+
+test("Public/Organizer contracts run on every merged main SHA so exact-main evidence is available", () => {
+  const workflow = readFileSync(".github/workflows/v3-public-organizer-integration-contracts.yml", "utf8");
+  assert.match(workflow, /(?:^|\n)  push:\n    branches: \[main\]\n  workflow_dispatch:/);
+  assert.match(workflow, /(?:^|\n)  pull_request:\n    branches: \[main\]\n    paths:/);
 });

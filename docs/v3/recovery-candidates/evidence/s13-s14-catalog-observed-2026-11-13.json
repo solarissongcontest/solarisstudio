@@ -1,0 +1,1279 @@
+{
+  "tables": [
+    {
+      "rls": null,
+      "owner": null,
+      "relkind": null,
+      "identity": "private.v3_archive_runtime_transition_gates",
+      "force_rls": null,
+      "exists_now": false,
+      "privileges": {
+        "anon": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        },
+        "service_role": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        },
+        "authenticated": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        }
+      }
+    },
+    {
+      "rls": null,
+      "owner": null,
+      "relkind": null,
+      "identity": "private.v3_archive_task_reconciliation_gates",
+      "force_rls": null,
+      "exists_now": false,
+      "privileges": {
+        "anon": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        },
+        "service_role": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        },
+        "authenticated": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        }
+      }
+    },
+    {
+      "rls": null,
+      "owner": null,
+      "relkind": null,
+      "identity": "private.v3_backfill_jobs",
+      "force_rls": null,
+      "exists_now": false,
+      "privileges": {
+        "anon": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        },
+        "service_role": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        },
+        "authenticated": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        }
+      }
+    },
+    {
+      "rls": null,
+      "owner": null,
+      "relkind": null,
+      "identity": "private.v3_migration_contracts",
+      "force_rls": null,
+      "exists_now": false,
+      "privileges": {
+        "anon": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        },
+        "service_role": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        },
+        "authenticated": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        }
+      }
+    },
+    {
+      "rls": null,
+      "owner": null,
+      "relkind": null,
+      "identity": "private.v3_migration_parity_runs",
+      "force_rls": null,
+      "exists_now": false,
+      "privileges": {
+        "anon": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        },
+        "service_role": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        },
+        "authenticated": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        }
+      }
+    },
+    {
+      "rls": null,
+      "owner": null,
+      "relkind": null,
+      "identity": "private.v3_schema_compatibility",
+      "force_rls": null,
+      "exists_now": false,
+      "privileges": {
+        "anon": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        },
+        "service_role": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        },
+        "authenticated": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        }
+      }
+    },
+    {
+      "rls": null,
+      "owner": null,
+      "relkind": null,
+      "identity": "private.v3_schema_compatibility_history",
+      "force_rls": null,
+      "exists_now": false,
+      "privileges": {
+        "anon": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        },
+        "service_role": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        },
+        "authenticated": {
+          "delete": null,
+          "insert": null,
+          "select": null,
+          "update": null,
+          "truncate": null,
+          "schema_usage": null
+        }
+      }
+    },
+    {
+      "rls": true,
+      "owner": "postgres",
+      "relkind": "r",
+      "identity": "public.editions",
+      "force_rls": false,
+      "exists_now": true,
+      "privileges": {
+        "anon": {
+          "delete": true,
+          "insert": true,
+          "select": true,
+          "update": true,
+          "truncate": true,
+          "schema_usage": true
+        },
+        "service_role": {
+          "delete": true,
+          "insert": true,
+          "select": true,
+          "update": true,
+          "truncate": true,
+          "schema_usage": true
+        },
+        "authenticated": {
+          "delete": true,
+          "insert": true,
+          "select": true,
+          "update": true,
+          "truncate": true,
+          "schema_usage": true
+        }
+      }
+    },
+    {
+      "rls": true,
+      "owner": "postgres",
+      "relkind": "r",
+      "identity": "public.notification_deliveries",
+      "force_rls": false,
+      "exists_now": true,
+      "privileges": {
+        "anon": {
+          "delete": true,
+          "insert": true,
+          "select": true,
+          "update": true,
+          "truncate": true,
+          "schema_usage": true
+        },
+        "service_role": {
+          "delete": true,
+          "insert": true,
+          "select": true,
+          "update": true,
+          "truncate": true,
+          "schema_usage": true
+        },
+        "authenticated": {
+          "delete": true,
+          "insert": true,
+          "select": true,
+          "update": true,
+          "truncate": true,
+          "schema_usage": true
+        }
+      }
+    },
+    {
+      "rls": true,
+      "owner": "postgres",
+      "relkind": "r",
+      "identity": "public.studio2_edition_runtime",
+      "force_rls": false,
+      "exists_now": true,
+      "privileges": {
+        "anon": {
+          "delete": false,
+          "insert": false,
+          "select": false,
+          "update": false,
+          "truncate": false,
+          "schema_usage": true
+        },
+        "service_role": {
+          "delete": true,
+          "insert": true,
+          "select": true,
+          "update": true,
+          "truncate": true,
+          "schema_usage": true
+        },
+        "authenticated": {
+          "delete": false,
+          "insert": false,
+          "select": true,
+          "update": false,
+          "truncate": false,
+          "schema_usage": true
+        }
+      }
+    },
+    {
+      "rls": true,
+      "owner": "postgres",
+      "relkind": "r",
+      "identity": "public.studio2_organizer_tasks",
+      "force_rls": false,
+      "exists_now": true,
+      "privileges": {
+        "anon": {
+          "delete": false,
+          "insert": false,
+          "select": false,
+          "update": false,
+          "truncate": false,
+          "schema_usage": true
+        },
+        "service_role": {
+          "delete": true,
+          "insert": true,
+          "select": true,
+          "update": true,
+          "truncate": true,
+          "schema_usage": true
+        },
+        "authenticated": {
+          "delete": false,
+          "insert": false,
+          "select": false,
+          "update": false,
+          "truncate": false,
+          "schema_usage": true
+        }
+      }
+    }
+  ],
+  "columns": [
+    {
+      "name": "consumer_key",
+      "not_null": true,
+      "relation": "private.v3_domain_event_outbox",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "text",
+      "expected_type": "text",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "event_id",
+      "not_null": true,
+      "relation": "private.v3_domain_event_outbox",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "uuid",
+      "expected_type": "uuid",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "status",
+      "not_null": true,
+      "relation": "private.v3_domain_event_outbox",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "text",
+      "expected_type": "text",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "aggregate_version",
+      "not_null": true,
+      "relation": "private.v3_domain_events",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "bigint",
+      "expected_type": "bigint",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "event_type",
+      "not_null": true,
+      "relation": "private.v3_domain_events",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "text",
+      "expected_type": "text",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "payload",
+      "not_null": true,
+      "relation": "private.v3_domain_events",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "jsonb",
+      "expected_type": "jsonb",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "result_rows",
+      "not_null": true,
+      "relation": "private.v3_result_versions",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "jsonb",
+      "expected_type": "jsonb",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "show_id",
+      "not_null": true,
+      "relation": "private.v3_result_versions",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "uuid",
+      "expected_type": "uuid",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "version",
+      "not_null": true,
+      "relation": "private.v3_result_versions",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "bigint",
+      "expected_type": "bigint",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "recipient_id",
+      "not_null": true,
+      "relation": "public.admin_notifications",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "uuid",
+      "expected_type": "uuid",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "requires_action",
+      "not_null": true,
+      "relation": "public.admin_notifications",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "boolean",
+      "expected_type": "boolean",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "resolution_mode",
+      "not_null": true,
+      "relation": "public.admin_notifications",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "text",
+      "expected_type": "text",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "resolved_at",
+      "not_null": false,
+      "relation": "public.admin_notifications",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "timestamp with time zone",
+      "expected_type": "timestamptz",
+      "parent_exists": true,
+      "expected_not_null": "false"
+    },
+    {
+      "name": "source_key",
+      "not_null": false,
+      "relation": "public.admin_notifications",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "text",
+      "expected_type": "text",
+      "parent_exists": true,
+      "expected_not_null": "false"
+    },
+    {
+      "name": "category",
+      "not_null": true,
+      "relation": "public.notification_deliveries",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "text",
+      "expected_type": "text",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "scheduled_for",
+      "not_null": true,
+      "relation": "public.notification_deliveries",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "timestamp with time zone",
+      "expected_type": "timestamptz",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "status",
+      "not_null": true,
+      "relation": "public.notification_deliveries",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "text",
+      "expected_type": "text",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "subject_id",
+      "not_null": true,
+      "relation": "public.notification_deliveries",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "text",
+      "expected_type": "text",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "edition_id",
+      "not_null": true,
+      "relation": "public.studio2_edition_runtime",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "uuid",
+      "expected_type": "uuid",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "state",
+      "not_null": true,
+      "relation": "public.studio2_edition_runtime",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "text",
+      "expected_type": "text",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "subsystems",
+      "not_null": true,
+      "relation": "public.studio2_edition_runtime",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "jsonb",
+      "expected_type": "jsonb",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "updated_at",
+      "not_null": true,
+      "relation": "public.studio2_edition_runtime",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "timestamp with time zone",
+      "expected_type": "timestamptz",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "version",
+      "not_null": true,
+      "relation": "public.studio2_edition_runtime",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "bigint",
+      "expected_type": "bigint",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "correlation_id",
+      "not_null": true,
+      "relation": "public.studio2_operation_receipts",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "uuid",
+      "expected_type": "uuid",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "idempotency_key",
+      "not_null": true,
+      "relation": "public.studio2_operation_receipts",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "text",
+      "expected_type": "text",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "operation_id",
+      "not_null": true,
+      "relation": "public.studio2_operation_receipts",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "uuid",
+      "expected_type": "uuid",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "edition_id",
+      "not_null": false,
+      "relation": "public.studio2_organizer_tasks",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "uuid",
+      "expected_type": "uuid",
+      "parent_exists": true,
+      "expected_not_null": "false"
+    },
+    {
+      "name": "id",
+      "not_null": true,
+      "relation": "public.studio2_organizer_tasks",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "uuid",
+      "expected_type": "uuid",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "source_key",
+      "not_null": true,
+      "relation": "public.studio2_organizer_tasks",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "text",
+      "expected_type": "text",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "state",
+      "not_null": true,
+      "relation": "public.studio2_organizer_tasks",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "text",
+      "expected_type": "text",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    },
+    {
+      "name": "task_type",
+      "not_null": true,
+      "relation": "public.studio2_organizer_tasks",
+      "compatible": true,
+      "exists_now": true,
+      "actual_type": "text",
+      "expected_type": "text",
+      "parent_exists": true,
+      "expected_not_null": "true"
+    }
+  ],
+  "indexes": [
+    {
+      "ready": null,
+      "valid": null,
+      "identity": "private.v3_backfill_jobs_status_idx",
+      "relation": null,
+      "exists_now": false,
+      "definition_md5": null
+    },
+    {
+      "ready": null,
+      "valid": null,
+      "identity": "private.v3_migration_parity_runs_key_time_idx",
+      "relation": null,
+      "exists_now": false,
+      "definition_md5": null
+    }
+  ],
+  "triggers": [
+    {
+      "name": "studio2_platform_direct_write_guard",
+      "enabled": "O",
+      "function": "private.studio2_guard_direct_client_write()",
+      "relation": "public.admin_notifications",
+      "exists_now": true,
+      "parent_exists": true,
+      "definition_md5": "2ae8e682d3bd6c9c6ba5738014681357"
+    },
+    {
+      "name": "v3_guard_archived_legacy_edition_status",
+      "enabled": null,
+      "function": null,
+      "relation": "public.editions",
+      "exists_now": false,
+      "parent_exists": true,
+      "definition_md5": null
+    },
+    {
+      "name": "studio2_platform_direct_write_guard",
+      "enabled": "O",
+      "function": "private.studio2_guard_direct_client_write()",
+      "relation": "public.notification_deliveries",
+      "exists_now": true,
+      "parent_exists": true,
+      "definition_md5": "9a98e162443857e540419ba2659d85f5"
+    },
+    {
+      "name": "v3_project_resolved_task_delivery_state",
+      "enabled": null,
+      "function": null,
+      "relation": "public.notification_deliveries",
+      "exists_now": false,
+      "parent_exists": true,
+      "definition_md5": null
+    },
+    {
+      "name": "v3_guard_archive_runtime_delete",
+      "enabled": null,
+      "function": null,
+      "relation": "public.studio2_edition_runtime",
+      "exists_now": false,
+      "parent_exists": true,
+      "definition_md5": null
+    },
+    {
+      "name": "v3_guard_archive_runtime_insert",
+      "enabled": null,
+      "function": null,
+      "relation": "public.studio2_edition_runtime",
+      "exists_now": false,
+      "parent_exists": true,
+      "definition_md5": null
+    },
+    {
+      "name": "v3_guard_archive_runtime_transition",
+      "enabled": null,
+      "function": null,
+      "relation": "public.studio2_edition_runtime",
+      "exists_now": false,
+      "parent_exists": true,
+      "definition_md5": null
+    },
+    {
+      "name": "v3_guard_archive_runtime_update",
+      "enabled": null,
+      "function": null,
+      "relation": "public.studio2_edition_runtime",
+      "exists_now": false,
+      "parent_exists": true,
+      "definition_md5": null
+    },
+    {
+      "name": "v3_sync_archived_edition_legacy_status",
+      "enabled": null,
+      "function": null,
+      "relation": "public.studio2_edition_runtime",
+      "exists_now": false,
+      "parent_exists": true,
+      "definition_md5": null
+    },
+    {
+      "name": "v3_guard_archived_edition_task_resurrection",
+      "enabled": null,
+      "function": null,
+      "relation": "public.studio2_organizer_tasks",
+      "exists_now": false,
+      "parent_exists": true,
+      "definition_md5": null
+    },
+    {
+      "name": "v3_project_resolved_task_delivery_state",
+      "enabled": null,
+      "function": null,
+      "relation": "public.studio2_organizer_tasks",
+      "exists_now": false,
+      "parent_exists": true,
+      "definition_md5": null
+    }
+  ],
+  "functions": [
+    {
+      "acl": "{postgres=X/postgres}",
+      "owner": "postgres",
+      "strict": false,
+      "acl_md5": "341a58cafc38a872c684592babc76f83",
+      "execute": {
+        "anon": false,
+        "service_role": false,
+        "authenticated": false
+      },
+      "identity": "private.studio2_prune_stale_task_notifications(uuid)",
+      "language": "plpgsql",
+      "parallel": "u",
+      "leakproof": false,
+      "exists_now": true,
+      "volatility": "v",
+      "search_path": [
+        "search_path=pg_catalog, public, private"
+      ],
+      "settings_md5": "f4d108644d77d4da19cf67dcdd506153",
+      "definition_md5": "f059ed84963db4bbde4dd3e5ee59fd9e",
+      "security_definer": true
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "owner": "postgres",
+      "strict": false,
+      "acl_md5": "341a58cafc38a872c684592babc76f83",
+      "execute": {
+        "anon": false,
+        "service_role": false,
+        "authenticated": false
+      },
+      "identity": "private.studio2_reconcile_all_organizer_tasks(uuid)",
+      "language": "plpgsql",
+      "parallel": "u",
+      "leakproof": false,
+      "exists_now": true,
+      "volatility": "v",
+      "search_path": [
+        "search_path=pg_catalog, public, private, televoting, auth"
+      ],
+      "settings_md5": "5128a303384d3d46f80fb9af2e6f4921",
+      "definition_md5": "756db08b6994b189992bd527f97c4b37",
+      "security_definer": true
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "owner": "postgres",
+      "strict": false,
+      "acl_md5": "341a58cafc38a872c684592babc76f83",
+      "execute": {
+        "anon": false,
+        "service_role": false,
+        "authenticated": false
+      },
+      "identity": "private.studio2_request_is_service_role()",
+      "language": "sql",
+      "parallel": "u",
+      "leakproof": false,
+      "exists_now": true,
+      "volatility": "s",
+      "search_path": [
+        "search_path=pg_catalog"
+      ],
+      "settings_md5": "86848e74287bde206a1238f01a1c9b0b",
+      "definition_md5": "84d3f05e5f537908732a3875ba0178e6",
+      "security_definer": false
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "strict": null,
+      "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "private.studio2_transition_edition_v3(uuid,text,text,uuid,bigint,uuid,text)",
+      "language": null,
+      "parallel": null,
+      "leakproof": null,
+      "exists_now": false,
+      "volatility": null,
+      "search_path": null,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "strict": null,
+      "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "private.v3_archive_task_reconciliation_gate_active(uuid)",
+      "language": null,
+      "parallel": null,
+      "leakproof": null,
+      "exists_now": false,
+      "volatility": null,
+      "search_path": null,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "strict": null,
+      "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "private.v3_edition_final_results_ready(uuid)",
+      "language": null,
+      "parallel": null,
+      "leakproof": null,
+      "exists_now": false,
+      "volatility": null,
+      "search_path": null,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "strict": null,
+      "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "private.v3_guard_archive_runtime_transition()",
+      "language": null,
+      "parallel": null,
+      "leakproof": null,
+      "exists_now": false,
+      "volatility": null,
+      "search_path": null,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "strict": null,
+      "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "private.v3_project_resolved_task_delivery_state()",
+      "language": null,
+      "parallel": null,
+      "leakproof": null,
+      "exists_now": false,
+      "volatility": null,
+      "search_path": null,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "strict": null,
+      "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "private.v3_reconcile_resolved_task_notifications(uuid)",
+      "language": null,
+      "parallel": null,
+      "leakproof": null,
+      "exists_now": false,
+      "volatility": null,
+      "search_path": null,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "strict": null,
+      "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "private.v3_resolve_archived_edition_workflow_tasks(uuid)",
+      "language": null,
+      "parallel": null,
+      "leakproof": null,
+      "exists_now": false,
+      "volatility": null,
+      "search_path": null,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "strict": null,
+      "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "public.studio2_process_edition_domain_event(uuid,text,text)",
+      "language": null,
+      "parallel": null,
+      "leakproof": null,
+      "exists_now": false,
+      "volatility": null,
+      "search_path": null,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "strict": false,
+      "acl_md5": "b4461a8291c4a36a68f3e21fc818e4ab",
+      "execute": {
+        "anon": false,
+        "service_role": true,
+        "authenticated": true
+      },
+      "identity": "public.studio2_transition_edition_v2(uuid,text,text,uuid)",
+      "language": "plpgsql",
+      "parallel": "u",
+      "leakproof": false,
+      "exists_now": true,
+      "volatility": "v",
+      "search_path": [
+        "search_path=pg_catalog, public, private"
+      ],
+      "settings_md5": "f4d108644d77d4da19cf67dcdd506153",
+      "definition_md5": "4ef023751dbfc3d7ee142e83bd983974",
+      "security_definer": true
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "strict": null,
+      "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "public.studio2_transition_edition_v3(uuid,text,text,uuid,bigint,uuid,text)",
+      "language": null,
+      "parallel": null,
+      "leakproof": null,
+      "exists_now": false,
+      "volatility": null,
+      "search_path": null,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "strict": null,
+      "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "public.v3_checkpoint_backfill(text,text,jsonb,integer,integer,text,boolean)",
+      "language": null,
+      "parallel": null,
+      "leakproof": null,
+      "exists_now": false,
+      "volatility": null,
+      "search_path": null,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "strict": null,
+      "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "public.v3_claim_backfill(text,integer,integer,text,integer,bigint)",
+      "language": null,
+      "parallel": null,
+      "leakproof": null,
+      "exists_now": false,
+      "volatility": null,
+      "search_path": null,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "strict": null,
+      "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "public.v3_fail_backfill(text,text,text)",
+      "language": null,
+      "parallel": null,
+      "leakproof": null,
+      "exists_now": false,
+      "volatility": null,
+      "search_path": null,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "strict": null,
+      "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "public.v3_record_migration_parity(text,text,bigint,bigint,bigint,bigint,integer,jsonb)",
+      "language": null,
+      "parallel": null,
+      "leakproof": null,
+      "exists_now": false,
+      "volatility": null,
+      "search_path": null,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "strict": null,
+      "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "public.v3_register_migration_contract(text,integer,text,boolean,text,text)",
+      "language": null,
+      "parallel": null,
+      "leakproof": null,
+      "exists_now": false,
+      "volatility": null,
+      "search_path": null,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "strict": null,
+      "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "public.v3_schema_compatibility(integer)",
+      "language": null,
+      "parallel": null,
+      "leakproof": null,
+      "exists_now": false,
+      "volatility": null,
+      "search_path": null,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "strict": null,
+      "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "public.v3_set_schema_compatibility(integer,integer,integer,text,text,text)",
+      "language": null,
+      "parallel": null,
+      "leakproof": null,
+      "exists_now": false,
+      "volatility": null,
+      "search_path": null,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    }
+  ],
+  "checkpoint": {
+    "observed_at": "2026-11-13T16:13:37.633179+00:00",
+    "lock_timeout": "2s",
+    "statement_timeout": "10s",
+    "server_version_num": "170011",
+    "transaction_read_only": "on"
+  },
+  "project_ref": "dkxmnvekiopyesuzggeu",
+  "schema_version": 1
+}

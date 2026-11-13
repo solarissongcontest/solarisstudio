@@ -1,5 +1,7 @@
 # S06: obtain and review hosted-head schema definitions (OPERATOR-ONLY)
 
+> **Merge-process note (owner update, 14 November 2026):** [The current evidence-based merge policy](../merge-review-policy.md) supersedes older "independent integrator review" or separate-AI merge-approval wording in this historical/technical note. A single authorized session may verify and merge its own source PR when risk-tiered objective checks and actual GitHub rules pass. This does **not** waive any technical verification, true production authorization, or sensitive-data protection described below. A genuinely independent inspection of a future private production export, where required for its safety, is a **separate export-security decision**, not blanket PR merge approval.
+
 ## Owner constraint and agent-first alternative (11 November 2026)
 
 **The owner has no install-capable computer. Do not instruct them to install PostgreSQL, download a database dump, paste connection credentials, find an operator or request more Cloudflare/Supabase connection screenshots.** See [the project-wide agent-verifiable evidence policy](../agent-verifiable-evidence-policy.md).
