@@ -317,6 +317,8 @@ begin
       raise exception 'Calculation actor must match the authenticated principal'
         using errcode = '42501';
     end if;
+    -- Match the existing server adapter: email or the stable organizer label.
+    p_calculated_by_username := coalesce(nullif(auth.jwt()->>'email',''),'Solaris organizer');
   end if;
 
   if p_round_id is null then

@@ -45,7 +45,7 @@ do $positive$ declare target uuid; engine text; version integer; payload jsonb; 
     perform televoting.v3_commit_official_round_calculation(target,1,now(),'00000000-0000-0000-0000-000000000002','forged',array['AA'],payload,'[]');
     raise exception 'Forged actor overwrote committed result' using errcode='XX000';
   exception when insufficient_privilege then null; end;
-  if not exists(select 1 from televoting.rounds where id=target and calculation_version=1 and calculated_by=auth.uid()) then raise exception 'Actor/version readback mismatch'; end if;
+  if not exists(select 1 from televoting.rounds where id=target and calculation_version=1 and calculated_by=auth.uid() and calculated_by_username='Solaris organizer') then raise exception 'Actor/version readback mismatch'; end if;
  end loop;
 end $positive$;
 reset role;
