@@ -137,30 +137,130 @@ select pg_temp.assert_recovery(
  not private.studio2_user_has_capability('a1300000-0000-4000-8000-000000000001','edition.manage','e1300000-0000-4000-8000-000000000001'),
  'revoked edition grant denied');
 
--- Real actor-capability positive/negative strict-dual authorization remains
--- unverified because the hosted-observed fixture does not yet reconstruct the
--- nested authoritative rollout / legacy shadow checker. Do not invent stubs.
+-- Test the exact hosted-observed nested global flag helper against the REAL
+-- 215-relation fixture, with its original feature-flag strict-dual trigger.
 select pg_temp.assert_recovery(
-  to_regprocedure('private.studio2_permission_engine_authoritative()') is null,
-  'next authoritative rollout helper still missing in bounded hosted fixture');
+ to_regprocedure('private.studio2_permission_engine_authoritative()') is not null,
+ 'hosted-authoritative permission flag helper installed with frozen metadata');
+select pg_temp.assert_recovery(
+ not private.studio2_permission_engine_authoritative(),
+ 'absent permission-engine rollout flag is non-authoritative');
+
+-- Shadow-mode legacy actor path is not faked. Its separately observed
+-- authoritative implementation and dependent legacy projections still require
+-- source-vs-hosted parity review. A missing function must not mutate the row.
 select set_config('request.jwt.claim.role','authenticated',true);
 select set_config('request.jwt.claim.sub','a1300000-0000-4000-8000-000000000001',true);
-do $nested_blocked$
+do $shadow_blocked$
 declare v_message text;
 begin
   begin
     update public.studio2_edition_runtime
-    set updated_at=now() where edition_id='e1300000-0000-4000-8000-000000000001';
-    raise exception 'Actor-scoped runtime update unexpectedly bypassed unresolved rollout authority';
+    set updated_by='a1300000-0000-4000-8000-000000000001'
+    where edition_id='e1300000-0000-4000-8000-000000000001';
+    raise exception 'Pre-authoritative strict-dual unexpectedly allowed without shadow helper';
   exception when undefined_function then
     get stacked diagnostics v_message=message_text;
-    if position('private.studio2_permission_engine_authoritative' in v_message)=0 then raise; end if;
+    if position('studio2_check_capability_shadow' in v_message)=0 then raise; end if;
   end;
-  if (select version from public.studio2_edition_runtime
-      where edition_id='e1300000-0000-4000-8000-000000000001') <> 1
-  then raise exception 'Failed nested authorization left partial edition-runtime version change'; end if;
-  raise notice 'BLOCKED: actor-scoped positive/negative strict-dual cases require nested hosted authority; no partial runtime mutation';
-end $nested_blocked$;
+  if (select updated_by from public.studio2_edition_runtime
+    where edition_id='e1300000-0000-4000-8000-000000000001') is not null
+  then raise exception 'Missing shadow helper left partial edition-runtime update'; end if;
+  raise notice 'BLOCKED: legacy pre-authoritative shadow path needs source/hosted reconciliation; failed update leaves no rows';
+end $shadow_blocked$;
+select set_config('request.jwt.claim.role','',true);
+select set_config('request.jwt.claim.sub','',true);
+
+-- Owner-only local fixture setup, not a production rollout change.
+insert into public.studio2_feature_flags (key,enabled,admins_only,user_ids,edition_ids)
+values ('permission_engine_v2',true,false,'{}'::uuid[],'{}'::uuid[]);
+select pg_temp.assert_recovery(private.studio2_permission_engine_authoritative(),
+ 'global rollout flag enables exact hosted authoritative checker');
+insert into public.studio2_capability_grants(user_id,capability,edition_id)
+values ('a1300000-0000-4000-8000-000000000001','edition.manage','e1300000-0000-4000-8000-000000000001');
+
+-- Authentication claims are synthetic, but these DO exercise the real
+-- strict-dual trigger, authoritative helper, capability grant, edition table
+-- and runtime mutation in a single transaction with RLS/guards enabled.
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','a1300000-0000-4000-8000-000000000001',true);
+update public.studio2_edition_runtime
+set updated_by='a1300000-0000-4000-8000-000000000001'
+where edition_id='e1300000-0000-4000-8000-000000000001';
+select pg_temp.assert_recovery(
+ (select updated_by='a1300000-0000-4000-8000-000000000001'
+  from public.studio2_edition_runtime
+  where edition_id='e1300000-0000-4000-8000-000000000001'),
+ 'authoritative actor with edition-scoped capability passes exact strict-dual runtime guard');
+
+do $wrong_edition$
+declare v_message text;
+begin
+  begin
+    update public.studio2_edition_runtime
+    set updated_by='a1300000-0000-4000-8000-000000000001'
+    where edition_id='e1300000-0000-4000-8000-000000000002';
+    raise exception 'Wrong-edition actor unexpectedly authorized';
+  exception when insufficient_privilege then
+    get stacked diagnostics v_message=message_text;
+    if position('Capability required: edition.manage' in v_message)=0 then raise; end if;
+  end;
+  if (select updated_by from public.studio2_edition_runtime
+    where edition_id='e1300000-0000-4000-8000-000000000002') is not null
+  then raise exception 'Wrong-edition denial left a partial runtime mutation'; end if;
+  raise notice 'PASS: wrong-edition actor denied by strict-dual trigger with no partial mutation';
+end $wrong_edition$;
+
+-- Expiry and revocation must invalidate a previously successful actor.
+select set_config('request.jwt.claim.role','',true);
+select set_config('request.jwt.claim.sub','',true);
+update public.studio2_capability_grants set expires_at=now()-interval '1 minute'
+where user_id='a1300000-0000-4000-8000-000000000001'
+  and capability='edition.manage' and edition_id='e1300000-0000-4000-8000-000000000001';
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','a1300000-0000-4000-8000-000000000001',true);
+do $expired_actor$
+declare v_message text;
+begin
+  begin
+    update public.studio2_edition_runtime set updated_by=null
+    where edition_id='e1300000-0000-4000-8000-000000000001';
+    raise exception 'Expired actor grant unexpectedly authorized';
+  exception when insufficient_privilege then
+    get stacked diagnostics v_message=message_text;
+    if position('Capability required: edition.manage' in v_message)=0 then raise; end if;
+  end;
+  if (select updated_by from public.studio2_edition_runtime
+    where edition_id='e1300000-0000-4000-8000-000000000001')
+    is distinct from 'a1300000-0000-4000-8000-000000000001'::uuid
+  then raise exception 'Expired capability left a partial runtime mutation'; end if;
+  raise notice 'PASS: expired actor grant denied by strict-dual trigger with no partial mutation';
+end $expired_actor$;
+
+select set_config('request.jwt.claim.role','',true);
+select set_config('request.jwt.claim.sub','',true);
+delete from public.studio2_capability_grants
+where user_id='a1300000-0000-4000-8000-000000000001'
+  and capability='edition.manage' and edition_id='e1300000-0000-4000-8000-000000000001';
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','a1300000-0000-4000-8000-000000000001',true);
+do $revoked_actor$
+declare v_message text;
+begin
+  begin
+    update public.studio2_edition_runtime set updated_by=null
+    where edition_id='e1300000-0000-4000-8000-000000000001';
+    raise exception 'Revoked actor grant unexpectedly authorized';
+  exception when insufficient_privilege then
+    get stacked diagnostics v_message=message_text;
+    if position('Capability required: edition.manage' in v_message)=0 then raise; end if;
+  end;
+  if (select updated_by from public.studio2_edition_runtime
+    where edition_id='e1300000-0000-4000-8000-000000000001')
+    is distinct from 'a1300000-0000-4000-8000-000000000001'::uuid
+  then raise exception 'Revoked capability left a partial runtime mutation'; end if;
+  raise notice 'PASS: revoked actor grant denied by strict-dual trigger with no partial mutation';
+end $revoked_actor$;
 select set_config('request.jwt.claim.role','',true);
 select set_config('request.jwt.claim.sub','',true);
 
