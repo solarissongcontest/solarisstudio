@@ -178,3 +178,31 @@ test("bounded downstream evidence preserves missing canonical interfaces without
     /\b(?:insert into|delete from|update public|create table|alter table|schema_migrations)\b/i,
   );
 });
+
+test("capture EXECUTE drift is refused and the local overlay closes default PUBLIC execution", () => {
+  const observed = JSON.parse(
+    readFileSync(
+      new URL(
+        "../docs/v3/recovery-candidates/evidence/s13-s14-voting-dependencies-observed-2026-11-13.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  observed.functions.find(
+    (x) => x.identity === "private.v3_capture_result_version()",
+  ).execute.anon = true;
+  assert.throws(() => compareDownstream(observed));
+  const overlay = readFileSync(
+    new URL(
+      "../docs/v3/recovery-candidates/evidence/s13-s14-observed-acls-local-2026-11-13.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(
+    overlay,
+    /revoke all on function private\.v3_capture_result_version\(\) from public,anon,authenticated,service_role/,
+  );
+  assert.doesNotMatch(overlay, /create (or replace )?function|disable trigger|truncate table/i);
+});

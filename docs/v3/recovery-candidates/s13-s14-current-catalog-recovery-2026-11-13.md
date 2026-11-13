@@ -48,7 +48,7 @@ No additional production query was needed to establish this representation.
 
 ## Actual local compatibility repairs
 
-The existing fixture omitted two observed owner-only routine ACLs and eight
+The existing fixture omitted three observed owner-only routine ACLs (two task reconcilers plus result capture) and eight
 TRUNCATE privilege bits. A clearly local-only overlay now reproduces them before
 qualification. Existing function bodies/owners, grants for SELECT/DML, RLS,
 constraints and triggers are unchanged. TRUNCATE privilege is **not** a production

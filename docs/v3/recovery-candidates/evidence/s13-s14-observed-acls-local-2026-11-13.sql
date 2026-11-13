@@ -2,6 +2,7 @@
 -- 2026-11-13 catalog inspection. Not production SQL or permission to truncate.
 begin;
 -- Function bodies, owners and other security properties are verified separately.
+revoke all on function private.v3_capture_result_version() from public,anon,authenticated,service_role;
 revoke all on function private.studio2_prune_stale_task_notifications(uuid) from public,anon,authenticated,service_role;
 revoke all on function private.studio2_reconcile_all_organizer_tasks(uuid) from public,anon,authenticated,service_role;
 grant truncate on table public.editions to anon;
