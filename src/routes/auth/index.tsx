@@ -254,7 +254,7 @@ function AuthPage() {
             <button
               type="submit"
               disabled={busy || signupUnavailable}
-              className="bg-aurora w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+              className="bg-aurora min-h-11 w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
             >
               {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create country account"}
             </button>
@@ -265,13 +265,13 @@ function AuthPage() {
               type="button"
               disabled={busy}
               onClick={() => void recoverPassword()}
-              className="mt-3 inline-flex min-h-10 w-full items-center justify-center text-xs text-muted-foreground hover:text-foreground disabled:opacity-60"
+              className="mt-3 inline-flex min-h-11 w-full items-center justify-center text-xs text-muted-foreground hover:text-foreground disabled:opacity-60"
             >
               Forgot password?
             </button>
           ) : null}
 
-          {msg ? <p className="mt-4 text-sm text-muted-foreground">{msg}</p> : null}
+          {msg ? <p role="status" aria-live="polite" className="mt-4 text-sm text-muted-foreground">{msg}</p> : null}
 
           <button
             type="button"
@@ -280,7 +280,7 @@ function AuthPage() {
               setMsg(null);
               setPassword("");
             }}
-            className="mt-4 inline-flex min-h-10 w-full items-center justify-center text-xs text-muted-foreground hover:text-foreground"
+            className="mt-4 inline-flex min-h-11 w-full items-center justify-center text-xs text-muted-foreground hover:text-foreground"
           >
             {mode === "signin"
               ? "No country account yet? Create one"
