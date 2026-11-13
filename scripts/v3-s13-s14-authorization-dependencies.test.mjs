@@ -74,12 +74,12 @@ test('only the exact local placeholder can be replaced, with atomic observed met
   assert.match(sql, /has_function_privilege\('authenticated'/);
   assert.doesNotMatch(sql, /disable trigger|session_replication_role|supabase_migrations|drop function/i);
 });
-test('manifest keeps five verified leaves separate from unknown closure and deployment', () => {
+test('manifest keeps six verified leaves separate from unknown closure and deployment', () => {
   const c = catalog();
   c.nodes.push({ id: 'u:missing', kind: 'unresolved-reference', schema: 'private', identity: 'private.missing' });
   c.edges.push({ source: 'root:0', target: 'u:missing', kind: 'unresolved-qualified-reference' });
   const m = recoveryManifest(c, sha);
-  assert.equal(m.reconstructed.length, 5);
+  assert.equal(m.reconstructed.length, 6);
   assert.ok(m.remainingInspection.some(x => x.identity === 'private.missing'));
   assert.equal(m.fullHostedEquivalenceCertified, false);
   assert.equal(m.productionRecoveryEligible, false);
@@ -89,7 +89,7 @@ test('manifest keeps five verified leaves separate from unknown closure and depl
   assert.equal(m.runtimeCoverage.editionScopedAcceptance, 'PENDING_EXACT_HEAD_LOCAL_RUNTIME_LOG');
   assert.equal(m.runtimeCoverage.executionResult, 'NOT_ATTESTED_BY_THIS_METADATA_MANIFEST');
   assert.equal(m.blockedRuntime.length, 1);
-  assert.equal(m.blockedRuntime[0].identity, 'private.studio2_permission_engine_authoritative()');
+  assert.equal(m.blockedRuntime[0].identity, 'public.studio2_check_capability_shadow(text,uuid,text,text)');
   assert.equal(m.blockedRuntime[0].exactHostedExecutableParity, false);
   assert.equal(m.verifiedRuntimeBody[0].identity, 'private.studio2_require_strict_dual(text,uuid,text)');
   assert.equal(m.verifiedRuntimeBody[0].rawHostedDefinitionCommitted, false);
