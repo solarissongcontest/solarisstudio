@@ -1,4 +1,16 @@
 \set ON_ERROR_STOP on
+-- The hosted-observed subset deliberately has NO invented migration-history
+-- ledger. Preserve unknown provenance instead of reporting an empty source DB.
+\if :{?recovery_subset}
+\set source_metadata '{"migrationVersions":null,"seedCounts":null}'
+\set baseline_profile 'hosted-observed-recovery-subset'
+\else
+select jsonb_build_object(
+ 'migrationVersions',(select jsonb_agg(version order by version) from supabase_migrations.schema_migrations),
+ 'seedCounts',jsonb_build_object('users',(select count(*) from auth.users),'ballots',(select count(*) from televoting.vote_submissions))
+)::text as source_metadata \gset
+\set baseline_profile 'source-defined'
+\endif
 -- LOCAL ONLY: names, fingerprints, effective grants and dependencies; no row
 -- contents or routine bodies leave the database. Conservative graph, not a
 -- complete PL/pgSQL parser. Runtime calls supplement source/catalog edges.
@@ -53,7 +65,8 @@ with funcs as (
 ), nodes as (
  select jsonb_build_object('id','f:'||f.oid,'kind','function','identity',f.identity,'name',f.name,'schema',f.nspname,
  'owner',pg_get_userbyid(f.proowner),'securityDefiner',f.prosecdef,'language',(select lanname from pg_language where oid=f.prolang),
- 'definitionSha256',encode(extensions.digest(convert_to(pg_get_functiondef(f.oid),'UTF8'),'sha256'),'hex'),
+ 'definitionSha256',encode(pg_catalog.sha256(pg_catalog.convert_to(pg_get_functiondef(f.oid),'UTF8')),'hex'),
+ 'settings',coalesce(to_jsonb(f.proconfig),'[]'::jsonb),
  'bodyMd5',md5(f.prosrc),'settingsMd5',md5(coalesce(f.proconfig::text,'')),'aclMd5',md5(coalesce(f.proacl::text,'')),
  'dynamicSql',f.prosrc ~* '\mexecute\M','runtimeCalls',coalesce((select calls from pg_stat_user_functions s where s.funcid=f.oid),0),
  'privileges',(select jsonb_object_agg(role,has_function_privilege(role,f.oid,'EXECUTE'))
@@ -70,11 +83,14 @@ with funcs as (
  'identity',r.identity||'.'||t.tgname,'schema',r.nspname,'enabled',t.tgenabled,'definitionMd5',md5(pg_get_triggerdef(t.oid)))
  from pg_trigger t join rels r on r.oid=t.tgrelid where not t.tgisinternal
 )
-select jsonb_build_object('formatVersion',1,'serverVersionNum',current_setting('server_version_num')::integer,
+select jsonb_build_object('formatVersion',1,'baselineProfile',:'baseline_profile','serverVersionNum',current_setting('server_version_num')::integer,
  'trackFunctions',current_setting('track_functions'),'databaseIdentity',current_database()||':'||pg_postmaster_start_time()::text,
- 'migrationVersions',(select jsonb_agg(version order by version) from supabase_migrations.schema_migrations),
- 'seedCounts',jsonb_build_object('users',(select count(*) from auth.users),'ballots',(select count(*) from televoting.vote_submissions)),
+ 'migrationVersions',(:'source_metadata'::jsonb)->'migrationVersions',
+ 'seedCounts',(:'source_metadata'::jsonb)->'seedCounts',
  'nodes',(select jsonb_agg(value order by value->>'id') from nodes),
+ 'extensions',(select coalesce(jsonb_agg(jsonb_build_object('name',e.extname,'version',e.extversion,
+   'schema',n.nspname,'owner',pg_get_userbyid(e.extowner)) order by e.extname),'[]'::jsonb)
+   from pg_extension e join pg_namespace n on n.oid=e.extnamespace),
  'edges',(select jsonb_agg(to_jsonb(e) order by source,target,kind) from edges e),
  'schemas',(select jsonb_agg(jsonb_build_object('identity',n.nspname,'owner',pg_get_userbyid(n.nspowner),
  'privileges',(select jsonb_object_agg(role||':'||right_name,has_schema_privilege(role,n.oid,right_name))
