@@ -8,6 +8,10 @@ export const OBSERVATION =
   "docs/v3/recovery-candidates/evidence/public-snapshot-prerequisites-observed-2026-11-13.json";
 export const HELPERS =
   "docs/v3/recovery-candidates/evidence/publication-helper-prerequisites-observed-2026-11-13.json";
+export const IDENTITY =
+  "docs/v3/recovery-candidates/evidence/participant-identity-prerequisite-observed-2026-11-13.json";
+export const IDENTITY_SOURCE =
+  "supabase/migrations/20260818195904_canonical_edition_participations.sql";
 export const HELPER_SOURCE =
   "supabase/migrations/20261003203000_organisation_os_v5_show_publication_lifecycle.sql";
 export const CAPTURE_SOURCE =
@@ -34,7 +38,15 @@ export function stagePublicSnapshot(root = process.cwd()) {
     helpers.routines.some((x) => !x.exists)
   )
     throw Error("Unreviewed publication helper observation");
-  const routines = [...evidence.routines, ...helpers.routines];
+  const identity = JSON.parse(read(IDENTITY));
+  if (
+    identity.projectRef !== evidence.projectRef ||
+    identity.read_only !== "on" ||
+    identity.routines.length !== 1 ||
+    !identity.routines[0].exists
+  )
+    throw Error("Unreviewed participant identity observation");
+  const routines = [...evidence.routines, ...helpers.routines, ...identity.routines];
   const capture = extractDefinition(read(CAPTURE_SOURCE), "private.v3_capture_result_version");
   const snapshot = transactionBody(read(SNAPSHOT_SOURCE));
   return `\\set ON_ERROR_STOP on
@@ -77,11 +89,28 @@ export function stagedPublicationHelpers(root = process.cwd()) {
   )
     throw Error("Unreviewed helper reconstruction");
   let sql = "begin;\n";
-  for (const row of evidence.routines) {
+  const participant = JSON.parse(readFileSync(resolve(root, IDENTITY), "utf8"));
+  if (
+    participant.projectRef !== evidence.projectRef ||
+    participant.routines.length !== 1 ||
+    participant.routines[0].identity !==
+      "public.participant_same_edition_identity(uuid,uuid,uuid,uuid,uuid,uuid)" ||
+    !participant.routines[0].exists
+  )
+    throw Error("Unreviewed participant identity reconstruction");
+  for (const row of [...evidence.routines, ...participant.routines]) {
     const identity = row.identity;
     sql += `do $pre$ begin if to_regprocedure('${identity}') is not null then raise exception 'Local helper reconstruction refuses existing ${identity}'; end if; end $pre$;\n`;
-    sql += extractDefinition(source, identity.split("(")[0]) + "\n";
+    const isParticipant = identity === participant.routines[0].identity;
+    sql +=
+      extractDefinition(
+        isParticipant ? readFileSync(resolve(root, IDENTITY_SOURCE), "utf8") : source,
+        identity.split("(")[0],
+      ) + "\n";
+    if (isParticipant) sql += `alter function ${identity} set search_path=public,pg_temp;\n`;
     sql += `revoke all on function ${identity} from public,anon,authenticated,service_role;\n`;
+    if (isParticipant)
+      sql += `grant execute on function ${identity} to anon,authenticated,service_role;\n`;
     sql += `do $post$ begin if not exists(select 1 from pg_proc p where p.oid=to_regprocedure('${identity}') and encode(sha256(convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex')='${row.definition_sha256}' and md5(pg_get_functiondef(p.oid))='${row.definition_md5}' and pg_get_userbyid(p.proowner)='postgres' and not p.prosecdef and p.proacl::text='${row.acl}' and p.proconfig=array[${row.config.map((x) => "'" + x + "'").join(",")}]::text[]) then raise exception 'Hosted publication helper fingerprint/authority mismatch: ${identity}'; end if; end $post$;\n`;
   }
   return sql + "commit;\n";

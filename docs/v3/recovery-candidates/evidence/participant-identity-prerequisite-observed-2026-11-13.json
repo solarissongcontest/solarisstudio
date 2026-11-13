@@ -1,0 +1,26 @@
+{
+  "kind": "owner-authorized-read-only-catalog-observation",
+  "projectRef": "dkxmnvekiopyesuzggeu",
+  "statementTimeout": "10s",
+  "lockTimeout": "2s",
+  "transaction": "READ ONLY; ROLLBACK",
+  "applicationRowsRead": false,
+  "rawFunctionBodiesExported": false,
+  "routines": [
+    {
+      "acl": "{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=public, pg_temp"
+      ],
+      "exists": true,
+      "identity": "public.participant_same_edition_identity(uuid,uuid,uuid,uuid,uuid,uuid)",
+      "definition_md5": "0140d5a28f28fc338511d61130d35f8e",
+      "security_definer": false,
+      "definition_sha256": "69cb6085b0a7882d0f5feb9583ff7b1177db194059ec72efc913bf87d21a2580"
+    }
+  ],
+  "read_only": "on",
+  "observed_at": "2026-11-13T21:44:09.514659+00:00",
+  "server_version_num": "170011"
+}
