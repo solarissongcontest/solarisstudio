@@ -26,17 +26,19 @@ describe("production Me composition", () => {
     expect(html).not.toContain("Switch to Organizer");
     expect(html).not.toContain("No past editions yet");
   });
-  it("exposes all recorded editions through the canonical history route without unbounding Me", async () => {
+  it("exposes every scoped record through a collapsed disclosure without changing the four-edition summary", async () => {
     const html = await renderMe(false, null, 6);
-    expect(html).toContain("View all 6 editions");
-    expect(html).toContain("Browse your complete delegation history");
-    expect(html).toContain("/my-solaris/history");
+    expect(html).toContain("<details");
+    expect(html).toContain("<summary");
+    expect(html).toContain("View all 6 recorded editions");
     expect(html).toContain("SSC 4");
-    expect(html).not.toContain("SSC 5");
-    expect(html).not.toContain("SSC 6");
+    expect(html).toContain("SSC 5");
+    expect(html).toContain("SSC 6");
+    expect((html.match(/SSC [1-6]/g) ?? []).length).toBe(6);
 
     const bounded = await renderMe(false, null, 4);
-    expect(bounded).not.toContain("View all 4 editions");
+    expect(bounded).not.toContain("<details");
+    expect(bounded).not.toContain("View all 4 recorded editions");
   });
   it("shows Organizer only after capability-resolved access is passed", async () => {
     expect(await renderMe(true)).toContain("Switch to Organizer");
