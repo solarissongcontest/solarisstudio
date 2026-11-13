@@ -4,17 +4,18 @@
 
 ## 13 November: authorization dependency reconstruction
 
-The local fixture can reconstruct three previously missing/non-executable
+The local fixture can reconstruct four previously missing/non-executable
 authorization dependencies using unchanged canonical source bodies:
 `private.studio2_user_has_capability(uuid,text,uuid)`,
 `private.studio2_capability_allowed_in_platform_mode(text,text,text)` and
-`private.studio2_touch_permission_subject_version()`. Installation refuses any
+`private.studio2_touch_permission_subject_version()` and
+`private.studio2_normalize_legacy_edition_status(text)`. Installation refuses any
 existing unknown definition; only the exact catalog-only trigger placeholder is
 replaceable. The transaction checks both frozen definition hashes, ownership,
 SECURITY DEFINER/settings/ACL metadata and effective external EXECUTE denial.
 An injected fingerprint mismatch must roll back the entire reconstruction.
 
-`scripts/v3-s13-s14-authorization-dependencies.mjs` extracts the three source
+`scripts/v3-s13-s14-authorization-dependencies.mjs` extracts the four source
 bodies deterministically. Its manifest reuses the existing S02 dependency graph
 and frozen evidence; verified leaf objects, reachable unknowns/differences,
 dynamic SQL, role metadata and inspection requirements remain separate. The

@@ -74,5 +74,24 @@ do $$ begin
 end $$;
 reset role;
 
+-- Real FK parents and their real seed triggers, not synthetic edition shells.
+select set_config('request.jwt.claim.role','',true);
+select set_config('request.jwt.claim.sub','',true);
+insert into public.editions(id,name,slug,edition_number) values
+ ('e1300000-0000-4000-8000-000000000001','Synthetic recovery A','synthetic-recovery-a',130),
+ ('e1300000-0000-4000-8000-000000000002','Synthetic recovery B','synthetic-recovery-b',131);
+delete from public.studio2_capability_grants where user_id='a1300000-0000-4000-8000-000000000001';
+insert into public.studio2_capability_grants(user_id,capability,edition_id) values
+ ('a1300000-0000-4000-8000-000000000001','confirmation.manage','e1300000-0000-4000-8000-000000000001');
+select pg_temp.assert_recovery(private.studio2_user_has_capability('a1300000-0000-4000-8000-000000000001','confirmation.manage','e1300000-0000-4000-8000-000000000001'),'matching edition grant succeeds');
+select pg_temp.assert_recovery(not private.studio2_user_has_capability('a1300000-0000-4000-8000-000000000001','confirmation.manage','e1300000-0000-4000-8000-000000000002'),'wrong edition grant denied');
+select pg_temp.assert_recovery(not private.studio2_user_has_capability('a1300000-0000-4000-8000-000000000001','confirmation.manage',null),'edition grant never becomes global');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','a1300000-0000-4000-8000-000000000001',true);
+select set_config('request.jwt.claim.role','authenticated',true);
+select pg_temp.assert_recovery(public.studio2_access_allowed('confirmation.manage','e1300000-0000-4000-8000-000000000001',false),'public access preserves matching edition scope');
+select pg_temp.assert_recovery(not public.studio2_access_allowed('confirmation.manage','e1300000-0000-4000-8000-000000000002',false),'public access rejects cross-edition scope');
+reset role;
+
 -- No seeded identity or permission survives; trigger/RLS definitions stay on.
 rollback;

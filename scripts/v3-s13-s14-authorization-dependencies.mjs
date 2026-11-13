@@ -21,6 +21,9 @@ export const dependencies = [
   { name: 'private.studio2_touch_permission_subject_version', args: '',
     identity: 'private.studio2_touch_permission_subject_version()',
     source: 'supabase/migrations/20261003012000_organisation_os_v5_permission_operations.sql', placeholder: true },
+  { name: 'private.studio2_normalize_legacy_edition_status', args: 'text',
+    identity: 'private.studio2_normalize_legacy_edition_status(p_status text)',
+    source: 'supabase/migrations/20260910220000_studio2_persistence_schema.sql' },
 ];
 
 export function extractDefinition(source, name) {
@@ -102,6 +105,13 @@ export function recoveryManifest(catalog, candidateSha) {
   const graph = dependencyGraph(catalog, undefined,
     ['public.studio2_access_allowed', 'private.studio2_task_recipient_eligible']);
   const relevant = graph.nodes.filter(n => n.reachable);
+  // OIDs change on replay. Keep only semantic identities in the emitted graph;
+  // databaseIdentity separately records the actual runtime observation.
+  const stableIds = new Map(graph.nodes.map(n => [n.id, n.kind + ':' + n.identity]));
+  const nodes = relevant.map(n => ({ ...n, id: stableIds.get(n.id) }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const edges = graph.edges.map(e => ({ ...e, source: stableIds.get(e.source), target: stableIds.get(e.target) }))
+    .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
   const reconstructed = dependencies.map(item => {
     const node = relevant.find(n => n.identity === item.identity);
     assert.equal(node?.hostedClassification, 'verified-equivalent', 'Reconstructed dependency drift: ' + item.identity);
@@ -118,7 +128,11 @@ export function recoveryManifest(catalog, candidateSha) {
     databaseImage: catalog.databaseImage, networkIsolation: catalog.networkIsolation,
     observedEvidenceDate: '2026-11-09 / 2026-11-10; not a fresh hosted inspection',
     roots: ['public.studio2_access_allowed(text,uuid,boolean)', 'private.studio2_task_recipient_eligible(uuid,uuid)'],
-    reconstructed, ...graph, nodes: relevant,
+    reconstructed, ...graph, nodes, edges,
+    inspectionPolicy: { separatelyAuthorizedOperatorOnly: true, maxRoutineIdentitiesPerBatch: 20,
+      collect: ['exact signature', 'sanitized pg_get_functiondef', 'owner', 'language/security flags', 'ACL and role membership', 'search_path', 'attached trigger/policy definitions'],
+      prohibit: ['application rows', 'credentials', 'CI hosted queries', 'invented stubs'],
+      dynamicAndUnqualifiedCalls: 'Resolve from reviewed definitions and bounded runtime cases before certifying closure' },
     remainingInspection: relevant.filter(n => n.hostedClassification !== 'verified-equivalent').map(n => ({
       identity: n.identity, schema: n.schema, kind: n.kind,
       status: n.hostedClassification === 'verified-different' ? 'LOCALLY_DIFFERENT / BLOCKING' : 'UNKNOWN / BLOCKING',
@@ -137,14 +151,14 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   try {
     if (process.argv.length === 4 && process.argv[2] === '--sql') {
       writeFileSync(process.argv[3], reconstructionSql(), { flag: 'wx' });
-      console.log('Generated three local authorization dependencies; PG postconditions must verify hosted fingerprints.');
+      console.log(`Generated ${dependencies.length} local authorization dependencies; PG postconditions must verify hosted fingerprints.`);
     } else if (process.argv.length === 6 && process.argv[2] === '--manifest') {
       assert.equal(execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), process.argv[5], 'Candidate differs from checkout');
       assert.equal(execFileSync('git', ['status', '--porcelain', '--untracked-files=no'], { encoding: 'utf8' }).trim(), '', 'Tracked source changed during proof');
       execFileSync('git', ['ls-files', '--error-unmatch', 'scripts/v3-s13-s14-authorization-dependencies.mjs', 'scripts/v3-s13-s14-authorization-runtime-local.sql']);
       const report = recoveryManifest(JSON.parse(read(process.argv[3])), process.argv[5]);
       writeFileSync(process.argv[4], JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });
-      console.log(`Verified three reconstructed authorization contracts; ${report.hostedUnknowns.length} unknown and ${report.hostedDifferences.length} differing reachable identities remain; NOT hosted-equivalent.`);
+      console.log(`Verified ${dependencies.length} reconstructed authorization contracts; ${report.hostedUnknowns.length} unknown and ${report.hostedDifferences.length} differing reachable identities remain; NOT hosted-equivalent.`);
     } else throw Error('Usage: --sql output.sql OR --manifest local-catalog.json output.json exact-sha');
   } catch (e) { console.error(e.message); process.exitCode = 1; }
 }

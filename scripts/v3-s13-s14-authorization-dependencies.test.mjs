@@ -17,7 +17,7 @@ function catalog() {
     nodes.push({ ...nodes[0], id: 'root:' + i, name, identity: name + '()', schema: name.split('.')[0] });
   return { formatVersion: 1, serverVersionNum: 170011, baselineProfile: 'hosted-observed-recovery-subset',
     networkIsolation: { networkMode: 'none', publishedPorts: [] }, databaseImage: 'sha256:' + 'a'.repeat(64),
-    nodes, edges: nodes.slice(0, 3).map(n => ({ source: 'root:0', target: n.id, kind: 'qualified-reference' })) };
+    nodes, edges: nodes.slice(0, dependencies.length).map(n => ({ source: 'root:0', target: n.id, kind: 'qualified-reference' })) };
 }
 test('extracts exactly the immutable function body, not migration data changes or siblings', () => {
   for (const d of dependencies) {
@@ -44,12 +44,12 @@ test('only the exact local placeholder can be replaced, with atomic observed met
   assert.match(sql, /has_function_privilege\('authenticated'/);
   assert.doesNotMatch(sql, /disable trigger|session_replication_role|supabase_migrations|drop function/i);
 });
-test('manifest keeps three verified leaves separate from unknown closure and deployment', () => {
+test('manifest keeps four verified leaves separate from unknown closure and deployment', () => {
   const c = catalog();
   c.nodes.push({ id: 'u:missing', kind: 'unresolved-reference', schema: 'private', identity: 'private.missing' });
   c.edges.push({ source: 'root:0', target: 'u:missing', kind: 'unresolved-qualified-reference' });
   const m = recoveryManifest(c, sha);
-  assert.equal(m.reconstructed.length, 3);
+  assert.equal(m.reconstructed.length, 4);
   assert.ok(m.remainingInspection.some(x => x.identity === 'private.missing'));
   assert.equal(m.fullHostedEquivalenceCertified, false);
   assert.equal(m.productionRecoveryEligible, false);
@@ -67,6 +67,16 @@ test('unknown version, provenance or candidate fails closed', () => {
     { networkIsolation: { networkMode: 'bridge', publishedPorts: [] } }, { databaseImage: 'unknown' }])
     assert.throws(() => recoveryManifest({ ...catalog(), ...patch }, sha));
   assert.throws(() => recoveryManifest(catalog(), 'main'));
+});
+test('emitted dependency identities and edges are reproducible across OID allocation', () => {
+  const first = catalog(), second = structuredClone(first);
+  const changed = new Map(second.nodes.map((n, i) => [n.id, 'other-oid:' + (9000 + i)]));
+  second.nodes.forEach(n => { n.id = changed.get(n.id); });
+  second.edges.forEach(e => { e.source = changed.get(e.source); e.target = changed.get(e.target); });
+  const a = recoveryManifest(first, sha), b = recoveryManifest(second, sha);
+  assert.deepEqual(a.nodes, b.nodes);
+  assert.deepEqual(a.edges, b.edges);
+  assert.equal(a.inspectionPolicy.separatelyAuthorizedOperatorOnly, true);
 });
 test('subset collection does not invent history, seed counts or a pgcrypto dependency', () => {
   const collector = read('scripts/v3-s02-runtime-dependencies-local.sql');
