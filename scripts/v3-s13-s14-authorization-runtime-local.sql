@@ -74,32 +74,95 @@ do $$ begin
 end $$;
 reset role;
 
--- Do not bypass the real edition-runtime guard to manufacture scoped data.
--- The repo explicitly records that its hosted strict-dual body is unavailable
--- and differs from both source variants. Preserve the missing dependency as a
--- BLOCKED runtime witness, not a successful cross-edition acceptance test.
+-- The authorized one-signature inspection restored the EXACT hosted strict-dual
+-- definition through immutable source normalization, with its real trigger on.
+-- The privileged local bootstrap with no JWT is intentionally allowed by the
+-- observed function; this is NOT an authenticated Organizer acceptance claim.
 select set_config('request.jwt.claim.role','',true);
 select set_config('request.jwt.claim.sub','',true);
-do $blocked_edition$
+insert into public.editions(id,name,slug,edition_number) values
+  ('e1300000-0000-4000-8000-000000000001','Synthetic recovery A','synthetic-recovery-a',130),
+  ('e1300000-0000-4000-8000-000000000002','Synthetic recovery B','synthetic-recovery-b',131);
+select pg_temp.assert_recovery(
+  (select count(*)=2 from public.studio2_edition_runtime
+   where edition_id in ('e1300000-0000-4000-8000-000000000001','e1300000-0000-4000-8000-000000000002')),
+  'real edition seed and strict-dual guard installed with privileged non-JWT fixture bootstrap');
+select pg_temp.assert_recovery(
+  to_regprocedure('private.studio2_require_strict_dual(text,uuid,text)') is not null,
+  'exact hosted strict-dual identity locally installed');
+
+-- An API request with a missing subject must not inherit the privileged local
+-- non-JWT exception. Exercise the existing real edition-runtime trigger.
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','',true);
+do $missing_actor$
 declare v_message text;
 begin
-  if to_regprocedure('private.studio2_require_strict_dual(text,uuid,text)') is not null then
-    raise exception 'Strict-dual baseline changed; review observed definition before this probe';
-  end if;
   begin
     insert into public.editions(id,name,slug,edition_number) values
-      ('e1300000-0000-4000-8000-000000000001','Synthetic recovery A','synthetic-recovery-a',130);
-    raise exception 'Edition seed unexpectedly bypassed its missing strict-dual guard';
+      ('e1300000-0000-4000-8000-000000000003','Synthetic denied','synthetic-recovery-denied',132);
+    raise exception 'Strict-dual unexpectedly allowed missing authenticated actor';
+  exception when insufficient_privilege then
+    get stacked diagnostics v_message=message_text;
+    if v_message <> 'Authentication required' then raise; end if;
+  end;
+  if exists(select 1 from public.editions where id='e1300000-0000-4000-8000-000000000003')
+     or exists(select 1 from public.studio2_edition_runtime where edition_id='e1300000-0000-4000-8000-000000000003')
+  then raise exception 'Missing-actor guard left partial edition/runtime rows'; end if;
+  raise notice 'PASS: authenticated request without subject denied, no partial edition/runtime rows';
+end $missing_actor$;
+select set_config('request.jwt.claim.role','',true);
+
+-- Prove scope isolation, revocation and expiration at the real nested
+-- capability helper against TWO different FK-closed synthetic editions.
+insert into public.studio2_capabilities(key,domain,label,description,access_level) values
+  ('edition.manage','edition','Synthetic edition management','Local-only scoped recovery probe','operate');
+insert into public.studio2_capability_grants(user_id,capability,edition_id)
+values ('a1300000-0000-4000-8000-000000000001','edition.manage','e1300000-0000-4000-8000-000000000001');
+select pg_temp.assert_recovery(
+ private.studio2_user_has_capability('a1300000-0000-4000-8000-000000000001','edition.manage','e1300000-0000-4000-8000-000000000001'),
+ 'grant authorizes intended edition only');
+select pg_temp.assert_recovery(
+ not private.studio2_user_has_capability('a1300000-0000-4000-8000-000000000001','edition.manage','e1300000-0000-4000-8000-000000000002'),
+ 'same grant denies wrong edition');
+update public.studio2_capability_grants
+set expires_at=now()-interval '1 minute'
+where user_id='a1300000-0000-4000-8000-000000000001' and capability='edition.manage';
+select pg_temp.assert_recovery(
+ not private.studio2_user_has_capability('a1300000-0000-4000-8000-000000000001','edition.manage','e1300000-0000-4000-8000-000000000001'),
+ 'expired edition grant denied');
+delete from public.studio2_capability_grants
+where user_id='a1300000-0000-4000-8000-000000000001' and capability='edition.manage';
+select pg_temp.assert_recovery(
+ not private.studio2_user_has_capability('a1300000-0000-4000-8000-000000000001','edition.manage','e1300000-0000-4000-8000-000000000001'),
+ 'revoked edition grant denied');
+
+-- Real actor-capability positive/negative strict-dual authorization remains
+-- unverified because the hosted-observed fixture does not yet reconstruct the
+-- nested authoritative rollout / legacy shadow checker. Do not invent stubs.
+select pg_temp.assert_recovery(
+  to_regprocedure('private.studio2_permission_engine_authoritative()') is null,
+  'next authoritative rollout helper still missing in bounded hosted fixture');
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','a1300000-0000-4000-8000-000000000001',true);
+do $nested_blocked$
+declare v_message text;
+begin
+  begin
+    update public.studio2_edition_runtime
+    set updated_at=now() where edition_id='e1300000-0000-4000-8000-000000000001';
+    raise exception 'Actor-scoped runtime update unexpectedly bypassed unresolved rollout authority';
   exception when undefined_function then
     get stacked diagnostics v_message=message_text;
-    if position('private.studio2_require_strict_dual(text, uuid, text)' in v_message)=0 then raise; end if;
+    if position('private.studio2_permission_engine_authoritative' in v_message)=0 then raise; end if;
   end;
-  if exists(select 1 from public.editions where id='e1300000-0000-4000-8000-000000000001')
-     or exists(select 1 from public.studio2_edition_runtime where edition_id='e1300000-0000-4000-8000-000000000001') then
-    raise exception 'Blocked edition seed left partial parent/runtime rows';
-  end if;
-  raise notice 'BLOCKED: edition-scoped runtime acceptance requires hosted strict-dual body; failed seed left no partial rows';
-end $blocked_edition$;
+  if (select version from public.studio2_edition_runtime
+      where edition_id='e1300000-0000-4000-8000-000000000001') <> 1
+  then raise exception 'Failed nested authorization left partial edition-runtime version change'; end if;
+  raise notice 'BLOCKED: actor-scoped positive/negative strict-dual cases require nested hosted authority; no partial runtime mutation';
+end $nested_blocked$;
+select set_config('request.jwt.claim.role','',true);
+select set_config('request.jwt.claim.sub','',true);
 
 -- No seeded identity or permission survives; trigger/RLS definitions stay on.
 rollback;
