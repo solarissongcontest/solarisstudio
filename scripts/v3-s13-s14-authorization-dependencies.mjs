@@ -31,6 +31,10 @@ export const dependencies = [
   { name: 'private.studio2_permission_engine_authoritative', args: '',
     identity: 'private.studio2_permission_engine_authoritative()',
     source: 'supabase/migrations/20260914174742_permission_engine_v2_core_rls_cutover.sql' },
+  { name: 'private.studio2_guard_feature_flag_strict_dual', args: '',
+    identity: 'private.studio2_guard_feature_flag_strict_dual()',
+    source: 'supabase/migrations/20260914140500_permission_engine_v2_strict_dual_guards.sql',
+    placeholder: true },
 ];
 
 export function extractDefinition(source, name) {
