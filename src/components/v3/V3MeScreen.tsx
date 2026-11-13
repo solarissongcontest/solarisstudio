@@ -112,14 +112,25 @@ export function V3MeScreen({ projection }: V3MeScreenProps) {
           </V3Surface>
         )}
         {projection.history.length > 4 ? (
-          <div className="mt-3">
-            <V3ActionCard
-              title={`View all ${projection.history.length} editions`}
-              description="Browse your complete delegation history"
-              tone="neutral"
-              to="/my-solaris/history"
-            />
-          </div>
+          <details className="mt-3 rounded-xl border border-white/[0.08] px-4 py-3">
+            <summary className="cursor-pointer text-sm font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">
+              View all {projection.history.length} recorded editions
+            </summary>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {projection.history.slice(4).map((item) => (
+                <V3ActionCard
+                  key={`${item.editionId}:${item.href}`}
+                  title={item.editionName}
+                  description={item.roleLabel ?? "Recorded delegation history"}
+                  tone="neutral"
+                  to={item.href}
+                  meta={
+                    item.completed ? <V3StatusChip tone="success">Complete</V3StatusChip> : undefined
+                  }
+                />
+              ))}
+            </div>
+          </details>
         ) : null}
       </V3Section>
 
