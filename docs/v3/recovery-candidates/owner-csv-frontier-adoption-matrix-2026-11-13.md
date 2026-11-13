@@ -2,7 +2,7 @@
 
 **Comparison date:** 13 November 2026 UTC. **Main baseline:** 8ece96834445e953b1ad060acc8f1043461885f2, 495 canonical SQL files. The owner-supplied SQL Editor CSV has 497 rows, all unique, strictly ascending, and no malformed version/name records; head 20261101181812 (v3_s13_adopt_rules_v4_1_roleplay_registry). Raw CSV SHA-256: 07d8b659c4d8fe88e52c1db6977cf763d983ab7bb9dab3446906f8cca421f5e3.
 
-**PROVENANCE UNVERIFIED:** The CSV has no project-ref or capture-time evidence. Canonical production ref to confirm: dkxmnvekiopyesuzggeu. Distinct Supabase Preview: oxtbskojiexkaspputvo. Raw export stays outside the repository, public issues and CI; do not assume the rows came from production simply because they match earlier aggregate observations.
+**OWNER-CONFIRMED PRODUCTION PROVENANCE (13 November 2026):** The owner explicitly confirmed in chat that they personally exported this exact CSV from canonical production Supabase project `dkxmnvekiopyesuzggeu`, **not** the separate Preview project `oxtbskojiexkaspputvo`. This is an **owner attestation associated with the raw CSV SHA-256 above**, not independent verification by the CSV: the file itself contains neither a project reference nor a capture timestamp. Exact capture time remains unknown. The raw export stays outside the repository, public issues and CI; no repeat export or hosted database access is authorized.
 
 ## Exact version evidence
 
@@ -56,4 +56,4 @@ Forward-only migrations require a reviewed, unique future version, clean exact-S
 
 Existing workflow CI can run safe local PostgreSQL 17.11 rehearsals, but **this PR's new CSV parser test is synthetic only**. The owner CSV has not been run through a full local git checkout of the merged Bun CLI in this session; exact identity outputs were independently reproduced from the current GitHub migration directory and the uploaded CSV. Preserve that distinction until an operator performs the strict exact-SHA local invocation.
 
-**Release: NO-GO** for 14 November public V3 soft launch. **Single next dependency:** establish the CSV's actual project provenance, then obtain the minimal separately authorized current production SQL-effect/ACL comparison needed to select a safe S13 → S14 → Televote/Results forward-only repair.
+**Release: NO-GO** for 14 November public V3 soft launch. **Single next dependency:** obtain explicit, separately scoped approval for the minimum *current* production catalog SQL-effect/ACL inspection needed to qualify a safe S13 → S14 → Televote/Results forward-only repair. The project origin of the existing CSV has been confirmed by the owner, not independently encoded or authenticated by the CSV.
