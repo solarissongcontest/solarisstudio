@@ -7,7 +7,7 @@ const route = readFileSync(new URL("../routes/jury-voting.tsx", import.meta.url)
 
 describe("S16 jury ballot legacy writer cutover", () => {
   it("does not invoke the direct legacy ballot RPC from the participant route", () => {
-    expect(route).not.toMatch(/\\.rpc\\(\\s*["']submit_country_jury_ballot["']/);
+    expect(route).not.toContain('supabase.rpc("submit_country_jury_ballot"');
     expect(route).toContain('if (!v3ReliabilityEnabled) {');
     expect(route).toContain('throw new Error("Jury submission is unavailable until the secure voting service is enabled.")');
     expect(route).toContain("const result = await submitBallot({");
