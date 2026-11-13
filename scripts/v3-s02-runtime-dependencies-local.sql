@@ -88,6 +88,9 @@ select jsonb_build_object('formatVersion',1,'baselineProfile',:'baseline_profile
  'migrationVersions',(:'source_metadata'::jsonb)->'migrationVersions',
  'seedCounts',(:'source_metadata'::jsonb)->'seedCounts',
  'nodes',(select jsonb_agg(value order by value->>'id') from nodes),
+ 'extensions',(select coalesce(jsonb_agg(jsonb_build_object('name',e.extname,'version',e.extversion,
+   'schema',n.nspname,'owner',pg_get_userbyid(e.extowner)) order by e.extname),'[]'::jsonb)
+   from pg_extension e join pg_namespace n on n.oid=e.extnamespace),
  'edges',(select jsonb_agg(to_jsonb(e) order by source,target,kind) from edges e),
  'schemas',(select jsonb_agg(jsonb_build_object('identity',n.nspname,'owner',pg_get_userbyid(n.nspowner),
  'privileges',(select jsonb_object_agg(role||':'||right_name,has_schema_privilege(role,n.oid,right_name))

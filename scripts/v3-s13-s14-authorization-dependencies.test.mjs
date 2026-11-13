@@ -53,6 +53,8 @@ test('manifest keeps four verified leaves separate from unknown closure and depl
   assert.ok(m.remainingInspection.some(x => x.identity === 'private.missing'));
   assert.equal(m.fullHostedEquivalenceCertified, false);
   assert.equal(m.productionRecoveryEligible, false);
+  assert.equal(m.extensionEvidence.hosted, null);
+  assert.equal(m.extensionEvidence.status, 'UNKNOWN / BLOCKING');
   assert.equal(m.deploymentAuthorized, false);
   assert.equal(m.runtimeCoverage.editionScopedAcceptance, 'BLOCKED');
   assert.equal(m.runtimeCoverage.executionResult, 'NOT_ATTESTED_BY_THIS_METADATA_MANIFEST');

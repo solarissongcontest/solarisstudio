@@ -126,6 +126,8 @@ export function recoveryManifest(catalog, candidateSha) {
   });
   return { schemaVersion: 1, candidateSha, profile: catalog.baselineProfile,
     databaseImage: catalog.databaseImage, networkIsolation: catalog.networkIsolation,
+    extensionEvidence: { local: catalog.extensions ?? null, hosted: null, status: 'UNKNOWN / BLOCKING',
+      requirement: 'Separately approved pg_extension name/version/schema/owner metadata; image identity alone is not hosted extension parity' },
     observedEvidenceDate: '2026-11-09 / 2026-11-10; not a fresh hosted inspection',
     roots: ['public.studio2_access_allowed(text,uuid,boolean)', 'private.studio2_task_recipient_eligible(uuid,uuid)'],
     reconstructed, ...graph, nodes, edges,
