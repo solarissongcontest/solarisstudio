@@ -50,6 +50,8 @@ describe("V3 Me screen architecture boundary", () => {
     expect(source).toContain('from "./V3Foundation"');
     expect(source).toContain("<V3Screen>");
     expect(source).toContain("projection.history.slice(0, 4)");
+    expect(source).toContain("projection.history.length > 4");
+    expect(source).toContain('to="/my-solaris/history"');
     expect(source).not.toContain("V3FoundationShell");
   });
 });
