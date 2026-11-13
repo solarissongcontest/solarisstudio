@@ -318,7 +318,7 @@ export function V3ParticipateScreen({
                 View completed activity
               </summary>
               <div className="v3-preview-grid px-1 pb-1 pt-1">
-                {participate.completed.slice(0, 8).map((action) => (
+                {participate.completed.map((action) => (
                   <V3ActionCard
                     key={action.id}
                     title={action.title}
