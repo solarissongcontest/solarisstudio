@@ -109,7 +109,11 @@ export function validateCatalog(report) {
   assert.equal(report.checkpoint.transaction_read_only, "on");
   assert.equal(report.checkpoint.statement_timeout, "10s");
   assert.equal(report.checkpoint.lock_timeout, "2s");
-  assert.match(report.checkpoint.server_version_num, /^1700\d\d$/);
+  assert.equal(
+    report.checkpoint.server_version_num,
+    "170011",
+    "Observed/reconstructed PostgreSQL patch must be 17.11",
+  );
   assert.ok(Number.isFinite(Date.parse(report.checkpoint.observed_at)));
   const groups = {
     tables: tables,

@@ -206,3 +206,9 @@ test("capture EXECUTE drift is refused and the local overlay closes default PUBL
   );
   assert.doesNotMatch(overlay, /create (or replace )?function|disable trigger|truncate table/i);
 });
+
+test("a different valid PostgreSQL patch cannot borrow the PG17.11 observation", () => {
+  const r = copy();
+  r.checkpoint.server_version_num = "170012";
+  assert.throws(() => validateCatalog(r));
+});
