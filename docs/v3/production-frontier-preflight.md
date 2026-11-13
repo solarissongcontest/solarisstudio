@@ -169,8 +169,15 @@ without changing the immutable bootstrap exception used by `historyReconciled`.
 Use `--require-preview-compatible --expected-sha <full SHA>` to fail on that
 identity mismatch independently of `--require-reconciled`. The auditor remains
 completely offline. It fingerprints the supplied history bytes and current SQL
-file contents, refuses changed/untracked migration sources, and always records
-`sqlEffectsVerified: false` and `productionDeploymentAuthorized: false`.
+file contents, refuses changed/untracked migration sources, and compares the
+**executed auditor script and imported implementation** byte-for-byte against
+committed blobs. Staged, ignored-status and skip-worktree changes to those auditor
+sources cannot borrow an exact-HEAD result. The output separately records
+`auditorSourcesClean` and `auditorSourceSha256` so operators can distinguish
+code drift from migration SQL drift. This is checkout integrity evidence, not
+a cryptographic guarantee against a maliciously altered executable environment.
+The report always records `sqlEffectsVerified: false` and
+`productionDeploymentAuthorized: false`.
 A diagnostic of older evidence is not a new hosted observation.
 
 The existing offline-preflight workflow reproduces the actual pinned CLI
