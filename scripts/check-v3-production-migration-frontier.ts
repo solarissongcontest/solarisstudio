@@ -11,7 +11,7 @@
  * or application row data in the input file.
  */
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -42,7 +42,34 @@ try {
   const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
   const repositoryFiles = readdirSync(resolve(root, "supabase/migrations"));
   const audit = auditV3ProductionMigrationFrontier(repositoryFiles, hosted);
+  // git status alone can omit ignored SQL and skip-worktree changes. Compare
+  // actual file identities and Git blob bytes directly with the candidate tree.
+  const sqlFiles = repositoryFiles.filter((name) => name.endsWith(".sql")).sort();
+  const committedSql = execFileSync("git", ["ls-tree", "-r", "HEAD", "--", "supabase/migrations"], {
+    cwd: root,
+    encoding: "utf8",
+  })
+    .trim()
+    .split("\n")
+    .filter((line) => line.endsWith(".sql"));
+  const actualBlobs = sqlFiles.length
+    ? execFileSync("git", ["hash-object", "--no-filters", "--stdin-paths"], {
+        cwd: root,
+        encoding: "utf8",
+        input: sqlFiles.map((name) => "supabase/migrations/" + name).join("\n") + "\n",
+      })
+        .trim()
+        .split("\n")
+    : [];
+  const candidateSqlMatches =
+    committedSql.length === sqlFiles.length &&
+    sqlFiles.every(
+      (name, i) =>
+        lstatSync(resolve(root, "supabase/migrations", name)).isFile() &&
+        committedSql.includes("100644 blob " + actualBlobs[i] + "\tsupabase/migrations/" + name),
+    );
   const migrationSourcesClean =
+    candidateSqlMatches &&
     execFileSync(
       "git",
       ["status", "--porcelain", "--untracked-files=all", "--", "supabase/migrations"],

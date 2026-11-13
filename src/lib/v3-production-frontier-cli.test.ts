@@ -90,6 +90,22 @@ describe("offline frontier CLI on isolated synthetic repositories", () => {
     expect(changed.report.candidateSha).toBe(f.sha);
   });
 
+  it("rejects ignored untracked SQL that git status omits", () => {
+    const f = fixture();
+    writeFileSync(join(f.root, ".git/info/exclude"), "*.sql\n");
+    writeFileSync(join(f.root, "supabase/migrations/20261102181812_ignored.sql"), "select 4;\n");
+    expect(f.run().code).toBe(1);
+    expect(f.run().report.migrationSourcesClean).toBe(false);
+  });
+
+  it("rejects skip-worktree SQL edits even when status is clean", () => {
+    const f = fixture();
+    execFileSync("git", ["update-index", "--skip-worktree", f.migration], { cwd: f.root });
+    writeFileSync(join(f.root, f.migration), "select 5;\n");
+    expect(f.run().code).toBe(1);
+    expect(f.run().report.migrationSourcesClean).toBe(false);
+  });
+
   it("refuses untracked SQL instead of treating a matching HEAD as exact-source proof", () => {
     const f = fixture();
     writeFileSync(join(f.root, "supabase/migrations/20261102181812_unreviewed.sql"), "select 3;\n");
