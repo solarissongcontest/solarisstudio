@@ -161,8 +161,10 @@ versions, including the immutable bootstrap interval. It also reports
 `previewHistoryCompatible` separately from `historyReconciled`. The approved
 bootstrap comparison exception can make the latter true while a raw Supabase
 Preview/push still refuses an unmatched remote migration identity. Neither result
-proves SQL-effect parity. Name mismatches, invalid inventories and local holes
-also keep the conservative Preview preflight blocked.
+proves SQL-effect parity. Name mismatches, invalid inventories and local holes (including pre-cutover
+local-only identities before the hosted head) also keep the conservative Preview
+preflight blocked. `previewLocalVersionsMissingRemotely` lists these identities
+without changing the immutable bootstrap exception used by `historyReconciled`.
 
 Use `--require-preview-compatible --expected-sha <full SHA>` to fail on that
 identity mismatch independently of `--require-reconciled`. The auditor remains
