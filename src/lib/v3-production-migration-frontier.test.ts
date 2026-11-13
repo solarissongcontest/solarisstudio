@@ -27,6 +27,8 @@ describe("V3 hosted production migration frontier", () => {
     expect(report.unknownHostedPostCutover).toEqual([]);
     expect(report.pendingAfterHostedHead.map((item) => item.version)).toEqual(["20261018100000"]);
     expect(report.historyReconciled).toBe(true);
+    expect(report.previewHistoryCompatible).toBe(false);
+    expect(report.remoteVersionsMissingLocally).toEqual([historicHosted]);
   });
 
   it("never treats a local-only post-cutover migration below hosted head as bootstrap debt", () => {
@@ -44,7 +46,11 @@ describe("V3 hosted production migration frontier", () => {
   it("flags post-cutover hosted hotfixes absent from the repository instead of creating no-op aliases", () => {
     const report = auditV3ProductionMigrationFrontier(
       [historicRepo, canonical],
-      [historicHosted, migration(canonical), { version: "20261101172649", name: "v3_confirmation_pending_nf_winner" }],
+      [
+        historicHosted,
+        migration(canonical),
+        { version: "20261101172649", name: "v3_confirmation_pending_nf_winner" },
+      ],
     );
     expect(report.unknownHostedPostCutover).toEqual([
       { version: "20261101172649", name: "v3_confirmation_pending_nf_winner" },
@@ -79,34 +85,54 @@ describe("V3 hosted production migration frontier", () => {
       [historicRepo, canonical],
       [historicHosted, { version: "20261017100000" }],
     );
-    expect(report.errors).toContain("Hosted post-cutover migration 20261017100000 lacks name evidence");
+    expect(report.errors).toContain(
+      "Hosted post-cutover migration 20261017100000 lacks name evidence",
+    );
     expect(report.historyReconciled).toBe(false);
   });
 
   it("keeps the production operator's compatibility exception pinned to the original bootstrap boundary", () => {
-    const operator = readFileSync(new URL("../../scripts/v3-production-supabase-push.sh", import.meta.url), "utf8");
+    const operator = readFileSync(
+      new URL("../../scripts/v3-production-supabase-push.sh", import.meta.url),
+      "utf8",
+    );
     expect(operator).toContain('BOOTSTRAP_HISTORY_CUTOVER="20261014020000"');
-    expect(operator).toContain('if [[ "$version" < "$BOOTSTRAP_HISTORY_CUTOVER" || "$version" == "$BOOTSTRAP_HISTORY_CUTOVER" ]]; then');
-    expect(operator).toContain('elif [[ "$version" < "$EXPECTED_REMOTE_HEAD" || "$version" == "$EXPECTED_REMOTE_HEAD" ]]; then');
+    expect(operator).toContain(
+      'if [[ "$version" < "$BOOTSTRAP_HISTORY_CUTOVER" || "$version" == "$BOOTSTRAP_HISTORY_CUTOVER" ]]; then',
+    );
+    expect(operator).toContain(
+      'elif [[ "$version" < "$EXPECTED_REMOTE_HEAD" || "$version" == "$EXPECTED_REMOTE_HEAD" ]]; then',
+    );
     expect(operator).toContain("unapplied post-bootstrap migration");
     expect(operator).toContain("hosted-only post-bootstrap migration");
     expect(operator).toContain("The newest hosted migration may be absent from the repository.");
     expect(operator).toContain("if (remote_version ~ /^[0-9]{14}$/) {");
-    expect(operator).not.toContain('if [[ "$version" < "$EXPECTED_REMOTE_HEAD" || "$version" == "$EXPECTED_REMOTE_HEAD" ]]; then\\n    mapfile -t matches');
+    expect(operator).not.toContain(
+      'if [[ "$version" < "$EXPECTED_REMOTE_HEAD" || "$version" == "$EXPECTED_REMOTE_HEAD" ]]; then\\n    mapfile -t matches',
+    );
   });
 
   it("requires exact candidate SHA for strict migration reconciliation while permitting diagnostics", () => {
     const sha = "a".repeat(40);
     expect(assessV3ProductionMigrationCandidateIdentity(sha, null, true)).toMatchObject({
-      acceptable: false, matchesExpected: false, error: "strict reconciliation requires --expected-sha",
+      acceptable: false,
+      matchesExpected: false,
+      error: "strict reconciliation requires --expected-sha",
     });
     expect(assessV3ProductionMigrationCandidateIdentity(sha, null, false)).toMatchObject({
-      acceptable: true, matchesExpected: false,
+      acceptable: true,
+      matchesExpected: false,
     });
-    expect(assessV3ProductionMigrationCandidateIdentity(sha, "not-a-sha", true).acceptable).toBe(false);
-    expect(assessV3ProductionMigrationCandidateIdentity(sha, "b".repeat(40), true).acceptable).toBe(false);
+    expect(assessV3ProductionMigrationCandidateIdentity(sha, "not-a-sha", true).acceptable).toBe(
+      false,
+    );
+    expect(assessV3ProductionMigrationCandidateIdentity(sha, "b".repeat(40), true).acceptable).toBe(
+      false,
+    );
     expect(assessV3ProductionMigrationCandidateIdentity(sha, sha, true)).toEqual({
-      acceptable: true, matchesExpected: true, error: null,
+      acceptable: true,
+      matchesExpected: true,
+      error: null,
     });
   });
 
@@ -131,5 +157,48 @@ describe("V3 hosted production migration frontier", () => {
     );
     expect(staleRemote.historyReconciled).toBe(false);
     expect(staleRemote.errors.join(" ")).toMatch(/predates the documented bootstrap cutover/);
+  });
+});
+
+describe("raw Preview identities versus SQL effects", () => {
+  it("reports every unmatched remote version, including bootstrap, without rewriting history", () => {
+    const unknown = { version: "20261101181812", name: "unknown" };
+    const hosted = [unknown, historicHosted, migration(canonical)];
+    const before = JSON.stringify(hosted);
+    const report = auditV3ProductionMigrationFrontier([historicRepo, canonical], hosted);
+    expect(report.remoteVersionsMissingLocally).toEqual([historicHosted, unknown]);
+    expect(report.unknownHostedPostCutover).toEqual([unknown]);
+    expect(report.previewHistoryCompatible).toBe(false);
+    expect(JSON.stringify(hosted)).toBe(before);
+  });
+
+  it("keeps a local historical hole distinct from unknown remote history", () => {
+    const report = auditV3ProductionMigrationFrontier(
+      [historicRepo, canonical],
+      [migration(historicRepo), { version: "20261101181812", name: "tip" }],
+    );
+    expect(report.holesBeforeHostedHead.map((x) => x.filename)).toEqual([canonical]);
+    expect(report.previewHistoryCompatible).toBe(false);
+  });
+
+  it("accepts identical valid history but makes no SQL-effect assertion", () => {
+    const report = auditV3ProductionMigrationFrontier(
+      [historicRepo, canonical],
+      [migration(historicRepo), migration(canonical)],
+    );
+    expect(report.previewHistoryCompatible).toBe(true);
+    expect(report.historyReconciled).toBe(true);
+    expect(report).not.toHaveProperty("sqlEffectsVerified", true);
+    expect(report).not.toHaveProperty("productionDeploymentAuthorized", true);
+  });
+
+  it("malformed or empty histories cannot qualify Preview even without unmatched identities", () => {
+    expect(auditV3ProductionMigrationFrontier([canonical], []).previewHistoryCompatible).toBe(
+      false,
+    );
+    expect(
+      auditV3ProductionMigrationFrontier([canonical], [migration(canonical), migration(canonical)])
+        .previewHistoryCompatible,
+    ).toBe(false);
   });
 });

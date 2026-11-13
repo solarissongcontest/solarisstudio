@@ -7,8 +7,10 @@ on:
     paths:
       - "scripts/v3-production-supabase-push.sh"
       - "scripts/check-v3-production-migration-frontier.ts"
+      - "scripts/rehearse-v3-preview-frontier-local.sh"
       - "src/lib/v3-production-migration-frontier.ts"
       - "src/lib/v3-production-migration-frontier.test.ts"
+      - "src/lib/v3-production-frontier-cli.test.ts"
       - "src/lib/v3-production-operator-gates.test.ts"
       - "src/lib/v3-production-migration-race.test.ts"
       - "docs/v3/production-frontier-preflight.md"
@@ -61,7 +63,27 @@ jobs:
         run: bash -n scripts/v3-production-supabase-push.sh
 
       - name: Run isolated migration frontier and operator approval regressions
-        run: bunx vitest run src/lib/v3-production-migration-frontier.test.ts src/lib/v3-production-operator-gates.test.ts src/lib/v3-production-migration-race.test.ts
+        run: bunx vitest run src/lib/v3-production-frontier-cli.test.ts src/lib/v3-production-migration-frontier.test.ts src/lib/v3-production-operator-gates.test.ts src/lib/v3-production-migration-race.test.ts
+
+      - name: Setup pinned CLI for synthetic networkless Preview regression
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Reproduce Preview refusal on networkless PostgreSQL 17.11
+        shell: bash
+        run: |
+          set -euo pipefail
+          scripts/rehearse-v3-preview-frontier-local.sh "$(command -v supabase)" | tee v3-preview-frontier-${{ github.event.pull_request.head.sha || github.sha }}.log
+
+      - name: Preserve exact-head synthetic refusal evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-preview-frontier-${{ github.event.pull_request.head.sha || github.sha }}
+          path: v3-preview-frontier-*.log
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Confirm offline-only verification
         run: |

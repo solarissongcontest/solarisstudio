@@ -153,3 +153,37 @@ The operator script now rejects post-bootstrap local-only versions at or behind 
 - Explicit, separate human deployment approval and post-deploy bounded verification.
 
 Until those gates are met: **NO-GO for hosted V3 migrations and production release.**
+
+## Preview identity compatibility is a separate prerequisite (13 November)
+
+The offline auditor now exposes `remoteVersionsMissingLocally` across **all**
+versions, including the immutable bootstrap interval. It also reports
+`previewHistoryCompatible` separately from `historyReconciled`. The approved
+bootstrap comparison exception can make the latter true while a raw Supabase
+Preview/push still refuses an unmatched remote migration identity. Neither result
+proves SQL-effect parity. Name mismatches, invalid inventories and local holes
+also keep the conservative Preview preflight blocked.
+
+Use `--require-preview-compatible --expected-sha <full SHA>` to fail on that
+identity mismatch independently of `--require-reconciled`. The auditor remains
+completely offline. It fingerprints the supplied history bytes and current SQL
+file contents, refuses changed/untracked migration sources, and always records
+`sqlEffectsVerified: false` and `productionDeploymentAuthorized: false`.
+A diagnostic of older evidence is not a new hosted observation.
+
+The existing offline-preflight workflow reproduces the actual pinned CLI
+2.113.0 refusal on PostgreSQL 17.11 with **network=none**, no ports/mounts and
+synthetic history. One migration has an already-present SQL effect while another
+has an absent effect; both lack history. The real CLI dry-run must reject the
+unmatched bootstrap version without changing history or those effects. This is a
+synthetic refusal regression, **not a hosted-equivalent recovery baseline**.
+It neither creates aliases nor repairs history. All synthetic rows live only in
+the disposable container, which is removed on exit.
+
+The checked-in November 9 evidence supplies aggregate history counts and named
+SQL-effect classifications, not a complete current raw migration-history export.
+Do not manufacture that missing export from those counts. Exact current unmatched
+identities still require a separately authorized, bounded migration-metadata
+observation. Existing S13 foundation → Archive recovery and Televote source truth
+→ projection guard/replay → Results publication ordering remains mandatory;
+these diagnostics do not authorize any of those candidates for hosted adoption.
