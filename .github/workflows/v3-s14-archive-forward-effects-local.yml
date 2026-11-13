@@ -705,10 +705,10 @@ jobs:
           NODE
           [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
           [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
-          docker rm -f "$cid" >/dev/null
-          cid=""
           sql -f - < /tmp/s13-s14-current-catalog.sql > s13-s14-current-catalog-after.json
           node scripts/v3-s13-s14-catalog-export.mjs --recovered s13-s14-current-catalog-before.json s13-s14-current-catalog-after.json > s13-s14-current-recovery-proof.json
+          docker rm -f "$cid" >/dev/null
+          cid=""
           echo "PASS: S13 then S14 against 215 hosted-observed PG17.11 table identities (56 scoped + 159 exact fingerprints); missing S13/duplicate fail closed."
           echo "LIMITATION: 215/215 table names, 159 additional full-field digests (original 56 scoped), 727 routine and data/role/history equivalence still unproven; NOT fully hosted-equivalent or S06 certified."
 
