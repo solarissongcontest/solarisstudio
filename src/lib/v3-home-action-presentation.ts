@@ -28,3 +28,14 @@ export function homeActionRequirementLabel(
       return "Optional";
   }
 }
+
+/**
+ * A lack of participant tasks is not evidence of completion for a visitor who
+ * has no authenticated identity. Preserve the calm state without inventing
+ * personal progress or forcing sign-in to browse the public contest.
+ */
+export function homeCalmPresentation(viewerId: string | null) {
+  return viewerId
+    ? { title: "You're all caught up", showSignIn: false }
+    : { title: "Discover what's happening in Solaris", showSignIn: true };
+}
