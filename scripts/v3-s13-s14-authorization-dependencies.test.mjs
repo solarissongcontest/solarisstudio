@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { dependencies, extractDefinition, expectedContract, reconstructionSql, recoveryManifest } from './v3-s13-s14-authorization-dependencies.mjs';
+import { createHash } from 'node:crypto';
+import { dependencies, extractDefinition, expectedContract, reconstructionSql, recoveryManifest, sourceDerivedStrictDualDefinition } from './v3-s13-s14-authorization-dependencies.mjs';
 import { validateFreshSource } from './check-v3-s02-baseline.mjs';
 const read = p => readFileSync(p, 'utf8');
 const sha = '1'.repeat(40);
@@ -9,7 +10,7 @@ function catalog() {
   const nodes = dependencies.map((d, i) => {
     const c = expectedContract(d);
     return { id: 'f:' + i, kind: 'function', name: d.name, schema: 'private', identity: d.identity,
-      owner: c.owner_name, securityDefiner: c.security_definer, language: i === 2 ? 'plpgsql' : 'sql',
+      owner: c.owner_name, securityDefiner: c.security_definer, language: (i === 2 || i === 4) ? 'plpgsql' : 'sql',
       definitionSha256: c.definition_sha256, settingsMd5: c.settings_md5, aclMd5: c.acl_md5,
       privileges: { anon: false, authenticated: false, service_role: false }, runtimeCalls: 0 };
   });
@@ -28,6 +29,21 @@ test('extracts exactly the immutable function body, not migration data changes o
     assert.match(expectedContract(d).definition_sha256, /^[a-f0-9]{64}$/);
   }
 });
+test('authorized strict-dual body is SOURCE-DERIVED and byte-matches frozen hosted prosrc', () => {
+  const strictDual = dependencies.find(d => d.name === 'private.studio2_require_strict_dual');
+  assert.ok(strictDual, 'Strict-dual must be a guarded dependency, not a stub');
+  const derived = sourceDerivedStrictDualDefinition(strictDual);
+  const source = extractDefinition(read(strictDual.source), strictDual.name);
+  assert.notEqual(derived, source, 'Raw later source cannot silently replace hosted body');
+  const quoted = /\bas\s+(\$[a-z0-9_]*\$)([\s\S]*?)\1;/i.exec(derived);
+  assert.ok(quoted);
+  assert.equal(createHash('md5').update(quoted[2]).digest('hex'),
+    '294d562ce20e3de09ea864b3359b97d6');
+  assert.match(expectedContract(strictDual).definition_sha256, /^fd29f6aa3d37caf0c4052305ef6fbf45c99b6aefc9e87ec6a84fb848822d1b11$/);
+  assert.match(reconstructionSql(), /private\.studio2_require_strict_dual\(text,uuid,text\)/);
+  assert.doesNotMatch(reconstructionSql(), /disable trigger|session_replication_role|drop function/i);
+});
+
 test('ambiguous or missing source never picks a default definition', () => {
   const d = dependencies[0], s = extractDefinition(read(d.source), d.name);
   assert.throws(() => extractDefinition('', d.name), /absent/);
@@ -44,22 +60,23 @@ test('only the exact local placeholder can be replaced, with atomic observed met
   assert.match(sql, /has_function_privilege\('authenticated'/);
   assert.doesNotMatch(sql, /disable trigger|session_replication_role|supabase_migrations|drop function/i);
 });
-test('manifest keeps four verified leaves separate from unknown closure and deployment', () => {
+test('manifest keeps five verified leaves separate from unknown closure and deployment', () => {
   const c = catalog();
   c.nodes.push({ id: 'u:missing', kind: 'unresolved-reference', schema: 'private', identity: 'private.missing' });
   c.edges.push({ source: 'root:0', target: 'u:missing', kind: 'unresolved-qualified-reference' });
   const m = recoveryManifest(c, sha);
-  assert.equal(m.reconstructed.length, 4);
+  assert.equal(m.reconstructed.length, 5);
   assert.ok(m.remainingInspection.some(x => x.identity === 'private.missing'));
   assert.equal(m.fullHostedEquivalenceCertified, false);
   assert.equal(m.productionRecoveryEligible, false);
   assert.equal(m.extensionEvidence.hosted, null);
   assert.equal(m.extensionEvidence.status, 'UNKNOWN / BLOCKING');
   assert.equal(m.deploymentAuthorized, false);
-  assert.equal(m.runtimeCoverage.editionScopedAcceptance, 'BLOCKED');
+  assert.equal(m.runtimeCoverage.editionScopedAcceptance, 'PENDING_EXACT_HEAD_LOCAL_RUNTIME_LOG');
   assert.equal(m.runtimeCoverage.executionResult, 'NOT_ATTESTED_BY_THIS_METADATA_MANIFEST');
-  assert.equal(m.blockedRuntime[0].identity, 'private.studio2_require_strict_dual(text,uuid,text)');
-  assert.equal(m.blockedRuntime[0].hostedExecutableDefinitionAvailable, false);
+  assert.equal(m.blockedRuntime.length, 0);
+  assert.equal(m.verifiedRuntimeBody[0].identity, 'private.studio2_require_strict_dual(text,uuid,text)');
+  assert.equal(m.verifiedRuntimeBody[0].rawHostedDefinitionCommitted, false);
 });
 test('owner, body, settings and effective execute drift block reconstructed classification', () => {
   for (const patch of [{ owner: 'authenticated' }, { definitionSha256: '0'.repeat(64) },
