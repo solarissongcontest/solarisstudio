@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { dependencies, extractDefinition, expectedContract, reconstructionSql, recoveryManifest, sourceDerivedStrictDualDefinition } from './v3-s13-s14-authorization-dependencies.mjs';
+import { dependencies, extractDefinition, expectedContract, reconstructionSql, recoveryManifest, sourceDerivedStrictDualDefinition, sourceDerivedAuthRoleDefinition } from './v3-s13-s14-authorization-dependencies.mjs';
 import { validateFreshSource } from './check-v3-s02-baseline.mjs';
 const read = p => readFileSync(p, 'utf8');
 const sha = '1'.repeat(40);
@@ -29,6 +29,20 @@ test('extracts exactly the immutable function body, not migration data changes o
     assert.match(expectedContract(d).definition_sha256, /^[a-f0-9]{64}$/);
   }
 });
+test('hosted auth.role() is source-derived from the frozen auth.uid() fixture', () => {
+  const role = sourceDerivedAuthRoleDefinition();
+  const pgDefinition = role.replace(/;$/, '') + '\n';
+  assert.equal(createHash('md5').update(pgDefinition).digest('hex'),
+    '8a3e05459e07e0633d43c6fba2a2cdf4');
+  assert.equal(createHash('sha256').update(pgDefinition).digest('hex'),
+    'c96a9358b02089b03f3962fd85c5f83c9d64f32240481915c0efe74398dc761b');
+  const sql = reconstructionSql();
+  assert.match(sql, /Hosted auth role helper contract mismatch/);
+  assert.match(sql, /supabase_auth_admin/);
+  assert.match(sql, /dashboard_user/);
+  assert.match(sql, /879a0ead5da3e8d4e349768dff681d4d/);
+});
+
 test('authorized strict-dual body is SOURCE-DERIVED and byte-matches frozen hosted prosrc', () => {
   const strictDual = dependencies.find(d => d.name === 'private.studio2_require_strict_dual');
   assert.ok(strictDual, 'Strict-dual must be a guarded dependency, not a stub');
