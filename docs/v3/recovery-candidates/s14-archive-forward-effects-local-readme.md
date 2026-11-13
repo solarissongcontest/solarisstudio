@@ -32,6 +32,16 @@ eligibility. No historical migration, production RPC, hosted schema or rollout
 setting changes. Further metadata collection requires separately authorized,
 bounded schema-only inspection of the manifest's unresolved identities.
 
+The real edition seed currently reaches the missing
+`private.studio2_require_strict_dual(text,uuid,text)` guard. As already documented
+in `s02-source-defined-beta-contract.md`, the hosted executable body has not been
+established equivalent to either source variant. The runtime test verifies this
+missing dependency aborts the attempted seed without partial edition/runtime
+rows, explicitly reports **BLOCKED**, and does not certify edition-scoped
+acceptance. Do not disable the guard, fabricate a body, or reinterpret this
+rollback check as successful edition creation. The generated manifest identifies
+the one-signature, separately authorized metadata inspection needed next.
+
 This bundle is the next dependency step after the previous read-only hosted migration gap audit and the passing one-shot authorization and cross-edition task isolation tests in PR #2400. It is deliberately located outside `supabase/migrations/` and cannot be picked up by an ordinary `supabase db push`.
 
 ## Read-only evidence from the actual hosted database

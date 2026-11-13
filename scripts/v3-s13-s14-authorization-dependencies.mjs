@@ -133,6 +133,13 @@ export function recoveryManifest(catalog, candidateSha) {
       collect: ['exact signature', 'sanitized pg_get_functiondef', 'owner', 'language/security flags', 'ACL and role membership', 'search_path', 'attached trigger/policy definitions'],
       prohibit: ['application rows', 'credentials', 'CI hosted queries', 'invented stubs'],
       dynamicAndUnqualifiedCalls: 'Resolve from reviewed definitions and bounded runtime cases before certifying closure' },
+    blockedRuntime: [{ identity: 'private.studio2_require_strict_dual(text,uuid,text)',
+      evidence: 'docs/v3/recovery-candidates/s02-source-defined-beta-contract.md',
+      requiredRuntimeWitness: 'Real edition seed trigger raises undefined_function; failed statement leaves no edition/runtime row',
+      hostedAttributesObserved: true, hostedExecutableDefinitionAvailable: false, locallyReconstructed: false,
+      sourceParity: 'The approved observation differs from both immutable source variants; do not substitute or stub',
+      blocks: ['edition-scoped positive/negative runtime acceptance', 'complete hosted-equivalent recovery certification'],
+      requiredInspection: 'Separately authorized, one-signature pg_catalog SELECT of sanitized pg_get_functiondef, owner, ACL, settings, version and effective role grants. No function invocation or application rows.' }],
     remainingInspection: relevant.filter(n => n.hostedClassification !== 'verified-equivalent').map(n => ({
       identity: n.identity, schema: n.schema, kind: n.kind,
       status: n.hostedClassification === 'verified-different' ? 'LOCALLY_DIFFERENT / BLOCKING' : 'UNKNOWN / BLOCKING',
@@ -144,6 +151,11 @@ export function recoveryManifest(catalog, candidateSha) {
     limitations: ['Conservative pg_depend/qualified-reference graph; dynamic SQL and unqualified/overloaded calls require independent review',
       'Relation/policy/trigger fingerprints do not establish data-shape or role-membership runtime equivalence',
       'Synthetic runtime probes are not production rows or complete workflow certification'],
+    runtimeCoverage: { assertionSource: 'scripts/v3-s13-s14-authorization-runtime-local.sql',
+      intendedAssertions: ['global actor capability', 'grant/role expiry and revocation', 'task recipient/resolution', 'platform-mode restrictions'],
+      executionResult: 'NOT_ATTESTED_BY_THIS_METADATA_MANIFEST',
+      editionScopedAcceptance: 'BLOCKED', fullTaskReconciliation: 'NOT_VERIFIED',
+      note: 'Require the separate exact-head PostgreSQL job/assertion output; metadata alone cannot attest runtime success' },
     fullHostedEquivalenceCertified: false, productionRecoveryEligible: false, deploymentAuthorized: false };
 }
 

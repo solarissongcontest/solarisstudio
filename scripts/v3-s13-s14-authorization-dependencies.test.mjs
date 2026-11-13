@@ -54,6 +54,10 @@ test('manifest keeps four verified leaves separate from unknown closure and depl
   assert.equal(m.fullHostedEquivalenceCertified, false);
   assert.equal(m.productionRecoveryEligible, false);
   assert.equal(m.deploymentAuthorized, false);
+  assert.equal(m.runtimeCoverage.editionScopedAcceptance, 'BLOCKED');
+  assert.equal(m.runtimeCoverage.executionResult, 'NOT_ATTESTED_BY_THIS_METADATA_MANIFEST');
+  assert.equal(m.blockedRuntime[0].identity, 'private.studio2_require_strict_dual(text,uuid,text)');
+  assert.equal(m.blockedRuntime[0].hostedExecutableDefinitionAvailable, false);
 });
 test('owner, body, settings and effective execute drift block reconstructed classification', () => {
   for (const patch of [{ owner: 'authenticated' }, { definitionSha256: '0'.repeat(64) },
