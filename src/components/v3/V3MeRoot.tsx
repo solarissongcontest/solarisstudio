@@ -58,7 +58,7 @@ export function V3MeRoot({ viewerId, editionId }: { viewerId: string; editionId:
               title="Return to sign in"
               description="Refresh your Solaris account session before opening Me."
               tone="neutral"
-              to="/auth"
+              to="/auth?redirect=%2Fmy-solaris"
             />
           </div>
         </main>
