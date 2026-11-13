@@ -1,5 +1,7 @@
 # Solaris Studio V3: final release approval packet (manual, external)
 
+> **Merge-process note (owner update, 14 November 2026):** [The current evidence-based merge policy](merge-review-policy.md) replaces routine independent-AI/integrator merge approval. The currently authorized implementation session may integrate its own verified PR. This historical release/evidence document does not authorize production changes or waive safety gates.
+
 This document specifies the offline **--certified** gate for the tracked full-V3 blocker matrix. It is **not** an approval, deployment instruction, migration plan, or production credential. **Do not check real approval packets, account data, or tokens into the repository.**
 
 ## Three separate decisions are required
@@ -56,17 +58,17 @@ This **illustrative template is not approved evidence**, and the placeholders ca
     "hostedMigration": {
       "approved": true,
       "approvedBy": "<production database owner>",
-      "evidenceRef": "<independent database migration approval>"
+      "evidenceRef": "<separate explicit production database approval>"
     },
     "productionDeployment": {
       "approved": true,
       "approvedBy": "<release/deployment owner>",
-      "evidenceRef": "<independent production deployment approval>"
+      "evidenceRef": "<separate explicit production deployment approval>"
     },
     "publicWriteReopening": {
       "approved": true,
       "approvedBy": "<operations owner>",
-      "evidenceRef": "<independent reopening approval>"
+      "evidenceRef": "<separate explicit public-write approval>"
     }
   },
   "gates": [
