@@ -20,14 +20,20 @@ export function V3MeRoot({ viewerId, editionId }: { viewerId: string; editionId:
   const follows = useMyFollows(ownsIdentity ? viewerId : undefined);
   const editions = useEditions();
   const queryClient = useQueryClient();
-  const summaryKey = ["v3-me-summary", viewerId] as const;
+  // Private Me evidence must use the shared account-cache isolation namespace
+  // and a country-scoped key. An identity-only key can replay stale evidence
+  // after a same-user delegation switch and survive private-cache eviction.
+  const countryId = account?.country?.id ?? null;
+  const summaryKey = ["my-solaris-v3-me-summary", viewerId, countryId ?? "none"] as const;
   const summary = useQuery({
-    queryKey: summaryKey, enabled: ownsIdentity,
+    queryKey: summaryKey, enabled: ownsIdentity && Boolean(countryId),
     queryFn: () => getV3MeSummary(),
     staleTime: 15_000, refetchOnWindowFocus: true, retry: false,
   });
   useEffect(() => {
-    const refresh = () => { void queryClient.invalidateQueries({ queryKey: ["v3-me-summary", viewerId] }); };
+    const refresh = () => {
+      void queryClient.invalidateQueries({ queryKey: ["my-solaris-v3-me-summary", viewerId] });
+    };
     window.addEventListener(CONFIRMATION_SUBMITTED_EVENT, refresh);
     return () => window.removeEventListener(CONFIRMATION_SUBMITTED_EVENT, refresh);
   }, [queryClient, viewerId]);
