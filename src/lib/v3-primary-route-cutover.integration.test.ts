@@ -93,7 +93,15 @@ describe("Solaris Studio V3 primary route cutover architecture", () => {
     expect(resolvingSurface).toContain('"Solaris Today"');
     expect(resolvingSurface).toContain('"Participate in Solaris"');
     expect(resolvingSurface).toContain('href="/countries"');
-    expect(resolvingSurface).toContain('href="/confirmations"');
+    expect(resolvingSurface).toContain('href="/"');
+    expect(resolvingSurface).toContain("after the app checks your account and current contest access");
+    for (const unavailableBeforeAuthorization of [
+      'href="/confirmations"',
+      'href="/jury-voting"',
+      'href="/televoting"',
+    ]) {
+      expect(resolvingSurface).not.toContain(unavailableBeforeAuthorization);
+    }
     expect(resolvingSurface).not.toContain("AppShell");
     expect(resolvingSurface).not.toContain("useQuery(");
     expect(gateText).not.toContain('from "@/components/AppShell"');
