@@ -1,5 +1,7 @@
 # S14 Archive integrated forward-effect recovery | local rehearsal candidate
 
+> **Merge-process note (owner update, 14 November 2026):** [The current evidence-based merge policy](../merge-review-policy.md) supersedes older "independent integrator review" or separate-AI merge-approval wording in this historical/technical note. A single authorized session may verify and merge its own source PR when risk-tiered objective checks and actual GitHub rules pass. This does **not** waive any technical verification, true production authorization, or sensitive-data protection described below.
+
 **STATUS: DRAFT / NOT A DEPLOYABLE MIGRATION / NEVER RUN ON HOSTED SUPABASE.**
 
 ## 13 November: authorization dependency reconstruction
