@@ -18,25 +18,40 @@ export function assessV3ProductionMigrationCandidateIdentity(
   requireReconciled: boolean,
 ): { matchesExpected: boolean; acceptable: boolean; error: string | null } {
   const exactSha = /^[0-9a-f]{40}$/;
-  const matchesExpected = expectedSha !== null &&
-    exactSha.test(expectedSha) && candidateSha === expectedSha;
+  const matchesExpected =
+    expectedSha !== null && exactSha.test(expectedSha) && candidateSha === expectedSha;
   if (!exactSha.test(candidateSha)) {
-    return { matchesExpected: false, acceptable: false, error: "checked-out candidate SHA is invalid" };
+    return {
+      matchesExpected: false,
+      acceptable: false,
+      error: "checked-out candidate SHA is invalid",
+    };
   }
   if (expectedSha === null) {
     return requireReconciled
-      ? { matchesExpected: false, acceptable: false, error: "strict reconciliation requires --expected-sha" }
+      ? {
+          matchesExpected: false,
+          acceptable: false,
+          error: "strict reconciliation requires --expected-sha",
+        }
       : { matchesExpected: false, acceptable: true, error: null };
   }
   if (!exactSha.test(expectedSha)) {
-    return { matchesExpected: false, acceptable: false, error: "--expected-sha must be an exact lowercase 40-character SHA" };
+    return {
+      matchesExpected: false,
+      acceptable: false,
+      error: "--expected-sha must be an exact lowercase 40-character SHA",
+    };
   }
   if (!matchesExpected) {
-    return { matchesExpected: false, acceptable: false, error: "checked-out candidate does not match --expected-sha" };
+    return {
+      matchesExpected: false,
+      acceptable: false,
+      error: "checked-out candidate does not match --expected-sha",
+    };
   }
   return { matchesExpected: true, acceptable: true, error: null };
 }
-
 
 export type HostedMigration = { version: string; name?: string };
 export type RepoMigration = { version: string; name: string; filename: string };
@@ -55,6 +70,11 @@ export type ProductionMigrationFrontier = {
   unknownHostedPostCutover: HostedMigration[];
   nameMismatches: { version: string; repositoryName: string; hostedName: string }[];
   errors: string[];
+  /** Raw CLI identity compatibility is distinct from the approved bootstrap exception. */
+  remoteVersionsMissingLocally: HostedMigration[];
+  /** Local-only SQL identities before the hosted head, including bootstrap. */
+  previewLocalVersionsMissingRemotely: RepoMigration[];
+  previewHistoryCompatible: boolean;
   historyReconciled: boolean;
 };
 
@@ -85,7 +105,8 @@ export function auditV3ProductionMigrationFrontier(
   // A directory with only README/config files is not a valid migration inventory.
   // Without this guard, historical hosted entries can falsely certify an empty
   // repository inventory as reconciled at the bootstrap cutover.
-  if (repository.size === 0) errors.push("Repository migration inventory contains no SQL migrations");
+  if (repository.size === 0)
+    errors.push("Repository migration inventory contains no SQL migrations");
 
   const hosted = new Map<string, HostedMigration>();
   for (const migration of hostedMigrations) {
@@ -93,7 +114,8 @@ export function auditV3ProductionMigrationFrontier(
       errors.push("Hosted migration history contains an invalid version");
       continue;
     }
-    if (hosted.has(migration.version)) errors.push(`Duplicate hosted migration version: ${migration.version}`);
+    if (hosted.has(migration.version))
+      errors.push(`Duplicate hosted migration version: ${migration.version}`);
     if (migration.name !== undefined && typeof migration.name !== "string") {
       errors.push(`Hosted migration ${migration.version} has a non-string name`);
     }
@@ -103,8 +125,17 @@ export function auditV3ProductionMigrationFrontier(
     hosted.set(migration.version, migration);
   }
 
+  const remoteVersionsMissingLocally = [...hosted.values()]
+    .filter((migration) => !repository.has(migration.version))
+    .sort((a, b) => a.version.localeCompare(b.version));
   const hostedHead = [...hosted.keys()].sort().at(-1) ?? null;
   const repositoryHead = [...repository.keys()].sort().at(-1) ?? null;
+  // Supabase CLI's raw migration check does not exempt the immutable bootstrap:
+  // a local-only SQL version before the last hosted version still blocks Preview.
+  // Keep this distinct from the approved post-cutover effect/history comparator.
+  const previewLocalVersionsMissingRemotely = [...repository.values()]
+    .filter((migration) => hostedHead !== null && migration.version <= hostedHead && !hosted.has(migration.version))
+    .sort((a, b) => a.version.localeCompare(b.version));
   if (hostedHead !== null && hostedHead < cutover) {
     errors.push(`Hosted migration head ${hostedHead} predates the documented bootstrap cutover`);
   }
@@ -133,7 +164,8 @@ export function auditV3ProductionMigrationFrontier(
       continue;
     }
     if (migration.version <= cutover) historicalRepoOnlyCount++;
-    else if (hostedHead !== null && migration.version <= hostedHead) holesBeforeHostedHead.push(migration);
+    else if (hostedHead !== null && migration.version <= hostedHead)
+      holesBeforeHostedHead.push(migration);
     else pendingAfterHostedHead.push(migration);
   }
 
@@ -162,6 +194,13 @@ export function auditV3ProductionMigrationFrontier(
     unknownHostedPostCutover,
     nameMismatches,
     errors,
+    remoteVersionsMissingLocally,
+    previewLocalVersionsMissingRemotely,
+    previewHistoryCompatible:
+      errors.length === 0 &&
+      remoteVersionsMissingLocally.length === 0 &&
+      previewLocalVersionsMissingRemotely.length === 0 &&
+      nameMismatches.length === 0,
     historyReconciled:
       errors.length === 0 &&
       holesBeforeHostedHead.length === 0 &&
