@@ -10,6 +10,7 @@ insert into televoting.editions(id,name) values('00000000-0000-0000-0000-0000000
 insert into televoting.rounds(id,edition_id,name,total_points_to_distribute,televote_engine_version) values
  ('00000000-0000-0000-0000-000000000091','00000000-0000-0000-0000-000000000090','Standard',1,'rank-weighted-v1'),
  ('00000000-0000-0000-0000-000000000092','00000000-0000-0000-0000-000000000090','Robust',1,'robust-televote-v2');
+insert into televoting.countries(code,name) values('AA','Synthetic actor country');
 insert into televoting.round_entries(round_id,entry_key,country_code,entry_type) values
  ('00000000-0000-0000-0000-000000000091','AA','AA','country'),
  ('00000000-0000-0000-0000-000000000092','AA','AA','country');
@@ -23,6 +24,7 @@ do $test$ declare denied boolean:=false; begin
  exception when insufficient_privilege then denied:=true; end;
  if not denied then raise exception 'Authenticated caller impersonated another calculation actor'; end if;
 end $test$;
+select set_config('request.jwt.claims','{"sub":"00000000-0000-0000-0000-000000000001","role":"authenticated"}',true);
 -- Matching actors pass the identity boundary; the deliberately absent round
 -- must still refuse. It must never be accepted just to make this test green.
 do $test$ begin
@@ -47,5 +49,19 @@ do $positive$ declare target uuid; engine text; version integer; payload jsonb; 
  end loop;
 end $positive$;
 reset role;
+delete from public.studio2_capability_grants where user_id='00000000-0000-0000-0000-000000000001';
+set local role authenticated;
+do $revoked$ begin
+ begin
+  perform televoting.v3_commit_official_round_calculation('00000000-0000-0000-0000-000000000091',1,now(),auth.uid(),'self',array['AA'],'[]','[]');
+  raise exception 'Revoked actor calculation accepted' using errcode='XX000';
+ exception when insufficient_privilege then null;
+ when raise_exception then if sqlerrm not like 'ROUND_NOT_FOUND:%' then raise; end if;
+ end;
+end $revoked$;
+reset role;
+do $unchanged$ begin
+ if (select count(*) from televoting.rounds where calculation_version=1 and calculated_by='00000000-0000-0000-0000-000000000001')<>2 then raise exception 'Denied calculation changed committed versions'; end if;
+end $unchanged$;
 rollback;
 select 'PASS: authenticated actor binding, forged role marker denied, matching actor retains validation';
