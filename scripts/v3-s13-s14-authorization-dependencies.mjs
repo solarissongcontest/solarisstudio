@@ -37,6 +37,16 @@ export const dependencies = [
     placeholder: true },
 ];
 
+// Source-derived public RPC: frozen hosted evidence grants authenticated and
+// service_role EXECUTE, but never anon. This is deliberately NOT in the
+// private-helper list with universally denied external EXECUTE.
+export const shadowDependency = {
+  name: 'public.studio2_check_capability_shadow',
+  args: 'text,uuid,text,text',
+  identity: 'public.studio2_check_capability_shadow(p_capability text, p_edition_id uuid, p_action text, p_route text)',
+  source: 'supabase/migrations/20260918205750_permission_engine_v2_authoritative_cutover.sql',
+};
+
 export function extractDefinition(source, name) {
   const start = new RegExp('create or replace function\\s+' + name.replaceAll('.', '\\.') + '\\s*\\(', 'gi');
   const matches = [...source.matchAll(start)];
@@ -116,6 +126,18 @@ export function expectedContract(item) {
   return { ...metadata, definition_sha256: definition.sha256 };
 }
 
+export function expectedShadowContract() {
+  const meta = frozen.routines.find(f => f.signature === shadowDependency.identity);
+  const fingerprint = fingerprints.functions.find(f => f.id === shadowDependency.identity);
+  assert.ok(meta && fingerprint, 'Independently frozen public shadow RPC evidence missing');
+  assert.equal(meta.owner_name, 'postgres');
+  assert.equal(meta.return_type, 'jsonb');
+  assert.equal(fingerprint.sha256, '08b88c99394101d4c53534a37a8280607447a607a6226fd3ce4ad51b945ac9bf');
+  assert.deepEqual(fingerprint.exec, { anon: false, service_role: true, authenticated: true });
+  assert.equal(meta.acl_md5, 'd1707186c8e5f1577bde2338d7541aec');
+  return { ...meta, definition_sha256: fingerprint.sha256 };
+}
+
 export function reconstructionSql() {
   const guards = [], bodies = [], checks = [];
   // The hosted function calls auth.role() during variable initialization,
@@ -181,6 +203,30 @@ export function reconstructionSql() {
          or has_function_privilege('service_role',${oid},'EXECUTE')
       then raise exception 'External authorization helper EXECUTE: ${signature}'; end if;`);
   }
+  // Resolve the remaining exact public shadow-authorization RPC only from
+  // immutable source. Its current source is capability-authoritative despite
+  // the historical "shadow" name. Refuse anything but frozen hosted metadata.
+  const shadow = expectedShadowContract();
+  const shadowSignature = shadowDependency.name + '(' + shadowDependency.args + ')';
+  const shadowOid = 'to_regprocedure(' + literal(shadowSignature) + ')';
+  guards.push(`if ${shadowOid} is not null then raise exception 'Shadow authorization RPC already exists: ${shadowSignature}'; end if;`);
+  bodies.push(extractDefinition(read(shadowDependency.source), shadowDependency.name),
+    `revoke all on function ${shadowSignature} from public, anon, authenticated, service_role;`,
+    `grant execute on function ${shadowSignature} to authenticated, service_role;`);
+  checks.push(`if not exists (select 1 from pg_proc p where p.oid=${shadowOid}
+    and pg_get_userbyid(p.proowner)=${literal(shadow.owner_name)}
+    and md5(pg_get_functiondef(p.oid))=${literal(shadow.definition_md5)}
+    and encode(pg_catalog.sha256(pg_catalog.convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex')=${literal(shadow.definition_sha256)}
+    and md5(coalesce(p.proacl::text,''))=${literal(shadow.acl_md5)}
+    and md5(coalesce(p.proconfig::text,''))=${literal(shadow.settings_md5)}
+    and p.prosecdef=${shadow.security_definer} and p.proisstrict=${shadow.strict}
+    and p.proleakproof=${shadow.leakproof} and p.provolatile=${literal(shadow.volatility)}
+    and p.proparallel=${literal(shadow.parallel)} and p.prorettype='jsonb'::regtype)
+    then raise exception 'Hosted shadow authorization contract mismatch: ${shadowSignature}'; end if;
+    if has_function_privilege('anon',${shadowOid},'EXECUTE')
+       or not has_function_privilege('authenticated',${shadowOid},'EXECUTE')
+       or not has_function_privilege('service_role',${shadowOid},'EXECUTE')
+    then raise exception 'Shadow authorization API role EXECUTE drift: ${shadowSignature}'; end if;`);
   return `-- GENERATED LOCAL-ONLY fixture, NOT a migration; source bodies unchanged.
 begin;
 set local lock_timeout='5s';
@@ -221,6 +267,15 @@ export function recoveryManifest(catalog, candidateSha) {
       privileges: node.privileges, verification: 'Actual PG17.11 metadata equality; separate runtime assertions',
       releaseRelevance: 'Archive task recipient/access authorization and permission revision consequence' };
   });
+  const shadow = expectedShadowContract();
+  const shadowNode = catalog.nodes.find(n => n.identity === shadowDependency.identity);
+  assert.ok(shadowNode, 'Missing observed shadow RPC catalog identity');
+  assert.equal(shadowNode.owner, shadow.owner_name, 'Shadow RPC owner drift');
+  assert.equal(shadowNode.definitionSha256, shadow.definition_sha256, 'Shadow RPC definition drift');
+  assert.equal(shadowNode.settingsMd5, shadow.settings_md5, 'Shadow RPC settings drift');
+  assert.equal(shadowNode.aclMd5, shadow.acl_md5, 'Shadow RPC ACL drift');
+  assert.deepEqual(shadowNode.privileges, { anon: false, authenticated: true, service_role: true },
+    'Shadow RPC API privileges drift');
   return { schemaVersion: 1, candidateSha, profile: catalog.baselineProfile,
     databaseImage: catalog.databaseImage, networkIsolation: catalog.networkIsolation,
     extensionEvidence: { local: catalog.extensions ?? null, hosted: null, status: 'UNKNOWN / BLOCKING',
@@ -228,6 +283,18 @@ export function recoveryManifest(catalog, candidateSha) {
     observedEvidenceDate: '2026-11-09 / 2026-11-10; separately approved one-signature read-only inspection 2026-11-13',
     roots: ['public.studio2_access_allowed(text,uuid,boolean)', 'private.studio2_task_recipient_eligible(uuid,uuid)'],
     reconstructed, ...graph, nodes, edges,
+    reconstructedPublicShadow: {
+      identity: shadowDependency.identity,
+      sourceFile: shadowDependency.source,
+      sourceSha256: createHash('sha256').update(read(shadowDependency.source)).digest('hex'),
+      exactHostedSha256: shadow.definition_sha256,
+      owner: shadowNode.owner, settingsMd5: shadowNode.settingsMd5, aclMd5: shadowNode.aclMd5,
+      privileges: shadowNode.privileges,
+      observedAtRuntime: true, evaluatedFromFrozenCatalog: true,
+      sourceSemantics: 'capability-authoritative despite historical shadow RPC name',
+      testedInDisposablePg17: 'PENDING_EXACT_HEAD_JOB_LOG',
+      productionRecoveryEligible: false
+    },
     platformAuthHelper: {
       identity: 'auth.role()', owner: 'supabase_auth_admin', source: 'existing immutable auth.uid() hosted-observed fixture',
       exactDefinitionSha256: 'c96a9358b02089b03f3962fd85c5f83c9d64f32240481915c0efe74398dc761b',
@@ -246,20 +313,11 @@ export function recoveryManifest(catalog, candidateSha) {
       transformation: 'deterministic whitespace-only normalization; original source prosrc MD5 and hosted prosrc MD5 both pinned',
       exactHostedDefinitionSha256: 'fd29f6aa3d37caf0c4052305ef6fbf45c99b6aefc9e87ec6a84fb848822d1b11',
       executableAndSecurityParity: 'PG17.11 postcondition must pass; not attested by metadata manifest alone',
-      nextNestedDependencies: ['private.studio2_permission_engine_authoritative() (reconstructed candidate)', 'public.studio2_check_capability_shadow (frozen signature, not yet reconstructed)'],
+      nextNestedDependencies: ['private.studio2_permission_engine_authoritative() (verified)', 'public.studio2_check_capability_shadow(text,uuid,text,text) (reconstructed candidate)'],
       runtimeActorPathCertification: false
     }],
-    blockedRuntime: [{
-      identity: 'public.studio2_check_capability_shadow(text,uuid,text,text)',
-      blockedOperation: 'pre-authoritative (legacy strict-dual) actor path and full mode-transition parity',
-      runtimeWitness: 'No hosted-executable shadow function installed in local bounded fixture; pre-cutover actor path remains fail-closed',
-      status: 'NESTED_SHADOW_AUTHORITY_UNVERIFIED',
-      sourceCandidate: 'Review immutable Permission Engine shadow migration and frozen hosted metadata before reconstructing',
-      exactHostedExecutableParity: false,
-      furtherDependencies: ['legacy user role rows and permission engine shadow projections'],
-      requiredNextStep: 'Source/hosted hash and nested role dependency analysis offline first; request additional hosted query only with separate approval if unavoidable',
-      releaseBlocks: ['pre-authoritative actor acceptance', 'full hosted S13/S14 authorization parity']
-    }],
+    blockedRuntime: [],
+    remainingRuntimeClosure: ['Source-defined and frozen function parity is only a subset of hosted S13/S14; all remaining relevant unknown/different callable paths and migration frontier remain NO-GO'],
     remainingInspection: relevant.filter(n => n.hostedClassification !== 'verified-equivalent').map(n => ({
       identity: n.identity, schema: n.schema, kind: n.kind,
       status: n.hostedClassification === 'verified-different' ? 'LOCALLY_DIFFERENT / BLOCKING' : 'UNKNOWN / BLOCKING',
@@ -272,9 +330,9 @@ export function recoveryManifest(catalog, candidateSha) {
       'Relation/policy/trigger fingerprints do not establish data-shape or role-membership runtime equivalence',
       'Synthetic runtime probes are not production rows or complete workflow certification'],
     runtimeCoverage: { assertionSource: 'scripts/v3-s13-s14-authorization-runtime-local.sql',
-      intendedAssertions: ['global actor capability', 'grant/role expiry and revocation', 'task recipient/resolution', 'platform-mode restrictions', 'edition-scoped authoritative actor allow/deny', 'missing pre-cutover shadow fails closed'],
+      intendedAssertions: ['global actor capability', 'grant/role expiry and revocation', 'task recipient/resolution', 'platform-mode restrictions', 'edition-scoped authoritative actor allow/deny', 'current hosted-observed pre-global-flag shadow RPC allow/deny and audit persistence'],
       executionResult: 'NOT_ATTESTED_BY_THIS_METADATA_MANIFEST',
-      editionScopedAcceptance: 'PENDING_EXACT_HEAD_LOCAL_RUNTIME_LOG', fullTaskReconciliation: 'NOT_VERIFIED',
+      editionScopedAcceptance: 'PENDING_EXACT_HEAD_LOCAL_RUNTIME_LOG', preAuthoritativeShadow: 'PENDING_EXACT_HEAD_LOCAL_RUNTIME_LOG', fullTaskReconciliation: 'NOT_VERIFIED',
       note: 'Require the separate exact-head PostgreSQL job/assertion output; metadata alone cannot attest runtime success' },
     fullHostedEquivalenceCertified: false, productionRecoveryEligible: false, deploymentAuthorized: false };
 }
