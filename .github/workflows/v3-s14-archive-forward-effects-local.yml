@@ -7,6 +7,11 @@ on:
       - ".github/workflows/v3-s14-archive-forward-effects-local.yml"
       - "scripts/rehearse-v3-s14-archive-forward-effects-local.sh"
       - "scripts/v3-s14-archive-forward-effects.contract.test.mjs"
+      - "scripts/stage-v3-s07-televote-source-truth.mjs"
+      - "scripts/stage-v3-hosted-result-sync.mjs"
+      - "scripts/stage-v3-hosted-result-sync.test.mjs"
+      - "docs/v3/recovery-candidates/s07-televote-managed-source-guard.sql"
+      - ".github/tests/v3-ordered-televote-recovery.sql"
       - "scripts/v3-s13-s14-catalog-export.mjs"
       - "scripts/v3-s13-s14-catalog-export.test.mjs"
       - "docs/v3/recovery-candidates/s13-s14-voting-dependency-inspection-readonly.sql"
@@ -236,7 +241,7 @@ jobs:
       - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
         run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
       - name: Verify bounded catalog export and drift refusals
-        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs
+        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs
       - name: Test authorization dependency reconstruction and incomplete-manifest refusal
         run: node --test scripts/v3-s13-s14-authorization-dependencies.test.mjs
       - name: Assert all-hosted catalog digests and incomplete-fixture rejection (offline only)
@@ -713,6 +718,30 @@ jobs:
           node scripts/v3-s13-s14-catalog-export.mjs --recovered s13-s14-current-catalog-before.json s13-s14-current-catalog-after.json > s13-s14-current-recovery-proof.json
           sql -f - < docs/v3/recovery-candidates/s13-s14-voting-dependency-inspection-readonly.sql > s13-s14-current-downstream-after.json
           node scripts/v3-s13-s14-catalog-export.mjs --downstream s13-s14-current-downstream-after.json
+          # Reconstruct ONLY the separately observed pgcrypto prerequisite.
+          sql -c "create schema if not exists extensions; create extension if not exists pgcrypto with schema extensions version '1.3';"
+          sql -c "select jsonb_build_object('owner',pg_get_userbyid(p.proowner),'definition_md5',md5(pg_get_functiondef(p.oid)),'security_definer',p.prosecdef,'search_path',current_setting('search_path')) from pg_proc p where p.oid=to_regprocedure('extensions.digest(bytea,text)')"
+          [[ "$(sql -c "select (pg_get_userbyid(p.proowner)='postgres' and not p.prosecdef and md5(pg_get_functiondef(p.oid))='85b88685f74a398b1ff164ad33eeaaca')::text from pg_proc p where p.oid=to_regprocedure('extensions.digest(bytea,text)')")" == true ]] || exit 1
+          node scripts/stage-v3-hosted-result-sync.mjs > /tmp/s07-hosted-result-sync.sql
+          sql -f - < /tmp/s07-hosted-result-sync.sql
+          node scripts/stage-v3-s07-televote-source-truth.mjs > /tmp/s07-ordered-source.sql
+          # Interrupt AFTER canonical DDL, prove full rollback on the same DB.
+          node - <<'NODE'
+          const fs=require('node:fs');const source=fs.readFileSync('/tmp/s07-ordered-source.sql','utf8');
+          if(!/commit;\s*$/.test(source)) throw Error('Canonical S07 transaction drift');
+          fs.writeFileSync('/tmp/s07-ordered-interrupted.sql',source.replace(/commit;\s*$/,'select 1/0;\ncommit;\n'));
+          NODE
+          ordered_before="$(archive_schema_digest)"
+          if sql -f - < /tmp/s07-ordered-interrupted.sql > /tmp/s07-ordered-interrupted.log 2>&1; then exit 1; fi
+          grep -Fq 'division by zero' /tmp/s07-ordered-interrupted.log || { cat /tmp/s07-ordered-interrupted.log; exit 1; }
+          [[ "$(archive_schema_digest)" == "$ordered_before" ]] || { echo 'S07 interruption changed existing schema'; exit 1; }
+          sql -f - < /tmp/s07-ordered-source.sql
+          sql -f - < .github/tests/v3-ordered-televote-recovery.sql
+          ordered_after="$(archive_schema_digest)"
+          if sql -f - < /tmp/s07-ordered-source.sql > /tmp/s07-ordered-duplicate.log 2>&1; then exit 1; fi
+          grep -Fq 'S07 source truth already or partially installed' /tmp/s07-ordered-duplicate.log
+          [[ "$(archive_schema_digest)" == "$ordered_after" ]] || exit 1
+          echo "PASS: ordered S13 -> Archive -> canonical S07; actual ACL denial, interruption rollback and duplicate refusal"
           docker rm -f "$cid" >/dev/null
           cid=""
           echo "PASS: S13 then S14 against 215 hosted-observed PG17.11 table identities (56 scoped + 159 exact fingerprints); missing S13/duplicate fail closed."
