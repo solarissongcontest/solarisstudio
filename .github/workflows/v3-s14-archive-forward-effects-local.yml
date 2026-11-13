@@ -11,6 +11,9 @@ on:
       - "supabase/migrations/20261113211759_v3_atomic_calculation_actor_binding.sql"
       - ".github/tests/v3-atomic-calculation-actor.sql"
       - "scripts/v3-atomic-calculation-actor.test.mjs"
+      - "scripts/stage-v3-public-snapshot-recovery*"
+      - ".github/tests/v3-public-snapshot-recovery.sql"
+      - "docs/v3/recovery-candidates/evidence/public-snapshot-prerequisites-observed-2026-11-13.json"
       - "supabase/migrations/20261103004500_v3_s14_atomic_televote_calculation.sql"
       - "scripts/stage-v3-hosted-result-sync.mjs"
       - "scripts/stage-v3-hosted-result-sync.test.mjs"
@@ -245,7 +248,7 @@ jobs:
       - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
         run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
       - name: Verify bounded catalog export and drift refusals
-        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs
+        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs scripts/stage-v3-public-snapshot-recovery.test.mjs
       - name: Test authorization dependency reconstruction and incomplete-manifest refusal
         run: node --test scripts/v3-s13-s14-authorization-dependencies.test.mjs
       - name: Assert all-hosted catalog digests and incomplete-fixture rejection (offline only)
@@ -750,6 +753,26 @@ jobs:
           sql -f - < supabase/migrations/20261103004500_v3_s14_atomic_televote_calculation.sql
           sql -f - < supabase/migrations/20261113211759_v3_atomic_calculation_actor_binding.sql
           sql -f - < .github/tests/v3-atomic-calculation-actor.sql
+          # Preserve the old immutable evidence before installing active capture.
+          sql -v snapshot_before=true -f - < .github/tests/v3-public-snapshot-recovery.sql
+          node scripts/stage-v3-public-snapshot-recovery.mjs > /tmp/public-snapshot-recovery.sql
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const source=fs.readFileSync('/tmp/public-snapshot-recovery.sql','utf8');
+          if(!/commit;\s*$/.test(source)) throw Error('Snapshot transaction drift');
+          fs.writeFileSync('/tmp/public-snapshot-interrupted.sql',source.replace(/commit;\s*$/,'select 1/0;\ncommit;\n'));
+          NODE
+          snapshot_before="$(archive_schema_digest)"
+          if sql -f - < /tmp/public-snapshot-interrupted.sql > /tmp/public-snapshot-interrupted.log 2>&1; then exit 1; fi
+          grep -Fq 'division by zero' /tmp/public-snapshot-interrupted.log || { cat /tmp/public-snapshot-interrupted.log; exit 1; }
+          [[ "$(archive_schema_digest)" == "$snapshot_before" ]] || { echo 'Snapshot interruption changed schema'; exit 1; }
+          sql -f - < /tmp/public-snapshot-recovery.sql
+          sql -v snapshot_before=false -f - < .github/tests/v3-public-snapshot-recovery.sql
+          snapshot_after="$(archive_schema_digest)"
+          if sql -f - < /tmp/public-snapshot-recovery.sql > /tmp/public-snapshot-duplicate.log 2>&1; then exit 1; fi
+          grep -Fq 'Snapshot recovery routine drift or partial installation' /tmp/public-snapshot-duplicate.log
+          [[ "$(archive_schema_digest)" == "$snapshot_after" ]] || exit 1
+          echo 'PASS: ordered source-exact active capture/public snapshot; interrupted rollback, retry and duplicate refusal'
           docker rm -f "$cid" >/dev/null
           cid=""
           echo "PASS: S13 then S14 against 215 hosted-observed PG17.11 table identities (56 scoped + 159 exact fingerprints); missing S13/duplicate fail closed."

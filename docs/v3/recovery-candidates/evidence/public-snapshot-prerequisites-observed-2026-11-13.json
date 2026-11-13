@@ -1,0 +1,122 @@
+{
+  "kind": "owner-authorized-read-only-catalog-observation",
+  "projectRef": "dkxmnvekiopyesuzggeu",
+  "statementTimeout": "10s",
+  "lockTimeout": "2s",
+  "transaction": "READ ONLY; ROLLBACK",
+  "applicationRowsRead": false,
+  "rawFunctionBodiesExported": false,
+  "tables": [
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=ar/postgres}",
+      "rls": true,
+      "owner": "postgres",
+      "exists": true,
+      "identity": "private.v3_result_versions",
+      "triggers": [
+        {
+          "name": "v3_reject_result_version_mutation",
+          "enabled": "O",
+          "definition_md5": "3482100615cbbc31fbdb908576afc632"
+        }
+      ],
+      "force_rls": false
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxt/postgres}",
+      "rls": true,
+      "owner": "postgres",
+      "exists": true,
+      "identity": "public.studio2_result_operations",
+      "triggers": [
+        {
+          "name": "trg_studio2_guard_published_result_operation_update",
+          "enabled": "O",
+          "definition_md5": "03cff4d2af33331f1a7d7bd04a9518dd"
+        },
+        {
+          "name": "v3_capture_result_version",
+          "enabled": "O",
+          "definition_md5": "d316129b4adff556b60cd4b972f62692"
+        },
+        {
+          "name": "v3_validate_publication_projection_from_results",
+          "enabled": "O",
+          "definition_md5": "5fefe5001b3fe137dec20993b25a6eed"
+        }
+      ],
+      "force_rls": false
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "rls": true,
+      "owner": "postgres",
+      "exists": true,
+      "identity": "public.studio2_show_publication_controls",
+      "triggers": [
+        {
+          "name": "v3_validate_publication_control",
+          "enabled": "O",
+          "definition_md5": "5dce9effc8cd598c6cf1949b8722bf67"
+        },
+        {
+          "name": "v3_validate_publication_projection_from_control",
+          "enabled": "O",
+          "definition_md5": "71e26eaa8cf631aecaedbd1db9123101"
+        }
+      ],
+      "force_rls": false
+    }
+  ],
+  "routines": [
+    {
+      "acl": "{postgres=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "exists": true,
+      "identity": "private.studio2_normalise_publication_config(jsonb)",
+      "definition_md5": "abeca16653c73103087e1d311eff2247",
+      "security_definer": false,
+      "definition_sha256": "72aa5f3f688f89e4a97c0d7e2d76c1366935f4968a40250a65eb5a4c7b8fc4c3"
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog, public, private"
+      ],
+      "exists": true,
+      "identity": "private.v3_capture_result_version()",
+      "definition_md5": "486ad0593166fe76ac8734de05e0f22f",
+      "security_definer": true,
+      "definition_sha256": "5ea21492dde8567fcce02e5c28decf8d9af8eff1f35787169c8866003055aa57"
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog, public, private"
+      ],
+      "exists": true,
+      "identity": "private.v3_publication_result_version_release_ready(uuid,bigint)",
+      "definition_md5": "e7e1a32f91de1a3ec9734c988270e4fa",
+      "security_definer": true,
+      "definition_sha256": "8cbdf1deb384874bc08b8b10f199e7170d0a8c762d33402c7e6cbe769bbf5e35"
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "config": null,
+      "exists": false,
+      "identity": "public.v3_public_published_result_snapshot(uuid)",
+      "definition_md5": null,
+      "security_definer": null,
+      "definition_sha256": null
+    }
+  ],
+  "read_only": "on",
+  "observed_at": "2026-11-13T21:37:32.676381+00:00",
+  "server_version_num": "170011"
+}
