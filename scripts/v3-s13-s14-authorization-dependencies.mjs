@@ -330,7 +330,7 @@ export function recoveryManifest(catalog, candidateSha) {
       'Relation/policy/trigger fingerprints do not establish data-shape or role-membership runtime equivalence',
       'Synthetic runtime probes are not production rows or complete workflow certification'],
     runtimeCoverage: { assertionSource: 'scripts/v3-s13-s14-authorization-runtime-local.sql',
-      intendedAssertions: ['global actor capability', 'grant/role expiry and revocation', 'task recipient/resolution', 'platform-mode restrictions', 'edition-scoped authoritative actor allow/deny', 'missing pre-cutover shadow fails closed'],
+      intendedAssertions: ['global actor capability', 'grant/role expiry and revocation', 'task recipient/resolution', 'platform-mode restrictions', 'edition-scoped authoritative actor allow/deny', 'current hosted-observed pre-global-flag shadow RPC allow/deny and audit persistence'],
       executionResult: 'NOT_ATTESTED_BY_THIS_METADATA_MANIFEST',
       editionScopedAcceptance: 'PENDING_EXACT_HEAD_LOCAL_RUNTIME_LOG', preAuthoritativeShadow: 'PENDING_EXACT_HEAD_LOCAL_RUNTIME_LOG', fullTaskReconciliation: 'NOT_VERIFIED',
       note: 'Require the separate exact-head PostgreSQL job/assertion output; metadata alone cannot attest runtime success' },
