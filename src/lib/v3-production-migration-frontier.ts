@@ -72,6 +72,8 @@ export type ProductionMigrationFrontier = {
   errors: string[];
   /** Raw CLI identity compatibility is distinct from the approved bootstrap exception. */
   remoteVersionsMissingLocally: HostedMigration[];
+  /** Local-only SQL identities before the hosted head, including bootstrap. */
+  previewLocalVersionsMissingRemotely: RepoMigration[];
   previewHistoryCompatible: boolean;
   historyReconciled: boolean;
 };
@@ -128,6 +130,12 @@ export function auditV3ProductionMigrationFrontier(
     .sort((a, b) => a.version.localeCompare(b.version));
   const hostedHead = [...hosted.keys()].sort().at(-1) ?? null;
   const repositoryHead = [...repository.keys()].sort().at(-1) ?? null;
+  // Supabase CLI's raw migration check does not exempt the immutable bootstrap:
+  // a local-only SQL version before the last hosted version still blocks Preview.
+  // Keep this distinct from the approved post-cutover effect/history comparator.
+  const previewLocalVersionsMissingRemotely = [...repository.values()]
+    .filter((migration) => hostedHead !== null && migration.version <= hostedHead && !hosted.has(migration.version))
+    .sort((a, b) => a.version.localeCompare(b.version));
   if (hostedHead !== null && hostedHead < cutover) {
     errors.push(`Hosted migration head ${hostedHead} predates the documented bootstrap cutover`);
   }
@@ -187,10 +195,11 @@ export function auditV3ProductionMigrationFrontier(
     nameMismatches,
     errors,
     remoteVersionsMissingLocally,
+    previewLocalVersionsMissingRemotely,
     previewHistoryCompatible:
       errors.length === 0 &&
       remoteVersionsMissingLocally.length === 0 &&
-      holesBeforeHostedHead.length === 0 &&
+      previewLocalVersionsMissingRemotely.length === 0 &&
       nameMismatches.length === 0,
     historyReconciled:
       errors.length === 0 &&
