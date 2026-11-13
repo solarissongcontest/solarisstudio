@@ -1,5 +1,11 @@
 import unittest
-from scripts.verify_v3_release_acceptance_evidence import validate, STAGES, EXTENSIONS, INVARIANTS, FAILURES
+import importlib.util
+from pathlib import Path
+
+spec = importlib.util.spec_from_file_location("release_evidence", Path(__file__).with_name("verify-v3-release-acceptance-evidence.py"))
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+validate, STAGES, EXTENSIONS, INVARIANTS, FAILURES = (module.validate, module.STAGES, module.EXTENSIONS, module.INVARIANTS, module.FAILURES)
 
 SHA = "a" * 40
 
