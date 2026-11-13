@@ -31,6 +31,7 @@ do $capture$ declare s uuid; before_rows jsonb; begin
  end loop;
 end $capture$;
 update public.editions set published=true where id='51000000-0000-4000-8000-000000000001';
+set constraints all immediate;
 set local role anon;
 do $public$ declare s uuid; payload jsonb; begin
  foreach s in array array['51000000-0000-4000-8000-000000000002'::uuid,'51000000-0000-4000-8000-000000000003'::uuid] loop

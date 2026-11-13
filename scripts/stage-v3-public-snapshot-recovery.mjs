@@ -6,6 +6,10 @@ import { extractDefinition } from "./v3-s13-s14-authorization-dependencies.mjs";
 import { transactionBody } from "./stage-v3-s07-televote-source-truth.mjs";
 export const OBSERVATION =
   "docs/v3/recovery-candidates/evidence/public-snapshot-prerequisites-observed-2026-11-13.json";
+export const HELPERS =
+  "docs/v3/recovery-candidates/evidence/publication-helper-prerequisites-observed-2026-11-13.json";
+export const HELPER_SOURCE =
+  "supabase/migrations/20261003203000_organisation_os_v5_show_publication_lifecycle.sql";
 export const CAPTURE_SOURCE =
   "supabase/migrations/20261104135245_v3_results_active_snapshot_and_qualification.sql";
 export const SNAPSHOT_SOURCE =
@@ -22,6 +26,15 @@ export function stagePublicSnapshot(root = process.cwd()) {
   )
     throw Error("Unreviewed snapshot observation identity/scope");
   const literal = (x) => "'" + JSON.stringify(x).replaceAll("'", "''") + "'::jsonb";
+  const helpers = JSON.parse(read(HELPERS));
+  if (
+    helpers.projectRef !== evidence.projectRef ||
+    helpers.read_only !== "on" ||
+    helpers.routines.length !== 3 ||
+    helpers.routines.some((x) => !x.exists)
+  )
+    throw Error("Unreviewed publication helper observation");
+  const routines = [...evidence.routines, ...helpers.routines];
   const capture = extractDefinition(read(CAPTURE_SOURCE), "private.v3_capture_result_version");
   const snapshot = transactionBody(read(SNAPSHOT_SOURCE));
   return `\\set ON_ERROR_STOP on
@@ -33,7 +46,7 @@ declare expected jsonb; actual jsonb; identity text; p pg_proc%rowtype; c pg_cla
 begin
  if current_user<>'postgres' then raise exception 'Snapshot recovery requires reviewed owner role' using errcode='42501'; end if;
  if to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is null then raise exception 'Snapshot recovery requires S13 foundation' using errcode='55000'; end if;
- for expected in select value from jsonb_array_elements(${literal(evidence.routines)}) loop
+ for expected in select value from jsonb_array_elements(${literal(routines)}) loop
   identity:=expected->>'identity';
   select * into p from pg_proc where oid=to_regprocedure(identity);
   actual:=jsonb_build_object('identity',identity,'exists',p.oid is not null,'owner',pg_get_userbyid(p.proowner),'security_definer',p.prosecdef,'config',p.proconfig,'acl',p.proacl::text,'definition_md5',md5(pg_get_functiondef(p.oid)),'definition_sha256',encode(sha256(convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex'));
@@ -54,5 +67,26 @@ ${snapshot}
 commit;
 `;
 }
+export function stagedPublicationHelpers(root = process.cwd()) {
+  const evidence = JSON.parse(readFileSync(resolve(root, HELPERS), "utf8"));
+  const source = readFileSync(resolve(root, HELPER_SOURCE), "utf8");
+  if (
+    evidence.projectRef !== "dkxmnvekiopyesuzggeu" ||
+    evidence.routines.length !== 3 ||
+    evidence.routines.some((x) => !x.exists || x.acl !== "{postgres=X/postgres}")
+  )
+    throw Error("Unreviewed helper reconstruction");
+  let sql = "begin;\n";
+  for (const row of evidence.routines) {
+    const identity = row.identity;
+    sql += `do $pre$ begin if to_regprocedure('${identity}') is not null then raise exception 'Local helper reconstruction refuses existing ${identity}'; end if; end $pre$;\n`;
+    sql += extractDefinition(source, identity.split("(")[0]) + "\n";
+    sql += `revoke all on function ${identity} from public,anon,authenticated,service_role;\n`;
+    sql += `do $post$ begin if not exists(select 1 from pg_proc p where p.oid=to_regprocedure('${identity}') and encode(sha256(convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex')='${row.definition_sha256}' and md5(pg_get_functiondef(p.oid))='${row.definition_md5}' and pg_get_userbyid(p.proowner)='postgres' and not p.prosecdef and p.proacl::text='${row.acl}' and p.proconfig=array[${row.config.map((x) => "'" + x + "'").join(",")}]::text[]) then raise exception 'Hosted publication helper fingerprint/authority mismatch: ${identity}'; end if; end $post$;\n`;
+  }
+  return sql + "commit;\n";
+}
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href)
-  process.stdout.write(stagePublicSnapshot());
+  process.stdout.write(
+    process.argv.includes("--local-helpers") ? stagedPublicationHelpers() : stagePublicSnapshot(),
+  );

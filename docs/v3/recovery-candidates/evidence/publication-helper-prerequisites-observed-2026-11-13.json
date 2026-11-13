@@ -1,0 +1,50 @@
+{
+  "kind": "owner-authorized-read-only-catalog-observation",
+  "projectRef": "dkxmnvekiopyesuzggeu",
+  "statementTimeout": "10s",
+  "lockTimeout": "2s",
+  "transaction": "READ ONLY; ROLLBACK",
+  "applicationRowsRead": false,
+  "rawFunctionBodiesExported": false,
+  "routines": [
+    {
+      "acl": "{postgres=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog, private"
+      ],
+      "exists": true,
+      "identity": "private.studio2_publication_has_any(jsonb)",
+      "definition_md5": "bf64e26ccdecb8fe3ee18ac3684a5217",
+      "security_definer": false,
+      "definition_sha256": "78050da299426f7ddf1d1657643ca6fc089042eb48ed21eb7268e3d0ffb098dd"
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog, private"
+      ],
+      "exists": true,
+      "identity": "private.studio2_publication_has_outcomes(jsonb)",
+      "definition_md5": "ff0fdf971ce20fa05329f21090106993",
+      "security_definer": false,
+      "definition_sha256": "3034ffc95c02f3b8219456161106705601e608a44fde4fea69aee25d668445b5"
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "exists": true,
+      "identity": "private.studio2_show_publication_transition_allowed(text,text)",
+      "definition_md5": "1352e1533e11a37aa1cd222df4289daf",
+      "security_definer": false,
+      "definition_sha256": "a20cc69a11684ba56de24525691d5f5b79b823a6581dd20923e6dd8db36c0723"
+    }
+  ],
+  "read_only": "on",
+  "observed_at": "2026-11-13T21:42:24.202528+00:00",
+  "server_version_num": "170011"
+}
