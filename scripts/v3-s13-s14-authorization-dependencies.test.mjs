@@ -10,7 +10,7 @@ function catalog() {
   const nodes = dependencies.map((d, i) => {
     const c = expectedContract(d);
     return { id: 'f:' + i, kind: 'function', name: d.name, schema: 'private', identity: d.identity,
-      owner: c.owner_name, securityDefiner: c.security_definer, language: (i === 2 || i === 4) ? 'plpgsql' : 'sql',
+      owner: c.owner_name, securityDefiner: c.security_definer, language: (i === 2 || i === 4 || i === 6) ? 'plpgsql' : 'sql',
       definitionSha256: c.definition_sha256, settingsMd5: c.settings_md5, aclMd5: c.acl_md5,
       privileges: { anon: false, authenticated: false, service_role: false }, runtimeCalls: 0 };
   });
@@ -74,12 +74,12 @@ test('only the exact local placeholder can be replaced, with atomic observed met
   assert.match(sql, /has_function_privilege\('authenticated'/);
   assert.doesNotMatch(sql, /disable trigger|session_replication_role|supabase_migrations|drop function/i);
 });
-test('manifest keeps six verified leaves separate from unknown closure and deployment', () => {
+test('manifest keeps seven verified leaves separate from unknown closure and deployment', () => {
   const c = catalog();
   c.nodes.push({ id: 'u:missing', kind: 'unresolved-reference', schema: 'private', identity: 'private.missing' });
   c.edges.push({ source: 'root:0', target: 'u:missing', kind: 'unresolved-qualified-reference' });
   const m = recoveryManifest(c, sha);
-  assert.equal(m.reconstructed.length, 6);
+  assert.equal(m.reconstructed.length, 7);
   assert.ok(m.remainingInspection.some(x => x.identity === 'private.missing'));
   assert.equal(m.fullHostedEquivalenceCertified, false);
   assert.equal(m.productionRecoveryEligible, false);
