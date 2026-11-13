@@ -1,7 +1,8 @@
 name: V3 main post-merge CI evidence
 
 # This is a cheap, explicit, read-only main verification gate. Run it only after
-# the exact main SHA's Quality and Browser Audit have finished. It never starts
+# the exact main SHA's Quality, Browser Audit, S13 migration and Public/Organizer
+# contract workflows have finished. It never starts
 # browser tests, local Supabase, or any hosted production infrastructure.
 on:
   workflow_dispatch:
@@ -12,7 +13,7 @@ permissions:
 
 jobs:
   exact-main-evidence:
-    name: Exact main Quality and Browser evidence
+    name: Exact main Quality, Browser, S13 and Public/Organizer evidence
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
