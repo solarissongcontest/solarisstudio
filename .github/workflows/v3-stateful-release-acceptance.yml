@@ -111,7 +111,9 @@ jobs:
           test ! -e v3-release-evidence/s14-full-contest.partial.json
           python3 scripts/verify-v3-release-acceptance-evidence.py \
             --evidence v3-release-evidence/s14-full-contest.json \
-            --sha "$(git rev-parse HEAD)"
+            --sha "$(git rev-parse HEAD)" \
+            --browser-summary playwright-s14-grand-final-summary.json \
+            --browser-summary playwright-s14-grand-final-results-summary.json
       - name: Upload exact-SHA evidence and browser failures
         if: always()
         uses: actions/upload-artifact@v4
