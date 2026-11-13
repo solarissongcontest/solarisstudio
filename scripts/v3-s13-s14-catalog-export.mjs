@@ -165,6 +165,30 @@ export function validateCatalog(report) {
     ),
   };
 }
+export function compareDownstream(actual) {
+  const expected = JSON.parse(
+    readFileSync(
+      new URL(
+        "../docs/v3/recovery-candidates/evidence/s13-s14-voting-dependencies-observed-2026-11-13.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  assert.equal(actual.schema_version, 1);
+  assert.equal(actual.project_ref, expected.project_ref);
+  assert.equal(actual.read_only, "on");
+  assert.ok(Number.isFinite(Date.parse(actual.observed_at)));
+  for (const key of ["tables", "functions"])
+    assert.deepEqual(actual[key], expected[key], "Downstream dependency drift: " + key);
+  return {
+    downstreamCatalogPreserved: true,
+    scopedRowsCompared: 15,
+    requiredVotingPublicationEffectsStillMissing: true,
+    hostedEquivalenceCertified: false,
+    productionDeploymentAuthorized: false,
+  };
+}
 export function compareCatalog(actual, expected) {
   validateCatalog(actual);
   validateCatalog(expected);
@@ -288,6 +312,14 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     else if (process.argv[2] === "--validate" && process.argv.length === 4)
       console.log(
         JSON.stringify(validateCatalog(JSON.parse(readFileSync(process.argv[3], "utf8"))), null, 2),
+      );
+    else if (process.argv[2] === "--downstream" && process.argv.length === 4)
+      console.log(
+        JSON.stringify(
+          compareDownstream(JSON.parse(readFileSync(process.argv[3], "utf8"))),
+          null,
+          2,
+        ),
       );
     else if (["--compare", "--recovered"].includes(process.argv[2]) && process.argv.length === 5) {
       const reports = process.argv.slice(3).map((p) => JSON.parse(readFileSync(p, "utf8")));

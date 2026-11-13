@@ -126,3 +126,41 @@ policy, role membership, constraint, relevant data shape or all 36 history gaps.
 No new live Televote/Results runtime evidence or production backup/restoration
 proof is supplied. Full hosted equivalence, full S14 lifecycle certification and
 release remain separate gates. Production launch remains **NO-GO**.
+
+## Required downstream interfaces — second bounded observation
+
+After local PG17.11 validation, the separately source-derived six-table/nine-RPC
+metadata query ran under the same explicit owner authorization at
+**2026-11-13T16:26:02.702219Z**, again READ ONLY / 10s / 2s / ROLLBACK.
+SQL: `s13-s14-voting-dependency-inspection-readonly.sql`, SHA256
+`1652ec968d24d128706166eab69592110d120a100af13652402784295f81fea0`.
+No business calls, voting/calculation, data or function bodies were retrieved.
+
+- Present, postgres-owned with RLS: private.v3_result_versions,
+  public.televote_votes, public.studio2_show_publication_controls,
+  public.televoting_round_bindings, televoting.round_influence_results.
+- Absent: private.v3_televote_result_projection_sources.
+- Present, owner-only EXECUTE: private.v3_capture_result_version() and
+  private.v3_publication_result_version_release_ready(uuid,bigint).
+- Absent exact interfaces: private.v3_guard_source_managed_televote_projection(),
+  private.v3_televote_projection_snapshot(uuid),
+  private.v3_sync_published_televote_round(uuid),
+  private.v3_sync_published_televote_aggregation(uuid),
+  public.studio2_televote_projection_status(uuid),
+  televoting.v3_commit_official_round_calculation(uuid,integer,timestamptz,uuid,text,text[],jsonb,jsonb),
+  public.v3_public_published_result_snapshot(uuid).
+
+These update the selected-effect status of the source-truth/guard/replay and
+published-snapshot interfaces from dated evidence to **currently observed absent**.
+They do not classify every SQL statement of those migrations or prove other
+legacy calculation paths broken. The source-only atomic-calculation interface
+is also currently absent; no history-only inference is used.
+
+The same six-table/nine-RPC catalog is compared before and after S13→S14 in the
+existing 215-table networkless fixture. Those candidates must neither fabricate
+the missing interfaces nor rewrite existing capture/readiness definitions.
+This is **15 further scoped rows**, not full voting/runtime certification.
+#2404 owns the existing Televote recovery candidate/implementation; its useful
+work is not reimplemented here. The next critical adoption dependency is to
+qualify and integrate that owner’s source/projection/replay recovery and the
+reviewed Results publication chain against this actual observed baseline.

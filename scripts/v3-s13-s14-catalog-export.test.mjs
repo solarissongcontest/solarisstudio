@@ -5,6 +5,7 @@ import {
   catalogSql,
   validateCatalog,
   compareCatalog,
+  compareDownstream,
   columns,
   tables,
   functions,
@@ -144,5 +145,36 @@ test("recovery retains canonical consolidation rather than reinstalling retired 
   assert.match(
     source,
     /create trigger v3_project_resolved_task_delivery_state[\s\S]{0,180}on public\.studio2_organizer_tasks/,
+  );
+});
+
+test("bounded downstream evidence preserves missing canonical interfaces without certifying them", () => {
+  const observed = JSON.parse(
+    readFileSync(
+      new URL(
+        "../docs/v3/recovery-candidates/evidence/s13-s14-voting-dependencies-observed-2026-11-13.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  assert.equal(observed.tables.length, 6);
+  assert.equal(observed.functions.length, 9);
+  assert.equal(observed.functions.filter((x) => !x.exists_now).length, 7);
+  assert.equal(compareDownstream(observed).hostedEquivalenceCertified, false);
+  const bad = structuredClone(observed);
+  bad.functions.find((x) => x.exists_now).definition_md5 = "f".repeat(32);
+  assert.throws(() => compareDownstream(bad));
+  const sql = readFileSync(
+    new URL(
+      "../docs/v3/recovery-candidates/s13-s14-voting-dependency-inspection-readonly.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(sql, /begin transaction read only/);
+  assert.doesNotMatch(
+    sql,
+    /\b(?:insert into|delete from|update public|create table|alter table|schema_migrations)\b/i,
   );
 });

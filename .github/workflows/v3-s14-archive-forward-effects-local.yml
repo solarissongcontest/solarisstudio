@@ -9,6 +9,8 @@ on:
       - "scripts/v3-s14-archive-forward-effects.contract.test.mjs"
       - "scripts/v3-s13-s14-catalog-export.mjs"
       - "scripts/v3-s13-s14-catalog-export.test.mjs"
+      - "docs/v3/recovery-candidates/s13-s14-voting-dependency-inspection-readonly.sql"
+      - "docs/v3/recovery-candidates/evidence/s13-s14-voting-dependencies-observed-2026-11-13.json"
       - "docs/v3/recovery-candidates/evidence/s13-s14-catalog-observed-2026-11-13.json"
       - "docs/v3/recovery-candidates/evidence/s13-s14-observed-acls-local-2026-11-13.sql"
       - "scripts/v3-s13-s14-authorization-dependencies.mjs"
@@ -589,6 +591,8 @@ jobs:
           node scripts/v3-s13-s14-catalog-export.mjs --sql /tmp/s13-s14-current-catalog.sql
           sql -f - < /tmp/s13-s14-current-catalog.sql > s13-s14-current-catalog-before.json
           node scripts/v3-s13-s14-catalog-export.mjs --compare s13-s14-current-catalog-before.json docs/v3/recovery-candidates/evidence/s13-s14-catalog-observed-2026-11-13.json
+          sql -f - < docs/v3/recovery-candidates/s13-s14-voting-dependency-inspection-readonly.sql > s13-s14-current-downstream-before.json
+          node scripts/v3-s13-s14-catalog-export.mjs --downstream s13-s14-current-downstream-before.json
           node scripts/v3-s13-s14-authorization-dependencies.mjs --sql /tmp/s13-authorization.sql
           auth_guard_fingerprint() {
             sql -c "select md5(pg_get_functiondef(p.oid)||pg_get_userbyid(p.proowner)||coalesce(p.proacl::text,'')||coalesce(p.proconfig::text,'')) from pg_proc p where p.oid='private.studio2_touch_permission_subject_version()'::regprocedure"
@@ -707,6 +711,8 @@ jobs:
           [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
           sql -f - < /tmp/s13-s14-current-catalog.sql > s13-s14-current-catalog-after.json
           node scripts/v3-s13-s14-catalog-export.mjs --recovered s13-s14-current-catalog-before.json s13-s14-current-catalog-after.json > s13-s14-current-recovery-proof.json
+          sql -f - < docs/v3/recovery-candidates/s13-s14-voting-dependency-inspection-readonly.sql > s13-s14-current-downstream-after.json
+          node scripts/v3-s13-s14-catalog-export.mjs --downstream s13-s14-current-downstream-after.json
           docker rm -f "$cid" >/dev/null
           cid=""
           echo "PASS: S13 then S14 against 215 hosted-observed PG17.11 table identities (56 scoped + 159 exact fingerprints); missing S13/duplicate fail closed."
