@@ -111,6 +111,16 @@ export function V3MeScreen({ projection }: V3MeScreenProps) {
             <p className="text-sm font-semibold">{projection.historyAvailable === false ? "Delegation history is unavailable" : "No recorded delegation editions"}</p>
           </V3Surface>
         )}
+        {projection.history.length > 4 ? (
+          <div className="mt-3">
+            <V3ActionCard
+              title={`View all ${projection.history.length} editions`}
+              description="Browse your complete delegation history"
+              tone="neutral"
+              to="/my-solaris/history"
+            />
+          </div>
+        ) : null}
       </V3Section>
 
       <V3Section title="Activity" meta="Evidence-aware">
