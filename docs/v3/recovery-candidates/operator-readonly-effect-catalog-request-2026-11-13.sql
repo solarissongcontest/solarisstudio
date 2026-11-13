@@ -103,7 +103,7 @@ with targets(qualified_relation, trigger_name) as (
     ('public.studio2_edition_runtime','v3_guard_archive_runtime_transition'),
     ('public.studio2_edition_runtime','v3_sync_archived_edition_legacy_status'),
     ('public.studio2_organizer_tasks','v3_guard_archived_edition_task_resurrection'),
-    ('public.notification_deliveries','v3_project_resolved_task_delivery_state'),
+    ('public.studio2_organizer_tasks','v3_project_resolved_task_delivery_state'),
     ('public.televote_votes','v3_guard_source_managed_televote_projection'),
     ('public.participants','participants_sync_running_order_results'),
     ('public.studio2_operation_receipts','v3_emit_entry_submission_event')
