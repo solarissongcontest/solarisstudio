@@ -578,7 +578,10 @@ jobs:
           # real subject-version trigger attachments; never disable a guard.
           sql -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s13-prerequisite-local.sql
           node scripts/v3-s13-s14-authorization-dependencies.mjs --sql /tmp/s13-authorization.sql
-          before_auth="$(sql -c "select md5(pg_get_functiondef('private.studio2_touch_permission_subject_version()'::regprocedure))")"
+          auth_guard_fingerprint() {
+            sql -c "select md5(pg_get_functiondef(p.oid)||pg_get_userbyid(p.proowner)||coalesce(p.proacl::text,'')||coalesce(p.proconfig::text,'')) from pg_proc p where p.oid='private.studio2_touch_permission_subject_version()'::regprocedure"
+          }
+          before_auth="$(auth_guard_fingerprint)"
           node - <<'NODE'
           const fs = require('node:fs');
           const sql = fs.readFileSync('/tmp/s13-authorization.sql','utf8');
@@ -590,8 +593,8 @@ jobs:
             echo "::error::Authorization reconstruction accepted a bad hosted fingerprint"; exit 1
           fi
           grep -Fq 'Hosted authorization contract mismatch' /tmp/s13-authorization-denial.log
-          [[ "$(sql -c "select (to_regprocedure('private.studio2_user_has_capability(uuid,text,uuid)') is null and to_regprocedure('private.studio2_capability_allowed_in_platform_mode(text,text,text)') is null)::text")" == true ]]
-          [[ "$(sql -c "select md5(pg_get_functiondef('private.studio2_touch_permission_subject_version()'::regprocedure))")" == "$before_auth" ]]
+          [[ "$(sql -c "select (to_regprocedure('private.studio2_user_has_capability(uuid,text,uuid)') is null and to_regprocedure('private.studio2_capability_allowed_in_platform_mode(text,text,text)') is null and to_regprocedure('private.studio2_normalize_legacy_edition_status(text)') is null)::text")" == true ]]
+          [[ "$(auth_guard_fingerprint)" == "$before_auth" ]]
           sql -f - < /tmp/s13-authorization.sql
           if sql -f - < /tmp/s13-authorization.sql > /tmp/s13-authorization-duplicate.log 2>&1; then
             echo "::error::Authorization reconstruction overwrote installed routines"; exit 1
