@@ -1,0 +1,1520 @@
+{
+  "scope": "eight-table-v3-s14-hosted-metadata-only",
+  "tables": {
+    "private.v3_domain_events": {
+      "acl": {
+        "anon_insert": false,
+        "anon_select": false,
+        "service_insert": false,
+        "service_select": false,
+        "service_update": false,
+        "authenticated_insert": false,
+        "authenticated_select": false,
+        "authenticated_update": false
+      },
+      "rls": false,
+      "owner": "postgres",
+      "columns": {
+        "id": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "f3b72bb359a50b640590970a2ab8e514"
+        },
+        "payload": {
+          "type": "jsonb",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "f3db357cf4f4a03883484fa3281a056c"
+        },
+        "show_id": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "actor_id": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "edition_id": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "event_type": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "occurred_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "75230039beb12ce952f24927f2bfa2f2"
+        },
+        "aggregate_id": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "operation_id": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "aggregate_type": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "correlation_id": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "schema_version": {
+          "type": "integer",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "c4ca4238a0b923820dcc509a6f75849b"
+        },
+        "aggregate_version": {
+          "type": "bigint",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        }
+      },
+      "indexes": {
+        "v3_domain_events_pkey": {
+          "valid": true,
+          "unique": true,
+          "primary": true,
+          "definition_hash": "56c4053de6657bc5bbeaf7ddc5176c7f"
+        },
+        "v3_domain_events_aggregate_idx": {
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition_hash": "19f076402137bd4dd84777929aea9806"
+        },
+        "v3_domain_events_scope_time_idx": {
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition_hash": "77731b844cc81c659d1a33e9c485281a"
+        },
+        "v3_domain_events_correlation_time_idx": {
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition_hash": "baaf0966ac5fed76996b066bcd6e36f9"
+        },
+        "v3_domain_events_operation_fact_unique": {
+          "valid": true,
+          "unique": true,
+          "primary": false,
+          "definition_hash": "80ef24cd1b0f2dc05fcc087f0d5a76e9"
+        }
+      },
+      "policies": {},
+      "triggers": {
+        "v3_domain_events_immutable": {
+          "enabled": "O",
+          "definition_hash": "9f317c99222da12b51963276332f6b83"
+        }
+      },
+      "force_rls": false,
+      "constraints": {
+        "v3_domain_events_pkey": {
+          "type": "p",
+          "validated": true,
+          "definition_hash": "4c6419b3704337bbfe50f018842a9ad3"
+        },
+        "v3_domain_events_show_id_fkey": {
+          "type": "f",
+          "validated": true,
+          "definition_hash": "dd8eea3dbce31708f65a5df3b6895bb2"
+        },
+        "v3_domain_events_actor_id_fkey": {
+          "type": "f",
+          "validated": true,
+          "definition_hash": "bd237ddc6ddd109915445a1acecb5c41"
+        },
+        "v3_domain_events_payload_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "eaad7870e2f70519927d2cde8d095269"
+        },
+        "v3_domain_events_edition_id_fkey": {
+          "type": "f",
+          "validated": true,
+          "definition_hash": "b38c5a1951d2319284541ef72c28fcca"
+        },
+        "v3_domain_events_event_type_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "e919c677cf55cbe7b540f58032b35c3b"
+        },
+        "v3_domain_events_operation_id_fkey": {
+          "type": "f",
+          "validated": true,
+          "definition_hash": "f333657c05cb33a64b259dad7a15c5b7"
+        },
+        "v3_domain_events_aggregate_id_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "80577d7338e8c2cb47394e03cf67ae5b"
+        },
+        "v3_domain_events_aggregate_type_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "7e6f50f73d124f9661d177b5800d5f43"
+        },
+        "v3_domain_events_schema_version_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "d577d4c93c2af8181af0a0489c3c1526"
+        },
+        "v3_domain_events_operation_fact_unique": {
+          "type": "u",
+          "validated": true,
+          "definition_hash": "8630eea6d9968f4bc484e93b278cb12c"
+        },
+        "v3_domain_events_aggregate_version_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "fa4643de99384874befd159bd281b96d"
+        }
+      }
+    },
+    "private.v3_result_versions": {
+      "acl": {
+        "anon_insert": false,
+        "anon_select": false,
+        "service_insert": true,
+        "service_select": true,
+        "service_update": false,
+        "authenticated_insert": false,
+        "authenticated_select": false,
+        "authenticated_update": false
+      },
+      "rls": true,
+      "owner": "postgres",
+      "columns": {
+        "show_id": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "version": {
+          "type": "bigint",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "75230039beb12ce952f24927f2bfa2f2"
+        },
+        "created_by": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "edition_id": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "result_rows": {
+          "type": "jsonb",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "result_row_count": {
+          "type": "integer",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        }
+      },
+      "indexes": {
+        "v3_result_versions_pkey": {
+          "valid": true,
+          "unique": true,
+          "primary": true,
+          "definition_hash": "00762cac0cb7417dbce4e5ccae1a06fe"
+        }
+      },
+      "policies": {},
+      "triggers": {
+        "v3_reject_result_version_mutation": {
+          "enabled": "O",
+          "definition_hash": "3482100615cbbc31fbdb908576afc632"
+        }
+      },
+      "force_rls": false,
+      "constraints": {
+        "v3_result_versions_pkey": {
+          "type": "p",
+          "validated": true,
+          "definition_hash": "b435f986f92a36a17007e5a9fbd72896"
+        },
+        "v3_result_versions_version_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "b7af13e592ebcc181814632003fac9ef"
+        },
+        "v3_result_versions_created_by_fkey": {
+          "type": "f",
+          "validated": true,
+          "definition_hash": "1ceab562a11c774dbbb18205981be824"
+        },
+        "v3_result_versions_show_edition_fk": {
+          "type": "f",
+          "validated": true,
+          "definition_hash": "7aed1f975beb5a4e9a3fe639757e36de"
+        },
+        "v3_result_versions_result_rows_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "1924a9224b7f41e77dbdda529c50c0fe"
+        },
+        "v3_result_versions_result_row_count_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "d46b4fee24ffb59442f59f624cf37c77"
+        }
+      }
+    },
+    "public.admin_notifications": {
+      "acl": {
+        "anon_insert": false,
+        "anon_select": false,
+        "service_insert": true,
+        "service_select": true,
+        "service_update": true,
+        "authenticated_insert": false,
+        "authenticated_select": true,
+        "authenticated_update": false
+      },
+      "rls": true,
+      "owner": "postgres",
+      "columns": {
+        "id": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "f3b72bb359a50b640590970a2ab8e514"
+        },
+        "body": {
+          "type": "text",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "href": {
+          "type": "text",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "title": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "read_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "severity": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "f7745a1586ecb54b76978685b08253cd"
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "75230039beb12ce952f24927f2bfa2f2"
+        },
+        "source_key": {
+          "type": "text",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "resolved_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "recipient_id": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "requires_action": {
+          "type": "boolean",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "b326b5062b2f0e69046810717534cb09"
+        },
+        "resolution_mode": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "1c86fb6219cabad38570bf1d10fc4e27"
+        },
+        "activation_version": {
+          "type": "bigint",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "c4ca4238a0b923820dcc509a6f75849b"
+        }
+      },
+      "indexes": {
+        "admin_notifications_pkey": {
+          "valid": true,
+          "unique": true,
+          "primary": true,
+          "definition_hash": "2c868b07f2b48057ddf43e6cb1a1204d"
+        },
+        "admin_notifications_recipient_idx": {
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition_hash": "c98e2dbcf1aa3f76519dc0ae56229e27"
+        },
+        "admin_notifications_source_unique_idx": {
+          "valid": true,
+          "unique": true,
+          "primary": false,
+          "definition_hash": "226bbfe85c2d3dae1abc2de3ec84766e"
+        },
+        "admin_notifications_recipient_resolved_idx": {
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition_hash": "be05c2d33f907eb19509917789cc2276"
+        }
+      },
+      "policies": {
+        "Organizers read own notifications": {
+          "roles": [
+            "authenticated"
+          ],
+          "command": "r",
+          "permissive": true,
+          "definition_hash": "03c142580f08c2cce4fc2c3f251fe9ab"
+        },
+        "Organizers update own notifications": {
+          "roles": [
+            "authenticated"
+          ],
+          "command": "w",
+          "permissive": true,
+          "definition_hash": "a06a20b63d5af97ee65bc82f661a73dc"
+        }
+      },
+      "triggers": {
+        "studio2_platform_direct_write_guard": {
+          "enabled": "O",
+          "definition_hash": "2ae8e682d3bd6c9c6ba5738014681357"
+        },
+        "studio2_bump_notification_activation": {
+          "enabled": "O",
+          "definition_hash": "8fd8fc3ef21f5cb120490fa3488d37a1"
+        },
+        "studio2_guard_domain_notification_resolution": {
+          "enabled": "O",
+          "definition_hash": "4fc57213c5978a99f8a2c4efde9ad2e3"
+        }
+      },
+      "force_rls": false,
+      "constraints": {
+        "admin_notifications_pkey": {
+          "type": "p",
+          "validated": true,
+          "definition_hash": "4c6419b3704337bbfe50f018842a9ad3"
+        },
+        "admin_notifications_severity_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "0ea13e95517ded20cb8959d7a56ac1c4"
+        },
+        "admin_notifications_recipient_id_fkey": {
+          "type": "f",
+          "validated": true,
+          "definition_hash": "b783e2b63a15b1475f9c889bf1180cf2"
+        },
+        "admin_notifications_resolution_mode_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "48607e32f6e35696f653897b94b42f50"
+        },
+        "admin_notifications_activation_version_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "42d60b2391e80ac169fdc3fa8cf20be1"
+        }
+      }
+    },
+    "private.v3_domain_event_outbox": {
+      "acl": {
+        "anon_insert": false,
+        "anon_select": false,
+        "service_insert": false,
+        "service_select": false,
+        "service_update": false,
+        "authenticated_insert": false,
+        "authenticated_select": false,
+        "authenticated_update": false
+      },
+      "rls": false,
+      "owner": "postgres",
+      "columns": {
+        "status": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "3d0c12821e68f0fc31291c72ad568aa9"
+        },
+        "event_id": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "75230039beb12ce952f24927f2bfa2f2"
+        },
+        "updated_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "75230039beb12ce952f24927f2bfa2f2"
+        },
+        "lease_owner": {
+          "type": "text",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "available_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "75230039beb12ce952f24927f2bfa2f2"
+        },
+        "completed_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "consumer_key": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "attempt_count": {
+          "type": "integer",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "cfcd208495d565ef66e7dff9f98764da"
+        },
+        "last_error_code": {
+          "type": "text",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "dead_lettered_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "lease_expires_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "last_error_metadata": {
+          "type": "jsonb",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        }
+      },
+      "indexes": {
+        "v3_domain_event_outbox_pkey": {
+          "valid": true,
+          "unique": true,
+          "primary": true,
+          "definition_hash": "7b2b57e0d0a2eef62bacc8f18ec922c5"
+        },
+        "v3_domain_event_outbox_claim_idx": {
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition_hash": "a741c0c4b6b76322a1b216e0f6db4cc7"
+        },
+        "v3_domain_event_outbox_dead_letter_idx": {
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition_hash": "833ad53f358a2601304b4fab4f91cd3d"
+        }
+      },
+      "policies": {},
+      "triggers": {},
+      "force_rls": false,
+      "constraints": {
+        "v3_domain_event_outbox_pkey": {
+          "type": "p",
+          "validated": true,
+          "definition_hash": "29c188bb8a7079be68d6b4826967f0e2"
+        },
+        "v3_domain_event_outbox_status_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "67ad9f8b48d82ef73fd0be85bdc8e345"
+        },
+        "v3_domain_event_outbox_attempt_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "d20cf8ce7b1715b5e0b7c272d3c0afc4"
+        },
+        "v3_domain_event_outbox_event_id_fkey": {
+          "type": "f",
+          "validated": true,
+          "definition_hash": "e2fdeedb2c6fd867c1bf1070a7d18448"
+        },
+        "v3_domain_event_outbox_consumer_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "0f9f76fa0b5ba3e24244d47a29f89c3d"
+        },
+        "v3_domain_event_outbox_lifecycle_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "0769ea5a31149fa9179c893729141d8b"
+        },
+        "v3_domain_event_outbox_error_code_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "1e503b278fec069a2e2b969fe8d19479"
+        },
+        "v3_domain_event_outbox_error_metadata_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "788a1f5dd5a086b984fc0a61d658399b"
+        }
+      }
+    },
+    "public.notification_deliveries": {
+      "acl": {
+        "anon_insert": true,
+        "anon_select": true,
+        "service_insert": true,
+        "service_select": true,
+        "service_update": true,
+        "authenticated_insert": true,
+        "authenticated_select": true,
+        "authenticated_update": true
+      },
+      "rls": true,
+      "owner": "postgres",
+      "columns": {
+        "id": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "f3b72bb359a50b640590970a2ab8e514"
+        },
+        "body": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "86e751880b3791dd7c2efae188915799"
+        },
+        "error": {
+          "type": "text",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "route": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "title": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "status": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "3d0c12821e68f0fc31291c72ad568aa9"
+        },
+        "sent_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "user_id": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "category": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "opened_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "75230039beb12ce952f24927f2bfa2f2"
+        },
+        "dedupe_key": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "event_type": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "subject_id": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "received_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "displayed_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "attempt_count": {
+          "type": "integer",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "cfcd208495d565ef66e7dff9f98764da"
+        },
+        "scheduled_for": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "last_attempt_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "receipt_token_hash": {
+          "type": "text",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "provider_accepted_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "processing_started_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        }
+      },
+      "indexes": {
+        "notification_deliveries_pkey": {
+          "valid": true,
+          "unique": true,
+          "primary": true,
+          "definition_hash": "bcf84c9ba53fda33fd58ac1a65c9aed3"
+        },
+        "notification_deliveries_user_idx": {
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition_hash": "6e21487da32a70792d05541e0a119129"
+        },
+        "notification_deliveries_pending_idx": {
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition_hash": "d6098f311814295b04de8c6f67900737"
+        },
+        "notification_deliveries_processing_lease_idx": {
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition_hash": "4a91c5c1db5b8eb7f650eac63ca7d95a"
+        },
+        "notification_deliveries_user_id_dedupe_key_key": {
+          "valid": true,
+          "unique": true,
+          "primary": false,
+          "definition_hash": "50872d2ee1087179fcb6d8d19e82e341"
+        }
+      },
+      "policies": {
+        "users read own notification deliveries": {
+          "roles": [
+            "authenticated"
+          ],
+          "command": "r",
+          "permissive": true,
+          "definition_hash": "a1fc7aa105a1b503f03297d4c928519f"
+        }
+      },
+      "triggers": {
+        "studio2_platform_direct_write_guard": {
+          "enabled": "O",
+          "definition_hash": "9a98e162443857e540419ba2659d85f5"
+        },
+        "v3_emit_notification_delivery_event": {
+          "enabled": "O",
+          "definition_hash": "46b107b1850d458f6846f458b3c5184a"
+        },
+        "studio2_version_organizer_delivery_dedupe": {
+          "enabled": "O",
+          "definition_hash": "3a40bb9fff1afff1e351cfee928eabc0"
+        }
+      },
+      "force_rls": false,
+      "constraints": {
+        "notification_deliveries_pkey": {
+          "type": "p",
+          "validated": true,
+          "definition_hash": "4c6419b3704337bbfe50f018842a9ad3"
+        },
+        "notification_deliveries_route_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "62c97bcaff838fb0e381f6f3bc006767"
+        },
+        "notification_deliveries_status_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "1a5cb5e190af36cd8daea35a05e11165"
+        },
+        "notification_deliveries_user_id_fkey": {
+          "type": "f",
+          "validated": true,
+          "definition_hash": "85d8b2f5f0c0f6b4dcb854efb61a8cb1"
+        },
+        "notification_deliveries_user_id_dedupe_key_key": {
+          "type": "u",
+          "validated": true,
+          "definition_hash": "ce5c54e1239a4fcb8e76ef32370840c0"
+        }
+      }
+    },
+    "public.studio2_edition_runtime": {
+      "acl": {
+        "anon_insert": false,
+        "anon_select": false,
+        "service_insert": true,
+        "service_select": true,
+        "service_update": true,
+        "authenticated_insert": false,
+        "authenticated_select": true,
+        "authenticated_update": false
+      },
+      "rls": true,
+      "owner": "postgres",
+      "columns": {
+        "state": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "version": {
+          "type": "bigint",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "c4ca4238a0b923820dcc509a6f75849b"
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "75230039beb12ce952f24927f2bfa2f2"
+        },
+        "edition_id": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "subsystems": {
+          "type": "jsonb",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "updated_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "75230039beb12ce952f24927f2bfa2f2"
+        },
+        "updated_by": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        }
+      },
+      "indexes": {
+        "studio2_edition_runtime_pkey": {
+          "valid": true,
+          "unique": true,
+          "primary": true,
+          "definition_hash": "8b7a3a3f188cf9d44ef58cbb646dfbb5"
+        },
+        "studio2_edition_runtime_updated_by_idx": {
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition_hash": "521648267c4509892fcb35b118d0db9d"
+        }
+      },
+      "policies": {
+        "studio2_edition_runtime_capability_read": {
+          "roles": [
+            "authenticated"
+          ],
+          "command": "r",
+          "permissive": true,
+          "definition_hash": "c2a34e6c5de7b9bf676a262540ff3e7b"
+        }
+      },
+      "triggers": {
+        "studio2_edition_runtime_touch_updated_at": {
+          "enabled": "O",
+          "definition_hash": "5e5510afd980775f71127747d97429ee"
+        },
+        "studio2_edition_runtime_strict_dual_guard": {
+          "enabled": "O",
+          "definition_hash": "528ecb9690b6ce005614ddad1b0d83ba"
+        }
+      },
+      "force_rls": false,
+      "constraints": {
+        "studio2_edition_runtime_pkey": {
+          "type": "p",
+          "validated": true,
+          "definition_hash": "31140a280d38c1fe30303d6cceba89a8"
+        },
+        "studio2_edition_runtime_state_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "c975f53c0aab78c370c59f978d194234"
+        },
+        "studio2_edition_runtime_version_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "b7af13e592ebcc181814632003fac9ef"
+        },
+        "studio2_edition_runtime_edition_id_fkey": {
+          "type": "f",
+          "validated": true,
+          "definition_hash": "9e2dfc643188a7d81628af45caff5ac9"
+        },
+        "studio2_edition_runtime_updated_by_fkey": {
+          "type": "f",
+          "validated": true,
+          "definition_hash": "e0e8dee5c90c66c9bd5ac7c250a96799"
+        },
+        "studio2_edition_runtime_subsystems_shape_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "242b67cd0f00b4949415de19d009954b"
+        },
+        "studio2_edition_runtime_subsystems_object_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "42d13038603252783047429c338c23cf"
+        }
+      }
+    },
+    "public.studio2_organizer_tasks": {
+      "acl": {
+        "anon_insert": false,
+        "anon_select": false,
+        "service_insert": true,
+        "service_select": true,
+        "service_update": true,
+        "authenticated_insert": false,
+        "authenticated_select": false,
+        "authenticated_update": false
+      },
+      "rls": true,
+      "owner": "postgres",
+      "columns": {
+        "id": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "f3b72bb359a50b640590970a2ab8e514"
+        },
+        "href": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "state": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "af19994de25f269ffc07429c5874d89e"
+        },
+        "title": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "due_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "priority": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "opened_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "75230039beb12ce952f24927f2bfa2f2"
+        },
+        "source_id": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "task_type": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "country_id": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "75230039beb12ce952f24927f2bfa2f2"
+        },
+        "edition_id": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "source_key": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "updated_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "75230039beb12ce952f24927f2bfa2f2"
+        },
+        "assigned_to": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "description": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "86e751880b3791dd7c2efae188915799"
+        },
+        "resolved_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "source_kind": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "rule_reference": {
+          "type": "text[]",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "f81a5133416544064d5b9b182f73a6e1"
+        },
+        "last_evaluated_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "75230039beb12ce952f24927f2bfa2f2"
+        },
+        "required_capability": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "resolution_predicate": {
+          "type": "jsonb",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "f3db357cf4f4a03883484fa3281a056c"
+        }
+      },
+      "indexes": {
+        "studio2_organizer_tasks_pkey": {
+          "valid": true,
+          "unique": true,
+          "primary": true,
+          "definition_hash": "40323aee3888a379b17b3f4815e73ccd"
+        },
+        "studio2_organizer_tasks_open_idx": {
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition_hash": "93c0b4b6f171647bf925a5896afcd9d3"
+        },
+        "studio2_organizer_tasks_source_idx": {
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition_hash": "704f4051b2bd67e6ffc7dc48879fdfe6"
+        },
+        "studio2_organizer_tasks_assignee_idx": {
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition_hash": "1fb51ac0f9a005b7c5c7cf7f091a875c"
+        },
+        "studio2_organizer_tasks_source_key_key": {
+          "valid": true,
+          "unique": true,
+          "primary": false,
+          "definition_hash": "67eb1dc89c7b42ad94d4b243016658af"
+        }
+      },
+      "policies": {},
+      "triggers": {},
+      "force_rls": false,
+      "constraints": {
+        "studio2_organizer_tasks_pkey": {
+          "type": "p",
+          "validated": true,
+          "definition_hash": "4c6419b3704337bbfe50f018842a9ad3"
+        },
+        "studio2_organizer_tasks_href_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "76a42bd9ffcf545d63cf939ef5719492"
+        },
+        "studio2_organizer_tasks_state_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "7ae29414e4112e0857d1a935ac500725"
+        },
+        "studio2_organizer_tasks_title_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "192b6c49ef6a79544783f0cb08611619"
+        },
+        "studio2_organizer_tasks_priority_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "1d3f8ca6b363383e477a8c18f6632054"
+        },
+        "studio2_organizer_tasks_source_key_key": {
+          "type": "u",
+          "validated": true,
+          "definition_hash": "7d04c919afeb5bd3176033080659ea5d"
+        },
+        "studio2_organizer_tasks_country_id_fkey": {
+          "type": "f",
+          "validated": true,
+          "definition_hash": "27ef6ef90ae9fa4b82ef6200b4687b9a"
+        },
+        "studio2_organizer_tasks_edition_id_fkey": {
+          "type": "f",
+          "validated": true,
+          "definition_hash": "9e2dfc643188a7d81628af45caff5ac9"
+        },
+        "studio2_organizer_tasks_source_id_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "6f5e8289335e12e616b0f8b93d2ab167"
+        },
+        "studio2_organizer_tasks_task_type_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "b9a3d68e8b9dd4dcd8ce7770d1ee8964"
+        },
+        "studio2_organizer_tasks_assigned_to_fkey": {
+          "type": "f",
+          "validated": true,
+          "definition_hash": "c3aadb93f45d7b536332127c32d89d93"
+        },
+        "studio2_organizer_tasks_source_key_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "06aa1eb768dc5ce1196ea38013e0acbf"
+        },
+        "studio2_organizer_tasks_source_kind_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "1dc649f1851835fbb06d69d001bab4f3"
+        },
+        "studio2_organizer_tasks_resolution_consistency": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "3b4c3e669352031fe17d7f6cf9e66ca0"
+        },
+        "studio2_organizer_tasks_required_capability_fkey": {
+          "type": "f",
+          "validated": true,
+          "definition_hash": "1cae89b851f3747ee4b8e7a8f16645bf"
+        },
+        "studio2_organizer_tasks_resolution_predicate_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "a784ae648cbd20a1b866b099b94ae22e"
+        }
+      }
+    },
+    "public.studio2_operation_receipts": {
+      "acl": {
+        "anon_insert": false,
+        "anon_select": false,
+        "service_insert": true,
+        "service_select": true,
+        "service_update": true,
+        "authenticated_insert": false,
+        "authenticated_select": false,
+        "authenticated_update": false
+      },
+      "rls": true,
+      "owner": "postgres",
+      "columns": {
+        "scope": {
+          "type": "jsonb",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "f3db357cf4f4a03883484fa3281a056c"
+        },
+        "result": {
+          "type": "jsonb",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "status": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "0acd793a0473ce7088395d48b97de0a7"
+        },
+        "command": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "actor_id": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "75230039beb12ce952f24927f2bfa2f2"
+        },
+        "error_code": {
+          "type": "text",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "risk_class": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "updated_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": true,
+          "default_hash": "75230039beb12ce952f24927f2bfa2f2"
+        },
+        "completed_at": {
+          "type": "timestamp with time zone",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "operation_id": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "correlation_id": {
+          "type": "uuid",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "error_metadata": {
+          "type": "jsonb",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "idempotency_key": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "actor_session_id": {
+          "type": "text",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        },
+        "request_fingerprint": {
+          "type": "text",
+          "identity": "",
+          "not_null": true,
+          "default_hash": null
+        },
+        "auth_freshness_evidence": {
+          "type": "jsonb",
+          "identity": "",
+          "not_null": false,
+          "default_hash": null
+        }
+      },
+      "indexes": {
+        "studio2_operation_receipts_pkey": {
+          "valid": true,
+          "unique": true,
+          "primary": true,
+          "definition_hash": "159b22e675fabe25bddd6d0a759db19f"
+        },
+        "studio2_operation_receipts_actor_time_idx": {
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition_hash": "8d83bb96de6a26740f83a808c9e8c3d3"
+        },
+        "studio2_operation_receipts_command_time_idx": {
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition_hash": "f9e9318180911760b21422d9015dd632"
+        },
+        "studio2_operation_receipts_correlation_time_idx": {
+          "valid": true,
+          "unique": false,
+          "primary": false,
+          "definition_hash": "a131ba3067616b245de0152562e369d7"
+        },
+        "studio2_operation_receipts_actor_id_command_idempotency_key_key": {
+          "valid": true,
+          "unique": true,
+          "primary": false,
+          "definition_hash": "a5734aa8c04da09208919b4f4b712592"
+        }
+      },
+      "policies": {},
+      "triggers": {
+        "v3_emit_jury_operation_event": {
+          "enabled": "O",
+          "definition_hash": "1763b1dda4d5efc6486ad994c32a0c44"
+        },
+        "v3_emit_entry_operation_event": {
+          "enabled": "O",
+          "definition_hash": "7a26f30ddf2fae38b65d93d4521498c8"
+        },
+        "v3_emit_access_operation_events": {
+          "enabled": "O",
+          "definition_hash": "463e8fb5aa19e7cfae9caed9683848a2"
+        },
+        "v3_emit_televote_operation_event": {
+          "enabled": "O",
+          "definition_hash": "c840a890d4bf3e3ce36edf3ec6229a38"
+        },
+        "v3_emit_publication_operation_event": {
+          "enabled": "O",
+          "definition_hash": "d1490c3f1e998a679f1530e5b82cb6dd"
+        },
+        "v3_emit_confirmation_operation_event": {
+          "enabled": "O",
+          "definition_hash": "5158b969603ec4d65fd7a3867810ea9a"
+        },
+        "v3_emit_media_review_operation_event": {
+          "enabled": "O",
+          "definition_hash": "51776534475dea274fec683a5a40a122"
+        },
+        "v3_emit_prediction_round_operation_event": {
+          "enabled": "O",
+          "definition_hash": "6ea266e2c48e2a7d4ac4e7d2bed20679"
+        },
+        "v3_emit_prediction_score_operation_event": {
+          "enabled": "O",
+          "definition_hash": "863831eeaf912426fd58fea6c14a1c1a"
+        },
+        "v3_emit_televote_deadline_operation_event": {
+          "enabled": "O",
+          "definition_hash": "a3dc35f7d0741b49c701fabc92d0ea60"
+        }
+      },
+      "force_rls": false,
+      "constraints": {
+        "studio2_operation_receipts_pkey": {
+          "type": "p",
+          "validated": true,
+          "definition_hash": "f59b9d798d6d843ea6ea10575b2ae406"
+        },
+        "studio2_operation_receipts_actor_id_fkey": {
+          "type": "f",
+          "validated": true,
+          "definition_hash": "bd237ddc6ddd109915445a1acecb5c41"
+        },
+        "studio2_operation_receipts_command_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "bdb3c71582fc64b8c9be1e3c65793e10"
+        },
+        "studio2_operation_receipts_v3_status_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "f09e861a2716083cd6e73c6bbd6e0fc6"
+        },
+        "studio2_operation_receipts_completion_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "61b973de6cc5906d55b5f9aeaf23f2e2"
+        },
+        "studio2_operation_receipts_error_code_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "201ed21314304f52c73cf28734082966"
+        },
+        "studio2_operation_receipts_risk_class_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "178e88c5afc70aac4534a9f20e1ef4fe"
+        },
+        "studio2_operation_receipts_fingerprint_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "6d5f3228a748f4cd7130705fd0c12241"
+        },
+        "studio2_operation_receipts_error_metadata_check": {
+          "type": "c",
+          "validated": true,
+          "definition_hash": "3cf84a48f5a1c6d9a85acd09e352087f"
+        },
+        "studio2_operation_receipts_actor_id_command_idempotency_key_key": {
+          "type": "u",
+          "validated": true,
+          "definition_hash": "ff8a0e1a4b26535fb1d2d8634df7a1af"
+        }
+      }
+    }
+  },
+  "format_version": 1
+}
