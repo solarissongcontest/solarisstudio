@@ -1,5 +1,7 @@
 # V3 hosted Supabase migration frontier: production preflight
 
+> **Merge-process note (owner update, 14 November 2026):** [The current evidence-based merge policy](merge-review-policy.md) replaces routine independent-AI/integrator merge approval. The currently authorized implementation session may integrate its own verified PR. This historical release/evidence document does not authorize production changes or waive safety gates.
+
 **Status:** BLOCKED pending explicit reconciliation. This is an operator procedure,
 not permission to deploy or an assertion that a production upgrade has run.
 

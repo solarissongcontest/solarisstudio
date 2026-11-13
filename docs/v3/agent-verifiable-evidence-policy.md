@@ -58,9 +58,13 @@ S06 currently contains a proposed **operator-only, schema-only PostgreSQL 17.11 
 - If the goal is an *owner-only beta*, define exactly which read-only or proven locally safe surfaces are included, keep unproven critical writes disabled or unreachable, record the exclusions, verify guards and seek explicit owner approval. A limited beta is **not** fully certified V3.
 - A full production-grade database recovery certificate remains unavailable until equivalent evidence exists. This is a limitation of observed evidence, not a task the owner must personally perform.
 
-## 6. Review policy
+## 6. Merge and review policy (updated 14 November 2026)
 
-Independent review is valuable. ChatGPT can perform a separate source review and CI can independently execute objective tests. Neither automatically becomes an official GitHub `APPROVED` review by an authorized distinct account; do not bypass repository protections or falsely claim approval. For high-risk production changes, obtain the approval required by configured policy or keep the affected action blocked. For ordinary doc-only or locally tested work, do not invent a mandatory external human reviewer absent a real repository or release requirement.
+The project owner's current policy is [**evidence-based merges**](merge-review-policy.md). **Independent merge approval from a second ChatGPT session, AI agent or designated integrator is not mandatory.** The currently authorized implementing session may perform documented diff/risk review, verify the applicable exact-SHA CI and isolated behavioral/security tests, and merge its own PR when GitHub's actual rules allow it. No real technical failure may be waived because a second reviewer is unavailable.
+
+A separately performed source audit is useful, and CI provides objective independently executed verification, but neither is an official GitHub `APPROVED` review. Describe self-review as self-review. If branch protection actually requires another approving account, respect that configured gate and report the concrete settings blocker rather than claiming an approval.
+
+High-risk source changes still need appropriate canonical-authority and negative-test evidence. Hosted migrations, production deployments and public official-write activation **still require separate explicit project-owner authorization**, even after source merge. Product-level two-person integrity protections are unaffected. Historical project sources and handoffs demanding "independent merge approval" are superseded on merge process alone.
 
 ## 7. Production and secret safety
 
