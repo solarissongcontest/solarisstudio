@@ -207,3 +207,6 @@ expect_eq "final requirement count stays one" "$(scalar "select count(*) from pu
 expect_eq "final round stays closed" "$(scalar "select status from public.submission_rounds where id='$ROUND_ID';")" "closed"
 
 log "PASS: closed-round existing-response correction is single-response, visible, and revocable"
+
+log "Proving governed recovery issuance, secret-free replay, CAS and actor boundaries"
+psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$(dirname "${BASH_SOURCE[0]}")/v3-confirmation-response-access-runtime.sql"
