@@ -99,4 +99,15 @@ describe("V3 Results root source contract", () => {
     expect(gate).toContain("useV3ResultsBundle(selectedShowId, true)");
     expect(gate).toContain("if (!v3Enabled) return <>{fallback}</>");
   });
+
+  it("uses the canonical immutable bundle on mobile and desktop web fallbacks as well", () => {
+    expect(route).toContain("const resultsQuery = useV3ResultsBundle(null, true)");
+    expect(route).toContain('resultBundle?.input.publication === "published"');
+    expect(route).toContain("resultBundle.input.rows");
+    expect(route).toContain("const latestShow = resultShows.find((show) => show.id === resultBundle?.input.showId)");
+    expect(route).toContain("new Map((resultBundle?.countries ?? []).map(");
+    expect(route).not.toContain("useAllResults");
+    expect(route).not.toContain("useAllParticipants");
+    expect(route).not.toContain("filterResultsToCompetingParticipants");
+  });
 });
