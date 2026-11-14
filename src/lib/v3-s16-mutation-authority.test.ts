@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { auditV3S16CatalogAuthority, buildV3S16MutationAuthorityReport, scanV3S16StaticAuthority, type V3S16DomainDefinition } from "./v3-s16-mutation-authority";
+import { auditV3S16CatalogAuthority, buildV3S16MutationAuthorityReport, scanV3S16StaticAuthority, V3_S16_CRITICAL_DOMAINS, type V3S16DomainDefinition } from "./v3-s16-mutation-authority";
 import { classifyV3S16ReleaseAuthority } from "./v3-s16-release-risk";
 
 const domain: V3S16DomainDefinition = {
@@ -15,6 +15,17 @@ const migration = {
   path: "supabase/migrations/20261027000000_jury.sql",
   source: `create or replace function public.studio2_submit_jury_ballot() returns void language plpgsql security definer set search_path = pg_catalog, public as $$ begin null; end $$;`,
 };
+
+describe("System Results CAS catalog writer classification", () => {
+  it("exposes the reviewed V2 commit as the canonical Results writer", () => {
+    const results = V3_S16_CRITICAL_DOMAINS.find((domain) => domain.id === "results");
+    expect(results?.canonicalCommands).toEqual(["public.studio2_execute_result_operation_v2"]);
+    expect(results?.directRpcDeniedInternalWriters).toContain("public.studio2_execute_result_operation");
+    expect(results?.sanctionedInternalWriters).toContain("private.studio2_bump_result_review_basis");
+    expect(results?.sanctionedWriteTriggers).toContain("studio2_results_review_basis_results");
+    expect(results?.resultsFrozenOwner).toBe(true);
+  });
+});
 
 describe("S16 canonical mutation authority", () => {
   it("catches an unauthorized direct application writer", () => {
