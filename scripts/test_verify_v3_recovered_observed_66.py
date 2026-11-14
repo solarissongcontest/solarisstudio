@@ -3,6 +3,8 @@ import copy
 import hashlib
 import importlib.util
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -359,6 +361,29 @@ class RecoveryEvidenceGateTest(unittest.TestCase):
         self.artifacts["playwright-s14-grand-final-summary.json"]["stats"]["expected"] = True
         save(self.root, self.manifest, self.artifacts)
         self.assertRejects("zero tests")
+
+    def test_direct_cli_runs_without_pythonpath_override(self):
+        manifest_path = self.root / "evidence.json"
+        manifest_path.write_text(json.dumps(self.manifest), encoding="utf-8")
+        process = subprocess.run(
+            [sys.executable, str(SCRIPT), "--evidence", str(manifest_path),
+             "--artifacts-dir", str(self.root), "--sha", SHA],
+            cwd=SCRIPT.parent.parent, capture_output=True, text=True, check=False)
+        self.assertEqual(process.returncode, 0, process.stderr)
+        self.assertIn("EVIDENCE CONTRACT PASS", process.stdout)
+
+    def test_direct_cli_fails_closed_when_artifact_tampered(self):
+        manifest_path = self.root / "evidence.json"
+        manifest_path.write_text(json.dumps(self.manifest), encoding="utf-8")
+        artifact_path = self.root / "s14-full-contest.json"
+        artifact_path.write_bytes(artifact_path.read_bytes() + b"unauthorized change")
+        process = subprocess.run(
+            [sys.executable, str(SCRIPT), "--evidence", str(manifest_path),
+             "--artifacts-dir", str(self.root), "--sha", SHA],
+            cwd=SCRIPT.parent.parent, capture_output=True, text=True, check=False)
+        self.assertEqual(process.returncode, 1)
+        self.assertIn("FAIL CLOSED", process.stderr)
+        self.assertIn("checksum mismatch", process.stderr)
 
 
 if __name__ == "__main__":

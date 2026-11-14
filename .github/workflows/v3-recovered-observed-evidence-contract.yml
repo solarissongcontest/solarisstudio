@@ -33,7 +33,7 @@ jobs:
               exit 1
             fi
           done
-      - name: Python standard-library syntax and 48 offline negative tests
+      - name: Python standard-library syntax and 50 offline negative tests
         run: |
           set -euo pipefail
           python3 -m py_compile scripts/verify-v3-recovered-observed-66.py

@@ -12,7 +12,15 @@ import re
 import sys
 from pathlib import Path
 
-from scripts.v3_s14_final_seed import EXPECTED as FINAL_SEED_EXPECTED, validate_final_seed_artifact
+try:
+    from scripts.v3_s14_final_seed import EXPECTED as FINAL_SEED_EXPECTED, validate_final_seed_artifact
+except ModuleNotFoundError as exc:
+    # Running this file directly makes scripts/ sys.path[0]. Preserve both CLI
+    # invocation and the package import used by unittest; never swallow a
+    # missing dependency *inside* the canonical validator.
+    if exc.name != "scripts":
+        raise
+    from v3_s14_final_seed import EXPECTED as FINAL_SEED_EXPECTED, validate_final_seed_artifact
 
 SHA40 = re.compile(r"[a-f0-9]{40}\Z")
 SHA256 = re.compile(r"[a-f0-9]{64}\Z")
