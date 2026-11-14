@@ -14,7 +14,16 @@ from pathlib import Path
 s=Path('.github/tests/v3-public-snapshot-recovery.sql').read_text()
 a=s.index('begin;',s.index('\\else'))
 b=s.index('update public.editions set published=true',a)
-print(s[a:b]+'commit;')
+# Preserve the exact original fixture and assertions. Notice only.
+source=s[a:b]
+for before,label in (
+    ('update public.studio2_result_operations set', 'calculation-version transition'),
+    ('update public.shows set published=true', 'show publication transition'),
+    ('update public.studio2_show_publication_controls set', 'publication-control transition'),
+):
+    if source.count(before)!=1: raise SystemExit('Source-exact Results API phase drift: '+label)
+    source=source.replace(before, "raise notice 'RESULT_API_TRANSITION: "+label+"';\n  "+before)
+print(source+'commit;')
 PYAPI
 api_owner_sql -f - < /tmp/result-api-prepare.sql
 # Publishing a show can automatically publish its edition. Explicitly model
