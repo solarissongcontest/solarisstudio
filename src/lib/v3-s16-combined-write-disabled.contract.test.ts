@@ -60,7 +60,11 @@ describe("COM-00: separate Combined Televote cannot write during deferred beta",
     const round = functionHead(resultSync, "syncPublishedRoundResultsToSolarisServer");
     expect(round).not.toContain("requireCombinedTelevoteWriteApproval();");
     expect(round).toContain("requireMergedTelevotingAdminServer");
-    expect(round).toContain("writeCanonicalShowTelevote");
+    const roundBody = resultSync.slice(
+      resultSync.indexOf("export async function syncPublishedRoundResultsToSolarisServer("),
+      resultSync.indexOf("export async function syncPublishedCombinedResultsToSolarisServer("),
+    );
+    expect(roundBody).toContain("writeCanonicalShowTelevote");
   });
 
   it("locks down the whole current exported Combined mutation inventory", () => {
