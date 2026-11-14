@@ -103,7 +103,10 @@ restored_sql -f - < .github/tests/v3-hosted-api-role-runtime.sql
 restored_sql -f - < .github/tests/v3-ordered-televote-recovery.sql
 restored_sql -f - < .github/tests/v3-ordered-televote-s08-recovery.sql
 restored_sql -v snapshot_before=false -f - < .github/tests/v3-public-snapshot-recovery.sql
-restored_sql -f - < .github/tests/v3-voting-config-authority.sql
+# The original weighted-rank fixture remains exercised before S08, above.
+# It manually seeds aggregates, which post-S08 must reject. This post-restore
+# test instead proves the denial and legitimate config/immutable Results reads.
+restored_sql -f - < .github/tests/v3-s08-voting-config-after-recovery.sql
 restored_sql -f - < .github/tests/v3-result-authority-recovery.sql
 [[ "$(operator_state_digest recovery_restore_probe)" == "$owner_restored_before" ]] || { echo 'Restored runtime tests changed durable evidence'; exit 1; }
 # Repeat real authenticator sessions against a clone of the restored database.
