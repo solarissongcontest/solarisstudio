@@ -6,6 +6,7 @@ const REQUIRED_WORKFLOWS = Object.freeze([
   "Quality",
   "Browser audit",
   "V3 S13 Migration Adoption",
+  "V3 Public Organizer integration contracts",
 ]);
 
 const shaPattern = /^[0-9a-f]{40}$/;
@@ -45,7 +46,7 @@ export function evaluateMainCiEvidence({ expectedSha, ref, firstMainSha, lastMai
   const passed = refIsMain && firstMainMatches && lastMainMatches && workflowResults.every((run) => run.passed);
   return {
     schemaVersion: 1,
-    scope: "post-merge-main-quality-browser-s13",
+    scope: "post-merge-main-quality-browser-s13-public-organizer",
     expectedSha,
     firstMainSha,
     lastMainSha,
@@ -144,7 +145,7 @@ function writeEvidence(report, path, summaryPath) {
   writeFileSync(path, `${JSON.stringify(report, null, 2)}\n`);
   if (!summaryPath) return;
   const lines = [
-    "## Solaris V3 post-merge main CI evidence",
+    "## Solaris V3 post-merge main CI evidence (Quality, Browser, S13, Public/Organizer)",
     "",
     `- Expected SHA: \`${report.expectedSha ?? "unknown"}\``,
     `- Main at start: \`${report.firstMainSha ?? "unknown"}\``,
@@ -175,7 +176,7 @@ async function main() {
   } catch (error) {
     report = {
       schemaVersion: 1,
-      scope: "post-merge-main-quality-browser-s13",
+      scope: "post-merge-main-quality-browser-s13-public-organizer",
       expectedSha: expectedSha ?? null,
       passed: false,
       releaseCertified: false,

@@ -1,5 +1,7 @@
 # Solaris V3 A07: owner-only beta release-risk board
 
+> **Merge-process note (owner update, 14 November 2026):** [The current evidence-based merge policy](merge-review-policy.md) replaces routine independent-AI/integrator merge approval. The currently authorized implementation session may integrate its own verified PR. This historical release/evidence document does not authorize production changes or waive safety gates.
+
 **Observed source main:** [`49abd36426a5c7227406fc9f574442aa36d30e16`](https://github.com/solarissongcontest/solarisstudio/commit/49abd36426a5c7227406fc9f574442aa36d30e16) (8 November 2026). **Status: NOT CERTIFIED / NO GO pending proof.**
 
 **Full-V3 authority remains separate:** [final-week release blocker matrix](https://github.com/solarissongcontest/solarisstudio/blob/49abd36426a5c7227406fc9f574442aa36d30e16/docs/v3/final-week-release-blocker-matrix.json). This is a source-based, grouped **partial** full-V3 matrix (`initial_verified_high_priority_only`, snapshot `2026-11-08`, 15 rows), not an exact-current-runtime audit of all migrations, hosted database effects, CI or capabilities.

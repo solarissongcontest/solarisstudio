@@ -408,14 +408,10 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
 
   const submitMutation = useMutation({
     mutationFn: async (token: string) => {
+      // A disabled reliability rollout must not resurrect the legacy direct
+      // ballot writer. Only the governed command can issue an official receipt.
       if (!v3ReliabilityEnabled) {
-        const { error } = await supabase.rpc("submit_country_jury_ballot", {
-          _show_id: round.show_id,
-          _entries: ballot,
-          _preflight_id: token,
-        });
-        if (error) throw error;
-        return null;
+        throw new Error("Jury submission is unavailable until the secure voting service is enabled.");
       }
       const fingerprint = JSON.stringify(ballot);
       const prepared = prepareV3JuryOperation({
@@ -499,6 +495,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
 
   const preflightMutation = useMutation({
     mutationFn: async () => {
+      if (!v3ReliabilityEnabled) throw new Error("Jury submission is unavailable until the secure voting service is enabled.");
       if (!complete) throw new Error("Assign every jury score before continuing");
       if (!acceptedRule) throw new Error("Confirm that you understand the friend-voting rule");
       const identity = await buildTelevotingClientIdentity();
@@ -520,6 +517,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
 
   const attestationMutation = useMutation({
     mutationFn: async () => {
+      if (!v3ReliabilityEnabled) throw new Error("Jury submission is unavailable until the secure voting service is enabled.");
       if (!report) throw new Error("Run the integrity check again");
       await attest({ data: {
         token: report.token,
@@ -593,7 +591,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
         </section>
         <IntegrityEvidence report={report} />
         <Panel title="Your choice" description="Nothing has been submitted yet">
-          <div className="grid gap-2 sm:grid-cols-2"><Button variant="outline" onClick={returnToBallot}><ArrowLeft className="size-4" /> Change my votes</Button><Button disabled={submitMutation.isPending} onClick={() => submitMutation.mutate(report.token)}><CheckCircle2 className="size-4" /> {checkingSubmission ? "Checking submission status…" : submitMutation.isPending ? "Submitting…" : "My ballot is correct · submit"}</Button></div>
+          <div className="grid gap-2 sm:grid-cols-2"><Button variant="outline" onClick={returnToBallot}><ArrowLeft className="size-4" /> Change my votes</Button><Button disabled={!v3ReliabilityEnabled || submitMutation.isPending} onClick={() => submitMutation.mutate(report.token)}><CheckCircle2 className="size-4" /> {checkingSubmission ? "Checking submission status…" : submitMutation.isPending ? "Submitting…" : "My ballot is correct · submit"}</Button></div>
         </Panel>
       </div>
     );
@@ -633,7 +631,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
             <IntegrityCheckbox checked={acceptedPressure} onChange={setAcceptedPressure}>{VOTE_INTEGRITY_PRESSURE}</IntegrityCheckbox>
             <IntegrityCheckbox checked={acceptedConsequences} onChange={setAcceptedConsequences}>{VOTE_INTEGRITY_CONSEQUENCE}</IntegrityCheckbox>
             <label className="block rounded-xl border border-border bg-surface p-3"><span className="text-[10px] font-black uppercase tracking-[0.13em] text-muted-foreground">Type your Solaris username to sign</span><input value={signedName} onChange={(event) => setSignedName(event.target.value)} placeholder={country.username} className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" /></label>
-            <div className="grid gap-2 sm:grid-cols-2"><Button variant="outline" onClick={returnToBallot}><ArrowLeft className="size-4" /> Change my votes</Button><Button disabled={!canSign || attestationMutation.isPending || submitMutation.isPending} onClick={() => attestationMutation.mutate()}>{attestationMutation.isPending || submitMutation.isPending ? "Recording declaration…" : "Sign declaration and submit jury vote"}</Button></div>
+            <div className="grid gap-2 sm:grid-cols-2"><Button variant="outline" onClick={returnToBallot}><ArrowLeft className="size-4" /> Change my votes</Button><Button disabled={!v3ReliabilityEnabled || !canSign || attestationMutation.isPending || submitMutation.isPending} onClick={() => attestationMutation.mutate()}>{attestationMutation.isPending || submitMutation.isPending ? "Recording declaration…" : "Sign declaration and submit jury vote"}</Button></div>
           </div>
         </Panel>
       </div>
@@ -667,7 +665,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
         <label className="flex items-start gap-3 rounded-xl border border-border bg-surface p-3 text-sm"><input type="checkbox" checked={acceptedRule} onChange={(event) => setAcceptedRule(event.target.checked)} className="mt-0.5" /><span className="leading-relaxed text-muted-foreground">I confirm that this ballot reflects my own independent preferences and is not part of an agreed or reciprocal voting arrangement.</span></label>
         <GovernanceInlineReference context="jury.vote" ruleIds={["9.2", "11.2", "11.4"]} label="Voting rules" />
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3 text-xs text-muted-foreground"><span>{ballot.length}/{round.point_scale.length} scores assigned</span><span aria-live="polite">{!v3ReliabilityEnabled ? "Saved on this device" : draftStatus === "loading" ? "Loading server draft…" : draftStatus === "saving" ? "Saving…" : draftStatus === "saved" ? `Saved · revision ${serverRevision}` : draftStatus === "conflict" ? "Save conflict" : "Saved on this device · reconnect to sync"}</span><span className="inline-flex items-center gap-1.5"><ShieldCheck className="size-3.5 text-primary" /> Integrity v4 · recent editions weighted most</span></div>
-        <Button className="w-full" disabled={!complete || !acceptedRule || preflightMutation.isPending || submitMutation.isPending} onClick={() => preflightMutation.mutate()}><Vote className="size-4" />{preflightMutation.isPending || submitMutation.isPending ? "Checking ballot…" : "Review and submit jury vote"}</Button>
+        <Button className="w-full" disabled={!v3ReliabilityEnabled || !complete || !acceptedRule || preflightMutation.isPending || submitMutation.isPending} onClick={() => preflightMutation.mutate()}><Vote className="size-4" />{preflightMutation.isPending || submitMutation.isPending ? "Checking ballot…" : "Review and submit jury vote"}</Button>
       </div>
     </Panel>
   );

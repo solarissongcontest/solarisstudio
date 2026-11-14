@@ -1,0 +1,38 @@
+{
+  "kind": "owner-authorized-read-only-catalog-observation",
+  "projectRef": "dkxmnvekiopyesuzggeu",
+  "statementTimeout": "10s",
+  "lockTimeout": "2s",
+  "transaction": "READ ONLY; ROLLBACK",
+  "applicationRowsRead": false,
+  "rawFunctionBodiesExported": false,
+  "routines": [
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=public, pg_temp"
+      ],
+      "exists": true,
+      "identity": "public.refresh_edition_qualifications(uuid)",
+      "definition_md5": "214614ba8f8e8d50e9d79f5ffd042ea6",
+      "security_definer": true,
+      "definition_sha256": "18b382b28e391c64b1cd736fd8e356cdd35348a06cdd48a8a1783ffdb4144ef2"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=public, pg_temp"
+      ],
+      "exists": true,
+      "identity": "public.refresh_show_qualifiers(uuid)",
+      "definition_md5": "56ef1308946261ae363f86d13b196458",
+      "security_definer": true,
+      "definition_sha256": "ebc4cbd1b539be0dc7b5f7af7d279d07f986f5b55164f13340384ddd203ae16a"
+    }
+  ],
+  "read_only": "on",
+  "observed_at": "2026-11-13T21:46:27.55969+00:00",
+  "server_version_num": "170011"
+}

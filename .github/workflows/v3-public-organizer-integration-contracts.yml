@@ -10,15 +10,10 @@ on:
       - "bun.lock"
       - "vitest.config.*"
       - ".github/workflows/v3-public-organizer-integration-contracts.yml"
+  # Every merged main commit needs exact-SHA Public/Organizer evidence.
+  # PR checks remain path-scoped to avoid unnecessary expensive PR work.
   push:
     branches: [main]
-    paths:
-      - "src/**"
-      - "scripts/**"
-      - "package.json"
-      - "bun.lock"
-      - "vitest.config.*"
-      - ".github/workflows/v3-public-organizer-integration-contracts.yml"
   workflow_dispatch:
 
 permissions:

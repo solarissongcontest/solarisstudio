@@ -10,10 +10,7 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { Input } from "@/components/ui/input";
-import {
-  loadConfirmationEditions,
-  type ConfirmationEdition,
-} from "@/integrations/confirmations/admin";
+import { loadConfirmationResponsesForEdition } from "@/integrations/confirmations/scoped-admin-reads";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
 
 export const Route = createFileRoute("/confirmations/admin/responses")({
@@ -97,6 +94,8 @@ type ResponseFilter =
   | "declined_overall"
   | "nf_declined"
   | "internal_declined";
+
+const RESPONSE_PAGE_SIZE = 100;
 
 const FILTERS: Array<{ value: ResponseFilter; label: string }> = [
   { value: "all", label: "All responses" },
@@ -256,56 +255,80 @@ function ConfirmationResponsesPage() {
 }
 
 function ConfirmationResponsesList() {
-  const { editionId: organizerEditionId, setEditionId: setOrganizerEditionId } = useAdminContext();
-  const [editions, setEditions] = useState<ConfirmationEdition[]>([]);
+  const { editionId, editionLabel } = useAdminContext();
   const [rows, setRows] = useState<ResponseRow[]>([]);
+  const [loadedEditionId, setLoadedEditionId] = useState<string | null>(null);
+  const [authEpoch, setAuthEpoch] = useState(0);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [totalResponses, setTotalResponses] = useState(0);
+  const [hasNextPage, setHasNextPage] = useState(false);
   const [nextRows, setNextRows] = useState<NextInLineRow[]>([]);
+  const [nextError, setNextError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ResponseFilter>("all");
   const [mode, setMode] = useState<"confirmations" | "next_in_line">("confirmations");
-  const [editionId, setEditionId] = useState("");
   const [roundId, setRoundId] = useState("all");
 
+  // Invalidate browser-private response data when the authenticated actor changes.
   useEffect(() => {
-    let alive = true;
-
-    void (async () => {
-      try {
-        const [editionRows, responsesResult] = await Promise.all([
-          loadConfirmationEditions(),
-          confirmationsSupabase.rpc("admin_confirmation_responses"),
-        ]);
-
-        if (!alive) return;
-        if (responsesResult.error) throw responsesResult.error;
-
-        setEditions(editionRows);
-        setEditionId(editionRows.find((edition) => edition.id === organizerEditionId)?.id ?? "");
-        setRows(Array.isArray(responsesResult.data) ? (responsesResult.data as unknown as ResponseRow[]) : []);
-      } catch (caught) {
-        if (!alive) return;
-        setError(caught instanceof Error ? caught.message : "Responses could not be loaded.");
-        setRows([]);
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-
-    return () => {
-      alive = false;
-    };
+    const { data: { subscription } } = confirmationsSupabase.auth.onAuthStateChange((event: string) => {
+      if (!["SIGNED_IN", "SIGNED_OUT", "USER_UPDATED", "TOKEN_REFRESHED"].includes(event)) return;
+      setRows([]);
+      setNextRows([]);
+      setLoadedEditionId(null);
+      setTotalResponses(0);
+      setHasNextPage(false);
+      setPageIndex(0);
+      setAuthEpoch((current) => current + 1);
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
+  // The server authorizes each bounded page for this exact Organizer edition.
+  // There is no all-editions response fetch and no fallback to one.
   useEffect(() => {
-    const nextEditionId = editions.find((edition) => edition.id === organizerEditionId)?.id ?? "";
-    if (nextEditionId !== editionId) {
-      setEditionId(nextEditionId);
-      setRoundId("all");
-      setMode("confirmations");
+    let alive = true;
+    setRows([]);
+    setLoadedEditionId(null);
+    setTotalResponses(0);
+    setHasNextPage(false);
+    if (!editionId) {
+      setLoading(false);
+      return () => { alive = false; };
     }
-  }, [editionId, editions, organizerEditionId]);
+    setError(null);
+    setLoading(true);
+    void loadConfirmationResponsesForEdition<ResponseRow>(editionId, {
+      limit: RESPONSE_PAGE_SIZE,
+      offset: pageIndex * RESPONSE_PAGE_SIZE,
+    }).then((page) => {
+      if (!alive) return;
+      if (pageIndex > 0 && page.offset >= page.total) {
+        setPageIndex(Math.max(0, Math.ceil(page.total / RESPONSE_PAGE_SIZE) - 1));
+        return;
+      }
+      setRows(page.items);
+      setLoadedEditionId(page.edition_id);
+      setTotalResponses(page.total);
+      setHasNextPage(page.has_more);
+    }).catch((caught: unknown) => {
+      if (!alive) return;
+      setRows([]);
+      setLoadedEditionId(null);
+      setError(caught instanceof Error ? caught.message : "Exact-edition responses could not be loaded.");
+    }).finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [editionId, pageIndex, authEpoch]);
+
+  useEffect(() => {
+    setPageIndex(0);
+    setRoundId("all");
+    setMode("confirmations");
+  }, [editionId]);
+
+
 
   useEffect(() => {
     let alive = true;
@@ -322,10 +345,10 @@ function ConfirmationResponsesList() {
       });
       if (!alive) return;
       if (result.error) {
-        setError((current) => current ?? result.error.message);
+        setNextError(result.error.message);
         setNextRows([]);
       } else {
-        setError(null);
+        setNextError(null);
         setNextRows(Array.isArray(result.data) ? (result.data as unknown as NextInLineRow[]) : []);
       }
     })();
@@ -333,7 +356,7 @@ function ConfirmationResponsesList() {
     return () => {
       alive = false;
     };
-  }, [editionId]);
+  }, [editionId, authEpoch]);
 
   const rounds = useMemo(() => {
     if (!editionId) return [];
@@ -353,8 +376,8 @@ function ConfirmationResponsesList() {
   }, [roundId, rounds]);
 
   const scopedRows = useMemo(
-    () => (editionId ? rows.filter((row) => row.editions?.id === editionId) : []),
-    [editionId, rows],
+    () => (editionId && loadedEditionId === editionId ? rows.filter((row) => row.editions?.id === editionId) : []),
+    [editionId, loadedEditionId, rows],
   );
 
   const filtered = useMemo(() => {
@@ -461,24 +484,10 @@ function ConfirmationResponsesList() {
 
       <AdminCard className="mb-4 !p-3">
         <div className="grid gap-2 md:grid-cols-[1fr_1fr_1fr_1.4fr]">
-          <select
-            value={editionId}
-            onChange={(event) => {
-              const nextEditionId = event.target.value;
-              setEditionId(nextEditionId);
-              setOrganizerEditionId(nextEditionId);
-              setRoundId("all");
-              setMode("confirmations");
-            }}
-            className="min-h-11 rounded-xl border border-white/[0.09] bg-background px-3 text-sm text-foreground [color-scheme:dark]"
-          >
-            <option value="">Select edition…</option>
-            {editions.map((edition) => (
-              <option key={edition.id} value={edition.id}>
-                SSC {edition.edition_number} · {edition.name}
-              </option>
-            ))}
-          </select>
+          <div role="status" aria-label="Selected Organizer edition"
+            className="flex min-h-11 items-center rounded-xl border border-white/[0.09] bg-background px-3 text-sm text-foreground">
+            {editionId ? (editionLabel ?? "Selected Organizer edition") : "Choose an edition in the Organizer toolbar"}
+          </div>
 
           {mode === "confirmations" ? (
             <select
@@ -518,12 +527,35 @@ function ConfirmationResponsesList() {
               disabled={!editionId}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search country, username, artist or song…"
+              placeholder="Search current page by country, username, artist or song…" 
               className="min-h-11 pl-9"
             />
           </div>
         </div>
       </AdminCard>
+
+      {editionId && loadedEditionId === editionId && !loading && !error && mode === "confirmations" ? (
+        <AdminCard className="mb-4 !p-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">
+              Page {pageIndex + 1} · {rows.length ? pageIndex * RESPONSE_PAGE_SIZE + 1 : 0}–
+              {pageIndex * RESPONSE_PAGE_SIZE + rows.length} of {totalResponses}.
+              Search and filters apply to this page only.
+            </p>
+            <div className="flex gap-2">
+              <button type="button" className="admin-action-secondary !min-h-9" disabled={pageIndex === 0}
+                onClick={() => setPageIndex((current) => Math.max(0, current - 1))}>
+                Previous
+              </button>
+              <button type="button" className="admin-action-secondary !min-h-9"
+                disabled={!hasNextPage || (pageIndex + 1) * RESPONSE_PAGE_SIZE > 10000}
+                onClick={() => setPageIndex((current) => current + 1)}>
+                Next
+              </button>
+            </div>
+          </div>
+        </AdminCard>
+      ) : null}
 
       {loading ? (
         <AdminCard className="py-8 text-center text-sm text-muted-foreground">
@@ -548,7 +580,11 @@ function ConfirmationResponsesList() {
           />
         </AdminCard>
       ) : mode === "next_in_line" ? (
-        filteredNext.length ? (
+        nextError ? (
+          <AdminCard className="border-rose-200/20 bg-rose-200/[0.045]">
+            <p className="text-sm text-rose-100">{nextError}</p>
+          </AdminCard>
+        ) : filteredNext.length ? (
           <section className="grid gap-3 lg:grid-cols-2">
             {filteredNext.map((row) => (
               <AdminCard key={row.id} className="!p-4">

@@ -1,0 +1,75 @@
+{
+  "table": {
+    "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxt/postgres,authenticated=arwdDxt/postgres,service_role=arwdDxt/postgres}",
+    "rls": true,
+    "owner": "postgres",
+    "identity": "public.results",
+    "policies": [
+      {
+        "name": "results capability write delete",
+        "qual": "studio2_access_allowed('results.verify'::text, edition_id, true)",
+        "check": null,
+        "roles": [
+          "authenticated"
+        ],
+        "command": "d",
+        "permissive": true
+      },
+      {
+        "name": "results capability write insert",
+        "qual": null,
+        "check": "studio2_access_allowed('results.verify'::text, edition_id, true)",
+        "roles": [
+          "authenticated"
+        ],
+        "command": "a",
+        "permissive": true
+      },
+      {
+        "name": "results capability write update",
+        "qual": "studio2_access_allowed('results.verify'::text, edition_id, true)",
+        "check": "studio2_access_allowed('results.verify'::text, edition_id, true)",
+        "roles": [
+          "authenticated"
+        ],
+        "command": "w",
+        "permissive": true
+      },
+      {
+        "name": "solaris consolidated anon read",
+        "qual": "(((show_id IS NOT NULL) AND show_publication_enabled(show_id, 'results'::text)) OR studio2_access_allowed('results.preview'::text, edition_id, false))",
+        "check": null,
+        "roles": [
+          "anon"
+        ],
+        "command": "r",
+        "permissive": true
+      },
+      {
+        "name": "solaris consolidated authenticated read",
+        "qual": "(studio2_access_allowed('results.verify'::text, edition_id, true) OR (((show_id IS NOT NULL) AND show_publication_enabled(show_id, 'results'::text)) OR studio2_access_allowed('results.preview'::text, edition_id, false)))",
+        "check": null,
+        "roles": [
+          "authenticated"
+        ],
+        "command": "r",
+        "permissive": true
+      }
+    ],
+    "force_rls": false
+  },
+  "helper": {
+    "acl": null,
+    "owner": null,
+    "config": null,
+    "exists": false,
+    "definition_md5": null,
+    "security_definer": null
+  },
+  "read_only": "on",
+  "projectRef": "dkxmnvekiopyesuzggeu",
+  "observed_at": "2026-11-14T09:07:27.882769+00:00",
+  "server_version_num": "170011",
+  "applicationRowsRead": false,
+  "rawFunctionBodiesExported": false
+}
