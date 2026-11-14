@@ -1,3 +1,4 @@
+import { getV3PublishedResultSnapshot } from "@/lib/v3-public-result-snapshot.functions";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -7,7 +8,12 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { AppEntitySidebar } from "@/components/app/AppEntitySidebar";
 import { useSolarisApp } from "@/components/app/AppRuntime";
-import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
+import {
+  ArchiveDataError,
+  ArchiveDataLoading,
+  archiveHasError,
+  archiveIsLoading,
+} from "@/components/ArchiveDataState";
 import { DetailedTelevoteBreakdown } from "@/components/DetailedTelevoteBreakdown";
 import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
@@ -31,7 +37,6 @@ import {
   useAllShows,
   useCountries,
   useJuryVotes,
-  useResults,
   useShow,
   useShowVoters,
   useTelevotes,
@@ -40,14 +45,16 @@ import {
 import { useNotificationPreferences } from "@/lib/engagement-data";
 import { entityDisplayMap } from "@/lib/entities";
 import {
-  filterResultsToCompetingParticipants,
   participationStatus,
   participationStatusLabel,
   type ParticipationAwareParticipant,
 } from "@/lib/participation-status";
 import { useFanSession } from "@/lib/prediction-data";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
-import { isPublishedShowInPublishedEdition, publishedShowReadAccess } from "@/lib/v3-public-show-edition";
+import {
+  isPublishedShowInPublishedEdition,
+  publishedShowReadAccess,
+} from "@/lib/v3-public-show-edition";
 import { usePublicShowParticipants } from "@/lib/public-participants";
 import { resolveTheme } from "@/lib/theme";
 import { resolveV3ResultsSpoilerProtection } from "@/lib/v3-results";
@@ -91,7 +98,8 @@ export const Route = createFileRoute("/shows/$showId")({
         { title: "Show — Solaris Song Contest" },
         {
           name: "description",
-          content: "Published Solaris Song Contest show lineup, scoreboard and available voting detail.",
+          content:
+            "Published Solaris Song Contest show lineup, scoreboard and available voting detail.",
         },
       ],
       links: [{ rel: "canonical", href: url }],
@@ -155,9 +163,17 @@ function ShowPage() {
   // Edition contexts. Publication ownership stays in existing server/RLS rules.
   const publishedShowContext = isPublishedShowInPublishedEdition(showQuery.data, editionQuery.data);
   const readAccess = publishedShowReadAccess(showQuery.data, editionQuery.data);
-  const canLoadPublishedResultHistory = publishedShowContext && resolveShowPublication(showQuery.data).results;
+  const canLoadPublishedResultHistory =
+    publishedShowContext && resolveShowPublication(showQuery.data).results;
   const participantsQuery = usePublicShowParticipants(readAccess.showId);
-  const resultsQuery = useResults(readAccess.resultsId);
+  const getPublishedSnapshot = useServerFn(getV3PublishedResultSnapshot);
+  const resultsQuery = useQuery({
+    queryKey: ["public-show-immutable-result", showId],
+    queryFn: () => getPublishedSnapshot({ data: { showId } }),
+    enabled: Boolean(readAccess.resultsId),
+    staleTime: 60_000,
+    retry: false,
+  });
   const juryQuery = useJuryVotes(readAccess.juryVotesId);
   const televoteQuery = useTelevotes(readAccess.televoteVotesId);
   const votersQuery = useShowVoters(readAccess.votersId);
@@ -177,7 +193,26 @@ function ShowPage() {
   const { data: show } = showQuery;
   const { data: showEdition } = editionQuery;
   const { data: participants } = participantsQuery;
-  const { data: archivedResults } = resultsQuery;
+  const frozenResult = resultsQuery.data;
+  // Legacy rendering utilities use neutral arithmetic fields only when their
+  // layer is withheld. Actual public payloads omit private splits; disclosure
+  // and all displayed values below are controlled by the immutable snapshot.
+  const archivedResults = useMemo(
+    () =>
+      (frozenResult?.rows ?? []).map((row) => ({
+        id: `${showId}:${frozenResult!.resultVersion}:${row.contestEntityId ?? row.countryId}`,
+        edition_id: frozenResult!.edition.id,
+        show_id: frozenResult!.show.id,
+        country_id: row.countryId ?? row.contestEntityId!,
+        contest_entity_id: row.contestEntityId,
+        jury_points: row.juryPoints ?? 0,
+        televote_points: row.televotePoints ?? 0,
+        total_points: row.totalPoints,
+        final_rank: row.finalRank,
+        televote_components: row.televoteComponents,
+      })),
+    [frozenResult, showId],
+  );
   const { data: jury } = juryQuery;
   const { data: tele } = televoteQuery;
   const { data: voters } = votersQuery;
@@ -204,8 +239,12 @@ function ShowPage() {
       serverSpoilerFree: serverPreferences.data?.spoiler_free ?? null,
     });
   const voting = useMemo(() => resolveVoting(show?.voting_config), [show?.voting_config]);
-  const showJuryResults = voting.juryEnabled && publication.jury_results;
-  const showTelevoteResults = voting.televoteEnabled && publication.televote_results;
+  const showJuryResults =
+    frozenResult?.availability.jury === true &&
+    frozenResult.rows.every((row) => row.juryPoints != null);
+  const showTelevoteResults =
+    frozenResult?.availability.televote === true &&
+    frozenResult.rows.every((row) => row.televotePoints != null);
   const multiRoundTelevote =
     showTelevoteResults && !voting.juryEnabled && hasMultipleTelevoteRounds(voting);
   const detailedTelevote = televoteDetailQuery.data ?? null;
@@ -214,10 +253,7 @@ function ShowPage() {
   const showIsPublic = publishedShowContext;
   const displayMap = useMemo(() => entityDisplayMap(entities, countries), [entities, countries]);
   const participantRows = (participants ?? []) as ParticipationAwareParticipant[];
-  const scoreableResults = useMemo(
-    () => filterResultsToCompetingParticipants(archivedResults ?? [], participantRows),
-    [archivedResults, participants],
-  );
+  const scoreableResults = useMemo(() => archivedResults, [archivedResults]);
   const participantMap = useMemo(
     () => new Map((participants ?? []).map((participant) => [participant.country_id, participant])),
     [participants],
@@ -243,7 +279,14 @@ function ShowPage() {
     () =>
       show
         ? buildShowStories({
-            show,
+            show: {
+              ...show,
+              voting_config: {
+                ...show.voting_config,
+                juryEnabled: showJuryResults,
+                televoteEnabled: showTelevoteResults,
+              },
+            },
             results: scoreableResults,
             jury: jury ?? [],
             labels: new Map([...displayMap.entries()].map(([id, display]) => [id, display.name])),
@@ -251,7 +294,16 @@ function ShowPage() {
             allShows: allShows ?? [],
           })
         : [],
-    [show, scoreableResults, jury, displayMap, allResults, allShows],
+    [
+      show,
+      scoreableResults,
+      jury,
+      displayMap,
+      allResults,
+      allShows,
+      showJuryResults,
+      showTelevoteResults,
+    ],
   );
 
   const standings = useMemo<Standing[]>(
@@ -276,7 +328,8 @@ function ShowPage() {
     return voting.televoteRounds.map((round) => ({
       round,
       total: scoreableResults.reduce((sum, result) => {
-        const raw = (result as typeof result & { televote_components?: unknown }).televote_components;
+        const raw = (result as typeof result & { televote_components?: unknown })
+          .televote_components;
         const component = parseTelevoteComponents(raw).find((item) => item.round_id === round.id);
         return sum + (component?.points ?? 0);
       }, 0),
@@ -398,15 +451,40 @@ function ShowPage() {
     if (!valid) setTab(tabOptions[0].value);
   }, [tab, tabOptions]);
 
-  const archiveQueries = [showQuery, editionQuery, participantsQuery, resultsQuery, juryQuery, televoteQuery, votersQuery, countriesQuery, allResultsQuery, allShowsQuery, themesQuery, entitiesQuery];
-  if (archiveIsLoading(...archiveQueries)) return <AppShell><ArchiveDataLoading label="Loading show…" /></AppShell>;
-  if (archiveHasError(...archiveQueries)) return <AppShell><ArchiveDataError /></AppShell>;
+  const archiveQueries = [
+    showQuery,
+    editionQuery,
+    participantsQuery,
+    resultsQuery,
+    juryQuery,
+    televoteQuery,
+    votersQuery,
+    countriesQuery,
+    allResultsQuery,
+    allShowsQuery,
+    themesQuery,
+    entitiesQuery,
+  ];
+  if (archiveIsLoading(...archiveQueries))
+    return (
+      <AppShell>
+        <ArchiveDataLoading label="Loading show…" />
+      </AppShell>
+    );
+  if (archiveHasError(...archiveQueries))
+    return (
+      <AppShell>
+        <ArchiveDataError />
+      </AppShell>
+    );
 
   if (!show || !showEdition) {
     return (
       <AppShell>
         <PageHeader title="Show unavailable" />
-        <Link to="/editions" className="text-sm text-primary">← Editions</Link>
+        <Link to="/editions" className="text-sm text-primary">
+          ← Editions
+        </Link>
       </AppShell>
     );
   }
@@ -420,7 +498,9 @@ function ShowPage() {
               Solaris Song Contest
             </p>
             <h1 className="mt-2 font-display text-3xl font-bold">Show unavailable</h1>
-            <p className="mt-3 text-sm text-muted-foreground">This show is not available publicly yet.</p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              This show is not available publicly yet.
+            </p>
             <Link to="/editions" className="mt-5 inline-flex text-sm font-semibold text-primary">
               ← Back to editions
             </Link>
@@ -445,9 +525,7 @@ function ShowPage() {
     ? (standings.find((standing) => standing.rank === 1) ?? standings[0] ?? null)
     : null;
   const winner = winnerStanding ? (displayMap.get(winnerStanding.countryId) ?? null) : null;
-  const juryTotal = showJuryResults
-    ? standings.reduce((total, row) => total + row.jury, 0)
-    : null;
+  const juryTotal = showJuryResults ? standings.reduce((total, row) => total + row.jury, 0) : null;
   const televoteTotal = showTelevoteResults
     ? standings.reduce((total, row) => total + row.televote, 0)
     : null;
@@ -498,282 +576,290 @@ function ShowPage() {
           }
         />
         <div className="solaris-app-entity-content">
-      <PageHeader
-        eyebrow={`${editionLabel(showEdition)} · ${show.kind.replace("-", " ")}`}
-        title={show.name}
-        description={
-          winner && winnerStanding && publication.results
-            ? `${winner.name} won with ${winnerStanding.total} points.`
-            : publication.participants
-              ? "Entries and show information."
-              : "Published show information."
-        }
-        actions={
-          <div className="flex flex-wrap justify-end gap-2">
-            <FollowButton entityType="show" entityId={show.id} label={show.name} />
-            <Link
-              to="/editions/$slug"
-              params={{ slug: showEdition.slug }}
-              className="rounded-xl border border-border px-4 py-2.5 text-sm"
-            >
-              ← {editionLabel(showEdition)}
-            </Link>
-          </div>
-        }
-      />
-
-      <Panel className="mb-5">
-        <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
-          {publication.participants && <StatTile label="Entries" value={participants?.length ?? 0} />}
-          {publication.results && <StatTile label="Results" value={standings.length} />}
-          {showJuryResults && <StatTile label="Jury points" value={juryTotal ?? 0} />}
-          {multiRoundTelevote
-            ? televoteRoundTotals.map(({ round, total }) => (
-                <StatTile key={round.id} label={`${round.label} · ${round.weight}%`} value={total} />
-              ))
-            : showTelevoteResults && <StatTile label="Televote points" value={televoteTotal ?? 0} />}
-        </div>
-      </Panel>
-
-      {publication.results && !standings.length && (
-        <div className="mb-5">
-          <PublicDataState
-            kind="empty"
-            title="Published results are not available yet"
-            description="The results layer is public, but the archive does not currently contain a published ranking for this show."
-            compact
+          <PageHeader
+            eyebrow={`${editionLabel(showEdition)} · ${show.kind.replace("-", " ")}`}
+            title={show.name}
+            description={
+              winner && winnerStanding && publication.results
+                ? `${winner.name} won with ${winnerStanding.total} points.`
+                : publication.participants
+                  ? "Entries and show information."
+                  : "Published show information."
+            }
+            actions={
+              <div className="flex flex-wrap justify-end gap-2">
+                <FollowButton entityType="show" entityId={show.id} label={show.name} />
+                <Link
+                  to="/editions/$slug"
+                  params={{ slug: showEdition.slug }}
+                  className="rounded-xl border border-border px-4 py-2.5 text-sm"
+                >
+                  ← {editionLabel(showEdition)}
+                </Link>
+              </div>
+            }
           />
-        </div>
-      )}
 
-      {!!tabOptions.length && (
-        <div className="mb-5 space-y-3">
-          {(publication.results || showJuryResults || showTelevoteResults) && (
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                Result views
-              </p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                {resultViewsDescription}
-              </p>
+          <Panel className="mb-5">
+            <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+              {publication.participants && (
+                <StatTile label="Entries" value={participants?.length ?? 0} />
+              )}
+              {publication.results && <StatTile label="Results" value={standings.length} />}
+              {showJuryResults && <StatTile label="Jury points" value={juryTotal ?? 0} />}
+              {multiRoundTelevote
+                ? televoteRoundTotals.map(({ round, total }) => (
+                    <StatTile
+                      key={round.id}
+                      label={`${round.label} · ${round.weight}%`}
+                      value={total}
+                    />
+                  ))
+                : showTelevoteResults && (
+                    <StatTile label="Televote points" value={televoteTotal ?? 0} />
+                  )}
+            </div>
+          </Panel>
+
+          {publication.results && !standings.length && (
+            <div className="mb-5">
+              <PublicDataState
+                kind="empty"
+                title="Published results are not available yet"
+                description="The results layer is public, but the archive does not currently contain a published ranking for this show."
+                compact
+              />
             </div>
           )}
-          <ResponsiveTabs value={tab} options={tabOptions} onChange={setTab} label="Show view" />
-        </div>
-      )}
 
-      {tab === "stories" && publication.results && (
-        <Panel
-          title="Story of the result"
-          description="Highlights and unusual patterns found in the published scoreboard."
-        >
-          {stories.length ? (
-            <StoryCards stories={stories} selectedStory={search.story} />
-          ) : (
-            <PublicDataState
-              kind="empty"
-              title="No result stories yet"
-              description="There is not enough published result data to build a reliable story for this show."
-              compact
-            />
+          {!!tabOptions.length && (
+            <div className="mb-5 space-y-3">
+              {(publication.results || showJuryResults || showTelevoteResults) && (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Result views
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    {resultViewsDescription}
+                  </p>
+                </div>
+              )}
+              <ResponsiveTabs
+                value={tab}
+                options={tabOptions}
+                onChange={setTab}
+                label="Show view"
+              />
+            </div>
           )}
-        </Panel>
-      )}
 
-      {tab === "scoreboard" && publication.results && (
-        <>
-          <Panel
-            className="mb-4"
-            title="Overall results"
-            description={overallDescription}
-          >
-            <p className="text-xs text-muted-foreground">{overallHelp}</p>
-          </Panel>
-          {standings.length ? (
-            <ScoreboardStage
-              theme={publicTheme}
+          {tab === "stories" && publication.results && (
+            <Panel
+              title="Story of the result"
+              description="Highlights and unusual patterns found in the published scoreboard."
+            >
+              {stories.length ? (
+                <StoryCards stories={stories} selectedStory={search.story} />
+              ) : (
+                <PublicDataState
+                  kind="empty"
+                  title="No result stories yet"
+                  description="There is not enough published result data to build a reliable story for this show."
+                  compact
+                />
+              )}
+            </Panel>
+          )}
+
+          {tab === "scoreboard" && publication.results && (
+            <>
+              <Panel className="mb-4" title="Overall results" description={overallDescription}>
+                <p className="text-xs text-muted-foreground">{overallHelp}</p>
+              </Panel>
+              <ScoreboardStage
+                theme={publicTheme}
+                standings={standings}
+                countries={displayMap}
+                participants={participantMap}
+                qualifiers={publication.qualifiers ? show.qualifier_count : null}
+              />
+            </>
+          )}
+
+          {tab === "points" &&
+            publication.detailed_voting &&
+            (showJuryResults || showTelevoteResults) && (
+              <RadialPointsView
+                participants={participants ?? []}
+                countries={displayMap}
+                jury={showJuryResults ? (jury ?? []) : []}
+                televote={showTelevoteResults ? (tele ?? []) : []}
+                voters={voters}
+              />
+            )}
+
+          {tab === "televote-detail" && hasDetailedTelevote && detailedTelevote && (
+            <DetailedTelevoteBreakdown rounds={detailedTelevote.rounds} countries={displayMap} />
+          )}
+
+          {tab === "stats" && publication.results && standings.length > 0 && (
+            <ShowVotingStats
               standings={standings}
               countries={displayMap}
-              participants={participantMap}
-              qualifiers={publication.qualifiers ? show.qualifier_count : null}
-            />
-          ) : (
-            <PublicDataState
-              kind="empty"
-              title="No published ranking yet"
-              description="The overall result will appear here when a published ranking is available."
-              compact
+              jury={showJuryResults ? (jury ?? []) : []}
+              topJuryPoints={voting.juryPoints[0] ?? 12}
+              showJury={showJuryResults}
+              showTelevote={showTelevoteResults}
             />
           )}
-        </>
-      )}
 
-      {tab === "points" && publication.detailed_voting && (showJuryResults || showTelevoteResults) && (
-        <RadialPointsView
-          participants={participants ?? []}
-          countries={displayMap}
-          jury={showJuryResults ? (jury ?? []) : []}
-          televote={showTelevoteResults ? (tele ?? []) : []}
-          voters={voters}
-        />
-      )}
+          {tab === "split" &&
+            (showJuryResults || showTelevoteResults) &&
+            (multiRoundTelevote ? (
+              <TelevoteRoundsComparison
+                results={scoreableResults}
+                rounds={voting.televoteRounds}
+                countries={displayMap}
+              />
+            ) : showJuryResults && showTelevoteResults ? (
+              <JuryTelevoteComparison standings={standings} countries={displayMap} />
+            ) : (
+              <Panel title={showJuryResults ? "Jury results" : "Televote results"}>
+                <div className="divide-y divide-border/60">
+                  {standings.map((standing) => {
+                    const country = displayMap.get(standing.countryId);
+                    if (!country) return null;
 
-      {tab === "televote-detail" && hasDetailedTelevote && detailedTelevote && (
-        <DetailedTelevoteBreakdown
-          rounds={detailedTelevote.rounds}
-          countries={displayMap}
-        />
-      )}
+                    const points = showJuryResults ? standing.jury : standing.televote;
+                    return (
+                      <div
+                        key={standing.countryId}
+                        className="grid grid-cols-[42px_1fr_auto] items-center gap-3 py-3"
+                      >
+                        <FlagChip
+                          code={country.short_code}
+                          color={country.accent_color}
+                          image={country.flag_image}
+                          size="sm"
+                        />
+                        <span className="truncate text-sm font-semibold">{country.name}</span>
+                        <span className="numeric text-sm font-bold">{points}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Panel>
+            ))}
 
-      {tab === "stats" && publication.results && standings.length > 0 && (
-        <ShowVotingStats
-          standings={standings}
-          countries={displayMap}
-          jury={showJuryResults ? (jury ?? []) : []}
-          topJuryPoints={voting.juryPoints[0] ?? 12}
-          showJury={showJuryResults}
-          showTelevote={showTelevoteResults}
-        />
-      )}
+          {tab === "matrix" && publication.detailed_voting && showJuryResults && (
+            <Panel
+              title="Full scorechart"
+              description="Each row is an entry receiving points. Each column is a jury giving points. Tap or hover cells to inspect the vote."
+            >
+              <VotingMatrix
+                votes={jury ?? []}
+                countries={displayMap}
+                order={(participants ?? []).map((participant) => participant.country_id)}
+                topPoint={voting.juryPoints[0] ?? 12}
+                voters={voters}
+              />
+            </Panel>
+          )}
 
-      {tab === "split" && (showJuryResults || showTelevoteResults) && (
-        multiRoundTelevote ? (
-          <TelevoteRoundsComparison
-            results={scoreableResults}
-            rounds={voting.televoteRounds}
-            countries={displayMap}
-          />
-        ) : showJuryResults && showTelevoteResults ? (
-          <JuryTelevoteComparison standings={standings} countries={displayMap} />
-        ) : (
-          <Panel title={showJuryResults ? "Jury results" : "Televote results"}>
-            <div className="divide-y divide-border/60">
-              {standings.map((standing) => {
-                const country = displayMap.get(standing.countryId);
-                if (!country) return null;
+          {tab === "lineup" && publication.participants && (
+            <Panel
+              title={publication.running_order ? "Running order" : "Alphabetical line-up"}
+              description={
+                publication.running_order
+                  ? "Published performance order."
+                  : "The running order has not been published yet."
+              }
+            >
+              <div className="divide-y divide-border/60">
+                {publicLineupParticipants.map((participant) => {
+                  const country = displayMap.get(participant.country_id);
+                  if (!country) return null;
+                  const status = participationStatus(participant);
+                  const inactive = status !== "confirmed";
 
-                const points = showJuryResults ? standing.jury : standing.televote;
-                return (
-                  <div
-                    key={standing.countryId}
-                    className="grid grid-cols-[42px_1fr_auto] items-center gap-3 py-3"
-                  >
-                    <FlagChip
-                      code={country.short_code}
-                      color={country.accent_color}
-                      image={country.flag_image}
-                      size="sm"
-                    />
-                    <span className="truncate text-sm font-semibold">{country.name}</span>
-                    <span className="numeric text-sm font-bold">{points}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </Panel>
-        )
-      )}
+                  return (
+                    <div
+                      key={participant.id}
+                      className={
+                        publication.running_order
+                          ? "grid grid-cols-[40px_42px_1fr_auto] items-center gap-3 py-3 first:pt-0 last:pb-0"
+                          : "grid grid-cols-[42px_1fr_auto] items-center gap-3 py-3 first:pt-0 last:pb-0"
+                      }
+                    >
+                      {publication.running_order && (
+                        <span className="numeric text-sm text-muted-foreground">
+                          {participant.running_order ?? "—"}
+                        </span>
+                      )}
+                      <FlagChip
+                        code={country.short_code}
+                        color={country.accent_color}
+                        image={country.flag_image}
+                        size="sm"
+                      />
+                      <div className="min-w-0">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
+                          <p className="truncate text-sm font-medium">{country.name}</p>
+                          {inactive && (
+                            <span
+                              className={
+                                status === "disqualified"
+                                  ? "rounded-full border border-rose-300/20 bg-rose-300/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-rose-100"
+                                  : "rounded-full border border-amber-200/20 bg-amber-200/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-amber-100"
+                              }
+                            >
+                              {participationStatusLabel(status)}
+                            </span>
+                          )}
+                        </div>
+                        {(publication.artists || publication.songs) && (
+                          <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                            {[
+                              publication.artists ? participant.artist : null,
+                              publication.songs ? participant.song : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ") || "Entry details not announced"}
+                          </p>
+                        )}
+                        {publication.semi_split && participant.semi_final && (
+                          <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                            {participant.semi_final}
+                          </p>
+                        )}
+                      </div>
 
-      {tab === "matrix" && publication.detailed_voting && showJuryResults && (
-        <Panel
-          title="Full scorechart"
-          description="Each row is an entry receiving points. Each column is a jury giving points. Tap or hover cells to inspect the vote."
-        >
-          <VotingMatrix
-            votes={jury ?? []}
-            countries={displayMap}
-            order={(participants ?? []).map((participant) => participant.country_id)}
-            topPoint={voting.juryPoints[0] ?? 12}
-            voters={voters}
-          />
-        </Panel>
-      )}
-
-      {tab === "lineup" && publication.participants && (
-        <Panel
-          title={publication.running_order ? "Running order" : "Alphabetical line-up"}
-          description={publication.running_order ? "Published performance order." : "The running order has not been published yet."}
-        >
-          <div className="divide-y divide-border/60">
-            {publicLineupParticipants.map((participant) => {
-              const country = displayMap.get(participant.country_id);
-              if (!country) return null;
-              const status = participationStatus(participant);
-              const inactive = status !== "confirmed";
-
-              return (
-                <div
-                  key={participant.id}
-                  className={publication.running_order
-                    ? "grid grid-cols-[40px_42px_1fr_auto] items-center gap-3 py-3 first:pt-0 last:pb-0"
-                    : "grid grid-cols-[42px_1fr_auto] items-center gap-3 py-3 first:pt-0 last:pb-0"}
-                >
-                  {publication.running_order && (
-                    <span className="numeric text-sm text-muted-foreground">
-                      {participant.running_order ?? "—"}
-                    </span>
-                  )}
-                  <FlagChip
-                    code={country.short_code}
-                    color={country.accent_color}
-                    image={country.flag_image}
-                    size="sm"
-                  />
-                  <div className="min-w-0">
-                    <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-medium">{country.name}</p>
-                      {inactive && (
-                        <span className={status === "disqualified"
-                          ? "rounded-full border border-rose-300/20 bg-rose-300/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-rose-100"
-                          : "rounded-full border border-amber-200/20 bg-amber-200/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-amber-100"}
+                      {!inactive && publication.qualifiers && participant.qualified != null && (
+                        <span
+                          className={
+                            participant.qualified
+                              ? "rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold uppercase text-primary"
+                              : "rounded-full bg-surface px-2 py-1 text-[10px] font-semibold uppercase text-muted-foreground"
+                          }
                         >
-                          {participationStatusLabel(status)}
+                          {participant.qualified ? "Qualified" : "Not qualified"}
                         </span>
                       )}
                     </div>
-                    {(publication.artists || publication.songs) && (
-                      <p className="mt-1 truncate text-[11px] text-muted-foreground">
-                        {[
-                          publication.artists ? participant.artist : null,
-                          publication.songs ? participant.song : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ") || "Entry details not announced"}
-                      </p>
-                    )}
-                    {publication.semi_split && participant.semi_final && (
-                      <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                        {participant.semi_final}
-                      </p>
-                    )}
-                  </div>
+                  );
+                })}
 
-                  {!inactive && publication.qualifiers && participant.qualified != null && (
-                    <span
-                      className={
-                        participant.qualified
-                          ? "rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold uppercase text-primary"
-                          : "rounded-full bg-surface px-2 py-1 text-[10px] font-semibold uppercase text-muted-foreground"
-                      }
-                    >
-                      {participant.qualified ? "Qualified" : "Not qualified"}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-
-            {!publicLineupParticipants.length && (
-              <PublicDataState
-                kind="empty"
-                title="No entries are public yet"
-                description="Published entries will appear here when this show's participant layer is available."
-                compact
-              />
-            )}
-          </div>
-        </Panel>
-      )}
+                {!publicLineupParticipants.length && (
+                  <PublicDataState
+                    kind="empty"
+                    title="No entries are public yet"
+                    description="Published entries will appear here when this show's participant layer is available."
+                    compact
+                  />
+                )}
+              </div>
+            </Panel>
+          )}
         </div>
       </div>
     </AppShell>
