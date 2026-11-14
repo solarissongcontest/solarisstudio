@@ -14,6 +14,10 @@ on:
       - "scripts/v3-atomic-calculation-actor.test.mjs"
       - "scripts/stage-v3-public-snapshot-recovery*"
       - "scripts/stage-v3-auth-uid-authority-local*"
+      - "scripts/stage-v3-hosted-api-roles-local*"
+      - ".github/tests/v3-hosted-api-role-runtime.sql"
+      - ".github/tests/v3-voting-config-authority.sql"
+      - "docs/v3/recovery-candidates/evidence/api-role-authority-observed-2026-11-14.json"
       - "scripts/stage-v3-atomic-calculation-recovery*"
       - "docs/v3/recovery-candidates/evidence/atomic-after-ordered-recovery-local-reference.json"
       - "docs/v3/recovery-candidates/evidence/auth-uid-authority-observed-2026-11-13.json"
@@ -258,7 +262,7 @@ jobs:
       - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
         run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
       - name: Verify bounded catalog export and drift refusals
-        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs scripts/stage-v3-public-snapshot-recovery.test.mjs scripts/stage-v3-auth-uid-authority-local.test.mjs scripts/stage-v3-atomic-calculation-recovery.test.mjs
+        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs scripts/stage-v3-public-snapshot-recovery.test.mjs scripts/stage-v3-auth-uid-authority-local.test.mjs scripts/stage-v3-atomic-calculation-recovery.test.mjs scripts/stage-v3-hosted-api-roles-local.test.mjs
       - name: Test authorization dependency reconstruction and incomplete-manifest refusal
         run: node --test scripts/v3-s13-s14-authorization-dependencies.test.mjs
       - name: Assert all-hosted catalog digests and incomplete-fixture rejection (offline only)
@@ -336,6 +340,8 @@ jobs:
           sql -f - < scripts/v3-s02-hosted-nine-parent-catalog-local.sql > /tmp/s06-parent-catalog.json
           node scripts/verify-v3-s02-parent-catalog.mjs /tmp/s06-parent-catalog.json s06-parent-catalog-proof.json
           sql -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s14-56-table-grants-local.sql
+          node scripts/stage-v3-hosted-api-roles-local.mjs > /tmp/hosted-api-roles-local.sql
+          sql -f - < /tmp/hosted-api-roles-local.sql
           # The original S02 comparison is strictly 56 IDs. Keep that
           # comparator UNCHANGED; explicitly prove the original 44 additions and
           # another 50 distinct new identities, then scope its original JSON input.
@@ -759,6 +765,8 @@ jobs:
           grep -Fq 'S07 source truth already or partially installed' /tmp/s07-ordered-duplicate.log
           [[ "$(archive_schema_digest)" == "$ordered_after" ]] || exit 1
           echo "PASS: ordered S13 -> Archive -> canonical S07; actual ACL denial, interruption rollback and duplicate refusal"
+          sql -f - < .github/tests/v3-hosted-api-role-runtime.sql
+          sql -f - < .github/tests/v3-ordered-televote-recovery.sql
           # Correct the original imported auth function owner/ACL from observed metadata.
           node scripts/stage-v3-auth-uid-authority-local.mjs > /tmp/auth-uid-authority-local.sql
           node --input-type=module <<'NODE'
@@ -834,6 +842,7 @@ jobs:
           [[ "$(sql -c "select ((select relacl::text from pg_class where oid='public.studio2_result_operations'::regclass)='{postgres=arwdDxtm/postgres,service_role=arwdDxt/postgres}' and (select relacl::text from pg_class where oid='public.studio2_show_publication_controls'::regclass)='{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}')::text")" == true ]] || { echo "::error::Hosted-observed snapshot table ACL reconstruction drift"; exit 1; }
           # Preserve the old immutable evidence before installing active capture.
           sql -v snapshot_before=true -f - < .github/tests/v3-public-snapshot-recovery.sql
+          sql -f - < .github/tests/v3-voting-config-authority.sql
           node scripts/stage-v3-public-snapshot-recovery.mjs > /tmp/public-snapshot-recovery.sql
           node --input-type=module <<'NODE'
           import fs from 'node:fs';

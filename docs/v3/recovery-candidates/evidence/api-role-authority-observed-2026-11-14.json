@@ -1,0 +1,74 @@
+{
+  "kind": "owner-authorized-read-only-catalog-observation",
+  "projectRef": "dkxmnvekiopyesuzggeu",
+  "statementTimeout": "10s",
+  "lockTimeout": "2s",
+  "transaction": "READ ONLY; ROLLBACK",
+  "applicationRowsRead": false,
+  "roles": [
+    {
+      "name": "anon",
+      "login": false,
+      "inherit": true,
+      "createdb": false,
+      "bypassrls": false,
+      "superuser": false,
+      "createrole": false,
+      "replication": false
+    },
+    {
+      "name": "authenticated",
+      "login": false,
+      "inherit": true,
+      "createdb": false,
+      "bypassrls": false,
+      "superuser": false,
+      "createrole": false,
+      "replication": false
+    },
+    {
+      "name": "dashboard_user",
+      "login": false,
+      "inherit": true,
+      "createdb": true,
+      "bypassrls": false,
+      "superuser": false,
+      "createrole": true,
+      "replication": true
+    },
+    {
+      "name": "postgres",
+      "login": true,
+      "inherit": true,
+      "createdb": true,
+      "bypassrls": true,
+      "superuser": false,
+      "createrole": true,
+      "replication": true
+    },
+    {
+      "name": "service_role",
+      "login": false,
+      "inherit": true,
+      "createdb": false,
+      "bypassrls": true,
+      "superuser": false,
+      "createrole": false,
+      "replication": false
+    },
+    {
+      "name": "supabase_auth_admin",
+      "login": true,
+      "inherit": false,
+      "createdb": false,
+      "bypassrls": false,
+      "superuser": false,
+      "createrole": true,
+      "replication": false
+    }
+  ],
+  "read_only": "on",
+  "memberships": [],
+  "observed_at": "2026-11-14T07:57:03.251656+00:00",
+  "server_version_num": "170011"
+}

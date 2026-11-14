@@ -59,7 +59,7 @@ const KNOWN_DIRECT_WRITE_DEBT: Readonly<Record<string, Readonly<Record<string, R
     shows: { update: 2, insert: 1, delete: 1 },
   },
   "src/routes/_authenticated/admin/voting-system/$slug.tsx": {
-    results: { update: 1 }, shows: { update: 1 },
+    shows: { update: 1 },
   },
 };
 
