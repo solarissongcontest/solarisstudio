@@ -1,3 +1,4 @@
+import { requireCombinedTelevoteWriteApproval } from "@/integrations/televoting/combined-write-gate.server";
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 import {
@@ -254,6 +255,7 @@ export async function getMergedCombinedAggregationServer(id: string) {
 }
 
 export async function createMergedCombinedAggregationServer(data: { name: string; editionId?: string | null; totalPoints: number; rankExponent: number }) {
+  requireCombinedTelevoteWriteApproval();
   const actor = await requireMergedTelevotingAdminServer();
   const { data: inserted, error } = await televotingAdmin
     .from("televote_aggregations")
@@ -276,6 +278,7 @@ export async function createMergedCombinedAggregationServer(data: { name: string
 }
 
 export async function updateMergedCombinedAggregationServer(data: { id: string; name: string; totalPoints: number; rankExponent: number }) {
+  requireCombinedTelevoteWriteApproval();
   const actor = await requireMergedTelevotingAdminServer();
   const { error } = await televotingAdmin
     .from("televote_aggregations")
@@ -287,6 +290,7 @@ export async function updateMergedCombinedAggregationServer(data: { id: string; 
 }
 
 export async function setMergedCombinedParticipantsServer(data: { id: string; participants: string[] }) {
+  requireCombinedTelevoteWriteApproval();
   const actor = await requireMergedTelevotingAdminServer();
   await televotingAdmin.from("televote_aggregation_participants").delete().eq("aggregation_id", data.id);
   if (data.participants.length) {
@@ -313,6 +317,7 @@ export async function upsertMergedCombinedSourceServer(data: {
   correctionScope?: CorrectionScope;
   correctionTargetSourceId?: string | null;
 }) {
+  requireCombinedTelevoteWriteApproval();
   const actor = await requireMergedTelevotingAdminServer();
   const payload = {
     aggregation_id: data.aggregationId,
@@ -342,6 +347,7 @@ export async function upsertMergedCombinedSourceServer(data: {
 }
 
 export async function deleteMergedCombinedSourceServer(data: { aggregationId: string; sourceId: string }) {
+  requireCombinedTelevoteWriteApproval();
   const actor = await requireMergedTelevotingAdminServer();
   await televotingAdmin.from("external_score_entries").delete().eq("source_id", data.sourceId);
   const { error } = await televotingAdmin.from("televote_aggregation_sources").delete().eq("id", data.sourceId).eq("aggregation_id", data.aggregationId);
@@ -352,6 +358,7 @@ export async function deleteMergedCombinedSourceServer(data: { aggregationId: st
 }
 
 export async function saveMergedCombinedSourceValuesServer(data: { aggregationId: string; sourceId: string; values: Record<string, number> }) {
+  requireCombinedTelevoteWriteApproval();
   const actor = await requireMergedTelevotingAdminServer();
   await televotingAdmin.from("external_score_entries").delete().eq("source_id", data.sourceId);
   const rows = Object.entries(data.values)
@@ -367,6 +374,7 @@ export async function saveMergedCombinedSourceValuesServer(data: { aggregationId
 }
 
 export async function recalculateMergedCombinedServer(id: string) {
+  requireCombinedTelevoteWriteApproval();
   const actor = await requireMergedTelevotingAdminServer();
   const aggregation = await loadAggregation(id);
   const participants = await loadParticipants(id);
@@ -478,6 +486,7 @@ export async function recalculateMergedCombinedServer(id: string) {
 }
 
 export async function setMergedCombinedStatusServer(data: { id: string; status: "draft" | "calculated" | "locked" | "published" }) {
+  requireCombinedTelevoteWriteApproval();
   const actor = await requireMergedTelevotingAdminServer();
   const aggregation = await loadAggregation(data.id);
   if ((data.status === "locked" || data.status === "published") && (aggregation.results_outdated || !aggregation.calculation_version)) {
@@ -493,6 +502,7 @@ export async function setMergedCombinedStatusServer(data: { id: string; status: 
 }
 
 export async function deleteMergedCombinedAggregationServer(id: string) {
+  requireCombinedTelevoteWriteApproval();
   const actor = await requireMergedTelevotingAdminServer();
   const aggregation = await loadAggregation(id);
   if (aggregation.status === "published") throw new Error("Published combined results cannot be deleted");
