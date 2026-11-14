@@ -1,0 +1,42 @@
+name: V3 Results reviewed-input CAS local rehearsal
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/migrations/*v3_results_reviewed_input_cas.sql"
+      - "scripts/rehearse-v3-results-reviewed-input-cas.sh"
+      - "src/lib/v3-results-reviewed-input-cas.contract.test.ts"
+      - ".github/workflows/v3-results-reviewed-input-cas-rehearsal.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-results-review-basis-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-review-basis:
+    name: Local reviewed-input concurrency and release boundary
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact candidate commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Rebuild clean isolated Supabase and exercise Results authority
+        run: |
+          set -euo pipefail
+          supabase start
+          supabase db reset --local --no-seed
+          bash scripts/rehearse-v3-results-reviewed-input-cas.sh
+      - name: Stop isolated Supabase
+        if: always()
+        run: supabase stop --no-backup || true

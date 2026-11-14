@@ -33,13 +33,15 @@ import {
 import { editionLabel as formatEditionLabel, useEditions } from '@/lib/data';
 import {
   availableStudio2ResultActions,
-  executeStudio2ResultOperation,
+  executeReviewedStudio2ResultOperation,
+  loadStudio2ResultOperationReview,
   loadStudio2ResultsOperations,
   resultActionLabel,
   resultLifecycleLabel,
   resultLifecycleTone,
   summarizeStudio2ResultsOperations,
   type Studio2ResultAction,
+  type Studio2ResultOperationReview,
   type Studio2ResultOperationRow,
 } from '@/lib/studio2-results-operations';
 
@@ -58,6 +60,8 @@ type PendingOperation = {
   editionId: string;
   editionLabel: string;
   reviewFingerprint: string;
+  review: Studio2ResultOperationReview;
+  submittedReason: string | null;
 };
 
 type ResultOperationCommit = {
@@ -90,6 +94,7 @@ function ResultsOperationsPage() {
   const [pending, setPending] = useState<PendingOperation | null>(null);
   const [reason, setReason] = useState('');
   const [recovery, setRecovery] = useState<SolarisV6OperationRecovery | null>(null);
+  const [preflightLoading, setPreflightLoading] = useState(false);
 
   const editions = editionsQuery.data ?? [];
   // Results is edition-scoped. Never silently substitute another edition just
@@ -147,14 +152,31 @@ function ResultsOperationsPage() {
             'Results state changed while this review was open. Nothing was applied. Review the current canonical state before creating another operation.',
           );
         }
+        const liveReview = await loadStudio2ResultOperationReview({
+          showId: operation.row.showId,
+          action: operation.action,
+        });
+        if (liveReview.showId !== operation.row.showId
+          || liveReview.editionId !== operation.editionId
+          || liveReview.actorUserId !== operation.review.actorUserId
+          || liveReview.action !== operation.action
+          || liveReview.calculationVersion !== operation.review.calculationVersion
+          || liveReview.reviewBasisVersion !== operation.review.reviewBasisVersion
+          || liveReview.stateVersion !== operation.review.stateVersion
+          || JSON.stringify(liveReview.preconditions) !== JSON.stringify(operation.review.preconditions)) {
+          throw staleResultReview('Results inputs or operator changed while this review was open. Nothing was applied. Open a new review.');
+        }
       }
 
-      return executeStudio2ResultOperation({
+      return executeReviewedStudio2ResultOperation({
         showId: operation.row.showId,
         action: operation.action,
-        reason,
+        reason: operation.submittedReason ?? reason.trim(),
         executionId: operation.executionId,
-        expectedVersion: operation.row.calculationVersion,
+        expectedVersion: operation.review.calculationVersion,
+        expectedReviewBasisVersion: operation.review.reviewBasisVersion,
+        expectedEditionId: operation.review.editionId,
+        expectedActorUserId: operation.review.actorUserId,
       });
     },
     onSuccess: async (execution) => {
@@ -186,31 +208,56 @@ function ResultsOperationsPage() {
     },
   });
 
-  function requestOperation(row: Studio2ResultOperationRow, action: Studio2ResultAction) {
-    if (!resolvedEditionId || !organizerEditionLabel) {
-      toast.error('Select an edition before opening a result operation.');
+  async function requestOperation(row: Studio2ResultOperationRow, action: Studio2ResultAction) {
+    if (!resolvedEditionId || !organizerEditionLabel || preflightLoading || mutation.isPending) {
+      if (!resolvedEditionId) toast.error('Select an edition before opening a result operation.');
       return;
     }
-    setReason('');
+    const selectedEditionId = resolvedEditionId;
+    setPreflightLoading(true);
     setRecovery(null);
-    setPending({
-      row,
-      action,
-      executionId: crypto.randomUUID(),
-      editionId: resolvedEditionId,
-      editionLabel: organizerEditionLabel,
-      reviewFingerprint: resultOperationReviewFingerprint(row),
-    });
+    setPending(null);
+    try {
+      const review = await loadStudio2ResultOperationReview({ showId: row.showId, action });
+      if (review.showId !== row.showId
+        || review.editionId !== selectedEditionId
+        || review.action !== action
+        || review.actorUserId === null
+        || review.calculationVersion !== row.calculationVersion
+        || JSON.stringify(review.preconditions) !== JSON.stringify(row.preconditions)
+        || !availableStudio2ResultActions(row).includes(action)) {
+        throw staleResultReview('Results changed before the review opened. Refresh canonical state and try again.');
+      }
+      setReason('');
+      setPending({
+        row,
+        action,
+        executionId: crypto.randomUUID(),
+        editionId: selectedEditionId,
+        editionLabel: organizerEditionLabel,
+        reviewFingerprint: resultOperationReviewFingerprint(row),
+        review,
+        submittedReason: null,
+      });
+    } catch (error) {
+      toast.error(errorText(error));
+      await queryClient.invalidateQueries({ queryKey: ['studio2-results-operations', selectedEditionId] });
+    } finally {
+      setPreflightLoading(false);
+    }
   }
 
   async function confirmOperation() {
     if (!pending) return;
-    if (reason.trim().length < 5) {
+    const committedReason = pending.submittedReason ?? reason.trim();
+    if (committedReason.length < 5) {
       toast.error('Add an audit reason of at least 5 characters.');
       return;
     }
+    const frozenOperation = { ...pending, submittedReason: committedReason };
+    setPending(frozenOperation);
     await mutation.mutateAsync({
-      operation: pending,
+      operation: frozenOperation,
       sameIdentityRetry: recovery?.allowSameIdentityRetry === true,
     });
   }
@@ -287,7 +334,7 @@ function ResultsOperationsPage() {
                     key={row.showId}
                     row={row}
                     editionSlug={edition!.slug}
-                    busy={mutation.isPending}
+                    busy={mutation.isPending || preflightLoading}
                     onAction={requestOperation}
                   />
                 ))}
@@ -343,6 +390,7 @@ function ResultsOperationsPage() {
               ) : null}
               <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3 text-xs leading-5 text-muted-foreground">
                 <p><strong className="text-foreground">Current version:</strong> {pending.row.calculationVersion || 'unversioned'}</p>
+                <p><strong className="text-foreground">Server-reviewed input basis:</strong> {pending.review.reviewBasisVersion} · {pending.review.serverTime}</p>
                 <p><strong className="text-foreground">Participants / result rows:</strong> {pending.row.preconditions.participantCount} / {pending.row.preconditions.resultRowCount}</p>
                 <p><strong className="text-foreground">Jury:</strong> {readinessLabel(pending.row.preconditions.juryEnabled, pending.row.preconditions.juryReady)}</p>
                 <p><strong className="text-foreground">Televote:</strong> {readinessLabel(pending.row.preconditions.televoteEnabled, pending.row.preconditions.televoteReady)}</p>
@@ -359,7 +407,7 @@ function ResultsOperationsPage() {
               </div>
               {!recovery?.allowSameIdentityRetry ? (
                 <p className="text-xs leading-5 text-muted-foreground">
-                  Before the first commit, Solaris re-reads this exact edition/show Results snapshot. If the reviewed lifecycle, version, readiness or reconciliation state changed, this review is rejected instead of silently applying a different operation.
+                  Before the first commit, Solaris re-reads the exact edition/show snapshot and server-reviewed input basis. Any operator, edition, lifecycle, version or readiness change rejects the review without applying an operation.
                 </p>
               ) : null}
               <label className="block">
@@ -369,7 +417,7 @@ function ResultsOperationsPage() {
                   onChange={(event) => setReason(event.target.value)}
                   className="admin-input mt-2 min-h-24 w-full resize-y"
                   placeholder="Why is this operation being performed?"
-                  disabled={mutation.isPending}
+                  disabled={mutation.isPending || pending.submittedReason !== null}
                 />
                 <span className="mt-1 block text-xs text-muted-foreground">Required. It is stored with the immutable execution receipt and contest event.</span>
               </label>

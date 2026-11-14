@@ -79,3 +79,8 @@ npx nitro deploy --prebuilt
 ```
 
 Do not add `@cloudflare/vite-plugin`; Nitro already emits the Worker build used by the deployment flow.
+
+
+## Engineering and merge policy
+
+For Solaris Studio V3, use the owner-directed [evidence-based merge policy](docs/v3/merge-review-policy.md) and [fresh-chat agent instructions](AGENTS.md). A second ChatGPT session is not required to approve ordinary or high-risk source merges; applicable technical checks and genuine GitHub protections still apply. Production migrations, deployments and public write enablement require their own explicit authorization.

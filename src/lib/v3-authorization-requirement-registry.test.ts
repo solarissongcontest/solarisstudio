@@ -59,7 +59,7 @@ describe("System V3 S7 authorization requirement registry", () => {
         requiredCapability: "results.verify",
         scope: "show",
         objectResolution: "show -> edition",
-        serverBoundary: "public.studio2_execute_result_operation",
+        serverBoundary: "public.studio2_execute_result_operation_v2",
         serviceRoleAllowed: true,
       });
     }

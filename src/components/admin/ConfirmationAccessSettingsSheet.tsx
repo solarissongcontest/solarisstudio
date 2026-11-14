@@ -1,11 +1,21 @@
 import { LockKeyhole, ShieldAlert } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { confirmationsSupabase } from "@/integrations/confirmations/client";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { reconcileSystemOperation } from "@/lib/system-operation.functions";
+import { toSystemError } from "@/lib/system-error";
+import {
+  applyConfirmationResponseAccessChange,
+  assertConfirmationResponseAccessScope,
+  confirmationResponseAccessErrorMessage,
+  createConfirmationResponseAccessCommand,
+  previewConfirmationResponseAccess,
+  type ConfirmationResponseAccessPreview,
+} from "@/lib/v3-organizer-confirmation-response-access";
 import { AdminConfirmSheet, AdminSheet, AdminStatus } from "./AdminUI";
 
 type ConfirmationAccessSnapshot = {
@@ -17,12 +27,31 @@ type ConfirmationAccessSnapshot = {
 type PendingAccessReview = {
   baseline: ConfirmationAccessSnapshot;
   next: ConfirmationAccessSnapshot;
+  preview: ConfirmationResponseAccessPreview;
+  command: ReturnType<typeof createConfirmationResponseAccessCommand>;
 };
+
+function previewSnapshot(preview: ConfirmationResponseAccessPreview): ConfirmationAccessSnapshot {
+  return {
+    editingAllowed: preview.state.editingAllowed,
+    locked: preview.state.locked,
+    adminNotes: preview.state.adminNotes ?? "",
+  };
+}
+
+function sameSnapshot(left: ConfirmationAccessSnapshot, right: ConfirmationAccessSnapshot) {
+  return (
+    left.editingAllowed === right.editingAllowed &&
+    left.locked === right.locked &&
+    left.adminNotes === right.adminNotes
+  );
+}
 
 export function ConfirmationAccessSettingsSheet({
   open,
   onClose,
   onApplied,
+  editionId,
   submissionId,
   country,
   editionLabel,
@@ -34,6 +63,7 @@ export function ConfirmationAccessSettingsSheet({
   open: boolean;
   onClose: () => void;
   onApplied: () => Promise<void> | void;
+  editionId: string;
   submissionId: string;
   country: string;
   editionLabel: string;
@@ -42,18 +72,20 @@ export function ConfirmationAccessSettingsSheet({
   locked: boolean;
   adminNotes: string | null;
 }) {
+  const reconcileOperation = useServerFn(reconcileSystemOperation);
   const [draftEditingAllowed, setDraftEditingAllowed] = useState(editingAllowed);
   const [draftLocked, setDraftLocked] = useState(locked);
   const [draftNotes, setDraftNotes] = useState(adminNotes ?? "");
   const [pendingReview, setPendingReview] = useState<PendingAccessReview | null>(null);
   const [saving, setSaving] = useState(false);
+  const [preparing, setPreparing] = useState(false);
 
   useEffect(() => {
-    if (!open || pendingReview || saving) return;
+    if (!open || pendingReview || saving || preparing) return;
     setDraftEditingAllowed(editingAllowed);
     setDraftLocked(locked);
     setDraftNotes(adminNotes ?? "");
-  }, [adminNotes, editingAllowed, locked, open, pendingReview, saving]);
+  }, [adminNotes, editingAllowed, locked, open, pendingReview, preparing, saving]);
 
   const currentSnapshot = useMemo<ConfirmationAccessSnapshot>(
     () => ({
@@ -77,19 +109,57 @@ export function ConfirmationAccessSettingsSheet({
   const accessAfter = draftEditingAllowed && !draftLocked;
   const notesChanged = draftNotes !== (adminNotes ?? "");
   const controlsChanged =
-    draftEditingAllowed !== editingAllowed ||
-    draftLocked !== locked ||
-    notesChanged;
+    draftEditingAllowed !== editingAllowed || draftLocked !== locked || notesChanged;
 
-  const openReview = () => {
-    if (!controlsChanged) {
-      toast.message("No response-setting changes to review.");
+  const openReview = async () => {
+    if (!controlsChanged || preparing) {
+      if (!controlsChanged) toast.message("No response-setting changes to review.");
       return;
     }
-    setPendingReview({
-      baseline: currentSnapshot,
-      next: draftSnapshot,
-    });
+
+    setPreparing(true);
+    try {
+      const preview = await previewConfirmationResponseAccess(editionId, submissionId);
+      assertConfirmationResponseAccessScope(preview, editionId, submissionId);
+      const canonicalBaseline = previewSnapshot(preview);
+      if (!sameSnapshot(canonicalBaseline, currentSnapshot)) {
+        throw new Error(
+          "Response settings changed before review. Nothing was changed. Reload the latest access state before applying anything.",
+        );
+      }
+      if (draftSnapshot.editingAllowed && draftSnapshot.locked) {
+        throw new Error("A response cannot be both editable and locked.");
+      }
+      if (
+        draftSnapshot.editingAllowed &&
+        (!preview.state.roundEditingEnabled || !preview.state.editionEditingEnabled)
+      ) {
+        throw new Error(
+          "Delegation editing cannot be opened because the current Confirmation round or edition is not open for editing.",
+        );
+      }
+
+      const command = createConfirmationResponseAccessCommand({
+        preview,
+        changeKind: "update_access",
+        payload: {
+          editingAllowed: draftSnapshot.editingAllowed,
+          locked: draftSnapshot.locked,
+          adminNotes: draftSnapshot.adminNotes,
+        },
+      });
+      setPendingReview({
+        baseline: canonicalBaseline,
+        next: draftSnapshot,
+        preview,
+        command,
+      });
+    } catch (caught) {
+      toast.error(confirmationResponseAccessErrorMessage(caught));
+      await onApplied();
+    } finally {
+      setPreparing(false);
+    }
   };
 
   const closeReview = () => {
@@ -97,47 +167,60 @@ export function ConfirmationAccessSettingsSheet({
     setPendingReview(null);
   };
 
+  async function recoverReviewedOperation(operationId: string) {
+    const reconciliation = await reconcileOperation({ data: { operationId } });
+    if (!reconciliation.ok) return false;
+    if (reconciliation.receipt.status === "succeeded") {
+      toast.success("Response settings confirmed after reconnecting");
+      return true;
+    }
+    if (reconciliation.receipt.status === "failed") {
+      throw new Error(
+        reconciliation.receipt.error?.message ?? "The reviewed response-settings operation failed.",
+      );
+    }
+    throw new Error(
+      "The response-settings operation is still processing. Reconcile the same operation before making another change.",
+    );
+  }
+
   const applyReviewedSettings = async () => {
     if (!pendingReview || saving) return;
 
     setSaving(true);
     try {
-      const { data: liveData, error: liveError } = await confirmationsSupabase.rpc(
-        "admin_confirmation_response",
-        { _submission_id: submissionId },
-      );
-      if (liveError) throw liveError;
-
-      const live = liveData as unknown as {
-        editing_allowed?: boolean;
-        locked?: boolean;
-        admin_notes?: string | null;
-      } | null;
-      if (!live) {
-        throw new Error("The Confirmation response is no longer available. Nothing was changed.");
-      }
-
-      const liveNotes = live.admin_notes ?? "";
+      const livePreview = await previewConfirmationResponseAccess(editionId, submissionId);
+      assertConfirmationResponseAccessScope(livePreview, editionId, submissionId);
       if (
-        live.editing_allowed !== pendingReview.baseline.editingAllowed ||
-        live.locked !== pendingReview.baseline.locked ||
-        liveNotes !== pendingReview.baseline.adminNotes
+        livePreview.expectedVersion !== pendingReview.preview.expectedVersion ||
+        !sameSnapshot(previewSnapshot(livePreview), pendingReview.baseline)
       ) {
         throw new Error(
-          "Response settings changed while this review was open. Nothing was changed. Reload the response and review the latest access state before applying anything.",
+          "Response settings changed while this review was open. Nothing was changed. Reload and review the latest canonical response state.",
         );
       }
 
-      const { error: updateError } = await confirmationsSupabase.rpc(
-        "admin_update_confirmation_controls",
-        {
-          _submission_id: submissionId,
-          _editing_allowed: pendingReview.next.editingAllowed,
-          _locked: pendingReview.next.locked,
-          _admin_notes: pendingReview.next.adminNotes,
-        },
-      );
-      if (updateError) throw updateError;
+      try {
+        await applyConfirmationResponseAccessChange({
+          preview: pendingReview.preview,
+          changeKind: "update_access",
+          payload: {
+            editingAllowed: pendingReview.next.editingAllowed,
+            locked: pendingReview.next.locked,
+            adminNotes: pendingReview.next.adminNotes,
+          },
+          operationId: pendingReview.command.operationId,
+          idempotencyKey: pendingReview.command.idempotencyKey,
+        });
+      } catch (caught) {
+        const systemError = toSystemError(caught);
+        if (
+          !systemError.retryable ||
+          !(await recoverReviewedOperation(pendingReview.command.operationId))
+        ) {
+          throw caught;
+        }
+      }
 
       setPendingReview(null);
       toast.success("Response settings saved");
@@ -145,7 +228,7 @@ export function ConfirmationAccessSettingsSheet({
       onClose();
     } catch (caught) {
       setPendingReview(null);
-      toast.error(caught instanceof Error ? caught.message : "Could not save response settings.");
+      toast.error(confirmationResponseAccessErrorMessage(caught));
       await onApplied();
     } finally {
       setSaving(false);
@@ -167,9 +250,9 @@ export function ConfirmationAccessSettingsSheet({
     <>
       <AdminSheet
         open={open}
-        onClose={saving ? () => undefined : onClose}
+        onClose={saving || preparing ? () => undefined : onClose}
         title="Response settings"
-        description="These controls affect delegation access. Review consequential access changes before applying them."
+        description="These controls affect delegation access. Review consequential access changes against canonical Confirmation state before applying them."
       >
         <div className="space-y-4">
           <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3 text-xs text-muted-foreground">
@@ -229,7 +312,7 @@ export function ConfirmationAccessSettingsSheet({
           <div className="admin-sticky-actions grid grid-cols-[auto_1fr] gap-2">
             <button
               type="button"
-              disabled={saving}
+              disabled={saving || preparing}
               onClick={onClose}
               className="admin-action-secondary"
             >
@@ -237,11 +320,11 @@ export function ConfirmationAccessSettingsSheet({
             </button>
             <button
               type="button"
-              disabled={saving || !controlsChanged}
-              onClick={openReview}
+              disabled={saving || preparing || !controlsChanged}
+              onClick={() => void openReview()}
               className="admin-action-primary"
             >
-              <LockKeyhole className="size-4" /> Review settings change
+              <LockKeyhole className="size-4" /> {preparing ? "Preparing…" : "Review settings change"}
             </button>
           </div>
         </div>
@@ -260,6 +343,8 @@ export function ConfirmationAccessSettingsSheet({
             <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3 text-xs">
               <p><span className="font-semibold text-foreground">Context:</span> {editionLabel} · {roundName}</p>
               <p className="mt-1 break-all"><span className="font-semibold text-foreground">Submission ID:</span> {submissionId}</p>
+              <p className="mt-1"><span className="font-semibold text-foreground">Risk:</span> R2 · response version {pendingReview?.preview.expectedVersion ?? "—"}</p>
+              <p className="mt-1 break-all"><span className="font-semibold text-foreground">Operation:</span> {pendingReview?.command.operationId ?? "—"}</p>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <div className="rounded-lg border border-white/[0.07] p-2">
                   <p className="font-semibold text-foreground">Before</p>
@@ -287,7 +372,7 @@ export function ConfirmationAccessSettingsSheet({
               Private organiser notes: {reviewedNotesChanged ? "changed" : "unchanged"}. Their contents are intentionally not repeated here.
             </p>
             <p className="text-xs text-muted-foreground">
-              Organizer re-fetches the live Confirmation response immediately before apply and fails closed if editing access, lock state or notes changed. The underlying legacy control RPC still does not provide canonical expected-version/CAS, idempotency or operation-receipt parity.
+              Apply is bound to the exact canonical response version shown above. Solaris rechecks that version immediately before commit and reconciles the same operation receipt after an uncertain network outcome instead of issuing a second write.
             </p>
           </div>
         }

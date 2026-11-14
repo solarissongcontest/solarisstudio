@@ -39,7 +39,17 @@ db_exec "insert into public.shows(id,edition_id,name,kind,sort_order,published) 
 # remains a synthetic invariant fixture, rather than an orphan Result.
 db_exec "insert into public.participants(edition_id,show_id,country_id,participation_status) values ('$EDITION_A','$SHOW_ID','$COUNTRY_ID','confirmed');"
 db_exec "insert into public.results(id,edition_id,show_id,country_id,jury_points,televote_points,total_points,final_rank) values ('$RESULT_ID','$EDITION_A','$SHOW_ID','$COUNTRY_ID',12,-2,10,1) on conflict (show_id,country_id) where show_id is not null do update set id=excluded.id,jury_points=excluded.jury_points,televote_points=excluded.televote_points,total_points=excluded.total_points,final_rank=excluded.final_rank;"
-db_exec "insert into public.studio2_result_operations(show_id,edition_id,calculation_version,reviewed_version,locked_version,reveal_ready_version) values ('$SHOW_ID','$EDITION_A',1,1,1,1);"
+# A newer show-insert trigger may already have seeded this authority row.
+# Preserve the existing S3 invariant checks in both migration paths.
+db_exec "insert into public.studio2_result_operations(show_id,edition_id,calculation_version,reviewed_version,locked_version,reveal_ready_version)
+values ('$SHOW_ID','$EDITION_A',1,1,1,1)
+on conflict (show_id) do update
+set calculation_version=excluded.calculation_version,
+reviewed_version=excluded.reviewed_version,
+locked_version=excluded.locked_version,
+reveal_ready_version=excluded.reveal_ready_version
+where public.studio2_result_operations.edition_id=excluded.edition_id;"
+[[ "$(db_value "select count(*) from public.studio2_result_operations where show_id='$SHOW_ID' and edition_id='$EDITION_A' and calculation_version=1 and reviewed_version=1 and locked_version=1 and reveal_ready_version=1;")" == '1' ]] || fail "S3 result version/scope differs from expected fixture"
 
 [[ "$(db_value "select result_row_count from private.v3_result_versions where show_id='$SHOW_ID' and version=1;")" == '1' ]] || fail "calculation version did not capture exactly one result row"
 [[ "$(db_value "select result_rows->0->>'televotePoints' from private.v3_result_versions where show_id='$SHOW_ID' and version=1;")" == '-2' ]] || fail "supported negative televote adjustment was not preserved"

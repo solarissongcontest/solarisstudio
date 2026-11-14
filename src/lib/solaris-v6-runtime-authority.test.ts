@@ -18,7 +18,8 @@ import {
   loadStudio2HodWorkspace,
 } from "@/lib/studio2-hod-workspace";
 import {
-  executeStudio2ResultOperation,
+  executeReviewedStudio2ResultOperation,
+  loadStudio2ResultOperationReview,
   loadStudio2ResultsOperations,
 } from "@/lib/studio2-results-operations";
 import {
@@ -32,8 +33,11 @@ describe("Solaris V6 runtime authority binding", () => {
   it("reuses canonical Results operations instead of creating a V6 result path", () => {
     const results = solarisV6RuntimeAuthority("results");
     expect(results.read).toBe(loadStudio2ResultsOperations);
-    expect(results.execute).toBe(executeStudio2ResultOperation);
-    expect(results.transports).toContain("studio2_execute_result_operation");
+    expect(results.preview).toBe(loadStudio2ResultOperationReview);
+    expect(results.execute).toBe(executeReviewedStudio2ResultOperation);
+    expect(results.transports).toContain("studio2_result_operation_preview_v2");
+    expect(results.transports).toContain("studio2_execute_result_operation_v2");
+    expect(results.transports).not.toContain("studio2_execute_result_operation");
   });
 
   it("reuses the canonical publication lifecycle instead of inventing a V6 release path", () => {
