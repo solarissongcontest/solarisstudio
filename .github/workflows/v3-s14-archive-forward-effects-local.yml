@@ -803,10 +803,10 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const source=fs.readFileSync('docs/v3/recovery-candidates/s08-televote-single-writer-local.sql','utf8');
-          if(!/^begin;\\s/m.test(source) || !/commit;\\s*$/.test(source))
+          if(!/^begin;\s/m.test(source) || !/commit;\s*$/.test(source))
             throw Error('S08 source transaction boundary drift');
           fs.writeFileSync('/tmp/s08-ordered-interrupted.sql',
-            source.replace(/commit;\\s*$/,'select 1/0;\\ncommit;\\n'));
+            source.replace(/commit;\s*$/,'select 1/0;\ncommit;\n'));
           NODE
           if sql -f - < /tmp/s08-ordered-interrupted.sql > /tmp/s08-ordered-interrupted.log 2>&1; then
             echo "::error::Interrupted S08 was accepted"; exit 1
