@@ -73,7 +73,7 @@ describe("country account jury voting contract", () => {
     expect(route).toContain("VOTE_INTEGRITY_PRESSURE");
     expect(route).toContain("VOTE_INTEGRITY_CONSEQUENCE");
     expect(route).toContain("DelayedConfirmationState");
-    expect(route).toContain("submit_country_jury_ballot");
+    expect(route).toContain("const result = await submitBallot({");
   });
 
   it("keeps manual organizer entry while adding open and close controls", () => {

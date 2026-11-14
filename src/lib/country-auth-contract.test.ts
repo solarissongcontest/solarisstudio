@@ -38,14 +38,18 @@ describe("country account username authentication", () => {
     expect(migration).toContain("instagram_username, display_name");
   });
 
-  it("creates authoritative country ownership before returning a new signup session", () => {
-    expect(authFunction).toContain('service.from("country_accounts").insert({');
-    expect(authFunction).toContain("user_id: created.user.id");
-    expect(authFunction).toContain("country_id: countryId");
-    expect(authFunction).toContain("instagram_username: instagramUsername");
-    expect(authFunction).toContain("display_name: displayName");
+  it("uses the atomic Auth signup trigger, not a competing service-role insert", () => {
+    expect(migration).toContain("create or replace function public.claim_country_from_signup()");
+    expect(migration).toContain("insert into public.country_accounts (user_id, country_id, instagram_username, display_name)");
+    expect(authFunction).toContain('service.auth.admin.createUser({');
+    expect(authFunction).toContain('.select("user_id,country_id,instagram_username,display_name")');
+    expect(authFunction).toContain('.eq("user_id", created.user.id)');
+    expect(authFunction).toContain("ownership.user_id !== created.user.id");
+    expect(authFunction).toContain("ownership.country_id !== countryId");
+    expect(authFunction).not.toContain('service.from("country_accounts").insert({');
+    expect(authFunction).toContain("if (ownershipError) {");
+    expect(authFunction).toContain("if (cleanupError) {");
     expect(authFunction).toContain("service.auth.admin.deleteUser(created.user.id)");
-    expect(authFunction).toContain('ownershipError.code === "23505"');
   });
 
   it("rate limits anonymous signup, signin and recovery without storing raw identifiers", () => {
