@@ -7,24 +7,24 @@ import {
 } from "@/lib/v3-organizer-entry-source-inspection";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
   Copy,
   ExternalLink,
-  Link2,
   RefreshCw,
   RotateCcw,
   Settings2,
   Shield,
-  Trash2,
   Trophy,
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { ConfirmationAccessSettingsSheet } from "@/components/admin/ConfirmationAccessSettingsSheet";
+import { ConfirmationResponseRecoveryControls } from "@/components/admin/ConfirmationResponseRecoveryControls";
 import {
   loadConfirmationResponseForEdition,
   loadConfirmationTechnicalForEdition,
@@ -33,7 +33,6 @@ import {
   AdminActionItem,
   AdminCard,
   AdminCardHeader,
-  AdminConfirmSheet,
   AdminEmptyState,
   AdminMoreMenu,
   AdminPageHeader,
@@ -666,12 +665,10 @@ function ResponseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [technicalError, setTechnicalError] = useState<string | null>(null);
-  const [deleteReviewOpen, setDeleteReviewOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [solarisSync, setSolarisSync] = useState<ConfirmationSolarisSyncResult | null>(null);
   const [solarisSyncError, setSolarisSyncError] = useState<string | null>(null);
   const [syncingSolaris, setSyncingSolaris] = useState(false);
-  const [linkType, setLinkType] = useState<"reusable" | "one_time">("reusable");
-  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
 
   const syncSnapshot = useCallback(
     async (detail: ResponseDetail) => {
@@ -702,7 +699,7 @@ function ResponseDetailPage() {
       requestGeneration.current += 1;
       setData(null);
       setTechnical(null);
-      setGeneratedLink(null);
+      
       setAuthEpoch((current) => current + 1);
     });
     return () => subscription.unsubscribe();
@@ -761,7 +758,7 @@ function ResponseDetailPage() {
     requestGeneration.current += 1;
     setData(null);
     setTechnical(null);
-    setGeneratedLink(null);
+    
     setLoading(true);
     void load();
     return () => { requestGeneration.current += 1; };
@@ -855,16 +852,6 @@ function ResponseDetailPage() {
     }
   }
 
-  async function createEditLink() {
-    toast.error("Edit-link issuance is unavailable until governed access commands are certified.");
-  }
-  async function revokeToken(_tokenId: string) {
-    toast.error("Edit-link revocation is unavailable until governed access commands are certified.");
-  }
-  async function deleteResponse() {
-    toast.error("Deletion is unavailable until governed access commands are certified.");
-  }
-
   if (loading) {
     return (
       <div className="admin-page pb-5">
@@ -911,7 +898,6 @@ function ResponseDetailPage() {
   const copyArtistSongs = activeNfEntries
     .map((entry) => `${entry.artist ?? "Unknown artist"} – ${entry.song_title ?? "Unknown song"}`)
     .join("\n");
-  const activeTokens = technical?.tokens.filter((token) => token.active) ?? [];
 
   return (
     <div className="admin-page pb-5">
@@ -933,9 +919,8 @@ function ResponseDetailPage() {
                 <AdminActionItem
                   icon={Settings2}
                   title="Response settings"
-                  description="Unavailable until governed Confirmation access commands are certified."
-                  disabled
-                  onClick={() => toast.error("Governed response settings are unavailable.")}
+                  description="Editing access, lock state and private organiser notes."
+                  onClick={() => setSettingsOpen(true)}
                 />
                 <AdminActionItem
                   icon={RefreshCw}
@@ -1110,94 +1095,16 @@ function ResponseDetailPage() {
           </AdminCard>
         ) : null}
 
-        <AdminCard>
-          <AdminCardHeader
-            eyebrow="Edit access"
-            title="Private participant edit link"
-            description="Edit-link issuance and revocation are disabled until governed access commands are certified."
-          />
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              disabled
-              onClick={() => setLinkType("reusable")}
-              className={
-                linkType === "reusable" ? "admin-action-primary" : "admin-action-secondary"
-              }
-            >
-              Reusable
-            </button>
-            <button
-              type="button"
-              disabled
-              onClick={() => setLinkType("one_time")}
-              className={
-                linkType === "one_time" ? "admin-action-primary" : "admin-action-secondary"
-              }
-            >
-              One-time
-            </button>
-          </div>
-          <button
-            type="button"
-            disabled
-            onClick={() => void createEditLink()}
-            className="admin-action-primary mt-3 w-full"
-          >
-            <Link2 className="size-4" /> Generate edit link
-          </button>
-
-          {generatedLink ? (
-            <div className="mt-3 rounded-xl border border-sky-200/15 bg-sky-200/[0.035] p-3">
-              <p className="break-all text-xs text-muted-foreground">{generatedLink}</p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => void copyValue(generatedLink, "Edit link")}
-                  className="admin-action-secondary"
-                >
-                  <Copy className="size-4" /> Copy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => window.open(generatedLink, "_blank", "noopener,noreferrer")}
-                  className="admin-action-secondary"
-                >
-                  <ExternalLink className="size-4" /> Open
-                </button>
-              </div>
-            </div>
-          ) : null}
-
-          {activeTokens.length ? (
-            <div className="mt-4 space-y-2 border-t border-white/[0.07] pt-4">
-              <p className="admin-section-label">Active link</p>
-              {activeTokens.map((token) => (
-                <div
-                  key={token.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3"
-                >
-                  <div className="min-w-0 text-xs">
-                    <p className="font-semibold capitalize">
-                      {token.token_type.replaceAll("_", " ")}
-                    </p>
-                    <p className="mt-1 text-muted-foreground">
-                      Used {token.use_count} {token.use_count === 1 ? "time" : "times"}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    disabled
-                    onClick={() => void revokeToken(token.id)}
-                    className="admin-action-secondary !min-h-9 !px-3 text-xs"
-                  >
-                    Revoke
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </AdminCard>
+        <ConfirmationResponseRecoveryControls
+          editionId={organizerEditionId}
+          submissionId={data.id}
+          country={data.country}
+          editionLabel={data.edition ? `SSC ${data.edition.edition_number} · ${data.edition.name}` : "Edition unavailable"}
+          roundName={data.round?.name ?? "Confirmation"}
+          submittedAt={data.submitted_at}
+          onChanged={load}
+          onDeleted={() => navigate({ to: "/confirmations/admin/responses" })}
+        />
 
         <AdminCard>
           <AdminCardHeader
@@ -1293,55 +1200,24 @@ function ResponseDetailPage() {
           </AdminCard>
         ) : null}
 
-        <AdminCard className="border-rose-300/15 bg-rose-300/[0.025]">
-          <AdminCardHeader
-            eyebrow="Danger zone"
-            title="Delete response"
-            description="Permanent deletion is disabled until its governed operation is certified."
-          />
-          <button
-            type="button"
-            disabled
-            onClick={() => setDeleteReviewOpen(true)}
-            className="admin-action-danger w-full"
-          >
-            <Trash2 className="size-4" /> Review permanent deletion
-          </button>
-        </AdminCard>
+
       </div>
 
-      {/* Legacy access sheet is intentionally not mounted during the governed cutover. */}
-
-      <AdminConfirmSheet
-        open={deleteReviewOpen}
-        onClose={() => setDeleteReviewOpen(false)}
-        onConfirm={deleteResponse}
-        title={`Delete ${data.country}'s confirmation?`}
-        description={
-          <div className="space-y-2">
-            <p>
-              This permanently deletes <strong className="text-foreground">{data.country}</strong>&apos;s
-              Confirmation response and the related Confirmation-side data handled by the existing delete
-              authority. Organizer cannot undo this action.
-            </p>
-            <p>
-              Context: {data.edition ? `SSC ${data.edition.edition_number} · ${data.edition.name}` : "edition unavailable"}
-              {" · "}{data.round?.name ?? "Confirmation"}{" · submitted "}
-              {new Date(data.submitted_at).toLocaleString()}.
-            </p>
-            <p>
-              This is still the legacy Confirmation delete authority, not a versioned rollback operation. If
-              canonical Solaris state needs recovery afterward, that must be handled separately rather than by
-              repeating this deletion.
-            </p>
-          </div>
-        }
-        confirmLabel="Delete response permanently"
-        confirmationText={data.country}
-        confirmationHint={`Type ${data.country} exactly to confirm permanent deletion`}
-        busy={false}
-        danger
+      <ConfirmationAccessSettingsSheet
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onApplied={load}
+        editionId={organizerEditionId}
+        submissionId={data.id}
+        country={data.country}
+        editionLabel={data.edition ? `SSC ${data.edition.edition_number} · ${data.edition.name}` : "Edition unavailable"}
+        roundName={data.round?.name ?? "Confirmation"}
+        editingAllowed={data.editing_allowed}
+        locked={data.locked}
+        adminNotes={data.admin_notes}
       />
+
+
     </div>
   );
 }
