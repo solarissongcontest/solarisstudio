@@ -126,4 +126,14 @@ describe("immutable Show scores: publication and active voting channels", () => 
     expect(route).toContain("const completePoints = points.filter(");
     expect(route).not.toContain("component?.points ?? 0");
   });
+
+  it("never feeds historical point-record stories from mutable public results", () => {
+    const route = readFileSync(resolve(process.cwd(), "src/routes/shows/$showId.tsx"), "utf8");
+    expect(route).not.toContain("useAllResults");
+    expect(route).not.toContain("allResultsQuery");
+    expect(route).not.toContain("allResults: allResults");
+    expect(route).toContain("resultsQuery.data?.show.id === showId");
+    expect(route).toContain("resultsQuery.data.edition.id === showQuery.data?.edition_id");
+    expect(route).toContain("results: scoreableResults");
+  });
 });
