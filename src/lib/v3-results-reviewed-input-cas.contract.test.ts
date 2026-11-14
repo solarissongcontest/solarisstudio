@@ -222,6 +222,19 @@ describe("V3 Results reviewed-input CAS", () => {
     expect(migration).toContain("reviewBasisVersionAfter");
   });
 
+  it("requires the full S14 rehearsal and rollback-only publication regression to use reviewed CAS", () => {
+    const stage8 = readFileSync(resolve(process.cwd(), ".github/scripts/v3-s14-stage-8-results.sh"), "utf8");
+    const regression = readFileSync(resolve(process.cwd(), ".github/scripts/v3-s14-active-publication-snapshot-regression.sql"), "utf8");
+    expect(stage8).toContain("studio2_result_operation_preview_v2");
+    expect(stage8).toContain("studio2_execute_result_operation_v2");
+    expect(stage8).toContain("p_expected_review_basis_version");
+    expect(stage8).toContain("p_expected_actor_user_id");
+    expect(stage8).not.toContain("studio2_execute_result_operation \"");
+    expect(regression).toContain("public.studio2_execute_result_operation_v2(");
+    expect(regression).toContain("v_result_review_basis");
+    expect(regression).not.toContain("public.studio2_execute_result_operation(");
+  });
+
   it("publishes only the reviewed CAS write contract and retires the legacy browser RPC", () => {
     expect(service).toContain("export type Studio2ResultOperationReview");
     expect(service).toContain("export type Studio2ReviewedResultExecution");
