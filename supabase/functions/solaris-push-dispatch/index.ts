@@ -38,6 +38,17 @@ function json(body: unknown, status = 200) {
   });
 }
 
+// The shared dispatcher credential is never sent to a browser. Compare
+// without an early-exit prefix walk when an operator supplies a wrong value.
+function safeDispatchSecretEqual(actual: string, expected: string) {
+  if (actual.length !== expected.length) return false;
+  let different = 0;
+  for (let index = 0; index < actual.length; index += 1) {
+    different |= actual.charCodeAt(index) ^ expected.charCodeAt(index);
+  }
+  return different === 0;
+}
+
 function localMinutes(timeZone: string, now = new Date()) {
   try {
     const parts = new Intl.DateTimeFormat("en-GB", {
@@ -111,6 +122,20 @@ Deno.serve(async (req) => {
     return json({ error: "Push delivery service credentials are unavailable." }, 500);
   }
 
+  const suppliedSecret = req.headers.get("x-solaris-push-secret") ?? "";
+  const configuredDispatchSecret = Deno.env.get("SOLARIS_PUSH_DISPATCH_SECRET");
+  // A configured Edge secret is the mandatory pre-Vault authentication boundary.
+  // Vault remains available for VAPID/runtime configuration only AFTER authentication.
+  // Deployments previously relying on Vault-only dispatch authentication must install
+  // SOLARIS_PUSH_DISPATCH_SECRET before deploying this function.
+  if (!configuredDispatchSecret) {
+    console.error("[solaris-push-dispatch] missing mandatory Edge dispatch secret");
+    return json({ error: "Push dispatcher authentication is not configured." }, 503);
+  }
+  if (!suppliedSecret || !safeDispatchSecretEqual(suppliedSecret, configuredDispatchSecret)) {
+    return json({ error: "Push dispatcher access denied." }, 401);
+  }
+
   const service = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -131,15 +156,6 @@ Deno.serve(async (req) => {
           vapid_subject?: string | null;
         })
       : null;
-
-  const dispatchSecret =
-    Deno.env.get("SOLARIS_PUSH_DISPATCH_SECRET") ??
-    runtime?.dispatch_secret ??
-    "";
-  const suppliedSecret = req.headers.get("x-solaris-push-secret") ?? "";
-  if (!dispatchSecret || suppliedSecret !== dispatchSecret) {
-    return json({ error: "Push dispatcher access denied." }, 401);
-  }
 
   // Read the canonical singleton with the service role. The operator snapshot
   // RPC requires a user capability; a scheduled dispatcher has no user session.

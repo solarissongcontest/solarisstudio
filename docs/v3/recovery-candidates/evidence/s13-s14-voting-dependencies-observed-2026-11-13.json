@@ -1,0 +1,178 @@
+{
+  "tables": [
+    {
+      "rls": true,
+      "owner": "postgres",
+      "relkind": "r",
+      "identity": "private.v3_result_versions",
+      "exists_now": true
+    },
+    {
+      "rls": null,
+      "owner": null,
+      "relkind": null,
+      "identity": "private.v3_televote_result_projection_sources",
+      "exists_now": false
+    },
+    {
+      "rls": true,
+      "owner": "postgres",
+      "relkind": "r",
+      "identity": "public.studio2_show_publication_controls",
+      "exists_now": true
+    },
+    {
+      "rls": true,
+      "owner": "postgres",
+      "relkind": "r",
+      "identity": "public.televote_votes",
+      "exists_now": true
+    },
+    {
+      "rls": true,
+      "owner": "postgres",
+      "relkind": "r",
+      "identity": "public.televoting_round_bindings",
+      "exists_now": true
+    },
+    {
+      "rls": true,
+      "owner": "postgres",
+      "relkind": "r",
+      "identity": "televoting.round_influence_results",
+      "exists_now": true
+    }
+  ],
+  "functions": [
+    {
+      "acl": "{postgres=X/postgres}",
+      "owner": "postgres",
+      "execute": {
+        "anon": false,
+        "service_role": false,
+        "authenticated": false
+      },
+      "identity": "private.v3_capture_result_version()",
+      "exists_now": true,
+      "settings_md5": "f4d108644d77d4da19cf67dcdd506153",
+      "definition_md5": "486ad0593166fe76ac8734de05e0f22f",
+      "security_definer": true
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "private.v3_guard_source_managed_televote_projection()",
+      "exists_now": false,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "owner": "postgres",
+      "execute": {
+        "anon": false,
+        "service_role": false,
+        "authenticated": false
+      },
+      "identity": "private.v3_publication_result_version_release_ready(uuid,bigint)",
+      "exists_now": true,
+      "settings_md5": "f4d108644d77d4da19cf67dcdd506153",
+      "definition_md5": "e7e1a32f91de1a3ec9734c988270e4fa",
+      "security_definer": true
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "private.v3_sync_published_televote_aggregation(uuid)",
+      "exists_now": false,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "private.v3_sync_published_televote_round(uuid)",
+      "exists_now": false,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "private.v3_televote_projection_snapshot(uuid)",
+      "exists_now": false,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "public.studio2_televote_projection_status(uuid)",
+      "exists_now": false,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "public.v3_public_published_result_snapshot(uuid)",
+      "exists_now": false,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "execute": {
+        "anon": null,
+        "service_role": null,
+        "authenticated": null
+      },
+      "identity": "televoting.v3_commit_official_round_calculation(uuid,integer,timestamptz,uuid,text,text[],jsonb,jsonb)",
+      "exists_now": false,
+      "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "definition_md5": null,
+      "security_definer": null
+    }
+  ],
+  "read_only": "on",
+  "observed_at": "2026-11-13T16:26:02.702219+00:00",
+  "project_ref": "dkxmnvekiopyesuzggeu",
+  "schema_version": 1
+}

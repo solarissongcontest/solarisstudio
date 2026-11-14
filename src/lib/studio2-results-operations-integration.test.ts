@@ -97,7 +97,7 @@ describe('Studio 2 Phase 10 results operations', () => {
     expect(route).toContain('AdminConfirmSheet');
     expect(route).toContain('confirmationText={pending?.row.showName}');
     expect(route).toContain('Audit reason');
-    expect(route).toContain('reason.trim().length < 5');
+    expect(route).toContain('committedReason.length < 5');
     expect(service).toContain("reason.length < 5");
   });
 });

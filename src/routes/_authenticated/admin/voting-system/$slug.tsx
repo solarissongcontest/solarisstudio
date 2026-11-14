@@ -32,125 +32,11 @@ type PendingSave = {
   config: VotingConfig;
 };
 
-type RankState = {
-  id: string;
-  countryId: string;
-  jury: number;
-  televote: number;
-  total: number;
-  oldRank: number | null;
-  runningOrder: number | null;
-};
-
 export const Route = createFileRoute("/_authenticated/admin/voting-system/$slug")({
   head: () => ({ meta: [{ title: "Voting system — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
   validateSearch: (search: Record<string, unknown>): VotingSearch => ({ show: typeof search.show === "string" ? search.show : undefined }),
   component: VotingSystemWorkspace,
 });
-
-async function rerankExistingResults(showId: string, config: VotingConfig) {
-  const [{ data: results, error: resultsError }, { data: participants, error: participantError }, { data: juryRows, error: juryError }] = await Promise.all([
-    (supabase.from("results") as any)
-      .select("id,country_id,jury_points,televote_points,total_points,final_rank")
-      .eq("show_id", showId),
-    (supabase.from("participants") as any)
-      .select("country_id,running_order")
-      .eq("show_id", showId),
-    (supabase.from("jury_votes") as any)
-      .select("receiving_country_id,receiving_entity_id,points")
-      .eq("show_id", showId),
-  ]);
-
-  if (resultsError) throw resultsError;
-  if (participantError) throw participantError;
-  if (juryError) throw juryError;
-  if (!results?.length) return;
-
-  const runningOrder = new Map<string, number | null>(
-    (participants ?? []).map((row: any) => [row.country_id, row.running_order == null ? null : Number(row.running_order)]),
-  );
-
-  const juryScale = [...new Set((config.juryPoints ?? []).map(Number).filter(Number.isFinite))].sort((a, b) => b - a);
-  const pointCounts = new Map<string, Map<number, number>>();
-  for (const vote of juryRows ?? []) {
-    const countryId = vote.receiving_country_id ?? vote.receiving_entity_id;
-    if (!countryId) continue;
-    const bucket = pointCounts.get(countryId) ?? new Map<number, number>();
-    const points = Number(vote.points ?? 0);
-    bucket.set(points, (bucket.get(points) ?? 0) + 1);
-    pointCounts.set(countryId, bucket);
-  }
-
-  const juryWeight = (config.weighting.jury ?? 50) / 50;
-  const teleWeight = (config.weighting.televote ?? 50) / 50;
-
-  const states: RankState[] = results.map((row: any) => {
-    const jury = Number(row.jury_points ?? 0);
-    const televote = Number(row.televote_points ?? 0);
-    const total = config.weightedScoring
-      ? Math.round(jury * juryWeight + televote * teleWeight)
-      : jury + televote;
-    return {
-      id: row.id,
-      countryId: row.country_id,
-      jury,
-      televote,
-      total,
-      oldRank: row.final_rank == null ? null : Number(row.final_rank),
-      runningOrder: runningOrder.get(row.country_id) ?? null,
-    };
-  });
-
-  const chain = config.tieBreak?.length ? config.tieBreak : ["televote", "twelves", "jury"];
-  states.sort((a, b) => {
-    if (b.total !== a.total) return b.total - a.total;
-
-    for (const rule of chain) {
-      if (rule === "jury" && b.jury !== a.jury) return b.jury - a.jury;
-      if (rule === "televote" && b.televote !== a.televote) return b.televote - a.televote;
-
-      if (rule === "twelves") {
-        const max = juryScale[0] ?? 12;
-        const aCount = pointCounts.get(a.countryId)?.get(max) ?? 0;
-        const bCount = pointCounts.get(b.countryId)?.get(max) ?? 0;
-        if (bCount !== aCount) return bCount - aCount;
-      }
-
-      if (rule === "countback") {
-        for (const score of juryScale) {
-          const aCount = pointCounts.get(a.countryId)?.get(score) ?? 0;
-          const bCount = pointCounts.get(b.countryId)?.get(score) ?? 0;
-          if (bCount !== aCount) return bCount - aCount;
-        }
-      }
-
-      if (rule === "runningOrder") {
-        const aOrder = a.runningOrder ?? Number.MAX_SAFE_INTEGER;
-        const bOrder = b.runningOrder ?? Number.MAX_SAFE_INTEGER;
-        if (aOrder !== bOrder) return bOrder - aOrder;
-      }
-    }
-
-    const aOld = a.oldRank ?? Number.MAX_SAFE_INTEGER;
-    const bOld = b.oldRank ?? Number.MAX_SAFE_INTEGER;
-    if (aOld !== bOld) return aOld - bOld;
-    return a.countryId.localeCompare(b.countryId);
-  });
-
-  const updates = states.map((state, index) =>
-    (supabase.from("results") as any)
-      .update({
-        total_points: state.total,
-        final_rank: index + 1,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", state.id),
-  );
-
-  const settled = await Promise.all(updates);
-  const failed = settled.find((result: any) => result.error);
-  if (failed?.error) throw failed.error;
-}
 
 function VotingSystemWorkspace() {
   const { slug } = Route.useParams();
@@ -186,12 +72,10 @@ function VotingSystemWorkspace() {
         .eq("id", selectedShow.id);
       if (error) throw error;
 
-      // Saving calculation rules must immediately update already-calculated official ranks.
-      // Previously the config changed, but results.final_rank stayed frozen from the old rules,
-      // which made a jury-first tie-break still look televote-first until another result sync.
-      if (hasRecordedVotes) await rerankExistingResults(selectedShow.id, config);
-
-      toast.success(`${selectedShow.name} voting system saved and standings recalculated`);
+      // The database voting-config trigger invokes the canonical Results
+      // writer inside the same transaction. Never recalculate or overwrite
+      // official totals/ranks independently in the browser.
+      toast.success(`${selectedShow.name} voting system saved`);
       setPendingSave(null);
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["shows"] }),
