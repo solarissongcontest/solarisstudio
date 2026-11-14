@@ -1,35 +1,49 @@
 # Solaris Studio V3 — Release Certification Ledger
 
-**Status: NO-GO.** This is the single integration-ledger snapshot, not a certificate of deployment or production adoption.
+**Status: NO-GO for public release.** Source verification, database adoption, deployment promotion, and public-write activation are separate decisions. This is a source-controlled integration record, not a deployment certificate or authorization.
 
-**Candidate main SHA at ledger creation:** `3accae3f76f1a250327903fc07af9b7cd6cd011e` (14 November 2026 UTC). A later main commit invalidates this candidate's evidence until its own exact-head checks complete. Update this record before any GO decision.
+**Live GitHub baseline (14 November 2026):** `main` at `aec3ee018aa64fe0f2e3055b9a48d4fad40c649f`. This is an observed integration baseline, **not a certified final release SHA**. Re-read main before any merge or release decision.
 
-## Evidence by gate
+## Merge queue: exact observed candidate heads
 
-| Gate | Status at candidate | Evidence and missing condition |
+| Order | PR | Head SHA | Current evidence and next gate |
+| --- | --- | --- | --- |
+| 1 | [#2516](https://github.com/solarissongcontest/solarisstudio/pull/2516) Push dispatch authentication | `6ff4d1eae78ce2e96ed931523cce850140cf2482` | Open, non-draft, mergeable; recorded Quality, Browser, S13, S15, bundle, public/Organizer contracts, stateful acceptance and main-freshness runs pass. **Security caveat:** when `SOLARIS_PUSH_DISPATCH_SECRET` is absent from the Edge environment, a nonempty arbitrary header still reaches the service-role Vault lookup before authentication. Verify deployed secret configuration or finish a fail-closed design before treating *all* unauthenticated lookups as eliminated. |
+| 2 | [#2496](https://github.com/solarissongcontest/solarisstudio/pull/2496) Me privacy | `b90a5bf8e51a395d4d9f8951fe6d8395c7f65343` | Open, non-draft, mergeable; recorded Quality, Browser, S13, S15, bundle, public/Organizer contracts, stateful acceptance and freshness pass. Fix scopes private summary cache by viewer and country and provides identity-mismatch recovery. |
+| 3 | [#2497](https://github.com/solarissongcontest/solarisstudio/pull/2497) Home truth | `0949503c020d0cbf1239b2f600b93889b8174606` | Open, non-draft, mergeable; same recorded core gate family passes. Required/optional tone and anonymous calm-state messages use canonical task and identity data. |
+| 4 | [#2518](https://github.com/solarissongcontest/solarisstudio/pull/2518) S08 recovered-state verification | `c220db7dc1dbf9696ba67a9974d27feb855ae79e` | Open, **ready for review** (changed from draft on 14 November); recorded Quality, Browser, S13, S14 ordered PG17.11 recovery, S15, bundle and freshness pass. Tests include interrupted S08 rollback, retry/duplicate refusal, API-role direct DML denial and restored-state Results safeguards. No production recovery has occurred. |
+
+No submitted reviews or unresolved inline threads were returned for these four PRs in the 14 November inspection. That is not an assertion of independent approval. Each merge changes main and invalidates downstream freshness; merge one at a time only after the production promotion boundary and applicable security evidence are settled.
+
+## Cloudflare promotion boundary — hard integration blocker
+
+`wrangler.jsonc` defines Worker `studio`, production runtime variables, and `.output/server/index.mjs`; README documents `bun install && bun run build` followed by `npx nitro deploy --prebuilt`. Main-push GitHub Actions perform Quality/build/rehearsals, without an evident direct Worker deployment step in the inspected CI workflow.
+
+The Cloudflare GitHub check **Workers Builds: studio** for main `aec3ee0` succeeded and reported build `762f6f05-ee65-46fb-8d54-b2462f972ddc`, Worker version `8bf204bd-fade-4e3f-ad06-d2bfc1f869a3`, and preview alias `main-studio.solaris-song-contest.workers.dev`. **Neither a build check nor a preview URL proves whether that version is active on production routes.** The actual Cloudflare Workers Builds production-branch, build/deploy command, auto-promotion policy, current deployed version, custom-domain routes and deployment history must be read from Cloudflare account settings. The connected GitHub API does not expose these Cloudflare account controls. Until verified, do not merge to `main` if main could auto-promote an unapproved deployment. Do not change Cloudflare settings or promote a Worker without separate owner approval.
+
+## Exact-SHA gate inventory
+
+| Gate | Evidence at 14 November baseline | Release implication |
 | --- | --- | --- |
-| Source integration | PARTIAL | [#2482](https://github.com/solarissongcontest/solarisstudio/pull/2482) ordered S13→Archive→S07 merged; [#2485](https://github.com/solarissongcontest/solarisstudio/pull/2485) Public/Organizer 37-test contract gate merged; [#2489](https://github.com/solarissongcontest/solarisstudio/pull/2489) persistent S14 acceptance merged; [#2491](https://github.com/solarissongcontest/solarisstudio/pull/2491) main-push stateful rerun merged. Other release-critical PRs remain open/draft. |
-| PR-head contract CI | PASS, not final-main certification | #2485 exact head `b86c30bdc1ea77ad731369220bad263056a8e3fa`: 7 suites, 37 tests. |
-| Stateful 66-country contest | PASS at PR head, final main pending | #2489 exact head `d9c450ad245c6fa75aa5e689e7f6e07ff4dd3e5f`: [GitHub Actions job](https://github.com/solarissongcontest/solarisstudio/actions/runs/43518817064/job/132207565436) PASS. Ten persistent stages, four Grand Final extensions, nine invariants, eight failure injections, non-skipped Grand Final Playwright summaries, archived state and SHA/database fingerprint required. #2491 exact-head rerun also PASS; main-push run must pass separately. |
-| PostgreSQL runtime equivalence | PARTIAL | S14 local Supabase used PostgreSQL **17.6** (verified from CI log). Separate ordered recovery CI uses PostgreSQL **17.11**. Full application lifecycle has **not** been certified against 17.11. |
-| Hosted migrations and Preview | FAIL / BLOCKED | Main's Supabase Preview reports `Remote migration versions not found in local migrations directory.` Do not repair remote migration history without System owner authorization and reconciliation. |
-| Atomic Results and public snapshot | BLOCKED | Codex/System-owned recovery candidates remain separate from the merged S07 ordered rehearsal. Hosted production equivalence, atomic calculation and immutable public snapshot certification outstanding. |
-| S16 security | BLOCKED | Release-critical scanner findings and canonical authority grants require disposition. Draft [#2487](https://github.com/solarissongcontest/solarisstudio/pull/2487) has Quality failure (TS1005 in new test and old legacy Jury contract), independently identified in [review comment](https://github.com/solarissongcontest/solarisstudio/pull/2487#issuecomment-6866584195). |
-| Public / Organizer | PARTIAL | Contract suites and representative browser audit passed at PR head. Complete authenticated edition-scoped flows and authorization boundary matrix not independently certified for final main. |
-| Mobile / PWA | PARTIAL | Representative Browser Audit includes installed-app coverage; exhaustive mobile, deep-link, account-switch and deferred-route matrix not complete as one release-grade artifact. |
-| Production safety and operations | BLOCKED | No production SQL, live votes, migration adoption, deployment or activation authorized. Require backup/restore proof, rollback procedure, monitoring/incident plan, scoped operation approvals and final exact-SHA GO sign-off. |
-| Independent reviews | NOT CERTIFIED | GitHub main branch protection was observed disabled; #2482/#2485/#2489/#2491 had no submitted human review at inspection. Absence of an enforced review is not evidence of independent human approval. |
+| `main` Quality, S13, public routes/contracts and stateful 66-country acceptance | GitHub exact-`aec3ee0` checks succeeded | Useful main baseline; does not certify unmerged PR code |
+| Candidate PR exact-head Quality/Browser, S13/S15, bundle, contracts/freshness | All four recorded candidate heads succeeded; #2518 additionally passed its S14 local ordered/recovery workflows | Candidate confidence only; merge and retest at new exact main |
+| Source S07/S08 and S13→Archive→S07→Results→S08 | Existing System-owned source candidates and #2518 PG17.11 recovered-state CI; no new live migration | Valid local evidence, not hosted schema equivalence |
+| Real production migration history/effects | Previous observed snapshot: hosted tip `20261101181812`, 497 hosted entries, 504 source files, 36 absent hosted history entries before tip, 42 source files after tip; **not revalidated in this session** | Effects must be reconciled against a bounded, read-only hosted catalog; history absence is not proof of missing SQL |
+| S16 database mutation authority | No exact integrated final candidate-wide runtime authority result inspected here | BLOCKED until grants/RLS/RPC/SECURITY DEFINER/trigger and legacy writer evidence is complete |
+| Full-contest acceptance on clean and recovered baseline | Prior source and isolated CI exist; no post-integration exact-final-main full-contest certificate | BLOCKED |
+| Supabase Preview | Current checked main/PR statuses include skipped Preview checks; previous ledger documented a historical migration-history mismatch | Skipped is not PASS; do not silently assume hosted adoption |
+| Real production backup restorability | The local #2518 fixture restores synthetic local data, expressly not a production backup | BLOCKED pending verified protected backup and authorized restore rehearsal |
+| Cloudflare active production version and routing | GitHub build result and preview URL only | BLOCKED |
+| Hosted migration, production deploy, public-write activation | Three separate explicit approvals are absent from this session | NOT AUTHORIZED |
 
-## Release decision rule
+## Production recovery approval package: minimum missing evidence
 
-**GO only when every mandatory gate is independently verified at the same final main SHA**, with actual CI logs and artifacts linked, all blocking security/hosted compatibility issues resolved, production procedures approved, and the owner explicitly authorizing each high-impact operation.
+The current repository recovery SQL and networkless tests are **not an operator-approved executable production sequence**. Before an authorized operator acts, System must bind a specific forward-only migration list and exact file digests to (1) live catalog effect-by-effect presence, (2) dependency and privilege order, (3) interrupted/retry duplicate handling, (4) preserved historical official results/votes, (5) rollback versus forward-recovery failure-stop criteria, and (6) verified restore of a real safeguarded backup. Provide operator roles, a post-migration bounded read-only authority check, deployment/schema compatibility, incident monitoring and Supabase egress limits. Never manufacture migration-history rows or blindly replay stale migrations. These are **unresolved requirements**, not completed procedures.
 
-A green PR check never certifies a later main SHA. A synthetic local pass never certifies hosted migration adoption. A source-level permission check never substitutes for a runtime API-role denial.
+## Public release decision
 
-## Continuation ownership
+**NO-GO.** Hard blockers: Cloudflare source-merge-to-production promotion unknown; integrated head and exact-SHA gates missing; Push Vault-only preauth boundary not proven safe for all runtime configurations; hosted migration effects and real backup restore not verified; S16 and clean-plus-recovered full-contest certification incomplete. Separate production migration, deployment and public-write approvals remain outstanding.
 
-- **Integration lead:** exact-main CI, Public/Organizer/Mobile E2E, release evidence, PR review/merge eligibility, cross-system regression.
-- **System / Results / S16 owner:** canonical Results recovery, production catalog and migration reconciliation, database authority, S16 remediation and separate operational approvals.
-- **Owner:** production adoption/deployment/activation authorization and final release decision.
+**Next safe integration step:** inspect Cloudflare `studio` → Workers Builds settings and production deployment/version history, establish whether main pushes automatically activate production, and record the observed deployed version and routes. While blocked, finish PR-level security/review and local-only source tests. Do not merge production-triggering branches or disable maintenance.
 
-Update the candidate SHA, per-gate results and source links whenever main advances. Do not change NO-GO to GO without the complete evidence set.
+*This ledger is intentionally a current NO-GO snapshot. Any later main SHA or PR head requires fresh evidence; do not reuse this table as a future release certificate.*
