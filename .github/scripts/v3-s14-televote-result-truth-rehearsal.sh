@@ -130,7 +130,12 @@ where id='$ROUND_ID'::uuid;
 [[ "$(db_scalar "select count(*) || ':' || sum(points) from public.televote_votes where show_id='$SHOW_ID'::uuid;")" == "3:24" ]] || fail "new round version duplicated or lost Televote rows"
 db_expect_failure "older source version after supersession" "select private.v3_apply_published_televote_projection('$EDITION_ID','$SHOW_ID','round','$ROUND_ID',1,'2026-10-16T19:00:00Z','$ROWS_V1'::jsonb);"
 
-if [[ "$(db_scalar "select exists(select 1 from private.v3_migration_contracts where migration_key='v3.combined.launch-write-deferral');")" == "t" ]]; then
+# The S13 gap/recovery rehearsal deliberately rebuilds its registration ledger.
+# A missing ledger record cannot establish absence of an already-installed SQL
+# effect. Inspect the actual seven enabled guards instead of replaying writes.
+COMBINED_GUARDS="$(db_scalar "select count(*) from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='televoting' and c.relname=any(array['televote_aggregations','televote_aggregation_participants','televote_aggregation_sources','external_score_entries','external_score_entry_log','combined_televote_results','combined_televote_component_results']) and t.tgname='v3_deny_deferred_combined_write' and t.tgenabled='A';")"
+if [[ "$COMBINED_GUARDS" != 0 && "$COMBINED_GUARDS" != 7 ]]; then fail "Partial Combined deferral guards"; fi
+if [[ "$COMBINED_GUARDS" == 7 ]]; then
   log "Owner-deferred Combined cannot mutate or supersede canonical round truth"
   db_expect_failure "deferred Combined table insertion" "insert into televoting.televote_aggregations(id,name) values ('$AGGREGATION_ID','Must be denied');"
   db_expect_failure "deferred Combined publication adapter" "select private.v3_sync_published_televote_aggregation('$AGGREGATION_ID'::uuid);"
