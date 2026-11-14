@@ -49,6 +49,17 @@ REQUIRED_ARTIFACTS = {
     "playwright-s14-grand-final-summary.json",
     "playwright-s14-grand-final-results-summary.json",
 }
+S14_INVARIANTS = {
+    "confirmation-no-effective-duplicates", "entry-valid-revision",
+    "media-accepted-revision", "jury-single-final-ballot",
+    "televote-canonical-ballot", "result-reproducible",
+    "publication-final-version", "tasks-canonical", "notifications-reconcilable",
+}
+S14_FAILURES = {
+    "network-after-commit", "db-timeout-before-commit", "duplicate-request",
+    "worker-crash", "realtime-disconnect", "stale-client",
+    "two-organizers", "supabase-outage",
+}
 
 
 class EvidenceError(ValueError):
@@ -225,15 +236,33 @@ def verify(manifest, root, expected_sha):
                 for x in ordered), "recovery stage has missing SQL hash")
 
     s14 = artifacts["s14-full-contest.json"]
-    require(s14.get("candidateSha") == expected_sha and
-            s14.get("passed") is True and s14.get("partial") is False,
+    require(s14.get("schemaVersion") == 3 and
+            s14.get("candidateSha") == expected_sha and
+            s14.get("passed") is True and s14.get("partial") is False and
+            s14.get("runtimeFailure") is False,
             "S14 result is not exact-SHA complete PASS")
-    require(s14.get("seed", {}).get("delegationCount") == 66,
-            "S14 seed is not 66 delegations")
+    seed = s14.get("seed", {})
+    require(isinstance(seed, dict) and seed.get("editionCount") == 1 and
+            seed.get("delegationCount") == 66 and
+            isinstance(seed.get("showCount"), int) and
+            seed["showCount"] >= 3, "S14 seed must have 66 delegations and three shows")
     require(s14.get("lifecycle", {}).get("finalState") == "archived",
             "S14 state not archived")
-    require(s14.get("runIdentity", {}).get("databaseFingerprint") == fingerprint,
-            "S14 evidence originated from a different local database")
+    run = s14.get("runIdentity", {})
+    require(isinstance(run, dict) and run.get("candidateSha") == expected_sha and
+            isinstance(run.get("editionId"), str) and run["editionId"] and
+            run.get("databaseFingerprint") == fingerprint,
+            "S14 evidence originated from a different local database or edition")
+    for name in ("pendingStages", "pendingContestExtensions",
+                 "blockedContestExtensions"):
+        require(s14.get(name) == [],
+                "S14 has pending or blocked phases: " + name)
+    for name, required in (("implementedInvariants", S14_INVARIANTS),
+                           ("implementedFailureInjections", S14_FAILURES)):
+        actual = s14.get(name)
+        require(isinstance(actual, list) and
+                required.issubset(set(map(str, actual))),
+                "S14 missing mandatory " + name)
     expected_stages = [x for x in STAGES if not x.startswith("grand-final-")]
     expected_extensions = [x for x in STAGES if x.startswith("grand-final-")]
     require(s14.get("completedStages") == expected_stages and
@@ -248,6 +277,12 @@ def verify(manifest, root, expected_sha):
                 "browser summary did not prove recovered DB target: " + name)
         require(browser.get("passed") is True,
                 "browser summary failed: " + name)
+        stats = browser.get("stats")
+        require(isinstance(stats, dict) and
+                isinstance(stats.get("expected"), int) and stats["expected"] >= 1 and
+                stats.get("skipped") == 0 and stats.get("unexpected") == 0 and
+                stats.get("flaky") == 0,
+                "browser summary contains skipped/failed/flaky or zero tests: " + name)
     return True
 
 

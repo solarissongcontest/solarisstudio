@@ -32,17 +32,23 @@ def fixture():
         ],
     }
     s14 = {
-        "candidateSha": SHA, "passed": True, "partial": False,
-        "seed": {"delegationCount": 66},
+        "schemaVersion": 3, "candidateSha": SHA, "passed": True,
+        "partial": False, "runtimeFailure": False,
+        "seed": {"editionCount": 1, "delegationCount": 66, "showCount": 3},
         "lifecycle": {"finalState": "archived"},
-        "runIdentity": {"databaseFingerprint": FINGERPRINT},
+        "runIdentity": {"databaseFingerprint": FINGERPRINT,
+                        "candidateSha": SHA, "editionId": "14000000-0000-4000-8000-000000000001"},
+        "pendingStages": [], "pendingContestExtensions": [], "blockedContestExtensions": [],
+        "implementedInvariants": sorted(verifier.S14_INVARIANTS),
+        "implementedFailureInjections": sorted(verifier.S14_FAILURES),
         "completedStages": [s for s in verifier.STAGES
                             if not s.startswith("grand-final-")],
         "completedContestExtensions": [s for s in verifier.STAGES
                                        if s.startswith("grand-final-")],
     }
     browser = {"candidateSha": SHA, "recoveredDatabaseIdentity": DB,
-               "passed": True}
+               "passed": True,
+               "stats": {"expected": 1, "skipped": 0, "unexpected": 0, "flaky": 0}}
     artifacts = {
         "observed-owner-recovery-proof.json": recovery,
         "s14-full-contest.json": s14,
@@ -221,6 +227,55 @@ class RecoveryEvidenceGateTest(unittest.TestCase):
     def test_json_output_gate_fail_closed(self):
         self.manifest["passed"] = None
         self.assertRejects("affirmative PASS")
+
+    def test_s14_missing_mandatory_invariant_rejected(self):
+        self.artifacts["s14-full-contest.json"]["implementedInvariants"].pop()
+        save(self.root, self.manifest, self.artifacts)
+        self.assertRejects("S14 missing mandatory implementedInvariants")
+
+    def test_s14_missing_failure_injection_rejected(self):
+        self.artifacts["s14-full-contest.json"]["implementedFailureInjections"].pop()
+        save(self.root, self.manifest, self.artifacts)
+        self.assertRejects("S14 missing mandatory implementedFailureInjections")
+
+    def test_s14_pending_phase_rejected(self):
+        self.artifacts["s14-full-contest.json"]["pendingStages"] = ["stage-10-archive"]
+        save(self.root, self.manifest, self.artifacts)
+        self.assertRejects("S14 has pending or blocked")
+
+    def test_s14_missing_edition_identity_rejected(self):
+        self.artifacts["s14-full-contest.json"]["runIdentity"]["editionId"] = ""
+        save(self.root, self.manifest, self.artifacts)
+        self.assertRejects("different local database or edition")
+
+    def test_s14_runtime_failure_rejected(self):
+        self.artifacts["s14-full-contest.json"]["runtimeFailure"] = True
+        save(self.root, self.manifest, self.artifacts)
+        self.assertRejects("not exact-SHA complete PASS")
+
+    def test_s14_insufficient_show_count_rejected(self):
+        self.artifacts["s14-full-contest.json"]["seed"]["showCount"] = 2
+        save(self.root, self.manifest, self.artifacts)
+        self.assertRejects("three shows")
+
+    def test_browser_skipped_test_rejected(self):
+        self.artifacts["playwright-s14-grand-final-summary.json"]["stats"]["skipped"] = 1
+        save(self.root, self.manifest, self.artifacts)
+        self.assertRejects("skipped/failed/flaky")
+
+    def test_browser_no_tests_rejected(self):
+        self.artifacts["playwright-s14-grand-final-summary.json"]["stats"]["expected"] = 0
+        save(self.root, self.manifest, self.artifacts)
+        self.assertRejects("zero tests")
+
+    def test_browser_flaky_test_rejected(self):
+        self.artifacts["playwright-s14-grand-final-summary.json"]["stats"]["flaky"] = 1
+        save(self.root, self.manifest, self.artifacts)
+        self.assertRejects("skipped/failed/flaky")
+
+    def test_production_mutation_rejected(self):
+        self.manifest["productionMutation"] = True
+        self.assertRejects("production mutation")
 
 
 if __name__ == "__main__":
