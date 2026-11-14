@@ -7,12 +7,14 @@ import type { Country, Participant } from "@/lib/data";
 import { V3Section, V3StatusChip, V3Surface } from "./V3Foundation";
 
 export type V3ScoreboardPresentationProps = {
-  standings: readonly Standing[];
-  countries: ReadonlyMap<
-    string,
-    Country & { entityType?: "global" | "custom" }
-  >;
+  standings: readonly Pick<Standing, "countryId" | "total" | "rank">[];
+  countries: ReadonlyMap<string, Country & { entityType?: "global" | "custom" }>;
   participants?: ReadonlyMap<string, Participant>;
+  /**
+   * Retained for ScoreboardStage compatibility during strangler migration.
+   * V3 must not derive qualification from a numeric cutoff; only canonical
+   * participant qualification truth may produce qualification badges.
+   */
   qualifiers?: number | null;
 };
 
@@ -38,7 +40,6 @@ export function V3ScoreboardPresentation({
   standings,
   countries,
   participants,
-  qualifiers,
 }: V3ScoreboardPresentationProps) {
   const rows = [...standings].sort((a, b) => a.rank - b.rank);
   const rankCounts = rows.reduce((counts, row) => {
@@ -46,20 +47,15 @@ export function V3ScoreboardPresentation({
     return counts;
   }, new Map<number, number>());
   const tiedRanks = new Set(
-    [...rankCounts.entries()]
-      .filter(([, count]) => count > 1)
-      .map(([rank]) => rank),
+    [...rankCounts.entries()].filter(([, count]) => count > 1).map(([rank]) => rank),
   );
   const winnerStanding =
-    rankCounts.get(1) === 1 ? rows.find((row) => row.rank === 1) ?? null : null;
-  const winnerCountry = winnerStanding
-    ? countries.get(winnerStanding.countryId)
-    : null;
+    rankCounts.get(1) === 1 ? (rows.find((row) => row.rank === 1) ?? null) : null;
+  const winnerCountry = winnerStanding ? countries.get(winnerStanding.countryId) : null;
   const winnerParticipant = winnerStanding
     ? participants?.get(winnerStanding.countryId)
     : undefined;
   const winnerSubtitle = entrySubtitle(winnerParticipant);
-  const hasQualifierCutoff = typeof qualifiers === "number" && qualifiers > 0;
 
   return (
     <section
@@ -93,16 +89,9 @@ export function V3ScoreboardPresentation({
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2 rounded-2xl border border-[var(--v3-border-subtle)] bg-white/[0.035] px-3 py-2">
-              <Trophy
-                className="size-4 text-[var(--v3-warning)]"
-                aria-hidden="true"
-              />
-              <span className="text-lg font-bold tabular-nums">
-                {winnerStanding.total}
-              </span>
-              <span className="text-[0.68rem] text-[var(--v3-text-tertiary)]">
-                pts
-              </span>
+              <Trophy className="size-4 text-[var(--v3-warning)]" aria-hidden="true" />
+              <span className="text-lg font-bold tabular-nums">{winnerStanding.total}</span>
+              <span className="text-[0.68rem] text-[var(--v3-text-tertiary)]">pts</span>
             </div>
           </div>
         </V3Surface>
@@ -126,7 +115,8 @@ export function V3ScoreboardPresentation({
           <>
             {tiedRanks.size ? (
               <p className="mb-3 rounded-xl border border-[var(--v3-border-subtle)] bg-white/[0.018] px-3 py-2 text-[0.7rem] leading-relaxed text-[var(--v3-text-tertiary)]">
-                Equal placement numbers come from the official ranking and are shown as ties. Solaris does not recalculate tie-breaks in the browser.
+                Equal placement numbers come from the official ranking and are shown as ties.
+                Solaris does not recalculate tie-breaks in the browser.
               </p>
             ) : null}
             <ol className="grid gap-2" aria-label="Final ranking">
@@ -139,14 +129,7 @@ export function V3ScoreboardPresentation({
                 const subtitle = entrySubtitle(participant);
                 const countryLabel = country?.name || UNAVAILABLE_COUNTRY_LABEL;
                 const isTied = tiedRanks.has(standing.rank);
-                const isQualified =
-                  participant?.qualified === true
-                    ? true
-                    : participant?.qualified === false
-                      ? false
-                      : hasQualifierCutoff
-                        ? standing.rank <= qualifiers!
-                        : null;
+                const isQualified = participant?.qualified ?? null;
 
                 const body = (
                   <>
@@ -162,17 +145,11 @@ export function V3ScoreboardPresentation({
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex min-w-0 flex-wrap items-center gap-2">
-                        <span className="truncate text-sm font-semibold">
-                          {countryLabel}
-                        </span>
+                        <span className="truncate text-sm font-semibold">{countryLabel}</span>
                         {!country ? (
-                          <V3StatusChip tone="neutral">
-                            Identity unavailable
-                          </V3StatusChip>
+                          <V3StatusChip tone="neutral">Identity unavailable</V3StatusChip>
                         ) : null}
-                        {isTied ? (
-                          <V3StatusChip tone="neutral">Tie</V3StatusChip>
-                        ) : null}
+                        {isTied ? <V3StatusChip tone="neutral">Tie</V3StatusChip> : null}
                         {country && isQualified === true ? (
                           <V3StatusChip tone="success">Qualified</V3StatusChip>
                         ) : country && isQualified === false ? (
@@ -194,10 +171,7 @@ export function V3ScoreboardPresentation({
                       </span>
                     </span>
                     {canOpenCountry ? (
-                      <ChevronRight
-                        className="size-4 shrink-0 text-white/30"
-                        aria-hidden="true"
-                      />
+                      <ChevronRight className="size-4 shrink-0 text-white/30" aria-hidden="true" />
                     ) : null}
                   </>
                 );

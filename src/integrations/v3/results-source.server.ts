@@ -1,17 +1,13 @@
+import { loadV3PublishedResultSnapshot } from "@/integrations/v3/public-result-snapshot.server";
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
-import type { Country, Edition, ResultRow, Show } from "@/lib/data";
-import { entityDisplayMap, entityKeyOf, type ContestEntityRow } from "@/lib/entities";
+import type { Country, Edition, Show } from "@/lib/data";
+import { entityDisplayMap, type ContestEntityRow } from "@/lib/entities";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
-import type {
-  V3ResultProjectionInput,
-  V3ResultShowOption,
-} from "@/lib/v3-results";
+import type { V3ResultProjectionInput, V3ResultShowOption } from "@/lib/v3-results";
 
 const EDITION_COLUMNS = "id,edition_number,name,slug,published";
 const SHOW_COLUMNS =
   "id,edition_id,name,kind,sort_order,status,published,qualifier_count,theme_id,voting_config,broadcast_config,publication_config";
-const RESULT_COLUMNS =
-  "id,edition_id,show_id,country_id,contest_entity_id,jury_points,televote_points,total_points,final_rank";
 const ENTITY_COLUMNS =
   "id,edition_id,entity_type,country_id,display_name,abbreviation,flag_image,region,historical_identity_override";
 const COUNTRY_COLUMNS =
@@ -19,16 +15,13 @@ const COUNTRY_COLUMNS =
 
 type ResultsSourceClient = {
   from(table: string): any;
-  rpc(name: string, args?: Record<string, unknown>): PromiseLike<{
+  rpc(
+    name: string,
+    args?: Record<string, unknown>,
+  ): PromiseLike<{
     data: unknown;
     error: unknown;
   }>;
-};
-
-type PublicParticipantState = {
-  edition_id: string;
-  country_id: string;
-  participation_status?: string | null;
 };
 
 export type V3ResultsServerBundle = {
@@ -61,39 +54,9 @@ function editionLabel(edition: Pick<Edition, "edition_number" | "name"> | null) 
     : `SSC ${edition.edition_number} · ${edition.name}`;
 }
 
-function parseParticipantStates(value: unknown): PublicParticipantState[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((candidate) => {
-    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return [];
-    const row = candidate as Record<string, unknown>;
-    if (typeof row.edition_id !== "string" || typeof row.country_id !== "string") return [];
-    return [{
-      edition_id: row.edition_id,
-      country_id: row.country_id,
-      participation_status:
-        typeof row.participation_status === "string" ? row.participation_status : null,
-    }];
-  });
-}
-
-function filterNonCompetingRows(
-  rows: readonly ResultRow[],
-  participants: readonly PublicParticipantState[],
-) {
-  const excluded = new Set(
-    participants
-      .filter(
-        (participant) =>
-          participant.participation_status === "withdrawn" ||
-          participant.participation_status === "disqualified",
-      )
-      .map((participant) => `${participant.edition_id}:${participant.country_id}`),
-  );
-  if (!excluded.size) return [...rows];
-  return rows.filter((row) => !excluded.has(`${row.edition_id}:${row.country_id}`));
-}
-
-function emptyInput(edition: Pick<Edition, "id" | "name" | "edition_number"> | null): V3ResultProjectionInput {
+function emptyInput(
+  edition: Pick<Edition, "id" | "name" | "edition_number"> | null,
+): V3ResultProjectionInput {
   return {
     editionId: edition?.id ?? "",
     editionName: editionLabel(edition),
@@ -116,7 +79,7 @@ function emptyInput(edition: Pick<Edition, "id" | "name" | "edition_number"> | n
  * Discovery returns only published edition/final-show metadata. The browser may
  * nominate one show id from that archive, but the source revalidates the id
  * against canonical public result publication before performing larger reads.
- * Result rows, participant state and historical identity remain scoped to one
+ * Immutable Result rows and historical identity remain scoped to one
  * server-approved edition/show at a time.
  */
 export async function loadV3ResultsBundle(
@@ -152,7 +115,10 @@ export async function loadV3ResultsBundle(
     .from("shows")
     .select(SHOW_COLUMNS)
     .eq("published", true)
-    .in("edition_id", editions.map((edition) => edition.id))
+    .in(
+      "edition_id",
+      editions.map((edition) => edition.id),
+    )
     .in("kind", ["grand-final", "final"]);
   throwIfError(showsResult.error, "Could not load public final shows for Results");
 
@@ -172,21 +138,24 @@ export async function loadV3ResultsBundle(
   const options = resultShows.flatMap((show) => {
     const edition = editionById.get(show.edition_id);
     if (!edition?.slug) return [];
-    return [{
-      id: show.id,
-      name: show.name,
-      kind: show.kind,
-      editionId: edition.id,
-      editionName: editionLabel(edition),
-      editionSlug: edition.slug,
-      editionNumber: edition.edition_number ?? null,
-    } satisfies V3ResultShowOption];
+    return [
+      {
+        id: show.id,
+        name: show.name,
+        kind: show.kind,
+        editionId: edition.id,
+        editionName: editionLabel(edition),
+        editionSlug: edition.slug,
+        editionNumber: edition.edition_number ?? null,
+      } satisfies V3ResultShowOption,
+    ];
   });
 
-  const selectedShow =
-    resultShows.find((show) => show.id === requestedShowId) ?? resultShows[0] ?? null;
+  const selectedShow = requestedShowId
+    ? (resultShows.find((show) => show.id === requestedShowId) ?? null)
+    : (resultShows[0] ?? null);
   const selectedEdition = selectedShow
-    ? editionById.get(selectedShow.edition_id) ?? null
+    ? (editionById.get(selectedShow.edition_id) ?? null)
     : latestPublicEdition;
 
   if (!selectedShow || !selectedEdition) {
@@ -200,31 +169,24 @@ export async function loadV3ResultsBundle(
     };
   }
 
-  const [resultsResult, participantsResult, entitiesResult] = await Promise.all([
-    client
-      .from("results")
-      .select(RESULT_COLUMNS)
-      .eq("show_id", selectedShow.id)
-      .not("final_rank", "is", null)
-      .order("final_rank", { ascending: true }),
-    client.rpc("public_safe_participants", {
-      _edition_id: selectedEdition.id,
-      _show_id: null,
-    }),
-    client
-      .from("contest_entities")
-      .select(ENTITY_COLUMNS)
-      .eq("edition_id", selectedEdition.id),
-  ]);
-  throwIfError(resultsResult.error, "Could not load selected public result");
-  throwIfError(participantsResult.error, "Could not load public participant state for Results");
+  const snapshot = await loadV3PublishedResultSnapshot(selectedShow.id);
+  if (!snapshot)
+    return {
+      editionSlug: selectedEdition.slug,
+      options,
+      shell: { editionLabel: editionLabel(selectedEdition), phaseLabel: "Results" },
+      input: emptyInput(selectedEdition),
+      countries: [],
+      generatedAt: new Date().toISOString(),
+    };
+  if (snapshot.edition.id !== selectedEdition.id)
+    throw new Error("Published Results escaped the selected edition");
+  const entitiesResult = await client
+    .from("contest_entities")
+    .select(ENTITY_COLUMNS)
+    .eq("edition_id", snapshot.edition.id);
   throwIfError(entitiesResult.error, "Could not load public result identities");
-
-  const participants = parseParticipantStates(participantsResult.data);
-  const rows = filterNonCompetingRows(
-    (resultsResult.data ?? []) as ResultRow[],
-    participants,
-  );
+  const rows = snapshot.rows;
   const entities = (entitiesResult.data ?? []) as ContestEntityRow[];
 
   const countryIds = new Set<string>();
@@ -232,7 +194,7 @@ export async function loadV3ResultsBundle(
     if (entity.country_id) countryIds.add(entity.country_id);
   }
   for (const row of rows) {
-    if (row.country_id) countryIds.add(row.country_id);
+    if (row.countryId) countryIds.add(row.countryId);
   }
 
   let countries: Country[] = [];
@@ -245,12 +207,11 @@ export async function loadV3ResultsBundle(
     countries = (countriesResult.data ?? []) as Country[];
   }
 
-  const publication = resolveShowPublication(selectedShow);
   const displayMap = entityDisplayMap(entities, countries);
   const resultCountries = new Map<string, Country>();
   const projectedRows = rows.flatMap((row) => {
-    const display = displayMap.get(entityKeyOf(row));
-    if (!display || row.final_rank == null || row.final_rank <= 0) return [];
+    const display = displayMap.get(row.contestEntityId ?? row.countryId ?? "");
+    if (!display) throw new Error("Published Result identity could not be resolved");
     const country: Country = {
       id: display.id,
       name: display.name,
@@ -263,16 +224,18 @@ export async function loadV3ResultsBundle(
       first_participation: display.first_participation,
     };
     resultCountries.set(display.id, country);
-    return [{
-      countryId: display.id,
-      canonicalCountryId: row.country_id,
-      countryName: display.name,
-      flagUrl: display.flag_image,
-      rank: row.final_rank,
-      points: row.total_points,
-      juryPoints: publication.jury_results === true ? row.jury_points : null,
-      televotePoints: publication.televote_results === true ? row.televote_points : null,
-    }];
+    return [
+      {
+        countryId: display.id,
+        canonicalCountryId: row.countryId,
+        countryName: display.name,
+        flagUrl: display.flag_image,
+        rank: row.finalRank,
+        points: row.totalPoints,
+        juryPoints: snapshot.availability.jury ? (row.juryPoints ?? null) : null,
+        televotePoints: snapshot.availability.televote ? (row.televotePoints ?? null) : null,
+      },
+    ];
   });
 
   return {
@@ -286,12 +249,12 @@ export async function loadV3ResultsBundle(
       editionId: selectedEdition.id,
       editionName: editionLabel(selectedEdition),
       showId: selectedShow.id,
-      showName: selectedShow.name,
+      showName: snapshot.show.name,
       publication: "published",
       disclosure: "withheld",
       rows: projectedRows,
-      juryPublished: publication.jury_results === true,
-      televotePublished: publication.televote_results === true,
+      juryPublished: snapshot.availability.jury,
+      televotePublished: snapshot.availability.televote,
       userDelegationCountryId: null,
       resultTools: [{ key: "scorecharts", label: "Full scorecharts", href: "/scorecharts" }],
       advancedTools: [
