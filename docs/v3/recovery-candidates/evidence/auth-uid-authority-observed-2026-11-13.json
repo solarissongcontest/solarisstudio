@@ -1,0 +1,20 @@
+{
+  "kind": "owner-authorized-read-only-catalog-observation",
+  "projectRef": "dkxmnvekiopyesuzggeu",
+  "statementTimeout": "10s",
+  "lockTimeout": "2s",
+  "transaction": "READ ONLY; ROLLBACK",
+  "applicationRowsRead": false,
+  "rawFunctionBodiesExported": false,
+  "acl": "{=X/supabase_auth_admin,supabase_auth_admin=X/supabase_auth_admin,dashboard_user=X/supabase_auth_admin}",
+  "owner": "supabase_auth_admin",
+  "config": null,
+  "exists": true,
+  "identity": "auth.uid()",
+  "read_only": "on",
+  "observed_at": "2026-11-13T23:57:04.305893+00:00",
+  "definition_md5": "ea3b41bf29e2ad573067939329aa088e",
+  "security_definer": false,
+  "definition_sha256": "7c1ff2ecbe653c9358b3115a2607db9573f88a2944ae4eca9e296a89cc5186a7",
+  "server_version_num": "170011"
+}

@@ -10,7 +10,20 @@ on:
       - "scripts/stage-v3-s07-televote-source-truth.mjs"
       - "supabase/migrations/20261113211759_v3_atomic_calculation_actor_binding.sql"
       - ".github/tests/v3-atomic-calculation-actor.sql"
+      - ".github/tests/v3-atomic-observed-grants-local.sql"
       - "scripts/v3-atomic-calculation-actor.test.mjs"
+      - "scripts/stage-v3-public-snapshot-recovery*"
+      - "scripts/stage-v3-auth-uid-authority-local*"
+      - "scripts/stage-v3-atomic-calculation-recovery*"
+      - "docs/v3/recovery-candidates/evidence/atomic-after-ordered-recovery-local-reference.json"
+      - "docs/v3/recovery-candidates/evidence/auth-uid-authority-observed-2026-11-13.json"
+      - "docs/v3/recovery-candidates/evidence/round-invalidation-authority-observed-2026-11-14.json"
+      - ".github/tests/v3-public-snapshot-recovery.sql"
+      - "docs/v3/recovery-candidates/evidence/public-snapshot-prerequisites-observed-2026-11-13.json"
+      - "docs/v3/recovery-candidates/evidence/publication-helper-prerequisites-observed-2026-11-13.json"
+      - "docs/v3/recovery-candidates/evidence/participant-identity-prerequisite-observed-2026-11-13.json"
+      - "docs/v3/recovery-candidates/evidence/qualification-prerequisites-observed-2026-11-13.json"
+      - "docs/v3/recovery-candidates/evidence/snapshot-trigger-prerequisites-observed-2026-11-13.json"
       - "supabase/migrations/20261103004500_v3_s14_atomic_televote_calculation.sql"
       - "scripts/stage-v3-hosted-result-sync.mjs"
       - "scripts/stage-v3-hosted-result-sync.test.mjs"
@@ -245,7 +258,7 @@ jobs:
       - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
         run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
       - name: Verify bounded catalog export and drift refusals
-        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs
+        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs scripts/stage-v3-public-snapshot-recovery.test.mjs scripts/stage-v3-auth-uid-authority-local.test.mjs scripts/stage-v3-atomic-calculation-recovery.test.mjs
       - name: Test authorization dependency reconstruction and incomplete-manifest refusal
         run: node --test scripts/v3-s13-s14-authorization-dependencies.test.mjs
       - name: Assert all-hosted catalog digests and incomplete-fixture rejection (offline only)
@@ -746,10 +759,99 @@ jobs:
           grep -Fq 'S07 source truth already or partially installed' /tmp/s07-ordered-duplicate.log
           [[ "$(archive_schema_digest)" == "$ordered_after" ]] || exit 1
           echo "PASS: ordered S13 -> Archive -> canonical S07; actual ACL denial, interruption rollback and duplicate refusal"
-          # Canonical atomic source reference followed by the forward actor repair.
-          sql -f - < supabase/migrations/20261103004500_v3_s14_atomic_televote_calculation.sql
-          sql -f - < supabase/migrations/20261113211759_v3_atomic_calculation_actor_binding.sql
+          # Correct the original imported auth function owner/ACL from observed metadata.
+          node scripts/stage-v3-auth-uid-authority-local.mjs > /tmp/auth-uid-authority-local.sql
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const source=fs.readFileSync('/tmp/auth-uid-authority-local.sql','utf8');
+          if(!/commit;\s*$/.test(source)) throw Error('Identity fixture transaction drift');
+          fs.writeFileSync('/tmp/auth-uid-interrupted.sql',source.replace(/commit;\s*$/,'select 1/0;\ncommit;\n'));
+          NODE
+          uid_before="$(archive_schema_digest)"
+          uid_role_before="$(sql -c "select exists(select 1 from pg_roles where rolname='dashboard_user')")"
+          if sql -f - < /tmp/auth-uid-interrupted.sql > /tmp/auth-uid-interrupted.log 2>&1; then exit 1; fi
+          grep -Fq 'division by zero' /tmp/auth-uid-interrupted.log || { cat /tmp/auth-uid-interrupted.log; exit 1; }
+          [[ "$(archive_schema_digest)" == "$uid_before" ]] || exit 1
+          [[ "$(sql -c "select exists(select 1 from pg_roles where rolname='dashboard_user')")" == "$uid_role_before" ]] || exit 1
+          sql -f - < /tmp/auth-uid-authority-local.sql
+          if sql -f - < /tmp/auth-uid-authority-local.sql > /tmp/auth-uid-duplicate.log 2>&1; then exit 1; fi
+          grep -Fq 'NEVER hosted' /tmp/auth-uid-duplicate.log
+
+          node scripts/stage-v3-auth-uid-authority-local.mjs --round-invalidation > /tmp/round-invalidation-authority-local.sql
+          sql -f - < /tmp/round-invalidation-authority-local.sql
+          sql -f - < .github/tests/v3-atomic-observed-grants-local.sql
+          # Qualify one guarded, source-exact atomic recovery transaction.
+          node scripts/stage-v3-atomic-calculation-recovery.mjs > /tmp/atomic-recovery.sql
+          atomic_before="$(archive_schema_digest)"
+          sql -c 'create policy atomic_unreviewed on televoting.round_influence_results for all to authenticated using (true) with check (true);'
+          atomic_drift="$(archive_schema_digest)"
+          if sql -f - < /tmp/atomic-recovery.sql > /tmp/atomic-policy-drift.log 2>&1; then exit 1; fi
+          grep -Fq 'Atomic recovery catalog/authority drift' /tmp/atomic-policy-drift.log || { cat /tmp/atomic-policy-drift.log; exit 1; }
+          [[ "$(archive_schema_digest)" == "$atomic_drift" ]] || exit 1
+          sql -c 'drop policy atomic_unreviewed on televoting.round_influence_results;'
+          [[ "$(archive_schema_digest)" == "$atomic_before" ]] || exit 1
+          sql -c 'revoke execute on function auth.uid() from dashboard_user;'
+          atomic_drift="$(archive_schema_digest)"
+          if sql -f - < /tmp/atomic-recovery.sql > /tmp/atomic-authority-drift.log 2>&1; then exit 1; fi
+          grep -Fq 'Atomic recovery catalog/authority drift' /tmp/atomic-authority-drift.log
+          [[ "$(archive_schema_digest)" == "$atomic_drift" ]] || exit 1
+          sql -c 'grant execute on function auth.uid() to dashboard_user;'
+          [[ "$(archive_schema_digest)" == "$atomic_before" ]] || exit 1
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const source=fs.readFileSync('/tmp/atomic-recovery.sql','utf8');
+          if(!/commit;\s*$/.test(source)) throw Error('Atomic transaction drift');
+          fs.writeFileSync('/tmp/atomic-interrupted.sql',source.replace(/commit;\s*$/,'select 1/0;\ncommit;\n'));
+          fs.writeFileSync('/tmp/atomic-unauthorized.sql',source.replace(/^begin;$/m,'begin;\nset local role authenticated;'));
+          NODE
+          if sql -f - < /tmp/atomic-unauthorized.sql > /tmp/atomic-unauthorized.log 2>&1; then exit 1; fi
+          grep -Fq 'Atomic recovery requires reviewed owner' /tmp/atomic-unauthorized.log
+          [[ "$(archive_schema_digest)" == "$atomic_before" ]] || exit 1
+          if sql -f - < /tmp/atomic-interrupted.sql > /tmp/atomic-interrupted.log 2>&1; then exit 1; fi
+          grep -Fq 'division by zero' /tmp/atomic-interrupted.log || { cat /tmp/atomic-interrupted.log; exit 1; }
+          [[ "$(archive_schema_digest)" == "$atomic_before" ]] || exit 1
+          [[ "$(sql -c "select count(*) from private.v3_migration_contracts where migration_key in ('v3.results.atomic-televote-calculation','v3.results.authenticated-calculation-actor')")" == 0 ]] || exit 1
+          sql -f - < /tmp/atomic-recovery.sql
+          atomic_after="$(archive_schema_digest)"
+          if sql -f - < /tmp/atomic-recovery.sql > /tmp/atomic-duplicate.log 2>&1; then exit 1; fi
+          grep -Fq 'Atomic recovery already or partially installed' /tmp/atomic-duplicate.log
+          [[ "$(archive_schema_digest)" == "$atomic_after" ]] || exit 1
+          echo 'PASS: guarded atomic recovery, authority/policy drift denial, interruption rollback, retry and duplicate refusal'
           sql -f - < .github/tests/v3-atomic-calculation-actor.sql
+          # Restore source-exact, hosted-fingerprinted nested publication and
+          # qualification dependencies in the LOCAL fixture only; never add
+          # these unrelated routines to the recovery migration.
+          node scripts/stage-v3-public-snapshot-recovery.mjs --local-qualification-helpers > /tmp/qualification-helper-fixture.sql
+          sql -f - < /tmp/qualification-helper-fixture.sql
+          # Reconstruct four observed existing helpers missing from the fixture.
+          node scripts/stage-v3-public-snapshot-recovery.mjs --local-helpers > /tmp/publication-helper-fixture.sql
+          sql -f - < /tmp/publication-helper-fixture.sql
+          # The S02 56-table fixture replayed only CRUD grants, while the later
+          # read-only hosted result-catalog observation established additional
+          # service_role rights on these TWO tables. Reconstruct the observed
+          # ACL only in this networkless disposable PG17.11 fixture.
+          sql -c "GRANT TRUNCATE, REFERENCES, TRIGGER ON TABLE public.studio2_result_operations TO service_role; GRANT TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON TABLE public.studio2_show_publication_controls TO service_role;"
+          [[ "$(sql -c "select ((select relacl::text from pg_class where oid='public.studio2_result_operations'::regclass)='{postgres=arwdDxtm/postgres,service_role=arwdDxt/postgres}' and (select relacl::text from pg_class where oid='public.studio2_show_publication_controls'::regclass)='{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}')::text")" == true ]] || { echo "::error::Hosted-observed snapshot table ACL reconstruction drift"; exit 1; }
+          # Preserve the old immutable evidence before installing active capture.
+          sql -v snapshot_before=true -f - < .github/tests/v3-public-snapshot-recovery.sql
+          node scripts/stage-v3-public-snapshot-recovery.mjs > /tmp/public-snapshot-recovery.sql
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const source=fs.readFileSync('/tmp/public-snapshot-recovery.sql','utf8');
+          if(!/commit;\s*$/.test(source)) throw Error('Snapshot transaction drift');
+          fs.writeFileSync('/tmp/public-snapshot-interrupted.sql',source.replace(/commit;\s*$/,'select 1/0;\ncommit;\n'));
+          NODE
+          snapshot_before="$(archive_schema_digest)"
+          if sql -f - < /tmp/public-snapshot-interrupted.sql > /tmp/public-snapshot-interrupted.log 2>&1; then exit 1; fi
+          grep -Fq 'division by zero' /tmp/public-snapshot-interrupted.log || { cat /tmp/public-snapshot-interrupted.log; exit 1; }
+          [[ "$(archive_schema_digest)" == "$snapshot_before" ]] || { echo 'Snapshot interruption changed schema'; exit 1; }
+          sql -f - < /tmp/public-snapshot-recovery.sql
+          sql -v snapshot_before=false -f - < .github/tests/v3-public-snapshot-recovery.sql
+          snapshot_after="$(archive_schema_digest)"
+          if sql -f - < /tmp/public-snapshot-recovery.sql > /tmp/public-snapshot-duplicate.log 2>&1; then exit 1; fi
+          grep -Fq 'Snapshot recovery routine drift or partial installation' /tmp/public-snapshot-duplicate.log
+          [[ "$(archive_schema_digest)" == "$snapshot_after" ]] || exit 1
+          echo 'PASS: ordered source-exact active capture/public snapshot; interrupted rollback, retry and duplicate refusal'
           docker rm -f "$cid" >/dev/null
           cid=""
           echo "PASS: S13 then S14 against 215 hosted-observed PG17.11 table identities (56 scoped + 159 exact fingerprints); missing S13/duplicate fail closed."
