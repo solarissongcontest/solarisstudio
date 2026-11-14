@@ -11,7 +11,7 @@ do $check$ declare actor text; seen integer; begin
   execute format('set local role %I',actor);
   select count(*) into seen from public.v3_api_role_rls_probe;
   reset role;
-  if seen<>case when actor='service_role' then 1 else 0 end then raise exception 'API role RLS behavior mismatch: %',actor; end if;
+  if seen<>(case when actor='service_role' then 1 else 0 end) then raise exception 'API role RLS behavior mismatch: %',actor; end if;
  end loop;
 end $check$;
 rollback;
