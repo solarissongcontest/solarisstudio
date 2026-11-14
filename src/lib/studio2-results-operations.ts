@@ -82,6 +82,25 @@ export type Studio2ResultExecution = {
   idempotentReplay: boolean;
 };
 
+export type Studio2ResultOperationReview = {
+  schemaVersion: number;
+  showId: string;
+  editionId: string;
+  actorUserId: string | null;
+  action: Studio2ResultAction;
+  calculationVersion: number;
+  reviewBasisVersion: number;
+  stateVersion: string;
+  preconditions: Studio2ResultPreconditions;
+  serverTime: string;
+};
+
+export type Studio2ReviewedResultExecution = Studio2ResultExecution & {
+  reviewBasisVersionBefore: number;
+  reviewBasisVersionAfter: number;
+  reviewInputProtected: true;
+};
+
 type RpcClient = {
   rpc(name: string, args?: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }>;
 };
@@ -205,6 +224,59 @@ function parseExecution(value: unknown): Studio2ResultExecution {
   };
 }
 
+function parseResultOperationReview(value: unknown): Studio2ResultOperationReview {
+  const row = object(value, 'result operation review');
+  if (!STUDIO2_RESULT_ACTIONS.includes(row.action as Studio2ResultAction)) {
+    throw new Error('Invalid result operation review action');
+  }
+  const reviewBasisVersion = numberValue(row.reviewBasisVersion, 'reviewBasisVersion');
+  if (!Number.isInteger(reviewBasisVersion) || reviewBasisVersion < 1) {
+    throw new Error('Invalid reviewBasisVersion');
+  }
+  return {
+    schemaVersion: numberValue(row.schemaVersion, 'schemaVersion'),
+    showId: stringValue(row.showId, 'showId'),
+    editionId: stringValue(row.editionId, 'editionId'),
+    actorUserId: nullableString(row.actorUserId),
+    action: row.action as Studio2ResultAction,
+    calculationVersion: numberValue(row.calculationVersion, 'calculationVersion'),
+    reviewBasisVersion,
+    stateVersion: stringValue(row.stateVersion, 'stateVersion'),
+    preconditions: parseStudio2ResultPreconditions(row.preconditions),
+    serverTime: stringValue(row.serverTime, 'serverTime'),
+  };
+}
+
+function parseReviewedExecution(value: unknown): Studio2ReviewedResultExecution {
+  const row = object(value, 'reviewed result operation execution');
+  const base = parseExecution(row);
+  if (row.reviewInputProtected !== true) {
+    throw new Error('Result execution did not prove reviewed-input protection');
+  }
+  const reviewBasisVersionBefore = numberValue(
+    row.reviewBasisVersionBefore,
+    'reviewBasisVersionBefore',
+  );
+  const reviewBasisVersionAfter = numberValue(
+    row.reviewBasisVersionAfter,
+    'reviewBasisVersionAfter',
+  );
+  if (
+    !Number.isInteger(reviewBasisVersionBefore)
+    || reviewBasisVersionBefore < 1
+    || !Number.isInteger(reviewBasisVersionAfter)
+    || reviewBasisVersionAfter < 1
+  ) {
+    throw new Error('Invalid reviewed-input basis version');
+  }
+  return {
+    ...base,
+    reviewBasisVersionBefore,
+    reviewBasisVersionAfter,
+    reviewInputProtected: true,
+  };
+}
+
 async function rpc(name: string, args: Record<string, unknown>) {
   const { data, error } = await rpcClient.rpc(name, args);
   if (error) throw error;
@@ -218,13 +290,30 @@ export async function loadStudio2ResultsOperations(editionId: string): Promise<S
   return data.map(parseStudio2ResultOperationRow);
 }
 
-export async function executeStudio2ResultOperation(input: {
+export async function loadStudio2ResultOperationReview(input: {
+  showId: string;
+  action: Studio2ResultAction;
+}): Promise<Studio2ResultOperationReview> {
+  if (!input.showId) throw new Error('Show is required.');
+  if (!STUDIO2_RESULT_ACTIONS.includes(input.action)) throw new Error('Unsupported result operation.');
+
+  const data = await rpc('studio2_result_operation_preview_v2', {
+    p_show_id: input.showId,
+    p_action: input.action,
+  });
+  return parseResultOperationReview(data);
+}
+
+export async function executeReviewedStudio2ResultOperation(input: {
   showId: string;
   action: Studio2ResultAction;
   reason: string;
   executionId: string;
   expectedVersion: number;
-}): Promise<Studio2ResultExecution> {
+  expectedReviewBasisVersion: number;
+  expectedEditionId: string;
+  expectedActorUserId: string | null;
+}): Promise<Studio2ReviewedResultExecution> {
   const reason = input.reason.trim();
   if (!input.showId) throw new Error('Show is required.');
   if (!STUDIO2_RESULT_ACTIONS.includes(input.action)) throw new Error('Unsupported result operation.');
@@ -233,15 +322,22 @@ export async function executeStudio2ResultOperation(input: {
   if (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 0) {
     throw new Error('Expected calculation version is invalid.');
   }
+  if (!input.expectedEditionId) throw new Error('Reviewed edition is required.');
+  if (!Number.isInteger(input.expectedReviewBasisVersion) || input.expectedReviewBasisVersion < 1) {
+    throw new Error('Expected reviewed-input basis version is invalid.');
+  }
 
-  const data = await rpc('studio2_execute_result_operation', {
+  const data = await rpc('studio2_execute_result_operation_v2', {
     p_show_id: input.showId,
     p_action: input.action,
     p_reason: reason,
     p_execution_id: input.executionId,
     p_expected_version: input.expectedVersion,
+    p_expected_review_basis_version: input.expectedReviewBasisVersion,
+    p_expected_edition_id: input.expectedEditionId,
+    p_expected_actor_user_id: input.expectedActorUserId,
   });
-  return parseExecution(data);
+  return parseReviewedExecution(data);
 }
 
 export function resultLifecycleLabel(state: Studio2ResultLifecycle): string {

@@ -41,7 +41,17 @@ db_exec "insert into public.shows(id,edition_id,name,kind,sort_order,published,p
 # remains a synthetic invariant fixture, rather than an orphan Result.
 db_exec "insert into public.participants(edition_id,show_id,country_id,participation_status) values ('$EDITION_ID','$SHOW_ID','$COUNTRY_ID','confirmed');"
 db_exec "insert into public.results(id,edition_id,show_id,country_id,jury_points,televote_points,total_points,final_rank) values ('$RESULT_ID','$EDITION_ID','$SHOW_ID','$COUNTRY_ID',12,10,22,1) on conflict (show_id,country_id) where show_id is not null do update set id=excluded.id,jury_points=excluded.jury_points,televote_points=excluded.televote_points,total_points=excluded.total_points,final_rank=excluded.final_rank;"
-db_exec "insert into public.studio2_result_operations(show_id,edition_id,calculation_version,last_calculated_at,reviewed_version,reviewed_at,locked_version,locked_at,reveal_ready_version,reveal_ready_at) values ('$SHOW_ID','$EDITION_ID',1,now(),1,now(),1,now(),1,now());"
+db_exec "insert into public.studio2_result_operations(show_id,edition_id,calculation_version,last_calculated_at,reviewed_version,reviewed_at,locked_version,locked_at,reveal_ready_version,reveal_ready_at) values ('$SHOW_ID','$EDITION_ID',1,now(),1,now(),1,now(),1,now())
+on conflict (show_id) do update set
+ calculation_version=excluded.calculation_version,
+ last_calculated_at=excluded.last_calculated_at,
+ reviewed_version=excluded.reviewed_version,
+ reviewed_at=excluded.reviewed_at,
+ locked_version=excluded.locked_version,
+ locked_at=excluded.locked_at,
+ reveal_ready_version=excluded.reveal_ready_version,
+ reveal_ready_at=excluded.reveal_ready_at
+ where public.studio2_result_operations.edition_id=excluded.edition_id;"
 
 [[ "$(db_value "select count(*) from private.v3_result_versions where show_id='$SHOW_ID' and version=1;")" == '1' ]] || fail "immutable result version was not captured"
 [[ "$(db_value "select private.v3_publication_result_version_release_ready('$SHOW_ID',1);")" == 't' ]] || fail "exact result version is not release ready"

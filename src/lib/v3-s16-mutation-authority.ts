@@ -202,7 +202,24 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     risk: "integrity_critical",
     canonicalTables: ["public.results", "public.studio2_result_operations", "public.studio2_result_operation_executions"],
     canonicalOwner: "Results / PR #1400 frozen mutation owner",
-    canonicalCommands: ["public.studio2_execute_result_operation"],
+    canonicalCommands: ["public.studio2_execute_result_operation_v2"],
+    // V2 is the only externally sanctioned Result mutation RPC. The legacy
+    // engine and trigger helpers remain internal to the frozen System owner.
+    sanctionedInternalWriters: [
+      "public.studio2_execute_result_operation",
+      "public.studio2_execute_result_operation_v3_base",
+      "private.studio2_bump_result_review_basis",
+      "private.studio2_result_review_basis_row_changed",
+      "private.studio2_result_review_basis_show_changed",
+    ],
+    directRpcDeniedInternalWriters: [
+      "public.studio2_execute_result_operation",
+      "public.studio2_execute_result_operation_v3_base",
+      "private.studio2_bump_result_review_basis",
+      "private.studio2_result_review_basis_row_changed",
+      "private.studio2_result_review_basis_show_changed",
+    ],
+    sanctionedWriteTriggers: ["studio2_results_review_basis_results"],
     resultsFrozenOwner: true,
   },
   {

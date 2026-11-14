@@ -15,6 +15,8 @@ const service = readFileSync(
 describe("V3 Organizer Results reviewed-state freshness", () => {
   it("freezes the exact canonical row shown in the review sheet", () => {
     expect(route).toContain("reviewFingerprint: string");
+    expect(route).toContain("review: Studio2ResultOperationReview");
+    expect(route).toContain("loadStudio2ResultOperationReview({ showId: row.showId, action })");
     expect(route).toContain("reviewFingerprint: resultOperationReviewFingerprint(row)");
     expect(route).toContain("showName: row.showName");
     expect(route).toContain("lifecycle: row.lifecycle");
@@ -37,7 +39,10 @@ describe("V3 Organizer Results reviewed-state freshness", () => {
 
   it("never silently upgrades a reviewed command to the refreshed row", () => {
     expect(route).toContain("showId: operation.row.showId");
-    expect(route).toContain("expectedVersion: operation.row.calculationVersion");
+    expect(route).toContain("expectedVersion: operation.review.calculationVersion");
+    expect(route).toContain("expectedReviewBasisVersion: operation.review.reviewBasisVersion");
+    expect(route).toContain("expectedEditionId: operation.review.editionId");
+    expect(route).toContain("expectedActorUserId: operation.review.actorUserId");
     expect(route).not.toContain("expectedVersion: liveRow.calculationVersion");
     expect(route).not.toContain("showId: liveRow.showId");
   });
@@ -45,6 +50,8 @@ describe("V3 Organizer Results reviewed-state freshness", () => {
   it("preserves same-operation replay after an uncertain response", () => {
     expect(route).toContain("sameIdentityRetry: recovery?.allowSameIdentityRetry === true");
     expect(route).toContain("executionId: operation.executionId");
+    expect(route).toContain("submittedReason: committedReason");
+    expect(route).toContain("reason: operation.submittedReason ?? reason.trim()");
     expect(route).toContain("recovery?.allowSameIdentityRetry");
     expect(route).toContain("Retry same operation");
     expect(route).not.toContain("executionId: crypto.randomUUID(),\n        expectedVersion");
@@ -61,8 +68,9 @@ describe("V3 Organizer Results reviewed-state freshness", () => {
   });
 
   it("keeps consequential mutation and idempotency server-authoritative", () => {
-    expect(route).toContain("executeStudio2ResultOperation");
-    expect(service).toContain("studio2_execute_result_operation");
+    expect(route).toContain("executeReviewedStudio2ResultOperation");
+    expect(service).toContain("studio2_execute_result_operation_v2");
+    expect(route).not.toContain("executeStudio2ResultOperation({");
     expect(route).not.toContain(".from('results')");
     expect(route).not.toContain('.from("results")');
     expect(route).not.toContain(".from('jury_votes')");
@@ -70,7 +78,7 @@ describe("V3 Organizer Results reviewed-state freshness", () => {
   });
 
   it("tells the operator that drift invalidates the first review", () => {
-    expect(route).toContain("Before the first commit, Solaris re-reads this exact edition/show Results snapshot");
-    expect(route).toContain("this review is rejected instead of silently applying a different operation");
+    expect(route).toContain("Before the first commit, Solaris re-reads the exact edition/show snapshot and server-reviewed input basis");
+    expect(route).toContain("Any operator, edition, lifecycle, version or readiness change rejects the review");
   });
 });

@@ -106,12 +106,15 @@ begin;
 set local statement_timeout='150ms';
 set local "request.jwt.claim.role"='service_role';
 set local "request.jwt.claims"='{"role":"service_role"}';
-select public.studio2_execute_result_operation(
+select public.studio2_execute_result_operation_v2(
   '$show_id'::uuid,
   'calculate',
   'S14 timeout-before-commit injection',
   '$execution_id'::uuid,
-  $expected_version
+  $expected_version,
+  (select review_basis_version from public.studio2_result_operations where show_id='$show_id'::uuid),
+  (select edition_id from public.shows where id='$show_id'::uuid),
+  null::uuid
 );
 commit;
 SQL
@@ -134,9 +137,26 @@ SQL
   log "S14_FAILURE_DB_TIMEOUT_COMPLETE"
 }
 
+# The S14 harness must exercise the same canonical actor/edition-bound
+# reviewed-input CAS used by Organizer, never the retired 5-argument RPC.
+fetch_result_review() {
+  local show_id="$1" action="$2"
+  rpc_request "$ORGANIZER_A_TOKEN" studio2_result_operation_preview_v2 "{\"p_show_id\":\"$show_id\",\"p_action\":\"$action\"}"
+  expect_success "Results $action authoritative review $show_id"
+  RESULT_REVIEW_BASIS="$(printf '%s' "$HTTP_BODY" | json_value reviewBasisVersion)"
+  RESULT_REVIEW_VERSION="$(printf '%s' "$HTTP_BODY" | json_value calculationVersion)"
+  RESULT_REVIEW_EDITION="$(printf '%s' "$HTTP_BODY" | json_value editionId)"
+  RESULT_REVIEW_ACTOR="$(printf '%s' "$HTTP_BODY" | json_value actorUserId)"
+  [[ "$RESULT_REVIEW_BASIS" =~ ^[1-9][0-9]*$ ]] || fail "Results $action preview lacked reviewed input basis: $HTTP_BODY"
+  [[ "$RESULT_REVIEW_VERSION" =~ ^[0-9]+$ ]] || fail "Results $action preview lacked calculation version: $HTTP_BODY"
+  [[ "$RESULT_REVIEW_EDITION" =~ ^[0-9a-fA-F-]{36}$ && "$RESULT_REVIEW_ACTOR" =~ ^[0-9a-fA-F-]{36}$ ]] || fail "Results $action preview lacked actor/edition identity: $HTTP_BODY"
+}
+
 execute_result_action() {
   local show_id="$1" action="$2" execution_id="$3" expected_version="$4" reason="$5"
-  rpc_request "$ORGANIZER_A_TOKEN" studio2_execute_result_operation "{\"p_show_id\":\"$show_id\",\"p_action\":\"$action\",\"p_reason\":\"$reason\",\"p_execution_id\":\"$execution_id\",\"p_expected_version\":$expected_version}"
+  fetch_result_review "$show_id" "$action"
+  [[ "$RESULT_REVIEW_VERSION" == "$expected_version" ]] || fail "S14 Results $action reviewed version $RESULT_REVIEW_VERSION differs from expected $expected_version"
+  rpc_request "$ORGANIZER_A_TOKEN" studio2_execute_result_operation_v2 "{\"p_show_id\":\"$show_id\",\"p_action\":\"$action\",\"p_reason\":\"$reason\",\"p_execution_id\":\"$execution_id\",\"p_expected_version\":$expected_version,\"p_expected_review_basis_version\":$RESULT_REVIEW_BASIS,\"p_expected_edition_id\":\"$RESULT_REVIEW_EDITION\",\"p_expected_actor_user_id\":\"$RESULT_REVIEW_ACTOR\"}"
   expect_success "Results $action $show_id"
   expect_json "Results $action show identity" showId "$show_id"
 }
@@ -248,7 +268,9 @@ run_s14_stage_8_results() {
   # Stage 6 remain unresolved. This now proves the missing ballots themselves,
   # rather than pending review state, block canonical Results calculation.
   initial_version="$(db_scalar "select coalesce((select calculation_version from public.studio2_result_operations where show_id='$SEMI_ONE_ID'::uuid),0);")"
-  rpc_request "$ORGANIZER_A_TOKEN" studio2_execute_result_operation "{\"p_show_id\":\"$SEMI_ONE_ID\",\"p_action\":\"calculate\",\"p_reason\":\"S14 must reject incomplete Jury input\",\"p_execution_id\":\"14000000-0000-4008-8000-000000000001\",\"p_expected_version\":$initial_version}"
+  fetch_result_review "$SEMI_ONE_ID" calculate
+  [[ "$RESULT_REVIEW_VERSION" == "$initial_version" ]] || fail "S14 incomplete-input review version drift"
+  rpc_request "$ORGANIZER_A_TOKEN" studio2_execute_result_operation_v2 "{\"p_show_id\":\"$SEMI_ONE_ID\",\"p_action\":\"calculate\",\"p_reason\":\"S14 must reject incomplete Jury input\",\"p_execution_id\":\"14000000-0000-4008-8000-000000000001\",\"p_expected_version\":$initial_version,\"p_expected_review_basis_version\":$RESULT_REVIEW_BASIS,\"p_expected_edition_id\":\"$RESULT_REVIEW_EDITION\",\"p_expected_actor_user_id\":\"$RESULT_REVIEW_ACTOR\"}"
   expect_failure "Results calculation with missing Jury ballot"
   [[ "$HTTP_BODY" == *"validation is not ready"* ]] || fail "missing-input Results failure lost its canonical reason: $HTTP_BODY"
   [[ "$(db_scalar "select count(*) from public.studio2_result_operation_executions where execution_id='14000000-0000-4008-8000-000000000001'::uuid;")" == "0" ]] || fail "rejected missing-input calculation persisted an execution"
