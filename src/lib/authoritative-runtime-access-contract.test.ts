@@ -41,11 +41,11 @@ describe("authoritative runtime access", () => {
   });
 
   it("loads server capabilities from authoritative V2 assignments and direct grants", () => {
-    expect(capabilitiesServer).toContain(".from('studio2_capability_grants')");
-    expect(capabilitiesServer).toContain(".from('studio2_role_assignments')");
-    expect(capabilitiesServer).toContain(".from('studio2_role_capabilities')");
+    expect(capabilitiesServer).toMatch(/\.from\(['"]studio2_capability_grants['"]\)/);
+    expect(capabilitiesServer).toMatch(/\.from\(['"]studio2_role_assignments['"]\)/);
+    expect(capabilitiesServer).toMatch(/\.from\(['"]studio2_role_capabilities['"]\)/);
     expect(capabilitiesServer).toContain("authoritative: true");
-    expect(capabilitiesServer).not.toContain(".from('capability_grants')");
+    expect(capabilitiesServer).not.toMatch(/\.from\(['"]capability_grants['"]\)/);
     expect(capabilitiesServer).not.toContain("legacyOrganizerFallback");
     expect(capabilitiesServer).not.toContain("legacyOrganizerCapabilities");
     expect(capabilitiesServer).not.toContain("user_roles");
