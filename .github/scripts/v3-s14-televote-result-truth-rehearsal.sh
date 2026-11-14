@@ -130,6 +130,22 @@ where id='$ROUND_ID'::uuid;
 [[ "$(db_scalar "select count(*) || ':' || sum(points) from public.televote_votes where show_id='$SHOW_ID'::uuid;")" == "3:24" ]] || fail "new round version duplicated or lost Televote rows"
 db_expect_failure "older source version after supersession" "select private.v3_apply_published_televote_projection('$EDITION_ID','$SHOW_ID','round','$ROUND_ID',1,'2026-10-16T19:00:00Z','$ROWS_V1'::jsonb);"
 
+# The S13 gap/recovery rehearsal deliberately rebuilds its registration ledger.
+# A missing ledger record cannot establish absence of an already-installed SQL
+# effect. Inspect the actual seven enabled guards instead of replaying writes.
+COMBINED_GUARDS="$(db_scalar "select count(*) from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='televoting' and c.relname=any(array['televote_aggregations','televote_aggregation_participants','televote_aggregation_sources','external_score_entries','external_score_entry_log','combined_televote_results','combined_televote_component_results']) and t.tgname='v3_deny_deferred_combined_write' and t.tgenabled='A';")"
+if [[ "$COMBINED_GUARDS" != 0 && "$COMBINED_GUARDS" != 7 ]]; then fail "Partial Combined deferral guards"; fi
+if [[ "$COMBINED_GUARDS" == 7 ]]; then
+  log "Owner-deferred Combined cannot mutate or supersede canonical round truth"
+  db_expect_failure "deferred Combined table insertion" "insert into televoting.televote_aggregations(id,name) values ('$AGGREGATION_ID','Must be denied');"
+  db_expect_failure "deferred Combined publication adapter" "select private.v3_sync_published_televote_aggregation('$AGGREGATION_ID'::uuid);"
+  [[ "$(db_scalar "select source_type || ':' || source_id || ':' || projection_revision from private.v3_televote_result_projection_sources where show_id='$SHOW_ID'::uuid;")" == "round:$ROUND_ID:2" ]] || fail "Rejected Combined operation altered round provenance"
+  # The mandatory SSC source remains operational after the optional cutover.
+  db_exec "update televoting.round_results set calculation_version=3,calculated_at='2026-10-16T19:30:00Z' where round_id='$ROUND_ID'::uuid; update televoting.rounds set calculation_version=3,calculated_at='2026-10-16T19:30:00Z' where id='$ROUND_ID'::uuid;"
+  EXPECTED_SOURCE_ID="$ROUND_ID"; EXPECTED_SOURCE_TYPE=round; EXPECTED_SOURCE_VERSION=3; EXPECTED_TOTAL=24
+  [[ "$(db_scalar "select source_type || ':' || source_id || ':' || source_version || ':' || projection_revision from private.v3_televote_result_projection_sources where show_id='$SHOW_ID'::uuid;")" == "round:$ROUND_ID:3:3" ]] || fail "Combined deferral broke ordinary round publication"
+else
+  # Retain the pre-cutover recovery contract when exercising an older boundary.
 log "A newer published Combined Televote supersedes the single-round source"
 db_exec "
 update televoting.rounds set broadcast_display_mode='combined' where id='$ROUND_ID'::uuid;
@@ -171,6 +187,9 @@ update televoting.rounds set calculation_version=3,calculated_at='2026-10-16T19:
 "
 [[ "$(db_scalar "select source_type || ':' || source_id || ':' || projection_revision from private.v3_televote_result_projection_sources where show_id='$SHOW_ID'::uuid;")" == "combined:$AGGREGATION_ID:3" ]] || fail "Combined truth was overwritten by a component round"
 
+  EXPECTED_SOURCE_ID="$AGGREGATION_ID"; EXPECTED_SOURCE_TYPE=combined; EXPECTED_SOURCE_VERSION=1; EXPECTED_TOTAL=30
+fi
+
 log "Bound lineup mismatch is fail-closed"
 db_exec "
 insert into televoting.rounds(
@@ -188,7 +207,7 @@ insert into televoting.round_results(
   ('$MISMATCH_ROUND','TTB',1,1,2,2,2,1.33,1,1,4,4,0,0,4,10,1);
 "
 db_expect_failure "bound published round with incomplete lineup" "update televoting.rounds set results_status='published' where id='$MISMATCH_ROUND'::uuid;"
-[[ "$(db_scalar "select source_id from private.v3_televote_result_projection_sources where show_id='$SHOW_ID'::uuid;")" == "$AGGREGATION_ID" ]] || fail "mismatched source altered canonical provenance"
+[[ "$(db_scalar "select source_id from private.v3_televote_result_projection_sources where show_id='$SHOW_ID'::uuid;")" == "$EXPECTED_SOURCE_ID" ]] || fail "mismatched source altered canonical provenance"
 
 log "Unbound publication never fabricates a Solaris projection"
 db_exec "
@@ -206,7 +225,7 @@ insert into televoting.round_results(
   ('$UNBOUND_ROUND','TTC',1,1,3,3,3,1.33,1,1,4,4,0,0,4,24,1);
 update televoting.rounds set results_status='published' where id='$UNBOUND_ROUND'::uuid;
 "
-[[ "$(db_scalar "select source_id from private.v3_televote_result_projection_sources where show_id='$SHOW_ID'::uuid;")" == "$AGGREGATION_ID" ]] || fail "unbound source altered canonical provenance"
+[[ "$(db_scalar "select source_id from private.v3_televote_result_projection_sources where show_id='$SHOW_ID'::uuid;")" == "$EXPECTED_SOURCE_ID" ]] || fail "unbound source altered canonical provenance"
 
 log "Browser writes cannot mutate a source-managed Televote projection"
 db_exec "
@@ -221,16 +240,16 @@ on conflict do nothing;
 db_expect_failure "authenticated direct edit of published Televote projection" "set role authenticated; set request.jwt.claim.sub='$USER_ID'; set request.jwt.claim.role='authenticated'; update public.televote_votes set points=999 where show_id='$SHOW_ID'::uuid and country_id='$COUNTRY_A'::uuid;"
 
 STATUS="$(db_scalar "set request.jwt.claim.role='service_role'; select public.studio2_televote_projection_status('$SHOW_ID'::uuid)::text;")"
-python3 - "$STATUS" "$AGGREGATION_ID" <<'PY'
+python3 - "$STATUS" "$EXPECTED_SOURCE_ID" "$EXPECTED_SOURCE_TYPE" "$EXPECTED_SOURCE_VERSION" "$EXPECTED_TOTAL" <<'PY'
 import json,sys
 status=json.loads(sys.argv[1])
 assert status['managed'] is True
-assert status['sourceType'] == 'combined'
+assert status['sourceType'] == sys.argv[3]
 assert status['sourceId'] == sys.argv[2]
-assert status['sourceVersion'] == 1
+assert status['sourceVersion'] == int(sys.argv[4])
 assert status['projectionRevision'] == 3
 assert status['rowCount'] == 3
-assert status['pointsTotal'] == 30
+assert status['pointsTotal'] == int(sys.argv[5])
 assert status['televoteVoteRows'] == 3
 PY
 log "PASS: safe provenance status reconciles to the canonical projection"
