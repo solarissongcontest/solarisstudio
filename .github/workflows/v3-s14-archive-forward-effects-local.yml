@@ -12,6 +12,8 @@ on:
       - ".github/tests/v3-atomic-calculation-actor.sql"
       - "scripts/v3-atomic-calculation-actor.test.mjs"
       - "scripts/stage-v3-public-snapshot-recovery*"
+      - "scripts/stage-v3-auth-uid-authority-local*"
+      - "docs/v3/recovery-candidates/evidence/auth-uid-authority-observed-2026-11-13.json"
       - ".github/tests/v3-public-snapshot-recovery.sql"
       - "docs/v3/recovery-candidates/evidence/public-snapshot-prerequisites-observed-2026-11-13.json"
       - "docs/v3/recovery-candidates/evidence/publication-helper-prerequisites-observed-2026-11-13.json"
@@ -252,7 +254,7 @@ jobs:
       - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
         run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
       - name: Verify bounded catalog export and drift refusals
-        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs scripts/stage-v3-public-snapshot-recovery.test.mjs
+        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs scripts/stage-v3-public-snapshot-recovery.test.mjs scripts/stage-v3-auth-uid-authority-local.test.mjs
       - name: Test authorization dependency reconstruction and incomplete-manifest refusal
         run: node --test scripts/v3-s13-s14-authorization-dependencies.test.mjs
       - name: Assert all-hosted catalog digests and incomplete-fixture rejection (offline only)
@@ -753,6 +755,24 @@ jobs:
           grep -Fq 'S07 source truth already or partially installed' /tmp/s07-ordered-duplicate.log
           [[ "$(archive_schema_digest)" == "$ordered_after" ]] || exit 1
           echo "PASS: ordered S13 -> Archive -> canonical S07; actual ACL denial, interruption rollback and duplicate refusal"
+          # Correct the original imported auth function owner/ACL from observed metadata.
+          node scripts/stage-v3-auth-uid-authority-local.mjs > /tmp/auth-uid-authority-local.sql
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const source=fs.readFileSync('/tmp/auth-uid-authority-local.sql','utf8');
+          if(!/commit;\s*$/.test(source)) throw Error('Identity fixture transaction drift');
+          fs.writeFileSync('/tmp/auth-uid-interrupted.sql',source.replace(/commit;\s*$/,'select 1/0;\ncommit;\n'));
+          NODE
+          uid_before="$(archive_schema_digest)"
+          uid_role_before="$(sql -c "select exists(select 1 from pg_roles where rolname='dashboard_user')")"
+          if sql -f - < /tmp/auth-uid-interrupted.sql > /tmp/auth-uid-interrupted.log 2>&1; then exit 1; fi
+          grep -Fq 'division by zero' /tmp/auth-uid-interrupted.log || { cat /tmp/auth-uid-interrupted.log; exit 1; }
+          [[ "$(archive_schema_digest)" == "$uid_before" ]] || exit 1
+          [[ "$(sql -c "select exists(select 1 from pg_roles where rolname='dashboard_user')")" == "$uid_role_before" ]] || exit 1
+          sql -f - < /tmp/auth-uid-authority-local.sql
+          if sql -f - < /tmp/auth-uid-authority-local.sql > /tmp/auth-uid-duplicate.log 2>&1; then exit 1; fi
+          grep -Fq 'NEVER hosted' /tmp/auth-uid-duplicate.log
+
           # Canonical atomic source reference followed by the forward actor repair.
           sql -f - < supabase/migrations/20261103004500_v3_s14_atomic_televote_calculation.sql
           sql -f - < supabase/migrations/20261113211759_v3_atomic_calculation_actor_binding.sql

@@ -51,3 +51,14 @@ and anonymous direct reads, check every returned identity, and exclude private
 Jury/Televote component fields from every anonymous row. These tests complement
 source-exact calculation/capture checks; they do not qualify all production data
 shapes or unresolved canonical Results/qualification recovery stages.
+
+The local atomic-reference prerequisite now also reproduces the separately
+observed `auth.uid()` owner (`supabase_auth_admin`) and complete EXECUTE ACL,
+including PUBLIC and dashboard_user, without changing its body. The imported
+fixture previously kept the correct body under postgres/default ACL instead.
+The new fixture correction refuses the actual hosted owner before any DDL,
+checks both definition hashes and the frozen ACL digest, and exercises rollback,
+retry and duplicate refusal before the authenticated calculation tests. The
+minimal dashboard_user NOLOGIN role represents an observed grantee identity;
+its other hosted role attributes are not certified. This is strictly a local
+reconstruction, never a proposed production auth ownership/grant change.
