@@ -1,8 +1,16 @@
 import { LockKeyhole, ShieldAlert } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import { useAdminContext } from "@/components/admin/AdminContext";
+import { loadConfirmationResponseForEdition } from "@/integrations/confirmations/scoped-admin-reads";
+import {
+  applyConfirmationResponseAccess,
+  previewConfirmationResponseAction,
+} from "@/integrations/confirmations/response-commands";
+import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
+import { reconcileSystemOperation } from "@/lib/system-operation.functions";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +25,12 @@ type ConfirmationAccessSnapshot = {
 type PendingAccessReview = {
   baseline: ConfirmationAccessSnapshot;
   next: ConfirmationAccessSnapshot;
+};
+
+type LiveResponseAccess = {
+  editing_allowed?: boolean;
+  locked?: boolean;
+  admin_notes?: string | null;
 };
 
 export function ConfirmationAccessSettingsSheet({
@@ -42,6 +56,8 @@ export function ConfirmationAccessSettingsSheet({
   locked: boolean;
   adminNotes: string | null;
 }) {
+  const { editionId: organizerEditionId } = useAdminContext();
+  const reconcileOperation = useServerFn(reconcileSystemOperation);
   const [draftEditingAllowed, setDraftEditingAllowed] = useState(editingAllowed);
   const [draftLocked, setDraftLocked] = useState(locked);
   const [draftNotes, setDraftNotes] = useState(adminNotes ?? "");
@@ -86,6 +102,10 @@ export function ConfirmationAccessSettingsSheet({
       toast.message("No response-setting changes to review.");
       return;
     }
+    if (!organizerEditionId) {
+      toast.error("Select the exact Organizer edition before reviewing response access.");
+      return;
+    }
     setPendingReview({
       baseline: currentSnapshot,
       next: draftSnapshot,
@@ -101,21 +121,25 @@ export function ConfirmationAccessSettingsSheet({
     if (!pendingReview || saving) return;
 
     setSaving(true);
+    let operationId: string | null = null;
     try {
-      const { data: liveData, error: liveError } = await confirmationsSupabase.rpc(
-        "admin_confirmation_response",
-        { _submission_id: submissionId },
-      );
-      if (liveError) throw liveError;
-
-      const live = liveData as unknown as {
-        editing_allowed?: boolean;
-        locked?: boolean;
-        admin_notes?: string | null;
-      } | null;
-      if (!live) {
-        throw new Error("The Confirmation response is no longer available. Nothing was changed.");
+      if (!organizerEditionId) {
+        throw new Error("The Organizer edition context is unavailable. Nothing was changed.");
       }
+      const editionId = organizerEditionId;
+
+      // Preview owns the canonical response version. Reading the exact-edition
+      // response after preview lets us compare the reviewed private-note state;
+      // any change after preview still invalidates the expected version at apply.
+      const preview = await previewConfirmationResponseAction({
+        editionId,
+        submissionId,
+        action: "access_update",
+      });
+      const live = await loadConfirmationResponseForEdition<LiveResponseAccess>(
+        editionId,
+        submissionId,
+      );
 
       const liveNotes = live.admin_notes ?? "";
       if (
@@ -127,20 +151,47 @@ export function ConfirmationAccessSettingsSheet({
           "Response settings changed while this review was open. Nothing was changed. Reload the response and review the latest access state before applying anything.",
         );
       }
+      if (preview.blockers.length > 0) {
+        throw new Error(preview.blockers.join(" "));
+      }
 
-      const { error: updateError } = await confirmationsSupabase.rpc(
-        "admin_update_confirmation_controls",
-        {
-          _submission_id: submissionId,
-          _editing_allowed: pendingReview.next.editingAllowed,
-          _locked: pendingReview.next.locked,
-          _admin_notes: pendingReview.next.adminNotes,
+      const command = createOrganisationCommand({
+        command: "confirmation.response.access.update",
+        riskClass: "R2",
+        scope: { editionId, entityId: submissionId },
+        payload: {
+          editingAllowed: pendingReview.next.editingAllowed,
+          locked: pendingReview.next.locked,
+          adminNotes: pendingReview.next.adminNotes,
         },
-      );
-      if (updateError) throw updateError;
+        expectedVersion: preview.expectedVersion,
+      });
+      operationId = command.operationId;
+
+      try {
+        await applyConfirmationResponseAccess({
+          editionId,
+          submissionId,
+          editingAllowed: pendingReview.next.editingAllowed,
+          locked: pendingReview.next.locked,
+          adminNotes: pendingReview.next.adminNotes,
+          operationId: command.operationId,
+          idempotencyKey: command.idempotencyKey,
+          expectedVersion: preview.expectedVersion,
+        });
+      } catch (caught) {
+        const reconciliation = await reconcileOperation({
+          data: { operationId: command.operationId },
+        });
+        if (!reconciliation.ok || reconciliation.receipt.status !== "succeeded") {
+          throw caught;
+        }
+      }
 
       setPendingReview(null);
-      toast.success("Response settings saved");
+      toast.success("Response settings saved", {
+        description: operationId ? `Operation ${operationId.slice(0, 8)} confirmed` : undefined,
+      });
       await onApplied();
       onClose();
     } catch (caught) {
@@ -237,7 +288,7 @@ export function ConfirmationAccessSettingsSheet({
             </button>
             <button
               type="button"
-              disabled={saving || !controlsChanged}
+              disabled={saving || !controlsChanged || !organizerEditionId}
               onClick={openReview}
               className="admin-action-primary"
             >
@@ -287,7 +338,7 @@ export function ConfirmationAccessSettingsSheet({
               Private organiser notes: {reviewedNotesChanged ? "changed" : "unchanged"}. Their contents are intentionally not repeated here.
             </p>
             <p className="text-xs text-muted-foreground">
-              Organizer re-fetches the live Confirmation response immediately before apply and fails closed if editing access, lock state or notes changed. The underlying legacy control RPC still does not provide canonical expected-version/CAS, idempotency or operation-receipt parity.
+              Solaris binds this apply to the exact Organizer edition and canonical response version. A concurrent response, access or token change rejects the command instead of overwriting newer state; uncertain outcomes reconcile from the operation receipt.
             </p>
           </div>
         }
