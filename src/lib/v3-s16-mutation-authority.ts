@@ -95,6 +95,7 @@ export type V3S16Report = {
     canonicalTables: readonly string[];
     canonicalCommands: readonly string[];
     sanctionedInternalWriters: readonly string[];
+    directRpcDeniedInternalWriters?: readonly string[];
     sanctionedWriteTriggers: readonly string[];
     ownerBoundary: "shared" | "results_pr_1400";
   }[];
@@ -517,6 +518,7 @@ export function buildV3S16MutationAuthorityReport(input: {
       canonicalTables: domain.canonicalTables,
       canonicalCommands: domain.canonicalCommands,
       sanctionedInternalWriters: domain.sanctionedInternalWriters ?? [],
+      directRpcDeniedInternalWriters: domain.directRpcDeniedInternalWriters ?? [],
       sanctionedWriteTriggers: domain.sanctionedWriteTriggers ?? [],
       ownerBoundary: domain.resultsFrozenOwner ? "results_pr_1400" : "shared",
     })),
