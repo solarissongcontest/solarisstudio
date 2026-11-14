@@ -10,6 +10,7 @@ on:
       - "scripts/stage-v3-s07-televote-source-truth.mjs"
       - "supabase/migrations/20261113211759_v3_atomic_calculation_actor_binding.sql"
       - ".github/tests/v3-atomic-calculation-actor.sql"
+      - ".github/tests/v3-atomic-observed-grants-local.sql"
       - "scripts/v3-atomic-calculation-actor.test.mjs"
       - "scripts/stage-v3-public-snapshot-recovery*"
       - "scripts/stage-v3-auth-uid-authority-local*"
@@ -773,6 +774,7 @@ jobs:
           if sql -f - < /tmp/auth-uid-authority-local.sql > /tmp/auth-uid-duplicate.log 2>&1; then exit 1; fi
           grep -Fq 'NEVER hosted' /tmp/auth-uid-duplicate.log
 
+          sql -f - < .github/tests/v3-atomic-observed-grants-local.sql
           # Canonical atomic source reference followed by the forward actor repair.
           sql -f - < supabase/migrations/20261103004500_v3_s14_atomic_televote_calculation.sql
           sql -f - < supabase/migrations/20261113211759_v3_atomic_calculation_actor_binding.sql

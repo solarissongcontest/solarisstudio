@@ -16,3 +16,22 @@ test("restore only observed auth.uid ownership and ACL without replacing auth be
   );
   assert.match(sql, /p\.proconfig is null/);
 });
+
+test("atomic fixture grant reconstruction is bound to exactly the three observed full ACL digests", () => {
+  const source = readFileSync(".github/tests/v3-atomic-observed-grants-local.sql", "utf8");
+  const frozen = JSON.parse(
+    readFileSync(
+      "docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json",
+      "utf8",
+    ),
+  );
+  for (const name of ["rounds", "round_entries", "round_results"]) {
+    const row = frozen.relations.find(
+      (x) => x.schema_name === "televoting" && x.object_name === name,
+    );
+    assert.equal(row.acl_md5, "f150210c09473a4f8750ac0387061f65");
+    assert.ok(source.includes(row.acl_md5));
+  }
+  assert.ok(source.indexOf("NEVER hosted") < source.indexOf("grant truncate,references,trigger"));
+  assert.doesNotMatch(source, /to authenticated|to anon|disable row level|bypassrls|alter role/i);
+});
