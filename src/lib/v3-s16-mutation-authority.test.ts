@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { auditV3S16CatalogAuthority, scanV3S16StaticAuthority, type V3S16DomainDefinition } from "./v3-s16-mutation-authority";
+import { auditV3S16CatalogAuthority, buildV3S16MutationAuthorityReport, scanV3S16StaticAuthority, type V3S16DomainDefinition } from "./v3-s16-mutation-authority";
+import { classifyV3S16ReleaseAuthority } from "./v3-s16-release-risk";
 
 const domain: V3S16DomainDefinition = {
   id: "jury",
@@ -127,4 +128,118 @@ describe("S16 canonical mutation authority", () => {
       expect.objectContaining({ kind: "unexpected_write_trigger", subject: "rogue_writer" }),
     ]);
   });
+  it.each(["anon", "authenticated", "PUBLIC"] as const)(
+    "rejects direct %s EXECUTE on an internal-only Jury RPC even when the wrapper remains legitimate",
+    (role) => {
+      const sha = "d".repeat(40);
+      const juryDomain: V3S16DomainDefinition = {
+        ...domain,
+        canonicalCommands: ["v3_submit_jury_ballot"],
+        sanctionedInternalWriters: ["submit_country_jury_ballot"],
+        directRpcDeniedInternalWriters: ["submit_country_jury_ballot"],
+      };
+      const functions = [
+        {
+          name: "public.v3_submit_jury_ballot",
+          owner: "postgres",
+          securityDefiner: true,
+          searchPath: "pg_catalog, public, private",
+          executeRoles: ["authenticated"],
+        },
+        {
+          name: "public.submit_country_jury_ballot",
+          owner: "postgres",
+          securityDefiner: true,
+          searchPath: "pg_catalog, public, private",
+          executeRoles: [role],
+        },
+      ];
+      const findings = auditV3S16CatalogAuthority({
+        schemaVersion: 2,
+        collection: "effective-postgresql-catalog-v2",
+        roles: { roles: [{ name: "anon" }, { name: "authenticated" }, { name: "service_role" }] },
+        uncertainties: [],
+        negativeTests: { candidateSha: sha, passed: true, domains: ["jury"] },
+        candidateSha: sha,
+        tables: [{ table: "public.jury_votes", owner: "postgres", rlsEnabled: true, dmlRoles: [] }],
+        functions,
+      }, sha, [juryDomain]);
+      expect(findings).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          kind: "internal_writer_user_execute",
+          domain: "jury",
+          subject: expect.stringContaining("submit_country_jury_ballot"),
+          releaseRisk: "hard_blocker",
+        }),
+      ]));
+      expect(findings.some(f => f.kind === "internal_writer_user_execute" && f.subject === "public.v3_submit_jury_ballot")).toBe(false);
+    },
+  );
+
+  it("preserves the sanctioned wrapper plus internal-only helper when only service_role can call the helper directly", () => {
+    const sha = "e".repeat(40);
+    const juryDomain: V3S16DomainDefinition = {
+      ...domain,
+      canonicalCommands: ["v3_submit_jury_ballot"],
+      sanctionedInternalWriters: ["submit_country_jury_ballot"],
+      directRpcDeniedInternalWriters: ["submit_country_jury_ballot"],
+    };
+    const findings = auditV3S16CatalogAuthority({
+      schemaVersion: 2,
+      collection: "effective-postgresql-catalog-v2",
+      roles: { roles: [{ name: "anon" }, { name: "authenticated" }, { name: "service_role" }] },
+      uncertainties: [],
+      negativeTests: { candidateSha: sha, passed: true, domains: ["jury"] },
+      candidateSha: sha,
+      tables: [{ table: "public.jury_votes", owner: "postgres", rlsEnabled: true, dmlRoles: [] }],
+      functions: [
+        { name: "public.v3_submit_jury_ballot", owner: "postgres", securityDefiner: true,
+          searchPath: "pg_catalog, public, private", executeRoles: ["authenticated"] },
+        { name: "public.submit_country_jury_ballot", owner: "postgres", securityDefiner: true,
+          searchPath: "pg_catalog, public, private", executeRoles: ["service_role"] },
+      ],
+    }, sha, [juryDomain]);
+    expect(findings).toEqual([]);
+  });
+
+  it("preserves internal-only RPC scope in the serialized report and release-risk audit", () => {
+    const sha = "f".repeat(40);
+    const juryDomain: V3S16DomainDefinition = {
+      ...domain,
+      canonicalCommands: ["v3_submit_jury_ballot"],
+      sanctionedInternalWriters: ["submit_country_jury_ballot"],
+      directRpcDeniedInternalWriters: ["submit_country_jury_ballot"],
+    };
+    const catalog = {
+      schemaVersion: 2 as const,
+      collection: "effective-postgresql-catalog-v2",
+      roles: { roles: [{ name: "anon" }, { name: "authenticated" }, { name: "service_role" }] },
+      uncertainties: [],
+      negativeTests: { candidateSha: sha, passed: true, domains: ["jury"] },
+      candidateSha: sha,
+      tables: [{ table: "public.jury_votes", owner: "postgres", rlsEnabled: true, dmlRoles: [] }],
+      functions: [
+        { name: "public.v3_submit_jury_ballot", owner: "postgres", securityDefiner: true,
+          searchPath: "pg_catalog, public, private", executeRoles: ["authenticated"] },
+        { name: "public.submit_country_jury_ballot", owner: "postgres", securityDefiner: true,
+          searchPath: "pg_catalog, public, private", executeRoles: ["authenticated"] },
+      ],
+    };
+    const report = buildV3S16MutationAuthorityReport({
+      candidateSha: sha, files: [], catalog, domains: [juryDomain],
+    });
+    expect(report.domains[0].directRpcDeniedInternalWriters).toEqual(["submit_country_jury_ballot"]);
+    const classified = classifyV3S16ReleaseAuthority({
+      baseFindings: [], domains: report.domains, files: [],
+      catalog, staticOnly: false, candidateSha: sha,
+    });
+    expect(classified.findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        kind: "internal_writer_user_execute", domain: "jury",
+        subject: expect.stringContaining("submit_country_jury_ballot"), releaseRisk: "hard_blocker",
+      }),
+    ]));
+    expect(classified.s16Passed).toBe(false);
+  });
+
 });
