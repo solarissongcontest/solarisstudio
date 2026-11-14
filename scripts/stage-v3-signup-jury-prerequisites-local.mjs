@@ -55,5 +55,5 @@ for (const [name, file, args] of sources) {
   );
 }
 console.log(
-  `create trigger on_auth_user_created_claim_country after insert on auth.users for each row execute function public.claim_country_from_signup();\ncommit;`,
+  `create trigger on_solaris_country_signup after insert on auth.users for each row execute function public.claim_country_from_signup();\ncommit;`,
 );

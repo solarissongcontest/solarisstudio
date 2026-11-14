@@ -23,6 +23,7 @@ begin
 end $pre$;
 select public.v3_register_migration_contract('v3.jury.governed-submission-cutover',1,'forward_fix_only',false,null,'Close direct legacy Jury RPC while retaining actor-bound V3 submission, receipts and owner delegation');
 revoke all on function public.submit_country_jury_ballot(uuid,jsonb,uuid) from public,anon,authenticated,service_role;
+alter function public.submit_country_jury_ballot(uuid,jsonb,uuid) set search_path=pg_catalog,public,televoting;
 do $post$ declare actor_role text;begin
  foreach actor_role in array array['anon','authenticated','service_role'] loop
   if has_function_privilege(actor_role,'public.submit_country_jury_ballot(uuid,jsonb,uuid)','EXECUTE') then raise exception 'Legacy Jury RPC remains exposed: %',actor_role;end if;
