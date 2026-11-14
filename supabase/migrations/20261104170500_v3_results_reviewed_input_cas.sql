@@ -490,7 +490,7 @@ $commit$;
 
 revoke all on function public.studio2_execute_result_operation_v2(uuid, text, text, uuid, bigint, bigint, uuid, uuid)
   from public, anon;
-grant execute on function public.studio2_execute_result_operation_v2(uuid, text, text, uuid, bigint, bigint)
+grant execute on function public.studio2_execute_result_operation_v2(uuid, text, text, uuid, bigint, bigint, uuid, uuid)
   to authenticated, service_role;
 
 -- Close the externally executable legacy Results path. V2 is SECURITY
@@ -503,7 +503,7 @@ comment on column public.studio2_result_operations.review_basis_version is
   'Monotonic per-show optimistic-concurrency version for the canonical Results input/readiness basis reviewed by an Organizer.';
 comment on function public.studio2_result_operation_preview_v2(uuid, text) is
   'Authoritative Results operation preflight. Returns exact calculation + reviewed-input basis versions and current canonical preconditions; commit revalidates both.';
-comment on function public.studio2_execute_result_operation_v2(uuid, text, text, uuid, bigint, bigint) is
+comment on function public.studio2_execute_result_operation_v2(uuid, text, text, uuid, bigint, bigint, uuid, uuid) is
   'Reviewed Results operation commit. Rejects stale calculation or canonical input basis under lock while preserving same-execution replay after later drift.';
 
 notify pgrst, 'reload schema';
