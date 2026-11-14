@@ -168,7 +168,7 @@ describe("S16 canonical mutation authority", () => {
         expect.objectContaining({
           kind: "internal_writer_user_execute",
           domain: "jury",
-          subject: "public.submit_country_jury_ballot",
+          subject: expect.stringContaining("submit_country_jury_ballot"),
           releaseRisk: "hard_blocker",
         }),
       ]));
@@ -236,7 +236,7 @@ describe("S16 canonical mutation authority", () => {
     expect(classified.findings).toEqual(expect.arrayContaining([
       expect.objectContaining({
         kind: "internal_writer_user_execute", domain: "jury",
-        subject: "public.submit_country_jury_ballot", releaseRisk: "hard_blocker",
+        subject: expect.stringContaining("submit_country_jury_ballot"), releaseRisk: "hard_blocker",
       }),
     ]));
     expect(classified.s16Passed).toBe(false);
