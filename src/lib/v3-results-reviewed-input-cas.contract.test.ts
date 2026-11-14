@@ -219,7 +219,7 @@ describe("V3 Results reviewed-input CAS", () => {
     expect(migration).toContain("reviewBasisVersionAfter");
   });
 
-  it("publishes a typed consumer contract without breaking the compatibility path", () => {
+  it("publishes only the reviewed CAS write contract and retires the legacy browser RPC", () => {
     expect(service).toContain("export type Studio2ResultOperationReview");
     expect(service).toContain("export type Studio2ReviewedResultExecution");
     expect(service).toContain("loadStudio2ResultOperationReview");
@@ -228,8 +228,8 @@ describe("V3 Results reviewed-input CAS", () => {
     expect(service).toContain("studio2_execute_result_operation_v2");
     expect(service).toContain("expectedReviewBasisVersion");
 
-    // Legacy consumers remain valid until Organizer performs its own cutover.
-    expect(service).toContain("export async function executeStudio2ResultOperation");
-    expect(service).toContain("rpc('studio2_execute_result_operation', {");
+    expect(service).not.toContain("export async function executeStudio2ResultOperation");
+    expect(service).not.toContain("rpc('studio2_execute_result_operation', {");
+    expect(migration).toContain("revoke all on function public.studio2_execute_result_operation(uuid, text, text, uuid, bigint)");
   });
 });

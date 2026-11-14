@@ -304,32 +304,6 @@ export async function loadStudio2ResultOperationReview(input: {
   return parseResultOperationReview(data);
 }
 
-export async function executeStudio2ResultOperation(input: {
-  showId: string;
-  action: Studio2ResultAction;
-  reason: string;
-  executionId: string;
-  expectedVersion: number;
-}): Promise<Studio2ResultExecution> {
-  const reason = input.reason.trim();
-  if (!input.showId) throw new Error('Show is required.');
-  if (!STUDIO2_RESULT_ACTIONS.includes(input.action)) throw new Error('Unsupported result operation.');
-  if (reason.length < 5) throw new Error('A reason of at least 5 characters is required.');
-  if (!input.executionId) throw new Error('Execution id is required.');
-  if (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 0) {
-    throw new Error('Expected calculation version is invalid.');
-  }
-
-  const data = await rpc('studio2_execute_result_operation', {
-    p_show_id: input.showId,
-    p_action: input.action,
-    p_reason: reason,
-    p_execution_id: input.executionId,
-    p_expected_version: input.expectedVersion,
-  });
-  return parseExecution(data);
-}
-
 export async function executeReviewedStudio2ResultOperation(input: {
   showId: string;
   action: Studio2ResultAction;

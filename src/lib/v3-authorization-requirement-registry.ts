@@ -290,7 +290,7 @@ const VERIFIED: Readonly<Record<string, VerifiedAuthorization>> = {
     requiredCapability: "results.verify",
     scope: "show",
     objectResolution: "show -> edition",
-    serverBoundary: "public.studio2_execute_result_operation",
+    serverBoundary: "public.studio2_execute_result_operation_v2",
     serviceRoleAllowed: true,
     negativePaths: [
       "missing capability",
@@ -298,14 +298,14 @@ const VERIFIED: Readonly<Record<string, VerifiedAuthorization>> = {
       "unknown show",
       "stale calculation version",
     ],
-    evidence: ["public.studio2_execute_result_operation live function inspection"],
+    evidence: ["supabase/migrations/20261104170500_v3_results_reviewed_input_cas.sql", "public.studio2_execute_result_operation_v2 reviewed-input authority"],
   },
   "results.verify": {
     authorizationModel: CAPABILITY_MODEL,
     requiredCapability: "results.verify",
     scope: "show",
     objectResolution: "show -> edition",
-    serverBoundary: "public.studio2_execute_result_operation",
+    serverBoundary: "public.studio2_execute_result_operation_v2",
     serviceRoleAllowed: true,
     negativePaths: [
       "missing capability",
@@ -313,14 +313,14 @@ const VERIFIED: Readonly<Record<string, VerifiedAuthorization>> = {
       "unknown show",
       "stale calculation version",
     ],
-    evidence: ["public.studio2_execute_result_operation live function inspection"],
+    evidence: ["supabase/migrations/20261104170500_v3_results_reviewed_input_cas.sql", "public.studio2_execute_result_operation_v2 reviewed-input authority"],
   },
   "results.lock": {
     authorizationModel: CAPABILITY_MODEL,
     requiredCapability: "results.verify",
     scope: "show",
     objectResolution: "show -> edition",
-    serverBoundary: "public.studio2_execute_result_operation",
+    serverBoundary: "public.studio2_execute_result_operation_v2",
     serviceRoleAllowed: true,
     negativePaths: [
       "missing capability",
@@ -328,14 +328,14 @@ const VERIFIED: Readonly<Record<string, VerifiedAuthorization>> = {
       "unknown show",
       "stale calculation version",
     ],
-    evidence: ["public.studio2_execute_result_operation live function inspection"],
+    evidence: ["supabase/migrations/20261104170500_v3_results_reviewed_input_cas.sql", "public.studio2_execute_result_operation_v2 reviewed-input authority"],
   },
   "results.unlock": {
     authorizationModel: CAPABILITY_MODEL,
     requiredCapability: "results.verify",
     scope: "show",
     objectResolution: "show -> edition",
-    serverBoundary: "public.studio2_execute_result_operation",
+    serverBoundary: "public.studio2_execute_result_operation_v2",
     serviceRoleAllowed: true,
     negativePaths: [
       "missing capability",
@@ -343,7 +343,7 @@ const VERIFIED: Readonly<Record<string, VerifiedAuthorization>> = {
       "unknown show",
       "stale calculation version",
     ],
-    evidence: ["public.studio2_execute_result_operation live function inspection"],
+    evidence: ["supabase/migrations/20261104170500_v3_results_reviewed_input_cas.sql", "public.studio2_execute_result_operation_v2 reviewed-input authority"],
   },
 };
 
