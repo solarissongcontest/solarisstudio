@@ -14,7 +14,7 @@ begin
      or v_guard.proconfig is distinct from
        array['search_path=pg_catalog, public, private']::text[]
      or strpos(v_guard.prosrc, 'writer.transaction_id=pg_current_xact_id()')=0
-     or strpos(v_guard.prosrc, 'source.show_id=v_previous_show_id')=0
+     or strpos(v_guard.prosrc, 'writer.show_id=v_previous_show_id')=0
      or to_regclass('private.v3_televote_result_projection_sources') is null
      or to_regclass('private.v3_televote_projection_write_context') is null
      or not exists (
