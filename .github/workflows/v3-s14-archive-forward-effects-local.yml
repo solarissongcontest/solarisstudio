@@ -820,14 +820,21 @@ jobs:
           sql -f - < docs/v3/recovery-candidates/s08-televote-single-writer-local.sql
           sql -f - < .github/tests/v3-ordered-televote-s08-recovery.sql
           s08_after="$(archive_schema_digest)"
-          # S08 is intentionally replay-idempotent, unlike S07's first-install
-          # preflight. A repeated S08 must not add triggers or change authority.
-          sql -f - < docs/v3/recovery-candidates/s08-televote-single-writer-local.sql
+          # A second S08 install MUST reject: the guarded S07 preflight is no
+          # longer source-identical once S08 replaces it. Reject duplicates
+          # atomically; do not normalize a second migration as an idempotent
+          # replay or weaken the preflight to make the CI pass.
+          if sql -f - < docs/v3/recovery-candidates/s08-televote-single-writer-local.sql > /tmp/s08-ordered-duplicate.log 2>&1; then
+            echo "::error::Duplicate S08 authority installation was accepted"; exit 1
+          fi
+          grep -Fq 'S08 requires exactly the active S07 owner-only writer boundary' /tmp/s08-ordered-duplicate.log || {
+            cat /tmp/s08-ordered-duplicate.log; exit 1;
+          }
           [[ "$(archive_schema_digest)" == "$s08_after" ]] || {
-            echo "::error::Repeated S08 changed the recovered catalog"; exit 1;
+            echo "::error::Rejected S08 duplicate changed the recovered catalog"; exit 1;
           }
           sql -f - < .github/tests/v3-ordered-televote-s08-recovery.sql
-          echo 'PASS: ordered S13 -> Archive -> S07 -> S08; interrupted rollback, API-role DML denial and idempotent replay'
+          echo 'PASS: ordered S13 -> Archive -> S07 -> S08; interrupted rollback, API-role DML denial and duplicate refusal'
           # Correct the original imported auth function owner/ACL from observed metadata.
           node scripts/stage-v3-auth-uid-authority-local.mjs > /tmp/auth-uid-authority-local.sql
           node --input-type=module <<'NODE'
