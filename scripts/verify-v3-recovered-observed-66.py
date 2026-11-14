@@ -12,6 +12,8 @@ import re
 import sys
 from pathlib import Path
 
+from scripts.v3_s14_final_seed import EXPECTED as FINAL_SEED_EXPECTED, validate_final_seed_artifact
+
 SHA40 = re.compile(r"[a-f0-9]{40}\Z")
 SHA256 = re.compile(r"[a-f0-9]{64}\Z")
 LOCAL_URL = re.compile(r"http://(?:127\.0\.0\.1|localhost):[0-9]{2,5}/?\Z")
@@ -42,6 +44,8 @@ NEGATIVE_SCENARIOS = [
     "legacy-client-compatibility",
     "cross-role-denial",
     "concurrent-operation-conflict",
+    "wrong-show-denial",
+    "unpublished-televote-secrecy",
 ]
 REQUIRED_ARTIFACTS = {
     "observed-owner-recovery-proof.json",
@@ -191,6 +195,23 @@ def verify(manifest, root, expected_sha):
             "recovery retry did not use the same recovered database")
     require(retry.get("failedAttemptObserved") is True and retry.get("retryCompleted") is True,
             "recovery retry requires both observed failure and subsequent success")
+    for case_id in ("wrong-show-denial", "unpublished-televote-secrecy"):
+        case = negatives[NEGATIVE_SCENARIOS.index(case_id)]
+        require(case.get("readbackConfirmed") is True and
+                case.get("readbackDatabaseIdentity") == identity,
+                "negative case lacks same recovered database readback: " + case_id)
+        before = case.get("beforeStateHash")
+        after = case.get("afterStateHash")
+        require(isinstance(before, str) and SHA256.fullmatch(before) and
+                after == before, "negative case state changed or lacks state hashes: " + case_id)
+    wrong_show = negatives[NEGATIVE_SCENARIOS.index("wrong-show-denial")]
+    require(wrong_show.get("writeRejected") is True,
+            "wrong-show write was not rejected")
+    hidden_vote = negatives[NEGATIVE_SCENARIOS.index("unpublished-televote-secrecy")]
+    require(hidden_vote.get("publicReadAttempted") is True and
+            hidden_vote.get("publicBallotRevealed") is False and
+            hidden_vote.get("publicTotalsRevealed") is False,
+            "unpublished Televote data was not proven private")
 
     restore = manifest.get("separateSyntheticRestore")
     require(isinstance(restore, dict), "synthetic restore evidence missing")
@@ -241,11 +262,10 @@ def verify(manifest, root, expected_sha):
             s14.get("passed") is True and s14.get("partial") is False and
             s14.get("runtimeFailure") is False,
             "S14 result is not exact-SHA complete PASS")
-    seed = s14.get("seed", {})
-    require(isinstance(seed, dict) and seed.get("editionCount") == 1 and
-            seed.get("delegationCount") == 66 and
-            isinstance(seed.get("showCount"), int) and
-            seed["showCount"] >= 3, "S14 seed must have 66 delegations and three shows")
+    try:
+        validate_final_seed_artifact(s14.get("seed"))
+    except ValueError as exc:
+        raise EvidenceError("S14 final-seed artifact invalid: " + str(exc)) from exc
     require(s14.get("lifecycle", {}).get("finalState") == "archived",
             "S14 state not archived")
     run = s14.get("runIdentity", {})
@@ -279,7 +299,7 @@ def verify(manifest, root, expected_sha):
                 "browser summary failed: " + name)
         stats = browser.get("stats")
         require(isinstance(stats, dict) and
-                isinstance(stats.get("expected"), int) and stats["expected"] >= 1 and
+                type(stats.get("expected")) is int and stats["expected"] >= 1 and
                 stats.get("skipped") == 0 and stats.get("unexpected") == 0 and
                 stats.get("flaky") == 0,
                 "browser summary contains skipped/failed/flaky or zero tests: " + name)

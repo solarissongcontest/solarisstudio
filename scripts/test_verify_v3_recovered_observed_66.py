@@ -34,7 +34,7 @@ def fixture():
     s14 = {
         "schemaVersion": 3, "candidateSha": SHA, "passed": True,
         "partial": False, "runtimeFailure": False,
-        "seed": {"editionCount": 1, "delegationCount": 66, "showCount": 3},
+        "seed": dict(verifier.FINAL_SEED_EXPECTED),
         "lifecycle": {"finalState": "archived"},
         "runIdentity": {"databaseFingerprint": FINGERPRINT,
                         "candidateSha": SHA, "editionId": "14000000-0000-4000-8000-000000000001"},
@@ -96,6 +96,15 @@ def fixture():
                  if s["id"] == "failed-stage-same-db-retry")
     retry.update(beforeDatabaseIdentity=DB, afterDatabaseIdentity=DB,
                  failedAttemptObserved=True, retryCompleted=True)
+    for case in manifest["negativeScenarios"]:
+        if case["id"] in ("wrong-show-denial", "unpublished-televote-secrecy"):
+            case.update(readbackConfirmed=True, readbackDatabaseIdentity=DB,
+                        beforeStateHash=DIGEST, afterStateHash=DIGEST)
+            if case["id"] == "wrong-show-denial":
+                case["writeRejected"] = True
+            else:
+                case.update(publicReadAttempted=True, publicBallotRevealed=False,
+                            publicTotalsRevealed=False)
     return manifest, artifacts
 
 
@@ -256,7 +265,7 @@ class RecoveryEvidenceGateTest(unittest.TestCase):
     def test_s14_insufficient_show_count_rejected(self):
         self.artifacts["s14-full-contest.json"]["seed"]["showCount"] = 2
         save(self.root, self.manifest, self.artifacts)
-        self.assertRejects("three shows")
+        self.assertRejects("S14 final-seed artifact invalid")
 
     def test_browser_skipped_test_rejected(self):
         self.artifacts["playwright-s14-grand-final-summary.json"]["stats"]["skipped"] = 1
@@ -276,6 +285,80 @@ class RecoveryEvidenceGateTest(unittest.TestCase):
     def test_production_mutation_rejected(self):
         self.manifest["productionMutation"] = True
         self.assertRejects("production mutation")
+
+    def test_all_canonical_seed_counts_reject_drift(self):
+        for name, expected in verifier.FINAL_SEED_EXPECTED.items():
+            with self.subTest(field=name):
+                changed = dict(verifier.FINAL_SEED_EXPECTED)
+                changed[name] = expected + 1
+                self.artifacts["s14-full-contest.json"]["seed"] = changed
+                save(self.root, self.manifest, self.artifacts)
+                self.assertRejects("S14 final-seed artifact invalid")
+
+    def test_canonical_seed_missing_and_extra_fields_rejected(self):
+        for variant in ("missing", "extra"):
+            with self.subTest(variant=variant):
+                changed = dict(verifier.FINAL_SEED_EXPECTED)
+                if variant == "missing":
+                    changed.pop("participantCount")
+                else:
+                    changed["unsupportedExtraCount"] = 1
+                self.artifacts["s14-full-contest.json"]["seed"] = changed
+                save(self.root, self.manifest, self.artifacts)
+                self.assertRejects("S14 final-seed artifact invalid")
+
+    def test_canonical_seed_boolean_or_float_rejected(self):
+        for value in (True, 66.0):
+            with self.subTest(value=value):
+                changed = dict(verifier.FINAL_SEED_EXPECTED)
+                changed["delegationCount"] = value
+                self.artifacts["s14-full-contest.json"]["seed"] = changed
+                save(self.root, self.manifest, self.artifacts)
+                self.assertRejects("S14 final-seed artifact invalid")
+
+    def test_wrong_show_denial_mandatory(self):
+        self.manifest["negativeScenarios"] = [
+            x for x in self.manifest["negativeScenarios"] if x["id"] != "wrong-show-denial"]
+        self.assertRejects("negative acceptance scenarios")
+
+    def test_unpublished_televote_secrecy_mandatory(self):
+        self.manifest["negativeScenarios"] = [
+            x for x in self.manifest["negativeScenarios"]
+            if x["id"] != "unpublished-televote-secrecy"]
+        self.assertRejects("negative acceptance scenarios")
+
+    def test_wrong_show_denial_requires_rejected_write(self):
+        self.manifest["negativeScenarios"][-2]["writeRejected"] = False
+        self.assertRejects("wrong-show write was not rejected")
+
+    def test_wrong_show_denial_requires_same_database_readback(self):
+        self.manifest["negativeScenarios"][-2]["readbackDatabaseIdentity"] = OTHER
+        self.assertRejects("same recovered database readback")
+
+    def test_wrong_show_denial_requires_unchanged_state_hash(self):
+        self.manifest["negativeScenarios"][-2]["afterStateHash"] = "c" * 64
+        self.assertRejects("negative case state changed")
+
+    def test_televote_secrecy_requires_actual_read_attempt(self):
+        self.manifest["negativeScenarios"][-1]["publicReadAttempted"] = False
+        self.assertRejects("unpublished Televote data was not proven private")
+
+    def test_televote_secrecy_refuses_public_ballot_read(self):
+        self.manifest["negativeScenarios"][-1]["publicBallotRevealed"] = True
+        self.assertRejects("unpublished Televote data was not proven private")
+
+    def test_televote_secrecy_refuses_public_totals_read(self):
+        self.manifest["negativeScenarios"][-1]["publicTotalsRevealed"] = True
+        self.assertRejects("unpublished Televote data was not proven private")
+
+    def test_televote_secrecy_requires_unchanged_state(self):
+        self.manifest["negativeScenarios"][-1]["afterStateHash"] = "c" * 64
+        self.assertRejects("negative case state changed")
+
+    def test_browser_expected_count_cannot_be_boolean(self):
+        self.artifacts["playwright-s14-grand-final-summary.json"]["stats"]["expected"] = True
+        save(self.root, self.manifest, self.artifacts)
+        self.assertRejects("zero tests")
 
 
 if __name__ == "__main__":
