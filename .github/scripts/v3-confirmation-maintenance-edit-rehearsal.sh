@@ -18,6 +18,24 @@ as_user() {
   local user_id="$1" sql="$2"
   psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c "set role authenticated; set request.jwt.claims = '{\"sub\":\"$user_id\",\"role\":\"authenticated\"}'; $sql"
 }
+# Simulate the exact pre-request R2 maintenance marker in this loopback-only
+# database fixture. Real PostgREST ingress supplies the marker via its guarded
+# RPC-name allowlist; this direct psql harness has no HTTP pre-request hook.
+apply_governed_response_access() {
+  local editing="$1" op_id="$2" key="$3" note="$4" version
+  version="$(as_user "$ORGANIZER_USER_ID" "select public.studio2_confirmation_response_access_preview('$EDITION_ID'::uuid,'$SUBMISSION_ID'::uuid)->>'expectedVersion';")"
+  [[ "$version" =~ ^[0-9]+$ ]] || fail "Missing canonical Confirmation response access version"
+  as_user "$ORGANIZER_USER_ID" "
+    select set_config('studio2.confirmation_maintenance_write','on',true);
+    select public.studio2_apply_confirmation_response_access_change(
+      '$EDITION_ID'::uuid, '$SUBMISSION_ID'::uuid,
+      'update_access',
+      jsonb_build_object('editingAllowed',$editing,'locked',false,'adminNotes','$note'),
+      null, '$op_id'::uuid, '$key', $version
+    );
+  " >/dev/null
+}
+
 expect_eq() {
   local label="$1" actual="$2" expected="$3"
   [[ "$actual" == "$expected" ]] || fail "$label expected '$expected', got '$actual'"
@@ -106,8 +124,15 @@ DETAIL="$(as_user "$INSPECTOR_USER_ID" "select public.admin_confirmation_respons
 expect_denied "confirmation.read cannot reopen a response" "$INSPECTOR_USER_ID" \
   "select public.admin_update_confirmation_controls('$SUBMISSION_ID'::uuid,true,false,'Read-only actor must not mutate');"
 
+expect_denied "legacy direct response settings RPC is retired for organizer" "$ORGANIZER_USER_ID" \
+  "select public.admin_update_confirmation_controls('$SUBMISSION_ID'::uuid,true,false,'Must be rejected');"
+expect_denied "read-only inspector cannot preview managed response access" "$INSPECTOR_USER_ID" \
+  "select public.studio2_confirmation_response_access_preview('$EDITION_ID'::uuid,'$SUBMISSION_ID'::uuid);"
+expect_denied "scope mismatch cannot preview response access" "$ORGANIZER_USER_ID" \
+  "select public.studio2_confirmation_response_access_preview('00000000-0000-4000-8000-00000000e799'::uuid,'$SUBMISSION_ID'::uuid);"
+
 log "Exact-edition manager reopens only the existing response"
-as_user "$ORGANIZER_USER_ID" "select public.admin_update_confirmation_controls('$SUBMISSION_ID'::uuid,true,false,'Maintenance correction opened');" >/dev/null
+apply_governed_response_access true '00000000-0000-4000-8000-00000000e772' 'maintenance-cas-open-response' 'Maintenance correction opened'
 expect_eq "round remains closed after response reopen" "$(scalar "select status from public.submission_rounds where id='$ROUND_ID';")" "closed"
 expect_eq "reopen creates no duplicate requirement" "$(scalar "select count(*) from public.studio2_confirmation_requirements where edition_id='$EDITION_ID' and country_id='$COUNTRY_ID' and superseded_at is null;")" "1"
 expect_eq "response editing opened" "$(scalar "select editing_allowed::text from public.submissions where id='$SUBMISSION_ID';")" "true"
@@ -166,7 +191,7 @@ log "Organizer observes the revision and explicitly closes editing"
 DETAIL="$(as_user "$ORGANIZER_USER_ID" "select public.admin_confirmation_response('$SUBMISSION_ID'::uuid)::text;")"
 expect_eq "Organizer sees corrected song" "$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["internal_entry"]["song_title"])' "$DETAIL")" "Corrected Song"
 expect_eq "Organizer sees edit revision" "$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["edit_count"])' "$DETAIL")" "1"
-as_user "$ORGANIZER_USER_ID" "select public.admin_update_confirmation_controls('$SUBMISSION_ID'::uuid,false,false,'Maintenance correction reviewed and closed');" >/dev/null
+apply_governed_response_access false '00000000-0000-4000-8000-00000000e773' 'maintenance-cas-close-response' 'Maintenance correction reviewed and closed'
 expect_eq "response editing is closed" "$(scalar "select editing_allowed::text from public.submissions where id='$SUBMISSION_ID';")" "false"
 expect_eq "active edit token is revoked" "$(scalar "select count(*) from public.edit_tokens where submission_id='$SUBMISSION_ID' and active=true;")" "0"
 
