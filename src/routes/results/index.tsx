@@ -106,6 +106,7 @@ function LegacyResultsOverviewPage() {
   const latestRows = latestShow && resultBundle?.input.publication === "published"
     ? resultBundle.input.rows
         .map((row) => ({
+          id: `${resultBundle.input.showId}:${row.countryId}`,
           country_id: row.countryId,
           total_points: row.points,
           final_rank: row.rank,
