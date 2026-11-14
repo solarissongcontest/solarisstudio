@@ -21,7 +21,7 @@ function dispatcher(
     stateError?: boolean;
     vapidConfigured?: boolean;
     mutationError?: string;
-    dispatchEnvSecret?: string;
+    dispatchEnvSecret?: string | null;
   } = {},
 ) {
   let handler!: (request: Request) => Promise<Response>;
@@ -57,7 +57,9 @@ function dispatcher(
   const variables: Record<string, string> = {
     SUPABASE_URL: "http://127.0.0.1:54321",
     SUPABASE_SERVICE_ROLE_KEY: "test-service-key",
-    ...(options.dispatchEnvSecret ? { SOLARIS_PUSH_DISPATCH_SECRET: options.dispatchEnvSecret } : {}),
+    ...((options.dispatchEnvSecret === undefined ? "test-dispatch-secret" : options.dispatchEnvSecret)
+      ? { SOLARIS_PUSH_DISPATCH_SECRET: options.dispatchEnvSecret === undefined ? "test-dispatch-secret" : options.dispatchEnvSecret! }
+      : {}),
     ...(options.vapidConfigured === false
       ? {}
       : {
@@ -147,6 +149,14 @@ describe("push dispatcher operational mode", () => {
   it("authenticates before reading operational state", async () => {
     const { request, service } = dispatcher({ mode: "maintenance" });
     expect((await request("wrong-secret")).status).toBe(401);
+    expect(service.from).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when only a Vault dispatch secret exists, before any privileged RPC", async () => {
+    const { request, service } = dispatcher({ dispatchEnvSecret: null });
+    expect((await request("random-nonempty-header")).status).toBe(503);
+    expect((await request("test-dispatch-secret")).status).toBe(503);
+    expect(service.rpc).not.toHaveBeenCalled();
     expect(service.from).not.toHaveBeenCalled();
   });
 
