@@ -59,6 +59,28 @@ operator_sql -v snapshot_before=true -f - < .github/tests/v3-public-snapshot-rec
 operator_sql -f - < .github/tests/v3-voting-config-authority.sql
 operator_apply /tmp/public-snapshot-recovery.sql
 operator_sql -v snapshot_before=false -f - < .github/tests/v3-public-snapshot-recovery.sql
+# Restore canonical Results rank/qualification and reconciliation only after
+# the existing capture/read model, with separate exact observed fingerprints.
+node scripts/stage-v3-result-authority-recovery.mjs > /tmp/result-authority-recovery.sql
+owner_acl_before="$(operator_state_digest)"
+operator_sql -c 'revoke execute on function public.sync_show_results_from_votes(uuid) from service_role;'
+owner_acl_drift="$(operator_state_digest)"
+if operator_sql -f - < /tmp/result-authority-recovery.sql > /tmp/result-authority-drift.log 2>&1; then exit 1; fi
+grep -Fq 'Result authority drift or partial installation' /tmp/result-authority-drift.log
+[[ "$(operator_state_digest)" == "$owner_acl_drift" ]] || exit 1
+operator_sql -c 'grant execute on function public.sync_show_results_from_votes(uuid) to service_role;'
+[[ "$(operator_state_digest)" == "$owner_acl_before" ]] || exit 1
+operator_apply /tmp/result-authority-recovery.sql
+operator_sql -f - < .github/tests/v3-result-authority-recovery.sql
+# The original S02 export covered CRUD bits only. Reproduce the separately
+# observed full Results ACL (including RLS-independent privileges) LOCALLY.
+operator_sql -f - < .github/tests/v3-results-observed-access-acls-local.sql
+operator_sql -c 'grant truncate,references,trigger on table public.results to anon,authenticated,service_role;'
+node scripts/stage-v3-result-read-authority-recovery.mjs > /tmp/result-read-authority-recovery.sql
+operator_apply /tmp/result-read-authority-recovery.sql
+operator_sql -v snapshot_before=false -f - < .github/tests/v3-public-snapshot-recovery.sql
+operator_sql -f - < .github/tests/v3-result-authority-recovery.sql
+source .github/scripts/v3-result-public-api-local.sh
 echo 'PASS: entire ordered recovery executes as observed NONSUPERUSER postgres with real role/schema privileges'
 # A restore of synthetic local data proves this procedure, NOT availability,
 # freshness, retention or restorability of the separate real production backup.
@@ -72,7 +94,12 @@ restored_sql -f - < .github/tests/v3-hosted-api-role-runtime.sql
 restored_sql -f - < .github/tests/v3-ordered-televote-recovery.sql
 restored_sql -v snapshot_before=false -f - < .github/tests/v3-public-snapshot-recovery.sql
 restored_sql -f - < .github/tests/v3-voting-config-authority.sql
+restored_sql -f - < .github/tests/v3-result-authority-recovery.sql
 [[ "$(operator_state_digest recovery_restore_probe)" == "$owner_restored_before" ]] || { echo 'Restored runtime tests changed durable evidence'; exit 1; }
+# Repeat real authenticator sessions against a clone of the restored database.
+owner_api_parent=recovery_restore_probe
+source .github/scripts/v3-result-public-api-local.sh
+unset owner_api_parent
 echo 'PASS: synthetic pg_dump/pg_restore into separate local DB preserves full schema, ACLs and rows; restored authority/snapshots pass'
 OWNER_SOURCE_SHA="$EXACT_SHA" node --input-type=module <<'PROOF'
 import fs from 'node:fs';
@@ -82,7 +109,7 @@ if(!/^[a-f0-9]{40}$/.test(sha))throw Error('Missing exact source SHA');
 const files=[
  'docs/v3/recovery-candidates/forward-only-s13-foundation.sql',
  'docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql',
- '/tmp/s07-ordered-source.sql','/tmp/atomic-recovery.sql','/tmp/public-snapshot-recovery.sql',
+ '/tmp/s07-ordered-source.sql','/tmp/atomic-recovery.sql','/tmp/public-snapshot-recovery.sql','/tmp/result-authority-recovery.sql','/tmp/result-read-authority-recovery.sql',
 ];
 const digest=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 fs.writeFileSync('observed-owner-recovery-proof.json',JSON.stringify({

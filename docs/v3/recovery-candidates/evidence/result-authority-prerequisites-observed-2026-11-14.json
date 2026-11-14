@@ -1,0 +1,69 @@
+{
+  "routines": [
+    {
+      "acl": null,
+      "owner": null,
+      "config": null,
+      "exists": false,
+      "identity": "private.studio2_expected_result_ranks(uuid)",
+      "language": null,
+      "definition_md5": null,
+      "security_definer": null,
+      "definition_sha256": null
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "config": null,
+      "exists": false,
+      "identity": "private.studio2_result_reconciliation(uuid)",
+      "language": null,
+      "definition_md5": null,
+      "security_definer": null,
+      "definition_sha256": null
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=public, pg_temp"
+      ],
+      "exists": true,
+      "identity": "public.refresh_edition_qualifications(uuid)",
+      "language": "plpgsql",
+      "definition_md5": "214614ba8f8e8d50e9d79f5ffd042ea6",
+      "security_definer": true,
+      "definition_sha256": "18b382b28e391c64b1cd736fd8e356cdd35348a06cdd48a8a1783ffdb4144ef2"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=public, pg_temp"
+      ],
+      "exists": true,
+      "identity": "public.sync_show_results_from_votes(uuid)",
+      "language": "plpgsql",
+      "definition_md5": "8301a60a5e193323662e184637092810",
+      "security_definer": true,
+      "definition_sha256": "4deff875c74e40bb6ba7642cb449cdaa91c45ae157f55a430ae7f53f31e5c541"
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "config": null,
+      "exists": false,
+      "identity": "public.v3_record_televote_sync_event(text,text,uuid,jsonb,text,text,text)",
+      "language": null,
+      "definition_md5": null,
+      "security_definer": null,
+      "definition_sha256": null
+    }
+  ],
+  "read_only": "on",
+  "projectRef": "dkxmnvekiopyesuzggeu",
+  "observed_at": "2026-11-14T08:57:29.838378+00:00",
+  "server_version_num": "170011",
+  "applicationRowsRead": false,
+  "rawFunctionBodiesExported": false
+}
