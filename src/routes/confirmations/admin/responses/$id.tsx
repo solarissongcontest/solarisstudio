@@ -7,7 +7,7 @@ import {
 } from "@/lib/v3-organizer-entry-source-inspection";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -24,7 +24,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { ConfirmationAccessSettingsSheet } from "@/components/admin/ConfirmationAccessSettingsSheet";
+import { useAdminContext } from "@/components/admin/AdminContext";
+import {
+  loadConfirmationResponseForEdition,
+  loadConfirmationTechnicalForEdition,
+} from "@/integrations/confirmations/scoped-admin-reads";
 import {
   AdminActionItem,
   AdminCard,
@@ -652,22 +656,22 @@ function EntryReviewCard({
 
 function ResponseDetailPage() {
   const { id } = Route.useParams();
+  const { editionId: organizerEditionId } = useAdminContext();
   const navigate = useNavigate();
+  const requestGeneration = useRef(0);
+  const [authEpoch, setAuthEpoch] = useState(0);
   const syncToSolaris = useServerFn(syncConfirmationSnapshotToSolaris);
   const [data, setData] = useState<ResponseDetail | null>(null);
   const [technical, setTechnical] = useState<TechnicalData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [technicalError, setTechnicalError] = useState<string | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [deleteReviewOpen, setDeleteReviewOpen] = useState(false);
   const [solarisSync, setSolarisSync] = useState<ConfirmationSolarisSyncResult | null>(null);
   const [solarisSyncError, setSolarisSyncError] = useState<string | null>(null);
   const [syncingSolaris, setSyncingSolaris] = useState(false);
   const [linkType, setLinkType] = useState<"reusable" | "one_time">("reusable");
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
-  const [creatingLink, setCreatingLink] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   const syncSnapshot = useCallback(
     async (detail: ResponseDetail) => {
@@ -691,57 +695,76 @@ function ResponseDetailPage() {
     [syncToSolaris],
   );
 
-  const loadTechnical = useCallback(async () => {
-    setTechnicalError(null);
-    const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
-      "admin_confirmation_technical",
-      {
-        _submission_id: id,
-      },
-    );
-    if (rpcError) {
-      setTechnicalError(rpcError.message);
-      return;
-    }
-    setTechnical(result as unknown as TechnicalData);
-  }, [id]);
+  // Invalidate any private response state immediately on account/session switch.
+  useEffect(() => {
+    const { data: { subscription } } = confirmationsSupabase.auth.onAuthStateChange((event: string) => {
+      if (!["SIGNED_IN", "SIGNED_OUT", "USER_UPDATED", "TOKEN_REFRESHED"].includes(event)) return;
+      requestGeneration.current += 1;
+      setData(null);
+      setTechnical(null);
+      setGeneratedLink(null);
+      setAuthEpoch((current) => current + 1);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const load = useCallback(async () => {
+    const generation = ++requestGeneration.current;
+    setData(null);
+    setTechnical(null);
+    setTechnicalError(null);
     setError(null);
-    const { data: sessionData } = await confirmationsSupabase.auth.getSession();
-    if (!sessionData.session) {
-      await navigate({ to: "/confirmations/admin/sign-in" });
-      return;
-    }
-
-    const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
-      "admin_confirmation_response",
-      {
-        _submission_id: id,
-      },
-    );
-
-    if (rpcError) {
-      setError(rpcError.message);
+    setLoading(true);
+    if (!organizerEditionId) {
+      setError("Select the exact Organizer edition before opening this response.");
       setLoading(false);
       return;
     }
-
-    const detail = result as unknown as ResponseDetail;
-    setData(detail);
-    setLoading(false);
-
-    await loadTechnical();
-
     try {
-      await syncSnapshot(detail);
-    } catch {
-      // The review screen stays usable even if the canonical sync is temporarily unavailable.
+      const { data: sessionData, error: sessionError } = await confirmationsSupabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (requestGeneration.current !== generation) return;
+      if (!sessionData?.session) {
+        setLoading(false);
+        await navigate({ to: "/confirmations/admin/sign-in" });
+        return;
+      }
+      const detail = await loadConfirmationResponseForEdition<ResponseDetail>(organizerEditionId, id);
+      if (requestGeneration.current !== generation) return;
+      if (detail.edition?.id !== organizerEditionId || detail.id !== id) {
+        throw new Error("Confirmation response no longer matches the selected edition.");
+      }
+      setData(detail);
+      setLoading(false);
+      try {
+        const technical = await loadConfirmationTechnicalForEdition<TechnicalData>(organizerEditionId, id);
+        if (requestGeneration.current !== generation) return;
+        setTechnical(technical);
+      } catch (technicalFailure) {
+        if (requestGeneration.current !== generation) return;
+        setTechnical(null);
+        setTechnicalError(
+          technicalFailure instanceof Error ? technicalFailure.message : "Technical access is unavailable.",
+        );
+      }
+      // Do not invoke legacy Solaris synchronization merely by opening a response.
+    } catch (caught) {
+      if (requestGeneration.current !== generation) return;
+      setData(null);
+      setTechnical(null);
+      setError(caught instanceof Error ? caught.message : "Exact-edition response access is unavailable.");
+      setLoading(false);
     }
-  }, [id, loadTechnical, navigate, syncSnapshot]);
+  }, [organizerEditionId, id, navigate, authEpoch]);
 
   useEffect(() => {
+    requestGeneration.current += 1;
+    setData(null);
+    setTechnical(null);
+    setGeneratedLink(null);
+    setLoading(true);
     void load();
+    return () => { requestGeneration.current += 1; };
   }, [load]);
 
   async function changeWinner(action: "select" | "clear", reason: string, entryId: string | null) {
@@ -833,68 +856,13 @@ function ResponseDetailPage() {
   }
 
   async function createEditLink() {
-    if (!data) return;
-    setCreatingLink(true);
-    try {
-      const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
-        "admin_confirmation_create_edit_token",
-        {
-          _submission_id: data.id,
-          _token_type: linkType,
-          _expires_in_hours: null,
-        },
-      );
-      if (rpcError) throw rpcError;
-      const token = (result as { token?: string } | null)?.token;
-      if (!token) throw new Error("The edit token was not returned.");
-      const url = `${window.location.origin}/confirmations/edit/${token}`;
-      setGeneratedLink(url);
-      await navigator.clipboard.writeText(url);
-      toast.success("Edit link generated and copied");
-      await loadTechnical();
-    } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "Could not create the edit link.");
-    } finally {
-      setCreatingLink(false);
-    }
+    toast.error("Edit-link issuance is unavailable until governed access commands are certified.");
   }
-
-  async function revokeToken(tokenId: string) {
-    const { error: rpcError } = await confirmationsSupabase.rpc(
-      "admin_confirmation_revoke_edit_token",
-      {
-        _token_id: tokenId,
-      },
-    );
-    if (rpcError) {
-      toast.error(rpcError.message);
-      return;
-    }
-    if (generatedLink) setGeneratedLink(null);
-    toast.success("Edit link revoked");
-    await loadTechnical();
+  async function revokeToken(_tokenId: string) {
+    toast.error("Edit-link revocation is unavailable until governed access commands are certified.");
   }
-
   async function deleteResponse() {
-    if (!data || deleting) return;
-
-    setDeleting(true);
-    try {
-      const { error: rpcError } = await confirmationsSupabase.rpc(
-        "admin_confirmation_delete_response",
-        {
-          _submission_id: data.id,
-        },
-      );
-      if (rpcError) throw rpcError;
-      setDeleteReviewOpen(false);
-      toast.success("Confirmation deleted");
-      await navigate({ to: "/confirmations/admin/responses" });
-    } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "Could not delete the response.");
-    } finally {
-      setDeleting(false);
-    }
+    toast.error("Deletion is unavailable until governed access commands are certified.");
   }
 
   if (loading) {
@@ -907,7 +875,7 @@ function ResponseDetailPage() {
     );
   }
 
-  if (!data) {
+  if (!data || !organizerEditionId || data.edition?.id !== organizerEditionId) {
     return (
       <div className="admin-page pb-5">
         <AdminPageHeader
@@ -965,8 +933,9 @@ function ResponseDetailPage() {
                 <AdminActionItem
                   icon={Settings2}
                   title="Response settings"
-                  description="Editing access, lock state and private organiser notes."
-                  onClick={() => setSettingsOpen(true)}
+                  description="Unavailable until governed Confirmation access commands are certified."
+                  disabled
+                  onClick={() => toast.error("Governed response settings are unavailable.")}
                 />
                 <AdminActionItem
                   icon={RefreshCw}
@@ -1145,11 +1114,12 @@ function ResponseDetailPage() {
           <AdminCardHeader
             eyebrow="Edit access"
             title="Private participant edit link"
-            description="Generate a reusable or one-time link for the delegation. Creating a new link revokes the previous active link."
+            description="Edit-link issuance and revocation are disabled until governed access commands are certified."
           />
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
+              disabled
               onClick={() => setLinkType("reusable")}
               className={
                 linkType === "reusable" ? "admin-action-primary" : "admin-action-secondary"
@@ -1159,6 +1129,7 @@ function ResponseDetailPage() {
             </button>
             <button
               type="button"
+              disabled
               onClick={() => setLinkType("one_time")}
               className={
                 linkType === "one_time" ? "admin-action-primary" : "admin-action-secondary"
@@ -1169,11 +1140,11 @@ function ResponseDetailPage() {
           </div>
           <button
             type="button"
-            disabled={creatingLink}
+            disabled
             onClick={() => void createEditLink()}
             className="admin-action-primary mt-3 w-full"
           >
-            <Link2 className="size-4" /> {creatingLink ? "Generating…" : "Generate edit link"}
+            <Link2 className="size-4" /> Generate edit link
           </button>
 
           {generatedLink ? (
@@ -1216,6 +1187,7 @@ function ResponseDetailPage() {
                   </div>
                   <button
                     type="button"
+                    disabled
                     onClick={() => void revokeToken(token.id)}
                     className="admin-action-secondary !min-h-9 !px-3 text-xs"
                   >
@@ -1325,35 +1297,20 @@ function ResponseDetailPage() {
           <AdminCardHeader
             eyebrow="Danger zone"
             title="Delete response"
-            description="Permanently delete this confirmation and its related data. This cannot be undone."
+            description="Permanent deletion is disabled until its governed operation is certified."
           />
           <button
             type="button"
-            disabled={deleting}
+            disabled
             onClick={() => setDeleteReviewOpen(true)}
             className="admin-action-danger w-full"
           >
-            <Trash2 className="size-4" /> {deleting ? "Deleting…" : "Review permanent deletion"}
+            <Trash2 className="size-4" /> Review permanent deletion
           </button>
         </AdminCard>
       </div>
 
-      <ConfirmationAccessSettingsSheet
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        onApplied={load}
-        submissionId={data.id}
-        country={data.country}
-        editionLabel={
-          data.edition
-            ? `SSC ${data.edition.edition_number} · ${data.edition.name}`
-            : "Edition unavailable"
-        }
-        roundName={data.round?.name ?? "Confirmation"}
-        editingAllowed={data.editing_allowed}
-        locked={data.locked}
-        adminNotes={data.admin_notes}
-      />
+      {/* Legacy access sheet is intentionally not mounted during the governed cutover. */}
 
       <AdminConfirmSheet
         open={deleteReviewOpen}
@@ -1382,7 +1339,7 @@ function ResponseDetailPage() {
         confirmLabel="Delete response permanently"
         confirmationText={data.country}
         confirmationHint={`Type ${data.country} exactly to confirm permanent deletion`}
-        busy={deleting}
+        busy={false}
         danger
       />
     </div>
