@@ -6,9 +6,11 @@ const review = readFileSync("src/routes/confirmations/admin/responses.tsx", "utf
 describe("V3 Organizer Entry Review scope", () => {
   it("removes all-editions mode from the operational queue", () => {
     expect(review).toContain('data-v3-organizer-entry-review=""');
-    expect(review).toContain('<option value="">Select edition…</option>');
+    expect(review).toContain("Selected Organizer edition");
     expect(review).not.toContain('<option value="all">All editions</option>');
-    expect(review).toContain('editionRows.find((edition) => edition.id === organizerEditionId)?.id ?? ""');
+    expect(review).toContain("loadConfirmationResponsesForEdition<ResponseRow>(editionId");
+    expect(review).toContain("const { editionId, editionLabel } = useAdminContext()");
+    expect(review).not.toContain('rpc("admin_confirmation_responses")');
   });
 
   it("computes review state from the selected edition only", () => {
