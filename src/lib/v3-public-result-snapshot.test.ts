@@ -236,4 +236,34 @@ describe("V3 public exact Result snapshot", () => {
       /duplicate canonical row identity/,
     );
   });
+
+  it("rejects null published Jury or Televote values rather than substituting zero", () => {
+    const value = snapshot();
+    const original = value.rows as Array<Record<string, unknown>>;
+    const missingJury = original.map((row, index) =>
+      index === 0 ? { ...row, juryPoints: null } : row,
+    );
+    expect(() => parseV3PublishedResultSnapshot({ ...value, rows: missingJury })).toThrow(
+      /Published Jury points must be present/,
+    );
+    const missingTelevote = original.map((row, index) =>
+      index === 0 ? { ...row, televotePoints: null } : row,
+    );
+    expect(() => parseV3PublishedResultSnapshot({ ...value, rows: missingTelevote })).toThrow(
+      /Published Televote points must be present/,
+    );
+  });
+
+  it("rejects null values in supposedly public detailed voting", () => {
+    const value = snapshot();
+    const rows = (value.rows as Array<Record<string, unknown>>).map((row) => ({
+      ...row,
+      televoteComponents: null,
+    }));
+    expect(() => parseV3PublishedResultSnapshot({
+      ...value,
+      availability: { results: true, jury: true, televote: true, detailedVoting: true },
+      rows,
+    })).toThrow(/Published detailed voting must be present/);
+  });
 });
