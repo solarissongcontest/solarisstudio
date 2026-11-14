@@ -41,7 +41,7 @@ describe("V3 public Show deep-link publication boundary", () => {
     expect(source).toContain("useAllResults({ enabled: canLoadPublishedResultHistory })");
     expect(source).toContain("useAllShows({ enabled: publishedShowContext })");
     expect(source).toContain("publishedShowContext && resolveShowPublication(showQuery.data).results");
-    expect(source).toContain("const archiveQueries = [showQuery, editionQuery,");
+    expect(source).toMatch(/const archiveQueries = \[\s*showQuery,\s*editionQuery,/);
     expect(source).toContain("if (!showIsPublic)");
     expect(source).toContain(">Show unavailable</h1>");
     expect(source).not.toContain(">{show.name}</h1>");

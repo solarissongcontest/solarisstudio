@@ -98,7 +98,9 @@ describe("V3 Show detail public query scope", () => {
     const source = readFileSync(resolve(process.cwd(), "src/routes/shows/$showId.tsx"), "utf8");
     expect(source).toContain("publishedShowReadAccess(showQuery.data, editionQuery.data)");
     expect(source).toContain("usePublicShowParticipants(readAccess.showId)");
-    expect(source).toContain("useResults(readAccess.resultsId)");
+    expect(source).toContain("enabled: Boolean(readAccess.resultsId)");
+    expect(source).toContain("getPublishedSnapshot({ data: { showId } })");
+    expect(source).not.toContain("useResults(");
     expect(source).toContain("useJuryVotes(readAccess.juryVotesId)");
     expect(source).toContain("useTelevotes(readAccess.televoteVotesId)");
     expect(source).toContain("useShowVoters(readAccess.votersId)");

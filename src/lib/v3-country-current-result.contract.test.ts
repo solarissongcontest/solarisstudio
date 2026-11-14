@@ -27,10 +27,10 @@ describe("V3 Country current-result boundary", () => {
     const results = source("src/integrations/v3/results-source.server.ts");
 
     expect(results).toContain(
-      "juryPoints: publication.jury_results === true ? row.jury_points : null",
+      "juryPoints: snapshot.availability.jury ? (row.juryPoints ?? null) : null",
     );
     expect(results).toContain(
-      "televotePoints: publication.televote_results === true ? row.televote_points : null",
+      "televotePoints: snapshot.availability.televote ? (row.televotePoints ?? null) : null",
     );
     expect(results).not.toContain("juryPoints: row.jury_points,\n      televotePoints: row.televote_points");
   });
