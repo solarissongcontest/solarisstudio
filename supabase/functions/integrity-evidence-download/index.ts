@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
 
   const { data: descriptorData, error: descriptorError } = await authClient.rpc(rpcName, rpcArgs);
   if (descriptorError) {
-    return json({ error: descriptorError.message || "Evidence is not available." }, 403);
+    return json({ error: "Evidence is not available." }, 403);
   }
 
   const descriptor = descriptorData as EvidenceDescriptor | null;

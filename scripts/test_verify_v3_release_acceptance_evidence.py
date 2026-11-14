@@ -2,6 +2,8 @@ import unittest
 import importlib.util
 from pathlib import Path
 
+from scripts.v3_s14_final_seed import EXPECTED
+
 spec = importlib.util.spec_from_file_location("release_evidence", Path(__file__).with_name("verify-v3-release-acceptance-evidence.py"))
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
@@ -17,7 +19,7 @@ def complete():
         "pendingStages": [], "pendingContestExtensions": [], "blockedContestExtensions": [],
         "implementedInvariants": sorted(INVARIANTS),
         "implementedFailureInjections": sorted(FAILURES),
-        "seed": {"editionCount": 1, "delegationCount": 66, "showCount": 3},
+        "seed": dict(EXPECTED),
         "runIdentity": {"candidateSha": SHA, "editionId": "synthetic-edition", "databaseFingerprint": "synthetic-db"},
         "lifecycle": {"finalState": "archived"},
     }
@@ -59,6 +61,37 @@ class EvidenceContract(unittest.TestCase):
                 self.assertTrue(validate(evidence, SHA))
         evidence = complete()
         evidence["seed"]["delegationCount"] = 65
+        self.assertTrue(validate(evidence, SHA))
+
+    def test_exact_final_database_composition_rejects_any_changed_count(self):
+        # Mutation-test every canonical value, not only the delegation count.
+        for name, expected in EXPECTED.items():
+            for bad in (expected + 1, str(expected), True):
+                with self.subTest(name=name, value=bad):
+                    evidence = complete()
+                    evidence["seed"][name] = bad
+                    errors = validate(evidence, SHA)
+                    self.assertTrue(any("invalid exact S14 final seed artifact" in error for error in errors),
+                                    (name, bad, errors))
+
+    def test_exact_final_database_composition_rejects_missing_or_extra_fields(self):
+        for name in EXPECTED:
+            with self.subTest(missing=name):
+                evidence = complete()
+                del evidence["seed"][name]
+                self.assertTrue(validate(evidence, SHA))
+        evidence = complete()
+        evidence["seed"]["undocumented"] = 0
+        self.assertTrue(validate(evidence, SHA))
+
+    def test_seed_must_be_an_object_and_three_shows_exactly(self):
+        for malformed in (None, [], "66", 66):
+            with self.subTest(value=malformed):
+                evidence = complete()
+                evidence["seed"] = malformed
+                self.assertTrue(validate(evidence, SHA))
+        evidence = complete()
+        evidence["seed"]["showCount"] = 4
         self.assertTrue(validate(evidence, SHA))
 
     def test_pending_or_unarchived(self):

@@ -6,7 +6,7 @@ const migration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20261103004900_v3_result_countback_parity.sql"),
   "utf8",
 );
-const organizerComparator = readFileSync(
+const organizerWorkspace = readFileSync(
   resolve(process.cwd(), "src/routes/_authenticated/admin/voting-system/$slug.tsx"),
   "utf8",
 );
@@ -36,10 +36,15 @@ describe("V3 canonical Results countback parity", () => {
     expect(migration).not.toContain("when 'countback' then k.top_scores");
   });
 
-  it("keeps Organizer countback parity while Televote delegates scoring to the canonical SQL authority", () => {
-    expect(organizerComparator).toContain(".sort((a, b) => b - a)");
-    expect(organizerComparator).toContain('if (rule === "countback")');
-    expect(organizerComparator).toContain("for (const score of juryScale)");
+  it("keeps Organizer and Televote scoring exclusively in canonical SQL authority", () => {
+    expect(organizerWorkspace).not.toContain("rerankExistingResults");
+    expect(organizerWorkspace).not.toContain('supabase.from("results")');
+    expect(organizerWorkspace).toContain("database voting-config trigger");
+    const triggerSource = readFileSync(
+      "supabase/migrations/20260822201500_harden_vote_result_sync.sql",
+      "utf8",
+    );
+    expect(triggerSource).toContain("perform public.sync_show_results_from_votes(new.id)");
     expect(televoteSync).toContain('"v3_reconcile_published_televote"');
     expect(televoteSync).not.toContain("compareResultStates(");
     expect(atomicRecovery).toContain("private.v3_sync_published_televote_round(p_source_id)");

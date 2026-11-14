@@ -38,10 +38,14 @@ describe("V3 public Show deep-link publication boundary", () => {
     expect(source).toContain("useEditionById(showQuery.data?.edition_id)");
     expect(source).toContain("isPublishedShowInPublishedEdition(showQuery.data, editionQuery.data)");
     expect(source).toContain("const showIsPublic = publishedShowContext;");
-    expect(source).toContain("useAllResults({ enabled: canLoadPublishedResultHistory })");
+    expect(source).toContain("enabled: Boolean(readAccess.resultsId)");
+    expect(source).toContain("getPublishedSnapshot({ data: { showId } })");
+    expect(source).not.toContain("useAllResults(");
     expect(source).toContain("useAllShows({ enabled: publishedShowContext })");
-    expect(source).toContain("publishedShowContext && resolveShowPublication(showQuery.data).results");
-    expect(source).toContain("const archiveQueries = [showQuery, editionQuery,");
+    expect(source).toContain("publishedShowReadAccess(showQuery.data, editionQuery.data)");
+    expect(source).toContain("resultsQuery.data?.show.id === showId");
+    expect(source).toContain("resultsQuery.data.edition.id === showQuery.data?.edition_id");
+    expect(source).toMatch(/const archiveQueries = \[\s*showQuery,\s*editionQuery,/);
     expect(source).toContain("if (!showIsPublic)");
     expect(source).toContain(">Show unavailable</h1>");
     expect(source).not.toContain(">{show.name}</h1>");

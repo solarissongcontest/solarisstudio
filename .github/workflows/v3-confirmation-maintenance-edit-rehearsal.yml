@@ -7,6 +7,8 @@ on:
     paths:
       - "supabase/migrations/**"
       - ".github/scripts/v3-confirmation-maintenance-edit-rehearsal.sh"
+      - ".github/scripts/v3-confirmation-legacy-writer-denial.sql"
+      - ".github/scripts/v3-confirmation-response-access-runtime.sql"
       - ".github/scripts/v3-confirmation-maintenance-nf-winner-rehearsal.sh"
       - ".github/scripts/v3-confirmation-maintenance-round-operation-claim-rehearsal.sh"
       - ".github/workflows/v3-confirmation-maintenance-edit-rehearsal.yml"

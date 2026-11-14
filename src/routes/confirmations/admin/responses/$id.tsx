@@ -7,29 +7,32 @@ import {
 } from "@/lib/v3-organizer-entry-source-inspection";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
   Copy,
   ExternalLink,
-  Link2,
   RefreshCw,
   RotateCcw,
   Settings2,
   Shield,
-  Trash2,
   Trophy,
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import { ConfirmationAccessSettingsSheet } from "@/components/admin/ConfirmationAccessSettingsSheet";
+import { ConfirmationResponseRecoveryControls } from "@/components/admin/ConfirmationResponseRecoveryControls";
+import {
+  loadConfirmationResponseForEdition,
+  loadConfirmationTechnicalForEdition,
+} from "@/integrations/confirmations/scoped-admin-reads";
 import {
   AdminActionItem,
   AdminCard,
   AdminCardHeader,
-  AdminConfirmSheet,
   AdminEmptyState,
   AdminMoreMenu,
   AdminPageHeader,
@@ -652,7 +655,10 @@ function EntryReviewCard({
 
 function ResponseDetailPage() {
   const { id } = Route.useParams();
+  const { editionId: organizerEditionId } = useAdminContext();
   const navigate = useNavigate();
+  const requestGeneration = useRef(0);
+  const [authEpoch, setAuthEpoch] = useState(0);
   const syncToSolaris = useServerFn(syncConfirmationSnapshotToSolaris);
   const [data, setData] = useState<ResponseDetail | null>(null);
   const [technical, setTechnical] = useState<TechnicalData | null>(null);
@@ -660,14 +666,9 @@ function ResponseDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [technicalError, setTechnicalError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [deleteReviewOpen, setDeleteReviewOpen] = useState(false);
   const [solarisSync, setSolarisSync] = useState<ConfirmationSolarisSyncResult | null>(null);
   const [solarisSyncError, setSolarisSyncError] = useState<string | null>(null);
   const [syncingSolaris, setSyncingSolaris] = useState(false);
-  const [linkType, setLinkType] = useState<"reusable" | "one_time">("reusable");
-  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
-  const [creatingLink, setCreatingLink] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   const syncSnapshot = useCallback(
     async (detail: ResponseDetail) => {
@@ -691,57 +692,76 @@ function ResponseDetailPage() {
     [syncToSolaris],
   );
 
-  const loadTechnical = useCallback(async () => {
-    setTechnicalError(null);
-    const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
-      "admin_confirmation_technical",
-      {
-        _submission_id: id,
-      },
-    );
-    if (rpcError) {
-      setTechnicalError(rpcError.message);
-      return;
-    }
-    setTechnical(result as unknown as TechnicalData);
-  }, [id]);
+  // Invalidate any private response state immediately on account/session switch.
+  useEffect(() => {
+    const { data: { subscription } } = confirmationsSupabase.auth.onAuthStateChange((event: string) => {
+      if (!["SIGNED_IN", "SIGNED_OUT", "USER_UPDATED", "TOKEN_REFRESHED"].includes(event)) return;
+      requestGeneration.current += 1;
+      setData(null);
+      setTechnical(null);
+      
+      setAuthEpoch((current) => current + 1);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const load = useCallback(async () => {
+    const generation = ++requestGeneration.current;
+    setData(null);
+    setTechnical(null);
+    setTechnicalError(null);
     setError(null);
-    const { data: sessionData } = await confirmationsSupabase.auth.getSession();
-    if (!sessionData.session) {
-      await navigate({ to: "/confirmations/admin/sign-in" });
-      return;
-    }
-
-    const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
-      "admin_confirmation_response",
-      {
-        _submission_id: id,
-      },
-    );
-
-    if (rpcError) {
-      setError(rpcError.message);
+    setLoading(true);
+    if (!organizerEditionId) {
+      setError("Select the exact Organizer edition before opening this response.");
       setLoading(false);
       return;
     }
-
-    const detail = result as unknown as ResponseDetail;
-    setData(detail);
-    setLoading(false);
-
-    await loadTechnical();
-
     try {
-      await syncSnapshot(detail);
-    } catch {
-      // The review screen stays usable even if the canonical sync is temporarily unavailable.
+      const { data: sessionData, error: sessionError } = await confirmationsSupabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (requestGeneration.current !== generation) return;
+      if (!sessionData?.session) {
+        setLoading(false);
+        await navigate({ to: "/confirmations/admin/sign-in" });
+        return;
+      }
+      const detail = await loadConfirmationResponseForEdition<ResponseDetail>(organizerEditionId, id);
+      if (requestGeneration.current !== generation) return;
+      if (detail.edition?.id !== organizerEditionId || detail.id !== id) {
+        throw new Error("Confirmation response no longer matches the selected edition.");
+      }
+      setData(detail);
+      setLoading(false);
+      try {
+        const technical = await loadConfirmationTechnicalForEdition<TechnicalData>(organizerEditionId, id);
+        if (requestGeneration.current !== generation) return;
+        setTechnical(technical);
+      } catch (technicalFailure) {
+        if (requestGeneration.current !== generation) return;
+        setTechnical(null);
+        setTechnicalError(
+          technicalFailure instanceof Error ? technicalFailure.message : "Technical access is unavailable.",
+        );
+      }
+      // Do not invoke legacy Solaris synchronization merely by opening a response.
+    } catch (caught) {
+      if (requestGeneration.current !== generation) return;
+      setData(null);
+      setTechnical(null);
+      setError(caught instanceof Error ? caught.message : "Exact-edition response access is unavailable.");
+      setLoading(false);
     }
-  }, [id, loadTechnical, navigate, syncSnapshot]);
+  }, [organizerEditionId, id, navigate, authEpoch]);
 
   useEffect(() => {
+    requestGeneration.current += 1;
+    setData(null);
+    setTechnical(null);
+    
+    setLoading(true);
     void load();
+    return () => { requestGeneration.current += 1; };
   }, [load]);
 
   async function changeWinner(action: "select" | "clear", reason: string, entryId: string | null) {
@@ -832,71 +852,6 @@ function ResponseDetailPage() {
     }
   }
 
-  async function createEditLink() {
-    if (!data) return;
-    setCreatingLink(true);
-    try {
-      const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
-        "admin_confirmation_create_edit_token",
-        {
-          _submission_id: data.id,
-          _token_type: linkType,
-          _expires_in_hours: null,
-        },
-      );
-      if (rpcError) throw rpcError;
-      const token = (result as { token?: string } | null)?.token;
-      if (!token) throw new Error("The edit token was not returned.");
-      const url = `${window.location.origin}/confirmations/edit/${token}`;
-      setGeneratedLink(url);
-      await navigator.clipboard.writeText(url);
-      toast.success("Edit link generated and copied");
-      await loadTechnical();
-    } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "Could not create the edit link.");
-    } finally {
-      setCreatingLink(false);
-    }
-  }
-
-  async function revokeToken(tokenId: string) {
-    const { error: rpcError } = await confirmationsSupabase.rpc(
-      "admin_confirmation_revoke_edit_token",
-      {
-        _token_id: tokenId,
-      },
-    );
-    if (rpcError) {
-      toast.error(rpcError.message);
-      return;
-    }
-    if (generatedLink) setGeneratedLink(null);
-    toast.success("Edit link revoked");
-    await loadTechnical();
-  }
-
-  async function deleteResponse() {
-    if (!data || deleting) return;
-
-    setDeleting(true);
-    try {
-      const { error: rpcError } = await confirmationsSupabase.rpc(
-        "admin_confirmation_delete_response",
-        {
-          _submission_id: data.id,
-        },
-      );
-      if (rpcError) throw rpcError;
-      setDeleteReviewOpen(false);
-      toast.success("Confirmation deleted");
-      await navigate({ to: "/confirmations/admin/responses" });
-    } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "Could not delete the response.");
-    } finally {
-      setDeleting(false);
-    }
-  }
-
   if (loading) {
     return (
       <div className="admin-page pb-5">
@@ -907,7 +862,7 @@ function ResponseDetailPage() {
     );
   }
 
-  if (!data) {
+  if (!data || !organizerEditionId || data.edition?.id !== organizerEditionId) {
     return (
       <div className="admin-page pb-5">
         <AdminPageHeader
@@ -943,7 +898,6 @@ function ResponseDetailPage() {
   const copyArtistSongs = activeNfEntries
     .map((entry) => `${entry.artist ?? "Unknown artist"} – ${entry.song_title ?? "Unknown song"}`)
     .join("\n");
-  const activeTokens = technical?.tokens.filter((token) => token.active) ?? [];
 
   return (
     <div className="admin-page pb-5">
@@ -1141,91 +1095,16 @@ function ResponseDetailPage() {
           </AdminCard>
         ) : null}
 
-        <AdminCard>
-          <AdminCardHeader
-            eyebrow="Edit access"
-            title="Private participant edit link"
-            description="Generate a reusable or one-time link for the delegation. Creating a new link revokes the previous active link."
-          />
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setLinkType("reusable")}
-              className={
-                linkType === "reusable" ? "admin-action-primary" : "admin-action-secondary"
-              }
-            >
-              Reusable
-            </button>
-            <button
-              type="button"
-              onClick={() => setLinkType("one_time")}
-              className={
-                linkType === "one_time" ? "admin-action-primary" : "admin-action-secondary"
-              }
-            >
-              One-time
-            </button>
-          </div>
-          <button
-            type="button"
-            disabled={creatingLink}
-            onClick={() => void createEditLink()}
-            className="admin-action-primary mt-3 w-full"
-          >
-            <Link2 className="size-4" /> {creatingLink ? "Generating…" : "Generate edit link"}
-          </button>
-
-          {generatedLink ? (
-            <div className="mt-3 rounded-xl border border-sky-200/15 bg-sky-200/[0.035] p-3">
-              <p className="break-all text-xs text-muted-foreground">{generatedLink}</p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => void copyValue(generatedLink, "Edit link")}
-                  className="admin-action-secondary"
-                >
-                  <Copy className="size-4" /> Copy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => window.open(generatedLink, "_blank", "noopener,noreferrer")}
-                  className="admin-action-secondary"
-                >
-                  <ExternalLink className="size-4" /> Open
-                </button>
-              </div>
-            </div>
-          ) : null}
-
-          {activeTokens.length ? (
-            <div className="mt-4 space-y-2 border-t border-white/[0.07] pt-4">
-              <p className="admin-section-label">Active link</p>
-              {activeTokens.map((token) => (
-                <div
-                  key={token.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3"
-                >
-                  <div className="min-w-0 text-xs">
-                    <p className="font-semibold capitalize">
-                      {token.token_type.replaceAll("_", " ")}
-                    </p>
-                    <p className="mt-1 text-muted-foreground">
-                      Used {token.use_count} {token.use_count === 1 ? "time" : "times"}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void revokeToken(token.id)}
-                    className="admin-action-secondary !min-h-9 !px-3 text-xs"
-                  >
-                    Revoke
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </AdminCard>
+        <ConfirmationResponseRecoveryControls
+          editionId={organizerEditionId}
+          submissionId={data.id}
+          country={data.country}
+          editionLabel={data.edition ? `SSC ${data.edition.edition_number} · ${data.edition.name}` : "Edition unavailable"}
+          roundName={data.round?.name ?? "Confirmation"}
+          submittedAt={data.submitted_at}
+          onChanged={load}
+          onDeleted={() => navigate({ to: "/confirmations/admin/responses" })}
+        />
 
         <AdminCard>
           <AdminCardHeader
@@ -1321,70 +1200,24 @@ function ResponseDetailPage() {
           </AdminCard>
         ) : null}
 
-        <AdminCard className="border-rose-300/15 bg-rose-300/[0.025]">
-          <AdminCardHeader
-            eyebrow="Danger zone"
-            title="Delete response"
-            description="Permanently delete this confirmation and its related data. This cannot be undone."
-          />
-          <button
-            type="button"
-            disabled={deleting}
-            onClick={() => setDeleteReviewOpen(true)}
-            className="admin-action-danger w-full"
-          >
-            <Trash2 className="size-4" /> {deleting ? "Deleting…" : "Review permanent deletion"}
-          </button>
-        </AdminCard>
+
       </div>
 
       <ConfirmationAccessSettingsSheet
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         onApplied={load}
+        editionId={organizerEditionId}
         submissionId={data.id}
         country={data.country}
-        editionLabel={
-          data.edition
-            ? `SSC ${data.edition.edition_number} · ${data.edition.name}`
-            : "Edition unavailable"
-        }
+        editionLabel={data.edition ? `SSC ${data.edition.edition_number} · ${data.edition.name}` : "Edition unavailable"}
         roundName={data.round?.name ?? "Confirmation"}
         editingAllowed={data.editing_allowed}
         locked={data.locked}
         adminNotes={data.admin_notes}
       />
 
-      <AdminConfirmSheet
-        open={deleteReviewOpen}
-        onClose={() => setDeleteReviewOpen(false)}
-        onConfirm={deleteResponse}
-        title={`Delete ${data.country}'s confirmation?`}
-        description={
-          <div className="space-y-2">
-            <p>
-              This permanently deletes <strong className="text-foreground">{data.country}</strong>&apos;s
-              Confirmation response and the related Confirmation-side data handled by the existing delete
-              authority. Organizer cannot undo this action.
-            </p>
-            <p>
-              Context: {data.edition ? `SSC ${data.edition.edition_number} · ${data.edition.name}` : "edition unavailable"}
-              {" · "}{data.round?.name ?? "Confirmation"}{" · submitted "}
-              {new Date(data.submitted_at).toLocaleString()}.
-            </p>
-            <p>
-              This is still the legacy Confirmation delete authority, not a versioned rollback operation. If
-              canonical Solaris state needs recovery afterward, that must be handled separately rather than by
-              repeating this deletion.
-            </p>
-          </div>
-        }
-        confirmLabel="Delete response permanently"
-        confirmationText={data.country}
-        confirmationHint={`Type ${data.country} exactly to confirm permanent deletion`}
-        busy={deleting}
-        danger
-      />
+
     </div>
   );
 }

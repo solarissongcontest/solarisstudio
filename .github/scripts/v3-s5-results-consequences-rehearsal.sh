@@ -34,7 +34,12 @@ db_exec "insert into public.shows(id,edition_id,name,kind,sort_order,published) 
 # remains a synthetic invariant fixture, rather than an orphan Result.
 db_exec "insert into public.participants(edition_id,show_id,country_id,participation_status) values ('$EDITION_ID','$SHOW_ID','$COUNTRY_ID','confirmed');"
 db_exec "insert into public.results(id,edition_id,show_id,country_id,jury_points,televote_points,total_points,final_rank) values ('$RESULT_ID','$EDITION_ID','$SHOW_ID','$COUNTRY_ID',12,10,22,1) on conflict (show_id,country_id) where show_id is not null do update set id=excluded.id,jury_points=excluded.jury_points,televote_points=excluded.televote_points,total_points=excluded.total_points,final_rank=excluded.final_rank;"
-db_exec "insert into public.studio2_result_operations(show_id,edition_id,calculation_version,reviewed_version,locked_version) values ('$SHOW_ID','$EDITION_ID',1,1,1);"
+db_exec "insert into public.studio2_result_operations(show_id,edition_id,calculation_version,reviewed_version,locked_version) values ('$SHOW_ID','$EDITION_ID',1,1,1)
+on conflict (show_id) do update set
+ calculation_version=excluded.calculation_version,
+ reviewed_version=excluded.reviewed_version,
+ locked_version=excluded.locked_version
+ where public.studio2_result_operations.edition_id=excluded.edition_id;"
 
 insert_execution() {
   local execution_id="$1" action="$2"

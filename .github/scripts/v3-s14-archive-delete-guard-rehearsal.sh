@@ -230,7 +230,13 @@ VALUES (:'SHOW_A'::uuid,:'EDITION_A'::uuid,'Archive Delete Freeze Fixture','gran
 INSERT INTO public.studio2_result_operations(
   show_id,edition_id,calculation_version,reviewed_version,locked_version,reveal_ready_version
 )
-VALUES (:'SHOW_A'::uuid,:'EDITION_A'::uuid,1,1,1,1);
+VALUES (:'SHOW_A'::uuid,:'EDITION_A'::uuid,1,1,1,1)
+ON CONFLICT (show_id) DO UPDATE SET
+  calculation_version=excluded.calculation_version,
+  reviewed_version=excluded.reviewed_version,
+  locked_version=excluded.locked_version,
+  reveal_ready_version=excluded.reveal_ready_version
+WHERE public.studio2_result_operations.edition_id=excluded.edition_id;
 
 INSERT INTO public.studio2_capability_grants(user_id,capability,edition_id)
 VALUES
