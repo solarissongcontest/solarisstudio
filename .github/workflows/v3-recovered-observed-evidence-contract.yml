@@ -1,0 +1,43 @@
+name: V3 recovered-observed evidence contract (offline only)
+
+on:
+  pull_request:
+    paths:
+      - scripts/verify-v3-recovered-observed-66.py
+      - scripts/test_verify_v3_recovered_observed_66.py
+      - .github/workflows/v3-recovered-observed-evidence-contract.yml
+  push:
+    branches: [main]
+    paths:
+      - scripts/verify-v3-recovered-observed-66.py
+      - scripts/test_verify_v3_recovered_observed_66.py
+      - .github/workflows/v3-recovered-observed-evidence-contract.yml
+
+permissions:
+  contents: read
+
+jobs:
+  offline-contract:
+    name: Offline recovered-observed evidence contract (no DB or API)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prohibit any inherited database or hosted Supabase targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in SUPABASE_URL VITE_SUPABASE_URL E2E_SUPABASE_URL VITE_CONFIRMATIONS_SUPABASE_URL CONFIRMATIONS_SUPABASE_URL DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN PGHOST PGHOSTADDR; do
+            if [[ -n "$(printenv "$key" || true)" ]]; then
+              echo "::error::Forbidden test target or credential environment: $key"
+              exit 1
+            fi
+          done
+      - name: Python standard-library syntax and 50 offline negative tests
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/verify-v3-recovered-observed-66.py
+          python3 -m unittest -v scripts/test_verify_v3_recovered_observed_66.py
+      - name: No recovered 66-country PASS is asserted by this workflow
+        run: |
+          echo "Offline evidence consistency only; recovered PG17.11 full contest is NOT RUN"
