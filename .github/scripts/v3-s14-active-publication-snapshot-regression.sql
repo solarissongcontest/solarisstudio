@@ -93,8 +93,8 @@ BEGIN
     EXECUTE 'set local role authenticated';
     -- Both first commit and lost-response retry must carry the identical
     -- server authority basis. A recalculation legitimately advances it.
-    SELECT review_basis_version INTO v_result_review_basis
-    FROM public.studio2_result_operations WHERE show_id=v_show;
+    SELECT (public.studio2_result_operation_preview_v2(v_show,'calculate')->>'reviewBasisVersion')::bigint
+    INTO v_result_review_basis;
     v_execution := gen_random_uuid();
     v_response := public.studio2_execute_result_operation_v2(
       v_show,'calculate','Active official snapshot regression',
@@ -134,7 +134,7 @@ BEGIN
         EXECUTE 'set local role authenticated';
         PERFORM public.studio2_execute_result_operation_v2(
           v_show,'review','Reject invalid non-active Results',gen_random_uuid(),1,
-          (SELECT review_basis_version FROM public.studio2_result_operations WHERE show_id=v_show),
+          (public.studio2_result_operation_preview_v2(v_show,'review')->>'reviewBasisVersion')::bigint,
           v_edition,v_actor);
       EXCEPTION WHEN SQLSTATE '55000' THEN v_rejected := true;
       END;
@@ -148,19 +148,19 @@ BEGIN
     EXECUTE 'set local role authenticated';
     PERFORM public.studio2_execute_result_operation_v2(
       v_show,'calculate','Recalculate exact official version',gen_random_uuid(),1,
-      (SELECT review_basis_version FROM public.studio2_result_operations WHERE show_id=v_show),
+      (public.studio2_result_operation_preview_v2(v_show,'calculate')->>'reviewBasisVersion')::bigint,
       v_edition,v_actor);
     PERFORM public.studio2_execute_result_operation_v2(
       v_show,'review','Review exact official version',gen_random_uuid(),2,
-      (SELECT review_basis_version FROM public.studio2_result_operations WHERE show_id=v_show),
+      (public.studio2_result_operation_preview_v2(v_show,'review')->>'reviewBasisVersion')::bigint,
       v_edition,v_actor);
     PERFORM public.studio2_execute_result_operation_v2(
       v_show,'lock','Lock exact official version',gen_random_uuid(),2,
-      (SELECT review_basis_version FROM public.studio2_result_operations WHERE show_id=v_show),
+      (public.studio2_result_operation_preview_v2(v_show,'lock')->>'reviewBasisVersion')::bigint,
       v_edition,v_actor);
     PERFORM public.studio2_execute_result_operation_v2(
       v_show,'mark_reveal_ready','Release exact official version',gen_random_uuid(),2,
-      (SELECT review_basis_version FROM public.studio2_result_operations WHERE show_id=v_show),
+      (public.studio2_result_operation_preview_v2(v_show,'mark_reveal_ready')->>'reviewBasisVersion')::bigint,
       v_edition,v_actor);
     EXECUTE 'reset role';
     IF v_original IS DISTINCT FROM (SELECT result_rows FROM private.v3_result_versions WHERE show_id=v_show AND version=1) THEN
