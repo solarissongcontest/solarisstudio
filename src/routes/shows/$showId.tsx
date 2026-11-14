@@ -58,7 +58,8 @@ import {
 import { usePublicShowParticipants } from "@/lib/public-participants";
 import { resolveTheme } from "@/lib/theme";
 import { resolveV3ResultsSpoilerProtection } from "@/lib/v3-results";
-import { hasMultipleTelevoteRounds, parseTelevoteComponents, resolveVoting } from "@/lib/voting";
+import { parseTelevoteComponents, resolveVoting } from "@/lib/voting";
+import { resolveV3PublicShowResultVisibility } from "@/lib/v3-public-show-result-visibility";
 import type { Standing } from "@/lib/analysis";
 import { buildShowStories } from "@/lib/stories";
 import { getPublicShowTelevoteDetail } from "@/integrations/televoting/public-detail.functions";
@@ -239,16 +240,14 @@ function ShowPage() {
       serverSpoilerFree: serverPreferences.data?.spoiler_free ?? null,
     });
   const voting = useMemo(() => resolveVoting(show?.voting_config), [show?.voting_config]);
-  const showJuryResults =
-    frozenResult?.availability.jury === true &&
-    frozenResult.rows.every((row) => row.juryPoints != null);
-  const showTelevoteResults =
-    frozenResult?.availability.televote === true &&
-    frozenResult.rows.every((row) => row.televotePoints != null);
-  const multiRoundTelevote =
-    showTelevoteResults && !voting.juryEnabled && hasMultipleTelevoteRounds(voting);
+  const { jury: showJuryResults, televote: showTelevoteResults, multiRoundTelevote } = useMemo(
+    () => resolveV3PublicShowResultVisibility(frozenResult, voting),
+    [frozenResult, voting],
+  );
+  const hasPublishedDetailedVoting =
+    publication.detailed_voting && frozenResult?.availability.detailedVoting === true;
   const detailedTelevote = televoteDetailQuery.data ?? null;
-  const hasDetailedTelevote = Boolean(detailedTelevote?.rounds.length);
+  const hasDetailedTelevote = hasPublishedDetailedVoting && Boolean(detailedTelevote?.rounds.length);
 
   const showIsPublic = publishedShowContext;
   const displayMap = useMemo(() => entityDisplayMap(entities, countries), [entities, countries]);
@@ -325,15 +324,16 @@ function ShowPage() {
   const televoteRoundTotals = useMemo(() => {
     if (!multiRoundTelevote) return [];
 
-    return voting.televoteRounds.map((round) => ({
-      round,
-      total: scoreableResults.reduce((sum, result) => {
-        const raw = (result as typeof result & { televote_components?: unknown })
-          .televote_components;
-        const component = parseTelevoteComponents(raw).find((item) => item.round_id === round.id);
-        return sum + (component?.points ?? 0);
-      }, 0),
-    }));
+    return voting.televoteRounds.flatMap((round) => {
+      const points = scoreableResults.map((result) =>
+        parseTelevoteComponents(result.televote_components).find(
+          (item) => item.round_id === round.id,
+        )?.points,
+      );
+      const completePoints = points.filter((point): point is number => point !== undefined);
+      if (completePoints.length !== scoreableResults.length) return [];
+      return [{ round, total: completePoints.reduce((sum, point) => sum + point, 0) }];
+    });
   }, [scoreableResults, multiRoundTelevote, voting.televoteRounds]);
 
   const publicLineupParticipants = useMemo(() => {
@@ -374,11 +374,11 @@ function ShowPage() {
       });
     }
 
-    if (publication.detailed_voting && showJuryResults) {
+    if (hasPublishedDetailedVoting && showJuryResults) {
       options.push({ value: "matrix", label: "Full scorechart" });
     }
 
-    if (publication.detailed_voting && (showJuryResults || showTelevoteResults)) {
+    if (hasPublishedDetailedVoting && (showJuryResults || showTelevoteResults)) {
       options.push({ value: "points", label: "Points explorer" });
     }
 
@@ -404,7 +404,7 @@ function ShowPage() {
     return options;
   }, [
     publication.results,
-    publication.detailed_voting,
+    hasPublishedDetailedVoting,
     publication.participants,
     publication.running_order,
     showJuryResults,
@@ -687,7 +687,7 @@ function ShowPage() {
           )}
 
           {tab === "points" &&
-            publication.detailed_voting &&
+            hasPublishedDetailedVoting &&
             (showJuryResults || showTelevoteResults) && (
               <RadialPointsView
                 participants={participants ?? []}
@@ -751,7 +751,7 @@ function ShowPage() {
               </Panel>
             ))}
 
-          {tab === "matrix" && publication.detailed_voting && showJuryResults && (
+          {tab === "matrix" && hasPublishedDetailedVoting && showJuryResults && (
             <Panel
               title="Full scorechart"
               description="Each row is an entry receiving points. Each column is a jury giving points. Tap or hover cells to inspect the vote."
