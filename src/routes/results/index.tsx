@@ -18,18 +18,9 @@ import { V3ResultsRootGate } from "@/components/v3/V3ResultsRootGate";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
 import {
   editionLabel,
-  useAllContestEntities,
-  useAllParticipants,
-  useAllResults,
   useAllShows,
-  useCountries,
   useEditions,
 } from "@/lib/data";
-import { entityDisplayMap } from "@/lib/entities";
-import {
-  filterResultsToCompetingParticipants,
-  type ParticipationAwareParticipant,
-} from "@/lib/participation-status";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 import { useV3EditionRolloutProbe, useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { V3AppShell } from "@/components/v3/V3AppShell";
@@ -37,6 +28,7 @@ import { V3ResultsScreen } from "@/components/v3/V3ResultsScreen";
 import { V3Screen } from "@/components/v3/V3Foundation";
 import { useNotificationPreferences } from "@/lib/engagement-data";
 import { resolveV3ResultsSpoilerProtection } from "@/lib/v3-results";
+import { useV3ResultsBundle } from "@/lib/v3-results-runtime";
 import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 
 export const Route = createFileRoute("/results/")({
@@ -77,31 +69,20 @@ function LegacyResultsOverviewPage() {
   const { preferences } = useAppExperiencePreferences();
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
-  const resultsQuery = useAllResults();
-  const participantsQuery = useAllParticipants();
-  const countriesQuery = useCountries();
-  const entitiesQuery = useAllContestEntities();
+  // All three public experiences consume the exact immutable published Result.
+  // No mutable Results or current participant-state fallback is permitted.
+  const resultsQuery = useV3ResultsBundle(null, true);
   const { data: editions } = editionsQuery;
   const { data: shows } = showsQuery;
-  const { data: results } = resultsQuery;
-  const { data: participants } = participantsQuery;
-  const { data: countries } = countriesQuery;
-  const { data: entities } = entitiesQuery;
+  const { data: resultBundle } = resultsQuery;
 
   const displayMap = useMemo(
-    () => entityDisplayMap(entities ?? [], countries ?? []),
-    [entities, countries],
+    () => new Map((resultBundle?.countries ?? []).map((country) => [country.id, country])),
+    [resultBundle?.countries],
   );
   const editionMap = useMemo(
     () => new Map((editions ?? []).map((edition) => [edition.id, edition])),
     [editions],
-  );
-  const competingResults = useMemo(
-    () => filterResultsToCompetingParticipants(
-      results ?? [],
-      (participants ?? []) as ParticipationAwareParticipant[],
-    ),
-    [results, participants],
   );
 
   const resultShows = useMemo(
@@ -120,19 +101,25 @@ function LegacyResultsOverviewPage() {
     [shows, editionMap],
   );
 
-  const latestShow = resultShows[0] ?? null;
+  const latestShow = resultShows.find((show) => show.id === resultBundle?.input.showId) ?? null;
   const latestEdition = latestShow ? editionMap.get(latestShow.edition_id) ?? null : null;
-  const latestRows = latestShow
-    ? competingResults
-        .filter((row) => row.show_id === latestShow.id && row.final_rank != null && row.final_rank > 0)
-        .sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999))
+  const latestRows = latestShow && resultBundle?.input.publication === "published"
+    ? resultBundle.input.rows
+        .map((row) => ({
+          country_id: row.countryId,
+          total_points: row.points,
+          final_rank: row.rank,
+          jury_points: row.juryPoints ?? 0,
+          televote_points: row.televotePoints ?? 0,
+        }))
+        .sort((a, b) => a.final_rank - b.final_rank)
     : [];
   const winnerRow = latestRows.find((row) => row.final_rank === 1) ?? null;
   const runnerUp = latestRows.find((row) => row.final_rank === 2) ?? null;
   const winner = winnerRow ? displayMap.get(winnerRow.country_id) ?? null : null;
   const margin = winnerRow && runnerUp ? winnerRow.total_points - runnerUp.total_points : null;
   const publication = latestShow ? resolveShowPublication(latestShow) : null;
-  const archiveQueries = [editionsQuery, showsQuery, resultsQuery, participantsQuery, countriesQuery, entitiesQuery];
+  const archiveQueries = [editionsQuery, showsQuery, resultsQuery];
 
   // Cohorts are evaluated against the edition of the actual result, not an
   // unrelated active edition. Empty states use the current-edition probe.
@@ -177,10 +164,7 @@ function LegacyResultsOverviewPage() {
   }
 
   if (v3Enabled) {
-    const resultCountries = entityDisplayMap(
-      (entities ?? []).filter((entity) => entity.edition_id === latestEdition?.id),
-      countries,
-    );
+    const resultCountries = displayMap;
     return (
       <V3AppShell editionLabel={latestEdition ? editionLabel(latestEdition) : "Solaris Studio"} phaseLabel="Results" activeArea="results">
         <V3ResultsScreen
@@ -190,17 +174,17 @@ function LegacyResultsOverviewPage() {
           input={{
             editionId: latestEdition?.id ?? "", editionName: latestEdition ? editionLabel(latestEdition) : "Solaris Studio",
             showId: latestShow?.id ?? "", showName: latestShow?.name ?? "",
-            publication: latestShow && publication?.results ? "published" : "hidden",
+            publication: latestShow && resultBundle?.input.publication === "published" ? "published" : "hidden",
             disclosure: "withheld",
             rows: latestRows.map((row) => ({
               countryId: row.country_id, countryName: resultCountries.get(row.country_id)?.name ?? "Unknown country",
               flagUrl: resultCountries.get(row.country_id)?.flag_image ?? null,
               rank: row.final_rank!, points: row.total_points,
-              juryPoints: publication?.jury_results ? row.jury_points : null,
-              televotePoints: publication?.televote_results ? row.televote_points : null,
+              juryPoints: resultBundle?.input.juryPublished ? row.jury_points : null,
+              televotePoints: resultBundle?.input.televotePublished ? row.televote_points : null,
             })),
-            juryPublished: publication?.jury_results === true,
-            televotePublished: publication?.televote_results === true,
+            juryPublished: resultBundle?.input.juryPublished === true,
+            televotePublished: resultBundle?.input.televotePublished === true,
             userDelegationCountryId: null,
             resultTools: [{ key: "scorecharts", label: "Full scorecharts", href: "/scorecharts" }],
             advancedTools: [
@@ -448,10 +432,10 @@ function LegacyResultsOverviewPage() {
               <StatTile label="Entries ranked" value={latestRows.length} />
               <StatTile
                 label="Detailed voting"
-                value={publication?.detailed_voting ? "Yes" : "No"}
+                value={resultBundle?.input.publication === "published" && publication?.detailed_voting ? "Yes" : "No"}
               />
-              <StatTile label="Jury" value={publication?.jury_results ? "Public" : "Hidden"} />
-              <StatTile label="Televote" value={publication?.televote_results ? "Public" : "Hidden"} />
+              <StatTile label="Jury" value={resultBundle?.input.juryPublished ? "Public" : "Hidden"} />
+              <StatTile label="Televote" value={resultBundle?.input.televotePublished ? "Public" : "Hidden"} />
             </div>
           </Panel>
         </section>
