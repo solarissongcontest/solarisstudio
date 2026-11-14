@@ -135,6 +135,7 @@ describe("V3 Jury reliability foundation", () => {
     expect(rollout).toContain('p_key: "solaris_app_v3_jury"');
     expect(route).toContain("rollout.data?.juryEnabled === true");
     expect(route).toContain("if (!v3ReliabilityEnabled)");
-    expect(route).toContain('supabase.rpc("submit_country_jury_ballot"');
+    expect(route).not.toContain('supabase.rpc("submit_country_jury_ballot"');
+    expect(route).toContain("Jury submission is unavailable until the secure voting service is enabled.");
   });
 });
