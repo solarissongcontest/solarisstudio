@@ -3,6 +3,7 @@ import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmati
 import type { Country, Edition, Show } from "@/lib/data";
 import { entityDisplayMap, type ContestEntityRow } from "@/lib/entities";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
+import { resolveVoting } from "@/lib/voting";
 import type { V3ResultProjectionInput, V3ResultShowOption } from "@/lib/v3-results";
 
 const EDITION_COLUMNS = "id,edition_number,name,slug,published";
@@ -33,6 +34,7 @@ export type V3ResultsServerBundle = {
   };
   input: V3ResultProjectionInput;
   countries: Country[];
+  detailedVotingPublished: boolean;
   generatedAt: string;
 };
 
@@ -103,6 +105,7 @@ export async function loadV3ResultsBundle(
       shell: { editionLabel: "Solaris Studio", phaseLabel: null },
       input: emptyInput(null),
       countries: [],
+      detailedVotingPublished: false,
       generatedAt: new Date().toISOString(),
     };
   }
@@ -165,6 +168,7 @@ export async function loadV3ResultsBundle(
       shell: { editionLabel: editionLabel(selectedEdition), phaseLabel: null },
       input: emptyInput(selectedEdition),
       countries: [],
+      detailedVotingPublished: false,
       generatedAt: new Date().toISOString(),
     };
   }
@@ -177,6 +181,7 @@ export async function loadV3ResultsBundle(
       shell: { editionLabel: editionLabel(selectedEdition), phaseLabel: "Results" },
       input: emptyInput(selectedEdition),
       countries: [],
+      detailedVotingPublished: false,
       generatedAt: new Date().toISOString(),
     };
   if (snapshot.edition.id !== selectedEdition.id)
@@ -187,6 +192,12 @@ export async function loadV3ResultsBundle(
     .eq("edition_id", snapshot.edition.id);
   throwIfError(entitiesResult.error, "Could not load public result identities");
   const rows = snapshot.rows;
+  const voting = resolveVoting(selectedShow.voting_config);
+  // System owns which fields are published; Show voting configuration also
+  // determines which split channels genuinely existed. Never show an inactive
+  // channel as a 0-point Jury or Televote competition.
+  const juryVisible = snapshot.availability.jury && voting.juryEnabled;
+  const televoteVisible = snapshot.availability.televote && voting.televoteEnabled;
   const entities = (entitiesResult.data ?? []) as ContestEntityRow[];
 
   const countryIds = new Set<string>();
@@ -232,8 +243,8 @@ export async function loadV3ResultsBundle(
         flagUrl: display.flag_image,
         rank: row.finalRank,
         points: row.totalPoints,
-        juryPoints: snapshot.availability.jury ? (row.juryPoints ?? null) : null,
-        televotePoints: snapshot.availability.televote ? (row.televotePoints ?? null) : null,
+        juryPoints: juryVisible ? (row.juryPoints ?? null) : null,
+        televotePoints: televoteVisible ? (row.televotePoints ?? null) : null,
       },
     ];
   });
@@ -253,8 +264,8 @@ export async function loadV3ResultsBundle(
       publication: "published",
       disclosure: "withheld",
       rows: projectedRows,
-      juryPublished: snapshot.availability.jury,
-      televotePublished: snapshot.availability.televote,
+      juryPublished: juryVisible,
+      televotePublished: televoteVisible,
       userDelegationCountryId: null,
       resultTools: [{ key: "scorecharts", label: "Full scorecharts", href: "/scorecharts" }],
       advancedTools: [
@@ -270,6 +281,8 @@ export async function loadV3ResultsBundle(
       ],
     },
     countries: [...resultCountries.values()],
+    detailedVotingPublished:
+      snapshot.availability.detailedVoting && (voting.juryEnabled || voting.televoteEnabled),
     generatedAt: new Date().toISOString(),
   };
 }
