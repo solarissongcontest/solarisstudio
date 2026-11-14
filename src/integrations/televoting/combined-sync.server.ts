@@ -1,3 +1,4 @@
+import { requireCombinedTelevoteWriteApproval } from "@/integrations/televoting/combined-write-gate.server";
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 
@@ -65,6 +66,7 @@ async function recordCombinedSyncEvent(
 export async function syncEditableCombinedParticipantsFromSolarisServer(
   aggregationId: string,
 ): Promise<CombinedCanonicalSyncOutcome> {
+  requireCombinedTelevoteWriteApproval();
   await requireMergedTelevotingAdminServer();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const db = supabaseAdmin as any;
