@@ -2,6 +2,7 @@ import { Radio } from "lucide-react";
 
 import type { V3BootstrapProjection } from "@/lib/v3-bootstrap";
 import type { V3ActionProjection } from "@/lib/v3-experience";
+import { homeActionRequirementLabel, homeActionTone, homeCalmPresentation } from "@/lib/v3-home-action-presentation";
 import {
   V3ActionCard,
   V3NowCard,
@@ -46,14 +47,8 @@ export type V3HomeScreenProps = {
   resultsLabel?: string | null;
 };
 
-function urgencyTone(action: V3ActionProjection) {
-  return action.urgency === "immediate" || action.urgency === "high"
-    ? ("urgent" as const)
-    : ("required" as const);
-}
-
 function actionMetaNodes(action: V3ActionProjection, meta?: V3HomeActionMeta) {
-  const values = [meta?.progressLabel, meta?.timingLabel].filter(Boolean) as string[];
+  const values = [homeActionRequirementLabel(action.deliveryClass), meta?.progressLabel, meta?.timingLabel].filter(Boolean) as string[];
   if (!values.length) return undefined;
 
   return (
@@ -94,7 +89,7 @@ function homeNowContent({
               <V3ActionCard
                 title={primary.title}
                 description={primary.description}
-                tone={urgencyTone(primary)}
+                tone={homeActionTone(primary)}
                 to={primary.route}
                 meta={actionMetaNodes(primary, actionMeta?.[primary.id])}
               />
@@ -205,14 +200,23 @@ function homeNowContent({
         count: "✓" as const,
         child: null,
       };
-    case "calm":
+    case "calm": {
+      const calm = homeCalmPresentation(bootstrap.identity.userId);
       return {
         headerTitle: greeting ?? "Solaris now",
         eyebrow: "Right now",
-        title: "You're all caught up",
-        count: "✓" as const,
-        child: null,
+        title: calm.title,
+        count: calm.showSignIn ? undefined : ("✓" as const),
+        child: calm.showSignIn ? (
+          <V3ActionCard
+            title="Sign in to see your tasks"
+            description="Your own responsibilities and progress appear after you sign in."
+            tone="neutral"
+            to="/auth"
+          />
+        ) : null,
       };
+    }
   }
 }
 
