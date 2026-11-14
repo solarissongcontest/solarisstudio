@@ -62,6 +62,14 @@ operator_sql -v snapshot_before=false -f - < .github/tests/v3-public-snapshot-re
 # Restore canonical Results rank/qualification and reconciliation only after
 # the existing capture/read model, with separate exact observed fingerprints.
 node scripts/stage-v3-result-authority-recovery.mjs > /tmp/result-authority-recovery.sql
+owner_acl_before="$(operator_state_digest)"
+operator_sql -c 'revoke execute on function public.sync_show_results_from_votes(uuid) from service_role;'
+owner_acl_drift="$(operator_state_digest)"
+if operator_sql -f - < /tmp/result-authority-recovery.sql > /tmp/result-authority-drift.log 2>&1; then exit 1; fi
+grep -Fq 'Result authority drift or partial installation' /tmp/result-authority-drift.log
+[[ "$(operator_state_digest)" == "$owner_acl_drift" ]] || exit 1
+operator_sql -c 'grant execute on function public.sync_show_results_from_votes(uuid) to service_role;'
+[[ "$(operator_state_digest)" == "$owner_acl_before" ]] || exit 1
 operator_apply /tmp/result-authority-recovery.sql
 operator_sql -f - < .github/tests/v3-result-authority-recovery.sql
 echo 'PASS: entire ordered recovery executes as observed NONSUPERUSER postgres with real role/schema privileges'
