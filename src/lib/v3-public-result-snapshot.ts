@@ -106,7 +106,7 @@ const publicResultSnapshotSchema = z
           message: "Unpublished Jury points must not be present in the Public snapshot",
         });
       }
-      if (snapshot.availability.jury && row.juryPoints === undefined) {
+      if (snapshot.availability.jury && row.juryPoints == null) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["rows", index, "juryPoints"],
@@ -120,7 +120,7 @@ const publicResultSnapshotSchema = z
           message: "Unpublished Televote points must not be present in the Public snapshot",
         });
       }
-      if (snapshot.availability.televote && row.televotePoints === undefined) {
+      if (snapshot.availability.televote && row.televotePoints == null) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["rows", index, "televotePoints"],
@@ -134,7 +134,7 @@ const publicResultSnapshotSchema = z
           message: "Unpublished detailed voting must not be present in the Public snapshot",
         });
       }
-      if (snapshot.availability.detailedVoting && row.televoteComponents === undefined) {
+      if (snapshot.availability.detailedVoting && row.televoteComponents == null) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["rows", index, "televoteComponents"],
