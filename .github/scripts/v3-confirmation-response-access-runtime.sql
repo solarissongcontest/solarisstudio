@@ -32,13 +32,16 @@ begin
   issued := public.studio2_apply_confirmation_response_access_change(edition,response,'issue_recovery',
     '{"tokenType":"one_time","expiresInHours":1}',null,issue_op,'runtime-secret-issue',version);
   secret := issued->>'token';
-  if length(secret)<>64 or not (issued->>'secretAvailable')::boolean then
+  if secret is null or length(secret) is distinct from 64
+     or (issued->>'secretAvailable')::boolean is distinct from true
+     or issued->>'receiptId' is distinct from issue_op::text then
     raise exception 'Authorized issuance did not return its first-response secret';
   end if;
   replay := public.studio2_apply_confirmation_response_access_change(edition,response,'issue_recovery',
     '{"tokenType":"one_time","expiresInHours":1}',null,issue_op,'runtime-secret-issue',version);
-  if not (replay->>'replayed')::boolean or (replay->>'secretAvailable')::boolean or replay ? 'token'
-     or replay->>'receiptId'<>issued->>'receiptId' then
+  if (replay->>'replayed')::boolean is distinct from true
+     or (replay->>'secretAvailable')::boolean is distinct from false or replay ? 'token'
+     or replay->>'receiptId' is distinct from issue_op::text then
     raise exception 'Lost-response replay did not preserve its secret-free receipt';
   end if;
   denied := false;
