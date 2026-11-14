@@ -15,6 +15,7 @@ on:
       - "scripts/stage-v3-public-snapshot-recovery*"
       - "scripts/stage-v3-auth-uid-authority-local*"
       - "docs/v3/recovery-candidates/evidence/auth-uid-authority-observed-2026-11-13.json"
+      - "docs/v3/recovery-candidates/evidence/round-invalidation-authority-observed-2026-11-14.json"
       - ".github/tests/v3-public-snapshot-recovery.sql"
       - "docs/v3/recovery-candidates/evidence/public-snapshot-prerequisites-observed-2026-11-13.json"
       - "docs/v3/recovery-candidates/evidence/publication-helper-prerequisites-observed-2026-11-13.json"
@@ -774,6 +775,8 @@ jobs:
           if sql -f - < /tmp/auth-uid-authority-local.sql > /tmp/auth-uid-duplicate.log 2>&1; then exit 1; fi
           grep -Fq 'NEVER hosted' /tmp/auth-uid-duplicate.log
 
+          node scripts/stage-v3-auth-uid-authority-local.mjs --round-invalidation > /tmp/round-invalidation-authority-local.sql
+          sql -f - < /tmp/round-invalidation-authority-local.sql
           sql -f - < .github/tests/v3-atomic-observed-grants-local.sql
           # Canonical atomic source reference followed by the forward actor repair.
           sql -f - < supabase/migrations/20261103004500_v3_s14_atomic_televote_calculation.sql

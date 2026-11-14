@@ -53,5 +53,45 @@ end $post$;
 commit;
 `;
 }
+export const ROUND_FLAG_OBSERVATION =
+  "docs/v3/recovery-candidates/evidence/round-invalidation-authority-observed-2026-11-14.json";
+export function stageRoundInvalidationAuthority(root = process.cwd()) {
+  const row = JSON.parse(readFileSync(resolve(root, ROUND_FLAG_OBSERVATION), "utf8"));
+  const frozen = JSON.parse(
+    readFileSync(
+      resolve(
+        root,
+        "docs/v3/recovery-candidates/evidence/s06-hosted-catalog-digests-2026-11-10.json",
+      ),
+      "utf8",
+    ),
+  ).routines.find((x) => x.signature === "televoting.flag_round_results_outdated()");
+  if (
+    row.projectRef !== "dkxmnvekiopyesuzggeu" ||
+    row.server_version_num !== "170011" ||
+    row.read_only !== "on" ||
+    row.identity !== "televoting.flag_round_results_outdated()" ||
+    row.owner !== "postgres" ||
+    row.security_definer !== false ||
+    row.definition_md5 !== frozen.definition_md5 ||
+    createHash("md5").update(row.acl).digest("hex") !== frozen.acl_md5
+  )
+    throw Error("Unqualified round invalidation observation");
+  return `begin;
+do $pre$ begin
+ if current_user<>'postgres' or not exists(select 1 from pg_proc p where p.oid=to_regprocedure('televoting.flag_round_results_outdated()') and pg_get_userbyid(p.proowner)='postgres' and p.proacl is null and not p.prosecdef and md5(pg_get_functiondef(p.oid))='${row.definition_md5}') then raise exception 'Local invalidation ACL requires exact imported default ACL; NEVER hosted' using errcode='55000'; end if;
+end $pre$;
+revoke all on function televoting.flag_round_results_outdated() from public,anon,authenticated,service_role;
+grant execute on function televoting.flag_round_results_outdated() to anon,authenticated,service_role;
+do $post$ begin
+ if not exists(select 1 from pg_proc p where p.oid=to_regprocedure('televoting.flag_round_results_outdated()') and p.proacl::text='${row.acl}' and md5(pg_get_functiondef(p.oid))='${row.definition_md5}' and encode(sha256(convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex')='${row.definition_sha256}' and not p.prosecdef and p.proconfig=array[${row.config.map((x) => "'" + x + "'").join(",")}]::text[]) then raise exception 'Local round invalidation function does not match observed authority'; end if;
+end $post$;
+commit;
+`;
+}
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href)
-  process.stdout.write(stageAuthUidAuthority());
+  process.stdout.write(
+    process.argv.includes("--round-invalidation")
+      ? stageRoundInvalidationAuthority()
+      : stageAuthUidAuthority(),
+  );

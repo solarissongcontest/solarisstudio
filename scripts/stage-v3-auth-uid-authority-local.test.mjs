@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { stageAuthUidAuthority, UID_OBSERVATION } from "./stage-v3-auth-uid-authority-local.mjs";
+import {
+  stageAuthUidAuthority,
+  UID_OBSERVATION,
+  stageRoundInvalidationAuthority,
+  ROUND_FLAG_OBSERVATION,
+} from "./stage-v3-auth-uid-authority-local.mjs";
 test("restore only observed auth.uid ownership and ACL without replacing auth behavior", () => {
   const sql = stageAuthUidAuthority();
   const row = JSON.parse(readFileSync(UID_OBSERVATION, "utf8"));
@@ -34,4 +39,14 @@ test("atomic fixture grant reconstruction is bound to exactly the three observed
   }
   assert.ok(source.indexOf("NEVER hosted") < source.indexOf("grant truncate,references,trigger"));
   assert.doesNotMatch(source, /to authenticated|to anon|disable row level|bypassrls|alter role/i);
+});
+
+test("round invalidation retains body and matches observed trigger-only execution ACL", () => {
+  const sql = stageRoundInvalidationAuthority();
+  const row = JSON.parse(readFileSync(ROUND_FLAG_OBSERVATION, "utf8"));
+  assert.ok(sql.includes(row.acl));
+  assert.ok(sql.includes(row.definition_sha256));
+  assert.match(sql, /p\.proacl is null/);
+  assert.doesNotMatch(sql, /create or replace function|alter role|bypassrls/i);
+  assert.ok(sql.indexOf("NEVER hosted") < sql.indexOf("revoke all on function"));
 });
