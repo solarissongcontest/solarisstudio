@@ -79,6 +79,6 @@ describe("V3 Organizer Results reviewed-state freshness", () => {
 
   it("tells the operator that drift invalidates the first review", () => {
     expect(route).toContain("Before the first commit, Solaris re-reads the exact edition/show snapshot and server-reviewed input basis");
-    expect(route).toContain("this review is rejected instead of silently applying a different operation");
+    expect(route).toContain("Any operator, edition, lifecycle, version or readiness change rejects the review");
   });
 });

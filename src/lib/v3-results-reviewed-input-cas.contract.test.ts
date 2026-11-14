@@ -140,6 +140,9 @@ describe("V3 Results reviewed-input CAS", () => {
     expect(runner).toContain("exception when sqlstate 'PT409'");
     expect(runner).toContain("STALE_REVIEWED_INPUT_WAS_ACCEPTED");
     expect(runner).toContain("STALE_REVIEW_EXECUTED_MUTATION");
+    expect(runner).toContain("CROSS_EDITION_REVIEW_ACCEPTED");
+    expect(runner).toContain("CROSS_ACTOR_REVIEW_ACCEPTED");
+    expect(runner).toContain("IDENTITY_MISMATCH_EXECUTED_MUTATION");
     expect(runner).toContain("STALE_REVIEW_REJECTION_CHANGED_AUTHORITY");
     expect(runner).toContain("rollback;");
   });

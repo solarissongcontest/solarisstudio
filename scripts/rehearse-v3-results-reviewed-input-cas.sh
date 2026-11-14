@@ -148,6 +148,43 @@ begin
   ) then
     raise exception 'STALE_REVIEW_EXECUTED_MUTATION';
   end if;
+  -- A different edition or actor must never borrow the same reviewed basis,
+  -- even when calculation and input versions happen to be unchanged.
+  begin
+    perform public.studio2_execute_result_operation_v2(
+      '00000000-0000-4000-8000-00000000b152',
+      'review', 'Cross-edition review must fail',
+      '00000000-0000-4000-8000-00000000f153', 1,
+      (select review_basis_version from public.studio2_result_operations
+       where show_id='00000000-0000-4000-8000-00000000b152'),
+      '00000000-0000-4000-8000-00000000e153'::uuid,
+      null::uuid
+    );
+    raise exception 'CROSS_EDITION_REVIEW_ACCEPTED';
+  exception when sqlstate 'PT409' then null;
+  end;
+  begin
+    perform public.studio2_execute_result_operation_v2(
+      '00000000-0000-4000-8000-00000000b152',
+      'review', 'Cross-actor review must fail',
+      '00000000-0000-4000-8000-00000000f154', 1,
+      (select review_basis_version from public.studio2_result_operations
+       where show_id='00000000-0000-4000-8000-00000000b152'),
+      '00000000-0000-4000-8000-00000000e152'::uuid,
+      '00000000-0000-4000-8000-00000000a154'::uuid
+    );
+    raise exception 'CROSS_ACTOR_REVIEW_ACCEPTED';
+  exception when sqlstate 'PT409' then null;
+  end;
+  if exists (
+    select 1 from public.studio2_result_operation_executions
+    where execution_id in (
+      '00000000-0000-4000-8000-00000000f153'::uuid,
+      '00000000-0000-4000-8000-00000000f154'::uuid
+    )
+  ) then
+    raise exception 'IDENTITY_MISMATCH_EXECUTED_MUTATION';
+  end;
   if not exists (
     select 1 from pg_trigger t
     where t.tgrelid='public.jury_ballot_submissions'::regclass
