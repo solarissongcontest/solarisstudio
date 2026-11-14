@@ -273,16 +273,30 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     canonicalCommands: [
       "v3_submit_confirmation",
       "studio2_apply_confirmation_round_change",
-      "admin_update_confirmation_controls",
+      "studio2_apply_confirmation_response_access_change",
     ],
     sanctionedInternalWriters: [
       "v3_submit_confirmation_core",
       "submit_confirmation",
+      "admin_update_confirmation_controls",
+      "admin_confirmation_create_edit_token",
+      "admin_confirmation_revoke_edit_token",
+      "admin_confirmation_delete_response",
+      "private.v3_touch_confirmation_response_access_version",
+    ],
+    directRpcDeniedInternalWriters: [
+      "admin_update_confirmation_controls",
+      "admin_confirmation_create_edit_token",
+      "admin_confirmation_revoke_edit_token",
+      "admin_confirmation_delete_response",
+      "private.v3_touch_confirmation_response_access_version",
     ],
     sanctionedWriteTriggers: [
       "v3_bridge_confirmation_submission_operation",
       "revoke_confirmation_tokens_on_submission_close",
       "revoke_confirmation_tokens_on_round_close",
+      "v3_touch_confirmation_response_access_version",
+      "v3_touch_confirmation_edit_token_version",
     ],
   },
   {
