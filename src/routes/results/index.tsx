@@ -118,7 +118,6 @@ function LegacyResultsOverviewPage() {
   const runnerUp = latestRows.find((row) => row.final_rank === 2) ?? null;
   const winner = winnerRow ? displayMap.get(winnerRow.country_id) ?? null : null;
   const margin = winnerRow && runnerUp ? winnerRow.total_points - runnerUp.total_points : null;
-  const publication = latestShow ? resolveShowPublication(latestShow) : null;
   const archiveQueries = [editionsQuery, showsQuery, resultsQuery];
 
   // Cohorts are evaluated against the edition of the actual result, not an
@@ -432,7 +431,7 @@ function LegacyResultsOverviewPage() {
               <StatTile label="Entries ranked" value={latestRows.length} />
               <StatTile
                 label="Detailed voting"
-                value={resultBundle?.input.publication === "published" && publication?.detailed_voting ? "Yes" : "No"}
+                value={resultBundle?.detailedVotingPublished ? "Yes" : "No"}
               />
               <StatTile label="Jury" value={resultBundle?.input.juryPublished ? "Public" : "Hidden"} />
               <StatTile label="Televote" value={resultBundle?.input.televotePublished ? "Public" : "Hidden"} />
