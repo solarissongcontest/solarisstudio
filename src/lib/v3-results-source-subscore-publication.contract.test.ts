@@ -8,10 +8,10 @@ describe("V3 Results server sub-score publication boundary", () => {
     const results = source("src/integrations/v3/results-source.server.ts");
 
     expect(results).toContain(
-      "juryPoints: snapshot.availability.jury ? (row.juryPoints ?? null) : null",
+      "juryPoints: juryVisible ? (row.juryPoints ?? null) : null",
     );
     expect(results).toContain(
-      "televotePoints: snapshot.availability.televote ? (row.televotePoints ?? null) : null",
+      "televotePoints: televoteVisible ? (row.televotePoints ?? null) : null",
     );
     expect(results).not.toContain(
       "juryPoints: row.jury_points,\n      televotePoints: row.televote_points",
@@ -24,10 +24,19 @@ describe("V3 Results server sub-score publication boundary", () => {
     expect(results).toContain(
       "const snapshot = await loadV3PublishedResultSnapshot(selectedShow.id)",
     );
-    expect(results).toContain("juryPublished: snapshot.availability.jury");
-    expect(results).toContain("televotePublished: snapshot.availability.televote");
+    expect(results).toContain("juryPublished: juryVisible");
+    expect(results).toContain("televotePublished: televoteVisible");
     expect(results).not.toMatch(
       /localStorage|sessionStorage|Date\.now\(\).*jury|Date\.now\(\).*televote/,
     );
+  });
+
+  it("requires both immutable disclosure and actual channel enablement for published splits", () => {
+    const results = source("src/integrations/v3/results-source.server.ts");
+    expect(results).toContain("const voting = resolveVoting(selectedShow.voting_config)");
+    expect(results).toContain("const juryVisible = snapshot.availability.jury && voting.juryEnabled");
+    expect(results).toContain("const televoteVisible = snapshot.availability.televote && voting.televoteEnabled");
+    expect(results).toContain("detailedVotingPublished:");
+    expect(results).toContain("snapshot.availability.detailedVoting && (voting.juryEnabled || voting.televoteEnabled)");
   });
 });
