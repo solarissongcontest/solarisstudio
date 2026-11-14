@@ -20,6 +20,7 @@ on:
       - "scripts/stage-v3-result-read-authority-recovery*"
       - ".github/scripts/v3-result-public-api-local.sh"
       - ".github/tests/v3-result-public-api.sql"
+      - ".github/tests/v3-results-observed-access-acls-local.sql"
       - "docs/v3/recovery-candidates/evidence/result-access-prerequisites-observed-2026-11-14.json"
       - "docs/v3/recovery-candidates/evidence/result-read-authority-observed-2026-11-14.json"
       - "docs/v3/recovery-candidates/evidence/result-dependent-views-observed-2026-11-14.json"

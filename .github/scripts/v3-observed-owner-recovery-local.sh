@@ -74,6 +74,7 @@ operator_apply /tmp/result-authority-recovery.sql
 operator_sql -f - < .github/tests/v3-result-authority-recovery.sql
 # The original S02 export covered CRUD bits only. Reproduce the separately
 # observed full Results ACL (including RLS-independent privileges) LOCALLY.
+operator_sql -f - < .github/tests/v3-results-observed-access-acls-local.sql
 operator_sql -c 'grant truncate,references,trigger on table public.results to anon,authenticated,service_role;'
 node scripts/stage-v3-result-read-authority-recovery.mjs > /tmp/result-read-authority-recovery.sql
 operator_apply /tmp/result-read-authority-recovery.sql

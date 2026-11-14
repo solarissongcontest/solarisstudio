@@ -58,14 +58,14 @@ export function stageResultReadAuthority(root = process.cwd()) {
   const policies = source.slice(start, end).trim();
   return `begin;
 set local lock_timeout='5s';set local statement_timeout='30s';
-do $pre$ declare actual jsonb; expected jsonb; p record; identity text; begin
+do $pre$ declare actual jsonb; expected jsonb; routine_row record; identity text; begin
  if current_user<>'postgres' then raise exception 'Results API recovery requires reviewed owner' using errcode='42501';end if;
  if to_regprocedure('private.v3_public_result_row_visible(uuid,uuid,jsonb)') is not null then raise exception 'Results API guard already or partially installed';end if;
  if to_regprocedure('private.studio2_expected_result_ranks(uuid)') is null or to_regprocedure('public.v3_public_published_result_snapshot(uuid)') is null or not exists(select 1 from private.v3_migration_contracts where migration_key='v3.recovery.result-rank-qualification') then raise exception 'Results API recovery requires complete ordered rank/snapshot prerequisites';end if;
  for expected in select value from jsonb_array_elements(${literal(access.routines)}) loop
  identity:=expected->>'identity';
- select r.*,l.lanname into p from pg_proc r join pg_language l on l.oid=r.prolang where r.oid=to_regprocedure(identity);
- actual:=jsonb_build_object('identity',identity,'exists',p.oid is not null,'owner',pg_get_userbyid(p.proowner),'security_definer',p.prosecdef,'language',p.lanname,'config',p.proconfig,'acl',p.proacl::text,'definition_md5',md5(pg_get_functiondef(p.oid)),'definition_sha256',encode(sha256(convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex'));
+ select r.*,l.lanname into routine_row from pg_proc r join pg_language l on l.oid=r.prolang where r.oid=to_regprocedure(identity);
+ actual:=jsonb_build_object('identity',identity,'exists',routine_row.oid is not null,'owner',pg_get_userbyid(routine_row.proowner),'security_definer',routine_row.prosecdef,'language',routine_row.lanname,'config',routine_row.proconfig,'acl',routine_row.proacl::text,'definition_md5',md5(pg_get_functiondef(routine_row.oid)),'definition_sha256',encode(sha256(convert_to(pg_get_functiondef(routine_row.oid),'UTF8')),'hex'));
  if actual is distinct from expected then raise exception 'Results API access helper drift: %',identity using errcode='55000';end if;
  end loop;
  select jsonb_build_object('identity','public.results' ,'owner',pg_get_userbyid(c.relowner),'rls',c.relrowsecurity,'force_rls',c.relforcerowsecurity,'acl',c.relacl::text,'policies',(select jsonb_agg(jsonb_build_object('name',p.polname,'permissive',p.polpermissive,'command',p.polcmd,'roles',array(select pg_get_userbyid(x) from unnest(p.polroles) x),'qual',pg_get_expr(p.polqual,p.polrelid),'check',pg_get_expr(p.polwithcheck,p.polrelid)) order by p.polname) from pg_policy p where p.polrelid=c.oid)) into actual from pg_class c where c.oid=to_regclass('public.results');
