@@ -21,6 +21,7 @@ function dispatcher(
     stateError?: boolean;
     vapidConfigured?: boolean;
     mutationError?: string;
+    dispatchEnvSecret?: string;
   } = {},
 ) {
   let handler!: (request: Request) => Promise<Response>;
@@ -56,6 +57,7 @@ function dispatcher(
   const variables: Record<string, string> = {
     SUPABASE_URL: "http://127.0.0.1:54321",
     SUPABASE_SERVICE_ROLE_KEY: "test-service-key",
+    ...(options.dispatchEnvSecret ? { SOLARIS_PUSH_DISPATCH_SECRET: options.dispatchEnvSecret } : {}),
     ...(options.vapidConfigured === false
       ? {}
       : {
@@ -146,6 +148,27 @@ describe("push dispatcher operational mode", () => {
     const { request, service } = dispatcher({ mode: "maintenance" });
     expect((await request("wrong-secret")).status).toBe(401);
     expect(service.from).not.toHaveBeenCalled();
+  });
+
+  it("does not query privileged Vault or mutation RPCs for a missing credential", async () => {
+    const { request, service } = dispatcher();
+    expect((await request("")).status).toBe(401);
+    expect(service.rpc).not.toHaveBeenCalled();
+    expect(service.from).not.toHaveBeenCalled();
+  });
+
+  it("rejects wrong configured credentials before privileged runtime discovery", async () => {
+    const { request, service } = dispatcher({ dispatchEnvSecret: "actual-configured-secret" });
+    expect((await request("wrong-secret")).status).toBe(401);
+    expect(service.rpc).not.toHaveBeenCalled();
+    expect(service.from).not.toHaveBeenCalled();
+  });
+
+  it("preserves dispatch when the configured environment credential is valid", async () => {
+    const { request, service } = dispatcher({ dispatchEnvSecret: "actual-configured-secret" });
+    expect((await request("actual-configured-secret")).status).toBe(200);
+    expect(service.rpc).toHaveBeenCalledWith("solaris_get_push_runtime_secrets");
+    expect(service.rpc).toHaveBeenCalledWith("solaris_prepare_organizer_task_delivery");
   });
 
   it("still rejects non-POST requests without reading the database", async () => {

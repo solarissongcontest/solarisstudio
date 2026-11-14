@@ -38,6 +38,17 @@ function json(body: unknown, status = 200) {
   });
 }
 
+// The shared dispatcher credential is never sent to a browser. Compare
+// without an early-exit prefix walk when an operator supplies a wrong value.
+function safeDispatchSecretEqual(actual: string, expected: string) {
+  if (actual.length !== expected.length) return false;
+  let different = 0;
+  for (let index = 0; index < actual.length; index += 1) {
+    different |= actual.charCodeAt(index) ^ expected.charCodeAt(index);
+  }
+  return different === 0;
+}
+
 function localMinutes(timeZone: string, now = new Date()) {
   try {
     const parts = new Intl.DateTimeFormat("en-GB", {
@@ -111,6 +122,16 @@ Deno.serve(async (req) => {
     return json({ error: "Push delivery service credentials are unavailable." }, 500);
   }
 
+  const suppliedSecret = req.headers.get("x-solaris-push-secret") ?? "";
+  const configuredDispatchSecret = Deno.env.get("SOLARIS_PUSH_DISPATCH_SECRET");
+  // A request with no credential must never spend service-role authority on
+  // the Vault secret lookup. When Cloudflare/Edge provides the secret directly,
+  // reject wrong credentials before any privileged database query as well.
+  if (!suppliedSecret ||
+      (configuredDispatchSecret && !safeDispatchSecretEqual(suppliedSecret, configuredDispatchSecret))) {
+    return json({ error: "Push dispatcher access denied." }, 401);
+  }
+
   const service = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -132,12 +153,8 @@ Deno.serve(async (req) => {
         })
       : null;
 
-  const dispatchSecret =
-    Deno.env.get("SOLARIS_PUSH_DISPATCH_SECRET") ??
-    runtime?.dispatch_secret ??
-    "";
-  const suppliedSecret = req.headers.get("x-solaris-push-secret") ?? "";
-  if (!dispatchSecret || suppliedSecret !== dispatchSecret) {
+  const dispatchSecret = configuredDispatchSecret ?? runtime?.dispatch_secret ?? "";
+  if (!dispatchSecret || !safeDispatchSecretEqual(suppliedSecret, dispatchSecret)) {
     return json({ error: "Push dispatcher access denied." }, 401);
   }
 
