@@ -121,4 +121,35 @@ describe("immutable Public Results consumers", () => {
     fixture.tables.countries = [];
     await expect(loadV3ResultsBundle(show)).rejects.toThrow("identity");
   });
+
+  it("hides disabled channels despite public split flags and preserves genuine published aggregates", async () => {
+    (fixture.tables.shows[0] as any).voting_config = {
+      juryEnabled: false,
+      televoteEnabled: true,
+    };
+    fixture.snapshot.availability = { results: true, jury: true, televote: true, detailedVoting: false };
+    fixture.snapshot.rows[0].juryPoints = 0;
+    fixture.snapshot.rows[0].televotePoints = 312;
+    const root = await loadV3ResultsBundle(show);
+    expect(root.input.publication).toBe("published");
+    expect(root.input.rows[0]).toMatchObject({
+      points: 312,
+      juryPoints: null,
+      televotePoints: 312,
+    });
+    expect(root.input.juryPublished).toBe(false);
+    expect(root.input.televotePublished).toBe(true);
+    expect(root.detailedVotingPublished).toBe(false);
+    expect(fixture.reads).not.toContain("results");
+    expect(fixture.reads).not.toContain("participants");
+  });
+
+  it("requires the exact immutable detailed-voting permission for the Results root", async () => {
+    fixture.snapshot.availability = { results: true, jury: true, televote: true, detailedVoting: false };
+    fixture.snapshot.rows[0].juryPoints = 160;
+    fixture.snapshot.rows[0].televotePoints = 152;
+    expect((await loadV3ResultsBundle(show)).detailedVotingPublished).toBe(false);
+    fixture.snapshot.availability.detailedVoting = true;
+    expect((await loadV3ResultsBundle(show)).detailedVotingPublished).toBe(true);
+  });
 });
