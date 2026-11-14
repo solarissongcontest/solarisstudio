@@ -124,11 +124,15 @@ Deno.serve(async (req) => {
 
   const suppliedSecret = req.headers.get("x-solaris-push-secret") ?? "";
   const configuredDispatchSecret = Deno.env.get("SOLARIS_PUSH_DISPATCH_SECRET");
-  // A request with no credential must never spend service-role authority on
-  // the Vault secret lookup. When Cloudflare/Edge provides the secret directly,
-  // reject wrong credentials before any privileged database query as well.
-  if (!suppliedSecret ||
-      (configuredDispatchSecret && !safeDispatchSecretEqual(suppliedSecret, configuredDispatchSecret))) {
+  // A configured Edge secret is the mandatory pre-Vault authentication boundary.
+  // Vault remains available for VAPID/runtime configuration only AFTER authentication.
+  // Deployments previously relying on Vault-only dispatch authentication must install
+  // SOLARIS_PUSH_DISPATCH_SECRET before deploying this function.
+  if (!configuredDispatchSecret) {
+    console.error("[solaris-push-dispatch] missing mandatory Edge dispatch secret");
+    return json({ error: "Push dispatcher authentication is not configured." }, 503);
+  }
+  if (!suppliedSecret || !safeDispatchSecretEqual(suppliedSecret, configuredDispatchSecret)) {
     return json({ error: "Push dispatcher access denied." }, 401);
   }
 
@@ -152,11 +156,6 @@ Deno.serve(async (req) => {
           vapid_subject?: string | null;
         })
       : null;
-
-  const dispatchSecret = configuredDispatchSecret ?? runtime?.dispatch_secret ?? "";
-  if (!dispatchSecret || !safeDispatchSecretEqual(suppliedSecret, dispatchSecret)) {
-    return json({ error: "Push dispatcher access denied." }, 401);
-  }
 
   // Read the canonical singleton with the service role. The operator snapshot
   // RPC requires a user capability; a scheduled dispatcher has no user session.
