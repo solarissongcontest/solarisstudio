@@ -14,6 +14,8 @@ on:
       - "scripts/v3-atomic-calculation-actor.test.mjs"
       - "scripts/stage-v3-public-snapshot-recovery*"
       - "scripts/stage-v3-auth-uid-authority-local*"
+      - "scripts/stage-v3-atomic-calculation-recovery*"
+      - "docs/v3/recovery-candidates/evidence/atomic-after-ordered-recovery-local-reference.json"
       - "docs/v3/recovery-candidates/evidence/auth-uid-authority-observed-2026-11-13.json"
       - "docs/v3/recovery-candidates/evidence/round-invalidation-authority-observed-2026-11-14.json"
       - ".github/tests/v3-public-snapshot-recovery.sql"
@@ -256,7 +258,7 @@ jobs:
       - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
         run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
       - name: Verify bounded catalog export and drift refusals
-        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs scripts/stage-v3-public-snapshot-recovery.test.mjs scripts/stage-v3-auth-uid-authority-local.test.mjs
+        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs scripts/stage-v3-public-snapshot-recovery.test.mjs scripts/stage-v3-auth-uid-authority-local.test.mjs scripts/stage-v3-atomic-calculation-recovery.test.mjs
       - name: Test authorization dependency reconstruction and incomplete-manifest refusal
         run: node --test scripts/v3-s13-s14-authorization-dependencies.test.mjs
       - name: Assert all-hosted catalog digests and incomplete-fixture rejection (offline only)
@@ -778,9 +780,43 @@ jobs:
           node scripts/stage-v3-auth-uid-authority-local.mjs --round-invalidation > /tmp/round-invalidation-authority-local.sql
           sql -f - < /tmp/round-invalidation-authority-local.sql
           sql -f - < .github/tests/v3-atomic-observed-grants-local.sql
-          # Canonical atomic source reference followed by the forward actor repair.
-          sql -f - < supabase/migrations/20261103004500_v3_s14_atomic_televote_calculation.sql
-          sql -f - < supabase/migrations/20261113211759_v3_atomic_calculation_actor_binding.sql
+          # Qualify one guarded, source-exact atomic recovery transaction.
+          node scripts/stage-v3-atomic-calculation-recovery.mjs > /tmp/atomic-recovery.sql
+          atomic_before="$(archive_schema_digest)"
+          sql -c 'create policy atomic_unreviewed on televoting.round_influence_results for all to authenticated using (true) with check (true);'
+          atomic_drift="$(archive_schema_digest)"
+          if sql -f - < /tmp/atomic-recovery.sql > /tmp/atomic-policy-drift.log 2>&1; then exit 1; fi
+          grep -Fq 'Atomic recovery catalog/authority drift' /tmp/atomic-policy-drift.log || { cat /tmp/atomic-policy-drift.log; exit 1; }
+          [[ "$(archive_schema_digest)" == "$atomic_drift" ]] || exit 1
+          sql -c 'drop policy atomic_unreviewed on televoting.round_influence_results;'
+          [[ "$(archive_schema_digest)" == "$atomic_before" ]] || exit 1
+          sql -c 'revoke execute on function auth.uid() from dashboard_user;'
+          atomic_drift="$(archive_schema_digest)"
+          if sql -f - < /tmp/atomic-recovery.sql > /tmp/atomic-authority-drift.log 2>&1; then exit 1; fi
+          grep -Fq 'Atomic recovery catalog/authority drift' /tmp/atomic-authority-drift.log
+          [[ "$(archive_schema_digest)" == "$atomic_drift" ]] || exit 1
+          sql -c 'grant execute on function auth.uid() to dashboard_user;'
+          [[ "$(archive_schema_digest)" == "$atomic_before" ]] || exit 1
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const source=fs.readFileSync('/tmp/atomic-recovery.sql','utf8');
+          if(!/commit;\s*$/.test(source)) throw Error('Atomic transaction drift');
+          fs.writeFileSync('/tmp/atomic-interrupted.sql',source.replace(/commit;\s*$/,'select 1/0;\ncommit;\n'));
+          fs.writeFileSync('/tmp/atomic-unauthorized.sql',source.replace(/^begin;$/m,'begin;\nset local role authenticated;'));
+          NODE
+          if sql -f - < /tmp/atomic-unauthorized.sql > /tmp/atomic-unauthorized.log 2>&1; then exit 1; fi
+          grep -Fq 'Atomic recovery requires reviewed owner' /tmp/atomic-unauthorized.log
+          [[ "$(archive_schema_digest)" == "$atomic_before" ]] || exit 1
+          if sql -f - < /tmp/atomic-interrupted.sql > /tmp/atomic-interrupted.log 2>&1; then exit 1; fi
+          grep -Fq 'division by zero' /tmp/atomic-interrupted.log || { cat /tmp/atomic-interrupted.log; exit 1; }
+          [[ "$(archive_schema_digest)" == "$atomic_before" ]] || exit 1
+          [[ "$(sql -c "select count(*) from private.v3_migration_contracts where migration_key in ('v3.results.atomic-televote-calculation','v3.results.authenticated-calculation-actor')")" == 0 ]] || exit 1
+          sql -f - < /tmp/atomic-recovery.sql
+          atomic_after="$(archive_schema_digest)"
+          if sql -f - < /tmp/atomic-recovery.sql > /tmp/atomic-duplicate.log 2>&1; then exit 1; fi
+          grep -Fq 'Atomic recovery already or partially installed' /tmp/atomic-duplicate.log
+          [[ "$(archive_schema_digest)" == "$atomic_after" ]] || exit 1
+          echo 'PASS: guarded atomic recovery, authority/policy drift denial, interruption rollback, retry and duplicate refusal'
           sql -f - < .github/tests/v3-atomic-calculation-actor.sql
           # Restore source-exact, hosted-fingerprinted nested publication and
           # qualification dependencies in the LOCAL fixture only; never add

@@ -3,7 +3,7 @@
 This stage reuses the exact current canonical active-participant capture and
 public publication-safe snapshot definitions. It never rewrites stored versions,
 current Results rows, publication state, or historical migration records.
-It follows the existing ordered S13/Archive/S07 fixture and atomic reference.
+It follows the existing ordered S13/Archive/S07 fixture and guarded atomic calculation stage.
 
 A new owner-authorized catalog-only observation at 2026-11-13T21:37:32Z confirms
 three existing helper fingerprints, owners, ACLs and search paths, three table
@@ -52,7 +52,7 @@ Jury/Televote component fields from every anonymous row. These tests complement
 source-exact calculation/capture checks; they do not qualify all production data
 shapes or unresolved canonical Results/qualification recovery stages.
 
-The local atomic-reference prerequisite now also reproduces the separately
+The local atomic recovery prerequisite now also reproduces the separately
 observed `auth.uid()` owner (`supabase_auth_admin`) and complete EXECUTE ACL,
 including PUBLIC and dashboard_user, without changing its body. The imported
 fixture previously kept the correct body under postgres/default ACL instead.
@@ -62,3 +62,30 @@ retry and duplicate refusal before the authenticated calculation tests. The
 minimal dashboard_user NOLOGIN role represents an observed grantee identity;
 its other hosted role attributes are not certified. This is strictly a local
 reconstruction, never a proposed production auth ownership/grant change.
+
+## Guarded atomic installation
+
+`node scripts/stage-v3-atomic-calculation-recovery.mjs` now emits one local
+recovery transaction from the unchanged canonical atomic RPC source and forward
+actor binding. The historical files are inputs, not a replay instruction. The
+preflight requires the absent RPC (including overloads), S13/S07 prerequisites,
+and exact catalogue contracts for six relations and seven reachable routines.
+It verifies columns, constraints, indexes, policies, RLS, complete ACL digests,
+triggers, function definitions, settings and owners via the existing collector.
+The reference is explicitly **locally derived after canonical recovery** and
+bound to upstream source hashes; it is not an observation that production has
+already adopted those effects. Original existing table attributes and auth,
+capability and invalidation helpers must also match frozen hosted fingerprints.
+
+This exposed and corrected three additional local CRUD-only service ACLs on
+rounds, entries and results, and the missing trigger-function execution ACL.
+The correction is local-only and checks exact before/after digests. Production
+grants are preserved, not changed. Unknown RLS policy or helper ACL drift is
+rejected without erasing the conflicting state. Installation rollback, metadata
+rollback, owner-role denial, retry, duplicate refusal and both calculation
+engines are tested before immutable public readback.
+
+Remaining qualification boundaries include complete hosted role membership and
+flags, real data-dependent edges, canonical show ranking/qualification upgrades,
+all-show voting authority and full release certification. No claim of complete
+production equivalence or production authorization follows from these tests.
