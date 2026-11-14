@@ -56,6 +56,7 @@ on:
       - ".github/tests/v3-ordered-televote-recovery.sql"
       - ".github/tests/v3-ordered-televote-s08-recovery.sql"
       - ".github/tests/v3-s08-voting-config-after-recovery.sql"
+      - ".github/tests/v3-s08-results-authority-after-recovery.sql"
       - "docs/v3/recovery-candidates/s08-televote-single-writer-local.sql"
       - "scripts/v3-s13-s14-catalog-export.mjs"
       - "scripts/v3-s13-s14-catalog-export.test.mjs"
