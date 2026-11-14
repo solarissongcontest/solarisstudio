@@ -49,6 +49,7 @@ export const V3_SYSTEM_INTEGRATION_REGISTRY: readonly V3SystemIntegrationRegistr
   { path: "src/integrations/v3/organizer-prediction-operations.ts", coordinatorDomain: "prediction", role: "command-adapter" },
   { path: "src/integrations/v3/participant-activity.server.ts", coordinatorDomain: "activity", role: "projection-adapter" },
   { path: "src/integrations/v3/primary-surface-source.server.ts", coordinatorDomain: "participation", role: "composite-read-adapter" },
+  { path: "src/integrations/v3/public-result-snapshot.server.ts", coordinatorDomain: "results", role: "projection-adapter" },
   { path: "src/integrations/v3/public-show-calendar.server.ts", coordinatorDomain: "live-show", role: "composite-read-adapter" },
   { path: "src/integrations/v3/records-source.server.ts", coordinatorDomain: "results", role: "composite-read-adapter" },
   { path: "src/integrations/v3/relationships-source.server.ts", coordinatorDomain: "results", role: "composite-read-adapter" },
