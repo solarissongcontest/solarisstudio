@@ -1,4 +1,4 @@
-export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-5" as const;
+export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-6" as const;
 
 export type V3S16Risk = "integrity_critical" | "security_critical";
 
@@ -9,6 +9,8 @@ export type V3S16DomainDefinition = {
   canonicalOwner: string;
   canonicalCommands: readonly string[];
   sanctionedInternalWriters?: readonly string[];
+  // Sanctioned SQL helper, but never an authorized direct browser/user RPC.
+  directRpcDeniedInternalWriters?: readonly string[];
   sanctionedWriteTriggers?: readonly string[];
   resultsFrozenOwner?: boolean;
   knownLegacyWriterPatterns?: readonly { id: string; pattern: RegExp }[];
@@ -66,7 +68,8 @@ export type V3S16FindingKind =
   | "canonical_function_missing"
   | "canonical_function_not_security_definer"
   | "canonical_function_unpinned_search_path"
-  | "canonical_function_public_execute";
+  | "canonical_function_public_execute"
+  | "internal_writer_user_execute";
 
 export type V3S16Finding = {
   domain: string;
@@ -233,6 +236,9 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     sanctionedInternalWriters: [
       "submit_country_jury_ballot",
     ],
+    // V3 receipt/operation wrapper is the only participant entry point.
+    // Keep this helper for its trusted in-function call, not direct RPC.
+    directRpcDeniedInternalWriters: ["submit_country_jury_ballot"],
   },
   {
     id: "confirmation",
@@ -469,6 +475,18 @@ export function auditV3S16CatalogAuthority(
       if (!fn.securityDefiner) findings.push({ domain: domain.id, kind: "canonical_function_not_security_definer", subject: writer, detail: "Classified mutation function is not SECURITY DEFINER and cannot own or safely support a revoked-table boundary.", releaseRisk: "hard_blocker", ownerBoundary });
       if (!pinnedSearchPath(fn.searchPath)) findings.push({ domain: domain.id, kind: "canonical_function_unpinned_search_path", subject: writer, detail: "SECURITY DEFINER mutation function lacks a pinned safe search_path containing pg_catalog.", releaseRisk: "hard_blocker", ownerBoundary });
       if (fn.executeRoles.some((role) => role.toLowerCase() === "public")) findings.push({ domain: domain.id, kind: "canonical_function_public_execute", subject: fn.identity ?? writer, detail: "Classified mutation function is executable by PUBLIC.", releaseRisk: "hard_blocker", ownerBoundary });
+      if ((domain.directRpcDeniedInternalWriters ?? []).includes(writer)) {
+        // executeRoles is effective privilege evidence, not just explicit ACLs.
+        const exposed = fn.executeRoles.filter((role) => ["anon", "authenticated", "public"].includes(role.toLowerCase()));
+        if (exposed.length) findings.push({
+          domain: domain.id,
+          kind: "internal_writer_user_execute",
+          subject: fn.identity ?? writer,
+          detail: `Internal-only writer ${writer} remains directly executable by ${exposed.join(", ")}; revoke end-user EXECUTE while retaining canonical SECURITY DEFINER calls.`,
+          releaseRisk: "hard_blocker",
+          ownerBoundary,
+        });
+      }
       }
     }
   }
