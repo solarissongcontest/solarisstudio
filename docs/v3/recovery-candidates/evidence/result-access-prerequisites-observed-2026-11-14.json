@@ -1,0 +1,48 @@
+{
+  "routines": [
+    {
+      "acl": "{postgres=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "exists": true,
+      "identity": "private.studio2_request_is_service_role()",
+      "language": "sql",
+      "definition_md5": "84d3f05e5f537908732a3875ba0178e6",
+      "security_definer": false,
+      "definition_sha256": "ba529bb4283e063ed3cf117a4b5b858e8681edb02f2567a28f90a31ff08bdc0c"
+    },
+    {
+      "acl": "{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=public"
+      ],
+      "exists": true,
+      "identity": "public.show_publication_enabled(uuid,text)",
+      "language": "sql",
+      "definition_md5": "72e4591c28f3664c4fbedcc578233953",
+      "security_definer": true,
+      "definition_sha256": "65defa8e7526e2d11f68b8960a5b8fe99c7ed285fb144b85969ed5b1d8437227"
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres,anon=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog, public, private"
+      ],
+      "exists": true,
+      "identity": "public.studio2_access_allowed(text,uuid,boolean)",
+      "language": "plpgsql",
+      "definition_md5": "30823dbc77015353a47149b76e96e37d",
+      "security_definer": true,
+      "definition_sha256": "245c3dc7fb1e6bdbe1d64b530ba1bace5969c84e02954dfb710ba437b068d808"
+    }
+  ],
+  "read_only": "on",
+  "projectRef": "dkxmnvekiopyesuzggeu",
+  "observed_at": "2026-11-14T09:17:27.337927+00:00",
+  "applicationRowsRead": false,
+  "rawFunctionBodiesExported": false
+}
