@@ -54,6 +54,8 @@ on:
       - "scripts/stage-v3-hosted-result-sync.test.mjs"
       - "docs/v3/recovery-candidates/s07-televote-managed-source-guard.sql"
       - ".github/tests/v3-ordered-televote-recovery.sql"
+      - ".github/tests/v3-ordered-televote-s08-recovery.sql"
+      - "docs/v3/recovery-candidates/s08-televote-single-writer-local.sql"
       - "scripts/v3-s13-s14-catalog-export.mjs"
       - "scripts/v3-s13-s14-catalog-export.test.mjs"
       - "docs/v3/recovery-candidates/s13-s14-voting-dependency-inspection-readonly.sql"
@@ -793,6 +795,39 @@ jobs:
           echo "PASS: ordered S13 -> Archive -> canonical S07; actual ACL denial, interruption rollback and duplicate refusal"
           sql -f - < .github/tests/v3-hosted-api-role-runtime.sql
           sql -f - < .github/tests/v3-ordered-televote-recovery.sql
+          # Apply the EXISTING S08 System-owned candidate after S07, in the same
+          # networkless hosted-observed local fixture. No alternate migration,
+          # historical ledger rewrite, hosted SQL, or production promotion.
+          # An interrupted S08 transaction must leave the S07 authority intact.
+          s08_before="$(archive_schema_digest)"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const source=fs.readFileSync('docs/v3/recovery-candidates/s08-televote-single-writer-local.sql','utf8');
+          if(!/^begin;\\s/m.test(source) || !/commit;\\s*$/.test(source))
+            throw Error('S08 source transaction boundary drift');
+          fs.writeFileSync('/tmp/s08-ordered-interrupted.sql',
+            source.replace(/commit;\\s*$/,'select 1/0;\\ncommit;\\n'));
+          NODE
+          if sql -f - < /tmp/s08-ordered-interrupted.sql > /tmp/s08-ordered-interrupted.log 2>&1; then
+            echo "::error::Interrupted S08 was accepted"; exit 1
+          fi
+          grep -Fq 'division by zero' /tmp/s08-ordered-interrupted.log || {
+            cat /tmp/s08-ordered-interrupted.log; exit 1;
+          }
+          [[ "$(archive_schema_digest)" == "$s08_before" ]] || {
+            echo "::error::Interrupted S08 changed S07/Archive source catalog"; exit 1;
+          }
+          sql -f - < docs/v3/recovery-candidates/s08-televote-single-writer-local.sql
+          sql -f - < .github/tests/v3-ordered-televote-s08-recovery.sql
+          s08_after="$(archive_schema_digest)"
+          # S08 is intentionally replay-idempotent, unlike S07's first-install
+          # preflight. A repeated S08 must not add triggers or change authority.
+          sql -f - < docs/v3/recovery-candidates/s08-televote-single-writer-local.sql
+          [[ "$(archive_schema_digest)" == "$s08_after" ]] || {
+            echo "::error::Repeated S08 changed the recovered catalog"; exit 1;
+          }
+          sql -f - < .github/tests/v3-ordered-televote-s08-recovery.sql
+          echo 'PASS: ordered S13 -> Archive -> S07 -> S08; interrupted rollback, API-role DML denial and idempotent replay'
           # Correct the original imported auth function owner/ACL from observed metadata.
           node scripts/stage-v3-auth-uid-authority-local.mjs > /tmp/auth-uid-authority-local.sql
           node --input-type=module <<'NODE'
