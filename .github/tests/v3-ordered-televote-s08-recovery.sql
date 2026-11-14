@@ -74,3 +74,72 @@ begin
   end if;
 end $s08_observed_check$;
 select 'PASS: networkless hosted-observed S08 API DML denial and source authority';
+
+
+
+-- Exercise the installed *real* guard function as the observed, non-superuser
+-- recovery owner. The fixture deliberately contains no hosted vote rows, so a
+-- rolled-back TEMP relation supplies a row without modifying official totals.
+-- Metadata/grant-only checks above cannot prove owner-level trigger behavior.
+begin;
+set local lock_timeout = '5s';
+set local statement_timeout = '15s';
+create temporary table v3_s08_trigger_probe (
+  show_id uuid not null,
+  points integer not null
+) on commit drop;
+create trigger v3_s08_probe_guard
+before insert or update or delete on pg_temp.v3_s08_trigger_probe
+for each row execute function private.v3_guard_source_managed_televote_projection();
+
+-- Seed one fixture row with only the TEMP trigger disabled; never disable the
+-- canonical public.televote_votes trigger or create a source write context.
+alter table pg_temp.v3_s08_trigger_probe disable trigger v3_s08_probe_guard;
+insert into pg_temp.v3_s08_trigger_probe (show_id, points)
+values ('00000000-0000-4000-8000-0000000000a8', 12);
+alter table pg_temp.v3_s08_trigger_probe enable trigger v3_s08_probe_guard;
+
+do $s08_owner_runtime$
+declare
+  v_old_show uuid := '00000000-0000-4000-8000-0000000000a8';
+  v_other_show uuid := '00000000-0000-4000-8000-0000000000b8';
+  v_denied boolean;
+begin
+  if exists(select 1 from private.v3_televote_projection_write_context) then
+    raise exception 'S08 owner runtime probe requires an empty canonical write context';
+  end if;
+
+  v_denied := false;
+  begin
+    insert into pg_temp.v3_s08_trigger_probe(show_id, points) values(v_other_show, 8);
+  exception when insufficient_privilege then v_denied := true; end;
+  if not v_denied then raise exception 'S08 guard allowed owner INSERT without source context'; end if;
+
+  v_denied := false;
+  begin
+    update pg_temp.v3_s08_trigger_probe set points = points + 1 where show_id = v_old_show;
+  exception when insufficient_privilege then v_denied := true; end;
+  if not v_denied then raise exception 'S08 guard allowed owner UPDATE without source context'; end if;
+
+  v_denied := false;
+  begin
+    update pg_temp.v3_s08_trigger_probe set show_id = v_other_show where show_id = v_old_show;
+  exception when insufficient_privilege then v_denied := true; end;
+  if not v_denied then raise exception 'S08 guard allowed owner cross-show UPDATE'; end if;
+
+  v_denied := false;
+  begin
+    delete from pg_temp.v3_s08_trigger_probe where show_id = v_old_show;
+  exception when insufficient_privilege then v_denied := true; end;
+  if not v_denied then raise exception 'S08 guard allowed owner DELETE without source context'; end if;
+
+  if (select count(*) from pg_temp.v3_s08_trigger_probe) <> 1
+     or not exists (
+       select 1 from pg_temp.v3_s08_trigger_probe
+       where show_id = v_old_show and points = 12
+     ) then
+    raise exception 'S08 owner trigger probe changed its temporary baseline';
+  end if;
+end $s08_owner_runtime$;
+rollback;
+select 'PASS: S08 actual guard denies owner INSERT/UPDATE/cross-show UPDATE/DELETE without canonical context';
