@@ -295,12 +295,31 @@ set state = 'public',
 where show_id = '00000000-0000-4000-8000-00000000e299'::uuid;
 commit;
 
--- Publication refreshes canonical rows from the intentionally empty local vote
--- fixture. Restore the same deterministic scores already captured in version 2.
-update public.results set jury_points = 110222, televote_points = 1000, total_points = 111222, final_rank = 1
-where show_id = '00000000-0000-4000-8000-00000000e299'::uuid and country_id = '00000000-0000-4000-8000-00000000e201'::uuid;
-update public.results set jury_points = 110000, televote_points = 1000, total_points = 111000, final_rank = 2
-where show_id = '00000000-0000-4000-8000-00000000e299'::uuid and country_id = '00000000-0000-4000-8000-00000000e202'::uuid;
+-- Public Results are an immutable, version-pinned snapshot. Never rewrite
+-- live result rows after a show has been published just to satisfy a browser
+-- fixture: that violates the same canonical mutation guard we are testing.
+-- Version 2 already captured the intentional deterministic scores while the
+-- show was private; prove the public snapshot exposes exactly that version.
+do \$assert\$
+declare
+  v_snapshot jsonb;
+begin
+  select public.v3_public_published_result_snapshot(
+    '00000000-0000-4000-8000-00000000e299'::uuid
+  ) into v_snapshot;
+  if v_snapshot is null
+     or (v_snapshot ->> 'resultVersion')::integer is distinct from 2
+     or not exists (
+       select 1
+       from jsonb_array_elements(v_snapshot -> 'rows') item(row_value)
+       where (row_value ->> 'countryId')::uuid = '00000000-0000-4000-8000-00000000e201'::uuid
+         and (row_value ->> 'totalPoints')::integer = 111222
+     )
+  then
+    raise exception 'BROWSER_RESULT_VERSION_TWO_SNAPSHOT_MISMATCH';
+  end if;
+end
+\$assert\$;
 
 "
 

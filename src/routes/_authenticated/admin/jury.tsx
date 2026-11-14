@@ -4,6 +4,7 @@ import { AlertTriangle, Vote } from "lucide-react";
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminCard, AdminEmptyState } from "@/components/admin/AdminUI";
 import { selectOrganizerEdition } from "@/lib/admin-edition-selection";
+import { juryEditionSlugFromPath } from "@/lib/v3-organizer-jury-route-scope";
 import { useEditions } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/admin/jury")({
@@ -15,7 +16,7 @@ function JuryEditionBoundary() {
   const { editionId } = useAdminContext();
   const editionsQuery = useEditions();
   const selectedEdition = selectOrganizerEdition(editionsQuery.data ?? [], editionId);
-  const routeSlug = decodeURIComponent(pathname.split("/").filter(Boolean).at(-1) ?? "");
+  const routeSlug = juryEditionSlugFromPath(pathname);
 
   if (editionsQuery.isLoading) {
     return (
