@@ -32,12 +32,15 @@ function parseScopedPage<T>(
     throw new Error(`${label} returned data for a different Organizer edition.`);
   }
   if (
-    !Number.isSafeInteger(page.total) || page.total < 0 ||
-    !Number.isSafeInteger(page.limit) || page.limit < 1 || page.limit > 200 ||
-    !Number.isSafeInteger(page.offset) || page.offset < 0 || page.offset > 10000 ||
     typeof page.total !== "number" ||
+    !Number.isSafeInteger(page.total) ||
+    page.total < 0 ||
     typeof page.limit !== "number" ||
+    !Number.isSafeInteger(page.limit) ||
+    page.limit < 1 || page.limit > 200 ||
     typeof page.offset !== "number" ||
+    !Number.isSafeInteger(page.offset) ||
+    page.offset < 0 || page.offset > 10000 ||
     typeof page.has_more !== "boolean" ||
     typeof page.server_time !== "string"
   ) {
