@@ -33,7 +33,6 @@ import {
   useContestEntities,
   useEditionById,
   editionLabel,
-  useAllResults,
   useAllShows,
   useCountries,
   useJuryVotes,
@@ -164,8 +163,6 @@ function ShowPage() {
   // Edition contexts. Publication ownership stays in existing server/RLS rules.
   const publishedShowContext = isPublishedShowInPublishedEdition(showQuery.data, editionQuery.data);
   const readAccess = publishedShowReadAccess(showQuery.data, editionQuery.data);
-  const canLoadPublishedResultHistory =
-    publishedShowContext && resolveShowPublication(showQuery.data).results;
   const participantsQuery = usePublicShowParticipants(readAccess.showId);
   const getPublishedSnapshot = useServerFn(getV3PublishedResultSnapshot);
   const resultsQuery = useQuery({
@@ -179,7 +176,6 @@ function ShowPage() {
   const televoteQuery = useTelevotes(readAccess.televoteVotesId);
   const votersQuery = useShowVoters(readAccess.votersId);
   const countriesQuery = useCountries();
-  const allResultsQuery = useAllResults({ enabled: canLoadPublishedResultHistory });
   const allShowsQuery = useAllShows({ enabled: publishedShowContext });
   const themesQuery = useThemes();
   const entitiesQuery = useContestEntities(readAccess.editionId);
@@ -194,7 +190,13 @@ function ShowPage() {
   const { data: show } = showQuery;
   const { data: showEdition } = editionQuery;
   const { data: participants } = participantsQuery;
-  const frozenResult = resultsQuery.data;
+  // A published Result must belong to this exact Show and Edition. A stale or
+  // inconsistent canonical projection cannot be shown as a different edition.
+  const frozenResult =
+    resultsQuery.data?.show.id === showId &&
+    resultsQuery.data.edition.id === showQuery.data?.edition_id
+      ? resultsQuery.data
+      : null;
   // Legacy rendering utilities use neutral arithmetic fields only when their
   // layer is withheld. Actual public payloads omit private splits; disclosure
   // and all displayed values below are controlled by the immutable snapshot.
@@ -218,7 +220,6 @@ function ShowPage() {
   const { data: tele } = televoteQuery;
   const { data: voters } = votersQuery;
   const { data: countries } = countriesQuery;
-  const { data: allResults } = allResultsQuery;
   const { data: allShows } = allShowsQuery;
   const { data: themes } = themesQuery;
   const { data: entities } = entitiesQuery;
@@ -289,7 +290,6 @@ function ShowPage() {
             results: scoreableResults,
             jury: jury ?? [],
             labels: new Map([...displayMap.entries()].map(([id, display]) => [id, display.name])),
-            allResults: allResults ?? [],
             allShows: allShows ?? [],
           })
         : [],
@@ -298,7 +298,6 @@ function ShowPage() {
       scoreableResults,
       jury,
       displayMap,
-      allResults,
       allShows,
       showJuryResults,
       showTelevoteResults,
@@ -460,7 +459,6 @@ function ShowPage() {
     televoteQuery,
     votersQuery,
     countriesQuery,
-    allResultsQuery,
     allShowsQuery,
     themesQuery,
     entitiesQuery,
