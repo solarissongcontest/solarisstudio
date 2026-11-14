@@ -15,6 +15,10 @@ on:
       - "scripts/stage-v3-public-snapshot-recovery*"
       - "scripts/stage-v3-auth-uid-authority-local*"
       - "scripts/stage-v3-hosted-api-roles-local*"
+      - "scripts/stage-v3-recovery-owner-local*"
+      - ".github/scripts/v3-observed-owner-recovery-local.sh"
+      - "docs/v3/recovery-candidates/evidence/recovery-owner-role-closure-observed-2026-11-14.json"
+      - "docs/v3/recovery-candidates/evidence/platform-owner-role-observed-2026-11-14.json"
       - ".github/tests/v3-hosted-api-role-runtime.sql"
       - ".github/tests/v3-voting-config-authority.sql"
       - "docs/v3/recovery-candidates/evidence/api-role-authority-observed-2026-11-14.json"
@@ -262,7 +266,7 @@ jobs:
       - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
         run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
       - name: Verify bounded catalog export and drift refusals
-        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs scripts/stage-v3-public-snapshot-recovery.test.mjs scripts/stage-v3-auth-uid-authority-local.test.mjs scripts/stage-v3-atomic-calculation-recovery.test.mjs scripts/stage-v3-hosted-api-roles-local.test.mjs
+        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs scripts/stage-v3-public-snapshot-recovery.test.mjs scripts/stage-v3-auth-uid-authority-local.test.mjs scripts/stage-v3-atomic-calculation-recovery.test.mjs scripts/stage-v3-hosted-api-roles-local.test.mjs scripts/stage-v3-recovery-owner-local.test.mjs
       - name: Test authorization dependency reconstruction and incomplete-manifest refusal
         run: node --test scripts/v3-s13-s14-authorization-dependencies.test.mjs
       - name: Assert all-hosted catalog digests and incomplete-fixture rejection (offline only)
@@ -292,7 +296,7 @@ jobs:
             exit "$code"
           }
           trap cleanup EXIT
-          cid="$(docker run -d --rm --pull=never --network none --name "solaris-s06-hosted-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" -e POSTGRES_PASSWORD=s06_disposable \
+          cid="$(docker run -d --rm --pull=never --network none --name "solaris-s06-hosted-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" -e POSTGRES_USER=solaris_recovery_bootstrap -e POSTGRES_PASSWORD=s06_disposable \
             -e POSTGRES_INITDB_ARGS="--locale-provider=icu --icu-locale=en-US" postgres:17.11 -c track_functions=all)"
           [[ "$cid" =~ ^[0-9a-f]{64}$ ]] || exit 1
           [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
@@ -302,12 +306,15 @@ jobs:
           ready=false
           for n in $(seq 1 75); do
             if docker logs "$cid" 2>&1 | grep -Fq 'PostgreSQL init process complete; ready for start up.' \
-              && docker exec "$cid" pg_isready -h /var/run/postgresql -U postgres >/dev/null; then
+              && docker exec "$cid" pg_isready -h /var/run/postgresql -U solaris_recovery_bootstrap >/dev/null; then
               ready=true; break
             fi
             sleep 1
           done
           [[ "$ready" == true ]] || { docker logs "$cid" 2>&1 | tail -80; exit 1; }
+          # Do not use PostgreSQL's initial superuser as the recovery operator:
+          # the bootstrap role cannot be demoted, while real hosted postgres is NOSUPERUSER.
+          docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U solaris_recovery_bootstrap -d postgres -c 'create role postgres login superuser; alter database postgres owner to postgres;'
           sql() { docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres "$@"; }
           # Hosted catalog probe confirmed PG17.11 with datlocprovider=i and
           # datlocale=en-US. Preserve hosted ICU collation for deterministic
@@ -665,6 +672,8 @@ jobs:
           [[ "$(sql -c "select (to_regclass('private.v3_archive_runtime_transition_gates') is null)::text")" == true ]] || exit 1
 
           sql -f - < docs/v3/recovery-candidates/evidence/s02-hosted-s13-prerequisite-local.sql
+          # Freeze the same observed baseline before any forward recovery.
+          sql -c 'create database recovery_operator_baseline template postgres;'
           sql -f - < docs/v3/recovery-candidates/forward-only-s13-foundation.sql
 
           # A failed install on the hosted-observed fixture must leave no
@@ -861,6 +870,8 @@ jobs:
           grep -Fq 'Snapshot recovery routine drift or partial installation' /tmp/public-snapshot-duplicate.log
           [[ "$(archive_schema_digest)" == "$snapshot_after" ]] || exit 1
           echo 'PASS: ordered source-exact active capture/public snapshot; interrupted rollback, retry and duplicate refusal'
+          # Rehearse the identical ordered recovery as the actual observed operator.
+          source .github/scripts/v3-observed-owner-recovery-local.sh
           docker rm -f "$cid" >/dev/null
           cid=""
           echo "PASS: S13 then S14 against 215 hosted-observed PG17.11 table identities (56 scoped + 159 exact fingerprints); missing S13/duplicate fail closed."
@@ -872,6 +883,7 @@ jobs:
         with:
           name: s06-hosted-observed-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
+            observed-owner-recovery-proof.json
             s06-archive-catalog-proof.json
             s06-parent-catalog-proof.json
             s06-acl-proof.json

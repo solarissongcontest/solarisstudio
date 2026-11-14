@@ -1,0 +1,20 @@
+{
+  "kind": "owner-authorized-read-only-catalog-observation",
+  "projectRef": "dkxmnvekiopyesuzggeu",
+  "applicationRowsRead": false,
+  "transaction": "READ ONLY; ROLLBACK",
+  "role": {
+    "name": "supabase_admin",
+    "login": true,
+    "inherit": true,
+    "createdb": true,
+    "bypassrls": true,
+    "superuser": true,
+    "createrole": true,
+    "replication": true
+  },
+  "read_only": "on",
+  "memberships": [],
+  "observed_at": "2026-11-14T08:28:14.373012+00:00",
+  "server_version_num": "170011"
+}
