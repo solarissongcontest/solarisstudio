@@ -52,7 +52,7 @@ describe("V3 Organizer Confirmation permanent deletion review", () => {
     expect(controls).toContain("commandReason !== reason");
     expect(controls).toContain("command.operationId");
     expect(controls).toContain("command.idempotencyKey");
-    expect(controls).toContain("reconcile(command.operationId");
-    expect(controls).toContain("rather than retried with a second destructive write");
+    expect(controls).toMatch(/reconcile\(\s*command\.operationId,/);
+    expect(controls).toMatch(/rather than retried with a second destructive\s+write/);
   });
 });

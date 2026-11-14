@@ -46,7 +46,7 @@ describe("V3 Organizer Confirmation response access consumer", () => {
     );
     expect(client).toContain("\n  forgetPendingCommand(operationId);\n  return result;\n");
     expect(settings).toContain("pendingReview.command.operationId");
-    expect(recovery).toContain("reconcile(command.operationId");
+    expect(recovery).toMatch(/reconcile\(\s*command\.operationId,/);
   });
 
   it("rotates operation identity only when reviewed semantics/version change or apply settles", () => {
@@ -62,8 +62,8 @@ describe("V3 Organizer Confirmation response access consumer", () => {
     expect(recovery).toContain("secretAvailable");
     expect(recovery).toContain("plaintext secret cannot be replayed after a lost response");
     expect(recovery).toContain("Generate a replacement link");
-    expect(recovery).toContain("Solaris stores only the token hash");
-    expect(recovery).toContain("reconcile(command.operationId");
+    expect(recovery).toMatch(/Solaris stores only the\s+token hash/);
+    expect(recovery).toMatch(/reconcile\(\s*command\.operationId,/);
   });
 
   it("requires R3 reauthentication against the same Organizer identity for permanent deletion", () => {
@@ -72,7 +72,7 @@ describe("V3 Organizer Confirmation response access consumer", () => {
     expect(client).toContain("auth.signInWithPassword");
     expect(client).toContain("data.user.id !== originalUserId");
     expect(recovery).toContain("Fresh authentication required");
-    expect(recovery).toContain("reconcile(command.operationId");
+    expect(recovery).toMatch(/reconcile\(\s*command\.operationId,/);
   });
 
   it("fails closed when the response has no exact edition context", () => {

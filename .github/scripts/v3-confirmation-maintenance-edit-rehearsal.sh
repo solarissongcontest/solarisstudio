@@ -12,6 +12,9 @@ case "$DB_URL" in
   *) fail "Refusing non-local database rehearsal" ;;
 esac
 
+log "Proving retired response writers reject every API execution role"
+psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$(dirname "${BASH_SOURCE[0]}")/v3-confirmation-legacy-writer-denial.sql"
+
 scalar() { psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c "$1"; }
 exec_sql() { psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "$1" >/dev/null; }
 as_user() {

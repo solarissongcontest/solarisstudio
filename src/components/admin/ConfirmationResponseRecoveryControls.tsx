@@ -1,8 +1,14 @@
 import { Copy, ExternalLink, Link2, RefreshCw, ShieldAlert, Trash2 } from "lucide-react";
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import {
+  ConfirmationAsyncScope,
+  type ConfirmationAsyncTicket,
+} from "@/lib/confirmation-async-scope";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { reconcileSystemOperation } from "@/lib/system-operation.functions";
@@ -19,6 +25,7 @@ import {
 import { AdminCard, AdminCardHeader, AdminConfirmSheet, AdminStatus } from "./AdminUI";
 
 type PendingDelete = {
+  scopeTicket: ConfirmationAsyncTicket;
   preview: ConfirmationResponseAccessPreview;
   command: ReturnType<typeof createConfirmationResponseAccessCommand> | null;
   commandReason: string | null;
@@ -54,40 +61,86 @@ export function ConfirmationResponseRecoveryControls({
   const [loadingPreview, setLoadingPreview] = useState(true);
   const [linkType, setLinkType] = useState<"reusable" | "one_time">("reusable");
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
+  const [generatedLinkScope, setGeneratedLinkScope] = useState<ConfirmationAsyncTicket | null>(
+    null,
+  );
   const [linkBusy, setLinkBusy] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
   const [deletePassword, setDeletePassword] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [authEpoch, setAuthEpoch] = useState(0);
+  const scopeKey = `${editionId}:${submissionId}`;
+  const scopeRef = useRef<ConfirmationAsyncScope | null>(null);
+  if (!scopeRef.current) scopeRef.current = new ConfirmationAsyncScope(scopeKey);
+  const scope = scopeRef.current;
+  // Render-time key invalidation closes the event-to-effect gap on navigation.
+  scope.setKey(scopeKey);
+  useEffect(() => {
+    scope.open();
+    const {
+      data: { subscription },
+    } = confirmationsSupabase.auth.onAuthStateChange(
+      (event: AuthChangeEvent, session: Session | null) => {
+        if (!scope.observeAuth(event, session?.user.id ?? null)) return;
+        setGeneratedLink(null);
+        setGeneratedLinkScope(null);
+        setPreview(null);
+        setPendingDelete(null);
+        setDeleteReason("");
+        setDeletePassword("");
+        setLinkBusy(false);
+        setDeleting(false);
+        setAuthEpoch((value) => value + 1);
+      },
+    );
+    return () => {
+      scope.close();
+      subscription.unsubscribe();
+    };
+  }, [scope]);
 
-  const refreshPreview = useCallback(async () => {
-    setPreviewError(null);
-    try {
-      const next = await previewConfirmationResponseAccess(editionId, submissionId);
-      assertConfirmationResponseAccessScope(next, editionId, submissionId);
-      setPreview(next);
-      return next;
-    } catch (caught) {
-      const message = confirmationResponseAccessErrorMessage(caught);
-      setPreviewError(message);
-      throw caught;
-    } finally {
-      setLoadingPreview(false);
-    }
-  }, [editionId, submissionId]);
+  const refreshPreview = useCallback(
+    async (ticket = scope.capture(scopeKey)) => {
+      scope.assertCurrent(ticket);
+      setPreviewError(null);
+      try {
+        const next = await previewConfirmationResponseAccess(editionId, submissionId);
+        scope.assertCurrent(ticket);
+        assertConfirmationResponseAccessScope(next, editionId, submissionId);
+        setPreview(next);
+        return next;
+      } catch (caught) {
+        const message = confirmationResponseAccessErrorMessage(caught);
+        if (scope.isCurrent(ticket)) setPreviewError(message);
+        throw caught;
+      } finally {
+        if (scope.isCurrent(ticket)) setLoadingPreview(false);
+      }
+    },
+    [editionId, submissionId, authEpoch, scope, scopeKey],
+  );
 
   useEffect(() => {
     setLoadingPreview(true);
     setPreview(null);
     setGeneratedLink(null);
+    setGeneratedLinkScope(null);
+    setLinkBusy(false);
+    setDeleting(false);
     setPendingDelete(null);
     setDeleteReason("");
     setDeletePassword("");
     void refreshPreview().catch(() => undefined);
   }, [refreshPreview]);
 
-  async function reconcile(operationId: string, successMessage: string) {
+  async function reconcile(
+    operationId: string,
+    successMessage: string,
+    ticket: ConfirmationAsyncTicket,
+  ) {
     const result = await reconcileOperation({ data: { operationId } });
+    scope.assertCurrent(ticket);
     if (!result.ok) return false;
     if (result.receipt.status === "succeeded") {
       toast.success(successMessage);
@@ -101,20 +154,24 @@ export function ConfirmationResponseRecoveryControls({
     );
   }
 
-  async function copyValue(value: string, label: string) {
+  async function copyValue(value: string, label: string, ticket: ConfirmationAsyncTicket | null) {
+    if (!scope.isCurrent(ticket)) return;
     try {
       await navigator.clipboard.writeText(value);
-      toast.success(`${label} copied`);
+      if (scope.isCurrent(ticket)) toast.success(`${label} copied`);
     } catch {
+      if (!scope.isCurrent(ticket)) return;
       toast.error("Could not copy to the clipboard. The generated link is still shown above.");
     }
   }
 
   async function createEditLink() {
+    const ticket = scope.capture(scopeKey);
+    if (!scope.isCurrent(ticket)) return;
     if (linkBusy) return;
     setLinkBusy(true);
     try {
-      const reviewed = await refreshPreview();
+      const reviewed = await refreshPreview(ticket);
       if (
         !reviewed.state.editingAllowed ||
         reviewed.state.locked ||
@@ -141,6 +198,7 @@ export function ConfirmationResponseRecoveryControls({
           operationId: command.operationId,
           idempotencyKey: command.idempotencyKey,
         });
+        scope.assertCurrent(ticket);
         if (!result.secretAvailable || !result.token) {
           throw new Error(
             "Solaris confirmed the edit-link operation but the one-time secret is unavailable. Issue a replacement link explicitly.",
@@ -148,19 +206,28 @@ export function ConfirmationResponseRecoveryControls({
         }
 
         const url = `${window.location.origin}/confirmations/edit/${result.token}`;
+        setGeneratedLinkScope(ticket);
         setGeneratedLink(url);
         try {
           await navigator.clipboard.writeText(url);
-          toast.success("Edit link generated and copied");
+          if (scope.isCurrent(ticket)) toast.success("Edit link generated and copied");
         } catch {
+          if (!scope.isCurrent(ticket)) return;
           toast.success("Edit link generated");
-          toast.message("Clipboard access failed. Copy the visible link manually; the successful issuance was not rolled back.");
+          toast.message(
+            "Clipboard access failed. Copy the visible link manually; the successful issuance was not rolled back.",
+          );
         }
       } catch (caught) {
+        if (!scope.isCurrent(ticket)) return;
         const systemError = toSystemError(caught);
         if (
           systemError.retryable &&
-          (await reconcile(command.operationId, "Edit link issuance confirmed after reconnecting"))
+          (await reconcile(
+            command.operationId,
+            "Edit link issuance confirmed after reconnecting",
+            ticket,
+          ))
         ) {
           setGeneratedLink(null);
           throw new Error(
@@ -170,21 +237,24 @@ export function ConfirmationResponseRecoveryControls({
         throw caught;
       }
 
-      await refreshPreview();
+      await refreshPreview(ticket);
       await onChanged();
     } catch (caught) {
+      if (!scope.isCurrent(ticket)) return;
       toast.error(confirmationResponseAccessErrorMessage(caught));
-      await refreshPreview().catch(() => undefined);
+      await refreshPreview(ticket).catch(() => undefined);
     } finally {
-      setLinkBusy(false);
+      if (scope.isCurrent(ticket)) setLinkBusy(false);
     }
   }
 
   async function revokeToken(tokenId: string) {
+    const ticket = scope.capture(scopeKey);
+    if (!scope.isCurrent(ticket)) return;
     if (linkBusy) return;
     setLinkBusy(true);
     try {
-      const reviewed = await refreshPreview();
+      const reviewed = await refreshPreview(ticket);
       const token = reviewed.recoveryTokens.find((candidate) => candidate.id === tokenId);
       if (!token?.active) {
         throw new Error("That edit link is no longer active. The response has been refreshed.");
@@ -205,31 +275,40 @@ export function ConfirmationResponseRecoveryControls({
           idempotencyKey: command.idempotencyKey,
         });
       } catch (caught) {
+        if (!scope.isCurrent(ticket)) return;
         const systemError = toSystemError(caught);
         if (
           !systemError.retryable ||
-          !(await reconcile(command.operationId, "Edit link revocation confirmed after reconnecting"))
+          !(await reconcile(
+            command.operationId,
+            "Edit link revocation confirmed after reconnecting",
+            ticket,
+          ))
         ) {
           throw caught;
         }
       }
 
+      scope.assertCurrent(ticket);
       setGeneratedLink(null);
       toast.success("Edit link revoked");
-      await refreshPreview();
+      await refreshPreview(ticket);
       await onChanged();
     } catch (caught) {
+      if (!scope.isCurrent(ticket)) return;
       toast.error(confirmationResponseAccessErrorMessage(caught));
-      await refreshPreview().catch(() => undefined);
+      await refreshPreview(ticket).catch(() => undefined);
     } finally {
-      setLinkBusy(false);
+      if (scope.isCurrent(ticket)) setLinkBusy(false);
     }
   }
 
   async function openDeleteReview() {
+    const ticket = scope.capture(scopeKey);
+    if (!scope.isCurrent(ticket)) return;
     if (deleting) return;
     try {
-      const reviewed = await refreshPreview();
+      const reviewed = await refreshPreview(ticket);
       if (!reviewed.delete.allowed) {
         const dependencyCount = Object.values(reviewed.delete.dependencies).reduce(
           (sum, count) => sum + count,
@@ -243,14 +322,22 @@ export function ConfirmationResponseRecoveryControls({
       }
       setDeleteReason("");
       setDeletePassword("");
-      setPendingDelete({ preview: reviewed, command: null, commandReason: null });
+      setPendingDelete({
+        preview: reviewed,
+        command: null,
+        commandReason: null,
+        scopeTicket: ticket,
+      });
     } catch (caught) {
+      if (!scope.isCurrent(ticket)) return;
       toast.error(confirmationResponseAccessErrorMessage(caught));
     }
   }
 
   async function deleteResponse() {
     if (!pendingDelete || deleting) return;
+    const ticket = pendingDelete.scopeTicket;
+    if (!scope.isCurrent(ticket)) return;
     const reason = deleteReason.trim();
     if (!reason) {
       toast.error("Add an organiser reason for this permanent deletion.");
@@ -263,7 +350,7 @@ export function ConfirmationResponseRecoveryControls({
 
     setDeleting(true);
     try {
-      const live = await refreshPreview();
+      const live = await refreshPreview(ticket);
       if (
         !live.delete.allowed ||
         live.expectedVersion !== pendingDelete.preview.expectedVersion ||
@@ -289,6 +376,7 @@ export function ConfirmationResponseRecoveryControls({
       }
 
       await reauthenticateConfirmationResponseR3(deletePassword);
+      scope.assertCurrent(ticket);
       setDeletePassword("");
 
       try {
@@ -301,23 +389,30 @@ export function ConfirmationResponseRecoveryControls({
           idempotencyKey: command.idempotencyKey,
         });
       } catch (caught) {
+        if (!scope.isCurrent(ticket)) return;
         const systemError = toSystemError(caught);
         if (
           !systemError.retryable ||
-          !(await reconcile(command.operationId, "Permanent deletion confirmed after reconnecting"))
+          !(await reconcile(
+            command.operationId,
+            "Permanent deletion confirmed after reconnecting",
+            ticket,
+          ))
         ) {
           throw caught;
         }
       }
 
+      scope.assertCurrent(ticket);
       setPendingDelete(null);
       toast.success("Confirmation deleted with an operation receipt");
       await onDeleted();
     } catch (caught) {
+      if (!scope.isCurrent(ticket)) return;
       toast.error(confirmationResponseAccessErrorMessage(caught));
-      await refreshPreview().catch(() => undefined);
+      await refreshPreview(ticket).catch(() => undefined);
     } finally {
-      setDeleting(false);
+      if (scope.isCurrent(ticket)) setDeleting(false);
     }
   }
 
@@ -326,6 +421,7 @@ export function ConfirmationResponseRecoveryControls({
     [preview],
   );
   const dependencies = activeDependencyEntries(preview);
+  const visibleGeneratedLink = scope.isCurrent(generatedLinkScope) ? generatedLink : null;
 
   return (
     <>
@@ -338,11 +434,7 @@ export function ConfirmationResponseRecoveryControls({
             <button
               type="button"
               disabled={loadingPreview || linkBusy}
-              onClick={() =>
-                void refreshPreview().catch((caught) =>
-                  toast.error(confirmationResponseAccessErrorMessage(caught)),
-                )
-              }
+              onClick={() => void refreshPreview().catch(() => undefined)}
               className="admin-action-secondary !min-h-9 !px-3 text-xs"
             >
               <RefreshCw className={`size-3.5 ${loadingPreview ? "animate-spin" : ""}`} /> Refresh
@@ -361,9 +453,7 @@ export function ConfirmationResponseRecoveryControls({
             type="button"
             onClick={() => setLinkType("reusable")}
             disabled={linkBusy}
-            className={
-              linkType === "reusable" ? "admin-action-primary" : "admin-action-secondary"
-            }
+            className={linkType === "reusable" ? "admin-action-primary" : "admin-action-secondary"}
           >
             Reusable
           </button>
@@ -371,9 +461,7 @@ export function ConfirmationResponseRecoveryControls({
             type="button"
             onClick={() => setLinkType("one_time")}
             disabled={linkBusy}
-            className={
-              linkType === "one_time" ? "admin-action-primary" : "admin-action-secondary"
-            }
+            className={linkType === "one_time" ? "admin-action-primary" : "admin-action-secondary"}
           >
             One-time
           </button>
@@ -388,27 +476,33 @@ export function ConfirmationResponseRecoveryControls({
           <Link2 className="size-4" /> {linkBusy ? "Working…" : "Generate edit link"}
         </button>
 
-        {generatedLink ? (
+        {visibleGeneratedLink ? (
           <div className="mt-3 rounded-xl border border-sky-200/15 bg-sky-200/[0.035] p-3">
-            <p className="break-all text-xs text-muted-foreground">{generatedLink}</p>
+            <p className="break-all text-xs text-muted-foreground">{visibleGeneratedLink}</p>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => void copyValue(generatedLink, "Edit link")}
+                onClick={() =>
+                  void copyValue(visibleGeneratedLink, "Edit link", generatedLinkScope)
+                }
                 className="admin-action-secondary"
               >
                 <Copy className="size-4" /> Copy
               </button>
               <button
                 type="button"
-                onClick={() => window.open(generatedLink, "_blank", "noopener,noreferrer")}
+                onClick={() => {
+                  if (scope.isCurrent(generatedLinkScope))
+                    window.open(visibleGeneratedLink, "_blank", "noopener,noreferrer");
+                }}
                 className="admin-action-secondary"
               >
                 <ExternalLink className="size-4" /> Open
               </button>
             </div>
             <p className="mt-3 text-[11px] text-muted-foreground">
-              This plaintext link exists only in this successful response. Solaris stores only the token hash and cannot replay the secret after an uncertain network outcome.
+              This plaintext link exists only in this successful response. Solaris stores only the
+              token hash and cannot replay the secret after an uncertain network outcome.
             </p>
           </div>
         ) : null}
@@ -422,9 +516,7 @@ export function ConfirmationResponseRecoveryControls({
                 className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3"
               >
                 <div className="min-w-0 text-xs">
-                  <p className="font-semibold capitalize">
-                    {token.tokenType.replaceAll("_", " ")}
-                  </p>
+                  <p className="font-semibold capitalize">{token.tokenType.replaceAll("_", " ")}</p>
                   <p className="mt-1 text-muted-foreground">
                     Used {token.useCount} {token.useCount === 1 ? "time" : "times"}
                   </p>
@@ -497,21 +589,25 @@ export function ConfirmationResponseRecoveryControls({
             <div className="flex items-start gap-2 rounded-xl border border-rose-200/15 bg-rose-200/[0.045] p-3 text-xs text-rose-50/90">
               <ShieldAlert className="mt-0.5 size-4 shrink-0" />
               <p>
-                This is an R3 irreversible operation. The server will repeat capability, exact-edition, dependency, version and fresh-auth checks at commit time.
+                This is an R3 irreversible operation. The server will repeat capability,
+                exact-edition, dependency, version and fresh-auth checks at commit time.
               </p>
             </div>
             <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3 text-xs">
               <p>
-                <span className="font-semibold text-foreground">Context:</span> {editionLabel} · {roundName}
+                <span className="font-semibold text-foreground">Context:</span> {editionLabel} ·{" "}
+                {roundName}
               </p>
               <p className="mt-1">
-                <span className="font-semibold text-foreground">Submitted:</span> {new Date(submittedAt).toLocaleString()}
+                <span className="font-semibold text-foreground">Submitted:</span>{" "}
+                {new Date(submittedAt).toLocaleString()}
               </p>
               <p className="mt-1 break-all">
                 <span className="font-semibold text-foreground">Submission:</span> {submissionId}
               </p>
               <p className="mt-1">
-                <span className="font-semibold text-foreground">Reviewed version:</span> {pendingDelete?.preview.expectedVersion ?? "—"}
+                <span className="font-semibold text-foreground">Reviewed version:</span>{" "}
+                {pendingDelete?.preview.expectedVersion ?? "—"}
               </p>
               <p className="mt-1">
                 <span className="font-semibold text-foreground">Dependency check:</span> clear
@@ -546,7 +642,9 @@ export function ConfirmationResponseRecoveryControls({
               />
             </label>
             <p className="text-xs text-muted-foreground">
-              Successful deletion writes the canonical operation/audit receipt. An uncertain network result is reconciled by operation ID rather than retried with a second destructive write.
+              Successful deletion writes the canonical operation/audit receipt. An uncertain network
+              result is reconciled by operation ID rather than retried with a second destructive
+              write.
             </p>
           </div>
         }

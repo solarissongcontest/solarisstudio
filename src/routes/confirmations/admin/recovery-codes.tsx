@@ -1,21 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Copy, Eye, EyeOff, KeyRound, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminCard, AdminEmptyState, AdminPageHeader } from "@/components/admin/AdminUI";
+import {
+  ConfirmationAsyncScope,
+  type ConfirmationAsyncTicket,
+} from "@/lib/confirmation-async-scope";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
 import type { ConfirmationRecoveryCode } from "@/integrations/confirmations/admin";
 import { loadConfirmationRecoveryCodesForEdition } from "@/integrations/confirmations/scoped-admin-reads";
 
 export const Route = createFileRoute("/confirmations/admin/recovery-codes")({
   head: () => ({
-    meta: [
-      { title: "Recovery Access — Solaris Studio" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Recovery Access — Solaris Studio" }, { name: "robots", content: "noindex" }],
   }),
   component: RecoveryCodesPage,
 });
@@ -34,20 +36,35 @@ function RecoveryCodesPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authEpoch, setAuthEpoch] = useState(0);
+  const [loadedScope, setLoadedScope] = useState<ConfirmationAsyncTicket | null>(null);
+  const scopeKey = `${editionId ?? "none"}:${pageIndex}`;
+  const scopeRef = useRef<ConfirmationAsyncScope | null>(null);
+  if (!scopeRef.current) scopeRef.current = new ConfirmationAsyncScope(scopeKey);
+  const scope = scopeRef.current;
+  scope.setKey(scopeKey);
 
   useEffect(() => {
-    const { data: { subscription } } = confirmationsSupabase.auth.onAuthStateChange((event: string) => {
-      if (!["SIGNED_IN", "SIGNED_OUT", "USER_UPDATED", "TOKEN_REFRESHED"].includes(event)) return;
-      setRows([]);
-      setLoadedEditionId(null);
-      setRevealedId(null);
-      setPageIndex(0);
-      setTotal(0);
-      setHasMore(false);
-      setAuthEpoch((current) => current + 1);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
+    scope.open();
+    const {
+      data: { subscription },
+    } = confirmationsSupabase.auth.onAuthStateChange(
+      (event: AuthChangeEvent, session: Session | null) => {
+        if (!scope.observeAuth(event, session?.user.id ?? null)) return;
+        setLoadedScope(null);
+        setRows([]);
+        setLoadedEditionId(null);
+        setRevealedId(null);
+        setPageIndex(0);
+        setTotal(0);
+        setHasMore(false);
+        setAuthEpoch((current) => current + 1);
+      },
+    );
+    return () => {
+      scope.close();
+      subscription.unsubscribe();
+    };
+  }, [scope]);
 
   useEffect(() => {
     setPageIndex(0);
@@ -66,6 +83,8 @@ function RecoveryCodesPage() {
 
   useEffect(() => {
     let alive = true;
+    const ticket = scope.capture(scopeKey);
+    setLoadedScope(null);
     setRevealedId(null);
     setRows([]);
     setLoadedEditionId(null);
@@ -74,45 +93,66 @@ function RecoveryCodesPage() {
     setError(null);
     if (!editionId) {
       setLoading(false);
-      return () => { alive = false; };
+      return () => {
+        alive = false;
+      };
     }
     setLoading(true);
     void loadConfirmationRecoveryCodesForEdition(editionId, {
       limit: PAGE_SIZE,
       offset: pageIndex * PAGE_SIZE,
-    }).then((page) => {
-      if (!alive) return;
-      if (pageIndex > 0 && page.offset >= page.total) {
-        setPageIndex(Math.max(0, Math.ceil(page.total / PAGE_SIZE) - 1));
-        return;
-      }
-      setRows(page.items);
-      setLoadedEditionId(page.edition_id);
-      setTotal(page.total);
-      setHasMore(page.has_more);
-    }).catch((caught: unknown) => {
-      if (!alive) return;
-      setRows([]);
-      setLoadedEditionId(null);
-      setError(caught instanceof Error ? caught.message : "Recovery credentials are unavailable.");
-    }).finally(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
-  }, [editionId, pageIndex, authEpoch]);
+    })
+      .then((page) => {
+        if (!alive || !scope.isCurrent(ticket)) return;
+        if (pageIndex > 0 && page.offset >= page.total) {
+          setPageIndex(Math.max(0, Math.ceil(page.total / PAGE_SIZE) - 1));
+          return;
+        }
+        setLoadedScope(ticket);
+        setRows(page.items);
+        setLoadedEditionId(page.edition_id);
+        setTotal(page.total);
+        setHasMore(page.has_more);
+      })
+      .catch((caught: unknown) => {
+        if (!alive || !scope.isCurrent(ticket)) return;
+        setRows([]);
+        setLoadedEditionId(null);
+        setError(
+          caught instanceof Error ? caught.message : "Recovery credentials are unavailable.",
+        );
+      })
+      .finally(() => {
+        if (alive && scope.isCurrent(ticket)) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [editionId, pageIndex, authEpoch, scope, scopeKey]);
 
   const visibleRows = useMemo(() => {
-    if (!editionId || loadedEditionId !== editionId || error) return [];
+    if (!editionId || loadedEditionId !== editionId || error || !scope.isCurrent(loadedScope))
+      return [];
     const search = query.trim().toLocaleLowerCase();
-    return rows.filter((row) =>
-      row.edition_id === editionId &&
-      (!search || [row.country, row.instagram_username, row.round_name].join(" ").toLocaleLowerCase().includes(search))
+    return rows.filter(
+      (row) =>
+        row.edition_id === editionId &&
+        (!search ||
+          [row.country, row.instagram_username, row.round_name]
+            .join(" ")
+            .toLocaleLowerCase()
+            .includes(search)),
     );
-  }, [editionId, loadedEditionId, rows, query, error]);
+  }, [editionId, loadedEditionId, rows, query, error, scope, loadedScope, authEpoch]);
 
   const copyRecoveryCode = async (code: string) => {
+    const ticket = loadedScope;
+    if (!scope.isCurrent(ticket)) return;
     try {
       await navigator.clipboard.writeText(code);
-      toast.success("Recovery code copied");
+      if (scope.isCurrent(ticket)) toast.success("Recovery code copied");
     } catch {
+      if (!scope.isCurrent(ticket)) return;
       toast.error("Clipboard access was denied. Nothing was copied.");
     }
   };
@@ -138,11 +178,13 @@ function RecoveryCodesPage() {
           <AdminCard className="mb-4">
             <p className="text-sm font-semibold">{editionLabel ?? "Selected Organizer edition"}</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Credentials are concealed by default and are not stored in your browser's persistent storage.
-              Search applies only to the current page.
+              Credentials are concealed by default and are not stored in your browser's persistent
+              storage. Search applies only to the current page.
             </p>
             <label className="mt-3 block text-xs">
-              <span className="block pb-1 text-muted-foreground">Search country, username or round</span>
+              <span className="block pb-1 text-muted-foreground">
+                Search country, username or round
+              </span>
               <input
                 type="search"
                 value={query}
@@ -173,12 +215,28 @@ function RecoveryCodesPage() {
                     {pageIndex * PAGE_SIZE + rows.length} of {total}
                   </p>
                   <div className="flex gap-2">
-                    <button type="button" disabled={pageIndex === 0}
-                      onClick={() => { setRevealedId(null); setPageIndex((n) => Math.max(0, n - 1)); }}
-                      className="admin-action-secondary !min-h-9">Previous</button>
-                    <button type="button" disabled={!hasMore || (pageIndex + 1) * PAGE_SIZE > 10000}
-                      onClick={() => { setRevealedId(null); setPageIndex((n) => n + 1); }}
-                      className="admin-action-secondary !min-h-9">Next</button>
+                    <button
+                      type="button"
+                      disabled={pageIndex === 0}
+                      onClick={() => {
+                        setRevealedId(null);
+                        setPageIndex((n) => Math.max(0, n - 1));
+                      }}
+                      className="admin-action-secondary !min-h-9"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!hasMore || (pageIndex + 1) * PAGE_SIZE > 10000}
+                      onClick={() => {
+                        setRevealedId(null);
+                        setPageIndex((n) => n + 1);
+                      }}
+                      className="admin-action-secondary !min-h-9"
+                    >
+                      Next
+                    </button>
                   </div>
                 </div>
               </AdminCard>
@@ -191,19 +249,36 @@ function RecoveryCodesPage() {
                         @{row.instagram_username.replace(/^@/, "")} · {row.round_name}
                       </p>
                       <div className="mt-3 rounded-xl border border-white/[0.07] p-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Recovery code</p>
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Recovery code
+                        </p>
                         <p className="mt-2 break-all font-mono text-sm">
-                          {revealedId === row.id ? (row.recovery_code ?? "No recovery code saved") : "••••••••••••"}
+                          {revealedId === row.id
+                            ? (row.recovery_code ?? "No recovery code saved")
+                            : "••••••••••••"}
                         </p>
                         <div className="mt-3 flex gap-2">
-                          <button type="button" className="admin-action-secondary !min-h-9"
-                            onClick={() => setRevealedId((id) => id === row.id ? null : row.id)}>
-                            {revealedId === row.id ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                          <button
+                            type="button"
+                            className="admin-action-secondary !min-h-9"
+                            onClick={() => {
+                              if (scope.isCurrent(loadedScope))
+                                setRevealedId((id) => (id === row.id ? null : row.id));
+                            }}
+                          >
+                            {revealedId === row.id ? (
+                              <EyeOff className="size-4" />
+                            ) : (
+                              <Eye className="size-4" />
+                            )}
                             {revealedId === row.id ? "Conceal" : "Reveal"}
                           </button>
                           {revealedId === row.id && row.recovery_code ? (
-                            <button type="button" className="admin-action-secondary !min-h-9"
-                              onClick={() => void copyRecoveryCode(row.recovery_code!)}>
+                            <button
+                              type="button"
+                              className="admin-action-secondary !min-h-9"
+                              onClick={() => void copyRecoveryCode(row.recovery_code!)}
+                            >
                               <Copy className="size-4" /> Copy
                             </button>
                           ) : null}
@@ -214,7 +289,10 @@ function RecoveryCodesPage() {
                 </section>
               ) : (
                 <AdminCard>
-                  <AdminEmptyState title="No recovery records" description="There are no records on this page matching the search." />
+                  <AdminEmptyState
+                    title="No recovery records"
+                    description="There are no records on this page matching the search."
+                  />
                 </AdminCard>
               )}
             </>
