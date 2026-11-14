@@ -16,6 +16,9 @@ on:
       - "scripts/stage-v3-auth-uid-authority-local*"
       - "scripts/stage-v3-hosted-api-roles-local*"
       - "scripts/stage-v3-recovery-owner-local*"
+      - "scripts/stage-v3-result-authority-recovery*"
+      - ".github/tests/v3-result-authority-recovery.sql"
+      - "docs/v3/recovery-candidates/evidence/result-authority-prerequisites-observed-2026-11-14.json"
       - ".github/scripts/v3-observed-owner-recovery-local.sh"
       - "docs/v3/recovery-candidates/evidence/recovery-owner-role-closure-observed-2026-11-14.json"
       - "docs/v3/recovery-candidates/evidence/platform-owner-role-observed-2026-11-14.json"
@@ -266,7 +269,7 @@ jobs:
       - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
         run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
       - name: Verify bounded catalog export and drift refusals
-        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs scripts/stage-v3-public-snapshot-recovery.test.mjs scripts/stage-v3-auth-uid-authority-local.test.mjs scripts/stage-v3-atomic-calculation-recovery.test.mjs scripts/stage-v3-hosted-api-roles-local.test.mjs scripts/stage-v3-recovery-owner-local.test.mjs
+        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs scripts/stage-v3-public-snapshot-recovery.test.mjs scripts/stage-v3-auth-uid-authority-local.test.mjs scripts/stage-v3-atomic-calculation-recovery.test.mjs scripts/stage-v3-hosted-api-roles-local.test.mjs scripts/stage-v3-recovery-owner-local.test.mjs scripts/stage-v3-result-authority-recovery.test.mjs
       - name: Test authorization dependency reconstruction and incomplete-manifest refusal
         run: node --test scripts/v3-s13-s14-authorization-dependencies.test.mjs
       - name: Assert all-hosted catalog digests and incomplete-fixture rejection (offline only)
