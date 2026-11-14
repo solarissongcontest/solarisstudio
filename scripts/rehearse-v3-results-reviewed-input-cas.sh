@@ -184,7 +184,7 @@ begin
     )
   ) then
     raise exception 'IDENTITY_MISMATCH_EXECUTED_MUTATION';
-  end;
+  end if;
   if not exists (
     select 1 from pg_trigger t
     where t.tgrelid='public.jury_ballot_submissions'::regclass
