@@ -81,6 +81,7 @@ operator_apply /tmp/result-read-authority-recovery.sql
 operator_sql -v snapshot_before=false -f - < .github/tests/v3-public-snapshot-recovery.sql
 operator_sql -f - < .github/tests/v3-result-authority-recovery.sql
 source .github/scripts/v3-result-public-api-local.sh
+source .github/scripts/v3-auth-jury-authority-local.sh
 source .github/scripts/v3-combined-deferral-local.sh
 echo 'PASS: entire ordered recovery executes as observed NONSUPERUSER postgres with real role/schema privileges'
 # A restore of synthetic local data proves this procedure, NOT availability,
@@ -111,6 +112,7 @@ const files=[
  'docs/v3/recovery-candidates/forward-only-s13-foundation.sql',
  'docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql',
  '/tmp/s07-ordered-source.sql','/tmp/atomic-recovery.sql','/tmp/public-snapshot-recovery.sql','/tmp/result-authority-recovery.sql','/tmp/result-read-authority-recovery.sql',
+ 'supabase/migrations/20261114102706_v3_jury_governed_submission_cutover.sql',
  'supabase/migrations/20261114141934_v3_defer_combined_televote_database_writes.sql',
 ];
 const digest=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
@@ -122,6 +124,9 @@ fs.writeFileSync('observed-owner-recovery-proof.json',JSON.stringify({
  orderedStages:files.map((path,i)=>({order:i+1,path,sha256:digest(path)})),
  interruptedRollback:true,safeRetry:true,duplicateRefused:true,
  schemaAndSyntheticRowsPreserved:true,separateLocalRestoreVerified:true,
+ juryLegacyApiDenied:true,juryGovernedReceiptReplayVerified:true,
+ signupAuthOwnerRaceAndRollbackVerified:true,
+ sourceOnlyRuntimeDependencies:["televoting.integrity_sanction_matches"],
  combinedApiAndOwnerWritesDisabled:true,combinedHistoricalDataAndReadsPreserved:true,
  productionBackupVerified:false,hostedEquivalenceCertified:false,
  productionMutation:false,productionAuthorized:false,
