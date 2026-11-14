@@ -107,7 +107,11 @@ restored_sql -v snapshot_before=false -f - < .github/tests/v3-public-snapshot-re
 # It manually seeds aggregates, which post-S08 must reject. This post-restore
 # test instead proves the denial and legitimate config/immutable Results reads.
 restored_sql -f - < .github/tests/v3-s08-voting-config-after-recovery.sql
-restored_sql -f - < .github/tests/v3-result-authority-recovery.sql
+# Full seeded Results rank/qualification/reconciliation proof is retained
+# before S08 in the same operator fixture; its manual aggregate INSERT is
+# forbidden in the S08 restored clone. Recheck the canonical read/sync/ACL
+# contracts with zero fabricated aggregate writers instead.
+restored_sql -f - < .github/tests/v3-s08-results-authority-after-recovery.sql
 [[ "$(operator_state_digest recovery_restore_probe)" == "$owner_restored_before" ]] || { echo 'Restored runtime tests changed durable evidence'; exit 1; }
 # Repeat real authenticator sessions against a clone of the restored database.
 owner_api_parent=recovery_restore_probe
