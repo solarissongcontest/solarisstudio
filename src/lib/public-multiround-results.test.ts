@@ -11,14 +11,19 @@ describe("public multi-round televote results", () => {
     expect(show).toContain('label: multiRoundTelevote');
     expect(show).toContain('"Televote rounds"');
     expect(show).toContain("<TelevoteRoundsComparison");
-    expect(show).toContain("!voting.juryEnabled && hasMultipleTelevoteRounds(voting)");
+    const authority = source("lib/v3-public-show-result-visibility.ts");
+    expect(show).toContain("resolveV3PublicShowResultVisibility(frozenResult, voting)");
+    expect(authority).toContain("!voting.juryEnabled");
+    expect(authority).toContain("hasMultipleTelevoteRounds(voting)");
+    expect(authority).toContain("snapshot.availability.detailedVoting");
   });
 
   it("does not expose the jury scorechart when the show has no jury", () => {
     const show = source("routes/shows/$showId.tsx");
-    expect(show).toContain('publication.detailed_voting && showJuryResults');
+    expect(show).toContain("publication.detailed_voting && frozenResult?.availability.detailedVoting === true");
+    expect(show).toContain("if (hasPublishedDetailedVoting && showJuryResults)");
     expect(show).toContain('options.push({ value: "matrix", label: "Full scorechart" })');
-    expect(show).toContain('tab === "matrix" && publication.detailed_voting && showJuryResults');
+    expect(show).toContain('tab === "matrix" && hasPublishedDetailedVoting && showJuryResults');
   });
 
   it("renders the separately stored round components", () => {

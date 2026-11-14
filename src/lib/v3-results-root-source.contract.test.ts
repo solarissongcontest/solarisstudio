@@ -30,18 +30,16 @@ describe("V3 Results root source contract", () => {
   it("treats browser show selection only as a server-revalidated nomination", () => {
     expect(serverFn).toContain("z.string().uuid().nullable().optional()");
     expect(serverFn).toContain("loadV3ResultsBundle(data.showId ?? null)");
-    expect(source).toContain(
-      "resultShows.find((show) => show.id === requestedShowId) ?? resultShows[0] ?? null",
-    );
+    expect(source).toContain("resultShows.find((show) => show.id === requestedShowId) ?? null");
     expect(source).toContain("const options = resultShows.flatMap");
     expect(source).not.toContain("requestedShowId!");
   });
 
   it("scopes larger reads to exactly the selected public result edition and show", () => {
-    expect(source).toContain('.eq("show_id", selectedShow.id)');
-    expect(source).toContain('client.rpc("public_safe_participants"');
-    expect(source).toContain("_edition_id: selectedEdition.id");
-    expect(source).toContain('.eq("edition_id", selectedEdition.id)');
+    expect(source).toContain("loadV3PublishedResultSnapshot(selectedShow.id)");
+    expect(source).not.toContain('.from("results")');
+    expect(source).not.toContain("public_safe_participants");
+    expect(source).toContain('.eq("edition_id", snapshot.edition.id)');
     expect(source).toContain('.in("id", [...countryIds])');
     expect(source).not.toContain("useAllResults");
     expect(source).not.toContain("useAllParticipants");
@@ -50,13 +48,13 @@ describe("V3 Results root source contract", () => {
 
   it("retains canonical country identity separately from historical display identity", () => {
     expect(source).toContain("countryId: display.id");
-    expect(source).toContain("canonicalCountryId: row.country_id");
+    expect(source).toContain("canonicalCountryId: row.countryId");
   });
 
-  it("filters withdrawn and disqualified identities without deleting stored results", () => {
-    expect(source).toContain('participant.participation_status === "withdrawn"');
-    expect(source).toContain('participant.participation_status === "disqualified"');
-    expect(source).toContain("filterNonCompetingRows");
+  it("keeps captured historical identities independent of mutable participation state", () => {
+    expect(source).toContain("const rows = snapshot.rows");
+    expect(source).not.toContain("filterNonCompetingRows");
+    expect(source).not.toContain("participation_status");
   });
 
   it("keeps historical result queries bounded and non-polling", () => {
@@ -100,5 +98,16 @@ describe("V3 Results root source contract", () => {
     expect(archiveHook).toBeGreaterThan(legacyComponent);
     expect(gate).toContain("useV3ResultsBundle(selectedShowId, true)");
     expect(gate).toContain("if (!v3Enabled) return <>{fallback}</>");
+  });
+
+  it("uses the canonical immutable bundle on mobile and desktop web fallbacks as well", () => {
+    expect(route).toContain("const resultsQuery = useV3ResultsBundle(null, true)");
+    expect(route).toContain('resultBundle?.input.publication === "published"');
+    expect(route).toContain("resultBundle.input.rows");
+    expect(route).toContain("const latestShow = resultShows.find((show) => show.id === resultBundle?.input.showId)");
+    expect(route).toContain("new Map((resultBundle?.countries ?? []).map(");
+    expect(route).not.toContain("useAllResults");
+    expect(route).not.toContain("useAllParticipants");
+    expect(route).not.toContain("filterResultsToCompetingParticipants");
   });
 });
