@@ -6,20 +6,24 @@ on:
       - main
     paths:
       - "supabase/migrations/**"
-      - "supabase/functions/country-auth/**"
       - ".github/scripts/v3-account-session-management-rehearsal.sh"
-      - ".github/scripts/v3-password-recovery-rehearsal.sh"
-      - ".github/scripts/v3-password-recovery-readonly-rehearsal.sh"
-      - ".github/scripts/v3-country-auth-readonly-gate-checks.sh"
-      - ".github/scripts/v3-production-head-upgrade-rehearsal.sh"
+      - ".github/scripts/v3-account-session-authority-rehearsal.sh"
+      - ".github/tests/v3-account-session-authority.sql"
+      - ".github/tests/v3-account-session-authority-baseline.sql"
       - ".github/workflows/v3-account-session-management-rehearsal.yml"
       - "src/lib/v3-account-session-management.contract.test.ts"
-      - "src/lib/password-recovery-regression.test.ts"
-      - "src/lib/country-auth-readonly-rate-limit.test.ts"
-      - "src/lib/maintenance-hod-portal.ts"
-      - "src/lib/country-auth.ts"
-      - "src/routes/auth/**"
+      - "src/lib/v3-account-session-authority.contract.test.ts"
+      - "src/lib/v3-consequence-release-classification.ts"
+      - "supabase/functions/country-auth/**"
+      - "src/lib/country-auth-contract.test.ts"
+      - ".github/scripts/v3-start-disposable-supabase.sh"
+      - ".github/scripts/prepare-archive-local-config.py"
+      - ".github/scripts/v3-password-recovery*"
+      - ".github/scripts/v3-production-head-upgrade-rehearsal.sh"
   workflow_dispatch:
+
+env:
+  SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
 
 permissions:
   contents: read
@@ -32,20 +36,22 @@ jobs:
   clean-replay:
     name: Clean replay + account session checks
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: supabase/setup-cli@v1
         with:
           version: 2.113.0
-      - name: Clear stale local Supabase state
-        run: supabase stop --no-backup || true
       - name: Start isolated local Supabase
-        run: supabase start
+        run: bash .github/scripts/v3-start-disposable-supabase.sh
       - name: Rebuild complete migration chain
         run: supabase db reset --local --no-seed
       - name: Rehearse account session contract
         run: bash .github/scripts/v3-account-session-management-rehearsal.sh
+      - name: Rehearse account session canonical authority
+        run: bash .github/scripts/v3-account-session-authority-rehearsal.sh
       - name: Rehearse country password recovery in read-only
         env:
           RECOVERY_TRACE_FILE: ${{ runner.temp }}/recovery-traces/clean.log
@@ -61,6 +67,65 @@ jobs:
       - name: Stop isolated local Supabase
         if: always()
         run: supabase stop --no-backup || true
+
+  upgrade-from-main:
+    name: Current main upgrade + account session checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Prepare disposable current-main worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          git worktree add /tmp/solaris-account-session-main origin/main
+      - name: Build current main locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-account-session-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-start-disposable-supabase.sh"
+          supabase db reset --local --no-seed
+      - name: Prove pre-upgrade worker mutation authority locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-account-session-main
+          eval "$(supabase status -o env)"
+          case "$DB_URL" in postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;; *) echo "Refusing non-local authority baseline" >&2; exit 1 ;; esac
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/.github/tests/v3-account-session-authority-baseline.sql"
+      - name: Apply additive feature migration delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-copy-migration-delta.sh" "$GITHUB_WORKSPACE" /tmp/solaris-account-session-main
+          cd /tmp/solaris-account-session-main
+          supabase migration up --local --include-all
+      - name: Rehearse contract after current-main upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-account-session-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-account-session-management-rehearsal.sh"
+      - name: Rehearse canonical authority after current-main upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-account-session-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-account-session-authority-rehearsal.sh"
+      - name: Stop isolated local Supabase
+        if: always()
+        shell: bash
+        run: |
+          cd /tmp/solaris-account-session-main 2>/dev/null || exit 0
+          supabase stop --no-backup || true
 
   upgrade-from-production-head:
     name: Hosted production-head upgrade + account session checks
@@ -92,6 +157,10 @@ jobs:
         run: |
           set -euo pipefail
           bash .github/scripts/v3-account-session-management-rehearsal.sh
+      # Account mutation requires normal mode. The recovery rehearsal below
+      # intentionally finishes in read_only; do not invert these stages.
+      - name: Rehearse canonical authority after production-frontier upgrade
+        run: bash .github/scripts/v3-account-session-authority-rehearsal.sh
       - name: Rehearse password recovery in read-only after hosted production-head upgrade
         shell: bash
         env:
