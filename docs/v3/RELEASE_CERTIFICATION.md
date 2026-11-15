@@ -1,5 +1,9 @@
 # Solaris Studio V3 — Release certification ledger
 
+## 15 November 2026: System-owned Televote retirement source integration (#2531)
+
+After the independently checked #2529 main checkpoint, [#2531](https://github.com/solarissongcontest/solarisstudio/pull/2531) was merged to source `main` as **`49b022a698078937abdd0dabf522162d6421623b`**, from exact PR head `7c48a16fe172f2e2fd951b733e50d77aa5a2c9b4`. Exact-head S13, S14 recovery, S15, Quality, Browser, Public/Organizer, bundle-budget, stateful and main-freshness checks succeeded. The existing canonical `20261115000100_v3_televote_ballot_writer_retirement.sql` now participates in the System-owned isolated recovery driver **after S08 and before Results operation/CAS**; no new production migration or competing framework was invented. A missing RPC on the reconstructed 56-table local fixture is rebuilt only from historical source for disposable testing and is explicitly **not** complete hosted-body equivalence. The exact local proof verifies the legacy writer is retired and the checked ballot RPC retains its preflight permissions. Full S16 certification, actual production-data restoration and hosted adoption remain **UNVERIFIED / NO-GO**.
+
 **Status: NO-GO for official public release.** Source integration is not hosted migration, production deployment, voting activation or final contest certification. This record is not authority to perform those operations.
 
 ## 15 November 2026: independently refreshed N14 integrated-main security checkpoint
