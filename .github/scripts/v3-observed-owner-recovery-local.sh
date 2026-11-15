@@ -149,6 +149,13 @@ operator_apply supabase/migrations/20261115000100_v3_televote_ballot_writer_reti
 operator_sql -f - < .github/tests/v3-televote-ballot-authority.sql
 echo 'PASS: recovered S16 legacy service-role Televote writer retired and checked public ballot preflight preserved'
 source .github/scripts/v3-results-operation-recovery-local.sh
+# The scoped S02 database omits several historical publication command RPCs,
+# although exact owner/SECURITY DEFINER grants were independently observed
+# on hosted. Reconstruct immutable original functions only in the networkless
+# fixture. This is not a hosted recovery step or proof of body equivalence.
+node scripts/stage-v3-publication-canonical-local-fixture.mjs > /tmp/s16-publication-fixture.sql
+operator_apply /tmp/s16-publication-fixture.sql
+echo 'PASS: source-exact local publication RPC donor installed without overwriting existing functions'
 echo 'STAGE: close RLS-independent official API TRUNCATE grants after all canonical command cutovers'
 # Verify this expanded scope fails closed on unexpected privilege or RLS drift.
 # Clones remain inside the same networkless PG17.11 fixture, never production.
@@ -352,7 +359,7 @@ fs.writeFileSync('observed-owner-recovery-proof.json',JSON.stringify({
  juryLegacyApiDenied:true,juryGovernedReceiptReplayVerified:true,
  juryApiTableAndColumnDmlTruncateDenied:true,juryDraftCasAndReadbackVerified:true,
  signupAuthOwnerRaceAndRollbackVerified:true,
- sourceOnlyRuntimeDependencies:["televoting.integrity_sanction_matches"],
+ sourceOnlyRuntimeDependencies:["televoting.integrity_sanction_matches","publication.historical-command-source-fixture"],
  combinedApiAndOwnerWritesDisabled:true,combinedHistoricalDataAndReadsPreserved:true,
  s08ObservedNonSuperuserAndRestoredAuthorityVerified:true,
  reviewedInputCasInstalled:true,reviewedInputStaleIdentityDenialsVerified:true,
