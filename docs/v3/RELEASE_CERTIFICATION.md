@@ -2,6 +2,33 @@
 
 **Status: NO-GO for official public release.** Source integration is not hosted migration, production deployment, voting activation or final contest certification. This record is not authority to perform those operations.
 
+## 15 November 2026: independently refreshed N14 integrated-main security checkpoint
+
+**Exact observed `main` baseline: `98a963a58c04002733feb3b8ba8628892674c84c`.** This is the source tree independently checked after [#2528](https://github.com/solarissongcontest/solarisstudio/pull/2528), before this ledger-only change. The ledger commit necessarily creates a different Git SHA and must receive its own exact-head evidence. No claim of automatic certification transfers.
+
+**Source merges independently verified:** [#2526](https://github.com/solarissongcontest/solarisstudio/pull/2526) `c4bc078f02a7f9d755e77feb45c3d5160d9d92a1` (Confirmation edit-token authority), [#2527](https://github.com/solarissongcontest/solarisstudio/pull/2527) `09b55aa4de93e0bac81ee47ec54849603c1d1fd2` (Free-plan backup/restore prerequisites), and [#2528](https://github.com/solarissongcontest/solarisstudio/pull/2528) `98a963a58c04002733feb3b8ba8628892674c84c` (fourteen-table RLS-independent TRUNCATE closure in the existing forward-only System recovery candidate).
+
+**Independently verified exact-main CI on `98a963a...`:** [Quality #43715167873](https://github.com/solarissongcontest/solarisstudio/actions/runs/43715167873), [Browser Audit #43715167837](https://github.com/solarissongcontest/solarisstudio/actions/runs/43715167837), [S13 Adoption #43715167727](https://github.com/solarissongcontest/solarisstudio/actions/runs/43715167727), [S14 local recovery #43715167720](https://github.com/solarissongcontest/solarisstudio/actions/runs/43715167720), [Public/Organizer integration #43715167799](https://github.com/solarissongcontest/solarisstudio/actions/runs/43715167799), [PR freshness #43715167795](https://github.com/solarissongcontest/solarisstudio/actions/runs/43715167795): **all six completed successfully**. These are workflow execution outcomes, not zero S16 findings, release readiness or installed production effects.
+
+**Next independent security correction:** [#2529](https://github.com/solarissongcontest/solarisstudio/pull/2529), targeting the existing S16 Results DML stage, was **OPEN at this checkpoint**. Do not count its candidate or green jobs as merged into the above main; update this paragraph after actual integration. Its isolated PG17.11 job at candidate `a4248a2a358f6982e5870ff7a457c9d877c18595` passed nine actual API-role Results DML denials, 42 TRUNCATE denials, canonical Results readback/CAS and synthetic restore. Its two-job S14 workflow [#43716175692](https://github.com/solarissongcontest/solarisstudio/actions/runs/43716175692) completed successfully. Browser and other exact-head status must be rechecked before any merge.
+
+**Fresh bounded hosted metadata, no row access or mutations:** the Solaris Studio project `dkxmnvekiopyesuzggeu` remains PostgreSQL 17.11, with **497 recorded migrations ending at `20261101181812`**. The five S13 tables, seven registration/compatibility RPC names, two S13 indexes, selected two S07 source/context relations and Results v2 operation RPC are **ABSENT**. A governed Confirmation submission RPC is **PRESENT**. All fourteen source-protected tables are `postgres`-owned with RLS enabled; **each still exposes effective TRUNCATE to at least one API role** in hosted production. Nine expose effective INSERT/UPDATE/DELETE to all three `anon`, `authenticated`, `service_role` roles. Effective privilege does not establish successful hostile DML: policy and trigger execution still require behavioral qualification. It does establish that the source permission revocations are **not installed in production**.
+
+| Six separate release claims | Current observed status |
+| --- | --- |
+| 1. Source merged | #2526–#2528 YES at the exact merge SHAs above; #2529 NOT YET |
+| 2. Isolated tests passed | #2528 post-merge scoped CI YES; entire full-hosted-equivalent lifecycle NO |
+| 3. Hosted schema compatibility proven | NO; remaining absent/partial effects and incomplete reconstructed function/role/data parity |
+| 4. Hosted migration applied | NO; read-only metadata still shows missing effects and original migration tip |
+| 5. Active production application deployment | NOT VERIFIED; `wrangler versions upload` does not activate Worker traffic |
+| 6. Official contest submissions/voting activated | NO; neither approval nor activation performed |
+
+**Mandatory hard blockers stay open:** full S16 source/effective-database competing-writer audit (including normal writable mode), complete S13/S14 production-compatible effect reconciliation, clean **and recovered hosted-equivalent** 66-country full-contest rehearsal, authentic encrypted off-project production backup plus independently verified restore including Storage bytes and Auth/external configuration, server-side PUBLIC/TESTING/HIDDEN gating, essential Public/Organizer acceptance, and physical installed-iPhone acceptance. The original 14 November soft-launch scope remains binding. Unknown launch-critical effects are blockers, not technical debt.
+
+**NO-GO.** Separate approvals have **not** been granted for (a) hosted database migration, (b) active Cloudflare production promotion, or (c) official public voting/submissions activation. Keep maintenance and official writes closed. No synthetic rehearsal, workflow success or documentation edit substitutes for these approvals.
+
+---
+
 ## 15 November N14 source integration checkpoint (NO-GO; not a certificate)
 
 **Latest verified source-integrated main for this checkpoint:** `02296a51e6ce5c91734c93985b81c62674bf9f1e`. [System-owned PR #2525](https://github.com/solarissongcontest/solarisstudio/pull/2525) was squash-merged as this exact main SHA from tested PR head `475928b2f87c00745291d43ef9d3ee15df1b14d8`. This is a **source integration checkpoint**, not an exact-main release certificate. Any subsequent merge, including this document's merge, changes main and requires its own fan-in.
