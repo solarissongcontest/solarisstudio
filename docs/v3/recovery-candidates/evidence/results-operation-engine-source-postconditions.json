@@ -1,0 +1,30 @@
+[
+  {
+    "owner": "supabase_auth_admin",
+    "config": null,
+    "sha256": "7ce3ad8fb99f7ad5f5cd869fbd5479a6325e9444da472c26394cfa66c83b2d11",
+    "identity": "auth.jwt()",
+    "security_definer": false
+  },
+  {
+    "owner": "postgres",
+    "config": ["search_path=pg_catalog, public, private"],
+    "sha256": "41605b729caa11f6a1df109ae58e130dc62332777b0fd561c8e6d86966341d73",
+    "identity": "private.studio2_result_preconditions(uuid)",
+    "security_definer": true
+  },
+  {
+    "owner": "postgres",
+    "config": ["search_path=pg_catalog, public"],
+    "sha256": "8af5ba43c90f868aa092db3a9cb054b3d39be8c07562ba72d2226aada004abd6",
+    "identity": "public.recalculate_show_results_internal(uuid)",
+    "security_definer": true
+  },
+  {
+    "owner": "postgres",
+    "config": ["search_path=pg_catalog, public, private"],
+    "sha256": "09da1fe46f8551a83b2d40975e094eaed5107bc24a5bf62d83841153163b28fc",
+    "identity": "public.studio2_execute_result_operation(uuid,text,text,uuid,bigint)",
+    "security_definer": true
+  }
+]

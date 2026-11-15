@@ -83,6 +83,7 @@ operator_sql -f - < .github/tests/v3-result-authority-recovery.sql
 source .github/scripts/v3-result-public-api-local.sh
 source .github/scripts/v3-auth-jury-authority-local.sh
 source .github/scripts/v3-combined-deferral-local.sh
+source .github/scripts/v3-results-operation-recovery-local.sh
 echo 'PASS: entire ordered recovery executes as observed NONSUPERUSER postgres with real role/schema privileges'
 # A restore of synthetic local data proves this procedure, NOT availability,
 # freshness, retention or restorability of the separate real production backup.
@@ -114,6 +115,8 @@ const files=[
  '/tmp/s07-ordered-source.sql','/tmp/atomic-recovery.sql','/tmp/public-snapshot-recovery.sql','/tmp/result-authority-recovery.sql','/tmp/result-read-authority-recovery.sql',
  'supabase/migrations/20261114102706_v3_jury_governed_submission_cutover.sql',
  'supabase/migrations/20261114141934_v3_defer_combined_televote_database_writes.sql',
+ '/tmp/results-operation-engine.sql','/tmp/results-reviewed-cas.sql',
+ 'supabase/migrations/20261114194701_v3_results_operation_tables_owner_only.sql',
 ];
 const digest=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 fs.writeFileSync('observed-owner-recovery-proof.json',JSON.stringify({
@@ -128,6 +131,8 @@ fs.writeFileSync('observed-owner-recovery-proof.json',JSON.stringify({
  signupAuthOwnerRaceAndRollbackVerified:true,
  sourceOnlyRuntimeDependencies:["televoting.integrity_sanction_matches"],
  combinedApiAndOwnerWritesDisabled:true,combinedHistoricalDataAndReadsPreserved:true,
+ reviewedInputCasRecovered:true,resultOperationDirectApiWritesDenied:true,
+ legacyRecalculationFixture:'approved historical source variant, replaced before execution; not hosted equivalence',
  productionBackupVerified:false,hostedEquivalenceCertified:false,
  productionMutation:false,productionAuthorized:false,
 },null,2)+'\n',{flag:'wx'});

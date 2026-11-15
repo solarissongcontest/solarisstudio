@@ -1,0 +1,261 @@
+{
+  "tables": [
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxt/postgres}",
+      "rls": true,
+      "owner": "postgres",
+      "exists": true,
+      "identity": "public.studio2_result_operation_executions",
+      "force_rls": false,
+      "columns_md5": "51b54864a68d64a7fd542c7e867d6ded"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxt/postgres}",
+      "rls": true,
+      "owner": "postgres",
+      "exists": true,
+      "identity": "public.studio2_result_operations",
+      "force_rls": false,
+      "columns_md5": "8d8c132fdf46f5c4d1586d49df56b7d5"
+    }
+  ],
+  "database": "postgres",
+  "routines": [
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog, public, private"
+      ],
+      "exists": true,
+      "strict": false,
+      "execute": {
+        "anon": false,
+        "service_role": true,
+        "authenticated": false
+      },
+      "body_md5": "54e326bad8e11292787bef697b5b2033",
+      "identity": "private.studio2_can_preview_results(uuid,uuid)",
+      "language": "sql",
+      "parallel": "u",
+      "leakproof": false,
+      "volatility": "s",
+      "security_definer": true,
+      "definition_sha256": "01646f430145e6bd47c6c9b148d6edf67ea6b0665e0cd02ce070d3a1323fc258"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog, public, private"
+      ],
+      "exists": true,
+      "strict": false,
+      "execute": {
+        "anon": false,
+        "service_role": true,
+        "authenticated": false
+      },
+      "body_md5": "4a74eae84771bef8710a86f29be95832",
+      "identity": "private.studio2_can_verify_results(uuid,uuid)",
+      "language": "sql",
+      "parallel": "u",
+      "leakproof": false,
+      "volatility": "s",
+      "security_definer": true,
+      "definition_sha256": "b4beb19935295467c96f043ddec33651e12f9cee236fbda24028359c5d548c92"
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "config": null,
+      "exists": false,
+      "strict": null,
+      "execute": null,
+      "body_md5": null,
+      "identity": "private.studio2_result_preconditions_v3_base(uuid)",
+      "language": null,
+      "parallel": null,
+      "leakproof": null,
+      "volatility": null,
+      "security_definer": null,
+      "definition_sha256": null
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog, public, private"
+      ],
+      "exists": true,
+      "strict": false,
+      "execute": {
+        "anon": false,
+        "service_role": true,
+        "authenticated": false
+      },
+      "body_md5": "74606a9e59f6539ca6b30aeba3ad4d0a",
+      "identity": "private.studio2_result_preconditions(uuid)",
+      "language": "plpgsql",
+      "parallel": "u",
+      "leakproof": false,
+      "volatility": "s",
+      "security_definer": true,
+      "definition_sha256": "d2357be6464408adbce36cd1b0b1795876dcec767a42c70baa1dda30122619c0"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog, public, private"
+      ],
+      "exists": true,
+      "strict": false,
+      "execute": {
+        "anon": false,
+        "service_role": true,
+        "authenticated": false
+      },
+      "body_md5": "02d245e7184648cb0a014bc3b196ff05",
+      "identity": "private.studio2_user_access_allowed(uuid,text,uuid,boolean)",
+      "language": "sql",
+      "parallel": "u",
+      "leakproof": false,
+      "volatility": "s",
+      "security_definer": true,
+      "definition_sha256": "9d0cac19e00963bad68ff6b4314367d35543bb4ee6f4857a50db72636d03c80f"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=public"
+      ],
+      "exists": true,
+      "strict": false,
+      "execute": {
+        "anon": false,
+        "service_role": true,
+        "authenticated": false
+      },
+      "body_md5": "62895f5aa9f48fbcaafbb1905cc967be",
+      "identity": "public.materialize_show_results_if_missing(uuid)",
+      "language": "plpgsql",
+      "parallel": "u",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true,
+      "definition_sha256": "042bee9d728f85b582a4f64467c81508cb63190240349b18b947d9a4f204c4a5"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=public"
+      ],
+      "exists": true,
+      "strict": false,
+      "execute": {
+        "anon": false,
+        "service_role": true,
+        "authenticated": false
+      },
+      "body_md5": "9c46fca2bda9b893e3dda3ddfdcf62b5",
+      "identity": "public.recalculate_show_results_internal(uuid)",
+      "language": "plpgsql",
+      "parallel": "u",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true,
+      "definition_sha256": "c1a10ba4df138d29075349550cc8271721e39932ac5aae358567124add32c9e0"
+    },
+    {
+      "acl": null,
+      "owner": null,
+      "config": null,
+      "exists": false,
+      "strict": null,
+      "execute": null,
+      "body_md5": null,
+      "identity": "public.studio2_execute_result_operation_v3_base(uuid,text,text,uuid,bigint)",
+      "language": null,
+      "parallel": null,
+      "leakproof": null,
+      "volatility": null,
+      "security_definer": null,
+      "definition_sha256": null
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog, public, private"
+      ],
+      "exists": true,
+      "strict": false,
+      "execute": {
+        "anon": false,
+        "service_role": true,
+        "authenticated": true
+      },
+      "body_md5": "bc4bc7c889f7a74bbddbb25fb57b74dc",
+      "identity": "public.studio2_execute_result_operation(uuid,text,text,uuid,bigint)",
+      "language": "plpgsql",
+      "parallel": "u",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true,
+      "definition_sha256": "eac037e7384a68aa36a939f2cb5cedd490329255f576364e2dc0cbde7841ff47"
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog, public, private"
+      ],
+      "exists": true,
+      "strict": false,
+      "execute": {
+        "anon": false,
+        "service_role": true,
+        "authenticated": true
+      },
+      "body_md5": "cb4ea52121d03379d944a5e6d401f0e0",
+      "identity": "public.studio2_results_operations_snapshot(uuid)",
+      "language": "plpgsql",
+      "parallel": "u",
+      "leakproof": false,
+      "volatility": "s",
+      "security_definer": true,
+      "definition_sha256": "9601259942d5989e2e98cc1f7e0374ef0b44b360679363c81a742bc6f69b109e"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=televoting, pg_temp"
+      ],
+      "exists": true,
+      "strict": false,
+      "execute": {
+        "anon": false,
+        "service_role": true,
+        "authenticated": false
+      },
+      "body_md5": "e3a092899cf196fc73a3fa07226d36c0",
+      "identity": "televoting.integrity_sanction_matches(text,uuid,text,text,uuid,text,text)",
+      "language": "sql",
+      "parallel": "u",
+      "leakproof": false,
+      "volatility": "i",
+      "security_definer": false,
+      "definition_sha256": "e67ad192a722627b265d5f5b3cb5544c90fcc722ad181940a76f12cd08f5e823"
+    }
+  ],
+  "read_only": "on",
+  "observedAt": "2026-11-14T14:58:38.910841+00:00",
+  "projectRef": "dkxmnvekiopyesuzggeu",
+  "server_version_num": "170011",
+  "applicationRowsRead": false,
+  "rawFunctionBodiesExported": false
+}
