@@ -34,8 +34,8 @@ read_contract() {
     select string_agg(
       tab || ':' || api_role || ':' || has_table_privilege(api_role,tab,'SELECT')::text,
       '|' order by tab,api_role)
-    from unnest(array['public.submissions','public.edit_tokens']) as tab
-    cross join unnest(array['anon','authenticated','service_role']) as api_role;"
+    from unnest(array['public.submissions','public.edit_tokens']) as tables(tab)
+    cross join unnest(array['anon','authenticated','service_role']) as roles(api_role);"
 }
 source_select_before="$(read_contract)"
 # This is a local permission-effect rehearsal, not installation of the full
