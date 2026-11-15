@@ -73,6 +73,32 @@ insert into public.studio2_capability_grants(user_id,capability,edition_id) valu
 ('71000000-0000-4000-8000-000000000001','publishing.manage','51000000-0000-4000-8000-000000000001'),
 ('71000000-0000-4000-8000-000000000001','publishing.publish','51000000-0000-4000-8000-000000000001');
 SQL
+# The S02 hosted-observed schema fixture is intentionally data-scoped and has
+# no platform-operational state row. Seed ONLY this disposable publication probe,
+# never the shared baseline or hosted environment. Refuse an existing non-normal
+# state rather than silently overwriting any operational safety control.
+pub_owner_sql -f - <<'SQL'
+do $fixture_mode$
+begin
+  if to_regclass('public.studio2_platform_operational_state') is null then
+    raise exception 'S16 publication probe missing platform state schema';
+  end if;
+  if not exists (
+    select 1 from public.studio2_platform_operational_state
+    where singleton = true
+  ) then
+    insert into public.studio2_platform_operational_state(
+      singleton, mode, version, reason
+    ) values (true, 'normal', 1, 'S16 disposable publication probe');
+  end if;
+  if not exists (
+    select 1 from public.studio2_platform_operational_state
+    where singleton = true and mode = 'normal'
+  ) then
+    raise exception 'S16 publication probe refuses non-normal platform mode';
+  end if;
+end $fixture_mode$;
+SQL
 before_publication_probe="$(operator_state_digest recovery_publication_api_probe)"
 # A REAL authenticator session assumes an authenticated API role with a fresh
 # local Auth session. The governed RPC must still change publication state,
