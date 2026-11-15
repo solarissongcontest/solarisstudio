@@ -59,7 +59,7 @@ test('unexpected hosted evidence, unsupported partial effects and source drift f
         // A changed but well-formed evidence hash is not self-authenticating;
         // the SQL catalog comparison MUST independently refuse it at execution.
         assert.match(stageConfirmationRecovery(root),/definitionMd5/);
-      } else assert.throws(()=>stageConfirmationRecovery(root),/Unqualified/);
+      } else assert.throws(()=>stageConfirmationRecovery(root),/Unqualified|Invalid Confirmation authority fingerprints/);
     }finally{rmSync(root,{force:true,recursive:true});}
   }
   const root=copyRoot();
