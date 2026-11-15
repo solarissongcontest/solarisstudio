@@ -80,6 +80,13 @@ begin
     or to_regclass('public.studio2_show_publication_executions') is null then
    raise exception 'S16 publication donor requires reviewed PG17 non-superuser local fixture' using errcode='55000';
  end if;
+ -- The donor is not a migration. On this *scoped* fixture the two commands
+ -- must BOTH be absent; a repeat or partial installation must not pass
+ -- the recovery runner's interrupted/duplicate-release evidence.
+ if to_regprocedure('${applySig}') is not null
+    or to_regprocedure('${dueSig}') is not null then
+   raise exception 'S16 publication donor already installed or partial; refuse repeat' using errcode='55000';
+ end if;
 end $fixture_gate$;
 ${chunks.join("\n")}
 do $fixture_verify$
