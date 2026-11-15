@@ -107,6 +107,26 @@ operator_apply docs/v3/recovery-candidates/s08-televote-single-writer-local.sql
 operator_sql -f - < .github/tests/v3-ordered-televote-s08-recovery.sql
 echo 'PASS: complete non-superuser owner recovery adopts S08 after Result/Combined safeguards'
 source .github/scripts/v3-results-operation-recovery-local.sh
+echo 'STAGE: close RLS-independent official API TRUNCATE grants after all canonical command cutovers'
+operator_apply docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql
+# Exercise SQL as actual API principals, not only catalog predicates. A denial
+# must be PostgreSQL permission-denied, never an FK or role-switch error.
+for s16_actor in anon authenticated service_role; do
+  for s16_table in public.submissions public.edit_tokens public.televote_votes televoting.televote_aggregations; do
+    if docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U authenticator -d recovery_operator_baseline \
+      -c "begin; set local role $s16_actor; truncate table $s16_table; rollback;" \
+      > /tmp/s16-api-truncate.log 2>&1; then
+      echo "S16 direct TRUNCATE unexpectedly succeeded: $s16_actor $s16_table" >&2
+      exit 1
+    fi
+    if ! grep -qi 'permission denied for table' /tmp/s16-api-truncate.log; then
+      echo "S16 role probe did not prove table permission denial: $s16_actor $s16_table" >&2
+      tail -n 20 /tmp/s16-api-truncate.log >&2
+      exit 1
+    fi
+  done
+done
+echo 'PASS: twelve actual API-role TRUNCATE attempts denied without changes to canonical operation grants'
 echo 'PASS: entire ordered recovery executes as observed NONSUPERUSER postgres with real role/schema privileges'
 # A restore of synthetic local data proves this procedure, NOT availability,
 # freshness, retention or restorability of the separate real production backup.
@@ -151,6 +171,7 @@ const files=[
  'docs/v3/recovery-candidates/s08-televote-single-writer-local.sql',
  '/tmp/results-operation-engine.sql','/tmp/results-reviewed-cas.sql',
  'supabase/migrations/20261114194701_v3_results_operation_tables_owner_only.sql',
+ 'docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql',
 ];
 const digest=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 fs.mkdirSync('ordered-recovery-sql',{recursive:true});
@@ -170,6 +191,7 @@ fs.writeFileSync('observed-owner-recovery-proof.json',JSON.stringify({
  schemaAndSyntheticRowsPreserved:true,separateLocalRestoreVerified:true,
  confirmationGovernedCommandsInstalled:true,confirmationLegacyApiExecuteDenied:true,
  confirmationPositiveLifecycleVerified:false,confirmationParentBodiesSourceOnly:true,
+ s16ConfirmationTelevoteTruncateApiRoleDenied:true,s16FullCriticalWriterCertified:false,
  juryLegacyApiDenied:true,juryGovernedReceiptReplayVerified:true,
  juryApiTableAndColumnDmlTruncateDenied:true,juryDraftCasAndReadbackVerified:true,
  signupAuthOwnerRaceAndRollbackVerified:true,
