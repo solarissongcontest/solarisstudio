@@ -21,6 +21,7 @@ on:
       - "scripts/stage-v3-results-operation-*.mjs"
       - "scripts/stage-v3-results-reviewed-cas-recovery.mjs"
       - "scripts/v3-results-operation-recovery.test.mjs"
+      - "scripts/v3-jury-table-authority.test.mjs"
       - ".github/scripts/v3-results-operation-*.sh"
       - ".github/tests/v3-results-*-local.sql"
       - ".github/tests/v3-results-operation-role-denial.sql"
@@ -42,6 +43,7 @@ on:
       - ".github/tests/v3-jury-governed-cutover-*.sql"
       - "scripts/stage-v3-signup-jury-prerequisites-local.mjs"
       - "supabase/migrations/20261114102706_v3_jury_governed_submission_cutover.sql"
+      - "supabase/migrations/20261115084647_v3_jury_canonical_table_authority.sql"
       - ".github/scripts/v3-combined-deferral-local.sh"
       - ".github/tests/v3-combined-deferral-*.sql"
       - "supabase/migrations/20261114141934_v3_defer_combined_televote_database_writes.sql"
@@ -298,7 +300,7 @@ jobs:
       - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
         run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
       - name: Verify bounded catalog export and drift refusals
-        run: node --test scripts/v3-results-operation-recovery.test.mjs scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs scripts/stage-v3-public-snapshot-recovery.test.mjs scripts/stage-v3-auth-uid-authority-local.test.mjs scripts/stage-v3-atomic-calculation-recovery.test.mjs scripts/stage-v3-hosted-api-roles-local.test.mjs scripts/stage-v3-recovery-owner-local.test.mjs scripts/stage-v3-result-authority-recovery.test.mjs scripts/stage-v3-result-read-authority-recovery.test.mjs
+        run: node --test scripts/v3-jury-table-authority.test.mjs scripts/v3-results-operation-recovery.test.mjs scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs scripts/stage-v3-public-snapshot-recovery.test.mjs scripts/stage-v3-auth-uid-authority-local.test.mjs scripts/stage-v3-atomic-calculation-recovery.test.mjs scripts/stage-v3-hosted-api-roles-local.test.mjs scripts/stage-v3-recovery-owner-local.test.mjs scripts/stage-v3-result-authority-recovery.test.mjs scripts/stage-v3-result-read-authority-recovery.test.mjs
       - name: Test authorization dependency reconstruction and incomplete-manifest refusal
         run: node --test scripts/v3-s13-s14-authorization-dependencies.test.mjs
       - name: Assert all-hosted catalog digests and incomplete-fixture rejection (offline only)
