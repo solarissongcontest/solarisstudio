@@ -1,5 +1,32 @@
 # Solaris Studio V3 — Release certification ledger
 
+## 15 November 2026: post-#2530 real-backup prerequisite check (NO-GO)
+
+**Integrated source at start of this inspection:** `c5073e7394799786430b4b272bbdd12efeebf022`. [#2530](https://github.com/solarissongcontest/solarisstudio/pull/2530) merged the existing operator package and this ledger after the exact PR head `b5b236771302415c2693fa4f459c0b20eb5d9176` passed the six applicable workflows (S13, S15, Quality, Browser, bundle budget and main freshness). [#2531](https://github.com/solarissongcontest/solarisstudio/pull/2531) was already integrated as `49b022a698078937abdd0dabf522162d6421623b`. This documentation-only follow-up does **not** carry forward an exact-main certificate to its eventual merge SHA.
+
+**Read-only connected production verification:** Primary Supabase project `dkxmnvekiopyesuzggeu` ("Solaris Studio") returned `ACTIVE_HEALTHY`, `eu-central-1`, PostgreSQL `17.11.0.002`. Supabase listed **497** migration records, ending `20261101181812`. A bounded `pg_namespace`/`pg_class` metadata query identified **149 `public`**, **13 `private`**, **26 `televoting`**, **27 `auth`**, **10 `storage`**, **1 `supabase_migrations`** and **1 `vault`** table identities, plus provider-managed `cron`, `net` and `realtime` schemas. Edge Function metadata listed **15** deployed function identities. **No private rows, votes, file bytes, credentials, or SQL mutations were requested.** These are catalog counts, **not restored row counts**.
+
+**New documented operational gap:** the five-schema scoped `pg_dump` template does **not** include `supabase_migrations` or `vault`; provider-managed schedules/network/realtime and actual Storage bytes also require explicit handling. The **existing** [N14 operator package](recovery-candidates/n14-integrated-recovery-operator-package.md) is amended with the schema-scope classification, official Supabase migration-history and Storage guides, version/TOC/permissions checks, encryption and external-configuration gates, and explicit FAIL-CLOSED acceptance. It remains an operator-only **conditional example**, not a completed export. No migration source or recovery driver was modified.
+
+| Recovery/launch evidence requirement | Actual result |
+| --- | --- |
+| Production identity, PG version, schema identities and hosted migration metadata | **VERIFIED READ-ONLY**, bounded scope |
+| Secure owner-controlled operator workstation and tools | **NOT VERIFIED / NOT AVAILABLE THROUGH CONNECTORS** |
+| Owner authorization for private production export | **NOT GRANTED** |
+| Real PostgreSQL, role/history and encrypted off-project backup | **NOT CREATED** |
+| Real Storage object bytes and checksum-preserving restore | **NOT RUN** |
+| Auth provider, Edge Functions, Vault root and secret restoration | **NOT PROVEN** |
+| Independent production-derived database restoration | **NOT RUN** |
+| Official vote/Results counts, digests and historical parity on restored data | **NOT RUN** |
+| Exact production-derived V3 migration rehearsal and positive/negative role tests | **NOT RUN** |
+| System local synthetic source recovery | **PREVIOUSLY PASSED WITH SCOPED EVIDENCE**, not real backup proof |
+| Full S13/S14/S15/S16 release and exact-final-main certification | **NOT CERTIFIED** |
+| Hosted production migration; Worker promotion; official voting activation | **NOT STARTED / NOT AUTHORIZED** |
+
+**Release decision: NO-GO.** No paid backup plan is necessary to attempt an explicitly authorized, owner-managed manual logical export. The actual operator must privately confirm scope, project, retention, encryption, off-project location, consistent recovery point and separate isolated target; the current connected tools have no secure production dump/export-to-trusted-workstation action. This ledger update must not be mistaken for proof of a backup or restoration.
+
+---
+
 ## 15 November 2026: System-owned Televote retirement source integration (#2531)
 
 After the independently checked #2529 main checkpoint, [#2531](https://github.com/solarissongcontest/solarisstudio/pull/2531) was merged to source `main` as **`49b022a698078937abdd0dabf522162d6421623b`**, from exact PR head `7c48a16fe172f2e2fd951b733e50d77aa5a2c9b4`. Exact-head S13, S14 recovery, S15, Quality, Browser, Public/Organizer, bundle-budget, stateful and main-freshness checks succeeded. The existing canonical `20261115000100_v3_televote_ballot_writer_retirement.sql` now participates in the System-owned isolated recovery driver **after S08 and before Results operation/CAS**; no new production migration or competing framework was invented. A missing RPC on the reconstructed 56-table local fixture is rebuilt only from historical source for disposable testing and is explicitly **not** complete hosted-body equivalence. The exact local proof verifies the legacy writer is retired and the checked ballot RPC retains its preflight permissions. Full S16 certification, actual production-data restoration and hosted adoption remain **UNVERIFIED / NO-GO**.
