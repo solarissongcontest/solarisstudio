@@ -1,5 +1,17 @@
 # Solaris Studio V3 — Release certification ledger
 
+## 15 November 2026: independent historical-project classification (NO BACKUP FALLBACK)
+
+The older connected Supabase project `ukjfjxlqmqkxgaspdmdn` was investigated using **bounded, read-only catalog and Storage metadata**. It is active on PostgreSQL 17.6, but its **44 public tables describe a study-planning application**, including `courses`, `study_sessions`, `question_bank`, `mastery_evidence`, and `exams`. It has **no** `public.editions`, `public.shows`, `public.jury_votes`, `public.televote_votes`, or `public.results` table. Its Storage catalog has **zero buckets and zero object metadata rows**. The project therefore cannot protect or restore historical Solaris official Results or votes. **Preserve it untouched**: it may contain independent study-planner records, and must not be reset/reused for V3.
+
+Independent bounded production checks identify `public.editions`, `public.results`, `public.jury_votes`, `public.televote_votes` and six Storage buckets in `dkxmnvekiopyesuzggeu`. A separate catalog permission check confirms that several live official tables still grant `TRUNCATE` to API principals even with RLS enabled. RLS does not govern TRUNCATE; the isolated S16 cutover is not yet applied to production. This is a verified current **NO-GO**, not a license to bypass the backup requirement.
+
+The System-owned 17-stage recovery artifact for `7c48a16fe172f2e2fd951b733e50d77aa5a2c9b4` is available from [networkless PG17.11 job 43718724100](https://github.com/solarissongcontest/solarisstudio/actions/runs/43718724100). All 17 `orderedStages` entries were rehashed from its original ZIP against the embedded SHA-256 manifest, with **17/17 matches**. A GitHub compare of that source SHA through the post-#2533 main `e4943216418063fcb48351e8a88cf4d7c4b65e24` showed modifications in **only this ledger and the existing operator package**, not the recovery driver or any stage SQL source. This proves unchanged stage bytes for that comparison window, **not** an exact-new-main PG17 rerun, a production-derived rehearsal, or full S16 certification. Preserve the CI artifact's original `sourceSha`; never relabel its run as having executed on a later commit.
+
+**Backup and release:** actual export NONE; isolated production restore NOT RUN; historical fallback NONE; production SQL NOT APPROVED / NOT EXECUTED; public release NO-GO.
+
+---
+
 ## 15 November 2026: post-#2530 real-backup prerequisite check (NO-GO)
 
 **Integrated source at start of this inspection:** `c5073e7394799786430b4b272bbdd12efeebf022`. [#2530](https://github.com/solarissongcontest/solarisstudio/pull/2530) merged the existing operator package and this ledger after the exact PR head `b5b236771302415c2693fa4f459c0b20eb5d9176` passed the six applicable workflows (S13, S15, Quality, Browser, bundle budget and main freshness). [#2531](https://github.com/solarissongcontest/solarisstudio/pull/2531) was already integrated as `49b022a698078937abdd0dabf522162d6421623b`. This documentation-only follow-up does **not** carry forward an exact-main certificate to its eventual merge SHA.
