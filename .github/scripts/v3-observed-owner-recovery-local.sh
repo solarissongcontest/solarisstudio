@@ -127,6 +127,33 @@ operator_sql -f - < .github/tests/v3-ordered-televote-s08-recovery.sql
 echo 'PASS: complete non-superuser owner recovery adopts S08 after Result/Combined safeguards'
 source .github/scripts/v3-results-operation-recovery-local.sh
 echo 'STAGE: close RLS-independent official API TRUNCATE grants after all canonical command cutovers'
+# Verify this expanded scope fails closed on unexpected privilege or RLS drift.
+# Clones remain inside the same networkless PG17.11 fixture, never production.
+for s16_drift in extra_grant disabled_rls; do
+  s16_probe="s16_${s16_drift}"
+  operator_sql -c "create database ${s16_probe} owner postgres template recovery_operator_baseline;"
+  case "$s16_drift" in
+    extra_grant)
+      s16_drift_statement='grant truncate on table public.studio2_upload_authorizations to authenticated;'
+      s16_expected_error='S16 unexpected TRUNCATE role authority'
+      ;;
+    disabled_rls)
+      s16_drift_statement='alter table public.editions disable row level security;'
+      s16_expected_error='S16 unqualified RLS-protected official table'
+      ;;
+  esac
+  docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d "$s16_probe" -c "$s16_drift_statement"
+  s16_before="$(operator_state_digest "$s16_probe")"
+  if docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d "$s16_probe" \
+    -f - < docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql \
+    > /tmp/s16-drift-preflight.log 2>&1; then
+    echo "ERROR: S16 accepted unreviewed ${s16_drift} drift" >&2; exit 1
+  fi
+  grep -Fq "$s16_expected_error" /tmp/s16-drift-preflight.log || { cat /tmp/s16-drift-preflight.log; exit 1; }
+  [[ "$(operator_state_digest "$s16_probe")" == "$s16_before" ]] || { echo 'S16 drift rejection changed schema/data'; exit 1; }
+  operator_sql -c "drop database ${s16_probe};"
+done
+echo 'PASS: S16 preflight rejects unreviewed RLS and API TRUNCATE role drift atomically'
 operator_apply docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql
 # Exercise SQL as actual API principals, not only catalog predicates. A denial
 # must be PostgreSQL permission-denied, never an FK or role-switch error.
