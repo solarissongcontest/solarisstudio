@@ -152,15 +152,33 @@ begin
 end $publication$;
 rollback;
 SQL
-if [[ "$(operator_state_digest recovery_publication_api_probe)" != "$before_publication_probe" ]]; then
-  echo 'Publication probe changed durable fixture state; synthetic pg_dump delta:' >&2
-  pub_dump > /tmp/s16-publication-probe-after.sql
-  diff -u /tmp/s16-publication-probe-before.sql /tmp/s16-publication-probe-after.sql | head -n 120 >&2 || true
-  exit 1
-fi
+# PostgreSQL nextval() is deliberately non-transactional: canonical
+# publication audit allocates exactly one synthetic admin audit identifier,
+# even when the command's transaction rolls back. Compare entire pg_dump
+# schema/data while allowing ONLY that observed, bounded sequence transition.
+pub_dump > /tmp/s16-publication-probe-after.sql
+python3 - <<'PYSEQ'
+from pathlib import Path
+import difflib
+import sys
+before = Path('/tmp/s16-publication-probe-before.sql').read_text()
+after = Path('/tmp/s16-publication-probe-after.sql').read_text()
+old_seq = "SELECT pg_catalog.setval('public.admin_audit_log_id_seq', 1, false);"
+new_seq = "SELECT pg_catalog.setval('public.admin_audit_log_id_seq', 1, true);"
+if before.count(old_seq) != 1 or after.count(new_seq) != 1:
+    raise SystemExit('S16 publication rollback unexpected audit-sequence state')
+normalized_after = after.replace(new_seq, old_seq, 1)
+if normalized_after != before:
+    print('S16 publication rollback changed data/schema beyond the single audited sequence advance', file=sys.stderr)
+    for line in list(difflib.unified_diff(before.splitlines(), normalized_after.splitlines()))[:120]:
+        print(line, file=sys.stderr)
+    raise SystemExit(1)
+print('PASS: publication rollback preserved schema/data, with only the expected nontransactional audit-sequence advance')
+PYSEQ
+after_publication_probe="$(operator_state_digest recovery_publication_api_probe)"
 # The scheduled publisher remains exposed ONLY through its explicit
 # service_role EXECUTE grant; revoked table DML must not prevent invocation.
 pub_client_sql -c 'begin; set local role service_role; select public.studio2_publish_due_show_publications(); rollback;' > /tmp/s16-due-publication.log
-[[ "$(operator_state_digest recovery_publication_api_probe)" == "$before_publication_probe" ]] || { echo 'Due-publication probe changed durable fixture state' >&2; exit 1; }
+[[ "$(operator_state_digest recovery_publication_api_probe)" == "$after_publication_probe" ]] || { echo 'Due-publication probe changed durable fixture state' >&2; exit 1; }
 operator_sql -c 'drop database recovery_publication_api_probe;'
 echo 'PASS: authenticated canonical publication, replay and service-role due operation retain owner authority after API DML cutover'
