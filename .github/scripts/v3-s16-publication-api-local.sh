@@ -6,6 +6,11 @@ set -euo pipefail
 [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
 operator_sql -c 'create database recovery_publication_api_probe owner postgres template recovery_operator_baseline;'
 pub_owner_sql() { docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d recovery_publication_api_probe "$@"; }
+# Supabase Auth parent tables are owned outside the reviewed non-superuser
+# postgres migration role. Only synthetic user/session seeding uses the
+# already-provisioned isolated bootstrap owner; all cutover and real API-role
+# behavior remains under the non-superuser/operator/authenticator roles.
+pub_bootstrap_sql() { docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U solaris_recovery_bootstrap -d recovery_publication_api_probe "$@"; }
 pub_client_sql() { docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U authenticator -d recovery_publication_api_probe "$@"; }
 # Seed the SAME historical/publication fixture as the Results RLS proof,
 # without weakening the saved test expectations or changing its upstream file.
@@ -22,11 +27,13 @@ if source.count('update public.shows set published=true')!=1:
 print(source+'commit;')
 PYSEED
 pub_owner_sql -f - < /tmp/s16-publication-prepare.sql
-pub_owner_sql -f - <<'SQL'
+pub_bootstrap_sql -f - <<'SQL'
 insert into auth.users(id,aud,role,email,created_at,updated_at)
 values('71000000-0000-4000-8000-000000000001','authenticated','authenticated','publication-s16@local.invalid',now(),now());
 insert into auth.sessions(id,user_id,created_at,updated_at,aal,not_after)
 values('71000000-0000-4000-8000-000000000002','71000000-0000-4000-8000-000000000001',now(),now(),'aal1',now()+interval '1 hour');
+SQL
+pub_owner_sql -f - <<'SQL'
 insert into public.studio2_capability_grants(user_id,capability,edition_id) values
 ('71000000-0000-4000-8000-000000000001','publishing.manage','51000000-0000-4000-8000-000000000001'),
 ('71000000-0000-4000-8000-000000000001','publishing.publish','51000000-0000-4000-8000-000000000001');
