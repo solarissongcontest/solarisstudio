@@ -38,7 +38,11 @@ PYOWNER
   if operator_sql -f - < /tmp/owner-interrupted.sql > /tmp/owner-interrupted.log 2>&1; then
     echo 'ERROR: interrupted owner installation committed'; exit 1
   fi
-  grep -Fq 'SOLARIS_OWNER_INTERRUPTION' /tmp/owner-interrupted.log
+  if ! grep -Fq 'SOLARIS_OWNER_INTERRUPTION' /tmp/owner-interrupted.log; then
+    echo "ERROR: unexpected owner interruption failure in $owner_candidate" >&2
+    tail -n 35 /tmp/owner-interrupted.log >&2
+    exit 1
+  fi
   [[ "$(operator_state_digest)" == "$owner_before" ]] || { echo 'Owner interruption changed schema/data'; exit 1; }
   operator_sql -f - < "$owner_candidate"
   owner_after="$(operator_state_digest)"
@@ -53,10 +57,13 @@ operator_apply docs/v3/recovery-candidates/forward-only-s14-archive-integrated-l
 # Restore already-merged Confirmation command authority on the SAME observed-owner
 # local database. Source-only missing-parent reconstruction must first match
 # fresh hosted catalog fingerprints; an unknown function cannot be invented.
+echo 'STAGE: reconstruct scoped Confirmation hosted prerequisites (local-only)'
 node scripts/stage-v3-confirmation-prerequisites-local.mjs > /tmp/confirmation-parents.sql
 operator_sql -f - < /tmp/confirmation-parents.sql
+echo 'STAGE: Confirmation prerequisites matched; installing governed cutover'
 node scripts/stage-v3-confirmation-access-recovery.mjs > /tmp/confirmation-access-recovery.sql
 operator_apply /tmp/confirmation-access-recovery.sql
+echo 'PASS: Confirmation governed cutover installed in observed-owner recovery'
 operator_sql -f - < .github/scripts/v3-confirmation-legacy-writer-denial.sql
 
 operator_apply /tmp/s07-ordered-source.sql
