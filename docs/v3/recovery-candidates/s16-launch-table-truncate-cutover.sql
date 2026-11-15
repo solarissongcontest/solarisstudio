@@ -23,7 +23,7 @@ begin
     or to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is null
     or to_regprocedure('public.studio2_apply_confirmation_response_access_change(uuid,uuid,text,jsonb,text,uuid,text,bigint)') is null
     or to_regprocedure('private.v3_guard_source_managed_televote_projection()') is null
-    or to_regprocedure('public.studio2_execute_result_operation_v2(uuid,text,text,uuid,bigint)') is null then
+    or to_regprocedure('public.studio2_execute_result_operation_v2(uuid,text,text,uuid,bigint,bigint,uuid,uuid)') is null then
     raise exception 'S16 TRUNCATE cutover requires reviewed complete recovery owner and canonical operations' using errcode='55000';
  end if;
  if exists(select 1 from private.v3_migration_contracts where migration_key='v3.s16.launch-table-truncate-cutover') then
@@ -86,7 +86,7 @@ begin
    end if;
  end loop;
  if to_regprocedure('public.studio2_apply_confirmation_response_access_change(uuid,uuid,text,jsonb,text,uuid,text,bigint)') is null
-    or to_regprocedure('public.studio2_execute_result_operation_v2(uuid,text,text,uuid,bigint)') is null then
+    or to_regprocedure('public.studio2_execute_result_operation_v2(uuid,text,text,uuid,bigint,bigint,uuid,uuid)') is null then
     raise exception 'S16 cutover lost canonical command identity' using errcode='55000';
  end if;
 end
