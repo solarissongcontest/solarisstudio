@@ -34,6 +34,9 @@ describe("S16 public Televote ballot canonical source and legacy retirement", ()
     });
     expect(safe).toContain("LOCAL-ONLY historical-source donor");
     expect(safe).toContain("create or replace function televoting.submit_vote(");
+    expect(safe).toContain("create or replace function televoting.submit_vote_checked(");
+    expect(safe).toContain("Review this ballot with the automatic voting integrity check");
+    expect(safe).toContain("S16 scoped fixture missing observed RLS-protected preflight relation");
     expect(safe).toContain("insert into televoting.vote_submissions(");
     expect(safe).toContain("S16 legacy ballot fixture refuses to overwrite a present RPC");
     expect(safe).toContain("commit;");
