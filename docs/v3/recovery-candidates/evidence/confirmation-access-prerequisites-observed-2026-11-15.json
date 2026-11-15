@@ -1,0 +1,168 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-11-15",
+  "projectRef": "dkxmnvekiopyesuzggeu",
+  "serverVersionNum": "170011",
+  "readOnly": true,
+  "applicationRowsRead": false,
+  "rawFunctionBodiesExported": false,
+  "migrationHead": "20261101181812",
+  "existingFunctions": [
+    {
+      "identity": "public.admin_confirmation_create_edit_token(uuid,text,integer)",
+      "definitionMd5": "79dd055015e3f4c69e00cc5a9e2463fa",
+      "owner": "postgres",
+      "securityDefiner": true,
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": [
+        "search_path=pg_catalog, public, private, extensions"
+      ]
+    },
+    {
+      "identity": "public.admin_confirmation_revoke_edit_token(uuid)",
+      "definitionMd5": "c8ccfd1f231b85f7a6bc6d70e9aa2ade",
+      "owner": "postgres",
+      "securityDefiner": true,
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": [
+        "search_path=pg_catalog, public, private"
+      ]
+    },
+    {
+      "identity": "public.admin_confirmation_delete_response(uuid)",
+      "definitionMd5": "6973a26fa0dbd6866a163dbddf92b1bc",
+      "owner": "postgres",
+      "securityDefiner": true,
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": [
+        "search_path=pg_catalog, public, private"
+      ]
+    },
+    {
+      "identity": "public.admin_update_confirmation_controls(uuid,boolean,boolean,text)",
+      "definitionMd5": "4dd05485fa0984f7350256dd9abb6af6",
+      "owner": "postgres",
+      "securityDefiner": true,
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": [
+        "search_path=pg_catalog, public, private"
+      ]
+    },
+    {
+      "identity": "private.studio2_data_api_operational_gate()",
+      "definitionMd5": "9204ae288928a2ac0585cc7d76ed96d0",
+      "owner": "postgres",
+      "securityDefiner": true,
+      "acl": "{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": [
+        "search_path=pg_catalog, public, private"
+      ]
+    },
+    {
+      "identity": "private.studio2_platform_mutation_allowed(text)",
+      "definitionMd5": "680aef1191660c8c880c63c11ed7d41d",
+      "owner": "postgres",
+      "securityDefiner": true,
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "config": [
+        "search_path=pg_catalog, public, private"
+      ]
+    },
+    {
+      "identity": "private.studio2_claim_operation(uuid,text,uuid,text,text,jsonb,jsonb)",
+      "definitionMd5": "d487a13bc4391cc889637ae259a66144",
+      "owner": "postgres",
+      "securityDefiner": true,
+      "acl": "{postgres=X/postgres}",
+      "config": [
+        "search_path=pg_catalog, public, private, extensions"
+      ]
+    },
+    {
+      "identity": "private.studio2_complete_operation(uuid,jsonb)",
+      "definitionMd5": "1e115b5ed42de2ecd1c10c75eaa4ab70",
+      "owner": "postgres",
+      "securityDefiner": true,
+      "acl": "{postgres=X/postgres}",
+      "config": [
+        "search_path=pg_catalog, public, private"
+      ]
+    },
+    {
+      "identity": "private.studio2_require_fresh_auth(integer)",
+      "definitionMd5": "cc7b7cfde87a565f688253d8183c8507",
+      "owner": "postgres",
+      "securityDefiner": true,
+      "acl": "{postgres=X/postgres}",
+      "config": [
+        "search_path=pg_catalog, public, private, auth"
+      ]
+    },
+    {
+      "identity": "private.v3_emit_domain_event(text,text,text,bigint,uuid,uuid,uuid,jsonb,integer,text[])",
+      "definitionMd5": "3c58756906c41cd931232a6c3dc55945",
+      "owner": "postgres",
+      "securityDefiner": true,
+      "acl": "{postgres=X/postgres}",
+      "config": [
+        "search_path=pg_catalog, public, private, auth"
+      ]
+    }
+  ],
+  "existingTables": [
+    {
+      "identity": "public.edit_tokens",
+      "owner": "postgres",
+      "rls": true,
+      "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxt/postgres,authenticated=arwdDxt/postgres,service_role=arwdDxt/postgres}"
+    },
+    {
+      "identity": "public.submissions",
+      "owner": "postgres",
+      "rls": true,
+      "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxt/postgres,authenticated=arwdDxt/postgres,service_role=arwdDxt/postgres}"
+    },
+    {
+      "identity": "public.studio2_confirmation_requirements",
+      "owner": "postgres",
+      "rls": true,
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}"
+    },
+    {
+      "identity": "public.studio2_confirmation_review_versions",
+      "owner": "postgres",
+      "rls": true,
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}"
+    },
+    {
+      "identity": "public.studio2_operation_receipts",
+      "owner": "postgres",
+      "rls": true,
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}"
+    },
+    {
+      "identity": "public.studio2_platform_operational_state",
+      "owner": "postgres",
+      "rls": true,
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}"
+    }
+  ],
+  "absentFunctions": [
+    "public.admin_confirmation_responses_for_edition(uuid,integer,integer)",
+    "public.admin_confirmation_response_for_edition(uuid,uuid)",
+    "public.admin_confirmation_technical_for_edition(uuid,uuid)",
+    "public.admin_confirmation_recovery_codes_for_edition(uuid,integer,integer)",
+    "private.v3_touch_confirmation_response_access_version()",
+    "private.v3_confirmation_response_delete_dependencies(uuid)",
+    "private.v3_confirmation_response_delete_allowed(public.submissions,jsonb)",
+    "public.studio2_confirmation_response_access_preview(uuid,uuid)",
+    "public.studio2_apply_confirmation_response_access_change(uuid,uuid,text,jsonb,text,uuid,text,bigint)"
+  ],
+  "absentIndex": "public.submissions_edition_submitted_idx",
+  "absentTriggers": [
+    "v3_touch_confirmation_response_access_version",
+    "v3_touch_confirmation_edit_token_version"
+  ],
+  "s13FoundationAbsent": true,
+  "governedAccessAbsent": true
+}
