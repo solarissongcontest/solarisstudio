@@ -1,8 +1,9 @@
 -- SYSTEM-OWNED FORWARD-ONLY S16 CLOSURE (local rehearsal candidate).
- -- This stage retires direct Confirmation table mutations and TRUNCATE bypasses.
+ -- This stage retires direct Confirmation table mutations and TRUNCATE bypasses
+-- across fourteen independently hosted-observed launch-critical relations.
 -- RLS cannot replace the governed versioned CAS/receipt authority. S08 and
 -- Combined separately own Televote restrictions; this verifies those effects.
--- All other launch-domain direct-writer boundaries still require full S16 proof.
+-- Other domain direct INSERT/UPDATE/DELETE and RPC writers still require S16 proof.
 -- Apply only after the guarded S13/Confirmation/S07/S08/Jury/Results chain.
 -- Never execute on hosted production without separately approved operator package.
 begin;
@@ -37,8 +38,20 @@ begin
     raise exception 'S08 source projection guard inactive' using errcode='55000';
  end if;
  for v_target in select unnest(array[
-      'public.submissions','public.edit_tokens','public.televote_votes',
-      'televoting.televote_aggregations'
+      'public.country_accounts',
+      'public.editions',
+      'public.entries',
+      'public.edit_tokens',
+      'public.jury_votes',
+      'public.results',
+      'public.shows',
+      'public.studio2_result_operations',
+      'public.studio2_show_publication_controls',
+      'public.studio2_upload_authorizations',
+      'public.submissions',
+      'public.televote_votes',
+      'televoting.televote_aggregations',
+      'televoting.vote_submissions'
     ]) loop
    select * into v_relation from pg_class where oid=to_regclass(v_target);
    if v_relation.oid is null or v_relation.relkind<>'r'
@@ -47,13 +60,33 @@ begin
      raise exception 'S16 unqualified RLS-protected official table: %',v_target using errcode='55000';
    end if;
    for v_role in select unnest(array['anon','authenticated','service_role']) loop
-     v_expected := v_target in ('public.submissions','public.edit_tokens');
+     -- Previously observed hosted effective TRUNCATE envelope. The earlier
+     -- canonical stages may already have revoked some grants. Unexpected
+     -- *additional* grants fail closed rather than being silently normalized.
+     v_expected := v_target in (
+       'public.country_accounts','public.editions','public.entries','public.edit_tokens',
+       'public.jury_votes','public.results','public.shows','public.submissions',
+       'public.televote_votes'
+     ) or (v_role='service_role' and v_target in (
+       'public.studio2_result_operations','public.studio2_show_publication_controls',
+       'public.studio2_upload_authorizations','televoting.vote_submissions',
+       'televoting.televote_aggregations'
+     ));
+     -- S08 must have retired these specific projection TRUNCATE grants.
+     if v_target in ('public.televote_votes','televoting.televote_aggregations') then
+       v_expected := false;
+     end if;
      v_actual := has_table_privilege(v_role,v_target,'TRUNCATE');
-     if v_actual is distinct from v_expected then
-       raise exception 'S16 unexpected direct TRUNCATE authority % on %: observed %, expected %',
+     if (v_target in ('public.submissions','public.edit_tokens',
+           'public.televote_votes','televoting.televote_aggregations')
+           and v_actual is distinct from v_expected)
+        or (v_target not in ('public.submissions','public.edit_tokens',
+           'public.televote_votes','televoting.televote_aggregations')
+           and v_actual and not v_expected) then
+       raise exception 'S16 unexpected TRUNCATE role authority % on %: observed %, expected envelope %',
          v_role,v_target,v_actual,v_expected using errcode='55000';
      end if;
-     if v_expected then
+     if v_target in ('public.submissions','public.edit_tokens') then
        if exists(select 1 from pg_attribute a where a.attrelid=v_relation.oid
           and a.attnum>0 and not a.attisdropped and a.attacl is not null) then
          raise exception 'S16 unexpected Confirmation column-level grants: %',v_target using errcode='55000';
@@ -70,8 +103,8 @@ end
 $s16_preflight$;
 
 select public.v3_register_migration_contract(
- 'v3.s16.launch-table-truncate-cutover',1,'forward_fix_only',false,null,
- 'Retire direct Confirmation API DML and table-admin privileges; verify Televote S08 and Combined grants while retaining governed commands and reads'
+ 'v3.s16.launch-table-truncate-cutover',2,'forward_fix_only',false,null,
+ 'Retire Confirmation API DML and RLS-independent TRUNCATE on fourteen hosted-observed launch tables'
 );
 
 -- S08 and Combined already govern Televote; do not duplicate their ACL mutation.
@@ -79,13 +112,39 @@ revoke insert,update,delete,truncate,references,trigger,maintain on table
  public.submissions,
  public.edit_tokens
  from public,anon,authenticated,service_role;
+-- RLS never protects TRUNCATE. Remove additional API-role grants on launch
+-- critical tables without modifying their existing DML or RPC contracts.
+revoke truncate on table
+ public.country_accounts,
+ public.editions,
+ public.entries,
+ public.jury_votes,
+ public.results,
+ public.shows,
+ public.studio2_result_operations,
+ public.studio2_show_publication_controls,
+ public.studio2_upload_authorizations,
+ televoting.vote_submissions
+ from public,anon,authenticated,service_role;
 
 do $s16_postcheck$
 declare v_target text; v_role text; v_privilege text;
 begin
  for v_target in select unnest(array[
-   'public.submissions','public.edit_tokens','public.televote_votes',
-   'televoting.televote_aggregations']) loop
+   'public.country_accounts',
+      'public.editions',
+      'public.entries',
+      'public.edit_tokens',
+      'public.jury_votes',
+      'public.results',
+      'public.shows',
+      'public.studio2_result_operations',
+      'public.studio2_show_publication_controls',
+      'public.studio2_upload_authorizations',
+      'public.submissions',
+      'public.televote_votes',
+      'televoting.televote_aggregations',
+      'televoting.vote_submissions']) loop
    for v_role in select unnest(array['anon','authenticated','service_role']) loop
      if has_table_privilege(v_role,v_target,'TRUNCATE') then
        raise exception 'S16 RLS-independent API TRUNCATE remains: % %',v_role,v_target using errcode='42501';

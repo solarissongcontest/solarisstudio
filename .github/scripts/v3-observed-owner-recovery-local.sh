@@ -131,7 +131,7 @@ operator_apply docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql
 # Exercise SQL as actual API principals, not only catalog predicates. A denial
 # must be PostgreSQL permission-denied, never an FK or role-switch error.
 for s16_actor in anon authenticated service_role; do
-  for s16_table in public.submissions public.edit_tokens public.televote_votes televoting.televote_aggregations; do
+  for s16_table in public.country_accounts public.editions public.entries public.edit_tokens public.jury_votes public.results public.shows public.studio2_result_operations public.studio2_show_publication_controls public.studio2_upload_authorizations public.submissions public.televote_votes televoting.televote_aggregations televoting.vote_submissions; do
     if docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U authenticator -d recovery_operator_baseline \
       -c "begin; set local role $s16_actor; truncate table $s16_table; rollback;" \
       > /tmp/s16-api-truncate.log 2>&1; then
@@ -171,7 +171,7 @@ for s16_actor in anon authenticated service_role; do
   done
 done
 echo 'PASS: 18 direct Confirmation table DML attempts denied as real API roles'
-echo 'PASS: twelve actual API-role TRUNCATE attempts denied without changes to canonical operation grants'
+echo 'PASS: 42 actual API-role TRUNCATE attempts denied across fourteen launch tables'
 echo 'PASS: entire ordered recovery executes as observed NONSUPERUSER postgres with real role/schema privileges'
 # A restore of synthetic local data proves this procedure, NOT availability,
 # freshness, retention or restorability of the separate real production backup.
@@ -236,7 +236,7 @@ fs.writeFileSync('observed-owner-recovery-proof.json',JSON.stringify({
  schemaAndSyntheticRowsPreserved:true,separateLocalRestoreVerified:true,
  confirmationGovernedCommandsInstalled:true,confirmationLegacyApiExecuteDenied:true,
  confirmationPositiveLifecycleVerified:false,confirmationParentBodiesSourceOnly:true,
- s16ConfirmationTelevoteTruncateApiRoleDenied:true,s16ConfirmationDirectApiDmlDenied:true,s16FullCriticalWriterCertified:false,
+ s16ConfirmationTelevoteTruncateApiRoleDenied:true,s16LaunchTableTruncateDenials:42,s16LaunchTableNames:["public.country_accounts","public.editions","public.entries","public.edit_tokens","public.jury_votes","public.results","public.shows","public.studio2_result_operations","public.studio2_show_publication_controls","public.studio2_upload_authorizations","public.submissions","public.televote_votes","televoting.televote_aggregations","televoting.vote_submissions"],s16ConfirmationDirectApiDmlDenied:true,s16FullCriticalWriterCertified:false,
  juryLegacyApiDenied:true,juryGovernedReceiptReplayVerified:true,
  juryApiTableAndColumnDmlTruncateDenied:true,juryDraftCasAndReadbackVerified:true,
  signupAuthOwnerRaceAndRollbackVerified:true,
