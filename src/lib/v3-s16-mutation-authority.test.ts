@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { auditV3S16CatalogAuthority, buildV3S16MutationAuthorityReport, scanV3S16StaticAuthority, V3_S16_CRITICAL_DOMAINS, type V3S16DomainDefinition } from "./v3-s16-mutation-authority";
 import { classifyV3S16ReleaseAuthority } from "./v3-s16-release-risk";
 
@@ -253,4 +254,58 @@ describe("S16 canonical mutation authority", () => {
     expect(classified.s16Passed).toBe(false);
   });
 
+});
+
+describe("S16 Confirmation token authority coverage", () => {
+  const sha = "a".repeat(40);
+  const confirmation = V3_S16_CRITICAL_DOMAINS.find((item) => item.id === "confirmation")!;
+
+  it("includes the edit-token table in runtime catalog collection and generated SQL", () => {
+    expect(confirmation.canonicalTables).toContain("public.edit_tokens");
+    const generated = readFileSync(".github/scripts/sql/v3-s16-canonical-mutation-authority.sql", "utf8");
+    expect(generated).toContain("('public.edit_tokens')");
+  });
+
+  it("fails closed if the token table is absent from exact-SHA catalog evidence", () => {
+    const findings = auditV3S16CatalogAuthority({
+      schemaVersion: 2,
+      collection: "effective-postgresql-catalog-v2",
+      candidateSha: sha,
+      roles: { roles: ["anon", "authenticated", "service_role"].map((name) => ({ name })) },
+      uncertainties: [],
+      negativeTests: { candidateSha: sha, passed: true, domains: ["confirmation"] },
+      tables: confirmation.canonicalTables.filter((name) => name !== "public.edit_tokens").map((table) => ({
+        table, owner: "postgres", rlsEnabled: true, dmlRoles: [],
+      })),
+      functions: [],
+    }, sha, [confirmation]);
+    expect(findings).toEqual(expect.arrayContaining([expect.objectContaining({
+      domain: "confirmation",
+      kind: "catalog_table_missing",
+      subject: "public.edit_tokens",
+      releaseRisk: "hard_blocker",
+    })]));
+  });
+
+  it("flags effective direct token DML even with RLS enabled", () => {
+    const findings = auditV3S16CatalogAuthority({
+      schemaVersion: 2,
+      collection: "effective-postgresql-catalog-v2",
+      candidateSha: sha,
+      roles: { roles: ["anon", "authenticated", "service_role"].map((name) => ({ name })) },
+      uncertainties: [],
+      negativeTests: { candidateSha: sha, passed: true, domains: ["confirmation"] },
+      tables: confirmation.canonicalTables.map((table) => ({
+        table, owner: "postgres", rlsEnabled: true,
+        dmlRoles: table === "public.edit_tokens" ? ["service_role"] : [],
+      })),
+      functions: [],
+    }, sha, [confirmation]);
+    expect(findings).toEqual(expect.arrayContaining([expect.objectContaining({
+      domain: "confirmation",
+      kind: "unexpected_direct_dml_role",
+      subject: "public.edit_tokens",
+      releaseRisk: "hard_blocker",
+    })]));
+  });
 });
