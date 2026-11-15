@@ -450,14 +450,14 @@ test("S16 launch TRUNCATE cutover matches independently observed authority inven
   assert.match(sql, /revoke truncate on table/);
   // The observed normal-mode Results DML bypass requires an independent
   // table/column cutover and an actual post-S16 canonical readback.
-  assert.match(sql, /revoke insert,update,delete,references,trigger,maintain on table public\\.results/);
+  assert.match(sql, /revoke insert,update,delete,references,trigger,maintain on table public\.results/);
   assert.match(sql, /S16 unexpected Results column-level grants/);
   assert.match(sql, /S16 competing Results API table writer remains/);
-  assert.match(sql, /has_any_column_privilege\\(v_role,v_target,'INSERT,UPDATE'\\)/);
+  assert.match(sql, /has_any_column_privilege\(v_role,v_target,'INSERT,UPDATE'\)/);
   assert.match(driver, /for s16_drift in extra_grant disabled_rls results_column_grant/);
   assert.match(driver, /for s16_action in INSERT UPDATE DELETE/);
   assert.match(driver, /s16ResultsApiDmlDenials:9/);
   assert.match(driver, /s16ResultsPublishedReadbackPreserved:true/);
-  assert.match(driver, /source \\.github\\/scripts\\/v3-result-public-api-local\\.sh/);
+  assert.match(driver, /source \.github\/scripts\/v3-result-public-api-local\.sh/);
   assert.doesNotMatch(sql, /supabase_migrations\.schema_migrations/);
 });
