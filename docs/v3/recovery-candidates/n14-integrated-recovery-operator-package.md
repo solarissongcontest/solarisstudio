@@ -2,6 +2,8 @@
 
 **Status: LOCAL RECOVERY CANDIDATE / PRODUCTION STOP.** This document is an operator package, not a migration approval, deployment approval, public-write activation, or certification. Never copy the LOCAL-ONLY parent reconstruction scripts into hosted production.
 
+**#2531 integration:** [System PR #2531](https://github.com/solarissongcontest/solarisstudio/pull/2531) merged as source main `49b022a698078937abdd0dabf522162d6421623b`. The existing canonical `supabase/migrations/20261115000100_v3_televote_ballot_writer_retirement.sql` is in the same driver **after S08** and before Results operation/CAS. Its historical function source reconstruction is LOCAL-ONLY fixture setup and must never be applied to hosted production. Confirm its exact SHA-256 entry in the generated source-manifest artifact before any production-candidate freeze. This merge does **not** approve hosted migration or establish real backup/recovery evidence.
+
 ## Authority and scope
 
 - System-owned integrated source: `.github/scripts/v3-observed-owner-recovery-local.sh`. This orchestrates the existing, frozen S13, Archive, S07/S08, Jury and Results source donors.
