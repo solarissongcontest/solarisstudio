@@ -18,6 +18,17 @@ on:
       - "scripts/stage-v3-recovery-owner-local*"
       - "scripts/stage-v3-result-authority-recovery*"
       - "scripts/stage-v3-result-read-authority-recovery*"
+      - "scripts/stage-v3-results-operation-*.mjs"
+      - "scripts/stage-v3-results-reviewed-cas-recovery.mjs"
+      - "scripts/v3-results-operation-recovery.test.mjs"
+      - ".github/scripts/v3-results-operation-*.sh"
+      - ".github/tests/v3-results-*-local.sql"
+      - ".github/tests/v3-results-operation-role-denial.sql"
+      - ".github/tests/v3-results-published-cas-preservation.sql"
+      - "docs/v3/recovery-candidates/evidence/results-operation-*.json"
+      - "docs/v3/recovery-candidates/evidence/auth-jwt-recovery-prerequisite-observed-2026-11-14.json"
+      - "docs/v3/recovery-candidates/evidence/results-runtime-prerequisites-observed-2026-11-15.json"
+      - "supabase/migrations/20261114194701_v3_results_operation_tables_owner_only.sql"
       - ".github/scripts/v3-result-public-api-local.sh"
       - ".github/tests/v3-result-public-api.sql"
       - ".github/tests/v3-results-observed-access-acls-local.sql"
@@ -287,7 +298,7 @@ jobs:
       - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
         run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
       - name: Verify bounded catalog export and drift refusals
-        run: node --test scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs scripts/stage-v3-public-snapshot-recovery.test.mjs scripts/stage-v3-auth-uid-authority-local.test.mjs scripts/stage-v3-atomic-calculation-recovery.test.mjs scripts/stage-v3-hosted-api-roles-local.test.mjs scripts/stage-v3-recovery-owner-local.test.mjs scripts/stage-v3-result-authority-recovery.test.mjs scripts/stage-v3-result-read-authority-recovery.test.mjs
+        run: node --test scripts/v3-results-operation-recovery.test.mjs scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs scripts/stage-v3-public-snapshot-recovery.test.mjs scripts/stage-v3-auth-uid-authority-local.test.mjs scripts/stage-v3-atomic-calculation-recovery.test.mjs scripts/stage-v3-hosted-api-roles-local.test.mjs scripts/stage-v3-recovery-owner-local.test.mjs scripts/stage-v3-result-authority-recovery.test.mjs scripts/stage-v3-result-read-authority-recovery.test.mjs
       - name: Test authorization dependency reconstruction and incomplete-manifest refusal
         run: node --test scripts/v3-s13-s14-authorization-dependencies.test.mjs
       - name: Assert all-hosted catalog digests and incomplete-fixture rejection (offline only)
@@ -948,6 +959,7 @@ jobs:
           name: s06-hosted-observed-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             observed-owner-recovery-proof.json
+            ordered-recovery-sql/
             s06-archive-catalog-proof.json
             s06-parent-catalog-proof.json
             s06-acl-proof.json
