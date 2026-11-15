@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { execFileSync } from "node:child_process";
 import { V3_S16_CRITICAL_DOMAINS } from "./v3-s16-mutation-authority";
 
 const migration = readFileSync(resolve(process.cwd(),
@@ -23,6 +24,25 @@ describe("S16 public Televote ballot canonical source and legacy retirement", ()
     expect(migration).toContain("from public, service_role");
     expect(migration).toContain("to anon, authenticated");
     expect(migration).toContain("v3.televote.public-ballot-writer-retirement");
+  });
+  it("reconstructs omitted old Televote body only in local fixture and refuses hosted targets", () => {
+    const generator = "scripts/stage-v3-televote-legacy-ballot-local-fixture.mjs";
+    const safe = execFileSync(process.execPath, [generator], {
+      cwd: process.cwd(),
+      env: { ...process.env, SOLARIS_S02_TARGET: "local" },
+      encoding: "utf8",
+    });
+    expect(safe).toContain("LOCAL-ONLY historical-source donor");
+    expect(safe).toContain("create or replace function televoting.submit_vote(");
+    expect(safe).toContain("insert into televoting.vote_submissions(");
+    expect(safe).toContain("S16 legacy ballot fixture refuses to overwrite a present RPC");
+    expect(safe).toContain("commit;");
+    expect(safe).not.toContain("drop function televoting.submit_vote");
+    expect(() => execFileSync(process.execPath, [generator], {
+      cwd: process.cwd(),
+      env: { ...process.env, SOLARIS_S02_TARGET: "production" },
+      stdio: "pipe",
+    })).toThrow();
   });
   it("adopts the existing System-owned retirement in ordered recovered-state installation and isolated restore", () => {
     const driver = readFileSync(resolve(process.cwd(),
