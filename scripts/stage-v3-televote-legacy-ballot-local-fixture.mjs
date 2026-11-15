@@ -33,7 +33,7 @@ process.stdout.write(`-- LOCAL-ONLY historical-source donor for a scoped omitted
 begin;
 do $fixture_guard$ begin
   if to_regprocedure('${sig}') is not null then
-    raise exception 'S16 legacy ballot fixture refuses to overwrite a present RPC';
+    raise exception 'S16 legacy ballot fixture refuses to overwrite a present RPC; already installed';
   end if;
 end $fixture_guard$;
 ${definition}
