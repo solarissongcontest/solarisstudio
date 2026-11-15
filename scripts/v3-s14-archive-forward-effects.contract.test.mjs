@@ -459,8 +459,8 @@ test("S16 launch TRUNCATE cutover matches independently observed authority inven
   assert.match(driver, /s16ResultsApiDmlDenials:9/);
   assert.match(driver, /s16ResultsPublishedReadbackPreserved:true/);
   const cleanConfirmation = read(".github/scripts/v3-confirmation-post-s16-clean-source-local.sh");
-  assert.match(cleanConfirmation, /s\\.count\\(results\\)!=1/);
-  assert.match(cleanConfirmation, /len\\(re\\.findall\\(.+s\\)\\)!=3/);
+  assert.match(cleanConfirmation, /s\.count\(results\)!=1/);
+  assert.match(cleanConfirmation, /len\(re\.findall\(.+s\)\)!=3/);
   assert.match(driver, /source \.github\/scripts\/v3-result-public-api-local\.sh/);
   assert.doesNotMatch(sql, /supabase_migrations\.schema_migrations/);
 });
