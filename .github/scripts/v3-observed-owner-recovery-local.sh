@@ -145,6 +145,32 @@ for s16_actor in anon authenticated service_role; do
     fi
   done
 done
+# Actual authenticator role execution, NOT merely a metadata assertion.
+# No rows are written. The statement must fail on table permission, rather than
+# a row constraint, operational mode, RLS invisibility, or invalid test input.
+for s16_actor in anon authenticated service_role; do
+  for s16_table in public.submissions public.edit_tokens; do
+    for s16_action in INSERT UPDATE DELETE; do
+      case "$s16_action" in
+        INSERT) s16_statement="insert into $s16_table default values" ;;
+        UPDATE)
+          if [[ "$s16_table" == public.submissions ]]; then
+            s16_statement='update public.submissions set editing_allowed=editing_allowed where false'
+          else
+            s16_statement='update public.edit_tokens set active=active where false'
+          fi ;;
+        DELETE) s16_statement="delete from $s16_table where false" ;;
+      esac
+      if docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U authenticator -d recovery_operator_baseline \
+        -c "begin; set local role $s16_actor; $s16_statement; rollback;" \
+        > /tmp/s16-confirmation-dml-denial.log 2>&1; then
+        echo "S16 direct Confirmation $s16_action unexpectedly allowed: $s16_actor $s16_table" >&2; exit 1
+      fi
+      grep -qi 'permission denied for table' /tmp/s16-confirmation-dml-denial.log || { cat /tmp/s16-confirmation-dml-denial.log; exit 1; }
+    done
+  done
+done
+echo 'PASS: 18 direct Confirmation table DML attempts denied as real API roles'
 echo 'PASS: twelve actual API-role TRUNCATE attempts denied without changes to canonical operation grants'
 echo 'PASS: entire ordered recovery executes as observed NONSUPERUSER postgres with real role/schema privileges'
 # A restore of synthetic local data proves this procedure, NOT availability,
@@ -210,7 +236,7 @@ fs.writeFileSync('observed-owner-recovery-proof.json',JSON.stringify({
  schemaAndSyntheticRowsPreserved:true,separateLocalRestoreVerified:true,
  confirmationGovernedCommandsInstalled:true,confirmationLegacyApiExecuteDenied:true,
  confirmationPositiveLifecycleVerified:false,confirmationParentBodiesSourceOnly:true,
- s16ConfirmationTelevoteTruncateApiRoleDenied:true,s16FullCriticalWriterCertified:false,
+ s16ConfirmationTelevoteTruncateApiRoleDenied:true,s16ConfirmationDirectApiDmlDenied:true,s16FullCriticalWriterCertified:false,
  juryLegacyApiDenied:true,juryGovernedReceiptReplayVerified:true,
  juryApiTableAndColumnDmlTruncateDenied:true,juryDraftCasAndReadbackVerified:true,
  signupAuthOwnerRaceAndRollbackVerified:true,
