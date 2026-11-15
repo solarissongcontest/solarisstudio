@@ -11,7 +11,8 @@ case "$DB_URL" in
   *) echo "Refusing hosted database connection: not loopback disposable Supabase" >&2; exit 1 ;;
 esac
 # Extract the exact cutover from the forward-only System owner artifact.
-# Strictly refuse duplicate/changed grants or additions to the scope.
+# Require exact reviewed original Confirmation DML plus separate ten-table TRUNCATE scope;
+# fail closed on altered or extra REVOKE statements.
 python3 - <<'PY' > /tmp/v3-s16-clean-confirmation-grant.sql
 from pathlib import Path
 import re
@@ -22,7 +23,22 @@ expected=(
   ' public.edit_tokens\n'
   ' from public,anon,authenticated,service_role;'
 )
-if s.count(expected)!=1 or len(re.findall(r'(?im)^revoke\s+',s))!=1:
+additional=(
+  'revoke truncate on table\n'
+  ' public.country_accounts,\n'
+  ' public.editions,\n'
+  ' public.entries,\n'
+  ' public.jury_votes,\n'
+  ' public.results,\n'
+  ' public.shows,\n'
+  ' public.studio2_result_operations,\n'
+  ' public.studio2_show_publication_controls,\n'
+  ' public.studio2_upload_authorizations,\n'
+  ' televoting.vote_submissions\n'
+  ' from public,anon,authenticated,service_role;'
+)
+if (s.count(expected)!=1 or s.count(additional)!=1
+    or len(re.findall(r'(?im)^revoke\s+',s))!=2):
     raise SystemExit('Refusing unreviewed S16 Confirmation DML grant retirement')
 print(expected)
 PY
