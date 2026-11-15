@@ -24,6 +24,24 @@ describe("S16 public Televote ballot canonical source and legacy retirement", ()
     expect(migration).toContain("to anon, authenticated");
     expect(migration).toContain("v3.televote.public-ballot-writer-retirement");
   });
+  it("adopts the existing System-owned retirement in ordered recovered-state installation and isolated restore", () => {
+    const driver = readFileSync(resolve(process.cwd(),
+      ".github/scripts/v3-observed-owner-recovery-local.sh"), "utf8");
+    const s08 = driver.indexOf("operator_apply docs/v3/recovery-candidates/s08-televote-single-writer-local.sql");
+    const retirement = driver.indexOf("operator_apply supabase/migrations/20261115000100_v3_televote_ballot_writer_retirement.sql");
+    const resultsCas = driver.indexOf("source .github/scripts/v3-results-operation-recovery-local.sh");
+    expect(s08).toBeGreaterThan(0);
+    expect(retirement).toBeGreaterThan(s08);
+    expect(resultsCas).toBeGreaterThan(retirement);
+    expect(driver).toContain("s16_ballot_drift");
+    expect(driver).toContain("S16 legacy ballot drift failure modified schema/data");
+    expect(driver).toContain("operator_sql -f - < .github/tests/v3-televote-ballot-authority.sql");
+    expect(driver).toContain("restored_sql -f - < .github/tests/v3-televote-ballot-authority.sql");
+    expect(driver).toContain("'supabase/migrations/20261115000100_v3_televote_ballot_writer_retirement.sql'");
+    expect(driver).toContain("s16LegacyTelevoteWriterRetired:true");
+    expect(driver).toContain("s16CheckedVotePreflightApiRoleVerified:true");
+    expect(driver).toContain("s16FullCriticalWriterCertified:false");
+  });
   it("allows the S16 source scanner to recognize schema-qualified televoting commands", () => {
     const source = readFileSync(resolve(process.cwd(), "src/lib/v3-s16-mutation-authority.ts"), "utf8");
     expect(source).toContain(String.raw`(?:public\\.|private\\.|televoting\\.)?`);
