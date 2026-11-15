@@ -467,8 +467,12 @@ test("S16 launch TRUNCATE cutover matches independently observed authority inven
   const donor = read("scripts/stage-v3-publication-canonical-local-fixture.mjs");
   assert.match(donor, /SOLARIS_S02_TARGET !== "local"/);
   assert.match(donor, /3f711b37c92c058990f5dc99a4ca55ff67e90b02/);
-  assert.match(donor, /a4f8c7a35df2d2caea98b82a3a4552ffbdb0d9ec/);
-  assert.match(donor, /48a02d067cb803683057d704d375b202cb6321f6/);
+  // The hosted-observed S2 fixture has the seven-argument canonical claim.
+  // Its missing five-argument adapter must come from the S2 receipt migration,
+  // never the pre-S2 implementation that omits NOT NULL fingerprint fields.
+  assert.match(donor, /b8f7841c898186e90b535ad2e83af88eb36580e7/);
+  assert.match(donor, /s2AdapterMarker/);
+  assert.doesNotMatch(donor, /a4f8c7a35df2d2caea98b82a3a4552ffbdb0d9ec/);
   assert.match(donor, /private.studio2_claim_operation/);
   assert.match(donor, /private.studio2_complete_operation/);
   assert.match(donor, /to_regprocedure/);
