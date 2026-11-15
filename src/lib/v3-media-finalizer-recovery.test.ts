@@ -47,14 +47,19 @@ async function finalizer(
     updatedRowMissing?: boolean;
     invalidBytes?: boolean;
     validEvidence?: boolean;
+    validImage?: boolean;
+    thumbnailError?: boolean;
     duplicatePublish?: "same" | "different" | "wrong-size" | "unavailable";
     publishedReadback?: "same" | "different" | "wrong-size" | "unavailable";
     receiptReadbackError?: boolean;
     verifiedReceiptUnbound?: boolean;
+    malformedReceipt?: "missing" | "wrong-token" | "wrong-path";
   } = {},
 ) {
   let handler!: (request: Request) => Promise<Response>;
-  const evidenceBytes = new TextEncoder().encode("%PDF-1.7\n%%EOF");
+  const evidenceBytes = options.validImage
+    ? Uint8Array.from(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jFqsAAAAASUVORK5CYII=", "base64"))
+    : new TextEncoder().encode("%PDF-1.7\n%%EOF");
   const evidenceSha = digest(evidenceBytes);
   const verifiedMetadata = options.verifiedReceiptUnbound
     ? {}
@@ -81,13 +86,13 @@ async function finalizer(
     declared_mime:
       options.validEvidence || options.status === "verified" ? "application/pdf" : "image/png",
     expected_size:
-      options.validEvidence || options.status === "verified" ? evidenceBytes.length : 3,
+      options.validEvidence || options.validImage || options.status === "verified" ? evidenceBytes.length : 3,
   };
   const update = vi.fn();
   const receiptReadback = vi.fn();
   const remove = vi.fn().mockResolvedValue({ data: [], error: null });
   const quarantineDownload = vi.fn().mockResolvedValue({
-    data: options.validEvidence
+    data: options.validEvidence || options.validImage
       ? new Blob([evidenceBytes])
       : options.invalidBytes
         ? new Blob([new Uint8Array([0, 1, 2])])
@@ -117,7 +122,7 @@ async function finalizer(
         rejection_reason: args.p_rejection_reason,
       });
       return {
-        data: options.updatedRowMissing ? null : { id: row.id, operationId: "operation-1" },
+        data: options.updatedRowMissing ? null : { id: row.id, operationId: "27182200-0000-4000-8000-000000000099" },
         error: options.updateError ? { code: "25006" } : null,
       };
     }
@@ -127,8 +132,11 @@ async function finalizer(
         data: options.receiptReadbackError
           ? null
           : {
-              id: row.id,
-              operationId: "operation-1",
+              id: options.malformedReceipt === "wrong-token" ? "another-token" : row.id,
+              status: options.malformedReceipt === "missing" ? undefined : "verified",
+              bucket: row.final_bucket,
+              path: options.malformedReceipt === "wrong-path" ? "another/path" : row.final_path,
+              operationId: "27182200-0000-4000-8000-000000000099",
               metadata:
                 row.status === "verified"
                   ? verifiedMetadata
@@ -162,9 +170,11 @@ async function finalizer(
             ? quarantineDownload
             : finalDownload,
         remove,
-        upload: vi.fn().mockResolvedValue({
-          error: options.duplicatePublish ? { message: "The resource already exists" } : null,
-        }),
+        upload: vi.fn(async (path: string) => ({
+          error: options.thumbnailError && path.includes(".thumb")
+            ? {message:"Temporary thumbnail failure"}
+            : options.duplicatePublish ? {message:"The resource already exists"} : null,
+        })),
       }),
     },
   };
@@ -182,6 +192,11 @@ async function finalizer(
     createClient: () => service,
     mockResolve: () => "file:///mock/magick.js",
     initializeImageMagick: async () => {},
+    MagickFormat: {Png:"png",Jpeg:"jpeg",WebP:"webp"},
+    ImageMagick: {read: (_bytes: unknown, callback: (image: unknown) => unknown) => {
+      const image={width:1,height:1,autoOrient:()=>{},write:(_format:unknown,cb:(bytes:Uint8Array)=>unknown)=>cb(evidenceBytes),clone:(cb:(image:unknown)=>unknown)=>cb(image)};
+      return callback(image);
+    }},
     sha256Hex,
     validSha256,
     verifyPublishedBlob,
@@ -249,7 +264,7 @@ describe("Media finalizer authoritative recovery evidence", () => {
       ok: true,
       token_id: "token-1",
       replayed: true,
-      operation_id: "operation-1",
+      operation_id: "27182200-0000-4000-8000-000000000099",
     });
     expect(update).not.toHaveBeenCalled();
     expect(quarantineDownload).not.toHaveBeenCalled();
@@ -320,7 +335,7 @@ describe("Media finalizer authoritative recovery evidence", () => {
   it.each([{ updateError: true }, { updatedRowMissing: true }])(
     "preserves uncertainty if signature rejection cannot be recorded: %j",
     async (options) => {
-      const { request } = await finalizer({ ...options, invalidBytes: true });
+      const { request, remove } = await finalizer({ ...options, invalidBytes: true });
       const response = await request();
       expect(response.status).toBe(503);
       expect((await response.json()).code).toBeUndefined();
@@ -436,4 +451,24 @@ it("binds governed finalization and receipt readback to the verified caller and 
       p_actor_id: "actor-1",
     }),
   );
+});
+
+ describe("Canonical media acknowledgement and recoverable rejection", () => {
+  it.each(["missing", "wrong-token", "wrong-path"] as const)("fails closed on %s receipt fields", async (malformedReceipt) => {
+    const {request,remove}=await finalizer({validEvidence:true,malformedReceipt});
+    expect((await request()).status).toBe(503);
+    expect(remove).not.toHaveBeenCalled();
+  });
+  it.each([{updateError:true},{updatedRowMissing:true}])("keeps rejected quarantine bytes when persistence is uncertain: %j",async(options)=>{
+    const {request,remove}=await finalizer({...options,invalidBytes:true});
+    expect((await request()).status).toBe(503);
+    expect(remove).not.toHaveBeenCalled();
+  });
+});
+
+it("keeps an existing final object and quarantine when a competing thumbnail publication fails",async()=>{
+ const {request,remove,update}=await finalizer({validImage:true,duplicatePublish:"same",thumbnailError:true});
+ expect((await request()).status).toBe(500);
+ expect(remove).not.toHaveBeenCalled();
+ expect(update).not.toHaveBeenCalled();
 });

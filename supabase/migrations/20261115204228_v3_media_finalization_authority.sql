@@ -12,6 +12,7 @@ do $pre$ begin
     to_regprocedure('public.v3_read_media_finalization_receipt(uuid,text,uuid,uuid)') is not null or
     exists(select 1 from private.v3_migration_contracts where migration_key in('v3.media.finalization-authority','v3.media.verified-byte-identity','v3.media.immutable-publication-cutover'))then
   raise exception 'Media authority already/partially installed' using errcode='55000';end if;
+ if not has_schema_privilege('postgres','storage','USAGE') or not has_table_privilege('postgres','storage.objects','SELECT')then raise exception 'Storage metadata read authority missing' using errcode='42501';end if;
  if not exists(select 1 from pg_class c where c.oid='public.studio2_upload_authorizations'::regclass and pg_get_userbyid(c.relowner)='postgres' and c.relrowsecurity)then
   raise exception 'Media authorization owner/RLS drift' using errcode='55000';end if;
 end $pre$;
@@ -80,6 +81,7 @@ begin
     raise exception 'VALIDATION: invalid finalization outcome' using errcode = '22023';
   end if;
 
+  if p_status = 'verified' and p_rejection_reason is not null then raise exception 'VALIDATION: verified media cannot carry rejection' using errcode='22023';end if;
   if p_status = 'verified' then
     if (v_row.status = 'prepared' and v_row.expires_at <= now())
        or nullif(p_detected_mime, '') is null
@@ -132,6 +134,12 @@ begin
          or v_row.verified_metadata->>'storageObjectId' is distinct from v_metadata->>'storageObjectId'
        ) then
       raise exception 'IDEMPOTENCY_KEY_REUSED: verified retry refers to different bytes' using errcode = '23514';
+    end if;
+
+    if v_row.detected_mime is distinct from p_detected_mime or
+       v_row.rejection_reason is distinct from p_rejection_reason or
+       v_row.verified_metadata is distinct from v_metadata then
+      raise exception 'IDEMPOTENCY_KEY_REUSED: terminal retry content changed' using errcode='23514';
     end if;
 
     select *
@@ -198,7 +206,7 @@ begin
     and status = 'prepared';
 
   if not found then
-    return null;
+    raise exception 'STATE_CHANGED: prepared Media update was suppressed' using errcode='23514';
   end if;
 
   v_result := jsonb_build_object(
@@ -353,30 +361,7 @@ do $columns$ declare cols text;actor text;begin
  end loop;
 end $columns$;
 
-select public.v3_register_migration_contract(
-  'v3.media.immutable-publication-cutover',
-  1,
-  'forward_fix_only',
-  false,
-  null,
-  'Final media objects are immutable publication artifacts. Browser/delegation/Organizer DELETE policies on country media, country fonts, and edition artwork are removed so verified Storage bytes cannot diverge from the canonical media receipt. Consumer domains may unbind references; physical retirement requires an explicit governed media lifecycle operation.'
-);
-
--- Canonical final objects are generated at unguessable/versioned paths by the
--- governed upload pipeline. Replacement creates another verified object and the
--- consuming domain changes its reference. Deleting the previous object directly
--- would leave studio2_upload_authorizations.status = verified while destroying
--- the bytes that receipt attests to.
-drop policy if exists "country media bucket owner delete" on storage.objects;
-drop policy if exists "country fonts owner delete" on storage.objects;
-drop policy if exists "organizers delete edition artwork" on storage.objects;
-
--- Historical policy names are dropped as a defensive cutover. Some older
--- installations carried equivalent DELETE policies under these names.
-drop policy if exists "country media owner delete" on storage.objects;
-drop policy if exists "country font owner delete" on storage.objects;
-drop policy if exists "edition artwork organizer delete" on storage.objects;
-
-notify pgrst, 'reload schema';
+-- Storage policies belong to supabase_storage_admin. Its separately reviewed
+-- owner-only cutover must run under that owner; postgres has no SET ROLE path.
 notify pgrst, 'reload schema';
 commit;

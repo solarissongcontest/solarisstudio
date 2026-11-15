@@ -698,6 +698,25 @@ async function readFinalizationReceipt(
   });
 }
 
+function verifiedReceiptMatches(
+  value: unknown,
+  row: UploadAuthorization,
+  expected: Record<string, unknown>,
+): value is { operationId: string; metadata: Record<string, unknown> } {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const receipt = value as Record<string, unknown>;
+  const meta = receipt.metadata as Record<string, unknown> | undefined;
+  return receipt.id === row.id && receipt.status === "verified" &&
+    receipt.bucket === row.final_bucket && receipt.path === row.final_path &&
+    typeof receipt.operationId === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(receipt.operationId) &&
+    !!meta && !Array.isArray(meta) && meta.hashAlgorithm === "sha256" &&
+    validSha256(meta.publishedSha256) && meta.publishedSha256 === expected.publishedSha256 &&
+    meta.publishedSize === expected.publishedSize && typeof meta.storageObjectId === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(meta.storageObjectId) &&
+    (expected.storageObjectId === undefined || meta.storageObjectId === expected.storageObjectId);
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -914,7 +933,6 @@ Deno.serve(async (request) => {
   }
 
   if (rejection) {
-    await service.storage.from("solaris-upload-quarantine").remove([row.quarantine_path]);
     const { data: rejected, error: rejectionError } = await persistFinalization(
       service,
       row,
@@ -935,6 +953,7 @@ Deno.serve(async (request) => {
     if (rejectionError || !rejected) {
       return json({ error: "Upload rejection could not be confirmed. Retry finalization." }, 503);
     }
+    await service.storage.from("solaris-upload-quarantine").remove([row.quarantine_path]);
     return json({ error: rejection, code: "authorization_rejected" }, 422);
   }
 
@@ -979,7 +998,6 @@ Deno.serve(async (request) => {
       processingError instanceof Error
         ? processingError.message
         : "Server-side file processing failed.";
-    await service.storage.from("solaris-upload-quarantine").remove([row.quarantine_path]);
     const { data: rejected, error: rejectionError } = await persistFinalization(
       service,
       row,
@@ -1002,6 +1020,7 @@ Deno.serve(async (request) => {
     if (rejectionError || !rejected) {
       return json({ error: "Upload rejection could not be confirmed. Retry finalization." }, 503);
     }
+    await service.storage.from("solaris-upload-quarantine").remove([row.quarantine_path]);
     return json({ error: message, code: "authorization_rejected" }, 422);
   }
 
@@ -1089,7 +1108,6 @@ Deno.serve(async (request) => {
         cacheControl: "31536000",
       });
     if (thumbnailError && !/already exists|duplicate/i.test(thumbnailError.message || "")) {
-      await service.storage.from(row.final_bucket).remove([row.final_path]);
       console.error("[solaris-upload-finalize] thumbnail publish failed", thumbnailError);
       return json({ error: "Verified image thumbnail could not be published." }, 500);
     }
@@ -1133,7 +1151,7 @@ Deno.serve(async (request) => {
     callerId,
     sessionId,
   );
-  if (receiptError || !canonicalReceipt) {
+  if (receiptError || !verifiedReceiptMatches(canonicalReceipt, row, metadata)) {
     return json(
       {
         error:
@@ -1144,10 +1162,7 @@ Deno.serve(async (request) => {
   }
 
   const receiptRow = canonicalReceipt as Record<string, unknown>;
-  const receiptMetadata =
-    receiptRow.metadata && typeof receiptRow.metadata === "object" && !Array.isArray(receiptRow.metadata)
-      ? (receiptRow.metadata as Record<string, unknown>)
-      : metadata;
+  const receiptMetadata = canonicalReceipt.metadata;
 
   const { error: cleanupError } = await service.storage
     .from("solaris-upload-quarantine")

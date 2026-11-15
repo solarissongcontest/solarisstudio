@@ -1,17 +1,30 @@
+\set ON_ERROR_STOP on
 begin;
+insert into public.countries(id,name,short_code)values('27182200-0000-4000-8000-000000000002','Isolated Media Country','MCX');
+update public.studio2_platform_operational_state set mode='normal',version=version+1 where singleton=true;
+
 
 insert into auth.users(id,aud,role,email,created_at,updated_at) values
  ('27182200-0000-4000-8000-000000000001','authenticated','authenticated','media-owner@local.invalid',now(),now());
 insert into auth.sessions(id,user_id,created_at,updated_at) values
  ('27182200-0000-4000-8000-000000000011','27182200-0000-4000-8000-000000000001',now(),now());
+insert into public.country_accounts(user_id,country_id,status)values('27182200-0000-4000-8000-000000000001','27182200-0000-4000-8000-000000000002','active');
+set local role authenticated;
+set local request.jwt.claims='{"sub":"27182200-0000-4000-8000-000000000001","role":"authenticated","session_id":"27182200-0000-4000-8000-000000000011"}';
+do $prepare$ declare r jsonb;begin
+ r:=public.studio2_prepare_upload('country_media','27182200-0000-4000-8000-000000000002','flags','prepared.png','image/png',3,'{}');
+ if r->>'token_id' is null or r->>'upload_secret' is null or r->>'bucket'<>'solaris-upload-quarantine' then raise exception 'Governed Media preparation broken by table cutover';end if;
+end $prepare$;
+reset role;
 insert into storage.buckets(id,name,public) values
  ('v3-media-authority-test','v3-media-authority-test',false);
 insert into public.studio2_upload_authorizations(
- id,actor_id,domain,final_bucket,quarantine_path,final_path,
+ id,actor_id,entity_id,domain,final_bucket,quarantine_path,final_path,
  original_name,declared_mime,expected_size,authorization_secret
 ) values (
  '27182200-0000-4000-8000-000000000021',
  '27182200-0000-4000-8000-000000000001',
+ '27182200-0000-4000-8000-000000000002',
  'country_media',
  'v3-media-authority-test',
  'fixture/quarantine',
@@ -103,6 +116,25 @@ reset role;
 insert into storage.objects(bucket_id,name,metadata)
 values ('v3-media-authority-test','fixture/final','{"size":3}');
 
+-- Check the database gate and fresh actor scope independently of Edge checks.
+update public.studio2_platform_operational_state set mode='read_only',version=version+1 where singleton=true;
+set local role service_role;
+do $blocked$ declare denied boolean:=false;begin
+ begin perform public.v3_finalize_media_upload('27182200-0000-4000-8000-000000000021','fixture-secret','27182200-0000-4000-8000-000000000001','27182200-0000-4000-8000-000000000011','verified','image/png','{"signatureVerified":true,"quarantineVerified":true,"originalSize":3,"publishedSize":3,"publicationDecision":"published_after_verification","hashAlgorithm":"sha256","publishedSha256":"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"}',null);
+ exception when read_only_sql_transaction then denied:=true;end;
+ if not denied then raise exception 'Media bypassed database read-only mode';end if;
+end $blocked$;
+reset role;
+update public.studio2_platform_operational_state set mode='normal',version=version+1 where singleton=true;
+update public.country_accounts set status='suspended' where user_id='27182200-0000-4000-8000-000000000001';
+set local role service_role;
+do $revoked$ declare denied boolean:=false;begin
+ begin perform public.v3_finalize_media_upload('27182200-0000-4000-8000-000000000021','fixture-secret','27182200-0000-4000-8000-000000000001','27182200-0000-4000-8000-000000000011','verified','image/png','{"signatureVerified":true,"quarantineVerified":true,"originalSize":3,"publishedSize":3,"publicationDecision":"published_after_verification","hashAlgorithm":"sha256","publishedSha256":"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"}',null);
+ exception when insufficient_privilege then denied:=true;end;
+ if not denied then raise exception 'Media accepted revoked country authority';end if;
+end $revoked$;
+reset role;
+update public.country_accounts set status='active' where user_id='27182200-0000-4000-8000-000000000001';
 set local role service_role;
 select public.v3_finalize_media_upload(
   '27182200-0000-4000-8000-000000000021',
@@ -164,6 +196,14 @@ begin
 end
 $test$;
 
+reset role;
+-- A completed command remains recoverable after its upload window expires.
+update public.studio2_upload_authorizations set created_at=now()-interval '2 hours',expires_at=now()-interval '1 hour' where id='27182200-0000-4000-8000-000000000021';
+set local role service_role;
+do $expired_replay$ declare r jsonb;begin
+ r:=public.v3_finalize_media_upload('27182200-0000-4000-8000-000000000021','fixture-secret','27182200-0000-4000-8000-000000000001','27182200-0000-4000-8000-000000000011','verified','image/png','{"signatureVerified":true,"quarantineVerified":true,"originalSize":3,"publishedSize":3,"publicationDecision":"published_after_verification","hashAlgorithm":"sha256","publishedSha256":"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"}',null);
+ if r->>'status' is distinct from 'verified' then raise exception 'Expired window lost a completed receipt';end if;
+end $expired_replay$;
 reset role;
 
 do $test$
