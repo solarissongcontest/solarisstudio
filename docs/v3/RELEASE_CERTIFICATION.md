@@ -2,9 +2,37 @@
 
 **Status: NO-GO for official public release.** Source integration is not hosted migration, production deployment, voting activation or final contest certification. This record is not authority to perform those operations.
 
-**Exact integrated source candidate:** `ef92563a40d586a859949c329ff6e7e2c5efdbbe` (observed `main` on 15 November 2026 Finland time). **This SHA is NOT officially release-certified.** This document is a source-only evidence update proposed in PR #2498; any subsequent main advancement requires independent exact-SHA evidence.
+**Historical source snapshot:** `ef92563a40d586a859949c329ff6e7e2c5efdbbe` (observed earlier on 15 November 2026 Finland time). **This SHA was NOT officially release-certified.** This document is a source-only evidence update proposed in PR #2498; any subsequent main advancement requires independent exact-SHA evidence.
 
-## 1. Source integration record
+## 0. Current Nov 15 exact-main and independently verified hosted authority frontier
+
+**Current independently fetched `main` before subsequent PR integration:** `cc8fa522053f1dc16d2f52d77edb6285c8c7a3a6`. It contains [#2521 Results operation-engine/CAS recovery](https://github.com/solarissongcontest/solarisstudio/pull/2521), merged as `637c0ed424c7f86281fb774954be935eed300f01`, and [#2522 Jury table-authority retirement](https://github.com/solarissongcontest/solarisstudio/pull/2522), merged as `cc8fa522053f1dc16d2f52d77edb6285c8c7a3a6`. These source merges **have not installed their effects in production**.
+
+On the exact `cc8fa5...` main, eight completed GitHub Actions workflow runs were checked: Quality, Browser Audit, V3 Public/Organizer integration contracts, S13 Migration Adoption, S14 Archive forward-effects local proof, V3 stateful release acceptance, S02 isolated baseline and PR Main Freshness. All eight reported successful **workflow execution**; none is a complete S16 zero-unsafe-writer certificate or authorized production adoption result. Main is **not** an officially certified candidate.
+
+**Bounded production read-only PostgreSQL catalog, independently observed 15 Nov 2026:** connected Supabase account `Primary` returned canonical project `dkxmnvekiopyesuzggeu` ("Solaris Studio") at PostgreSQL 17.11, ACTIVE_HEALTHY. Three restricted catalog SELECTs inspected selected object identities, RLS/grants and `SECURITY DEFINER` metadata. They did not query contest data, invoke application RPCs, or change database state.
+
+| Checked current hosted effect | Read-only outcome |
+| --- | --- |
+| Five canonical private S13 foundation tables | All five **absent** |
+| Seven S13 registration/compatibility public RPC names | All seven **absent** |
+| Governed `public.v3_submit_confirmation` and `public.studio2_apply_confirmation_round_change` | Both **present** |
+| Results `public.studio2_execute_result_operation_v2` | **Absent** |
+| Selected private S07/S08 source/projection/context structures and Televote source-management guard | **Absent** |
+| Canonical `public.jury_votes`, `public.results`, `public.televote_votes` tables | Present with RLS enabled and effective SQL write privileges for `anon`, `authenticated` and `service_role`; policy/trigger conditions need effective assessment |
+| Direct `authenticated` EXECUTE on `public.submit_country_jury_ballot`, `public.admin_update_confirmation_controls`, `public.admin_confirmation_delete_response` | Present, despite source-level internal-writer retirement plans; SECURITY DEFINER internals need exact signature and authorization review |
+| `public.submit_confirmation` legacy helper | Direct API-role EXECUTE denied in selected catalog |
+| `televoting.submit_vote_checked` | Present; `anon` and `authenticated` have EXECUTE, requiring normal canonical eligibility controls |
+
+**Caution:** An EXECUTE or DML grant is not alone proof of a bypass; PostgreSQL RLS policies, function-body guards and triggers can deny actual operations. The selected catalog proves a production **authority reconciliation requirement**, not successful unauthorized mutation. No destructive/positive RPC experiments or synthetic traffic were directed at production.
+
+Open nonproduction source fixes [#2523](https://github.com/solarissongcontest/solarisstudio/pull/2523) (fail-closed shell rollout policy) and [#2524](https://github.com/solarissongcontest/solarisstudio/pull/2524) (PWA/browser/desktop navigation split) are still **uncertified PR work**, not merged until their exact-head gates and merge eligibility are established. These do not solve production database gaps or server-side feature gating.
+
+**Current release decision: NO-GO.** The highest-leverage mandatory dependency is System-owned forward-only S13 → S14/Archive → S07/S08 Televote → Jury/Results/Publication qualification against a disposable hosted-observed-equivalent PostgreSQL baseline, including effective privileges, local restore and complete S14/S16 verification. The production recovery order needs operator-specific backup/PITR evidence, pre/postconditions and **separate owner approval** before any hosted DDL. Do not add migration-history aliases or use hosted Supabase as a test fallback. No hosted migration, active Worker traffic change or public-write enablement was performed.
+
+The remainder of this ledger is retained as **historical 15 November integration evidence**, not silently upgraded to certify the newer main or pending PR heads.
+
+## 1. Historical source integration record
 
 | PR | Domain | Exact PR head tested | Main merge SHA | Source integration |
 | --- | --- | --- | --- | --- |
