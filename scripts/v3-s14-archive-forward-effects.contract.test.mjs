@@ -464,6 +464,14 @@ test("S16 launch TRUNCATE cutover matches independently observed authority inven
   assert.match(sql, /revoke insert,update,delete,truncate,references,trigger,maintain on table/);
   assert.match(driver, /s16PublicationDirectApiDenials:24/);
   assert.match(driver, /s16PublicationCanonicalCommandAcceptance:true/);
+  const donor = read("scripts/stage-v3-publication-canonical-local-fixture.mjs");
+  assert.match(donor, /SOLARIS_S02_TARGET !== "local"/);
+  assert.match(donor, /3f711b37c92c058990f5dc99a4ca55ff67e90b02/);
+  assert.match(donor, /to_regprocedure/);
+  assert.match(donor, /studio2_apply_show_publication_change/);
+  assert.match(donor, /studio2_publish_due_show_publications/);
+  assert.match(donor, /S16 publication donor did not reproduce reviewed command authority/);
+  assert.match(driver, /stage-v3-publication-canonical-local-fixture\.mjs/);
   assert.match(driver, /for s16_action in INSERT UPDATE DELETE TRUNCATE/);
   assert.match(driver, /publication_column_grant/);
   const publication = read(".github/scripts/v3-s16-publication-api-local.sh");
