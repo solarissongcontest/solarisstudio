@@ -9,7 +9,7 @@ test('every qualified Jury command matches the fresh catalog authority evidence'
  const routines=qualified.find(list=>list[0].sha256);
  assert.equal(routines.length,5);
  for(const routine of routines){
-  const o=observed.functions.find(x=>x.identity===routine.identity);
+  const o=observed.routines.find(x=>x.identity===routine.identity);
   assert.ok(o?.exists,routine.identity);
   for(const key of ['owner','securityDefiner','config','acl','sha256']) assert.deepEqual(routine[key],o[key],routine.identity+':'+key);
  }
