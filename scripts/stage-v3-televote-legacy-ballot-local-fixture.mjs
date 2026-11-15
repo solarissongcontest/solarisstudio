@@ -36,13 +36,13 @@ const checkedSource = readFileSync(resolve(
 ), "utf8");
 const checkedToken = "create or replace function televoting.submit_vote_checked(\n";
 const checkedStart = checkedSource.indexOf(checkedToken);
-const checkedTerm = checkedSource.indexOf("end $;", checkedStart);
+const checkedTerm = checkedSource.indexOf("end " + String.fromCharCode(36, 36) + ";", checkedStart);
 if (checkedStart < 0 || checkedTerm < checkedStart ||
   checkedSource.indexOf(checkedToken, checkedStart + 1) !== -1) {
   throw Error("S16 checked Televote source function is absent or ambiguous");
 }
-const checkedDefinition = checkedSource.slice(checkedStart, checkedTerm + "end $;".length);
-if (!checkedDefinition.includes("language plpgsql security definer set search_path=televoting,pg_temp as $")
+const checkedDefinition = checkedSource.slice(checkedStart, checkedTerm + ("end " + String.fromCharCode(36, 36) + ";").length);
+if (!checkedDefinition.includes("language plpgsql security definer set search_path=televoting,pg_temp as " + String.fromCharCode(36, 36))
   || !checkedDefinition.includes("automatic voting integrity check")
   || !checkedDefinition.includes("televoting.vote_preflight_checks")
   || !checkedDefinition.includes("insert into televoting.vote_submissions(")
