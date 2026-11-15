@@ -72,6 +72,40 @@ Steps 4–9 have more than one concrete SQL stage; use the exact-SHA CI artifact
 
 Every UNKNOWN above is a **launch blocker**, not a presumption of compatibility. Hosted history may disagree with source even where effects exist. Do not fabricate or rewrite `supabase_migrations.schema_migrations` records.
 
+## Bounded current-production schema-scope gate (15 November; read-only, not a backup)
+
+The connected **Primary** Supabase account returned `ACTIVE_HEALTHY` for `dkxmnvekiopyesuzggeu`, PostgreSQL `17.11.0.002` in `eu-central-1`. The hosted migration API returned **497** records, latest `20261101181812`. A bounded `pg_namespace`/`pg_class` catalog-only query (no private rows or vote records) identified the following table counts; these counts are **not backed-up data counts**:
+
+| Schema | Hosted table identities | Recovery classification |
+| --- | ---: | --- |
+| `public` | 149 | Application state; must be covered |
+| `private` | 13 | Application authority and audit; must be covered |
+| `televoting` | 26 | Official voting; must be covered |
+| `auth` | 27 | Accounts, sessions and relevant authorization; preserve with Supabase-compatible restore strategy |
+| `storage` | 10 | Metadata and policies only; object bytes require a separate export |
+| `supabase_migrations` | 1 | Preserve original migration records separately, never rewrite hosted history |
+| `vault` | 1 | Encrypted data without source encryption root is **not** a verified recovery |
+| `cron` | 2 | Review required jobs/schedules; restore disabled, without dispatch |
+| `net` | 2 | Provider/async HTTP dependencies; never replay outbound requests |
+| `realtime` | 10 | Provider-managed; reconstruct/verify compatibility rather than blindly replay |
+| `extensions`, `graphql`, `graphql_public` | 0 tables | Preserve required extension/provider configuration and verify views/functions |
+
+**Mandatory scope resolution before running the example below:** the five explicit `pg_dump --schema` flags cover only `auth`, `private`, `public`, `storage` and `televoting`. The resulting archive is a **scoped application database artifact**, not a complete production recovery set. In particular, `supabase_migrations` is omitted, `vault` needs separately reviewed encryption-root recovery, and `cron`/`net`/`realtime` need explicit classification. A clean exit from that command must **never** change backup-completeness status to PASS.
+
+The [official Supabase CLI backup/restore guide](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore) uses separately reviewed `--role-only`, schema and `--data-only --use-copy` exports. Its [migration-history section](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore#preserving-migration-history) separately exports the `supabase_migrations` schema **and** data; it also identifies custom `auth`/`storage` policy and trigger handling. The [platform-to-self-hosted guide](https://supabase.com/docs/guides/self-hosting/restore-from-platform) warns that raw `pg_dump` includes provider internals and may fail on restore. A PostgreSQL custom archive may still be used for the reviewed application-only scope, but **the operator must select and validate one complete, destination-compatible combined recovery procedure**, including original migration records, before release approval. Never feed an entire raw provider/internal dump blindly into a managed Supabase target.
+
+**Operator verification gate:**
+
+1. On the separately approved trusted workstation, record `pg_dump --version`, `pg_restore --version`, `psql --version`, `supabase --version`, `supabase db dump --help` and `supabase storage --help` where applicable. This ChatGPT environment has **not** verified any local CLI installation. Do not invent version or flag evidence.
+2. Privately choose a **named source schema allowlist** from the fresh database catalog, classify each hosted schema as backed up, provider-managed/rebuilt, or explicitly excluded with written reason, and reconcile expected table identities, original migration-history count, table data coverage, ACLs, RLS, extensions and functions against each export TOC. Missing privileges, omitted schemas or a partially readable archive **fail closed**. For a custom archive, inspect `pg_restore --list` in the private operator environment.
+3. Keep official writes quiesced across **all** separate database, roles, migration-history, Storage-byte and configuration export passes, or use a separately reviewed cross-artifact consistency strategy. A single `pg_dump` snapshot does not make independently executed CLI dumps and object transfers a consistent recovery point by itself.
+4. Encrypt the **entire** set (DB, roles/history, object bytes, verified inventories and any sensitive configuration); keep a independently accessible off-project copy. Never put private files, passwords, S3 access keys, Vault material or dump output in GitHub, ChatGPT or CI.
+5. For Storage bytes, the [official Storage transfer guide](https://supabase.com/docs/guides/self-hosting/copy-from-platform-s3) uses approved S3 credentials and `rclone` between endpoints; direct copying into self-hosted Storage filesystem volumes is not equivalent. Verify per-object paths, revisions where applicable, hashes, bucket policies and private access after restoring. An object-row-only restore **fails**.
+6. Recover Auth providers, redirect URLs, email/SMTP, Edge Function configuration (15 function identities were observed through read-only metadata, **not backed up**), runtime secrets, Vault/root keys, extension versions and external dependencies in the **isolated destination** without live dispatch. If a secret or provider-managed component cannot be reconstructed, record **BLOCKED**, never silently remove it.
+7. Preserve the untouched independently restored baseline. Execute the **exact System-owned ordered manifest** only on a separate clone; verify original historical vote/Result counts and digests, then real API-role positive and denial tests without external side effects. The generated manifest's staged SHA-256 entries are **not frozen by this catalog query**.
+
+**Evidence state of this inspection:** Production metadata VERIFIED; actual private-data export **NOT AUTHORIZED / NOT RUN**; Storage bytes **NOT COPIED**; Auth/Vault/external recoverability **NOT PROVEN**; production-derived isolated restore **NOT RUN**; migrated-restoration rehearsal **NOT RUN**; production SQL **NOT APPLIED**. All remain hard NO-GO gates.
+
 ## Operator-only backup / independent restore execution boundary (NOT AUTHORIZED)
 
 This is an operational checklist, **not** an instruction to run extraction in this ChatGPT session, GitHub Actions or on the owner's school computer. The existing [S06 operator export runbook](./s06-schema-export-operator-runbook.md) already contains a schema-only example. The procedure below is for a **different, privately authorized full-data recovery point**. It requires a trusted operator-controlled PostgreSQL 17 client, a credential-secure environment, an independently isolated PostgreSQL 17.11 destination, an off-project encrypted backup repository and a separately maintained Storage export/restore process.
