@@ -16,10 +16,29 @@ const blob = createHash("sha1")
  .update("blob "+Buffer.byteLength(source)+"\0").update(source).digest("hex");
 if (blob !== "3f711b37c92c058990f5dc99a4ca55ff67e90b02")
   throw Error("S16 publication historical source changed; requalify before using donor");
+// The S02 schema fixture also omits the *source-owned* operation receipt
+// helpers. Use the latest platform-mode-governed claim, not its older
+// pre-mode version; complete() retains the original operation-contract source.
+function sourcePinned(path, expectedBlob) {
+ const text=readFileSync(resolve(process.cwd(),path),"utf8");
+ const actual=createHash("sha1").update("blob "+Buffer.byteLength(text)+"\0").update(text).digest("hex");
+ if(actual!==expectedBlob)throw Error("S16 local operation-source drift: "+path);
+ return text;
+}
+const modeSource=sourcePinned(
+ "supabase/migrations/20261003174000_organisation_os_v5_platform_operational_modes.sql",
+ "a4f8c7a35df2d2caea98b82a3a4552ffbdb0d9ec");
+const operationSource=sourcePinned(
+ "supabase/migrations/20261002203000_organisation_os_v5_operation_contract.sql",
+ "48a02d067cb803683057d704d375b202cb6321f6");
 
 // Dependencies are ordered as originally declared. The fixture MAY have
 // source-newer helper implementations; preserve them rather than downgrading.
 const targets = [
+ // Source-exact, owner-only receipt helpers required by authenticated
+ // publication. The claim includes operational mode enforcement.
+ ["private.studio2_claim_operation","uuid,text,text,text,jsonb",[],modeSource],
+ ["private.studio2_complete_operation","uuid,jsonb",[],operationSource],
  ["private.studio2_normalise_publication_config","jsonb",[]],
  ["private.studio2_publication_has_any","jsonb",[]],
  ["private.studio2_publication_has_outcomes","jsonb",[]],
@@ -37,12 +56,13 @@ const targets = [
 const q = (s)=>"'"+s.replaceAll("'","''")+"'";
 const chunks = [];
 for (let i=0;i<targets.length;i++){
- const [name,args,roles] = targets[i];
+ const [name,args,roles,sourceOverride] = targets[i];
+ const sourceText=sourceOverride??source;
  const token="create or replace function "+name+"(";
- const start=source.indexOf(token);
- if(start<0 || source.indexOf(token,start+token.length)!==-1)
+ const start=sourceText.indexOf(token);
+ if(start<0 || sourceText.indexOf(token,start+token.length)!==-1)
    throw Error("S16 publication donor source absent or ambiguous: "+name);
- const tail=source.slice(start);
+ const tail=sourceText.slice(start);
  const tagMatch=/\bas\s+(\$[a-z0-9_]*\$)/i.exec(tail);
  if(!tagMatch)throw Error("No function delimiter: "+name);
  const end=tail.indexOf(tagMatch[1]+";",tagMatch.index+tagMatch[0].length);
@@ -100,6 +120,16 @@ begin
       and pg_get_userbyid(proowner)='postgres'
       and proconfig=array['search_path=pg_catalog, public, private']::text[])
     or to_regprocedure('${previewSig}') is null
+    or not exists(select 1 from pg_proc
+      where oid=to_regprocedure('private.studio2_claim_operation(uuid,text,text,text,jsonb)')
+      and prosecdef and pg_get_userbyid(proowner)='postgres')
+    or not exists(select 1 from pg_proc
+      where oid=to_regprocedure('private.studio2_complete_operation(uuid,jsonb)')
+      and prosecdef and pg_get_userbyid(proowner)='postgres')
+    or has_function_privilege('authenticated',
+      'private.studio2_claim_operation(uuid,text,text,text,jsonb)','EXECUTE')
+    or has_function_privilege('service_role',
+      'private.studio2_claim_operation(uuid,text,text,text,jsonb)','EXECUTE')
     or has_function_privilege('anon','${applySig}','EXECUTE')
     or not has_function_privilege('authenticated','${applySig}','EXECUTE')
     or has_function_privilege('authenticated','${dueSig}','EXECUTE')
