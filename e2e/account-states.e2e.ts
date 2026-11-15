@@ -1,5 +1,7 @@
 import { expect, test, type BrowserContext } from "@playwright/test";
 
+import { applyNavbarInstalledCssEmulation } from "./v3-navigation/navbar-local-rollout";
+
 type AccountState = "COUNTRY" | "ORGANIZER" | "SUSPENDED";
 
 type E2ESession = {
@@ -295,6 +297,10 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
   try {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.locator("html")).toHaveAttribute("data-solaris-runtime", "standalone");
+    // JS standalone emulation does not change the browser's CSS display-mode.
+    // Apply the source-derived installed stylesheet before asserting visible
+    // navigation; normal iOS PWAs use the unmodified production media query.
+    await applyNavbarInstalledCssEmulation(page);
     const primaryNav = page.getByRole("navigation", { name: "Primary app navigation" });
     await expect(primaryNav).toBeVisible();
     await expect(page.getByRole("heading", { name: "Solaris now", exact: true })).toBeVisible();
@@ -332,6 +338,11 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     // Assert the V3-installed Countries composition within the authorized local rollout.
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/countries", { waitUntil: "domcontentloaded" });
+    // page.goto is a full document navigation: Playwright-injected standalone
+    // CSS from the Home route does not survive it. Reapply the exact source-
+    // derived CSS in this new document, just as a real installed iOS PWA
+    // continues matching its display-mode media query on every route.
+    await applyNavbarInstalledCssEmulation(page);
     await expect(page.locator("[data-v3-legacy-route-adapter]")).toBeVisible();
     await expect(page.locator("[data-v3-legacy-bottom-clearance]")).toHaveCount(1);
     await expect(page.locator(".v3-countries-title")).toBeVisible();
@@ -359,23 +370,79 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     expect(countryLayout!.rowGap).toBeGreaterThanOrEqual(12);
     expect(countryLayout!.filterGap).toBeGreaterThanOrEqual(12);
 
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-    await page.waitForTimeout(100);
+    // The installed V3 dock is AppTabBar, not the retired V3LiquidTabBar.
+    // Legacy AppShell content may have its own scroll container; moving only
+    // document.scrollingElement to its end can leave the final region button
+    // hundreds of pixels below the dock while falsely reporting scroll end.
+    await page.evaluate(() => {
+      const lastCard =
+        document.querySelector<HTMLElement>(".v3-countries-regions > button:last-child") ??
+        document.querySelector<HTMLElement>(".v3-countries-grid > a:last-child");
+      if (!lastCard) return;
+
+      lastCard.scrollIntoView({ block: "end", inline: "nearest", behavior: "instant" });
+      let ancestor = lastCard.parentElement;
+      while (ancestor) {
+        const style = getComputedStyle(ancestor);
+        if (
+          /^(auto|scroll|overlay)$/.test(style.overflowY) &&
+          ancestor.scrollHeight > ancestor.clientHeight + 1
+        ) {
+          ancestor.scrollTo({ top: ancestor.scrollHeight, behavior: "instant" });
+        }
+        ancestor = ancestor.parentElement;
+      }
+      const documentScroller = document.scrollingElement;
+      documentScroller?.scrollTo({ top: documentScroller.scrollHeight, behavior: "instant" });
+    });
+
     const dockClearance = await page.evaluate(() => {
-      const dock = document.querySelector<HTMLElement>("[data-v3-liquid-tabbar]");
+      const dock = document.querySelector<HTMLElement>(".solaris-app-tabbar[data-layout='bar']");
       const spacer = document.querySelector<HTMLElement>("[data-v3-legacy-bottom-clearance]");
       const lastCard =
         document.querySelector<HTMLElement>(".v3-countries-regions > button:last-child") ??
         document.querySelector<HTMLElement>(".v3-countries-grid > a:last-child");
       if (!dock || !spacer || !lastCard) return null;
+
+      const scrollChain: Array<{ element: string; overflowY: string; scrollTop: number; scrollHeight: number; clientHeight: number }> = [];
+      let ancestor: Element | null = lastCard;
+      while (ancestor) {
+        if (ancestor instanceof HTMLElement) {
+          const style = getComputedStyle(ancestor);
+          if (ancestor.scrollHeight > ancestor.clientHeight + 1) {
+            scrollChain.push({
+              element: ancestor.tagName.toLowerCase() + (ancestor.className && typeof ancestor.className === "string" ? "." + ancestor.className.split(/\s+/).slice(0, 2).join(".") : ""),
+              overflowY: style.overflowY,
+              scrollTop: ancestor.scrollTop,
+              scrollHeight: ancestor.scrollHeight,
+              clientHeight: ancestor.clientHeight,
+            });
+          }
+        }
+        ancestor = ancestor.parentElement;
+      }
+
       return {
         gap: dock.getBoundingClientRect().top - lastCard.getBoundingClientRect().bottom,
         spacerHeight: spacer.getBoundingClientRect().height,
+        dockPosition: getComputedStyle(dock).position,
+        dockTop: dock.getBoundingClientRect().top,
+        lastCardBottom: lastCard.getBoundingClientRect().bottom,
+        spacerTop: spacer.getBoundingClientRect().top,
+        documentScrollY: window.scrollY,
+        scrollChain,
       };
     });
-    expect(dockClearance).not.toBeNull();
+    expect(dockClearance, "Installed AppTabBar, final country control and shell-owned spacer must all exist").not.toBeNull();
+    // A normal-flow dock at y=0 is an emulation/cascade defect, not a
+    // legitimate "hidden final row" result. Fail before the 12px gap check.
+    expect(dockClearance!.dockPosition).toBe("fixed");
+    expect(dockClearance!.dockTop).toBeGreaterThan(390);
     expect(dockClearance!.spacerHeight).toBeGreaterThanOrEqual(100);
-    expect(dockClearance!.gap).toBeGreaterThanOrEqual(12);
+    expect(
+      dockClearance!.gap,
+      `Last country control must clear the installed dock at scroll end: ${JSON.stringify(dockClearance)}`,
+    ).toBeGreaterThanOrEqual(12);
 
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/explore", { waitUntil: "domcontentloaded" });

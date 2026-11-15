@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 
+import { AppTabBar } from "@/components/app/AppTabBar";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useAppAttentionSummary } from "@/lib/app-attention";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
@@ -24,6 +26,7 @@ import {
   resetV3PublicTabToRoot,
   updateV3PublicScrollPosition,
   v3PublicEntryHref,
+  v3PublicTabRoot,
   type V3PublicTabId,
 } from "@/lib/v3-public-navigation";
 import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
@@ -148,6 +151,7 @@ export function V3AppShell({
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
   const navigate = useNavigate();
+  const { isAppMode } = useSolarisApp();
   const publicArea = activeArea ?? resolveV3ShellActiveArea(pathname, searchStr);
   const attention = useAppAttentionSummary();
   const rollout = useV3RolloutProbe(true);
@@ -344,21 +348,44 @@ export function V3AppShell({
 
   return (
     <V3FoundationShell>
-      <div className={cn("min-h-dvh", className)}>
+      <div className={cn("min-h-dvh", isAppMode && "v3-installed-app-layout", className)}>
         <V3TopContext edition={editionLabel} phase={phaseLabel} actions={shellActions} />
-        <V3DesktopPrimaryNavigation
-          destinations={navigationDestinations}
-          onSelect={selectDestination}
-        />
+        {!isAppMode ? (
+          <V3DesktopPrimaryNavigation
+            destinations={navigationDestinations}
+            onSelect={selectDestination}
+          />
+        ) : null}
         {children}
       </div>
 
-      <V3LiquidTabBar
-        key={navigationInteractionKey}
-        pathname={pathname}
-        destinations={navigationDestinations}
-        onSelect={selectDestination}
-      />
+      {isAppMode ? (
+        <AppTabBar
+          ariaLabel="Primary app navigation"
+          key={navigationInteractionKey}
+          pathname={pathname}
+          searchStr={searchStr}
+          signedIn={Boolean(rollout.data?.userId)}
+          participateBadge={participateAttentionCount}
+          meBadge={attention.me}
+          onSelectV3Tab={(id) => {
+            const destination = navigationDestinations.find((candidate) => candidate.id === id);
+            if (destination) selectDestination(destination);
+          }}
+          v3TabHref={(id) =>
+            navigationIdentityReady
+              ? v3PublicEntryHref(getV3PublicTabDestination(id, undefined, navigationScope))
+              : v3PublicTabRoot(id)
+          }
+        />
+      ) : (
+        <V3LiquidTabBar
+          key={navigationInteractionKey}
+          pathname={pathname}
+          destinations={navigationDestinations}
+          onSelect={selectDestination}
+        />
+      )}
     </V3FoundationShell>
   );
 }

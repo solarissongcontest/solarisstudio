@@ -151,7 +151,8 @@ export function V3LiquidTabBar({
       syncDirection();
       if (
         !bar ||
-        window.innerWidth >= 1024 ||
+        bar.getClientRects().length === 0 ||
+        (window.innerWidth >= 1024 && window.innerHeight >= 600) ||
         root.hasAttribute("data-solaris-keyboard-open")
       ) {
         root.style.setProperty("--v3-bottom-obstruction", "0px");
@@ -551,7 +552,7 @@ export function V3LiquidTabBar({
     left: "6px",
     right: "auto",
     direction: "ltr",
-    transform: `translate3d(calc(${physicalLensIndex} * (100% + 2px) + var(--v3-liquid-drag-x)), 0, 0) scaleX(var(--v3-liquid-scale-x))`,
+    transform: `translate3d(calc(${physicalLensIndex} * (100% + 2px) + var(--v3-liquid-drag-x)), 0, 0) scaleX(var(--v3-liquid-scale-x)) scaleX(var(--v3-liquid-optical-scale-x)) scaleY(var(--v3-liquid-optical-scale-y))`,
   } as CSSProperties;
 
   return (
