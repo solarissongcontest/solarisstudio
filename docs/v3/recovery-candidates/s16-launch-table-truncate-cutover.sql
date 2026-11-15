@@ -3,7 +3,7 @@
 -- across fourteen independently hosted-observed launch-critical relations.
 -- RLS cannot replace the governed versioned CAS/receipt authority. S08 and
 -- Combined separately own Televote restrictions; this verifies those effects.
--- Other domain direct INSERT/UPDATE/DELETE and RPC writers still require S16 proof.
+-- Results direct API DML is retired here; other domain DML/RPC writers still require S16 proof.
 -- Apply only after the guarded S13/Confirmation/S07/S08/Jury/Results chain.
 -- Never execute on hosted production without separately approved operator package.
 begin;
@@ -59,6 +59,15 @@ begin
       or not v_relation.relrowsecurity then
      raise exception 'S16 unqualified RLS-protected official table: %',v_target using errcode='55000';
    end if;
+   -- Results already has an owner-executed reviewed-input/CAS operation engine.
+   -- Refuse unreviewed column grants; a table-level REVOKE alone cannot
+   -- eliminate a separately granted column-level INSERT/UPDATE bypass.
+   if v_target='public.results' and exists (
+     select 1 from pg_attribute a where a.attrelid=v_relation.oid
+       and a.attnum>0 and not a.attisdropped and a.attacl is not null
+   ) then
+     raise exception 'S16 unexpected Results column-level grants' using errcode='55000';
+   end if;
    for v_role in select unnest(array['anon','authenticated','service_role']) loop
      -- Previously observed hosted effective TRUNCATE envelope. The earlier
      -- canonical stages may already have revoked some grants. Unexpected
@@ -86,6 +95,10 @@ begin
        raise exception 'S16 unexpected TRUNCATE role authority % on %: observed %, expected envelope %',
          v_role,v_target,v_actual,v_expected using errcode='55000';
      end if;
+     -- Hosted observation permits up to these three API roles to have
+     -- prior Results DML. Some locally recovered baselines already restrict
+     -- those grants; do not require an unsafe grant to exist merely to
+     -- revoke it. All three roles must have NO DML after this stage.
      if v_target in ('public.submissions','public.edit_tokens') then
        if exists(select 1 from pg_attribute a where a.attrelid=v_relation.oid
           and a.attnum>0 and not a.attisdropped and a.attacl is not null) then
@@ -103,8 +116,8 @@ end
 $s16_preflight$;
 
 select public.v3_register_migration_contract(
- 'v3.s16.launch-table-truncate-cutover',2,'forward_fix_only',false,null,
- 'Retire Confirmation API DML and RLS-independent TRUNCATE on fourteen hosted-observed launch tables'
+ 'v3.s16.launch-table-truncate-cutover',3,'forward_fix_only',false,null,
+ 'Retire Confirmation and Results direct API DML plus RLS-independent TRUNCATE on fourteen hosted-observed launch tables'
 );
 
 -- S08 and Combined already govern Televote; do not duplicate their ACL mutation.
@@ -125,6 +138,11 @@ revoke truncate on table
  public.studio2_show_publication_controls,
  public.studio2_upload_authorizations,
  televoting.vote_submissions
+ from public,anon,authenticated,service_role;
+-- Results review/calculation and publication must use the already-installed
+-- canonical owner-executed CAS/receipt engine, not privileged raw table DML.
+-- Preserve existing SELECT/RLS and SECURITY DEFINER RPC execution contracts.
+revoke insert,update,delete,references,trigger,maintain on table public.results
  from public,anon,authenticated,service_role;
 
 do $s16_postcheck$
@@ -148,6 +166,16 @@ begin
    for v_role in select unnest(array['anon','authenticated','service_role']) loop
      if has_table_privilege(v_role,v_target,'TRUNCATE') then
        raise exception 'S16 RLS-independent API TRUNCATE remains: % %',v_role,v_target using errcode='42501';
+     end if;
+     if v_target='public.results' then
+       foreach v_privilege in array array['INSERT','UPDATE','DELETE','REFERENCES','TRIGGER','MAINTAIN'] loop
+         if has_table_privilege(v_role,v_target,v_privilege) then
+           raise exception 'S16 competing Results API table writer remains: % %',v_role,v_privilege using errcode='42501';
+         end if;
+       end loop;
+       if has_any_column_privilege(v_role,v_target,'INSERT,UPDATE') then
+         raise exception 'S16 competing Results column writer remains: %',v_role using errcode='42501';
+       end if;
      end if;
      if v_target in ('public.submissions','public.edit_tokens') then
        foreach v_privilege in array array['INSERT','UPDATE','DELETE','REFERENCES','TRIGGER','MAINTAIN'] loop

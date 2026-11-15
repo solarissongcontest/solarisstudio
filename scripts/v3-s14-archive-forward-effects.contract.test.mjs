@@ -448,5 +448,19 @@ test("S16 launch TRUNCATE cutover matches independently observed authority inven
   assert.deepEqual(actorLoop[1].trim().split(/\s+/).sort(), names);
   assert.match(driver, /s16LaunchTableTruncateDenials:42/);
   assert.match(sql, /revoke truncate on table/);
+  // The observed normal-mode Results DML bypass requires an independent
+  // table/column cutover and an actual post-S16 canonical readback.
+  assert.match(sql, /revoke insert,update,delete,references,trigger,maintain on table public\.results/);
+  assert.match(sql, /S16 unexpected Results column-level grants/);
+  assert.match(sql, /S16 competing Results API table writer remains/);
+  assert.match(sql, /has_any_column_privilege\(v_role,v_target,'INSERT,UPDATE'\)/);
+  assert.match(driver, /for s16_drift in extra_grant disabled_rls results_column_grant/);
+  assert.match(driver, /for s16_action in INSERT UPDATE DELETE/);
+  assert.match(driver, /s16ResultsApiDmlDenials:9/);
+  assert.match(driver, /s16ResultsPublishedReadbackPreserved:true/);
+  const cleanConfirmation = read(".github/scripts/v3-confirmation-post-s16-clean-source-local.sh");
+  assert.match(cleanConfirmation, /s\.count\(results\)!=1/);
+  assert.match(cleanConfirmation, /len\(re\.findall\(.+s\)\)!=3/);
+  assert.match(driver, /source \.github\/scripts\/v3-result-public-api-local\.sh/);
   assert.doesNotMatch(sql, /supabase_migrations\.schema_migrations/);
 });
