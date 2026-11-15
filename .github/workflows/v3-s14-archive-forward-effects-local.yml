@@ -20,6 +20,12 @@ on:
       - "scripts/stage-v3-result-read-authority-recovery*"
       - "scripts/stage-v3-results-operation-*.mjs"
       - "scripts/stage-v3-results-reviewed-cas-recovery.mjs"
+      - "scripts/stage-v3-confirmation-access-recovery.mjs"
+      - "scripts/stage-v3-confirmation-access-recovery.test.mjs"
+      - "scripts/stage-v3-confirmation-prerequisites-local.mjs"
+      - "docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql"
+      - ".github/scripts/v3-confirmation-maintenance-edit-rehearsal.sh"
+      - "docs/v3/recovery-candidates/evidence/confirmation-access-prerequisites-observed-2026-11-15.json"
       - "scripts/v3-results-operation-recovery.test.mjs"
       - "scripts/v3-jury-table-authority.test.mjs"
       - ".github/scripts/v3-results-operation-*.sh"
@@ -229,6 +235,14 @@ jobs:
           bash scripts/rehearse-v3-s14-archive-forward-effects-local.sh
           bash .github/scripts/v3-s14-archive-system-rehearsal.sh
 
+      - name: Apply exact S16 Confirmation table grant restriction on clean local Supabase
+        id: post_s16_clean_cas
+        run: bash .github/scripts/v3-confirmation-post-s16-clean-source-local.sh
+
+      - name: Rehearse governed Confirmation commands, receipts, CAS and denial on clean local source
+        id: confirmation_lifecycle
+        run: bash .github/scripts/v3-confirmation-maintenance-edit-rehearsal.sh
+
       - name: State release boundary
         run: |
           echo "This used only synthetic local Supabase and a simulated Archive gap."
@@ -246,7 +260,7 @@ jobs:
           import { execFileSync } from 'node:child_process';
           const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
           if (!/^[a-f0-9]{40}$/.test(sha) || sha !== process.env.REVIEWED_SHA) throw Error('S06 evidence SHA mismatch');
-          const expected = ['source_contract','clean_replay','ordered_recovery','archive_behavior','authorization','terminal_boundaries','task_convergence','second_replay'];
+          const expected = ['source_contract','clean_replay','ordered_recovery','archive_behavior','authorization','terminal_boundaries','task_convergence','second_replay','post_s16_clean_cas','confirmation_lifecycle'];
           const steps = JSON.parse(process.env.S06_STEP_OUTCOMES || '{}');
           const outcomes = Object.fromEntries(expected.map(key => [key, steps[key]?.outcome || 'not_executed']));
           const passed = Object.values(outcomes).every(value => value === 'success');
@@ -300,7 +314,7 @@ jobs:
       - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
         run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
       - name: Verify bounded catalog export and drift refusals
-        run: node --test scripts/v3-jury-table-authority.test.mjs scripts/v3-results-operation-recovery.test.mjs scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs scripts/stage-v3-public-snapshot-recovery.test.mjs scripts/stage-v3-auth-uid-authority-local.test.mjs scripts/stage-v3-atomic-calculation-recovery.test.mjs scripts/stage-v3-hosted-api-roles-local.test.mjs scripts/stage-v3-recovery-owner-local.test.mjs scripts/stage-v3-result-authority-recovery.test.mjs scripts/stage-v3-result-read-authority-recovery.test.mjs
+        run: node --test scripts/stage-v3-confirmation-access-recovery.test.mjs scripts/v3-jury-table-authority.test.mjs scripts/v3-results-operation-recovery.test.mjs scripts/v3-s13-s14-catalog-export.test.mjs scripts/stage-v3-hosted-result-sync.test.mjs scripts/v3-atomic-calculation-actor.test.mjs scripts/stage-v3-public-snapshot-recovery.test.mjs scripts/stage-v3-auth-uid-authority-local.test.mjs scripts/stage-v3-atomic-calculation-recovery.test.mjs scripts/stage-v3-hosted-api-roles-local.test.mjs scripts/stage-v3-recovery-owner-local.test.mjs scripts/stage-v3-result-authority-recovery.test.mjs scripts/stage-v3-result-read-authority-recovery.test.mjs
       - name: Test authorization dependency reconstruction and incomplete-manifest refusal
         run: node --test scripts/v3-s13-s14-authorization-dependencies.test.mjs
       - name: Assert all-hosted catalog digests and incomplete-fixture rejection (offline only)

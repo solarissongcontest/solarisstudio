@@ -78,6 +78,19 @@ jobs:
         with:
           version: 2.113.0
 
+      # Fail before starting any local service if a hosted connection alias was
+      # inherited from CI. The later isolation check still verifies the started
+      # disposable endpoint. No test is allowed to use hosted Supabase.
+      - name: Reject remote database and Supabase aliases before startup
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$LOCAL_SUPABASE_URL" == http://127.0.0.1:54321 ]] || exit 1
+          [[ "$(git rev-parse HEAD)" == "${{ github.event.pull_request.head.sha || github.sha }}" ]] || exit 1
+          for key in SUPABASE_URL VITE_SUPABASE_URL E2E_SUPABASE_URL VITE_CONFIRMATIONS_SUPABASE_URL CONFIRMATIONS_SUPABASE_URL DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_SERVICE_ROLE_KEY PGHOST PGHOSTADDR PGSERVICE PGSERVICEFILE; do
+            [[ -z "${!key:-}" ]] || { echo "::error::Refusing unexpected remote database alias: $key"; exit 1; }
+          done
+
       - name: Start isolated local Supabase
         run: supabase start
 
@@ -106,6 +119,11 @@ jobs:
           export VITE_SUPABASE_PROJECT_ID=local
           export VITE_SUPABASE_PROJECT_REF=local
           bun run scripts/check-v3-production-isolation.ts
+
+      - name: Cut over Confirmation table grants before full source contest rehearsal
+        env:
+          SOLARIS_VERIFICATION_TARGET: local
+        run: bash .github/scripts/v3-confirmation-post-s16-clean-source-local.sh
 
       - name: Run complete one-state S14 contest lifecycle
         id: rehearsal

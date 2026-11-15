@@ -2,6 +2,37 @@
 
 **Status: NO-GO for official public release.** Source integration is not hosted migration, production deployment, voting activation or final contest certification. This record is not authority to perform those operations.
 
+## 15 November N14 source integration checkpoint (NO-GO; not a certificate)
+
+**Latest verified source-integrated main for this checkpoint:** `02296a51e6ce5c91734c93985b81c62674bf9f1e`. [System-owned PR #2525](https://github.com/solarissongcontest/solarisstudio/pull/2525) was squash-merged as this exact main SHA from tested PR head `475928b2f87c00745291d43ef9d3ee15df1b14d8`. This is a **source integration checkpoint**, not an exact-main release certificate. Any subsequent merge, including this document's merge, changes main and requires its own fan-in.
+
+**Exact #2525 PR-head local checks, independently verified successful:**
+
+- [S13/S14 isolated Archive recovery, two local baselines, clean-source governed Confirmation **after S16 DML cutover**](https://github.com/solarissongcontest/solarisstudio/actions/runs/43709181013): **PASS**.
+- [Complete 66-country S14 contest through Archive, including actual isolated Confirmation direct-DML cutover](https://github.com/solarissongcontest/solarisstudio/actions/runs/43709181028): **PASS**.
+- [S13 Migration Adoption](https://github.com/solarissongcontest/solarisstudio/actions/runs/43709180997), [S15 cutover ownership](https://github.com/solarissongcontest/solarisstudio/actions/runs/43709181080), [Quality](https://github.com/solarissongcontest/solarisstudio/actions/runs/43709181036), [Browser audit](https://github.com/solarissongcontest/solarisstudio/actions/runs/43709181058), [Public/Organizer contracts](https://github.com/solarissongcontest/solarisstudio/actions/runs/43709181052), [bundle budget](https://github.com/solarissongcontest/solarisstudio/actions/runs/43709181020), and [main freshness](https://github.com/solarissongcontest/solarisstudio/actions/runs/43709181066): **PASS** at the same PR-head SHA.
+- Isolated recovered-state PostgreSQL 17.11 actually denied **18 direct Confirmation DML operations**, **12 official-table TRUNCATE attempts** and the source Results/CAS writer-protection probes. Transactional interruption/retry, synthesized historical preservation and `pg_dump` → separate `pg_restore` were verified on a network-isolated, hosted-observed-**scope** fixture. Artifacts: `s06-hosted-observed-475928b2...` / `s06-isolated-recovery-475928b2...` in the S13/S14 workflow.
+
+**Bounded read-only hosted observations, no user/ballot data accessed:** canonical Supabase project `dkxmnvekiopyesuzggeu`, PostgreSQL 17.11, 497 hosted migration records with tip `20261101181812`. The five S13 foundation tables and seven RPCs, S07/S08 structures/guard and Results operation v2 were absent. Confirmation legacy direct DML grants were present. `postgres` is non-superuser with `BYPASSRLS`, matching the reviewed operator; `service_role` also has `BYPASSRLS`. Column-shape and policy-definition fingerprints for six critical Confirmation parents now fail closed against unexpected drift in the System-owned candidate. No production SQL or automated hosted tests occurred.
+
+**Current release-risk classification (must not be relabeled away):**
+
+| Gate | Status for an official public soft launch |
+| --- | --- |
+| Source-owned integrated recovery chain / local SQL behavior | **PASS scoped source integration**, not installed in production |
+| Clean-source Confirmation and full S14 contest | **PASS at #2525 PR head**, not recovered-host acceptance |
+| Reconstructed hosted-observed-scope upgrade / isolated restore | **PASS bounded scope**, not full 497-history/727-function equivalence or real official data parity |
+| Entire recovered hosted-equivalent 66-country official contest | **HARD BLOCKER: UNKNOWN / NOT VERIFIED** |
+| Full S16 critical-authority zero-unsafe-writer gate | **HARD BLOCKER: NOT CERTIFIED**; scoped real API-role denials are not full S16 |
+| Production backup and **actual** independent restoration rehearsal | **HARD BLOCKER: NO VERIFIED EVIDENCE** |
+| Postmerge exact-main fan-in and canonical release-manifest producer | **NOT CERTIFIED**; check latest main runs independently |
+| Public/Organizer required product parity, feature rollout, physical mobile validation | **PARTIAL / remaining required scope must be proven** |
+| Hosted SQL migration approval / production Worker traffic activation / official public-write activation | **THREE DISTINCT APPROVALS: NONE GRANTED** |
+
+**Decision: NO-GO.** Source recovery readiness and public launch readiness are different. Neither old PR heads nor synthetic local restores authorize hosted DDL, publishing, voting, Worker promotion, new Edge deployment, or fake migration-history records. [Operator candidate](https://github.com/solarissongcontest/solarisstudio/blob/02296a51e6ce5c91734c93985b81c62674bf9f1e/docs/v3/recovery-candidates/n14-integrated-recovery-operator-package.md) supplies guarded order and stop conditions, but the live database still requires explicit approval and complete evidence. The canonical **green** release manifest cannot be generated while required S16/hosted/full-recovery/backup producer artifacts remain absent.
+
+---
+
 **Historical source snapshot:** `ef92563a40d586a859949c329ff6e7e2c5efdbbe` (observed earlier on 15 November 2026 Finland time). **This SHA was NOT officially release-certified.** This document is a source-only evidence update proposed in PR #2498; any subsequent main advancement requires independent exact-SHA evidence.
 
 ## 0. Current Nov 15 exact-main and independently verified hosted authority frontier
