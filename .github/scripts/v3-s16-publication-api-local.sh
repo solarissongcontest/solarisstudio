@@ -34,6 +34,13 @@ insert into auth.sessions(id,user_id,created_at,updated_at,aal,not_after)
 values('71000000-0000-4000-8000-000000000002','71000000-0000-4000-8000-000000000001',now(),now(),'aal1',now()+interval '1 hour');
 SQL
 pub_owner_sql -f - <<'SQL'
+-- The bounded S02 fixture omits permission-engine seed rows even though the
+-- schema is present. Reproduce the two immutable published capability keys
+-- from the canonical 20260914035152 foundation, only in this disposable DB.
+insert into public.studio2_capabilities(key,domain,label,description,access_level) values
+ ('publishing.manage','publishing','Manage publishing','Configure public projections and reveal plans.','operate'),
+ ('publishing.publish','publishing','Release public content','Approve public release of governed contest content.','approve')
+on conflict (key) do nothing;
 insert into public.studio2_capability_grants(user_id,capability,edition_id) values
 ('71000000-0000-4000-8000-000000000001','publishing.manage','51000000-0000-4000-8000-000000000001'),
 ('71000000-0000-4000-8000-000000000001','publishing.publish','51000000-0000-4000-8000-000000000001');
