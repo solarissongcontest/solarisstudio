@@ -51,7 +51,7 @@ begin
       or pg_get_userbyid(v_pub_fn.proowner)<>'postgres'
       or v_pub_fn.proconfig is distinct from
          array['search_path=pg_catalog, public, private']::text[] then
-      raise exception 'S16 unqualified canonical publication function: %',v_pub_identity using errcode='55000';
+      raise exception 'S16 unqualified canonical publication function %: oid %, owner %, definer %, config %',v_pub_identity,v_pub_fn.oid,case when v_pub_fn.oid is null then null else pg_get_userbyid(v_pub_fn.proowner) end,v_pub_fn.prosecdef,v_pub_fn.proconfig using errcode='55000';
    end if;
  end loop;
  if not has_function_privilege('authenticated',
