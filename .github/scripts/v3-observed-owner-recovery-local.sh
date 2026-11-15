@@ -129,7 +129,7 @@ source .github/scripts/v3-results-operation-recovery-local.sh
 echo 'STAGE: close RLS-independent official API TRUNCATE grants after all canonical command cutovers'
 # Verify this expanded scope fails closed on unexpected privilege or RLS drift.
 # Clones remain inside the same networkless PG17.11 fixture, never production.
-for s16_drift in extra_grant disabled_rls; do
+for s16_drift in extra_grant disabled_rls results_column_grant; do
   s16_probe="s16_${s16_drift}"
   operator_sql -c "create database ${s16_probe} owner postgres template recovery_operator_baseline;"
   case "$s16_drift" in
@@ -140,6 +140,10 @@ for s16_drift in extra_grant disabled_rls; do
     disabled_rls)
       s16_drift_statement='alter table public.editions disable row level security;'
       s16_expected_error='S16 unqualified RLS-protected official table'
+      ;;
+    results_column_grant)
+      s16_drift_statement='grant update (jury_points) on public.results to authenticated;'
+      s16_expected_error='S16 unexpected Results column-level grants'
       ;;
   esac
   docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d "$s16_probe" -c "$s16_drift_statement"
@@ -198,6 +202,28 @@ for s16_actor in anon authenticated service_role; do
   done
 done
 echo 'PASS: 18 direct Confirmation table DML attempts denied as real API roles'
+# Results' reviewed-input CAS and publication RPCs are the only sanctioned
+# owners. Test Results DML in NORMAL writable mode, not maintenance mode.
+for s16_actor in anon authenticated service_role; do
+  for s16_action in INSERT UPDATE DELETE; do
+    case "$s16_action" in
+      INSERT) s16_statement='insert into public.results default values' ;;
+      UPDATE) s16_statement='update public.results set show_id=show_id where false' ;;
+      DELETE) s16_statement='delete from public.results where false' ;;
+    esac
+    if docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U authenticator -d recovery_operator_baseline \
+      -c "begin; set local role $s16_actor; $s16_statement; rollback;" \
+      > /tmp/s16-results-dml-denial.log 2>&1; then
+      echo "S16 direct Results $s16_action unexpectedly allowed: $s16_actor" >&2; exit 1
+    fi
+    grep -qi 'permission denied for table' /tmp/s16-results-dml-denial.log || { cat /tmp/s16-results-dml-denial.log; exit 1; }
+  done
+done
+echo 'PASS: 9 direct Results table DML operations denied in normal mode as real API roles'
+# Run the existing independent-authenticator published-read and Results CAS
+# acceptance again *after* the DML cutover, on a disposable database clone.
+source .github/scripts/v3-result-public-api-local.sh
+echo 'PASS: post-S16 Results publication reads and canonical CAS still work'
 echo 'PASS: 42 actual API-role TRUNCATE attempts denied across fourteen launch tables'
 echo 'PASS: entire ordered recovery executes as observed NONSUPERUSER postgres with real role/schema privileges'
 # A restore of synthetic local data proves this procedure, NOT availability,
@@ -263,7 +289,7 @@ fs.writeFileSync('observed-owner-recovery-proof.json',JSON.stringify({
  schemaAndSyntheticRowsPreserved:true,separateLocalRestoreVerified:true,
  confirmationGovernedCommandsInstalled:true,confirmationLegacyApiExecuteDenied:true,
  confirmationPositiveLifecycleVerified:false,confirmationParentBodiesSourceOnly:true,
- s16ConfirmationTelevoteTruncateApiRoleDenied:true,s16LaunchTableTruncateDenials:42,s16LaunchTableNames:["public.country_accounts","public.editions","public.entries","public.edit_tokens","public.jury_votes","public.results","public.shows","public.studio2_result_operations","public.studio2_show_publication_controls","public.studio2_upload_authorizations","public.submissions","public.televote_votes","televoting.televote_aggregations","televoting.vote_submissions"],s16ConfirmationDirectApiDmlDenied:true,s16FullCriticalWriterCertified:false,
+ s16ConfirmationTelevoteTruncateApiRoleDenied:true,s16LaunchTableTruncateDenials:42,s16LaunchTableNames:["public.country_accounts","public.editions","public.entries","public.edit_tokens","public.jury_votes","public.results","public.shows","public.studio2_result_operations","public.studio2_show_publication_controls","public.studio2_upload_authorizations","public.submissions","public.televote_votes","televoting.televote_aggregations","televoting.vote_submissions"],s16ConfirmationDirectApiDmlDenied:true,s16ResultsDirectApiDmlDenied:true,s16ResultsApiDmlDenials:9,s16ResultsPublishedReadbackPreserved:true,s16FullCriticalWriterCertified:false,
  juryLegacyApiDenied:true,juryGovernedReceiptReplayVerified:true,
  juryApiTableAndColumnDmlTruncateDenied:true,juryDraftCasAndReadbackVerified:true,
  signupAuthOwnerRaceAndRollbackVerified:true,
