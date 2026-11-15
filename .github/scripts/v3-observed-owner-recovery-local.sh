@@ -125,6 +125,23 @@ source .github/scripts/v3-combined-deferral-local.sh
 operator_apply docs/v3/recovery-candidates/s08-televote-single-writer-local.sql
 operator_sql -f - < .github/tests/v3-ordered-televote-s08-recovery.sql
 echo 'PASS: complete non-superuser owner recovery adopts S08 after Result/Combined safeguards'
+# The source already owns the reviewed S16 preflight-bypassing ballot RPC
+# retirement, but hosted-observed recovery must explicitly adopt the effect.
+operator_sql -c 'create database s16_ballot_drift owner postgres template recovery_operator_baseline;'
+docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d s16_ballot_drift \
+  -c 'alter function televoting.submit_vote(uuid,text,text,jsonb,text,text,text,text,boolean) security invoker;'
+s16_ballot_before="$(operator_state_digest s16_ballot_drift)"
+if docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d s16_ballot_drift \
+  -f - < supabase/migrations/20261115000100_v3_televote_ballot_writer_retirement.sql \
+  > /tmp/s16-ballot-drift.log 2>&1; then
+  echo 'S16 accepted unexpected legacy Televote SECURITY DEFINER drift' >&2; exit 1
+fi
+grep -Fq 'S16 ballot retirement requires reviewed postgres-owned SECURITY DEFINER functions' /tmp/s16-ballot-drift.log || { cat /tmp/s16-ballot-drift.log; exit 1; }
+[[ "$(operator_state_digest s16_ballot_drift)" == "$s16_ballot_before" ]] || { echo 'S16 legacy ballot drift failure modified schema/data' >&2; exit 1; }
+operator_sql -c 'drop database s16_ballot_drift;'
+operator_apply supabase/migrations/20261115000100_v3_televote_ballot_writer_retirement.sql
+operator_sql -f - < .github/tests/v3-televote-ballot-authority.sql
+echo 'PASS: recovered S16 legacy service-role Televote writer retired and checked public ballot preflight preserved'
 source .github/scripts/v3-results-operation-recovery-local.sh
 echo 'STAGE: close RLS-independent official API TRUNCATE grants after all canonical command cutovers'
 # Verify this expanded scope fails closed on unexpected privilege or RLS drift.
@@ -237,6 +254,7 @@ restored_sql() { docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U pos
 restored_sql -f - < .github/tests/v3-hosted-api-role-runtime.sql
 restored_sql -f - < .github/tests/v3-ordered-televote-recovery.sql
 restored_sql -f - < .github/tests/v3-ordered-televote-s08-recovery.sql
+restored_sql -f - < .github/tests/v3-televote-ballot-authority.sql
 restored_sql -v snapshot_before=false -f - < .github/tests/v3-public-snapshot-recovery.sql
 # The original weighted-rank fixture remains exercised before S08, above.
 # It manually seeds aggregates, which post-S08 must reject. This post-restore
@@ -267,6 +285,7 @@ const files=[
  'supabase/migrations/20261115084647_v3_jury_canonical_table_authority.sql',
  'supabase/migrations/20261114141934_v3_defer_combined_televote_database_writes.sql',
  'docs/v3/recovery-candidates/s08-televote-single-writer-local.sql',
+ 'supabase/migrations/20261115000100_v3_televote_ballot_writer_retirement.sql',
  '/tmp/results-operation-engine.sql','/tmp/results-reviewed-cas.sql',
  'supabase/migrations/20261114194701_v3_results_operation_tables_owner_only.sql',
  'docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql',
@@ -289,7 +308,7 @@ fs.writeFileSync('observed-owner-recovery-proof.json',JSON.stringify({
  schemaAndSyntheticRowsPreserved:true,separateLocalRestoreVerified:true,
  confirmationGovernedCommandsInstalled:true,confirmationLegacyApiExecuteDenied:true,
  confirmationPositiveLifecycleVerified:false,confirmationParentBodiesSourceOnly:true,
- s16ConfirmationTelevoteTruncateApiRoleDenied:true,s16LaunchTableTruncateDenials:42,s16LaunchTableNames:["public.country_accounts","public.editions","public.entries","public.edit_tokens","public.jury_votes","public.results","public.shows","public.studio2_result_operations","public.studio2_show_publication_controls","public.studio2_upload_authorizations","public.submissions","public.televote_votes","televoting.televote_aggregations","televoting.vote_submissions"],s16ConfirmationDirectApiDmlDenied:true,s16ResultsDirectApiDmlDenied:true,s16ResultsApiDmlDenials:9,s16ResultsPublishedReadbackPreserved:true,s16FullCriticalWriterCertified:false,
+ s16ConfirmationTelevoteTruncateApiRoleDenied:true,s16LaunchTableTruncateDenials:42,s16LaunchTableNames:["public.country_accounts","public.editions","public.entries","public.edit_tokens","public.jury_votes","public.results","public.shows","public.studio2_result_operations","public.studio2_show_publication_controls","public.studio2_upload_authorizations","public.submissions","public.televote_votes","televoting.televote_aggregations","televoting.vote_submissions"],s16ConfirmationDirectApiDmlDenied:true,s16ResultsDirectApiDmlDenied:true,s16ResultsApiDmlDenials:9,s16ResultsPublishedReadbackPreserved:true,s16LegacyTelevoteWriterRetired:true,s16CheckedVotePreflightApiRoleVerified:true,s16FullCriticalWriterCertified:false,
  juryLegacyApiDenied:true,juryGovernedReceiptReplayVerified:true,
  juryApiTableAndColumnDmlTruncateDenied:true,juryDraftCasAndReadbackVerified:true,
  signupAuthOwnerRaceAndRollbackVerified:true,
