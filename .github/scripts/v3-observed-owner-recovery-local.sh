@@ -149,10 +149,17 @@ operator_apply supabase/migrations/20261115000100_v3_televote_ballot_writer_reti
 operator_sql -f - < .github/tests/v3-televote-ballot-authority.sql
 echo 'PASS: recovered S16 legacy service-role Televote writer retired and checked public ballot preflight preserved'
 source .github/scripts/v3-results-operation-recovery-local.sh
+# The scoped S02 database omits several historical publication command RPCs,
+# although exact owner/SECURITY DEFINER grants were independently observed
+# on hosted. Reconstruct immutable original functions only in the networkless
+# fixture. This is not a hosted recovery step or proof of body equivalence.
+node scripts/stage-v3-publication-canonical-local-fixture.mjs > /tmp/s16-publication-fixture.sql
+operator_apply /tmp/s16-publication-fixture.sql
+echo 'PASS: source-exact local publication RPC donor installed without overwriting existing functions'
 echo 'STAGE: close RLS-independent official API TRUNCATE grants after all canonical command cutovers'
 # Verify this expanded scope fails closed on unexpected privilege or RLS drift.
 # Clones remain inside the same networkless PG17.11 fixture, never production.
-for s16_drift in extra_grant disabled_rls results_column_grant; do
+for s16_drift in extra_grant disabled_rls results_column_grant publication_column_grant; do
   s16_probe="s16_${s16_drift}"
   operator_sql -c "create database ${s16_probe} owner postgres template recovery_operator_baseline;"
   case "$s16_drift" in
@@ -167,6 +174,10 @@ for s16_drift in extra_grant disabled_rls results_column_grant; do
     results_column_grant)
       s16_drift_statement='grant update (jury_points) on public.results to authenticated;'
       s16_expected_error='S16 unexpected Results column-level grants'
+      ;;
+    publication_column_grant)
+      s16_drift_statement='grant update (state) on public.studio2_show_publication_controls to authenticated;'
+      s16_expected_error='S16 unexpected publication column-level grants'
       ;;
   esac
   docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d "$s16_probe" -c "$s16_drift_statement"
@@ -243,10 +254,40 @@ for s16_actor in anon authenticated service_role; do
   done
 done
 echo 'PASS: 9 direct Results table DML operations denied in normal mode as real API roles'
+# Publication controls and scheduled-execution receipts must not be writable
+# even by a service-role SQL session. This does not disable the owner-executed
+# apply/publish-due SECURITY DEFINER RPCs.
+for s16_actor in anon authenticated service_role; do
+  for s16_table in public.studio2_show_publication_controls public.studio2_show_publication_executions; do
+    for s16_action in INSERT UPDATE DELETE TRUNCATE; do
+      case "$s16_action" in
+        INSERT) s16_statement="insert into $s16_table default values" ;;
+        UPDATE)
+          if [[ "$s16_table" == public.studio2_show_publication_controls ]]; then
+            s16_statement='update public.studio2_show_publication_controls set state=state where false'
+          else
+            s16_statement='update public.studio2_show_publication_executions set executed_at=executed_at where false'
+          fi ;;
+        DELETE) s16_statement="delete from $s16_table where false" ;;
+        TRUNCATE) s16_statement="truncate table $s16_table" ;;
+      esac
+      if docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U authenticator -d recovery_operator_baseline \
+        -c "begin; set local role $s16_actor; $s16_statement; rollback;" \
+        > /tmp/s16-publication-denial.log 2>&1; then
+        echo "S16 competing publication $s16_action accepted: $s16_actor $s16_table" >&2
+        exit 1
+      fi
+      grep -qi 'permission denied for table' /tmp/s16-publication-denial.log || { cat /tmp/s16-publication-denial.log; exit 1; }
+    done
+  done
+done
+echo 'PASS: 24 actual API-role publication DML/TRUNCATE denials'
 # Run the existing independent-authenticator published-read and Results CAS
 # acceptance again *after* the DML cutover, on a disposable database clone.
 source .github/scripts/v3-result-public-api-local.sh
 echo 'PASS: post-S16 Results publication reads and canonical CAS still work'
+source .github/scripts/v3-s16-publication-api-local.sh
+echo 'PASS: post-S16 canonical publication command and scheduled owner RPC remain usable'
 echo 'PASS: 42 actual API-role TRUNCATE attempts denied across fourteen launch tables'
 echo 'PASS: entire ordered recovery executes as observed NONSUPERUSER postgres with real role/schema privileges'
 # A restore of synthetic local data proves this procedure, NOT availability,
@@ -314,11 +355,11 @@ fs.writeFileSync('observed-owner-recovery-proof.json',JSON.stringify({
  schemaAndSyntheticRowsPreserved:true,separateLocalRestoreVerified:true,
  confirmationGovernedCommandsInstalled:true,confirmationLegacyApiExecuteDenied:true,
  confirmationPositiveLifecycleVerified:false,confirmationParentBodiesSourceOnly:true,
- s16ConfirmationTelevoteTruncateApiRoleDenied:true,s16LaunchTableTruncateDenials:42,s16LaunchTableNames:["public.country_accounts","public.editions","public.entries","public.edit_tokens","public.jury_votes","public.results","public.shows","public.studio2_result_operations","public.studio2_show_publication_controls","public.studio2_upload_authorizations","public.submissions","public.televote_votes","televoting.televote_aggregations","televoting.vote_submissions"],s16ConfirmationDirectApiDmlDenied:true,s16ResultsDirectApiDmlDenied:true,s16ResultsApiDmlDenials:9,s16ResultsPublishedReadbackPreserved:true,s16LegacyTelevoteWriterRetired:true,s16CheckedVotePreflightApiRoleVerified:true,s16FullCriticalWriterCertified:false,
+ s16ConfirmationTelevoteTruncateApiRoleDenied:true,s16LaunchTableTruncateDenials:42,s16LaunchTableNames:["public.country_accounts","public.editions","public.entries","public.edit_tokens","public.jury_votes","public.results","public.shows","public.studio2_result_operations","public.studio2_show_publication_controls","public.studio2_upload_authorizations","public.submissions","public.televote_votes","televoting.televote_aggregations","televoting.vote_submissions"],s16ConfirmationDirectApiDmlDenied:true,s16ResultsDirectApiDmlDenied:true,s16ResultsApiDmlDenials:9,s16ResultsPublishedReadbackPreserved:true,s16LegacyTelevoteWriterRetired:true,s16CheckedVotePreflightApiRoleVerified:true,s16PublicationDirectApiDenials:24,s16PublicationCanonicalCommandAcceptance:true,s16FullCriticalWriterCertified:false,
  juryLegacyApiDenied:true,juryGovernedReceiptReplayVerified:true,
  juryApiTableAndColumnDmlTruncateDenied:true,juryDraftCasAndReadbackVerified:true,
  signupAuthOwnerRaceAndRollbackVerified:true,
- sourceOnlyRuntimeDependencies:["televoting.integrity_sanction_matches"],
+ sourceOnlyRuntimeDependencies:["televoting.integrity_sanction_matches","publication.historical-command-source-fixture"],
  combinedApiAndOwnerWritesDisabled:true,combinedHistoricalDataAndReadsPreserved:true,
  s08ObservedNonSuperuserAndRestoredAuthorityVerified:true,
  reviewedInputCasInstalled:true,reviewedInputStaleIdentityDenialsVerified:true,

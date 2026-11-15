@@ -41,11 +41,17 @@ results=(
   'revoke insert,update,delete,references,trigger,maintain on table public.results\n'
   ' from public,anon,authenticated,service_role;'
 )
+publication=(
+  'revoke insert,update,delete,truncate,references,trigger,maintain on table\n'
+  ' public.studio2_show_publication_controls,\n'
+  ' public.studio2_show_publication_executions\n'
+  ' from public,anon,authenticated,service_role;'
+)
 # This script must remain Confirmation-only. It merely validates that the
-# source file also contains the separately reviewed Results DML retirement;
+# source file also contains independently reviewed Results and publication DML retirement;
 # the complete stage and Results acceptance run in the networkless PG17 job.
 if (s.count(expected)!=1 or s.count(additional)!=1 or s.count(results)!=1
-    or len(re.findall(r'(?im)^revoke\s+',s))!=3):
+    or s.count(publication)!=1 or len(re.findall(r'(?im)^revoke\s+',s))!=4):
     raise SystemExit('Refusing unreviewed S16 Confirmation/Results grant retirement')
 print(expected)
 PY

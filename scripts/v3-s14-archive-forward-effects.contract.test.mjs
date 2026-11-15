@@ -458,9 +458,41 @@ test("S16 launch TRUNCATE cutover matches independently observed authority inven
   assert.match(driver, /for s16_action in INSERT UPDATE DELETE/);
   assert.match(driver, /s16ResultsApiDmlDenials:9/);
   assert.match(driver, /s16ResultsPublishedReadbackPreserved:true/);
+  assert.match(sql, /S16 competing publication table writer remains/);
+  assert.match(sql, /S16 unexpected publication column-level grants/);
+  assert.match(sql, /public.studio2_show_publication_executions/);
+  assert.match(sql, /revoke insert,update,delete,truncate,references,trigger,maintain on table/);
+  assert.match(driver, /s16PublicationDirectApiDenials:24/);
+  assert.match(driver, /s16PublicationCanonicalCommandAcceptance:true/);
+  const donor = read("scripts/stage-v3-publication-canonical-local-fixture.mjs");
+  assert.match(donor, /SOLARIS_S02_TARGET !== "local"/);
+  assert.match(donor, /3f711b37c92c058990f5dc99a4ca55ff67e90b02/);
+  // The hosted-observed S2 fixture has the seven-argument canonical claim.
+  // Its missing five-argument adapter must come from the S2 receipt migration,
+  // never the pre-S2 implementation that omits NOT NULL fingerprint fields.
+  assert.match(donor, /b8f7841c898186e90b535ad2e83af88eb36580e7/);
+  assert.match(donor, /s2AdapterMarker/);
+  assert.doesNotMatch(donor, /a4f8c7a35df2d2caea98b82a3a4552ffbdb0d9ec/);
+  assert.match(donor, /private.studio2_claim_operation/);
+  assert.match(donor, /private.studio2_complete_operation/);
+  assert.match(donor, /to_regprocedure/);
+  assert.match(donor, /studio2_apply_show_publication_change/);
+  assert.match(donor, /studio2_publish_due_show_publications/);
+  assert.match(donor, /S16 publication donor did not reproduce reviewed command authority/);
+  assert.match(driver, /stage-v3-publication-canonical-local-fixture\.mjs/);
+  assert.match(driver, /for s16_action in INSERT UPDATE DELETE TRUNCATE/);
+  assert.match(driver, /publication_column_grant/);
+  const publication = read(".github/scripts/v3-s16-publication-api-local.sh");
+  assert.match(publication, /NetworkMode/);
+  assert.match(publication, /-U authenticator/);
+  assert.match(publication, /set local role authenticated/);
+  assert.match(publication, /studio2_apply_show_publication_change/);
+  assert.match(publication, /studio2_publish_due_show_publications/);
+  assert.match(publication, /drop database recovery_publication_api_probe/);
   const cleanConfirmation = read(".github/scripts/v3-confirmation-post-s16-clean-source-local.sh");
   assert.match(cleanConfirmation, /s\.count\(results\)!=1/);
-  assert.match(cleanConfirmation, /len\(re\.findall\(.+s\)\)!=3/);
+  assert.match(cleanConfirmation, /s\.count\(publication\)!=1/);
+  assert.match(cleanConfirmation, /len\(re\.findall\(.+s\)\)!=4/);
   assert.match(driver, /source \.github\/scripts\/v3-result-public-api-local\.sh/);
   assert.doesNotMatch(sql, /supabase_migrations\.schema_migrations/);
 });
