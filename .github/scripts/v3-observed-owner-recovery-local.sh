@@ -127,6 +127,12 @@ operator_sql -f - < .github/tests/v3-ordered-televote-s08-recovery.sql
 echo 'PASS: complete non-superuser owner recovery adopts S08 after Result/Combined safeguards'
 # The source already owns the reviewed S16 preflight-bypassing ballot RPC
 # retirement, but hosted-observed recovery must explicitly adopt the effect.
+# The observed-role 56-table local fixture omits the historical old RPC: recover
+# the ORIGINAL source body inside the isolated fixture only. Never ship this
+# generator as a production migration or claim complete hosted body parity.
+node scripts/stage-v3-televote-legacy-ballot-local-fixture.mjs > /tmp/s16-legacy-ballot-fixture.sql
+operator_apply /tmp/s16-legacy-ballot-fixture.sql
+echo 'PASS: local-only historical Televote function donor matches observed owner/security/grant envelope'
 operator_sql -c 'create database s16_ballot_drift owner postgres template recovery_operator_baseline;'
 docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d s16_ballot_drift \
   -c 'alter function televoting.submit_vote(uuid,text,text,jsonb,text,text,text,text,boolean) security invoker;'
