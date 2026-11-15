@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
@@ -22,6 +23,21 @@ const compiled = ts
   })
   .outputText.replace(/\nexport \{\};?\s*$/, "");
 
+function digest(bytes: Uint8Array) {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+const sha256Hex = async (bytes: Uint8Array) => digest(bytes);
+const validSha256 = (value: unknown): value is string =>
+  typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
+const verifyPublishedBlob = async (
+  blob: Blob,
+  expected: { size: number; sha256: string },
+) => {
+  if (blob.size !== expected.size) return false;
+  return digest(new Uint8Array(await blob.arrayBuffer())) === expected.sha256;
+};
+
 async function finalizer(
   options: {
     status?: string;
@@ -30,9 +46,24 @@ async function finalizer(
     updateError?: boolean;
     updatedRowMissing?: boolean;
     invalidBytes?: boolean;
+    validEvidence?: boolean;
+    duplicatePublish?: "same" | "different" | "wrong-size" | "unavailable";
+    publishedReadback?: "same" | "different" | "wrong-size" | "unavailable";
+    receiptReadbackError?: boolean;
+    verifiedReceiptUnbound?: boolean;
   } = {},
 ) {
   let handler!: (request: Request) => Promise<Response>;
+  const evidenceBytes = new TextEncoder().encode("%PDF-1.7\n%%EOF");
+  const evidenceSha = digest(evidenceBytes);
+  const verifiedMetadata = options.verifiedReceiptUnbound
+    ? {}
+    : {
+        publishedSha256: evidenceSha,
+        publishedSize: evidenceBytes.length,
+        hashAlgorithm: "sha256",
+        storageObjectId: "27182200-0000-4000-8000-000000000031",
+      };
   const row = {
     id: "token-1",
     actor_id: "actor-1",
@@ -42,46 +73,100 @@ async function finalizer(
     final_bucket: "country-media",
     final_path: "country/image.png",
     quarantine_path: "token-1/image.png",
-    detected_mime: "image/png",
-    verified_metadata: {},
+    detected_mime:
+      options.status === "verified" || options.validEvidence ? "application/pdf" : "image/png",
+    verified_metadata: options.status === "verified" ? verifiedMetadata : {},
     rejection_reason: null,
-    domain: "country_media",
-    declared_mime: "image/png",
-    expected_size: 3,
+    domain: options.validEvidence || options.status === "verified" ? "integrity_evidence" : "country_media",
+    declared_mime:
+      options.validEvidence || options.status === "verified" ? "application/pdf" : "image/png",
+    expected_size:
+      options.validEvidence || options.status === "verified" ? evidenceBytes.length : 3,
   };
   const update = vi.fn();
+  const receiptReadback = vi.fn();
   const remove = vi.fn().mockResolvedValue({ data: [], error: null });
-  const download = vi.fn().mockResolvedValue({
-    data: options.invalidBytes ? new Blob([new Uint8Array([0, 1, 2])]) : null,
+  const quarantineDownload = vi.fn().mockResolvedValue({
+    data: options.validEvidence
+      ? new Blob([evidenceBytes])
+      : options.invalidBytes
+        ? new Blob([new Uint8Array([0, 1, 2])])
+        : null,
     error: options.storageStatus ? { status: options.storageStatus } : null,
   });
-  const service = {
-    auth: { getUser: async () => ({ data: { user: { id: "actor-1" } }, error: null }) },
-    from: (table: string) => {
-      let isUpdate = false;
-      const query = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        update: (...args: unknown[]) => {
-          isUpdate = true;
-          update(...args);
-          return query;
-        },
-        maybeSingle: async () => {
-          if (isUpdate)
-            return {
-              data: options.updatedRowMissing ? null : { id: row.id },
-              error: options.updateError ? { code: "25006" } : null,
-            };
-          return {
-            data: table === "studio2_upload_authorizations" ? row : { mode: "normal" },
-            error: null,
-          };
-        },
+  const finalReadbackMode = options.publishedReadback ?? options.duplicatePublish ?? "same";
+  const finalDownload = vi.fn().mockResolvedValue({
+    data:
+      finalReadbackMode === "unavailable"
+        ? null
+        : new Blob([
+            finalReadbackMode === "different"
+              ? new TextEncoder().encode("%PDF-1.6\n%%EOF")
+              : finalReadbackMode === "wrong-size"
+                ? new Uint8Array([1])
+                : evidenceBytes,
+          ]),
+    error: finalReadbackMode === "unavailable" ? { status: 503 } : null,
+  });
+  const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
+    if (name === "v3_finalize_media_upload") {
+      update({
+        status: args.p_status,
+        detected_mime: args.p_detected_mime,
+        verified_metadata: args.p_metadata,
+        rejection_reason: args.p_rejection_reason,
+      });
+      return {
+        data: options.updatedRowMissing ? null : { id: row.id, operationId: "operation-1" },
+        error: options.updateError ? { code: "25006" } : null,
       };
-      return query;
+    }
+    if (name === "v3_read_media_finalization_receipt") {
+      receiptReadback(args);
+      return {
+        data: options.receiptReadbackError
+          ? null
+          : {
+              id: row.id,
+              operationId: "operation-1",
+              metadata:
+                row.status === "verified"
+                  ? verifiedMetadata
+                  : {
+                      publishedSha256: evidenceSha,
+                      publishedSize: evidenceBytes.length,
+                      hashAlgorithm: "sha256",
+                      storageObjectId: "27182200-0000-4000-8000-000000000031",
+                    },
+            },
+        error: options.receiptReadbackError ? { code: "PGRST116" } : null,
+      };
+    }
+    throw new Error(`Unexpected RPC ${name}`);
+  });
+  const service = {
+    rpc,
+    auth: { getUser: async () => ({ data: { user: { id: "actor-1" } }, error: null }) },
+    from: (table: string) => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: async () => ({
+        data: table === "studio2_upload_authorizations" ? row : { mode: "normal" },
+        error: null,
+      }),
+    }),
+    storage: {
+      from: (bucket: string) => ({
+        download:
+          bucket === "solaris-upload-quarantine"
+            ? quarantineDownload
+            : finalDownload,
+        remove,
+        upload: vi.fn().mockResolvedValue({
+          error: options.duplicatePublish ? { message: "The resource already exists" } : null,
+        }),
+      }),
     },
-    storage: { from: () => ({ download, remove }) },
   };
   await runInNewContext(`(async () => { ${compiled} })()`, {
     Deno: {
@@ -97,7 +182,13 @@ async function finalizer(
     createClient: () => service,
     mockResolve: () => "file:///mock/magick.js",
     initializeImageMagick: async () => {},
+    sha256Hex,
+    validSha256,
+    verifyPublishedBlob,
     URL,
+    Blob,
+    TextDecoder,
+    atob,
     Response,
     console: { error: vi.fn() },
   });
@@ -109,7 +200,16 @@ async function finalizer(
         body: JSON.stringify({ token_id: row.id, upload_secret: row.authorization_secret }),
       }),
     );
-  return { request, update, remove, download };
+  return {
+    request,
+    update,
+    receiptReadback,
+    remove,
+    quarantineDownload,
+    finalDownload,
+    rpc,
+    evidenceSha,
+  };
 }
 
 describe("Media finalizer authoritative recovery evidence", () => {
@@ -131,19 +231,59 @@ describe("Media finalizer authoritative recovery evidence", () => {
   );
 
   it.each(["rejected", "expired"])("returns persisted %s evidence", async (status) => {
-    const { request, download } = await finalizer({ status });
+    const { request, quarantineDownload, finalDownload } = await finalizer({ status });
     const response = await request();
     expect(response.status).toBe(409);
     expect((await response.json()).code).toBe(`authorization_${status}`);
-    expect(download).not.toHaveBeenCalled();
+    expect(quarantineDownload).not.toHaveBeenCalled();
+    expect(finalDownload).not.toHaveBeenCalled();
   });
 
-  it("keeps verified receipts replayable", async () => {
-    const { request, update } = await finalizer({ status: "verified" });
+  it("reconciles a verified replay against exact published bytes and the durable receipt", async () => {
+    const { request, update, quarantineDownload, finalDownload, receiptReadback } = await finalizer({
+      status: "verified",
+    });
     const response = await request();
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ ok: true, token_id: "token-1", replayed: true });
+    expect(await response.json()).toMatchObject({
+      ok: true,
+      token_id: "token-1",
+      replayed: true,
+      operation_id: "operation-1",
+    });
     expect(update).not.toHaveBeenCalled();
+    expect(quarantineDownload).not.toHaveBeenCalled();
+    expect(finalDownload).toHaveBeenCalledTimes(1);
+    expect(receiptReadback).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["different", 409, "verified_publication_conflict"],
+    ["wrong-size", 409, "verified_publication_conflict"],
+    ["unavailable", 503, "verified_publication_unconfirmed"],
+  ] as const)(
+    "never replays verified success when published bytes are %s",
+    async (publishedReadback, status, code) => {
+      const { request, receiptReadback } = await finalizer({
+        status: "verified",
+        publishedReadback,
+      });
+      const response = await request();
+      expect(response.status).toBe(status);
+      expect((await response.json()).code).toBe(code);
+      expect(receiptReadback).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not trust historical verified rows that lack an exact byte identity", async () => {
+    const { request, finalDownload } = await finalizer({
+      status: "verified",
+      verifiedReceiptUnbound: true,
+    });
+    const response = await request();
+    expect(response.status).toBe(503);
+    expect((await response.json()).code).toBe("verified_receipt_unbound");
+    expect(finalDownload).not.toHaveBeenCalled();
   });
 
   it("confirms expiration before returning terminal evidence and deleting bytes", async () => {
@@ -185,5 +325,115 @@ describe("Media finalizer authoritative recovery evidence", () => {
       expect(response.status).toBe(503);
       expect((await response.json()).code).toBeUndefined();
     },
+  );
+});
+
+it("reads first-published bytes back before the canonical verified receipt is persisted", async () => {
+  const { request, update, receiptReadback, remove, finalDownload, evidenceSha } = await finalizer({
+    validEvidence: true,
+  });
+  const response = await request();
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({ ok: true, replayed: false });
+  expect(finalDownload).toHaveBeenCalledTimes(1);
+  expect(update).toHaveBeenCalledWith(
+    expect.objectContaining({
+      status: "verified",
+      verified_metadata: expect.objectContaining({
+        publishedSha256: evidenceSha,
+        hashAlgorithm: "sha256",
+      }),
+    }),
+  );
+  expect(receiptReadback).toHaveBeenCalledTimes(1);
+  expect(update.mock.invocationCallOrder[0]).toBeLessThan(receiptReadback.mock.invocationCallOrder[0]);
+  expect(receiptReadback.mock.invocationCallOrder[0]).toBeLessThan(remove.mock.invocationCallOrder[0]);
+});
+
+it.each([
+  ["different", 409],
+  ["wrong-size", 409],
+  ["unavailable", 503],
+] as const)(
+  "does not finalize a first publication whose readback is %s",
+  async (publishedReadback, status) => {
+    const { request, update, remove } = await finalizer({
+      validEvidence: true,
+      publishedReadback,
+    });
+    const response = await request();
+    expect(response.status).toBe(status);
+    expect((await response.json()).ok).toBeUndefined();
+    expect(update).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+  },
+);
+
+it.each([{ updateError: true }, { updatedRowMissing: true }])(
+  "retains retry bytes and never invents verified success after unconfirmed receipt writes: %j",
+  async (options) => {
+    const { request, remove } = await finalizer({ ...options, validEvidence: true });
+    const response = await request();
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body.ok).toBeUndefined();
+    expect(body.code).toBeUndefined();
+    expect(remove).not.toHaveBeenCalled();
+  },
+);
+
+it("returns uncertainty after a committed verification whose canonical receipt cannot be read back", async () => {
+  const { request, update, remove } = await finalizer({
+    validEvidence: true,
+    receiptReadbackError: true,
+  });
+  const response = await request();
+  expect(response.status).toBe(503);
+  expect((await response.json()).ok).toBeUndefined();
+  expect(update).toHaveBeenCalledWith(expect.objectContaining({ status: "verified" }));
+  expect(remove).not.toHaveBeenCalled();
+});
+
+it("reconciles duplicate publication only when persisted bytes match the verified payload", async () => {
+  const { request, update } = await finalizer({ validEvidence: true, duplicatePublish: "same" });
+  expect((await request()).status).toBe(200);
+  expect(update).toHaveBeenCalledWith(expect.objectContaining({ status: "verified" }));
+});
+
+it.each([
+  ["different", 409],
+  ["wrong-size", 409],
+  ["unavailable", 503],
+] as const)(
+  "never certifies a duplicate object with %s readback",
+  async (duplicatePublish, status) => {
+    const { request, update, remove } = await finalizer({ validEvidence: true, duplicatePublish });
+    const response = await request();
+    expect(response.status).toBe(status);
+    expect((await response.json()).ok).toBeUndefined();
+    expect(update).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+  },
+);
+
+it("binds governed finalization and receipt readback to the verified caller and exact upload capability", async () => {
+  const { request, rpc } = await finalizer({ validEvidence: true });
+  expect((await request()).status).toBe(200);
+  expect(rpc).toHaveBeenCalledWith(
+    "v3_finalize_media_upload",
+    expect.objectContaining({
+      p_token_id: "token-1",
+      p_upload_secret: "test-capability",
+      p_actor_id: "actor-1",
+      p_status: "verified",
+    }),
+  );
+  expect(rpc).toHaveBeenCalledWith(
+    "v3_read_media_finalization_receipt",
+    expect.objectContaining({
+      p_token_id: "token-1",
+      p_upload_secret: "test-capability",
+      p_actor_id: "actor-1",
+    }),
   );
 });

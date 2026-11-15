@@ -541,10 +541,8 @@ export function useDeleteCountryMedia(countryId?: string) {
         .eq("country_id", countryId);
       if (rowError) throw rowError;
 
-      const { error: storageError } = await typedSupabase.storage
-        .from("country-media")
-        .remove([media.storage_path]);
-      if (storageError) throw storageError;
+      // The verified object remains an immutable publication. This action
+      // removes country/profile references; governed retention owns its bytes.
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["country-world-profile", countryId] });
