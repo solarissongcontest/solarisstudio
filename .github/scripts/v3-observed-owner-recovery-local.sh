@@ -135,12 +135,19 @@ const files=[
  'supabase/migrations/20261114194701_v3_results_operation_tables_owner_only.sql',
 ];
 const digest=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+fs.mkdirSync('ordered-recovery-sql',{recursive:true});
+const orderedStages=files.map((path,i)=>{
+ const artifactPath='ordered-recovery-sql/'+String(i+1).padStart(2,'0')+'-'+path.split('/').at(-1);
+ fs.copyFileSync(path,artifactPath);
+ if(digest(path)!==digest(artifactPath))throw Error('Recovery artifact copy digest mismatch');
+ return{order:i+1,path,artifactPath,sha256:digest(path)};
+});
 fs.writeFileSync('observed-owner-recovery-proof.json',JSON.stringify({
  sourceSha:sha,postgresVersion:'17.11',network:'none',portsPublished:false,
  observedProductionProject:'dkxmnvekiopyesuzggeu',
  recoveryOperator:{role:'postgres',superuser:false,bypassRls:true},
  observedRoleAttributes:16,observedSchemas:5,
- orderedStages:files.map((path,i)=>({order:i+1,path,sha256:digest(path)})),
+ orderedStages,
  interruptedRollback:true,safeRetry:true,duplicateRefused:true,
  schemaAndSyntheticRowsPreserved:true,separateLocalRestoreVerified:true,
  juryLegacyApiDenied:true,juryGovernedReceiptReplayVerified:true,
@@ -148,7 +155,10 @@ fs.writeFileSync('observed-owner-recovery-proof.json',JSON.stringify({
  sourceOnlyRuntimeDependencies:["televoting.integrity_sanction_matches"],
  combinedApiAndOwnerWritesDisabled:true,combinedHistoricalDataAndReadsPreserved:true,
  s08ObservedNonSuperuserAndRestoredAuthorityVerified:true,
- reviewedInputCasRecovered:true,resultOperationDirectApiWritesDenied:true,
+ reviewedInputCasInstalled:true,reviewedInputStaleIdentityDenialsVerified:true,
+ resultOperationDirectApiWritesDenied:true,authenticatedReleasePointerCommandsAndReplayVerified:true,
+ concurrentInputRollbackAndRetryVerified:true,
+ fullRecovered66CountryContestVerified:false,resultsCalculateReviewEventRehearsal:false,
  legacyRecalculationFixture:'approved historical source variant, replaced before execution; not hosted equivalence',
  productionBackupVerified:false,hostedEquivalenceCertified:false,
  productionMutation:false,productionAuthorized:false,

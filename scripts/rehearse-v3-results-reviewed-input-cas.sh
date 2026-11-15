@@ -27,6 +27,11 @@ values ('00000000-0000-4000-8000-00000000b152',
   '00000000-0000-4000-8000-00000000e152','Reviewed CAS fixture show',
   'grand-final',1,false,'{}'::jsonb);
 
+-- Frozen official rows must belong to an eligible confirmed show participant.
+insert into public.participants(edition_id,show_id,country_id,participation_status)
+values ('00000000-0000-4000-8000-00000000e152',
+ '00000000-0000-4000-8000-00000000b152','00000000-0000-4000-8000-00000000a152','confirmed');
+
 do $assert$
 declare
   v_basis bigint;
@@ -60,7 +65,10 @@ insert into public.results(id,edition_id,show_id,country_id,jury_points,televote
 values ('00000000-0000-4000-8000-00000000c152',
   '00000000-0000-4000-8000-00000000e152',
   '00000000-0000-4000-8000-00000000b152',
-  '00000000-0000-4000-8000-00000000a152',40,60,100,1);
+  '00000000-0000-4000-8000-00000000a152',40,60,100,1)
+on conflict (show_id,country_id) where show_id is not null do update
+set jury_points=excluded.jury_points,televote_points=excluded.televote_points,
+ total_points=excluded.total_points,final_rank=excluded.final_rank;
 update public.studio2_result_operations
 set calculation_version=1,last_calculated_at=now(),
     reviewed_version=1,reviewed_at=now(),
@@ -73,6 +81,7 @@ begin
   if not exists (
     select 1 from private.v3_result_versions
     where show_id='00000000-0000-4000-8000-00000000b152' and version=1
+      and result_row_count=1 and jsonb_array_length(result_rows)=1
   ) then
     raise exception 'MISSING_IMMUTABLE_RESULT_VERSION';
   end if;

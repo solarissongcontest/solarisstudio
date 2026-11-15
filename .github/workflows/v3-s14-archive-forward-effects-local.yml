@@ -21,11 +21,12 @@ on:
       - "scripts/stage-v3-results-operation-*.mjs"
       - "scripts/stage-v3-results-reviewed-cas-recovery.mjs"
       - "scripts/v3-results-operation-recovery.test.mjs"
-      - ".github/scripts/v3-results-operation-recovery-local.sh"
+      - ".github/scripts/v3-results-operation-*.sh"
       - ".github/tests/v3-results-*-local.sql"
       - ".github/tests/v3-results-operation-role-denial.sql"
       - "docs/v3/recovery-candidates/evidence/results-operation-*.json"
       - "docs/v3/recovery-candidates/evidence/auth-jwt-recovery-prerequisite-observed-2026-11-14.json"
+      - "docs/v3/recovery-candidates/evidence/results-runtime-prerequisites-observed-2026-11-15.json"
       - "supabase/migrations/20261114194701_v3_results_operation_tables_owner_only.sql"
       - ".github/scripts/v3-result-public-api-local.sh"
       - ".github/tests/v3-result-public-api.sql"
@@ -957,6 +958,7 @@ jobs:
           name: s06-hosted-observed-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             observed-owner-recovery-proof.json
+            ordered-recovery-sql/
             s06-archive-catalog-proof.json
             s06-parent-catalog-proof.json
             s06-acl-proof.json

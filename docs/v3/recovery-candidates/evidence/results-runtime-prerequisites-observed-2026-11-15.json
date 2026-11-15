@@ -1,0 +1,52 @@
+{
+  "readOnly": "on",
+  "routines": [
+    {
+      "acl": "{=X/supabase_auth_admin,postgres=X/supabase_auth_admin,supabase_auth_admin=X/supabase_auth_admin,dashboard_user=X/supabase_auth_admin}",
+      "owner": "supabase_auth_admin",
+      "config": null,
+      "exists": true,
+      "sha256": "7ce3ad8fb99f7ad5f5cd869fbd5479a6325e9444da472c26394cfa66c83b2d11",
+      "identity": "auth.jwt()",
+      "securityDefiner": false
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog, public, private, extensions"
+      ],
+      "exists": true,
+      "sha256": "722ab737835d22f847cc0e5bf6c096219f69fcce0d35332aea7a33fbf68f97de",
+      "identity": "private.studio2_request_fingerprint(text,text,jsonb,jsonb)",
+      "securityDefiner": false
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog, public, private, auth"
+      ],
+      "exists": true,
+      "sha256": "22c8fea2e264865555d950df01edce96f52961cb93795b8ed531583b670aa40f",
+      "identity": "private.v3_emit_domain_event(text,text,text,bigint,uuid,uuid,uuid,jsonb,integer,text[])",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog, public, private"
+      ],
+      "exists": true,
+      "sha256": "3e1cd6725e0b5d7663d0ae3bf34c7ce582a2692290968618877a78bdd5d7fb56",
+      "identity": "private.v3_emit_result_execution_event()",
+      "securityDefiner": true
+    }
+  ],
+  "observedAt": "2026-11-15T08:05:22.714969+00:00",
+  "projectRef": "dkxmnvekiopyesuzggeu",
+  "serverVersionNum": "170011",
+  "applicationRowsRead": false,
+  "rawFunctionBodiesExported": false
+}

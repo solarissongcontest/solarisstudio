@@ -74,6 +74,47 @@ for (const [name, args, file] of items) {
     `do $post$begin if encode(sha256(convert_to(pg_get_functiondef(to_regprocedure('${o.identity}')),'UTF8')),'hex')<>'${sourceSha}' then raise exception 'Source does not reproduce observed Results definition: ${name}';end if;end $post$;`,
   );
 }
+const runtime = JSON.parse(
+  fs.readFileSync(
+    "docs/v3/recovery-candidates/evidence/results-runtime-prerequisites-observed-2026-11-15.json",
+    "utf8",
+  ),
+);
+if (
+  runtime.projectRef !== "dkxmnvekiopyesuzggeu" ||
+  runtime.readOnly !== "on" ||
+  runtime.applicationRowsRead !== false
+)
+  throw Error("Unqualified Results runtime observation");
+for (const [name, args, file, placeholder] of [
+  [
+    "private.studio2_request_fingerprint",
+    "text,text,jsonb,jsonb",
+    "20261014194651_v3_s2_operation_receipt_idempotency.sql",
+    null,
+  ],
+  [
+    "private.v3_emit_result_execution_event",
+    "",
+    "20261016053000_v3_s5_results_consequences.sql",
+    "1006245ea9cfe8f31451566ca05b0c8a9071d5ba65ae7d214c6b66dd10a13c6c",
+  ],
+]) {
+  const o = runtime.routines.find((x) => x.identity === `${name}(${args})`);
+  if (!o?.exists || o.owner !== "postgres" || !/^[a-f0-9]{64}$/.test(o.sha256))
+    throw Error("Missing qualified Results runtime routine");
+  const prior = placeholder
+    ? ` and encode(sha256(convert_to(pg_get_functiondef(to_regprocedure('${o.identity}')),'UTF8')),'hex')<>'${placeholder}'`
+    : "";
+  console.log(
+    `do $pre$begin if to_regprocedure('${o.identity}') is not null and encode(sha256(convert_to(pg_get_functiondef(to_regprocedure('${o.identity}')),'UTF8')),'hex')<>'${o.sha256}'${prior} then raise exception 'Unknown local Results runtime prerequisite';end if;end $pre$;`,
+  );
+  console.log(extractDefinition(fs.readFileSync("supabase/migrations/" + file, "utf8"), name));
+  console.log(`revoke all on function ${o.identity} from public,anon,authenticated,service_role;`);
+  console.log(
+    `do $post$begin if encode(sha256(convert_to(pg_get_functiondef(to_regprocedure('${o.identity}')),'UTF8')),'hex')<>'${o.sha256}' then raise exception 'Canonical Results runtime definition differs from hosted observation';end if;end $post$;`,
+  );
+}
 // Exact observed table ACL completion is fixture reconstruction, not production
 // grants. The subsequent CAS cutover revokes the unsafe direct API write path.
 console.log(

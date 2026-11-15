@@ -1,5 +1,6 @@
 [
   {
+    "acl": "{supabase_auth_admin=X/supabase_auth_admin,=X/supabase_auth_admin,postgres=X/supabase_auth_admin,dashboard_user=X/supabase_auth_admin}",
     "owner": "supabase_auth_admin",
     "config": null,
     "sha256": "7ce3ad8fb99f7ad5f5cd869fbd5479a6325e9444da472c26394cfa66c83b2d11",
@@ -7,6 +8,31 @@
     "security_definer": false
   },
   {
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "owner": "postgres",
+    "config": ["search_path=pg_catalog, public, private"],
+    "sha256": "01646f430145e6bd47c6c9b148d6edf67ea6b0665e0cd02ce070d3a1323fc258",
+    "identity": "private.studio2_can_preview_results(uuid,uuid)",
+    "security_definer": true
+  },
+  {
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "owner": "postgres",
+    "config": ["search_path=pg_catalog, public, private"],
+    "sha256": "b4beb19935295467c96f043ddec33651e12f9cee236fbda24028359c5d548c92",
+    "identity": "private.studio2_can_verify_results(uuid,uuid)",
+    "security_definer": true
+  },
+  {
+    "identity": "private.studio2_request_fingerprint(text,text,jsonb,jsonb)",
+    "owner": "postgres",
+    "config": ["search_path=pg_catalog, public, private, extensions"],
+    "acl": "{postgres=X/postgres}",
+    "sha256": "722ab737835d22f847cc0e5bf6c096219f69fcce0d35332aea7a33fbf68f97de",
+    "security_definer": false
+  },
+  {
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
     "owner": "postgres",
     "config": ["search_path=pg_catalog, public, private"],
     "sha256": "41605b729caa11f6a1df109ae58e130dc62332777b0fd561c8e6d86966341d73",
@@ -14,6 +40,47 @@
     "security_definer": true
   },
   {
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "owner": "postgres",
+    "config": ["search_path=pg_catalog, public, private"],
+    "sha256": "7a4b4ddbdc6a14aaae6f4fbefb2893c51ba98018d737bc2f1a3ba4644d6dd18c",
+    "identity": "private.studio2_result_preconditions_v3_base(uuid)",
+    "security_definer": true
+  },
+  {
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "owner": "postgres",
+    "config": ["search_path=pg_catalog, public, private"],
+    "sha256": "9d0cac19e00963bad68ff6b4314367d35543bb4ee6f4857a50db72636d03c80f",
+    "identity": "private.studio2_user_access_allowed(uuid,text,uuid,boolean)",
+    "security_definer": true
+  },
+  {
+    "identity": "private.v3_emit_domain_event(text,text,text,bigint,uuid,uuid,uuid,jsonb,integer,text[])",
+    "owner": "postgres",
+    "config": ["search_path=pg_catalog, public, private, auth"],
+    "acl": "{postgres=X/postgres}",
+    "sha256": "22c8fea2e264865555d950df01edce96f52961cb93795b8ed531583b670aa40f",
+    "security_definer": true
+  },
+  {
+    "identity": "private.v3_emit_result_execution_event()",
+    "owner": "postgres",
+    "config": ["search_path=pg_catalog, public, private"],
+    "acl": "{postgres=X/postgres}",
+    "sha256": "3e1cd6725e0b5d7663d0ae3bf34c7ce582a2692290968618877a78bdd5d7fb56",
+    "security_definer": true
+  },
+  {
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "owner": "postgres",
+    "config": ["search_path=public"],
+    "sha256": "042bee9d728f85b582a4f64467c81508cb63190240349b18b947d9a4f204c4a5",
+    "identity": "public.materialize_show_results_if_missing(uuid)",
+    "security_definer": true
+  },
+  {
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
     "owner": "postgres",
     "config": ["search_path=pg_catalog, public"],
     "sha256": "8af5ba43c90f868aa092db3a9cb054b3d39be8c07562ba72d2226aada004abd6",
@@ -21,10 +88,27 @@
     "security_definer": true
   },
   {
+    "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
     "owner": "postgres",
     "config": ["search_path=pg_catalog, public, private"],
     "sha256": "09da1fe46f8551a83b2d40975e094eaed5107bc24a5bf62d83841153163b28fc",
     "identity": "public.studio2_execute_result_operation(uuid,text,text,uuid,bigint)",
+    "security_definer": true
+  },
+  {
+    "acl": "{postgres=X/postgres}",
+    "owner": "postgres",
+    "config": ["search_path=pg_catalog, public, private"],
+    "sha256": "f73ca75ece060d3902ce76cc682442ff93ed266d0f7489a8cbf5e0d98ad73416",
+    "identity": "public.studio2_execute_result_operation_v3_base(uuid,text,text,uuid,bigint)",
+    "security_definer": true
+  },
+  {
+    "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+    "owner": "postgres",
+    "config": ["search_path=pg_catalog, public, private"],
+    "sha256": "9601259942d5989e2e98cc1f7e0374ef0b44b360679363c81a742bc6f69b109e",
+    "identity": "public.studio2_results_operations_snapshot(uuid)",
     "security_definer": true
   }
 ]

@@ -18,6 +18,13 @@ Owner-authorized read-only inspection on November 14 confirmed its exact hash,
 Supabase Auth ownership and privileges. Its local fixture is bootstrap-only and
 refuses hosted database names. No Auth change is proposed for production.
 
+Authenticated execution also exposed a catalog-only Results event trigger and
+missing request-fingerprint function. The fixture reconstructs their canonical
+definitions only after matching November 15 hosted metadata; the forward
+candidate checks their full authority rather than overwriting hosted helpers.
+CAS refuses all owned partial helpers, preview/commit overloads, columns,
+constraints and triggers, and verifies both renamed base delegates including ACLs.
+
 The initial legacy recalculation routine has two reviewed prior versions: the
 fresh observed hosted definition and the immutable historical source definition.
 The CI fixture uses the latter, explicitly **source-only**; neither prior body is
@@ -32,6 +39,19 @@ TRUNCATE and object-administration grants, including service_role. Existing
 SELECT/RLS and owner-executed canonical commands remain. Actual API-role probes
 must reject 24 write attempts; the same database must retain the canonical CAS
 regression, snapshot history and prior recovery security protections.
+Actual authenticator sessions exercise release-pointer commands and receipt
+replay. A second connection attempts a canonical input change while a command
+holds its transaction; the failed write must leave state intact, its retry must
+invalidate release pointers, stale review must fail, and historical snapshots
+and prior receipts must survive. This does not certify calculate/review event
+consequences or substitute for the full recovered contest.
+
+The existing evidence artifact now packages each ordered SQL file alongside its
+SHA-256, source SHA and order. This is a partial, unapproved production candidate,
+not an executable hosted runner. Stop on any precondition drift or failed SQL;
+do not repair history. Live use additionally needs a freshly verified backup,
+independent restoration evidence, the remaining recovered lifecycle/authority
+gates, exact project identification and explicit approval of these exact hashes.
 
 No hosted writes, deployment or activation occur. Full recovered 66-country
 acceptance, complete S16 qualification, real production backup/restoration proof

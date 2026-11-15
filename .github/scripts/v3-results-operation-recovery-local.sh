@@ -30,6 +30,30 @@ for drift in acl definition; do
 done
 operator_apply /tmp/results-operation-engine.sql
 node scripts/stage-v3-results-reviewed-cas-recovery.mjs > /tmp/results-reviewed-cas.sql
+for drift in base_definition base_acl partial_helper partial_column partial_trigger; do
+  original="$(operator_state_digest)"
+  case "$drift" in
+    base_definition) operator_sql -c 'alter function public.studio2_execute_result_operation_v3_base(uuid,text,text,uuid,bigint) set search_path=pg_catalog;' ;;
+    base_acl) operator_sql -c 'grant execute on function public.studio2_execute_result_operation_v3_base(uuid,text,text,uuid,bigint) to service_role;' ;;
+    partial_helper) operator_sql -c 'create function private.studio2_result_review_basis_row_changed() returns trigger language plpgsql as $$begin raise division_by_zero;end$$;' ;;
+    partial_column) operator_sql -c 'alter table public.studio2_result_operations add column review_basis_version bigint;' ;;
+    partial_trigger) operator_sql -c 'create trigger studio2_results_review_basis_shows after insert on public.shows for each row execute function private.v3_guard_archive_runtime_transition();' ;;
+  esac
+  changed="$(operator_state_digest)"
+  if operator_sql -f - < /tmp/results-reviewed-cas.sql > /tmp/results-cas-preflight-denial.log 2>&1;then
+    echo 'Unqualified partial/drifted CAS prerequisite accepted';exit 1
+  fi
+  grep -Eq 'Reviewed CAS (source prerequisite drift|recovery already or partially installed)' /tmp/results-cas-preflight-denial.log
+  [[ "$(operator_state_digest)" == "$changed" ]]
+  case "$drift" in
+    base_definition) operator_sql -c 'alter function public.studio2_execute_result_operation_v3_base(uuid,text,text,uuid,bigint) set search_path=pg_catalog,public,private;' ;;
+    base_acl) operator_sql -c 'revoke execute on function public.studio2_execute_result_operation_v3_base(uuid,text,text,uuid,bigint) from service_role;' ;;
+    partial_helper) operator_sql -c 'drop function private.studio2_result_review_basis_row_changed();' ;;
+    partial_column) operator_sql -c 'alter table public.studio2_result_operations drop column review_basis_version;' ;;
+    partial_trigger) operator_sql -c 'drop trigger studio2_results_review_basis_shows on public.shows;' ;;
+  esac
+  [[ "$(operator_state_digest)" == "$original" ]]
+done
 operator_apply /tmp/results-reviewed-cas.sql
 operator_apply supabase/migrations/20261114194701_v3_results_operation_tables_owner_only.sql
 python3 - <<'PY'
@@ -42,4 +66,5 @@ Path('/tmp/results-reviewed-cas-runtime.sql').write_text(sql+'\n')
 PY
 operator_sql -f - < /tmp/results-reviewed-cas-runtime.sql
 operator_sql -f - < .github/tests/v3-results-operation-role-denial.sql
+source .github/scripts/v3-results-operation-api-local.sh
 echo 'PASS: same recovered DB Results engine/CAS, stale review and identity denials; 24 direct API DML/TRUNCATE denials; transactional recovery/retry'
