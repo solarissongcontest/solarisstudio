@@ -144,7 +144,7 @@ function sourceWritesTable(source: string, table: string) {
 function sourceDefinesCommand(source: string, command: string) {
   const bare = command.split("(")[0].split(".").at(-1) ?? command;
   const escaped = bare.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`create\\s+(?:or\\s+replace\\s+)?function\\s+(?:public\\.|private\\.)?${escaped}\\s*\\(`, "i").test(source);
+  return new RegExp(`create\\s+(?:or\\s+replace\\s+)?function\\s+(?:public\\.|private\\.|televoting\\.)?${escaped}\\s*\\(`, "i").test(source);
 }
 
 export function pinnedSearchPath(value: string | null) {
@@ -235,7 +235,7 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "televoting.combined_televote_results",
     ],
     canonicalOwner: "televote domain",
-    canonicalCommands: ["public.v3_reconcile_published_televote"],
+    canonicalCommands: ["public.v3_reconcile_published_televote", "televoting.submit_vote_checked"],
   },
   {
     id: "jury",
