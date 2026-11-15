@@ -1,6 +1,78 @@
 # Solaris Studio V3 — Release certification ledger
 
+## 15 November 2026: independent historical-project classification (NO BACKUP FALLBACK)
+
+The older connected Supabase project `ukjfjxlqmqkxgaspdmdn` was investigated using **bounded, read-only catalog and Storage metadata**. It is active on PostgreSQL 17.6, but its **44 public tables describe a study-planning application**, including `courses`, `study_sessions`, `question_bank`, `mastery_evidence`, and `exams`. It has **no** `public.editions`, `public.shows`, `public.jury_votes`, `public.televote_votes`, or `public.results` table. Its Storage catalog has **zero buckets and zero object metadata rows**. The project therefore cannot protect or restore historical Solaris official Results or votes. **Preserve it untouched**: it may contain independent study-planner records, and must not be reset/reused for V3.
+
+Independent bounded production checks identify `public.editions`, `public.results`, `public.jury_votes`, `public.televote_votes` and six Storage buckets in `dkxmnvekiopyesuzggeu`. A separate catalog permission check confirms that several live official tables still grant `TRUNCATE` to API principals even with RLS enabled. RLS does not govern TRUNCATE; the isolated S16 cutover is not yet applied to production. This is a verified current **NO-GO**, not a license to bypass the backup requirement.
+
+The System-owned 17-stage recovery artifact for `7c48a16fe172f2e2fd951b733e50d77aa5a2c9b4` is available from [networkless PG17.11 job 43718724100](https://github.com/solarissongcontest/solarisstudio/actions/runs/43718724100). All 17 `orderedStages` entries were rehashed from its original ZIP against the embedded SHA-256 manifest, with **17/17 matches**. A GitHub compare of that source SHA through the post-#2533 main `e4943216418063fcb48351e8a88cf4d7c4b65e24` showed modifications in **only this ledger and the existing operator package**, not the recovery driver or any stage SQL source. This proves unchanged stage bytes for that comparison window, **not** an exact-new-main PG17 rerun, a production-derived rehearsal, or full S16 certification. Preserve the CI artifact's original `sourceSha`; never relabel its run as having executed on a later commit.
+
+**Backup and release:** actual export NONE; isolated production restore NOT RUN; historical fallback NONE; production SQL NOT APPROVED / NOT EXECUTED; public release NO-GO.
+
+---
+
+## 15 November 2026: post-#2530 real-backup prerequisite check (NO-GO)
+
+**Integrated source at start of this inspection:** `c5073e7394799786430b4b272bbdd12efeebf022`. [#2530](https://github.com/solarissongcontest/solarisstudio/pull/2530) merged the existing operator package and this ledger after the exact PR head `b5b236771302415c2693fa4f459c0b20eb5d9176` passed the six applicable workflows (S13, S15, Quality, Browser, bundle budget and main freshness). [#2531](https://github.com/solarissongcontest/solarisstudio/pull/2531) was already integrated as `49b022a698078937abdd0dabf522162d6421623b`. This documentation-only follow-up does **not** carry forward an exact-main certificate to its eventual merge SHA.
+
+**Read-only connected production verification:** Primary Supabase project `dkxmnvekiopyesuzggeu` ("Solaris Studio") returned `ACTIVE_HEALTHY`, `eu-central-1`, PostgreSQL `17.11.0.002`. Supabase listed **497** migration records, ending `20261101181812`. A bounded `pg_namespace`/`pg_class` metadata query identified **149 `public`**, **13 `private`**, **26 `televoting`**, **27 `auth`**, **10 `storage`**, **1 `supabase_migrations`** and **1 `vault`** table identities, plus provider-managed `cron`, `net` and `realtime` schemas. Edge Function metadata listed **15** deployed function identities. **No private rows, votes, file bytes, credentials, or SQL mutations were requested.** These are catalog counts, **not restored row counts**.
+
+**New documented operational gap:** the five-schema scoped `pg_dump` template does **not** include `supabase_migrations` or `vault`; provider-managed schedules/network/realtime and actual Storage bytes also require explicit handling. The **existing** [N14 operator package](recovery-candidates/n14-integrated-recovery-operator-package.md) is amended with the schema-scope classification, official Supabase migration-history and Storage guides, version/TOC/permissions checks, encryption and external-configuration gates, and explicit FAIL-CLOSED acceptance. It remains an operator-only **conditional example**, not a completed export. No migration source or recovery driver was modified.
+
+| Recovery/launch evidence requirement | Actual result |
+| --- | --- |
+| Production identity, PG version, schema identities and hosted migration metadata | **VERIFIED READ-ONLY**, bounded scope |
+| Secure owner-controlled operator workstation and tools | **NOT VERIFIED / NOT AVAILABLE THROUGH CONNECTORS** |
+| Owner authorization for private production export | **NOT GRANTED** |
+| Real PostgreSQL, role/history and encrypted off-project backup | **NOT CREATED** |
+| Real Storage object bytes and checksum-preserving restore | **NOT RUN** |
+| Auth provider, Edge Functions, Vault root and secret restoration | **NOT PROVEN** |
+| Independent production-derived database restoration | **NOT RUN** |
+| Official vote/Results counts, digests and historical parity on restored data | **NOT RUN** |
+| Exact production-derived V3 migration rehearsal and positive/negative role tests | **NOT RUN** |
+| System local synthetic source recovery | **PREVIOUSLY PASSED WITH SCOPED EVIDENCE**, not real backup proof |
+| Full S13/S14/S15/S16 release and exact-final-main certification | **NOT CERTIFIED** |
+| Hosted production migration; Worker promotion; official voting activation | **NOT STARTED / NOT AUTHORIZED** |
+
+**Release decision: NO-GO.** No paid backup plan is necessary to attempt an explicitly authorized, owner-managed manual logical export. The actual operator must privately confirm scope, project, retention, encryption, off-project location, consistent recovery point and separate isolated target; the current connected tools have no secure production dump/export-to-trusted-workstation action. This ledger update must not be mistaken for proof of a backup or restoration.
+
+---
+
+## 15 November 2026: System-owned Televote retirement source integration (#2531)
+
+After the independently checked #2529 main checkpoint, [#2531](https://github.com/solarissongcontest/solarisstudio/pull/2531) was merged to source `main` as **`49b022a698078937abdd0dabf522162d6421623b`**, from exact PR head `7c48a16fe172f2e2fd951b733e50d77aa5a2c9b4`. Exact-head S13, S14 recovery, S15, Quality, Browser, Public/Organizer, bundle-budget, stateful and main-freshness checks succeeded. The existing canonical `20261115000100_v3_televote_ballot_writer_retirement.sql` now participates in the System-owned isolated recovery driver **after S08 and before Results operation/CAS**; no new production migration or competing framework was invented. A missing RPC on the reconstructed 56-table local fixture is rebuilt only from historical source for disposable testing and is explicitly **not** complete hosted-body equivalence. The exact local proof verifies the legacy writer is retired and the checked ballot RPC retains its preflight permissions. Full S16 certification, actual production-data restoration and hosted adoption remain **UNVERIFIED / NO-GO**.
+
 **Status: NO-GO for official public release.** Source integration is not hosted migration, production deployment, voting activation or final contest certification. This record is not authority to perform those operations.
+
+## 15 November 2026: independently refreshed N14 integrated-main security checkpoint
+
+**Exact observed `main` baseline after #2529: `2945c696e6df5e4e67769a4871b8c3114e997a0f`.** This is the source tree independently checked after [#2528](https://github.com/solarissongcontest/solarisstudio/pull/2528), before this ledger-only change. The ledger commit necessarily creates a different Git SHA and must receive its own exact-head evidence. No claim of automatic certification transfers.
+
+**Source merges independently verified:** [#2526](https://github.com/solarissongcontest/solarisstudio/pull/2526) `c4bc078f02a7f9d755e77feb45c3d5160d9d92a1` (Confirmation edit-token authority), [#2527](https://github.com/solarissongcontest/solarisstudio/pull/2527) `09b55aa4de93e0bac81ee47ec54849603c1d1fd2` (Free-plan backup/restore prerequisites), and [#2528](https://github.com/solarissongcontest/solarisstudio/pull/2528) `98a963a58c04002733feb3b8ba8628892674c84c` (fourteen-table RLS-independent TRUNCATE closure in the existing forward-only System recovery candidate), plus [#2529](https://github.com/solarissongcontest/solarisstudio/pull/2529) `2945c696e6df5e4e67769a4871b8c3114e997a0f` (normal-mode direct `public.results` API-role DML retirement, post-cutover CAS and real-role denial tests).
+
+**Independently verified exact-main CI on prior main `98a963a...` (#2528 checkpoint):** [Quality #43715167873](https://github.com/solarissongcontest/solarisstudio/actions/runs/43715167873), [Browser Audit #43715167837](https://github.com/solarissongcontest/solarisstudio/actions/runs/43715167837), [S13 Adoption #43715167727](https://github.com/solarissongcontest/solarisstudio/actions/runs/43715167727), [S14 local recovery #43715167720](https://github.com/solarissongcontest/solarisstudio/actions/runs/43715167720), [Public/Organizer integration #43715167799](https://github.com/solarissongcontest/solarisstudio/actions/runs/43715167799), [PR freshness #43715167795](https://github.com/solarissongcontest/solarisstudio/actions/runs/43715167795): **all six completed successfully**. These are workflow execution outcomes, not zero S16 findings, release readiness or installed production effects.
+
+**#2529 now merged (source only).** Exact PR-head `a4248a2a358f6982e5870ff7a457c9d877c18595` passed **all eight** applicable checks: [S13 #43716175689](https://github.com/solarissongcontest/solarisstudio/actions/runs/43716175689), [S14 clean/recovered scope #43716175692](https://github.com/solarissongcontest/solarisstudio/actions/runs/43716175692), [S15 #43716175676](https://github.com/solarissongcontest/solarisstudio/actions/runs/43716175676), [Quality #43716175723](https://github.com/solarissongcontest/solarisstudio/actions/runs/43716175723), [Browser #43716175681](https://github.com/solarissongcontest/solarisstudio/actions/runs/43716175681), [Public/Organizer #43716175685](https://github.com/solarissongcontest/solarisstudio/actions/runs/43716175685), [bundle #43716175747](https://github.com/solarissongcontest/solarisstudio/actions/runs/43716175747), [freshness #43716175748](https://github.com/solarissongcontest/solarisstudio/actions/runs/43716175748). The isolated recovered scope passed **9/9 Results DML denials, 42/42 TRUNCATE denials, canonical Results CAS/publication readback, intentional privilege-drift rejection and synthetic independent restore**. GitHub independently confirmed merge commit `2945c696e6df5e4e67769a4871b8c3114e997a0f` and all four intended changed files on main. These do not prove full S16, full hosted equivalence, real production backup or public release.
+
+**Exact post-merge main CI for `2945c696...`** was newly queued: [Quality #43717207433](https://github.com/solarissongcontest/solarisstudio/actions/runs/43717207433), [Browser #43717207462](https://github.com/solarissongcontest/solarisstudio/actions/runs/43717207462), [S13 #43717207472](https://github.com/solarissongcontest/solarisstudio/actions/runs/43717207472), [S14 #43717207485](https://github.com/solarissongcontest/solarisstudio/actions/runs/43717207485), [Public/Organizer #43717207442](https://github.com/solarissongcontest/solarisstudio/actions/runs/43717207442), [freshness #43717207514](https://github.com/solarissongcontest/solarisstudio/actions/runs/43717207514). Their outcomes must be refreshed before any release certification; this ledger edit itself will change the source SHA again.
+
+**Fresh bounded hosted metadata, no row access or mutations:** the Solaris Studio project `dkxmnvekiopyesuzggeu` remains PostgreSQL 17.11, with **497 recorded migrations ending at `20261101181812`**. The five S13 tables, seven registration/compatibility RPC names, two S13 indexes, selected two S07 source/context relations and Results v2 operation RPC are **ABSENT**. A governed Confirmation submission RPC is **PRESENT**. All fourteen source-protected tables are `postgres`-owned with RLS enabled; **each still exposes effective TRUNCATE to at least one API role** in hosted production. Nine expose effective INSERT/UPDATE/DELETE to all three `anon`, `authenticated`, `service_role` roles. Effective privilege does not establish successful hostile DML: policy and trigger execution still require behavioral qualification. It does establish that the source permission revocations are **not installed in production**.
+
+| Six separate release claims | Current observed status |
+| --- | --- |
+| 1. Source merged | #2526–#2529 YES at the exact merge SHAs above |
+| 2. Isolated tests passed | #2528 exact-main scoped CI and #2529 complete PR-head checks YES; entire full-hosted-equivalent lifecycle NO |
+| 3. Hosted schema compatibility proven | NO; remaining absent/partial effects and incomplete reconstructed function/role/data parity |
+| 4. Hosted migration applied | NO; read-only metadata still shows missing effects and original migration tip |
+| 5. Active production application deployment | NOT VERIFIED; `wrangler versions upload` does not activate Worker traffic |
+| 6. Official contest submissions/voting activated | NO; neither approval nor activation performed |
+
+**Mandatory hard blockers stay open:** full S16 source/effective-database competing-writer audit (including normal writable mode), complete S13/S14 production-compatible effect reconciliation, clean **and recovered hosted-equivalent** 66-country full-contest rehearsal, authentic encrypted off-project production backup plus independently verified restore including Storage bytes and Auth/external configuration, server-side PUBLIC/TESTING/HIDDEN gating, essential Public/Organizer acceptance, and physical installed-iPhone acceptance. The original 14 November soft-launch scope remains binding. Unknown launch-critical effects are blockers, not technical debt.
+
+**NO-GO.** Separate approvals have **not** been granted for (a) hosted database migration, (b) active Cloudflare production promotion, or (c) official public voting/submissions activation. Keep maintenance and official writes closed. No synthetic rehearsal, workflow success or documentation edit substitutes for these approvals.
+
+---
 
 ## 15 November N14 source integration checkpoint (NO-GO; not a certificate)
 
