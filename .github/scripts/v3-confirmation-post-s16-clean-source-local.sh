@@ -37,9 +37,16 @@ additional=(
   ' televoting.vote_submissions\n'
   ' from public,anon,authenticated,service_role;'
 )
-if (s.count(expected)!=1 or s.count(additional)!=1
-    or len(re.findall(r'(?im)^revoke\s+',s))!=2):
-    raise SystemExit('Refusing unreviewed S16 Confirmation DML grant retirement')
+results=(
+  'revoke insert,update,delete,references,trigger,maintain on table public.results\n'
+  ' from public,anon,authenticated,service_role;'
+)
+# This script must remain Confirmation-only. It merely validates that the
+# source file also contains the separately reviewed Results DML retirement;
+# the complete stage and Results acceptance run in the networkless PG17 job.
+if (s.count(expected)!=1 or s.count(additional)!=1 or s.count(results)!=1
+    or len(re.findall(r'(?im)^revoke\s+',s))!=3):
+    raise SystemExit('Refusing unreviewed S16 Confirmation/Results grant retirement')
 print(expected)
 PY
 # Record the actual local-source SELECT contract before privilege retirement.
