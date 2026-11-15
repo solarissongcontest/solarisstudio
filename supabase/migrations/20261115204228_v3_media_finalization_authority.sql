@@ -15,6 +15,9 @@ do $pre$ begin
  if not has_schema_privilege('postgres','storage','USAGE') or not has_table_privilege('postgres','storage.objects','SELECT')then raise exception 'Storage metadata read authority missing' using errcode='42501';end if;
  if not exists(select 1 from pg_class c where c.oid='public.studio2_upload_authorizations'::regclass and pg_get_userbyid(c.relowner)='postgres' and c.relrowsecurity)then
   raise exception 'Media authorization owner/RLS drift' using errcode='55000';end if;
+ if to_regprocedure('public.studio2_prepare_upload(text,uuid,text,text,text,bigint,jsonb)') is null or
+    encode(sha256(convert_to(pg_get_functiondef(to_regprocedure('private.studio2_can_upload_country_media(uuid,uuid)')),'UTF8')),'hex') is distinct from '1d5951ce09b821c7b8184e3e9a93733c30f1dec5120694449c2ee3a3a93dfc4f' then
+  raise exception 'Canonical Media preparation/authorization drift' using errcode='55000';end if;
 end $pre$;
 select public.v3_register_migration_contract('v3.media.finalization-authority',1,'forward_fix_only',false,null,'Port #1847: server byte verification delegates canonical media state, receipts and events to one actor/session/capability-bound database command');
 
@@ -361,6 +364,18 @@ do $columns$ declare cols text;actor text;begin
  end loop;
 end $columns$;
 
+-- Retire the superseded token/finalization API surface, retaining historical
+-- rows and owner implementation. The new finalizer does not delegate to it.
+do $legacy$ declare identity text;actor text;begin
+ foreach identity in array array['public.studio2_create_country_media_upload(uuid,text,text,text,bigint)','public.studio2_finalize_country_media_upload(uuid)']loop
+  if to_regprocedure(identity) is not null then
+   execute 'revoke all on function '||identity||' from public,anon,authenticated,service_role';
+   foreach actor in array array['anon','authenticated','service_role']loop
+    if has_function_privilege(actor,to_regprocedure(identity),'EXECUTE')then raise exception 'Legacy Media API authority remains' using errcode='42501';end if;
+   end loop;
+  end if;
+ end loop;
+end $legacy$;
 -- Storage policies belong to supabase_storage_admin. Its separately reviewed
 -- owner-only cutover must run under that owner; postgres has no SET ROLE path.
 notify pgrst, 'reload schema';

@@ -116,6 +116,19 @@ reset role;
 insert into storage.objects(bucket_id,name,metadata)
 values ('v3-media-authority-test','fixture/final','{"size":3}');
 
+-- Inject a local trigger-suppressed update: receipt/event creation must roll back.
+create function private.v3_media_test_suppress_update()returns trigger language plpgsql as $suppress$begin return null;end $suppress$;
+create trigger v3_media_test_suppress_update before update of status on public.studio2_upload_authorizations for each row execute function private.v3_media_test_suppress_update();
+set local role service_role;
+do $suppressed$ declare denied boolean:=false;begin
+ begin perform public.v3_finalize_media_upload('27182200-0000-4000-8000-000000000021','fixture-secret','27182200-0000-4000-8000-000000000001','27182200-0000-4000-8000-000000000011','verified','image/png','{"signatureVerified":true,"quarantineVerified":true,"originalSize":3,"publishedSize":3,"publicationDecision":"published_after_verification","hashAlgorithm":"sha256","publishedSha256":"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"}',null);
+ exception when check_violation then denied:=true;end;
+ if not denied then raise exception 'Suppressed update committed a partial Media receipt';end if;
+end $suppressed$;
+reset role;
+do $atomic$ begin if exists(select 1 from public.studio2_operation_receipts where command='media.finalize' and scope->>'uploadTokenId'='27182200-0000-4000-8000-000000000021')then raise exception 'Partial Media receipt survived';end if;end $atomic$;
+DROP trigger v3_media_test_suppress_update on public.studio2_upload_authorizations;
+DROP function private.v3_media_test_suppress_update();
 -- Check the database gate and fresh actor scope independently of Edge checks.
 update public.studio2_platform_operational_state set mode='read_only',version=version+1 where singleton=true;
 set local role service_role;
