@@ -72,7 +72,7 @@ export function stageConfirmationRecovery(root=process.cwd()) {
     "   actual:=jsonb_build_object('identity',item->>'identity','owner',pg_get_userbyid(c.relowner),'rls',c.relrowsecurity,'acl',c.relacl::text,",
     "     'columnShapeMd5',(select md5(string_agg(a.attnum::text||':'||a.attname||':'||format_type(a.atttypid,a.atttypmod)||':'||a.attnotnull::text||':'||a.attgenerated::text||':'||a.attidentity::text,'|' order by a.attnum)) from pg_attribute a where a.attrelid=c.oid and a.attnum>0 and not a.attisdropped),",
     "     'columns',(select count(*) from pg_attribute a where a.attrelid=c.oid and a.attnum>0 and not a.attisdropped),",
-    "     'policyMd5',(select md5(coalesce(string_agg(p.polname||':'||p.polcmd::text||':'||p.polpermissive::text||':'||coalesce(pg_get_expr(p.polqual,p.polrelid),'')||':'||coalesce(pg_get_expr(p.polwithcheck,p.polrelid),''),'|' order by p.polname),'')) from pg_policy p where p.polrelid=c.oid),",
+    "     'policyMd5',(select md5(coalesce(string_agg(policy_row.polname||':'||policy_row.polcmd::text||':'||policy_row.polpermissive::text||':'||coalesce(pg_get_expr(policy_row.polqual,policy_row.polrelid),'')||':'||coalesce(pg_get_expr(policy_row.polwithcheck,policy_row.polrelid),''),'|' order by policy_row.polname),'')) from pg_policy policy_row where policy_row.polrelid=c.oid),",
     "     'policies',(select count(*) from pg_policy p where p.polrelid=c.oid));",
     "   if actual is distinct from item then raise exception 'Confirmation table column/policy/owner/RLS/ACL drift: %',item->>'identity' using errcode='55000';end if;",
     ' end loop;',
