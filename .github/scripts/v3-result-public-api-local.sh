@@ -32,7 +32,11 @@ api_owner_sql -c "update public.editions set published=false where id='51000000-
 api_client_sql -v published=false -f - < .github/tests/v3-result-public-api.sql
 api_owner_sql -c "update public.editions set published=true where id='51000000-0000-4000-8000-000000000001';"
 api_client_sql -v published=true -f - < .github/tests/v3-result-public-api.sql
-api_owner_sql -c "update public.participants set participation_status='withdrawn' where country_id='51000000-0000-4000-8000-000000000011' and edition_id='51000000-0000-4000-8000-000000000001';"
+if [[ "$(api_owner_sql -c "select (to_regprocedure('public.studio2_execute_result_operation_v2(uuid,text,text,uuid,bigint,bigint,uuid,uuid)') is not null)::text")" == true ]];then
+ api_owner_sql -f - < .github/tests/v3-results-published-cas-preservation.sql
+else
+ api_owner_sql -c "update public.participants set participation_status='withdrawn' where country_id='51000000-0000-4000-8000-000000000011' and edition_id='51000000-0000-4000-8000-000000000001';"
+fi
 api_client_sql -v published=true -f - < .github/tests/v3-result-public-api.sql
 operator_sql -c 'drop database recovery_api_probe;'
 echo 'PASS: publication RLS uses actual authenticator sessions and preserves frozen meaning after mutable participation changes'

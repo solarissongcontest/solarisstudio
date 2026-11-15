@@ -24,6 +24,7 @@ on:
       - ".github/scripts/v3-results-operation-*.sh"
       - ".github/tests/v3-results-*-local.sql"
       - ".github/tests/v3-results-operation-role-denial.sql"
+      - ".github/tests/v3-results-published-cas-preservation.sql"
       - "docs/v3/recovery-candidates/evidence/results-operation-*.json"
       - "docs/v3/recovery-candidates/evidence/auth-jwt-recovery-prerequisite-observed-2026-11-14.json"
       - "docs/v3/recovery-candidates/evidence/results-runtime-prerequisites-observed-2026-11-15.json"
