@@ -99,6 +99,13 @@ begin
   end if;
 end $fixture_mode$;
 SQL
+# Compare the exact disposable pg_dump if transaction rollback unexpectedly
+# changes fixture state. Synthetic-only diagnostic; never connect to hosted.
+pub_dump() {
+  docker exec "$cid" pg_dump -U postgres -d recovery_publication_api_probe \
+    --no-comments --restrict-key=ObservedOwnerLocalOnly
+}
+pub_dump > /tmp/s16-publication-probe-before.sql
 before_publication_probe="$(operator_state_digest recovery_publication_api_probe)"
 # A REAL authenticator session assumes an authenticated API role with a fresh
 # local Auth session. The governed RPC must still change publication state,
@@ -145,7 +152,12 @@ begin
 end $publication$;
 rollback;
 SQL
-[[ "$(operator_state_digest recovery_publication_api_probe)" == "$before_publication_probe" ]] || { echo 'Publication probe changed durable fixture state' >&2; exit 1; }
+if [[ "$(operator_state_digest recovery_publication_api_probe)" != "$before_publication_probe" ]]; then
+  echo 'Publication probe changed durable fixture state; synthetic pg_dump delta:' >&2
+  pub_dump > /tmp/s16-publication-probe-after.sql
+  diff -u /tmp/s16-publication-probe-before.sql /tmp/s16-publication-probe-after.sql | head -n 120 >&2 || true
+  exit 1
+fi
 # The scheduled publisher remains exposed ONLY through its explicit
 # service_role EXECUTE grant; revoked table DML must not prevent invocation.
 pub_client_sql -c 'begin; set local role service_role; select public.studio2_publish_due_show_publications(); rollback;' > /tmp/s16-due-publication.log
