@@ -14,26 +14,42 @@
 - Evidence for the critical Confirmation parents: `docs/v3/recovery-candidates/evidence/confirmation-access-prerequisites-observed-2026-11-15.json`. Owners, function-body fingerprints, SECURITY DEFINER settings, RLS and grants, six table column-shape fingerprints, policy-definition fingerprints, missing commands and indexes are pinned from bounded read-only hosted catalog inspection. An unexpected column/policy/owner/ACL change aborts atomically.
 - The intended release is the original **14 November soft-launch scope**. World, Fantasy, Prediction and other expansions are outside this cutover.
 
-## Verified production backup availability and required owner action (15 November 2026)
+## Owner-reported scoped backup and isolated restoration (15 November 2026)
 
-**HARD NO-GO: NO ACTUAL BACKUP OR REAL RESTORE HAS BEEN VERIFIED.** A read-only Supabase project lookup identified `dkxmnvekiopyesuzggeu` on PostgreSQL **17.11** and the connected organization `bemdjuovpddkkllhmljs` on the **Free** plan. This metadata does not identify any owner-created external backups. Neither the connector nor this engineering session has obtained a production backup file or performed a real production-data restore.
+**STATUS: SCOPED RECOVERY EVIDENCE REPORTED; FULL-PLATFORM RECOVERY NOT CERTIFIED.** This section supersedes the earlier claim that no real owner backup or isolated restore had been performed. Preserve that historical assessment in Git history. The evidence below was supplied by the project owner in the 15 November release handoff; this documentation update does **not** independently inspect the encrypted artifacts, private decryption material, restoration receipts or original production rows.
 
-Supabase's current [database backup documentation](https://supabase.com/docs/guides/platform/backups) and [Free backup FAQ](https://supabase.com/kb/faqs/platform/free-plan-backups) state that automatic daily backups are not included on Free; managed PITR is an additional paid-plan feature. **Do not assume an automatic backup exists.** On the current plan, recovery must use an independently created and protected manual export unless the owner separately upgrades and verifies a new managed backup. An upgrade alone is not proof of a restorable recovery point.
+Owner-reported protected artifacts (never commit or upload these to this repository):
 
-### Exact prerequisite for the current Free-plan recovery
+- Database archive: `solaris-db-20261115T170928Z.dump.age`.
+- Storage archive: `solaris-storage-20261115T175307Z.tar.age`.
+- Private off-project location: owner-managed Google Drive backup folder (access restricted).
+- The owner retains the private age decryption key. **Never request, print, commit, expose or transfer the key through a chat, issue, PR, CI job or artifact.**
 
-1. **Explicit owner authorization for a controlled backup export**, performed by a named privileged operator from a secure, owner-managed machine. This is a data-extraction operation and has NOT been approved or executed here. No CI job, test runner, Actions artifact, GitHub repository, browser crawler or agent should retrieve private production records. Do not put tokens, database passwords, private data or even encrypted backup archives in GitHub.
-2. **Consistent pre-migration recovery point:** record UTC start/end, database server/version and authoritative project ID, read/write quiescence or consistency strategy, a fresh backup after controlled official writes stop, backup SHA-256 and an operator-attested file inventory. Set an explicit maximum allowable data-loss window. Free offers no managed PITR for in-between transactions.
-3. **Complete export coverage:** follow the current [Supabase CLI backup/restore guide](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore) and confirm the installed CLI's `--help` rather than assuming a schema-only dump is sufficient. Capture reviewed schema, *actual data*, roles/grants, custom `auth`/`storage` objects, triggers/functions, and original migration evidence without manufacturing history. Supabase CLI's default dump can omit role/data contents; verify all required separate passes. Preserve source project encryption/Vault dependencies through a separately authorized, secret-safe recovery procedure. Never publish those keys or dumps.
-4. **Storage byte coverage:** database backup metadata does NOT include Storage object bytes. Preserve the actual protected media/object bytes, object paths, version/checksum and access controls in a separately secured, internally consistent inventory. Verify representative byte hashes and restoration; a restored `storage.objects` row pointing at a missing bucket object is **not** a successful restore.
-5. **Protected backup handling:** encrypt at rest and in transit; maintain access restricted to the designated owner/operator; retain at least one independent off-project copy; record retention, restore credentials held outside the project, integrity hashes and independent recovery destination. Set a periodic verification/retention cadence before official voting starts.
-6. **Actual independent restoration rehearsal:** restore the owner-held production-derived backup into a disposable, access-controlled **nonproduction** PostgreSQL/Supabase target, isolated from official users, webhooks, notifications and production applications. Do not overwrite or restore into production. Ensure this environment cannot call production Supabase, push, email or third-party systems while verifying it. Check schema and object/ACL fingerprints, eligible credentials/roles, materialized Storage objects, row-count and digest invariants for historical Results, votes, receipts, publications, authorizations, RLS/triggers, canonical RPCs and recovery readback. Validate restoration from cold start, not just `pg_restore` exit status.
-7. **Restore acceptance record:** retain only sanitized outcomes, operator identity/authorization reference, source/recovery-point UTC timestamps, protected artifact SHA-256 IDs, target environment identity (never credentials), duration, counts/digest matches, errors and explicit pass/fail. Private backup contents remain outside repository and CI. Repeat post-restoration authorization/recovery checks using isolated actors and do not replay official submissions against production.
-8. **Failure branch:** if any backup component, matching Storage bytes, Vault dependency, ACL, identity, vote/result digest, restore test, or operator authorization is absent, **STOP before hosted migration**. Keep maintenance and official writes closed; capture the point of failure without attempting a production restore. Use only reviewed forward repair for already committed SQL stages.
+Owner-reported completed restoration and comparisons:
 
-**Outstanding owner decision:** authorize a privately performed manual export plus tested independent restoration while remaining on Free, **or** separately approve an appropriate paid backup capability and then prove its actual restore. The first option avoids subscription costs but requires more operational discipline and accepts a longer possible recovery-point gap; the second is not automatically sufficient and does not recover Storage bytes. Do not pick a paid plan, incur charges, access project secrets or export data without the owner's explicit decision.
+- Isolated PostgreSQL **17.11** database restoration completed.
+- **225** tables restored, including **202** RLS-enabled tables matching the source counts.
+- **11** critical production/restored table row-count comparisons completed.
+- **265** RLS policy-definition comparisons completed, accounting for PostgreSQL's equivalent `auth.uid()` / `uid()` display.
+- Encrypted Storage archive decrypted and TAR listing inspected: **109** entries, consistent with **108** objects and one manifest.
 
-**Current evidence:** read-only metadata and official backup policy only; **real backup present: UNKNOWN; real backup restorable: NOT VERIFIED; Storage-byte recovery: NOT VERIFIED; owner export permission: NOT GRANTED**. Synthetic networkless PG17.11 restores already tested by the driver remain valid *synthetic* evidence, never a substitute.
+**What this proves:** The owner reports an actual encrypted, scoped database and Storage backup, a real isolated database restore, and the enumerated structural/row-count/policy comparisons. It removes the obsolete assertion that no owner backup or real restore exists. The independent operator receipts, artifact hashes and restored-environment identity still need to be linked or attested in a sanitized evidence record before release certification. The above comparisons must not be rerun merely for documentation.
+
+**What remains unverified / required before hosted migration approval:**
+
+1. Verify **every** Storage object byte against the protected manifest and perform a genuine isolated Storage-service restoration, not only TAR listing or database metadata restoration.
+2. Compare original database **role ownership, privileges, column grants and effective role membership** to the isolated restore. Table counts and policy text alone are insufficient.
+3. Classify and test recovery of **Auth, Vault, migration history**, and provider-managed schema dependencies. Preserve real migration records without manufacturing history; never assume Vault secrets are usable without their original encryption-root strategy.
+4. Inventory necessary **Edge Functions, secrets (names only), external provider configuration, cron, webhooks, net/realtime and other operational dependencies** without disclosing values or triggering outbound delivery.
+5. Verify essential application workflows, canonical commands, authorization denials, receipts and published-results integrity in a production-derived **isolated Supabase-compatible** environment, with all external effects disabled.
+6. Record the cold-start restore procedure, restore duration, acceptable recovery-point gap, rollback/forward-repair assumptions, immutable artifact hashes, operator attestations and what **cannot** be restored.
+7. Qualify the **exact-current** production schema/effect frontier and all applicable forward-only candidate guards separately. No blanket `supabase db push`, no historical replay and no production mutation from this package.
+
+**Recovery decision:** Scoped backup and isolated PostgreSQL restore: **OWNER-REPORTED COMPLETE**. Full Storage byte/service restore, original privilege fidelity, platform coverage, essential restored application workflows and full recovery certificate: **OPEN**. Production migration and Cloudflare promotion: **NOT AUTHORIZED**.
+
+### Historical context and constraints retained
+
+The earlier 15 November assessment was based on read-only Supabase metadata and lack of owner backup evidence at that time. The project was identified as `dkxmnvekiopyesuzggeu` on PostgreSQL 17.11, with a Free-plan organization. Managed automatic backup/PITR must not be assumed. The owner subsequently reported the protected manual artifacts and isolated restore above. These reports do not establish full-platform recoverability or waive the separate production approvals.
 
 ## Exact **local** dependency order
 
@@ -68,7 +84,7 @@ Steps 4–9 have more than one concrete SQL stage; use the exact-SHA CI artifact
 | Direct `public.results` API DML | PRESENT effective INSERT/UPDATE/DELETE for anon, authenticated and service_role; ordinary-mode canonical enforcement is not established by maintenance guard | Source-protected by **MERGED #2529**; local networkless PG17.11 passed 9 real-role denials and post-cutover readback/CAS; hosted protection NOT INSTALLED |
 | Full S16 across every official launch writer | PARTIAL/UNKNOWN | NOT CERTIFIED; scoped Confirmation/Televote/Jury/Results checks do not replace full S16 report |
 | Clean-source and 66-country recovered official contest | Production data not inspected | Clean-source acceptance CI tracked separately; complete hosted-observed-equivalent lifecycle NOT VERIFIED |
-| Real production backup restoration | No evidence | NOT VERIFIED; CI synthetic `pg_dump/pg_restore` is not production backup proof |
+| Real production backup restoration | Owner reports encrypted scoped DB/Storage backups and isolated PostgreSQL 17.11 restore (225 tables, 202 RLS, 11 row-count and 265 policy comparisons) | SCOPED RESTORE OWNER-REPORTED; full Storage/service, roles, Auth/Vault/history and workflow restoration NOT CERTIFIED |
 
 Every UNKNOWN above is a **launch blocker**, not a presumption of compatibility. Hosted history may disagree with source even where effects exist. Do not fabricate or rewrite `supabase_migrations.schema_migrations` records.
 
@@ -153,7 +169,7 @@ For isolated restoration, the operator must validate that the destination is **n
 1. Obtain a **fresh exact source/main SHA**, the complete artifact manifest, passing required exact-head checks and one authorized System migration owner. No source SHA can be inferred from an old PR description or date.
 2. Independently verify correct project identity, PostgreSQL version, current migration tip/history, migration effects, object signatures, column types, constraints, trigger bindings, function owners, explicit + inherited table/column privileges, RLS, SECURITY DEFINER, search paths, and all dependency digests. Any UNKNOWN or mismatch is a hard STOP. Missing history is not proof of missing effects.
 3. Verify approved maintenance, publication and official-write lock boundaries, permission to schedule bounded user downtime, and a named recovery decision-maker. Never activate public writes in the same approval.
-4. Obtain a **real production backup**, backup timestamp/PITR checkpoint, encryption/access verification, independent **actual backup restoration rehearsal**, and target restoration timings. A synthetic CI `pg_dump` does not satisfy this step.
+4. Validate the **owner-reported scoped production backup and isolated PostgreSQL restore** with sanitized operator receipts, archive hashes, recovery-point timestamps, encryption/access verification, remaining Storage-service and platform coverage, and target restoration timings. A synthetic CI `pg_dump` does not satisfy this step.
 5. Review exact source SQL and unmodified donor source fingerprints. Disallow change to applied migration history, old source migration bodies, any canonical result/ballot data, or client guards. Confirm CI and Playwright have no hosted Supabase endpoints or secrets.
 6. Before every stage, repeat its individual catalog/ACL/dependency guard. All statements are fail-closed; **never** suppress a guard to make SQL apply.
 
