@@ -235,6 +235,10 @@ jobs:
           bash scripts/rehearse-v3-s14-archive-forward-effects-local.sh
           bash .github/scripts/v3-s14-archive-system-rehearsal.sh
 
+      - name: Apply exact S16 Confirmation table grant restriction on clean local Supabase
+        id: post_s16_clean_cas
+        run: bash .github/scripts/v3-confirmation-post-s16-clean-source-local.sh
+
       - name: Rehearse governed Confirmation commands, receipts, CAS and denial on clean local source
         id: confirmation_lifecycle
         run: bash .github/scripts/v3-confirmation-maintenance-edit-rehearsal.sh
@@ -256,7 +260,7 @@ jobs:
           import { execFileSync } from 'node:child_process';
           const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
           if (!/^[a-f0-9]{40}$/.test(sha) || sha !== process.env.REVIEWED_SHA) throw Error('S06 evidence SHA mismatch');
-          const expected = ['source_contract','clean_replay','ordered_recovery','archive_behavior','authorization','terminal_boundaries','task_convergence','second_replay','confirmation_lifecycle'];
+          const expected = ['source_contract','clean_replay','ordered_recovery','archive_behavior','authorization','terminal_boundaries','task_convergence','second_replay','post_s16_clean_cas','confirmation_lifecycle'];
           const steps = JSON.parse(process.env.S06_STEP_OUTCOMES || '{}');
           const outcomes = Object.fromEntries(expected.map(key => [key, steps[key]?.outcome || 'not_executed']));
           const passed = Object.values(outcomes).every(value => value === 'success');
