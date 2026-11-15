@@ -38,7 +38,11 @@ PYOWNER
   if operator_sql -f - < /tmp/owner-interrupted.sql > /tmp/owner-interrupted.log 2>&1; then
     echo 'ERROR: interrupted owner installation committed'; exit 1
   fi
-  grep -Fq 'SOLARIS_OWNER_INTERRUPTION' /tmp/owner-interrupted.log
+  if ! grep -Fq 'SOLARIS_OWNER_INTERRUPTION' /tmp/owner-interrupted.log; then
+    echo "ERROR: unexpected owner interruption failure in $owner_candidate" >&2
+    tail -n 35 /tmp/owner-interrupted.log >&2
+    exit 1
+  fi
   [[ "$(operator_state_digest)" == "$owner_before" ]] || { echo 'Owner interruption changed schema/data'; exit 1; }
   operator_sql -f - < "$owner_candidate"
   owner_after="$(operator_state_digest)"
@@ -50,6 +54,37 @@ PYOWNER
 }
 operator_apply docs/v3/recovery-candidates/forward-only-s13-foundation.sql
 operator_apply docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql
+# Restore already-merged Confirmation command authority on the SAME observed-owner
+# local database. Source-only missing-parent reconstruction must first match
+# fresh hosted catalog fingerprints; an unknown function cannot be invented.
+echo 'STAGE: reconstruct scoped Confirmation hosted prerequisites (local-only)'
+node scripts/stage-v3-confirmation-prerequisites-local.mjs > /tmp/confirmation-parents.sql
+operator_sql -f - < /tmp/confirmation-parents.sql
+echo 'STAGE: Confirmation prerequisites matched; installing governed cutover'
+node scripts/stage-v3-confirmation-access-recovery.mjs > /tmp/confirmation-access-recovery.sql
+# Fail closed on column-contract and RLS-policy drift in independently cloned,
+# networkless local databases. Keep the canonical recovery source untouched.
+for confirmation_drift in column policy; do
+  confirmation_probe="confirmation_${confirmation_drift}_drift"
+  operator_sql -c "create database ${confirmation_probe} owner postgres template recovery_operator_baseline;"
+  if [[ "$confirmation_drift" == column ]]; then
+    drift_sql='alter table public.edit_tokens add column v3_unreviewed_shape_drift text;'
+  else
+    drift_sql='create policy v3_unreviewed_authority_drift on public.submissions for select to authenticated using (false);'
+  fi
+  docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d "$confirmation_probe" -c "$drift_sql"
+  confirmation_before="$(operator_state_digest "$confirmation_probe")"
+  if docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d "$confirmation_probe" -f - < /tmp/confirmation-access-recovery.sql > /tmp/confirmation-drift.log 2>&1; then
+    echo "ERROR: Confirmation accepted unreviewed ${confirmation_drift} drift" >&2; exit 1
+  fi
+  grep -Fq 'Confirmation table column/policy/owner/RLS/ACL drift' /tmp/confirmation-drift.log || { cat /tmp/confirmation-drift.log; exit 1; }
+  [[ "$(operator_state_digest "$confirmation_probe")" == "$confirmation_before" ]] || { echo "Confirmation rejected drift but changed schema/data" >&2; exit 1; }
+  operator_sql -c "drop database ${confirmation_probe};"
+done
+operator_apply /tmp/confirmation-access-recovery.sql
+echo 'PASS: Confirmation governed cutover installed in observed-owner recovery'
+operator_sql -f - < .github/scripts/v3-confirmation-legacy-writer-denial.sql
+
 operator_apply /tmp/s07-ordered-source.sql
 operator_sql -f - < .github/tests/v3-hosted-api-role-runtime.sql
 operator_sql -f - < .github/tests/v3-ordered-televote-recovery.sql
@@ -91,6 +126,52 @@ operator_apply docs/v3/recovery-candidates/s08-televote-single-writer-local.sql
 operator_sql -f - < .github/tests/v3-ordered-televote-s08-recovery.sql
 echo 'PASS: complete non-superuser owner recovery adopts S08 after Result/Combined safeguards'
 source .github/scripts/v3-results-operation-recovery-local.sh
+echo 'STAGE: close RLS-independent official API TRUNCATE grants after all canonical command cutovers'
+operator_apply docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql
+# Exercise SQL as actual API principals, not only catalog predicates. A denial
+# must be PostgreSQL permission-denied, never an FK or role-switch error.
+for s16_actor in anon authenticated service_role; do
+  for s16_table in public.submissions public.edit_tokens public.televote_votes televoting.televote_aggregations; do
+    if docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U authenticator -d recovery_operator_baseline \
+      -c "begin; set local role $s16_actor; truncate table $s16_table; rollback;" \
+      > /tmp/s16-api-truncate.log 2>&1; then
+      echo "S16 direct TRUNCATE unexpectedly succeeded: $s16_actor $s16_table" >&2
+      exit 1
+    fi
+    if ! grep -qi 'permission denied for table' /tmp/s16-api-truncate.log; then
+      echo "S16 role probe did not prove table permission denial: $s16_actor $s16_table" >&2
+      tail -n 20 /tmp/s16-api-truncate.log >&2
+      exit 1
+    fi
+  done
+done
+# Actual authenticator role execution, NOT merely a metadata assertion.
+# No rows are written. The statement must fail on table permission, rather than
+# a row constraint, operational mode, RLS invisibility, or invalid test input.
+for s16_actor in anon authenticated service_role; do
+  for s16_table in public.submissions public.edit_tokens; do
+    for s16_action in INSERT UPDATE DELETE; do
+      case "$s16_action" in
+        INSERT) s16_statement="insert into $s16_table default values" ;;
+        UPDATE)
+          if [[ "$s16_table" == public.submissions ]]; then
+            s16_statement='update public.submissions set editing_allowed=editing_allowed where false'
+          else
+            s16_statement='update public.edit_tokens set active=active where false'
+          fi ;;
+        DELETE) s16_statement="delete from $s16_table where false" ;;
+      esac
+      if docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U authenticator -d recovery_operator_baseline \
+        -c "begin; set local role $s16_actor; $s16_statement; rollback;" \
+        > /tmp/s16-confirmation-dml-denial.log 2>&1; then
+        echo "S16 direct Confirmation $s16_action unexpectedly allowed: $s16_actor $s16_table" >&2; exit 1
+      fi
+      grep -qi 'permission denied for table' /tmp/s16-confirmation-dml-denial.log || { cat /tmp/s16-confirmation-dml-denial.log; exit 1; }
+    done
+  done
+done
+echo 'PASS: 18 direct Confirmation table DML attempts denied as real API roles'
+echo 'PASS: twelve actual API-role TRUNCATE attempts denied without changes to canonical operation grants'
 echo 'PASS: entire ordered recovery executes as observed NONSUPERUSER postgres with real role/schema privileges'
 # A restore of synthetic local data proves this procedure, NOT availability,
 # freshness, retention or restorability of the separate real production backup.
@@ -127,6 +208,7 @@ if(!/^[a-f0-9]{40}$/.test(sha))throw Error('Missing exact source SHA');
 const files=[
  'docs/v3/recovery-candidates/forward-only-s13-foundation.sql',
  'docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql',
+ '/tmp/confirmation-access-recovery.sql',
  '/tmp/s07-ordered-source.sql','/tmp/atomic-recovery.sql','/tmp/public-snapshot-recovery.sql','/tmp/result-authority-recovery.sql','/tmp/result-read-authority-recovery.sql',
  'supabase/migrations/20261114102706_v3_jury_governed_submission_cutover.sql',
  'supabase/migrations/20261115084647_v3_jury_canonical_table_authority.sql',
@@ -134,6 +216,7 @@ const files=[
  'docs/v3/recovery-candidates/s08-televote-single-writer-local.sql',
  '/tmp/results-operation-engine.sql','/tmp/results-reviewed-cas.sql',
  'supabase/migrations/20261114194701_v3_results_operation_tables_owner_only.sql',
+ 'docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql',
 ];
 const digest=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 fs.mkdirSync('ordered-recovery-sql',{recursive:true});
@@ -151,6 +234,9 @@ fs.writeFileSync('observed-owner-recovery-proof.json',JSON.stringify({
  orderedStages,
  interruptedRollback:true,safeRetry:true,duplicateRefused:true,
  schemaAndSyntheticRowsPreserved:true,separateLocalRestoreVerified:true,
+ confirmationGovernedCommandsInstalled:true,confirmationLegacyApiExecuteDenied:true,
+ confirmationPositiveLifecycleVerified:false,confirmationParentBodiesSourceOnly:true,
+ s16ConfirmationTelevoteTruncateApiRoleDenied:true,s16ConfirmationDirectApiDmlDenied:true,s16FullCriticalWriterCertified:false,
  juryLegacyApiDenied:true,juryGovernedReceiptReplayVerified:true,
  juryApiTableAndColumnDmlTruncateDenied:true,juryDraftCasAndReadbackVerified:true,
  signupAuthOwnerRaceAndRollbackVerified:true,
