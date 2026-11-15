@@ -39,7 +39,9 @@ export function stageConfirmationRecovery(root=process.cwd()) {
      new Set(e.absentFunctions).size!==9 ||
      e.existingFunctions.some(x=>!x.identity||x.owner!=='postgres'||x.securityDefiner!==true||
        !/^[0-9a-f]{32}$/.test(x.definitionMd5)||!x.acl||!Array.isArray(x.config)||x.config.length!==1) ||
-     e.existingTables.some(x=>!x.identity||x.owner!=='postgres'||x.rls!==true||!x.acl))
+     e.existingTables.some(x=>!x.identity||x.owner!=='postgres'||x.rls!==true||!x.acl||
+       !/^[0-9a-f]{32}$/.test(x.columnShapeMd5)||!Number.isSafeInteger(x.columns)||x.columns<1||
+       !/^[0-9a-f]{32}$/.test(x.policyMd5)||!Number.isSafeInteger(x.policies)||x.policies<0))
     throw Error('Invalid Confirmation authority fingerprints');
   const source=SOURCES.map(s=>frozenSource(root,s)).join('\n');
   const sql=[
@@ -67,8 +69,12 @@ export function stageConfirmationRecovery(root=process.cwd()) {
     ' for item in select value from jsonb_array_elements('+quote(e.existingTables)+'::jsonb) loop',
     "   select * into c from pg_class where oid=to_regclass(item->>'identity');",
     "   if c.oid is null then raise exception 'Missing Confirmation prerequisite table: %',item->>'identity' using errcode='55000';end if;",
-    "   actual:=jsonb_build_object('identity',item->>'identity','owner',pg_get_userbyid(c.relowner),'rls',c.relrowsecurity,'acl',c.relacl::text);",
-    "   if actual is distinct from item then raise exception 'Confirmation table owner/RLS/ACL drift: %',item->>'identity' using errcode='55000';end if;",
+    "   actual:=jsonb_build_object('identity',item->>'identity','owner',pg_get_userbyid(c.relowner),'rls',c.relrowsecurity,'acl',c.relacl::text,",
+    "     'columnShapeMd5',(select md5(string_agg(a.attnum::text||':'||a.attname||':'||format_type(a.atttypid,a.atttypmod)||':'||a.attnotnull::text||':'||a.attgenerated::text||':'||a.attidentity::text,'|' order by a.attnum)) from pg_attribute a where a.attrelid=c.oid and a.attnum>0 and not a.attisdropped),",
+    "     'columns',(select count(*) from pg_attribute a where a.attrelid=c.oid and a.attnum>0 and not a.attisdropped),",
+    "     'policyMd5',(select md5(coalesce(string_agg(p.polname||':'||p.polcmd::text||':'||p.polpermissive::text||':'||coalesce(pg_get_expr(p.polqual,p.polrelid),'')||':'||coalesce(pg_get_expr(p.polwithcheck,p.polrelid),''),'|' order by p.polname),'')) from pg_policy p where p.polrelid=c.oid),",
+    "     'policies',(select count(*) from pg_policy p where p.polrelid=c.oid));",
+    "   if actual is distinct from item then raise exception 'Confirmation table column/policy/owner/RLS/ACL drift: %',item->>'identity' using errcode='55000';end if;",
     ' end loop;',
     ' for item in select value from jsonb_array_elements('+quote(e.absentFunctions)+'::jsonb) loop',
     "   if to_regprocedure(item #>> '{}') is not null then raise exception 'Confirmation already/partially installed function: %',item #>> '{}' using errcode='55000';end if;",

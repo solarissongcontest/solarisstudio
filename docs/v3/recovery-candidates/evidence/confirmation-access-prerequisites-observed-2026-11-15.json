@@ -114,37 +114,61 @@
       "identity": "public.edit_tokens",
       "owner": "postgres",
       "rls": true,
-      "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxt/postgres,authenticated=arwdDxt/postgres,service_role=arwdDxt/postgres}"
+      "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxt/postgres,authenticated=arwdDxt/postgres,service_role=arwdDxt/postgres}",
+      "columnShapeMd5": "4835df6e2042c1610dff5c3a25d138d6",
+      "columns": 9,
+      "policyMd5": "d9085411239a5cf2c5544d973a762516",
+      "policies": 1
     },
     {
       "identity": "public.submissions",
       "owner": "postgres",
       "rls": true,
-      "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxt/postgres,authenticated=arwdDxt/postgres,service_role=arwdDxt/postgres}"
+      "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxt/postgres,authenticated=arwdDxt/postgres,service_role=arwdDxt/postgres}",
+      "columnShapeMd5": "8fc0d171216856185fe4fd370ed766cc",
+      "columns": 32,
+      "policyMd5": "df63c28cb73e11bacf37f1e539ded5fa",
+      "policies": 1
     },
     {
       "identity": "public.studio2_confirmation_requirements",
       "owner": "postgres",
       "rls": true,
-      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}"
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columnShapeMd5": "38f4cb619a7a89db93aba30988d456c8",
+      "columns": 16,
+      "policyMd5": "d41d8cd98f00b204e9800998ecf8427e",
+      "policies": 0
     },
     {
       "identity": "public.studio2_confirmation_review_versions",
       "owner": "postgres",
       "rls": true,
-      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}"
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columnShapeMd5": "7b8cee618a770ab989a657b244bc090b",
+      "columns": 3,
+      "policyMd5": "d41d8cd98f00b204e9800998ecf8427e",
+      "policies": 0
     },
     {
       "identity": "public.studio2_operation_receipts",
       "owner": "postgres",
       "rls": true,
-      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}"
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columnShapeMd5": "743e7c9d7bb318c8497d3e944e3e72f5",
+      "columns": 17,
+      "policyMd5": "d41d8cd98f00b204e9800998ecf8427e",
+      "policies": 0
     },
     {
       "identity": "public.studio2_platform_operational_state",
       "owner": "postgres",
       "rls": true,
-      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}"
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columnShapeMd5": "01c17730ac95af83c647ee3322379d40",
+      "columns": 9,
+      "policyMd5": "d41d8cd98f00b204e9800998ecf8427e",
+      "policies": 0
     }
   ],
   "absentFunctions": [
@@ -164,5 +188,6 @@
     "v3_touch_confirmation_edit_token_version"
   ],
   "s13FoundationAbsent": true,
-  "governedAccessAbsent": true
+  "governedAccessAbsent": true,
+  "catalogShapeEvidence": "Read-only bounded production pg_catalog inspection, 2026-11-15; six named Confirmation parents; only column type/nullability and policy-definition fingerprints; no application rows or credentials."
 }

@@ -18,6 +18,10 @@ test('frozen source effects form one atomic guarded recovery, not five unchecked
   assert.ok(sql.indexOf('v3.confirmation.governed-readonly-compat')<sql.indexOf('v3.confirmation.legacy-writers-owner-only'));
   for(const [path] of SOURCES) assert.ok(sql.includes('-- Source '+path));
   assert.match(sql,/Legacy Confirmation writer still accessible/);
+  assert.match(sql,/columnShapeMd5/);
+  assert.match(sql,/policyMd5/);
+  assert.match(sql,/pg_attribute/);
+  assert.match(sql,/pg_policy/);
   assert.match(sql,/already\/partially installed/);
   assert.doesNotMatch(sql,/insert into supabase_migrations|disable row level security/i);
 });
@@ -40,6 +44,8 @@ test('unexpected hosted evidence, unsupported partial effects and source drift f
     d=>d.projectRef='unknown-project',
     d=>d.existingFunctions.pop(),
     d=>d.existingFunctions[0].definitionMd5='00000000000000000000000000000000',
+    d=>d.existingTables[0].columnShapeMd5='not-a-fingerprint',
+    d=>d.existingTables[0].policyMd5='not-a-fingerprint',
     d=>d.s13FoundationAbsent=false,
     d=>d.applicationRowsRead=true,
   ]){
@@ -48,7 +54,8 @@ test('unexpected hosted evidence, unsupported partial effects and source drift f
       const p=resolve(root,EVIDENCE), d=JSON.parse(readFileSync(p,'utf8'));
       change(d);writeFileSync(p,JSON.stringify(d));
       if(d.existingFunctions?.length===10 && d.projectRef==='dkxmnvekiopyesuzggeu' &&
-         d.s13FoundationAbsent && !d.applicationRowsRead){
+         d.s13FoundationAbsent && !d.applicationRowsRead &&
+         d.existingTables.every(x=>/^[0-9a-f]{32}$/.test(x.columnShapeMd5)&&/^[0-9a-f]{32}$/.test(x.policyMd5))){
         // A changed but well-formed evidence hash is not self-authenticating;
         // the SQL catalog comparison MUST independently refuse it at execution.
         assert.match(stageConfirmationRecovery(root),/definitionMd5/);

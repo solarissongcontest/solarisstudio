@@ -62,6 +62,25 @@ node scripts/stage-v3-confirmation-prerequisites-local.mjs > /tmp/confirmation-p
 operator_sql -f - < /tmp/confirmation-parents.sql
 echo 'STAGE: Confirmation prerequisites matched; installing governed cutover'
 node scripts/stage-v3-confirmation-access-recovery.mjs > /tmp/confirmation-access-recovery.sql
+# Fail closed on column-contract and RLS-policy drift in independently cloned,
+# networkless local databases. Keep the canonical recovery source untouched.
+for confirmation_drift in column policy; do
+  confirmation_probe="confirmation_${confirmation_drift}_drift"
+  operator_sql -c "create database ${confirmation_probe} owner postgres template recovery_operator_baseline;"
+  if [[ "$confirmation_drift" == column ]]; then
+    drift_sql='alter table public.edit_tokens add column v3_unreviewed_shape_drift text;'
+  else
+    drift_sql='create policy v3_unreviewed_authority_drift on public.submissions for select to authenticated using (false);'
+  fi
+  docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d "$confirmation_probe" -c "$drift_sql"
+  confirmation_before="$(operator_state_digest "$confirmation_probe")"
+  if docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d "$confirmation_probe" -f - < /tmp/confirmation-access-recovery.sql > /tmp/confirmation-drift.log 2>&1; then
+    echo "ERROR: Confirmation accepted unreviewed ${confirmation_drift} drift" >&2; exit 1
+  fi
+  grep -Fq 'Confirmation table column/policy/owner/RLS/ACL drift' /tmp/confirmation-drift.log || { cat /tmp/confirmation-drift.log; exit 1; }
+  [[ "$(operator_state_digest "$confirmation_probe")" == "$confirmation_before" ]] || { echo "Confirmation rejected drift but changed schema/data" >&2; exit 1; }
+  operator_sql -c "drop database ${confirmation_probe};"
+done
 operator_apply /tmp/confirmation-access-recovery.sql
 echo 'PASS: Confirmation governed cutover installed in observed-owner recovery'
 operator_sql -f - < .github/scripts/v3-confirmation-legacy-writer-denial.sql
