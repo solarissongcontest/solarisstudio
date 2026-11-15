@@ -21,8 +21,12 @@ import {
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
 import { holdMovementExceeded, useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import { PUBLIC_GLOBAL_AREAS } from "@/lib/public-navigation";
+import { resolveV3LogicalHorizontalDelta, type V3LayoutDirection } from "@/lib/v3-navigation-gesture";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
+
+// One shared geometry source for installed legacy and V3 app routes.
+import "@/styles/v3-installed-app-navbar.css";
 
 const ICONS: Record<(typeof PUBLIC_GLOBAL_AREAS)[number]["id"], LucideIcon> = {
   home: Home,
@@ -41,6 +45,7 @@ type DragState = {
   startY: number;
   originIndex: number;
   moved: boolean;
+  layoutDirection: V3LayoutDirection;
 };
 
 function isPrimaryArea(value: string): value is PrimaryArea {
@@ -59,12 +64,18 @@ export function AppTabBar({
   signedIn,
   participateBadge = 0,
   meBadge = 0,
+  onSelectV3Tab,
+  v3TabHref,
+  ariaLabel = "Solaris Studio",
 }: {
   pathname: string;
   searchStr?: string;
   signedIn: boolean;
   participateBadge?: number;
   meBadge?: number;
+  onSelectV3Tab?: (area: PrimaryArea) => void;
+  v3TabHref?: (area: PrimaryArea) => string;
+  ariaLabel?: string;
 }) {
   const navigate = useNavigate();
   const chrome = resolveAppRouteChrome(pathname, searchStr);
@@ -93,7 +104,7 @@ export function AppTabBar({
   const dragging = held;
 
   useEffect(() => {
-    const media = window.matchMedia("(min-width: 900px)");
+    const media = window.matchMedia("(min-width: 900px) and (min-height: 600px)");
     const refresh = () => {
       setRailMode(media.matches);
       if (media.matches) expandTabBar();
@@ -112,7 +123,7 @@ export function AppTabBar({
     const bar = barRef.current;
 
     const updateMetrics = () => {
-      if (!bar || railMode || tabbarMode === "hidden") {
+      if (!bar || railMode || tabbarMode === "hidden" || root.hasAttribute("data-solaris-keyboard-open")) {
         root.style.setProperty("--solaris-app-bottom-obstruction", "0px");
         root.style.setProperty("--solaris-bottom-obstruction", "0px");
         return;
@@ -135,11 +146,22 @@ export function AppTabBar({
         ? new ResizeObserver(updateMetrics)
         : null;
     if (observer && bar) observer.observe(bar as Element);
+    // A keyboard-state attribute can change without a visualViewport resize.
+    // Recompute scroll clearance on both transitions, not only physical resize.
+    const keyboardObserver =
+      typeof MutationObserver !== "undefined"
+        ? new MutationObserver(updateMetrics)
+        : null;
+    keyboardObserver?.observe(root, {
+      attributes: true,
+      attributeFilter: ["data-solaris-keyboard-open"],
+    });
     window.addEventListener("resize", updateMetrics);
     window.visualViewport?.addEventListener("resize", updateMetrics);
 
     return () => {
       observer?.disconnect();
+      keyboardObserver?.disconnect();
       window.removeEventListener("resize", updateMetrics);
       window.visualViewport?.removeEventListener("resize", updateMetrics);
       // Do not zero the obstruction here. Dependency changes immediately
@@ -174,6 +196,10 @@ export function AppTabBar({
   const openTab = (index: number) => {
     const area = PUBLIC_GLOBAL_AREAS[index];
     if (!area) return;
+    if (onSelectV3Tab) {
+      onSelectV3Tab(area.id);
+      return;
+    }
     const target = getAppTabDestination(area.id, signedIn);
     const root = appTabRoot(area.id, signedIn);
     if (appEntryHref(target) !== root || target.scrollY > 0) {
@@ -194,6 +220,10 @@ export function AppTabBar({
   const activateCurrentTab = (index: number) => {
     const area = PUBLIC_GLOBAL_AREAS[index];
     if (!area) return;
+    if (onSelectV3Tab) {
+      onSelectV3Tab(area.id);
+      return;
+    }
     const root = appTabRoot(area.id, signedIn);
     const normalizedPath = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
     const normalizedRoot = root.endsWith("/") && root !== "/" ? root.slice(0, -1) : root;
@@ -332,6 +362,7 @@ export function AppTabBar({
       startY: event.clientY,
       originIndex: index,
       moved: false,
+      layoutDirection: getComputedStyle(materialRef.current ?? event.currentTarget).direction === "rtl" ? "rtl" : "ltr",
     };
     event.currentTarget.setPointerCapture?.(event.pointerId);
     beginHold(event.pointerId, event.clientX, event.clientY);
@@ -363,8 +394,8 @@ export function AppTabBar({
     const maxCenter = lastRect ? lastRect.left + lastRect.width / 2 : originCenter;
     const response = resolveElasticDrag({
       rawDelta: event.clientX - drag.startX,
-      minDelta: minCenter - originCenter,
-      maxDelta: maxCenter - originCenter,
+      minDelta: Math.min(minCenter - originCenter, maxCenter - originCenter),
+      maxDelta: Math.max(minCenter - originCenter, maxCenter - originCenter),
       slotWidth: origin.width,
     });
 
@@ -378,7 +409,7 @@ export function AppTabBar({
     material?.setAttribute("data-drag-direction", response.direction);
 
     const preview = resolveTabDragTargetIndex({
-      rawDelta: event.clientX - drag.startX,
+      rawDelta: resolveV3LogicalHorizontalDelta(event.clientX - drag.startX, drag.layoutDirection),
       originIndex: drag.originIndex,
       slotWidth: origin.width,
       itemCount: PUBLIC_GLOBAL_AREAS.length,
@@ -403,7 +434,7 @@ export function AppTabBar({
     const rects = tabRects();
     const origin = rects[drag.originIndex];
     const targetIndex = resolveTabDragTargetIndex({
-      rawDelta: event.clientX - drag.startX,
+      rawDelta: resolveV3LogicalHorizontalDelta(event.clientX - drag.startX, drag.layoutDirection),
       originIndex: drag.originIndex,
       slotWidth: origin?.width ?? 1,
       itemCount: PUBLIC_GLOBAL_AREAS.length,
@@ -425,10 +456,10 @@ export function AppTabBar({
     if (!moved || targetIndex === drag.originIndex) return;
     const area = PUBLIC_GLOBAL_AREAS[targetIndex];
     if (!area) return;
-    const target = getAppTabDestination(area.id, signedIn);
+    const targetHref = v3TabHref?.(area.id) ?? appEntryHref(getAppTabDestination(area.id, signedIn));
 
     trackPublicUxEvent("public_nav_clicked", {
-      target: appEntryHref(target),
+      target: targetHref,
       metadata: { area: area.id, source: "app_tabbar_drag" },
     });
     openTab(targetIndex);
@@ -451,7 +482,7 @@ export function AppTabBar({
         collapsed && "is-collapsed",
         tabbarMode === "minimal" && "is-minimal",
       )}
-      aria-label="Solaris Studio"
+      aria-label={ariaLabel}
       data-collapsed={collapsed ? "true" : "false"}
       data-layout={railMode ? "rail" : "bar"}
       data-mode={tabbarMode}
@@ -519,7 +550,7 @@ export function AppTabBar({
 
                 event.preventDefault();
                 trackPublicUxEvent("public_nav_clicked", {
-                  target: active ? pathname : appEntryHref(getAppTabDestination(area.id, signedIn)),
+                  target: active ? pathname : (v3TabHref?.(area.id) ?? appEntryHref(getAppTabDestination(area.id, signedIn))),
                   metadata: {
                     area: area.id,
                     source: active ? "app_tabbar_active" : "app_tabbar_restore",

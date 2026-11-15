@@ -33,11 +33,11 @@ describe("Solaris V6 unified overlay and chrome ownership", () => {
     expect(manager).toContain("else if");
   });
 
-  it("centralises viewport, keyboard and safe-area variables under the manager-owned metrics lifecycle", () => {
+  it("owns safe-area aliases in the overlay layer and live viewport/keyboard state in AppRuntime", () => {
+    const runtime = source("src/components/app/AppRuntime.tsx");
     const metrics = source("src/components/app/AppChromeMetrics.tsx");
+    const viewport = source("src/lib/app-viewport.ts");
     for (const token of [
-      "--solaris-visual-viewport-height",
-      "--solaris-keyboard-inset",
       "--solaris-safe-top",
       "--solaris-safe-right",
       "--solaris-safe-bottom",
@@ -45,7 +45,17 @@ describe("Solaris V6 unified overlay and chrome ownership", () => {
     ]) {
       expect(metrics, token).toContain(token);
     }
-    expect(metrics).toContain("data-solaris-keyboard-open");
+    for (const token of [
+      "--solaris-visual-viewport-height",
+      "--solaris-keyboard-inset",
+      "data-solaris-keyboard-open",
+    ]) {
+      expect(viewport, token).toContain(token);
+      expect(metrics, token).not.toContain(token);
+    }
+    expect(runtime).toContain("createAppViewportController(setViewport)");
+    expect(viewport).toContain("editableFocus");
+    expect(viewport).toContain("pinchZoomed");
   });
 
   it("keeps persistent app chrome responsive to manager-owned overlay state", () => {
