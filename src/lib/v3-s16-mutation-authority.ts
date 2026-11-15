@@ -1,4 +1,4 @@
-export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-6" as const;
+export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-7" as const;
 
 export type V3S16Risk = "integrity_critical" | "security_critical";
 
@@ -264,6 +264,7 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     canonicalTables: [
       "public.submission_rounds",
       "public.submissions",
+      "public.edit_tokens",
       "public.submission_versions",
       "public.studio2_confirmation_requirements",
       "public.studio2_confirmation_round_versions",
