@@ -27,33 +27,31 @@ if source.count('update public.shows set published=true')!=1:
 print(source+'commit;')
 PYSEED
 pub_owner_sql -f - < /tmp/s16-publication-prepare.sql
-# Establish one coherent, unpublished *non-outcome* publication source for
-# canonical positive acceptance. The generic source snapshot fixture contains
-# frozen Results evidence but does not install a finalized reviewed/locked
-# operational release basis. Never fake its readiness. This local transaction
-# creates a valid hidden control before exercising a real participant-only
-# publication via the governed command.
+# Create a dedicated new draft show for the positive publication command.
+# Do not repurpose the existing frozen Results source: that source has no
+# reviewed/locked/reveal-ready result-version provenance and must stay intact.
+# A participants-only publication requires no invented Results version.
 pub_owner_sql -f - <<'SQL'
 begin;
-update public.shows
-  set published=false, publication_config='{}'::jsonb, updated_at=now()
-  where id='51000000-0000-4000-8000-000000000002';
+insert into public.shows(id,edition_id,name,kind,published,publication_config)
+values('71000000-0000-4000-8000-000000000010',
+       '51000000-0000-4000-8000-000000000001',
+       'S16 publication command positive fixture','semi-final',false,'{}'::jsonb);
 insert into public.studio2_show_publication_controls(
   show_id,edition_id,state,version,frozen_config,source_show_updated_at
 )
-select id,edition_id,'hidden',1,'{}'::jsonb,updated_at
-from public.shows
-where id='51000000-0000-4000-8000-000000000002'
+select id,edition_id,'draft',1,'{}'::jsonb,updated_at
+from public.shows where id='71000000-0000-4000-8000-000000000010'
 on conflict (show_id) do nothing;
 do $fixture_check$
 begin
   if not exists (
     select 1 from public.studio2_show_publication_controls c
     join public.shows s on s.id=c.show_id
-    where c.show_id='51000000-0000-4000-8000-000000000002'
-      and c.state='hidden' and c.source_result_version is null
+    where c.show_id='71000000-0000-4000-8000-000000000010'
+      and c.state='draft' and c.source_result_version is null
       and s.published=false
-  ) then raise exception 'Local publication fixture failed to establish hidden state'; end if;
+  ) then raise exception 'Local publication draft fixture drift'; end if;
 end $fixture_check$;
 commit;
 SQL
@@ -91,7 +89,7 @@ select set_config('request.jwt.claims',jsonb_build_object(
 )::text,true);
 do $publication$
 declare
-  v_show uuid := '51000000-0000-4000-8000-000000000002';
+  v_show uuid := '71000000-0000-4000-8000-000000000010';
   v_operation uuid := '71000000-0000-4000-8000-000000000003';
   v_preview jsonb;
   v_applied jsonb;
