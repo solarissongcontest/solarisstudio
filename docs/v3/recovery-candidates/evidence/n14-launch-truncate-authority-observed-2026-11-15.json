@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 1,
+  "scope": "fourteen launch-critical relations only; not an exhaustive hosted authority or schema certificate",
+  "projectRef": "dkxmnvekiopyesuzggeu",
+  "observedDate": "2026-11-15",
+  "postgresVersion": "17.11.0.002",
+  "method": "bounded authorized read-only pg_catalog selects: to_regclass, pg_class.relowner/relrowsecurity, has_table_privilege(role, oid, 'TRUNCATE')",
+  "productionDataQueried": false,
+  "productionMutation": false,
+  "hostedEffectsInstalled": false,
+  "findings": [
+    {
+      "table": "public.country_accounts",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "observedTruncate": {
+        "anon": true,
+        "authenticated": true,
+        "service_role": true
+      },
+      "requiredPostCutover": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      }
+    },
+    {
+      "table": "public.edit_tokens",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "observedTruncate": {
+        "anon": true,
+        "authenticated": true,
+        "service_role": true
+      },
+      "requiredPostCutover": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      }
+    },
+    {
+      "table": "public.editions",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "observedTruncate": {
+        "anon": true,
+        "authenticated": true,
+        "service_role": true
+      },
+      "requiredPostCutover": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      }
+    },
+    {
+      "table": "public.entries",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "observedTruncate": {
+        "anon": true,
+        "authenticated": true,
+        "service_role": true
+      },
+      "requiredPostCutover": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      }
+    },
+    {
+      "table": "public.jury_votes",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "observedTruncate": {
+        "anon": true,
+        "authenticated": true,
+        "service_role": true
+      },
+      "requiredPostCutover": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      }
+    },
+    {
+      "table": "public.results",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "observedTruncate": {
+        "anon": true,
+        "authenticated": true,
+        "service_role": true
+      },
+      "requiredPostCutover": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      }
+    },
+    {
+      "table": "public.shows",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "observedTruncate": {
+        "anon": true,
+        "authenticated": true,
+        "service_role": true
+      },
+      "requiredPostCutover": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      }
+    },
+    {
+      "table": "public.studio2_result_operations",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "observedTruncate": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true
+      },
+      "requiredPostCutover": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      }
+    },
+    {
+      "table": "public.studio2_show_publication_controls",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "observedTruncate": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true
+      },
+      "requiredPostCutover": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      }
+    },
+    {
+      "table": "public.studio2_upload_authorizations",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "observedTruncate": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true
+      },
+      "requiredPostCutover": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      }
+    },
+    {
+      "table": "public.submissions",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "observedTruncate": {
+        "anon": true,
+        "authenticated": true,
+        "service_role": true
+      },
+      "requiredPostCutover": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      }
+    },
+    {
+      "table": "public.televote_votes",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "observedTruncate": {
+        "anon": true,
+        "authenticated": true,
+        "service_role": true
+      },
+      "requiredPostCutover": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      }
+    },
+    {
+      "table": "televoting.televote_aggregations",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "observedTruncate": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true
+      },
+      "requiredPostCutover": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      }
+    },
+    {
+      "table": "televoting.vote_submissions",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "observedTruncate": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true
+      },
+      "requiredPostCutover": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      }
+    }
+  ],
+  "classification": "STILL BLOCKING until canonical authority is installed and verified",
+  "caveat": "Effective privilege is not proof of an application-route exploit. PostgreSQL TRUNCATE is not subject to RLS. This is catalog evidence only, not authorization to execute changes."
+}

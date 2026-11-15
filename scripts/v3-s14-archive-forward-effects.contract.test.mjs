@@ -416,3 +416,37 @@ test("S06 execution evidence fails closed on missing stages and cannot certify h
     }
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+
+test("S16 launch TRUNCATE cutover matches independently observed authority inventory", () => {
+  const sql = read("docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql");
+  const driver = read(".github/scripts/v3-observed-owner-recovery-local.sh");
+  const observed = JSON.parse(read("docs/v3/recovery-candidates/evidence/n14-launch-truncate-authority-observed-2026-11-15.json"));
+  assert.equal(observed.productionMutation, false);
+  assert.equal(observed.productionDataQueried, false);
+  assert.equal(observed.hostedEffectsInstalled, false);
+  assert.equal(observed.findings.length, 14);
+  const names = observed.findings.map((row) => row.table).sort();
+  assert.equal(new Set(names).size, 14);
+  const roleNames = ["anon", "authenticated", "service_role"];
+  for (const row of observed.findings) {
+    assert.equal(row.owner, "postgres", row.table);
+    assert.equal(row.rlsEnabled, true, row.table);
+    for (const role of roleNames) {
+      assert.equal(typeof row.observedTruncate[role], "boolean");
+      assert.equal(row.requiredPostCutover[role], false);
+    }
+  }
+  const loops = [...sql.matchAll(/for v_target in select unnest\(array\[([\s\S]*?)\]\)/g)];
+  assert.equal(loops.length, 2, "both SQL preflight and postconditions must cover each observed table");
+  for (const match of loops) {
+    const listed = [...match[1].matchAll(/'((?:public|televoting)\.[a-z0-9_]+)'/g)].map((row) => row[1]).sort();
+    assert.deepEqual(listed, names, "S16 must fail closed and verify every observed relation");
+  }
+  const actorLoop = driver.match(/for s16_actor in anon authenticated service_role; do\s*for s16_table in ([^;]+); do/);
+  assert.ok(actorLoop, "no real-role S16 TRUNCATE denial loop");
+  assert.deepEqual(actorLoop[1].trim().split(/\s+/).sort(), names);
+  assert.match(driver, /s16LaunchTableTruncateDenials:42/);
+  assert.match(sql, /revoke truncate on table/);
+  assert.doesNotMatch(sql, /supabase_migrations\.schema_migrations/);
+});
