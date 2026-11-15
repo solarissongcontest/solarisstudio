@@ -16,29 +16,35 @@ const blob = createHash("sha1")
  .update("blob "+Buffer.byteLength(source)+"\0").update(source).digest("hex");
 if (blob !== "3f711b37c92c058990f5dc99a4ca55ff67e90b02")
   throw Error("S16 publication historical source changed; requalify before using donor");
-// The S02 schema fixture also omits the *source-owned* operation receipt
-// helpers. Use the latest platform-mode-governed claim, not its older
-// pre-mode version; complete() retains the original operation-contract source.
+// The S02 schema fixture already has the S2 seven-argument receipt claim,
+// including non-null correlation/fingerprint fields. Reconstruct the matching
+// five-argument S2 compatibility adapter, never its pre-S2 INSERT implementation.
+// complete() must also use the S2 source if absent (completed_at is required).
 function sourcePinned(path, expectedBlob) {
  const text=readFileSync(resolve(process.cwd(),path),"utf8");
  const actual=createHash("sha1").update("blob "+Buffer.byteLength(text)+"\0").update(text).digest("hex");
  if(actual!==expectedBlob)throw Error("S16 local operation-source drift: "+path);
  return text;
 }
-const modeSource=sourcePinned(
- "supabase/migrations/20261003174000_organisation_os_v5_platform_operational_modes.sql",
- "a4f8c7a35df2d2caea98b82a3a4552ffbdb0d9ec");
-const operationSource=sourcePinned(
- "supabase/migrations/20261002203000_organisation_os_v5_operation_contract.sql",
- "48a02d067cb803683057d704d375b202cb6321f6");
+const s2Source=sourcePinned(
+ "supabase/migrations/20261014194651_v3_s2_operation_receipt_idempotency.sql",
+ "b8f7841c898186e90b535ad2e83af88eb36580e7");
+// The S2 migration defines both claim overloads. Narrow to the unique
+// five-argument adapter, while the seven-argument source remains untouched.
+const s2AdapterMarker="create or replace function private.studio2_claim_operation(\n"+
+ "  p_operation_id uuid,\n  p_idempotency_key text,\n  p_command text,";
+const s2AdapterAt=s2Source.indexOf(s2AdapterMarker);
+if(s2AdapterAt<0 || s2Source.indexOf(s2AdapterMarker,s2AdapterAt+1)>=0)
+ throw Error("S16 S2 compatibility adapter source absent or ambiguous");
+const s2AdapterSource=s2Source.slice(s2AdapterAt);
 
 // Dependencies are ordered as originally declared. The fixture MAY have
 // source-newer helper implementations; preserve them rather than downgrading.
 const targets = [
  // Source-exact, owner-only receipt helpers required by authenticated
- // publication. The claim includes operational mode enforcement.
- ["private.studio2_claim_operation","uuid,text,text,text,jsonb",[],modeSource],
- ["private.studio2_complete_operation","uuid,jsonb",[],operationSource],
+ // publication. The S2 adapter delegates to the existing seven-arg helper.
+ ["private.studio2_claim_operation","uuid,text,text,text,jsonb",[],s2AdapterSource],
+ ["private.studio2_complete_operation","uuid,jsonb",[],s2Source],
  ["private.studio2_normalise_publication_config","jsonb",[]],
  ["private.studio2_publication_has_any","jsonb",[]],
  ["private.studio2_publication_has_outcomes","jsonb",[]],
@@ -97,7 +103,8 @@ begin
  if current_user<>'postgres' or current_setting('server_version_num')<>'170011'
     or (select rolsuper or not rolbypassrls from pg_roles where rolname=current_user)
     or to_regclass('public.studio2_show_publication_controls') is null
-    or to_regclass('public.studio2_show_publication_executions') is null then
+    or to_regclass('public.studio2_show_publication_executions') is null
+    or to_regprocedure('private.studio2_claim_operation(uuid,text,uuid,text,text,jsonb,jsonb)') is null then
    raise exception 'S16 publication donor requires reviewed PG17 non-superuser local fixture' using errcode='55000';
  end if;
  -- The donor is not a migration. On this *scoped* fixture the two commands
