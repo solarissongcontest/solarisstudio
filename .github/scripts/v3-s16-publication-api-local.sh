@@ -27,6 +27,36 @@ if source.count('update public.shows set published=true')!=1:
 print(source+'commit;')
 PYSEED
 pub_owner_sql -f - < /tmp/s16-publication-prepare.sql
+# Establish one coherent, unpublished *non-outcome* publication source for
+# canonical positive acceptance. The generic source snapshot fixture contains
+# frozen Results evidence but does not install a finalized reviewed/locked
+# operational release basis. Never fake its readiness. This local transaction
+# creates a valid hidden control before exercising a real participant-only
+# publication via the governed command.
+pub_owner_sql -f - <<'SQL'
+begin;
+update public.shows
+  set published=false, publication_config='{}'::jsonb, updated_at=now()
+  where id='51000000-0000-4000-8000-000000000002';
+insert into public.studio2_show_publication_controls(
+  show_id,edition_id,state,version,frozen_config,source_show_updated_at
+)
+select id,edition_id,'hidden',1,'{}'::jsonb,updated_at
+from public.shows
+where id='51000000-0000-4000-8000-000000000002'
+on conflict (show_id) do nothing;
+do $fixture_check$
+begin
+  if not exists (
+    select 1 from public.studio2_show_publication_controls c
+    join public.shows s on s.id=c.show_id
+    where c.show_id='51000000-0000-4000-8000-000000000002'
+      and c.state='hidden' and c.source_result_version is null
+      and s.published=false
+  ) then raise exception 'Local publication fixture failed to establish hidden state'; end if;
+end $fixture_check$;
+commit;
+SQL
 pub_bootstrap_sql -f - <<'SQL'
 insert into auth.users(id,aud,role,email,created_at,updated_at)
 values('71000000-0000-4000-8000-000000000001','authenticated','authenticated','publication-s16@local.invalid',now(),now());
@@ -66,22 +96,22 @@ declare
   v_preview jsonb;
   v_applied jsonb;
   v_retry jsonb;
-  v_config jsonb := '{"results":true}'::jsonb;
+  v_config jsonb := '{"participants":true}'::jsonb;
 begin
-  v_preview := public.studio2_show_publication_change_preview(v_show,'hidden',v_config,null);
+  v_preview := public.studio2_show_publication_change_preview(v_show,'public',v_config,null);
   if (v_preview->>'expectedVersion')::bigint < 1 then
      raise exception 'S16 publication preview lacked a version';
   end if;
   v_applied := public.studio2_apply_show_publication_change(
-     v_show,'hidden',v_config,null,v_operation,v_operation::text,
+     v_show,'public',v_config,null,v_operation,v_operation::text,
      (v_preview->>'expectedVersion')::bigint
   );
-  if v_applied->>'state' is distinct from 'hidden' then
+  if v_applied->>'state' is distinct from 'public' then
     raise exception 'S16 publication canonical change failed: %',v_applied;
   end if;
-  v_preview := public.studio2_show_publication_change_preview(v_show,'hidden',v_config,null);
+  v_preview := public.studio2_show_publication_change_preview(v_show,'public',v_config,null);
   v_retry := public.studio2_apply_show_publication_change(
-     v_show,'hidden',v_config,null,v_operation,v_operation::text,
+     v_show,'public',v_config,null,v_operation,v_operation::text,
      (v_preview->>'expectedVersion')::bigint
   );
   if coalesce((v_retry->>'alreadyApplied')::boolean,false) is distinct from true then
