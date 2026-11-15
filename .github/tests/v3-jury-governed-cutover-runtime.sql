@@ -12,7 +12,21 @@ set local role authenticated;
 set local request.jwt.claim.sub='52000000-0000-4000-8000-000000000001';
 set local request.jwt.claim.role='authenticated';
 set local request.jwt.claims='{"sub":"52000000-0000-4000-8000-000000000001","role":"authenticated"}';
+-- The same governed draft path remains functional after direct table grants close.
+do $draft$
+declare saved jsonb; loaded jsonb; conflict jsonb; payload jsonb:='{"entries":[{"target_country_id":"51000000-0000-4000-8000-000000000012","points":12}]}';
+begin
+ saved:=public.v3_save_jury_draft('51000000-0000-4000-8000-000000000002',payload,0,'local-device','local-session');
+ loaded:=public.v3_load_jury_draft('51000000-0000-4000-8000-000000000002');
+ if saved->>'ok' is distinct from 'true' or loaded->>'found' is distinct from 'true' or loaded->>'revision' is distinct from '1' or loaded->'payload' is distinct from payload then raise exception 'Governed Jury draft save/readback failed';end if;
+ conflict:=public.v3_save_jury_draft('51000000-0000-4000-8000-000000000002','{}',0,null,null);
+ if conflict->>'reason' is distinct from 'stale_revision' or conflict->'payload' is distinct from payload then raise exception 'Stale Jury draft overwrote saved state';end if;
+end $draft$;
 select public.v3_submit_jury_ballot('51000000-0000-4000-8000-000000000002','[{"target_country_id":"51000000-0000-4000-8000-000000000012","points":12}]','52000000-0000-4000-8000-000000000010','52000000-0000-4000-8000-000000000020','not-authority') as receipt \gset
+do $receipt$ declare r jsonb;begin
+ r:=public.v3_jury_receipt('51000000-0000-4000-8000-000000000002');
+ if r->>'submitted' is distinct from 'true' or public.v3_load_jury_draft('51000000-0000-4000-8000-000000000002')->>'found' is distinct from 'false' then raise exception 'Jury submit receipt or atomic draft cleanup failed';end if;
+end $receipt$;
 commit;
 -- Response-loss replay in a fresh transaction returns the original receipt.
 begin;

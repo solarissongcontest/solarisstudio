@@ -52,7 +52,21 @@ do $public$ declare s uuid; payload jsonb; begin
 end $public$;
 reset role;
 -- Current mutable participant status must not reinterpret an immutable version.
-update public.participants set participation_status='withdrawn' where country_id='51000000-0000-4000-8000-000000000011' and edition_id='51000000-0000-4000-8000-000000000001';
+do $current_input$begin
+ if to_regprocedure('public.studio2_execute_result_operation_v2(uuid,text,text,uuid,bigint,bigint,uuid,uuid)') is null then
+  update public.participants set participation_status='withdrawn' where country_id='51000000-0000-4000-8000-000000000011' and edition_id='51000000-0000-4000-8000-000000000001';
+ else
+  -- Reviewed-input CAS deliberately refuses changing published inputs before
+  -- opening a private correction window. Denial must preserve the old version.
+  begin
+   update public.participants set participation_status='withdrawn' where country_id='51000000-0000-4000-8000-000000000011' and edition_id='51000000-0000-4000-8000-000000000001';
+   raise exception 'Published reviewed-input mutation accepted' using errcode='XX000';
+  exception when sqlstate '55000' then
+   if sqlerrm<>'Make the published result layer private before changing result operations.' then raise;end if;
+  end;
+  if exists(select 1 from public.participants where country_id='51000000-0000-4000-8000-000000000011' and edition_id='51000000-0000-4000-8000-000000000001' and participation_status<>'confirmed') then raise exception 'Denied published input change persisted';end if;
+ end if;
+end $current_input$;
 set local role anon;
 do $immutable$ begin
  if (public.v3_public_published_result_snapshot('51000000-0000-4000-8000-000000000002')->>'rowCount')::integer<>2 then raise exception 'Mutable status reinterpreted frozen published evidence'; end if;

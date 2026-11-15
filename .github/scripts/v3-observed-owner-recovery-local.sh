@@ -90,6 +90,7 @@ source .github/scripts/v3-combined-deferral-local.sh
 operator_apply docs/v3/recovery-candidates/s08-televote-single-writer-local.sql
 operator_sql -f - < .github/tests/v3-ordered-televote-s08-recovery.sql
 echo 'PASS: complete non-superuser owner recovery adopts S08 after Result/Combined safeguards'
+source .github/scripts/v3-results-operation-recovery-local.sh
 echo 'PASS: entire ordered recovery executes as observed NONSUPERUSER postgres with real role/schema privileges'
 # A restore of synthetic local data proves this procedure, NOT availability,
 # freshness, retention or restorability of the separate real production backup.
@@ -128,23 +129,39 @@ const files=[
  'docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql',
  '/tmp/s07-ordered-source.sql','/tmp/atomic-recovery.sql','/tmp/public-snapshot-recovery.sql','/tmp/result-authority-recovery.sql','/tmp/result-read-authority-recovery.sql',
  'supabase/migrations/20261114102706_v3_jury_governed_submission_cutover.sql',
+ 'supabase/migrations/20261115084647_v3_jury_canonical_table_authority.sql',
  'supabase/migrations/20261114141934_v3_defer_combined_televote_database_writes.sql',
  'docs/v3/recovery-candidates/s08-televote-single-writer-local.sql',
+ '/tmp/results-operation-engine.sql','/tmp/results-reviewed-cas.sql',
+ 'supabase/migrations/20261114194701_v3_results_operation_tables_owner_only.sql',
 ];
 const digest=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+fs.mkdirSync('ordered-recovery-sql',{recursive:true});
+const orderedStages=files.map((path,i)=>{
+ const artifactPath='ordered-recovery-sql/'+String(i+1).padStart(2,'0')+'-'+path.split('/').at(-1);
+ fs.copyFileSync(path,artifactPath);
+ if(digest(path)!==digest(artifactPath))throw Error('Recovery artifact copy digest mismatch');
+ return{order:i+1,path,artifactPath,sha256:digest(path)};
+});
 fs.writeFileSync('observed-owner-recovery-proof.json',JSON.stringify({
  sourceSha:sha,postgresVersion:'17.11',network:'none',portsPublished:false,
  observedProductionProject:'dkxmnvekiopyesuzggeu',
  recoveryOperator:{role:'postgres',superuser:false,bypassRls:true},
  observedRoleAttributes:16,observedSchemas:5,
- orderedStages:files.map((path,i)=>({order:i+1,path,sha256:digest(path)})),
+ orderedStages,
  interruptedRollback:true,safeRetry:true,duplicateRefused:true,
  schemaAndSyntheticRowsPreserved:true,separateLocalRestoreVerified:true,
  juryLegacyApiDenied:true,juryGovernedReceiptReplayVerified:true,
+ juryApiTableAndColumnDmlTruncateDenied:true,juryDraftCasAndReadbackVerified:true,
  signupAuthOwnerRaceAndRollbackVerified:true,
  sourceOnlyRuntimeDependencies:["televoting.integrity_sanction_matches"],
  combinedApiAndOwnerWritesDisabled:true,combinedHistoricalDataAndReadsPreserved:true,
  s08ObservedNonSuperuserAndRestoredAuthorityVerified:true,
+ reviewedInputCasInstalled:true,reviewedInputStaleIdentityDenialsVerified:true,
+ resultOperationDirectApiWritesDenied:true,authenticatedReleasePointerCommandsAndReplayVerified:true,
+ concurrentInputRollbackAndRetryVerified:true,
+ fullRecovered66CountryContestVerified:false,resultsCalculateReviewEventRehearsal:false,
+ legacyRecalculationFixture:'approved historical source variant, replaced before execution; not hosted equivalence',
  productionBackupVerified:false,hostedEquivalenceCertified:false,
  productionMutation:false,productionAuthorized:false,
 },null,2)+'\n',{flag:'wx'});
