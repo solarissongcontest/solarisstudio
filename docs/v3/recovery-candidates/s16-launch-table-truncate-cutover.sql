@@ -95,15 +95,10 @@ begin
        raise exception 'S16 unexpected TRUNCATE role authority % on %: observed %, expected envelope %',
          v_role,v_target,v_actual,v_expected using errcode='55000';
      end if;
-     -- The bounded 15 November hosted catalog found direct API-role DML on
-     -- Results in normal operational mode. Refuse drift before removing it.
-     if v_target='public.results' then
-       foreach v_privilege in array array['INSERT','UPDATE','DELETE'] loop
-         if not has_table_privilege(v_role,v_target,v_privilege) then
-           raise exception 'S16 unexpected Results prior DML grant % %',v_role,v_privilege using errcode='55000';
-         end if;
-       end loop;
-     end if;
+     -- Hosted observation permits up to these three API roles to have
+     -- prior Results DML. Some locally recovered baselines already restrict
+     -- those grants; do not require an unsafe grant to exist merely to
+     -- revoke it. All three roles must have NO DML after this stage.
      if v_target in ('public.submissions','public.edit_tokens') then
        if exists(select 1 from pg_attribute a where a.attrelid=v_relation.oid
           and a.attnum>0 and not a.attisdropped and a.attacl is not null) then
