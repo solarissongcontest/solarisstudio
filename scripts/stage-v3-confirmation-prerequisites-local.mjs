@@ -63,6 +63,30 @@ export function stageConfirmationPrerequisitesLocal(root=process.cwd()){
   out.push('end if;end $create_'+i+'$;');
  }
  out.push(firstPatch(bodies.pathPatch),firstPatch(bodies.limitPatch));
+
+ // Restore only the six independently observed PostgreSQL 17.11 table ACLs in
+ // this disposable synthetic fixture, never a production permission change.
+ // S02 fixture grants are incomplete because its original coverage was scoped.
+ out.push('do $parent_owners$ declare item jsonb; c pg_class%rowtype;begin');
+ out.push("for item in select value from jsonb_array_elements('"+JSON.stringify(e.existingTables).replaceAll("'","''")+"'::jsonb)loop");
+ out.push("select * into c from pg_class where oid=to_regclass(item->>'identity');");
+ out.push("if c.oid is null or pg_get_userbyid(c.relowner)<>'postgres' or c.relrowsecurity is not true then raise exception 'Unexpected local Confirmation parent metadata: %',item->>'identity' using errcode='55000';end if;");
+ out.push('end loop;end $parent_owners$;');
+ for(const row of e.existingTables){
+  if(!/^public\.[a-z0-9_]+$/.test(row.identity))throw Error('Unreviewed table fixture identity');
+  const names=row.acl.match(/(anon|authenticated|service_role)=[arwdDxtm]+\/postgres/g)||[];
+  if(new Set(names.map(x=>x.split('=')[0])).size!==names.length)throw Error('Repeated fixture grant');
+  out.push('revoke all on table '+row.identity+' from public,anon,authenticated,service_role;');
+  for(const grant of names){
+   const [role,raw]=grant.split('=');
+   const bits=raw.split('/')[0];
+   const full='select,insert,update,delete,truncate,references,trigger';
+   const permissions=bits==='arwdDxt'?full:bits==='arwdDxtm'?full+',maintain':null;
+   if(!permissions)throw Error('Unrecognized observed table ACL: '+row.identity+' '+bits);
+   out.push('grant '+permissions+' on table '+row.identity+' to '+role+';');
+  }
+ }
+
  out.push('do $check$ declare item jsonb; p pg_proc%rowtype; actual jsonb;begin');
  out.push("for item in select value from jsonb_array_elements('"+JSON.stringify(e.existingFunctions).replaceAll("'","''")+"'::jsonb)loop");
  out.push("select * into p from pg_proc where oid=to_regprocedure(item->>'identity');");
