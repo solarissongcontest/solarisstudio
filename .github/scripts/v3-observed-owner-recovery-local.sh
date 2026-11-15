@@ -50,6 +50,15 @@ PYOWNER
 }
 operator_apply docs/v3/recovery-candidates/forward-only-s13-foundation.sql
 operator_apply docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql
+# Restore already-merged Confirmation command authority on the SAME observed-owner
+# local database. Source-only missing-parent reconstruction must first match
+# fresh hosted catalog fingerprints; an unknown function cannot be invented.
+node scripts/stage-v3-confirmation-prerequisites-local.mjs > /tmp/confirmation-parents.sql
+operator_sql -f - < /tmp/confirmation-parents.sql
+node scripts/stage-v3-confirmation-access-recovery.mjs > /tmp/confirmation-access-recovery.sql
+operator_apply /tmp/confirmation-access-recovery.sql
+operator_sql -f - < .github/scripts/v3-confirmation-legacy-writer-denial.sql
+
 operator_apply /tmp/s07-ordered-source.sql
 operator_sql -f - < .github/tests/v3-hosted-api-role-runtime.sql
 operator_sql -f - < .github/tests/v3-ordered-televote-recovery.sql
@@ -127,6 +136,7 @@ if(!/^[a-f0-9]{40}$/.test(sha))throw Error('Missing exact source SHA');
 const files=[
  'docs/v3/recovery-candidates/forward-only-s13-foundation.sql',
  'docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql',
+ '/tmp/confirmation-access-recovery.sql',
  '/tmp/s07-ordered-source.sql','/tmp/atomic-recovery.sql','/tmp/public-snapshot-recovery.sql','/tmp/result-authority-recovery.sql','/tmp/result-read-authority-recovery.sql',
  'supabase/migrations/20261114102706_v3_jury_governed_submission_cutover.sql',
  'supabase/migrations/20261115084647_v3_jury_canonical_table_authority.sql',
@@ -151,6 +161,8 @@ fs.writeFileSync('observed-owner-recovery-proof.json',JSON.stringify({
  orderedStages,
  interruptedRollback:true,safeRetry:true,duplicateRefused:true,
  schemaAndSyntheticRowsPreserved:true,separateLocalRestoreVerified:true,
+ confirmationGovernedCommandsInstalled:true,confirmationLegacyApiExecuteDenied:true,
+ confirmationPositiveLifecycleVerified:false,confirmationParentBodiesSourceOnly:true,
  juryLegacyApiDenied:true,juryGovernedReceiptReplayVerified:true,
  juryApiTableAndColumnDmlTruncateDenied:true,juryDraftCasAndReadbackVerified:true,
  signupAuthOwnerRaceAndRollbackVerified:true,
