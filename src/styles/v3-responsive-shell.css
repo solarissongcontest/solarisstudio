@@ -169,3 +169,16 @@
     backdrop-filter: none;
   }
 }
+
+/* An installed phone in landscape remains an app even if its CSS width
+ * crosses the desktop navigation breakpoint. Prevent a second navigation
+ * surface from sitting behind the restored floating dock. */
+@media (min-width: 1024px) and (max-height: 599px) {
+  html[data-solaris-app] [data-solaris-v3] .v3-desktop-primary-nav {
+    display: none;
+  }
+
+  html[data-solaris-app] [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabbar {
+    display: block !important;
+  }
+}
