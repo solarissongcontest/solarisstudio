@@ -1,9 +1,8 @@
 -- SYSTEM-OWNED FORWARD-ONLY S16 CLOSURE (local rehearsal candidate).
- -- S16 cuts off direct Confirmation API table writes and the TRUNCATE bypass.
--- RLS alone cannot enforce the governed CAS/receipt authority. S08 and
--- Combined already cut off Televote TRUNCATE; this stage verifies them but does
--- not create a second owner. It does NOT claim that existing
--- other launch-domain grants are safe or that S16 is fully certified.
+ -- This stage retires direct Confirmation table mutations and TRUNCATE bypasses.
+-- RLS cannot replace the governed versioned CAS/receipt authority. S08 and
+-- Combined separately own Televote restrictions; this verifies those effects.
+-- All other launch-domain direct-writer boundaries still require full S16 proof.
 -- Apply only after the guarded S13/Confirmation/S07/S08/Jury/Results chain.
 -- Never execute on hosted production without separately approved operator package.
 begin;

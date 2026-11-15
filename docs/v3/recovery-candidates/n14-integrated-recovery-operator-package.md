@@ -6,9 +6,9 @@
 
 - System-owned integrated source: `.github/scripts/v3-observed-owner-recovery-local.sh`. This orchestrates the existing, frozen S13, Archive, S07/S08, Jury and Results source donors.
 - Added governed Confirmation source: `scripts/stage-v3-confirmation-access-recovery.mjs`, using the five already-merged source migrations without altering their bytes.
-- Added RLS-independent TRUNCATE closure: `docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql`. It changes **Confirmation table grants only**. It independently verifies already-merged S08 and Combined protection rather than recreating either.
+- Added database-level Confirmation table-writer closure: `docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql`. It removes **direct INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER and MAINTAIN grants** from `anon`, `authenticated`, `service_role` and `PUBLIC` on `public.submissions` and `public.edit_tokens`, retaining SELECT, RLS and owner-executed governed RPCs. It verifies existing S08 and Combined protection without replacing either.
 - Hosted catalog observation: PostgreSQL **17.11**, project identity **`dkxmnvekiopyesuzggeu`**, last observed hosted migration tip **`20261101181812`** and 497 migration records. This is a dated observation, not permission to assume the catalog remains unchanged.
-- Evidence for the critical Confirmation parents: `docs/v3/recovery-candidates/evidence/confirmation-access-prerequisites-observed-2026-11-15.json`. Owners, function-body fingerprints, SECURITY DEFINER configuration, RLS, ACLs, missing commands and indexes are pinned.
+- Evidence for the critical Confirmation parents: `docs/v3/recovery-candidates/evidence/confirmation-access-prerequisites-observed-2026-11-15.json`. Owners, function-body fingerprints, SECURITY DEFINER settings, RLS and grants, six table column-shape fingerprints, policy-definition fingerprints, missing commands and indexes are pinned from bounded read-only hosted catalog inspection. An unexpected column/policy/owner/ACL change aborts atomically.
 - The intended release is the original **14 November soft-launch scope**. World, Fantasy, Prediction and other expansions are outside this cutover.
 
 ## Exact **local** dependency order
@@ -24,10 +24,28 @@ All candidates below are individually transaction-guarded. The integration drive
 7. The existing Combined write-deferral candidate. Do not create a competing aggregation writer.
 8. `s08-televote-single-writer-local.sql`: projection transaction guard and direct vote-projection DML retirement.
 9. The existing Results operation-engine / reviewed-input CAS / protected operation-table stages, in the exact source-defined order.
-10. `s16-launch-table-truncate-cutover.sql`: close Confirmation direct TRUNCATE grants, assert S08/Combined closures.
+10. `s16-launch-table-truncate-cutover.sql`: close both Confirmation direct API DML and RLS-independent TRUNCATE / table-management grants; assert S08/Combined closures and preserve canonical command identity. The local proof requires **18 actual DML and 12 TRUNCATE permission-denied executions** through `authenticator` with `SET LOCAL ROLE anon/authenticated/service_role`.
 11. Negative **and** positive authority probes, synthetic data preservation, interruption/duplicate tests, and synthetic `pg_dump` → independent `pg_restore` + post-restore checks.
 
-Steps 4–9 have more than one concrete SQL stage; use the CI artifact manifest rather than treating this abbreviated high-level sequence as a raw psql batch.
+Steps 4–9 have more than one concrete SQL stage; use the exact-SHA CI artifact manifest rather than treating this abbreviated high-level sequence as a raw psql batch. Source-only parent reconstruction scripts (`stage-v3-*-prerequisites-local.mjs` and fixture SQL) are test infrastructure, **not approved production recovery operations**.
+
+## Scoped recovery-effect reconciliation, 15 November 2026
+
+| Authority / effect | Hosted catalog observation | Local recovery and acceptance classification |
+|---|---|---|
+| S13: five private tables + seven RPCs | ABSENT | RECOVERED in isolated PG17.11; full hosted-runtime compatibility UNKNOWN |
+| S14 Archive gates / prerequisites | ABSENT or PARTIAL by individual dated effect catalog | RECONSTRUCTED/RECOVERED in isolated dependency chain; whole-hosted equivalence UNKNOWN |
+| Confirmation governed preview/apply and version/receipt | ABSENT; existing parents fingerprinted | RECOVERED; exact parent ACL/column/policy preflight and negative denial verified; recovered positive submission lifecycle UNKNOWN |
+| Confirmation direct table mutation | PRESENT API-level DML + TRUNCATE grants; RLS policy allows capable authenticated direct writes | Local forward cutover denies 18 real-role DML + 6 Confirmation TRUNCATE attempts; positive command coverage after cutover PARTIAL |
+| S07 source provenance / canonical write-context | ABSENT | RECOVERED locally; upstream source and actor-scope checks pass |
+| S08 all-show projection guard | ABSENT | RECOVERED locally; owner/API direct writes refused |
+| Jury direct ballot mutation / governed receipt | Source cutover merged; hosted effective complete authority UNKNOWN | RECOVERED in local scope, actual API-role denial and governed receipt replay; full contest still UNKNOWN |
+| Results operation v2/CAS and historical snapshot | v2 RPC ABSENT; legacy Results objects exist | RECOVERED in local scope; 24 table DML/TRUNCATE denials, CAS/replay checks and synthetic published history preserve |
+| Full S16 across every official launch writer | PARTIAL/UNKNOWN | NOT CERTIFIED; scoped Confirmation/Televote/Jury/Results checks do not replace full S16 report |
+| Clean-source and 66-country recovered official contest | Production data not inspected | Clean-source acceptance CI tracked separately; complete hosted-observed-equivalent lifecycle NOT VERIFIED |
+| Real production backup restoration | No evidence | NOT VERIFIED; CI synthetic `pg_dump/pg_restore` is not production backup proof |
+
+Every UNKNOWN above is a **launch blocker**, not a presumption of compatibility. Hosted history may disagree with source even where effects exist. Do not fabricate or rewrite `supabase_migrations.schema_migrations` records.
 
 ## Operator preflight: STOP unless all verified
 
@@ -53,7 +71,7 @@ If unexpected direct writer, RLS bypass, wrong-role grant, wrong-edition operati
 - Jury eligible draft/final/receipt and role isolation; direct table/column DML and TRUNCATE denial; secrecy.
 - Televote source provenance, current show/round, duplicate and deadline safeguards; projection/Combined single-writer denial, deterministic reconciliation.
 - Results calculation, review and CAS, stable published snapshots, publication secrecy and retries; direct pointer/table privileges denied.
-- Actor-role negative tests using real `anon`, `authenticated`, `service_role` and owner sessions; include **actual execution**, not only catalog predicates.
+- Actor-role negative tests using real `anon`, `authenticated`, `service_role` and owner sessions; include **actual execution**, not only catalog predicates. Preserve positive governed calls after table grant retirement, including corrections to already-confirmed responses, receipts and participant re-edit where authorized.
 - Clean-source **and recovered hosted-observed-equivalent** complete Confirmation → Entry/Media → Jury → Televote → Results → Archive rehearsals.
 - Restore behavior, synthetic and **real** backup evidence kept distinct; independent exact-SHA S13/S14/S15/S16 and Public/Organizer/Browser/Quality checks.
 - Observable follow-up controls: error rates, egress, database health, receipts, reconciliation, deadline extensions, and abort criteria.
