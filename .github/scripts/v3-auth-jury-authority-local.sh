@@ -8,6 +8,25 @@ operator_sql -f - < /tmp/signup-jury-prerequisites.sql
 # bootstrap, NOT proposed production DDL by the nonsuperuser recovery operator.
 bootstrap_sql -c 'create trigger on_solaris_country_signup after insert on auth.users for each row execute function public.claim_country_from_signup();'
 operator_apply supabase/migrations/20261114102706_v3_jury_governed_submission_cutover.sql
+# Refuse changed authority before revoking any grants. Each drift case runs in
+# its own synthetic clone; compare full schema + rows after the rejected step.
+jury_cutover_drift() {
+  local mutation="$1" digest
+  operator_sql -c 'create database security_jury_drift owner postgres template recovery_operator_baseline;'
+  docker exec -i "$cid" psql -X -U postgres -d security_jury_drift -qAt -v ON_ERROR_STOP=1 -c "$mutation"
+  digest="$(operator_state_digest security_jury_drift)"
+  if docker exec -i "$cid" psql -X -U postgres -d security_jury_drift -qAt -v ON_ERROR_STOP=1 < supabase/migrations/20261115084647_v3_jury_canonical_table_authority.sql > /tmp/jury-table-drift.log 2>&1;then
+    echo 'ERROR: Jury table cutover accepted unqualified authority';exit 1
+  fi
+  grep -Eq 'authority drift|ownership/RLS drift|Legacy Jury API writer remains' /tmp/jury-table-drift.log
+  [[ "$(operator_state_digest security_jury_drift)" == "$digest" ]]
+  operator_sql -c 'drop database security_jury_drift;'
+}
+jury_cutover_drift 'revoke execute on function public.v3_save_jury_draft(uuid,jsonb,bigint,text,text) from service_role;'
+jury_cutover_drift 'alter function public.v3_jury_receipt(uuid) set search_path=public;'
+jury_cutover_drift 'alter table public.jury_votes disable row level security;'
+jury_cutover_drift 'grant execute on function public.submit_country_jury_ballot(uuid,jsonb,uuid) to authenticated;'
+operator_apply supabase/migrations/20261115084647_v3_jury_canonical_table_authority.sql
 operator_sql -c 'create database security_jury_probe owner postgres template recovery_operator_baseline;'
 security_sql() { docker exec -i "$cid" psql -X -U postgres -d security_jury_probe -qAt -v ON_ERROR_STOP=1 "$@"; }
 auth_sql() { docker exec -i "$cid" psql -X -U supabase_auth_admin -d security_jury_probe -qAt -v ON_ERROR_STOP=1 "$@"; }
@@ -43,6 +62,7 @@ if auth_sql -c "insert into auth.users(id,raw_user_meta_data)values('52000000-00
 grep -Fq 'Instagram username already' /tmp/signup-duplicate.log
 [[ "$(security_sql -c "select not exists(select 1 from auth.users where id='52000000-0000-4000-8000-000000000004')")" == t ]]
 security_sql -f - < .github/tests/v3-jury-governed-cutover-setup.sql
+client_sql -f - < .github/tests/v3-jury-governed-cutover-role-denial.sql
 client_sql -f - < .github/tests/v3-jury-governed-cutover-runtime.sql
 [[ "$(security_sql -c "select count(*) from private.v3_jury_operations where user_id='52000000-0000-4000-8000-000000000001'")" == 1 ]]
 operator_sql -c 'drop database security_jury_probe;'

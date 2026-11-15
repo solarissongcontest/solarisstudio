@@ -42,6 +42,7 @@ on:
       - ".github/tests/v3-jury-governed-cutover-*.sql"
       - "scripts/stage-v3-signup-jury-prerequisites-local.mjs"
       - "supabase/migrations/20261114102706_v3_jury_governed_submission_cutover.sql"
+      - "supabase/migrations/20261115084647_v3_jury_canonical_table_authority.sql"
       - ".github/scripts/v3-combined-deferral-local.sh"
       - ".github/tests/v3-combined-deferral-*.sql"
       - "supabase/migrations/20261114141934_v3_defer_combined_televote_database_writes.sql"

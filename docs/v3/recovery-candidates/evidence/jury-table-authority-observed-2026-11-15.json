@@ -1,0 +1,242 @@
+{
+  "tables": [
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "rls": false,
+      "owner": "postgres",
+      "exists": true,
+      "writes": {
+        "anon": {
+          "dml": false,
+          "columns": false,
+          "truncate": false
+        },
+        "service_role": {
+          "dml": true,
+          "columns": true,
+          "truncate": true
+        },
+        "authenticated": {
+          "dml": false,
+          "columns": false,
+          "truncate": false
+        }
+      },
+      "forceRls": false,
+      "identity": "private.v3_jury_drafts"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "rls": false,
+      "owner": "postgres",
+      "exists": true,
+      "writes": {
+        "anon": {
+          "dml": false,
+          "columns": false,
+          "truncate": false
+        },
+        "service_role": {
+          "dml": true,
+          "columns": true,
+          "truncate": true
+        },
+        "authenticated": {
+          "dml": false,
+          "columns": false,
+          "truncate": false
+        }
+      },
+      "forceRls": false,
+      "identity": "private.v3_jury_operations"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxt/postgres,authenticated=rDxt/postgres,service_role=arwdDxt/postgres}",
+      "rls": true,
+      "owner": "postgres",
+      "exists": true,
+      "writes": {
+        "anon": {
+          "dml": true,
+          "columns": true,
+          "truncate": true
+        },
+        "service_role": {
+          "dml": true,
+          "columns": true,
+          "truncate": true
+        },
+        "authenticated": {
+          "dml": false,
+          "columns": true,
+          "truncate": true
+        }
+      },
+      "forceRls": false,
+      "identity": "public.jury_ballot_statuses"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxt/postgres,authenticated=arwdDxt/postgres,service_role=arwdDxt/postgres}",
+      "rls": true,
+      "owner": "postgres",
+      "exists": true,
+      "writes": {
+        "anon": {
+          "dml": true,
+          "columns": true,
+          "truncate": true
+        },
+        "service_role": {
+          "dml": true,
+          "columns": true,
+          "truncate": true
+        },
+        "authenticated": {
+          "dml": true,
+          "columns": true,
+          "truncate": true
+        }
+      },
+      "forceRls": false,
+      "identity": "public.jury_ballot_submissions"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxt/postgres,authenticated=arwdDxt/postgres,service_role=arwdDxt/postgres}",
+      "rls": true,
+      "owner": "postgres",
+      "exists": true,
+      "writes": {
+        "anon": {
+          "dml": true,
+          "columns": true,
+          "truncate": true
+        },
+        "service_role": {
+          "dml": true,
+          "columns": true,
+          "truncate": true
+        },
+        "authenticated": {
+          "dml": true,
+          "columns": true,
+          "truncate": true
+        }
+      },
+      "forceRls": false,
+      "identity": "public.jury_votes"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxt/postgres,authenticated=arwdDxt/postgres,service_role=arwdDxt/postgres}",
+      "rls": true,
+      "owner": "postgres",
+      "exists": true,
+      "writes": {
+        "anon": {
+          "dml": true,
+          "columns": true,
+          "truncate": true
+        },
+        "service_role": {
+          "dml": true,
+          "columns": true,
+          "truncate": true
+        },
+        "authenticated": {
+          "dml": true,
+          "columns": true,
+          "truncate": true
+        }
+      },
+      "forceRls": false,
+      "identity": "public.jury_voting_windows"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "rls": true,
+      "owner": "postgres",
+      "exists": true,
+      "writes": {
+        "anon": {
+          "dml": false,
+          "columns": false,
+          "truncate": false
+        },
+        "service_role": {
+          "dml": true,
+          "columns": true,
+          "truncate": true
+        },
+        "authenticated": {
+          "dml": false,
+          "columns": false,
+          "truncate": false
+        }
+      },
+      "forceRls": false,
+      "identity": "public.studio2_jury_window_versions"
+    }
+  ],
+  "readOnly": "on",
+  "routines": [
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog, public, private"
+      ],
+      "exists": true,
+      "sha256": "5547a07d1966172e35d1705f5e04273e93c2712c15f297a58fe01c0bfd615198",
+      "identity": "public.v3_jury_receipt(uuid)",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog, public, private"
+      ],
+      "exists": true,
+      "sha256": "5505616e298d1ab6349aa4ead5a86438cd6838b31b00784c7d519b2bf53be9ca",
+      "identity": "public.v3_load_jury_draft(uuid)",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog, public, private"
+      ],
+      "exists": true,
+      "sha256": "d1eda0e31ed7204abd8ea71e3aaef02e3d1511da9d77288ec19f5845fb2ba633",
+      "identity": "public.v3_reconcile_jury_submission(uuid)",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog, public, private"
+      ],
+      "exists": true,
+      "sha256": "350e970e56ad1027c31e8667435a9b00625e9f9f154676a658015622f41f3b2a",
+      "identity": "public.v3_save_jury_draft(uuid,jsonb,bigint,text,text)",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog, public, private, televoting, extensions"
+      ],
+      "exists": true,
+      "sha256": "0abd0a2edf61f54fed2b1db22fde200b2c965be1c0b3b1b817837daa5c0384aa",
+      "identity": "public.v3_submit_jury_ballot(uuid,jsonb,uuid,uuid,text)",
+      "securityDefiner": true
+    }
+  ],
+  "observedAt": "2026-11-15T08:45:56.774966+00:00",
+  "projectRef": "dkxmnvekiopyesuzggeu",
+  "serverVersionNum": "170011",
+  "applicationRowsRead": false,
+  "rawFunctionBodiesExported": false
+}
