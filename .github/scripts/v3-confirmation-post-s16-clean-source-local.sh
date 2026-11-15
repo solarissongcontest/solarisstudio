@@ -38,7 +38,7 @@ additional=(
   ' from public,anon,authenticated,service_role;'
 )
 if (s.count(expected)!=1 or s.count(additional)!=1
-    or len(re.findall(r'(?im)^revoke\\s+',s))!=2):
+    or len(re.findall(r'(?im)^revoke\s+',s))!=2):
     raise SystemExit('Refusing unreviewed S16 Confirmation DML grant retirement')
 print(expected)
 PY
