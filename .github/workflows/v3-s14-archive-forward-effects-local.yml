@@ -19,6 +19,7 @@ on:
       - "scripts/stage-v3-result-authority-recovery*"
       - "scripts/stage-v3-result-read-authority-recovery*"
       - "scripts/stage-v3-results-operation-*.mjs"
+      - "scripts/stage-v3-s16-country-permission-local.mjs"
       - "scripts/stage-v3-media-prerequisites-local.mjs"
       - "scripts/v3-media-recovery.test.mjs"
       - ".github/scripts/v3-media-recovery-local.sh"
