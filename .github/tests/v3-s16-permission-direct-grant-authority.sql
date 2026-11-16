@@ -23,7 +23,9 @@ begin
  ] loop
   foreach v_statement in array array[
     format('insert into %s default values',v_table),
-    format('update %s set user_id=user_id where false',v_table),
+    format('update %s set %I=%I where false',v_table,
+      case when v_table='public.studio2_role_capabilities' then 'role_key' else 'user_id' end,
+      case when v_table='public.studio2_role_capabilities' then 'role_key' else 'user_id' end),
     format('delete from %s where false',v_table),
     format('truncate %s',v_table)
   ] loop
@@ -51,7 +53,9 @@ begin
  ] loop
   foreach v_statement in array array[
     format('insert into %s default values',v_table),
-    format('update %s set user_id=user_id where false',v_table),
+    format('update %s set %I=%I where false',v_table,
+      case when v_table='public.studio2_role_capabilities' then 'role_key' else 'user_id' end,
+      case when v_table='public.studio2_role_capabilities' then 'role_key' else 'user_id' end),
     format('delete from %s where false',v_table),
     format('truncate %s',v_table)
   ] loop
@@ -79,7 +83,9 @@ begin
  ] loop
   foreach v_statement in array array[
     format('insert into %s default values',v_table),
-    format('update %s set user_id=user_id where false',v_table),
+    format('update %s set %I=%I where false',v_table,
+      case when v_table='public.studio2_role_capabilities' then 'role_key' else 'user_id' end,
+      case when v_table='public.studio2_role_capabilities' then 'role_key' else 'user_id' end),
     format('delete from %s where false',v_table),
     format('truncate %s',v_table)
   ] loop
