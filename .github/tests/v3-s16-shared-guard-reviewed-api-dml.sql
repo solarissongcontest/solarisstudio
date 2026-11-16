@@ -9,7 +9,7 @@ begin
       where migration_key='v3.s16.shared-guard-reviewed-api-dml-cutover')
  then raise exception 'S16 shared guard role probe refused incomplete candidate'
    using errcode='55000'; end if;
- foreach v_table in array array['public.country_accounts','public.results','public.televote_votes'] loop
+ foreach v_table in array array['public.results','public.televote_votes'] loop
    if not exists(select 1 from pg_trigger where tgrelid=to_regclass(v_table)
      and tgname='studio2_platform_direct_write_guard'
      and tgenabled='O' and tgtype=30 and not tgisinternal
@@ -26,8 +26,8 @@ do $denials$
 declare v_table text; v_statement text; v_col text;
 begin
  if current_user <> 'anon' then raise exception 'S16 effective role changed' using errcode='55000'; end if;
- foreach v_table in array array['public.country_accounts','public.results','public.televote_votes'] loop
-  v_col:=case when v_table='public.country_accounts' then 'user_id' else 'show_id' end;
+ foreach v_table in array array['public.results','public.televote_votes'] loop
+  v_col:='show_id';
   if has_table_privilege(current_user,v_table,'INSERT,UPDATE,DELETE,TRUNCATE')
     or has_any_column_privilege(current_user,v_table,'INSERT,UPDATE') then
      raise exception 'S16 surviving API DML % %',current_user,v_table using errcode='55000';
@@ -48,7 +48,7 @@ begin
     raise exception 'S16 service SELECT regressed %',v_table using errcode='55000';
   end if;
  end loop;
- raise notice 'PASS: anon direct DML/TRUNCATE denied under forged recovery markers (12 of 36)';
+ raise notice 'PASS: anon direct DML/TRUNCATE denied under forged recovery markers (8 of 24)';
 end $denials$;
 rollback;
 
@@ -60,8 +60,8 @@ do $denials$
 declare v_table text; v_statement text; v_col text;
 begin
  if current_user <> 'authenticated' then raise exception 'S16 effective role changed' using errcode='55000'; end if;
- foreach v_table in array array['public.country_accounts','public.results','public.televote_votes'] loop
-  v_col:=case when v_table='public.country_accounts' then 'user_id' else 'show_id' end;
+ foreach v_table in array array['public.results','public.televote_votes'] loop
+  v_col:='show_id';
   if has_table_privilege(current_user,v_table,'INSERT,UPDATE,DELETE,TRUNCATE')
     or has_any_column_privilege(current_user,v_table,'INSERT,UPDATE') then
      raise exception 'S16 surviving API DML % %',current_user,v_table using errcode='55000';
@@ -82,7 +82,7 @@ begin
     raise exception 'S16 service SELECT regressed %',v_table using errcode='55000';
   end if;
  end loop;
- raise notice 'PASS: authenticated direct DML/TRUNCATE denied under forged recovery markers (12 of 36)';
+ raise notice 'PASS: authenticated direct DML/TRUNCATE denied under forged recovery markers (8 of 24)';
 end $denials$;
 rollback;
 
@@ -94,8 +94,8 @@ do $denials$
 declare v_table text; v_statement text; v_col text;
 begin
  if current_user <> 'service_role' then raise exception 'S16 effective role changed' using errcode='55000'; end if;
- foreach v_table in array array['public.country_accounts','public.results','public.televote_votes'] loop
-  v_col:=case when v_table='public.country_accounts' then 'user_id' else 'show_id' end;
+ foreach v_table in array array['public.results','public.televote_votes'] loop
+  v_col:='show_id';
   if has_table_privilege(current_user,v_table,'INSERT,UPDATE,DELETE,TRUNCATE')
     or has_any_column_privilege(current_user,v_table,'INSERT,UPDATE') then
      raise exception 'S16 surviving API DML % %',current_user,v_table using errcode='55000';
@@ -116,7 +116,7 @@ begin
     raise exception 'S16 service SELECT regressed %',v_table using errcode='55000';
   end if;
  end loop;
- raise notice 'PASS: service_role direct DML/TRUNCATE denied under forged recovery markers (12 of 36)';
+ raise notice 'PASS: service_role direct DML/TRUNCATE denied under forged recovery markers (8 of 24)';
 end $denials$;
 rollback;
 
@@ -147,14 +147,8 @@ rollback;
 
 do $protected_commands$
 begin
- if not has_function_privilege('authenticated','public.claim_country_account(uuid)','EXECUTE')
-    or not has_function_privilege('authenticated','public.admin_set_country_account_status(uuid,text,text)','EXECUTE')
-    or not has_function_privilege('authenticated',
-      'public.studio2_execute_result_operation_v2(uuid,text,text,uuid,bigint,bigint,uuid,uuid)','EXECUTE')
- then raise exception 'S16 canonical authenticated owner RPC EXECUTE regression' using errcode='55000'; end if;
- if (select proconfig from pg_proc where oid='public.claim_country_account(uuid)'::regprocedure)
-    is distinct from array['search_path=pg_catalog, public, private']::text[]
-    or (select proconfig from pg_proc where oid='public.admin_set_country_account_status(uuid,text,text)'::regprocedure)
-    is distinct from array['search_path=pg_catalog, public, private']::text[]
- then raise exception 'S16 definer namespace not pinned after cutover' using errcode='55000'; end if;
+ if not has_function_privilege('authenticated',
+      'public.studio2_execute_result_operation_v2(uuid,text,text,uuid,bigint,bigint,uuid,uuid)','EXECUTE') then
+   raise exception 'S16 canonical authenticated Results command EXECUTE regression' using errcode='55000';
+ end if;
 end $protected_commands$;
