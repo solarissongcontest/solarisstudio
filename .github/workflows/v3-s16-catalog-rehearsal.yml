@@ -50,19 +50,36 @@ jobs:
           fi
           git worktree add "$runtime" "$baseline_sha"
           echo "V3_S16_RUNTIME_DIR=$runtime" >> "$GITHUB_ENV"
+          echo "V3_S16_SOURCE_SHA=$baseline_sha" >> "$GITHUB_ENV"
           cd "$runtime"
           GITHUB_JOB="${GITHUB_JOB}-${BASELINE}" bash "$GITHUB_WORKSPACE/.github/scripts/v3-start-disposable-supabase.sh"
           supabase db reset --local --no-seed
+          # The current-main lane audits *unmodified main*, not an upgrade
+          # reconstructed with candidate migrations. A different commit's
+          # SQL and source must never be presented as an exact-main S16 audit.
           if [[ "$BASELINE" == current-main ]]; then
-            bash "$GITHUB_WORKSPACE/.github/scripts/v3-copy-migration-delta.sh" "$GITHUB_WORKSPACE" "$runtime"
-            supabase migration up --local --include-all
+            bun install --frozen-lockfile
           fi
       - name: Verify real catalog semantics and retain unresolved authority evidence
-        run: bash .github/scripts/v3-s16-catalog-rehearsal.sh
+        env:
+          BASELINE: ${{ matrix.baseline }}
+        run: |
+          set -euo pipefail
+          if [[ "$BASELINE" == current-main ]]; then
+            # Execute the original main audit implementation and its exact
+            # source/migration set against the main-only disposable database.
+            (cd "$V3_S16_RUNTIME_DIR" && bash .github/scripts/v3-s16-catalog-rehearsal.sh)
+            mkdir -p v3-release-preflight/s16 v3-release-preflight/static v3-release-evidence
+            cp "$V3_S16_RUNTIME_DIR/v3-release-preflight/s16/"* v3-release-preflight/s16/
+            cp "$V3_S16_RUNTIME_DIR/v3-release-preflight/static/s16-mutation-authority.json" v3-release-preflight/static/
+            cp "$V3_S16_RUNTIME_DIR/v3-release-evidence/s16-mutation-authority.json" v3-release-evidence/
+          else
+            bash .github/scripts/v3-s16-catalog-rehearsal.sh
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: s16-catalog-${{ matrix.baseline }}-${{ github.event.pull_request.head.sha || github.sha }}
+          name: s16-catalog-${{ matrix.baseline }}-${{ env.V3_S16_SOURCE_SHA }}
           path: |
             v3-release-preflight/s16/
             v3-release-preflight/static/s16-mutation-authority.json
