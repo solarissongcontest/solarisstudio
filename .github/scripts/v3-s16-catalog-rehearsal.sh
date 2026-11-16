@@ -15,6 +15,9 @@ expected_versions="$(find supabase/migrations -maxdepth 1 -name '*.sql' -printf 
 actual_versions="$(psql "$DB_URL" -XAtq -v ON_ERROR_STOP=1 -c 'select version from supabase_migrations.schema_migrations order by version')"
 [[ "$expected_versions" == "$actual_versions" ]] || { echo 'Candidate/database migration sets differ; refusing SHA attribution' >&2; exit 1; }
 bunx vitest run src/lib/v3-s16-candidate-sha.test.ts src/lib/v3-s16-catalog.test.ts src/lib/v3-s16-catalog.database.test.ts src/lib/v3-s16-mutation-authority.test.ts src/lib/v3-s16-release-risk.test.ts
+# Mutation boundary probe uses a fully rolled-back synthetic fixture, AFTER the
+# loopback/local credentials and exact migration-set checks above.
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-edition-public-visual-authority.sql
 bun run scripts/collect-v3-s16-catalog-evidence.ts
 bun run scripts/check-v3-s16-mutation-authority.ts --catalog=v3-release-preflight/s16/catalog-evidence.json
 # This is collector acceptance, not domain certification. No per-domain negative
