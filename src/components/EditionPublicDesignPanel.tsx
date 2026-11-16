@@ -8,6 +8,7 @@ import { AdminConfirmSheet } from "@/components/admin/AdminUI";
 import { LiquidGlassBackdrop } from "@/components/LiquidGlassBackdrop";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import { useEditions } from "@/lib/data";
+import { applyEditionPublicVisualChange } from "@/lib/edition-public-visual-command";
 import {
   EDITION_PUBLIC_STYLES,
   type EditionPublicStyle as PublicStyle,
@@ -20,6 +21,7 @@ type PendingPublicDesignReview = {
   editionId: string;
   editionSlug: string;
   editionName: string;
+  beforeRevision: number;
   beforeThemeColors: Record<string, unknown>;
   nextThemeColors: Record<string, unknown>;
   beforeStyle: string;
@@ -166,6 +168,10 @@ export function EditionPublicDesignPanel() {
 
   const requestSave = () => {
     const next = buildNextThemeColors();
+    if (!Number.isSafeInteger(edition.data_revision) || edition.data_revision < 0) {
+      setMessage("The edition revision is unavailable. Reload before reviewing a design change.");
+      return;
+    }
     if (sameJson(raw, next)) {
       setMessage("No public design changes to review.");
       return;
@@ -175,6 +181,7 @@ export function EditionPublicDesignPanel() {
       editionId: edition.id,
       editionSlug: edition.slug,
       editionName: edition.name,
+      beforeRevision: edition.data_revision,
       beforeThemeColors: cloneRecord(raw),
       nextThemeColors: cloneRecord(next),
       beforeStyle: savedPublicStyle(raw),
@@ -195,7 +202,7 @@ export function EditionPublicDesignPanel() {
     try {
       const { data: liveEdition, error: readError } = await supabase
         .from("editions")
-        .select("id,slug,name,theme_colors")
+        .select("id,slug,name,theme_colors,data_revision")
         .eq("id", pendingReview.editionId)
         .single();
       if (readError) throw readError;
@@ -206,6 +213,7 @@ export function EditionPublicDesignPanel() {
       if (
         liveEdition.slug !== pendingReview.editionSlug ||
         liveEdition.name !== pendingReview.editionName ||
+        liveEdition.data_revision !== pendingReview.beforeRevision ||
         !sameJson(liveThemeColors, pendingReview.beforeThemeColors)
       ) {
         throw new Error(
@@ -213,14 +221,16 @@ export function EditionPublicDesignPanel() {
         );
       }
 
-      const { error: updateError } = await supabase
-        .from("editions")
-        .update({ theme_colors: pendingReview.nextThemeColors })
-        .eq("id", pendingReview.editionId)
-        .eq("slug", pendingReview.editionSlug)
-        .select("id")
-        .single();
-      if (updateError) throw updateError;
+      // A client-side comparison is only a UX preflight. The server repeats
+      // the revision, identity, theme and capability checks atomically.
+      await applyEditionPublicVisualChange({
+        editionId: pendingReview.editionId,
+        expectedRevision: pendingReview.beforeRevision,
+        expectedName: pendingReview.editionName,
+        expectedSlug: pendingReview.editionSlug,
+        expectedThemeColors: pendingReview.beforeThemeColors,
+        nextThemeColors: pendingReview.nextThemeColors,
+      });
 
       setPendingReview(null);
       await Promise.all([qc.invalidateQueries({ queryKey: ["editions"] }), qc.invalidateQueries({ queryKey: ["edition"] })]);
