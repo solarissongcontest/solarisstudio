@@ -1,10 +1,22 @@
 import {describe,expect,it} from "vitest";
+import {readFileSync} from "node:fs";
 import {requireS16LocalDatabase,potentialS16Write,s16PsqlEnvironment} from "./v3-s16-catalog";
 import {auditV3S16CatalogAuthority,matchingS16Functions,type V3S16CatalogEvidence,type V3S16DomainDefinition} from "./v3-s16-mutation-authority";
 const sha="a".repeat(40);
 const domain:V3S16DomainDefinition={id:"test",risk:"integrity_critical",canonicalTables:[],canonicalOwner:"fixture",canonicalCommands:["public.write_state"]};
 const fixture=():V3S16CatalogEvidence=>({schemaVersion:2,candidateSha:sha,collection:"effective-postgresql-catalog-v2",roles:{roles:[{name:"anon"},{name:"authenticated"},{name:"service_role"}]},uncertainties:[],negativeTests:{candidateSha:sha,passed:true,domains:["test"]},tables:[],functions:[{name:"public.write_state",identity:"public.write_state(uuid)",owner:"postgres",securityDefiner:true,searchPath:"pg_catalog, public, pg_temp",executeRoles:["authenticated"]}]});
 describe("S16 trustworthy catalog evidence",()=>{
+ it("rehearses immutable main push SHA separately from PR candidate and current-main",()=>{
+  const workflow=readFileSync(".github/workflows/v3-s16-catalog-rehearsal.yml","utf8");
+  expect(workflow).toContain("push:\\n    branches: [main]".replace("\\n","\n"));
+  expect(workflow).toContain('"supabase/migrations/**"');
+  expect(workflow).toContain("baseline: ${{ fromJSON(github.event_name == 'pull_request' && '[\"candidate\",\"current-main\"]' || '[\"exact-main\"]') }}");
+  expect(workflow).toContain("ref: ${{ github.event.pull_request.head.sha || github.sha }}");
+  expect(workflow).toContain('V3_S16_SOURCE_SHA=$baseline_sha');
+  expect(workflow).toContain("— not release certification");
+  expect(workflow).not.toContain("s16Passed: true");
+ });
+
  it.each([undefined,"postgresql://production.supabase.co/postgres","https://127.0.0.1:54322/postgres","postgresql://127.0.0.1/db?hostaddr=1.2.3.4","postgresql://127.0.0.1/db?service=prod"])("rejects unsafe or absent database routing: %s",url=>expect(()=>requireS16LocalDatabase(url)).toThrow());
  it("normalizes localhost to literal loopback",()=>expect(requireS16LocalDatabase("postgresql://localhost:54322/postgres")).toBe("postgresql://127.0.0.1:54322/postgres"));
  it("removes inherited libpq routing and option overrides",()=>expect(s16PsqlEnvironment({PATH:"bin",PGHOSTADDR:"remote",PGSERVICE:"prod",PGOPTIONS:"-c x=y",PGPASSFILE:"secret"})).toEqual({PATH:"bin",PGCONNECT_TIMEOUT:"5"}));
