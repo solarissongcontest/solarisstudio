@@ -40,7 +40,7 @@ function fixture(): V3S16CatalogEvidence {
         owner: "postgres",
         securityDefiner: true,
         searchPath: "pg_catalog, public, private",
-        executeRoles: ["postgres"],
+        executeRoles: ["postgres", "supabase_admin"],
         writesTables: ["public.studio2_show_publication_controls"],
       })),
     ],
