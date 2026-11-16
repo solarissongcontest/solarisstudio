@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 const component = readFileSync("src/components/studio/EditionArtworkControl.tsx", "utf8");
 const command = readFileSync("src/lib/edition-public-visual-command.ts", "utf8");
 const sql = readFileSync(".github/tests/v3-edition-public-visual-authority.sql", "utf8");
+const pgWorkflow = readFileSync(".github/workflows/v3-s14-archive-forward-effects-local.yml", "utf8");
 
 describe("S16 P03: colour-only edition writes use reviewed visual command", () => {
   const palette = component.slice(
@@ -48,6 +49,14 @@ describe("S16 P03: colour-only edition writes use reviewed visual command", () =
     expect(component).toContain("persistence currently spans multiple legacy operations and is not atomic");
     expect(command).toContain('rpc("v3_apply_edition_visual_change", args)');
     expect(command).toContain("expectedThemeColors: Record<string, unknown> | null");
+  });
+
+  it("requires exact-head local-only PG17 evidence on edition palette source changes", () => {
+    expect(pgWorkflow).toContain('"src/components/studio/EditionArtworkControl.tsx"');
+    expect(pgWorkflow).toContain('"src/lib/edition-public-visual-command.ts"');
+    expect(pgWorkflow).toContain('"src/lib/v3-s16-p03-edition-palette-command.contract.test.ts"');
+    expect(pgWorkflow).toContain("SOLARIS_S02_TARGET: local");
+    expect(pgWorkflow).toContain("Reject remote database and Docker aliases");
   });
 
   it("uses the existing executable PG17 positive, denial, replay and Storage boundary suite", () => {
