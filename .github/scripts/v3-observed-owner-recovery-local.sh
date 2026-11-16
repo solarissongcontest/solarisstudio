@@ -221,6 +221,107 @@ for s16_drift in extra_grant disabled_rls results_column_grant publication_colum
 done
 echo 'PASS: S16 preflight rejects unreviewed RLS and API TRUNCATE role drift atomically'
 operator_apply docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql
+# The hosted-observed S02 fixture omits the separate, already source-defined
+# S14 Televote reconciliation command. Exact PG17.11 execution confirmed that
+# missing identity. Rebuild ONLY that existing migration in the networkless
+# fixture, after its S07/S08, Results, and Publication dependencies are present.
+# Never replace an existing routine or pretend the hosted project adopted it.
+operator_sql -f - <<'S16_RECONCILE_DEPENDENCY_PREFLIGHT'
+do $s16_reconcile_source$
+begin
+  if current_user <> 'postgres'
+     or current_setting('server_version_num')::integer <> 170011
+     or to_regprocedure('public.v3_reconcile_published_televote(text,uuid)') is not null
+     or exists (
+       select 1 from private.v3_migration_contracts
+       where migration_key='v3.results.atomic-televote-recovery'
+     )
+     or to_regprocedure('private.v3_sync_published_televote_round(uuid)') is null
+     or to_regprocedure('public.studio2_execute_result_operation_v2(uuid,text,text,uuid,bigint,bigint,uuid,uuid)') is null
+  then
+    raise exception 'S16 synthetic Televote reconciliation donor must be absent with exact S08/Results prerequisites'
+      using errcode='55000';
+  end if;
+end $s16_reconcile_source$;
+S16_RECONCILE_DEPENDENCY_PREFLIGHT
+# Preserve the source-defined migration body verbatim, but add an isolated
+# recovery-only preflight so operator_apply can prove interrupted rollback and
+# atomic duplicate rejection. The original migration is NOT rewritten.
+node --input-type=module <<'S16_RECONCILE_DONOR' > /tmp/s16-reconcile-guarded.sql
+import fs from 'node:fs';
+const source = fs.readFileSync(
+  'supabase/migrations/20261103220000_v3_s14_atomic_televote_recovery.sql','utf8');
+if (!source.startsWith('begin;\n') ||
+    !/commit;\s*$/.test(source) ||
+    source.match(/create or replace function public\.v3_reconcile_published_televote\s*\(/g)?.length !== 1) {
+  throw Error('S16 reconciliation donor transaction/source definition drift');
+}
+const guard = `do $s16_reconcile_donor$
+begin
+  if current_user <> 'postgres'
+     or current_setting('server_version_num')::integer <> 170011
+     or to_regprocedure('public.v3_reconcile_published_televote(text,uuid)') is not null
+     or exists(select 1 from private.v3_migration_contracts
+               where migration_key='v3.results.atomic-televote-recovery')
+  then
+    raise exception 'S16 Televote source-donor already installed or unexpected authority drift'
+      using errcode='55000';
+  end if;
+end $s16_reconcile_donor$;
+`;
+process.stdout.write('begin;\n'+guard+source.slice('begin;\n'.length));
+S16_RECONCILE_DONOR
+operator_apply /tmp/s16-reconcile-guarded.sql
+operator_sql -f - <<'S16_RECONCILE_DEPENDENCY_POSTCHECK'
+do $s16_reconcile_source$
+declare v_fn pg_proc%rowtype;
+begin
+  select * into v_fn from pg_proc
+  where oid=to_regprocedure('public.v3_reconcile_published_televote(text,uuid)');
+  if v_fn.oid is null or pg_get_userbyid(v_fn.proowner)<>'postgres'
+     or not v_fn.prosecdef
+     or v_fn.proconfig is distinct from
+       array['search_path=pg_catalog, public, private, televoting, extensions']::text[]
+     or has_function_privilege('anon',v_fn.oid,'EXECUTE')
+     or has_function_privilege('authenticated',v_fn.oid,'EXECUTE')
+     or not has_function_privilege('service_role',v_fn.oid,'EXECUTE')
+  then
+    raise exception 'S16 source-defined reconciliation command did not rebuild exact owner/ACL authority'
+      using errcode='55000';
+  end if;
+end $s16_reconcile_source$;
+S16_RECONCILE_DEPENDENCY_POSTCHECK
+echo 'PASS: existing canonical Televote reconciliation source restored only in synthetic networkless PG17.11'
+# Source-managed forward-only shared-guard privilege cutover. Inspect all
+# actual trigger identities and effective definer RPCs before revocation.
+# Never run this command against hosted or a different database.
+operator_apply supabase/migrations/20261116193000_v3_s16_shared_guard_reviewed_api_dml_retirement.sql
+# The postgres operator remains distinct from the authenticator/API principals.
+# Exercise all 24 direct SQL statements under forged recovery GUCs; PostgreSQL
+# must deny at table ACL boundary even when session markers are attacker-set.
+for s16_shared_role in anon authenticated service_role; do
+  for s16_shared_table in public.results public.televote_votes; do
+    for s16_shared_action in INSERT UPDATE DELETE TRUNCATE; do
+      case "$s16_shared_action" in
+        INSERT) s16_shared_sql="insert into $s16_shared_table default values" ;;
+        UPDATE) s16_shared_sql="update $s16_shared_table set show_id=show_id where false" ;;
+        DELETE) s16_shared_sql="delete from $s16_shared_table where false" ;;
+        TRUNCATE) s16_shared_sql="truncate table $s16_shared_table" ;;
+      esac
+      if docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -v VERBOSITY=verbose \
+          -U authenticator -d recovery_operator_baseline \
+          -c "begin; set local role $s16_shared_role; select set_config('studio2.platform_recovery_write','on',true); select set_config('studio2.confirmation_maintenance_write','on',true); $s16_shared_sql; rollback;" \
+          > /tmp/s16-shared-guard-acl.log 2>&1; then
+        echo "S16 unsafe shared guard SQL accepted: $s16_shared_role $s16_shared_table $s16_shared_action" >&2; exit 1
+      fi
+      grep -Eqi '42501: permission denied for table' /tmp/s16-shared-guard-acl.log || {
+        echo "S16 wrong denial cause: $s16_shared_role $s16_shared_table $s16_shared_action" >&2
+        cat /tmp/s16-shared-guard-acl.log >&2; exit 1
+      }
+    done
+  done
+done
+echo 'PASS: 24 real API-role direct-write denials survive forged recovery markers on PG17.11'
 # Exercise SQL as actual API principals, not only catalog predicates. A denial
 # must be PostgreSQL permission-denied, never an FK or role-switch error.
 for s16_actor in anon authenticated service_role; do
@@ -365,6 +466,8 @@ const files=[
  '/tmp/results-operation-engine.sql','/tmp/results-reviewed-cas.sql',
  'supabase/migrations/20261114194701_v3_results_operation_tables_owner_only.sql',
  'docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql',
+ 'supabase/migrations/20261103220000_v3_s14_atomic_televote_recovery.sql',
+ 'supabase/migrations/20261116193000_v3_s16_shared_guard_reviewed_api_dml_retirement.sql',
  'supabase/migrations/20261115204228_v3_media_finalization_authority.sql',
 ];
 const digest=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
