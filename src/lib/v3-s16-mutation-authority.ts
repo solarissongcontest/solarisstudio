@@ -467,10 +467,10 @@ export function verifiedS16PublicationArchiveGuard(
     trigger.type === 31 && // PostgreSQL BEFORE ROW INSERT | UPDATE | DELETE
     trigger.function === identity &&
     /^CREATE TRIGGER v3_guard_archived_edition_workflow_write BEFORE /i.test(trigger.definition) &&
-    /\\bINSERT\\b/i.test(trigger.definition) &&
-    /\\bUPDATE\\b/i.test(trigger.definition) &&
-    /\\bDELETE\\b/i.test(trigger.definition) &&
-    /ON public\\.studio2_show_publication_controls FOR EACH ROW EXECUTE FUNCTION private\\.v3_guard_archived_edition_workflow_write\\(\\)/i.test(trigger.definition) &&
+    /\bINSERT\b/i.test(trigger.definition) &&
+    /\bUPDATE\b/i.test(trigger.definition) &&
+    /\bDELETE\b/i.test(trigger.definition) &&
+    /ON public\.studio2_show_publication_controls FOR EACH ROW EXECUTE FUNCTION private\.v3_guard_archived_edition_workflow_write\(\)/i.test(trigger.definition) &&
     fn.owner === "postgres" &&
     fn.securityDefiner === true &&
     fn.searchPath === "pg_catalog, public, private" &&
