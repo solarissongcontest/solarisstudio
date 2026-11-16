@@ -488,6 +488,16 @@ test("S16 launch TRUNCATE cutover matches independently observed authority inven
   assert.match(publication, /set local role authenticated/);
   assert.match(publication, /studio2_apply_show_publication_change/);
   assert.match(publication, /studio2_publish_due_show_publications/);
+  // The rollback-only proof stays, but S16 must additionally exercise an
+  // actually committed governed command, durable receipt and cross-session replay.
+  assert.match(publication, /v_applied->>'operationId'/);
+  assert.match(publication, /S16 committed publication canonical readback missing/);
+  assert.match(publication, /S16 committed publication receipt not durably persisted/);
+  assert.match(publication, /status='succeeded'/);
+  assert.match(publication, /completed_at is not null/);
+  assert.match(publication, /S16 cross-session replay duplicated the canonical operation/);
+  assert.match(publication, /S16 unauthenticated caller changed publication/);
+  assert.match(publication, /commit;\nSQL\npub_owner_sql -f - <<'SQL'/);
   assert.match(publication, /drop database recovery_publication_api_probe/);
   const cleanConfirmation = read(".github/scripts/v3-confirmation-post-s16-clean-source-local.sh");
   assert.match(cleanConfirmation, /s\.count\(results\)!=1/);

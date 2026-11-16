@@ -175,6 +175,137 @@ if normalized_after != before:
     raise SystemExit(1)
 print('PASS: publication rollback preserved schema/data, with only the expected nontransactional audit-sequence advance')
 PYSEQ
+# Unlike the earlier rollback-only fixture, this verifies a committed
+# canonical publication operation, a durable receipt, and an independent
+# session readback. This disposable database is deleted below. Nothing runs
+# against production Supabase or the shared recovery baseline.
+pub_client_sql -f - <<'SQL'
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claims',jsonb_build_object(
+ 'sub','71000000-0000-4000-8000-000000000001',
+ 'role','authenticated',
+ 'session_id','71000000-0000-4000-8000-000000000002',
+ 'amr',jsonb_build_array(jsonb_build_object('method','password','timestamp',extract(epoch from now())))
+)::text,true);
+do $committed$
+declare
+  v_show uuid := '71000000-0000-4000-8000-000000000010';
+  v_operation uuid := '71000000-0000-4000-8000-000000000005';
+  v_preview jsonb;
+  v_applied jsonb;
+begin
+  v_preview := public.studio2_show_publication_change_preview(
+    v_show,'public','{"participants":true}'::jsonb,null
+  );
+  if (v_preview->>'alreadyApplied')::boolean is true then
+    raise exception 'S16 committed positive fixture is already published';
+  end if;
+  v_applied := public.studio2_apply_show_publication_change(
+    v_show,'public','{"participants":true}'::jsonb,null,
+    v_operation,'s16-publication-committed-receipt',
+    (v_preview->>'expectedVersion')::bigint
+  );
+  if v_applied->>'state' is distinct from 'public'
+     or (v_applied->>'alreadyApplied')::boolean is distinct from false
+     or (v_applied->>'operationId')::uuid is distinct from v_operation then
+    raise exception 'S16 committed publication operation returned wrong receipt: %',v_applied;
+  end if;
+end $committed$;
+commit;
+SQL
+pub_owner_sql -f - <<'SQL'
+do $persisted_receipt$
+declare
+  v_show uuid := '71000000-0000-4000-8000-000000000010';
+  v_operation uuid := '71000000-0000-4000-8000-000000000005';
+begin
+  if not exists (
+    select 1 from public.studio2_show_publication_controls c
+    join public.shows s on s.id=c.show_id
+    where c.show_id=v_show and c.state='public' and c.version=2
+      and c.frozen_config->>'participants'='true'
+      and s.published and s.publication_config->>'participants'='true'
+  ) then raise exception 'S16 committed publication canonical readback missing'; end if;
+  if (select count(*) from public.studio2_operation_receipts
+      where operation_id=v_operation and actor_id='71000000-0000-4000-8000-000000000001'
+        and idempotency_key='s16-publication-committed-receipt'
+        and command='publication.show.change' and status='succeeded'
+        and result->>'state'='public'
+        and (result->>'operationId')::uuid=v_operation
+        and completed_at is not null) <> 1
+  then raise exception 'S16 committed publication receipt not durably persisted'; end if;
+  if (select count(*) from public.admin_audit_log
+      where actor_id='71000000-0000-4000-8000-000000000001'
+        and table_name='studio2_show_publication_controls'
+        and record_id=v_show::text
+        and action='show_publication_state_changed') <> 1
+  then raise exception 'S16 publication canonical audit trail missing or duplicated'; end if;
+end $persisted_receipt$;
+SQL
+# Reconnect independently: an already-completed action must not allocate
+# another durable receipt, audit entry, or version transition.
+pub_client_sql -f - <<'SQL'
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claims',jsonb_build_object(
+ 'sub','71000000-0000-4000-8000-000000000001',
+ 'role','authenticated',
+ 'session_id','71000000-0000-4000-8000-000000000002',
+ 'amr',jsonb_build_array(jsonb_build_object('method','password','timestamp',extract(epoch from now())))
+)::text,true);
+do $replay$
+declare v_result jsonb;
+begin
+  v_result := public.studio2_apply_show_publication_change(
+    '71000000-0000-4000-8000-000000000010',
+    'public','{"participants":true}'::jsonb,null,
+    '71000000-0000-4000-8000-000000000005',
+    's16-publication-committed-receipt',2
+  );
+  if coalesce((v_result->>'alreadyApplied')::boolean,false) is not true
+     or v_result->>'state' is distinct from 'public'
+  then raise exception 'S16 cross-session replay was not idempotent: %',v_result; end if;
+end $replay$;
+commit;
+SQL
+pub_owner_sql -f - <<'SQL'
+do $replay_readback$
+begin
+  if (select count(*) from public.studio2_operation_receipts
+      where operation_id='71000000-0000-4000-8000-000000000005') <> 1
+     or (select version from public.studio2_show_publication_controls
+       where show_id='71000000-0000-4000-8000-000000000010') <> 2
+     or (select count(*) from public.admin_audit_log
+       where action='show_publication_state_changed'
+         and record_id='71000000-0000-4000-8000-000000000010') <> 1
+  then raise exception 'S16 cross-session replay duplicated the canonical operation'; end if;
+end $replay_readback$;
+SQL
+# A role without an Auth subject cannot commandeer the existing publication.
+pub_client_sql -f - <<'SQL'
+begin;
+set local role authenticated;
+do $denied$
+begin
+  begin
+    perform public.studio2_apply_show_publication_change(
+      '71000000-0000-4000-8000-000000000010',
+      'hidden','{}'::jsonb,null,
+      '71000000-0000-4000-8000-000000000006','s16-unauthorized',
+      2
+    );
+    raise exception 'S16 unauthenticated caller changed publication';
+  exception when insufficient_privilege then
+    null;
+  end;
+end $denied$;
+rollback;
+SQL
+echo 'PASS: persisted canonical Publication receipt, readback, separate-session replay and unauthorized denial'
+
 after_publication_probe="$(operator_state_digest recovery_publication_api_probe)"
 # The scheduled publisher remains exposed ONLY through its explicit
 # service_role EXECUTE grant; revoked table DML must not prevent invocation.

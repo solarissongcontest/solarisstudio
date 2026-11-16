@@ -65,7 +65,7 @@ export function s16TableCatalogSql(table: string): string {
       where has_column_privilege(r.oid,c.oid,a.attnum,'INSERT,UPDATE')),'[]'::jsonb),
    'writeTriggers',coalesce((select jsonb_agg(t.tgname order by t.tgname) from pg_trigger t
       where t.tgrelid=c.oid and not t.tgisinternal and t.tgenabled<>'D'),'[]'::jsonb),
-   'triggerDetails',coalesce((select jsonb_agg(jsonb_build_object('name',t.tgname,'enabled',t.tgenabled,
+   'triggerDetails',coalesce((select jsonb_agg(jsonb_build_object('name',t.tgname,'enabled',t.tgenabled,'type',t.tgtype,
       'function',format('%I.%I(%s)',ns.nspname,p.proname,oidvectortypes(p.proargtypes)),
       'definition',pg_get_triggerdef(t.oid))) from pg_trigger t join pg_proc p on p.oid=t.tgfoid
       join pg_namespace ns on ns.oid=p.pronamespace where t.tgrelid=c.oid and not t.tgisinternal),'[]'::jsonb),
