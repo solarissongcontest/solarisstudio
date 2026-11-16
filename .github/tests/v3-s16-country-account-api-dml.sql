@@ -84,27 +84,21 @@ begin
 end $deny$;
 rollback;
 
--- Validate owner-executed positive signup/claim/HoD flows after direct ACL
--- removal. No synthetic rows or auth users persist after this transaction.
-begin;
-insert into public.countries(id,name,short_code)
-values
- ('74800000-0000-4000-8000-000000000011','S16 Country Signup','SCS'),
- ('74800000-0000-4000-8000-000000000012','S16 Country Claim','SCC');
-insert into auth.users(id,aud,role,email,raw_user_meta_data,created_at,updated_at)
-values
- ('74800000-0000-4000-8000-000000000021','authenticated','authenticated',
-  's16-country-signup@local.invalid',
-  '{"account_type":"country","country_id":"74800000-0000-4000-8000-000000000011","instagram_username":"s16countrytest","display_name":"S16 Country Signup"}'::jsonb,
-  now(),now()),
- ('74800000-0000-4000-8000-000000000022','authenticated','authenticated',
-  's16-country-claim@local.invalid','{}'::jsonb,now(),now());
+-- Positive tests are deliberately isolated from the current-main catalog
+-- collector. The PG17.11 owner-recovery harness creates a disposable clone,
+-- inserts real auth.users rows AS supabase_auth_admin, and proves the original
+-- signup trigger writes under its canonical owner. No Auth ownership grants
+-- are added to postgres or any API role. The clone is dropped after execution.
+\if :{?s16_country_positive}
 do $signup$
 begin
  if not exists(select 1 from public.country_accounts
    where user_id='74800000-0000-4000-8000-000000000021'
      and country_id='74800000-0000-4000-8000-000000000011'
      and instagram_username='s16countrytest')
+   or not exists(select 1 from public.studio2_role_assignments
+      where user_id='74800000-0000-4000-8000-000000000021'
+        and role_key='hod' and edition_id is null)
  then raise exception 'Country signup owner trigger failed after API direct DML revocation'
    using errcode='55000';end if;
  raise notice 'PASS: canonical auth.users country signup trigger writes through owner despite revoked API DML';
@@ -123,6 +117,8 @@ begin
  if v_country is distinct from '74800000-0000-4000-8000-000000000012'
    or not exists(select 1 from public.country_accounts where user_id=auth.uid()
       and country_id=v_country and status='active')
+   or not exists(select 1 from public.studio2_role_assignments
+      where user_id=auth.uid() and role_key='hod' and edition_id is null)
  then raise exception 'S16 canonical country claim failed' using errcode='55000'; end if;
  v_enabled := public.set_owned_hod_auto_assign(false);
  if v_enabled is distinct from true
@@ -137,3 +133,33 @@ begin
  raise notice 'PASS: real authenticated owner claim and HoD mutation work; unauthorized moderation denied';
 end $claim$;
 rollback;
+
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','74800000-0000-4000-8000-000000000023',true);
+do $moderator$
+declare v_result jsonb;
+begin
+ if current_user <> 'authenticated'
+    or not public.studio2_access_allowed('delegation.manage',null,true)
+ then raise exception 'S16 Organizer actor does not have source-defined delegation.manage' using errcode='55000'; end if;
+ v_result := public.admin_set_country_account_status(
+   '74800000-0000-4000-8000-000000000021','suspended','S16 authorized local moderation');
+ if v_result->>'status' is distinct from 'suspended'
+    or v_result->>'suspension_reason' is distinct from 'S16 authorized local moderation'
+    or not exists(select 1 from public.country_accounts where
+      user_id='74800000-0000-4000-8000-000000000021'
+      and status='suspended' and suspended_by=auth.uid())
+ then raise exception 'S16 authorized Organizer country moderation did not persist' using errcode='55000';end if;
+ v_result := public.admin_set_country_account_status(
+   '74800000-0000-4000-8000-000000000021','active',null);
+ if v_result->>'status' is distinct from 'active'
+   or exists(select 1 from public.country_accounts where
+     user_id='74800000-0000-4000-8000-000000000021'
+       and (status<>'active' or suspension_reason is not null or suspended_by is not null))
+ then raise exception 'S16 authorized Organizer reactivation failed' using errcode='55000';end if;
+ raise notice 'PASS: authorized Organizer suspension/reactivation uses canonical owner command';
+end $moderator$;
+rollback;
+\endif
