@@ -108,6 +108,7 @@ insert into auth.users(id,aud,role,email,created_at,updated_at)
 values('75200000-0000-4000-8000-000000000001',
        'authenticated','authenticated','s16-permission-grant@local.invalid',now(),now());
 set local role service_role;
+select set_config('request.jwt.claim.role','service_role',true);
 do $positive$
 declare v_user uuid:='75200000-0000-4000-8000-000000000001'; v_row record;
 begin
