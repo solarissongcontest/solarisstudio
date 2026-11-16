@@ -95,6 +95,44 @@ describe("S16 country account API-role DML retirement", () => {
     expect(recovery).toContain("'/tmp/s16-country-claim-source.sql'");
   });
 
+  it("stages legacy Organizer and HoD commands only from their actual SQL source", () => {
+    const generated = execFileSync(
+      "node",
+      ["scripts/stage-v3-s16-country-admin-hod-local.mjs"],
+      { encoding: "utf8" },
+    );
+    const adminOriginal = readFileSync(
+      "supabase/migrations/20260916033414_permission_engine_v2_country_admin_rpc_cutover.sql",
+      "utf8",
+    );
+    const adminBody = adminOriginal.slice(
+      adminOriginal.indexOf("create or replace function public.admin_set_country_account_status("),
+      adminOriginal.indexOf("create or replace function public.admin_update_country_identity("),
+    ).trim();
+    const hodOriginal = readFileSync(
+      "supabase/migrations/20260821234500_country_hod_self_history.sql",
+      "utf8",
+    );
+    const hodBody = hodOriginal.slice(
+      hodOriginal.indexOf("create or replace function public.set_owned_hod_auto_assign("),
+      hodOriginal.indexOf("create or replace function public.auto_assign_country_hod_for_participation("),
+    ).split("$;")[0] + "$;";
+    expect(generated).toContain(adminBody);
+    expect(generated).toContain(hodBody.trim());
+    expect(generated).toContain("current_user <> 'postgres'");
+    expect(generated).toContain("md5(p.prosrc)=md5(");
+    expect(generated).toContain("not has_function_privilege('anon'");
+    expect(generated).not.toContain("create or replace function public.admin_update_country_identity(");
+    expect(generated).not.toContain("create or replace function public.auto_assign_country_hod_for_participation(");
+    expect(generated).not.toMatch(/grant\s+(insert|update|delete)\s+on\s+(table\s+)?public\.country_accounts/i);
+    expect(generated.trimEnd().endsWith("commit;")).toBe(true);
+    const donor = "operator_apply /tmp/s16-country-admin-hod-source.sql";
+    const cutover = "operator_apply supabase/migrations/20261116211500_v3_s16_country_account_api_dml_retirement.sql";
+    expect(recovery.indexOf(donor)).toBeGreaterThan(0);
+    expect(recovery.indexOf(donor)).toBeLessThan(recovery.indexOf(cutover));
+    expect(recovery).toContain("'/tmp/s16-country-admin-hod-source.sql'");
+  });
+
   it("executes genuine signup, ownership, HoD and negative moderation command probes", () => {
     for (const path of [
       "insert into auth.users",
