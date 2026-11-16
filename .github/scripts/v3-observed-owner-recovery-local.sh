@@ -221,6 +221,50 @@ for s16_drift in extra_grant disabled_rls results_column_grant publication_colum
 done
 echo 'PASS: S16 preflight rejects unreviewed RLS and API TRUNCATE role drift atomically'
 operator_apply docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql
+# The hosted-observed S02 fixture omits the separate, already source-defined
+# S14 Televote reconciliation command. Exact PG17.11 execution confirmed that
+# missing identity. Rebuild ONLY that existing migration in the networkless
+# fixture, after its S07/S08, Results, and Publication dependencies are present.
+# Never replace an existing routine or pretend the hosted project adopted it.
+operator_sql -f - <<'S16_RECONCILE_DEPENDENCY_PREFLIGHT'
+do $s16_reconcile_source$
+begin
+  if current_user <> 'postgres'
+     or current_setting('server_version_num')::integer <> 170011
+     or to_regprocedure('public.v3_reconcile_published_televote(text,uuid)') is not null
+     or exists (
+       select 1 from private.v3_migration_contracts
+       where migration_key='v3.results.atomic-televote-recovery'
+     )
+     or to_regprocedure('private.v3_sync_published_televote_round(uuid)') is null
+     or to_regprocedure('public.studio2_execute_result_operation_v2(uuid,text,text,uuid,bigint,bigint,uuid,uuid)') is null
+  then
+    raise exception 'S16 synthetic Televote reconciliation donor must be absent with exact S08/Results prerequisites'
+      using errcode='55000';
+  end if;
+end $s16_reconcile_source$;
+S16_RECONCILE_DEPENDENCY_PREFLIGHT
+operator_apply supabase/migrations/20261103220000_v3_s14_atomic_televote_recovery.sql
+operator_sql -f - <<'S16_RECONCILE_DEPENDENCY_POSTCHECK'
+do $s16_reconcile_source$
+declare v_fn pg_proc%rowtype;
+begin
+  select * into v_fn from pg_proc
+  where oid=to_regprocedure('public.v3_reconcile_published_televote(text,uuid)');
+  if v_fn.oid is null or pg_get_userbyid(v_fn.proowner)<>'postgres'
+     or not v_fn.prosecdef
+     or v_fn.proconfig is distinct from
+       array['search_path=pg_catalog, public, private, televoting, extensions']::text[]
+     or has_function_privilege('anon',v_fn.oid,'EXECUTE')
+     or has_function_privilege('authenticated',v_fn.oid,'EXECUTE')
+     or not has_function_privilege('service_role',v_fn.oid,'EXECUTE')
+  then
+    raise exception 'S16 source-defined reconciliation command did not rebuild exact owner/ACL authority'
+      using errcode='55000';
+  end if;
+end $s16_reconcile_source$;
+S16_RECONCILE_DEPENDENCY_POSTCHECK
+echo 'PASS: existing canonical Televote reconciliation source restored only in synthetic networkless PG17.11'
 # Source-managed forward-only shared-guard privilege cutover. Inspect all
 # actual trigger identities and effective definer RPCs before revocation.
 # Never run this command against hosted or a different database.
