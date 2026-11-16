@@ -325,8 +325,44 @@ echo 'PASS: exact-source country moderation and HoD RPCs restored in disposable 
 # Country-account authority remains a separate guarded boundary; never weaken
 # the production preflight or replace a hosted signup/claim/HoD contract.
 operator_apply supabase/migrations/20261116211500_v3_s16_country_account_api_dml_retirement.sql
-operator_sql -f - < .github/tests/v3-s16-country-account-api-dml.sql
-echo 'PASS: S16 country account 12 API DML denials and owner signup/claim/HoD authority'
+# Exercise the positive country signup in a separate disposable clone. In the
+# observed hosted role topology, postgres is a NONSUPERUSER recovery operator
+# and cannot INSERT into auth.users. Only the actual Auth owner can insert and
+# fire the original source-defined trigger. Do NOT grant Auth DML to postgres.
+s16_country_parent_digest="$(operator_state_digest)"
+operator_sql -c 'create database s16_country_authority_probe owner postgres template recovery_operator_baseline;'
+s16_country_operator_sql() { docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d s16_country_authority_probe "$@"; }
+s16_country_auth_sql() { docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U supabase_auth_admin -d s16_country_authority_probe "$@"; }
+s16_country_operator_sql -c "
+insert into public.countries(id,name,short_code)
+values
+ ('74800000-0000-4000-8000-000000000011','S16 Country Signup','SCS'),
+ ('74800000-0000-4000-8000-000000000012','S16 Country Claim','SCC');
+"
+s16_country_auth_sql -c "
+insert into auth.users(id,aud,role,email,raw_user_meta_data,created_at,updated_at)
+values
+ ('74800000-0000-4000-8000-000000000021','authenticated','authenticated',
+  's16-country-signup@local.invalid',
+  '{\"account_type\":\"country\",\"country_id\":\"74800000-0000-4000-8000-000000000011\",\"instagram_username\":\"s16countrytest\",\"display_name\":\"S16 Country Signup\"}'::jsonb,
+  now(),now()),
+ ('74800000-0000-4000-8000-000000000022','authenticated','authenticated',
+  's16-country-claim@local.invalid','{}'::jsonb,now(),now()),
+ ('74800000-0000-4000-8000-000000000023','authenticated','authenticated',
+  's16-country-organizer@local.invalid','{}'::jsonb,now(),now());
+"
+# Synthetic identity grant is on the isolated probe only. The canonical
+# permission engine, not a forged session flag, authorizes Organizer commands.
+s16_country_operator_sql -c "
+insert into public.studio2_role_assignments(user_id,role_key,edition_id)
+values('74800000-0000-4000-8000-000000000023','organizer',null);
+"
+s16_country_operator_sql -v s16_country_positive=1 -f - < .github/tests/v3-s16-country-account-api-dml.sql
+operator_sql -c 'drop database s16_country_authority_probe;'
+[[ "$(operator_state_digest)" == "$s16_country_parent_digest" ]] || {
+  echo 'S16 country positive test modified owner-recovery parent database' >&2; exit 1
+}
+echo 'PASS: 12 country-account API DML denials, Auth-owner signup, automatic HoD, authenticated claim, unauthorized/authorized Organizer commands'
 # The postgres operator remains distinct from the authenticator/API principals.
 # Exercise all 24 direct SQL statements under forged recovery GUCs; PostgreSQL
 # must deny at table ACL boundary even when session markers are attacker-set.
