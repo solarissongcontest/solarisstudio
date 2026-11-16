@@ -342,7 +342,7 @@ export function EditionPublicDesignPanel() {
             </div>
             <p>The reviewed payload also freezes surface strength, hero glow and both gradient configurations exactly as previewed.</p>
             <p>Before applying, Organizer re-reads the exact edition and refuses the save if its identity or any stored theme colour/design field changed while this review was open.</p>
-            <p>The underlying edition metadata update remains legacy direct-table authority. System #625 is still required for canonical version/CAS, idempotency, receipt and uncertain-outcome reconciliation.</p>
+            <p>This public design save uses the server-governed edition command with revision checks, authorization, idempotent replay and a durable receipt. Other artwork and Production design operations still require separate System authority cutover before release.</p>
           </div>
         ) : null}
         confirmLabel="Apply public design"
