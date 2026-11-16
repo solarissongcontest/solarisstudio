@@ -133,15 +133,22 @@ describe("S16 country account API-role DML retirement", () => {
     expect(recovery).toContain("'/tmp/s16-country-admin-hod-source.sql'");
   });
 
-  it("executes genuine signup, ownership, HoD and negative moderation command probes", () => {
-    for (const path of [
-      "insert into auth.users",
-      "public.claim_country_account(",
-      "public.set_owned_hod_auto_assign(false)",
-      "public.admin_set_country_account_status(",
-    ]) expect(execution).toContain(path);
-    expect(execution).toContain("rollback;");
+  it("proves genuine Auth-owner signup, HoD, claim and both Organizer moderation outcomes", () => {
+    expect(execution).toContain("\\if :{?s16_country_positive}");
+    expect(execution).toContain("public.claim_country_account(");
+    expect(execution).toContain("public.set_owned_hod_auto_assign(false)");
+    expect(execution).toContain("public.admin_set_country_account_status(");
+    expect(execution).toContain("role_key='hod'");
+    expect(execution).toContain("authorized Organizer suspension/reactivation");
+    expect(execution).toContain("exception when insufficient_privilege");
+    expect(execution).not.toContain("insert into auth.users");
+    expect(recovery).toContain("-U supabase_auth_admin -d s16_country_authority_probe");
+    expect(recovery).toContain("insert into auth.users");
+    expect(recovery).toContain("role_key,edition_id");
+    expect(recovery).toContain("operator_state_digest");
+    expect(recovery).toContain("drop database s16_country_authority_probe");
+    expect(recovery).toContain("s16_country_operator_sql -v s16_country_positive=1");
     expect(recovery).toContain("operator_apply supabase/migrations/20261116211500_v3_s16_country_account_api_dml_retirement.sql");
-    expect(recovery).toContain("operator_sql -f - < .github/tests/v3-s16-country-account-api-dml.sql");
+    expect(execution).toContain("rollback;");
   });
 });
