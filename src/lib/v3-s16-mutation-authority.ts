@@ -316,9 +316,17 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "studio2_apply_show_publication_change",
       "studio2_publish_due_show_publications",
     ],
+    // Exact production-catalog identities are private SECURITY DEFINER
+    // dependencies, not public RPCs. Both are exclusively postgres-executable
+    // in the audited catalog. Domain negative tests must continue to prove
+    // that API roles never gain direct EXECUTE.
     sanctionedInternalWriters: [
-      "studio2_create_show_publication_control",
-      "studio2_ensure_show_publication_control",
+      "private.studio2_create_show_publication_control()",
+      "private.studio2_ensure_show_publication_control(uuid)",
+    ],
+    directRpcDeniedInternalWriters: [
+      "private.studio2_create_show_publication_control()",
+      "private.studio2_ensure_show_publication_control(uuid)",
     ],
     sanctionedWriteTriggers: [
       "v3_validate_publication_control",
