@@ -12,7 +12,7 @@ export async function applyEditionPublicVisualChange(input: {
   expectedRevision: number;
   expectedName: string;
   expectedSlug: string;
-  expectedThemeColors: Record<string, unknown>;
+  expectedThemeColors: Record<string, unknown> | null;
   nextThemeColors: Record<string, unknown>;
 }): Promise<{ operationId: string; replayed: boolean; dataRevision: number }> {
   if (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0) {
