@@ -50,6 +50,11 @@ on:
       - "docs/v3/recovery-candidates/evidence/result-dependent-views-observed-2026-11-14.json"
       - ".github/tests/v3-result-authority-recovery.sql"
       - "docs/v3/recovery-candidates/evidence/result-authority-prerequisites-observed-2026-11-14.json"
+      # Edition palette is a critical direct-writer retirement: each source
+      # change must obtain fresh isolated PG17 Publication/S16 cross-evidence.
+      - "src/components/studio/EditionArtworkControl.tsx"
+      - "src/lib/edition-public-visual-command.ts"
+      - "src/lib/v3-s16-p03-edition-palette-command.contract.test.ts"
       - "supabase/migrations/20261116193000_v3_s16_shared_guard_reviewed_api_dml_retirement.sql"
       - ".github/tests/v3-s16-shared-guard-reviewed-api-dml.sql"
       - ".github/scripts/v3-observed-owner-recovery-local.sh"
