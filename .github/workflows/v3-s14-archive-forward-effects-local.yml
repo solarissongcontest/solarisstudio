@@ -54,6 +54,8 @@ on:
       - ".github/scripts/v3-s16-publication-api-local.sh"
       - ".github/tests/v3-s16-publication-archive-guard-authority.sql"
       - "scripts/v3-s16-publication-execution-evidence.mjs"
+      - "scripts/v3-s16-publication-certificate.mjs"
+      - "scripts/v3-s16-publication-certificate.test.mjs"
       - ".github/scripts/v3-auth-jury-authority-local.sh"
       - ".github/tests/v3-jury-governed-cutover-*.sql"
       - "scripts/stage-v3-signup-jury-prerequisites-local.mjs"
@@ -320,6 +322,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Test S16 Publication certificate refusal cases and evidence collector syntax
+        run: |
+          node --check scripts/v3-s16-publication-execution-evidence.mjs
+          node --test scripts/v3-s16-publication-certificate.test.mjs
       - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
         run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
       - name: Verify bounded catalog export and drift refusals
