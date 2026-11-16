@@ -333,6 +333,29 @@ s16_country_parent_digest="$(operator_state_digest)"
 operator_sql -c 'create database s16_country_authority_probe owner postgres template recovery_operator_baseline;'
 s16_country_operator_sql() { docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d s16_country_authority_probe "$@"; }
 s16_country_auth_sql() { docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U supabase_auth_admin -d s16_country_authority_probe "$@"; }
+# The synthetic PG17 S02 fixture intentionally has no application rows.
+# Load the original Permission Engine capability/role presets from their exact
+# source migration, not invented policy stubs; then set the one local platform
+# operational row to 'normal', as other source-backed recovery tests do.
+node --input-type=module > /tmp/s16-country-permission-seed.sql <<'S16_COUNTRY_REFERENCE'
+import fs from 'node:fs';
+const source=fs.readFileSync('supabase/migrations/20260914035152_permission_engine_v2_foundation.sql','utf8');
+for (const prefix of [
+  'insert into public.studio2_capabilities (',
+  'insert into public.studio2_access_roles (',
+  'insert into public.studio2_role_capabilities (role_key, capability)\\nselect role_key',
+]) {
+ const literal=prefix.replace('\\n','\n');
+ const start=source.indexOf(literal);
+ if(start<0||source.indexOf(literal,start+1)!==-1) throw Error('Missing/ambiguous canonical permission fixture seed: '+prefix);
+ const end=source.indexOf(';',start);
+ if(end<0) throw Error('Unterminated canonical permission seed: '+prefix);
+ process.stdout.write(source.slice(start,end+1)+'\n');
+}
+S16_COUNTRY_REFERENCE
+s16_country_operator_sql -f - < /tmp/s16-country-permission-seed.sql
+s16_country_operator_sql -c "insert into public.studio2_platform_operational_state(singleton,mode,version,reason)
+values(true,'normal',1,'Networkless P09 country-command positive acceptance only; hosted unchanged');"
 s16_country_operator_sql -c "
 insert into public.countries(id,name,short_code)
 values
