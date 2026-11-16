@@ -439,6 +439,8 @@ const files=[
  '/tmp/results-operation-engine.sql','/tmp/results-reviewed-cas.sql',
  'supabase/migrations/20261114194701_v3_results_operation_tables_owner_only.sql',
  'docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql',
+ 'supabase/migrations/20261103220000_v3_s14_atomic_televote_recovery.sql',
+ 'supabase/migrations/20261116193000_v3_s16_shared_guard_reviewed_api_dml_retirement.sql',
  'supabase/migrations/20261115204228_v3_media_finalization_authority.sql',
 ];
 const digest=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
