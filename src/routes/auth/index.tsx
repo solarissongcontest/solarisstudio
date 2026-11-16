@@ -271,7 +271,14 @@ function AuthPage() {
             </button>
           ) : null}
 
-          {msg ? <p role="status" aria-live="polite" className="mt-4 text-sm text-muted-foreground">{msg}</p> : null}
+          <p
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className="mt-4 text-sm text-muted-foreground"
+          >
+            {msg}
+          </p>
 
           <button
             type="button"

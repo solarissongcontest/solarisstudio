@@ -5,7 +5,9 @@ const page = readFileSync(new URL("../routes/auth/index.tsx", import.meta.url), 
 
 describe("Public sign-in and recovery accessibility", () => {
   it("announces asynchronous authentication and recovery feedback without replacing the canonical auth service", () => {
-    expect(page).toContain('<p role="status" aria-live="polite" className="mt-4 text-sm text-muted-foreground">{msg}</p>');
+    // The live region must exist before asynchronous feedback is set, not mount already populated.
+    expect(page).toMatch(/<p\s+role="status"\s+aria-live="polite"\s+aria-atomic="true"[\s\S]*?>\s*\{msg\}\s*<\/p>/);
+    expect(page).not.toMatch(/\{msg\s*\?\s*<p\b/);
     expect(page).toContain("setMsg(error instanceof Error ? error.message : \"Something went wrong.\")");
     expect(page).toContain("setMsg(");
     expect(page).toContain("await signInSolarisAccount(identifier, password)");
