@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import type { AnonymousCaseSnapshot, IntegrityCategory } from "@/lib/integrity";
+import { assertNonProductionSupabaseTarget } from "@/lib/supabase-target-safety";
 
 function createAnonymousIntegrityClient() {
   const url = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -13,6 +14,11 @@ function createAnonymousIntegrityClient() {
   if (!url || !key) {
     throw new Error("Missing Supabase configuration for the Integrity Centre.");
   }
+
+  assertNonProductionSupabaseTarget(
+    url,
+    import.meta.env.MODE || process.env.NODE_ENV || "development",
+  );
 
   // Deliberately create a sessionless client for fully anonymous reports.
   // A signed-in Solaris browser session is never forwarded by these functions.
