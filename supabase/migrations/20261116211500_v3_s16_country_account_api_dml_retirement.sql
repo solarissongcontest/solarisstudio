@@ -60,7 +60,11 @@ begin
        or pg_get_userbyid(v_fn.proowner)<>'postgres'
        or v_fn.proconfig is distinct from array['search_path='||v_expected_path]::text[]
        or has_function_privilege('anon',v_fn.oid,'EXECUTE')
-    then raise exception 'S16 country owner writer identity, privilege or path drift: %',v_command
+    then raise exception 'S16 country owner writer identity, privilege or path drift: %, exists %, owner %, definer %, path %, anon EXECUTE %',
+      v_command, v_fn.oid is not null,
+      case when v_fn.oid is null then null else pg_get_userbyid(v_fn.proowner) end,
+      v_fn.prosecdef, v_fn.proconfig,
+      case when v_fn.oid is null then null else has_function_privilege('anon',v_fn.oid,'EXECUTE') end
       using errcode='55000'; end if;
   end loop;
 
