@@ -380,6 +380,11 @@ s16_country_operator_sql -c "
 insert into public.studio2_role_assignments(user_id,role_key,edition_id)
 values('74800000-0000-4000-8000-000000000023','organizer',null);
 "
+# The 56-table S02 observation contains a deliberately nonexecuting catalog
+# placeholder for this RLS helper. Replace it in the throwaway clone ONLY with
+# the final, source-defined Permission Engine SQL; refuse any unknown routine.
+node scripts/stage-v3-s16-country-permission-local.mjs > /tmp/s16-country-permission-final.sql
+s16_country_operator_sql -f - < /tmp/s16-country-permission-final.sql
 s16_country_operator_sql -v s16_country_positive=1 -f - < .github/tests/v3-s16-country-account-api-dml.sql
 operator_sql -c 'drop database s16_country_authority_probe;'
 [[ "$(operator_state_digest)" == "$s16_country_parent_digest" ]] || {
