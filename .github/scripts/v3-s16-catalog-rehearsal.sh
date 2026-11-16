@@ -28,6 +28,9 @@ psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-permission-direct-g
 # Shared guard's reviewed canonical table subset: actual API-role denials,
 # forged recovery-marker rejection and surviving owner RPC execution.
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-shared-guard-reviewed-api-dml.sql
+# Country accounts: source-only owner signup/claim/HoD authority and all 12
+# actual API-role DML denials, including forged platform recovery markers.
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-country-account-api-dml.sql
 bun run scripts/collect-v3-s16-catalog-evidence.ts
 bun run scripts/check-v3-s16-mutation-authority.ts --catalog=v3-release-preflight/s16/catalog-evidence.json
 # This is collector acceptance, not domain certification. No per-domain negative
