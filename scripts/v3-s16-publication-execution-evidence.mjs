@@ -8,7 +8,7 @@ const sha256 = s => createHash('sha256').update(s).digest('hex');
 const requireProof = (ok, why) => {if (!ok) throw Error('S16 Publication: ' + why)};
 const gitSha = execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
 requireProof(/^[a-f0-9]{40}$/.test(gitSha) && process.env.EXACT_SHA===gitSha && process.env.SOLARIS_S02_TARGET==='local','source/target SHA mismatch');
-const cid=process.env.cid;
+const cid=process.env.S16_PUBLICATION_DOCKER_CONTAINER;
 requireProof(/^[a-f0-9]{64}$/.test(cid||''),'missing owned local container');
 const docker = args => spawnSync('docker',args,{encoding:'utf8',timeout:30000,maxBuffer:1024*1024});
 const info=docker(['inspect',cid]);
