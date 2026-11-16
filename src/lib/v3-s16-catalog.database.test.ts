@@ -31,6 +31,35 @@ describe.skipIf(!db)("S16 effective PostgreSQL catalogs and execution",()=>{
    reset role; select jsonb_build_object('rows',(select count(*) from s16_catalog_fixture.state));`);
   expect(result.rows).toBe(1);
  });
+ it("separates inherited table DML from independent column ACLs without losing role inheritance or PUBLIC",()=>{
+  const [tableOnly,columnOnly,inherited,publicColumn]=sql(`${setup}
+   grant insert,update on s16_catalog_fixture.state to authenticated;
+   ${s16TableCatalogSql("s16_catalog_fixture.state")}
+   revoke insert,update on s16_catalog_fixture.state from authenticated;
+   grant update(secret) on s16_catalog_fixture.state to authenticated;
+   ${s16TableCatalogSql("s16_catalog_fixture.state")}
+   revoke update(secret) on s16_catalog_fixture.state from authenticated;
+   create role s16_catalog_column_parent;
+   grant s16_catalog_column_parent to authenticated;
+   grant insert(id) on s16_catalog_fixture.state to s16_catalog_column_parent;
+   ${s16TableCatalogSql("s16_catalog_fixture.state")}
+   revoke insert(id) on s16_catalog_fixture.state from s16_catalog_column_parent;
+   revoke s16_catalog_column_parent from authenticated;
+   grant update(secret) on s16_catalog_fixture.state to public;
+   ${s16TableCatalogSql("s16_catalog_fixture.state")}
+  `);
+  expect(tableOnly.dmlRoles).toContain("authenticated");
+  expect(tableOnly.columnDmlRoles).not.toContain("authenticated");
+  expect(columnOnly.dmlRoles).not.toContain("authenticated");
+  expect(columnOnly.columnDmlRoles).toContain("authenticated");
+  expect(columnOnly.columnPrivileges).toContainEqual(expect.objectContaining({
+    role:"authenticated",column:"secret",update:true,
+  }));
+  expect(inherited.columnDmlRoles).toContain("authenticated");
+  expect(inherited.dmlRoles).not.toContain("authenticated");
+  expect(publicColumn.columnDmlRoles).toEqual(expect.arrayContaining(["PUBLIC","anon","authenticated","service_role"]));
+  expect(publicColumn.dmlRoles).not.toContain("authenticated");
+ });
  it("does not mistake schema-local REVOKE for global PUBLIC EXECUTE revocation",()=>{
   const [initialDefaults,revokedDefaults,functions]=sql(`alter default privileges grant execute on functions to public;
    alter default privileges in schema public revoke execute on functions from public;

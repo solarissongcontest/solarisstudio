@@ -39,9 +39,25 @@ export function s16TableCatalogSql(table: string): string {
    'ownerSuperuser',o.rolsuper,'ownerBypassRls',o.rolbypassrls,
    'dmlRoles',coalesce((select jsonb_agg(r.rolname order by r.rolname) from pg_roles r
       where has_table_privilege(r.oid,c.oid,'INSERT,UPDATE,DELETE,TRUNCATE')),'[]'::jsonb),
-   'columnDmlRoles',coalesce((select jsonb_agg(distinct r.rolname) from pg_roles r
-      join pg_attribute a on a.attrelid=c.oid and a.attnum>0 and not a.attisdropped
-      where has_column_privilege(r.oid,c.oid,a.attnum,'INSERT,UPDATE')),'[]'::jsonb),
+   'columnDmlRoles',coalesce((select jsonb_agg(distinct principal order by principal)
+      from (
+        -- Only independently granted column ACLs belong in this inventory.
+        -- has_column_privilege() includes inherited TABLE grants, already
+        -- reported separately in dmlRoles; counting both duplicates a source.
+        select r.rolname::text as principal from pg_roles r
+        join pg_attribute a on a.attrelid=c.oid and a.attnum>0 and not a.attisdropped
+        cross join lateral aclexplode(a.attacl) acl
+        where acl.privilege_type in ('INSERT','UPDATE')
+          and case when acl.grantee=0 then true
+                   when acl.grantee=r.oid then true
+                   else pg_has_role(r.oid,acl.grantee,'USAGE') end
+        union all
+        -- PUBLIC is a real effective privilege grant, not an optional role.
+        select 'PUBLIC'::text from pg_attribute a
+        cross join lateral aclexplode(a.attacl) acl
+        where a.attrelid=c.oid and a.attnum>0 and not a.attisdropped
+          and acl.grantee=0 and acl.privilege_type in ('INSERT','UPDATE')
+      ) independently_granted_columns),'[]'::jsonb),
    'columnPrivileges',coalesce((select jsonb_agg(jsonb_build_object('role',r.rolname,'column',a.attname,
       'insert',has_column_privilege(r.oid,c.oid,a.attnum,'INSERT'),
       'update',has_column_privilege(r.oid,c.oid,a.attnum,'UPDATE')))
