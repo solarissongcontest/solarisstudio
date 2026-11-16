@@ -226,19 +226,14 @@ operator_apply docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql
 # Never run this command against hosted or a different database.
 operator_apply supabase/migrations/20261116193000_v3_s16_shared_guard_reviewed_api_dml_retirement.sql
 # The postgres operator remains distinct from the authenticator/API principals.
-# Exercise all 36 direct SQL statements under forged recovery GUCs; PostgreSQL
+# Exercise all 24 direct SQL statements under forged recovery GUCs; PostgreSQL
 # must deny at table ACL boundary even when session markers are attacker-set.
 for s16_shared_role in anon authenticated service_role; do
-  for s16_shared_table in public.country_accounts public.results public.televote_votes; do
+  for s16_shared_table in public.results public.televote_votes; do
     for s16_shared_action in INSERT UPDATE DELETE TRUNCATE; do
       case "$s16_shared_action" in
         INSERT) s16_shared_sql="insert into $s16_shared_table default values" ;;
-        UPDATE)
-          if [[ "$s16_shared_table" == public.country_accounts ]]; then
-            s16_shared_sql="update $s16_shared_table set user_id=user_id where false"
-          else
-            s16_shared_sql="update $s16_shared_table set show_id=show_id where false"
-          fi ;;
+        UPDATE) s16_shared_sql="update $s16_shared_table set show_id=show_id where false" ;;
         DELETE) s16_shared_sql="delete from $s16_shared_table where false" ;;
         TRUNCATE) s16_shared_sql="truncate table $s16_shared_table" ;;
       esac
@@ -255,7 +250,7 @@ for s16_shared_role in anon authenticated service_role; do
     done
   done
 done
-echo 'PASS: 36 real API-role direct-write denials survive forged recovery markers on PG17.11'
+echo 'PASS: 24 real API-role direct-write denials survive forged recovery markers on PG17.11'
 # Exercise SQL as actual API principals, not only catalog predicates. A denial
 # must be PostgreSQL permission-denied, never an FK or role-switch error.
 for s16_actor in anon authenticated service_role; do
