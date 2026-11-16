@@ -244,7 +244,34 @@ begin
   end if;
 end $s16_reconcile_source$;
 S16_RECONCILE_DEPENDENCY_PREFLIGHT
-operator_apply supabase/migrations/20261103220000_v3_s14_atomic_televote_recovery.sql
+# Preserve the source-defined migration body verbatim, but add an isolated
+# recovery-only preflight so operator_apply can prove interrupted rollback and
+# atomic duplicate rejection. The original migration is NOT rewritten.
+node --input-type=module <<'S16_RECONCILE_DONOR' > /tmp/s16-reconcile-guarded.sql
+import fs from 'node:fs';
+const source = fs.readFileSync(
+  'supabase/migrations/20261103220000_v3_s14_atomic_televote_recovery.sql','utf8');
+if (!source.startsWith('begin;\\n') ||
+    !/commit;\\s*$/.test(source) ||
+    source.match(/create or replace function public\\.v3_reconcile_published_televote\\s*\\(/g)?.length !== 1) {
+  throw Error('S16 reconciliation donor transaction/source definition drift');
+}
+const guard = `do $s16_reconcile_donor$
+begin
+  if current_user <> 'postgres'
+     or current_setting('server_version_num')::integer <> 170011
+     or to_regprocedure('public.v3_reconcile_published_televote(text,uuid)') is not null
+     or exists(select 1 from private.v3_migration_contracts
+               where migration_key='v3.results.atomic-televote-recovery')
+  then
+    raise exception 'S16 Televote source-donor already installed or unexpected authority drift'
+      using errcode='55000';
+  end if;
+end $s16_reconcile_donor$;
+`;
+process.stdout.write('begin;\\n'+guard+source.slice('begin;\\n'.length));
+S16_RECONCILE_DONOR
+operator_apply /tmp/s16-reconcile-guarded.sql
 operator_sql -f - <<'S16_RECONCILE_DEPENDENCY_POSTCHECK'
 do $s16_reconcile_source$
 declare v_fn pg_proc%rowtype;
