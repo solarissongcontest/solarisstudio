@@ -49,7 +49,20 @@ PYOWNER
   if operator_sql -f - < "$owner_candidate" > /tmp/owner-duplicate.log 2>&1; then
     echo 'ERROR: duplicate recovery unexpectedly accepted'; exit 1
   fi
-  grep -Eq 'already|partial|drift|requires|precondition' /tmp/owner-duplicate.log
+  # The country-account migration's explicit contract-registry preflight
+  # rejects a second install with a distinct diagnostic. Require that exact
+  # statement for this one migration rather than masking unrelated SQL errors.
+  if [[ "$owner_candidate" == supabase/migrations/20261116211500_v3_s16_country_account_api_dml_retirement.sql ]]; then
+    grep -Fq 'S16 country account cutover missing owner, registry or uninstalled source contract' /tmp/owner-duplicate.log || {
+      echo 'ERROR: country cutover duplicate refusal had unexpected cause' >&2
+      cat /tmp/owner-duplicate.log >&2; exit 1
+    }
+  else
+    grep -Eq 'already|partial|drift|requires|precondition' /tmp/owner-duplicate.log || {
+      echo "ERROR: unexpected duplicate refusal for $owner_candidate" >&2
+      cat /tmp/owner-duplicate.log >&2; exit 1
+    }
+  fi
   [[ "$(operator_state_digest)" == "$owner_after" ]] || { echo 'Duplicate owner install changed schema/data'; exit 1; }
 }
 operator_apply docs/v3/recovery-candidates/forward-only-s13-foundation.sql
