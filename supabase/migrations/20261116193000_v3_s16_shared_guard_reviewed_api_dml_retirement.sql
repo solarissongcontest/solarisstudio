@@ -1,6 +1,6 @@
 -- S16 phase 9: close real API-role mutation privileges at a verified
 -- shared-platform-guard subset. This is NOT a blanket trigger allowlist.
--- Remaining editions, entries, shows and round-bindings direct writers need
+-- Remaining country, editions, entries, shows and round-bindings direct writers need
 -- their own canonical command cutovers before their grants can be retired.
 -- Source-only forward migration; never apply to hosted without owner approval.
 begin;
@@ -30,7 +30,6 @@ begin
   end if;
 
   foreach v_table in array array[
-    'public.country_accounts',
     'public.results',
     'public.televote_votes'
   ] loop
@@ -62,8 +61,6 @@ begin
   end loop;
 
   foreach v_command in array array[
-    'public.claim_country_account(uuid)',
-    'public.admin_set_country_account_status(uuid,text,text)',
     'public.studio2_execute_result_operation_v2(uuid,text,text,uuid,bigint,bigint,uuid,uuid)',
     'public.v3_reconcile_published_televote(text,uuid)'
   ] loop
@@ -72,11 +69,7 @@ begin
        or pg_get_userbyid(v_fn.proowner)<>'postgres'
        or v_fn.proconfig is distinct from
           (case v_command
-            when 'public.claim_country_account(uuid)'
-              then array['search_path=public, private']::text[]
-            when 'public.admin_set_country_account_status(uuid,text,text)'
-              then array['search_path=public']::text[]
-            when 'public.v3_reconcile_published_televote(text,uuid)'
+             when 'public.v3_reconcile_published_televote(text,uuid)'
               then array['search_path=pg_catalog, public, private, televoting, extensions']::text[]
             else array['search_path=pg_catalog, public, private']::text[]
           end)
@@ -86,8 +79,7 @@ begin
         using errcode='55000';
     end if;
   end loop;
-  if not has_function_privilege('authenticated','public.claim_country_account(uuid)','EXECUTE')
-     or not has_function_privilege('authenticated',
+  if not has_function_privilege('authenticated',
        'public.studio2_execute_result_operation_v2(uuid,text,text,uuid,bigint,bigint,uuid,uuid)','EXECUTE')
      or not has_function_privilege('service_role',
        'public.v3_reconcile_published_televote(text,uuid)','EXECUTE')
@@ -100,22 +92,15 @@ $guard_acl_preflight$;
 
 select public.v3_register_migration_contract(
   'v3.s16.shared-guard-reviewed-api-dml-cutover',1,'forward_fix_only',false,null,
-  'Retire direct API DML for country authority, frozen Results owner and Televote projection without altering their owner-executed commands'
+  'Retire direct API DML for frozen Results owner and Televote projection without altering their canonical owner-executed commands'
 );
 
--- Existing country RPCs have historical SECURITY DEFINER paths that put
--- public before pg_catalog. All their database objects/functions are qualified
--- in their frozen bodies. Pin pg_catalog first without changing SQL bodies,
--- owners, input contracts, authorizations or EXECUTE grants.
-alter function public.claim_country_account(uuid)
-  set search_path = pg_catalog, public, private;
-alter function public.admin_set_country_account_status(uuid,text,text)
-  set search_path = pg_catalog, public, private;
-
+-- The recovered S02 country-claim RPC differs from the exact source catalog.
+-- Country ownership remains a separate FAIL-CLOSED dependency; no fabricated
+-- fixture equivalence or unsafe privilege revoke is permitted here.
 -- Do not revoke SELECT or the EXECUTE privileges of canonical SECURITY DEFINER
 -- commands. An API-role grant is not a substitute for an operation receipt.
 revoke insert,update,delete,truncate,references,trigger,maintain on table
-  public.country_accounts,
   public.results,
   public.televote_votes
 from public,anon,authenticated,service_role;
@@ -123,18 +108,8 @@ from public,anon,authenticated,service_role;
 do $guard_acl_postcheck$
 declare v_table text; v_role text; v_priv text;
 begin
-  if (select proconfig from pg_proc where oid =
-      'public.claim_country_account(uuid)'::regprocedure)
-       is distinct from array['search_path=pg_catalog, public, private']::text[]
-    or (select proconfig from pg_proc where oid =
-      'public.admin_set_country_account_status(uuid,text,text)'::regprocedure)
-       is distinct from array['search_path=pg_catalog, public, private']::text[]
-  then
-    raise exception 'S16 legacy country SECURITY DEFINER paths remain unpinned'
-      using errcode='55000';
-  end if;
   foreach v_table in array array[
-    'public.country_accounts','public.results','public.televote_votes'
+    'public.results','public.televote_votes'
   ] loop
     foreach v_role in array array['anon','authenticated','service_role'] loop
       foreach v_priv in array array[
