@@ -70,8 +70,16 @@ begin
     select * into v_fn from pg_proc where oid=to_regprocedure(v_command);
     if v_fn.oid is null or not v_fn.prosecdef
        or pg_get_userbyid(v_fn.proowner)<>'postgres'
-       or not exists (select 1 from unnest(v_fn.proconfig) c
-                      where c like 'search_path=pg_catalog,%')
+       or v_fn.proconfig is distinct from
+          (case v_command
+            when 'public.claim_country_account(uuid)'
+              then array['search_path=public, private']::text[]
+            when 'public.admin_set_country_account_status(uuid,text,text)'
+              then array['search_path=public']::text[]
+            when 'public.v3_reconcile_published_televote(text,uuid)'
+              then array['search_path=pg_catalog, public, private, televoting, extensions']::text[]
+            else array['search_path=pg_catalog, public, private']::text[]
+          end)
        or has_function_privilege('anon',v_fn.oid,'EXECUTE')
     then
       raise exception 'S16 canonical owner command or privilege drift: %',v_command
@@ -95,6 +103,15 @@ select public.v3_register_migration_contract(
   'Retire direct API DML for country authority, frozen Results owner and Televote projection without altering their owner-executed commands'
 );
 
+-- Existing country RPCs have historical SECURITY DEFINER paths that put
+-- public before pg_catalog. All their database objects/functions are qualified
+-- in their frozen bodies. Pin pg_catalog first without changing SQL bodies,
+-- owners, input contracts, authorizations or EXECUTE grants.
+alter function public.claim_country_account(uuid)
+  set search_path = pg_catalog, public, private;
+alter function public.admin_set_country_account_status(uuid,text,text)
+  set search_path = pg_catalog, public, private;
+
 -- Do not revoke SELECT or the EXECUTE privileges of canonical SECURITY DEFINER
 -- commands. An API-role grant is not a substitute for an operation receipt.
 revoke insert,update,delete,truncate,references,trigger,maintain on table
@@ -106,6 +123,16 @@ from public,anon,authenticated,service_role;
 do $guard_acl_postcheck$
 declare v_table text; v_role text; v_priv text;
 begin
+  if (select proconfig from pg_proc where oid =
+      'public.claim_country_account(uuid)'::regprocedure)
+       is distinct from array['search_path=pg_catalog, public, private']::text[]
+    or (select proconfig from pg_proc where oid =
+      'public.admin_set_country_account_status(uuid,text,text)'::regprocedure)
+       is distinct from array['search_path=pg_catalog, public, private']::text[]
+  then
+    raise exception 'S16 legacy country SECURITY DEFINER paths remain unpinned'
+      using errcode='55000';
+  end if;
   foreach v_table in array array[
     'public.country_accounts','public.results','public.televote_votes'
   ] loop
