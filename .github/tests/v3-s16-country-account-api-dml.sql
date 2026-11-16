@@ -90,6 +90,7 @@ rollback;
 -- signup trigger writes under its canonical owner. No Auth ownership grants
 -- are added to postgres or any API role. The clone is dropped after execution.
 \if :{?s16_country_positive}
+begin;
 do $signup$
 begin
  if not exists(select 1 from public.country_accounts
