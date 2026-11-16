@@ -6,6 +6,7 @@ This is evidence validation, not a replacement for the database-backed S14 drive
 import argparse
 import json
 import re
+import runpy
 import sys
 from pathlib import Path
 
@@ -51,9 +52,17 @@ def validate(evidence, sha):
         actual = evidence.get(key)
         if not isinstance(actual, list) or not expected.issubset(set(map(str, actual))):
             errors.append(f"{key} missing mandatory checks: {sorted(expected - set(map(str, actual or [])))}")
+    # Independently validate the full persisted S14 final database composition.
+    # Reuse the exact 14-count contract used by the source-backed producer,
+    # rather than allowing a 66-country total to conceal missing appearances.
     seed = evidence.get("seed")
-    if not isinstance(seed, dict) or seed.get("editionCount") != 1 or seed.get("delegationCount") != 66 or seed.get("showCount", 0) < 3:
-        errors.append("synthetic seed must include exactly 1 edition, 66 delegations and >=3 shows")
+    try:
+        seed_validator = runpy.run_path(
+            str(Path(__file__).with_name("v3_s14_final_seed.py"))
+        )["validate_final_seed_artifact"]
+        seed_validator(seed)
+    except (OSError, ValueError, KeyError) as exc:
+        errors.append(f"invalid exact S14 final seed artifact: {exc}")
     identity = evidence.get("runIdentity")
     if not isinstance(identity, dict) or identity.get("candidateSha") != sha or not identity.get("editionId") or not identity.get("databaseFingerprint"):
         errors.append("missing same-contest identity and database fingerprint")

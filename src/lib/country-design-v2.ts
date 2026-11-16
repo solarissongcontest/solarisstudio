@@ -749,7 +749,7 @@ export async function uploadCountryFont(countryId: string, file: File, label?: s
     .single();
 
   if (error) {
-    await typedSupabase.storage.from("country-fonts").remove([receipt.object_path]);
+    // Retain the verified immutable object when reference creation fails.
     throw error;
   }
 

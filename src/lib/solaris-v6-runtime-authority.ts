@@ -12,7 +12,8 @@ import {
   loadStudio2HodWorkspace,
 } from "@/lib/studio2-hod-workspace";
 import {
-  executeStudio2ResultOperation,
+  executeReviewedStudio2ResultOperation,
+  loadStudio2ResultOperationReview,
   loadStudio2ResultsOperations,
 } from "@/lib/studio2-results-operations";
 import {
@@ -71,10 +72,12 @@ export const SOLARIS_V6_RUNTIME_AUTHORITIES = {
   results: {
     kind: "canonical-write" as const,
     read: loadStudio2ResultsOperations,
-    execute: executeStudio2ResultOperation,
+    preview: loadStudio2ResultOperationReview,
+    execute: executeReviewedStudio2ResultOperation,
     transports: [
       "studio2_results_operations_snapshot",
-      "studio2_execute_result_operation",
+      "studio2_result_operation_preview_v2",
+      "studio2_execute_result_operation_v2",
     ] as const,
     notes:
       "Consequential result operations preserve expected-version checks, stable execution identity and server receipts.",

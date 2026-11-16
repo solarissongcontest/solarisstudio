@@ -18,6 +18,24 @@ as_user() {
   local user_id="$1" sql="$2"
   psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c "set role authenticated; set request.jwt.claims = '{\"sub\":\"$user_id\",\"role\":\"authenticated\"}'; $sql"
 }
+# Simulate the exact pre-request R2 maintenance marker in this loopback-only
+# database fixture. Real PostgREST ingress supplies the marker via its guarded
+# RPC-name allowlist; this direct psql harness has no HTTP pre-request hook.
+apply_governed_response_access() {
+  local editing="$1" op_id="$2" key="$3" note="$4" version
+  version="$(as_user "$ORGANIZER_USER_ID" "select public.studio2_confirmation_response_access_preview('$EDITION_ID'::uuid,'$SUBMISSION_ID'::uuid)->>'expectedVersion';")"
+  [[ "$version" =~ ^[0-9]+$ ]] || fail "Missing canonical Confirmation response access version"
+  as_user "$ORGANIZER_USER_ID" "
+    select set_config('studio2.confirmation_maintenance_write','on',true);
+    select public.studio2_apply_confirmation_response_access_change(
+      '$EDITION_ID'::uuid, '$SUBMISSION_ID'::uuid,
+      'update_access',
+      jsonb_build_object('editingAllowed',$editing,'locked',false,'adminNotes','$note'),
+      null, '$op_id'::uuid, '$key', $version
+    );
+  " >/dev/null
+}
+
 expect_eq() {
   local label="$1" actual="$2" expected="$3"
   [[ "$actual" == "$expected" ]] || fail "$label expected '$expected', got '$actual'"
@@ -111,7 +129,7 @@ expect_eq "legacy accepted observation has no exact review binding" "$(scalar "s
 expect_eq "fixture starts without canonical winner" "$(scalar "select coalesce(winning_entry_id::text,'') from public.national_finals where id='$NF_ID';")" ""
 
 log "Organizer reopens only the existing NF response"
-as_user "$ORGANIZER_USER_ID" "select public.admin_update_confirmation_controls('$SUBMISSION_ID'::uuid,true,false,'Maintenance NF correction opened');" >/dev/null
+apply_governed_response_access true '00000000-0000-4000-8000-00000000e782' 'maintenance-nf-cas-open-response' 'Maintenance NF correction opened'
 expect_eq "NF response editing opened" "$(scalar "select editing_allowed::text from public.submissions where id='$SUBMISSION_ID';")" "true"
 expect_eq "NF round remains closed" "$(scalar "select status from public.submission_rounds where id='$ROUND_ID';")" "closed"
 

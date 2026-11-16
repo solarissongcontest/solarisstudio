@@ -350,39 +350,42 @@ Deno.serve(async (req) => {
       return json({ error: message }, 400);
     }
 
-    // Auth creation and country ownership live in different Supabase subsystems,
-    // so make this flow compensating-transaction safe. The country_accounts
-    // UNIQUE constraints are the authoritative race boundary: if two signups
-    // pass the optimistic availability checks, only one ownership insert wins.
-    const { error: ownershipError } = await service.from("country_accounts").insert({
-      user_id: created.user.id,
-      country_id: countryId,
-      instagram_username: instagramUsername,
-      display_name: displayName,
-    });
+    // The auth.users claim_country_from_signup trigger already owns the
+    // country_accounts INSERT atomically with Auth creation. Never write a
+    // competing service-role ownership row after the trigger has committed.
+    const { data: ownership, error: ownershipError } = await service
+      .from("country_accounts")
+      .select("user_id,country_id,instagram_username,display_name")
+      .eq("user_id", created.user.id)
+      .maybeSingle();
 
     if (ownershipError) {
+      // A transient read error is not proof that Auth signup failed. Do not
+      // delete an account that the canonical trigger may have created.
+      console.error("[country-auth] Ownership verification unavailable", ownershipError);
+      return json(
+        { error: "Account created, but ownership could not be verified. Contact an organizer before retrying." },
+        503,
+      );
+    }
+
+    if (!ownership ||
+        ownership.user_id !== created.user.id ||
+        ownership.country_id !== countryId ||
+        ownership.instagram_username !== instagramUsername ||
+        ownership.display_name !== displayName) {
+      // The trigger read succeeded, but cannot establish the exact ownership
+      // requested. Never issue a session for this unverified identity.
       const { error: cleanupError } = await service.auth.admin.deleteUser(created.user.id);
       if (cleanupError) {
-        console.error(
-          "[country-auth] Failed to roll back Auth user after country ownership failure",
-          cleanupError,
-        );
-      }
-
-      if (ownershipError.code === "23505") {
+        console.error("[country-auth] Could not clean up unverified Auth signup", cleanupError);
         return json(
-          {
-            error:
-              "That country or Instagram username was claimed while your account was being created. Refresh and choose an available option.",
-          },
-          409,
+          { error: "Country account setup needs organizer assistance. Do not retry until checked." },
+          503,
         );
       }
-
-      console.error("[country-auth] Country ownership creation failed", ownershipError);
       return json(
-        { error: "Country ownership could not be created. No account was kept. Please try again." },
+        { error: "Country ownership could not be established. No account was kept. Please try again." },
         500,
       );
     }

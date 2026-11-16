@@ -70,4 +70,32 @@ describe("V3 rollout policy", () => {
       reason: "enabled",
     });
   });
+  it("fails closed on malformed server policy values instead of treating unknown stages as public", () => {
+    const invalid = [
+      { stage: "testing" },
+      { stage: "preview", userIds: "user-123" },
+      { stage: "enabled", editionIds: "22-extra" },
+      { stage: "enabled", organizersOnly: "false" },
+      { stage: "cohort", userIds: [null, "user-1"] },
+    ];
+    for (const policy of invalid) {
+      expect(evaluateV3Rollout(policy as never, USER)).toEqual({
+        enabled: false,
+        stage: "disabled",
+        reason: "invalid_policy",
+      });
+    }
+  });
+
+  it("rejects malformed viewer privilege context before evaluating an enabled rollout", () => {
+    expect(evaluateV3Rollout(
+      { stage: "enabled", organizersOnly: true },
+      { ...USER, isOrganizer: "true" } as never,
+    )).toMatchObject({ enabled: false, reason: "invalid_policy" });
+    expect(evaluateV3Rollout(
+      { stage: "preview", userIds: ["user-1"] },
+      { ...USER, userId: undefined } as never,
+    )).toMatchObject({ enabled: false, reason: "invalid_policy" });
+  });
+
 });

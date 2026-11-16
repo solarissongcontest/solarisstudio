@@ -46,10 +46,10 @@ describe("V3 app shell migration contract", () => {
     expect(shell).toContain("export function V3BottomNavigation");
     expect(tabs).toContain('aria-label="Primary app navigation"');
     expect(tabs).toContain('aria-current={active ? "page" : undefined}');
-    expect(desktop).toContain('aria-label="Primary app navigation"');
-    expect(desktop).toContain(
-      'aria-current={destination.active ? "page" : undefined}',
-    );
+    expect(desktop).toContain('aria-label={onSelect ? "Primary app navigation" : "Solaris website sections"}');
+    expect(desktop).toContain("aria-current={onSelect");
+    expect(desktop).toContain("resolveV3WebNavigationCurrent");
+    expect(desktop).toContain("onClick={onSelect ? (event) => {");
   });
 
   it("keeps direct manipulation progressive rather than gesture-only navigation", () => {

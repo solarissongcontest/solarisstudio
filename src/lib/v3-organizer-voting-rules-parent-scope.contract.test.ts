@@ -2,14 +2,8 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-const boundary = readFileSync(
-  "src/routes/_authenticated/admin/voting-system.tsx",
-  "utf8",
-);
-const workspace = readFileSync(
-  "src/routes/_authenticated/admin/voting-system/$slug.tsx",
-  "utf8",
-);
+const boundary = readFileSync("src/routes/_authenticated/admin/voting-system.tsx", "utf8");
+const workspace = readFileSync("src/routes/_authenticated/admin/voting-system/$slug.tsx", "utf8");
 
 describe("V3 Organizer Voting Rules parent edition boundary", () => {
   it("verifies the exact Organizer edition before mounting the legacy rules workspace", () => {
@@ -30,7 +24,9 @@ describe("V3 Organizer Voting Rules parent edition boundary", () => {
   it("protects the current direct voting-config mutation surface behind the parent gate", () => {
     expect(workspace).toContain("integrations/supabase/client");
     expect(workspace).toContain("VotingEditor");
-    expect(workspace).toContain("rerankExistingResults");
+    expect(workspace).not.toContain("rerankExistingResults");
+    expect(workspace).not.toContain('supabase.from("results")');
+    expect(workspace).toContain("database voting-config trigger");
     expect(boundary).not.toContain("integrations/supabase/client");
     expect(boundary).not.toContain(".from(");
     expect(boundary).not.toContain(".rpc(");

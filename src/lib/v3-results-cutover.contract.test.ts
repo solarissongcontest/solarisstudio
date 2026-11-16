@@ -32,8 +32,11 @@ describe("Results production cutover boundary", () => {
     expect(route).toContain("useAppExperiencePreferences()");
     expect(route).toContain("resolveShowPublication(show).results");
     expect(route).toContain("editionMap.get(show.edition_id)?.published === true");
-    expect(route).toContain("publication?.jury_results");
-    expect(route).toContain("publication?.televote_results");
+    expect(route).toContain("resultBundle?.input.juryPublished");
+    expect(route).toContain("resultBundle?.detailedVotingPublished");
+    expect(route).toContain("resultBundle?.input.televotePublished");
+    expect(route).toContain("const resultsQuery = useV3ResultsBundle(null, true)");
+    expect(route).not.toContain("useAllResults(");
     expect(source("src/components/v3/V3ResultsScreen.tsx")).toContain("<V3ScoreboardPresentation");
     expect(source("src/components/v3/V3ScoreboardPresentation.tsx")).not.toContain("?? rows[0]");
   });

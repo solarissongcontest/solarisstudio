@@ -399,9 +399,9 @@ test("S06 execution evidence fails closed on missing stages and cannot certify h
   const dir = mkdtempSync(join(tmpdir(), 's06-evidence-'));
   try {
     const sha = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
-    const names = ['source_contract','clean_replay','ordered_recovery','archive_behavior','authorization','terminal_boundaries','task_convergence','second_replay'];
+    const names = ['source_contract','clean_replay','ordered_recovery','archive_behavior','authorization','terminal_boundaries','task_convergence','second_replay','post_s16_clean_cas','confirmation_lifecycle'];
     const good = Object.fromEntries(names.map(name => [name, { outcome: 'success' }]));
-    for (const [index, steps] of [{}, good, { ...good, authorization: { outcome: 'failure' } }].entries()) {
+    for (const [index, steps] of [{}, good, { ...good, authorization: { outcome: 'failure' } }, { ...good, confirmation_lifecycle: { outcome: 'failure' } }, { ...good, post_s16_clean_cas: { outcome: 'failure' } }].entries()) {
       const path = join(dir, index + '.json');
       const result = spawnSync(process.execPath, ['--input-type=module', '-e', code], { encoding: 'utf8', env: {
         PATH: process.env.PATH, REVIEWED_SHA: sha, S06_STEP_OUTCOMES: JSON.stringify(steps), S06_REPORT_PATH: path,
@@ -415,4 +415,84 @@ test("S06 execution evidence fails closed on missing stages and cannot certify h
       assert.equal(Object.keys(report.sourceHashes).length, 2);
     }
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+
+test("S16 launch TRUNCATE cutover matches independently observed authority inventory", () => {
+  const sql = read("docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql");
+  const driver = read(".github/scripts/v3-observed-owner-recovery-local.sh");
+  const observed = JSON.parse(read("docs/v3/recovery-candidates/evidence/n14-launch-truncate-authority-observed-2026-11-15.json"));
+  assert.equal(observed.productionMutation, false);
+  assert.equal(observed.productionDataQueried, false);
+  assert.equal(observed.hostedEffectsInstalled, false);
+  assert.equal(observed.findings.length, 14);
+  const names = observed.findings.map((row) => row.table).sort();
+  assert.equal(new Set(names).size, 14);
+  const roleNames = ["anon", "authenticated", "service_role"];
+  for (const row of observed.findings) {
+    assert.equal(row.owner, "postgres", row.table);
+    assert.equal(row.rlsEnabled, true, row.table);
+    for (const role of roleNames) {
+      assert.equal(typeof row.observedTruncate[role], "boolean");
+      assert.equal(row.requiredPostCutover[role], false);
+    }
+  }
+  const loops = [...sql.matchAll(/for v_target in select unnest\(array\[([\s\S]*?)\]\)/g)];
+  assert.equal(loops.length, 2, "both SQL preflight and postconditions must cover each observed table");
+  for (const match of loops) {
+    const listed = [...match[1].matchAll(/'((?:public|televoting)\.[a-z0-9_]+)'/g)].map((row) => row[1]).sort();
+    assert.deepEqual(listed, names, "S16 must fail closed and verify every observed relation");
+  }
+  const actorLoop = driver.match(/for s16_actor in anon authenticated service_role; do\s*for s16_table in ([^;]+); do/);
+  assert.ok(actorLoop, "no real-role S16 TRUNCATE denial loop");
+  assert.deepEqual(actorLoop[1].trim().split(/\s+/).sort(), names);
+  assert.match(driver, /s16LaunchTableTruncateDenials:42/);
+  assert.match(sql, /revoke truncate on table/);
+  // The observed normal-mode Results DML bypass requires an independent
+  // table/column cutover and an actual post-S16 canonical readback.
+  assert.match(sql, /revoke insert,update,delete,references,trigger,maintain on table public\.results/);
+  assert.match(sql, /S16 unexpected Results column-level grants/);
+  assert.match(sql, /S16 competing Results API table writer remains/);
+  assert.match(sql, /has_any_column_privilege\(v_role,v_target,'INSERT,UPDATE'\)/);
+  assert.match(driver, /for s16_drift in extra_grant disabled_rls results_column_grant/);
+  assert.match(driver, /for s16_action in INSERT UPDATE DELETE/);
+  assert.match(driver, /s16ResultsApiDmlDenials:9/);
+  assert.match(driver, /s16ResultsPublishedReadbackPreserved:true/);
+  assert.match(sql, /S16 competing publication table writer remains/);
+  assert.match(sql, /S16 unexpected publication column-level grants/);
+  assert.match(sql, /public.studio2_show_publication_executions/);
+  assert.match(sql, /revoke insert,update,delete,truncate,references,trigger,maintain on table/);
+  assert.match(driver, /s16PublicationDirectApiDenials:24/);
+  assert.match(driver, /s16PublicationCanonicalCommandAcceptance:true/);
+  const donor = read("scripts/stage-v3-publication-canonical-local-fixture.mjs");
+  assert.match(donor, /SOLARIS_S02_TARGET !== "local"/);
+  assert.match(donor, /3f711b37c92c058990f5dc99a4ca55ff67e90b02/);
+  // The hosted-observed S2 fixture has the seven-argument canonical claim.
+  // Its missing five-argument adapter must come from the S2 receipt migration,
+  // never the pre-S2 implementation that omits NOT NULL fingerprint fields.
+  assert.match(donor, /b8f7841c898186e90b535ad2e83af88eb36580e7/);
+  assert.match(donor, /s2AdapterMarker/);
+  assert.doesNotMatch(donor, /a4f8c7a35df2d2caea98b82a3a4552ffbdb0d9ec/);
+  assert.match(donor, /private.studio2_claim_operation/);
+  assert.match(donor, /private.studio2_complete_operation/);
+  assert.match(donor, /to_regprocedure/);
+  assert.match(donor, /studio2_apply_show_publication_change/);
+  assert.match(donor, /studio2_publish_due_show_publications/);
+  assert.match(donor, /S16 publication donor did not reproduce reviewed command authority/);
+  assert.match(driver, /stage-v3-publication-canonical-local-fixture\.mjs/);
+  assert.match(driver, /for s16_action in INSERT UPDATE DELETE TRUNCATE/);
+  assert.match(driver, /publication_column_grant/);
+  const publication = read(".github/scripts/v3-s16-publication-api-local.sh");
+  assert.match(publication, /NetworkMode/);
+  assert.match(publication, /-U authenticator/);
+  assert.match(publication, /set local role authenticated/);
+  assert.match(publication, /studio2_apply_show_publication_change/);
+  assert.match(publication, /studio2_publish_due_show_publications/);
+  assert.match(publication, /drop database recovery_publication_api_probe/);
+  const cleanConfirmation = read(".github/scripts/v3-confirmation-post-s16-clean-source-local.sh");
+  assert.match(cleanConfirmation, /s\.count\(results\)!=1/);
+  assert.match(cleanConfirmation, /s\.count\(publication\)!=1/);
+  assert.match(cleanConfirmation, /len\(re\.findall\(.+s\)\)!=4/);
+  assert.match(driver, /source \.github\/scripts\/v3-result-public-api-local\.sh/);
+  assert.doesNotMatch(sql, /supabase_migrations\.schema_migrations/);
 });
