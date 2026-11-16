@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
@@ -53,6 +54,45 @@ describe("S16 country account API-role DML retirement", () => {
     for (const marker of ["studio2.platform_recovery_write", "studio2.confirmation_maintenance_write"])
       expect(execution).toContain(marker);
     expect(execution).toContain("exception when insufficient_privilege");
+  });
+
+  it("rebuilds only exact original source-owned claim writers in isolated PG17 recovery", () => {
+    const generated = execFileSync(
+      "node",
+      ["scripts/stage-v3-s16-country-claim-local.mjs"],
+      { encoding: "utf8" },
+    );
+    const original = readFileSync(
+      "supabase/migrations/20260916043443_permission_engine_v2_country_ownership_rpc_cutover.sql",
+      "utf8",
+    );
+    expect(generated).toContain(
+      "create or replace function public.claim_country_account(_country_id uuid)",
+    );
+    expect(generated).toContain(
+      "create or replace function private.studio2_country_claim_blocked(p_user_id uuid)",
+    );
+    expect(generated).toContain(
+      original.slice(
+        original.indexOf("create or replace function public.claim_country_account("),
+        original.indexOf("create or replace function public.owns_country("),
+      ).trim(),
+    );
+    expect(generated).toContain("to_regprocedure('public.claim_country_account(uuid)') is not null");
+    expect(generated).toContain("md5(p.prosrc)=md5(");
+    expect(generated).toContain("current_user <> 'postgres'");
+    expect(generated).toContain("already installed or prerequisite drift");
+    expect(generated).not.toContain("create or replace function public.owns_country(");
+    expect(generated).not.toMatch(/grant\s+(insert|update|delete|truncate)\s+on\s+(table\s+)?public\.country_accounts/i);
+    expect(generated.trimEnd().endsWith("commit;")).toBe(true);
+    const stage = "operator_apply /tmp/s16-country-claim-source.sql";
+    const cutover = "operator_apply supabase/migrations/20261116211500_v3_s16_country_account_api_dml_retirement.sql";
+    expect(recovery).toContain(
+      "node scripts/stage-v3-s16-country-claim-local.mjs > /tmp/s16-country-claim-source.sql",
+    );
+    expect(recovery.indexOf(stage)).toBeGreaterThan(0);
+    expect(recovery.indexOf(stage)).toBeLessThan(recovery.indexOf(cutover));
+    expect(recovery).toContain("'/tmp/s16-country-claim-source.sql'");
   });
 
   it("executes genuine signup, ownership, HoD and negative moderation command probes", () => {
