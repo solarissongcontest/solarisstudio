@@ -81,8 +81,17 @@ if (
   throw new Error(
     "S16 recovery fixture requires actual PG17.11 NOSUPERUSER postgres read-only session",
   );
+// Domain-scoped runtime catalog collection retains the same strict PostgreSQL
+// transport and SHA requirements. It is intended for exact-owner execution
+// certificates, not a substitute for the full 40-relation release audit.
+const scopedDomain = process.argv.find((v) => v.startsWith("--domain="))?.slice(9);
+if (scopedDomain && !V3_S16_CRITICAL_DOMAINS.some((domain) => domain.id === scopedDomain))
+  throw new Error("Unknown S16 domain scope");
+const selectedDomains = scopedDomain
+  ? V3_S16_CRITICAL_DOMAINS.filter((domain) => domain.id === scopedDomain)
+  : V3_S16_CRITICAL_DOMAINS;
 const criticalTables = [
-  ...new Set(V3_S16_CRITICAL_DOMAINS.flatMap((d) => d.canonicalTables)),
+  ...new Set(selectedDomains.flatMap((d) => d.canonicalTables)),
 ].sort();
 const tableRows = criticalTables.map((table) =>
   query<V3S16CatalogEvidence["tables"][number] | null>(s16TableCatalogSql(table)),
