@@ -45,7 +45,7 @@ begin
      select 1 from pg_proc p join pg_language l on l.oid=p.prolang
      where p.oid=v and l.lanname='plpgsql'
        and pg_get_userbyid(p.proowner)='postgres'
-       and regexp_replace(btrim(p.prosrc),'\\s+',' ','g') =
+       and regexp_replace(btrim(p.prosrc),'[[:space:]]+',' ','g') =
        'BEGIN RAISE EXCEPTION ''S06 catalog-only authorization placeholder must never execute''; END'
    )
  then raise exception 'S16 refuses to overwrite a non-placeholder permission authority' using errcode='55000'; end if;
