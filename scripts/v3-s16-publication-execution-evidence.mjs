@@ -38,6 +38,7 @@ const canonicalIdentity = s => s.replaceAll('timestamp with time zone','timestam
 const rows=functions.map(f=>({...f,identity:canonicalIdentity(f.identity)}));
 requireProof(rows.length===5 && expectedFunctions.every(identity=>rows.some(f=>f.identity===identity && f.owner==='postgres' && f.definer===true && JSON.stringify(f.path)==='["search_path=pg_catalog, public, private"]')),'canonical function identities, owners or pinned paths');
 const fn=identity=>rows.find(f=>f.identity===identity);
+console.log('S16 PG17.11 Publication function ACL diagnostic',JSON.stringify(rows.map(f=>({identity:f.identity,anon:f.anon,authenticated:f.authenticated,service:f.service}))));
 requireProof(fn(expectedFunctions[0]).authenticated && !fn(expectedFunctions[0]).anon && fn(expectedFunctions[1]).service && !fn(expectedFunctions[1]).authenticated && !fn(expectedFunctions[1]).anon && expectedFunctions.slice(2).every(id=>!fn(id).anon && !fn(id).authenticated && !fn(id).service),'direct/RPC EXECUTE privilege drift');
 const trigger=json("select jsonb_build_object('n',count(*),'valid',coalesce(bool_and(t.tgenabled='O' and t.tgtype=31 and t.tgfoid=to_regprocedure('private.v3_guard_archived_edition_workflow_write()')),false))::text from pg_trigger t where t.tgrelid='public.studio2_show_publication_controls'::regclass and t.tgname='v3_guard_archived_edition_workflow_write'");
 requireProof(trigger.n===1 && trigger.valid===true,'Archive trigger identity/attachment');
