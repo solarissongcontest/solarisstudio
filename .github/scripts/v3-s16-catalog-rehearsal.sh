@@ -21,6 +21,8 @@ psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-edition-public-visual-a
 # Run only after all SHA-bound migrations are replayed onto the owned local stack.
 # Actual API-role DML/TRUNCATE failures and canonical scheduler execution.
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-publication-direct-grant-authority.sql
+# Prove the publication Archive trigger is a real internal denial guard.
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-publication-archive-guard-authority.sql
 # Isolated permission-engine role denial and service-only compatibility proof.
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-permission-direct-grant-authority.sql
 bun run scripts/collect-v3-s16-catalog-evidence.ts
