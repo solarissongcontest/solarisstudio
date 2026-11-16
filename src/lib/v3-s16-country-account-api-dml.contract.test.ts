@@ -82,6 +82,18 @@ describe("S16 country account API-role DML retirement", () => {
     expect(generated).toContain("md5(p.prosrc)=md5(");
     expect(generated).toContain("current_user <> 'postgres'");
     expect(generated).toContain("already installed or prerequisite drift");
+    const authoritative = readFileSync(
+      "supabase/migrations/20260918205750_permission_engine_v2_authoritative_cutover.sql",
+      "utf8",
+    );
+    const helperDefinition = authoritative.slice(
+      authoritative.indexOf("create or replace function private.studio2_country_claim_blocked("),
+      authoritative.indexOf("create or replace function private.studio2_user_access_allowed("),
+    ).trim();
+    expect(generated).toContain(helperDefinition);
+    expect(generated).toContain("20260918205750_permission_engine_v2_authoritative_cutover.sql");
+    expect(generated).not.toContain("return public.has_role(p_user_id");
+    expect(generated).not.toContain("create or replace function public.has_role(");
     expect(generated).not.toContain("create or replace function public.owns_country(");
     expect(generated).not.toMatch(/grant\s+(insert|update|delete|truncate)\s+on\s+(table\s+)?public\.country_accounts/i);
     expect(generated.trimEnd().endsWith("commit;")).toBe(true);
