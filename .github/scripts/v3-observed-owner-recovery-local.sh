@@ -344,7 +344,7 @@ git worktree add --detach "$s16_pub_source_dir" "$EXACT_SHA"
     ];
     writeFileSync(process.env.S16_PUB_FINDINGS,JSON.stringify({
       candidateSha:catalog.candidateSha,postgresVersionNum:170011,domain:"publication",findings
-    },null,2)+"\\n",{flag:"wx"});
+    },null,2)+"\n",{flag:"wx"});
     if(findings.length)throw Error("Unresolved Publication catalog authority: "+JSON.stringify(findings));
   ')
 S16_PUBLICATION_EVIDENCE_DIR="$S16_PUB_EVIDENCE_DIR" \
