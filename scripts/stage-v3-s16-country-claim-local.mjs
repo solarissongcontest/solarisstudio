@@ -7,34 +7,48 @@ import { readFileSync } from "node:fs";
 const sourcePath =
   "supabase/migrations/20260916043443_permission_engine_v2_country_ownership_rpc_cutover.sql";
 const source = readFileSync(sourcePath, "utf8");
+const authoritativePath =
+  "supabase/migrations/20260918205750_permission_engine_v2_authoritative_cutover.sql";
+const authoritativeSource = readFileSync(authoritativePath, "utf8");
 
-function uniqueSection(start, end) {
-  const at = source.indexOf(start);
-  const after = source.indexOf(end, at + start.length);
-  if (at < 0 || after < 0 || source.indexOf(start, at + 1) !== -1) {
+function uniqueSection(text, start, end) {
+  const at = text.indexOf(start);
+  const after = text.indexOf(end, at + start.length);
+  if (at < 0 || after < 0 || text.indexOf(start, at + 1) !== -1) {
     throw new Error("S16 country source definition missing, ambiguous, or reordered: " + start);
   }
-  return source.slice(at, after).trim();
+  return text.slice(at, after).trim();
 }
+// The claim RPC body comes from the original migration. Its private staff
+// predicate MUST be the later final authoritative cutover, which intentionally
+// removed public.has_role; restoring the transitional version would invent a
+// dependency on a deliberately retired function.
 const helperSection = uniqueSection(
+  source,
   "create or replace function private.studio2_country_claim_blocked(",
   "create or replace function public.claim_country_account(",
 );
 const claimDefinition = uniqueSection(
+  source,
   "create or replace function public.claim_country_account(",
   "create or replace function public.owns_country(",
+);
+const finalHelperDefinition = uniqueSection(
+  authoritativeSource,
+  "create or replace function private.studio2_country_claim_blocked(",
+  "create or replace function private.studio2_user_access_allowed(",
 );
 const helperAclAt = helperSection.indexOf(
   "revoke all on function private.studio2_country_claim_blocked(uuid)",
 );
 if (helperAclAt < 0) throw new Error("S16 source helper ACL missing");
-const helperDefinition = helperSection.slice(0, helperAclAt).trim();
+const helperDefinition = finalHelperDefinition.trim();
 const helperAcl = helperSection.slice(helperAclAt).trim();
 if (
   !helperDefinition.includes("security definer") ||
-  !helperDefinition.includes("set search_path = pg_catalog, public, private") ||
-  !helperDefinition.includes("private.studio2_permission_engine_authoritative()") ||
-  !helperDefinition.includes("private.studio2_user_has_capability(") ||
+  !helperDefinition.includes("set search_path = 'pg_catalog', 'public', 'private'") ||
+  !helperDefinition.includes("private.studio2_user_has_capability(p_user_id, 'delegation.manage', null)") ||
+  helperDefinition.includes("public.has_role(") ||
   !helperAcl.includes(
     "revoke all on function private.studio2_country_claim_blocked(uuid) from public, anon, authenticated;",
   ) ||
@@ -56,9 +70,9 @@ if (!claimAcl.every((statement) => source.includes(statement))) {
   throw new Error("S16 country claim EXECUTE grants drift");
 }
 function bodyOf(ddl) {
-  const match = ddl.match(/as \$\$([\s\S]*?)\$\$;\s*$/);
+  const match = ddl.match(/as (\$\$|\$function\$)([\s\S]*?)\1;\s*$/);
   if (!match) throw new Error("S16 donor SQL body delimiter drift");
-  return match[1];
+  return match[2];
 }
 const helperBody = bodyOf(helperDefinition);
 const claimBody = bodyOf(claimDefinition);
@@ -70,7 +84,7 @@ for (const marker of ["$s16_claim_expected$", "$s16_helper_sql$"]) {
 }
 
 process.stdout.write(`begin;
--- GENERATED ONLY FROM ${sourcePath}
+-- GENERATED ONLY FROM ${sourcePath} and ${authoritativePath}
 -- This source-only fixture donor is NOT a database migration or hosted proof.
 do $s16_country_donor_preflight$
 declare
@@ -101,6 +115,7 @@ begin
 end $s16_country_donor_preflight$;
 
 -- Do not replace an existing helper, even on a disposable fixture.
+-- A pre-existing helper must have the exact authoritative final body.
 do $s16_country_helper_install$
 begin
   if to_regprocedure('private.studio2_country_claim_blocked(uuid)') is null then
