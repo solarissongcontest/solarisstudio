@@ -18,6 +18,9 @@ bunx vitest run src/lib/v3-s16-candidate-sha.test.ts src/lib/v3-s16-catalog.test
 # Mutation boundary probe uses a fully rolled-back synthetic fixture, AFTER the
 # loopback/local credentials and exact migration-set checks above.
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-edition-public-visual-authority.sql
+# Run only after all SHA-bound migrations are replayed onto the owned local stack.
+# Actual API-role DML/TRUNCATE failures and canonical scheduler execution.
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-publication-direct-grant-authority.sql
 bun run scripts/collect-v3-s16-catalog-evidence.ts
 bun run scripts/check-v3-s16-mutation-authority.ts --catalog=v3-release-preflight/s16/catalog-evidence.json
 # This is collector acceptance, not domain certification. No per-domain negative
