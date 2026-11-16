@@ -21,6 +21,8 @@ psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-edition-public-visual-a
 # Run only after all SHA-bound migrations are replayed onto the owned local stack.
 # Actual API-role DML/TRUNCATE failures and canonical scheduler execution.
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-publication-direct-grant-authority.sql
+# Prove that the attached publication Archive guard only rejects terminal writes.
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-publication-archive-guard-authority.sql
 bun run scripts/collect-v3-s16-catalog-evidence.ts
 bun run scripts/check-v3-s16-mutation-authority.ts --catalog=v3-release-preflight/s16/catalog-evidence.json
 # This is collector acceptance, not domain certification. No per-domain negative
