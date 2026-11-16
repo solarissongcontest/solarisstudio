@@ -100,6 +100,7 @@ jobs:
         if: matrix.baseline != 'current-main'
         env:
           GH_TOKEN: ${{ github.token }}
+          V3_CANDIDATE_SHA: ${{ env.V3_S16_SOURCE_SHA }}
         run: |
           set -euo pipefail
           [[ "$(git rev-parse HEAD)" == "$V3_S16_SOURCE_SHA" ]] || { echo 'Publication source SHA mismatch' >&2; exit 1; }
