@@ -4,6 +4,11 @@
 set -euo pipefail
 [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]] || exit 1
 [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]] || exit 1
+: "${EXACT_SHA:?Publication execution must bind the exact source commit}"
+S16_PUB_EVIDENCE_DIR="${S16_PUBLICATION_EVIDENCE_DIR:-v3-release-preflight/s16/publication-execution}"
+mkdir -p "$S16_PUB_EVIDENCE_DIR"
+: > "$S16_PUB_EVIDENCE_DIR/executed-stages.txt"
+publication_stage() { printf '%s\n' "$1" >> "$S16_PUB_EVIDENCE_DIR/executed-stages.txt"; }
 operator_sql -c 'create database recovery_publication_api_probe owner postgres template recovery_operator_baseline;'
 pub_owner_sql() { docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d recovery_publication_api_probe "$@"; }
 # Supabase Auth parent tables are owned outside the reviewed non-superuser
@@ -152,6 +157,7 @@ begin
 end $publication$;
 rollback;
 SQL
+publication_stage rollback-preview-apply-replay
 # PostgreSQL nextval() is deliberately non-transactional: canonical
 # publication audit allocates exactly one synthetic admin audit identifier,
 # even when the command's transaction rolls back. Compare entire pg_dump
@@ -175,6 +181,7 @@ if normalized_after != before:
     raise SystemExit(1)
 print('PASS: publication rollback preserved schema/data, with only the expected nontransactional audit-sequence advance')
 PYSEQ
+publication_stage rollback-schema-data-verified
 # Unlike the earlier rollback-only fixture, this verifies a committed
 # canonical publication operation, a durable receipt, and an independent
 # session readback. This disposable database is deleted below. Nothing runs
@@ -215,6 +222,7 @@ begin
 end $committed$;
 commit;
 SQL
+publication_stage committed-preview-apply
 pub_owner_sql -f - <<'SQL'
 do $persisted_receipt$
 declare
@@ -244,6 +252,7 @@ begin
   then raise exception 'S16 publication canonical audit trail missing or duplicated'; end if;
 end $persisted_receipt$;
 SQL
+publication_stage durable-receipt-readback
 # Reconnect independently: an already-completed action must not allocate
 # another durable receipt, audit entry, or version transition.
 pub_client_sql -f - <<'SQL'
@@ -284,6 +293,7 @@ begin
   then raise exception 'S16 cross-session replay duplicated the canonical operation'; end if;
 end $replay_readback$;
 SQL
+publication_stage cross-session-idempotency
 # A role without an Auth subject cannot commandeer the existing publication.
 pub_client_sql -f - <<'SQL'
 begin;
@@ -304,6 +314,7 @@ begin
 end $denied$;
 rollback;
 SQL
+publication_stage unauthorized-caller-denied
 echo 'PASS: persisted canonical Publication receipt, readback, separate-session replay and unauthorized denial'
 
 after_publication_probe="$(operator_state_digest recovery_publication_api_probe)"
@@ -311,5 +322,40 @@ after_publication_probe="$(operator_state_digest recovery_publication_api_probe)
 # service_role EXECUTE grant; revoked table DML must not prevent invocation.
 pub_client_sql -c 'begin; set local role service_role; select public.studio2_publish_due_show_publications(); rollback;' > /tmp/s16-due-publication.log
 [[ "$(operator_state_digest recovery_publication_api_probe)" == "$after_publication_probe" ]] || { echo 'Due-publication probe changed durable fixture state' >&2; exit 1; }
+publication_stage service-scheduler-accepted
+# Read the *actual committed* state, stored receipt, audit trail and attached
+# Archive function from the isolated execution database before dropping it.
+# This is runtime data, not a source-file checklist.
+pub_owner_sql -c "
+select jsonb_build_object(
+ 'candidateSha', '${EXACT_SHA}',
+ 'serverVersionNum', current_setting('server_version_num')::integer,
+ 'currentUser', current_user,
+ 'sessionUser', session_user,
+ 'operatorSuperuser', (select rolsuper from pg_roles where rolname=current_user),
+ 'showState', (select state from public.studio2_show_publication_controls where show_id='71000000-0000-4000-8000-000000000010'),
+ 'controlVersion', (select version from public.studio2_show_publication_controls where show_id='71000000-0000-4000-8000-000000000010'),
+ 'showPublished', (select published from public.shows where id='71000000-0000-4000-8000-000000000010'),
+ 'participantsPublished', (select (publication_config->>'participants')::boolean from public.shows where id='71000000-0000-4000-8000-000000000010'),
+ 'actorId', (select actor_id::text from public.studio2_operation_receipts where operation_id='71000000-0000-4000-8000-000000000005'),
+ 'operationId', (select operation_id::text from public.studio2_operation_receipts where operation_id='71000000-0000-4000-8000-000000000005'),
+ 'receiptCount', (select count(*) from public.studio2_operation_receipts where operation_id='71000000-0000-4000-8000-000000000005' and command='publication.show.change' and status='succeeded' and completed_at is not null),
+ 'auditCount', (select count(*) from public.admin_audit_log where action='show_publication_state_changed' and record_id='71000000-0000-4000-8000-000000000010'),
+ 'archiveGuard', (select jsonb_build_object(
+    'identity', format('%I.%I(%s)', n.nspname, p.proname, oidvectortypes(p.proargtypes)),
+    'owner', pg_get_userbyid(p.proowner), 'securityDefiner', p.prosecdef,
+    'type', t.tgtype::int, 'enabled', t.tgenabled,
+    'searchPath', (select substr(c,13) from unnest(p.proconfig) c where c like 'search_path=%' limit 1),
+    'apiRoleExecute', exists(select 1 from pg_roles r
+       where r.rolname in ('anon','authenticated','service_role')
+         and has_function_privilege(r.oid,p.oid,'EXECUTE'))
+  ) from pg_trigger t join pg_proc p on p.oid=t.tgfoid
+      join pg_namespace n on n.oid=p.pronamespace
+    where t.tgrelid='public.studio2_show_publication_controls'::regclass
+      and t.tgname='v3_guard_archived_edition_workflow_write'
+      and not t.tgisinternal)
+)::text;
+" > "$S16_PUB_EVIDENCE_DIR/committed-readback.json"
+[[ -s "$S16_PUB_EVIDENCE_DIR/committed-readback.json" ]] || { echo 'Missing committed Publication database readback' >&2; exit 1; }
 operator_sql -c 'drop database recovery_publication_api_probe;'
 echo 'PASS: authenticated canonical publication, replay and service-role due operation retain owner authority after API DML cutover'
