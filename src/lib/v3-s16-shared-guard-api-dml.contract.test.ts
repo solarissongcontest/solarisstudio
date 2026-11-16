@@ -15,8 +15,8 @@ const rehearsal = readFileSync(
 );
 
 describe("S16 shared platform guard API-role authority cutover", () => {
-  it("removes direct mutation only from three reviewed canonical tables", () => {
-    for (const table of ["public.country_accounts", "public.results", "public.televote_votes"])
+  it("removes direct mutation only from two reviewed canonical tables", () => {
+    for (const table of ["public.results", "public.televote_votes"])
       expect(migration).toContain(table);
     expect(migration).toMatch(/revoke insert,update,delete,truncate,references,trigger,maintain on table/);
     expect(migration).toContain("from public,anon,authenticated,service_role");
@@ -34,19 +34,16 @@ describe("S16 shared platform guard API-role authority cutover", () => {
     expect(migration).toContain("has_table_privilege('service_role',v_table,'SELECT'");
   });
 
-  it("preserves existing canonical definer commands and pins legacy search paths", () => {
+  it("preserves existing canonical definer commands and preserves current owner functions", () => {
     for (const command of [
-      "public.claim_country_account(uuid)",
-      "public.admin_set_country_account_status(uuid,text,text)",
       "public.studio2_execute_result_operation_v2(uuid,text,text,uuid,bigint,bigint,uuid,uuid)",
       "public.v3_reconcile_published_televote(text,uuid)",
     ]) expect(migration).toContain(command);
-    expect(migration).toContain("alter function public.claim_country_account(uuid)");
-    expect(migration).toContain("alter function public.admin_set_country_account_status(uuid,text,text)");
-    expect(migration).toContain("set search_path = pg_catalog, public, private");
+    expect(migration).not.toContain("alter function public.claim_country_account(uuid)");
+    expect(migration).not.toContain("revoke insert,update,delete on table public.country_accounts");
   });
 
-  it("executes 36 SQL ACL negatives even with adversarial recovery markers", () => {
+  it("executes 24 SQL ACL negatives even with adversarial recovery markers", () => {
     for (const role of ["anon", "authenticated", "service_role"])
       expect(execution).toContain("set local role " + role);
     for (const marker of ["studio2.platform_recovery_write", "studio2.confirmation_maintenance_write"])
@@ -54,7 +51,7 @@ describe("S16 shared platform guard API-role authority cutover", () => {
     for (const action of ["insert into", "update %s", "delete from", "truncate table"])
       expect(execution).toContain(action);
     expect(execution).toContain("exception when insufficient_privilege");
-    expect(rehearsal).toContain("36 real API-role direct-write denials");
+    expect(rehearsal).toContain("24 real API-role direct-write denials");
     expect(rehearsal).toContain("42501: permission denied for table");
   });
 });
