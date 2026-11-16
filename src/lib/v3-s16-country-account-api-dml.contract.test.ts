@@ -166,6 +166,12 @@ describe("S16 country account API-role DML retirement", () => {
     expect(recovery).toContain("role_key,edition_id");
     expect(recovery).toContain("operator_state_digest");
     expect(recovery).toContain("drop database s16_country_authority_probe");
+    const helperDonor = readFileSync("scripts/stage-v3-s16-country-permission-local.mjs", "utf8");
+    expect(helperDonor).toContain("20260915185524_permission_engine_v2_private_helper_cutover.sql");
+    expect(helperDonor).toContain("S06 catalog-only authorization placeholder must never execute");
+    expect(helperDonor).toContain("S16 refuses to overwrite a non-placeholder permission authority");
+    expect(helperDonor).toContain("p.proacl is not distinct from before.proacl");
+    expect(recovery).toContain("s16_country_operator_sql -f - < /tmp/s16-country-permission-final.sql");
     expect(recovery).toContain("s16_country_operator_sql -v s16_country_positive=1");
     expect(recovery).toContain("operator_apply supabase/migrations/20261116211500_v3_s16_country_account_api_dml_retirement.sql");
     expect(execution).toContain("rollback;");
