@@ -348,19 +348,52 @@ describe("S16 Publication Archive trigger identity, not a name-only allowlist", 
   });
 
   it.each([
-    ["wrong trigger timing", (c: V3S16CatalogEvidence) => ({...c, tables:c.tables.map(t=>({...t, triggerDetails:t.triggerDetails?.map(d=>({...d, type: 29}))}))}],
-    ["wrong function attachment", (c: V3S16CatalogEvidence) => ({...c, tables:c.tables.map(t=>({...t, triggerDetails:t.triggerDetails?.map(d=>({...d, function:"private.evil()"}))}))}],
-    ["disabled trigger", (c: V3S16CatalogEvidence) => ({...c, tables:c.tables.map(t=>({...t, triggerDetails:t.triggerDetails?.map(d=>({...d, enabled:"D"}))}))}],
-    ["API role can execute trigger function", (c: V3S16CatalogEvidence) => ({...c, functions:c.functions.map(fn=>({...fn, executeRoles:["postgres","authenticated"]}))}],
-    ["function has wrong owner", (c: V3S16CatalogEvidence) => ({...c, functions:c.functions.map(fn=>({...fn, owner:"service_role"}))}],
-    ["function has unsafe path", (c: V3S16CatalogEvidence) => ({...c, functions:c.functions.map(fn=>({...fn, searchPath:"public, pg_catalog"}))}],
-    ["missing trigger details", (c: V3S16CatalogEvidence) => ({...c, tables:c.tables.map(t=>({...t, triggerDetails:[]}))}],
-    ["mismatched table attachment", (c: V3S16CatalogEvidence) => ({...c, tables:c.tables.map(t=>({...t, triggerDetails:t.triggerDetails?.map(d=>({...d, definition:d.definition.replace("ON public.studio2_show_publication_controls", "ON public.results")}))}))}],
-  ] as const)("keeps %s a hard blocker", (_label, change) => {
-    const catalog = change(fixture());
+    ["wrong trigger timing", { type: 29 }],
+    ["wrong function attachment", { function: "private.evil()" }],
+    ["disabled trigger", { enabled: "D" }],
+    ["mismatched table attachment", {
+      definition: "CREATE TRIGGER v3_guard_archived_edition_workflow_write BEFORE INSERT OR DELETE OR UPDATE ON public.results FOR EACH ROW EXECUTE FUNCTION private.v3_guard_archived_edition_workflow_write()",
+    }],
+  ])("keeps %s a hard blocker", (_label, patch) => {
+    const original = fixture();
+    const catalog: V3S16CatalogEvidence = {
+      ...original,
+      tables: original.tables.map(table => ({
+        ...table,
+        triggerDetails: table.triggerDetails?.map(detail => ({ ...detail, ...patch })),
+      })),
+    };
     expect(verifiedS16PublicationArchiveGuard(catalog, catalog.tables[0])).toBe(false);
     expect(auditV3S16CatalogAuthority(catalog, sha, [domain])).toEqual(expect.arrayContaining([
       expect.objectContaining({ domain:"publication", kind:"unexpected_write_trigger", subject:guard, releaseRisk:"hard_blocker" }),
+    ]));
+  });
+
+  it.each([
+    ["API role can execute trigger function", { executeRoles: ["postgres", "authenticated"] }],
+    ["function has wrong owner", { owner: "service_role" }],
+    ["function has unsafe path", { searchPath: "public, pg_catalog" }],
+  ])("rejects %s", (_label, patch) => {
+    const original = fixture();
+    const catalog: V3S16CatalogEvidence = {
+      ...original,
+      functions: original.functions.map(fn => ({ ...fn, ...patch })),
+    };
+    expect(verifiedS16PublicationArchiveGuard(catalog, catalog.tables[0])).toBe(false);
+    expect(auditV3S16CatalogAuthority(catalog, sha, [domain])).toEqual(expect.arrayContaining([
+      expect.objectContaining({kind:"unexpected_write_trigger", subject:guard, releaseRisk:"hard_blocker"}),
+    ]));
+  });
+
+  it("rejects missing trigger catalog details instead of trusting its name", () => {
+    const original = fixture();
+    const catalog: V3S16CatalogEvidence = {
+      ...original,
+      tables: original.tables.map(table => ({...table, triggerDetails: []})),
+    };
+    expect(verifiedS16PublicationArchiveGuard(catalog, catalog.tables[0])).toBe(false);
+    expect(auditV3S16CatalogAuthority(catalog, sha, [domain])).toEqual(expect.arrayContaining([
+      expect.objectContaining({kind:"unexpected_write_trigger", subject:guard, releaseRisk:"hard_blocker"}),
     ]));
   });
 
