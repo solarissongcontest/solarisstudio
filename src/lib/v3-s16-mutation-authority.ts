@@ -317,8 +317,8 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "studio2_publish_due_show_publications",
     ],
     // Exact production-catalog identities are private SECURITY DEFINER
-    // dependencies, not public RPCs. Both are exclusively postgres-executable
-    // in the audited catalog. Domain negative tests must continue to prove
+    // dependencies, not public RPCs. Both are executable by internal postgres/supabase_admin roles
+    // in the audited catalog, not by anon/authenticated/Public API roles. Domain negative tests must continue to prove
     // that API roles never gain direct EXECUTE.
     sanctionedInternalWriters: [
       "private.studio2_create_show_publication_control()",
