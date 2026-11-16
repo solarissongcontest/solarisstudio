@@ -296,9 +296,15 @@ echo 'PASS: existing canonical Televote reconciliation source restored only in s
 # actual trigger identities and effective definer RPCs before revocation.
 # Never run this command against hosted or a different database.
 operator_apply supabase/migrations/20261116193000_v3_s16_shared_guard_reviewed_api_dml_retirement.sql
-# Country-account authority is a separate canonical owner boundary. Do not
-# alter the signup/claim/HoD SECURITY DEFINER functions, owner role, or guard.
-# Interruption and duplicate acceptance both fail closed via operator_apply.
+# The scoped S02 observed-owner fixture lacks the original country claim RPC.
+# Restore its exact source SQL only in this verified networkless PG17 fixture.
+# Preflight must refuse a competing owner, function, helper, or privilege.
+# This is NOT hosted database migration adoption or production equivalence.
+node scripts/stage-v3-s16-country-claim-local.mjs > /tmp/s16-country-claim-source.sql
+operator_apply /tmp/s16-country-claim-source.sql
+echo 'PASS: exact-source country claim writer restored in disposable PG17.11'
+# Country-account authority remains a separate guarded boundary; never weaken
+# the production preflight or replace a hosted signup/claim/HoD contract.
 operator_apply supabase/migrations/20261116211500_v3_s16_country_account_api_dml_retirement.sql
 operator_sql -f - < .github/tests/v3-s16-country-account-api-dml.sql
 echo 'PASS: S16 country account 12 API DML denials and owner signup/claim/HoD authority'
@@ -474,6 +480,9 @@ const files=[
  'docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql',
  'supabase/migrations/20261103220000_v3_s14_atomic_televote_recovery.sql',
  'supabase/migrations/20261116193000_v3_s16_shared_guard_reviewed_api_dml_retirement.sql',
+ 'supabase/migrations/20260916043443_permission_engine_v2_country_ownership_rpc_cutover.sql',
+ 'scripts/stage-v3-s16-country-claim-local.mjs',
+ '/tmp/s16-country-claim-source.sql',
  'supabase/migrations/20261116211500_v3_s16_country_account_api_dml_retirement.sql',
  'supabase/migrations/20261115204228_v3_media_finalization_authority.sql',
 ];
