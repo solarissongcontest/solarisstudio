@@ -37,8 +37,8 @@ export function verifyPublicationExecution({ sha, expectedSha, version, network,
   if (events.length !== EVENTS.length || new Set(events).size !== EVENTS.length ||
     events.some(event => !EVENTS.includes(event))) throw Error("S16 Publication requires each successful runtime stage");
   if (!/PASS: real publication Archive guard rejects INSERT\/UPDATE\/DELETE; canonical control remains intact/.test(archiveLog) ||
-    !/ROLLBACK/.test(archiveLog)) throw Error("S16 Publication Archive denial execution proof missing");
-  if (readback?.serverVersionNum !== 170011 || readback?.currentUser !== "postgres" ||
+    !/archive-state-unchanged/.test(archiveLog)) throw Error("S16 Publication Archive denial execution proof missing");
+  if (readback?.candidateSha !== sha || readback?.serverVersionNum !== 170011 || readback?.currentUser !== "postgres" ||
     readback?.operatorSuperuser !== false || readback?.sessionUser !== "postgres" ||
     readback?.showState !== "public" || readback?.controlVersion !== 2 ||
     readback?.showPublished !== true || readback?.participantsPublished !== true ||
