@@ -52,8 +52,11 @@ describe("S16 shared platform guard API-role authority cutover", () => {
     expect(sql).toContain("grant execute on function public.v3_reconcile_published_televote(text,uuid)");
     expect(rehearsal).toContain("to_regprocedure('public.v3_reconcile_published_televote(text,uuid)') is not null");
     expect(rehearsal).toContain("migration_key='v3.results.atomic-televote-recovery'");
-    expect(rehearsal).toContain("operator_apply " + donor);
-    expect(rehearsal.indexOf("operator_apply " + donor)).toBeLessThan(
+    expect(rehearsal).toContain("node --input-type=module <<'S16_RECONCILE_DONOR'");
+    expect(rehearsal).toContain("source.slice('begin;\\n'.length)");
+    expect(rehearsal).toContain("already installed or unexpected authority drift");
+    expect(rehearsal).toContain("operator_apply /tmp/s16-reconcile-guarded.sql");
+    expect(rehearsal.indexOf("operator_apply /tmp/s16-reconcile-guarded.sql")).toBeLessThan(
       rehearsal.indexOf("operator_apply " + cutover)
     );
   });
