@@ -23,9 +23,27 @@ function fixture(): V3S16CatalogEvidence {
     negativeTests: { candidateSha: sha, passed: true, domains: ["publication"] },
     tables: domain.canonicalTables.map((table) => ({
       table, owner: "postgres", rlsEnabled: true,
-      dmlRoles: [], columnDmlRoles: [], writeTriggers: [], updatableViews: [],
+      dmlRoles: [], columnDmlRoles: [],
+      writeTriggers: table === "public.studio2_show_publication_controls"
+        ? ["v3_guard_archived_edition_workflow_write"] : [],
+      triggerDetails: table === "public.studio2_show_publication_controls"
+        ? [{
+            name: "v3_guard_archived_edition_workflow_write",
+            enabled: "O", type: 31,
+            function: "private.v3_guard_archived_edition_workflow_write()",
+            definition: "CREATE TRIGGER v3_guard_archived_edition_workflow_write BEFORE INSERT OR DELETE OR UPDATE ON public.studio2_show_publication_controls FOR EACH ROW EXECUTE FUNCTION private.v3_guard_archived_edition_workflow_write()",
+          }] : [],
+      updatableViews: [],
     })),
     functions: [
+      {
+        identity: "private.v3_guard_archived_edition_workflow_write()",
+        name: "private.v3_guard_archived_edition_workflow_write",
+        owner: "postgres",
+        securityDefiner: true,
+        searchPath: "pg_catalog, public, private",
+        executeRoles: ["postgres"],
+      },
       ...domain.canonicalCommands.map((name) => ({
         name: name.startsWith("public.") ? name : `public.${name}`,
         owner: "postgres",
