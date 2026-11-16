@@ -174,8 +174,7 @@ begin
   then raise exception 'S16 Publication local trigger helper identity/owner/definition drift'
        using errcode='55000';
   end if;
-  revoke all on function private.studio2_create_show_publication_control()
-    from public, anon, authenticated, service_role;
+  execute 'revoke all on function private.studio2_create_show_publication_control() from public, anon, authenticated, service_role';
   if exists (select 1 from pg_roles where rolname in ('anon','authenticated','service_role')
       and has_function_privilege(oid,v_helper,'EXECUTE'))
   then raise exception 'S16 Publication local helper EXECUTE cutover did not take effect'
