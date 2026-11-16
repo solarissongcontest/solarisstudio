@@ -303,6 +303,12 @@ operator_apply supabase/migrations/20261116193000_v3_s16_shared_guard_reviewed_a
 node scripts/stage-v3-s16-country-claim-local.mjs > /tmp/s16-country-claim-source.sql
 operator_apply /tmp/s16-country-claim-source.sql
 echo 'PASS: exact-source country claim writer restored in disposable PG17.11'
+# The same scoped baseline omits the older Organizer moderation RPC (and may
+# omit the HoD preference RPC). Restore them from their original source files,
+# with exact function-owner/search_path/body/EXECUTE proof; never waive a drift.
+node scripts/stage-v3-s16-country-admin-hod-local.mjs > /tmp/s16-country-admin-hod-source.sql
+operator_apply /tmp/s16-country-admin-hod-source.sql
+echo 'PASS: exact-source country moderation and HoD RPCs restored in disposable PG17.11'
 # Country-account authority remains a separate guarded boundary; never weaken
 # the production preflight or replace a hosted signup/claim/HoD contract.
 operator_apply supabase/migrations/20261116211500_v3_s16_country_account_api_dml_retirement.sql
@@ -483,6 +489,11 @@ const files=[
  'supabase/migrations/20260916043443_permission_engine_v2_country_ownership_rpc_cutover.sql',
  'scripts/stage-v3-s16-country-claim-local.mjs',
  '/tmp/s16-country-claim-source.sql',
+ 'supabase/migrations/20260916033414_permission_engine_v2_country_admin_rpc_cutover.sql',
+ 'supabase/migrations/20260821234500_country_hod_self_history.sql',
+ 'supabase/migrations/20260822001000_finalize_hod_release_hardening.sql',
+ 'scripts/stage-v3-s16-country-admin-hod-local.mjs',
+ '/tmp/s16-country-admin-hod-source.sql',
  'supabase/migrations/20261116211500_v3_s16_country_account_api_dml_retirement.sql',
  'supabase/migrations/20261115204228_v3_media_finalization_authority.sql',
 ];
