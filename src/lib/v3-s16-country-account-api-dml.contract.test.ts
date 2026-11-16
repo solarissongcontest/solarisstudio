@@ -148,7 +148,7 @@ describe("S16 country account API-role DML retirement", () => {
   it("proves genuine Auth-owner signup, HoD, claim and both Organizer moderation outcomes", () => {
     expect(execution).toContain("\\if :{?s16_country_positive}");
     // SET LOCAL ROLE in the positive claim MUST execute in the transaction.
-    expect(execution).toContain("\\if :{?s16_country_positive}\\nbegin;\\ndo $signup$");
+    expect(execution).toContain(["\\if :{?s16_country_positive}", "begin;", "do $signup$"].join("\n"));
     expect(execution).toContain("set local role authenticated;");
     expect(execution).toContain("public.claim_country_account(");
     expect(execution).toContain("public.set_owned_hod_auto_assign(false)");
