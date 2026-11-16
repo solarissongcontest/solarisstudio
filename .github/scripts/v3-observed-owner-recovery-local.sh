@@ -257,6 +257,10 @@ echo 'PASS: 9 direct Results table DML operations denied in normal mode as real 
 # Publication controls and scheduled-execution receipts must not be writable
 # even by a service-role SQL session. This does not disable the owner-executed
 # apply/publish-due SECURITY DEFINER RPCs.
+# Exact per-operation results, not a summary that a test script existed.
+S16_PUB_EVIDENCE_DIR="${S16_PUBLICATION_EVIDENCE_DIR:-v3-release-preflight/s16/publication-execution}"
+mkdir -p "$S16_PUB_EVIDENCE_DIR"
+: > "$S16_PUB_EVIDENCE_DIR/direct-dml-42501.tsv"
 for s16_actor in anon authenticated service_role; do
   for s16_table in public.studio2_show_publication_controls public.studio2_show_publication_executions; do
     for s16_action in INSERT UPDATE DELETE TRUNCATE; do
@@ -271,16 +275,18 @@ for s16_actor in anon authenticated service_role; do
         DELETE) s16_statement="delete from $s16_table where false" ;;
         TRUNCATE) s16_statement="truncate table $s16_table" ;;
       esac
-      if docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U authenticator -d recovery_operator_baseline \
+      if docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U authenticator -d recovery_operator_baseline \
         -c "begin; set local role $s16_actor; $s16_statement; rollback;" \
         > /tmp/s16-publication-denial.log 2>&1; then
         echo "S16 competing publication $s16_action accepted: $s16_actor $s16_table" >&2
         exit 1
       fi
-      grep -qi 'permission denied for table' /tmp/s16-publication-denial.log || { cat /tmp/s16-publication-denial.log; exit 1; }
+      grep -Eqi '42501: permission denied for table' /tmp/s16-publication-denial.log || { cat /tmp/s16-publication-denial.log; exit 1; }
+      printf '%s\t%s\t%s\t42501\n' "$s16_actor" "$s16_table" "$s16_action" >> "$S16_PUB_EVIDENCE_DIR/direct-dml-42501.tsv"
     done
   done
 done
+[[ "$(wc -l < "$S16_PUB_EVIDENCE_DIR/direct-dml-42501.tsv")" -eq 24 ]] || exit 1
 echo 'PASS: 24 actual API-role publication DML/TRUNCATE denials'
 # Run the existing independent-authenticator published-read and Results CAS
 # acceptance again *after* the DML cutover, on a disposable database clone.
@@ -288,6 +294,53 @@ source .github/scripts/v3-result-public-api-local.sh
 echo 'PASS: post-S16 Results publication reads and canonical CAS still work'
 source .github/scripts/v3-s16-publication-api-local.sh
 echo 'PASS: post-S16 canonical publication command and scheduled owner RPC remain usable'
+# Rehearse the real Archive trigger under PG17.11. No trigger allowance based
+# solely on a name, and no persistent changes to the synthetic baseline.
+s16_pub_archive_before="$(operator_state_digest)"
+operator_sql -f - < .github/tests/v3-s16-publication-archive-guard-authority.sql > "$S16_PUB_EVIDENCE_DIR/archive-denials.log" 2>&1 || {
+  cat "$S16_PUB_EVIDENCE_DIR/archive-denials.log" >&2; exit 1;
+}
+[[ "$(operator_state_digest)" == "$s16_pub_archive_before" ]] || {
+  echo 'S16 Publication Archive test changed durable baseline data' >&2; exit 1;
+}
+printf '%s\n' archive-state-unchanged >> "$S16_PUB_EVIDENCE_DIR/archive-denials.log"
+echo 'PASS: real PG17.11 Archive attachment and mutation denial'
+# Recovery generates artifacts. The S16 collector must run from a second
+# CLEAN worktree of the same SHA, not silently accept a dirty evidence source.
+s16_pub_source_dir="$RUNNER_TEMP/s16-publication-source"
+git worktree add --detach "$s16_pub_source_dir" "$EXACT_SHA"
+(cd "$s16_pub_source_dir" &&
+  bun install --frozen-lockfile &&
+  V3_S16_DOCKER_CONTAINER="$cid" \
+  V3_S16_DOCKER_DATABASE=recovery_operator_baseline \
+  V3_S16_FIXTURE_SOURCE_SHA="$EXACT_SHA" \
+  V3_CANDIDATE_SHA="$EXACT_SHA" \
+  bun run scripts/collect-v3-s16-catalog-evidence.ts \
+    --domain=publication --out="$GITHUB_WORKSPACE/$S16_PUB_EVIDENCE_DIR/catalog-evidence.json")
+(cd "$s16_pub_source_dir" &&
+  S16_PUB_JSON="$GITHUB_WORKSPACE/$S16_PUB_EVIDENCE_DIR/catalog-evidence.json" \
+  S16_PUB_FINDINGS="$GITHUB_WORKSPACE/$S16_PUB_EVIDENCE_DIR/catalog-publication-findings.json" \
+  EXACT_SHA="$EXACT_SHA" bun -e '
+    import { readFileSync, writeFileSync } from "node:fs";
+    import { auditV3S16CatalogAuthority, V3_S16_CRITICAL_DOMAINS } from "./src/lib/v3-s16-mutation-authority.ts";
+    const catalog=JSON.parse(readFileSync(process.env.S16_PUB_JSON,"utf8"));
+    const domain=V3_S16_CRITICAL_DOMAINS.find(d=>d.id==="publication");
+    if(!domain||catalog.candidateSha!==process.env.EXACT_SHA||
+        catalog.tables.length!==2||catalog.uncertainties?.length)
+      throw Error("S16 Publication PG17.11 catalog incomplete or stale");
+    const findings=auditV3S16CatalogAuthority(catalog,process.env.EXACT_SHA,[domain])
+      .filter(f=>f.kind!=="database_execution_evidence_missing");
+    writeFileSync(process.env.S16_PUB_FINDINGS,JSON.stringify({
+      candidateSha:catalog.candidateSha,postgresVersionNum:170011,domain:"publication",findings
+    },null,2)+"\\n",{flag:"wx"});
+    if(findings.length)throw Error("Unresolved Publication catalog authority: "+JSON.stringify(findings));
+  ')
+S16_PUBLICATION_EVIDENCE_DIR="$S16_PUB_EVIDENCE_DIR" \
+S16_PUBLICATION_CATALOG_FINDINGS="$S16_PUB_EVIDENCE_DIR/catalog-publication-findings.json" \
+S16_PUBLICATION_NETWORK=none S16_PUBLICATION_PORTS=false EXACT_SHA="$EXACT_SHA" \
+node scripts/v3-s16-publication-execution-manifest.mjs
+echo 'PASS: S16 PG17.11 exact-SHA Publication execution certificate'
+
 echo 'PASS: 42 actual API-role TRUNCATE attempts denied across fourteen launch tables'
 source .github/scripts/v3-media-recovery-local.sh
 echo 'PASS: entire ordered recovery executes as observed NONSUPERUSER postgres with real role/schema privileges'
