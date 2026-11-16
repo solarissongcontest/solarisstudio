@@ -39,7 +39,6 @@ type MethodBudget = Partial<Record<DirectWriteMethod, number>>;
 // Maximum existing call sites per file, table AND mutation method.
 // This does not bless additional writes in an already-debted file.
 const KNOWN_DIRECT_WRITE_DEBT: Readonly<Record<string, Readonly<Record<string, Readonly<MethodBudget>>>>> = {
-  "src/components/EditionPublicDesignPanel.tsx": { editions: { update: 1 } },
   "src/components/admin/HeatProgressionSyncPanel.tsx": { participants: { insert: 1 } },
   "src/components/admin/ShowLineupWorkspace.tsx": {
     participants: { insert: 2, update: 3, delete: 1 }, shows: { update: 1 },
@@ -201,8 +200,8 @@ describe("V3 critical browser-mutation regression guard", () => {
 
   it("rejects additional mutations even inside an existing debt file/table", () => {
     const example: DirectWrite = {
-      file: "src/components/EditionPublicDesignPanel.tsx",
-      table: "editions", method: "update", line: 218,
+      file: "src/components/studio/EditionArtworkControl.tsx",
+      table: "editions", method: "update", line: 261,
     };
     expect(newlyIntroducedCriticalWrites([example])).toEqual([]);
     expect(newlyIntroducedCriticalWrites([example, { ...example, line: 219 }]))
@@ -231,6 +230,14 @@ describe("V3 critical browser-mutation regression guard", () => {
     expect(files).toContain("src/lib/visual-theme.ts");
     expect(files).not.toContain("src/integrations/televoting/results-sync.server.ts");
     expect(files).not.toContain("src/lib/public.functions.ts");
+  });
+
+  it("keeps the retired Public Design edition writer permanently absent", () => {
+    expect(KNOWN_DIRECT_WRITE_DEBT).not.toHaveProperty("src/components/EditionPublicDesignPanel.tsx");
+    const writes = directCriticalWrites(
+      join(BROWSER_SOURCE_ROOT, "components/EditionPublicDesignPanel.tsx"),
+    );
+    expect(writes.filter((write) => write.table === "editions")).toEqual([]);
   });
 
   it("does not grandfather the retired Organizer Televote writer", () => {

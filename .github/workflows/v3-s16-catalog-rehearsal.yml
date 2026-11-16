@@ -50,19 +50,42 @@ jobs:
           fi
           git worktree add "$runtime" "$baseline_sha"
           echo "V3_S16_RUNTIME_DIR=$runtime" >> "$GITHUB_ENV"
-          cd "$runtime"
-          GITHUB_JOB="${GITHUB_JOB}-${BASELINE}" bash "$GITHUB_WORKSPACE/.github/scripts/v3-start-disposable-supabase.sh"
-          supabase db reset --local --no-seed
+          echo "V3_S16_SOURCE_SHA=$baseline_sha" >> "$GITHUB_ENV"
+          # Supabase local startup/reset may rewrite tracked runtime config.
+          # Keep the exact-SHA source tree separate from the database worktree.
           if [[ "$BASELINE" == current-main ]]; then
-            bash "$GITHUB_WORKSPACE/.github/scripts/v3-copy-migration-delta.sh" "$GITHUB_WORKSPACE" "$runtime"
-            supabase migration up --local --include-all
+            source_dir="$RUNNER_TEMP/s16-catalog-source"
+            git worktree add "$source_dir" "$baseline_sha"
+            echo "V3_S16_SOURCE_DIR=$source_dir" >> "$GITHUB_ENV"
+            (cd "$source_dir" && bun install --frozen-lockfile)
           fi
+          cd "$runtime"
+          GITHUB_JOB="${GITHUB_JOB}-${BASELINE}" bash .github/scripts/v3-start-disposable-supabase.sh
+          supabase db reset --local --no-seed
+          # Do not import candidate migrations into the current-main baseline.
       - name: Verify real catalog semantics and retain unresolved authority evidence
-        run: bash .github/scripts/v3-s16-catalog-rehearsal.sh
+        env:
+          BASELINE: ${{ matrix.baseline }}
+        run: |
+          set -euo pipefail
+          if [[ "$BASELINE" == current-main ]]; then
+            # Execute the original main audit implementation and its exact
+            # source/migration set against the main-only disposable database.
+            : "${V3_S16_SOURCE_DIR:?Clean exact-main source worktree is required}"
+            [[ "$(git -C "$V3_S16_SOURCE_DIR" rev-parse HEAD)" == "$V3_S16_SOURCE_SHA" ]] || { echo 'S16 source SHA mismatch' >&2; exit 1; }
+            [[ "$(git -C "$V3_S16_RUNTIME_DIR" rev-parse HEAD)" == "$V3_S16_SOURCE_SHA" ]] || { echo 'S16 runtime SHA mismatch' >&2; exit 1; }
+            (cd "$V3_S16_SOURCE_DIR" && bash .github/scripts/v3-s16-catalog-rehearsal.sh)
+            mkdir -p v3-release-preflight/s16 v3-release-preflight/static v3-release-evidence
+            cp "$V3_S16_SOURCE_DIR/v3-release-preflight/s16/"* v3-release-preflight/s16/
+            cp "$V3_S16_SOURCE_DIR/v3-release-preflight/static/s16-mutation-authority.json" v3-release-preflight/static/
+            cp "$V3_S16_SOURCE_DIR/v3-release-evidence/s16-mutation-authority.json" v3-release-evidence/
+          else
+            bash .github/scripts/v3-s16-catalog-rehearsal.sh
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: s16-catalog-${{ matrix.baseline }}-${{ github.event.pull_request.head.sha || github.sha }}
+          name: s16-catalog-${{ matrix.baseline }}-${{ env.V3_S16_SOURCE_SHA }}
           path: |
             v3-release-preflight/s16/
             v3-release-preflight/static/s16-mutation-authority.json
