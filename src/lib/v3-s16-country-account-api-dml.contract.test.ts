@@ -144,6 +144,10 @@ describe("S16 country account API-role DML retirement", () => {
     expect(execution).not.toContain("insert into auth.users");
     expect(recovery).toContain("-U supabase_auth_admin -d s16_country_authority_probe");
     expect(recovery).toContain("insert into auth.users");
+    expect(recovery).toContain("stage-v3-s16-country-admin-hod-local.mjs");
+    expect(recovery).toContain("20260914035152_permission_engine_v2_foundation.sql");
+    expect(recovery).toContain("studio2_platform_operational_state(singleton,mode,version,reason)");
+    expect(recovery).toContain("s16_country_operator_sql -f - < /tmp/s16-country-permission-seed.sql");
     expect(recovery).toContain("role_key,edition_id");
     expect(recovery).toContain("operator_state_digest");
     expect(recovery).toContain("drop database s16_country_authority_probe");
