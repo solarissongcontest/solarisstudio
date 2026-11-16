@@ -155,6 +155,34 @@ source .github/scripts/v3-results-operation-recovery-local.sh
 # fixture. This is not a hosted recovery step or proof of body equivalence.
 node scripts/stage-v3-publication-canonical-local-fixture.mjs > /tmp/s16-publication-fixture.sql
 operator_apply /tmp/s16-publication-fixture.sql
+# The scoped S02 donor preserves an already-present historic trigger helper,
+# including its inherited PUBLIC EXECUTE ACL. Exact-main S16 catalog verifies
+# that the CURRENT source revokes that ACL. Reconstruct only that source-defined
+# restriction in this throwaway PG17.11 fixture, never treat fixture repair as
+# evidence that hosted Supabase adopted the effect.
+operator_sql -f - <<'S16_PUBLICATION_LOCAL_ACL'
+do $source_parity$
+declare
+  v_helper oid := to_regprocedure('private.studio2_create_show_publication_control()');
+begin
+  if current_user <> 'postgres'
+     or current_setting('server_version_num')::integer <> 170011
+     or v_helper is null
+     or not exists (select 1 from pg_proc where oid=v_helper
+         and pg_get_userbyid(proowner)='postgres' and prosecdef
+         and proconfig=array['search_path=pg_catalog, public, private']::text[])
+  then raise exception 'S16 Publication local trigger helper identity/owner/definition drift'
+       using errcode='55000';
+  end if;
+  execute 'revoke all on function private.studio2_create_show_publication_control() from public, anon, authenticated, service_role';
+  if exists (select 1 from pg_roles where rolname in ('anon','authenticated','service_role')
+      and has_function_privilege(oid,v_helper,'EXECUTE'))
+  then raise exception 'S16 Publication local helper EXECUTE cutover did not take effect'
+       using errcode='55000';
+  end if;
+end $source_parity$;
+S16_PUBLICATION_LOCAL_ACL
+echo 'PASS: source-exact Publication internal trigger helper EXECUTE restriction reconstructed only in disposable PG17.11 fixture'
 echo 'PASS: source-exact local publication RPC donor installed without overwriting existing functions'
 echo 'STAGE: close RLS-independent official API TRUNCATE grants after all canonical command cutovers'
 # Verify this expanded scope fails closed on unexpected privilege or RLS drift.

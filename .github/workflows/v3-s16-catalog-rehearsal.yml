@@ -23,6 +23,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: s16-catalog-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -95,6 +96,50 @@ jobs:
           else
             bash .github/scripts/v3-s16-catalog-rehearsal.sh
           fi
+      - name: Cross-certify exact-SHA Publication using independently executed networkless PG17.11
+        if: matrix.baseline != 'current-main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V3_CANDIDATE_SHA: ${{ env.V3_S16_SOURCE_SHA }}
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$V3_S16_SOURCE_SHA" ]] || { echo 'Publication source SHA mismatch' >&2; exit 1; }
+          # This queries only GitHub Actions artifacts; it never connects to any Supabase endpoint.
+          s14_run="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${V3_S16_SOURCE_SHA}&per_page=100" --jq '.workflow_runs | map(select(.name == "V3 S14 Archive forward-effects recovery local proof")) | sort_by(.created_at) | last | .id // empty')"
+          [[ "$s14_run" =~ ^[0-9]+$ ]] || { echo 'No exact-source PG17.11 S14 run' >&2; exit 1; }
+          mkdir -p "$RUNNER_TEMP/s16-pg17-publication"
+          # The PG17.11 job emits its artifact before the separate local-stack job
+          # finishes; retry only this bounded GitHub download, never database traffic.
+          fetched=0
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            if gh run download "$s14_run" -R "$GITHUB_REPOSITORY" \
+              -n "s06-hosted-observed-${V3_S16_SOURCE_SHA}" \
+              -D "$RUNNER_TEMP/s16-pg17-publication" >/dev/null 2>&1; then
+              fetched=1; break
+            fi
+            sleep 10
+          done
+          [[ "$fetched" == 1 ]] || { echo 'Exact-SHA executed PG17.11 artifact unavailable' >&2; exit 1; }
+          execution="$RUNNER_TEMP/s16-pg17-publication/s16-publication-domain-execution.json"
+          [[ -s "$execution" ]] || { echo 'Publication execution evidence missing' >&2; exit 1; }
+          cp v3-release-preflight/static/s16-mutation-authority.json "$RUNNER_TEMP/s16-original.json"
+          V3_S16_PUBLICATION_EXECUTION_MANIFEST="$execution" \
+            bun run scripts/check-v3-s16-mutation-authority.ts \
+              --catalog=v3-release-preflight/s16/catalog-evidence.json > "$RUNNER_TEMP/s16-certified.json"
+          node --input-type=module <<'VERIFY'
+          import fs from 'node:fs';
+          const prior = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/s16-original.json','utf8'));
+          const final = JSON.parse(fs.readFileSync('v3-release-preflight/static/s16-mutation-authority.json','utf8'));
+          const cert = JSON.parse(fs.readFileSync('v3-release-evidence/s16-publication-certificate.json','utf8'));
+          if (prior.candidateSha !== final.candidateSha || final.candidateSha !== cert.candidateSha ||
+              cert.status !== 'PASS' || final.s16Passed !== false ||
+              final.findings.length !== prior.findings.length - 1 ||
+              final.findings.some(f => f.domain === 'publication')) {
+            throw Error('S16 Publication did not clear exactly one evidence finding at exact SHA');
+          }
+          console.log('PASS: Publication certificate attached; residual hard blockers:', final.riskTotals.hard_blocker);
+          VERIFY
+          cp "$execution" v3-release-preflight/s16/publication-execution.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -103,6 +148,7 @@ jobs:
             v3-release-preflight/s16/
             v3-release-preflight/static/s16-mutation-authority.json
             v3-release-evidence/s16-mutation-authority.json
+            v3-release-evidence/s16-publication-certificate.json
           if-no-files-found: warn
       - name: Stop only the owned local stack
         if: always()

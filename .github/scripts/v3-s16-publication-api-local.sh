@@ -311,5 +311,9 @@ after_publication_probe="$(operator_state_digest recovery_publication_api_probe)
 # service_role EXECUTE grant; revoked table DML must not prevent invocation.
 pub_client_sql -c 'begin; set local role service_role; select public.studio2_publish_due_show_publications(); rollback;' > /tmp/s16-due-publication.log
 [[ "$(operator_state_digest recovery_publication_api_probe)" == "$after_publication_probe" ]] || { echo 'Due-publication probe changed durable fixture state' >&2; exit 1; }
+# Capture independently executed, exact-SHA PostgreSQL 17.11 Publication authority
+# before the synthetic probe is destroyed. A failed certificate fails the rehearsal;
+# no fixed PASS fields are accepted without live catalog, role and receipt checks.
+S16_PUBLICATION_DOCKER_CONTAINER="$cid" node scripts/v3-s16-publication-execution-evidence.mjs
 operator_sql -c 'drop database recovery_publication_api_probe;'
 echo 'PASS: authenticated canonical publication, replay and service-role due operation retain owner authority after API DML cutover'

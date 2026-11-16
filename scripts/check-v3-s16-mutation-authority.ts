@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSy
 import { extname, join, relative, resolve } from "node:path";
 import { buildV3S16MutationAuthorityReport, isV3S16UnsafeStandaloneIdentityWriter, scanV3S16StaticAuthority, V3_S16_CRITICAL_DOMAINS, V3_S16_POLICY_VERSION, type V3S16CatalogEvidence, type V3S16SourceFile } from "../src/lib/v3-s16-mutation-authority";
 import { classifyV3S16ReleaseAuthority } from "../src/lib/v3-s16-release-risk";
+import { certifyS16Publication } from "./v3-s16-publication-certificate.mjs";
 
 const SOURCE_ROOTS = ["src", "supabase/migrations", "supabase/functions", "workers", "functions", "scripts"];
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".sql"]);
@@ -48,6 +49,31 @@ const catalog = catalogFile && existsSync(catalogFile)
   ? JSON.parse(readFileSync(catalogFile, "utf8")) as V3S16CatalogEvidence
   : null;
 
+// A Publication certificate is not a new allowlist. Re-audit the UNMODIFIED
+// full-source catalog first; its only Publication defect must be missing PG
+// execution evidence. Then bind executed PG17.11 proof to this exact SHA.
+const publicationEvidenceFile = process.env.V3_S16_PUBLICATION_EXECUTION_MANIFEST?.trim() || null;
+let publicationCertificate: ReturnType<typeof certifyS16Publication> | null = null;
+let originalFindings: ReturnType<typeof buildV3S16MutationAuthorityReport>["findings"] | null = null;
+if (publicationEvidenceFile) {
+  if (staticOnly || !catalog || catalog.negativeTests ||
+      !existsSync(publicationEvidenceFile)) {
+    throw new Error("Publication domain certificate requires original unmodified S16 catalog");
+  }
+  const original = buildV3S16MutationAuthorityReport({ candidateSha: sha, files, catalog });
+  const originalAssessment = classifyV3S16ReleaseAuthority({
+    baseFindings: original.findings, candidateSha: sha, domains: original.domains,
+    files, catalog, staticOnly: false,
+  });
+  originalFindings = originalAssessment.findings;
+  publicationCertificate = certifyS16Publication({
+    ...original, catalogAuditPassed: original.catalogAuditPassed,
+    s16Passed: originalAssessment.s16Passed, findings: originalFindings,
+    riskTotals: originalAssessment.riskTotals,
+  }, JSON.parse(readFileSync(publicationEvidenceFile, "utf8")), sha);
+  catalog.negativeTests = { candidateSha: sha, passed: true, domains: ["publication"] };
+}
+
 const baseReport = buildV3S16MutationAuthorityReport({ candidateSha: sha, files, catalog });
 const baseFindings = staticOnly
   ? scanV3S16StaticAuthority(files, V3_S16_CRITICAL_DOMAINS)
@@ -68,6 +94,17 @@ const report = {
   riskTotals: assessment.riskTotals,
   ...(staticOnly ? { catalogStatus: "not_evaluated_in_static_mode" as const } : {}),
 };
+
+if (publicationCertificate && originalFindings) {
+  const missing = (finding: {domain: string; kind: string}) =>
+    finding.domain === "publication" && finding.kind === "database_execution_evidence_missing";
+  const retained = originalFindings.filter((finding) => !missing(finding));
+  if (originalFindings.length !== report.findings.length + 1 ||
+      JSON.stringify(retained) !== JSON.stringify(report.findings) ||
+      report.findings.some((finding) => finding.domain === "publication")) {
+    throw new Error("Publication re-audit altered unrelated findings or did not clear exactly one executed proof");
+  }
+}
 
 const directory = process.env.V3_PREFLIGHT_DIR ?? "v3-release-preflight/static";
 mkdirSync(directory, { recursive: true });
@@ -93,6 +130,9 @@ if (!staticOnly && catalog) {
     riskTotals: report.riskTotals,
   };
   writeFileSync(join(evidenceDirectory, "s16-mutation-authority.json"), JSON.stringify(evidence, null, 2) + "\n");
+  if (publicationCertificate) {
+    writeFileSync(join(evidenceDirectory, "s16-publication-certificate.json"), JSON.stringify(publicationCertificate, null, 2) + "\n");
+  }
 }
 
 if (process.argv.includes("--enforce") && !report.s16Passed) process.exitCode = 1;
