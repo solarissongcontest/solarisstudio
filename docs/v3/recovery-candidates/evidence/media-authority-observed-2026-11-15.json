@@ -1,0 +1,261 @@
+{
+  "projectRef": "dkxmnvekiopyesuzggeu",
+  "applicationRowsRead": false,
+  "rawFunctionBodiesExported": false,
+  "observations": [
+    {
+      "evidence": {
+        "tables": [
+          {
+            "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+            "rls": true,
+            "owner": "postgres",
+            "exists": true,
+            "identity": "public.studio2_upload_authorizations",
+            "postgresSelect": true
+          },
+          {
+            "acl": "{supabase_storage_admin=a*r*w*d*D*x*t*m*/supabase_storage_admin,service_role=arwdDxtm/supabase_storage_admin,authenticated=arwd/supabase_storage_admin,anon=arwd/supabase_storage_admin,postgres=a*r*w*d*D*x*t*m*/supabase_storage_admin}",
+            "rls": true,
+            "owner": "supabase_storage_admin",
+            "exists": true,
+            "identity": "storage.buckets",
+            "postgresSelect": true
+          },
+          {
+            "acl": "{supabase_storage_admin=a*r*w*d*D*x*t*m*/supabase_storage_admin,service_role=arwdDxtm/supabase_storage_admin,authenticated=arwd/supabase_storage_admin,anon=arwd/supabase_storage_admin,postgres=a*r*w*d*D*x*t*m*/supabase_storage_admin}",
+            "rls": true,
+            "owner": "supabase_storage_admin",
+            "exists": true,
+            "identity": "storage.objects",
+            "postgresSelect": true
+          }
+        ],
+        "readOnly": "on",
+        "functions": [
+          {
+            "acl": "{postgres=X/postgres}",
+            "owner": "postgres",
+            "config": [
+              "search_path=pg_catalog, public, private"
+            ],
+            "exists": true,
+            "sha256": "1d5951ce09b821c7b8184e3e9a93733c30f1dec5120694449c2ee3a3a93dfc4f",
+            "identity": "private.studio2_can_upload_country_media(uuid,uuid)",
+            "securityDefiner": true
+          },
+          {
+            "acl": null,
+            "owner": null,
+            "config": null,
+            "exists": false,
+            "sha256": null,
+            "identity": "public.v3_finalize_media_upload(uuid,text,uuid,uuid,text,text,jsonb,text)",
+            "securityDefiner": null
+          },
+          {
+            "acl": null,
+            "owner": null,
+            "config": null,
+            "exists": false,
+            "sha256": null,
+            "identity": "public.v3_read_media_finalization_receipt(uuid,text,uuid,uuid)",
+            "securityDefiner": null
+          }
+        ],
+        "observedAt": "2026-11-15T20:49:55.656506+00:00",
+        "serverVersionNum": "170011",
+        "applicationRowsRead": false,
+        "storagePostgresUsage": true
+      }
+    },
+    {
+      "evidence": {
+        "roles": [
+          {
+            "name": "postgres",
+            "login": true,
+            "inherit": true,
+            "bypassRls": true,
+            "superuser": false,
+            "createRole": true
+          },
+          {
+            "name": "supabase_storage_admin",
+            "login": true,
+            "inherit": false,
+            "bypassRls": false,
+            "superuser": false,
+            "createRole": true
+          }
+        ],
+        "readOnly": "on",
+        "observedAt": "2026-11-15T20:50:49.865707+00:00",
+        "memberships": [
+          {
+            "set": true,
+            "role": "anon",
+            "admin": true,
+            "member": "postgres",
+            "inherit": true
+          },
+          {
+            "set": true,
+            "role": "authenticated",
+            "admin": true,
+            "member": "postgres",
+            "inherit": true
+          },
+          {
+            "set": true,
+            "role": "authenticator",
+            "admin": true,
+            "member": "postgres",
+            "inherit": true
+          },
+          {
+            "set": true,
+            "role": "authenticator",
+            "admin": false,
+            "member": "supabase_storage_admin",
+            "inherit": false
+          },
+          {
+            "set": true,
+            "role": "pg_create_subscription",
+            "admin": true,
+            "member": "postgres",
+            "inherit": true
+          },
+          {
+            "set": true,
+            "role": "pg_monitor",
+            "admin": true,
+            "member": "postgres",
+            "inherit": true
+          },
+          {
+            "set": true,
+            "role": "pg_read_all_data",
+            "admin": true,
+            "member": "postgres",
+            "inherit": true
+          },
+          {
+            "set": true,
+            "role": "pg_signal_backend",
+            "admin": true,
+            "member": "postgres",
+            "inherit": true
+          },
+          {
+            "set": true,
+            "role": "service_role",
+            "admin": true,
+            "member": "postgres",
+            "inherit": true
+          },
+          {
+            "set": true,
+            "role": "supabase_privileged_role",
+            "admin": false,
+            "member": "postgres",
+            "inherit": true
+          }
+        ],
+        "postgresStorageSet": false,
+        "postgresStorageUsage": false
+      }
+    },
+    {
+      "evidence": {
+        "policies": [
+          {
+            "name": "country font owner delete",
+            "roles": null,
+            "exists": false,
+            "command": null,
+            "checkMd5": "d41d8cd98f00b204e9800998ecf8427e",
+            "usingMd5": "d41d8cd98f00b204e9800998ecf8427e",
+            "permissive": null
+          },
+          {
+            "name": "country fonts owner delete",
+            "roles": [
+              "16485"
+            ],
+            "exists": true,
+            "command": "d",
+            "checkMd5": "d41d8cd98f00b204e9800998ecf8427e",
+            "usingMd5": "bafa27d70dfeb33101d0bad493dd2a6d",
+            "permissive": true
+          },
+          {
+            "name": "country media bucket owner delete",
+            "roles": [
+              "16485"
+            ],
+            "exists": true,
+            "command": "d",
+            "checkMd5": "d41d8cd98f00b204e9800998ecf8427e",
+            "usingMd5": "38b9d3ca0746f80b33cc05b42bc67aee",
+            "permissive": true
+          },
+          {
+            "name": "country media owner delete",
+            "roles": null,
+            "exists": false,
+            "command": null,
+            "checkMd5": "d41d8cd98f00b204e9800998ecf8427e",
+            "usingMd5": "d41d8cd98f00b204e9800998ecf8427e",
+            "permissive": null
+          },
+          {
+            "name": "edition artwork organizer delete",
+            "roles": null,
+            "exists": false,
+            "command": null,
+            "checkMd5": "d41d8cd98f00b204e9800998ecf8427e",
+            "usingMd5": "d41d8cd98f00b204e9800998ecf8427e",
+            "permissive": null
+          },
+          {
+            "name": "organizers delete edition artwork",
+            "roles": [
+              "16485"
+            ],
+            "exists": true,
+            "command": "d",
+            "checkMd5": "d41d8cd98f00b204e9800998ecf8427e",
+            "usingMd5": "87de0ce1479ea4ed867619a7e3e1233d",
+            "permissive": true
+          }
+        ],
+        "readOnly": "on",
+        "observedAt": "2026-11-15T20:52:24.974705+00:00"
+      }
+    },
+    {
+      "policies": [
+        {
+          "name": "country fonts owner delete",
+          "roles": [
+            "authenticated"
+          ]
+        },
+        {
+          "name": "country media bucket owner delete",
+          "roles": [
+            "authenticated"
+          ]
+        },
+        {
+          "name": "organizers delete edition artwork",
+          "roles": [
+            "authenticated"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -289,6 +289,7 @@ echo 'PASS: post-S16 Results publication reads and canonical CAS still work'
 source .github/scripts/v3-s16-publication-api-local.sh
 echo 'PASS: post-S16 canonical publication command and scheduled owner RPC remain usable'
 echo 'PASS: 42 actual API-role TRUNCATE attempts denied across fourteen launch tables'
+source .github/scripts/v3-media-recovery-local.sh
 echo 'PASS: entire ordered recovery executes as observed NONSUPERUSER postgres with real role/schema privileges'
 # A restore of synthetic local data proves this procedure, NOT availability,
 # freshness, retention or restorability of the separate real production backup.
@@ -336,6 +337,7 @@ const files=[
  '/tmp/results-operation-engine.sql','/tmp/results-reviewed-cas.sql',
  'supabase/migrations/20261114194701_v3_results_operation_tables_owner_only.sql',
  'docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql',
+ 'supabase/migrations/20261115204228_v3_media_finalization_authority.sql',
 ];
 const digest=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 fs.mkdirSync('ordered-recovery-sql',{recursive:true});
@@ -349,7 +351,8 @@ fs.writeFileSync('observed-owner-recovery-proof.json',JSON.stringify({
  sourceSha:sha,postgresVersion:'17.11',network:'none',portsPublished:false,
  observedProductionProject:'dkxmnvekiopyesuzggeu',
  recoveryOperator:{role:'postgres',superuser:false,bypassRls:true},
- observedRoleAttributes:16,observedSchemas:5,
+ observedRoleAttributes:16,observedAdditionalStorageRole:1,observedSchemas:5,
+ mediaDatabaseAuthorityVerified:true,mediaStorageSelectedMetadataSourceOnly:true,mediaStorageServiceVerified:false,mediaStorageOwnerPolicyCutoverVerified:true,
  orderedStages,
  interruptedRollback:true,safeRetry:true,duplicateRefused:true,
  schemaAndSyntheticRowsPreserved:true,separateLocalRestoreVerified:true,
