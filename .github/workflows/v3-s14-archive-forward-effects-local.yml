@@ -51,6 +51,11 @@ on:
       - ".github/tests/v3-result-authority-recovery.sql"
       - "docs/v3/recovery-candidates/evidence/result-authority-prerequisites-observed-2026-11-14.json"
       - ".github/scripts/v3-observed-owner-recovery-local.sh"
+      - ".github/scripts/v3-s16-publication-api-local.sh"
+      - ".github/tests/v3-s16-publication-archive-guard-authority.sql"
+      - "scripts/v3-s16-publication-execution-manifest.mjs"
+      - "scripts/v3-s16-publication-execution-manifest.test.mjs"
+      - "scripts/collect-v3-s16-catalog-evidence.ts"
       - ".github/scripts/v3-auth-jury-authority-local.sh"
       - ".github/tests/v3-jury-governed-cutover-*.sql"
       - "scripts/stage-v3-signup-jury-prerequisites-local.mjs"
@@ -317,6 +322,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+      - name: Refuse false Publication execution certificates
+        run: node --test scripts/v3-s16-publication-execution-manifest.test.mjs
       - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
         run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
       - name: Verify bounded catalog export and drift refusals
@@ -981,6 +991,7 @@ jobs:
           name: s06-hosted-observed-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             observed-owner-recovery-proof.json
+            v3-release-preflight/s16/publication-execution/
             ordered-recovery-sql/
             s06-archive-catalog-proof.json
             s06-parent-catalog-proof.json
