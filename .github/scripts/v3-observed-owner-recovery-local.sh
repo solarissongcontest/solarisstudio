@@ -296,6 +296,12 @@ echo 'PASS: existing canonical Televote reconciliation source restored only in s
 # actual trigger identities and effective definer RPCs before revocation.
 # Never run this command against hosted or a different database.
 operator_apply supabase/migrations/20261116193000_v3_s16_shared_guard_reviewed_api_dml_retirement.sql
+# Country-account authority is a separate canonical owner boundary. Do not
+# alter the signup/claim/HoD SECURITY DEFINER functions, owner role, or guard.
+# Interruption and duplicate acceptance both fail closed via operator_apply.
+operator_apply supabase/migrations/20261116211500_v3_s16_country_account_api_dml_retirement.sql
+operator_sql -f - < .github/tests/v3-s16-country-account-api-dml.sql
+echo 'PASS: S16 country account 12 API DML denials and owner signup/claim/HoD authority'
 # The postgres operator remains distinct from the authenticator/API principals.
 # Exercise all 24 direct SQL statements under forged recovery GUCs; PostgreSQL
 # must deny at table ACL boundary even when session markers are attacker-set.
@@ -468,6 +474,7 @@ const files=[
  'docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql',
  'supabase/migrations/20261103220000_v3_s14_atomic_televote_recovery.sql',
  'supabase/migrations/20261116193000_v3_s16_shared_guard_reviewed_api_dml_retirement.sql',
+ 'supabase/migrations/20261116211500_v3_s16_country_account_api_dml_retirement.sql',
  'supabase/migrations/20261115204228_v3_media_finalization_authority.sql',
 ];
 const digest=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
