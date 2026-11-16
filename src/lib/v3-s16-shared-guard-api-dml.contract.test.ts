@@ -43,6 +43,21 @@ describe("S16 shared platform guard API-role authority cutover", () => {
     expect(migration).not.toContain("revoke insert,update,delete on table public.country_accounts");
   });
 
+  it("recovers the existing S14 reconciliation command before applying this ACL cutover", () => {
+    const donor = "supabase/migrations/20261103220000_v3_s14_atomic_televote_recovery.sql";
+    const cutover = "supabase/migrations/20261116193000_v3_s16_shared_guard_reviewed_api_dml_retirement.sql";
+    const sql = readFileSync(donor, "utf8");
+    expect(sql).toContain("create or replace function public.v3_reconcile_published_televote(");
+    expect(sql).toContain("security definer");
+    expect(sql).toContain("grant execute on function public.v3_reconcile_published_televote(text,uuid)");
+    expect(rehearsal).toContain("to_regprocedure('public.v3_reconcile_published_televote(text,uuid)') is not null");
+    expect(rehearsal).toContain("migration_key='v3.results.atomic-televote-recovery'");
+    expect(rehearsal).toContain("operator_apply " + donor);
+    expect(rehearsal.indexOf("operator_apply " + donor)).toBeLessThan(
+      rehearsal.indexOf("operator_apply " + cutover)
+    );
+  });
+
   it("executes 24 SQL ACL negatives even with adversarial recovery markers", () => {
     for (const role of ["anon", "authenticated", "service_role"])
       expect(execution).toContain("set local role " + role);
