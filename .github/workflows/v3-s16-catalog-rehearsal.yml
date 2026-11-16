@@ -10,6 +10,16 @@ on:
       - ".github/scripts/v3-start-disposable-supabase.sh"
       - ".github/scripts/prepare-archive-local-config.py"
       - ".github/workflows/v3-s16-catalog-rehearsal.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/lib/v3-s16*"
+      - "scripts/*v3-s16*"
+      - "supabase/migrations/**"
+      - ".github/scripts/v3-s16-catalog-rehearsal.sh"
+      - ".github/scripts/v3-start-disposable-supabase.sh"
+      - ".github/scripts/prepare-archive-local-config.py"
+      - ".github/workflows/v3-s16-catalog-rehearsal.yml"
   workflow_dispatch:
 permissions:
   contents: read
@@ -24,7 +34,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        baseline: [candidate, current-main]
+        # PR: audit candidate and independently replay current main.
+        # Push/dispatch: run ONE immutable exact-main SHA, never two identical
+        # local stacks. This is evidence-generation correctness, not S16 PASS.
+        baseline: ${{ fromJSON(github.event_name == 'pull_request' && '["candidate","current-main"]' || '["exact-main"]') }}
     steps:
       - uses: actions/checkout@v4
         with:
