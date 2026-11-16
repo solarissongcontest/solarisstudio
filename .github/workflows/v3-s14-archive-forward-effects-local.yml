@@ -51,6 +51,9 @@ on:
       - ".github/tests/v3-result-authority-recovery.sql"
       - "docs/v3/recovery-candidates/evidence/result-authority-prerequisites-observed-2026-11-14.json"
       - ".github/scripts/v3-observed-owner-recovery-local.sh"
+      - ".github/scripts/v3-s16-publication-api-local.sh"
+      - ".github/tests/v3-s16-publication-archive-guard-authority.sql"
+      - "scripts/v3-s16-publication-execution-evidence.mjs"
       - ".github/scripts/v3-auth-jury-authority-local.sh"
       - ".github/tests/v3-jury-governed-cutover-*.sql"
       - "scripts/stage-v3-signup-jury-prerequisites-local.mjs"
@@ -981,6 +984,7 @@ jobs:
           name: s06-hosted-observed-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             observed-owner-recovery-proof.json
+            s16-publication-domain-execution.json
             ordered-recovery-sql/
             s06-archive-catalog-proof.json
             s06-parent-catalog-proof.json
