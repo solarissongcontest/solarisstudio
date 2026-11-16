@@ -1,4 +1,4 @@
-export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-7" as const;
+export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-8" as const;
 
 export type V3S16Risk = "integrity_critical" | "security_critical";
 
@@ -25,6 +25,7 @@ export type V3S16CatalogTableEvidence = {
   dmlRoles: readonly string[];
   columnDmlRoles?: readonly string[];
   writeTriggers?: readonly string[];
+  triggerDetails?: readonly { name: string; enabled: string; type: number; function: string; definition: string }[];
   updatableViews?: readonly string[];
 };
 
@@ -64,6 +65,7 @@ export type V3S16FindingKind =
   | "unexpected_column_dml_role"
   | "rls_not_enabled"
   | "unexpected_write_trigger"
+  | "required_write_trigger_missing"
   | "unexpected_updatable_view"
   | "canonical_function_missing"
   | "canonical_function_not_security_definer"
@@ -334,6 +336,10 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "v3_reject_publication_execution_mutation",
       "v3_validate_publication_projection_from_control",
       "v3_emit_scheduled_publication_event",
+      // Exactly this PostgreSQL 17 Archive denial trigger, never arbitrary triggers.
+      // A matching name alone is NOT sufficient: S16 checks attachment, tgtype,
+      // function identity, definer owner, search_path and effective EXECUTE ACL.
+      "v3_guard_archived_edition_workflow_write",
     ],
   },
   {
@@ -440,6 +446,37 @@ export function scanV3S16StaticAuthority(
   return findings;
 }
 
+/** A name-only allowlist is not proof of Archive guard authority.
+ * This contract is deliberately limited to the Publication control relation.
+ * The S16 PG17 SQL rehearsal also attempts real INSERT/UPDATE/DELETE on a
+ * synthetic archived edition and requires SQLSTATE 42501 from this guard.
+ */
+export function verifiedS16PublicationArchiveGuard(
+  catalog: V3S16CatalogEvidence,
+  table: V3S16CatalogTableEvidence,
+): boolean {
+  if (table.table !== "public.studio2_show_publication_controls") return false;
+  const triggerName = "v3_guard_archived_edition_workflow_write";
+  const identity = "private.v3_guard_archived_edition_workflow_write()";
+  const matches = table.triggerDetails?.filter(trigger => trigger.name === triggerName) ?? [];
+  const functions = catalog.functions.filter(fn => fn.identity === identity);
+  if (matches.length !== 1 || functions.length !== 1) return false;
+  const trigger = matches[0];
+  const fn = functions[0];
+  return trigger.enabled === "O" &&
+    trigger.type === 31 && // PostgreSQL BEFORE ROW INSERT | UPDATE | DELETE
+    trigger.function === identity &&
+    /^CREATE TRIGGER v3_guard_archived_edition_workflow_write BEFORE /i.test(trigger.definition) &&
+    /\\bINSERT\\b/i.test(trigger.definition) &&
+    /\\bUPDATE\\b/i.test(trigger.definition) &&
+    /\\bDELETE\\b/i.test(trigger.definition) &&
+    /ON public\\.studio2_show_publication_controls FOR EACH ROW EXECUTE FUNCTION private\\.v3_guard_archived_edition_workflow_write\\(\\)/i.test(trigger.definition) &&
+    fn.owner === "postgres" &&
+    fn.securityDefiner === true &&
+    fn.searchPath === "pg_catalog, public, private" &&
+    !fn.executeRoles.some(role => ["public", "anon", "authenticated", "service_role"].includes(role.toLowerCase()));
+}
+
 export function auditV3S16CatalogAuthority(
   catalog: V3S16CatalogEvidence | null,
   candidateSha: string,
@@ -484,9 +521,22 @@ export function auditV3S16CatalogAuthority(
       const columnRoles = (evidence.columnDmlRoles ?? []).filter((role) => directDmlRoles.has(role.toLowerCase()));
       if (columnRoles.length) findings.push({ domain: domain.id, kind: "unexpected_column_dml_role", subject: table, detail: `Column-level DML remains granted to ${columnRoles.join(", ")}.`, releaseRisk: "hard_blocker", ownerBoundary });
       if (evidence.rlsEnabled === false && (table.startsWith("public.") || table.startsWith("televoting."))) findings.push({ domain: domain.id, kind: "rls_not_enabled", subject: table, detail: "RLS is disabled on an API-visible critical table.", releaseRisk: "hard_blocker", ownerBoundary });
+      if (domain.id === "publication" && table === "public.studio2_show_publication_controls" &&
+          !(evidence.writeTriggers ?? []).includes("v3_guard_archived_edition_workflow_write")) {
+        findings.push({ domain: domain.id, kind: "required_write_trigger_missing",
+          subject: "v3_guard_archived_edition_workflow_write",
+          detail: "Publication Archive denial guard is absent or disabled on its canonical control table.",
+          releaseRisk: "hard_blocker", ownerBoundary });
+      }
       for (const trigger of evidence.writeTriggers ?? []) {
-        if (sanctionedTriggers.has(trigger)) continue;
-        findings.push({ domain: domain.id, kind: "unexpected_write_trigger", subject: trigger, detail: `Unclassified trigger ${trigger} requires effect review; attachment alone is not proof of unauthorized mutation.`, releaseRisk: "hard_blocker", ownerBoundary });
+        if (sanctionedTriggers.has(trigger) &&
+            (domain.id !== "publication" || trigger !== "v3_guard_archived_edition_workflow_write" ||
+             verifiedS16PublicationArchiveGuard(catalog, evidence))) continue;
+        findings.push({ domain: domain.id, kind: "unexpected_write_trigger", subject: trigger,
+          detail: trigger === "v3_guard_archived_edition_workflow_write"
+            ? "Publication Archive guard identity, BEFORE ROW events, function owner, pinned path or effective EXECUTE privileges drift; a trigger name cannot certify its effect."
+            : `Unclassified trigger ${trigger} requires effect review; attachment alone is not proof of unauthorized mutation.`,
+          releaseRisk: "hard_blocker", ownerBoundary });
       }
       for (const view of evidence.updatableViews ?? []) findings.push({ domain: domain.id, kind: "unexpected_updatable_view", subject: view, detail: `Updatable view ${view} exposes an alternative write path to critical state.`, releaseRisk: "hard_blocker", ownerBoundary });
     }
