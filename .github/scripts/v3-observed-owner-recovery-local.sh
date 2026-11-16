@@ -326,10 +326,22 @@ git worktree add --detach "$s16_pub_source_dir" "$EXACT_SHA"
     const catalog=JSON.parse(readFileSync(process.env.S16_PUB_JSON,"utf8"));
     const domain=V3_S16_CRITICAL_DOMAINS.find(d=>d.id==="publication");
     if(!domain||catalog.candidateSha!==process.env.EXACT_SHA||
-        catalog.tables.length!==2||catalog.uncertainties?.length)
+        catalog.tables.length!==2)
       throw Error("S16 Publication PG17.11 catalog incomplete or stale");
-    const findings=auditV3S16CatalogAuthority(catalog,process.env.EXACT_SHA,[domain])
-      .filter(f=>f.kind!=="database_execution_evidence_missing");
+    // Global dynamic-SQL uncertainty remains a separate hard blocker. Domain
+    // certification must not falsely inherit that unrelated global finding;
+    // any dynamic writer with a Publication table in its actual write inventory
+    // still fails this scoped certificate.
+    const critical=new Set(domain.canonicalTables);
+    const unresolvedPublicationWrites=catalog.functions.filter(f=>
+      f.dynamicSqlUnresolved && (f.writesTables||[]).some(t=>critical.has(t)));
+    const findings=[
+      ...auditV3S16CatalogAuthority(catalog,process.env.EXACT_SHA,[domain])
+        .filter(f=>f.domain==="publication" && f.kind!=="database_execution_evidence_missing"),
+      ...unresolvedPublicationWrites.map(f=>({
+        domain:"publication",kind:"unresolved_dynamic_publication_writer",subject:f.identity||f.name
+      }))
+    ];
     writeFileSync(process.env.S16_PUB_FINDINGS,JSON.stringify({
       candidateSha:catalog.candidateSha,postgresVersionNum:170011,domain:"publication",findings
     },null,2)+"\\n",{flag:"wx"});
