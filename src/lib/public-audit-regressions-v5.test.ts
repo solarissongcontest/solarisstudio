@@ -8,11 +8,12 @@ describe("public audit regressions after Organisation OS V5 hardening", () => {
   it("keeps account text actions large enough to be real touch targets", () => {
     const auth = source("src/routes/auth/index.tsx");
     expect(auth).toContain(
-      'className="mt-3 inline-flex min-h-10 w-full items-center justify-center',
+      'className="mt-3 inline-flex min-h-11 w-full items-center justify-center',
     );
     expect(auth).toContain(
-      'className="mt-4 inline-flex min-h-10 w-full items-center justify-center',
+      'className="mt-4 inline-flex min-h-11 w-full items-center justify-center',
     );
+    expect(auth).toContain('className="bg-aurora min-h-11 w-full rounded-xl');
   });
 
   it("keeps Rules search controls named and physically tappable", () => {
