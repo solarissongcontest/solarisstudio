@@ -447,7 +447,7 @@ function EvidencePanel({ detail, refresh }: { detail: CaseDetail; refresh: () =>
     mutationFn: () => {
       const iso = localDateTimeToIso(retentionDate);
       if (!iso) throw new Error("Choose a valid future retention date.");
-      return setCaseEvidenceRetention(detail.case.id, iso, retentionReason);
+      return setCaseEvidenceRetention(detail.case.id, iso, retentionReason, detail.case.version);
     },
     onSuccess: async () => {
       setRetentionReason("");
