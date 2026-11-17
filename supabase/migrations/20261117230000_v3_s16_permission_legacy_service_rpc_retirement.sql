@@ -3,8 +3,9 @@ set local lock_timeout = '5s';
 set local statement_timeout = '30s';
 
 -- P16: the Permission Engine R3 preview -> second-operator approval -> CAS
--- command owns capability/role mutations. Four earlier service-only primitives
--- are redundant remote mutation authorities, not required by that command.
+-- command owns capability/role mutations. Two service-only role assignment primitives
+-- are redundant remote mutation authorities. Preserve the capability grant/
+-- revoke service compatibility RPCs used by existing positive PG17 workflows.
 -- This is source-controlled, forward-only, and never runs against hosted CI.
 do $preflight$
 declare
@@ -35,8 +36,6 @@ begin
   end if;
 
   foreach v_name in array array[
-    'public.studio2_grant_capability(uuid,text,uuid,timestamptz)',
-    'public.studio2_revoke_capability(uuid,text,uuid)',
     'public.studio2_assign_access_role(uuid,text,uuid,timestamptz)',
     'public.studio2_revoke_access_role(uuid,text,uuid)'
   ] loop
@@ -58,12 +57,20 @@ begin
     v_targets := array_append(v_targets,v_oid);
   end loop;
 
+  -- Two capability service mutations are still explicitly required by the
+  -- existing positive local PostgreSQL grant/revoke/replay/permission-version
+  -- rehearsal; retiring them without a new governed service operation would
+  -- break the validated automation contract, not eliminate release risk.
+  if not has_function_privilege('service_role',
+      'public.studio2_grant_capability(uuid,text,uuid,timestamptz)','EXECUTE')
+     or not has_function_privilege('service_role',
+      'public.studio2_revoke_capability(uuid,text,uuid)','EXECUTE')
+  then raise exception 'Required service capability grant/revoke boundary drifted' using errcode='55000'; end if;
+
   -- The PL/pgSQL function body is not dependency-indexed by PostgreSQL's
   -- DROP RESTRICT. Refuse to retire any legacy RPC still called by another
   -- installed SQL function. This check complements the source caller audit.
   foreach v_call in array array[
-    'studio2_grant_capability',
-    'studio2_revoke_capability',
     'studio2_assign_access_role',
     'studio2_revoke_access_role'
   ] loop
@@ -83,11 +90,9 @@ $preflight$;
 select public.v3_register_migration_contract(
   'v3.permissions.legacy-service-mutation-retirement', 1,
   'forward_fix_only', false, null,
-  'Remove four obsolete service-role Permission Engine mutation RPCs after R3 approval/CAS and caller-dependency proof'
+  'Remove only obsolete service-role permission role mutation RPCs; preserve validated capability service grant/revoke and R3 approval/CAS'
 );
 
-drop function public.studio2_grant_capability(uuid,text,uuid,timestamptz) restrict;
-drop function public.studio2_revoke_capability(uuid,text,uuid) restrict;
 drop function public.studio2_assign_access_role(uuid,text,uuid,timestamptz) restrict;
 drop function public.studio2_revoke_access_role(uuid,text,uuid) restrict;
 
@@ -97,14 +102,16 @@ declare
     'public.studio2_apply_permission_change_r3(uuid,text,text,uuid,timestamptz,uuid,text,bigint,uuid)'
   );
 begin
-  if to_regprocedure('public.studio2_grant_capability(uuid,text,uuid,timestamptz)') is not null
-    or to_regprocedure('public.studio2_revoke_capability(uuid,text,uuid)') is not null
+  if to_regprocedure('public.studio2_grant_capability(uuid,text,uuid,timestamptz)') is null
+    or to_regprocedure('public.studio2_revoke_capability(uuid,text,uuid)') is null
     or to_regprocedure('public.studio2_assign_access_role(uuid,text,uuid,timestamptz)') is not null
     or to_regprocedure('public.studio2_revoke_access_role(uuid,text,uuid)') is not null
+    or not has_function_privilege('service_role','public.studio2_grant_capability(uuid,text,uuid,timestamptz)','EXECUTE')
+    or not has_function_privilege('service_role','public.studio2_revoke_capability(uuid,text,uuid)','EXECUTE')
     or v_r3 is null
     or not has_function_privilege('authenticated',v_r3,'EXECUTE')
   then
-    raise exception 'Legacy Permission Engine writer remains or R3 owner lost' using errcode='55000';
+    raise exception 'Legacy role writer remains, capability compatibility lost or R3 owner lost' using errcode='55000';
   end if;
 end
 $postflight$;
