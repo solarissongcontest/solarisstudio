@@ -27,6 +27,8 @@ describe("S16 P08 Jury window R2 single writer", () => {
     expect(cutover).toContain("drop function public.admin_set_jury_voting_status(uuid,text) restrict;");
     expect(cutover).not.toMatch(/drop function public\.admin_set_jury_voting_status[^;]*cascade/i);
     expect(cutover).toContain("on conflict (show_id) do update");
+    expect(cutover).not.toMatch(/\\b_show_id\\b|\\b_status\\b/);
+    expect(cutover).toContain("where id = p_show_id;");
     expect(cutover).toContain("update public.jury_voting_windows");
     expect(cutover).toContain("insert into public.jury_voting_windows");
     expect(cutover).toContain("studio2_jury_window_touch_edition_version");
