@@ -181,10 +181,29 @@ run_s14_stage_10_archive() {
     rm -f "$archive_delete_output"
     fail "service-role archived runtime deletion unexpectedly succeeded"
   fi
+  # Public API roles are now rejected before the Archive trigger at table ACL.
+  grep -Fq 'permission denied for table studio2_edition_runtime' "$archive_delete_output" || {
+    cat "$archive_delete_output" >&2
+    rm -f "$archive_delete_output"
+    fail "archived runtime service DML was not denied at table ACL"
+  }
+  rm -f "$archive_delete_output"
+
+  # Independently test the real canonical Archive trigger as postgres owner.
+  # A privileged SQL connection must not reverse/delete terminal history,
+  # even though it owns the table and can bypass the API privilege barrier.
+  archive_delete_output="$(mktemp)"
+  if psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c \
+    "delete from public.studio2_edition_runtime where edition_id='$EDITION_ID'::uuid;" \
+    >"$archive_delete_output" 2>&1; then
+    cat "$archive_delete_output" >&2
+    rm -f "$archive_delete_output"
+    fail "postgres owner bypassed the archived runtime DELETE guard"
+  fi
   grep -Fq 'Archived edition runtime is irreversible.' "$archive_delete_output" || {
     cat "$archive_delete_output" >&2
     rm -f "$archive_delete_output"
-    fail "archived runtime deletion did not fail through the canonical guard"
+    fail "owner archived runtime deletion did not reach the canonical guard"
   }
   rm -f "$archive_delete_output"
   [[ "$(db_scalar "select count(*) from public.studio2_edition_runtime where edition_id='$EDITION_ID'::uuid and state='archived';")" == "1" ]] || \
