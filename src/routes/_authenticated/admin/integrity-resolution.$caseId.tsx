@@ -22,6 +22,7 @@ import {
 import { RuleDecisionStrip } from "@/components/rules/RuleDecisionStrip";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { useV3IntegrityCaseCommand } from "@/lib/v3-integrity-case-command";
 
 export const Route = createFileRoute("/_authenticated/admin/integrity-resolution/$caseId")({
   head: () => ({
@@ -47,7 +48,7 @@ const SANCTION_LABELS = [
 ] as const;
 
 type CaseDetail = {
-  case: { id: string; public_code: string; summary: string; status: string; priority: string };
+  case: { id: string; version: number; public_code: string; summary: string; status: string; priority: string };
   findings: Array<{ id: string; outcome: string; summary: string; rationale: string; rule_ids: string[]; created_at: string }>;
 };
 
@@ -71,6 +72,7 @@ type Sanction = {
 
 type Appeal = {
   id: string;
+  version: number;
   sanction_id: string;
   grounds: string;
   submitted_via: string;
@@ -148,7 +150,7 @@ function IntegrityResolution() {
         <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(380px,.9fr)]">
           <div className="space-y-4">
             <ExistingSanctions sanctions={resolution.sanctions} />
-            <NewSanctionPanel caseId={caseId} caseCode={detail.case.public_code} findings={detail.findings} onSaved={refresh} />
+            <NewSanctionPanel caseId={caseId} caseVersion={detail.case.version} caseCode={detail.case.public_code} findings={detail.findings} onSaved={refresh} />
           </div>
           <div className="space-y-4">
             <AppealsPanel
@@ -189,7 +191,7 @@ function ExistingSanctions({ sanctions }: { sanctions: Sanction[] }) {
   );
 }
 
-function NewSanctionPanel({ caseId, caseCode, findings, onSaved }: { caseId: string; caseCode: string; findings: CaseDetail["findings"]; onSaved: () => Promise<void> }) {
+function NewSanctionPanel({ caseId, caseVersion, caseCode, findings, onSaved }: { caseId: string; caseVersion: number; caseCode: string; findings: CaseDetail["findings"]; onSaved: () => Promise<void> }) {
   const violationFindings = findings.filter((finding) => finding.outcome === "violation");
   const [findingId, setFindingId] = useState(violationFindings[0]?.id ?? "");
   const [typicalLevel, setTypicalLevel] = useState("");
@@ -201,21 +203,24 @@ function NewSanctionPanel({ caseId, caseCode, findings, onSaved }: { caseId: str
   const [rationale, setRationale] = useState("");
   const [visible, setVisible] = useState(true);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const sanctionCommand = useV3IntegrityCaseCommand();
 
   const mutation = useMutation({
-    mutationFn: () => rpc("admin_record_integrity_sanction", {
-      _case_id: caseId,
-      _finding_id: findingId,
-      _typical_level: typicalLevel ? Number(typicalLevel) : null,
-      _final_level: Number(finalLevel),
-      _target_type: targetType,
-      _target_reference: targetReference || null,
-      _aggravating_factors: csv(aggravating),
-      _mitigating_factors: csv(mitigating),
-      _rationale: rationale,
-      _visible_to_reporter: visible,
+    mutationFn: () => sanctionCommand.execute("studio2_integrity_record_sanction", {
+      p_case_id: caseId,
+      p_finding_id: findingId,
+      p_typical_level: typicalLevel ? Number(typicalLevel) : null,
+      p_final_level: Number(finalLevel),
+      p_target_type: targetType,
+      p_target_reference: targetReference || null,
+      p_aggravating_factors: csv(aggravating),
+      p_mitigating_factors: csv(mitigating),
+      p_rationale: rationale,
+      p_visible_to_reporter: visible,
+      p_expected_version: caseVersion,
     }),
     onSuccess: async () => {
+      sanctionCommand.clear();
       setReviewOpen(false);
       setRationale(""); setAggravating(""); setMitigating("");
       await onSaved();
@@ -282,22 +287,29 @@ function AppealsPanel({ appeals, sanctions, organizers, onChanged }: { appeals: 
   const [aggravating, setAggravating] = useState("");
   const [mitigating, setMitigating] = useState("");
   const [decisionReviewOpen, setDecisionReviewOpen] = useState(false);
+  const assignCommand = useV3IntegrityCaseCommand();
+  const decisionCommand = useV3IntegrityCaseCommand();
 
   const assign = useMutation({
-    mutationFn: () => rpc("admin_assign_integrity_appeal_reviewer", { _appeal_id: selected?.id, _user_id: reviewer }),
-    onSuccess: async () => { await onChanged(); toast.success("Fresh appeal reviewer assigned"); },
+    mutationFn: () => assignCommand.execute("studio2_integrity_assign_appeal_reviewer", {
+      p_appeal_id: selected?.id,
+      p_user_id: reviewer,
+      p_expected_version: selected?.version,
+    }),
+    onSuccess: async () => { assignCommand.clear(); await onChanged(); toast.success("Fresh appeal reviewer assigned"); },
     onError: errorToast,
   });
   const decide = useMutation({
-    mutationFn: () => rpc("admin_decide_integrity_appeal", {
-      _appeal_id: selected?.id,
-      _outcome: outcome,
-      _decision_rationale: rationale,
-      _replacement_level: ["reduced", "increased"].includes(outcome) ? Number(replacementLevel) : null,
-      _aggravating_factors: csv(aggravating),
-      _mitigating_factors: csv(mitigating),
+    mutationFn: () => decisionCommand.execute("studio2_integrity_resolve_appeal", {
+      p_appeal_id: selected?.id,
+      p_outcome: outcome,
+      p_decision_rationale: rationale,
+      p_replacement_level: ["reduced", "increased"].includes(outcome) ? Number(replacementLevel) : null,
+      p_aggravating_factors: csv(aggravating),
+      p_mitigating_factors: csv(mitigating),
+      p_expected_version: selected?.version,
     }),
-    onSuccess: async () => { setDecisionReviewOpen(false); setRationale(""); setReplacementLevel(""); await onChanged(); toast.success("Appeal decision recorded"); },
+    onSuccess: async () => { decisionCommand.clear(); setDecisionReviewOpen(false); setRationale(""); setReplacementLevel(""); await onChanged(); toast.success("Appeal decision recorded"); },
     onError: errorToast,
   });
 
