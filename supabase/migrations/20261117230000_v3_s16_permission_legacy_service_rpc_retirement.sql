@@ -62,15 +62,16 @@ begin
   -- DROP RESTRICT. Refuse to retire any legacy RPC still called by another
   -- installed SQL function. This check complements the source caller audit.
   foreach v_call in array array[
-    'public.studio2_grant_capability(',
-    'public.studio2_revoke_capability(',
-    'public.studio2_assign_access_role(',
-    'public.studio2_revoke_access_role('
+    'studio2_grant_capability',
+    'studio2_revoke_capability',
+    'studio2_assign_access_role',
+    'studio2_revoke_access_role'
   ] loop
     if exists(
       select 1 from pg_proc p
       where p.oid <> all(v_targets)
-        and strpos(p.prosrc, v_call)>0
+        -- Catch qualified/unqualified calls, including whitespace before '('.
+        and p.prosrc ~ ('(^|[^[:alnum:]_])' || v_call || '[[:space:]]*\\(')
     ) then
       raise exception 'SQL caller still depends on obsolete mutation RPC: %', v_call
         using errcode='55000';
