@@ -24,7 +24,10 @@ begin
     raise notice 'PASS: legacy eight-argument permission escalation RPC undefined';
   end;
 
-  if not has_function_privilege('authenticated',v_current,'EXECUTE')
+  if has_function_privilege('service_role','public.studio2_apply_permission_change(uuid,text,text,uuid,timestamptz,uuid,text,bigint)','EXECUTE')
+    or has_function_privilege('authenticated','public.studio2_apply_permission_change(uuid,text,text,uuid,timestamptz,uuid,text,bigint)','EXECUTE')
+    or has_function_privilege('anon','public.studio2_apply_permission_change(uuid,text,text,uuid,timestamptz,uuid,text,bigint)','EXECUTE')
+    or not has_function_privilege('authenticated',v_current,'EXECUTE')
     or has_function_privilege('anon',v_current,'EXECUTE')
     or (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
       where n.nspname='public' and p.proname='studio2_apply_permission_change_r3')<>1
@@ -46,4 +49,25 @@ begin
     raise notice 'PASS: active R3 rejects unauthorized or missing-approval caller';
   end;
 end $s16_no_approval$;
+rollback;
+
+begin;
+set local role service_role;
+do $s16_core_acl$
+begin
+  if current_user<>'service_role' then
+    raise exception 'S16 expected service_role SQL principal';
+  end if;
+  begin
+    perform public.studio2_apply_permission_change(
+      null::uuid,'grant_capability', 'test',null::uuid,null::timestamptz,
+      gen_random_uuid(),'s16-service-core-bypass',0::bigint
+    );
+    raise exception 'S16 low-level permission service RPC bypass unexpectedly executable';
+  exception when insufficient_privilege then
+    if sqlerrm not like '%permission denied for function studio2_apply_permission_change%'
+    then raise exception 'S16 expected function ACL denial, got %',sqlerrm;end if;
+    raise notice 'PASS: direct service-role low-level permission escalation RPC EXECUTE denied';
+  end;
+end $s16_core_acl$;
 rollback;
