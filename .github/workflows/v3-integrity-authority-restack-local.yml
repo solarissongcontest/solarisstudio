@@ -43,6 +43,7 @@ jobs:
           src/lib/v3-integrity-remaining-case-writers.contract.test.ts
           src/lib/v3-integrity-intake-compatibility-cutover.contract.test.ts
           src/lib/v3-integrity-appeal-revision-readback.contract.test.ts
+          src/lib/v3-integrity-appeal-reviewer-membership.contract.test.ts
           src/lib/v3-integrity-intake-direct-primitive-bridge.contract.test.ts
 
       - name: Generate fresh TanStack route tree
@@ -68,6 +69,7 @@ jobs:
           src/lib/v3-integrity-remaining-case-writers.contract.test.ts
           src/lib/v3-integrity-intake-compatibility-cutover.contract.test.ts
           src/lib/v3-integrity-appeal-revision-readback.contract.test.ts
+          src/lib/v3-integrity-appeal-reviewer-membership.contract.test.ts
           src/lib/v3-integrity-intake-direct-primitive-bridge.contract.test.ts
 
   local-database:
