@@ -46,7 +46,9 @@ begin
     or position('p_approval_request_id' in v_new.prosrc)=0
     or position('An approved second-operator request is required' in v_new.prosrc)=0
     or position('private.studio2_require_fresh_auth' in v_new.prosrc)=0
-    or position('private.studio2_complete_operation' in v_new.prosrc)=0
+    or position('update public.studio2_operation_receipts' in v_new.prosrc)=0
+    or position('consumed_at = now()' in v_new.prosrc)=0
+    or position('v_approval.approved_by = v_actor' in v_new.prosrc)=0
     or not has_function_privilege('authenticated',v_canonical,'EXECUTE')
     or has_function_privilege('anon',v_canonical,'EXECUTE')
   then raise exception 'S16 active two-operator R3 command missing authorization or receipt contract'
