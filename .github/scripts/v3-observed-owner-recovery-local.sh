@@ -49,7 +49,20 @@ PYOWNER
   if operator_sql -f - < "$owner_candidate" > /tmp/owner-duplicate.log 2>&1; then
     echo 'ERROR: duplicate recovery unexpectedly accepted'; exit 1
   fi
-  grep -Eq 'already|partial|drift|requires|precondition' /tmp/owner-duplicate.log
+  # The country-account migration's explicit contract-registry preflight
+  # rejects a second install with a distinct diagnostic. Require that exact
+  # statement for this one migration rather than masking unrelated SQL errors.
+  if [[ "$owner_candidate" == supabase/migrations/20261116211500_v3_s16_country_account_api_dml_retirement.sql ]]; then
+    grep -Fq 'S16 country account cutover missing owner, registry or uninstalled source contract' /tmp/owner-duplicate.log || {
+      echo 'ERROR: country cutover duplicate refusal had unexpected cause' >&2
+      cat /tmp/owner-duplicate.log >&2; exit 1
+    }
+  else
+    grep -Eq 'already|partial|drift|requires|precondition' /tmp/owner-duplicate.log || {
+      echo "ERROR: unexpected duplicate refusal for $owner_candidate" >&2
+      cat /tmp/owner-duplicate.log >&2; exit 1
+    }
+  fi
   [[ "$(operator_state_digest)" == "$owner_after" ]] || { echo 'Duplicate owner install changed schema/data'; exit 1; }
 }
 operator_apply docs/v3/recovery-candidates/forward-only-s13-foundation.sql
@@ -296,6 +309,88 @@ echo 'PASS: existing canonical Televote reconciliation source restored only in s
 # actual trigger identities and effective definer RPCs before revocation.
 # Never run this command against hosted or a different database.
 operator_apply supabase/migrations/20261116193000_v3_s16_shared_guard_reviewed_api_dml_retirement.sql
+# The scoped S02 observed-owner fixture lacks the original country claim RPC.
+# Restore its exact source SQL only in this verified networkless PG17 fixture.
+# Preflight must refuse a competing owner, function, helper, or privilege.
+# This is NOT hosted database migration adoption or production equivalence.
+node scripts/stage-v3-s16-country-claim-local.mjs > /tmp/s16-country-claim-source.sql
+operator_apply /tmp/s16-country-claim-source.sql
+echo 'PASS: exact-source country claim writer restored in disposable PG17.11'
+# The same scoped baseline omits the older Organizer moderation RPC (and may
+# omit the HoD preference RPC). Restore them from their original source files,
+# with exact function-owner/search_path/body/EXECUTE proof; never waive a drift.
+node scripts/stage-v3-s16-country-admin-hod-local.mjs > /tmp/s16-country-admin-hod-source.sql
+operator_apply /tmp/s16-country-admin-hod-source.sql
+echo 'PASS: exact-source country moderation and HoD RPCs restored in disposable PG17.11'
+# Country-account authority remains a separate guarded boundary; never weaken
+# the production preflight or replace a hosted signup/claim/HoD contract.
+operator_apply supabase/migrations/20261116211500_v3_s16_country_account_api_dml_retirement.sql
+# Exercise the positive country signup in a separate disposable clone. In the
+# observed hosted role topology, postgres is a NONSUPERUSER recovery operator
+# and cannot INSERT into auth.users. Only the actual Auth owner can insert and
+# fire the original source-defined trigger. Do NOT grant Auth DML to postgres.
+s16_country_parent_digest="$(operator_state_digest)"
+operator_sql -c 'create database s16_country_authority_probe owner postgres template recovery_operator_baseline;'
+s16_country_operator_sql() { docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d s16_country_authority_probe "$@"; }
+s16_country_auth_sql() { docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U supabase_auth_admin -d s16_country_authority_probe "$@"; }
+# The synthetic PG17 S02 fixture intentionally has no application rows.
+# Load the original Permission Engine capability/role presets from their exact
+# source migration, not invented policy stubs; then set the one local platform
+# operational row to 'normal', as other source-backed recovery tests do.
+node --input-type=module > /tmp/s16-country-permission-seed.sql <<'S16_COUNTRY_REFERENCE'
+import fs from 'node:fs';
+const source=fs.readFileSync('supabase/migrations/20260914035152_permission_engine_v2_foundation.sql','utf8');
+for (const prefix of [
+  'insert into public.studio2_capabilities (',
+  'insert into public.studio2_access_roles (',
+  'insert into public.studio2_role_capabilities (role_key, capability)\\nselect role_key',
+]) {
+ const literal=prefix.replace('\\n','\n');
+ const start=source.indexOf(literal);
+ if(start<0||source.indexOf(literal,start+1)!==-1) throw Error('Missing/ambiguous canonical permission fixture seed: '+prefix);
+ const end=source.indexOf(';',start);
+ if(end<0) throw Error('Unterminated canonical permission seed: '+prefix);
+ process.stdout.write(source.slice(start,end+1)+'\n');
+}
+S16_COUNTRY_REFERENCE
+s16_country_operator_sql -f - < /tmp/s16-country-permission-seed.sql
+s16_country_operator_sql -c "insert into public.studio2_platform_operational_state(singleton,mode,version,reason)
+values(true,'normal',1,'Networkless P09 country-command positive acceptance only; hosted unchanged');"
+s16_country_operator_sql -c "
+insert into public.countries(id,name,short_code)
+values
+ ('74800000-0000-4000-8000-000000000011','S16 Country Signup','SCS'),
+ ('74800000-0000-4000-8000-000000000012','S16 Country Claim','SCC');
+"
+s16_country_auth_sql -c "
+insert into auth.users(id,aud,role,email,raw_user_meta_data,created_at,updated_at)
+values
+ ('74800000-0000-4000-8000-000000000021','authenticated','authenticated',
+  's16-country-signup@local.invalid',
+  '{\"account_type\":\"country\",\"country_id\":\"74800000-0000-4000-8000-000000000011\",\"instagram_username\":\"s16countrytest\",\"display_name\":\"S16 Country Signup\"}'::jsonb,
+  now(),now()),
+ ('74800000-0000-4000-8000-000000000022','authenticated','authenticated',
+  's16-country-claim@local.invalid','{}'::jsonb,now(),now()),
+ ('74800000-0000-4000-8000-000000000023','authenticated','authenticated',
+  's16-country-organizer@local.invalid','{}'::jsonb,now(),now());
+"
+# Synthetic identity grant is on the isolated probe only. The canonical
+# permission engine, not a forged session flag, authorizes Organizer commands.
+s16_country_operator_sql -c "
+insert into public.studio2_role_assignments(user_id,role_key,edition_id)
+values('74800000-0000-4000-8000-000000000023','organizer',null);
+"
+# The 56-table S02 observation contains a deliberately nonexecuting catalog
+# placeholder for this RLS helper. Replace it in the throwaway clone ONLY with
+# the final, source-defined Permission Engine SQL; refuse any unknown routine.
+node scripts/stage-v3-s16-country-permission-local.mjs > /tmp/s16-country-permission-final.sql
+s16_country_operator_sql -f - < /tmp/s16-country-permission-final.sql
+s16_country_operator_sql -v s16_country_positive=1 -f - < .github/tests/v3-s16-country-account-api-dml.sql
+operator_sql -c 'drop database s16_country_authority_probe;'
+[[ "$(operator_state_digest)" == "$s16_country_parent_digest" ]] || {
+  echo 'S16 country positive test modified owner-recovery parent database' >&2; exit 1
+}
+echo 'PASS: 12 country-account API DML denials, Auth-owner signup, automatic HoD, authenticated claim, unauthorized/authorized Organizer commands'
 # The postgres operator remains distinct from the authenticator/API principals.
 # Exercise all 24 direct SQL statements under forged recovery GUCs; PostgreSQL
 # must deny at table ACL boundary even when session markers are attacker-set.
@@ -468,6 +563,15 @@ const files=[
  'docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql',
  'supabase/migrations/20261103220000_v3_s14_atomic_televote_recovery.sql',
  'supabase/migrations/20261116193000_v3_s16_shared_guard_reviewed_api_dml_retirement.sql',
+ 'supabase/migrations/20260916043443_permission_engine_v2_country_ownership_rpc_cutover.sql',
+ 'scripts/stage-v3-s16-country-claim-local.mjs',
+ '/tmp/s16-country-claim-source.sql',
+ 'supabase/migrations/20260916033414_permission_engine_v2_country_admin_rpc_cutover.sql',
+ 'supabase/migrations/20260821234500_country_hod_self_history.sql',
+ 'supabase/migrations/20260822001000_finalize_hod_release_hardening.sql',
+ 'scripts/stage-v3-s16-country-admin-hod-local.mjs',
+ '/tmp/s16-country-admin-hod-source.sql',
+ 'supabase/migrations/20261116211500_v3_s16_country_account_api_dml_retirement.sql',
  'supabase/migrations/20261115204228_v3_media_finalization_authority.sql',
 ];
 const digest=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
