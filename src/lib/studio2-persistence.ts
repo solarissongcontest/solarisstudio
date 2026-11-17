@@ -468,20 +468,29 @@ export function createStudio2Persistence(client: Studio2SupabaseClient) {
       return Array.isArray(data) ? data.map(mapStudio2CapabilityGrantRow) : [];
     },
 
-    // These compatibility methods have no production call sites. The old
-    // service-role RPCs bypass the reviewed R3 impact preview, second-operator
-    // approval and operation receipt. Retain fail-closed method signatures for
-    // older consumers, but never call a superseded database writer.
-    async grantCapability(_request: Studio2GrantCapabilityRequest): Promise<Studio2CapabilityGrantRecord> {
-      throw new Error("Use the reviewed Permission Engine R3 approval workflow to grant capabilities.");
+    async grantCapability(request: Studio2GrantCapabilityRequest): Promise<Studio2CapabilityGrantRecord> {
+      const { data, error } = await client.rpc('studio2_grant_capability', {
+        p_user_id: request.userId,
+        p_capability: request.capability,
+        p_edition_id: request.editionId ?? null,
+        p_expires_at: request.expiresAt ?? null,
+      });
+      throwIfError(error);
+      return mapStudio2CapabilityGrantRow(data);
     },
 
     async revokeCapability(
-      _userId: string,
-      _capability: SolarisCapability,
-      _editionId?: string | null,
+      userId: string,
+      capability: SolarisCapability,
+      editionId?: string | null,
     ): Promise<boolean> {
-      throw new Error("Use the reviewed Permission Engine R3 approval workflow to revoke capabilities.");
+      const { data, error } = await client.rpc('studio2_revoke_capability', {
+        p_user_id: userId,
+        p_capability: capability,
+        p_edition_id: editionId ?? null,
+      });
+      throwIfError(error);
+      return data === true;
     },
   };
 }
