@@ -1,4 +1,4 @@
-\\set ON_ERROR_STOP on
+\set ON_ERROR_STOP on
 -- Run ONLY against an owned disposable, exact-source-migration PostgreSQL 17
 -- stack. The full S14 and 66-country stateful suites independently exercise
 -- authorized edition transition, operation receipt/replay and Archive denial.
