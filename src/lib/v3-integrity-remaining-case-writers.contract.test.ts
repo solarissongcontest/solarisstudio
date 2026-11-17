@@ -21,7 +21,7 @@ describe("V3 Integrity remaining case writer cutover", () => {
       "studio2_integrity_set_case_retention",
     ]) {
       expect(migration).toContain(`function public.${command}`);
-      expect(s16).toContain(`public.${command}`);
+      expect(migration).toContain(`grant execute on function public.${command}`);
     }
     expect(migration.match(/private\.studio2_claim_operation/g)?.length).toBeGreaterThanOrEqual(4);
     expect(migration.match(/private\.studio2_complete_operation/g)?.length).toBeGreaterThanOrEqual(4);
@@ -35,9 +35,21 @@ describe("V3 Integrity remaining case writer cutover", () => {
       "admin_set_integrity_case_retention_impl",
     ]) {
       expect(migration).toContain(`function public.${implementation}`);
-      expect(s16).toContain(`public.${implementation}`);
+      expect(migration).toContain(`revoke all on function public.${implementation}`);
     }
     expect(migration.match(/from public, anon, authenticated, service_role/g)?.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("leaves the unchanged S16 Integrity inventory unqualified until real execution authority is certified", () => {
+    // Merely adding these newly staged commands to a sanctioned-writer list
+    // would hide existing S16 findings without proving the complete network.
+    const start = s16.indexOf('id: "integrity"');
+    const end = s16.indexOf('id: "results"', start);
+    const inventory = s16.slice(start, end);
+    expect(inventory).toContain("canonicalCommands: []");
+    expect(inventory).not.toContain("sanctionedInternalWriters:");
+    expect(inventory).toContain("integrity_case_events");
+    expect(inventory).toContain("integrity_case_evidence");
   });
 
   it("documents every retained Organizer compatibility alias with a sunset", () => {
