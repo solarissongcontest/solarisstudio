@@ -14,7 +14,7 @@ export V3_CANDIDATE_SHA="$(git rev-parse HEAD)"
 expected_versions="$(find supabase/migrations -maxdepth 1 -name '*.sql' -printf '%f\n' | cut -d_ -f1 | sort)"
 actual_versions="$(psql "$DB_URL" -XAtq -v ON_ERROR_STOP=1 -c 'select version from supabase_migrations.schema_migrations order by version')"
 [[ "$expected_versions" == "$actual_versions" ]] || { echo 'Candidate/database migration sets differ; refusing SHA attribution' >&2; exit 1; }
-bunx vitest run src/lib/v3-s16-candidate-sha.test.ts src/lib/v3-s16-catalog.test.ts src/lib/v3-s16-catalog.database.test.ts src/lib/v3-s16-mutation-authority.test.ts src/lib/v3-s16-release-risk.test.ts src/lib/v3-s16-shared-guard-api-dml.contract.test.ts src/lib/v3-s16-session-revocation-api-dml.contract.test.ts
+bunx vitest run src/lib/v3-s16-candidate-sha.test.ts src/lib/v3-s16-catalog.test.ts src/lib/v3-s16-catalog.database.test.ts src/lib/v3-s16-mutation-authority.test.ts src/lib/v3-s16-release-risk.test.ts src/lib/v3-s16-shared-guard-api-dml.contract.test.ts src/lib/v3-s16-country-account-api-dml.contract.test.ts src/lib/v3-s16-session-revocation-api-dml.contract.test.ts
 # Mutation boundary probe uses a fully rolled-back synthetic fixture, AFTER the
 # loopback/local credentials and exact migration-set checks above.
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-edition-public-visual-authority.sql
@@ -28,8 +28,10 @@ psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-permission-direct-g
 # Shared guard's reviewed canonical table subset: actual API-role denials,
 # forged recovery-marker rejection and surviving owner RPC execution.
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-shared-guard-reviewed-api-dml.sql
-# Account-session tombstones: deny direct SQL even for service_role.
-# Positive signed Auth-session revoke/replay is separately exercised by P42.
+# Country accounts: source-only owner signup/claim/HoD authority and all 12
+# actual API-role DML denials, including forged platform recovery markers.
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-country-account-api-dml.sql
+# Tombstones have no legitimate direct API write path; P42 proves command replay.
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-session-revocation-api-dml.sql
 bun run scripts/collect-v3-s16-catalog-evidence.ts
 bun run scripts/check-v3-s16-mutation-authority.ts --catalog=v3-release-preflight/s16/catalog-evidence.json
