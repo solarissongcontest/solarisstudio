@@ -469,7 +469,16 @@ declare
 begin
   if not public.studio2_access_allowed('integrity.sanction', null, false) then raise exception 'Missing Solaris capability: integrity.sanction' using errcode = '42501'; end if;
   if p_operation_id is null or p_expected_version is null or p_expected_version < 1 then raise exception 'Operation id and expected appeal version are required' using errcode = '22023'; end if;
-  if not exists (select 1 from public.user_roles ur where ur.user_id = p_user_id and ur.role::text = 'organizer') then raise exception 'Appeal reviewer must be an organizer' using errcode = '42501'; end if;
+  -- The Permission Engine v2 role ledger, not legacy user_roles, is the
+  -- authoritative source of global Organizer membership. Do not accept an
+  -- expired or edition-local assignment for a cross-edition appeal review.
+  if not exists (
+    select 1 from public.studio2_role_assignments assignment
+    where assignment.user_id = p_user_id
+      and assignment.role_key = 'organizer'
+      and assignment.edition_id is null
+      and (assignment.expires_at is null or assignment.expires_at > now())
+  ) then raise exception 'Appeal reviewer must be an organizer' using errcode = '42501'; end if;
 
   v_claim := private.studio2_claim_operation(
     p_operation_id, p_idempotency_key, 'integrity.appeal.assign_reviewer', 'R3',
