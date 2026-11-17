@@ -100,7 +100,8 @@ describe("S14 Stage 10 archive certification against current canonical V3 System
     expect(archive).toContain("archived edition runtime was reversible through a direct database write");
     expect(archive).toContain("rejected Archive reversal changed canonical runtime state");
     expect(archive).toContain("service-role archived runtime deletion unexpectedly succeeded");
-    expect(archive).toContain("archived runtime deletion did not fail through the canonical guard");
+    expect(archive).toContain("archived runtime service DML was not denied at table ACL");
+    expect(archive).toContain("owner archived runtime deletion did not reach the canonical guard");
     expect(archive).toContain("archived runtime fact was deleted or changed");
   });
 

@@ -14,7 +14,7 @@ export V3_CANDIDATE_SHA="$(git rev-parse HEAD)"
 expected_versions="$(find supabase/migrations -maxdepth 1 -name '*.sql' -printf '%f\n' | cut -d_ -f1 | sort)"
 actual_versions="$(psql "$DB_URL" -XAtq -v ON_ERROR_STOP=1 -c 'select version from supabase_migrations.schema_migrations order by version')"
 [[ "$expected_versions" == "$actual_versions" ]] || { echo 'Candidate/database migration sets differ; refusing SHA attribution' >&2; exit 1; }
-bunx vitest run src/lib/v3-s16-candidate-sha.test.ts src/lib/v3-s16-catalog.test.ts src/lib/v3-s16-catalog.database.test.ts src/lib/v3-s16-mutation-authority.test.ts src/lib/v3-s16-release-risk.test.ts src/lib/v3-s16-shared-guard-api-dml.contract.test.ts src/lib/v3-s16-country-account-api-dml.contract.test.ts src/lib/v3-s16-session-revocation-api-dml.contract.test.ts src/lib/v3-s16-integrity-api-table-dml.contract.test.ts src/lib/v3-s16-confirmation-ledger-api-dml.contract.test.ts
+bunx vitest run src/lib/v3-s16-candidate-sha.test.ts src/lib/v3-s16-catalog.test.ts src/lib/v3-s16-catalog.database.test.ts src/lib/v3-s16-mutation-authority.test.ts src/lib/v3-s16-release-risk.test.ts src/lib/v3-s16-shared-guard-api-dml.contract.test.ts src/lib/v3-s16-country-account-api-dml.contract.test.ts src/lib/v3-s16-session-revocation-api-dml.contract.test.ts src/lib/v3-s16-integrity-api-table-dml.contract.test.ts src/lib/v3-s16-confirmation-ledger-api-dml.contract.test.ts src/lib/v3-s16-permission-r3-legacy-overload.contract.test.ts src/lib/v3-s16-internal-entry-api-dml.contract.test.ts src/lib/v3-s16-edition-runtime-api-dml.contract.test.ts
 # Mutation boundary probe uses a fully rolled-back synthetic fixture, AFTER the
 # loopback/local credentials and exact migration-set checks above.
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-edition-public-visual-authority.sql
@@ -38,6 +38,12 @@ psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-session-revocation-
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-integrity-api-table-dml.sql
 # P07: 40 real role ACL denials, including private Confirmation receipts.
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-confirmation-ledger-api-dml.sql
+# P13: deny raw API edits while preserving canonical edition transition.
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-edition-runtime-api-dml.sql
+# P14: deny raw internal Entry edits while preserving review CAS.
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-internal-entry-api-dml.sql
+# P16: reject obsolete permission R3 and direct core RPC entry.
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-permission-r3-legacy-overload.sql
 bun run scripts/collect-v3-s16-catalog-evidence.ts
 bun run scripts/check-v3-s16-mutation-authority.ts --catalog=v3-release-preflight/s16/catalog-evidence.json
 # This is collector acceptance, not domain certification. No per-domain negative
