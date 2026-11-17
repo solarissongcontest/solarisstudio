@@ -53,6 +53,7 @@ type CaseListItem = {
 type CaseDetail = {
   case: {
     id: string;
+    version: number;
     public_code: string;
     case_kind: string;
     summary: string;
@@ -324,7 +325,7 @@ function RulingComposer({ detail, onChanged }: { detail: CaseDetail; onChanged: 
         summary: review.summary,
         rationale: review.rationale,
         ruleIds: review.ruleIds,
-      });
+      }, liveDetail.case.version);
     },
     onSuccess: async () => {
       setPendingReview(null);
@@ -430,8 +431,8 @@ function RulingComposer({ detail, onChanged }: { detail: CaseDetail; onChanged: 
                 </div>
               </div>
               {pendingReview.outcome === "needs_more_information" ? <p>This ruling also moves the case to waiting_for_reporter so the participant can supply the missing facts.</p> : null}
-              <p>Solaris reloads this exact Integrity case immediately before the compatibility write. If case identity, status, facts or rule links changed while this sheet was open, the reviewed action is rejected instead of being silently updated.</p>
-              <p>The current legacy authority records the ruling after that revalidation. Canonical V3 preflight, rulebook-snapshot binding, expected-version/CAS, idempotency and receipt authority remain tracked in System #950.</p>
+              <p>Solaris reloads the reviewed Integrity case and submits the observed revision to the server-owned transaction. The command rejects stale, unauthorized or inconsistent decisions.</p>
+              <p>The governed ruling command enforces authorization, expected-version checks and a durable operation receipt. A later revision requires a new review.</p>
             </div>
           ) : null
         }
