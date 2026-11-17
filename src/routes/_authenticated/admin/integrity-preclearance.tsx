@@ -53,6 +53,7 @@ type CaseListItem = {
 type CaseDetail = {
   case: {
     id: string;
+    version: number;
     public_code: string;
     case_kind: string;
     summary: string;
@@ -73,6 +74,7 @@ type PendingRulingReview = {
   rationale: string;
   ruleIds: string[];
   baselineFingerprint: string;
+  operationId: string;
 };
 
 const OUTCOMES: Array<{
@@ -324,7 +326,7 @@ function RulingComposer({ detail, onChanged }: { detail: CaseDetail; onChanged: 
         summary: review.summary,
         rationale: review.rationale,
         ruleIds: review.ruleIds,
-      });
+      }, liveDetail.case.version, review.operationId);
     },
     onSuccess: async () => {
       setPendingReview(null);
@@ -334,8 +336,13 @@ function RulingComposer({ detail, onChanged }: { detail: CaseDetail; onChanged: 
       toast.success("Private rule ruling recorded");
     },
     onError: async (error) => {
-      setPendingReview(null);
-      await onChanged();
+      // Keep the original identity if a response is lost: retry the same reviewed
+      // operation rather than creating a second participant-visible ruling.
+      const message = error instanceof Error ? error.message : "";
+      if (/changed|no longer available|version|permission/i.test(message)) {
+        setPendingReview(null);
+        await onChanged();
+      }
       errorToast(error);
     },
   });
@@ -357,6 +364,7 @@ function RulingComposer({ detail, onChanged }: { detail: CaseDetail; onChanged: 
       rationale: rationale.trim(),
       ruleIds: [...ruleIds],
       baselineFingerprint: preclearanceRulingReviewFingerprint(detail),
+      operationId: crypto.randomUUID(),
     });
   }
 
@@ -431,7 +439,7 @@ function RulingComposer({ detail, onChanged }: { detail: CaseDetail; onChanged: 
               </div>
               {pendingReview.outcome === "needs_more_information" ? <p>This ruling also moves the case to waiting_for_reporter so the participant can supply the missing facts.</p> : null}
               <p>Solaris reloads this exact Integrity case immediately before the compatibility write. If case identity, status, facts or rule links changed while this sheet was open, the reviewed action is rejected instead of being silently updated.</p>
-              <p>The current legacy authority records the ruling after that revalidation. Canonical V3 preflight, rulebook-snapshot binding, expected-version/CAS, idempotency and receipt authority remain tracked in System #950.</p>
+              <p>The governed database command checks the reviewed case revision and operation identity before recording the ruling. Full rulebook-snapshot and uncertain-outcome recovery guarantees remain tracked in System #950.</p>
             </div>
           ) : null
         }

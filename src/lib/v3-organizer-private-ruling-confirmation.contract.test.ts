@@ -36,11 +36,14 @@ describe("V3 Organizer private rule ruling review", () => {
     expect(migration).toContain("visible_to_reporter");
   });
 
-  it("keeps canonical governed ruling authority in System rather than inventing it in browser code", () => {
-    expect(api).toContain('"admin_record_integrity_preclearance_ruling"');
+  it("submits the reviewed ruling via the governed versioned and idempotent database command", () => {
+    expect(api).toContain('"studio2_integrity_record_preclearance_ruling"');
+    expect(api).not.toContain('"admin_record_integrity_preclearance_ruling"');
+    expect(api).toContain("p_operation_id: operationId");
+    expect(api).toContain("p_idempotency_key: operationId");
+    expect(api).toContain("p_expected_version: expectedVersion");
+    expect(route).toContain("preclearanceRulingReviewFingerprint(liveDetail)");
+    expect(route).toContain("liveDetail.case.version");
     expect(route).toContain("System #950");
-    expect(api).not.toContain("p_operation_id");
-    expect(api).not.toContain("p_idempotency_key");
-    expect(api).not.toContain("p_expected_version");
   });
 });

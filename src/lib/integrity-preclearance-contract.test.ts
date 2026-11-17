@@ -63,7 +63,11 @@ describe("Integrity pre-clearance rulings", () => {
 
   it("exposes narrow client helpers for organizer and reporter flows", () => {
     expect(api).toContain("admin_integrity_preclearance_rulings");
-    expect(api).toContain("admin_record_integrity_preclearance_ruling");
+    expect(api).toContain("studio2_integrity_record_preclearance_ruling");
+    expect(api).not.toContain('"admin_record_integrity_preclearance_ruling"');
+    expect(api).toContain("p_expected_version: expectedVersion");
+    expect(api).toContain("p_operation_id: operationId");
+    expect(api).toContain("p_idempotency_key: operationId");
     expect(api).toContain("reporter_integrity_preclearance_rulings");
     expect(api).toContain("admin_create_rule_interpretation_from_integrity_case");
   });

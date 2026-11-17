@@ -134,7 +134,9 @@ describe("Integrity sanctions and appeals contract", () => {
     expect(extensionMigration).toContain("'appeal.extension_granted'");
     expect(extensionMigration).toContain("visible_to_reporter");
     expect(appealsQueueRoute).toContain("Exceptional extension");
-    expect(appealsQueueRoute).toContain("admin_grant_integrity_appeal_extension");
+    expect(appealsQueueRoute).toContain("studio2_integrity_grant_appeal_extension");
+    expect(appealsQueueRoute).toContain("p_expected_version: appeal.version");
+    expect(appealsQueueRoute).not.toContain('"admin_grant_integrity_appeal_extension"');
   });
 
   it("gives protected and anonymous reporters narrow APIs and discoverable pages to inspect and submit appeals", () => {
@@ -209,9 +211,21 @@ describe("Integrity sanctions and appeals contract", () => {
     expect(migration).toContain("'sanctions'");
     expect(migration).toContain("'appeals'");
     expect(organizerRoute).toContain("admin_integrity_case_resolution");
-    expect(organizerRoute).toContain("admin_record_integrity_sanction");
-    expect(organizerRoute).toContain("admin_assign_integrity_appeal_reviewer");
-    expect(organizerRoute).toContain("admin_decide_integrity_appeal");
+    for (const governedCommand of [
+      "studio2_integrity_record_sanction",
+      "studio2_integrity_assign_appeal_reviewer",
+      "studio2_integrity_resolve_appeal",
+    ]) {
+      expect(organizerRoute).toContain(governedCommand);
+    }
+    for (const obsoleteCall of [
+      '"admin_record_integrity_sanction"',
+      '"admin_assign_integrity_appeal_reviewer"',
+      '"admin_decide_integrity_appeal"',
+    ]) {
+      expect(organizerRoute).not.toContain(obsoleteCall);
+    }
+    expect(organizerRoute).toContain("p_expected_version: selected?.version");
     expect(investigationsRoute).toContain('to="/admin/integrity-resolution/$caseId"');
   });
 });

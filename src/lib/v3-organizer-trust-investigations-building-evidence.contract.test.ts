@@ -54,7 +54,10 @@ describe("V3 Organizer Integrity Investigations building evidence", () => {
     expect(caseRoute).toContain("<IntegrityFindingReview");
     expect(caseRoute).toContain("<IntegrityPrecedentPublicationReview");
     expect(caseRoute).toContain("integrityDecisionBasisFingerprint(live) !== activeReview.basisFingerprint");
-    expect(caseRoute.match(/admin_record_integrity_finding/g)?.length).toBe(1);
+    expect(caseRoute.match(/studio2_integrity_record_finding/g)?.length).toBe(1);
+    expect(caseRoute).not.toContain('rpc("admin_record_integrity_finding"');
+    expect(caseRoute).toContain("p_expected_version: live.case.version");
+    expect(caseRoute).toContain("p_operation_id: activeReview.operationId");
     expect(caseRoute.match(/admin_publish_integrity_decision/g)?.length).toBe(1);
     expect(findingPublicationReview).toContain("System #1102");
     expect(findingPublicationReview).toContain("canonical expected-version/CAS");

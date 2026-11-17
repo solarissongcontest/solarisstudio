@@ -44,18 +44,23 @@ export async function getAdminPreclearanceRulings(caseId: string) {
 export async function recordAdminPreclearanceRuling(
   caseId: string,
   input: RecordPreclearanceRulingInput,
+  expectedVersion: number,
+  operationId: string,
 ) {
   return rpc<{
     ok: true;
     ruling_id: string;
     outcome: PreclearanceOutcome;
     rule_ids: string[];
-  }>("admin_record_integrity_preclearance_ruling", {
-    _case_id: caseId,
-    _outcome: input.outcome,
-    _summary: input.summary,
-    _rationale: input.rationale,
-    _rule_ids: input.ruleIds,
+  }>("studio2_integrity_record_preclearance_ruling", {
+    p_case_id: caseId,
+    p_outcome: input.outcome,
+    p_summary: input.summary,
+    p_rationale: input.rationale,
+    p_rule_ids: input.ruleIds,
+    p_expected_version: expectedVersion,
+    p_operation_id: operationId,
+    p_idempotency_key: operationId,
   });
 }
 

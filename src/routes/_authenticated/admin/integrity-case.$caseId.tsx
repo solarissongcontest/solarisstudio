@@ -46,7 +46,6 @@ import {
   getEvidenceAccessLog,
   getOrganizerEvidenceDownloadUrl,
   scheduleEvidenceDeletion,
-  setCaseEvidenceRetention,
   type EvidenceAccessLogItem,
 } from "@/lib/integrity-evidence";
 import {
@@ -59,6 +58,7 @@ import {
 } from "@/lib/integrity-identity";
 import { getRuleById, SSC_RULES } from "@/lib/ssc-rules-v4";
 import { cn } from "@/lib/utils";
+import { useV3IntegrityCaseCommand } from "@/integrations/integrity/governed-case-command";
 
 export const Route = createFileRoute("/_authenticated/admin/integrity-case/$caseId")({
   head: () => ({
@@ -131,6 +131,7 @@ type ResolutionSummary = {
 type CaseDetail = {
   case: {
     id: string;
+    version: number;
     public_code: string;
     case_kind: string;
     category: string;
@@ -410,6 +411,7 @@ function EvidencePanel({ detail, refresh }: { detail: CaseDetail; refresh: () =>
   const [visible, setVisible] = useState(false);
   const [retentionDate, setRetentionDate] = useState(() => toLocalDateTimeValue(detail.case.retention_until));
   const [retentionReason, setRetentionReason] = useState("");
+  const retentionCommand = useV3IntegrityCaseCommand();
 
   const accessQuery = useQuery({
     queryKey: ["integrity-evidence-access-log", detail.case.id],
@@ -445,9 +447,15 @@ function EvidencePanel({ detail, refresh }: { detail: CaseDetail; refresh: () =>
     mutationFn: () => {
       const iso = localDateTimeToIso(retentionDate);
       if (!iso) throw new Error("Choose a valid future retention date.");
-      return setCaseEvidenceRetention(detail.case.id, iso, retentionReason);
+      return retentionCommand.execute("studio2_integrity_set_case_retention", {
+        p_case_id: detail.case.id,
+        p_retention_until: iso,
+        p_reason: retentionReason,
+        p_expected_version: detail.case.version,
+      });
     },
     onSuccess: async () => {
+      retentionCommand.clear();
       setRetentionReason("");
       await refresh();
       toast.success("Case evidence retention updated");
@@ -672,6 +680,7 @@ function FindingPanel({ detail, refresh }: { detail: CaseDetail; refresh: () => 
     caseId: string;
     caseCode: string;
     basisFingerprint: string;
+    operationId: string;
     outcome: string;
     summary: string;
     rationale: string;
@@ -688,6 +697,7 @@ function FindingPanel({ detail, refresh }: { detail: CaseDetail; refresh: () => 
       caseId: detail.case.id,
       caseCode: detail.case.public_code,
       basisFingerprint: integrityDecisionBasisFingerprint(detail),
+      operationId: crypto.randomUUID(),
       outcome,
       summary: summary.trim(),
       rationale: rationale.trim(),
@@ -706,13 +716,16 @@ function FindingPanel({ detail, refresh }: { detail: CaseDetail; refresh: () => 
         await refresh();
         throw new Error("Integrity case changed while this finding review was open. Nothing was recorded. Review the latest case before trying again.");
       }
-      await rpc("admin_record_integrity_finding", {
-        _case_id: activeReview.caseId,
-        _outcome: activeReview.outcome,
-        _summary: activeReview.summary,
-        _rationale: activeReview.rationale,
-        _rule_ids: activeReview.ruleIds,
-        _visible_to_reporter: activeReview.visibleToReporter,
+      await rpc("studio2_integrity_record_finding", {
+        p_case_id: activeReview.caseId,
+        p_outcome: activeReview.outcome,
+        p_summary: activeReview.summary,
+        p_rationale: activeReview.rationale,
+        p_rule_ids: activeReview.ruleIds,
+        p_visible_to_reporter: activeReview.visibleToReporter,
+        p_expected_version: live.case.version,
+        p_operation_id: activeReview.operationId,
+        p_idempotency_key: activeReview.operationId,
       });
       setSummary("");
       setRationale("");
@@ -779,8 +792,27 @@ function CommunicationPanel({ detail, refresh }: { detail: CaseDetail; refresh: 
   const [message, setMessage] = useState("");
   const [request, setRequest] = useState(true);
   const [note, setNote] = useState("");
-  const reply = useMutation({ mutationFn: () => rpc("admin_reply_integrity_case", { _case_id: detail.case.id, _body: message, _request_response: request }), onSuccess: async () => { setMessage(""); await refresh(); toast.success("Message sent"); }, onError: errorToast });
-  const addNote = useMutation({ mutationFn: () => rpc("admin_add_integrity_case_note", { _case_id: detail.case.id, _body: note }), onSuccess: async () => { setNote(""); await refresh(); toast.success("Internal note added"); }, onError: errorToast });
+  const replyCommand = useV3IntegrityCaseCommand();
+  const noteCommand = useV3IntegrityCaseCommand();
+  const reply = useMutation({
+    mutationFn: () => replyCommand.execute("studio2_integrity_reply_case", {
+      p_case_id: detail.case.id,
+      p_body: message,
+      p_request_response: request,
+      p_expected_version: detail.case.version,
+    }),
+    onSuccess: async () => { replyCommand.clear(); setMessage(""); await refresh(); toast.success("Message sent"); },
+    onError: errorToast,
+  });
+  const addNote = useMutation({
+    mutationFn: () => noteCommand.execute("studio2_integrity_add_case_note", {
+      p_case_id: detail.case.id,
+      p_body: note,
+      p_expected_version: detail.case.version,
+    }),
+    onSuccess: async () => { noteCommand.clear(); setNote(""); await refresh(); toast.success("Internal note added"); },
+    onError: errorToast,
+  });
 
   return (
     <AdminCard>
@@ -796,8 +828,38 @@ function CommunicationPanel({ detail, refresh }: { detail: CaseDetail; refresh: 
 }
 
 function TriagePanel({ detail, refresh }: { detail: CaseDetail; refresh: () => Promise<void> }) {
-  const status = useMutation({ mutationFn: (value: string) => rpc("admin_update_integrity_case_status", { _case_id: detail.case.id, _status: value }), onSuccess: refresh, onError: errorToast });
-  const priority = useMutation({ mutationFn: (value: string) => rpc("admin_set_integrity_priority", { _case_id: detail.case.id, _priority: value }), onSuccess: refresh, onError: errorToast });
+  const transitionCommand = useV3IntegrityCaseCommand();
+  const priorityCommand = useV3IntegrityCaseCommand();
+  const status = useMutation({
+    mutationFn: (value: string) => {
+      const reason = window.prompt(
+        `Review case ${detail.case.public_code}: change status ${detail.case.status} → ${value}. Explain the change:`,
+      );
+      if (!reason || reason.trim().length < 10) throw new Error("Case status change requires a written rationale of at least ten characters.");
+      return transitionCommand.execute("studio2_integrity_case_transition", {
+        p_case_id: detail.case.id,
+        p_target_status: value,
+        p_reason: reason.trim(),
+        p_expected_version: detail.case.version,
+      });
+    },
+    onSuccess: async () => { transitionCommand.clear(); await refresh(); },
+    onError: errorToast,
+  });
+  const priority = useMutation({
+    mutationFn: (value: string) => {
+      if (!window.confirm(`Confirm case ${detail.case.public_code} priority: ${detail.case.priority} → ${value}?`)) {
+        throw new Error("Priority change cancelled.");
+      }
+      return priorityCommand.execute("studio2_integrity_set_case_priority", {
+        p_case_id: detail.case.id,
+        p_priority: value,
+        p_expected_version: detail.case.version,
+      });
+    },
+    onSuccess: async () => { priorityCommand.clear(); await refresh(); },
+    onError: errorToast,
+  });
   return (
     <AdminCard>
       <SectionTitle icon={SearchCheck} eyebrow="Triage" title="Case state" />
@@ -817,8 +879,32 @@ function ReviewerPanel({ detail, organizers, refresh }: { detail: CaseDetail; or
   const [user, setUser] = useState("");
   const [role, setRole] = useState("investigator");
   const [reason, setReason] = useState("");
-  const assign = useMutation({ mutationFn: () => rpc("admin_assign_integrity_reviewer", { _case_id: detail.case.id, _user_id: user, _review_role: role }), onSuccess: refresh, onError: errorToast });
-  const recuse = useMutation({ mutationFn: () => rpc("admin_recuse_from_integrity_case", { _case_id: detail.case.id, _reason: reason }), onSuccess: async () => { setReason(""); await refresh(); toast.success("Recusal recorded"); }, onError: errorToast });
+  const assignCommand = useV3IntegrityCaseCommand();
+  const recuseCommand = useV3IntegrityCaseCommand();
+  const assign = useMutation({
+    mutationFn: () => {
+      if (!window.confirm(`Review case ${detail.case.public_code}: assign ${user} as ${role}?`)) {
+        throw new Error("Reviewer assignment cancelled.");
+      }
+      return assignCommand.execute("studio2_integrity_assign_case_reviewer", {
+        p_case_id: detail.case.id,
+        p_user_id: user,
+        p_review_role: role,
+        p_expected_version: detail.case.version,
+      });
+    },
+    onSuccess: async () => { assignCommand.clear(); await refresh(); },
+    onError: errorToast,
+  });
+  const recuse = useMutation({
+    mutationFn: () => recuseCommand.execute("studio2_integrity_recuse_case_reviewer", {
+      p_case_id: detail.case.id,
+      p_reason: reason,
+      p_expected_version: detail.case.version,
+    }),
+    onSuccess: async () => { recuseCommand.clear(); setReason(""); await refresh(); toast.success("Recusal recorded"); },
+    onError: errorToast,
+  });
   return (
     <AdminCard>
       <SectionTitle icon={UserPlus} eyebrow="Review team" title="Roles & conflicts" />

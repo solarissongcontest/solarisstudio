@@ -9,6 +9,7 @@ import { AdminCard, AdminConfirmSheet, AdminPageHeader, AdminStatus } from "@/co
 import { RuleDecisionStrip } from "@/components/rules/RuleDecisionStrip";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { useV3IntegrityCaseCommand } from "@/integrations/integrity/governed-case-command";
 
 export const Route = createFileRoute("/_authenticated/admin/integrity-appeals")({
   head: () => ({ meta: [{ title: "Integrity Appeals — Solaris Organizer" }, { name: "robots", content: "noindex" }] }),
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/_authenticated/admin/integrity-appeals")(
 
 type AppealItem = {
   id: string;
+  version: number;
   case_id: string;
   case_code: string;
   case_summary: string;
@@ -131,13 +133,16 @@ function AppealCard({ appeal, onChanged }: { appeal: AppealItem; onChanged: () =
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deadline, setDeadline] = useState("");
   const [reason, setReason] = useState("");
+  const extensionCommand = useV3IntegrityCaseCommand();
   const mutation = useMutation({
-    mutationFn: () => rpc("admin_grant_integrity_appeal_extension", {
-      _appeal_id: appeal.id,
-      _new_deadline: new Date(deadline).toISOString(),
-      _reason: reason,
+    mutationFn: () => extensionCommand.execute("studio2_integrity_grant_appeal_extension", {
+      p_appeal_id: appeal.id,
+      p_new_deadline: new Date(deadline).toISOString(),
+      p_reason: reason,
+      p_expected_version: appeal.version,
     }),
     onSuccess: async () => {
+      extensionCommand.clear();
       setConfirmOpen(false);
       setExtensionOpen(false);
       setDeadline("");

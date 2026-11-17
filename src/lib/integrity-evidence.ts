@@ -106,17 +106,26 @@ export async function getOrganizerEvidenceDownloadUrl(evidenceId: string) {
   return createSignedDownload({ mode: "organizer", evidenceId });
 }
 
+/** Direct callers must supply the reviewed CAS version and stable retry key. */
 export async function setCaseEvidenceRetention(
   caseId: string,
   retentionUntil: string,
   reason: string,
+  expectedVersion: number,
+  operationId: string,
 ) {
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1 || !operationId) {
+    throw new Error("Authoritative case version and operation identity are required.");
+  }
   return rpc<{ ok: true; case_id: string; retention_until: string }>(
-    "admin_set_integrity_case_retention",
+    "studio2_integrity_set_case_retention",
     {
-      _case_id: caseId,
-      _retention_until: retentionUntil,
-      _reason: reason,
+      p_case_id: caseId,
+      p_retention_until: retentionUntil,
+      p_reason: reason,
+      p_expected_version: expectedVersion,
+      p_operation_id: operationId,
+      p_idempotency_key: operationId,
     },
   );
 }

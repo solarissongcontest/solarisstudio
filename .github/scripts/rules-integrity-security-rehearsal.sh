@@ -524,6 +524,14 @@ rpc_request "$ORGANIZER_B_TOKEN" admin_assign_integrity_appeal_reviewer "{\"_app
 expect_failure "organizer-role appellant cannot review their own appeal"
 assert_db_eq "self-review rejection leaves appeal unassigned" "select assigned_reviewer is null from public.integrity_case_appeals where id='$APPEAL_ID'::uuid;" "t"
 
+# Permission Engine v2 must NOT accept expired global Organizer assignments as
+# independent appeal reviewers. Seed the role with a past validity window in
+# this disposable database; this does not grant live production access.
+db_exec "insert into public.studio2_role_assignments(user_id,role_key,edition_id,expires_at,assigned_by,created_at) values ('$PARTICIPANT_ID'::uuid,'organizer',null,now()-interval '1 minute',null,now()-interval '2 minutes') on conflict do nothing;"
+rpc_request "$ORGANIZER_A_TOKEN" admin_assign_integrity_appeal_reviewer "{\"_appeal_id\":\"$APPEAL_ID\",\"_user_id\":\"$PARTICIPANT_ID\"}"
+expect_failure "expired global organizer cannot review appeals"
+assert_db_eq "expired reviewer denial leaves appeal unassigned" "select assigned_reviewer is null from public.integrity_case_appeals where id='$APPEAL_ID'::uuid;" "t"
+
 rpc_request "$ORGANIZER_A_TOKEN" admin_assign_integrity_appeal_reviewer "{\"_appeal_id\":\"$APPEAL_ID\",\"_user_id\":\"$ORGANIZER_B_ID\"}"
 expect_success "fresh organizer B is assigned appeal review"
 rpc_request "$ORGANIZER_B_TOKEN" admin_decide_integrity_appeal "{\"_appeal_id\":\"$APPEAL_ID\",\"_outcome\":\"reduced\",\"_decision_rationale\":\"An invalid reduction cannot retain or increase the original sanction level.\",\"_replacement_level\":5,\"_aggravating_factors\":[],\"_mitigating_factors\":[]}"
