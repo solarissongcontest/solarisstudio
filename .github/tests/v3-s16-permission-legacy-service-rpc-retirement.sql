@@ -29,7 +29,7 @@ begin
   -- database, including service_role; a hidden browser button is not proof.
   foreach v_role in array array['anon','authenticated','service_role'] loop
     foreach v_sql in array array[
-      $select public.studio2_assign_access_role(null::uuid,'hod',null::uuid,null::timestamptz)$,
+      $$select public.studio2_assign_access_role(null::uuid,'hod',null::uuid,null::timestamptz)$$,
       $$select public.studio2_revoke_access_role(null::uuid,'hod',null::uuid)$$
     ] loop
       execute format('set local role %I',v_role);
