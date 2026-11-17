@@ -22,16 +22,32 @@ begin
   then raise exception 'S16 internal Entry ACL cutover needs PG17 postgres and new source contract'
     using errcode='55000';end if;
 
-  if v_table is null or v_command is null
-    or not exists(select 1 from pg_class c where c.oid=v_table
-      and c.relkind='r' and c.relrowsecurity
-      and pg_get_userbyid(c.relowner)='postgres')
-    or exists(select 1 from pg_attribute a where a.attrelid=v_table
-      and a.attnum>0 and not a.attisdropped and a.attacl is not null)
-    or not has_table_privilege('service_role',v_table,'SELECT')
-    or not has_table_privilege('service_role',v_table,'INSERT')
-    or not has_table_privilege('service_role',v_table,'UPDATE')
-    or not has_table_privilege('service_role',v_table,'DELETE')
+  if v_table is null
+     or not exists(select 1 from pg_class c where c.oid=v_table
+       and c.relkind='r' and c.relrowsecurity
+       and pg_get_userbyid(c.relowner)='postgres')
+  then raise exception 'S16 P14 internal Entry owner, relation type or RLS differs from source'
+    using errcode='55000';end if;
+
+  if exists(select 1 from pg_attribute a where a.attrelid=v_table
+       and a.attnum>0 and not a.attisdropped and a.attacl is not null)
+  then raise exception 'S16 P14 internal Entry has separately granted column ACLs; review before retiring'
+    using errcode='55000';end if;
+
+  if not has_table_privilege('service_role',v_table,'SELECT')
+  then raise exception 'S16 P14 canonical Confirmation service reader is missing SELECT'
+    using errcode='55000';end if;
+
+  if not has_table_privilege('service_role',v_table,'INSERT')
+     or not has_table_privilege('service_role',v_table,'UPDATE')
+     or not has_table_privilege('service_role',v_table,'DELETE')
+  then raise exception 'S16 P14 expected service-role direct writer privilege shape drift: INSERT %, UPDATE %, DELETE %',
+    has_table_privilege('service_role',v_table,'INSERT'),
+    has_table_privilege('service_role',v_table,'UPDATE'),
+    has_table_privilege('service_role',v_table,'DELETE')
+    using errcode='55000';end if;
+
+  if v_command is null
     or not exists(select 1 from pg_proc p where p.oid=v_command
       and p.prosecdef and pg_get_userbyid(p.proowner)='postgres'
       and p.proconfig = array['search_path=pg_catalog, public, private']::text[]
@@ -41,17 +57,22 @@ begin
       and position('private.studio2_claim_operation(' in p.prosrc)>0)
     or has_function_privilege('anon',v_command,'EXECUTE')
     or not has_function_privilege('authenticated',v_command,'EXECUTE')
-    or not exists(select 1 from pg_trigger t
+  then raise exception 'S16 P14 canonical owner-definer CAS/receipt Entry review RPC drift'
+    using errcode='55000';end if;
+
+  if not exists(select 1 from pg_trigger t
       where t.tgrelid=v_table
         and t.tgname='studio2_guard_internal_entry_review_transition'
         and t.tgfoid=to_regprocedure('private.studio2_guard_direct_confirmation_review_transition()')
         and t.tgenabled='O' and not t.tgisinternal)
-    or not exists(select 1 from pg_trigger t
+  then raise exception 'S16 P14 internal Entry review guard trigger drift'
+    using errcode='55000';end if;
+  if not exists(select 1 from pg_trigger t
       where t.tgrelid=v_table
         and t.tgname='studio2_touch_internal_entry_review_version'
         and t.tgfoid=to_regprocedure('private.studio2_touch_confirmation_review_version()')
         and t.tgenabled='O' and not t.tgisinternal)
-  then raise exception 'S16 internal Entry ACL, canonical review/CAS or trigger boundary drift'
+  then raise exception 'S16 P14 internal Entry version touch trigger drift'
     using errcode='55000';end if;
 end $s16_internal_entry_preflight$;
 
