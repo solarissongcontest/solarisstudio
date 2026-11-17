@@ -16,6 +16,9 @@ describe("S16 P08 Jury window R2 single writer", () => {
     expect(cutover).toContain("'replayed'");
     expect(cutover).toContain("studio2-jury-window:");
     expect(cutover).toContain("p_expected_version <> v_current_version");
+    // 20261018031000 rewrote stale preview conflicts to PT409; never regress.
+    expect(cutover).toContain("using errcode = 'PT409'");
+    expect(cutover).not.toContain("using errcode = '40001'");
     expect(cutover).toContain("private.studio2_complete_operation");
     expect(cutover).not.toContain("v_change := public.admin_set_jury_voting_status(p_show_id, p_status);");
   });
