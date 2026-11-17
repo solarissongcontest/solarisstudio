@@ -124,13 +124,13 @@ begin
   begin
     select * into target_show
     from public.shows
-    where id = _show_id;
+    where id = p_show_id;
   
     if not public.studio2_access_allowed('voting.manage', target_show.edition_id, true) then
       raise exception 'Missing Solaris capability: voting.manage' using errcode = '42501';
     end if;
   
-    if _status not in ('open', 'closed') then
+    if p_status not in ('open', 'closed') then
       raise exception 'Invalid jury voting status';
     end if;
   
@@ -144,14 +144,14 @@ begin
       coalesce(target_show.voting_config -> 'juryPoints', '[12,10,8,7,6,5,4,3,2,1]'::jsonb)
     );
   
-    if _status = 'open' and not jury_enabled then
+    if p_status = 'open' and not jury_enabled then
       raise exception 'Jury voting is disabled for this show';
     end if;
   
-    if _status = 'open' then
+    if p_status = 'open' then
       select count(*) into participant_count
       from public.participants p
-      where p.show_id = _show_id
+      where p.show_id = p_show_id
         and (p.participation_status is null or p.participation_status = 'confirmed');
   
       if participant_count < point_count then
@@ -159,16 +159,16 @@ begin
       end if;
   
       if not allow_self and participant_count = point_count then
-        if not exists (select 1 from public.voters where show_id = _show_id) then
+        if not exists (select 1 from public.voters where show_id = p_show_id) then
           raise exception 'Add one more entry or shorten the jury point scale because participating juries cannot vote for themselves';
         end if;
   
         select count(*) into participating_roster_count
         from public.voters v
-        where v.show_id = _show_id
+        where v.show_id = p_show_id
           and exists (
             select 1 from public.participants p
-            where p.show_id = _show_id
+            where p.show_id = p_show_id
               and p.country_id = v.country_id
               and (p.participation_status is null or p.participation_status = 'confirmed')
           );
@@ -181,19 +181,19 @@ begin
       update public.jury_voting_windows
         set status = 'closed', closed_at = now(), updated_at = now()
       where edition_id = target_show.edition_id
-        and show_id <> _show_id
+        and show_id <> p_show_id
         and status = 'open';
     end if;
   
     insert into public.jury_voting_windows (
       show_id, edition_id, status, opened_at, closed_at, opened_by, updated_at
     ) values (
-      _show_id,
+      p_show_id,
       target_show.edition_id,
-      _status,
-      case when _status = 'open' then now() else null end,
-      case when _status = 'closed' then now() else null end,
-      case when _status = 'open' then auth.uid() else null end,
+      p_status,
+      case when p_status = 'open' then now() else null end,
+      case when p_status = 'closed' then now() else null end,
+      case when p_status = 'open' then auth.uid() else null end,
       now()
     )
     on conflict (show_id) do update set
@@ -204,7 +204,7 @@ begin
       opened_by = case when excluded.status = 'open' then auth.uid() else jury_voting_windows.opened_by end,
       updated_at = now();
   
-    v_change := jsonb_build_object('ok', true, 'show_id', _show_id, 'status', _status);
+    v_change := jsonb_build_object('ok', true, 'show_id', p_show_id, 'status', p_status);
   end governed_window_mutation;
 
 
