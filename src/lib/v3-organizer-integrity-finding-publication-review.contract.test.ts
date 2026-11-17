@@ -51,8 +51,22 @@ describe("V3 Organizer Integrity finding and precedent review", () => {
     expect(route).toContain("p_operation_id: activeReview.operationId");
     expect(route).toContain("p_idempotency_key: activeReview.operationId");
     expect(route.match(/admin_publish_integrity_decision/g)?.length).toBe(1);
-    expect(route).not.toContain("window.confirm(");
-    expect(route).not.toContain("window.prompt(");
+    // Scope the native-dialog denial to the *reviewed decisions*. Unrelated
+    // case triage and reviewer assignment have independent review contracts.
+    const findingPanel = route.slice(
+      route.indexOf("function FindingPanel("),
+      route.indexOf("function CommunicationPanel("),
+    );
+    const publicationPanel = route.slice(
+      route.indexOf("function DecisionPublicationPanel("),
+      route.indexOf("function TimelinePanel("),
+    );
+    expect(findingPanel).toContain("<IntegrityFindingReview");
+    expect(publicationPanel).toContain("<IntegrityPrecedentPublicationReview");
+    for (const reviewedDecision of [findingPanel, publicationPanel]) {
+      expect(reviewedDecision).not.toContain("window.confirm(");
+      expect(reviewedDecision).not.toContain("window.prompt(");
+    }
   });
 
   it("states the remaining System authority gap instead of claiming parity", () => {
