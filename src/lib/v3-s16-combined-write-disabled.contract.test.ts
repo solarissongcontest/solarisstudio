@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { requireCombinedTelevoteWriteApproval } from "@/integrations/televoting/combined-write-gate.server";
+import { scanV3S16StaticAuthority } from "./v3-s16-mutation-authority";
 
 const server = readFileSync(resolve(process.cwd(), "src/integrations/televoting/combined.server.ts"), "utf8");
 const sync = readFileSync(resolve(process.cwd(), "src/integrations/televoting/combined-sync.server.ts"), "utf8");
@@ -35,6 +36,12 @@ function expectGatedBeforeAwait(source: string, name: string) {
   expect(guard, `${name}: guard must run before any awaited action`).toBeLessThan(firstAwait);
 }
 
+function expectRetiredBeforeNetwork(source: string, name: string) {
+  const head = functionHead(source, name);
+  expect(head).toContain("return requireCombinedTelevoteWriteApproval();");
+  expect(head).not.toMatch(/\bawait\b|\.from\s*\(|\.rpc\s*\(|\.(?:insert|update|upsert|delete)\s*\(/);
+}
+
 describe("COM-00: separate Combined Televote cannot write during deferred beta", () => {
   it("uses unconditional server-side denial", () => {
     expect(() => requireCombinedTelevoteWriteApproval()).toThrow(
@@ -42,12 +49,12 @@ describe("COM-00: separate Combined Televote cannot write during deferred beta",
     );
   });
 
-  it.each(mutationFunctions)("denies %s before any async action", (name) => {
-    expectGatedBeforeAwait(server, name);
+  it.each(mutationFunctions)("retires all physical DML and denies %s before any async action", (name) => {
+    expectRetiredBeforeNetwork(server, name);
   });
 
   it("denies background or direct participant sync before reading any state", () => {
-    expectGatedBeforeAwait(sync, "syncEditableCombinedParticipantsFromSolarisServer");
+    expectRetiredBeforeNetwork(sync, "syncEditableCombinedParticipantsFromSolarisServer");
   });
 
   it("denies Combined official Results publication before SQL or RPC", () => {
@@ -67,6 +74,20 @@ describe("COM-00: separate Combined Televote cannot write during deferred beta",
     expect(roundBody).toContain("writeCanonicalShowTelevote");
   });
 
+  it("does not retain the two deferred Combined canonical-table source writers", () => {
+    const findings = scanV3S16StaticAuthority([
+      { path: "src/integrations/televoting/combined.server.ts", source: server },
+      { path: "src/integrations/televoting/combined-sync.server.ts", source: sync },
+    ]);
+    expect(findings.filter(finding =>
+      finding.kind === "direct_application_writer" && finding.domain === "televote",
+    )).toEqual([]);
+    expect(server).not.toContain('.from("televote_aggregations").update(');
+    expect(sync).not.toContain('.from("televote_aggregations")');
+    expect(sync).not.toContain('.from("televote_aggregation_participants")');
+    expect(server).not.toContain('from("combined_televote_results").insert(');
+  });
+
   it("locks down the whole current exported Combined mutation inventory", () => {
     const actual = [...server.matchAll(/export async function (\w+MergedCombined\w*Server)\(/g)]
       .map((match) => match[1])
@@ -76,7 +97,8 @@ describe("COM-00: separate Combined Televote cannot write during deferred beta",
 
   it("does not weaken existing organizer authorization", () => {
     expect(server).toContain("requireMergedTelevotingAdminServer");
-    expect(sync).toContain("requireMergedTelevotingAdminServer");
+    expect(sync).not.toContain("requireMergedTelevotingAdminServer");
+    expect(sync).not.toContain("televotingAdmin");
     expect(resultSync).toContain("requireMergedTelevotingAdminServer");
   });
 });
