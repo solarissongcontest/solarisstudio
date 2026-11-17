@@ -38,7 +38,8 @@ function expectGatedBeforeAwait(source: string, name: string) {
 
 function expectRetiredBeforeNetwork(source: string, name: string) {
   const head = functionHead(source, name);
-  expect(head).toContain("return requireCombinedTelevoteWriteApproval();");
+  expect(head).toContain("requireCombinedTelevoteWriteApproval();");
+  expect(head).toContain('throw new Error("Combined Televote mutations are disabled pending canonical authority certification.");');
   expect(head).not.toMatch(/\bawait\b|\.from\s*\(|\.rpc\s*\(|\.(?:insert|update|upsert|delete)\s*\(/);
 }
 
