@@ -59,6 +59,7 @@ import {
 } from "@/lib/integrity-identity";
 import { getRuleById, SSC_RULES } from "@/lib/ssc-rules-v4";
 import { cn } from "@/lib/utils";
+import { governedIntegrityArgs } from "@/lib/v3-integrity-governed-operation";
 
 export const Route = createFileRoute("/_authenticated/admin/integrity-case/$caseId")({
   head: () => ({
@@ -131,6 +132,7 @@ type ResolutionSummary = {
 type CaseDetail = {
   case: {
     id: string;
+    version: number;
     public_code: string;
     case_kind: string;
     category: string;
@@ -706,13 +708,14 @@ function FindingPanel({ detail, refresh }: { detail: CaseDetail; refresh: () => 
         await refresh();
         throw new Error("Integrity case changed while this finding review was open. Nothing was recorded. Review the latest case before trying again.");
       }
-      await rpc("admin_record_integrity_finding", {
-        _case_id: activeReview.caseId,
-        _outcome: activeReview.outcome,
-        _summary: activeReview.summary,
-        _rationale: activeReview.rationale,
-        _rule_ids: activeReview.ruleIds,
-        _visible_to_reporter: activeReview.visibleToReporter,
+      await rpc("studio2_integrity_record_finding", {
+        p_case_id: activeReview.caseId,
+        p_outcome: activeReview.outcome,
+        p_summary: activeReview.summary,
+        p_rationale: activeReview.rationale,
+        p_rule_ids: activeReview.ruleIds,
+        p_visible_to_reporter: activeReview.visibleToReporter,
+        ...governedIntegrityArgs(live.case.version),
       });
       setSummary("");
       setRationale("");
@@ -779,8 +782,8 @@ function CommunicationPanel({ detail, refresh }: { detail: CaseDetail; refresh: 
   const [message, setMessage] = useState("");
   const [request, setRequest] = useState(true);
   const [note, setNote] = useState("");
-  const reply = useMutation({ mutationFn: () => rpc("admin_reply_integrity_case", { _case_id: detail.case.id, _body: message, _request_response: request }), onSuccess: async () => { setMessage(""); await refresh(); toast.success("Message sent"); }, onError: errorToast });
-  const addNote = useMutation({ mutationFn: () => rpc("admin_add_integrity_case_note", { _case_id: detail.case.id, _body: note }), onSuccess: async () => { setNote(""); await refresh(); toast.success("Internal note added"); }, onError: errorToast });
+  const reply = useMutation({ mutationFn: () => rpc("studio2_integrity_reply_case", { p_case_id: detail.case.id, p_body: message, p_request_response: request, ...governedIntegrityArgs(detail.case.version) }), onSuccess: async () => { setMessage(""); await refresh(); toast.success("Message sent"); }, onError: errorToast });
+  const addNote = useMutation({ mutationFn: () => rpc("studio2_integrity_add_case_note", { p_case_id: detail.case.id, p_body: note, ...governedIntegrityArgs(detail.case.version) }), onSuccess: async () => { setNote(""); await refresh(); toast.success("Internal note added"); }, onError: errorToast });
 
   return (
     <AdminCard>
@@ -796,8 +799,8 @@ function CommunicationPanel({ detail, refresh }: { detail: CaseDetail; refresh: 
 }
 
 function TriagePanel({ detail, refresh }: { detail: CaseDetail; refresh: () => Promise<void> }) {
-  const status = useMutation({ mutationFn: (value: string) => rpc("admin_update_integrity_case_status", { _case_id: detail.case.id, _status: value }), onSuccess: refresh, onError: errorToast });
-  const priority = useMutation({ mutationFn: (value: string) => rpc("admin_set_integrity_priority", { _case_id: detail.case.id, _priority: value }), onSuccess: refresh, onError: errorToast });
+  const status = useMutation({ mutationFn: (value: string) => rpc("studio2_integrity_case_transition", { p_case_id: detail.case.id, p_target_status: value, ...governedIntegrityArgs(detail.case.version) }), onSuccess: refresh, onError: errorToast });
+  const priority = useMutation({ mutationFn: (value: string) => rpc("studio2_integrity_set_case_priority", { p_case_id: detail.case.id, p_priority: value, ...governedIntegrityArgs(detail.case.version) }), onSuccess: refresh, onError: errorToast });
   return (
     <AdminCard>
       <SectionTitle icon={SearchCheck} eyebrow="Triage" title="Case state" />
@@ -817,8 +820,8 @@ function ReviewerPanel({ detail, organizers, refresh }: { detail: CaseDetail; or
   const [user, setUser] = useState("");
   const [role, setRole] = useState("investigator");
   const [reason, setReason] = useState("");
-  const assign = useMutation({ mutationFn: () => rpc("admin_assign_integrity_reviewer", { _case_id: detail.case.id, _user_id: user, _review_role: role }), onSuccess: refresh, onError: errorToast });
-  const recuse = useMutation({ mutationFn: () => rpc("admin_recuse_from_integrity_case", { _case_id: detail.case.id, _reason: reason }), onSuccess: async () => { setReason(""); await refresh(); toast.success("Recusal recorded"); }, onError: errorToast });
+  const assign = useMutation({ mutationFn: () => rpc("studio2_integrity_assign_case_reviewer", { p_case_id: detail.case.id, p_user_id: user, p_review_role: role, ...governedIntegrityArgs(detail.case.version) }), onSuccess: refresh, onError: errorToast });
+  const recuse = useMutation({ mutationFn: () => rpc("studio2_integrity_recuse_case_reviewer", { p_case_id: detail.case.id, p_reason: reason, ...governedIntegrityArgs(detail.case.version) }), onSuccess: async () => { setReason(""); await refresh(); toast.success("Recusal recorded"); }, onError: errorToast });
   return (
     <AdminCard>
       <SectionTitle icon={UserPlus} eyebrow="Review team" title="Roles & conflicts" />
