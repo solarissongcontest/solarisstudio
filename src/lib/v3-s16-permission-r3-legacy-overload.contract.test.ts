@@ -13,6 +13,10 @@ describe('S16 P16 legacy permission R3 overload retirement',()=>{
     expect(mig).toContain("An approved second-operator request is required");
     expect(mig).not.toMatch(/drop function .*\bcascade\b/i);
     expect(source).toContain('p_approval_request_id');
+    expect(mig).toContain("revoke execute on function public.studio2_apply_permission_change(");
+    expect(mig).toContain("from public,anon,authenticated,service_role;");
+    expect(mig).toContain("private.studio2_claim_operation(");
+    expect(sql).toContain("direct service-role low-level permission escalation RPC EXECUTE denied");
   });
   it('requires the actual app to send the second-operator approval and preserves current RPC',()=>{
     expect(client).toContain('p_approval_request_id: input.approvalRequestId');
