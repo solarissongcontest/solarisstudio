@@ -25,5 +25,6 @@ export async function syncEditableCombinedParticipantsFromSolarisServer(
   aggregationId: string,
 ): Promise<CombinedCanonicalSyncOutcome> {
   void aggregationId;
-  return requireCombinedTelevoteWriteApproval();
+  requireCombinedTelevoteWriteApproval();
+  throw new Error("Combined Televote mutations are disabled pending canonical authority certification.");
 }
