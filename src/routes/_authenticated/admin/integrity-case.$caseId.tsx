@@ -46,7 +46,6 @@ import {
   getEvidenceAccessLog,
   getOrganizerEvidenceDownloadUrl,
   scheduleEvidenceDeletion,
-  setCaseEvidenceRetention,
   type EvidenceAccessLogItem,
 } from "@/lib/integrity-evidence";
 import {
@@ -412,6 +411,7 @@ function EvidencePanel({ detail, refresh }: { detail: CaseDetail; refresh: () =>
   const [visible, setVisible] = useState(false);
   const [retentionDate, setRetentionDate] = useState(() => toLocalDateTimeValue(detail.case.retention_until));
   const [retentionReason, setRetentionReason] = useState("");
+  const retentionCommand = useV3IntegrityCaseCommand();
 
   const accessQuery = useQuery({
     queryKey: ["integrity-evidence-access-log", detail.case.id],
@@ -447,9 +447,15 @@ function EvidencePanel({ detail, refresh }: { detail: CaseDetail; refresh: () =>
     mutationFn: () => {
       const iso = localDateTimeToIso(retentionDate);
       if (!iso) throw new Error("Choose a valid future retention date.");
-      return setCaseEvidenceRetention(detail.case.id, iso, retentionReason);
+      return retentionCommand.execute("studio2_integrity_set_case_retention", {
+        p_case_id: detail.case.id,
+        p_retention_until: iso,
+        p_reason: retentionReason,
+        p_expected_version: detail.case.version,
+      });
     },
     onSuccess: async () => {
+      retentionCommand.clear();
       setRetentionReason("");
       await refresh();
       toast.success("Case evidence retention updated");
