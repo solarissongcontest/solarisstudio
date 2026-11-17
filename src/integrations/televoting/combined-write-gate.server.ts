@@ -7,7 +7,7 @@
  * transactional commands, effective DB authority tests, and owner approval.
  * Ordinary Jury and round-based Televote remain outside this guard.
  */
-export function requireCombinedTelevoteWriteApproval(): void {
+export function requireCombinedTelevoteWriteApproval(): never {
   throw new Error(
     "Combined Televote mutations are disabled pending canonical authority certification.",
   );
