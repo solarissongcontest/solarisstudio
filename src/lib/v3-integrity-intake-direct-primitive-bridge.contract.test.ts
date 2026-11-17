@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const migration = readFileSync(resolve(process.cwd(), "supabase/migrations/20261117175500_v3_integrity_intake_direct_primitive_bridge.sql"), "utf8");
 const oldBridge = readFileSync(resolve(process.cwd(), "supabase/migrations/20261117162000_v3_integrity_intake_event_provenance.sql"), "utf8");
 const compatibility = readFileSync(resolve(process.cwd(), "supabase/migrations/20261117174000_v3_integrity_intake_compatibility_cutover.sql"), "utf8");
+const runtimeSql = readFileSync(resolve(process.cwd(), ".github/tests/v3-integrity-intake-direct-primitive-bridge.sql"), "utf8");
 
 function implementation(name: string, tag: string) {
   const start = migration.indexOf(`create or replace function public.${name}(`);
@@ -39,6 +40,17 @@ describe("P04 Integrity intake: eliminate a real V3 -> legacy -> V3 recursion", 
     expect(migration).toContain("Unqualified Integrity V3 implementation");
     expect(migration).toContain("Integrity internal primitive remains directly executable");
     expect(migration).toContain("v3_register_migration_contract");
+  });
+
+  it("keeps PostgreSQL role-test overload signatures exactly synchronized with the final migration", () => {
+    for (const name of [
+      "v3_create_protected_integrity_case_impl",
+      "v3_public_create_anonymous_integrity_case_impl",
+    ]) {
+      const exact = migration.match(new RegExp("'public\\." + name + "\\([^']+\\)'"))?.[0];
+      expect(exact, name + " must have a final inspected signature").toBeDefined();
+      expect(runtimeSql).toContain(exact!);
+    }
   });
 
   it("does not edit previously applied creator migrations or add an S16 exception", () => {
