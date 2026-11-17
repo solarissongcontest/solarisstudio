@@ -35,7 +35,6 @@ begin
       or exists (select 1 from pg_attribute a where a.attrelid=v_oid
         and a.attnum>0 and not a.attisdropped and a.attacl is not null)
       or not has_table_privilege('service_role',v_oid,'INSERT,UPDATE,DELETE,TRUNCATE')
-      or not has_table_privilege('service_role',v_oid,'SELECT')
     then raise exception 'S16 Integrity table/owner/RLS/ACL drift: %',v_table
       using errcode='55000'; end if;
   end loop;
@@ -105,9 +104,8 @@ begin
       then raise exception 'S16 Integrity column DML retained: % %',v_table,v_role
         using errcode='42501';end if;
     end loop;
-    if not has_table_privilege('service_role',v_table,'SELECT')
-    then raise exception 'S16 Integrity service SELECT unexpectedly removed: %',v_table
-      using errcode='55000';end if;
+    -- Do not grant SELECT: Integrity confidentiality may deny even service_role
+    -- direct reads. This cutover changes only write privileges.
   end loop;
   if not has_function_privilege('authenticated','public.admin_record_integrity_finding(uuid,text,text,text,text[],boolean)','EXECUTE')
      or not has_function_privilege('anon','public.public_create_anonymous_integrity_case(text,text,text,text,text,text[],text,text)','EXECUTE')
