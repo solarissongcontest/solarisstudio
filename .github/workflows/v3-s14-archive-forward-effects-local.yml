@@ -55,6 +55,8 @@ on:
       - ".github/tests/v3-s16-shared-guard-reviewed-api-dml.sql"
       - "supabase/migrations/20261116211500_v3_s16_country_account_api_dml_retirement.sql"
       - ".github/tests/v3-s16-country-account-api-dml.sql"
+      - "supabase/migrations/20261117042000_v3_s16_session_revocation_api_dml_retirement.sql"
+      - ".github/tests/v3-s16-session-revocation-api-dml.sql"
       # S16 catalog-scanner changes must regenerate the EXACT-SHA independent
       # PG17.11 Publication certificate; no hosted database traffic.
       - "src/lib/v3-s16-catalog.ts"
