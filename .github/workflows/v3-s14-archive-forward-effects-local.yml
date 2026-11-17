@@ -61,6 +61,11 @@ on:
       # PG17.11 Publication certificate; no hosted database traffic.
       - "src/lib/v3-s16-catalog.ts"
       - "src/lib/v3-s16-catalog.test.ts"
+      # Source-only COM-00 writer retirement must also obtain an independent
+      # exact-SHA networkless PG17.11 S14 Publication execution certificate.
+      - "src/integrations/televoting/combined.server.ts"
+      - "src/integrations/televoting/combined-sync.server.ts"
+      - "src/lib/v3-s16-combined-write-disabled.contract.test.ts"
       - "supabase/migrations/20261117071000_v3_s16_integrity_api_table_dml_retirement.sql"
       - ".github/tests/v3-s16-integrity-api-table-dml.sql"
       - "src/lib/v3-s16-integrity-api-table-dml.contract.test.ts"
