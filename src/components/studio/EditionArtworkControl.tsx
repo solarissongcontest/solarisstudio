@@ -5,6 +5,7 @@ import { ImagePlus, Loader2, Palette, RotateCcw, Save } from "lucide-react";
 import { AdminConfirmSheet } from "@/components/admin/AdminUI";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import { editionLabel, useEditions, useShows, useThemes } from "@/lib/data";
+import { applyEditionPublicVisualChange } from "@/lib/edition-public-visual-command";
 import {
   DEFAULT_THEME,
   editionThemeToVisual,
@@ -21,6 +22,7 @@ type EditionArtworkRow = {
   slug: string;
   name: string;
   edition_number: number | null;
+  data_revision?: number | null;
   theme_id?: string | null;
   logo?: string | null;
   artwork_url?: string | null;
@@ -42,6 +44,10 @@ type ArtworkShowSnapshot = {
 type ArtworkBaseline = {
   editionId: string;
   editionName: string;
+  editionSourceName: string;
+  editionSlug: string;
+  editionRevision: number;
+  themeColorsSnapshot: Record<string, unknown> | null;
   editionThemeId: string | null;
   logo: string | null;
   artworkUrl: string | null;
@@ -99,6 +105,10 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
   const editionShows = shows.filter((show) => show.edition_id === activeEdition.id);
 
   function captureBaseline(): ArtworkBaseline | null {
+    if (!Number.isSafeInteger(activeEdition.data_revision) || Number(activeEdition.data_revision) < 0) {
+      setMessage("Edition revision is unavailable. Reload the Production workspace before reviewing a change.");
+      return null;
+    }
     const showSnapshots = editionShows
       .map<ArtworkShowSnapshot>((show) => ({ id: show.id, themeId: show.theme_id ?? null }))
       .sort((left, right) => left.id.localeCompare(right.id));
@@ -123,6 +133,12 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
     return {
       editionId: activeEdition.id,
       editionName: editionLabel(activeEdition as any),
+      editionSourceName: activeEdition.name,
+      editionSlug: activeEdition.slug,
+      editionRevision: Number(activeEdition.data_revision),
+      themeColorsSnapshot: activeEdition.theme_colors && typeof activeEdition.theme_colors === "object" && !Array.isArray(activeEdition.theme_colors)
+        ? cloneForReview(activeEdition.theme_colors as Record<string, unknown>)
+        : null,
       editionThemeId: activeEdition.theme_id ?? null,
       logo: activeEdition.logo ?? null,
       artworkUrl: activeEdition.artwork_url ?? null,
@@ -172,12 +188,15 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
   async function verifyBaseline(baseline: ArtworkBaseline) {
     const { data: liveEdition, error: editionError } = await supabase
       .from("editions")
-      .select("id,theme_id,logo,artwork_url,artwork_storage_path,theme_colors")
+      .select("id,name,slug,data_revision,theme_id,logo,artwork_url,artwork_storage_path,theme_colors")
       .eq("id", baseline.editionId)
       .maybeSingle();
     if (editionError) throw editionError;
     if (
       !liveEdition ||
+      liveEdition.name !== baseline.editionSourceName ||
+      liveEdition.slug !== baseline.editionSlug ||
+      liveEdition.data_revision !== baseline.editionRevision ||
       (liveEdition.theme_id ?? null) !== baseline.editionThemeId ||
       (liveEdition.logo ?? null) !== baseline.logo ||
       (liveEdition.artwork_url ?? null) !== baseline.artworkUrl ||
@@ -266,19 +285,26 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
         setPalette(review.palette);
         setMessage("Official artwork saved. It will appear uncropped on the public edition page.");
       } else {
-        await saveEditionVisualTheme({
+        // P03/P01: colour-only editions writes have an already reviewed
+        // versioned, receipted command. Artwork bytes/logo remain a separate
+        // Media/Storage cutover, not a permissible visual RPC patch.
+        const receipt = await applyEditionPublicVisualChange({
           editionId: review.baseline.editionId,
-          artworkUrl: review.baseline.artworkUrl,
-          artworkStoragePath: review.baseline.artworkStoragePath,
-          theme: review.theme,
-          palette: review.palette,
-          generatedFromArtwork: false,
+          expectedRevision: review.baseline.editionRevision,
+          expectedName: review.baseline.editionSourceName,
+          expectedSlug: review.baseline.editionSlug,
+          expectedThemeColors: review.baseline.themeColorsSnapshot,
+          nextThemeColors: {
+            ...review.theme,
+            palette: review.palette,
+            generatedFromArtwork: false,
+          },
         });
         await synchroniseReviewedScoreboardThemes(review.theme, review.baseline.themes);
         setThemeDraft(review.theme);
         setSavedTheme(review.theme);
         setPalette(review.palette);
-        setMessage("Edition colours saved and synced to the reviewed scoreboard themes.");
+        setMessage(`Edition colours saved through verified operation ${receipt.operationId} and synced to reviewed scoreboard themes.`);
       }
 
       setPendingReview(null);
