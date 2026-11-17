@@ -90,6 +90,10 @@ on:
       - "scripts/stage-v3-signup-jury-prerequisites-local.mjs"
       - "supabase/migrations/20261114102706_v3_jury_governed_submission_cutover.sql"
       - "supabase/migrations/20261115084647_v3_jury_canonical_table_authority.sql"
+      # P08: same-SHA independent networkless PG17.11 Publication/Archive proof.
+      - "supabase/migrations/20261117190000_v3_s16_jury_window_r2_single_writer_cutover.sql"
+      - ".github/tests/v3-s16-jury-window-r2-single-writer.sql"
+      - "src/lib/v3-s16-jury-window-r2-single-writer.contract.test.ts"
       - ".github/scripts/v3-combined-deferral-local.sh"
       - ".github/tests/v3-combined-deferral-*.sql"
       - "supabase/migrations/20261114141934_v3_defer_combined_televote_database_writes.sql"
