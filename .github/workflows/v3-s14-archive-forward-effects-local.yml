@@ -63,6 +63,17 @@ on:
       - "src/lib/v3-s16-catalog.test.ts"
       - "supabase/migrations/20261117071000_v3_s16_integrity_api_table_dml_retirement.sql"
       - ".github/tests/v3-s16-integrity-api-table-dml.sql"
+      # P04 root-cause writer network and actual Organizer caller replacement must
+      # trigger an independent, SHA-identical isolated PG17 Publication producer.
+      - "supabase/migrations/2026111716*_v3_integrity_*.sql"
+      - "supabase/migrations/2026111717*_v3_integrity_*.sql"
+      - ".github/tests/v3-integrity-authority-catalog.sql"
+      - "src/lib/v3-integrity-*.ts"
+      - "src/routes/_authenticated/admin/integrity-case.$caseId.tsx"
+      - "src/routes/_authenticated/admin/integrity-resolution.$caseId.tsx"
+      - "src/routes/_authenticated/admin/integrity-preclearance.tsx"
+      - "src/lib/integrity-preclearance.ts"
+      - "src/lib/integrity-evidence.ts"
       - "src/lib/v3-s16-integrity-api-table-dml.contract.test.ts"
       - "supabase/migrations/20261117072000_v3_s16_confirmation_ledger_api_dml_retirement.sql"
       - ".github/tests/v3-s16-confirmation-ledger-api-dml.sql"
