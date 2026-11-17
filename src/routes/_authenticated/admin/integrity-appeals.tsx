@@ -9,7 +9,7 @@ import { AdminCard, AdminConfirmSheet, AdminPageHeader, AdminStatus } from "@/co
 import { RuleDecisionStrip } from "@/components/rules/RuleDecisionStrip";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { useV3IntegrityCaseCommand } from "@/lib/v3-integrity-case-command";
+import { useV3IntegrityCaseCommand } from "@/integrations/integrity/governed-case-command";
 
 export const Route = createFileRoute("/_authenticated/admin/integrity-appeals")({
   head: () => ({ meta: [{ title: "Integrity Appeals — Solaris Organizer" }, { name: "robots", content: "noindex" }] }),

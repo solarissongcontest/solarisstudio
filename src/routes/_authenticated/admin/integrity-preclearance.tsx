@@ -439,7 +439,7 @@ function RulingComposer({ detail, onChanged }: { detail: CaseDetail; onChanged: 
               </div>
               {pendingReview.outcome === "needs_more_information" ? <p>This ruling also moves the case to waiting_for_reporter so the participant can supply the missing facts.</p> : null}
               <p>Solaris reloads this exact Integrity case immediately before the compatibility write. If case identity, status, facts or rule links changed while this sheet was open, the reviewed action is rejected instead of being silently updated.</p>
-              <p>The current legacy authority records the ruling after that revalidation. Canonical V3 preflight, rulebook-snapshot binding, expected-version/CAS, idempotency and receipt authority remain tracked in System #950.</p>
+              <p>The governed database command checks the reviewed case revision and operation identity before recording the ruling. Full rulebook-snapshot and uncertain-outcome recovery guarantees remain tracked in System #950.</p>
             </div>
           ) : null
         }

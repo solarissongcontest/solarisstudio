@@ -44,8 +44,12 @@ describe("V3 Organizer Integrity finding and precedent review", () => {
     expect(route).toContain("requests:");
   });
 
-  it("keeps the legacy RPCs as the only mutation authority for this slice", () => {
-    expect(route.match(/admin_record_integrity_finding/g)?.length).toBe(1);
+  it("governs reviewed findings with versioned and receipted authority while keeping publication reviewed", () => {
+    expect(route.match(/studio2_integrity_record_finding/g)?.length).toBe(1);
+    expect(route).not.toContain('rpc("admin_record_integrity_finding"');
+    expect(route).toContain("p_expected_version: live.case.version");
+    expect(route).toContain("p_operation_id: activeReview.operationId");
+    expect(route).toContain("p_idempotency_key: activeReview.operationId");
     expect(route.match(/admin_publish_integrity_decision/g)?.length).toBe(1);
     expect(route).not.toContain("window.confirm(");
     expect(route).not.toContain("window.prompt(");

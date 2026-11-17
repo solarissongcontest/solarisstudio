@@ -58,7 +58,7 @@ import {
 } from "@/lib/integrity-identity";
 import { getRuleById, SSC_RULES } from "@/lib/ssc-rules-v4";
 import { cn } from "@/lib/utils";
-import { useV3IntegrityCaseCommand } from "@/lib/v3-integrity-case-command";
+import { useV3IntegrityCaseCommand } from "@/integrations/integrity/governed-case-command";
 
 export const Route = createFileRoute("/_authenticated/admin/integrity-case/$caseId")({
   head: () => ({
