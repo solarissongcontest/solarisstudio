@@ -9,7 +9,7 @@ const s14=readFileSync('.github/workflows/v3-s14-archive-forward-effects-local.y
 describe('S16 P16 legacy permission R3 overload retirement',()=>{
   it('removes only the unsafe eight-argument approval-bypassing wrapper',()=>{
     expect(mig).toMatch(/drop function public\.studio2_apply_permission_change_r3\(\s*uuid,text,text,uuid,timestamptz,uuid,text,bigint\s*\) restrict/i);
-    expect(mig).toContain("to_regprocedure('public.studio2_apply_permission_change_r3(uuid,text,text,uuid,timestamptz,uuid,text,bigint,uuid)')");
+    expect(mig).toMatch(/to_regprocedure\(\s*'public\.studio2_apply_permission_change_r3\(uuid,text,text,uuid,timestamptz,uuid,text,bigint,uuid\)'\s*\)/);
     expect(mig).toContain("An approved second-operator request is required");
     expect(mig).not.toMatch(/drop function .*\bcascade\b/i);
     expect(source).toContain('p_approval_request_id');
