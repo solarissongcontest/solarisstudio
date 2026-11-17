@@ -61,6 +61,9 @@ on:
       # PG17.11 Publication certificate; no hosted database traffic.
       - "src/lib/v3-s16-catalog.ts"
       - "src/lib/v3-s16-catalog.test.ts"
+      - "supabase/migrations/20261117072000_v3_s16_confirmation_ledger_api_dml_retirement.sql"
+      - ".github/tests/v3-s16-confirmation-ledger-api-dml.sql"
+      - "src/lib/v3-s16-confirmation-ledger-api-dml.contract.test.ts"
       - ".github/scripts/v3-observed-owner-recovery-local.sh"
       - ".github/scripts/v3-s16-publication-api-local.sh"
       - ".github/tests/v3-s16-publication-archive-guard-authority.sql"
