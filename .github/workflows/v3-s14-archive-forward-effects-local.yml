@@ -61,6 +61,10 @@ on:
       # PG17.11 Publication certificate; no hosted database traffic.
       - "src/lib/v3-s16-catalog.ts"
       - "src/lib/v3-s16-catalog.test.ts"
+      # Required cross-certificate producer for the P13 local authority cutover.
+      - "supabase/migrations/20261117070000_v3_s16_edition_runtime_api_dml_retirement.sql"
+      - ".github/tests/v3-s16-edition-runtime-api-dml.sql"
+      - "src/lib/v3-s16-edition-runtime-api-dml.contract.test.ts"
       - ".github/scripts/v3-observed-owner-recovery-local.sh"
       - ".github/scripts/v3-s16-publication-api-local.sh"
       - ".github/tests/v3-s16-publication-archive-guard-authority.sql"
