@@ -25,6 +25,27 @@ describe("S16 trustworthy catalog evidence",()=>{
   expect(potentialS16Write('INSERT INTO "public" . "editions" values (1)',"public.editions",null)).toBe(true);
  });
  it("keeps unresolved unqualified SQL as a candidate",()=>expect(potentialS16Write("update editions set name='x'","public.editions",null)).toBe(true));
+ it("folds unquoted PostgreSQL identifiers without mistaking quoted names for qualified relations",()=>{
+  for (const sql of [
+    "UPDATE PUBLIC.EDITIONS SET name = 'x'",
+    "INSERT INTO PUBLIC.EDITIONS(id) VALUES (1)",
+    "DELETE FROM PuBlIc.EdItIoNs WHERE false",
+    "MERGE INTO PUBLIC.EDITIONS USING src ON true WHEN MATCHED THEN DELETE",
+    "TRUNCATE TABLE public.safe_table, PUBLIC.EDITIONS",
+    "UPDATE EDITIONS SET name='x'",
+  ]) expect(potentialS16Write(sql,"public.editions","PUBLIC, private")).toBe(true);
+
+  for (const sql of [
+    'UPDATE "PUBLIC".editions SET name=1',
+    'UPDATE public."EDITIONS" SET name=1',
+    'UPDATE "public.editions" SET name=1',
+    'TRUNCATE TABLE "public.editions"',
+    'DELETE FROM "public"."edit""ions" WHERE false',
+  ]) expect(potentialS16Write(sql,"public.editions","public")).toBe(false);
+
+  expect(potentialS16Write('UPDATE "public"."editions" SET name=1',"public.editions","PUBLIC")).toBe(true);
+  expect(potentialS16Write("UPDATE EDITIONS SET name='x'","public.editions",'"PUBLIC", private')).toBe(false);
+ });
  it("detects PostgreSQL-legal DML when comments separate tokens and qualified names",()=>{
   for(const sql of [
     "UPDATE /* audit */ public.editions SET name = 'x'",
