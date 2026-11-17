@@ -13,7 +13,7 @@ end $s16_ready$;
 begin;
 set local role anon;
 do $s16_denials$
-declare v_sql text; v_table text; v_count integer:=0;
+declare v_sql text; v_table text; v_column text; v_count integer:=0;
 begin
   if current_user<>'anon' then raise exception 'S16 wrong Confirmation SQL role';end if;
   foreach v_table in array array[
@@ -21,9 +21,14 @@ begin
     'public.studio2_confirmation_requirements',
     'public.studio2_confirmation_round_versions'
   ] loop
+    select a.attname into v_column from pg_attribute a
+      where a.attrelid=to_regclass(v_table) and a.attnum>0
+        and not a.attisdropped and a.attgenerated=''
+      order by a.attnum limit 1;
+    if v_column is null then raise exception 'S16 ledger has no updateable column: %',v_table;end if;
     foreach v_sql in array array[
       format('insert into %s default values',v_table),
-      format('update %s set id=id where false',v_table),
+      format('update %s set %I=%I where false',v_table,v_column,v_column),
       format('delete from %s where false',v_table),
       format('truncate table %s',v_table)
     ] loop
@@ -45,7 +50,7 @@ rollback;
 begin;
 set local role authenticated;
 do $s16_denials$
-declare v_sql text; v_table text; v_count integer:=0;
+declare v_sql text; v_table text; v_column text; v_count integer:=0;
 begin
   if current_user<>'authenticated' then raise exception 'S16 wrong Confirmation SQL role';end if;
   foreach v_table in array array[
@@ -53,9 +58,14 @@ begin
     'public.studio2_confirmation_requirements',
     'public.studio2_confirmation_round_versions'
   ] loop
+    select a.attname into v_column from pg_attribute a
+      where a.attrelid=to_regclass(v_table) and a.attnum>0
+        and not a.attisdropped and a.attgenerated=''
+      order by a.attnum limit 1;
+    if v_column is null then raise exception 'S16 ledger has no updateable column: %',v_table;end if;
     foreach v_sql in array array[
       format('insert into %s default values',v_table),
-      format('update %s set id=id where false',v_table),
+      format('update %s set %I=%I where false',v_table,v_column,v_column),
       format('delete from %s where false',v_table),
       format('truncate table %s',v_table)
     ] loop
@@ -77,7 +87,7 @@ rollback;
 begin;
 set local role service_role;
 do $s16_denials$
-declare v_sql text; v_table text; v_count integer:=0;
+declare v_sql text; v_table text; v_column text; v_count integer:=0;
 begin
   if current_user<>'service_role' then raise exception 'S16 wrong Confirmation SQL role';end if;
   foreach v_table in array array[
@@ -85,9 +95,14 @@ begin
     'public.studio2_confirmation_requirements',
     'public.studio2_confirmation_round_versions'
   ] loop
+    select a.attname into v_column from pg_attribute a
+      where a.attrelid=to_regclass(v_table) and a.attnum>0
+        and not a.attisdropped and a.attgenerated=''
+      order by a.attnum limit 1;
+    if v_column is null then raise exception 'S16 ledger has no updateable column: %',v_table;end if;
     foreach v_sql in array array[
       format('insert into %s default values',v_table),
-      format('update %s set id=id where false',v_table),
+      format('update %s set %I=%I where false',v_table,v_column,v_column),
       format('delete from %s where false',v_table),
       format('truncate table %s',v_table)
     ] loop
