@@ -181,52 +181,10 @@ export async function setConfirmationEditionEditing(id: string, enabled: boolean
   return data === true;
 }
 
-export async function saveConfirmationRound(payload: {
-  id?: string;
-  edition_id: string;
-  name: string;
-  status: ConfirmationRound["status"];
-  opens_at: string | null;
-  closes_at: string | null;
-  response_limit: number | null;
-  editing_enabled: boolean;
-}) {
-  const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_save_round", {
-    _payload: payload,
-  });
-  if (error) throw error;
-  return data as string;
-}
-
-export async function deleteConfirmationRound(id: string) {
-  const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_delete_round", {
-    _id: id,
-  });
-  if (error) throw error;
-  return data === true;
-}
-
-export async function setConfirmationRoundStatus(
-  id: string,
-  status: ConfirmationRound["status"],
-) {
-  const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_set_round_status", {
-    _id: id,
-    _status: status,
-  });
-  if (error) throw error;
-  return data === true;
-}
-
-export async function setConfirmationRoundEditing(id: string, enabled: boolean) {
-  const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_set_round_editing", {
-    _id: id,
-    _enabled: enabled,
-  });
-  if (error) throw error;
-  return data === true;
-}
-
+// Round changes are now exclusively previewed and applied through the
+// edition-scoped, CAS/versioned, receipted Organisation OS command below.
+// The four earlier admin_confirmation_* mutation adapters were unreachable
+// from production routes and are intentionally not exported.
 export async function previewConfirmationRoundChange(input: {
   roundId?: string | null;
   kind: ConfirmationRoundChangeKind;
