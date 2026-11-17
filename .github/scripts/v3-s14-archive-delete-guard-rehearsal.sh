@@ -311,7 +311,7 @@ RESET ROLE;
 -- The owner is deliberately unprivileged at the Archive operation gate,
 -- even though it owns the table. Keep testing the trigger independently.
 SELECT pg_temp.assert_archive_guard(
-  'Archive runtime DELETE: owner-trigger guard',
+  'Archive runtime DELETE',
   '42501',
   'Archived edition runtime is irreversible.',
   format(
@@ -351,7 +351,7 @@ RESET ROLE;
 -- The owner is deliberately unprivileged at the Archive operation gate,
 -- even though it owns the table. Keep testing the trigger independently.
 SELECT pg_temp.assert_archive_guard(
-  'Forged Archive INSERT after runtime DELETE: owner-trigger guard',
+  'Forged Archive INSERT after runtime DELETE',
   '42501',
   'Archive transition must use the canonical V3 lifecycle command.',
   format(
