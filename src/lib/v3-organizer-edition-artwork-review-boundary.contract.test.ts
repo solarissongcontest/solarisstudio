@@ -27,7 +27,7 @@ describe("V3 Organizer edition artwork review boundary", () => {
   });
 
   it("fails closed on edition show binding or theme drift before upload or save", () => {
-    expect(source).toContain('.select("id,theme_id,logo,artwork_url,artwork_storage_path,theme_colors")');
+    expect(source).toContain('.select("id,name,slug,data_revision,theme_id,logo,artwork_url,artwork_storage_path,theme_colors")');
     expect(source).toContain("Edition artwork or colour state changed while this review was open.");
     expect(source).toContain('.select("id,theme_id")');
     expect(source).toContain("Show-to-theme assignments changed while this review was open.");
