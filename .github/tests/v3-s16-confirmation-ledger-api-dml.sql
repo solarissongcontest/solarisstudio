@@ -1,5 +1,5 @@
 \set ON_ERROR_STOP on
--- Disposable, fully replayed PostgreSQL 17 only. 36 direct-table denials.
+-- Disposable, fully replayed PostgreSQL 17 only. 40 direct-DML denials (including 4 private receipt mutations).
 do $s16_ready$
 begin
   if current_user<>'postgres'
@@ -121,11 +121,47 @@ begin
 end $s16_denials$;
 rollback;
 
+-- The private receipt table is not an exposed API schema; it was
+-- historically granted raw service_role DML anyway. Prove 4 SQL denials
+-- and verify actual ACL removal even if schema USAGE already denies access.
+begin;
+set local role service_role;
+do $s16_private_denials$
+declare v_sql text; v_count integer:=0;
+begin
+  if current_user<>'service_role'
+    or has_table_privilege(current_user,'private.v3_confirmation_operations','INSERT')
+    or has_table_privilege(current_user,'private.v3_confirmation_operations','UPDATE')
+    or has_table_privilege(current_user,'private.v3_confirmation_operations','DELETE')
+    or has_table_privilege(current_user,'private.v3_confirmation_operations','TRUNCATE')
+  then raise exception 'S16 raw receipt ledger service grants survived';end if;
+  foreach v_sql in array array[
+    'insert into private.v3_confirmation_operations default values',
+    'update private.v3_confirmation_operations set idempotency_key=idempotency_key where false',
+    'delete from private.v3_confirmation_operations where false',
+    'truncate table private.v3_confirmation_operations'
+  ] loop
+    begin
+      execute v_sql;
+      raise exception 'S16 private receipt direct mutation unexpectedly succeeded: %',v_sql;
+    exception when insufficient_privilege then
+      if sqlerrm not like '%permission denied for table %'
+        and sqlerrm not like '%permission denied for schema private%'
+      then raise exception 'S16 private receipt denial did not come from ACL: %',sqlerrm;end if;
+      v_count:=v_count+1;
+    end;
+  end loop;
+  if v_count<>4 then raise exception 'S16 expected 4 private receipt SQL denials, got %',v_count;end if;
+  raise notice 'PASS: 4 denied service writes on private Confirmation operation ledger';
+end $s16_private_denials$;
+rollback;
+
 do $s16_calls$
 begin
   if not has_function_privilege('authenticated','public.v3_submit_confirmation(jsonb,uuid,text,text)','EXECUTE')
     or not has_function_privilege('authenticated','public.studio2_apply_confirmation_round_change(uuid,text,jsonb,uuid,text,bigint)','EXECUTE')
     or not has_function_privilege('authenticated','public.admin_restore_confirmation_version(uuid,uuid,text)','EXECUTE')
+    or not has_function_privilege('authenticated','public.v3_reconcile_confirmation(uuid,text)','EXECUTE')
   then raise exception 'S16 Confirmation canonical RPC grants regressed';end if;
   raise notice 'PASS: V3 Confirmation, Organizer round change, version restore executable';
 end $s16_calls$;
