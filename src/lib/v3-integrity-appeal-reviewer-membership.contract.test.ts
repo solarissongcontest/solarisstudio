@@ -38,6 +38,9 @@ describe("P04 Integrity appeal reviewer requires active global Permission Engine
 
   it("uses the actual local JWT/DB role rehearsal for allowed and forbidden assignments", () => {
     expect(hostile).toContain("studio2_role_assignments(user_id, role_key, edition_id, expires_at, assigned_by)");
+    expect(hostile).toContain("expired global organizer cannot review appeals");
+    expect(hostile).toContain("expired reviewer denial leaves appeal unassigned");
+    expect(hostile).toContain("now()-interval '1 minute'");
     expect(hostile).toContain("fresh organizer B is assigned appeal review");
     expect(hostile).toContain("organizer-role appellant cannot review their own appeal");
     expect(hostile).toContain("original finding/sanction author cannot review the appeal");
