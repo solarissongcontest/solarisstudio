@@ -69,6 +69,12 @@ on:
       - "supabase/migrations/20261117071000_v3_s16_integrity_api_table_dml_retirement.sql"
       - ".github/tests/v3-s16-integrity-api-table-dml.sql"
       - "src/lib/v3-s16-integrity-api-table-dml.contract.test.ts"
+      # P03 Organizer palette-only CAS replaces competing browser edition DML;
+      # require independent SHA-bound, network-isolated PG17 Publication evidence.
+      - "src/components/studio/EditionArtworkControl.tsx"
+      - "src/lib/edition-public-visual-command.ts"
+      - "src/lib/v3-s16-p03-edition-palette-command.contract.test.ts"
+      - "src/lib/v3-organizer-edition-artwork-review-boundary.contract.test.ts"
       - "supabase/migrations/20261117072000_v3_s16_confirmation_ledger_api_dml_retirement.sql"
       - ".github/tests/v3-s16-confirmation-ledger-api-dml.sql"
       - "src/lib/v3-s16-confirmation-ledger-api-dml.contract.test.ts"
