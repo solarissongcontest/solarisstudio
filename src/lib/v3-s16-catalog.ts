@@ -167,18 +167,34 @@ function withoutSqlComments(source: string, preserveQuoted: boolean): string {
 /** Match qualified relations exactly. Unqualified relations require search-path resolution. */
 export function potentialS16Write(definition: string, table: string, searchPath: string | null): boolean {
   const [schema, name] = table.includes(".") ? table.split(".") : ["public", table];
+  // PostgreSQL folds only UNQUOTED names to lowercase. Stripping quotation
+  // marks or treating mixed-case unquoted names as distinct can hide writes.
+  // A dot inside a quoted identifier is not a schema separator.
+  const identifier = '(?:"(?:[^"]|"")*"|[a-z_][\\w$]*)';
+  const relation = identifier + '(?:\\s*\\.\\s*' + identifier + ')?';
+  const parsedRelation = new RegExp(
+    '^\\s*(' + identifier + ')\\s*(?:\\.\\s*(' + identifier + ')\\s*)?$',
+    "i",
+  );
+  const normalizedIdentifier = (token: string): string =>
+    token.startsWith('"')
+      ? token.slice(1, -1).replaceAll('""', '"')
+      : token.toLowerCase();
+
   const matchesTarget = (raw: string): boolean => {
-    const parts = raw.replaceAll('"', "").replace(/\s/g, "").split(".");
-    if (parts.at(-1) !== name) return false;
-    if (parts.length === 2) return parts[0] === schema;
-    // Unknown resolution remains a candidate, never a clean bill of health.
-    const schemas = searchPath?.replaceAll('"', "").split(",").map((part) => part.trim());
+    const match = parsedRelation.exec(raw);
+    if (!match) return false;
+    if (normalizedIdentifier(match[2] ?? match[1]) !== name) return false;
+    if (match[2]) return normalizedIdentifier(match[1]) === schema;
+    // An unknown search path stays a candidate, not a clean bill of health.
+    const schemas = searchPath?.split(",").map((part) =>
+      normalizedIdentifier(part.trim()),
+    );
     return !schemas || schemas.includes(schema);
   };
+
   // TRUNCATE can change several relations in one statement. The ordinary
   // one-target DML scanner must not silently miss targets after the first comma.
-  const identifier = '(?:"[^"]+"|[a-z_][\\w$]*)';
-  const relation = identifier + '(?:\\s*\\.\\s*' + identifier + ')?';
   const truncateList = new RegExp(
     '\\btruncate(?:\\s+table)?\\s+((?:only\\s+)?' + relation +
     '\\s*(?:\\*\\s*)?(?:,\\s*(?:only\\s+)?' + relation + '\\s*(?:\\*\\s*)?)+)',
@@ -189,7 +205,11 @@ export function potentialS16Write(definition: string, table: string, searchPath:
   // A quoted EXECUTE string may itself contain SQL comments; scanning both
   // forms cannot turn a possible writer into a false negative.
   for (const sql of [withoutSqlComments(definition, true), withoutSqlComments(definition, false)]) {
-    const writes = sql.matchAll(/\b(?:insert\s+into|update|delete\s+from|merge\s+into|truncate(?:\s+table)?)\s+(?:only\s+)?((?:"[^"]+"|[a-z_][\w$]*)(?:\s*\.\s*(?:"[^"]+"|[a-z_][\w$]*))?)/gi);
+    const writes = sql.matchAll(new RegExp(
+      '\\b(?:insert\\s+into|update|delete\\s+from|merge\\s+into|truncate(?:\\s+table)?)\\s+(?:only\\s+)?(' +
+        relation + ')',
+      "gi",
+    ));
     for (const match of writes) {
       if (matchesTarget(match[1])) return true;
     }
