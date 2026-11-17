@@ -297,7 +297,21 @@ SELECT pg_temp.assert_true(
 SET ROLE service_role;
 SELECT set_config('request.jwt.claims', json_build_object('role', 'service_role')::text, true);
 SELECT pg_temp.assert_archive_guard(
-  'Archive runtime DELETE',
+  'Archive runtime DELETE: direct API table ACL',
+  '42501',
+  'permission denied for table studio2_edition_runtime',
+  format(
+    'delete from public.studio2_edition_runtime where edition_id=%L::uuid',
+    :'EDITION_A'
+  ),
+  'public.studio2_edition_runtime'::regclass
+);
+RESET ROLE;
+
+-- The owner is deliberately unprivileged at the Archive operation gate,
+-- even though it owns the table. Keep testing the trigger independently.
+SELECT pg_temp.assert_archive_guard(
+  'Archive runtime DELETE: owner-trigger guard',
   '42501',
   'Archived edition runtime is irreversible.',
   format(
@@ -306,7 +320,7 @@ SELECT pg_temp.assert_archive_guard(
   ),
   'public.studio2_edition_runtime'::regclass
 );
-RESET ROLE;
+
 
 SELECT pg_temp.assert_true(
   'Archive runtime DELETE preserves the archived fact',
@@ -323,7 +337,21 @@ SELECT pg_temp.assert_true(
 SET ROLE service_role;
 SELECT set_config('request.jwt.claims', json_build_object('role', 'service_role')::text, true);
 SELECT pg_temp.assert_archive_guard(
-  'Forged Archive INSERT after runtime DELETE',
+  'Forged Archive INSERT after runtime DELETE: direct API table ACL',
+  '42501',
+  'permission denied for table studio2_edition_runtime',
+  format(
+    'with deleted as (delete from public.studio2_edition_runtime where edition_id=%L::uuid returning edition_id,subsystems) insert into public.studio2_edition_runtime(edition_id,state,subsystems,version,updated_by) select edition_id,''archived'',subsystems,6,null from deleted',
+    :'EDITION_B'
+  ),
+  'public.studio2_edition_runtime'::regclass
+);
+RESET ROLE;
+
+-- The owner is deliberately unprivileged at the Archive operation gate,
+-- even though it owns the table. Keep testing the trigger independently.
+SELECT pg_temp.assert_archive_guard(
+  'Forged Archive INSERT after runtime DELETE: owner-trigger guard',
   '42501',
   'Archive transition must use the canonical V3 lifecycle command.',
   format(
@@ -332,7 +360,7 @@ SELECT pg_temp.assert_archive_guard(
   ),
   'public.studio2_edition_runtime'::regclass
 );
-RESET ROLE;
+
 
 SELECT pg_temp.assert_true(
   'Rejected forged Archive INSERT rolls back its preceding DELETE atomically',
@@ -368,7 +396,21 @@ VALUES (:'EDITION_A'::uuid, txid_current());
 SET ROLE service_role;
 SELECT set_config('request.jwt.claims', json_build_object('role','service_role')::text, true);
 SELECT pg_temp.assert_archive_guard(
-  'a gate for edition A cannot archive edition B',
+  'a gate for edition A cannot archive edition B: direct API table ACL',
+  '42501',
+  'permission denied for table studio2_edition_runtime',
+  format(
+    'update public.studio2_edition_runtime set state=''archived'' where edition_id=%L::uuid',
+    :'EDITION_B'
+  ),
+  'public.studio2_edition_runtime'::regclass
+);
+RESET ROLE;
+
+-- The owner is deliberately unprivileged at the Archive operation gate,
+-- even though it owns the table. Keep testing the trigger independently.
+SELECT pg_temp.assert_archive_guard(
+  'a gate for edition A cannot archive edition B: owner-trigger guard',
   '42501',
   'Archive transition must use the canonical V3 lifecycle command.',
   format(
@@ -377,7 +419,7 @@ SELECT pg_temp.assert_archive_guard(
   ),
   'public.studio2_edition_runtime'::regclass
 );
-RESET ROLE;
+
 
 SELECT pg_temp.assert_true(
   'cross-edition gate attempt preserves the unrelated runtime',
@@ -398,7 +440,21 @@ VALUES (:'EDITION_B'::uuid, txid_current() + 1);
 SET ROLE service_role;
 SELECT set_config('request.jwt.claims', json_build_object('role','service_role')::text, true);
 SELECT pg_temp.assert_archive_guard(
-  'wrong-transaction gate cannot archive its own edition',
+  'wrong-transaction gate cannot archive its own edition: direct API table ACL',
+  '42501',
+  'permission denied for table studio2_edition_runtime',
+  format(
+    'update public.studio2_edition_runtime set state=''archived'' where edition_id=%L::uuid',
+    :'EDITION_B'
+  ),
+  'public.studio2_edition_runtime'::regclass
+);
+RESET ROLE;
+
+-- The owner is deliberately unprivileged at the Archive operation gate,
+-- even though it owns the table. Keep testing the trigger independently.
+SELECT pg_temp.assert_archive_guard(
+  'wrong-transaction gate cannot archive its own edition: owner-trigger guard',
   '42501',
   'Archive transition must use the canonical V3 lifecycle command.',
   format(
@@ -407,7 +463,7 @@ SELECT pg_temp.assert_archive_guard(
   ),
   'public.studio2_edition_runtime'::regclass
 );
-RESET ROLE;
+
 
 SELECT pg_temp.assert_true(
   'wrong-transaction gate cannot change runtime or consume unrelated provenance',
