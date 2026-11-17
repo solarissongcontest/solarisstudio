@@ -72,8 +72,8 @@ on:
       # P04 Integrity source-only writer-network changes require the same
       # independent exact-SHA local PG17.11 S14 Publication producer as S16.
       # No hosted Supabase URI, secrets, migration application or release waiver.
-      - "supabase/migrations/2026111716*_v3_integrity_*.sql"
-      - "supabase/migrations/2026111717*_v3_integrity_*.sql"
+      - "supabase/migrations/2026111720*_v3_integrity_*.sql"
+      - "supabase/migrations/2026111721*_v3_integrity_*.sql"
       - ".github/tests/v3-integrity-*.sql"
       - "src/lib/v3-integrity-*.ts"
       - "src/lib/integrity-evidence.ts"

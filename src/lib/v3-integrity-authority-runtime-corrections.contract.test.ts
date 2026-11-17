@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const correction = readFileSync(
   resolve(
     process.cwd(),
-    "supabase/migrations/20261117164000_v3_integrity_authority_corrections.sql",
+    "supabase/migrations/20261117204000_v3_integrity_authority_corrections.sql",
   ),
   "utf8",
 );

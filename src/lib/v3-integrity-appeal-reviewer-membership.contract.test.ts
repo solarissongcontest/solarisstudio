@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const authority = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20261117161000_v3_integrity_case_appeal_authority.sql"), "utf8",
+  resolve(process.cwd(), "supabase/migrations/20261117201000_v3_integrity_case_appeal_authority.sql"), "utf8",
 );
 const hostile = readFileSync(
   resolve(process.cwd(), ".github/scripts/rules-integrity-security-rehearsal.sh"), "utf8",

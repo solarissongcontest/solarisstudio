@@ -2,9 +2,9 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const migration = readFileSync(resolve(process.cwd(), "supabase/migrations/20261117175500_v3_integrity_intake_direct_primitive_bridge.sql"), "utf8");
-const oldBridge = readFileSync(resolve(process.cwd(), "supabase/migrations/20261117162000_v3_integrity_intake_event_provenance.sql"), "utf8");
-const compatibility = readFileSync(resolve(process.cwd(), "supabase/migrations/20261117174000_v3_integrity_intake_compatibility_cutover.sql"), "utf8");
+const migration = readFileSync(resolve(process.cwd(), "supabase/migrations/20261117215500_v3_integrity_intake_direct_primitive_bridge.sql"), "utf8");
+const oldBridge = readFileSync(resolve(process.cwd(), "supabase/migrations/20261117202000_v3_integrity_intake_event_provenance.sql"), "utf8");
+const compatibility = readFileSync(resolve(process.cwd(), "supabase/migrations/20261117214000_v3_integrity_intake_compatibility_cutover.sql"), "utf8");
 const runtimeSql = readFileSync(resolve(process.cwd(), ".github/tests/v3-integrity-intake-direct-primitive-bridge.sql"), "utf8");
 
 function implementation(name: string, tag: string) {

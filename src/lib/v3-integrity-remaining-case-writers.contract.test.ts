@@ -3,11 +3,11 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const migration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20261117171000_v3_integrity_remaining_case_writer_cutover.sql"),
+  resolve(process.cwd(), "supabase/migrations/20261117211000_v3_integrity_remaining_case_writer_cutover.sql"),
   "utf8",
 );
 const revision = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20261117173000_v3_integrity_case_revision_completeness.sql"),
+  resolve(process.cwd(), "supabase/migrations/20261117213000_v3_integrity_case_revision_completeness.sql"),
   "utf8",
 );
 const s16 = readFileSync(resolve(process.cwd(), "src/lib/v3-s16-mutation-authority.ts"), "utf8");

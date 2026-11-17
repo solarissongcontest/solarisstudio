@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const source = readFileSync(resolve(process.cwd(), "supabase/migrations/20261117175000_v3_integrity_appeal_revision_readback.sql"), "utf8");
+const source = readFileSync(resolve(process.cwd(), "supabase/migrations/20261117215000_v3_integrity_appeal_revision_readback.sql"), "utf8");
 
 describe("Integrity appeal CAS readback parity", () => {
   it("returns guarded appeal versions from both existing organizer projections", () => {

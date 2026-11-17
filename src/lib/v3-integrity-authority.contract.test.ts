@@ -5,28 +5,28 @@ import { describe, expect, it } from "vitest";
 const authority = readFileSync(
   resolve(
     process.cwd(),
-    "supabase/migrations/20261117161000_v3_integrity_case_appeal_authority.sql",
+    "supabase/migrations/20261117201000_v3_integrity_case_appeal_authority.sql",
   ),
   "utf8",
 );
 const intake = readFileSync(
   resolve(
     process.cwd(),
-    "supabase/migrations/20261117162000_v3_integrity_intake_event_provenance.sql",
+    "supabase/migrations/20261117202000_v3_integrity_intake_event_provenance.sql",
   ),
   "utf8",
 );
 const privileges = readFileSync(
   resolve(
     process.cwd(),
-    "supabase/migrations/20261117163000_v3_integrity_internal_writer_privileges.sql",
+    "supabase/migrations/20261117203000_v3_integrity_internal_writer_privileges.sql",
   ),
   "utf8",
 );
 const caseIntake = readFileSync(
   resolve(
     process.cwd(),
-    "supabase/migrations/20261117160000_v3_integrity_participant_idempotency_current_main.sql",
+    "supabase/migrations/20261117200000_v3_integrity_participant_idempotency_current_main.sql",
   ),
   "utf8",
 );
