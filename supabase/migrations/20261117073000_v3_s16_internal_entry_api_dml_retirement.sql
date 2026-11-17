@@ -38,13 +38,12 @@ begin
   then raise exception 'S16 P14 canonical Confirmation service reader is missing SELECT'
     using errcode='55000';end if;
 
-  if not has_table_privilege('service_role',v_table,'INSERT')
-     or not has_table_privilege('service_role',v_table,'UPDATE')
-     or not has_table_privilege('service_role',v_table,'DELETE')
-  then raise exception 'S16 P14 expected service-role direct writer privilege shape drift: INSERT %, UPDATE %, DELETE %',
-    has_table_privilege('service_role',v_table,'INSERT'),
-    has_table_privilege('service_role',v_table,'UPDATE'),
-    has_table_privilege('service_role',v_table,'DELETE')
+  -- PostgreSQL has_table_privilege(list) answers whether ANY listed
+  -- table privilege is present; historic Entry grants need not include every
+  -- DML verb. Require an actual currently exposed mutation privilege,
+  -- then revoke and verify every verb after this migration.
+  if not has_table_privilege('service_role',v_table,'INSERT,UPDATE,DELETE,TRUNCATE')
+  then raise exception 'S16 P14 no competing direct service API writer remains in source catalog'
     using errcode='55000';end if;
 
   if v_command is null
