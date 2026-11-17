@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { governedIntegrityArgs } from "@/lib/v3-integrity-governed-operation";
 import { sanitizeEvidenceFile, type EvidenceUploadDescriptor } from "@/lib/integrity-portal";
 import { uploadPreparedQuarantineFile } from "@/lib/upload-safety";
 
@@ -110,13 +111,15 @@ export async function setCaseEvidenceRetention(
   caseId: string,
   retentionUntil: string,
   reason: string,
+  expectedVersion: number,
 ) {
   return rpc<{ ok: true; case_id: string; retention_until: string }>(
-    "admin_set_integrity_case_retention",
+    "studio2_integrity_set_case_retention",
     {
-      _case_id: caseId,
-      _retention_until: retentionUntil,
-      _reason: reason,
+      p_case_id: caseId,
+      p_retention_until: retentionUntil,
+      p_reason: reason,
+      ...governedIntegrityArgs(expectedVersion),
     },
   );
 }
