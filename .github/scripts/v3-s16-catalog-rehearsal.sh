@@ -14,7 +14,7 @@ export V3_CANDIDATE_SHA="$(git rev-parse HEAD)"
 expected_versions="$(find supabase/migrations -maxdepth 1 -name '*.sql' -printf '%f\n' | cut -d_ -f1 | sort)"
 actual_versions="$(psql "$DB_URL" -XAtq -v ON_ERROR_STOP=1 -c 'select version from supabase_migrations.schema_migrations order by version')"
 [[ "$expected_versions" == "$actual_versions" ]] || { echo 'Candidate/database migration sets differ; refusing SHA attribution' >&2; exit 1; }
-bunx vitest run src/lib/v3-s16-candidate-sha.test.ts src/lib/v3-s16-catalog.test.ts src/lib/v3-s16-catalog.database.test.ts src/lib/v3-s16-mutation-authority.test.ts src/lib/v3-s16-release-risk.test.ts src/lib/v3-s16-shared-guard-api-dml.contract.test.ts src/lib/v3-s16-country-account-api-dml.contract.test.ts src/lib/v3-s16-session-revocation-api-dml.contract.test.ts src/lib/v3-s16-integrity-api-table-dml.contract.test.ts src/lib/v3-s16-confirmation-ledger-api-dml.contract.test.ts src/lib/v3-s16-confirmation-legacy-round-rpc-retirement.contract.test.ts src/lib/v3-s16-edition-runtime-api-dml.contract.test.ts src/lib/v3-s16-internal-entry-api-dml.contract.test.ts src/lib/v3-s16-permission-r3-legacy-overload.contract.test.ts
+bunx vitest run src/lib/v3-s16-candidate-sha.test.ts src/lib/v3-s16-catalog.test.ts src/lib/v3-s16-catalog.database.test.ts src/lib/v3-s16-mutation-authority.test.ts src/lib/v3-s16-release-risk.test.ts src/lib/v3-s16-shared-guard-api-dml.contract.test.ts src/lib/v3-s16-country-account-api-dml.contract.test.ts src/lib/v3-s16-session-revocation-api-dml.contract.test.ts src/lib/v3-s16-integrity-api-table-dml.contract.test.ts src/lib/v3-s16-confirmation-ledger-api-dml.contract.test.ts src/lib/v3-s16-confirmation-legacy-round-rpc-retirement.contract.test.ts src/lib/v3-s16-edition-runtime-api-dml.contract.test.ts src/lib/v3-s16-internal-entry-api-dml.contract.test.ts src/lib/v3-s16-permission-r3-legacy-overload.contract.test.ts src/lib/v3-s16-jury-window-r2-single-writer.contract.test.ts
 # Mutation boundary probe uses a fully rolled-back synthetic fixture, AFTER the
 # loopback/local credentials and exact migration-set checks above.
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-edition-public-visual-authority.sql
@@ -41,6 +41,9 @@ psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-confirmation-ledger
 # Retire all four superseded service_role round writer RPCs and prove 12 true
 # API-role undefined_function denials, retaining canonical CAS/receipt operations.
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-confirmation-legacy-round-rpc-retirement.sql
+# P08: physical legacy Jury window RPC retirement under actual anon/auth/service roles;
+# S14 stage 6 independently executes canonical positive/replay/window flows.
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-jury-window-r2-single-writer.sql
 # P13/P14/P16 independent role-authority boundaries, all isolated.
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-edition-runtime-api-dml.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-internal-entry-api-dml.sql
