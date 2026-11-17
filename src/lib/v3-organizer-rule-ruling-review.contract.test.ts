@@ -72,11 +72,21 @@ describe("V3 Organizer private rule ruling review", () => {
     );
   });
 
-  it("keeps canonical System command authority visibly unresolved", () => {
+  it("verifies governed revision and replay while accurately preserving the remaining rulebook snapshot boundary", () => {
+    const rpcSource = readFileSync(
+      resolve(process.cwd(), "src/lib/integrity-preclearance.ts"),
+      "utf8",
+    );
     expect(route).toContain("System #950");
     expect(route).toContain(
-      "rulebook-snapshot binding, expected-version/CAS, idempotency and receipt authority",
+      "Full rulebook-snapshot and uncertain-outcome recovery guarantees remain tracked in System #950.",
     );
+    expect(route).toContain("liveDetail.case.version, review.operationId");
+    expect(rpcSource).toContain('"studio2_integrity_record_preclearance_ruling"');
+    expect(rpcSource).toContain("p_expected_version: expectedVersion");
+    expect(rpcSource).toContain("p_operation_id: operationId");
+    expect(rpcSource).toContain("p_idempotency_key: operationId");
+    expect(rpcSource).not.toContain('"admin_record_integrity_preclearance_ruling"');
 
     const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
       (item) => item.legacyId === "trust-rule-rulings",
