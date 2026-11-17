@@ -6,6 +6,14 @@ const sha="a".repeat(40);
 const domain:V3S16DomainDefinition={id:"test",risk:"integrity_critical",canonicalTables:[],canonicalOwner:"fixture",canonicalCommands:["public.write_state"]};
 const fixture=():V3S16CatalogEvidence=>({schemaVersion:2,candidateSha:sha,collection:"effective-postgresql-catalog-v2",roles:{roles:[{name:"anon"},{name:"authenticated"},{name:"service_role"}]},uncertainties:[],negativeTests:{candidateSha:sha,passed:true,domains:["test"]},tables:[],functions:[{name:"public.write_state",identity:"public.write_state(uuid)",owner:"postgres",securityDefiner:true,searchPath:"pg_catalog, public, pg_temp",executeRoles:["authenticated"]}]});
 describe("S16 trustworthy catalog evidence",()=>{
+ it("triggers the source-defined PG17 Publication producer on S16 scanner changes",()=>{
+  const publication=readFileSync(".github/workflows/v3-s14-archive-forward-effects-local.yml","utf8");
+  const s16=readFileSync(".github/workflows/v3-s16-catalog-rehearsal.yml","utf8");
+  expect(publication).toContain('      - "src/lib/v3-s16-catalog.ts"');
+  expect(publication).toContain('      - "src/lib/v3-s16-catalog.test.ts"');
+  expect(publication).toContain("paths: &s06_archive_paths");
+  expect(s16).toContain('s06-hosted-observed-${V3_S16_SOURCE_SHA}');
+ });
  it("rehearses immutable main push SHA separately from PR candidate and current-main",()=>{
   const workflow=readFileSync(".github/workflows/v3-s16-catalog-rehearsal.yml","utf8");
   expect(workflow).toContain("push:\\n    branches: [main]".replace("\\n","\n"));
