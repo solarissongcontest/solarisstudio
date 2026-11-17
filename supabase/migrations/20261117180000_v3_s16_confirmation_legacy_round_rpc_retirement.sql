@@ -14,7 +14,12 @@ declare
   v_trigger text;
 begin
   if current_user <> 'postgres'
-     or current_setting('server_version_num')::integer / 10000 <> 17 then
+     or current_setting('server_version_num')::integer / 10000 <> 17
+     or to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is null
+     or exists (
+       select 1 from private.v3_migration_contracts
+       where migration_key='v3.s16.confirmation-round-legacy-rpc-retirement'
+     ) then
     raise exception 'S16 P07 requires PostgreSQL 17 postgres-owned migration execution';
   end if;
 
@@ -82,6 +87,11 @@ begin
   end loop;
 end
 $s16_p07$;
+
+select public.v3_register_migration_contract(
+  'v3.s16.confirmation-round-legacy-rpc-retirement',1,'forward_fix_only',false,null,
+  'Retire obsolete service-role Confirmation round bypass RPCs after preserving the canonical versioned and receipted preview/apply commands'
+);
 
 -- RESTRICT guarantees that any unaccounted SQL dependency aborts the entire
 -- migration. Canonical R2/R3 commands and all audit, version and Archive
