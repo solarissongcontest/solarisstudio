@@ -53,6 +53,7 @@ type CaseListItem = {
 type CaseDetail = {
   case: {
     id: string;
+    version: number;
     public_code: string;
     case_kind: string;
     summary: string;
@@ -73,6 +74,7 @@ type PendingRulingReview = {
   rationale: string;
   ruleIds: string[];
   baselineFingerprint: string;
+  operationId: string;
 };
 
 const OUTCOMES: Array<{
@@ -324,7 +326,7 @@ function RulingComposer({ detail, onChanged }: { detail: CaseDetail; onChanged: 
         summary: review.summary,
         rationale: review.rationale,
         ruleIds: review.ruleIds,
-      });
+      }, liveDetail.case.version, review.operationId);
     },
     onSuccess: async () => {
       setPendingReview(null);
@@ -334,8 +336,13 @@ function RulingComposer({ detail, onChanged }: { detail: CaseDetail; onChanged: 
       toast.success("Private rule ruling recorded");
     },
     onError: async (error) => {
-      setPendingReview(null);
-      await onChanged();
+      // Keep the original identity if a response is lost: retry the same reviewed
+      // operation rather than creating a second participant-visible ruling.
+      const message = error instanceof Error ? error.message : "";
+      if (/changed|no longer available|version|permission/i.test(message)) {
+        setPendingReview(null);
+        await onChanged();
+      }
       errorToast(error);
     },
   });
@@ -357,6 +364,7 @@ function RulingComposer({ detail, onChanged }: { detail: CaseDetail; onChanged: 
       rationale: rationale.trim(),
       ruleIds: [...ruleIds],
       baselineFingerprint: preclearanceRulingReviewFingerprint(detail),
+      operationId: crypto.randomUUID(),
     });
   }
 
