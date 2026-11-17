@@ -16,7 +16,9 @@ do $preflight$ declare fn oid; begin
   if not exists(select 1 from information_schema.columns
     where table_schema='public' and table_name='integrity_case_appeals' and column_name='version')
   then raise exception 'Integrity appeal revision has not been installed' using errcode='55000'; end if;
-  if has_function_privilege('anon',fn,'EXECUTE') or has_function_privilege('public',fn,'EXECUTE')
+  if has_function_privilege('anon',fn,'EXECUTE') or exists(
+    select 1 from pg_proc p, lateral aclexplode(coalesce(p.proacl,acl_default('f',p.proowner))) acl
+    where p.oid=fn and acl.grantee=0 and acl.privilege_type='EXECUTE')
   then raise exception 'Unexpected anonymous appeal resolution read access' using errcode='55000'; end if;
 end $preflight$;
 
