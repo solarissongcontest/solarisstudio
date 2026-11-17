@@ -71,7 +71,7 @@ begin
       select 1 from pg_proc p
       where p.oid <> all(v_targets)
         -- Catch qualified/unqualified calls, including whitespace before '('.
-        and p.prosrc ~ ('(^|[^[:alnum:]_])' || v_call || '[[:space:]]*\\(')
+        and p.prosrc ~ ('(^|[^[:alnum:]_])' || v_call || '[[:space:]]*\(')
     ) then
       raise exception 'SQL caller still depends on obsolete mutation RPC: %', v_call
         using errcode='55000';
