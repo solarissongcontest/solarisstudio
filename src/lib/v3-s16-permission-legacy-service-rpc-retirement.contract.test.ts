@@ -53,7 +53,8 @@ describe("S16 P16 compatible role-only Permission Engine legacy writer retiremen
     expect(persistence).toContain("client.rpc('studio2_grant_capability'");
     expect(persistence).toContain("client.rpc('studio2_revoke_capability'");
     expect(positiveServiceProof).toContain("perform public.studio2_grant_capability(v_user,'edition.manage',null,null)");
-    expect(positiveServiceProof).toContain("perform public.studio2_revoke_capability(v_user,'edition.manage',null)");
+    expect(positiveServiceProof).toContain("if not public.studio2_revoke_capability(v_user,'edition.manage',null)");
+    expect(positiveServiceProof).toContain("Owner-executed service revoke did not apply");
     expect(positiveServiceProof).toContain("Owner-executed service grant replay duplicated row");
   });
 });
