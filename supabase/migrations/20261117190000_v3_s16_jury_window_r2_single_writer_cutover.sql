@@ -19,6 +19,7 @@ begin
    and pg_get_functiondef(p.oid) like '%insert into public.jury_voting_windows%')
  or not exists(select 1 from pg_proc p where p.oid=v_owner
    and pg_get_functiondef(p.oid) like '%v_change := public.admin_set_jury_voting_status(p_show_id, p_status)%'
+   and pg_get_functiondef(p.oid) like '%PT409%'
    and p.proconfig @> array['search_path=pg_catalog, public, private']::text[])
  or not has_function_privilege('authenticated',v_owner,'EXECUTE')
  or not has_function_privilege('service_role',v_old,'EXECUTE')
@@ -107,7 +108,7 @@ begin
 
   if p_expected_version <> v_current_version then
     raise exception 'Jury voting windows changed since this preview was loaded. Refresh before continuing.'
-      using errcode = '40001';
+      using errcode = 'PT409';
   end if;
 
   -- Inline the final reviewed legacy preflight and mutation under the R2
