@@ -33,6 +33,21 @@ begin
       using errcode='55000';end if;
   end loop;
 
+  -- The idempotency/receipt ledger lives outside the public API schema.
+  -- Source deliberately does not enable RLS on this private internal table;
+  -- its postgres-owned SECURITY DEFINER commands enforce session-scoped
+  -- receipt retrieval. We tighten its DML without altering that read contract.
+  v_oid := to_regclass('private.v3_confirmation_operations');
+  if v_oid is null
+    or not exists(select 1 from pg_class c where c.oid=v_oid
+      and c.relkind='r' and pg_get_userbyid(c.relowner)='postgres'
+      and not c.relrowsecurity)
+    or exists(select 1 from pg_attribute a where a.attrelid=v_oid and a.attnum>0
+      and not a.attisdropped and a.attacl is not null)
+    or not has_table_privilege('service_role',v_oid,'INSERT,UPDATE,DELETE,TRUNCATE')
+  then raise exception 'S16 private Confirmation receipt ledger owner/ACL/source drift'
+    using errcode='55000';end if;
+
   foreach v_fn in array array[
     'public.v3_submit_confirmation(jsonb,uuid,text,text)',
     'public.studio2_apply_confirmation_round_change(uuid,text,jsonb,uuid,text,bigint)',
@@ -76,13 +91,17 @@ revoke insert,update,delete,truncate,references,trigger,maintain
 revoke insert,update,delete,truncate,references,trigger,maintain
   on table public.studio2_confirmation_round_versions from public,anon,authenticated,service_role;
 
+revoke insert,update,delete,truncate,references,trigger,maintain
+  on table private.v3_confirmation_operations from public,anon,authenticated,service_role;
+
 do $s16_confirmation_postcheck$
 declare v_table text; v_role text; v_priv text;
 begin
   foreach v_table in array array[
     'public.submission_versions',
     'public.studio2_confirmation_requirements',
-    'public.studio2_confirmation_round_versions'
+    'public.studio2_confirmation_round_versions',
+    'private.v3_confirmation_operations'
   ] loop
     foreach v_role in array array['anon','authenticated','service_role'] loop
       foreach v_priv in array array['INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER','MAINTAIN'] loop
