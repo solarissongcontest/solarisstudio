@@ -12,6 +12,11 @@ eval "$(supabase status -o env)"
 case "$API_URL" in http://127.0.0.1:*|http://localhost:*) ;; *) fail "Refusing hosted Supabase rehearsal: $API_URL" ;; esac
 case "$DB_URL" in postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;; *) fail "Refusing non-local database rehearsal" ;; esac
 
+# The full canonical session revoke/replay test below is only meaningful after
+# a genuine role-ACL cutover. Exercise the new negative SQL boundary first on
+# this exact, isolated local stack. No production/Preview database is touched.
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-s16-session-revocation-api-dml.sql
+
 PASSWORD='V3AccountSessions2026!'
 HTTP_STATUS=''
 HTTP_BODY=''
