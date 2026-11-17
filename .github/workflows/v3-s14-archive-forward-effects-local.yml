@@ -61,6 +61,11 @@ on:
       # PG17.11 Publication certificate; no hosted database traffic.
       - "src/lib/v3-s16-catalog.ts"
       - "src/lib/v3-s16-catalog.test.ts"
+      # Source-only COM-00 writer retirement must also obtain an independent
+      # exact-SHA networkless PG17.11 S14 Publication execution certificate.
+      - "src/integrations/televoting/combined.server.ts"
+      - "src/integrations/televoting/combined-sync.server.ts"
+      - "src/lib/v3-s16-combined-write-disabled.contract.test.ts"
       - "supabase/migrations/20261117071000_v3_s16_integrity_api_table_dml_retirement.sql"
       - ".github/tests/v3-s16-integrity-api-table-dml.sql"
       - "src/lib/v3-s16-integrity-api-table-dml.contract.test.ts"
@@ -90,7 +95,7 @@ on:
       - "scripts/stage-v3-signup-jury-prerequisites-local.mjs"
       - "supabase/migrations/20261114102706_v3_jury_governed_submission_cutover.sql"
       - "supabase/migrations/20261115084647_v3_jury_canonical_table_authority.sql"
-      # P08: same-SHA independent networkless PG17.11 Publication/Archive proof.
+      # P08: independent same-SHA local PG17.11 producer for Jury RPC retirement.
       - "supabase/migrations/20261117190000_v3_s16_jury_window_r2_single_writer_cutover.sql"
       - ".github/tests/v3-s16-jury-window-r2-single-writer.sql"
       - "src/lib/v3-s16-jury-window-r2-single-writer.contract.test.ts"

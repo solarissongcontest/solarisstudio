@@ -2,7 +2,6 @@ import { requireCombinedTelevoteWriteApproval } from "@/integrations/televoting/
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 import {
-  COMBINED_ENGINE_VERSION,
   computeCombined,
   inputModeForSourceType,
   type ComponentSourceInput,
@@ -50,19 +49,6 @@ export type CombinedSource = {
   pool_remainder_bonus: number | null;
   final_point_pool: number | null;
 };
-
-type Actor = { id: string; username: string };
-
-async function audit(actor: Actor, action: string, targetId: string, values?: unknown) {
-  await televotingAdmin.from("admin_audit_log").insert({
-    actor_admin_id: actor.id,
-    actor_username: actor.username,
-    action,
-    target_type: "televote_aggregation",
-    target_id: targetId,
-    new_values: values ?? null,
-  });
-}
 
 export async function listMergedCombinedAggregationsServer() {
   await requireMergedTelevotingAdminServer();
@@ -254,54 +240,40 @@ export async function getMergedCombinedAggregationServer(id: string) {
   return { aggregation, participants, sources, resolved, preview, catalog, stored: stored ?? [] };
 }
 
-export async function createMergedCombinedAggregationServer(data: { name: string; editionId?: string | null; totalPoints: number; rankExponent: number }) {
+
+/**
+ * COM-00 writer retirement: the entire separate Combined Televote mutation
+ * network has no authorized write contract during the deferred beta.
+ * Retain the exported entrypoints for compatibility, but remove ALL latent
+ * service-role table mutations. The shared gate rejects every invocation
+ * synchronously, before a database, identity or publication operation occurs.
+ *
+ * Re-enabling Combined requires a separately reviewed server-authoritative
+ * command with CAS, idempotency, receipt and executable role-denial proofs.
+ * Neither toggling the gate nor resurrecting the old DML is an acceptable cutover.
+ */
+export async function createMergedCombinedAggregationServer(
+  data: { name: string; editionId?: string | null; totalPoints: number; rankExponent: number },
+): Promise<{ id: string; name: string }> {
+  void data;
   requireCombinedTelevoteWriteApproval();
-  const actor = await requireMergedTelevotingAdminServer();
-  const { data: inserted, error } = await televotingAdmin
-    .from("televote_aggregations")
-    .insert({
-      edition_id: data.editionId ?? null,
-      name: data.name,
-      combination_method: "component_pool",
-      total_points_to_distribute: data.totalPoints,
-      rank_exponent: data.rankExponent,
-      status: "draft",
-      calculation_version: 0,
-      results_outdated: true,
-      broadcast_display_mode: "combined",
-    })
-    .select("id")
-    .single();
-  if (error) throw new Error(error.message);
-  await audit(actor, "create_combined_televote", inserted.id, data);
-  return inserted;
+  throw new Error("Combined Televote mutations are disabled pending canonical authority certification.");
 }
 
-export async function updateMergedCombinedAggregationServer(data: { id: string; name: string; totalPoints: number; rankExponent: number }) {
+export async function updateMergedCombinedAggregationServer(
+  data: { id: string; name: string; totalPoints: number; rankExponent: number },
+): Promise<{ ok: true }> {
+  void data;
   requireCombinedTelevoteWriteApproval();
-  const actor = await requireMergedTelevotingAdminServer();
-  const { error } = await televotingAdmin
-    .from("televote_aggregations")
-    .update({ name: data.name, total_points_to_distribute: data.totalPoints, rank_exponent: data.rankExponent, results_outdated: true })
-    .eq("id", data.id);
-  if (error) throw new Error(error.message);
-  await audit(actor, "update_combined_televote", data.id, data);
-  return { ok: true };
+  throw new Error("Combined Televote mutations are disabled pending canonical authority certification.");
 }
 
-export async function setMergedCombinedParticipantsServer(data: { id: string; participants: string[] }) {
+export async function setMergedCombinedParticipantsServer(
+  data: { id: string; participants: string[] },
+): Promise<{ ok: true }> {
+  void data;
   requireCombinedTelevoteWriteApproval();
-  const actor = await requireMergedTelevotingAdminServer();
-  await televotingAdmin.from("televote_aggregation_participants").delete().eq("aggregation_id", data.id);
-  if (data.participants.length) {
-    const { error } = await televotingAdmin.from("televote_aggregation_participants").insert(
-      data.participants.map((country_code, display_order) => ({ aggregation_id: data.id, country_code, display_order })),
-    );
-    if (error) throw new Error(error.message);
-  }
-  await televotingAdmin.from("televote_aggregations").update({ results_outdated: true }).eq("id", data.id);
-  await audit(actor, "set_combined_participants", data.id, { participants: data.participants });
-  return { ok: true };
+  throw new Error("Combined Televote mutations are disabled pending canonical authority certification.");
 }
 
 export async function upsertMergedCombinedSourceServer(data: {
@@ -316,205 +288,48 @@ export async function upsertMergedCombinedSourceServer(data: {
   displayOrder: number;
   correctionScope?: CorrectionScope;
   correctionTargetSourceId?: string | null;
-}) {
+}): Promise<{ id: string }> {
+  void data;
   requireCombinedTelevoteWriteApproval();
-  const actor = await requireMergedTelevotingAdminServer();
-  const payload = {
-    aggregation_id: data.aggregationId,
-    source_type: data.sourceType,
-    input_mode: data.inputMode,
-    source_round_id: data.roundId ?? null,
-    source_name: data.name,
-    calculation_stage: data.inputMode === "correction" ? "post_conversion" : "pre_conversion",
-    calculation_method: data.inputMode,
-    percentage_weight: data.inputMode === "correction" ? 0 : data.weight,
-    weight: data.inputMode === "correction" ? 0 : data.weight,
-    enabled: data.enabled,
-    display_order: data.displayOrder,
-    correction_scope: data.correctionScope ?? "final",
-    correction_target_source_id: data.correctionTargetSourceId ?? null,
-  };
-  let result;
-  if (data.id) {
-    result = await televotingAdmin.from("televote_aggregation_sources").update(payload).eq("id", data.id).select("id").single();
-  } else {
-    result = await televotingAdmin.from("televote_aggregation_sources").insert(payload).select("id").single();
-  }
-  if (result.error) throw new Error(result.error.message);
-  await televotingAdmin.from("televote_aggregations").update({ results_outdated: true }).eq("id", data.aggregationId);
-  await audit(actor, data.id ? "update_combined_source" : "create_combined_source", data.aggregationId, { source_id: result.data.id, ...payload });
-  return result.data;
+  throw new Error("Combined Televote mutations are disabled pending canonical authority certification.");
 }
 
-export async function deleteMergedCombinedSourceServer(data: { aggregationId: string; sourceId: string }) {
+export async function deleteMergedCombinedSourceServer(
+  data: { aggregationId: string; sourceId: string },
+): Promise<{ ok: true }> {
+  void data;
   requireCombinedTelevoteWriteApproval();
-  const actor = await requireMergedTelevotingAdminServer();
-  await televotingAdmin.from("external_score_entries").delete().eq("source_id", data.sourceId);
-  const { error } = await televotingAdmin.from("televote_aggregation_sources").delete().eq("id", data.sourceId).eq("aggregation_id", data.aggregationId);
-  if (error) throw new Error(error.message);
-  await televotingAdmin.from("televote_aggregations").update({ results_outdated: true }).eq("id", data.aggregationId);
-  await audit(actor, "delete_combined_source", data.aggregationId, { source_id: data.sourceId });
-  return { ok: true };
+  throw new Error("Combined Televote mutations are disabled pending canonical authority certification.");
 }
 
-export async function saveMergedCombinedSourceValuesServer(data: { aggregationId: string; sourceId: string; values: Record<string, number> }) {
+export async function saveMergedCombinedSourceValuesServer(
+  data: { aggregationId: string; sourceId: string; values: Record<string, number> },
+): Promise<{ ok: true }> {
+  void data;
   requireCombinedTelevoteWriteApproval();
-  const actor = await requireMergedTelevotingAdminServer();
-  await televotingAdmin.from("external_score_entries").delete().eq("source_id", data.sourceId);
-  const rows = Object.entries(data.values)
-    .filter(([, value]) => Number(value) !== 0)
-    .map(([country_code, value]) => ({ source_id: data.sourceId, country_code, value: Number(value) }));
-  if (rows.length) {
-    const { error } = await televotingAdmin.from("external_score_entries").insert(rows);
-    if (error) throw new Error(error.message);
-  }
-  await televotingAdmin.from("televote_aggregations").update({ results_outdated: true }).eq("id", data.aggregationId);
-  await audit(actor, "save_combined_source_values", data.aggregationId, { source_id: data.sourceId, count: rows.length });
-  return { ok: true };
+  throw new Error("Combined Televote mutations are disabled pending canonical authority certification.");
 }
 
-export async function recalculateMergedCombinedServer(id: string) {
+export async function recalculateMergedCombinedServer(
+  id: string,
+): Promise<{ version: number; calculatedAt: string; result: ReturnType<typeof computeCombined> }> {
+  void id;
   requireCombinedTelevoteWriteApproval();
-  const actor = await requireMergedTelevotingAdminServer();
-  const aggregation = await loadAggregation(id);
-  const participants = await loadParticipants(id);
-  const sources = await loadSources(id);
-  const resolved = await resolveSources(sources, participants);
-  const result = computeCombined({
-    participants,
-    sources: resolved,
-    totalPoints: Number(aggregation.total_points_to_distribute ?? 0),
-    rankExponent: Number(aggregation.rank_exponent ?? 1.33),
-  });
-  if (result.errors.length) throw new Error(result.errors[0]);
-  const version = Number(aggregation.calculation_version ?? 0) + 1;
-  const calculatedAt = new Date().toISOString();
-  const poolMap = new Map(result.pools.map((pool) => [pool.sourceId, pool]));
-
-  for (const pool of result.pools) {
-    await televotingAdmin.from("televote_aggregation_sources").update({
-      calculation_method: pool.method,
-      exact_point_pool: pool.exactPool,
-      floored_point_pool: pool.flooredPool,
-      pool_remainder: pool.poolRemainder,
-      pool_remainder_bonus: pool.poolBonus,
-      final_point_pool: pool.finalPool,
-    }).eq("id", pool.sourceId);
-  }
-
-  await televotingAdmin.from("combined_televote_component_results").delete().eq("aggregation_id", id).eq("calculation_version", version);
-  await televotingAdmin.from("combined_televote_results").delete().eq("aggregation_id", id).eq("calculation_version", version);
-
-  const componentRows = result.rows.flatMap((row) => row.componentResults.map((component) => ({
-    aggregation_id: id,
-    component_id: component.sourceId,
-    component_name: component.sourceName,
-    component_type: component.sourceType,
-    country_code: component.countryCode,
-    calculation_version: version,
-    method: component.method,
-    percentage_weight: poolMap.get(component.sourceId)?.percentageWeight ?? 0,
-    component_pool: poolMap.get(component.sourceId)?.finalPool ?? 0,
-    raw_score: component.rawScore,
-    raw_rank: component.rawRank,
-    participant_count: component.participantCount,
-    rank_base: component.rankBase,
-    rank_exponent: component.rankExponent,
-    rank_factor: component.rankFactor,
-    weighted_score: component.weightedScore,
-    source_weighted_total: component.sourceWeightedTotal,
-    exact_allocation: component.exactAllocation,
-    floored_allocation: component.flooredAllocation,
-    decimal_remainder: component.decimalRemainder,
-    remainder_bonus: component.remainderBonus,
-    final_allocated_points: component.finalAllocatedPoints,
-    tie_break_data: component.tieBreakData,
-    calculated_at: calculatedAt,
-  })));
-  if (componentRows.length) {
-    const { error } = await televotingAdmin.from("combined_televote_component_results").insert(componentRows);
-    if (error) throw new Error(error.message);
-  }
-
-  const finalRows = result.rows.map((row) => ({
-    aggregation_id: id,
-    country_code: row.code,
-    calculation_version: version,
-    source_contributions: row.componentResults.map((component) => ({
-      source_id: component.sourceId,
-      source_name: component.sourceName,
-      source_type: component.sourceType,
-      method: component.method,
-      raw_score: component.rawScore,
-      allocated_points: component.finalAllocatedPoints,
-    })),
-    total_voting_points: row.totalVotingPoints,
-    total_activity_points: row.totalActivityPoints,
-    final_correction: row.finalCorrection,
-    final_combined_points: row.finalCombinedPoints,
-    final_rank: row.finalRank,
-    final_tie_break_data: row.finalTieBreakData,
-    converted_points: row.totalVotingPoints,
-    post_conversion_bonus: row.totalActivityPoints,
-    post_conversion_adjustment: row.finalCorrection,
-    final_televote_score: row.finalCombinedPoints,
-    combined_original_rank: row.finalRank,
-    participant_count: participants.length,
-    calculated_at: calculatedAt,
-  }));
-  if (finalRows.length) {
-    const { error } = await televotingAdmin.from("combined_televote_results").insert(finalRows);
-    if (error) throw new Error(error.message);
-  }
-
-  const { error: updateError } = await televotingAdmin.from("televote_aggregations").update({
-    status: aggregation.status === "draft" ? "calculated" : aggregation.status,
-    calculation_version: version,
-    calculated_at: calculatedAt,
-    calculated_by: actor.id,
-    calculated_by_username: actor.username,
-    results_outdated: false,
-  }).eq("id", id);
-  if (updateError) throw new Error(updateError.message);
-  await audit(actor, "calculate_combined_televote", id, {
-    engine: COMBINED_ENGINE_VERSION,
-    calculation_version: version,
-    total_points: result.totalPoints,
-    pools: result.pools,
-  });
-  return { version, calculatedAt, result };
+  throw new Error("Combined Televote mutations are disabled pending canonical authority certification.");
 }
 
-export async function setMergedCombinedStatusServer(data: { id: string; status: "draft" | "calculated" | "locked" | "published" }) {
+export async function setMergedCombinedStatusServer(
+  data: { id: string; status: "draft" | "calculated" | "locked" | "published" },
+): Promise<{ ok: true }> {
+  void data;
   requireCombinedTelevoteWriteApproval();
-  const actor = await requireMergedTelevotingAdminServer();
-  const aggregation = await loadAggregation(data.id);
-  if ((data.status === "locked" || data.status === "published") && (aggregation.results_outdated || !aggregation.calculation_version)) {
-    throw new Error("Recalculate the combined result before locking or publishing it");
-  }
-  const patch: Record<string, unknown> = { status: data.status };
-  if (data.status === "locked") patch.locked_at = new Date().toISOString();
-  if (data.status === "published") patch.published_at = new Date().toISOString();
-  const { error } = await televotingAdmin.from("televote_aggregations").update(patch).eq("id", data.id);
-  if (error) throw new Error(error.message);
-  await audit(actor, "set_combined_status", data.id, { status: data.status });
-  return { ok: true };
+  throw new Error("Combined Televote mutations are disabled pending canonical authority certification.");
 }
 
-export async function deleteMergedCombinedAggregationServer(id: string) {
+export async function deleteMergedCombinedAggregationServer(
+  id: string,
+): Promise<{ ok: true }> {
+  void id;
   requireCombinedTelevoteWriteApproval();
-  const actor = await requireMergedTelevotingAdminServer();
-  const aggregation = await loadAggregation(id);
-  if (aggregation.status === "published") throw new Error("Published combined results cannot be deleted");
-  const sourceResult = await televotingAdmin.from("televote_aggregation_sources").select("id").eq("aggregation_id", id);
-  const sourceIds = (sourceResult.data ?? []).map((row) => row.id);
-  if (sourceIds.length) await televotingAdmin.from("external_score_entries").delete().in("source_id", sourceIds);
-  await televotingAdmin.from("combined_televote_component_results").delete().eq("aggregation_id", id);
-  await televotingAdmin.from("combined_televote_results").delete().eq("aggregation_id", id);
-  await televotingAdmin.from("televote_aggregation_participants").delete().eq("aggregation_id", id);
-  await televotingAdmin.from("televote_aggregation_sources").delete().eq("aggregation_id", id);
-  const { error } = await televotingAdmin.from("televote_aggregations").delete().eq("id", id);
-  if (error) throw new Error(error.message);
-  await audit(actor, "delete_combined_televote", id, { name: aggregation.name });
-  return { ok: true };
+  throw new Error("Combined Televote mutations are disabled pending canonical authority certification.");
 }
