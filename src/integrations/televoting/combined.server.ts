@@ -256,21 +256,24 @@ export async function createMergedCombinedAggregationServer(
   data: { name: string; editionId?: string | null; totalPoints: number; rankExponent: number },
 ): Promise<{ id: string; name: string }> {
   void data;
-  return requireCombinedTelevoteWriteApproval();
+  requireCombinedTelevoteWriteApproval();
+  throw new Error("Combined Televote mutations are disabled pending canonical authority certification.");
 }
 
 export async function updateMergedCombinedAggregationServer(
   data: { id: string; name: string; totalPoints: number; rankExponent: number },
 ): Promise<{ ok: true }> {
   void data;
-  return requireCombinedTelevoteWriteApproval();
+  requireCombinedTelevoteWriteApproval();
+  throw new Error("Combined Televote mutations are disabled pending canonical authority certification.");
 }
 
 export async function setMergedCombinedParticipantsServer(
   data: { id: string; participants: string[] },
 ): Promise<{ ok: true }> {
   void data;
-  return requireCombinedTelevoteWriteApproval();
+  requireCombinedTelevoteWriteApproval();
+  throw new Error("Combined Televote mutations are disabled pending canonical authority certification.");
 }
 
 export async function upsertMergedCombinedSourceServer(data: {
@@ -287,40 +290,46 @@ export async function upsertMergedCombinedSourceServer(data: {
   correctionTargetSourceId?: string | null;
 }): Promise<{ id: string }> {
   void data;
-  return requireCombinedTelevoteWriteApproval();
+  requireCombinedTelevoteWriteApproval();
+  throw new Error("Combined Televote mutations are disabled pending canonical authority certification.");
 }
 
 export async function deleteMergedCombinedSourceServer(
   data: { aggregationId: string; sourceId: string },
 ): Promise<{ ok: true }> {
   void data;
-  return requireCombinedTelevoteWriteApproval();
+  requireCombinedTelevoteWriteApproval();
+  throw new Error("Combined Televote mutations are disabled pending canonical authority certification.");
 }
 
 export async function saveMergedCombinedSourceValuesServer(
   data: { aggregationId: string; sourceId: string; values: Record<string, number> },
 ): Promise<{ ok: true }> {
   void data;
-  return requireCombinedTelevoteWriteApproval();
+  requireCombinedTelevoteWriteApproval();
+  throw new Error("Combined Televote mutations are disabled pending canonical authority certification.");
 }
 
 export async function recalculateMergedCombinedServer(
   id: string,
 ): Promise<{ version: number; calculatedAt: string; result: ReturnType<typeof computeCombined> }> {
   void id;
-  return requireCombinedTelevoteWriteApproval();
+  requireCombinedTelevoteWriteApproval();
+  throw new Error("Combined Televote mutations are disabled pending canonical authority certification.");
 }
 
 export async function setMergedCombinedStatusServer(
   data: { id: string; status: "draft" | "calculated" | "locked" | "published" },
 ): Promise<{ ok: true }> {
   void data;
-  return requireCombinedTelevoteWriteApproval();
+  requireCombinedTelevoteWriteApproval();
+  throw new Error("Combined Televote mutations are disabled pending canonical authority certification.");
 }
 
 export async function deleteMergedCombinedAggregationServer(
   id: string,
 ): Promise<{ ok: true }> {
   void id;
-  return requireCombinedTelevoteWriteApproval();
+  requireCombinedTelevoteWriteApproval();
+  throw new Error("Combined Televote mutations are disabled pending canonical authority certification.");
 }
