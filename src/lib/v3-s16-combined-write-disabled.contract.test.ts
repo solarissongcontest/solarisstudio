@@ -6,6 +6,7 @@ import { scanV3S16StaticAuthority } from "./v3-s16-mutation-authority";
 
 const server = readFileSync(resolve(process.cwd(), "src/integrations/televoting/combined.server.ts"), "utf8");
 const sync = readFileSync(resolve(process.cwd(), "src/integrations/televoting/combined-sync.server.ts"), "utf8");
+const archiveWorkflow = readFileSync(resolve(process.cwd(), ".github/workflows/v3-s14-archive-forward-effects-local.yml"), "utf8");
 const resultSync = readFileSync(resolve(process.cwd(), "src/integrations/televoting/results-sync.server.ts"), "utf8");
 
 const mutationFunctions = [
@@ -44,6 +45,15 @@ function expectRetiredBeforeNetwork(source: string, name: string) {
 }
 
 describe("COM-00: separate Combined Televote cannot write during deferred beta", () => {
+  it("produces independent exact-SHA PG17 Publication evidence for every Combined writer source change", () => {
+    for (const file of [
+      "src/integrations/televoting/combined.server.ts",
+      "src/integrations/televoting/combined-sync.server.ts",
+      "src/lib/v3-s16-combined-write-disabled.contract.test.ts",
+    ]) expect(archiveWorkflow).toContain('      - "' + file + '"');
+    expect(archiveWorkflow).toContain('s06_archive_paths');
+  });
+
   it("uses unconditional server-side denial", () => {
     expect(() => requireCombinedTelevoteWriteApproval()).toThrow(
       "Combined Televote mutations are disabled pending canonical authority certification.",
