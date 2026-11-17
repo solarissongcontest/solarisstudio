@@ -16,19 +16,24 @@ declare
   v_canonical oid := to_regprocedure(
     'public.studio2_apply_permission_change_r3(uuid,text,text,uuid,timestamptz,uuid,text,bigint,uuid)'
   );
+  v_core oid := to_regprocedure(
+    'public.studio2_apply_permission_change(uuid,text,text,uuid,timestamptz,uuid,text,bigint)'
+  );
   v_old pg_proc%rowtype;
   v_new pg_proc%rowtype;
+  v_inner pg_proc%rowtype;
 begin
   if current_user<>'postgres'
     or current_setting('server_version_num')::int / 10000<>17
     or to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is null
     or exists(select 1 from private.v3_migration_contracts
       where migration_key='v3.s16.permission-r3-legacy-overload-retirement')
-    or v_legacy is null or v_canonical is null
+    or v_legacy is null or v_canonical is null or v_core is null
   then raise exception 'S16 permission R3 retirement requires source PG17 owner and both exact overloads'
     using errcode='55000';end if;
   select * into v_old from pg_proc where oid=v_legacy;
   select * into v_new from pg_proc where oid=v_canonical;
+  select * into v_inner from pg_proc where oid=v_core;
 
   if not v_old.prosecdef or pg_get_userbyid(v_old.proowner)<>'postgres'
     or v_old.proconfig<>array['search_path=pg_catalog, public, private, auth']::text[]
@@ -54,6 +59,22 @@ begin
   then raise exception 'S16 active two-operator R3 command missing authorization or receipt contract'
     using errcode='55000';end if;
 
+  -- The lower-level permission mutator was left service-executable during
+  -- compatibility, despite the R3 wrapper owning fresh-auth and second
+  -- operator approval. No application caller directly uses it. Preserve
+  -- this owner-definer function for the nine-argument command, but remove
+  -- its direct API RPC EXECUTE authority.
+  if not v_inner.prosecdef
+     or pg_get_userbyid(v_inner.proowner)<>'postgres'
+     or v_inner.proconfig <> array['search_path=pg_catalog, public, private']::text[]
+     or position('private.studio2_can_manage_permissions(' in v_inner.prosrc)=0
+     or position('private.studio2_claim_operation(' in v_inner.prosrc)=0
+     or not has_function_privilege('service_role',v_core,'EXECUTE')
+     or has_function_privilege('authenticated',v_core,'EXECUTE')
+     or has_function_privilege('anon',v_core,'EXECUTE')
+  then raise exception 'S16 permission low-level service RPC is not the expected owner/receipt-controlled historical definition'
+    using errcode='55000';end if;
+
   if exists (select 1 from pg_depend d
     where d.refclassid='pg_proc'::regclass and d.refobjid=v_legacy
       and d.classid='pg_proc'::regclass and d.deptype='n')
@@ -72,6 +93,12 @@ drop function public.studio2_apply_permission_change_r3(
   uuid,text,text,uuid,timestamptz,uuid,text,bigint
 ) restrict;
 
+-- Keep implementation available to postgres-owned canonical nine-argument
+-- R3, but revoke externally executable service-role bypass of approval.
+revoke execute on function public.studio2_apply_permission_change(
+  uuid,text,text,uuid,timestamptz,uuid,text,bigint
+) from public,anon,authenticated,service_role;
+
 do $s16_p16_postcheck$
 declare v_new oid:=to_regprocedure(
   'public.studio2_apply_permission_change_r3(uuid,text,text,uuid,timestamptz,uuid,text,bigint,uuid)'
@@ -79,6 +106,15 @@ declare v_new oid:=to_regprocedure(
 begin
   if to_regprocedure('public.studio2_apply_permission_change_r3(uuid,text,text,uuid,timestamptz,uuid,text,bigint)') is not null
     or v_new is null
+    or has_function_privilege('service_role',
+      'public.studio2_apply_permission_change(uuid,text,text,uuid,timestamptz,uuid,text,bigint)',
+      'EXECUTE')
+    or has_function_privilege('authenticated',
+      'public.studio2_apply_permission_change(uuid,text,text,uuid,timestamptz,uuid,text,bigint)',
+      'EXECUTE')
+    or has_function_privilege('anon',
+      'public.studio2_apply_permission_change(uuid,text,text,uuid,timestamptz,uuid,text,bigint)',
+      'EXECUTE')
     or not has_function_privilege('authenticated',v_new,'EXECUTE')
     or has_function_privilege('anon',v_new,'EXECUTE')
     or (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
