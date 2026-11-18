@@ -33,8 +33,6 @@ declare
     'v3_create_protected_integrity_case_impl',
     'reporter_submit_integrity_appeal_impl',
     'public_submit_anonymous_integrity_appeal_impl',
-    'admin_record_integrity_finding_impl',
-    'admin_record_integrity_sanction_impl',
     'reporter_reply_integrity_case_impl',
     'public_reply_anonymous_integrity_case_impl'
   ];
@@ -47,8 +45,6 @@ declare
     'public.v3_create_protected_integrity_case_impl(uuid,text,text,text,text,text,text,text,text,text[],text)',
     'public.reporter_submit_integrity_appeal_impl(uuid,uuid,text)',
     'public.public_submit_anonymous_integrity_appeal_impl(text,text,uuid,text)',
-    'public.admin_record_integrity_finding_impl(uuid,text,text,text,text[],boolean)',
-    'public.admin_record_integrity_sanction_impl(uuid,uuid,integer,integer,text,text,text[],text[],text,boolean)',
     'public.reporter_reply_integrity_case_impl(uuid,text)',
     'public.public_reply_anonymous_integrity_case_impl(text,text,text)',
     'private.v3_integrity_case_changed_event()',
@@ -170,7 +166,7 @@ begin
 
   -- Enforce the installed, precise signature rather than trusting names or
   -- comments. No API role (including service_role) may call any of the 18
-  -- physically mutating internal primitives as a competing command.
+  -- remaining physically mutating internal primitives as competing commands.
   foreach v_signature in array v_internal_signatures loop
     v_oid := to_regprocedure(v_signature);
     if v_oid is null then
@@ -196,6 +192,8 @@ begin
   -- Owner-command consolidation must remove redundant internal entrypoints.
   foreach v_signature in array array[
     'public.admin_set_integrity_case_retention_impl(uuid,timestamptz,text)',
+    'public.admin_record_integrity_finding_impl(uuid,text,text,text,text[],boolean)',
+    'public.admin_record_integrity_sanction_impl(uuid,uuid,integer,integer,text,text,text[],text[],text,boolean)',
     'public.admin_record_integrity_preclearance_ruling_impl(uuid,text,text,text,text[])',
     'public.admin_set_integrity_priority_impl(uuid,text)',
     'public.admin_recuse_from_integrity_case_impl(uuid,text)',
