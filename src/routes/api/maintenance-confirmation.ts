@@ -3,6 +3,7 @@ import type {} from "@tanstack/react-start";
 import { z } from "zod";
 
 import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
+import type { ConfirmationRuntimeEnv } from "@/integrations/confirmations/public-runtime.server";
 
 const entryCreditSchema = z.object({
   role: z.enum(["composer", "lyricist", "songwriter", "producer", "arranger", "other"]),
@@ -94,43 +95,56 @@ function sameOrigin(request: Request) {
   return !origin || origin === new URL(request.url).origin;
 }
 
-async function rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
+async function rpc<T>(name: string, args: Record<string, unknown>, runtime?: ConfirmationRuntimeEnv): Promise<T> {
   const { createConfirmationPublicRuntimeClient } = await import(
     "@/integrations/confirmations/public-runtime.server"
   );
-  const db = createConfirmationPublicRuntimeClient();
+  const db = createConfirmationPublicRuntimeClient(runtime);
   const { data, error } = await db.rpc(name, args);
   if (error) throw new Error(error.message);
   return data as T;
 }
 
-async function resolveEditToken(token: string) {
-  const { sha256Hex } = await import("@/lib/request.server");
-  return rpc<Record<string, unknown>>("public_resolve_edit_token", {
-    _token_hash: await sha256Hex(token),
-  });
+async function sha256Hex(value: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-async function reconcileOperation(idempotencyKey: string, browserSessionId: string) {
+function getClientIp(request: Request): string | null {
+  for (const header of ["cf-connecting-ip", "x-real-ip", "x-forwarded-for"]) {
+    const ip = request.headers.get(header)?.split(",")[0]?.trim();
+    if (ip) return ip.slice(0, 64);
+  }
+  return null;
+}
+
+async function resolveEditToken(token: string, runtime?: ConfirmationRuntimeEnv) {
+  return rpc<Record<string, unknown>>("public_resolve_edit_token", {
+    _token_hash: await sha256Hex(token),
+  }, runtime);
+}
+
+async function reconcileOperation(idempotencyKey: string, browserSessionId: string, runtime?: ConfirmationRuntimeEnv) {
   return rpc<ConfirmationSubmitResult>("v3_reconcile_confirmation", {
     _idempotency_key: idempotencyKey,
     _browser_session_id: browserSessionId,
-  });
+  }, runtime);
 }
 
 async function submitExistingResponse(
   data: z.infer<typeof editPayloadSchema>,
   idempotencyKey: string,
+  request: Request,
+  runtime?: ConfirmationRuntimeEnv,
 ): Promise<ConfirmationSubmitResult> {
   const { edit_token, ...rest } = data;
-  const { getClientIp, sha256Hex } = await import("@/lib/request.server");
   const logicalPayload: Record<string, unknown> = {
     ...rest,
     edit_token_hash: await sha256Hex(edit_token),
   };
   const payload = {
     ...logicalPayload,
-    client_ip: getClientIp(),
+    client_ip: getClientIp(request),
   };
 
   let result: ConfirmationSubmitResult;
@@ -140,10 +154,10 @@ async function submitExistingResponse(
       _idempotency_key: idempotencyKey,
       _request_hash: "database-derived",
       _browser_session_id: data.browser_session_id,
-    });
+    }, runtime);
   } catch (submitError) {
     try {
-      const reconciled = await reconcileOperation(idempotencyKey, data.browser_session_id);
+      const reconciled = await reconcileOperation(idempotencyKey, data.browser_session_id, runtime);
       if (reconciled.found === true) result = reconciled;
       else throw submitError;
     } catch (reconcileError) {
@@ -197,42 +211,53 @@ function classifySubmitError(error: unknown, operationId: string): ConfirmationS
   return { ok: false, error: "server", operation_id: operationId };
 }
 
+/**
+ * Emergency maintenance transport is also invoked directly by the Cloudflare
+ * Worker so a participant save does not depend on the full TanStack route
+ * lifecycle. Both entrypoints share this single guarded implementation.
+ */
+export async function handleMaintenanceConfirmationRequest(
+  request: Request,
+  runtime?: ConfirmationRuntimeEnv,
+): Promise<Response> {
+  if (!GLOBAL_MAINTENANCE_MODE) return json({ error: "not_found" }, 404);
+  if (!sameOrigin(request)) return json({ error: "request_origin_rejected" }, 403);
+  if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+    return json({ error: "invalid_content_type" }, 415);
+  }
+
+  let parsed: z.infer<typeof requestSchema>;
+  try {
+    parsed = requestSchema.parse(await request.json());
+  } catch {
+    return json({ error: "invalid_request" }, 400);
+  }
+
+  try {
+    if (parsed.action === "resolve") {
+      return json(await resolveEditToken(parsed.token, runtime));
+    }
+
+    if (parsed.action === "reconcile") {
+      return json(await reconcileOperation(parsed.idempotency_key, parsed.browser_session_id, runtime));
+    }
+
+    try {
+      return json(await submitExistingResponse(parsed.data, parsed.idempotency_key, request, runtime));
+    } catch (error) {
+      return json(classifySubmitError(error, parsed.idempotency_key));
+    }
+  } catch (error) {
+    console.error("[Maintenance Confirmations] Isolated editor transport failed", error);
+    return json({ error: "maintenance_confirmation_unavailable" }, 503);
+  }
+
+}
+
 export const Route = createFileRoute("/api/maintenance-confirmation")({
   server: {
     handlers: {
-      POST: async ({ request }) => {
-        if (!GLOBAL_MAINTENANCE_MODE) return json({ error: "not_found" }, 404);
-        if (!sameOrigin(request)) return json({ error: "request_origin_rejected" }, 403);
-        if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
-          return json({ error: "invalid_content_type" }, 415);
-        }
-
-        let parsed: z.infer<typeof requestSchema>;
-        try {
-          parsed = requestSchema.parse(await request.json());
-        } catch {
-          return json({ error: "invalid_request" }, 400);
-        }
-
-        try {
-          if (parsed.action === "resolve") {
-            return json(await resolveEditToken(parsed.token));
-          }
-
-          if (parsed.action === "reconcile") {
-            return json(await reconcileOperation(parsed.idempotency_key, parsed.browser_session_id));
-          }
-
-          try {
-            return json(await submitExistingResponse(parsed.data, parsed.idempotency_key));
-          } catch (error) {
-            return json(classifySubmitError(error, parsed.idempotency_key));
-          }
-        } catch (error) {
-          console.error("[Maintenance Confirmations] Isolated editor transport failed", error);
-          return json({ error: "maintenance_confirmation_unavailable" }, 503);
-        }
-      },
+      POST: async ({ request }) => handleMaintenanceConfirmationRequest(request),
     },
   },
 });
