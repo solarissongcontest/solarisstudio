@@ -139,6 +139,21 @@ db_scalar() {
   psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c "$1"
 }
 
+integrity_case_version() {
+  db_scalar "select version from public.integrity_cases where id='$1'::uuid;"
+}
+
+integrity_appeal_version() {
+  db_scalar "select version from public.integrity_case_appeals where id='$1'::uuid;"
+}
+
+# Stable action identity for replay and idempotency verification.
+prepare_integrity_operation() {
+  local action="$1" scope="$2"
+  read -r OPERATION_ID IDEMPOTENCY_KEY < <(python3 -c 'import hashlib,sys,uuid; seed="solaris:integrity-security-rehearsal:"+":".join(sys.argv[1:]); print(uuid.uuid5(uuid.NAMESPACE_URL,seed), hashlib.sha256(seed.encode()).hexdigest())' "$action" "$scope")
+  [[ "$OPERATION_ID" =~ ^[[:xdigit:]-]{36}$ && "$IDEMPOTENCY_KEY" =~ ^[[:xdigit:]]{64}$ ]] || fail "Unable to create stable Integrity test operation identity"
+}
+
 assert_db_eq() {
   local label="$1"
   local query="$2"
@@ -502,9 +517,13 @@ assert_db_eq "expired orphan object is removed" "select count(*) from storage.ob
 
 log "Appeal conflict, duplicate and proportionality abuse tests"
 create_protected_case "$REPORTER_A_TOKEN" confidential report "Appeal security case"; APPEAL_CASE="$LAST_CASE_ID"
-rpc_request "$ORGANIZER_A_TOKEN" admin_record_integrity_finding "{\"_case_id\":\"$APPEAL_CASE\",\"_outcome\":\"violation\",\"_summary\":\"Confirmed rehearsal violation\",\"_rationale\":\"The controlled rehearsal establishes a violation for appeal-boundary testing only.\",\"_rule_ids\":[\"11.2\"],\"_visible_to_reporter\":true}"
+prepare_integrity_operation "appeal-case-finding" "$APPEAL_CASE"
+CASE_VERSION="$(integrity_case_version "$APPEAL_CASE")"
+rpc_request "$ORGANIZER_A_TOKEN" studio2_integrity_record_finding "{\"p_case_id\":\"$APPEAL_CASE\",\"p_outcome\":\"violation\",\"p_summary\":\"Confirmed rehearsal violation\",\"p_rationale\":\"The controlled rehearsal establishes a violation for appeal-boundary testing only.\",\"p_rule_ids\":[\"11.2\"],\"p_visible_to_reporter\":true,\"p_operation_id\":\"$OPERATION_ID\",\"p_idempotency_key\":\"$IDEMPOTENCY_KEY\",\"p_expected_version\":$CASE_VERSION}"
 expect_success "organizer records appeal-test finding"; FINDING_ID="$(printf '%s' "$HTTP_BODY" | json_value finding_id)"
-rpc_request "$ORGANIZER_A_TOKEN" admin_record_integrity_sanction "{\"_case_id\":\"$APPEAL_CASE\",\"_finding_id\":\"$FINDING_ID\",\"_typical_level\":5,\"_final_level\":5,\"_target_type\":\"participant\",\"_target_reference\":\"security-rehearsal\",\"_aggravating_factors\":[],\"_mitigating_factors\":[],\"_rationale\":\"Controlled Level 5 sanction used to prove appeal authorization boundaries.\",\"_visible_to_reporter\":true}"
+prepare_integrity_operation "appeal-case-sanction" "$APPEAL_CASE"
+CASE_VERSION="$(integrity_case_version "$APPEAL_CASE")"
+rpc_request "$ORGANIZER_A_TOKEN" studio2_integrity_record_sanction "{\"p_case_id\":\"$APPEAL_CASE\",\"p_finding_id\":\"$FINDING_ID\",\"p_typical_level\":5,\"p_final_level\":5,\"p_target_type\":\"participant\",\"p_target_reference\":\"security-rehearsal\",\"p_aggravating_factors\":[],\"p_mitigating_factors\":[],\"p_rationale\":\"Controlled Level 5 sanction used to prove appeal authorization boundaries.\",\"p_visible_to_reporter\":true,\"p_operation_id\":\"$OPERATION_ID\",\"p_idempotency_key\":\"$IDEMPOTENCY_KEY\",\"p_expected_version\":$CASE_VERSION}"
 expect_success "organizer records appeal-test sanction"; SANCTION_ID="$(printf '%s' "$HTTP_BODY" | json_value sanction_id)"
 rpc_request "$REPORTER_A_TOKEN" reporter_submit_integrity_appeal "{\"_case_id\":\"$APPEAL_CASE\",\"_sanction_id\":\"$SANCTION_ID\",\"_grounds\":\"The controlled rehearsal submits a valid appeal to exercise fresh-review rules.\"}"
 expect_success "reporter submits first appeal"; APPEAL_ID="$(printf '%s' "$HTTP_BODY" | json_value appeal_id)"
@@ -534,19 +553,27 @@ assert_db_eq "expired reviewer denial leaves appeal unassigned" "select assigned
 
 rpc_request "$ORGANIZER_A_TOKEN" admin_assign_integrity_appeal_reviewer "{\"_appeal_id\":\"$APPEAL_ID\",\"_user_id\":\"$ORGANIZER_B_ID\"}"
 expect_success "fresh organizer B is assigned appeal review"
-rpc_request "$ORGANIZER_B_TOKEN" admin_decide_integrity_appeal "{\"_appeal_id\":\"$APPEAL_ID\",\"_outcome\":\"reduced\",\"_decision_rationale\":\"An invalid reduction cannot retain or increase the original sanction level.\",\"_replacement_level\":5,\"_aggravating_factors\":[],\"_mitigating_factors\":[]}"
+prepare_integrity_operation "illegal-appeal-reduction" "$APPEAL_ID"
+APPEAL_VERSION="$(integrity_appeal_version "$APPEAL_ID")"
+rpc_request "$ORGANIZER_B_TOKEN" studio2_integrity_resolve_appeal "{\"p_appeal_id\":\"$APPEAL_ID\",\"p_outcome\":\"reduced\",\"p_decision_rationale\":\"An invalid reduction cannot retain or increase the original sanction level.\",\"p_replacement_level\":5,\"p_aggravating_factors\":[],\"p_mitigating_factors\":[],\"p_operation_id\":\"$OPERATION_ID\",\"p_idempotency_key\":\"$IDEMPOTENCY_KEY\",\"p_expected_version\":$APPEAL_VERSION}"
 expect_failure "illegal appeal reduction level is rejected"
 assert_db_eq "illegal reduction leaves appeal under review" "select status from public.integrity_case_appeals where id='$APPEAL_ID'::uuid;" "under_review"
-rpc_request "$ORGANIZER_B_TOKEN" admin_decide_integrity_appeal "{\"_appeal_id\":\"$APPEAL_ID\",\"_outcome\":\"upheld\",\"_decision_rationale\":\"Fresh reviewer confirms the controlled sanction after reconsidering the rehearsal evidence.\",\"_replacement_level\":null,\"_aggravating_factors\":[],\"_mitigating_factors\":[]}"
+prepare_integrity_operation "valid-appeal-upheld" "$APPEAL_ID"
+APPEAL_VERSION="$(integrity_appeal_version "$APPEAL_ID")"
+rpc_request "$ORGANIZER_B_TOKEN" studio2_integrity_resolve_appeal "{\"p_appeal_id\":\"$APPEAL_ID\",\"p_outcome\":\"upheld\",\"p_decision_rationale\":\"Fresh reviewer confirms the controlled sanction after reconsidering the rehearsal evidence.\",\"p_replacement_level\":null,\"p_aggravating_factors\":[],\"p_mitigating_factors\":[],\"p_operation_id\":\"$OPERATION_ID\",\"p_idempotency_key\":\"$IDEMPOTENCY_KEY\",\"p_expected_version\":$APPEAL_VERSION}"
 expect_success "fresh reviewer records final appeal outcome"
 rpc_request "$ORGANIZER_A_TOKEN" admin_assign_integrity_appeal_reviewer "{\"_appeal_id\":\"$APPEAL_ID\",\"_user_id\":\"$ORGANIZER_A_ID\"}"
 expect_failure "final appeal cannot be reassigned"
 assert_db_eq "final appeal status remains upheld" "select status from public.integrity_case_appeals where id='$APPEAL_ID'::uuid;" "upheld"
 
 create_protected_case "$REPORTER_B_TOKEN" confidential report "Late appeal extension case"; LATE_CASE="$LAST_CASE_ID"
-rpc_request "$ORGANIZER_A_TOKEN" admin_record_integrity_finding "{\"_case_id\":\"$LATE_CASE\",\"_outcome\":\"violation\",\"_summary\":\"Late appeal rehearsal violation\",\"_rationale\":\"This second controlled violation exists only to test exceptional appeal extension limits.\",\"_rule_ids\":[\"11.2\"],\"_visible_to_reporter\":true}"
+prepare_integrity_operation "late-appeal-finding" "$LATE_CASE"
+CASE_VERSION="$(integrity_case_version "$LATE_CASE")"
+rpc_request "$ORGANIZER_A_TOKEN" studio2_integrity_record_finding "{\"p_case_id\":\"$LATE_CASE\",\"p_outcome\":\"violation\",\"p_summary\":\"Late appeal rehearsal violation\",\"p_rationale\":\"This second controlled violation exists only to test exceptional appeal extension limits.\",\"p_rule_ids\":[\"11.2\"],\"p_visible_to_reporter\":true,\"p_operation_id\":\"$OPERATION_ID\",\"p_idempotency_key\":\"$IDEMPOTENCY_KEY\",\"p_expected_version\":$CASE_VERSION}"
 expect_success "record late-appeal finding"; LATE_FINDING="$(printf '%s' "$HTTP_BODY" | json_value finding_id)"
-rpc_request "$ORGANIZER_A_TOKEN" admin_record_integrity_sanction "{\"_case_id\":\"$LATE_CASE\",\"_finding_id\":\"$LATE_FINDING\",\"_typical_level\":4,\"_final_level\":4,\"_target_type\":\"participant\",\"_target_reference\":\"late-security-rehearsal\",\"_aggravating_factors\":[],\"_mitigating_factors\":[],\"_rationale\":\"Controlled sanction timestamp will be moved backward to test late-appeal extensions.\",\"_visible_to_reporter\":true}"
+prepare_integrity_operation "late-appeal-sanction" "$LATE_CASE"
+CASE_VERSION="$(integrity_case_version "$LATE_CASE")"
+rpc_request "$ORGANIZER_A_TOKEN" studio2_integrity_record_sanction "{\"p_case_id\":\"$LATE_CASE\",\"p_finding_id\":\"$LATE_FINDING\",\"p_typical_level\":4,\"p_final_level\":4,\"p_target_type\":\"participant\",\"p_target_reference\":\"late-security-rehearsal\",\"p_aggravating_factors\":[],\"p_mitigating_factors\":[],\"p_rationale\":\"Controlled sanction timestamp will be moved backward to test late-appeal extensions.\",\"p_visible_to_reporter\":true,\"p_operation_id\":\"$OPERATION_ID\",\"p_idempotency_key\":\"$IDEMPOTENCY_KEY\",\"p_expected_version\":$CASE_VERSION}"
 expect_success "record late-appeal sanction"; LATE_SANCTION="$(printf '%s' "$HTTP_BODY" | json_value sanction_id)"
 db_exec "update public.integrity_case_sanctions set effective_at=now()-interval '3 days' where id='$LATE_SANCTION'::uuid;"
 rpc_request "$REPORTER_B_TOKEN" reporter_submit_integrity_appeal "{\"_case_id\":\"$LATE_CASE\",\"_sanction_id\":\"$LATE_SANCTION\",\"_grounds\":\"This intentionally late appeal exists to verify the exceptional extension ceiling.\"}"
