@@ -32,8 +32,7 @@ declare
     'v3_public_create_anonymous_integrity_case_impl',
     'v3_create_protected_integrity_case_impl',
     'reporter_submit_integrity_appeal_impl',
-    'public_submit_anonymous_integrity_appeal_impl',
-
+    'public_submit_anonymous_integrity_appeal_impl'
   ];
   -- Identity-exact internal implementation and event primitives. This is a
   -- catalog authority proof, not an S16 scanner exemption or release waiver.
