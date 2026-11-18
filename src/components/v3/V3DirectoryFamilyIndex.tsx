@@ -44,6 +44,7 @@ export function V3DirectoryFamilyIndex({
   groups,
   context,
   noShell = false,
+  installedHeadingLevel = 1,
 }: {
   variant?: "tools" | "sitemap";
   title: string;
@@ -59,6 +60,8 @@ export function V3DirectoryFamilyIndex({
   context?: ReactNode;
   /** Rules owns its own governed rollout shell. */
   noShell?: boolean;
+  /** Use H2 when the installed directory toolbar already owns the visible H1. */
+  installedHeadingLevel?: 1 | 2;
 }) {
   const { allows } = usePublicLaunchAvailability();
   groups = groups.map(group => ({ ...group, items: group.items.filter(item => allows(item.to)) }));
@@ -174,7 +177,7 @@ export function V3DirectoryFamilyIndex({
           <AppScreen>
             <header className="v3-directory-app-heading">
               <p className="v3-directory-eyebrow">{eyebrow}</p>
-              <h1>{title}</h1>
+              {installedHeadingLevel === 2 ? <h2>{title}</h2> : <h1>{title}</h1>}
               <p>{intro}</p>
             </header>
             {context}
