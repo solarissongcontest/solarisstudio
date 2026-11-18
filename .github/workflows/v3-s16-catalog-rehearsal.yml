@@ -11,7 +11,8 @@ on:
       - ".github/scripts/prepare-archive-local-config.py"
       - ".github/workflows/v3-s16-catalog-rehearsal.yml"
   push:
-    branches: [main]
+    # Isolated P04 candidate exact-SHA proof. No hosted database or deploy.
+    branches: [main, v3/s16-p04-integrity-governed-writer-network-restack]
     paths:
       - "src/lib/v3-s16*"
       - "scripts/*v3-s16*"
