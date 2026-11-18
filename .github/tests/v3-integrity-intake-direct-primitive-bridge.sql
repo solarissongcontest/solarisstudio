@@ -33,12 +33,12 @@ begin
   -- while inspected as postgres. Successful invocation is always a regression.
   foreach v_role in array array['anon','authenticated','service_role'] loop
     foreach v_sql in array array[
-      $select public.v3_create_protected_integrity_case_impl(
+      $$select public.v3_create_protected_integrity_case_impl(
         null::uuid, null::text, null::text, null::text, null::text,
-        null::text, null::text, null::text, null::text, null::text[], null::text)$,
-      $select public.v3_public_create_anonymous_integrity_case_impl(
+        null::text, null::text, null::text, null::text, null::text[], null::text)$$,
+      $$select public.v3_public_create_anonymous_integrity_case_impl(
         null::uuid, null::text, null::text, null::text, null::text,
-        null::text, null::text, null::text[], null::text, null::text)$
+        null::text, null::text, null::text[], null::text, null::text)$$
     ] loop
       execute format('set local role %I',v_role);
       v_denied:=false;
