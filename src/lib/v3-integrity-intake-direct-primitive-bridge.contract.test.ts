@@ -62,6 +62,10 @@ describe("P04 Integrity intake: eliminate a real V3 -> legacy -> V3 recursion", 
     expect(finalConsolidation).toContain("app.integrity_operation_id");
     expect(finalConsolidation).toContain("replayed");
     expect(runtimeSql).toContain("Retired duplicate intake implementation remains installed");
+    expect(runtimeSql).toContain("exception when undefined_function then");
+    expect(runtimeSql).toContain("Retired V3 Intake intermediate remained callable for role");
+    expect(runtimeSql).toContain("select public.v3_create_protected_integrity_case_impl(");
+    expect(runtimeSql).toContain("select public.v3_public_create_anonymous_integrity_case_impl(");
   });
 
   it("does not edit previously applied creator migrations or add an S16 exception", () => {
