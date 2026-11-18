@@ -35,8 +35,6 @@ declare
     'public_submit_anonymous_integrity_appeal_impl',
     'admin_record_integrity_finding_impl',
     'admin_record_integrity_sanction_impl',
-    'admin_recuse_from_integrity_case_impl',
-    'admin_add_integrity_case_note_impl',
     'admin_record_integrity_preclearance_ruling_impl',
     'admin_set_integrity_case_retention_impl',
     'reporter_reply_integrity_case_impl',
@@ -53,8 +51,6 @@ declare
     'public.public_submit_anonymous_integrity_appeal_impl(text,text,uuid,text)',
     'public.admin_record_integrity_finding_impl(uuid,text,text,text,text[],boolean)',
     'public.admin_record_integrity_sanction_impl(uuid,uuid,integer,integer,text,text,text[],text[],text,boolean)',
-    'public.admin_recuse_from_integrity_case_impl(uuid,text)',
-    'public.admin_add_integrity_case_note_impl(uuid,text)',
     'public.admin_record_integrity_preclearance_ruling_impl(uuid,text,text,text,text[])',
     'public.admin_set_integrity_case_retention_impl(uuid,timestamptz,text)',
     'public.reporter_reply_integrity_case_impl(uuid,text)',
@@ -204,6 +200,8 @@ begin
   -- Owner-command consolidation must remove redundant internal entrypoints.
   foreach v_signature in array array[
     'public.admin_set_integrity_priority_impl(uuid,text)',
+    'public.admin_recuse_from_integrity_case_impl(uuid,text)',
+    'public.admin_add_integrity_case_note_impl(uuid,text)',
     'public.admin_reply_integrity_case_impl(uuid,text,boolean)'
   ] loop
     if to_regprocedure(v_signature) is not null then
