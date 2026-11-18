@@ -250,7 +250,7 @@ function EditionsPage() {
           <AppScreen>
             <header className="v3-directory-app-heading">
               <p className="v3-directory-eyebrow">CONTEST HISTORY</p>
-              <h1>Editions</h1>
+              <h2>Editions</h2>
               <p>Explore the latest edition and past contests.</p>
             </header>
             {control}
