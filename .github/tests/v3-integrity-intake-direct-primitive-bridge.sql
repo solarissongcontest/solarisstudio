@@ -26,7 +26,7 @@ begin
     then raise exception 'Cyclic / unqualified Integrity call graph %', v_name; end if;
   end loop;
   if to_regprocedure('public.v3_create_protected_integrity_case_impl(uuid,text,text,text,text,text,text,text,text,text[],text)') is not null
-     or to_regprocedure('public.v3_public_create_anonymous_integrity_case_impl(uuid,text,text,text,text,text,text,text,text[],text,text)') is not null
+     or to_regprocedure('public.v3_public_create_anonymous_integrity_case_impl(uuid,text,text,text,text,text,text,text[],text,text)') is not null
   then raise exception 'Retired duplicate intake implementation remains installed'; end if;
   -- Direct SQL probes ensure the retired V3 intermediates cannot be called
   -- through any of the three PostgREST API roles, not only absent in pg_proc
