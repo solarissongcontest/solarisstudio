@@ -30,6 +30,19 @@ async function postMaintenanceConfirmation(body: unknown) {
 
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
+    // Bad input/origin/content type is rejected by the maintenance endpoint
+    // before any canonical mutation. It must not be reported as a possibly
+    // committed edit just because its HTTP response is non-2xx.
+    if (
+      typeof body === "object" && body !== null &&
+      "action" in body && body.action === "submit" &&
+      [400, 403, 415].includes(response.status)
+    ) {
+      return {
+        ok: false,
+        error: payload && typeof payload.error === "string" ? payload.error : "invalid_request",
+      };
+    }
     const message =
       payload && typeof payload.error === "string"
         ? payload.error
