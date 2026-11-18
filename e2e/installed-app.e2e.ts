@@ -288,9 +288,16 @@ test("signed-out and critical-route cold launches use canonical safe roots", asy
     "Exercise route safety on canonical iOS portrait and landscape.",
   );
 
-  const setNavigation = async (activeTab: string, pathname: string) => {
+  // Seed the persisted previous-session snapshot in the *same task* that
+  // initiates the real parsing-time trampoline. This prevents a still-mounted
+  // home-route persistence effect from racing the synthetic prior-session
+  // snapshot, which is not a cold-launch behavior under test.
+  const launchWithNavigation = async (activeTab: string, pathname: string) => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await waitForRememberedAppTab(page, "home");
+    const launchRequest = page.waitForRequest(
+      (request) => new URL(request.url()).pathname === "/app-launch",
+    );
     await page.evaluate(
       ({ activeTab, pathname }) => {
         const entry = {
@@ -307,18 +314,19 @@ test("signed-out and critical-route cold launches use canonical safe roots", asy
             tabs: { [activeTab]: { current: entry, history: [entry] } },
           }),
         );
+        const snapshot = JSON.parse(localStorage.getItem("solaris:app-navigation:v1") || "{}");
+        if (snapshot.activeTab !== activeTab) throw new Error("Cold-launch fixture was not committed");
+        window.setTimeout(() => window.location.assign("/app-launch"), 0);
       },
       { activeTab, pathname },
     );
-    await waitForRememberedAppTab(page, activeTab);
+    await launchRequest;
   };
 
-  await setNavigation("me", "/my-solaris/account");
-  await launchInstalledApp(page);
+  await launchWithNavigation("me", "/my-solaris/account");
   await expectCommittedPath(page, "/auth");
 
-  await setNavigation("participate", "/televoting");
-  await launchInstalledApp(page);
+  await launchWithNavigation("participate", "/televoting");
   await expectCommittedPath(page, "/participate");
 });
 
