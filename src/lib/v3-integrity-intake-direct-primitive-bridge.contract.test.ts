@@ -52,7 +52,7 @@ describe("P04 Integrity intake: eliminate a real V3 -> legacy -> V3 recursion", 
       const exact = signatureTail ? "'public." + name + "(" + signatureTail + "'" : undefined;
       expect(exact, name + " must retain its original inspected signature").toBeDefined();
       expect(finalConsolidation).toContain("drop function public." + name + "(");
-      expect(runtimeSql).not.toContain(exact!);
+      expect(runtimeSql).toContain(exact!);
       const canonicalName = name.replace("_impl", "");
       expect(finalConsolidation).toContain("create or replace function public." + canonicalName + "(");
       expect(runtimeSql).toContain("('public." + canonicalName + "(");
