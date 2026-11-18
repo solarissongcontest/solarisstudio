@@ -54,7 +54,11 @@ describe("Browser Audit regression boundaries", () => {
 
     expect(mediaAssets).toContain('aria-label="Review reason"');
     expect(integrity).toContain('aria-label="Search integrity cases"');
-    expect(installedApp.match(/await launchInstalledApp\(page\);/g)).toHaveLength(6);
+    // Four tests call the launcher helper directly; the two critical-route
+    // cold-launch probes use launchWithNavigation to avoid a fixture race.
+    expect(installedApp.match(/await launchInstalledApp\\(page\\);/g)).toHaveLength(4);
+    expect(installedApp).toContain('await launchWithNavigation("me", "/my-solaris/account")');
+    expect(installedApp).toContain('await launchWithNavigation("participate", "/televoting")');
     expect(installedApp).not.toContain('page.goto("/app-launch"');
     expect(installedApp).toContain('window.location.assign("/app-launch")');
     expect(installedApp).toContain('new URL(request.url()).pathname === "/app-launch"');
