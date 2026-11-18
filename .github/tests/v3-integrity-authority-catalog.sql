@@ -36,8 +36,41 @@ declare
     'admin_set_integrity_priority_impl',
     'admin_reply_integrity_case_impl',
     'admin_record_integrity_finding_impl',
-    'admin_record_integrity_sanction_impl'
+    'admin_record_integrity_sanction_impl',
+    'admin_recuse_from_integrity_case_impl',
+    'admin_add_integrity_case_note_impl',
+    'admin_record_integrity_preclearance_ruling_impl',
+    'admin_set_integrity_case_retention_impl',
+    'reporter_reply_integrity_case_impl',
+    'public_reply_anonymous_integrity_case_impl'
   ];
+  -- Identity-exact internal implementation and event primitives. This is a
+  -- catalog authority proof, not an S16 scanner exemption or release waiver.
+  v_internal_signatures text[] := array[
+    'public.public_create_anonymous_integrity_case_impl(text,text,text,text,text,text[],text,text)',
+    'public.create_protected_integrity_case_impl(text,text,text,text,text,text,text,text[],text)',
+    'public.v3_public_create_anonymous_integrity_case_impl(uuid,text,text,text,text,text,text,text[],text,text)',
+    'public.v3_create_protected_integrity_case_impl(uuid,text,text,text,text,text,text,text,text,text[],text)',
+    'public.reporter_submit_integrity_appeal_impl(uuid,uuid,text)',
+    'public.public_submit_anonymous_integrity_appeal_impl(text,text,uuid,text)',
+    'public.admin_set_integrity_priority_impl(uuid,text)',
+    'public.admin_reply_integrity_case_impl(uuid,text,boolean)',
+    'public.admin_record_integrity_finding_impl(uuid,text,text,text,text[],boolean)',
+    'public.admin_record_integrity_sanction_impl(uuid,uuid,integer,integer,text,text,text[],text[],text,boolean)',
+    'public.admin_recuse_from_integrity_case_impl(uuid,text)',
+    'public.admin_add_integrity_case_note_impl(uuid,text)',
+    'public.admin_record_integrity_preclearance_ruling_impl(uuid,text,text,text,text[])',
+    'public.admin_set_integrity_case_retention_impl(uuid,timestamptz,text)',
+    'public.reporter_reply_integrity_case_impl(uuid,text)',
+    'public.public_reply_anonymous_integrity_case_impl(text,text,text)',
+    'private.v3_integrity_case_changed_event()',
+    'private.v3_integrity_appeal_changed_event()'
+  ];
+  v_signature text;
+  v_oid oid;
+  v_owner text;
+  v_security_definer boolean;
+  v_settings text;
 begin
   foreach v_table in array array[
     'public.integrity_cases',
@@ -146,6 +179,58 @@ begin
   ) <> cardinality(v_internal_functions) then
     raise exception 'One or more sanctioned Integrity internal writers are missing';
   end if;
+
+  -- Enforce the installed, precise signature rather than trusting names or
+  -- comments. No API role (including service_role) may call any of the 18
+  -- physically mutating internal primitives as a competing command.
+  foreach v_signature in array v_internal_signatures loop
+    v_oid := to_regprocedure(v_signature);
+    if v_oid is null then
+      raise exception 'Integrity internal primitive signature missing: %', v_signature;
+    end if;
+    select pg_get_userbyid(p.proowner), p.prosecdef,
+           coalesce(array_to_string(p.proconfig, ','), '')
+      into v_owner, v_security_definer, v_settings
+    from pg_proc p where p.oid = v_oid;
+
+    if v_owner <> 'postgres' or not v_security_definer
+       or position('search_path=pg_catalog' in v_settings) = 0 then
+      raise exception 'Unsafe owner/SECURITY DEFINER/search_path for %: %, %, %',
+        v_signature, v_owner, v_security_definer, v_settings;
+    end if;
+    foreach v_role in array array['anon', 'authenticated', 'service_role'] loop
+      if has_function_privilege(v_role, v_oid, 'EXECUTE') then
+        raise exception 'Unexpected direct role EXECUTE: % on %', v_role, v_signature;
+      end if;
+    end loop;
+  end loop;
+
+  -- These must stay attached and enabled. Removing revision/event triggers
+  -- to reduce S16 counts would break CAS and historical audit invariants.
+  for v_fn in
+    select t.tgname, t.tgenabled, t.tgtype, n.nspname as function_schema,
+           p.proname as function_name, p.prosecdef, pg_get_userbyid(p.proowner) as owner
+    from pg_trigger t
+    join pg_class c on c.oid = t.tgrelid
+    join pg_proc p on p.oid = t.tgfoid
+    join pg_namespace n on n.oid = p.pronamespace
+    where not t.tgisinternal
+      and t.tgname in (
+        'v3_integrity_case_before_update', 'v3_integrity_case_changed_event',
+        'v3_integrity_appeal_before_update', 'v3_integrity_appeal_changed_event'
+      )
+  loop
+    if v_fn.tgenabled <> 'O' or v_fn.function_schema <> 'private'
+       or not v_fn.prosecdef or v_fn.owner <> 'postgres' then
+      raise exception 'Integrity trigger authority is not enforced: %', v_fn.tgname;
+    end if;
+    if v_fn.tgname like '%before_update' and v_fn.tgtype <> 19 then
+      raise exception 'Integrity revision trigger firing events changed: %', v_fn.tgname;
+    end if;
+    if v_fn.tgname like '%changed_event' and v_fn.tgtype <> 21 then
+      raise exception 'Integrity event trigger firing events changed: %', v_fn.tgname;
+    end if;
+  end loop;
 
   if not exists (
     select 1 from pg_trigger t
