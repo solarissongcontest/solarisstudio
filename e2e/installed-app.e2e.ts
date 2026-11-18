@@ -271,7 +271,10 @@ test("cold launch preserves Results query, history semantics and post-restore pe
       .poll(() => page.evaluate(() => sessionStorage.getItem("solaris:app-launch-transaction:v1")))
       .toBeNull();
 
-    await page.goBack({ waitUntil: "domcontentloaded" });
+    // WebKit can reject Playwright goBack() after the parsing-time trampoline
+    // even when the browser history action itself is valid. Exercise the real
+    // History API and still require the exact prelaunch Explore destination.
+    await page.evaluate(() => window.setTimeout(() => window.history.back(), 0));
     await expect(page).toHaveURL(/\/explore(?:[?#]|$)/, { timeout: 5_000 });
     await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/);
     await waitForRememberedAppTab(page, "explore");
@@ -293,8 +296,12 @@ test("signed-out and critical-route cold launches use canonical safe roots", asy
   // home-route persistence effect from racing the synthetic prior-session
   // snapshot, which is not a cold-launch behavior under test.
   const launchWithNavigation = async (activeTab: string, pathname: string) => {
-    await page.goto("/", { waitUntil: "domcontentloaded" });
-    await waitForRememberedAppTab(page, "home");
+    // A real settled browsing root is required before injecting a previous-
+    // session snapshot. The preceding protected redirect may still have an
+    // outstanding launch transaction, so prove it has cleared first.
+    await page.goto("/explore", { waitUntil: "domcontentloaded" });
+    await expect.poll(() => page.evaluate(() => sessionStorage.getItem("solaris:app-launch-transaction:v1"))).toBeNull();
+    await waitForRememberedAppTab(page, "explore");
     const launchRequest = page.waitForRequest(
       (request) => new URL(request.url()).pathname === "/app-launch",
     );
@@ -316,7 +323,9 @@ test("signed-out and critical-route cold launches use canonical safe roots", asy
         );
         const snapshot = JSON.parse(localStorage.getItem("solaris:app-navigation:v1") || "{}");
         if (snapshot.activeTab !== activeTab) throw new Error("Cold-launch fixture was not committed");
-        window.location.assign("/app-launch");
+        // Schedule the parsing-time launch after the fixture task returns.
+        // Synchronous navigation destroys the WebKit evaluation context.
+        window.setTimeout(() => window.location.assign("/app-launch"), 0);
       },
       { activeTab, pathname },
     );
@@ -417,7 +426,7 @@ test("installed app shell survives representative navigation without duplicate c
       // Archive retains its existing content-owned H1. Never accept two H1s.
       if (route === "/shows") {
         await expect(page.locator(".solaris-app-toolbar h1")).toHaveText("Shows");
-        await expect(directory.getByRole("heading", { level: 2, name: "Shows" })).toBeVisible();
+        await expect(directory.getByRole("heading", { level: 2, name: "Shows", exact: true })).toBeVisible();
       } else {
         await expect(directory.getByRole("heading", { level: 1, name: "Archive" })).toBeVisible();
       }
