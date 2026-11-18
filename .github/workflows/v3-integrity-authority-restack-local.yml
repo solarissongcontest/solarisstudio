@@ -191,7 +191,7 @@ jobs:
         shell: bash
         run: |
           cd /tmp/solaris-integrity-main
-          bash "$GITHUB_WORKSPACE/.github/scripts/run-rules-integrity-security-rehearsal.sh"
+          V3_RULES_INTEGRITY_REHEARSAL_SCRIPT="$GITHUB_WORKSPACE/.github/scripts/rules-integrity-security-rehearsal.sh" bash "$GITHUB_WORKSPACE/.github/scripts/run-rules-integrity-security-rehearsal.sh"
 
       - name: Stop isolated Supabase
         if: always()
