@@ -82,6 +82,7 @@ on:
       - "supabase/migrations/2026111720*_v3_integrity_*.sql"
       - "supabase/migrations/2026111721*_v3_integrity_*.sql"
       - ".github/tests/v3-integrity-*.sql"
+      - ".github/scripts/rules-integrity-security-rehearsal.sh"
       - "src/lib/v3-integrity-*.ts"
       - "src/lib/integrity-evidence.ts"
       - "src/lib/integrity-preclearance.ts"
