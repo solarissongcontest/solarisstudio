@@ -24,7 +24,7 @@ begin
       where f.oid=p and f.prosecdef and pg_get_userbyid(f.proowner)='postgres'
         and coalesce(array_to_string(f.proconfig,','),'') like '%search_path=pg_catalog%';
     if def is null or strpos(def,'retention_until')=0
-       or strpos(def,'new.version')=0 and strpos(def,'new.version')=0
+       or strpos(def,'new.version')=0
     then raise exception 'Unexpected canonical Integrity revision writer: %',v using errcode='55000'; end if;
     foreach v_role in array array['anon','authenticated','service_role'] loop
       if has_function_privilege(v_role,p,'EXECUTE') then
