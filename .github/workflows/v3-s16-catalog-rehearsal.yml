@@ -12,6 +12,7 @@ on:
       - ".github/workflows/v3-s16-catalog-rehearsal.yml"
       - ".github/workflows/v3-s14-archive-forward-effects-local.yml"
       - "scripts/v3-s14-archive-forward-effects.contract.test.mjs"
+      - ".github/tests/v3-s16-integrity-api-table-dml.sql"
   push:
     # Isolated P04 candidate exact-SHA proof. No hosted database or deploy.
     branches: [main, v3/s16-p04-integrity-governed-writer-network-restack]
@@ -25,6 +26,7 @@ on:
       - ".github/workflows/v3-s16-catalog-rehearsal.yml"
       - ".github/workflows/v3-s14-archive-forward-effects-local.yml"
       - "scripts/v3-s14-archive-forward-effects.contract.test.mjs"
+      - ".github/tests/v3-s16-integrity-api-table-dml.sql"
   workflow_dispatch:
 permissions:
   contents: read
