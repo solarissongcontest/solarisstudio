@@ -4,7 +4,7 @@ import type { V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import "@/styles/v3-shows-directory.css";
 import { useMemo, useState } from "react";
 
-import { AppEmptyState, AppSectionHeader } from "@/components/app/AppPrimitives";
+import { AppEmptyState, AppGroupedList, AppSectionHeader } from "@/components/app/AppPrimitives";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
@@ -200,17 +200,17 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
         <p className="v3-directory-results-count" role="status" aria-live="polite">
           Showing {browseWindow.visible.length} of {browseItems.length} matching shows · {allItems.length} published
         </p>
-        <div id="v3-shows-browse-results" className="v3-shows-browse-results">
-          {browseWindow.visible.map((item) =>
-            presentation === "mobile-web" ? (
-              <ShowRow key={item.show.id} item={item} web />
-            ) : presentation === "desktop-web" ? (
-              <ShowCard key={item.show.id} item={item} />
-            ) : (
-              <ShowRow key={item.show.id} item={item} />
-            ),
-          )}
-        </div>
+        {presentation === "installed-app" ? (
+          <AppGroupedList id="v3-shows-browse-results" className="v3-shows-browse-results">
+            {browseWindow.visible.map((item) => <ShowRow key={item.show.id} item={item} />)}
+          </AppGroupedList>
+        ) : (
+          <div id="v3-shows-browse-results" className="v3-shows-browse-results">
+            {browseWindow.visible.map((item) => presentation === "mobile-web"
+              ? <ShowRow key={item.show.id} item={item} web />
+              : <ShowCard key={item.show.id} item={item} />)}
+          </div>
+        )}
         {browseWindow.hasMore ? (
           <button
             type="button"
