@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { PublicRound } from "@/lib/public.functions";
 import {
+  reconcileMaintenanceEdit,
   submitMaintenanceConfirmation,
   type MaintenanceConfirmationSubmitResult,
 } from "@/lib/maintenance-confirmation-editor";
@@ -120,6 +121,9 @@ function resultMessage(result: MaintenanceConfirmationSubmitResult) {
   if (result.error === "duplicate_artist") return "This artist is already submitted for another country in this edition.";
   if (result.error === "editing_closed") return "TSBC has closed editing for this response. Return to the maintenance page to refresh its status.";
   if (result.error === "confirmation_already_complete") return "This Confirmation no longer accepts this edit. Return to the maintenance page and refresh its current status.";
+  if (result.error === "invalid_request") return "The edit request was rejected before saving. Please refresh the existing Confirmation and review its details."; 
+  if (result.error === "request_origin_rejected") return "Solaris rejected this request before saving because its security origin check failed. Reopen the existing Confirmation.";
+  if (result.error === "invalid_content_type") return "The save request was rejected before saving. Please refresh and reopen your Confirmation.";
   if (result.error === "submission_uncertain") return "Solaris could not yet prove whether this exact edit committed. Do not create another submission. Return to the maintenance page and refresh the existing Confirmation before trying anything else.";
   return "Solaris could not save these changes. Your existing Confirmation has not been replaced.";
 }
@@ -140,6 +144,7 @@ export function MaintenanceConfirmationEditor({
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const [saved, setSaved] = useState<MaintenanceConfirmationSubmitResult | null>(null);
+  const [uncertainOperationId, setUncertainOperationId] = useState<string | null>(null);
 
   const winnerIndex = useMemo(() => {
     if (data.selection_method !== "national_final") return -1;
@@ -249,6 +254,7 @@ export function MaintenanceConfirmationEditor({
   }
 
   async function save() {
+    if (busy || uncertainOperationId) return;
     if (!validate()) {
       setFailure("Some required Confirmation details still need attention. Open the highlighted sections below.");
       return;
@@ -274,6 +280,9 @@ export function MaintenanceConfirmationEditor({
         edit_token: editToken,
       });
       if (!result.ok) {
+        if (result.error === "submission_uncertain" && result.operation_id) {
+          setUncertainOperationId(result.operation_id);
+        }
         setFailure(resultMessage(result));
         return;
       }
@@ -282,6 +291,40 @@ export function MaintenanceConfirmationEditor({
     } catch (error) {
       console.error("[Maintenance Confirmations] Editor save failed", error);
       setFailure("Solaris could not save these changes. Your existing Confirmation remains authoritative.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function checkSaveStatus() {
+    if (!uncertainOperationId || busy) return;
+    const browserSessionId = getBrowserSessionId();
+    if (!browserSessionId) {
+      setFailure("The original protected browser session is unavailable. Do not submit again until the existing Confirmation has been checked.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const result = await reconcileMaintenanceEdit(uncertainOperationId, browserSessionId);
+      if (result.found === true) {
+        setUncertainOperationId(null);
+        if (result.ok) {
+          setSaved(result);
+        } else {
+          setFailure(resultMessage(result));
+        }
+      } else if (result.found === false) {
+        // The canonical operation ledger was reached and is authoritative:
+        // this exact idempotency key has not committed.
+        setUncertainOperationId(null);
+        setFailure("Solaris verified that this edit was not committed. Review your existing Confirmation before saving again.");
+      } else {
+        setFailure("Solaris still cannot verify this edit. Do not submit it again until the original operation can be checked.");
+      }
+    } catch (error) {
+      console.error("[Maintenance Confirmations] Edit reconciliation failed", error);
+      setFailure("The save check is temporarily unavailable. Do not submit again; use the check button when connectivity returns.");
     } finally {
       setBusy(false);
     }
@@ -504,9 +547,15 @@ export function MaintenanceConfirmationEditor({
       </Section>
 
       <div className="sticky bottom-3 z-10 rounded-2xl border border-primary/20 bg-background/95 p-3 shadow-2xl backdrop-blur-xl">
-        <Button className="w-full" size="lg" disabled={busy} onClick={() => void save()}>
-          {busy ? <><LoaderCircle className="size-4 animate-spin" /> Saving changes…</> : "Save changes to this Confirmation"}
-        </Button>
+        {uncertainOperationId ? (
+          <Button className="w-full" size="lg" disabled={busy} onClick={() => void checkSaveStatus()}>
+            {busy ? <><LoaderCircle className="size-4 animate-spin" /> Checking saved edit…</> : "Check whether this edit was saved"}
+          </Button>
+        ) : (
+          <Button className="w-full" size="lg" disabled={busy} onClick={() => void save()}>
+            {busy ? <><LoaderCircle className="size-4 animate-spin" /> Saving changes…</> : "Save changes to this Confirmation"}
+          </Button>
+        )}
         <p className="mt-2 text-center text-[11px] leading-4 text-muted-foreground">
           This updates the existing response only. It cannot create a new Confirmation during maintenance.
         </p>
