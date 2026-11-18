@@ -416,7 +416,7 @@ test("installed app shell survives representative navigation without duplicate c
       // The installed shell owns the single visible H1 for both directory
       // routes; each content-owned heading is H2 to preserve document order.
       await expect(directory.getByRole("heading", {
-        level: 2,
+        level: 1,
         name: route === "/archive" ? "Archive" : "Shows",
       })).toBeVisible();
       await expect(page.locator("h1:visible")).toHaveCount(1);
