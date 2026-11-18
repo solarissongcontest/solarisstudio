@@ -48,7 +48,8 @@ describe("P04 Integrity intake: eliminate a real V3 -> legacy -> V3 recursion", 
       "v3_create_protected_integrity_case_impl",
       "v3_public_create_anonymous_integrity_case_impl",
     ]) {
-      const exact = migration.match(new RegExp("'public\\\\." + name + "\\\\([^']+\\\\)'"))?.[0];
+      const signatureTail = migration.split("'public." + name + "(")[1]?.split("'")[0];
+      const exact = signatureTail ? "'public." + name + "(" + signatureTail + "'" : undefined;
       expect(exact, name + " must retain its original inspected signature").toBeDefined();
       expect(finalConsolidation).toContain("drop function public." + name + "(");
       expect(runtimeSql).not.toContain(exact!);
