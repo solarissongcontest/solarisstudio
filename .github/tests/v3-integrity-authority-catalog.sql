@@ -32,9 +32,7 @@ declare
     'v3_public_create_anonymous_integrity_case_impl',
     'v3_create_protected_integrity_case_impl',
     'reporter_submit_integrity_appeal_impl',
-    'public_submit_anonymous_integrity_appeal_impl',
-    'reporter_reply_integrity_case_impl',
-    'public_reply_anonymous_integrity_case_impl'
+    'public_submit_anonymous_integrity_appeal_impl'
   ];
   -- Identity-exact internal implementation and event primitives. This is a
   -- catalog authority proof, not an S16 scanner exemption or release waiver.
@@ -45,8 +43,6 @@ declare
     'public.v3_create_protected_integrity_case_impl(uuid,text,text,text,text,text,text,text,text,text[],text)',
     'public.reporter_submit_integrity_appeal_impl(uuid,uuid,text)',
     'public.public_submit_anonymous_integrity_appeal_impl(text,text,uuid,text)',
-    'public.reporter_reply_integrity_case_impl(uuid,text)',
-    'public.public_reply_anonymous_integrity_case_impl(text,text,text)',
     'private.v3_integrity_case_changed_event()',
     'private.v3_integrity_appeal_changed_event()'
   ];
@@ -194,6 +190,8 @@ begin
     'public.admin_set_integrity_case_retention_impl(uuid,timestamptz,text)',
     'public.admin_record_integrity_finding_impl(uuid,text,text,text,text[],boolean)',
     'public.admin_record_integrity_sanction_impl(uuid,uuid,integer,integer,text,text,text[],text[],text,boolean)',
+    'public.reporter_reply_integrity_case_impl(uuid,text)',
+    'public.public_reply_anonymous_integrity_case_impl(text,text,text)',
     'public.admin_record_integrity_preclearance_ruling_impl(uuid,text,text,text,text[])',
     'public.admin_set_integrity_priority_impl(uuid,text)',
     'public.admin_recuse_from_integrity_case_impl(uuid,text)',

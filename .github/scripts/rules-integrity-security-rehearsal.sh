@@ -386,6 +386,46 @@ expect_json_value "wrong anonymous recovery pair is denied" ok false
 create_anonymous_case "$REPORTER_A_TOKEN" "Anonymous call while signed in"; ANON_SIGNED_IN="$LAST_CASE_ID"
 assert_db_eq "session identity never leaks into fully anonymous creation" "select reporter_user_id is null from public.integrity_cases where id='$ANON_SIGNED_IN'::uuid;" "t"
 
+# The two reporter reply primitives now live solely inside their versioned
+# command owners. Exercise actual JWT/Data API positives, replay, stale/CAS
+# conflicts, wrong-reporter denial and anonymous recovery-token isolation.
+prepare_integrity_operation "P04-signed-reporter-reply" "$CASE_A"
+REPLY_OLD_VERSION="$(integrity_case_version "$CASE_A")"
+REGISTERED_REPLY_PAYLOAD="{\"p_operation_id\":\"$OPERATION_ID\",\"p_idempotency_key\":\"$IDEMPOTENCY_KEY\",\"p_case_id\":\"$CASE_A\",\"p_body\":\"P04 registered reporter revisioned response.\",\"p_expected_version\":$REPLY_OLD_VERSION}"
+rpc_request "$REPORTER_A_TOKEN" v3_reporter_reply_integrity_case "$REGISTERED_REPLY_PAYLOAD"
+expect_success "registered reporter replies through one canonical writer"
+REPLY_NEW_VERSION="$(integrity_case_version "$CASE_A")"
+(( REPLY_NEW_VERSION > REPLY_OLD_VERSION )) || fail "Registered reporter response did not advance case revision"
+assert_db_eq "one registered reporter message persisted" "select count(*) from public.integrity_case_messages where case_id='$CASE_A'::uuid and author_role='reporter';" "1"
+rpc_request "$REPORTER_A_TOKEN" v3_reporter_reply_integrity_case "$REGISTERED_REPLY_PAYLOAD"
+expect_success "registered reporter idempotency replay"
+assert_db_eq "registered reply replay did not duplicate a message" "select count(*) from public.integrity_case_messages where case_id='$CASE_A'::uuid and author_role='reporter';" "1"
+prepare_integrity_operation "P04-wrong-reporter-reply" "$CASE_A"
+rpc_request "$REPORTER_B_TOKEN" v3_reporter_reply_integrity_case "{\"p_operation_id\":\"$OPERATION_ID\",\"p_idempotency_key\":\"$IDEMPOTENCY_KEY\",\"p_case_id\":\"$CASE_A\",\"p_body\":\"Other reporter must be denied.\",\"p_expected_version\":$REPLY_NEW_VERSION}"
+expect_client_failure "cross-reporter reply denied at canonical owner"
+assert_db_eq "wrong reporter created no messages" "select count(*) from public.integrity_case_messages where case_id='$CASE_A'::uuid and author_role='reporter';" "1"
+prepare_integrity_operation "P04-registered-stale-reply" "$CASE_A"
+rpc_request "$REPORTER_A_TOKEN" v3_reporter_reply_integrity_case "{\"p_operation_id\":\"$OPERATION_ID\",\"p_idempotency_key\":\"$IDEMPOTENCY_KEY\",\"p_case_id\":\"$CASE_A\",\"p_body\":\"Outdated case revision must fail.\",\"p_expected_version\":$REPLY_OLD_VERSION}"
+expect_client_failure "registered reporter stale expected revision denied"
+expect_json_value "registered reporter CAS SQLSTATE" code PT409
+
+prepare_integrity_operation "P04-anonymous-reporter-reply" "$ANON_CASE_1"
+ANON_REPLY_OLD_VERSION="$(integrity_case_version "$ANON_CASE_1")"
+ANON_REPLY_PAYLOAD="{\"p_operation_id\":\"$OPERATION_ID\",\"p_idempotency_key\":\"$IDEMPOTENCY_KEY\",\"p_case_code\":\"$ANON_CODE_1\",\"p_recovery_key\":\"$ANON_KEY_1\",\"p_body\":\"P04 anonymous reporter revisioned response.\",\"p_expected_version\":$ANON_REPLY_OLD_VERSION}"
+rpc_request "$ANON_KEY" v3_public_reply_anonymous_integrity_case "$ANON_REPLY_PAYLOAD"
+expect_success "anonymous reporter replies through recovery-key scoped canonical writer"
+ANON_REPLY_NEW_VERSION="$(integrity_case_version "$ANON_CASE_1")"
+(( ANON_REPLY_NEW_VERSION > ANON_REPLY_OLD_VERSION )) || fail "Anonymous reporter response did not advance case revision"
+assert_db_eq "one anonymous reporter message persisted" "select count(*) from public.integrity_case_messages where case_id='$ANON_CASE_1'::uuid and author_role='reporter';" "1"
+rpc_request "$ANON_KEY" v3_public_reply_anonymous_integrity_case "$ANON_REPLY_PAYLOAD"
+expect_success "anonymous reply idempotency replay"
+assert_db_eq "anonymous replay did not duplicate a message" "select count(*) from public.integrity_case_messages where case_id='$ANON_CASE_1'::uuid and author_role='reporter';" "1"
+prepare_integrity_operation "P04-wrong-anonymous-key" "$ANON_CASE_1"
+rpc_request "$ANON_KEY" v3_public_reply_anonymous_integrity_case "{\"p_operation_id\":\"$OPERATION_ID\",\"p_idempotency_key\":\"$IDEMPOTENCY_KEY\",\"p_case_code\":\"$ANON_CODE_1\",\"p_recovery_key\":\"$ANON_KEY_2\",\"p_body\":\"Wrong key must never expose the case.\",\"p_expected_version\":$ANON_REPLY_NEW_VERSION}"
+expect_client_failure "wrong anonymous recovery key rejected"
+assert_db_eq "wrong recovery key created no messages" "select count(*) from public.integrity_case_messages where case_id='$ANON_CASE_1'::uuid and author_role='reporter';" "1"
+
+
 log "Sealed-identity break-glass abuse tests"
 create_protected_case "$REPORTER_A_TOKEN" sealed report "Sealed identity security case"; SEALED_CASE="$LAST_CASE_ID"
 

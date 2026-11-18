@@ -40,6 +40,7 @@ jobs:
           src/lib/v3-integrity-authority-runtime-corrections.contract.test.ts
           src/lib/v3-integrity-adjudication-writer-cutover.contract.test.ts
           src/lib/v3-integrity-reporter-response-authority.contract.test.ts
+          src/lib/v3-integrity-reporter-primitive-consolidation.contract.test.ts
           src/lib/v3-integrity-remaining-case-writers.contract.test.ts
           src/lib/v3-integrity-intake-compatibility-cutover.contract.test.ts
           src/lib/v3-integrity-appeal-revision-readback.contract.test.ts
@@ -67,6 +68,7 @@ jobs:
           src/lib/v3-integrity-authority-runtime-corrections.contract.test.ts
           src/lib/v3-integrity-adjudication-writer-cutover.contract.test.ts
           src/lib/v3-integrity-reporter-response-authority.contract.test.ts
+          src/lib/v3-integrity-reporter-primitive-consolidation.contract.test.ts
           src/lib/v3-integrity-remaining-case-writers.contract.test.ts
           src/lib/v3-integrity-intake-compatibility-cutover.contract.test.ts
           src/lib/v3-integrity-appeal-revision-readback.contract.test.ts
@@ -118,6 +120,7 @@ jobs:
           esac
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-authority-catalog.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-legacy-adjudication-rpc-retirement.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-reporter-primitive-consolidation.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-intake-direct-primitive-bridge.sql
 
       - name: Run hostile Rules + Integrity rehearsal
@@ -189,6 +192,7 @@ jobs:
           esac
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/.github/tests/v3-integrity-authority-catalog.sql"
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/.github/tests/v3-integrity-legacy-adjudication-rpc-retirement.sql"
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/.github/tests/v3-integrity-reporter-primitive-consolidation.sql"
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/.github/tests/v3-integrity-intake-direct-primitive-bridge.sql"
 
       - name: Run hostile Rules + Integrity rehearsal after upgrade
