@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+      # P04 branch exact-SHA verification only; no hosted database or deploy.
+      - v3/s16-p04-integrity-governed-writer-network-restack
   pull_request:
     branches:
       - main
