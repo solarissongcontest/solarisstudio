@@ -11,9 +11,9 @@ declare
 begin
   for v_name,v_direct,v_wrapped in
     select * from (values
-      ('public.v3_create_protected_integrity_case_impl(uuid,text,text,text,text,text,text,text,text,text[],text)',
+      ('public.v3_create_protected_integrity_case(uuid,text,text,text,text,text,text,text,text,text[],text)',
        'public.create_protected_integrity_case_impl(', 'public.create_protected_integrity_case('),
-      ('public.v3_public_create_anonymous_integrity_case_impl(uuid,text,text,text,text,text,text,text[],text,text)',
+      ('public.v3_public_create_anonymous_integrity_case(uuid,text,text,text,text,text,text,text[],text,text)',
        'public.public_create_anonymous_integrity_case_impl(', 'public.public_create_anonymous_integrity_case(')
     ) x(fn,direct,wrapped)
   loop
@@ -25,6 +25,9 @@ begin
       or strpos(v_fn.definition,v_wrapped)>0
     then raise exception 'Cyclic / unqualified Integrity call graph %', v_name; end if;
   end loop;
+  if to_regprocedure('public.v3_create_protected_integrity_case_impl(uuid,text,text,text,text,text,text,text,text,text,text[],text)') is not null
+     or to_regprocedure('public.v3_public_create_anonymous_integrity_case_impl(uuid,text,text,text,text,text,text,text,text[],text,text)') is not null
+  then raise exception 'Retired duplicate intake implementation remains installed'; end if;
   -- SQL function EXECUTE grants are tested as real call denials under the
   -- exact three PostgREST API roles, not guessed from source permissions.
   foreach v_role in array array['anon','authenticated','service_role'] loop
@@ -49,7 +52,7 @@ begin
       end if;
     end loop;
   end loop;
-  raise notice 'PASS: canonical V3 -> internal validated writer only; all six direct API-role primitive calls denied';
+  raise notice 'PASS: canonical V3 intake owns transaction/receipt; both duplicate V3 impls absent; all six original physical-writer API-role calls denied';
 end
 $assert$;
 rollback;
