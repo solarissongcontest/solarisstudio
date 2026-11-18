@@ -45,6 +45,7 @@ jobs:
           src/lib/v3-integrity-appeal-revision-readback.contract.test.ts
           src/lib/v3-integrity-appeal-reviewer-membership.contract.test.ts
           src/lib/v3-integrity-intake-direct-primitive-bridge.contract.test.ts
+          src/lib/v3-integrity-finding-sanction-primitive-consolidation.contract.test.ts
 
       - name: Generate fresh TanStack route tree
         shell: bash
@@ -71,6 +72,7 @@ jobs:
           src/lib/v3-integrity-appeal-revision-readback.contract.test.ts
           src/lib/v3-integrity-appeal-reviewer-membership.contract.test.ts
           src/lib/v3-integrity-intake-direct-primitive-bridge.contract.test.ts
+          src/lib/v3-integrity-finding-sanction-primitive-consolidation.contract.test.ts
 
   local-database:
     name: Integrity clean local Supabase authority
