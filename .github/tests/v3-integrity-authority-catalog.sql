@@ -29,8 +29,6 @@ declare
   v_internal_functions text[] := array[
     'public_create_anonymous_integrity_case_impl',
     'create_protected_integrity_case_impl',
-    'v3_public_create_anonymous_integrity_case_impl',
-    'v3_create_protected_integrity_case_impl',
     'reporter_submit_integrity_appeal_impl',
     'public_submit_anonymous_integrity_appeal_impl'
   ];
@@ -39,8 +37,6 @@ declare
   v_internal_signatures text[] := array[
     'public.public_create_anonymous_integrity_case_impl(text,text,text,text,text,text[],text,text)',
     'public.create_protected_integrity_case_impl(text,text,text,text,text,text,text,text[],text)',
-    'public.v3_public_create_anonymous_integrity_case_impl(uuid,text,text,text,text,text,text,text[],text,text)',
-    'public.v3_create_protected_integrity_case_impl(uuid,text,text,text,text,text,text,text,text,text[],text)',
     'public.reporter_submit_integrity_appeal_impl(uuid,uuid,text)',
     'public.public_submit_anonymous_integrity_appeal_impl(text,text,uuid,text)',
     'private.v3_integrity_case_changed_event()',
@@ -183,6 +179,17 @@ begin
         raise exception 'Unexpected direct role EXECUTE: % on %', v_role, v_signature;
       end if;
     end loop;
+  end loop;
+
+  -- Final canonical intake commands must own R2 receipt/idempotency directly,
+  -- so their previous intermediate security-definer functions cannot survive.
+  foreach v_signature in array array[
+    'public.v3_public_create_anonymous_integrity_case_impl(uuid,text,text,text,text,text,text,text[],text,text)',
+    'public.v3_create_protected_integrity_case_impl(uuid,text,text,text,text,text,text,text,text[],text)'
+  ] loop
+    if to_regprocedure(v_signature) is not null then
+      raise exception 'Duplicate participant intake implementation remains: %', v_signature;
+    end if;
   end loop;
 
   -- Owner-command consolidation must remove redundant internal entrypoints.
