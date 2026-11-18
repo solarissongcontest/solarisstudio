@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - "src/lib/v3-s16*"
+      # Exact-head P04 authority/revision contract changes require a new S16 source-catalog comparison.
+      - "src/lib/v3-integrity-*.contract.test.ts"
       - "scripts/*v3-s16*"
       - "supabase/migrations/**"
       - ".github/scripts/v3-s16-catalog-rehearsal.sh"
@@ -36,6 +38,8 @@ on:
     branches: [main, v3/s16-p04-integrity-governed-writer-network-restack]
     paths:
       - "src/lib/v3-s16*"
+      # Exact-head P04 authority/revision contract changes require a new S16 source-catalog comparison.
+      - "src/lib/v3-integrity-*.contract.test.ts"
       - "scripts/*v3-s16*"
       - "supabase/migrations/**"
       - ".github/scripts/v3-s16-catalog-rehearsal.sh"
