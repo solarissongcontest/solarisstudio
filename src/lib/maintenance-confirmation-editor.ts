@@ -76,12 +76,15 @@ export async function resolveMaintenanceEditToken(token: string) {
   return postMaintenanceConfirmation({ action: "resolve", token });
 }
 
-async function reconcileMaintenanceEdit(idempotencyKey: string, browserSessionId: string) {
+export async function reconcileMaintenanceEdit(
+  idempotencyKey: string,
+  browserSessionId: string,
+): Promise<MaintenanceConfirmationSubmitResult> {
   return postMaintenanceConfirmation({
     action: "reconcile",
     idempotency_key: idempotencyKey,
     browser_session_id: browserSessionId,
-  });
+  }) as Promise<MaintenanceConfirmationSubmitResult>;
 }
 
 export async function submitMaintenanceConfirmation(
