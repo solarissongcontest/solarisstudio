@@ -114,7 +114,7 @@ function IntegrityAppeals() {
 
         <AdminCard className="mt-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <label className="flex min-h-10 min-w-[18rem] flex-1 items-center gap-2 rounded-xl border border-white/[0.08] bg-black/10 px-3"><Search className="size-4 text-muted-foreground"/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search case, sanction or appeal grounds…" className="min-w-0 flex-1 border-0 !bg-transparent text-xs shadow-none outline-none focus-visible:!shadow-none" /></label>
+            <label className="flex min-h-10 min-w-[18rem] flex-1 items-center gap-2 rounded-xl border border-white/[0.08] bg-black/10 px-3"><Search className="size-4 text-muted-foreground"/><input aria-label="Search Integrity appeals" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search case, sanction or appeal grounds…" className="min-w-0 flex-1 border-0 !bg-transparent text-xs shadow-none outline-none focus-visible:!shadow-none" /></label>
             <div className="flex flex-wrap gap-1.5">{(["active", "late", "decided", "all"] as const).map((item) => <button key={item} type="button" onClick={() => setFilter(item)} className={cn("rounded-lg border px-3 py-2 text-[10px] font-bold capitalize", filter === item ? "border-amber-200/20 bg-amber-200/[0.07] text-amber-50" : "border-white/[0.07] text-muted-foreground")}>{item}</button>)}</div>
           </div>
 
