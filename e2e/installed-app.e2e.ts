@@ -405,7 +405,15 @@ test("installed app shell survives representative navigation without duplicate c
       const directory = page.locator("[data-directory-experience]");
       await expect(directory).toHaveAttribute("data-directory-experience", "installed-app");
       await expect(page.locator("[data-directory-mobile-header]")).toHaveCount(0);
-      await expect(directory.getByRole("heading", { level: 1, name: route === "/archive" ? "Archive" : "Shows" })).toBeVisible();
+      // The app shell owns the single H1 on Shows; its content title is H2.
+      // Archive keeps an independently owned H1.
+      await expect(directory.getByRole("heading", {
+        level: route === "/shows" ? 2 : 1,
+        name: route === "/archive" ? "Archive" : "Shows",
+      })).toBeVisible();
+      if (route === "/shows") {
+        await expect(page.locator("h1:visible")).toHaveCount(1);
+      }
       if (route === "/archive") {
         await expect(directory.getByRole("button", { name: "Filter archive topics by category" })).toBeVisible();
         await expect(directory.getByRole("searchbox", { name: "Search archive" })).toBeVisible();
