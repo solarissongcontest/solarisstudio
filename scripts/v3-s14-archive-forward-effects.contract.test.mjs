@@ -352,8 +352,10 @@ test("S06 dedicated local-only evidence executes on integrated main with the sam
   for (const [yaml, anchor] of [[s14, "s06_archive_paths"], [toc, "s06_toc_paths"]]) {
     assert.ok(yaml.includes(["  pull_request:", "    branches: [main]", "    paths: &" + anchor].join(String.fromCharCode(10))),
       "S06 PR scope must be the shared authoritative path filter");
-    assert.ok(yaml.includes(["  push:", "    branches: [main]", "    paths: *" + anchor].join(String.fromCharCode(10))),
-      "S06 merged-main proof must use the identical path filter");
+    const mainPush = ["  push:", "    branches: [main]", "    paths: *" + anchor].join(String.fromCharCode(10));
+    const p04Push = ["  push:", "    # Isolated P04 candidate exact-SHA proof. No hosted database or deploy.", "    branches: [main, v3/s16-p04-integrity-governed-writer-network-restack]", "    paths: *" + anchor].join(String.fromCharCode(10));
+    assert.ok(yaml.includes(mainPush) || (yaml === s14 && yaml.includes(p04Push)),
+      "S06 merged-main proof must use the identical path filter (P04 branch may add isolated evidence only)");
     assert.match(yaml, /github\.event\.pull_request\.head\.sha \|\| github\.sha/);
     assert.match(yaml, /git rev-parse HEAD/);
     assert.match(yaml, /workflow_dispatch:/);
