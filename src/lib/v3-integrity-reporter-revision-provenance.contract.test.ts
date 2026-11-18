@@ -23,12 +23,12 @@ describe("P04 reporter replies advance canonical case revision with historical e
       "integrity.case.reporter_reply",
       "integrity_adjudication_history",
       "integrity.case_changed",
-      "app.integrity_operation_id",
+      "private.v3_integrity_operation_id()",
       "Canonical reporter response changed case revision",
     ]) expect(migration).toContain(token);
     expect(migration).not.toMatch(/drop trigger|disable trigger|create trigger|truncate table|row_security\s*=\s*off/i);
     expect(migration.match(/create or replace function private\.v3_integrity_case_(before_update|changed_event)\(\)/g)).toHaveLength(2);
-    expect(migration).toContain("both case revision and changed-event triggers");
+    expect(migration).toContain("Both case revision and changed-event triggers");
   });
 
   it("requires the actual canonical reporter command to carry the provenance marker", () => {
@@ -42,6 +42,7 @@ describe("P04 reporter replies advance canonical case revision with historical e
     expect(replies.match(/update public\.integrity_cases/g)).toHaveLength(2);
     expect(replies).toContain("p_expected_version");
     expect(replies).toContain("PT409");
+    expect(replies).toContain("app.integrity_operation_id");
     expect(replies).toContain("private.studio2_complete_operation");
     expect(migration).not.toContain("create or replace function public.");
   });
