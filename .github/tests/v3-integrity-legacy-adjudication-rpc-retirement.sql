@@ -54,7 +54,7 @@ begin
 
   foreach v_signature in array array[
     'public.admin_record_integrity_finding_impl(uuid,text,text,text,text[],boolean)',
-    'public.admin_record_integrity_sanction_impl(uuid,uuid,integer,integer,text,text,text[],text[],text,boolean)',
+    'public.admin_record_integrity_sanction_impl(uuid,uuid,integer,integer,text,text,text[],text[],text,boolean)'
   ] loop
     if to_regprocedure(v_signature) is null then
       raise exception 'Shared sanctioned internal implementation disappeared: %', v_signature;
