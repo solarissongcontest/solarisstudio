@@ -124,6 +124,15 @@ rpc_request() {
   request POST "$API_URL/rest/v1/rpc/$function_name" "$token" "$ANON_KEY" "$body"
 }
 
+# The legacy endpoint must be absent at PostgREST resolution (PGRST202),
+# rather than merely rejecting a fabricated fixture or an unauthorized write.
+assert_retired_integrity_rpc_absent() {
+  local bearer="$1" legacy_rpc="$2" payload="$3" role_label="$4"
+  rpc_request "$bearer" "$legacy_rpc" "$payload"
+  [[ "$HTTP_STATUS" == "404" ]] || fail "Retired RPC $legacy_rpc remained exposed to $role_label: HTTP $HTTP_STATUS $HTTP_BODY"
+  expect_json_value "retired $legacy_rpc unavailable as $role_label" code PGRST202
+}
+
 function_request() {
   local token="$1"
   local function_name="$2"
@@ -686,5 +695,21 @@ rpc_request "$ORGANIZER_A_TOKEN" admin_publish_rulebook_release "{\"_release_id\
 expect_failure "stale-base rulebook draft cannot publish"
 assert_db_eq "stale-base failure leaves 4.2 as draft" "select status from public.ssc_rulebook_releases where id='$RELEASE_42'::uuid;" "draft"
 assert_db_eq "stale-base failure leaves 4.1 current" "select version from public.ssc_rulebook_releases where is_current=true;" "4.1"
+
+log "Retired adjudication REST RPCs must be absent for anon, authenticated and service_role"
+LEGACY_FINDING_BODY="{\"_case_id\":\"$APPEAL_CASE\",\"_outcome\":\"violation\",\"_summary\":\"Legacy RPC retirement test\",\"_rationale\":\"Fully typed retirement probe with a valid case ID and valid finding business fields.\",\"_rule_ids\":[\"11.2\"],\"_visible_to_reporter\":true}"
+LEGACY_SANCTION_BODY="{\"_case_id\":\"$APPEAL_CASE\",\"_finding_id\":\"$FINDING_ID\",\"_typical_level\":5,\"_final_level\":5,\"_target_type\":\"participant\",\"_target_reference\":\"retirement-test\",\"_aggravating_factors\":[],\"_mitigating_factors\":[],\"_rationale\":\"Fully typed retirement probe with a valid case and finding ID.\",\"_visible_to_reporter\":true}"
+LEGACY_APPEAL_BODY="{\"_appeal_id\":\"$APPEAL_ID\",\"_outcome\":\"upheld\",\"_decision_rationale\":\"Fully typed retirement probe with valid appeal identity.\",\"_replacement_level\":null,\"_aggravating_factors\":[],\"_mitigating_factors\":[]}"
+
+for LEGACY_ROLE in anon authenticated service_role; do
+  case "$LEGACY_ROLE" in
+    anon) LEGACY_TOKEN="$ANON_KEY" ;;
+    authenticated) LEGACY_TOKEN="$ORGANIZER_A_TOKEN" ;;
+    service_role) LEGACY_TOKEN="$SERVICE_ROLE_KEY" ;;
+  esac
+  assert_retired_integrity_rpc_absent "$LEGACY_TOKEN" admin_record_integrity_finding "$LEGACY_FINDING_BODY" "$LEGACY_ROLE"
+  assert_retired_integrity_rpc_absent "$LEGACY_TOKEN" admin_record_integrity_sanction "$LEGACY_SANCTION_BODY" "$LEGACY_ROLE"
+  assert_retired_integrity_rpc_absent "$LEGACY_TOKEN" admin_decide_integrity_appeal "$LEGACY_APPEAL_BODY" "$LEGACY_ROLE"
+done
 
 log "All live Rules + Integrity adversarial checks passed"
