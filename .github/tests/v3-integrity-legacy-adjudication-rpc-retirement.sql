@@ -12,7 +12,12 @@ begin
     'public.admin_record_integrity_sanction(uuid,uuid,integer,integer,text,text,text[],text[],text,boolean)',
     'public.admin_decide_integrity_appeal(uuid,text,text,integer,text[],text[])',
     'public.admin_set_integrity_priority(uuid,text)',
-    'public.admin_reply_integrity_case(uuid,text,boolean)'
+    'public.admin_reply_integrity_case(uuid,text,boolean)',
+    'public.admin_recuse_from_integrity_case(uuid,text)',
+    'public.admin_add_integrity_case_note(uuid,text)',
+    'public.admin_record_integrity_preclearance_ruling(uuid,text,text,text,text[])',
+    'public.admin_set_integrity_case_retention(uuid,timestamptz,text)',
+    'public.admin_set_integrity_retention(uuid,timestamptz)'
   ] loop
     if to_regprocedure(v_signature) is not null then
       raise exception 'Obsolete Integrity API routine remains installed: %', v_signature;
@@ -24,7 +29,11 @@ begin
     'public.studio2_integrity_record_sanction(uuid,uuid,integer,integer,text,text,text[],text[],text,boolean,uuid,text,bigint)',
     'public.studio2_integrity_resolve_appeal(uuid,text,text,integer,text[],text[],uuid,text,bigint)',
     'public.studio2_integrity_set_case_priority(uuid,text,uuid,text,bigint)',
-    'public.studio2_integrity_reply_case(uuid,text,boolean,uuid,text,bigint)'
+    'public.studio2_integrity_reply_case(uuid,text,boolean,uuid,text,bigint)',
+    'public.studio2_integrity_recuse_case_reviewer(uuid,text,uuid,text,bigint)',
+    'public.studio2_integrity_add_case_note(uuid,text,uuid,text,bigint)',
+    'public.studio2_integrity_record_preclearance_ruling(uuid,text,text,text,text[],uuid,text,bigint)',
+    'public.studio2_integrity_set_case_retention(uuid,timestamptz,text,uuid,text,bigint)'
   ] loop
     if to_regprocedure(v_signature) is null then
       raise exception 'Canonical Integrity command was lost: %', v_signature;
@@ -41,7 +50,11 @@ begin
     'public.admin_record_integrity_finding_impl(uuid,text,text,text,text[],boolean)',
     'public.admin_record_integrity_sanction_impl(uuid,uuid,integer,integer,text,text,text[],text[],text,boolean)',
     'public.admin_set_integrity_priority_impl(uuid,text)',
-    'public.admin_reply_integrity_case_impl(uuid,text,boolean)'
+    'public.admin_reply_integrity_case_impl(uuid,text,boolean)',
+    'public.admin_recuse_from_integrity_case_impl(uuid,text)',
+    'public.admin_add_integrity_case_note_impl(uuid,text)',
+    'public.admin_record_integrity_preclearance_ruling_impl(uuid,text,text,text,text[])',
+    'public.admin_set_integrity_case_retention_impl(uuid,timestamptz,text)'
   ] loop
     if to_regprocedure(v_signature) is null then
       raise exception 'Shared sanctioned internal implementation disappeared: %', v_signature;
@@ -65,7 +78,12 @@ begin
     'select public.admin_record_integrity_sanction(null::uuid,null::uuid,null::integer,null::integer,null::text,null::text,null::text[],null::text[],null::text,null::boolean)',
     'select public.admin_decide_integrity_appeal(null::uuid,null::text,null::text,null::integer,null::text[],null::text[])',
     'select public.admin_set_integrity_priority(null::uuid,null::text)',
-    'select public.admin_reply_integrity_case(null::uuid,null::text,null::boolean)'
+    'select public.admin_reply_integrity_case(null::uuid,null::text,null::boolean)',
+    'select public.admin_recuse_from_integrity_case(null::uuid,null::text)',
+    'select public.admin_add_integrity_case_note(null::uuid,null::text)',
+    'select public.admin_record_integrity_preclearance_ruling(null::uuid,null::text,null::text,null::text,null::text[])',
+    'select public.admin_set_integrity_case_retention(null::uuid,null::timestamptz,null::text)',
+    'select public.admin_set_integrity_retention(null::uuid,null::timestamptz)'
   ] loop
     begin
       execute v_statement;
@@ -88,7 +106,12 @@ begin
     'select public.admin_record_integrity_sanction(null::uuid,null::uuid,null::integer,null::integer,null::text,null::text,null::text[],null::text[],null::text,null::boolean)',
     'select public.admin_decide_integrity_appeal(null::uuid,null::text,null::text,null::integer,null::text[],null::text[])',
     'select public.admin_set_integrity_priority(null::uuid,null::text)',
-    'select public.admin_reply_integrity_case(null::uuid,null::text,null::boolean)'
+    'select public.admin_reply_integrity_case(null::uuid,null::text,null::boolean)',
+    'select public.admin_recuse_from_integrity_case(null::uuid,null::text)',
+    'select public.admin_add_integrity_case_note(null::uuid,null::text)',
+    'select public.admin_record_integrity_preclearance_ruling(null::uuid,null::text,null::text,null::text,null::text[])',
+    'select public.admin_set_integrity_case_retention(null::uuid,null::timestamptz,null::text)',
+    'select public.admin_set_integrity_retention(null::uuid,null::timestamptz)'
   ] loop
     begin
       execute v_statement;
@@ -111,7 +134,12 @@ begin
     'select public.admin_record_integrity_sanction(null::uuid,null::uuid,null::integer,null::integer,null::text,null::text,null::text[],null::text[],null::text,null::boolean)',
     'select public.admin_decide_integrity_appeal(null::uuid,null::text,null::text,null::integer,null::text[],null::text[])',
     'select public.admin_set_integrity_priority(null::uuid,null::text)',
-    'select public.admin_reply_integrity_case(null::uuid,null::text,null::boolean)'
+    'select public.admin_reply_integrity_case(null::uuid,null::text,null::boolean)',
+    'select public.admin_recuse_from_integrity_case(null::uuid,null::text)',
+    'select public.admin_add_integrity_case_note(null::uuid,null::text)',
+    'select public.admin_record_integrity_preclearance_ruling(null::uuid,null::text,null::text,null::text,null::text[])',
+    'select public.admin_set_integrity_case_retention(null::uuid,null::timestamptz,null::text)',
+    'select public.admin_set_integrity_retention(null::uuid,null::timestamptz)'
   ] loop
     begin
       execute v_statement;
