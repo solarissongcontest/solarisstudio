@@ -86,6 +86,12 @@ on:
       - "src/routes/_authenticated/admin/integrity-resolution.$caseId.tsx"
       - "src/routes/_authenticated/admin/integrity-preclearance.tsx"
       - "src/routes/_authenticated/admin/integrity-appeals.tsx"
+      - "e2e/organizer-routes.e2e.ts"
+      - "e2e/installed-app.e2e.ts"
+      - "src/components/v3/V3DirectoryFamilyIndex.tsx"
+      - "src/routes/_authenticated/admin/integrity-appeals.tsx"
+      - "src/routes/shows/index.tsx"
+      - "src/routes/televoting/admin/audit-log.tsx"
       # P04 Browser recovery and SQL owner retirement must retain an exact-SHA
       # PG17 Publication producer for the unchanged S16 certification gate.
       - "src/routes/_authenticated/admin/submission-versions.tsx"
