@@ -13,6 +13,14 @@ on:
       - ".github/workflows/v3-s14-archive-forward-effects-local.yml"
       - "scripts/v3-s14-archive-forward-effects.contract.test.mjs"
       - ".github/tests/v3-s16-integrity-api-table-dml.sql"
+      # P04 exact-SHA certification must also run when executed Integrity
+      # authority/retirement proofs or the R3 Browser scenario change.
+      - ".github/tests/v3-integrity-*.sql"
+      - "e2e/organizer-routes.e2e.ts"
+      - "src/routes/editions/index.tsx"
+      - "src/components/v3/V3ShowsDiscoveryScreen.tsx"
+      - "src/routes/_authenticated/admin/submission-versions.tsx"
+      - "src/styles/v3-directory-family.css"
       - ".github/workflows/ci.yml"
       - ".github/workflows/browser-audit.yml"
       - ".github/workflows/v3-s13-migration-adoption.yml"
@@ -30,6 +38,14 @@ on:
       - ".github/workflows/v3-s14-archive-forward-effects-local.yml"
       - "scripts/v3-s14-archive-forward-effects.contract.test.mjs"
       - ".github/tests/v3-s16-integrity-api-table-dml.sql"
+      # P04 exact-SHA certification must also run when executed Integrity
+      # authority/retirement proofs or the R3 Browser scenario change.
+      - ".github/tests/v3-integrity-*.sql"
+      - "e2e/organizer-routes.e2e.ts"
+      - "src/routes/editions/index.tsx"
+      - "src/components/v3/V3ShowsDiscoveryScreen.tsx"
+      - "src/routes/_authenticated/admin/submission-versions.tsx"
+      - "src/styles/v3-directory-family.css"
       - ".github/workflows/ci.yml"
       - ".github/workflows/browser-audit.yml"
       - ".github/workflows/v3-s13-migration-adoption.yml"
