@@ -52,18 +52,16 @@ begin
     end loop;
   end loop;
 
+  -- These two redundant implementations were physically consolidated into
+  -- the canonical finding/sanction commands. Their disappearance is essential,
+  -- not a role-grant-only evasion of S16.
   foreach v_signature in array array[
     'public.admin_record_integrity_finding_impl(uuid,text,text,text,text[],boolean)',
     'public.admin_record_integrity_sanction_impl(uuid,uuid,integer,integer,text,text,text[],text[],text,boolean)'
   ] loop
-    if to_regprocedure(v_signature) is null then
-      raise exception 'Shared sanctioned internal implementation disappeared: %', v_signature;
+    if to_regprocedure(v_signature) is not null then
+      raise exception 'Redundant Integrity adjudication writer still installed: %', v_signature;
     end if;
-    foreach v_role in array array['anon','authenticated','service_role'] loop
-      if has_function_privilege(v_role, to_regprocedure(v_signature), 'EXECUTE') then
-        raise exception 'Internal implementation wrongly exposed: % role %', v_signature, v_role;
-      end if;
-    end loop;
   end loop;
 end $catalog$;
 
