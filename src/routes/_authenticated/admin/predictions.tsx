@@ -365,7 +365,7 @@ function PredictionRoundAdmin() {
 
           <AdminCard>
             <AdminCardHeader eyebrow="Show" title={selectedShow?.name ?? "Choose a show"} description={selectedRound ? `Prediction round · ${humanize(selectedRound.status)}` : "No prediction round exists for this show yet."} action={selectedRound ? <AdminStatus tone={selectedRound.status === "open" ? "ready" : selectedRound.status === "cancelled" ? "blocked" : selectedRound.status === "scored" ? "info" : "neutral"}>{humanize(selectedRound.status)}</AdminStatus> : <AdminStatus tone="neutral">Not configured</AdminStatus>} />
-            <select value={form.showId} onChange={(event) => { setMessage(null); setPendingSaveReview(null); setPendingScoreReview(null); setForm((current) => ({ ...current, showId: event.target.value })); }} className="min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30">
+            <select aria-label="Select prediction show" value={form.showId} onChange={(event) => { setMessage(null); setPendingSaveReview(null); setPendingScoreReview(null); setForm((current) => ({ ...current, showId: event.target.value })); }} className="min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30">
               {sortedShows.map((show) => <option key={show.id} value={show.id}>{show.name}{roundByShow.get(show.id) ? ` · ${humanize(roundByShow.get(show.id)!.status)}` : " · no round"}</option>)}
             </select>
           </AdminCard>
