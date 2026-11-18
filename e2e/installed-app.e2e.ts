@@ -316,7 +316,7 @@ test("signed-out and critical-route cold launches use canonical safe roots", asy
         );
         const snapshot = JSON.parse(localStorage.getItem("solaris:app-navigation:v1") || "{}");
         if (snapshot.activeTab !== activeTab) throw new Error("Cold-launch fixture was not committed");
-        window.setTimeout(() => window.location.assign("/app-launch"), 0);
+        window.location.assign("/app-launch");
       },
       { activeTab, pathname },
     );
