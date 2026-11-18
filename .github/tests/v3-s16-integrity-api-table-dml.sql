@@ -125,7 +125,7 @@ rollback;
 do $s16_rpc$
 begin
   if not has_function_privilege('anon','public.public_create_anonymous_integrity_case(text,text,text,text,text,text[],text,text)','EXECUTE')
-    or not has_function_privilege('authenticated','public.admin_record_integrity_finding(uuid,text,text,text,text[],boolean)','EXECUTE')
+    or not has_function_privilege('authenticated','public.studio2_integrity_record_finding(uuid,text,text,text,text[],boolean,uuid,text,bigint)','EXECUTE')
     or not has_function_privilege('authenticated','public.reporter_submit_integrity_appeal(uuid,uuid,text)','EXECUTE')
     or not has_function_privilege('authenticated','public.admin_register_integrity_evidence(uuid,text,text,text,text,boolean)','EXECUTE')
   then raise exception 'S16 Integrity canonical RPC surface regressed';end if;
