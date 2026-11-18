@@ -28,6 +28,32 @@ begin
   if to_regprocedure('public.v3_create_protected_integrity_case_impl(uuid,text,text,text,text,text,text,text,text,text,text[],text)') is not null
      or to_regprocedure('public.v3_public_create_anonymous_integrity_case_impl(uuid,text,text,text,text,text,text,text,text[],text,text)') is not null
   then raise exception 'Retired duplicate intake implementation remains installed'; end if;
+  -- Direct SQL probes ensure the retired V3 intermediates cannot be called
+  -- through any of the three PostgREST API roles, not only absent in pg_proc
+  -- while inspected as postgres. Successful invocation is always a regression.
+  foreach v_role in array array['anon','authenticated','service_role'] loop
+    foreach v_sql in array array[
+      $select public.v3_create_protected_integrity_case_impl(
+        null::uuid, null::text, null::text, null::text, null::text,
+        null::text, null::text, null::text, null::text, null::text[], null::text)$,
+      $select public.v3_public_create_anonymous_integrity_case_impl(
+        null::uuid, null::text, null::text, null::text, null::text,
+        null::text, null::text, null::text[], null::text, null::text)$
+    ] loop
+      execute format('set local role %I',v_role);
+      v_denied:=false;
+      begin
+        execute v_sql;
+      exception when undefined_function then
+        v_denied:=true;
+      end;
+      reset role;
+      if not v_denied then
+        raise exception 'Retired V3 Intake intermediate remained callable for role %: %',v_role,v_sql;
+      end if;
+    end loop;
+  end loop;
+
   -- SQL function EXECUTE grants are tested as real call denials under the
   -- exact three PostgREST API roles, not guessed from source permissions.
   foreach v_role in array array['anon','authenticated','service_role'] loop
