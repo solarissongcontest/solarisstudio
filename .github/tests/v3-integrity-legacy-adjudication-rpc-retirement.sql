@@ -14,6 +14,7 @@ begin
     'public.admin_set_integrity_priority(uuid,text)',
     'public.admin_reply_integrity_case(uuid,text,boolean)',
     'public.admin_set_integrity_case_retention_impl(uuid,timestamptz,text)',
+    'public.admin_record_integrity_preclearance_ruling_impl(uuid,text,text,text,text[])',
     'public.admin_set_integrity_priority_impl(uuid,text)',
     'public.admin_reply_integrity_case_impl(uuid,text,boolean)',
     'public.admin_recuse_from_integrity_case_impl(uuid,text)',
@@ -54,7 +55,6 @@ begin
   foreach v_signature in array array[
     'public.admin_record_integrity_finding_impl(uuid,text,text,text,text[],boolean)',
     'public.admin_record_integrity_sanction_impl(uuid,uuid,integer,integer,text,text,text[],text[],text,boolean)',
-    'public.admin_record_integrity_preclearance_ruling_impl(uuid,text,text,text,text[])',
   ] loop
     if to_regprocedure(v_signature) is null then
       raise exception 'Shared sanctioned internal implementation disappeared: %', v_signature;
