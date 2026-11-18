@@ -37,6 +37,7 @@ function SiteDirectoryPage() {
   return (
     <V3DirectoryFamilyIndex
       variant="sitemap"
+      installedHeadingLevel={2}
       title="All Solaris pages"
       eyebrow="FIND YOUR WAY"
       intro="Find public pages, tools and destinations by topic."
