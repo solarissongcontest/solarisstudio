@@ -486,8 +486,13 @@ begin
       'public.v3_create_protected_integrity_case(uuid,text,text,text,text,text,text,text,text,text[],text)','EXECUTE')
     or not has_function_privilege('authenticated',
       'public.v3_create_protected_integrity_case(uuid,text,text,text,text,text,text,text,text,text[],text)','EXECUTE')
-    or has_function_privilege('PUBLIC',
-      'public.v3_create_protected_integrity_case(uuid,text,text,text,text,text,text,text,text,text[],text)','EXECUTE')
+    or exists (
+      select 1 from pg_proc p
+      cross join lateral aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) acl
+      where p.oid=to_regprocedure(
+        'public.v3_create_protected_integrity_case(uuid,text,text,text,text,text,text,text,text[],text)')
+        and acl.grantee=0 and acl.privilege_type='EXECUTE'
+    )
   then raise exception 'Participant intake public role authority changed' using errcode='55000'; end if;
 end
 $postflight$;
