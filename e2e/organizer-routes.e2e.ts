@@ -314,6 +314,14 @@ test.describe("Solaris Organizer route reliability", () => {
       const pageB = await contextB.newPage();
       await pageB.goto(`${baseURL}/admin/access-permissions`, { waitUntil: "domcontentloaded" });
       await expect(pageB).not.toHaveURL(/\/auth(?:\?|$)/);
+      // R3 security requires a deliberate edition choice even for a global
+      // permission operation. Drive the real UI rather than bypassing it.
+      const reviewerEdition = pageB.getByRole("combobox", {
+        name: "Choose the edition for this permission review",
+      });
+      await expect(reviewerEdition).toBeEnabled();
+      await reviewerEdition.selectOption({ index: 1 });
+      await expect(pageB.getByText("No verified edition selected")).toHaveCount(0);
       await expect(pageB.getByText("Needs your approval", { exact: true })).toBeVisible();
 
       await pageB.getByRole("button", { name: "Approve as second operator" }).first().click();
@@ -334,6 +342,12 @@ test.describe("Solaris Organizer route reliability", () => {
     try {
       const pageA = await contextA.newPage();
       await pageA.goto(`${baseURL}/admin/access-permissions`, { waitUntil: "domcontentloaded" });
+      const requesterEdition = pageA.getByRole("combobox", {
+        name: "Choose the edition for this permission review",
+      });
+      await expect(requesterEdition).toBeEnabled();
+      await requesterEdition.selectOption({ index: 1 });
+      await expect(pageA.getByText("No verified edition selected")).toHaveCount(0);
       await expect(pageA.getByText("Approved for you", { exact: true })).toBeVisible();
 
       await pageA.getByRole("button", { name: "Apply approved change" }).first().click();
