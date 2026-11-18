@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths: &s06_archive_paths
       - ".github/workflows/v3-s14-archive-forward-effects-local.yml"
+      - ".github/workflows/v3-s16-catalog-rehearsal.yml"
       - "scripts/rehearse-v3-s14-archive-forward-effects-local.sh"
       - "scripts/v3-s14-archive-forward-effects.contract.test.mjs"
       - "scripts/stage-v3-s07-televote-source-truth.mjs"
