@@ -16,7 +16,9 @@ describe("S16 trustworthy catalog evidence",()=>{
  });
  it("rehearses immutable main push SHA separately from PR candidate and current-main",()=>{
   const workflow=readFileSync(".github/workflows/v3-s16-catalog-rehearsal.yml","utf8");
-  expect(workflow).toContain("push:\\n    branches: [main]".replace("\\n","\n"));
+  const mainPush = "push:\\n    branches: [main]".replace("\\n","\n");
+  const p04ProofPush = "push:\\n    # Isolated P04 candidate exact-SHA proof. No hosted database or deploy.\\n    branches: [main, v3/s16-p04-integrity-governed-writer-network-restack]".replaceAll("\\n","\n");
+  expect(workflow.includes(mainPush) || workflow.includes(p04ProofPush)).toBe(true);
   expect(workflow).toContain('"supabase/migrations/**"');
   expect(workflow).toContain("baseline: ${{ fromJSON(github.event_name == 'pull_request' && '[\"candidate\",\"current-main\"]' || '[\"exact-main\"]') }}");
   expect(workflow).toContain("ref: ${{ github.event.pull_request.head.sha || github.sha }}");
