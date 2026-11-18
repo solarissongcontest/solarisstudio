@@ -195,6 +195,7 @@ function CommunityModerationPage() {
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              aria-label="Search community identities"
               placeholder="Search display name or moderation reason…"
               className="min-h-11 pl-9"
             />
