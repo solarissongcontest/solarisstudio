@@ -13,6 +13,8 @@ begin
     'public.admin_decide_integrity_appeal(uuid,text,text,integer,text[],text[])',
     'public.admin_set_integrity_priority(uuid,text)',
     'public.admin_reply_integrity_case(uuid,text,boolean)',
+    'public.admin_set_integrity_priority_impl(uuid,text)',
+    'public.admin_reply_integrity_case_impl(uuid,text,boolean)',
     'public.admin_recuse_from_integrity_case(uuid,text)',
     'public.admin_add_integrity_case_note(uuid,text)',
     'public.admin_record_integrity_preclearance_ruling(uuid,text,text,text,text[])',
@@ -49,8 +51,6 @@ begin
   foreach v_signature in array array[
     'public.admin_record_integrity_finding_impl(uuid,text,text,text,text[],boolean)',
     'public.admin_record_integrity_sanction_impl(uuid,uuid,integer,integer,text,text,text[],text[],text,boolean)',
-    'public.admin_set_integrity_priority_impl(uuid,text)',
-    'public.admin_reply_integrity_case_impl(uuid,text,boolean)',
     'public.admin_recuse_from_integrity_case_impl(uuid,text)',
     'public.admin_add_integrity_case_note_impl(uuid,text)',
     'public.admin_record_integrity_preclearance_ruling_impl(uuid,text,text,text,text[])',

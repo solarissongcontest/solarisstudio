@@ -33,8 +33,6 @@ declare
     'v3_create_protected_integrity_case_impl',
     'reporter_submit_integrity_appeal_impl',
     'public_submit_anonymous_integrity_appeal_impl',
-    'admin_set_integrity_priority_impl',
-    'admin_reply_integrity_case_impl',
     'admin_record_integrity_finding_impl',
     'admin_record_integrity_sanction_impl',
     'admin_recuse_from_integrity_case_impl',
@@ -53,8 +51,6 @@ declare
     'public.v3_create_protected_integrity_case_impl(uuid,text,text,text,text,text,text,text,text,text[],text)',
     'public.reporter_submit_integrity_appeal_impl(uuid,uuid,text)',
     'public.public_submit_anonymous_integrity_appeal_impl(text,text,uuid,text)',
-    'public.admin_set_integrity_priority_impl(uuid,text)',
-    'public.admin_reply_integrity_case_impl(uuid,text,boolean)',
     'public.admin_record_integrity_finding_impl(uuid,text,text,text,text[],boolean)',
     'public.admin_record_integrity_sanction_impl(uuid,uuid,integer,integer,text,text,text[],text[],text,boolean)',
     'public.admin_recuse_from_integrity_case_impl(uuid,text)',
@@ -203,6 +199,16 @@ begin
         raise exception 'Unexpected direct role EXECUTE: % on %', v_role, v_signature;
       end if;
     end loop;
+  end loop;
+
+  -- Owner-command consolidation must remove redundant internal entrypoints.
+  foreach v_signature in array array[
+    'public.admin_set_integrity_priority_impl(uuid,text)',
+    'public.admin_reply_integrity_case_impl(uuid,text,boolean)'
+  ] loop
+    if to_regprocedure(v_signature) is not null then
+      raise exception 'Redundant P04 physical writer remains: %',v_signature;
+    end if;
   end loop;
 
   -- These must stay attached and enabled. Removing revision/event triggers
