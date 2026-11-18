@@ -540,7 +540,14 @@ FINDING_VERSION_AFTER="$(integrity_case_version "$APPEAL_CASE")"
 (( FINDING_VERSION_AFTER > FINDING_REVIEWED_VERSION )) || fail "Canonical finding did not advance the reviewed case version"
 prepare_integrity_operation "stale-case-finding" "$APPEAL_CASE"
 STALE_FINDING_PAYLOAD="$(integrity_test_payload "$APPEAL_FINDING_PAYLOAD" "$OPERATION_ID" "$IDEMPOTENCY_KEY" "$FINDING_REVIEWED_VERSION")"
+(
+  sleep 8
+  log "Diagnostic: inspect isolated PostgreSQL activity while stale-case CAS request is pending"
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -c "select pid, usename, state, wait_event_type, wait_event, pg_blocking_pids(pid) as blocking_pids, left(query, 240) as query_sample from pg_stat_activity where datname = current_database() and state <> 'idle' order by pid;" || true
+) &
+STALE_CASE_DIAGNOSTIC_PID="$!"
 rpc_request "$ORGANIZER_A_TOKEN" studio2_integrity_record_finding "$STALE_FINDING_PAYLOAD"
+wait "$STALE_CASE_DIAGNOSTIC_PID" || true
 expect_client_failure "stale reviewed case version is rejected"
 expect_json_value "stale case conflict SQLSTATE" code 40001
 MISSING_FINDING_OPERATION_PAYLOAD="$(python3 -c 'import json,sys; p=json.loads(sys.argv[1]); p["p_operation_id"]=None; print(json.dumps(p,separators=(",",":")))' "$APPEAL_FINDING_PAYLOAD")"
