@@ -233,6 +233,7 @@ function SubmissionVersionsPage() {
                   <input
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
+                    aria-label="Search submission history"
                     placeholder="Search edited country, username or round…"
                     className="min-h-11 w-full rounded-xl border border-white/[0.09] bg-background pl-9 pr-3 text-sm"
                   />
