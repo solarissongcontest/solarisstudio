@@ -54,6 +54,12 @@ describe("Browser Audit regression boundaries", () => {
 
     expect(mediaAssets).toContain('aria-label="Review reason"');
     expect(integrity).toContain('aria-label="Search integrity cases"');
+    const predictionRound = source("src/routes/_authenticated/admin/predictions.tsx");
+    const siteDirectory = source("src/routes/site-directory/index.tsx");
+    const directoryFamily = source("src/components/v3/V3DirectoryFamilyIndex.tsx");
+    expect(predictionRound).toContain('aria-label="Select prediction show"');
+    expect(siteDirectory).toContain("installedHeadingLevel={2}");
+    expect(directoryFamily).toContain("installedHeadingLevel === 2 ? <h2>{title}</h2> : <h1>{title}</h1>");
     // Four tests call the launcher helper directly; the two critical-route
     // cold-launch probes use launchWithNavigation to avoid a fixture race.
     expect(installedApp.match(/await launchInstalledApp\(page\);/g)).toHaveLength(4);
