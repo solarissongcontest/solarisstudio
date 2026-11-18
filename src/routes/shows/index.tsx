@@ -42,7 +42,7 @@ function ShowsPage() {
           <AppScreen>
             <header className="v3-directory-app-heading">
               <p className="v3-directory-eyebrow">BROADCAST DISCOVERY</p>
-              <h1>Shows</h1>
+              <h2>Shows</h2>
               <p>On air, coming up and published show history.</p>
             </header>
             <V3ShowsDiscoveryScreen presentation={presentation} />
