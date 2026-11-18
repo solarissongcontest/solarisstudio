@@ -19,10 +19,15 @@ describe("P04 reporter reply physical writer consolidation", () => {
       "using errcode = 'PT409'",
       "request_fingerprint",
       "recovery_secret_hash",
+      "Anonymous replay has no JWT actor",
       "v_case.reporter_user_id is distinct from v_actor",
       "private.studio2_complete_operation",
       "v_row.completed_at is not null",
     ]) expect(sql).toContain(marker);
+    const proof = sql.indexOf("Anonymous replay has no JWT actor");
+    const replay = sql.indexOf("if v_row.completed_at is not null then");
+    expect(proof).toBeGreaterThan(0);
+    expect(replay).toBeGreaterThan(proof);
   });
   it("moves both physical effects into CAS-owned commands preserving reporter privacy and audit history", () => {
     for (const marker of [

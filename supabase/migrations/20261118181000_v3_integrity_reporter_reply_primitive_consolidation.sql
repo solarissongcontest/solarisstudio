@@ -196,11 +196,23 @@ begin
   if v_row.operation_id is distinct from p_operation_id or v_row.request_fingerprint is distinct from v_fingerprint then
     raise exception 'IDEMPOTENCY_CONFLICT' using errcode = 'P0001';
   end if;
+  -- Anonymous replay has no JWT actor. Validate recovery ownership on EVERY
+  -- attempt, including completed idempotent replays, before releasing the
+  -- previously stored private snapshot. The raw secret is never persisted.
+  v_hash := encode(extensions.digest(convert_to(public.integrity_normalize_secret(p_recovery_key), 'UTF8'), 'sha256'), 'hex');
+  if not exists (
+    select 1
+    from public.integrity_cases c
+    join public.integrity_case_access a on a.case_id = c.id
+    where upper(c.public_code) = upper(btrim(coalesce(p_case_code, '')))
+      and c.identity_mode = 'anonymous'
+      and a.recovery_secret_hash = v_hash
+  ) then
+    raise exception 'Case code or recovery key is incorrect' using errcode = '42501';
+  end if;
   if v_row.completed_at is not null then
     return coalesce(v_row.result, '{}'::jsonb) || jsonb_build_object('replayed', true);
   end if;
-
-  v_hash := encode(extensions.digest(convert_to(public.integrity_normalize_secret(p_recovery_key), 'UTF8'), 'sha256'), 'hex');
   select c.* into v_case
   from public.integrity_cases c
   join public.integrity_case_access a on a.case_id = c.id

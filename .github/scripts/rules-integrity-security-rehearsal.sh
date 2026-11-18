@@ -420,6 +420,11 @@ assert_db_eq "one anonymous reporter message persisted" "select count(*) from pu
 rpc_request "$ANON_KEY" v3_public_reply_anonymous_integrity_case "$ANON_REPLY_PAYLOAD"
 expect_success "anonymous reply idempotency replay"
 assert_db_eq "anonymous replay did not duplicate a message" "select count(*) from public.integrity_case_messages where case_id='$ANON_CASE_1'::uuid and author_role='reporter';" "1"
+# Completed replay is NEVER an authorization bypass for the secret recovery key.
+REPLAY_WRONG_SECRET="$(python3 -c 'import json,sys; p=json.loads(sys.argv[1]); p["p_recovery_key"]=sys.argv[2]; print(json.dumps(p,separators=(",",":")))' "$ANON_REPLY_PAYLOAD" "$ANON_KEY_2")"
+rpc_request "$ANON_KEY" v3_public_reply_anonymous_integrity_case "$REPLAY_WRONG_SECRET"
+expect_client_failure "completed anonymous idempotent replay rejects mismatched recovery secret"
+assert_db_eq "wrong replay secret cannot insert an anonymous message" "select count(*) from public.integrity_case_messages where case_id='$ANON_CASE_1'::uuid and author_role='reporter';" "1"
 prepare_integrity_operation "P04-wrong-anonymous-key" "$ANON_CASE_1"
 rpc_request "$ANON_KEY" v3_public_reply_anonymous_integrity_case "{\"p_operation_id\":\"$OPERATION_ID\",\"p_idempotency_key\":\"$IDEMPOTENCY_KEY\",\"p_case_code\":\"$ANON_CODE_1\",\"p_recovery_key\":\"$ANON_KEY_2\",\"p_body\":\"Wrong key must never expose the case.\",\"p_expected_version\":$ANON_REPLY_NEW_VERSION}"
 expect_client_failure "wrong anonymous recovery key rejected"
