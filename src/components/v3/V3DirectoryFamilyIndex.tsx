@@ -174,7 +174,7 @@ export function V3DirectoryFamilyIndex({
           <AppScreen>
             <header className="v3-directory-app-heading">
               <p className="v3-directory-eyebrow">{eyebrow}</p>
-              <h2>{title}</h2>
+              <h1>{title}</h1>
               <p>{intro}</p>
             </header>
             {context}
