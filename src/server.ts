@@ -9,6 +9,7 @@ import {
 } from "./lib/maintenance-freshness";
 import {
   GLOBAL_MAINTENANCE_MODE,
+  MAINTENANCE_CONFIRMATION_API_PATH,
   isMaintenanceHodAppRouteAllowed,
   isMaintenancePlatformRecoveryRouteAllowed,
   MAINTENANCE_PLATFORM_PREFLIGHT_PATH,
@@ -541,6 +542,21 @@ export default {
           request.method,
           maintenanceDeploymentVersion(env),
         );
+      }
+
+      // The only participant write admitted during site maintenance is handled
+      // independently of SSR routing. This remains behind the existing
+      // MAINTENANCE_HOD_ACCESS gate and the canonical edit-token RPC authority.
+      if (
+        GLOBAL_MAINTENANCE_MODE &&
+        hod.enabled &&
+        url.pathname === MAINTENANCE_CONFIRMATION_API_PATH &&
+        request.method === "POST"
+      ) {
+        const { handleMaintenanceConfirmationRequest } = await import(
+          "./routes/api/maintenance-confirmation"
+        );
+        return handleMaintenanceConfirmationRequest(request, serverEnv(env));
       }
 
       const hodAppRouteAllowed = isMaintenanceHodAppRouteAllowed(
