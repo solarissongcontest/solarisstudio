@@ -20,4 +20,4 @@ exit 0
 EOF
 chmod +x "$wrapper_dir/curl"
 
-PATH="$wrapper_dir:$PATH" bash .github/scripts/rules-integrity-security-rehearsal.sh
+PATH="$wrapper_dir:$PATH" bash "${V3_RULES_INTEGRITY_REHEARSAL_SCRIPT:-.github/scripts/rules-integrity-security-rehearsal.sh}"
