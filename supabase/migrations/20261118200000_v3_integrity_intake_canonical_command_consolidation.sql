@@ -23,7 +23,7 @@ begin
        'public.v3_public_create_anonymous_integrity_case_impl(uuid,text,text,text,text,text,text,text[],text,text)',
        'public.public_create_anonymous_integrity_case_impl('),
       ('public.v3_create_protected_integrity_case(uuid,text,text,text,text,text,text,text,text,text[],text)',
-       'public.v3_create_protected_integrity_case_impl(uuid,text,text,text,text,text,text,text,text[],text)',
+       'public.v3_create_protected_integrity_case_impl(uuid,text,text,text,text,text,text,text,text,text[],text)',
        'public.create_protected_integrity_case_impl(')
     ) as expected(command,implementation,validated_original)
   loop
@@ -458,7 +458,7 @@ begin
     ('public.v3_public_create_anonymous_integrity_case(uuid,text,text,text,text,text,text,text[],text,text)',
       'public.public_create_anonymous_integrity_case_impl(',
       'public.v3_public_create_anonymous_integrity_case_impl('),
-    ('public.v3_create_protected_integrity_case(uuid,text,text,text,text,text,text,text,text[],text)',
+    ('public.v3_create_protected_integrity_case(uuid,text,text,text,text,text,text,text,text,text[],text)',
       'public.create_protected_integrity_case_impl(',
       'public.v3_create_protected_integrity_case_impl(')
   ) expected(name,original,old_impl)
@@ -478,7 +478,7 @@ begin
     end if;
   end loop;
   if to_regprocedure('public.v3_public_create_anonymous_integrity_case_impl(uuid,text,text,text,text,text,text,text[],text,text)') is not null
-    or to_regprocedure('public.v3_create_protected_integrity_case_impl(uuid,text,text,text,text,text,text,text,text[],text)') is not null
+    or to_regprocedure('public.v3_create_protected_integrity_case_impl(uuid,text,text,text,text,text,text,text,text,text[],text)') is not null
   then raise exception 'Duplicate V3 internal intake writer survived retirement' using errcode='55000'; end if;
   if not has_function_privilege('anon',
       'public.v3_public_create_anonymous_integrity_case(uuid,text,text,text,text,text,text,text[],text,text)','EXECUTE')
@@ -490,7 +490,7 @@ begin
       select 1 from pg_proc p
       cross join lateral aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) acl
       where p.oid=to_regprocedure(
-        'public.v3_create_protected_integrity_case(uuid,text,text,text,text,text,text,text,text[],text)')
+        'public.v3_create_protected_integrity_case(uuid,text,text,text,text,text,text,text,text,text[],text)')
         and acl.grantee=0 and acl.privilege_type='EXECUTE'
     )
   then raise exception 'Participant intake public role authority changed' using errcode='55000'; end if;
