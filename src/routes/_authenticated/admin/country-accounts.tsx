@@ -237,6 +237,7 @@ function CountryAccountsAdminPage() {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              aria-label="Search country, code or account email"
               placeholder="Search country, code or account email…"
               className="mb-4 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30"
             />
