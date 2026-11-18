@@ -82,7 +82,9 @@ describe("Cloudflare emergency Confirmation POST isolation", () => {
     expect(api).toContain("if (!sameOrigin(request))");
     expect(api).toContain('rpc<ConfirmationSubmitResult>("v3_submit_confirmation"');
     expect(api).toContain('rpc<ConfirmationSubmitResult>("v3_reconcile_confirmation"');
-    expect(runtime).toContain("createConfirmationPublicRuntimeClient(runtime)");
+    expect(runtime).toContain("createConfirmationPublicRuntimeClient(runtime?: ConfirmationRuntimeEnv)");
+    expect(runtime).toContain("canonicalSupabaseConfig(runtime)");
+    expect(api).toContain("createConfirmationPublicRuntimeClient(runtime)");
   });
 
   it("blocks new save while a prior edit is awaiting authoritative reconciliation", () => {
