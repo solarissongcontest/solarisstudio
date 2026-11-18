@@ -105,7 +105,7 @@ on:
       - "supabase/migrations/20261118170000_v3_integrity_priority_reply_legacy_rpc_retirement.sql"
       - "supabase/migrations/2026111817*_v3_integrity_*.sql"
       - "supabase/migrations/2026111818*_v3_integrity_*.sql"
-      "supabase/migrations/2026111820*_v3_integrity_*.sql"
+      - "supabase/migrations/2026111820*_v3_integrity_*.sql"
       - "supabase/migrations/20261117072000_v3_s16_confirmation_ledger_api_dml_retirement.sql"
       - ".github/tests/v3-s16-confirmation-ledger-api-dml.sql"
       - "src/lib/v3-s16-confirmation-ledger-api-dml.contract.test.ts"
