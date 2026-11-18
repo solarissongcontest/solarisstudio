@@ -89,6 +89,7 @@ on:
       # P04 Browser recovery and SQL owner retirement must retain an exact-SHA
       # PG17 Publication producer for the unchanged S16 certification gate.
       - "src/routes/_authenticated/admin/submission-versions.tsx"
+      - "e2e/installed-app.e2e.ts"
       - "src/routes/editions/index.tsx"
       - "src/components/v3/V3ShowsDiscoveryScreen.tsx"
       - "src/styles/v3-directory-family.css"

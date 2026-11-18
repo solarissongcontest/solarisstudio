@@ -17,6 +17,7 @@ on:
       # authority/retirement proofs or the R3 Browser scenario change.
       - ".github/tests/v3-integrity-*.sql"
       - "e2e/organizer-routes.e2e.ts"
+      - "e2e/installed-app.e2e.ts"
       - "src/routes/editions/index.tsx"
       - "src/components/v3/V3ShowsDiscoveryScreen.tsx"
       - "src/routes/_authenticated/admin/submission-versions.tsx"
@@ -42,6 +43,7 @@ on:
       # authority/retirement proofs or the R3 Browser scenario change.
       - ".github/tests/v3-integrity-*.sql"
       - "e2e/organizer-routes.e2e.ts"
+      - "e2e/installed-app.e2e.ts"
       - "src/routes/editions/index.tsx"
       - "src/components/v3/V3ShowsDiscoveryScreen.tsx"
       - "src/routes/_authenticated/admin/submission-versions.tsx"
