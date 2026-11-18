@@ -413,12 +413,14 @@ test("installed app shell survives representative navigation without duplicate c
       const directory = page.locator("[data-directory-experience]");
       await expect(directory).toHaveAttribute("data-directory-experience", "installed-app");
       await expect(page.locator("[data-directory-mobile-header]")).toHaveCount(0);
-      // The installed shell owns the single visible H1 for both directory
-      // routes; each content-owned heading is H2 to preserve document order.
-      await expect(directory.getByRole("heading", {
-        level: 1,
-        name: route === "/archive" ? "Archive" : "Shows",
-      })).toBeVisible();
+      // The installed Shows toolbar owns H1 and the page's section is H2;
+      // Archive retains its existing content-owned H1. Never accept two H1s.
+      if (route === "/shows") {
+        await expect(page.locator(".solaris-app-toolbar h1")).toHaveText("Shows");
+        await expect(directory.getByRole("heading", { level: 2, name: "Shows" })).toBeVisible();
+      } else {
+        await expect(directory.getByRole("heading", { level: 1, name: "Archive" })).toBeVisible();
+      }
       await expect(page.locator("h1:visible")).toHaveCount(1);
       if (route === "/archive") {
         await expect(directory.getByRole("button", { name: "Filter archive topics by category" })).toBeVisible();
