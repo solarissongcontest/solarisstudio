@@ -58,8 +58,11 @@ as $body$
 declare
   -- Only a validated case/reporter reply may increment the aggregate revision
   -- without a lifecycle status change. API-role raw table writes are denied.
-  v_reporter_reply boolean := current_setting('app.integrity_command', true)
-    in ('integrity.case.reporter_reply', 'integrity.case.reporter_reply.anonymous');
+  v_reporter_reply boolean := coalesce(
+    current_setting('app.integrity_command', true)
+      in ('integrity.case.reporter_reply', 'integrity.case.reporter_reply.anonymous'),
+    false
+  );
 begin
   if old.status is distinct from new.status
      and not private.v3_integrity_case_transition_allowed(old.status, new.status) then
@@ -93,8 +96,11 @@ declare
   v_previous jsonb;
   v_next jsonb;
   v_rationale text := nullif(current_setting('app.integrity_rationale', true), '');
-  v_reporter_reply boolean := current_setting('app.integrity_command', true)
-    in ('integrity.case.reporter_reply', 'integrity.case.reporter_reply.anonymous');
+  v_reporter_reply boolean := coalesce(
+    current_setting('app.integrity_command', true)
+      in ('integrity.case.reporter_reply', 'integrity.case.reporter_reply.anonymous'),
+    false
+  );
 begin
   if tg_op = 'UPDATE'
      and old.status is not distinct from new.status
