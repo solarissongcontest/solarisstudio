@@ -6,6 +6,7 @@ const migration = readFileSync(resolve(process.cwd(), "supabase/migrations/20261
 const oldBridge = readFileSync(resolve(process.cwd(), "supabase/migrations/20261117202000_v3_integrity_intake_event_provenance.sql"), "utf8");
 const compatibility = readFileSync(resolve(process.cwd(), "supabase/migrations/20261117214000_v3_integrity_intake_compatibility_cutover.sql"), "utf8");
 const runtimeSql = readFileSync(resolve(process.cwd(), ".github/tests/v3-integrity-intake-direct-primitive-bridge.sql"), "utf8");
+const finalConsolidation = readFileSync(resolve(process.cwd(), "supabase/migrations/20261118200000_v3_integrity_intake_canonical_command_consolidation.sql"), "utf8");
 
 function implementation(name: string, tag: string) {
   const start = migration.indexOf(`create or replace function public.${name}(`);
@@ -42,15 +43,24 @@ describe("P04 Integrity intake: eliminate a real V3 -> legacy -> V3 recursion", 
     expect(migration).toContain("v3_register_migration_contract");
   });
 
-  it("keeps PostgreSQL role-test overload signatures exactly synchronized with the final migration", () => {
+  it("keeps the historical V3 recursion bridge while testing the final canonical caller", () => {
     for (const name of [
       "v3_create_protected_integrity_case_impl",
       "v3_public_create_anonymous_integrity_case_impl",
     ]) {
-      const exact = migration.match(new RegExp("'public\\." + name + "\\([^']+\\)'"))?.[0];
-      expect(exact, name + " must have a final inspected signature").toBeDefined();
-      expect(runtimeSql).toContain(exact!);
+      const exact = migration.match(new RegExp("'public\\\\." + name + "\\\\([^']+\\\\)'"))?.[0];
+      expect(exact, name + " must retain its original inspected signature").toBeDefined();
+      expect(finalConsolidation).toContain("drop function public." + name + "(");
+      expect(runtimeSql).not.toContain(exact!);
+      const canonicalName = name.replace("_impl", "");
+      expect(finalConsolidation).toContain("create or replace function public." + canonicalName + "(");
+      expect(runtimeSql).toContain("('public." + canonicalName + "(");
     }
+    expect(finalConsolidation).toContain("private.studio2_complete_operation(");
+    expect(finalConsolidation).toContain("private.v3_anonymous_integrity_case_operations");
+    expect(finalConsolidation).toContain("app.integrity_operation_id");
+    expect(finalConsolidation).toContain("replayed");
+    expect(runtimeSql).toContain("Retired duplicate intake implementation remains installed");
   });
 
   it("does not edit previously applied creator migrations or add an S16 exception", () => {
