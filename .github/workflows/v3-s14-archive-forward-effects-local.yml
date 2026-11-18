@@ -9,6 +9,9 @@ on:
       - ".github/workflows/browser-audit.yml"
       - ".github/workflows/v3-s13-migration-adoption.yml"
       - ".github/workflows/v3-s16-catalog-rehearsal.yml"
+      # An Integrity focused-gate change can affect the exact migration/authority
+      # certification. Regenerate the independent networkless PG17 evidence.
+      - ".github/workflows/v3-integrity-authority-restack-local.yml"
       - "scripts/rehearse-v3-s14-archive-forward-effects-local.sh"
       - "scripts/v3-s14-archive-forward-effects.contract.test.mjs"
       - "scripts/stage-v3-s07-televote-source-truth.mjs"
