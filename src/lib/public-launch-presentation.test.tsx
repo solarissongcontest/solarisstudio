@@ -54,8 +54,10 @@ describe("soft-launch rendered public entry points", () => {
     expect(mounts).toBe(0);
     expect(html).not.toContain("private experimental form");
     expect(html).toContain("This experience is not available");
-    for (const href of ["/", "/explore", "/participate", "/results", "/me"])
+    for (const href of ["/", "/participate", "/me"])
       expect(html).toContain(`href="${href}"`);
+    for (const href of ["/explore", "/results"])
+      expect(html).not.toContain(`href="${href}"`);
   });
   it("does not let a stale resolved chrome path admit a newly selected deferred Outlet", () => {
     routeState.pathname = "/fantasy";
@@ -117,14 +119,18 @@ describe("soft-launch rendered public entry points", () => {
         </PublicLaunchLink>
         <PublicLaunchLink to="/my-solaris/predictions">Old predictions</PublicLaunchLink>
         <PublicLaunchLink to="/results" className="preserved-link">
-          Official results
+          Unreleased results
+        </PublicLaunchLink>
+        <PublicLaunchLink to="/rules" className="preserved-link">
+          Official rules
         </PublicLaunchLink>
       </>
     );
     const html = render(children);
     expect(html).not.toContain("Deferred analysis");
     expect(html).not.toContain("Old predictions");
-    expect(html).toContain('href="/results"');
+    expect(html).not.toContain('href="/results"');
+    expect(html).toContain('href="/rules"');
     expect(html).toContain('class="preserved-link"');
   });
   it("omits an empty optional-links section instead of leaving a coming-soon dashboard", () => {
