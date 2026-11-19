@@ -29,6 +29,8 @@ describe("Participate core service discovery", () => {
     }
     for (const path of paths) expect(html).not.toContain(`href="${path}"`);
     expect(html).toContain("Not available in the current public release.");
+    expect(html).toContain("Existing confirmations may still be editable");
+    expect(html).toContain("Edit via existing access");
     expect(html).not.toContain("Open now");
   });
 
