@@ -316,7 +316,7 @@ export default defineConfig({
       },
   projects: GLOBAL_MAINTENANCE_MODE && !maintenanceAuditBypass
     ? maintenanceProjects
-    : LIMITED_PUBLIC_LAUNCH
+    : LIMITED_PUBLIC_LAUNCH && !fullAudit
       ? limitedLaunchProjects
       : [
         ...(GLOBAL_MAINTENANCE_MODE ? maintenanceProjects : []),

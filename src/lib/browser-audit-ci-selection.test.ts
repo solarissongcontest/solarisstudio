@@ -77,14 +77,9 @@ describe("Browser Audit CI selection", () => {
     { GITHUB_EVENT_NAME: "pull_request", GITHUB_HEAD_REF: "release-candidate" },
   ])("retains exhaustive explicit certification without branch-name coupling: %j", (env) => {
     const config = configFor({ ...env, E2E_FULL_AUDIT: "1" });
-    if (LIMITED_PUBLIC_LAUNCH) {
-      expect(config.projects.map(({ name }) => name)).toEqual([
-        "limited-public-390", "limited-public-1440", "limited-ios-pwa-portrait",
-      ]);
-    } else {
-      expect(config.projects.length).toBeGreaterThan(20);
-      expect(config.projects.map(({ name }) => name)).toContain("public-320");
-    }
+    // Explicit full certification must never be silently reduced to launch smoke.
+    expect(config.projects.length).toBeGreaterThan(20);
+    expect(config.projects.map(({ name }) => name)).toContain("public-320");
     expect(config.grepInvert).toBeUndefined();
     expect(config.retries).toBe(0);
   });
