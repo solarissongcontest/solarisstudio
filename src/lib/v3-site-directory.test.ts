@@ -24,6 +24,16 @@ describe("V3 public directory family", () => {
     expect(items.some((item) => item.to === "/countries")).toBe(true);
   });
 
+  it("offers only currently permitted pages during P0 without changing the future V3 catalog", () => {
+    const released = siteDirectoryDestinations({ releaseOnly: true });
+    expect(released.map(item => item.area)).not.toContain("explore");
+    expect(released.map(item => item.area)).not.toContain("results");
+    expect(released.some(item => item.to === "/site-directory")).toBe(true);
+    expect(released.some(item => item.to === "/rules")).toBe(true);
+    expect(released.every(item => !["/countries","/editions","/results","/explore"].includes(item.to))).toBe(true);
+    expect(released.length).toBeLessThan(siteDirectoryDestinations().length);
+  });
+
   it("keeps search, scope and per-area counts identical for every presentation", () => {
     const items = siteDirectoryDestinations();
     const counts = siteDirectoryAreaCounts(items);

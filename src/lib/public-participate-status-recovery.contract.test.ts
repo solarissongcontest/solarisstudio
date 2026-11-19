@@ -42,7 +42,9 @@ describe("legacy Public Participate status recovery", () => {
   });
 
   it("exposes meaningful retry and blocks false signed-out/task-complete state", () => {
-    expect(source).toContain('title="Nothing needs your attention right now"');
+    expect(source).toContain('gatedAvailable ? "Some active services are restricted here" : "Nothing needs your attention right now"');
+    expect(source).toContain('actions.filter((action) => allowsReleased(action.to))');
+    expect(source).toContain('action.status === "available" && !allowsReleased(action.to)');
     expect(source).toContain("statusError ? (");
     expect(source).toContain("<ParticipationStatusRecovery onRetry={retryStatus} />");
     expect(source).toContain("void confirmationsQuery.refetch()");

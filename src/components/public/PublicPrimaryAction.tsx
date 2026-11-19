@@ -31,7 +31,7 @@ export function PublicPrimaryAction({
     typeof performance !== "undefined" ? performance.now() : 0,
   );
 
-  const { allows } = usePublicLaunchAvailability();
+  const { allowsReleased: allows } = usePublicLaunchAvailability();
   if (to?.startsWith("/") && !allows(to)) return null;
   return (
     <Link

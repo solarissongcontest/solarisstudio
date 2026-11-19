@@ -26,14 +26,15 @@ export function maintenancePublicWebsiteEnabled(rawValue: string | null | undefi
   return rawValue?.trim().toLowerCase() === "true";
 }
 
+/** P0 public website: only Help/Rules are secondary to Home, Participate and Me.
+ * Discovery and result detail families must not leak through the old broad GET
+ * allowlist, even when their parent tabs are hidden. */
 const PUBLIC_V3_READ_ONLY_FAMILIES = [
-  "/countries", "/editions", "/shows", "/stories", "/results",
-  "/wiki", "/encyclopedia", "/records", "/archive", "/calendar",
-  "/guide", "/site-directory", "/library", "/rules",
+  "/guide", "/site-directory", "/rules",
 ] as const;
 
 const PUBLIC_V3_READ_ONLY_ROOTS = [
-  "/explore", "/participate", "/me", "/my-solaris", "/app-launch",
+  "/participate", "/me", "/my-solaris", "/app-launch",
 ] as const;
 
 /** Exact public pages + audited read-only detail families. No account,
@@ -46,8 +47,8 @@ export function isMaintenancePublicWebsiteRouteAllowed(
   enabled: boolean,
 ) {
   if (!enabled || (method !== "GET" && method !== "HEAD")) return false;
-  // Explore and Results are not part of the initial three-tab public release.
-  if (/^\/(?:explore|results)(?:\/|$)/.test(pathname)) return false;
+  // Families are explicitly allowlisted; neither Explore/Results nor their
+  // indirect pages (countries, editions, shows, archives, scorecharts) qualify.
   if (pathname === "/") return true;
   if (PUBLIC_V3_READ_ONLY_ROOTS.some((root) => pathname === root || pathname === root + "/")) {
     return true;

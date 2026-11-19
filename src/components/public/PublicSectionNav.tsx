@@ -20,7 +20,7 @@ export function PublicSectionNav({
   pathname: string;
   collapsible?: boolean;
 }) {
-  const { allows } = usePublicLaunchAvailability();
+  const { allowsReleased: allows } = usePublicLaunchAvailability();
   const area = publicAreaForPath(pathname);
   const items = publicDestinationsForArea(area, { includeContextual: false }).filter(item => allows(item.to));
   const activeTo = items

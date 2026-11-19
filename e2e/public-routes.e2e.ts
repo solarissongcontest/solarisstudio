@@ -150,7 +150,7 @@ test("Public directory family distinguishes mobile website from desktop explorer
       "data-directory-experience", mobile ? "mobile-web" : "desktop-web",
     );
     await expect(page.locator("[data-directory-boot]")).toHaveCount(0);
-    const title = route === "/tools" ? "Tools" : "All Solaris pages";
+    const title = route === "/tools" ? "Tools" : "Available Solaris pages";
     await expect(page.getByRole("heading", { level: 1, name: title })).toHaveCount(1);
     if (mobile) {
       await expect(page.locator("[data-directory-mobile-header]")).toBeVisible();
@@ -567,11 +567,94 @@ test("Rulebook chapter directory preserves all 22 links across mobile web and de
 });
 
 
+test("Rules and directory search controls render one surface on mobile and desktop web", async ({ page }, testInfo) => {
+  test.skip(!["public-390", "public-1440"].includes(testInfo.project.name), "Public phone/desktop search visuals");
+
+  for (const [route, selector] of [
+    ["/rules", 'input[placeholder="Search rules or ask a question…"]'],
+    ["/rules/search?q=friend", 'input[aria-label="Search rules"]'],
+    ["/site-directory", 'input[aria-label="Search Solaris Studio pages"]'],
+  ] as const) {
+    await page.goto(route, { waitUntil: "domcontentloaded" });
+    const inner = page.locator(selector);
+    await expect(inner, route).toBeVisible();
+    const appearance = await inner.evaluate((input) => {
+      const css = getComputedStyle(input);
+      return {
+        backgroundImage: css.backgroundImage,
+        backgroundColor: css.backgroundColor,
+        border: css.borderTopWidth,
+        shadow: css.boxShadow,
+      };
+    });
+    expect(appearance, `No nested input skin on ${route}`).toEqual({
+      backgroundImage: "none",
+      backgroundColor: "rgba(0, 0, 0, 0)",
+      border: "0px",
+      shadow: "none",
+    });
+  }
+});
+
+test("global web Search shows a clean single-surface dialog and compact results", async ({ page }, testInfo) => {
+  test.skip(!["public-390", "public-1440"].includes(testInfo.project.name), "Web Search presentation");
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  // Home has both desktop and mobile global Search owners; only click the
+  // viewport-visible trigger, never the hidden desktop duplicate.
+  await page.locator('button[aria-label="Search Solaris Studio"]:visible').first().click();
+  const dialog = page.locator('[role="dialog"].solaris-public-search-dialog');
+  await expect(dialog).toBeVisible();
+  const input = dialog.locator('input[aria-label="Search Solaris Studio"]');
+  await expect(input).toBeVisible();
+  const visuals = await input.evaluate((element) => {
+    const input = getComputedStyle(element);
+    const container = element.closest("[cmdk-input-wrapper]")!;
+    const shell = getComputedStyle(container);
+    const rect = element.closest('[role="dialog"]')!.getBoundingClientRect();
+    return {
+      innerBackground: input.backgroundImage,
+      innerColor: input.backgroundColor,
+      innerBorder: input.borderTopWidth,
+      innerShadow: input.boxShadow,
+      outerBorder: shell.borderTopWidth,
+      top: rect.top,
+      left: rect.left,
+      right: rect.right,
+      screen: window.innerWidth,
+    };
+  });
+  expect(visuals.innerBackground).toBe("none");
+  expect(visuals.innerColor).toBe("rgba(0, 0, 0, 0)");
+  expect(visuals.innerBorder).toBe("0px");
+  expect(visuals.innerShadow).toBe("none");
+  expect(visuals.outerBorder).not.toBe("0px");
+  expect(visuals.top).toBeGreaterThanOrEqual(0);
+  expect(visuals.top).toBeLessThan(160);
+  expect(visuals.left).toBeGreaterThanOrEqual(0);
+  expect(visuals.right).toBeLessThanOrEqual(visuals.screen + 1);
+
+  const firstRow = dialog.locator("[cmdk-item]").first();
+  await expect(firstRow).toBeVisible();
+  const rowHeight = await firstRow.evaluate((node) => node.getBoundingClientRect().height);
+  expect(rowHeight, "Recent entries must be compact, not giant highlighted cards").toBeLessThan(88);
+
+  await input.fill("rules");
+  await expect(dialog.getByRole("button", { name: "Clear search" })).toBeVisible();
+  await dialog.getByRole("button", { name: "Clear search" }).click();
+  await expect(input).toHaveValue("");
+  await dialog.getByRole("button", { name: "Close search" }).click();
+  await expect(dialog).toHaveCount(0);
+});
+
 test("soft launch hides deferred discovery and rejects direct links without mounting the tools", async ({ page }, testInfo) => {
   test.skip(!["public-390", "public-1440"].includes(testInfo.project.name), "Phone and desktop public launch acceptance");
   await page.goto("/site-directory", { waitUntil: "domcontentloaded" });
   const directory = page.locator("[data-directory-experience]");
-  await expect(directory.getByRole("heading", { name: "All Solaris pages", exact: true })).toBeVisible();
+  await expect(directory.getByRole("heading", { name: "Available Solaris pages", exact: true })).toBeVisible();
+  await expect(directory.locator('a[href="/rules"]')).toBeVisible();
+  for (const href of ["/explore", "/results", "/countries", "/editions"]) {
+    await expect(directory.locator(`a[href="${href}"]`)).toHaveCount(0);
+  }
   for (const href of ["/fantasy", "/prediction-league", "/voting-dna", "/analysis", "/scorecharts", "/result-lab", "/tools"]) {
     await expect(directory.locator(`a[href="${href}"]`)).toHaveCount(0);
   }
@@ -584,8 +667,11 @@ test("soft launch hides deferred discovery and rejects direct links without moun
     await expect(page.getByRole("heading", { name: "This experience is not available", exact: true })).toBeVisible();
     const recovery = page.getByRole("navigation", { name: "Available Solaris destinations" });
     await expect(recovery).toBeVisible();
-    for (const href of ["/", "/explore", "/participate", "/results", "/me"]) {
+    for (const href of ["/", "/participate", "/me"]) {
       await expect(recovery.locator(`a[href="${href}"]`)).toBeVisible();
+    }
+    for (const href of ["/explore", "/results"]) {
+      await expect(recovery.locator(`a[href="${href}"]`)).toHaveCount(0);
     }
   }
 });

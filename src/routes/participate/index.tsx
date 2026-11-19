@@ -20,9 +20,12 @@ import { PublicDestinationGrid } from "@/components/public/PublicDestinationGrid
 import { PublicHubHero } from "@/components/public/PublicHubHero";
 import { PublicPrimaryAction } from "@/components/public/PublicPrimaryAction";
 import { PublicSecondaryLinks } from "@/components/public/PublicSecondaryLinks";
+import { ParticipationServiceDirectory } from "@/components/public/ParticipationServiceDirectory";
+import { ParticipationConfirmationEdit } from "@/components/public/ParticipationConfirmationEdit";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import { televotingSupabase } from "@/integrations/televoting/client";
 import { getCountryConfirmationAccess } from "@/lib/confirmation-country-account";
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.functions";
 import { formatEventDateTime } from "@/lib/public-time";
 import {
@@ -126,6 +129,7 @@ function ParticipatePage() {
 
 function LegacyParticipatePage() {
   const { isAppMode } = useSolarisApp();
+  const { allowsReleased } = usePublicLaunchAvailability();
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
     const update = () => setNow(Date.now());
@@ -322,13 +326,21 @@ function LegacyParticipatePage() {
     televoteQuery.isError,
   ]);
 
-  const primary = primaryParticipationAction(actions);
-  const otherAvailable = actions.filter(
+  // Live round status is not proof that its destination is released. Keep
+  // services discoverable below, but never render a dead primary CTA through
+  // maintenance/rollout gates. Existing Confirmation editing has its own
+  // authorized token route and is surfaced independently above.
+  const releasedActions = useMemo(
+    () => actions.filter((action) => allowsReleased(action.to)),
+    [actions, allowsReleased],
+  );
+  const primary = primaryParticipationAction(releasedActions);
+  const otherAvailable = releasedActions.filter(
     (action) => action.status === "available" && action.id !== primary?.id,
   );
-  const upcoming = upcomingParticipationActions(actions);
-  const inactive = actions.filter(
-    (action) => action.status === "complete" || action.status === "unavailable",
+  const upcoming = upcomingParticipationActions(releasedActions);
+  const gatedAvailable = actions.some(
+    (action) => action.status === "available" && !allowsReleased(action.to),
   );
   const appAuthKnown = !juryQuery.isLoading;
   const appSignedIn = juryQuery.data?.signedIn === true;
@@ -362,6 +374,8 @@ function LegacyParticipatePage() {
           description="Current actions come first. Upcoming and inactive services stay available without competing with work that actually needs you now."
         />
       ) : null}
+
+      <ParticipationConfirmationEdit />
 
       {isAppMode ? (
         !appAuthKnown ? (
@@ -454,8 +468,12 @@ function LegacyParticipatePage() {
           <PublicCurrentStatus
             icon={CheckCircle2}
             eyebrow="Up to date"
-            title="Nothing needs your attention right now"
-            description="Solaris will surface confirmations and voting here when they become actionable."
+            title={gatedAvailable ? "Some active services are restricted here" : "Nothing needs your attention right now"}
+            description={
+              gatedAvailable
+                ? "An official round may be active, but its normal page is not part of this release. Check the services below and any authorized Confirmation editing option above."
+                : "Solaris will surface confirmations and voting here when they become actionable."
+            }
             tone="complete"
           />
         )}
@@ -483,16 +501,12 @@ function LegacyParticipatePage() {
         </section>
       ) : null}
 
+      <ParticipationServiceDirectory />
+
       <PublicSecondaryLinks
         eyebrow="Other participation"
         title="Services and instructions"
         items={[
-          ...inactive.map((action) => ({
-            to: action.to,
-            icon: iconForAction(action),
-            title: action.title,
-            description: action.description,
-          })),
           {
             to: "/next-in-line",
             icon: Music2,

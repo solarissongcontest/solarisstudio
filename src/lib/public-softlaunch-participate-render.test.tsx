@@ -1,5 +1,6 @@
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
 // Only routing transport is replaced. Render the real screen, foundation
@@ -56,7 +57,17 @@ function renderTask(overrides: Partial<SolarisTask>) {
       },
     ],
   };
-  return renderToStaticMarkup(<V3ParticipateScreen bootstrap={projectV3Bootstrap(source)} />);
+  // Render within the same React Query boundary as the real app. The
+  // Confirmation edit card now reads actor-scoped auth/session state, but the
+  // server render must remain inert and never make a network request.
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return renderToStaticMarkup(
+    <QueryClientProvider client={queryClient}>
+      <V3ParticipateScreen bootstrap={projectV3Bootstrap(source)} />
+    </QueryClientProvider>,
+  );
 }
 
 describe("soft-launch Participate screen with real bootstrap", () => {

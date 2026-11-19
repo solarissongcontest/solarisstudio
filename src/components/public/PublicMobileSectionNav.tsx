@@ -13,7 +13,7 @@ import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
 export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
-  const { allows } = usePublicLaunchAvailability();
+  const { allowsReleased: allows } = usePublicLaunchAvailability();
   const area = publicAreaForPath(pathname);
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);

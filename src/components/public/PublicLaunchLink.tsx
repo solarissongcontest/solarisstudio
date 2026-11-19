@@ -9,7 +9,7 @@ const LaunchAnchor = forwardRef<HTMLAnchorElement, ComponentProps<"a">>(function
   { href, ...props },
   ref,
 ) {
-  const { allows } = usePublicLaunchAvailability();
+  const { allowsReleased: allows } = usePublicLaunchAvailability();
   if (href?.startsWith("/") && !allows(href)) return null;
   return <a {...props} href={href} ref={ref} />;
 });

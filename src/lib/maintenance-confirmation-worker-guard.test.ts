@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
+import { z } from "zod";
 import { emptyPayload } from "./ssc";
 import {
   reconcileMaintenanceEdit,
@@ -28,6 +29,45 @@ describe("maintenance Confirmation transport (mocked, no hosted traffic)", () =>
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/maintenance-confirmation");
+  });
+
+  it("generates accepted, stable UUIDs for maintenance edits while preserving valid legacy keys", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => response({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    let fixedMalformedKeys = 0;
+    let retainedValidKeys = 0;
+    for (let i = 0; i < 64; i++) {
+      const edit = { ...base, country: `Oland fixture ${i}` };
+      await submitMaintenanceConfirmation(edit);
+      const sent = JSON.parse(fetchMock.mock.calls.at(-1)?.[1]?.body as string);
+      const key = sent.idempotency_key as string;
+
+      // This is exactly the UUID contract used by the POST request schema.
+      expect(z.string().uuid().safeParse(key).success).toBe(true);
+
+      const logicalPayload = JSON.stringify(edit);
+      const input = `maintenance-confirmation-edit\n${edit.browser_session_id}\n${logicalPayload}`;
+      const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+      const digest = Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, "0")).join("");
+      const legacyKey = [
+        digest.slice(0, 8), digest.slice(8, 12), digest.slice(12, 16),
+        digest.slice(16, 20), digest.slice(20, 32),
+      ].join("-");
+      if (z.string().uuid().safeParse(legacyKey).success) {
+        expect(key).toBe(legacyKey);
+        retainedValidKeys++;
+      } else {
+        expect(key).not.toBe(legacyKey);
+        fixedMalformedKeys++;
+      }
+
+      await submitMaintenanceConfirmation(edit);
+      const retry = JSON.parse(fetchMock.mock.calls.at(-1)?.[1]?.body as string);
+      expect(retry.idempotency_key).toBe(key);
+    }
+    expect(fixedMalformedKeys).toBeGreaterThan(0);
+    expect(retainedValidKeys).toBeGreaterThan(0);
   });
 
   it("reconciles the exact idempotency key after a lost submit response", async () => {

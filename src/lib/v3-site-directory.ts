@@ -1,4 +1,8 @@
 import {
+  isMaintenancePublicAccountRouteAllowed,
+  isMaintenancePublicWebsiteRouteAllowed,
+} from "@/lib/maintenance";
+import {
   PUBLIC_DESTINATIONS,
   publicSearchText,
   type PublicArea,
@@ -30,8 +34,13 @@ export type SiteDirectoryArea = PublicArea | "all";
  * published navigation registry. Search never changes the underlying access
  * rules: a destination is merely a link, not a grant of permission.
  */
-export function siteDirectoryDestinations(): PublicDestination[] {
-  return PUBLIC_DESTINATIONS.filter((item) => item.discoverable !== false);
+export function siteDirectoryDestinations(options: { releaseOnly?: boolean } = {}): PublicDestination[] {
+  return PUBLIC_DESTINATIONS.filter((item) =>
+    item.discoverable !== false &&
+    (!options.releaseOnly ||
+      isMaintenancePublicWebsiteRouteAllowed(item.to, "GET", true) ||
+      isMaintenancePublicAccountRouteAllowed(item.to, "GET", true)),
+  );
 }
 
 export function filterSiteDirectory(

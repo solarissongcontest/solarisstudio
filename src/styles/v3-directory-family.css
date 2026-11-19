@@ -212,3 +212,36 @@ body .v3-directory-family .v3-directory-search input:focus-visible {
   outline-offset: 0 !important;
   box-shadow: none !important;
 }
+
+/* A directory search is ONE visible control, not a bordered outer field
+ * containing the global styled input. Override app-wide search backgrounds
+ * and shadows in every web directory while keeping the outer focus ring. */
+body .v3-directory-search > input[type="search"] {
+  display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+}
+body .v3-directory-search > input[type="search"]:focus,
+body .v3-directory-search > input[type="search"]:focus-visible {
+  border: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+body .v3-directory-search > input[type="search"]::-webkit-search-cancel-button {
+  display: none;
+}

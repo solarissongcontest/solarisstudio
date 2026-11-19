@@ -60,8 +60,9 @@ export function V3DirectoryFamilyIndex({
   /** Rules owns its own governed rollout shell. */
   noShell?: boolean;
 }) {
-  const { allows } = usePublicLaunchAvailability();
-  groups = groups.map(group => ({ ...group, items: group.items.filter(item => allows(item.to)) }));
+  const { allowsReleased: allows } = usePublicLaunchAvailability();
+  groups = groups.map(group => ({ ...group, items: group.items.filter(item => allows(item.to)) }))
+    .filter(group => group.items.length > 0);
   const { platformResolved } = useSolarisApp();
   const presentation = useV3DirectoryPresentation();
   const [search, setSearch] = useState("");
@@ -101,7 +102,7 @@ export function V3DirectoryFamilyIndex({
   ) : (
     <div className="v3-directory-search" role="search">
       <Search size={18} aria-hidden="true" />
-      <input type="search" value={search} aria-label={searchLabel}
+      <input type="search" className="solaris-app-search-input" value={search} aria-label={searchLabel}
         onChange={(event) => setSearch(event.target.value)} placeholder={searchPlaceholder} autoComplete="off" />
       {search ? (
         <button type="button" className="v3-directory-search-clear" aria-label="Clear search" onClick={() => setSearch("")}>

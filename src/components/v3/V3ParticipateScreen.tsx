@@ -1,3 +1,5 @@
+import { ParticipationServiceDirectory } from "@/components/public/ParticipationServiceDirectory";
+import { ParticipationConfirmationEdit } from "@/components/public/ParticipationConfirmationEdit";
 import type { V3BootstrapProjection } from "@/lib/v3-bootstrap";
 import type { V3ActionProjection } from "@/lib/v3-experience";
 import { projectV3Participate } from "@/lib/v3-participate";
@@ -191,6 +193,8 @@ export function V3ParticipateScreen({
         description="Official responsibilities first, optional participation second. Solaris keeps the whole journey visible without making every activity look mandatory."
       />
 
+      <ParticipationConfirmationEdit />
+
       <V3Section
         title="Your responsibilities"
         meta={
@@ -333,6 +337,8 @@ export function V3ParticipateScreen({
           </V3Surface>
         </V3Section>
       ) : null}
+
+      <ParticipationServiceDirectory />
     </V3Screen>
   );
 }
