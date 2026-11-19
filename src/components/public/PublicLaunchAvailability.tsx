@@ -2,14 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useFanSession } from "@/lib/prediction-data";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
-import { PUBLIC_LAUNCH_FLAGS, type PublicLaunchFlags } from "@/lib/public-launch-availability";
+import { LIMITED_PUBLIC_LAUNCH, PUBLIC_LAUNCH_FLAGS, type PublicLaunchFlags } from "@/lib/public-launch-availability";
 import { PublicLaunchContext } from "@/lib/public-launch-context";
 
 /** Shares four existing, caller-evaluated flags across all Public consumers.
  * No cohort lists, local tester override, new flag, polling or mutation API.
  * studio2-* uses the existing private account-cache eviction boundary.
  */
-export function PublicLaunchAvailabilityProvider({
+function FlagDrivenPublicLaunchAvailabilityProvider({
   children,
   enabled = true,
 }: {
@@ -65,4 +65,16 @@ export function PublicLaunchAvailabilityProvider({
       {children}
     </PublicLaunchContext.Provider>
   );
+}
+
+/** Restricted launch does not query disabled optional feature flags. */
+export function PublicLaunchAvailabilityProvider({ children, enabled = true }: { children: ReactNode; enabled?: boolean }) {
+  if (LIMITED_PUBLIC_LAUNCH) {
+    return (
+      <PublicLaunchContext.Provider value={{ active: true, flags: {}, checking: false, error: false, retry: () => {} }}>
+        {children}
+      </PublicLaunchContext.Provider>
+    );
+  }
+  return <FlagDrivenPublicLaunchAvailabilityProvider enabled={enabled}>{children}</FlagDrivenPublicLaunchAvailabilityProvider>;
 }

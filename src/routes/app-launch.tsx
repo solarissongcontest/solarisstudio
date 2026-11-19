@@ -12,9 +12,7 @@ const APP_LAUNCH_BOOTSTRAP_SCRIPT = `(() => {
       navigationSnapshot = window.localStorage.getItem(${JSON.stringify(APP_NAVIGATION_STORAGE_KEY)});
       if (typeof navigationSnapshot === "string") {
         const parsed = JSON.parse(navigationSnapshot);
-        if (parsed?.activeTab === "explore") safeRoot = "/explore";
-        else if (parsed?.activeTab === "participate") safeRoot = "/participate";
-        else if (parsed?.activeTab === "results") safeRoot = "/results";
+        if (parsed?.activeTab === "participate") safeRoot = "/participate";
         else if (parsed?.activeTab === "me") safeRoot = "/auth";
       }
     } catch {}

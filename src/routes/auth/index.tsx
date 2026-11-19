@@ -51,7 +51,7 @@ function AuthPage() {
       return safeRedirect;
     }
     if (access.isOrganizer) return "/admin";
-    return "/my-solaris";
+    return "/participate";
   };
 
   const submit = async (event: React.FormEvent) => {

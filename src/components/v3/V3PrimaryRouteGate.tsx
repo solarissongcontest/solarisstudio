@@ -41,18 +41,9 @@ function ResolvingPrimarySurface({ surface }: { surface: V3PrimarySurface }) {
       >
         {home ? (
           <>
-            <a className="text-primary hover:underline" href="/countries">
-              Delegations
-            </a>
-            <a className="text-primary hover:underline" href="/editions">
-              Editions
-            </a>
-            <a className="text-primary hover:underline" href="/records">
-              Records
-            </a>
-            <a className="text-primary hover:underline" href="/participate">
-              Participate
-            </a>
+            <a className="text-primary hover:underline" href="/participate">Participate</a>
+            <a className="text-primary hover:underline" href="/rules">Rules</a>
+            <a className="text-primary hover:underline" href="/auth">Sign in</a>
           </>
         ) : (
           // The server has not resolved this viewer's permissions or voting

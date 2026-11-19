@@ -87,6 +87,7 @@ export function limitedPublicLaunchAllows(href: string): boolean {
   const parsed = publicLaunchPath(href);
   if (parsed === null) return false;
   const path = parsed.length > 1 ? parsed.replace(/\/+$/, "") : parsed;
+  if (/(^|\/)\.{1,2}(\/|$)/.test(path)) return false;
   if (path === "/") return true;
   const matches = (prefix: string) => path === prefix || path.startsWith(`${prefix}/`);
   if (LIMITED_DENIED_PREFIXES.some(matches)) return false;
