@@ -362,12 +362,15 @@ function RootComponent() {
   // Strictly local browser-audit fixtures exercise legacy Organizer and
   // installed-app chrome against a disposable Supabase. Never translate this
   // into a production bypass: BOTH origins must be loopback.
-  const localDisposableBrowserAudit =
-    typeof window !== "undefined" &&
-    (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") &&
-    /^http:\/\/(?:127\.0\.0\.1|localhost):\d+\//.test(
-      String(import.meta.env.VITE_SUPABASE_URL || "").replace(/:\d+$/, (port: string) => port + "/"),
+  const localDisposableSupabase =
+    /^http:\/\/(?:127\.0\.0\.1|localhost):\d+\/?$/.test(
+      String(import.meta.env.VITE_SUPABASE_URL || ""),
     );
+  const localDisposableBrowserAudit =
+    localDisposableSupabase &&
+    (typeof window === "undefined"
+      ? process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1"
+      : window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost");
 
   const maintenanceRouteAllowed =
     isMaintenancePublicWebsiteRouteAllowed(pathname, "GET", true) ||
