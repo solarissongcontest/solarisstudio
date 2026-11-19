@@ -40,6 +40,7 @@ import { useAppAttentionSummary } from "@/lib/app-attention";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
 import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
+import { GLOBAL_MAINTENANCE_MODE, MAINTENANCE_PUBLIC_PRIMARY_AREAS } from "@/lib/maintenance";
 import {
   publicCanvasForArchetype,
   publicLayoutTokenForArchetype,
@@ -229,7 +230,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   const publicUser = buildPublicUserContext({ userId: access.userId, access });
-  const globalAreas = publicGlobalAreasForContext(publicUser);
+  const globalAreas = publicGlobalAreasForContext(publicUser).filter(
+    (area) => !GLOBAL_MAINTENANCE_MODE ||
+      (MAINTENANCE_PUBLIC_PRIMARY_AREAS as readonly string[]).includes(area.id),
+  );
   const publicArchetype = publicRouteArchetype(pathname);
   const publicLayout = publicLayoutTokenForArchetype(publicArchetype);
   const publicArea = publicAreaForPath(pathname);
@@ -495,7 +499,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             style={{ paddingBottom: "max(.4rem, env(safe-area-inset-bottom))" }}
             aria-label="Primary navigation"
           >
-            <div className="mx-auto grid max-w-xl grid-cols-5 gap-1">
+            <div className={cn("mx-auto grid max-w-xl gap-1", GLOBAL_MAINTENANCE_MODE ? "grid-cols-3" : "grid-cols-5")}>
               {quickNavigation.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -579,9 +583,9 @@ function NewPublicDesktopNavigation({
 
       <span aria-hidden="true" className="mx-1 h-6 w-px bg-border/70" />
 
-      <PublicCommandPalette access={access} />
+      {!GLOBAL_MAINTENANCE_MODE ? <PublicCommandPalette access={access} /> : null}
 
-      <Link
+      {!GLOBAL_MAINTENANCE_MODE ? <Link
         to="/guide"
         className={desktopNavClass(
           pathname.startsWith("/guide") ||
@@ -590,9 +594,9 @@ function NewPublicDesktopNavigation({
         )}
       >
         Help
-      </Link>
+      </Link> : null}
 
-      {access.isOrganizer ? (
+      {!GLOBAL_MAINTENANCE_MODE && access.isOrganizer ? (
         <Link
           to="/admin/operations"
           className="ml-1 rounded-xl border border-border/75 bg-surface/55 px-3.5 py-2 text-sm font-semibold text-foreground transition-colors hover:border-primary/30 hover:bg-surface-strong"
