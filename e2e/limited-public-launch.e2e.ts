@@ -62,10 +62,10 @@ test("installed app launch never restores a hidden destination", async ({ page }
     } catch { /* storage unavailable before first document */ }
   });
   await page.goto("/app-launch", { waitUntil: "commit" });
-  await expect(page).toHaveURL(/\\/$/, { timeout: 15_000 });
+  await expect(page).toHaveURL(/\/$/, { timeout: 15_000 });
   // A stale Results tab must also stay on Home after the launch restore
   // coordinator has resolved or timed out its local session (1.5 seconds).
   await page.waitForTimeout(2_000);
-  await expect(page).toHaveURL(/\\/$/);
+  await expect(page).toHaveURL(/\/$/);
   await expect(page.locator("body")).not.toContainText("This page is not available yet");
 });
