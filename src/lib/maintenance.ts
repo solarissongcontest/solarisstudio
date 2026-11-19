@@ -32,7 +32,7 @@ const PUBLIC_V3_READ_ONLY_FAMILIES = [
 ] as const;
 
 const PUBLIC_V3_READ_ONLY_ROOTS = [
-  "/explore", "/participate", "/me",
+  "/explore", "/participate", "/me", "/my-solaris", "/app-launch",
 ] as const;
 
 /** Exact public pages + audited read-only detail families. No account,
