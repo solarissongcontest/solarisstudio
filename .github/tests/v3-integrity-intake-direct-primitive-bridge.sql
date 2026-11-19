@@ -31,7 +31,12 @@ begin
       or strpos(v_fn.definition,v_direct)=0
       or strpos(v_fn.definition,v_wrapped)>0
       or strpos(v_fn.definition,'app.integrity_operation_id')=0
-    then raise exception 'Cyclic / unqualified Integrity call graph %', v_name; end if;
+    then raise exception 'Cyclic / unqualified Integrity call graph % (oid %, owner %, definer %, searchpath %, direct %, wrapped %, opcontext %)',
+      v_name, v_fn.oid, v_fn.owner, v_fn.prosecdef,
+      strpos(coalesce(v_fn.settings,''),'search_path=pg_catalog')>0,
+      strpos(coalesce(v_fn.definition,''),v_direct)>0,
+      strpos(coalesce(v_fn.definition,''),v_wrapped)>0,
+      strpos(coalesce(v_fn.definition,''),'app.integrity_operation_id')>0; end if;
     if v_name like 'public.v3_public_create_anonymous_integrity_case(%'
        and (
          strpos(v_fn.definition,'public.public_create_anonymous_integrity_case_impl(')>0
