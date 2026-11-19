@@ -95,3 +95,7 @@
 ## World organization historical membership view (true public projection only)
 - Official organization page now supports direct-link `?tab=history` and a distinct completed-memberships section, only where the currently verified World projection contains concluded terms. This is TG3/TG5 published history **presentation**, not a new authoring authority.
 - Historical rows retain publication-verified member identity reads and strict bounded 24-row paging; they cannot be used to infer current governance, proxy, elections or votes. Current member and leadership sections remain unchanged.
+
+## World organization institution/assembly and leadership previews
+- Organization Overview now gives a bounded preview of current recorded officeholders (up to three) and a dedicated **General Assembly** link when the currently verified public institution projection explicitly identifies an `active` assembly organ.
+- The Assembly link goes to the already existing **public body details reader**, not a fabricated session, agenda or voting page. No live quorum, measures, votes, executive decisions or private room content is inferred.

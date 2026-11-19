@@ -134,3 +134,21 @@
 .world-public-editorial [aria-label="Completed membership terms"] a:focus-visible{
   outline:2px solid var(--primary);outline-offset:3px;
 }
+
+/* Canonically registered active General Assembly and current officers.
+   Do not imply an agenda, bill, quorum or vote that TG6–TG9 have not published. */
+.world-editorial-assembly{scroll-margin-top:7rem;}
+.world-editorial-assembly__link{
+  display:flex;align-items:center;gap:1rem;
+  min-height:5rem;margin-top:1rem;padding:1rem .2rem;
+  border-block:1px solid var(--border);color:var(--foreground);text-decoration:none;
+}
+.world-editorial-assembly__link>span{display:grid;gap:.4rem;min-width:0;flex:1;}
+.world-editorial-assembly__link strong{font-size:.95rem;overflow-wrap:anywhere;}
+.world-editorial-assembly__link small{font-size:.8rem;color:var(--muted-foreground);}
+.world-editorial-assembly__link:hover strong{color:var(--primary);}
+.world-editorial-leadership-preview{display:grid;border-top:1px solid var(--border);}
+.world-editorial-leadership-preview>div{border-bottom:1px solid var(--border);}
+@media (min-width:720px){
+ .world-editorial-leadership-preview{grid-template-columns:repeat(2,minmax(0,1fr));gap:0 1.25rem;}
+}

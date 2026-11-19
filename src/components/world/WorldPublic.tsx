@@ -343,6 +343,13 @@ export function WorldOrganizationPage({
   const currentMembers = useMemo(() =>
     verifiedProjection ? currentWorldMemberships(verifiedProjection) : [],
     [verifiedProjection]);
+  // Assemblies/offices are already the public TG2 projection, never inferred
+  // from institutional names or client-created fictional government data.
+  const publishedAssembly = verifiedProjection?.organs.find((organ) =>
+    organ.type === "assembly" && organ.status === "active") ?? null;
+  const leadershipPreview = (verifiedProjection?.offices ?? [])
+    .filter((office) => office.currentTerm !== null)
+    .slice(0, 3);
   const historicalMembers = useMemo(() =>
     verifiedProjection ? verifiedProjection.memberships.filter((row) => row.endedAt !== null) : [],
     [verifiedProjection]);
@@ -428,6 +435,11 @@ export function WorldOrganizationPage({
                 {tab}
               </button>
             ))}
+            {publishedAssembly ? (
+              <a href="#world-organization-assembly" className="inline-flex min-h-11 shrink-0 items-center border-b-2 border-transparent px-4 text-sm font-semibold text-muted-foreground hover:text-foreground">
+                Assembly
+              </a>
+            ) : null}
             <Link to="/world/organizations/$slug/bodies" params={{ slug }}
               className="inline-flex min-h-11 shrink-0 items-center border-b-2 border-transparent px-4 text-sm font-semibold text-muted-foreground hover:text-foreground">
               Public bodies
@@ -441,6 +453,40 @@ export function WorldOrganizationPage({
                 <p className="mt-4 max-w-2xl whitespace-pre-line text-base leading-7 text-muted-foreground">
                   {verifiedProjection.organization.description || "An official description has not yet been published."}
                 </p>
+                {publishedAssembly ? (
+                  <section id="world-organization-assembly" className="world-editorial-assembly mt-10 border-t border-border pt-6" aria-labelledby="world-assembly-title">
+                    <Kicker>Official institution</Kicker>
+                    <h2 id="world-assembly-title" className="mt-2 text-xl font-semibold">General assembly</h2>
+                    <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                      Open the officially recorded assembly body for its public officers and institutional context.
+                      Sessions, votes and agendas remain under their separate publication authorities.
+                    </p>
+                    <Link to="/world/organizations/$slug/bodies/$bodySlug"
+                      params={{ slug, bodySlug: publishedAssembly.slug }}
+                      className="world-editorial-assembly__link">
+                      <span><strong>{publishedAssembly.name}</strong><small>Published institutional body · {publishedAssembly.status}</small></span>
+                      <ArrowRight className="size-5" aria-hidden="true" />
+                    </Link>
+                  </section>
+                ) : null}
+                {leadershipPreview.length ? (
+                  <section className="mt-10 border-t border-border pt-6" aria-labelledby="world-leadership-preview-title">
+                    <Kicker>Current officers</Kicker>
+                    <h2 id="world-leadership-preview-title" className="mt-2 text-xl font-semibold">Leadership</h2>
+                    <div className="world-editorial-leadership-preview mt-4">
+                      {leadershipPreview.map((office) => (
+                        <div key={office.id} className="py-3">
+                          <span className="block text-xs text-muted-foreground">{office.title}</span>
+                          <strong className="mt-1 block text-sm font-semibold">{office.currentTerm!.holderDisplayName}</strong>
+                        </div>
+                      ))}
+                    </div>
+                    <button type="button" onClick={() => onViewChange("leadership")}
+                      className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary">
+                      See all leadership <ArrowRight className="size-4" aria-hidden="true" />
+                    </button>
+                  </section>
+                ) : null}
                 <section className="mt-10 border-t border-border pt-6" aria-labelledby="world-organs-title">
                   <Kicker>Organization</Kicker>
                   <h2 id="world-organs-title" className="mt-2 text-xl font-semibold">Public bodies</h2>
