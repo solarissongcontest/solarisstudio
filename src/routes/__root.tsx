@@ -1,5 +1,6 @@
 import { PublicLaunchAvailabilityProvider } from "@/components/public/PublicLaunchAvailability";
 import { PublicLaunchRouteBoundary } from "@/components/public/PublicLaunchRouteBoundary";
+import { PublicEarlyAccessMe } from "@/components/public/PublicEarlyAccessMe";
 import { AccountCacheIsolation } from "@/components/app/AccountCacheIsolation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -41,6 +42,13 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { appErrorPresentation, classifyAppError } from "../lib/app-error-state";
 import { useHydrationSafeRouterLocation } from "../lib/hydration-safe-router-location";
 import { startPublicWebVitals } from "../lib/public-web-vitals";
+import {
+  GLOBAL_MAINTENANCE_MODE,
+  isMaintenanceHodAppRouteAllowed,
+  isMaintenancePlatformRecoveryRouteAllowed,
+  isMaintenancePublicAccountRouteAllowed,
+  isMaintenancePublicWebsiteRouteAllowed,
+} from "../lib/maintenance";
 
 const SITE_DESCRIPTION =
   "Solaris Studio is the home of Solaris Song Contest information, official rules, participation and published results.";
@@ -348,6 +356,30 @@ function RootComponent() {
     };
   }, [pathname]);
 
+  // Client-side navigation must not bypass the Worker HTTP maintenance gate.
+  // A GET-only Worker allowlist alone cannot stop SPA navigation or browser-side
+  // Supabase commands on pages whose main content has already been mounted.
+  // Strictly local browser-audit fixtures exercise legacy Organizer and
+  // installed-app chrome against a disposable Supabase. Never translate this
+  // into a production bypass: BOTH origins must be loopback.
+  const localDisposableSupabase =
+    /^http:\/\/(?:127\.0\.0\.1|localhost):\d+\/?$/.test(
+      String(import.meta.env.VITE_SUPABASE_URL || ""),
+    );
+  const localDisposableBrowserAudit =
+    localDisposableSupabase &&
+    (typeof window === "undefined"
+      ? process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1"
+      : window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost");
+
+  const maintenanceRouteAllowed =
+    isMaintenancePublicWebsiteRouteAllowed(pathname, "GET", true) ||
+    isMaintenancePublicAccountRouteAllowed(pathname, "GET", true) ||
+    isMaintenanceHodAppRouteAllowed(pathname, "GET", true) ||
+    isMaintenancePlatformRecoveryRouteAllowed(pathname, "GET") ||
+    pathname === "/terraos-teaser-preview" ||
+    pathname === "/rules/v4-2-preview";
+
   const outlet = <Outlet />;
   const content = serviceAdmin ? (
     <UnifiedServiceAdminGate>{outlet}</UnifiedServiceAdminGate>
@@ -356,6 +388,32 @@ function RootComponent() {
   ) : (
     outlet
   );
+
+  if (GLOBAL_MAINTENANCE_MODE && !localDisposableBrowserAudit && !maintenanceRouteAllowed) {
+    return (
+      <main className="grid min-h-dvh place-items-center bg-background px-5 text-foreground"
+        data-maintenance-client-denied="true">
+        <section className="w-full max-w-md rounded-2xl border border-border bg-surface p-6">
+          <h1 className="text-2xl font-bold">Not open yet</h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            This part of Solaris Studio is not part of the current public release.
+            Official Jury Voting and other unreleased editing services remain closed.
+          </p>
+          <a href="/" className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground">
+            Back to Solaris Studio
+          </a>
+        </section>
+      </main>
+    );
+  }
+
+  if (GLOBAL_MAINTENANCE_MODE && !localDisposableBrowserAudit && (pathname === "/my-solaris" || pathname === "/my-solaris/")) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <PublicEarlyAccessMe />
+      </QueryClientProvider>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>

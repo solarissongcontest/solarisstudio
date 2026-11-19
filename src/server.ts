@@ -17,6 +17,8 @@ import {
   maintenanceHodAccessEnabled,
   maintenancePublicAccountAccessEnabled,
   isMaintenancePublicAccountRouteAllowed,
+  isMaintenancePublicWebsiteRouteAllowed,
+  maintenancePublicWebsiteEnabled,
 } from "./lib/maintenance";
 import { renderMaintenanceHodPortal } from "./lib/maintenance-hod-portal";
 import { renderMaintenancePage } from "./lib/maintenance-page";
@@ -35,6 +37,7 @@ type ServerEnv = {
   MAINTENANCE_ADMIN_SECRET?: string;
   MAINTENANCE_HOD_ACCESS?: string;
   PUBLIC_SOFT_LAUNCH_ACCESS?: string;
+  PUBLIC_V3_WEBSITE_ACCESS?: string;
   SUPABASE_URL?: string;
   SUPABASE_PUBLISHABLE_KEY?: string;
   VITE_SUPABASE_URL?: string;
@@ -513,6 +516,20 @@ export default {
       const softLaunchEnabled = maintenancePublicAccountAccessEnabled(
         serverEnv(env)?.PUBLIC_SOFT_LAUNCH_ACCESS ?? process.env.PUBLIC_SOFT_LAUNCH_ACCESS,
       );
+      const publicV3Enabled = maintenancePublicWebsiteEnabled(
+        serverEnv(env)?.PUBLIC_V3_WEBSITE_ACCESS ?? process.env.PUBLIC_V3_WEBSITE_ACCESS,
+      );
+
+      // Keep the fully static TerraOS maintenance artwork available as a
+      // bounded noindex legacy preview while the real V3 public site is open.
+      // This is never the public homepage and never admits a mutating method.
+      if (
+        GLOBAL_MAINTENANCE_MODE &&
+        url.pathname === "/maintenance/story" &&
+        (request.method === "GET" || request.method === "HEAD")
+      ) {
+        return maintenanceResponse(request, env, true);
+      }
 
       // Explicit public, static, zero-network rulebook preview during maintenance.
       // Neither the TanStack app nor Supabase is initialized for this response.
@@ -578,6 +595,8 @@ export default {
 
       const publicAccountRouteAllowed = GLOBAL_MAINTENANCE_MODE &&
         isMaintenancePublicAccountRouteAllowed(url.pathname, request.method, softLaunchEnabled);
+      const publicWebsiteRouteAllowed = GLOBAL_MAINTENANCE_MODE &&
+        isMaintenancePublicWebsiteRouteAllowed(url.pathname, request.method, publicV3Enabled);
       const hodAppRouteAllowed = isMaintenanceHodAppRouteAllowed(
         url.pathname,
         request.method,
@@ -615,6 +634,7 @@ export default {
         !teaserPreviewAllowed &&
         !hodAppRouteAllowed &&
         !publicAccountRouteAllowed &&
+        !publicWebsiteRouteAllowed &&
         !recoveryRouteAllowed
       ) {
         const localE2EBypass = hasLocalE2EMaintenanceBypass(request);
@@ -674,6 +694,33 @@ export default {
           normalized,
           maintenanceDeploymentVersion(env),
         );
+      }
+
+      // Private, loopback-only CI bypass proof. Playwright sets an HttpOnly
+      // test cookie; the Worker validates BOTH that cookie and loopback host.
+      // React cannot read the cookie, so SSR transmits a one-request proof
+      // only to the isolated browser test document. Never enabled by query
+      // strings, browser storage, production hostnames or app feature flags.
+      if (
+        GLOBAL_MAINTENANCE_MODE &&
+        request.method === "GET" &&
+        hasLocalE2EMaintenanceBypass(request) &&
+        (normalized.headers.get("content-type") ?? "").includes("text/html")
+      ) {
+        const markup = await normalized.text();
+        if (markup.includes("</head>")) {
+          const headers = new Headers(normalized.headers);
+          headers.delete("content-length");
+          headers.set("cache-control", "no-store");
+          return new Response(
+            markup.replace(
+              "</head>",
+              '<meta name="solaris-local-e2e-maintenance-bypass" content="1"></head>',
+            ),
+            { status: normalized.status, headers },
+          );
+        }
+        return new Response(markup, { status: normalized.status, headers: normalized.headers });
       }
 
       return normalized;
