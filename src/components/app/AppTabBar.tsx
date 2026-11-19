@@ -426,7 +426,7 @@ export function AppTabBar({
     clearDrag();
 
     if (!moved || targetIndex === drag.originIndex) return;
-    const area = PUBLIC_GLOBAL_AREAS[targetIndex];
+    const area = LAUNCH_TAB_AREAS[targetIndex];
     if (!area) return;
     const target = getAppTabDestination(area.id, signedIn);
 

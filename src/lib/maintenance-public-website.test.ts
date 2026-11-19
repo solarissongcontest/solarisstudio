@@ -27,7 +27,7 @@ describe("emergency maintenance public-website fallback remains fail-closed duri
 
   it("opens the real public V3 destinations for GET and HEAD only", () => {
     for (const path of [
-      "/", "/explore", "/participate", "/results", "/results/ssc-20",
+      "/", "/participate",
       "/countries", "/countries/ABE", "/editions/ssc-20", "/shows",
       "/stories", "/wiki", "/encyclopedia", "/records", "/archive",
       "/guide", "/site-directory", "/rules", "/me", "/my-solaris",
@@ -41,6 +41,7 @@ describe("emergency maintenance public-website fallback remains fail-closed duri
 
   it("never opens official voting, private commands or broader account/edit routes", () => {
     for (const path of [
+      "/explore", "/explore/anything", "/results", "/results/ssc-20",
       "/admin", "/admin/operations", "/confirmations", "/confirmations/admin",
       "/jury-voting", "/televoting", "/next-in-line",
       "/api/admin", "/api/maintenance-confirmation", "/_serverFn", "/_serverFn/abc",
