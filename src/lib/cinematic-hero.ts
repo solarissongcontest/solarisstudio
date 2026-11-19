@@ -10,3 +10,9 @@ function coordinate(value: number | undefined): number {
 export function resolveCinematicObjectPosition(point?: CinematicFocalPoint | null): string {
   return `${Math.round(coordinate(point?.[0]) * 100)}% ${Math.round(coordinate(point?.[1]) * 100)}%`;
 }
+
+/** Untrusted decorative colour input must not be allowed to inject CSS values. */
+export function safeCinematicColor(input?: string | null): string | null {
+  if (!input || !/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(input)) return null;
+  return input.toLowerCase();
+}

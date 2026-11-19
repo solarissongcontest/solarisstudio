@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
-import { resolveCinematicObjectPosition, type CinematicFocalPoint } from "@/lib/cinematic-hero";
+import { resolveCinematicObjectPosition, safeCinematicColor, type CinematicFocalPoint } from "@/lib/cinematic-hero";
 import "@/styles/v3-cinematic-entities.css";
 
 export type CinematicEditorialHeroProps = {
@@ -10,6 +10,7 @@ export type CinematicEditorialHeroProps = {
   subtitle?: string | null;
   imageUrl?: string | null;
   focalPoint?: CinematicFocalPoint | null;
+  fallbackColors?: readonly [string | null | undefined, string | null | undefined];
   context?: ReactNode;
   /** Preview embeds should not create a second page-level h1. */
   headingLevel?: 1 | 2;
@@ -26,13 +27,19 @@ export function CinematicEditorialHero({
   subtitle,
   imageUrl,
   focalPoint,
+  fallbackColors,
   context,
   headingLevel = 1,
 }: CinematicEditorialHeroProps) {
   const Heading = headingLevel === 2 ? "h2" : "h1";
+  const fallbackStyle = {
+    "--cinematic-identity-primary": safeCinematicColor(fallbackColors?.[0]) ?? "#385e7d",
+    "--cinematic-identity-secondary": safeCinematicColor(fallbackColors?.[1]) ?? "#112d42",
+  } as CSSProperties;
   return (
     <header
       className={`cinematic-entity-hero cinematic-entity-hero--${kind}`}
+      style={fallbackStyle}
       data-cinematic-entity={kind}
       data-has-image={imageUrl ? "true" : "false"}
     >

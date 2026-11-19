@@ -87,6 +87,7 @@ export function V3DelegationScreen({
           title={projection.name}
           subtitle={[projection.nativeName !== projection.name ? projection.nativeName : null, projection.region].filter(Boolean).join(" · ")}
           imageUrl={null}
+          fallbackColors={[projection.colors.primary, projection.colors.secondary]}
         />
       </div>
       <section className="cinematic-country-identity" aria-label="Country identity">

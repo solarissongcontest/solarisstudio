@@ -68,6 +68,7 @@ export function CountryHeroStudioPreview({
             subtitle={[nativeName !== name ? nativeName : null, region].filter(Boolean).join(" · ")}
             imageUrl={currentImage}
             focalPoint={focus}
+            fallbackColors={[design.palette.accent, design.palette.backgroundSecondary]}
           />
           <div className="country-hero-preview__identity">
             <div className="country-hero-preview__flag">

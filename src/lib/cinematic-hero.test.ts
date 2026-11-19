@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { resolveCinematicObjectPosition } from "./cinematic-hero";
+import { resolveCinematicObjectPosition, safeCinematicColor } from "./cinematic-hero";
 
 const country = readFileSync("src/components/v3/V3DelegationScreen.tsx", "utf8");
 const edition = readFileSync("src/components/v3/V3EditionOverviewScreen.tsx", "utf8");
@@ -14,6 +14,15 @@ describe("Explore cinematic Country and Edition first slice", () => {
     expect(resolveCinematicObjectPosition([Number.NaN, Number.POSITIVE_INFINITY])).toBe("50% 50%");
     expect(resolveCinematicObjectPosition(null)).toBe("50% 50%");
   });
+  it("uses only validated country-identity colours for an image-free fallback", () => {
+    expect(safeCinematicColor("#ABCDEF")).toBe("#abcdef");
+    expect(safeCinematicColor("#123")).toBe("#123");
+    expect(safeCinematicColor("url(https://example.org/a)")).toBeNull();
+    expect(safeCinematicColor("red; background:red")).toBeNull();
+    expect(safeCinematicColor(null)).toBeNull();
+    expect(country).toContain("fallbackColors={[projection.colors.primary, projection.colors.secondary]}");
+  });
+
   it("keeps country identity, 3:2 flag and existing publication-safe content", () => {
     expect(country).toContain('<CinematicEditorialHero');
     expect(country).toContain('imageUrl={null}');
