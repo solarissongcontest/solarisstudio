@@ -1,4 +1,7 @@
-import { isMaintenancePublicWebsiteRouteAllowed } from "@/lib/maintenance";
+import {
+  isMaintenancePublicAccountRouteAllowed,
+  isMaintenancePublicWebsiteRouteAllowed,
+} from "@/lib/maintenance";
 import {
   PUBLIC_DESTINATIONS,
   publicSearchText,
@@ -34,7 +37,9 @@ export type SiteDirectoryArea = PublicArea | "all";
 export function siteDirectoryDestinations(options: { releaseOnly?: boolean } = {}): PublicDestination[] {
   return PUBLIC_DESTINATIONS.filter((item) =>
     item.discoverable !== false &&
-    (!options.releaseOnly || isMaintenancePublicWebsiteRouteAllowed(item.to, "GET", true)),
+    (!options.releaseOnly ||
+      isMaintenancePublicWebsiteRouteAllowed(item.to, "GET", true) ||
+      isMaintenancePublicAccountRouteAllowed(item.to, "GET", true)),
   );
 }
 
