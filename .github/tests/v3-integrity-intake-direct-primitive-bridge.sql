@@ -15,7 +15,7 @@ begin
   -- the canonical versioned, receipted V3 operation itself.
   for v_name,v_direct,v_wrapped in
     select * from (values
-      ('public.v3_create_protected_integrity_case(uuid,text,text,text,text,text,text,text,text[],text)',
+      ('public.v3_create_protected_integrity_case(uuid,text,text,text,text,text,text,text,text,text[],text)',
        'public.create_protected_integrity_case_impl(', 'public.create_protected_integrity_case('),
       ('public.v3_public_create_anonymous_integrity_case(uuid,text,text,text,text,text,text,text[],text,text)',
        'insert into public.integrity_cases(', 'public.public_create_anonymous_integrity_case(')
