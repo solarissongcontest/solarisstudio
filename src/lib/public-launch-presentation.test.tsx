@@ -54,7 +54,7 @@ describe("soft-launch rendered public entry points", () => {
     expect(mounts).toBe(0);
     expect(html).not.toContain("private experimental form");
     expect(html).toContain("This experience is not available");
-    for (const href of ["/", "/explore", "/participate", "/results", "/me"])
+    for (const href of ["/", "/participate", "/auth", "/rules"])
       expect(html).toContain(`href="${href}"`);
   });
   it("does not let a stale resolved chrome path admit a newly selected deferred Outlet", () => {
@@ -71,13 +71,13 @@ describe("soft-launch rendered public entry points", () => {
       routeState.pathname = "/";
     }
   });
-  it("renders a tester’s permitted feature and closes it again when rollout is revoked", () => {
+  it("holds optional features during restricted reopening even when their old rollout flag is true", () => {
     const child = (
       <PublicLaunchRouteBoundary pathname="/fantasy">
         <p>permitted game</p>
       </PublicLaunchRouteBoundary>
     );
-    expect(render(child, { fantasy_ssc: true })).toContain("permitted game");
+    expect(render(child, { fantasy_ssc: true })).not.toContain("permitted game");
     expect(render(child, { fantasy_ssc: false })).not.toContain("permitted game");
   });
   it("does not block a core workflow while optional availability is unknown", () => {
@@ -107,7 +107,7 @@ describe("soft-launch rendered public entry points", () => {
     expect(hidden).not.toContain('href="/fantasy"');
     expect(hidden).toContain('href="/jury-voting"');
     expect(hidden).toContain('href="/rules"');
-    expect(render(children, { fantasy_ssc: true })).toContain('href="/fantasy"');
+    expect(render(children, { fantasy_ssc: true })).not.toContain('href="/fantasy"');
   });
   it("filters legacy raw links and redirect aliases without changing core link classes", () => {
     const children = (
@@ -116,15 +116,15 @@ describe("soft-launch rendered public entry points", () => {
           Deferred analysis
         </PublicLaunchLink>
         <PublicLaunchLink to="/my-solaris/predictions">Old predictions</PublicLaunchLink>
-        <PublicLaunchLink to="/results" className="preserved-link">
-          Official results
+        <PublicLaunchLink to="/rules" className="preserved-link">
+          Official rules
         </PublicLaunchLink>
       </>
     );
     const html = render(children);
     expect(html).not.toContain("Deferred analysis");
     expect(html).not.toContain("Old predictions");
-    expect(html).toContain('href="/results"');
+    expect(html).toContain('href="/rules"');
     expect(html).toContain('class="preserved-link"');
   });
   it("omits an empty optional-links section instead of leaving a coming-soon dashboard", () => {

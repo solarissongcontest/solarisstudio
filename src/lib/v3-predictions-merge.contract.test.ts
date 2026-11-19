@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { publicLaunchAllows } from "./public-launch-availability";
+import { publicLaunchAllows, standardPublicLaunchAllows } from "./public-launch-availability";
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 const hub = () => read("src/components/v3/V3PredictionsScreen.tsx");
@@ -21,7 +21,8 @@ describe("V3 Predictions + Prediction League merge", () => {
     // Prediction League can be opted in without authorizing the broader Arena.
     expect(league()).not.toContain('<Navigate to="/predictions" replace />');
     expect(league()).toContain("return <LegacyPredictionLeaguePage />;");
-    expect(publicLaunchAllows("/prediction-league", { prediction_league: true })).toBe(true);
+    expect(standardPublicLaunchAllows("/prediction-league", { prediction_league: true })).toBe(true);
+    expect(publicLaunchAllows("/prediction-league", { prediction_league: true })).toBe(false);
     expect(publicLaunchAllows("/predictions", { prediction_league: true })).toBe(false);
     expect(my()).toContain('<Navigate to="/predictions" replace />');
   });
