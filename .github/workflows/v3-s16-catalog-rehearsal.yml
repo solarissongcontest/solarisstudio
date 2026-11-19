@@ -12,20 +12,16 @@ on:
       - ".github/workflows/v3-s16-catalog-rehearsal.yml"
   push:
     branches: [main]
-    paths:
-      - "src/lib/v3-s16*"
-      - "scripts/*v3-s16*"
-      - "supabase/migrations/**"
-      - ".github/scripts/v3-s16-catalog-rehearsal.sh"
-      - ".github/scripts/v3-start-disposable-supabase.sh"
-      - ".github/scripts/prepare-archive-local-config.py"
-      - ".github/workflows/v3-s16-catalog-rehearsal.yml"
+    # Audit every integrated main commit, even when only Confirmation, UI, or
+    # cross-domain runtime code changed. Otherwise S16 evidence goes stale.
+    # Keep all local-only Supabase guards and the unchanged S16 auditor.
   workflow_dispatch:
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: s16-catalog-${{ github.ref }}
+  # Main push runs get unique concurrency keys; no queued SHA can be replaced.
+  group: s16-catalog-${{ github.event_name == 'push' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   catalog-correctness:

@@ -4,6 +4,9 @@ on:
   pull_request:
     branches: [main]
     paths: &s06_archive_paths
+      # An S16 workflow/policy gate update also needs its own exact-SHA PG17.11
+      # Publication execution evidence, or S16 correctly remains uncertified.
+      - ".github/workflows/v3-s16-catalog-rehearsal.yml"
       - ".github/workflows/v3-s14-archive-forward-effects-local.yml"
       - "scripts/rehearse-v3-s14-archive-forward-effects-local.sh"
       - "scripts/v3-s14-archive-forward-effects.contract.test.mjs"
@@ -194,15 +197,19 @@ on:
       - "supabase/migrations/20261021202000_v3_s14_archive_reconciliation_convergence.sql"
   push:
     branches: [main]
-    paths: *s06_archive_paths
+    # Generate independently executed Publication evidence at every main SHA,
+    # matching the unchanged S16 catalog workflow's main-push coverage.
+    # The runtime remains network-isolated PostgreSQL 17.11; never production.
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: v3-s14-archive-forward-${{ github.ref }}
-  cancel-in-progress: true
+  # Push runs must never cancel or replace another integrated main SHA's evidence.
+  # Only superseded PR-head runs may be cancelled.
+  group: v3-s14-archive-forward-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   local-forward-upgrade:
