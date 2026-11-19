@@ -1,0 +1,148 @@
+/* Solaris Explore V3: image-led editorial feature, quiet lists, repeatable rhythm.
+   Never owns shared shell/safe-zone placement or World publication authority. */
+.v3-explore-editorial .v3-screen-header {
+  margin-bottom: 1.25rem;
+}
+.v3-explore-editorial .v3-section {
+  margin-top: 2.25rem;
+}
+.v3-explore-editorial .v3-section__header {
+  margin-bottom: .875rem;
+}
+.v3-explore-feature {
+  min-width: 0;
+}
+.v3-explore-feature__visual {
+  position: relative;
+  isolation: isolate;
+  min-height: clamp(19rem, 45svh, 27rem);
+  overflow: clip;
+  background: #0b1829;
+  color: #fff;
+  display: flex;
+  align-items: flex-end;
+}
+.v3-explore-feature__media,
+.v3-explore-feature__fade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.v3-explore-feature__media img,
+.v3-explore-feature__fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.v3-explore-feature__fallback {
+  background: radial-gradient(circle at 74% 24%, #355777, transparent 48%), linear-gradient(145deg, #29425b 0%, #061321 85%);
+}
+.v3-explore-feature__fade {
+  z-index: 1;
+  background: linear-gradient(0deg, rgba(2, 8, 23, .96) 0%, rgba(2, 8, 23, .66) 25%, rgba(2, 8, 23, .16) 66%, transparent 100%);
+}
+.v3-explore-feature__content {
+  z-index: 2;
+  position: relative;
+  width: 100%;
+  padding: 5rem 1.25rem 1.5rem;
+}
+.v3-explore-feature__eyebrow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .75rem;
+  font-size: .7rem;
+  font-weight: 750;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+.v3-explore-feature__content h2 {
+  margin: 1.15rem 0 0;
+  max-width: 23ch;
+  font-size: clamp(2rem, 7.3vw, 3.65rem);
+  line-height: 1.02;
+  font-weight: 750;
+  letter-spacing: -.045em;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.v3-explore-feature__meta {
+  margin: .75rem 0 0;
+  font-size: .85rem;
+  color: rgba(255,255,255,.8);
+  line-height: 1.55;
+}
+.v3-explore-feature__primary {
+  display: inline-flex;
+  align-items: center;
+  gap: .7rem;
+  min-height: 2.75rem;
+  margin-top: 1.25rem;
+  padding-inline: 1rem;
+  background: rgba(255,255,255,.94);
+  color: #07111e;
+  font-size: .875rem;
+  font-weight: 800;
+  text-decoration: none;
+  border-radius: .7rem;
+}
+.v3-explore-feature__primary:hover { background: #fff; }
+.v3-explore-feature__related {
+  margin-top: .75rem;
+}
+.v3-explore-editorial-list {
+  border-block-start: 1px solid rgba(255,255,255,.13);
+  display: grid;
+}
+.v3-explore-editorial-link {
+  display: flex;
+  gap: .85rem;
+  align-items: center;
+  min-height: 4.65rem;
+  padding-block: .9rem;
+  border-bottom: 1px solid rgba(255,255,255,.12);
+  color: inherit;
+  text-decoration: none;
+}
+.v3-explore-editorial-link__icon {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  aspect-ratio: 1;
+  flex: 0 0 auto;
+  color: var(--v3-accent, #a7c9d8);
+}
+.v3-explore-editorial-link__copy { display: grid; flex: 1 1 auto; gap: .25rem; min-width: 0; }
+.v3-explore-editorial-link__title { font-size: .92rem; font-weight: 700; line-height: 1.3; }
+.v3-explore-editorial-link__description { font-size: .78rem; color: rgba(255,255,255,.61); line-height: 1.5; }
+.v3-explore-editorial-link__meta {
+  flex: 0 0 auto;
+  color: rgba(255,255,255,.54);
+  font-size: .72rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.v3-explore-editorial-link__chevron { flex: 0 0 auto; color: rgba(255,255,255,.5); }
+.v3-explore-editorial-link:hover .v3-explore-editorial-link__title { color: var(--v3-accent, #a7c9d8); }
+@media (max-width: 400px) {
+  .v3-explore-editorial-link__meta { display: none; }
+  .v3-explore-feature__visual { min-height: 19rem; }
+}
+@media (min-width: 768px) {
+  .v3-explore-feature__visual { min-height: clamp(20rem, 33vw, 27rem); }
+  .v3-explore-feature__content { padding: 5rem 2rem 2rem; }
+  .v3-explore-editorial-link { padding-inline: .3rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .v3-explore-editorial *, .v3-explore-editorial *::before, .v3-explore-editorial *::after {
+    animation: none !important;
+    transition-duration: .001ms !important;
+  }
+}
+@media (forced-colors: active) {
+  .v3-explore-feature__primary { border: 1px solid ButtonText; }
+  .v3-explore-editorial-link { border-bottom: 1px solid CanvasText; }
+}

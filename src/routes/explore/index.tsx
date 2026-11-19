@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
+import { WorldExploreEntry } from "@/components/world/WorldExploreEntry";
 import { AppExplorePersonalized } from "@/components/app/AppExplorePersonalized";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PublicDestinationGrid } from "@/components/public/PublicDestinationGrid";
@@ -144,6 +145,8 @@ function ExplorePage() {
               ))}
             </PublicDestinationGrid>
           </section>
+
+          <WorldExploreEntry />
 
           <PublicSecondaryLinks
             eyebrow="More from Solaris"
