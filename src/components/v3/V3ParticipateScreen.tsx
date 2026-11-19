@@ -1,3 +1,4 @@
+import { ParticipationServiceDirectory } from "@/components/public/ParticipationServiceDirectory";
 import type { V3BootstrapProjection } from "@/lib/v3-bootstrap";
 import type { V3ActionProjection } from "@/lib/v3-experience";
 import { projectV3Participate } from "@/lib/v3-participate";
@@ -333,6 +334,8 @@ export function V3ParticipateScreen({
           </V3Surface>
         </V3Section>
       ) : null}
+
+      <ParticipationServiceDirectory />
     </V3Screen>
   );
 }
