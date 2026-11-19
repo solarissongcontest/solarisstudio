@@ -99,3 +99,7 @@
 ## World organization institution/assembly and leadership previews
 - Organization Overview now gives a bounded preview of current recorded officeholders (up to three) and a dedicated **General Assembly** link when the currently verified public institution projection explicitly identifies an `active` assembly organ.
 - The Assembly link goes to the already existing **public body details reader**, not a fabricated session, agenda or voting page. No live quorum, measures, votes, executive decisions or private room content is inferred.
+
+## Strict World Explore subroute availability
+- Web Explore now checks `allowsReleased` for each World Search, World Organizations and World Countries secondary link individually, not merely the World root; this avoids advertising subroutes excluded from restricted/maintenance public policy.
+- Installed Explore's shared editorial link primitive is checked for equivalent subroute availability before release.

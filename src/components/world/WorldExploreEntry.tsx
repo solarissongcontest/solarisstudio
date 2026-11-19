@@ -48,12 +48,12 @@ export function WorldExploreEntry() {
         <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </Link>
       <div className="mt-2 flex flex-wrap gap-3 text-sm">
-        <Link to="/world/search" search={{ q: "", c: 0, o: 0, type: "all" }}
-          className="inline-flex min-h-11 items-center text-primary hover:underline">World search</Link>
-        <Link to="/world/organizations"
-          className="inline-flex min-h-11 items-center text-primary hover:underline">Organizations</Link>
-        <Link to="/world/countries"
-          className="inline-flex min-h-11 items-center text-primary hover:underline">World countries</Link>
+        {allowsReleased("/world/search") ? <Link to="/world/search" search={{ q: "", c: 0, o: 0, type: "all" }}
+          className="inline-flex min-h-11 items-center text-primary hover:underline">World search</Link> : null}
+        {allowsReleased("/world/organizations") ? <Link to="/world/organizations"
+          className="inline-flex min-h-11 items-center text-primary hover:underline">Organizations</Link> : null}
+        {allowsReleased("/world/countries") ? <Link to="/world/countries"
+          className="inline-flex min-h-11 items-center text-primary hover:underline">World countries</Link> : null}
       </div>
     </section>
   );
