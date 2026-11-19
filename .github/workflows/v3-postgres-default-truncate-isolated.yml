@@ -1,0 +1,71 @@
+name: V3 S16 postgres future-table TRUNCATE defaults local proof
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/v3/recovery-candidates/s16-emergency-postgres-default-truncate.sql"
+      - ".github/workflows/v3-postgres-default-truncate-isolated.yml"
+permissions:
+  contents: read
+jobs:
+  pg17-default-acl:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      SUPABASE_PROJECT_REF: local
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: docker pull postgres:17.11
+      - name: Verify exact source under networkless PostgreSQL 17.11
+        shell: bash
+        run: |
+          set -euo pipefail
+          cid="$(docker run --rm -d --network none -e POSTGRES_PASSWORD=local-only postgres:17.11)"
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          for i in $(seq 1 60); do
+             if docker exec "$cid" pg_isready -U postgres >/dev/null 2>&1; then break; fi
+             sleep 1
+          done
+          [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]]
+          [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]]
+          docker exec -i "$cid" psql -X -v ON_ERROR_STOP=1 -U postgres <<'SQL'
+          create role anon nologin;
+          create role authenticated nologin;
+          create role service_role nologin;
+          create role supabase_admin nologin;
+          alter default privileges for role postgres in schema public
+            grant select,insert,update,delete,truncate on tables to anon,authenticated,service_role;
+          alter default privileges for role supabase_admin in schema public
+            grant select,insert,update,delete,truncate on tables to anon,authenticated,service_role;
+          create table public.existing(id integer primary key);
+          SQL
+          file=docs/v3/recovery-candidates/s16-emergency-postgres-default-truncate.sql
+          docker exec -i "$cid" psql -X -v ON_ERROR_STOP=1 -U postgres < "$file"
+          docker exec -i "$cid" psql -X -v ON_ERROR_STOP=1 -U postgres <<'SQL'
+          create table public.new_future_table(id integer primary key);
+          do $verify$
+          declare r text;
+          begin
+            foreach r in array array['anon','authenticated'] loop
+              if has_table_privilege(r,'public.new_future_table','TRUNCATE') then
+                raise exception 'new postgres table still grants TRUNCATE to %',r;
+              end if;
+              if not has_table_privilege(r,'public.new_future_table','SELECT,INSERT,UPDATE,DELETE') then
+                raise exception 'other defaults lost for %',r;
+              end if;
+              if not has_table_privilege(r,'public.existing','TRUNCATE') then
+                raise exception 'existing grants unexpectedly changed for %',r;
+              end if;
+            end loop;
+            if not has_table_privilege('service_role','public.new_future_table','TRUNCATE') then
+              raise exception 'service_role default lost';
+            end if;
+          end $verify$;
+          SQL
+          if docker exec -i "$cid" psql -X -v ON_ERROR_STOP=1 -U postgres < "$file" >/tmp/repeat.log 2>&1; then
+            echo 'ERROR: duplicate expected to fail closed'; exit 1
+          fi
+          grep -Fq 'expected both postgres-owned public API TRUNCATE defaults' /tmp/repeat.log
+          echo 'PASS: postgres default no client TRUNCATE; service_role and supabase_admin defaults intact; existing table ACL unchanged'
