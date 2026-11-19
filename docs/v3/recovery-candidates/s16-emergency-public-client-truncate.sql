@@ -31,7 +31,12 @@ begin
   where n.nspname='public' and c.relkind='r'
     and (has_table_privilege('anon',c.oid,'TRUNCATE')
       or has_table_privilege('authenticated',c.oid,'TRUNCATE'));
-  if v_actual is distinct from array(select unnest(v_names) order by 1) then
+  -- Compare exact membership rather than array type/collation ordering.
+  -- The 55-key equality is guaranteed by the distinct manifest and equal
+  -- cardinality plus the absence of unrecognized live relation names.
+  if v_actual is null or cardinality(v_actual) <> 55 or exists (
+     select 1 from unnest(v_actual) x(name) where x.name <> all(v_names)
+  ) then
     raise exception 'PUBLIC TRUNCATE hardening: actual 55-table set differs from manifest' using errcode='55000';
   end if;
   if (select count(*) from unnest(v_names) t(name)
