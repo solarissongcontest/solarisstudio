@@ -126,3 +126,11 @@
 @media (prefers-reduced-motion:reduce){
   .world-country-detail *, .world-search-editorial *, .world-bodies-editorial *{transition:none!important;animation:none!important;}
 }
+
+/* Official, concluded membership terms: typography and links only, no voting UI. */
+.world-public-editorial [aria-label="Completed membership terms"] article{
+  min-height:5rem;gap:1rem;line-height:1.45;
+}
+.world-public-editorial [aria-label="Completed membership terms"] a:focus-visible{
+  outline:2px solid var(--primary);outline-offset:3px;
+}

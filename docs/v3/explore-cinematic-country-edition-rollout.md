@@ -91,3 +91,7 @@
 - World search results now link to canonical `/world/countries/:code` (not SSC-only Country pages), with published country affiliation context; institution member rows also link to international country details.
 - World public bodies directory and real body details get matching institutional headings, without changing their independently verified, paginated public body/source readers.
 - No speculative country-photo upload, World Court, Sessions, Measures or Resolutions routes. Those remain blocked on missing authoritative System projections.
+
+## World organization historical membership view (true public projection only)
+- Official organization page now supports direct-link `?tab=history` and a distinct completed-memberships section, only where the currently verified World projection contains concluded terms. This is TG3/TG5 published history **presentation**, not a new authoring authority.
+- Historical rows retain publication-verified member identity reads and strict bounded 24-row paging; they cannot be used to infer current governance, proxy, elections or votes. Current member and leadership sections remain unchanged.

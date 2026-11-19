@@ -20,7 +20,7 @@ import {
   type WorldOrganization,
 } from "@/lib/terra-world-public";
 
-type WorldView = "overview" | "leadership" | "members";
+type WorldView = "overview" | "leadership" | "members" | "history";
 
 /** No public world projection mounts before the canonical rollout RPC permits it. */
 export function WorldPublicGate({
@@ -327,7 +327,8 @@ export function WorldOrganizationPage({
   onViewChange: (view: WorldView) => void;
 }) {
   const [memberPage, setMemberPage] = useState(0);
-  useEffect(() => { setMemberPage(0); }, [slug]);
+  const [historyPage, setHistoryPage] = useState(0);
+  useEffect(() => { setMemberPage(0); setHistoryPage(0); }, [slug]);
   const projection = useQuery({
     queryKey: ["world", "public", "organization", slug],
     queryFn: () => fetchWorldProjection(slug),
@@ -342,16 +343,24 @@ export function WorldOrganizationPage({
   const currentMembers = useMemo(() =>
     verifiedProjection ? currentWorldMemberships(verifiedProjection) : [],
     [verifiedProjection]);
+  const historicalMembers = useMemo(() =>
+    verifiedProjection ? verifiedProjection.memberships.filter((row) => row.endedAt !== null) : [],
+    [verifiedProjection]);
   const visibleMembers = useMemo(
     () => currentMembers.slice(memberPage * WORLD_MEMBER_PAGE_SIZE, (memberPage + 1) * WORLD_MEMBER_PAGE_SIZE),
     [currentMembers, memberPage],
   );
+  const visibleHistory = useMemo(
+    () => historicalMembers.slice(historyPage * WORLD_MEMBER_PAGE_SIZE, (historyPage + 1) * WORLD_MEMBER_PAGE_SIZE),
+    [historicalMembers, historyPage],
+  );
+  const labeledMembers = view === "history" ? visibleHistory : visibleMembers;
   const countryIds = useMemo(() =>
-    [...new Set(visibleMembers.map((member) => member.countryId))].sort(),
-    [visibleMembers]);
+    [...new Set(labeledMembers.map((member) => member.countryId))].sort(),
+    [labeledMembers]);
   const countries = useQuery({
     queryKey: ["world", "public", "member-countries", countryIds],
-    enabled: verifiedProjection !== null && view === "members" && countryIds.length > 0,
+    enabled: verifiedProjection !== null && (view === "members" || view === "history") && countryIds.length > 0,
     retry: false,
     staleTime: 300_000,
     refetchOnMount: "always",
@@ -411,7 +420,7 @@ export function WorldOrganizationPage({
             </div>
           </header>
           <nav aria-label="Organization sections" className="world-editorial-org-nav mt-8 flex gap-1 overflow-x-auto border-b border-border pb-1">
-            {(["overview", "leadership", "members"] as const).map((tab) => (
+            {(["overview", "leadership", "members", ...(historicalMembers.length ? ["history" as const] : [])] as const).map((tab) => (
               <button key={tab} type="button" aria-current={view === tab ? "page" : undefined}
                 onClick={() => onViewChange(tab)}
                 className={"min-h-11 shrink-0 border-b-2 px-4 text-sm font-semibold capitalize transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 " +
@@ -535,6 +544,65 @@ export function WorldOrganizationPage({
                     className="min-h-11 rounded-xl border border-border px-4 text-sm font-medium disabled:opacity-40">
                     Next
                   </button>
+                </nav>
+              ) : null}
+            </section>
+          ) : null}
+          {view === "history" ? (
+            <section className="mt-8" aria-labelledby="world-history-title">
+              <Kicker>Institutional archive</Kicker>
+              <h2 id="world-history-title" className="mt-2 text-2xl font-semibold">Former member countries</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+                Only completed, published membership terms appear here. A former membership does
+                not establish any current rights or institutional voting authority.
+              </p>
+              {historicalMembers.length === 0 ? (
+                <p className="mt-6 border-t border-border py-6 text-sm text-muted-foreground">
+                  No completed public membership terms have been recorded.
+                </p>
+              ) : null}
+              {(countries.isPending || countries.isFetching) && !countries.isRefetchError && countryIds.length ? (
+                <div className="mt-6"><LoadingWorld label="Verifying historical member identities" /></div>
+              ) : null}
+              {countries.isError || countries.isRefetchError ? (
+                <div className="mt-6">
+                  <QueryFailure message="Historical country identities could not be verified." retry={() => void countries.refetch()} />
+                </div>
+              ) : null}
+              {worldPublicQueryVerified(countries) && historicalMembers.length ? (
+                <div className="world-editorial-members mt-5" aria-label="Completed membership terms">
+                  {visibleHistory.map((member) => {
+                    const country = countryMap.get(member.countryId);
+                    return (
+                      <article key={member.id} className="flex min-h-20 items-center gap-3 border-b border-border py-4">
+                        {country ? <FlagChip code={country.short_code} color={country.accent_color || "#426ba6"} image={country.flag_image} size="sm" /> : <span className="size-9 shrink-0 rounded-lg bg-muted" aria-hidden="true" />}
+                        <div className="min-w-0 flex-1">
+                          {country ? <Link to="/world/countries/$code" params={{ code: country.short_code.toLowerCase() }}
+                            className="text-sm font-semibold hover:underline">{country.name}</Link>
+                            : <span className="text-sm font-semibold">Country identity unavailable</span>}
+                          <p className="mt-1 text-xs capitalize text-muted-foreground">
+                            {member.membershipType.replaceAll("_", " ")} · {member.status.replaceAll("_", " ")}
+                          </p>
+                          {member.endedAt ? <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+                            Term ended {member.endedAt.slice(0, 10)}
+                          </p> : null}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : null}
+              {historicalMembers.length > WORLD_MEMBER_PAGE_SIZE ? (
+                <nav aria-label="Historical member pages" className="mt-6 flex items-center justify-between gap-3 border-t border-border pt-5">
+                  <button type="button" disabled={historyPage === 0}
+                    onClick={() => setHistoryPage((n) => Math.max(0, n - 1))}
+                    className="min-h-11 rounded-xl border border-border px-4 text-sm disabled:opacity-40">Previous</button>
+                  <span className="text-xs tabular-nums">
+                    Page {historyPage + 1} of {Math.ceil(historicalMembers.length / WORLD_MEMBER_PAGE_SIZE)}
+                  </span>
+                  <button type="button" disabled={(historyPage + 1) * WORLD_MEMBER_PAGE_SIZE >= historicalMembers.length}
+                    onClick={() => setHistoryPage((n) => n + 1)}
+                    className="min-h-11 rounded-xl border border-border px-4 text-sm disabled:opacity-40">Next</button>
                 </nav>
               ) : null}
             </section>
