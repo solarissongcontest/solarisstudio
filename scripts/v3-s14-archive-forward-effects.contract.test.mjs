@@ -377,6 +377,16 @@ test("S06 remains scoped while S14/S16 independently certify every integrated ma
     assert.match(yaml, /github\.event\.pull_request\.head\.sha \|\| github\.sha/);
     assert.match(yaml, /workflow_dispatch:/);
   }
+  // Main commits have unique concurrency groups: GitHub otherwise cancels or
+  // replaces pending per-branch evidence after a subsequent merge.
+  assert.ok(s14.includes("group: v3-s14-archive-forward-${{ github.event_name == 'push' && github.sha || github.ref }}"),
+    "S14 main evidence runs must be isolated by exact SHA");
+  assert.ok(s16.includes("group: s16-catalog-${{ github.event_name == 'push' && github.sha || github.ref }}"),
+    "S16 main evidence runs must be isolated by exact SHA");
+  assert.ok(s14.includes("cancel-in-progress: ${{ github.event_name == 'pull_request' }}"),
+    "S14 must not cancel already running main commit evidence");
+  assert.ok(s16.includes("cancel-in-progress: ${{ github.event_name == 'pull_request' }}"),
+    "S16 must not cancel already running main commit evidence");
   assert.match(s14, /git rev-parse HEAD/);
   assert.match(s14, /docs\/v3\/recovery-candidates\/s06-schema-export-operator-runbook\.md/);
   assert.match(s14, /--network none/);
