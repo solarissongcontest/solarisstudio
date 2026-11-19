@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowRight, ClipboardCheck, RefreshCcw } from "lucide-react";
 
 import { createCountryAccountConfirmationEditToken } from "@/lib/confirmation-country-account";
@@ -12,16 +12,21 @@ import { useParticipationConfirmationEdit } from "@/lib/participation-confirmati
  */
 export function ParticipationConfirmationEdit() {
   const { actor, query } = useParticipationConfirmationEdit();
+  if (!actor) return null;
+  // A new country account gets a fresh mutation/error state, not the previous
+  // delegation's message. The private query is independently actor-keyed.
+  return <ParticipationConfirmationEditInner key={actor} query={query} />;
+}
+
+function ParticipationConfirmationEditInner({
+  query,
+}: {
+  query: ReturnType<typeof useParticipationConfirmationEdit>["query"];
+}) {
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Do not carry an actor's mutation error into another delegation session.
-    setError(null);
-    setOpening(false);
-  }, [actor]);
-
-  if (!actor || query.isPending) return null;
+  if (query.isPending) return null;
 
   if (query.isError) {
     return (
@@ -42,7 +47,16 @@ export function ParticipationConfirmationEdit() {
   }
 
   const edit = query.data;
-  if (!edit || edit.status !== "open") return null;
+  if (!edit || edit.status !== "open") {
+    // If token issuance revoked an edit between rendering and click, retain
+    // the reason even after the fresh dashboard no longer shows an open editor.
+    return error ? (
+      <section className="mt-4 rounded-xl border border-border/70 p-4" role="alert" data-participate-confirmation-edit="closed">
+        <p className="text-sm font-semibold">Confirmation editing is no longer available</p>
+        <p className="mt-1 text-xs text-muted-foreground">{error}</p>
+      </section>
+    ) : null;
+  }
 
   async function openEditor() {
     if (!edit || edit.status !== "open" || opening) return;
