@@ -384,7 +384,10 @@ function isolateMaintenanceHodPortalMarkup(portal: string) {
   return isolated;
 }
 
-function maintenanceResponse(request: Request, env: unknown, includeHodPortal: boolean, softLaunchAccess = false) {
+function maintenanceResponse(request: Request, env: unknown, includeHodPortal: boolean) {
+  const softLaunchAccess = maintenancePublicAccountAccessEnabled(
+    serverEnv(env)?.PUBLIC_SOFT_LAUNCH_ACCESS ?? process.env.PUBLIC_SOFT_LAUNCH_ACCESS,
+  );
   const earlyAccessHome = softLaunchAccess && new URL(request.url).pathname === "/";
   const headers = {
     "cache-control": "no-store, max-age=0",
@@ -619,7 +622,7 @@ export default {
           !localE2EBypass && (await hasValidMaintenanceBypass(request, secret));
 
         if (!localE2EBypass && !maintenanceAdminBypass) {
-          return maintenanceResponse(request, env, url.pathname === "/", softLaunchEnabled);
+          return maintenanceResponse(request, env, url.pathname === "/");
         }
 
         // Production maintenance bypass is deliberately inspection-only.
