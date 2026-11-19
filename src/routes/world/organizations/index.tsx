@@ -13,5 +13,5 @@ export const Route = createFileRoute("/world/organizations/")({
 });
 
 function WorldDirectoryRoute() {
-  return <WorldPublicGate><WorldDirectory /></WorldPublicGate>;
+  return <WorldPublicGate verifyOnMount><WorldDirectory /></WorldPublicGate>;
 }

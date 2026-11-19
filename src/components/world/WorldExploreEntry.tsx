@@ -47,6 +47,14 @@ export function WorldExploreEntry() {
         </span>
         <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </Link>
+      <div className="mt-2 flex flex-wrap gap-3 text-sm">
+        <Link to="/world/search" search={{ q: "", c: 0, o: 0, type: "all" }}
+          className="inline-flex min-h-11 items-center text-primary hover:underline">World search</Link>
+        <Link to="/world/organizations"
+          className="inline-flex min-h-11 items-center text-primary hover:underline">Organizations</Link>
+        <Link to="/world/countries"
+          className="inline-flex min-h-11 items-center text-primary hover:underline">World countries</Link>
+      </div>
     </section>
   );
 }
@@ -63,6 +71,12 @@ export function WorldV3ExploreEntry({ enabled }: { enabled: boolean }) {
           description="GUARD, UNITY, international institutions and country history"
           icon={Globe2}
         />
+        <V3ExploreEditorialLink href="/world/search" title="Search the world"
+          description="Find published countries and international institutions" icon={Globe2} />
+        <V3ExploreEditorialLink href="/world/organizations" title="International organizations"
+          description="GUARD, UNITY and recognized institutional profiles" icon={Globe2} />
+        <V3ExploreEditorialLink href="/world/countries" title="World countries"
+          description="Countries and their recorded international relationships" icon={Globe2} />
       </div>
     </V3Section>
   );

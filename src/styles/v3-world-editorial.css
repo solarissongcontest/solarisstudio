@@ -1,0 +1,68 @@
+/* Terra Solaris World TG3 public editorial presentation.
+ * Real institutions and publication proof come from canonical TG2/TG3 readers.
+ * CSS never permits unpublished data or creates fake bodies, Court cases or votes. */
+.world-public-editorial{--world-ink:var(--foreground);--world-line:var(--border);}
+.world-editorial-hero{
+  position:relative;isolation:isolate;overflow:clip;display:flex;flex-direction:column;justify-content:flex-end;
+  min-height:clamp(24rem,64svh,42rem);
+  padding:clamp(2rem,5vw,4rem) clamp(1.25rem,4vw,3.5rem);
+  background:radial-gradient(ellipse at 78% 16%,rgba(105,150,169,.34),transparent 53%),
+    radial-gradient(ellipse at 15% 73%,rgba(43,95,132,.32),transparent 60%),
+    linear-gradient(155deg,#163047 0%,#0a2030 51%,#020b17 100%);
+  color:#fff;
+}
+.world-editorial-hero::after {
+  content:"";position:absolute;inset:auto 0 0;height:42%;z-index:-1;
+  background:linear-gradient(0deg,#020b17,transparent);pointer-events:none;
+}
+.world-editorial-hero h1{font-family:"Iowan Old Style","Baskerville","Times New Roman",serif;font-size:clamp(3rem,8vw,6rem);font-weight:650;line-height:1.03;letter-spacing:-.05em;max-width:17ch;text-wrap:balance;color:#fff;}
+.world-editorial-hero p{color:rgba(255,255,255,.86);}
+.world-editorial-hero p:first-child{color:#cae2ed;}
+.world-editorial-hero a{background-color:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.22);}
+.world-editorial-hero a:first-child{background:#fff;color:#092034;}
+.world-editorial-hero a:focus-visible{outline:2px solid #fff;outline-offset:3px;}
+.world-editorial-quicklinks{display:grid;grid-template-columns:minmax(0,1fr);margin-top:0;border-top:1px solid var(--world-line);}
+.world-editorial-quicklinks a{
+  display:flex;align-items:center;gap:1rem;min-height:5rem;padding:1rem .4rem;
+  border-bottom:1px solid var(--world-line);text-decoration:none;color:var(--world-ink);
+}
+.world-editorial-quicklinks a>span{display:grid;flex:1;gap:.25rem;min-width:0;}
+.world-editorial-quicklinks a strong{font-size:.91rem;line-height:1.4;}
+.world-editorial-quicklinks a small{font-size:.79rem;color:var(--muted-foreground);line-height:1.5;}
+.world-editorial-quicklinks a:hover strong{color:var(--primary);}
+.world-editorial-quicklinks a:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.world-public-editorial .world-editorial-institution{
+  position:relative;overflow:clip;max-width:none;padding:clamp(2rem,5vw,3.5rem);
+  background:radial-gradient(ellipse at 74% 18%,rgba(76,124,157,.25),transparent 57%),
+    linear-gradient(145deg,#102b3e,#081726 68%,#020b17);color:white;
+}
+.world-editorial-institution h1{font-family:"Iowan Old Style","Baskerville","Times New Roman",serif;
+  font-size:clamp(2.6rem,8vw,5.5rem);line-height:1.03;letter-spacing:-.05em;
+  overflow-wrap:anywhere;color:#fff;text-wrap:balance;}
+.world-editorial-institution p{color:rgba(255,255,255,.8);}
+.world-editorial-institution p:first-child{color:rgba(255,255,255,.87);}
+.world-editorial-org-nav{scrollbar-width:thin;overscroll-behavior-inline:contain;}
+.world-editorial-org-nav>a{white-space:nowrap;}
+.world-editorial-offices{display:grid;grid-template-columns:minmax(0,1fr);gap:0;border-top:1px solid var(--world-line);}
+.world-editorial-office{padding:1.1rem .3rem;border-bottom:1px solid var(--world-line);}
+.world-editorial-office h3{line-height:1.4;text-wrap:pretty;}
+.world-editorial-members{display:grid;border-top:1px solid var(--world-line);}
+.world-editorial-members>div{border-bottom:1px solid var(--world-line);}
+@media (min-width:740px) {
+ .world-editorial-quicklinks{grid-template-columns:repeat(3,minmax(0,1fr));}
+ .world-editorial-quicklinks a{padding:1.15rem;border-right:1px solid var(--world-line);}
+ .world-editorial-quicklinks a:last-child{border-right:0;}
+ .world-editorial-offices{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:1.75rem;}
+}
+@media (max-width:380px) {
+ .world-editorial-hero{min-height:25rem;padding:2.25rem 1rem;}
+ .world-editorial-hero h1{font-size:clamp(2.5rem,12vw,3.5rem);}
+ .world-editorial-institution{padding:1.75rem 1rem;}
+}
+@media (prefers-reduced-motion:reduce){
+ .world-public-editorial *{transition:none!important;animation:none!important;}
+}
+@media (forced-colors:active){
+ .world-editorial-hero,.world-editorial-institution{background:Canvas;color:CanvasText;}
+ .world-editorial-hero h1,.world-editorial-institution h1{color:CanvasText;}
+}
