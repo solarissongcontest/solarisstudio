@@ -2,11 +2,11 @@ import { Link } from "@tanstack/react-router";
 import { Archive, BarChart3, BookOpen, GitCompareArrows, Trophy, Vote } from "lucide-react";
 
 import type { ReactNode } from "react";
+import { CinematicEditorialHero } from "./CinematicEditorialHero";
 import type { V3CountryExploreProjection } from "@/lib/v3-explore-entities";
 import {
   V3ActionCard,
   V3Screen,
-  V3ScreenHeader,
   V3Section,
   V3StatusChip,
   V3Surface,
@@ -79,53 +79,43 @@ export function V3DelegationScreen({
   const currentResult = projection.currentResult;
 
   return (
-    <V3Screen>
-      <V3ScreenHeader
-        kicker="Delegation"
-        title={projection.name}
-        description={
-          [projection.code, projection.nativeName, projection.region]
-            .filter(Boolean)
-            .join(" · ") || "Solaris Song Contest delegation"
-        }
-        editorial
-      />
-
-      <V3Surface level="raised" className="overflow-hidden">
-        <div className="grid gap-5 p-5 sm:grid-cols-[160px_minmax(0,1fr)] sm:items-center">
-          <div className="mx-auto aspect-[3/2] w-full max-w-40 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
-            {projection.flag.src ? (
-              <img
-                src={projection.flag.src}
-                alt={projection.flag.alt}
-                className="h-full w-full object-cover"
-                loading="eager"
-              />
-            ) : (
-              <div className="grid h-full place-items-center text-2xl font-black tracking-[0.12em] text-white/72">
-                {projection.code}
-              </div>
-            )}
-          </div>
-          <div className="min-w-0">
-            <p className="v3-kicker">{projection.code}</p>
-            {projection.nativeName && projection.nativeName !== projection.name ? (
-              <p className="mt-2 text-sm font-semibold text-white/70">{projection.nativeName}</p>
-            ) : null}
-            {projection.description ? (
-              <p className="mt-3 text-sm leading-6 text-white/58">{projection.description}</p>
-            ) : (
-              <p className="mt-3 text-sm leading-6 text-white/48">
-                Public Solaris delegation identity and published entry history.
-              </p>
-            )}
-            <div className="mt-4 flex min-h-11 items-center">
-              {followControl}
-            </div>
-          </div>
+    <V3Screen className="cinematic-entity-screen">
+      <div id="country-overview" className="cinematic-entity-anchor">
+        <CinematicEditorialHero
+          kind="country"
+          eyebrow="Terra Solaris · Country"
+          title={projection.name}
+          subtitle={[projection.nativeName !== projection.name ? projection.nativeName : null, projection.region].filter(Boolean).join(" · ")}
+          imageUrl={null}
+        />
+      </div>
+      <section className="cinematic-country-identity" aria-label="Country identity">
+        <div className="cinematic-country-identity__flag" data-cinematic-flag-ratio="3:2">
+          {projection.flag.src ? (
+            <img src={projection.flag.src} alt={projection.flag.alt} loading="eager" />
+          ) : (
+            <span className="text-sm font-bold tracking-widest" role="img" aria-label={projection.flag.alt}>
+              {projection.code}
+            </span>
+          )}
         </div>
-      </V3Surface>
+        <div className="cinematic-country-identity__text">
+          <p className="cinematic-country-identity__name">{projection.nativeName && projection.nativeName !== projection.name ? projection.nativeName : projection.name}</p>
+          <p className="cinematic-country-identity__description">
+            {projection.description || [projection.region, "Public delegation profile and published history"].filter(Boolean).join(" · ")}
+          </p>
+        </div>
+        <div className="cinematic-country-identity__follow">{followControl}</div>
+      </section>
+      <nav className="cinematic-entity-section-nav" aria-label="Country page sections">
+        <a href="#country-overview">Overview</a>
+        <a href="#country-current">Current entry</a>
+        {currentResult ? <a href="#country-result">Results</a> : null}
+        <a href="#country-history">History</a>
+        <a href="#country-more">Explore more</a>
+      </nav>
 
+      <div id="country-current" className="cinematic-entity-anchor">
       <V3Section title={activeEditionLabel === null ? "Between editions" : "Current entry"}>
         {activeEditionLabel === null ? (
           <V3Surface className="p-4">
@@ -158,8 +148,10 @@ export function V3DelegationScreen({
           </V3Surface>
         )}
       </V3Section>
+      </div>
 
       {currentResult ? (
+        <div id="country-result" className="cinematic-entity-anchor">
         <V3Section title="Current result">
           {hideResultSpoilers ? (
             <V3ActionCard
@@ -207,8 +199,10 @@ export function V3DelegationScreen({
             </V3Surface>
           )}
         </V3Section>
+        </div>
       ) : null}
 
+      <div id="country-history" className="cinematic-entity-anchor">
       <V3Section
         title="Participation history"
         meta={
@@ -243,7 +237,9 @@ export function V3DelegationScreen({
           </V3Surface>
         )}
       </V3Section>
+      </div>
 
+      <div id="country-more" className="cinematic-entity-anchor">
       <V3Section title="Explore more">
         <div className="grid gap-3 sm:grid-cols-2">
           <V3ActionCard
@@ -294,6 +290,7 @@ export function V3DelegationScreen({
           />
         </div>
       </V3Section>
+      </div>
 
       <p className="px-1 text-xs leading-5 text-white/40">
         Delegation detail is publication-safe. Official result context comes from the canonical Results source; deeper voting analysis remains authoritative in Results and dedicated analysis surfaces.

@@ -10,6 +10,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { useState } from "react";
+import { CinematicEditorialHero } from "./CinematicEditorialHero";
 
 import { EventTime } from "@/components/public/EventTime";
 import type {
@@ -26,7 +27,6 @@ import { canOpenV3EditionResults } from "@/lib/v3-edition-results-navigation";
 import {
   V3ActionCard,
   V3Screen,
-  V3ScreenHeader,
   V3Section,
   V3StatusChip,
   V3Surface,
@@ -277,49 +277,26 @@ export function V3EditionOverviewScreen({
     : [];
 
   return (
-    <V3Screen>
-      <V3ScreenHeader
-        kicker="Edition"
+    <V3Screen className="cinematic-entity-screen">
+      <CinematicEditorialHero
+        kind="edition"
+        eyebrow="Solaris Song Contest · Edition"
         title={projection.hub.hero.name}
-        description={meta || "Explore this Solaris edition"}
-        editorial
+        subtitle={meta || "Discover this Solaris edition"}
+        imageUrl={spoilerSafe ? null : projection.hub.hero.artworkUrl}
+        context={<V3StatusChip tone={status.tone}>{status.label}</V3StatusChip>}
       />
-
       {spoilerSafe ? (
         <SpoilerRevealCard onReveal={() => setRevealed(true)} />
       ) : (
-        <V3Surface level="raised" className="overflow-hidden">
-          {projection.hub.hero.artworkUrl ? (
-            <div className="relative border-b border-white/[0.06] bg-white/[0.025]">
-              <img
-                src={projection.hub.hero.artworkUrl}
-                alt=""
-                className="block h-auto max-h-[34rem] w-full object-contain"
-                loading="lazy"
-              />
-              <div
-                className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"
-                aria-hidden="true"
-              />
-            </div>
-          ) : null}
-          <div className="p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className="v3-kicker">Solaris edition</p>
-                <p className="mt-2 text-sm font-semibold leading-5 text-white/72">
-                  {projection.hub.hero.resultsAvailable
-                    ? "Official results are published"
-                    : "Results remain locked until official publication"}
-                </p>
-              </div>
-              <V3StatusChip tone={status.tone}>{status.label}</V3StatusChip>
-            </div>
-            {projection.description ? (
-              <p className="mt-4 text-sm leading-6 text-white/58">{projection.description}</p>
-            ) : null}
-          </div>
-        </V3Surface>
+        <div className="cinematic-entity-intro">
+          <p className="cinematic-entity-intro__state">
+            {projection.hub.hero.resultsAvailable
+              ? "Official results are published"
+              : "Results remain locked until official publication"}
+          </p>
+          {projection.description ? <p>{projection.description}</p> : null}
+        </div>
       )}
 
       {projection.hub.liveAction ? (
