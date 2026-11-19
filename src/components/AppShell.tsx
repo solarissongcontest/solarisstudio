@@ -40,7 +40,7 @@ import { useAppAttentionSummary } from "@/lib/app-attention";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
 import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
-import { publicLaunchAllows } from "@/lib/public-launch-availability";
+import { LIMITED_PUBLIC_LAUNCH, publicLaunchAllows } from "@/lib/public-launch-availability";
 import {
   publicCanvasForArchetype,
   publicLayoutTokenForArchetype,
@@ -580,17 +580,17 @@ function NewPublicDesktopNavigation({
 
       <span aria-hidden="true" className="mx-1 h-6 w-px bg-border/70" />
 
-      <PublicCommandPalette access={access} />
+      {!LIMITED_PUBLIC_LAUNCH ? <PublicCommandPalette access={access} /> : null}
 
       <Link
-        to="/guide"
+        to={LIMITED_PUBLIC_LAUNCH ? "/rules" : "/guide"}
         className={desktopNavClass(
           pathname.startsWith("/guide") ||
             pathname.startsWith("/rules") ||
             pathname.startsWith("/integrity"),
         )}
       >
-        Help
+        {LIMITED_PUBLIC_LAUNCH ? "Rules" : "Help"}
       </Link>
 
       {access.isOrganizer ? (
@@ -615,13 +615,13 @@ function NewPublicDesktopNavigation({
                 {visibleAccountEmail ?? "Country account"}
               </p>
             </div>
-            <Link to="/my-solaris" className="nav-menu-item mt-1">
+            {publicLaunchAllows("/my-solaris") ? <Link to="/my-solaris" className="nav-menu-item mt-1">
               <span className="font-semibold">Open MySolaris</span>
               <span className="text-[11px] text-muted-foreground">
                 Dashboard, participation
                 {access.countryId ? " & country tools" : " & country setup"}
               </span>
-            </Link>
+            </Link> : null}
             <button
               type="button"
               onClick={() => void signOut()}

@@ -30,7 +30,7 @@ function ResolvingPrimarySurface({ surface }: { surface: V3PrimarySurface }) {
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
           {home
-            ? "Follow the current contest, explore delegations and editions, and open published Solaris results and show information."
+            ? "Follow the current contest, see participation opportunities and read the official rules."
             : "Your available participation actions will appear after the app checks your account and current contest access."}
         </p>
       </header>

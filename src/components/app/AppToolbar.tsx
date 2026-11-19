@@ -20,6 +20,7 @@ import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { useScrollMorphProgress } from "@/lib/use-scroll-morph-progress";
 import { v3FocusedParticipationRouteEnabled } from "@/lib/v3-focused-task-chrome";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
+import { LIMITED_PUBLIC_LAUNCH, publicLaunchAllows } from "@/lib/public-launch-availability";
 
 export function AppToolbar({
   pathname,
@@ -144,7 +145,7 @@ export function AppToolbar({
           {chrome.archetype === "task" ? (
             chrome.helpTo ? (
               <Link
-                to={chrome.helpTo as any}
+                to={(publicLaunchAllows(chrome.helpTo) ? chrome.helpTo : "/rules") as any}
                 className="solaris-app-toolbar-button"
                 aria-label="Help"
               >
@@ -155,7 +156,7 @@ export function AppToolbar({
             <>
               {chrome.archetype === "entity" ? (
                 <AppNativeShareButton />
-              ) : chrome.search === "global" ? (
+              ) : chrome.search === "global" && !LIMITED_PUBLIC_LAUNCH ? (
                 <PublicCommandPalette compact access={access} />
               ) : null}
               <SheetTrigger asChild>
