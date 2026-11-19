@@ -235,11 +235,13 @@ html[data-solaris-app-boot] body::before {
 
   /* Three-tab limited public release: preserve full-width touch targets and
      active Liquid Glass pill geometry. Full release still uses five. */
-  .solaris-app-tabbar-material[data-visible-tab-count="3"] {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  .solaris-app-tabbar-material[data-visible-tab-count="3"] .solaris-app-tab-indicator {
-    width: calc((100% - var(--solaris-tab-total-inset) - .3rem) / 3);
+  @media (max-width: 899px) {
+    .solaris-app-tabbar-material[data-visible-tab-count="3"] {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .solaris-app-tabbar-material[data-visible-tab-count="3"] .solaris-app-tab-indicator {
+      width: calc((100% - var(--solaris-tab-total-inset) - .3rem) / 3);
+    }
   }
 
   .solaris-app-tabbar-backdrop {
