@@ -32,6 +32,13 @@ describe("V3 Browser audit reproducible pinned OS/browser runtime", () => {
     expect(runtime).toContain("Browser container refused non-local Supabase target");
     expect(runtime).toContain("url.username || url.password");
     expect(runtime).toContain('args+=(--env "$key")');
+    for (const key of ["E2E_ORGANIZER_EMAIL", "E2E_ORGANIZER_PASSWORD",
+      "E2E_ORGANIZER_B_EMAIL", "E2E_ORGANIZER_B_PASSWORD",
+      "E2E_COUNTRY_EMAIL", "E2E_COUNTRY_PASSWORD",
+      "E2E_SUSPENDED_EMAIL", "E2E_SUSPENDED_PASSWORD",
+      "GITHUB_EVENT_NAME", "GITHUB_REF"]) {
+      expect(runtime).toContain(key);
+    }
     expect(runtime).toContain('--env "SUPABASE_PROJECT_ID=local"');
     expect(runtime).toContain('--env "SUPABASE_PROJECT_REF=local"');
     expect(runtime).not.toContain("--env-file");
