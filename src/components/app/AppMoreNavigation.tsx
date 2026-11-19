@@ -13,6 +13,7 @@ import {
 
 import { SheetClose } from "@/components/ui/sheet";
 import type { AccountAccess } from "@/lib/country-account";
+import { publicLaunchAllows } from "@/lib/public-launch-availability";
 
 const LINKS = [
   { to: "/show-mode", label: "Show Mode", icon: Tv2 },
@@ -54,7 +55,7 @@ export function AppMoreNavigation({
         className="mt-5 grid gap-2"
         aria-label="More Solaris Studio destinations"
       >
-        {LINKS.map(({ to, label, icon: Icon }) => (
+        {LINKS.filter((item) => publicLaunchAllows(item.to)).map(({ to, label, icon: Icon }) => (
           <SheetClose asChild key={to}>
             <Link to={to as any} className="solaris-app-more-link">
               <Icon className="size-4" aria-hidden="true" />
@@ -63,7 +64,7 @@ export function AppMoreNavigation({
           </SheetClose>
         ))}
 
-        {signedIn ? (
+        {signedIn && publicLaunchAllows("/my-solaris/account") ? (
           <SheetClose asChild>
             <Link to="/my-solaris/account" className="solaris-app-more-link">
               <UserRound className="size-4" aria-hidden="true" />

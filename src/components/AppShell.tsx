@@ -40,6 +40,7 @@ import { useAppAttentionSummary } from "@/lib/app-attention";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
 import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
+import { publicLaunchAllows } from "@/lib/public-launch-availability";
 import {
   publicCanvasForArchetype,
   publicLayoutTokenForArchetype,
@@ -229,7 +230,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   const publicUser = buildPublicUserContext({ userId: access.userId, access });
-  const globalAreas = publicGlobalAreasForContext(publicUser);
+  const globalAreas = publicGlobalAreasForContext(publicUser).filter((area) => publicLaunchAllows(area.to));
   const publicArchetype = publicRouteArchetype(pathname);
   const publicLayout = publicLayoutTokenForArchetype(publicArchetype);
   const publicArea = publicAreaForPath(pathname);

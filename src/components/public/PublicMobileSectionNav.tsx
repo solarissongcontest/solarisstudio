@@ -123,7 +123,7 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
         ) : null}
 
         <div className="border-t border-border/60 pt-2">
-          <Link
+          {allows("/site-directory") ? <Link
             to="/site-directory"
             className="public-mobile-section-link"
             onClick={() => {
@@ -135,7 +135,7 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
             }}
           >
             All Solaris pages
-          </Link>
+          </Link> : null}
         </div>
       </div>
     </nav>

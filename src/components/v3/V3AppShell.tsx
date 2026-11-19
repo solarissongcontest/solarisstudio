@@ -29,6 +29,7 @@ import {
 } from "@/lib/v3-public-navigation";
 import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
 import { cn } from "@/lib/utils";
+import { LIMITED_PUBLIC_LAUNCH, publicLaunchAllows } from "@/lib/public-launch-availability";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { V3DesktopPrimaryNavigation } from "./V3DesktopPrimaryNavigation";
 import { V3MobileWebPrimaryNavigation } from "./V3MobileWebPrimaryNavigation";
@@ -81,7 +82,7 @@ export function V3BottomNavigation({
 }: V3BottomNavigationProps) {
   return (
     <nav className="v3-bottom-nav" aria-label="Primary app navigation">
-      {V3_SHELL_DESTINATIONS.map(({ id, label, to, icon: Icon, emphasis }) => {
+      {V3_SHELL_DESTINATIONS.filter((destination) => publicLaunchAllows(destination.to)).map(({ id, label, to, icon: Icon, emphasis }) => {
         const active = activeArea === id;
         const attentionCount = id === "participate" ? participateAttentionCount : 0;
 
@@ -155,9 +156,9 @@ export function V3AppShell({
   const attention = useAppAttentionSummary();
   const rollout = useV3RolloutProbe(true);
   const notificationsAvailable =
-    rollout.data?.notificationsEnabled === true && Boolean(rollout.data.userId);
-  const searchAvailable = rollout.data?.searchEnabled === true;
-  const rulesGuidanceAvailable = rollout.data?.rulesGuidanceEnabled === true;
+    !LIMITED_PUBLIC_LAUNCH && rollout.data?.notificationsEnabled === true && Boolean(rollout.data.userId);
+  const searchAvailable = !LIMITED_PUBLIC_LAUNCH && rollout.data?.searchEnabled === true;
+  const rulesGuidanceAvailable = LIMITED_PUBLIC_LAUNCH || rollout.data?.rulesGuidanceEnabled === true;
   const ruleContext = rulesGuidanceAvailable ? getRuleContext(pathname) : null;
   const ruleContextPath = sanitizeRuleContextPath(ruleContext?.sourcePath);
   // Route memory is viewer-scoped, but the scope itself is not trustworthy
@@ -260,7 +261,8 @@ export function V3AppShell({
     searchStr,
   ]);
 
-  const navigationDestinations: V3LiquidTabDestination[] = V3_SHELL_DESTINATIONS.map(
+  const visibleDestinations = V3_SHELL_DESTINATIONS.filter((destination) => publicLaunchAllows(destination.to));
+  const navigationDestinations: V3LiquidTabDestination[] = visibleDestinations.map(
     ({ id, label, to, icon, emphasis }) => ({
       id,
       label,
@@ -356,7 +358,7 @@ export function V3AppShell({
         {platformResolved && !isAppMode ? (
           <>
             <V3MobileWebPrimaryNavigation
-              destinations={V3_SHELL_DESTINATIONS}
+              destinations={visibleDestinations}
               activeArea={publicArea}
               participateAttentionCount={participateAttentionCount}
               pathname={pathname}

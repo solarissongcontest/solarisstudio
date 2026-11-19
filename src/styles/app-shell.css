@@ -213,7 +213,7 @@ html[data-solaris-app-boot] body::before {
     overflow: hidden;
     pointer-events: auto;
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--solaris-tab-count, 5), minmax(0, 1fr));
     gap: var(--solaris-tab-gap);
     width: min(40rem, 100%);
     box-sizing: border-box;
@@ -263,7 +263,7 @@ html[data-solaris-app-boot] body::before {
     z-index: 2;
     top: 50%;
     left: var(--solaris-tab-pad);
-    width: calc((100% - var(--solaris-tab-total-inset) - .6rem) / 5);
+    width: calc((100% - var(--solaris-tab-total-inset) - var(--solaris-tab-gap-total, .6rem)) / var(--solaris-tab-count, 5));
     height: 3.7rem;
     border: 0;
     border-radius: 1.08rem;

@@ -24,7 +24,7 @@ export function PublicDrawerNavigation({
 }) {
   const { allows } = usePublicLaunchAvailability();
   const area = publicAreaForPath(pathname);
-  const globalAreas = publicGlobalAreasForContext(user);
+  const globalAreas = publicGlobalAreasForContext(user).filter((item) => allows(item.to));
   const areaRoot = PUBLIC_GLOBAL_AREAS.find((item) => item.id === area)?.to ?? null;
   const localItems =
     area === "home" || area === "me"
@@ -80,11 +80,8 @@ export function PublicDrawerNavigation({
           </h2>
         </div>
         <div className="mt-1.5 space-y-0.5">
-          <Link to="/site-directory" className="public-drawer-page-link">
-            <span>All Solaris pages</span>
-            <small>Browse every public destination without cluttering the main navigation.</small>
-          </Link>
-          <Link
+          {allows("/site-directory") ? <Link to="/site-directory" className="public-drawer-page-link"><span>All Solaris pages</span></Link> : null}
+          {allows("/guide") ? <Link
             to="/guide"
             aria-current={publicPathMatches(pathname, "/guide") ? "page" : undefined}
             className={cn(
@@ -94,7 +91,7 @@ export function PublicDrawerNavigation({
           >
             <span>Help</span>
             <small>Plain-language help for using Solaris Studio.</small>
-          </Link>
+          </Link> : null}
           <Link
             to="/rules"
             aria-current={publicPathMatches(pathname, "/rules") ? "page" : undefined}
