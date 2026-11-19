@@ -407,12 +407,26 @@ function RootComponent() {
     );
   }
 
-  if (GLOBAL_MAINTENANCE_MODE && !localDisposableBrowserAudit && (pathname === "/my-solaris" || pathname === "/my-solaris/")) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <PublicEarlyAccessMe />
-      </QueryClientProvider>
-    );
+  // Account pages are public release essentials. Keep them isolated from
+  // legacy root experience probes, background jobs, notifications, rules and
+  // country administration. Those services are intentionally not all live.
+  // In particular, auth state changes must never unmount the login form or
+  // leave a signed-in mobile visitor with only the ambient star background.
+  if (GLOBAL_MAINTENANCE_MODE && !localDisposableBrowserAudit) {
+    const accountPath =
+      pathname === "/auth" || pathname === "/auth/" ||
+      pathname === "/auth/reset" || pathname === "/auth/reset/";
+    const mePath =
+      pathname === "/me" || pathname === "/me/" ||
+      pathname === "/my-solaris" || pathname === "/my-solaris/";
+
+    if (accountPath || mePath) {
+      return (
+        <QueryClientProvider client={queryClient}>
+          {mePath ? <PublicEarlyAccessMe /> : outlet}
+        </QueryClientProvider>
+      );
+    }
   }
 
   return (
