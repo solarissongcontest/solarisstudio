@@ -27,13 +27,11 @@ declare
     'studio2_integrity_grant_appeal_extension'
   ];
   v_internal_functions text[] := array[
-    'public_create_anonymous_integrity_case_impl',
     'create_protected_integrity_case_impl'
   ];
   -- Identity-exact internal implementation and event primitives. This is a
   -- catalog authority proof, not an S16 scanner exemption or release waiver.
   v_internal_signatures text[] := array[
-    'public.public_create_anonymous_integrity_case_impl(text,text,text,text,text,text[],text,text)',
     'public.create_protected_integrity_case_impl(text,text,text,text,text,text,text,text[],text)',
     'private.v3_integrity_case_changed_event()',
     'private.v3_integrity_appeal_changed_event()'
@@ -190,6 +188,7 @@ begin
 
   -- Owner-command consolidation must remove redundant internal entrypoints.
   foreach v_signature in array array[
+    'public.public_create_anonymous_integrity_case_impl(text,text,text,text,text,text[],text,text)',
     'public.reporter_submit_integrity_appeal_impl(uuid,uuid,text)',
     'public.public_submit_anonymous_integrity_appeal_impl(text,text,uuid,text)',
     'public.admin_set_integrity_case_retention_impl(uuid,timestamptz,text)',

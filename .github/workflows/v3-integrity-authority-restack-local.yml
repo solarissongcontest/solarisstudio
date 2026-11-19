@@ -49,6 +49,7 @@ jobs:
           src/lib/v3-integrity-intake-canonical-command-consolidation.contract.test.ts
           src/lib/v3-integrity-finding-sanction-primitive-consolidation.contract.test.ts
           src/lib/v3-integrity-participant-appeal-primitive-consolidation.contract.test.ts
+          src/lib/v3-integrity-anonymous-intake-single-writer.contract.test.ts
 
       - name: Generate fresh TanStack route tree
         shell: bash
@@ -79,6 +80,7 @@ jobs:
           src/lib/v3-integrity-intake-canonical-command-consolidation.contract.test.ts
           src/lib/v3-integrity-finding-sanction-primitive-consolidation.contract.test.ts
           src/lib/v3-integrity-participant-appeal-primitive-consolidation.contract.test.ts
+          src/lib/v3-integrity-anonymous-intake-single-writer.contract.test.ts
 
   local-database:
     name: Integrity clean local Supabase authority
@@ -126,6 +128,7 @@ jobs:
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-legacy-adjudication-rpc-retirement.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-reporter-primitive-consolidation.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-participant-appeal-primitive-consolidation.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-anonymous-intake-single-writer.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-intake-direct-primitive-bridge.sql
 
       - name: Run hostile Rules + Integrity rehearsal
@@ -199,6 +202,7 @@ jobs:
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/.github/tests/v3-integrity-legacy-adjudication-rpc-retirement.sql"
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/.github/tests/v3-integrity-reporter-primitive-consolidation.sql"
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/.github/tests/v3-integrity-participant-appeal-primitive-consolidation.sql"
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/.github/tests/v3-integrity-anonymous-intake-single-writer.sql"
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/.github/tests/v3-integrity-intake-direct-primitive-bridge.sql"
 
       - name: Run hostile Rules + Integrity rehearsal after upgrade
