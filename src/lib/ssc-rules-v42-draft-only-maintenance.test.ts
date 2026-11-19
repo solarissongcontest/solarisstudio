@@ -101,7 +101,7 @@ describe("Governed maintenance v4.2 draft-only import", () => {
     expect(recovery).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
     expect(recovery).not.toContain("supabaseAdmin");
     expect(manager).toContain("prepareGovernedV42Draft({");
-    expect(maintenance).toContain("GLOBAL_MAINTENANCE_MODE = true");
+    expect(maintenance).toContain("GLOBAL_MAINTENANCE_MODE = false");
     expect(server).toContain("!recoveryRouteAllowed");
     expect(server).toContain('request.method !== "GET"');
   });

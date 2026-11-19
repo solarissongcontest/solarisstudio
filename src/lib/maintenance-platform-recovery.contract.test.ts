@@ -22,7 +22,8 @@ const appRuntime = source("src/components/app/AppRuntime.tsx");
 
 describe("emergency organizer platform recovery lane", () => {
   it("allows only the exact inert GET page and guarded POST preflight", () => {
-    expect(GLOBAL_MAINTENANCE_MODE).toBe(true);
+    // Recovery remains fully isolated and available if the outage switch is re-enabled.
+    expect(GLOBAL_MAINTENANCE_MODE).toBe(false);
     expect(MAINTENANCE_PLATFORM_RECOVERY_PATH).toBe("/maintenance/recovery");
     expect(MAINTENANCE_PLATFORM_PREFLIGHT_PATH).toBe("/api/maintenance-platform-preflight");
     expect(isMaintenancePlatformRecoveryRouteAllowed(MAINTENANCE_PLATFORM_RECOVERY_PATH, "GET")).toBe(true);
