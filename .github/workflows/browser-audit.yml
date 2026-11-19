@@ -375,21 +375,43 @@ jobs:
           }
           const localCodes = new Set((await localCountriesResponse.json()).map((row) => String(row.short_code).toUpperCase()));
 
+          // Preserve the original local-data sitemap identity proof for the
+          // full release. During the limited release the sitemap must be
+          // withheld, otherwise it advertises inaccessible Countries/Wiki pages.
+          // The direct PostgREST proof above still confirms local-only identity.
+          const { readFileSync } = await import("node:fs");
+          const limitedSource = readFileSync("src/lib/public-launch-availability.ts", "utf8");
+          const limitedLaunch = /^export const LIMITED_PUBLIC_LAUNCH = true;/m.test(limitedSource);
+
           const sitemapResponse = await fetch("http://127.0.0.1:4173/sitemap.xml", {
             headers: { cookie: "solaris_e2e_maintenance_bypass=1" },
           });
-          if (!sitemapResponse.ok) {
-            throw new Error(`Local Worker sitemap probe failed: HTTP ${sitemapResponse.status}`);
-          }
-          const xml = await sitemapResponse.text();
-          const routeCodes = [...xml.matchAll(/<loc>[^<]*\/(?:countries|wiki)\/([^/<]+)<\/loc>/g)]
-            .map((match) => decodeURIComponent(match[1]).toUpperCase());
-          if (routeCodes.length < 2) {
-            throw new Error("Sitemap did not expose representative local Country/Wiki routes");
-          }
-          const unknownCodes = [...new Set(routeCodes.filter((code) => !localCodes.has(code)))];
-          if (unknownCodes.length) {
-            throw new Error(`Audit Worker sitemap escaped local Supabase data: ${unknownCodes.join(", ")}`);
+          if (limitedLaunch) {
+            if (sitemapResponse.status !== 404) {
+              throw new Error(`Limited launch must hide the full sitemap: HTTP ${sitemapResponse.status}`);
+            }
+            const home = await fetch("http://127.0.0.1:4173/");
+            if (home.status !== 200) {
+              throw new Error(`Limited launch Home must render: HTTP ${home.status}`);
+            }
+            const hiddenCountries = await fetch("http://127.0.0.1:4173/countries");
+            if (hiddenCountries.status !== 404) {
+              throw new Error(`Limited launch must hide Countries: HTTP ${hiddenCountries.status}`);
+            }
+          } else {
+            if (!sitemapResponse.ok) {
+              throw new Error(`Local Worker sitemap probe failed: HTTP ${sitemapResponse.status}`);
+            }
+            const xml = await sitemapResponse.text();
+            const routeCodes = [...xml.matchAll(/<loc>[^<]*\/(?:countries|wiki)\/([^/<]+)<\/loc>/g)]
+              .map((match) => decodeURIComponent(match[1]).toUpperCase());
+            if (routeCodes.length < 2) {
+              throw new Error("Sitemap did not expose representative local Country/Wiki routes");
+            }
+            const unknownCodes = [...new Set(routeCodes.filter((code) => !localCodes.has(code)))];
+            if (unknownCodes.length) {
+              throw new Error(`Audit Worker sitemap escaped local Supabase data: ${unknownCodes.join(", ")}`);
+            }
           }
           NODE
 
@@ -429,7 +451,7 @@ jobs:
             failures.push(`${response.status()} ${new URL(response.url()).pathname}: ${body}`);
           });
 
-          await page.goto("http://127.0.0.1:4173/editions", { waitUntil: "domcontentloaded" });
+          // Home remains publicly reachable in both the limited and full launch.\n          await page.goto("http://127.0.0.1:4173/", { waitUntil: "domcontentloaded" });
 
           // The editions route may satisfy its initial data read during SSR, so a
           // browser-side REST request is not guaranteed merely by navigation.
