@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
-import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { PageHeader, Panel } from "@/components/AppShell";
+import { SoftLaunchAccountShell } from "@/components/SoftLaunchAccountShell";
+import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentAccountAccess } from "@/lib/country-account";
 import { setSolarisPassword } from "@/lib/country-auth";
@@ -20,6 +22,7 @@ function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [ready, setReady] = useState(false);
+  const [completed, setCompleted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -57,6 +60,12 @@ function ResetPasswordPage() {
     setBusy(true);
     try {
       await setSolarisPassword(password);
+      if (GLOBAL_MAINTENANCE_MODE) {
+        setPassword("");
+        setConfirmPassword("");
+        setCompleted(true);
+        return;
+      }
       const { data, error } = await supabase.auth.getUser();
       if (error || !data.user) throw error ?? new Error("Your password reset session has expired.");
 
@@ -70,7 +79,7 @@ function ResetPasswordPage() {
   };
 
   return (
-    <AppShell>
+    <SoftLaunchAccountShell>
       <PageHeader
         eyebrow="Account recovery"
         title="Choose a new password"
@@ -79,7 +88,11 @@ function ResetPasswordPage() {
 
       <div className="mx-auto max-w-md">
         <Panel title="Reset password">
-          {ready ? (
+          {completed ? (
+            <p className="text-sm leading-6 text-muted-foreground" role="status">
+              Your password has been updated. <a className="font-semibold underline" href="/">Return to Solaris Studio</a>.
+            </p>
+          ) : ready ? (
             <form onSubmit={submit} className="space-y-3">
               <label className="block">
                 <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">
@@ -129,6 +142,6 @@ function ResetPasswordPage() {
           {message ? <p className="mt-4 text-sm text-muted-foreground">{message}</p> : null}
         </Panel>
       </div>
-    </AppShell>
+    </SoftLaunchAccountShell>
   );
 }
