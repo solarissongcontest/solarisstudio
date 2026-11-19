@@ -1,0 +1,72 @@
+name: V3 S16 emergency critical TRUNCATE local proof
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/v3/recovery-candidates/s16-emergency-critical-truncate-retirement.sql"
+      - ".github/workflows/v3-s16-emergency-critical-truncate.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PROJECT_REF: local
+      V3_VERIFICATION_TARGET: local
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Fetch PG17.11 test image
+        run: docker pull postgres:17.11
+      - name: Verify exact SQL on networkless disposable database
+        shell: bash
+        run: |
+          set -euo pipefail
+          cid="$(docker run --rm -d --network none -e POSTGRES_PASSWORD=isolated-test postgres:17.11)"
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          for i in $(seq 1 60); do
+            if docker exec "$cid" pg_isready -U postgres >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]]
+          [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]]
+          docker exec -i "$cid" psql -X -v ON_ERROR_STOP=1 -U postgres <<'SQL'
+          create role anon nologin;
+          create role authenticated nologin;
+          create role service_role nologin;
+          do $setup$
+          declare t text;
+          begin
+            foreach t in array array['public.editions','public.shows','public.results','public.jury_votes','public.televote_votes'] loop
+              execute format('create table %s(id integer primary key)',t);
+              execute format('alter table %s enable row level security',t);
+              execute format('grant select,insert,update,delete,truncate,references,trigger on table %s to anon,authenticated,service_role',t);
+            end loop;
+          end $setup$;
+          SQL
+          file=docs/v3/recovery-candidates/s16-emergency-critical-truncate-retirement.sql
+          docker exec -i "$cid" psql -X -v ON_ERROR_STOP=1 -U postgres < "$file"
+          docker exec -i "$cid" psql -X -v ON_ERROR_STOP=1 -U postgres <<'SQL'
+          do $test$
+          declare t text; r text;
+          begin
+            foreach t in array array['public.editions','public.shows','public.results','public.jury_votes','public.televote_votes'] loop
+              foreach r in array array['anon','authenticated','service_role'] loop
+                if has_table_privilege(r,t,'TRUNCATE')
+                or not has_table_privilege(r,t,'SELECT,INSERT,UPDATE,DELETE,REFERENCES,TRIGGER') then
+                   raise exception 'Unexpected API authority for % %',r,t;
+                end if;
+              end loop;
+              if not has_table_privilege('postgres',t,'TRUNCATE') then raise exception 'Owner authority lost'; end if;
+            end loop;
+          end $test$;
+          SQL
+          if docker exec -i "$cid" psql -X -v ON_ERROR_STOP=1 -U postgres < "$file" > /tmp/s16-repeat.log 2>&1; then
+            echo 'ERROR: duplicate SQL was accepted'; exit 1
+          fi
+          grep -Fq 'expected 15 TRUNCATE API grants' /tmp/s16-repeat.log
+          echo 'PASS: 15/15 API role grants denied, unrelated privileges preserved, duplicate fails closed'
