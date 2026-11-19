@@ -30,6 +30,6 @@ describe("V3 Browser Audit exact-main coverage and fail-closed dependency recove
     expect(workflow).toContain("Refusing browser audit against non-local Supabase URL");
     expect(workflow).toContain("requireLocalPlaywrightSupabaseEnvironment");
     expect(workflow).toContain("Verify browser receives the local Supabase identity");
-    expect(workflow).toContain("Run Playwright");
+    expect(workflow).toContain("Run responsive browser audit");
   });
 });
