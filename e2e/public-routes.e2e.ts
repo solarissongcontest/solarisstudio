@@ -150,7 +150,7 @@ test("Public directory family distinguishes mobile website from desktop explorer
       "data-directory-experience", mobile ? "mobile-web" : "desktop-web",
     );
     await expect(page.locator("[data-directory-boot]")).toHaveCount(0);
-    const title = route === "/tools" ? "Tools" : "All Solaris pages";
+    const title = route === "/tools" ? "Tools" : "Available Solaris pages";
     await expect(page.getByRole("heading", { level: 1, name: title })).toHaveCount(1);
     if (mobile) {
       await expect(page.locator("[data-directory-mobile-header]")).toBeVisible();
