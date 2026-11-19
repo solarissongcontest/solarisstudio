@@ -45,7 +45,7 @@ body[data-solaris-family] .glass-strong {
 body[data-solaris-family] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not(.solaris-app-search-input):not(:where([type="search"], [role="searchbox"], [enterkeyhint="search"], [placeholder^="Search" i], [placeholder^="Find" i], [placeholder^="Ask" i], [aria-label*="search" i], [class*="bg-transparent"], [class*="border-0"])),
 body[data-solaris-family] textarea,
 body[data-solaris-family] select,
-body[data-solaris-family] [role="combobox"] {
+body[data-solaris-family] [role="combobox"]:not(.solaris-app-search-input):not([cmdk-input]) {
   border-color: rgb(var(--solaris-bg-primary) / 0.19) !important;
   background: color-mix(in srgb, rgb(var(--solaris-bg-primary)) 7%, #07172f 93%) !important;
 }

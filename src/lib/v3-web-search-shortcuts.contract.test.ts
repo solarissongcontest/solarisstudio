@@ -12,6 +12,18 @@ const web = palette.slice(
 );
 
 describe("V3 web Search canonical discovery shortcuts", () => {
+  it("top-anchors Search without inheriting centered-dialog layout", () => {
+    const css = readFileSync(
+      resolve(process.cwd(), "src/components/public/public-command-palette.css"),
+      "utf8",
+    );
+    expect(web).toContain('contentLayout="fullscreen"');
+    expect(css).toContain("bottom: auto !important;");
+    expect(css).toContain("translate: none !important;");
+    expect(css).toContain("transform: translateX(-50%) !important;");
+    expect(css).toContain("transform: none !important;");
+  });
+
   it("chooses the canonical published current edition instead of guessing lifecycle status", () => {
     expect(web).toContain("resolveCurrentPublicEdition(editions)");
     expect(web).not.toContain('"complete", "completed", "finished"');
@@ -34,10 +46,13 @@ describe("V3 web Search canonical discovery shortcuts", () => {
     expect(web).toContain('setQuery("")');
     expect(web).toContain('normalized.length >= 2 ? (');
     expect(web).toContain('Type one more character to search published Solaris content.');
-    // Default CommandDialog close is right-3/size-11. The clear control must
-    // occupy a separate slot, not steal the visitor's tap from the close icon.
-    expect(web).toContain('className={query ? "pr-28" : "pr-14"}');
-    expect(web).toContain('className="absolute right-16 top-1/2 inline-flex size-10');
+    // Search field and close are now independent grid slots; Clear is inside
+    // the field only when text exists. Never restore the old overlapping buttons.
+    expect(web).toContain('showCloseButton={false}');
+    expect(web).toContain('appearance="appSearch"');
+    expect(web).toContain('className="solaris-public-search-clear"');
+    expect(web).toContain('className="solaris-public-search-close"');
+    expect(web).toContain('aria-label="Close search"');
   });
 
   it("uses only published show, edition, result and participant sources for web discovery", () => {

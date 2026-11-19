@@ -215,7 +215,7 @@ h6.font-display,
 input:not(.solaris-app-search-input):not(:where([type="search"], [role="searchbox"], [enterkeyhint="search"], [placeholder^="Search" i], [placeholder^="Find" i], [placeholder^="Ask" i], [aria-label*="search" i], [class*="bg-transparent"], [class*="border-0"])):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
 textarea,
 select,
-[role="combobox"] {
+[role="combobox"]:not(.solaris-app-search-input):not([cmdk-input]) {
   min-height: 2.75rem;
   border-radius: 0.75rem !important;
   background: rgba(7, 20, 43, 0.88) !important;
@@ -292,7 +292,7 @@ a[class*="rounded-lg"] {
 .admin-control-room input:not(:where([type="search"], [role="searchbox"], [enterkeyhint="search"], [placeholder^="Search" i], [placeholder^="Find" i], [placeholder^="Ask" i], [aria-label*="search" i], [class*="bg-transparent"], [class*="border-0"])):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
 .admin-control-room textarea,
 .admin-control-room select,
-.admin-control-room [role="combobox"] {
+.admin-control-room [role="combobox"]:not(.solaris-app-search-input):not([cmdk-input]) {
   background: rgba(4, 14, 31, 0.92) !important;
   border-color: rgba(210, 230, 242, 0.10) !important;
 }

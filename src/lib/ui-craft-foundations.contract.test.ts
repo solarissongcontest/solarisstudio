@@ -180,6 +180,11 @@ describe("Solaris UI craft foundations", () => {
     }
     expect(source("src/unified-design.css")).toContain(".admin-control-room input" + exemption);
     expect(source("src/confirmations.css")).toContain(".confirmations-theme input" + exemption);
+    // cmdk's Search input is a combobox, so excluding input[type=search] alone
+    // is insufficient: the role selector must also skip the decorated inner field.
+    for (const file of ["src/styles.css", "src/unified-design.css", "src/calm-public-chrome.css", "src/solaris-surfaces.css"]) {
+      expect(source(file), file).toContain('[role="combobox"]:not(.solaris-app-search-input):not([cmdk-input])');
+    }
     expect(source("src/components/rules/RulesHomeV5.tsx")).toContain("border-0 bg-transparent");
     expect(source("src/components/public/PublicSearchField.tsx")).toContain("!bg-transparent");
     expect(source("src/styles.css")).toContain("iOS Safari");
@@ -189,7 +194,7 @@ describe("Solaris UI craft foundations", () => {
   it("keeps a visible focus outline on text and selection controls", () => {
     const styles = source("src/styles.css");
     const controlFocus = styles.match(
-      /input[^\n]*:focus-visible, textarea:focus-visible, select:focus-visible, \[role="combobox"\]:focus-visible \{([\s\S]*?)\n\}/,
+      /input[^\n]*:focus-visible, textarea:focus-visible, select:focus-visible, \[role="combobox"\][^\n]*:focus-visible \{([\s\S]*?)\n\}/,
     )?.[1];
 
     expect(controlFocus).toBeDefined();
