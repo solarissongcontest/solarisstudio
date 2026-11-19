@@ -346,18 +346,38 @@ test("S06 operator-only runbook reflects the merged twelve-stage source contract
 });
 
 
-test("S06 dedicated local-only evidence executes on integrated main with the same scoped source paths", () => {
+test("S06 remains scoped while S14/S16 independently certify every integrated main commit", () => {
   const s14 = read(".github/workflows/v3-s14-archive-forward-effects-local.yml");
+  const s16 = read(".github/workflows/v3-s16-catalog-rehearsal.yml");
   const toc = read(".github/workflows/v3-s06-schema-export-offline.yml");
-  for (const [yaml, anchor] of [[s14, "s06_archive_paths"], [toc, "s06_toc_paths"]]) {
-    assert.ok(yaml.includes(["  pull_request:", "    branches: [main]", "    paths: &" + anchor].join(String.fromCharCode(10))),
-      "S06 PR scope must be the shared authoritative path filter");
-    assert.ok(yaml.includes(["  push:", "    branches: [main]", "    paths: *" + anchor].join(String.fromCharCode(10))),
-      "S06 merged-main proof must use the identical path filter");
+
+  // Archive/S16 PRs retain their source change filters, so unrelated PRs
+  // do not incur heavyweight isolated PostgreSQL runs.
+  assert.ok(s14.includes(["  pull_request:", "    branches: [main]", "    paths: &s06_archive_paths"].join("\n")),
+    "S14 PR scope must retain its reviewed Archive source filter");
+  assert.match(s14, /      - "\.github\/workflows\/v3-s16-catalog-rehearsal\.yml"/,
+    "S14 must produce the separate exact-SHA Publication certificate for S16 workflow-only PRs");
+  assert.ok(toc.includes(["  pull_request:", "    branches: [main]", "    paths: &s06_toc_paths"].join("\n")),
+    "S06 schema-export PR scope must retain its own approved filter");
+  assert.ok(toc.includes(["  push:", "    branches: [main]", "    paths: *s06_toc_paths"].join("\n")),
+    "S06 schema-export main scope remains deliberately restricted");
+
+  // Source-only Confirmation/UI changes can alter canonical writers. Every
+  // main commit needs both an independently executed Publication certificate
+  // and a separately collected S16 catalog report at that EXACT SHA.
+  for (const [name, yaml] of [["S14", s14], ["S16", s16]]) {
+    const marker = "\n  push:\n";
+    const start = yaml.indexOf(marker);
+    const stop = yaml.indexOf("\n  workflow_dispatch:", start);
+    assert.ok(start >= 0 && stop > start, name + " must have main-push and manual triggers");
+    const push = yaml.slice(start, stop);
+    assert.match(push, /\n    branches: \[main\]/, name + " must target integrated main");
+    assert.doesNotMatch(push, /\n    paths(?:-ignore)?:/,
+      name + " must not silently omit source-only main commits from exact-SHA certification");
     assert.match(yaml, /github\.event\.pull_request\.head\.sha \|\| github\.sha/);
-    assert.match(yaml, /git rev-parse HEAD/);
     assert.match(yaml, /workflow_dispatch:/);
   }
+  assert.match(s14, /git rev-parse HEAD/);
   assert.match(s14, /docs\/v3\/recovery-candidates\/s06-schema-export-operator-runbook\.md/);
   assert.match(s14, /--network none/);
   assert.match(s14, /SOLARIS_VERIFICATION_TARGET: local/);
