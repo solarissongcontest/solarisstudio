@@ -69,7 +69,16 @@ do $pre$ declare actual jsonb; expected jsonb; routine_row record; identity text
  if actual is distinct from expected then raise exception 'Results API access helper drift: %',identity using errcode='55000';end if;
  end loop;
  select jsonb_build_object('identity','public.results' ,'owner',pg_get_userbyid(c.relowner),'rls',c.relrowsecurity,'force_rls',c.relforcerowsecurity,'acl',c.relacl::text,'policies',(select jsonb_agg(jsonb_build_object('name',p.polname,'permissive',p.polpermissive,'command',p.polcmd,'roles',array(select pg_get_userbyid(x) from unnest(p.polroles) x),'qual',pg_get_expr(p.polqual,p.polrelid),'check',pg_get_expr(p.polwithcheck,p.polrelid)) order by p.polname) from pg_policy p where p.polrelid=c.oid)) into actual from pg_class c where c.oid=to_regclass('public.results');
- if actual is distinct from ${literal(data.table)} then raise exception 'Results API table grant/RLS drift' using errcode='55000';end if;
+ -- Preserve the exact original 14-Nov Results table metadata. API TRUNCATE
+ -- was independently retired by the reviewed emergency hardening in PR #2590;
+ -- accept only its three-role pre-revoked envelope, never other ACL/RLS drift.
+ expected:=${literal(data.table)};
+ if actual is distinct from expected then
+   if (actual - 'acl') is distinct from (expected - 'acl')
+     or actual->>'acl' is distinct from replace(expected->>'acl','arwdDxt/postgres','arwdxt/postgres') then
+     raise exception 'Results API table grant/RLS drift' using errcode='55000';
+   end if;
+ end if;
  if exists(select 1 from pg_depend d join pg_rewrite r on r.oid=d.objid join pg_class c on c.oid=r.ev_class where d.classid='pg_rewrite'::regclass and d.refclassid='pg_class'::regclass and d.refobjid='public.results'::regclass and c.relkind in ('v','m')) then raise exception 'Unqualified Results dependent view';end if;
 end $pre$;
 select public.v3_register_migration_contract('v3.recovery.results-read-authority',1,'forward_fix_only',false,null,'Frozen public row visibility and owner-only Results writes; retain API SELECT and canonical SECURITY DEFINER commands');
