@@ -30,7 +30,9 @@ describe("V3 offline shell accessibility and effect fallbacks", () => {
     const source = offlineShell();
 
     expect(source).toContain('id="connection-status" role="status" aria-live="polite"');
-    expect(source.match(/aria-hidden="true"/g)?.length).toBeGreaterThanOrEqual(6);
+    // Four visible offline destinations plus the decorative connection dot.
+    expect(source.match(/aria-hidden="true"/g)?.length).toBeGreaterThanOrEqual(5);
+    expect(source.match(/class="tab" href="[^"]+" data-tab="[^"]+"><span aria-hidden="true">/g)?.length).toBe(4);
     expect(source).toContain('chevron.setAttribute("aria-hidden", "true")');
   });
 });

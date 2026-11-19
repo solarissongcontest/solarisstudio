@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { publicLaunchAllows } from "./public-launch-availability";
+import { LIMITED_PUBLIC_LAUNCH, publicLaunchAllows } from "./public-launch-availability";
 const source = (path: string) => readFileSync(path, "utf8");
 describe("soft-launch entry-point integration", () => {
   it("keeps one root presentation boundary around public route content and leaves maintenance/admin isolation", () => {
@@ -56,8 +56,9 @@ describe("soft-launch entry-point integration", () => {
     expect(provider).not.toContain("refetchInterval");
     expect(provider).not.toContain("isOrganizer");
   });
-  it("keeps eligible Prediction League standings reachable without advertising the deferred Arena", () => {
-    expect(publicLaunchAllows("/prediction-league", { prediction_league: true })).toBe(true);
+  it("holds Prediction League behind the restricted launch even when the old optional flag is enabled", () => {
+    expect(LIMITED_PUBLIC_LAUNCH).toBe(true);
+    expect(publicLaunchAllows("/prediction-league", { prediction_league: true })).toBe(false);
     expect(publicLaunchAllows("/predictions", { prediction_league: true })).toBe(false);
     const league = source("src/routes/prediction-league/index.tsx");
     expect(league).toContain("return <LegacyPredictionLeaguePage />;");

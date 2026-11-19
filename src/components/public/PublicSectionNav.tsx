@@ -110,7 +110,7 @@ export function PublicSectionNav({
         ) : null}
 
         <div className="mt-4 border-t border-border/55 pt-3">
-          <Link
+          {allows("/site-directory") ? <Link
             to="/site-directory"
             onClick={() =>
               trackPublicUxEvent("section_nav_clicked", {
@@ -121,7 +121,7 @@ export function PublicSectionNav({
             className="public-site-sidebar-link"
           >
             All Solaris pages
-          </Link>
+          </Link> : null}
         </div>
       </nav>
     </aside>

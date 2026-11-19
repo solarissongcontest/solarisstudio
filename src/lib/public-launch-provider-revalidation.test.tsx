@@ -37,14 +37,14 @@ vi.mock("@/lib/studio2-feature-flags", () => ({
   isStudio2FeatureEnabled: vi.fn(),
 }));
 
-import { PublicLaunchAvailabilityProvider } from "@/components/public/PublicLaunchAvailability";
+import { PublicLaunchAvailabilityProvider, FlagDrivenPublicLaunchAvailabilityProvider } from "@/components/public/PublicLaunchAvailability";
 import { usePublicLaunchAvailability } from "./public-launch-context";
 
 function DecisionProbe() {
   const availability = usePublicLaunchAvailability();
   return (
     <output
-      data-allowed={String(availability.allows("/fantasy"))}
+      data-allowed={String(availability.flags.fantasy_ssc === true)}
       data-checking={String(availability.checking)}
       data-error={String(availability.error)}
     />
@@ -53,9 +53,9 @@ function DecisionProbe() {
 
 function renderDecision() {
   return renderToStaticMarkup(
-    <PublicLaunchAvailabilityProvider>
+    <FlagDrivenPublicLaunchAvailabilityProvider>
       <DecisionProbe />
-    </PublicLaunchAvailabilityProvider>,
+    </FlagDrivenPublicLaunchAvailabilityProvider>,
   );
 }
 
@@ -79,6 +79,14 @@ beforeEach(() => {
 });
 
 describe("same-actor Public launch revalidation", () => {
+  it("keeps the temporary public wrapper restricted even when old flag data says enabled", () => {
+    function RestrictedProbe() {
+      const access = usePublicLaunchAvailability();
+      return <output data-open={String(access.allows("/fantasy"))} />;
+    }
+    const html = renderToStaticMarkup(<PublicLaunchAvailabilityProvider><RestrictedProbe /></PublicLaunchAvailabilityProvider>);
+    expect(html).toContain('data-open="false"');
+  });
   it("keeps an approved route mounted during session and flag background checks", () => {
     runtime.session.isFetching = true;
     runtime.flags.isFetching = true;

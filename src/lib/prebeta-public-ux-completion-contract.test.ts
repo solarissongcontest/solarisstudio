@@ -32,12 +32,13 @@ describe("Pre-Beta public UX completion contract", () => {
     expect(mobileNav).toContain('area === "help"');
   });
 
-  it("makes All Solaris pages reachable from search/help/footer surfaces", () => {
+  it("preserves the full directory behind its hidden launch gate while footer advertises only live routes", () => {
     expect(palette).toContain('label: "All Solaris pages"');
     expect(guide).toContain('to="/site-directory"');
     expect(guide).toContain('title="All Solaris pages"');
-    expect(footer).toContain('to="/site-directory"');
-    expect(footer).toContain("All Solaris pages");
+    expect(footer).not.toContain('to="/site-directory"');
+    expect(mobileNav).toContain('allows("/site-directory")');
+    for (const target of ["/", "/participate", "/auth", "/rules"]) expect(footer).toContain(`to="${target}"`);
   });
 
   it("builds dynamic detail breadcrumbs for countries, wiki, editions, stories and shows", () => {

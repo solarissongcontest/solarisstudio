@@ -39,8 +39,8 @@ import {
 import { useAppAttentionSummary } from "@/lib/app-attention";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
 import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
-import { PUBLIC_GLOBAL_AREAS, PUBLIC_RELEASE_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
-import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
+import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
+import { LIMITED_PUBLIC_LAUNCH, publicLaunchAllows } from "@/lib/public-launch-availability";
 import {
   publicCanvasForArchetype,
   publicLayoutTokenForArchetype,
@@ -230,9 +230,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   const publicUser = buildPublicUserContext({ userId: access.userId, access });
-  const globalAreas = publicGlobalAreasForContext(publicUser).filter(
-    (area) => !GLOBAL_MAINTENANCE_MODE || PUBLIC_RELEASE_GLOBAL_AREAS.some((allowed) => allowed.id === area.id),
-  );
+  const globalAreas = publicGlobalAreasForContext(publicUser).filter((area) => publicLaunchAllows(area.to));
   const publicArchetype = publicRouteArchetype(pathname);
   const publicLayout = publicLayoutTokenForArchetype(publicArchetype);
   const publicArea = publicAreaForPath(pathname);
@@ -498,7 +496,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             style={{ paddingBottom: "max(.4rem, env(safe-area-inset-bottom))" }}
             aria-label="Primary navigation"
           >
-            <div className={cn("mx-auto grid max-w-xl gap-1", GLOBAL_MAINTENANCE_MODE ? "grid-cols-3" : "grid-cols-5")}>
+            <div className="mx-auto grid max-w-xl gap-1"
+              style={{ gridTemplateColumns: `repeat(${Math.max(1, quickNavigation.length)}, minmax(0,1fr))` }}>
               {quickNavigation.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -582,18 +581,19 @@ function NewPublicDesktopNavigation({
 
       <span aria-hidden="true" className="mx-1 h-6 w-px bg-border/70" />
 
-      <PublicCommandPalette access={access} />
+      {!LIMITED_PUBLIC_LAUNCH ? <PublicCommandPalette access={access} /> : null}
 
       <Link
-        to="/guide"
+        to={LIMITED_PUBLIC_LAUNCH ? "/rules" : "/guide"}
         className={desktopNavClass(
           pathname.startsWith("/guide") ||
             pathname.startsWith("/rules") ||
             pathname.startsWith("/integrity"),
         )}
       >
-        Help
+        {LIMITED_PUBLIC_LAUNCH ? "Rules" : "Help"}
       </Link>
+      {LIMITED_PUBLIC_LAUNCH && !email ? <Link to="/auth" className={desktopNavClass(pathname.startsWith("/auth"))}>Sign in</Link> : null}
 
       {access.isOrganizer ? (
         <Link
@@ -617,13 +617,13 @@ function NewPublicDesktopNavigation({
                 {visibleAccountEmail ?? "Country account"}
               </p>
             </div>
-            <Link to="/my-solaris" className="nav-menu-item mt-1">
+            {publicLaunchAllows("/my-solaris") ? <Link to="/my-solaris" className="nav-menu-item mt-1">
               <span className="font-semibold">Open MySolaris</span>
               <span className="text-[11px] text-muted-foreground">
                 Dashboard, participation
                 {access.countryId ? " & country tools" : " & country setup"}
               </span>
-            </Link>
+            </Link> : null}
             <button
               type="button"
               onClick={() => void signOut()}

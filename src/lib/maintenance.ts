@@ -1,4 +1,5 @@
-export const GLOBAL_MAINTENANCE_MODE = true;
+// Outage maintenance is off; the separate limited-public-launch gate stays on.
+export const GLOBAL_MAINTENANCE_MODE = false;
 
 /** Public account access while the rest of the application remains under maintenance. */
 export function maintenancePublicAccountAccessEnabled(rawValue: string | null | undefined) {

@@ -1,36 +1,42 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { PUBLIC_RELEASE_GLOBAL_AREAS, PUBLIC_GLOBAL_AREAS } from "./public-navigation";
-import { isMaintenancePublicWebsiteRouteAllowed, GLOBAL_MAINTENANCE_MODE } from "./maintenance";
+import { PUBLIC_GLOBAL_AREAS, PUBLIC_RELEASE_GLOBAL_AREAS } from "./public-navigation";
+import { GLOBAL_MAINTENANCE_MODE, isMaintenancePublicWebsiteRouteAllowed } from "./maintenance";
+import { LIMITED_PUBLIC_LAUNCH, limitedPublicLaunchAllows } from "./public-launch-availability";
+
 const app = readFileSync("src/components/AppShell.tsx", "utf8");
 const dock = readFileSync("src/components/app/AppTabBar.tsx", "utf8");
 const drawer = readFileSync("src/components/public/PublicSiteNavigation.tsx", "utf8");
-const css = readFileSync("src/styles/app-shell.css", "utf8");
+const worker = readFileSync("src/server.ts", "utf8");
 
-describe("P0 published navigation is only Home Participate Me", () => {
-  it("preserves the future five-tab catalog separately", () => {
-    expect(PUBLIC_GLOBAL_AREAS.map(x => x.id)).toEqual(["home","explore","participate","results","me"]);
-    expect(PUBLIC_RELEASE_GLOBAL_AREAS.map(x => x.id)).toEqual(["home","participate","me"]);
-    expect(GLOBAL_MAINTENANCE_MODE).toBe(true);
+describe("P0 limited release restricts public navigation, including installed tab gestures", () => {
+  it("preserves future navigation catalogs but opens only Home and Participate tabs", () => {
+    expect(PUBLIC_GLOBAL_AREAS.map((x) => x.id)).toEqual(["home", "explore", "participate", "results", "me"]);
+    expect(PUBLIC_RELEASE_GLOBAL_AREAS.map((x) => x.id)).toEqual(["home", "participate", "me"]);
+    expect(GLOBAL_MAINTENANCE_MODE).toBe(false);
+    expect(LIMITED_PUBLIC_LAUNCH).toBe(true);
+    expect(PUBLIC_GLOBAL_AREAS.filter((x) => limitedPublicLaunchAllows(x.to)).map((x) => x.id))
+      .toEqual(["home", "participate"]);
   });
-  it("filters mobile web, drawer, and installed Liquid Glass dock", () => {
-    expect(app).toContain("PUBLIC_RELEASE_GLOBAL_AREAS.some(");
-    expect(app).toContain('GLOBAL_MAINTENANCE_MODE ? "grid-cols-3" : "grid-cols-5"');
-    expect(drawer).toContain("PUBLIC_RELEASE_GLOBAL_AREAS.some(");
-    expect(dock).toContain("const NAV_AREAS = GLOBAL_MAINTENANCE_MODE ? PUBLIC_RELEASE_GLOBAL_AREAS : PUBLIC_GLOBAL_AREAS");
-    expect(dock).toContain("data-public-tab-count={NAV_AREAS.length}");
-    expect(dock).toContain("itemCount: NAV_AREAS.length");
-    expect(css).toContain('data-public-tab-count="3"');
-    expect(css).toContain("grid-template-columns: repeat(3, minmax(0, 1fr))");
+
+  it("binds web chrome and iOS dock/drag gestures to the active limited allowlist", () => {
+    expect(app).toContain("publicGlobalAreasForContext(publicUser).filter((area) => publicLaunchAllows(area.to))");
+    expect(drawer).toContain("publicGlobalAreasForContext(user).filter((item) => allows(item.to))");
+    expect(dock).toContain("const LAUNCH_TAB_AREAS = PUBLIC_GLOBAL_AREAS.filter((area) => publicLaunchAllows(area.to))");
+    expect(dock).toContain("itemCount: LAUNCH_TAB_AREAS.length");
+    expect(dock).toContain("const area = LAUNCH_TAB_AREAS[targetIndex]");
+    expect(worker).toContain("!limitedPublicLaunchAllows(url.pathname)");
   });
-  it("keeps the currently unreleased Explore and Results roots closed", () => {
-    for (const path of ["/explore","/explore/","/results","/results/ssc-20",
-      "/countries","/countries/ABE","/editions/ssc-20","/shows","/wiki",
-      "/archive","/records","/scorecharts"]) {
-      expect(isMaintenancePublicWebsiteRouteAllowed(path,"GET",true)).toBe(false);
+
+  it("denies Explore, Results and Me on the actual limited launch, and maintains emergency denials", () => {
+    for (const path of ["/explore", "/results", "/results/ssc-20", "/me", "/my-solaris"]) {
+      expect(limitedPublicLaunchAllows(path)).toBe(false);
     }
-    for (const path of ["/","/participate","/me","/my-solaris","/site-directory","/rules"]) {
-      expect(isMaintenancePublicWebsiteRouteAllowed(path,"GET",true)).toBe(true);
+    for (const path of ["/", "/participate", "/auth", "/rules"]) {
+      expect(limitedPublicLaunchAllows(path)).toBe(true);
+    }
+    for (const path of ["/explore", "/results"]) {
+      expect(isMaintenancePublicWebsiteRouteAllowed(path, "GET", true)).toBe(false);
     }
   });
 });

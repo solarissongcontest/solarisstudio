@@ -15,10 +15,12 @@ const confirmationEditRoute = readFileSync("src/routes/confirmations/edit/$token
 const rendered = renderMaintenancePage(new Date("2026-10-24T13:00:00+03:00"));
 
 describe("emergency global maintenance mode", () => {
-  it("is explicitly enabled and runs at the Worker entry before normal request middleware", () => {
-    expect(config).toContain("GLOBAL_MAINTENANCE_MODE = true");
+  it("retains the emergency Worker gate for rollback but disables it during restricted reopening", () => {
+    expect(config).toContain("GLOBAL_MAINTENANCE_MODE = false");
     expect(server).toContain('return maintenanceResponse(request, env, url.pathname === "/")');
     expect(server).toContain("status: 503");
+    expect(server).toContain("LIMITED_PUBLIC_LAUNCH");
+    expect(server).toContain("limitedLaunchUnavailableResponse");
     expect(start).toContain("requestMiddleware: [errorMiddleware, csrfMiddleware]");
     expect(start).not.toContain("maintenanceMiddleware");
   });

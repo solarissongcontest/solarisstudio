@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { publicLaunchAllows } from "./public-launch-availability";
+import { publicLaunchAllows, standardPublicLaunchAllows } from "./public-launch-availability";
 
 const source = readFileSync("src/routes/guide/index.tsx", "utf8");
 
@@ -31,7 +31,7 @@ describe("public guide soft-launch availability", () => {
     expect(source).toContain(".filter((section) => section.questions.length > 0)");
   });
 
-  it("keeps essential public help and an official published-results route", () => {
+  it("preserves the full guide implementation but makes only approved areas public now", () => {
     for (const route of [
       "/results",
       "/participate",
@@ -40,7 +40,8 @@ describe("public guide soft-launch availability", () => {
       "/explore",
       "/site-directory",
     ]) {
-      expect(publicLaunchAllows(route)).toBe(true);
+      expect(standardPublicLaunchAllows(route)).toBe(true);
+      expect(publicLaunchAllows(route)).toBe(["/participate", "/auth", "/rules"].includes(route));
       expect(source).toContain(`to="${route}"`);
     }
     expect(source).toContain('question: "Where can I see official results?"');

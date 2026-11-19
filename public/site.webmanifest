@@ -46,9 +46,9 @@
   },
   "shortcuts": [
     {
-      "name": "Explore Solaris",
-      "short_name": "Explore",
-      "url": "/explore",
+      "name": "Home",
+      "short_name": "Home",
+      "url": "/",
       "icons": [
         {
           "src": "/icon-192.png?v=img2340-20260929",
@@ -70,9 +70,9 @@
       ]
     },
     {
-      "name": "Latest results",
-      "short_name": "Results",
-      "url": "/results",
+      "name": "Rules",
+      "short_name": "Rules",
+      "url": "/rules",
       "icons": [
         {
           "src": "/icon-192.png?v=img2340-20260929",
@@ -82,9 +82,9 @@
       ]
     },
     {
-      "name": "Me",
-      "short_name": "Me",
-      "url": "/me",
+      "name": "Sign in",
+      "short_name": "Sign in",
+      "url": "/auth",
       "icons": [
         {
           "src": "/icon-192.png?v=img2340-20260929",

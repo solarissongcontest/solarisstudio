@@ -46,7 +46,9 @@ describe("public account soft launch remains bounded by maintenance", () => {
       expect(isMaintenancePublicAccountRouteAllowed(path, "GET", true)).toBe(false);
       expect(isMaintenancePublicAccountRouteAllowed(path, "POST", true)).toBe(false);
     }
-    expect(GLOBAL_MAINTENANCE_MODE).toBe(true);
+    // Account-only maintenance stays tested as a secure rollback option.
+    // Current public opening instead uses the independent limited-launch gate.
+    expect(GLOBAL_MAINTENANCE_MODE).toBe(false);
     expect(isMaintenanceHodAppRouteAllowed("/confirmations/edit/token", "GET", true)).toBe(true);
     expect(isMaintenancePublicAccountRouteAllowed("/api/maintenance-confirmation", "POST", true)).toBe(false);
   });

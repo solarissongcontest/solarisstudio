@@ -70,7 +70,7 @@ function ResetPasswordPage() {
       if (error || !data.user) throw error ?? new Error("Your password reset session has expired.");
 
       const access = await getCurrentAccountAccess(data.user.id);
-      window.location.assign(access.isOrganizer ? "/admin" : "/my-solaris");
+      window.location.assign(access.isOrganizer ? "/admin" : "/participate");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Password could not be changed.");
     } finally {

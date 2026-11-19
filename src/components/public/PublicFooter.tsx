@@ -8,18 +8,13 @@ export function PublicFooter() {
           Solaris Studio
         </p>
         <nav className="flex flex-wrap items-center gap-x-4 gap-y-2" aria-label="Footer navigation">
-          <Link to="/site-directory" className="public-footer-link">
-            All Solaris pages
-          </Link>
-          <Link to="/guide" className="public-footer-link">
-            Help
-          </Link>
+          <Link to="/" className="public-footer-link">Home</Link>
+          <Link to="/participate" className="public-footer-link">Participate</Link>
+          <Link to="/auth" className="public-footer-link">Sign in</Link>
           <Link to="/rules" className="public-footer-link">
             Rules
           </Link>
-          <Link to="/integrity" className="public-footer-link">
-            Trust & Integrity
-          </Link>
+
         </nav>
       </div>
     </footer>

@@ -21,15 +21,18 @@ describe("public soft-launch sitemap", () => {
     expect(response.headers.get("Content-Type")).toBe("application/xml");
     const xml = await response.text();
     for (const path of [
-      "/editions",
-      "/countries",
-      "/results",
+      "/",
+      "/participate",
+      "/auth",
       "/rules",
       "/confirmations",
       "/jury-voting",
       "/televoting",
     ]) {
       expect(xml).toContain(`<loc>http://127.0.0.1:3000${path}</loc>`);
+    }
+    for (const hidden of ["/editions", "/countries", "/shows", "/results", "/explore", "/me"]) {
+      expect(xml).not.toContain(`<loc>http://127.0.0.1:3000${hidden}</loc>`);
     }
     for (const { path } of PUBLIC_LAUNCH_ROUTES) {
       expect(xml).not.toContain(`<loc>http://127.0.0.1:3000${path}</loc>`);

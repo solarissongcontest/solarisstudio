@@ -2,7 +2,6 @@ import { useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
 import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
-import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
 
 export function PublicLaunchRouteBoundary({
   pathname,
@@ -25,7 +24,7 @@ export function PublicLaunchRouteBoundary({
         <p className="mt-3 text-muted-foreground" role="status">
           {availability.checking
             ? "Checking which experiences are available for your account."
-            : "You can still follow the contest and check your available responsibilities."}
+            : "Home, participation, sign-in and the official rules are currently available."}
         </p>
         {availability.error ? (
           <button
@@ -43,28 +42,14 @@ export function PublicLaunchRouteBoundary({
           >
             Home
           </a>
-          {!GLOBAL_MAINTENANCE_MODE ? (
-            <a className="inline-flex min-h-11 items-center rounded-lg px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" href="/explore">
-              Explore
-            </a>
-          ) : null}
           <a
             className="inline-flex min-h-11 items-center rounded-lg px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
             href="/participate"
           >
             Participate
           </a>
-          {!GLOBAL_MAINTENANCE_MODE ? (
-            <a className="inline-flex min-h-11 items-center rounded-lg px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" href="/results">
-              Results
-            </a>
-          ) : null}
-          <a
-            className="inline-flex min-h-11 items-center rounded-lg px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-            href="/me"
-          >
-            Me
-          </a>
+          <a className="inline-flex min-h-11 items-center rounded-lg px-2" href="/auth">Sign in</a>
+          <a className="inline-flex min-h-11 items-center rounded-lg px-2" href="/rules">Rules</a>
         </nav>
       </section>
     </AppShell>

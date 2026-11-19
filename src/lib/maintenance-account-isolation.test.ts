@@ -14,7 +14,7 @@ const worker = readFileSync("src/server.ts", "utf8");
 
 describe("public release login remains usable after session changes", () => {
   it("renders auth and Me without app-wide background services", () => {
-    expect(GLOBAL_MAINTENANCE_MODE).toBe(true);
+    expect(GLOBAL_MAINTENANCE_MODE).toBe(false);
     for (const path of ["/auth", "/auth/", "/auth/reset", "/auth/reset/"]) {
       expect(isMaintenancePublicAccountRouteAllowed(path, "GET", true)).toBe(true);
     }

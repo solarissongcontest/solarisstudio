@@ -5,7 +5,7 @@ describe("v16 service worker preserves security and lifecycle boundaries", () =>
   const sw = readFileSync("public/sw.js", "utf8");
 
   it("bounds static asset revalidation to the fetch event lifetime", () => {
-    expect(sw).toContain('const CACHE_VERSION = "solaris-app-v16"');
+    expect(sw).toContain('const CACHE_VERSION = "solaris-app-v17"');
     expect(sw).toContain('const RUNTIME_CACHE = `${CACHE_VERSION}:runtime`');
     expect(sw).toContain("MAX_RUNTIME_CACHE_ENTRIES = 96");
     expect(sw).toContain("event.waitUntil(revalidation)");

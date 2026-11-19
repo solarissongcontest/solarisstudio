@@ -4,6 +4,7 @@ import { useState } from "react";
 import { PageHeader, Panel } from "@/components/AppShell";
 import { SoftLaunchAccountShell } from "@/components/SoftLaunchAccountShell";
 import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
+import { publicLaunchAllows } from "@/lib/public-launch-availability";
 import {
   createCountryAccount,
   requestSolarisPasswordRecovery,
@@ -50,11 +51,11 @@ function AuthPage() {
 
   const destinationFor = async (userId: string) => {
     const access = await getCurrentAccountAccess(userId);
-    if (safeRedirect && (!v3AuthReturnRequiresOrganizer(safeRedirect) || access.isOrganizer)) {
+    if (safeRedirect && (publicLaunchAllows(safeRedirect) || (v3AuthReturnRequiresOrganizer(safeRedirect) && access.isOrganizer))) {
       return safeRedirect;
     }
     if (access.isOrganizer) return "/admin";
-    return "/my-solaris";
+    return "/participate";
   };
 
   const submit = async (event: React.FormEvent) => {

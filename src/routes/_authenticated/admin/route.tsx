@@ -7,6 +7,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
+import { LIMITED_PUBLIC_LAUNCH } from "@/lib/public-launch-availability";
 
 const ADMIN_RELOAD_KEY = "solaris:admin:last-stale-bundle-reload";
 
@@ -95,6 +96,10 @@ function OrganizerAccessGate({ user, children }: { user: User; children: ReactNo
 
   useEffect(() => {
     if (organizerAccess.isPending || organizerAccess.data) return;
+    if (LIMITED_PUBLIC_LAUNCH) {
+      void navigate({ to: "/participate", replace: true });
+      return;
+    }
     void navigate({
       to: "/my-solaris",
       search: { notice: "organizer-access-required" },
@@ -111,7 +116,7 @@ function OrganizerAccessGate({ user, children }: { user: User; children: ReactNo
         <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.035] p-5 text-center shadow-2xl">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-sky-100/80">Solaris Organizer</p>
           <p className="mt-2 text-sm font-semibold text-white/85">
-            {organizerAccess.isPending ? "Checking organizer access…" : "Opening MySolaris…"}
+            {organizerAccess.isPending ? "Checking organizer access…" : LIMITED_PUBLIC_LAUNCH ? "Opening Participate…" : "Opening MySolaris…"}
           </p>
         </div>
       </main>

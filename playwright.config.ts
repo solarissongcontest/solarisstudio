@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 import { GLOBAL_MAINTENANCE_MODE } from "./src/lib/maintenance";
+import { LIMITED_PUBLIC_LAUNCH } from "./src/lib/public-launch-availability";
 import { requireLocalPlaywrightTarget, requireLocalPlaywrightSupabaseEnvironment } from "./scripts/lib/require-local-playwright-target.mjs";
 
 // Validate before Playwright can launch a browser or start a web server.
@@ -74,6 +75,14 @@ const appAuditStorageState = maintenanceAuditBypass
       origins: [],
     }
   : undefined;
+
+/** Limited launch: small deterministic browser matrix for only live user journeys.
+ * The exhaustive V3 suites remain unchanged and become active after rollout ends. */
+const limitedLaunchProjects = [
+  { name: "limited-public-390", testMatch: /limited-public-launch\.e2e\.ts/, use: { viewport: { width: 390, height: 844 } } },
+  { name: "limited-public-1440", testMatch: /limited-public-launch\.e2e\.ts/, use: { viewport: { width: 1440, height: 900 } } },
+  { name: "limited-ios-pwa-portrait", testMatch: /limited-public-launch\.e2e\.ts/, use: { ...devices["iPhone 13"], browserName: "webkit" as const, viewport: { width: 390, height: 844 }, reducedMotion: "reduce" as const } },
+];
 
 const maintenanceProjects = [
   {
@@ -307,7 +316,9 @@ export default defineConfig({
       },
   projects: GLOBAL_MAINTENANCE_MODE && !maintenanceAuditBypass
     ? maintenanceProjects
-    : [
+    : LIMITED_PUBLIC_LAUNCH && !fullAudit
+      ? limitedLaunchProjects
+      : [
         ...(GLOBAL_MAINTENANCE_MODE ? maintenanceProjects : []),
         ...(representativeCI ? representativeCiProjects : exhaustiveProjects),
       ],

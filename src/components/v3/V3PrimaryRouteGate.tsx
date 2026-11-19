@@ -30,7 +30,7 @@ function ResolvingPrimarySurface({ surface }: { surface: V3PrimarySurface }) {
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
           {home
-            ? "Follow the current contest, explore delegations and editions, and open published Solaris results and show information."
+            ? "Follow the current contest, see participation opportunities and read the official rules."
             : "Your available participation actions will appear after the app checks your account and current contest access."}
         </p>
       </header>
@@ -41,18 +41,9 @@ function ResolvingPrimarySurface({ surface }: { surface: V3PrimarySurface }) {
       >
         {home ? (
           <>
-            <a className="text-primary hover:underline" href="/countries">
-              Delegations
-            </a>
-            <a className="text-primary hover:underline" href="/editions">
-              Editions
-            </a>
-            <a className="text-primary hover:underline" href="/records">
-              Records
-            </a>
-            <a className="text-primary hover:underline" href="/participate">
-              Participate
-            </a>
+            <a className="text-primary hover:underline" href="/participate">Participate</a>
+            <a className="text-primary hover:underline" href="/rules">Rules</a>
+            <a className="text-primary hover:underline" href="/auth">Sign in</a>
           </>
         ) : (
           // The server has not resolved this viewer's permissions or voting

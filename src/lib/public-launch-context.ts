@@ -1,5 +1,5 @@
 import { createContext, useContext, useCallback } from "react";
-import { publicLaunchAllows, publicLaunchPath, type PublicLaunchFlags } from "./public-launch-availability";
+import { LIMITED_PUBLIC_LAUNCH, limitedPublicLaunchAllows, publicLaunchAllows, publicLaunchPath, type PublicLaunchFlags } from "./public-launch-availability";
 import {
   GLOBAL_MAINTENANCE_MODE,
   isMaintenancePublicAccountRouteAllowed,
@@ -29,6 +29,9 @@ export function usePublicLaunchAvailability() {
     [state.active, state.flags],
   );
   const allowsReleased = useCallback((href: string) => {
+    // The restricted Worker gate also controls public links before the optional
+    // availability provider mounts; Organizer's `allows` contract stays intact.
+    if (LIMITED_PUBLIC_LAUNCH && !limitedPublicLaunchAllows(href)) return false;
     if (!allows(href)) return false;
     if (!GLOBAL_MAINTENANCE_MODE) return true;
     const path = publicLaunchPath(href);

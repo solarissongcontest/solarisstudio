@@ -3,6 +3,7 @@ import { ShieldCheck } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
+import { LIMITED_PUBLIC_LAUNCH } from "@/lib/public-launch-availability";
 
 type OrganizerAccessState = "checking" | "allowed" | "redirecting";
 
@@ -42,6 +43,10 @@ export function OrganizerAccessGate({
       }
 
       setState("redirecting");
+      if (LIMITED_PUBLIC_LAUNCH) {
+        await navigate({ to: "/participate", replace: true });
+        return;
+      }
       await navigate({
         to: "/my-solaris",
         search: { notice: "organizer-access-required" },
@@ -70,7 +75,7 @@ export function OrganizerAccessGate({
           </span>
           <div className="min-w-0">
             <p className="text-sm font-semibold">
-              {state === "checking" ? "Checking Organizer access…" : "Opening My Solaris…"}
+              {state === "checking" ? "Checking Organizer access…" : LIMITED_PUBLIC_LAUNCH ? "Opening Participate…" : "Opening My Solaris…"}
             </p>
             <p className="mt-1 text-xs text-white/60">
               Solaris is verifying the current Organizer session.

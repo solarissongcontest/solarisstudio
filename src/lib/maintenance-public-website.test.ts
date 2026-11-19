@@ -12,14 +12,14 @@ const root = readFileSync("src/routes/__root.tsx", "utf8");
 const account = readFileSync("src/components/public/PublicEarlyAccessMe.tsx", "utf8");
 const config = JSON.parse(readFileSync("wrangler.jsonc", "utf8")) as { vars: Record<string, string> };
 
-describe("actual V3 public launch while voting maintenance remains", () => {
-  it("requires explicit public launch runtime switch and retains maintenance globally", () => {
+describe("emergency maintenance public-website fallback remains fail-closed during limited launch", () => {
+  it("requires explicit emergency website switch while separate limited launch disables outage maintenance", () => {
     expect(maintenancePublicWebsiteEnabled("true")).toBe(true);
     expect(maintenancePublicWebsiteEnabled(" TRUE ")).toBe(true);
     expect(maintenancePublicWebsiteEnabled("false")).toBe(false);
     expect(maintenancePublicWebsiteEnabled(undefined)).toBe(false);
-    expect(GLOBAL_MAINTENANCE_MODE).toBe(true);
-    expect(config.vars.PUBLIC_V3_WEBSITE_ACCESS).toBe("true");
+    expect(GLOBAL_MAINTENANCE_MODE).toBe(false);
+    expect(config.vars.PUBLIC_V3_WEBSITE_ACCESS).toBe("false");
     expect(worker).toContain("isMaintenancePublicWebsiteRouteAllowed(");
     expect(worker).toContain("!publicWebsiteRouteAllowed");
     expect(worker).toContain("maintenanceResponse(request, env, url.pathname === \"/\")");
@@ -27,7 +27,7 @@ describe("actual V3 public launch while voting maintenance remains", () => {
 
   it("opens the real public V3 destinations for GET and HEAD only", () => {
     for (const path of [
-      "/", "/participate", "/me", "/my-solaris",
+      "/", "/participate",
       "/guide", "/site-directory", "/rules", "/rules/chapters",
       "/rules/answers", "/me", "/my-solaris",
     ]) {

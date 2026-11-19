@@ -3,7 +3,6 @@ import { Link } from "@tanstack/react-router";
 
 import {
   PUBLIC_GLOBAL_AREAS,
-  PUBLIC_RELEASE_GLOBAL_AREAS,
   publicAreaForPath,
   publicDestinationsForArea,
   publicPathMatches,
@@ -14,7 +13,6 @@ import {
   type PublicUserContext,
 } from "@/lib/public-user-context";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
-import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
 import { cn } from "@/lib/utils";
 
 export function PublicDrawerNavigation({
@@ -28,9 +26,7 @@ export function PublicDrawerNavigation({
 }) {
   const { allowsReleased: allows } = usePublicLaunchAvailability();
   const area = publicAreaForPath(pathname);
-  const globalAreas = publicGlobalAreasForContext(user).filter(
-    (item) => !GLOBAL_MAINTENANCE_MODE || PUBLIC_RELEASE_GLOBAL_AREAS.some((allowed) => allowed.id === item.id),
-  );
+  const globalAreas = publicGlobalAreasForContext(user).filter((item) => allows(item.to));
   const areaRoot = PUBLIC_GLOBAL_AREAS.find((item) => item.id === area)?.to ?? null;
   const localItems =
     area === "home" || area === "me"
@@ -88,11 +84,8 @@ export function PublicDrawerNavigation({
           </h2>
         </div>
         <div className="mt-1.5 space-y-0.5">
-          <Link to="/site-directory" onClick={onNavigate} className="public-drawer-page-link">
-            <span>All Solaris pages</span>
-            <small>Browse every public destination without cluttering the main navigation.</small>
-          </Link>
-          <Link
+          {allows("/site-directory") ? <Link to="/site-directory" onClick={onNavigate} className="public-drawer-page-link"><span>All Solaris pages</span></Link> : null}
+          {allows("/guide") ? <Link
             to="/guide"
             onClick={onNavigate}
             aria-current={publicPathMatches(pathname, "/guide") ? "page" : undefined}
@@ -103,7 +96,7 @@ export function PublicDrawerNavigation({
           >
             <span>Help</span>
             <small>Plain-language help for using Solaris Studio.</small>
-          </Link>
+          </Link> : null}
           <Link
             to="/rules"
             onClick={onNavigate}

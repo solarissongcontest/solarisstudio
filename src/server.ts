@@ -20,6 +20,7 @@ import {
   isMaintenancePublicWebsiteRouteAllowed,
   maintenancePublicWebsiteEnabled,
 } from "./lib/maintenance";
+import { LIMITED_PUBLIC_LAUNCH, limitedPublicLaunchAllows } from "./lib/public-launch-availability";
 import { renderMaintenanceHodPortal } from "./lib/maintenance-hod-portal";
 import { renderMaintenancePage } from "./lib/maintenance-page";
 import { renderV42MaintenancePreview } from "./lib/rules-v42-maintenance-preview";
@@ -161,6 +162,73 @@ function hasLocalE2EMaintenanceBypass(request: Request) {
 
 function isMaintenanceAppAssetPath(pathname: string) {
   return MAINTENANCE_APP_ASSET_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+/** Non-page paths needed for static delivery, server functions and privately
+ * authenticated Organizer operations. The existing handlers still authorize. */
+function isLimitedLaunchInfrastructurePath(pathname: string) {
+  return MAINTENANCE_ASSET_PATHS.has(pathname) ||
+    isMaintenanceAppAssetPath(pathname) ||
+    pathname === "/favicon.svg" || pathname === "/app-launch" ||
+    pathname === "/robots.txt" || pathname === "/sitemap.xml" ||
+    pathname === "/api/flag" ||
+    pathname === "/_serverFn" || pathname.startsWith("/_serverFn/") ||
+    pathname === "/admin" || pathname.startsWith("/admin/") ||
+    pathname === "/confirmations/admin" || pathname.startsWith("/confirmations/admin/") ||
+    pathname === "/televoting/admin" || pathname.startsWith("/televoting/admin/");
+}
+
+/** Standalone HTML trampoline for iOS PWA cold launch. Deliberately bypasses
+ * React/TanStack hydration and the database: an app start must never be stuck
+ * waiting for a slow or unavailable runtime. Navigation memory only determines
+ * one of the currently published roots; critical task deep links are excluded.
+ */
+function limitedAppLaunchResponse(method: string) {
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Opening Solaris Studio</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#020817;color:#f1f5f9;font:16px system-ui,sans-serif}a{color:#9ed7fa}</style><script>
+(() => {
+  let target = "/";
+  let snapshot = null;
+  try {
+    snapshot = localStorage.getItem("solaris:app-navigation:v1");
+    if (typeof snapshot === "string") {
+      const parsed = JSON.parse(snapshot);
+      if (parsed?.activeTab === "participate") target = "/participate";
+      else if (parsed?.activeTab === "me") target = "/auth";
+    }
+  } catch {}
+  try {
+    sessionStorage.setItem("solaris:app-launch-transaction:v1", JSON.stringify({
+      version: 1, startedAt: new Date().toISOString(),
+      navigationSnapshot: typeof snapshot === "string" ? snapshot : null
+    }));
+  } catch {}
+  location.replace(target);
+})();
+</script><noscript><meta http-equiv="refresh" content="0;url=/"></noscript></head><body><main><p>Opening Solaris Studio… <a href="/">Home</a></p></main></body></html>`;
+  return new Response(method === "HEAD" ? null : html, {
+    status: 200,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store, max-age=0",
+      "x-robots-tag": "noindex, nofollow",
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
+    },
+  });
+}
+
+function limitedLaunchUnavailableResponse(method: string) {
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>Not available — Solaris Studio</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#020817;color:#f1f5f9;font:16px/1.6 system-ui,sans-serif}main{max-width:34rem;padding:2rem}a{color:#9ed7fa;margin-right:1rem}</style></head><body><main><h1>This page is not available yet</h1><p>Solaris Studio is open for Home, participation, sign-in and the official rules while more features are prepared.</p><nav><a href="/">Home</a><a href="/participate">Participate</a><a href="/auth">Sign in</a><a href="/rules">Rules</a></nav></main></body></html>`;
+  return new Response(method === "HEAD" ? null : html, {
+    status: 404,
+    headers: {
+      "cache-control": "no-store, max-age=0",
+      "content-type": "text/html; charset=utf-8",
+      "x-robots-tag": "noindex, nofollow",
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    },
+  });
 }
 
 function isTerraOsTeaserPreviewRequest(url: URL, method: string) {
@@ -401,7 +469,8 @@ function maintenanceResponse(request: Request, env: unknown, includeHodPortal: b
   if (request.method === "GET" || request.method === "HEAD") {
     let html = renderMaintenancePage();
     if (earlyAccessHome) {
-      // Publicly usable early access while dangerous unfinished routes remain sealed.
+      // The older, maintenance-only account entry stays available as rollback
+      // insurance; the independent limited launch uses normal app routing.
       html = html.replace(
         '<div class="hero-actions">',
         '<div class="hero-actions"><a class="hero-action hero-action-primary" href="/auth">Sign in or register</a><a class="hero-action" href="#confirmation-access">Edit Confirmation</a></div><p style="margin:16px 0 0;max-width:44rem;font-size:14px;line-height:1.6">Account access and existing Confirmation editing are available during this early release. Official Jury Voting and other unfinished services are not yet open.</p><div class="hero-actions">',
@@ -532,6 +601,24 @@ export default {
         (request.method === "GET" || request.method === "HEAD")
       ) {
         return maintenanceResponse(request, env, true);
+      }
+
+      // The limited installed-app entry needs a synchronous, network-free
+      // redirect before any SSR or hydration can delay the iOS WebKit launch.
+      if (!GLOBAL_MAINTENANCE_MODE && LIMITED_PUBLIC_LAUNCH &&
+          url.pathname === "/app-launch" &&
+          (request.method === "GET" || request.method === "HEAD")) {
+        return limitedAppLaunchResponse(request.method);
+      }
+
+      // Removing outage maintenance never implies releasing the whole V3 app.
+      // Enforce the limited public surface before TanStack SSR or routing.
+      if (
+        !GLOBAL_MAINTENANCE_MODE && LIMITED_PUBLIC_LAUNCH &&
+        !limitedPublicLaunchAllows(url.pathname) &&
+        !isLimitedLaunchInfrastructurePath(url.pathname)
+      ) {
+        return limitedLaunchUnavailableResponse(request.method);
       }
 
       // Explicit public, static, zero-network rulebook preview during maintenance.

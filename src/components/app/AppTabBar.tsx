@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Compass, Home, Trophy, UserRound, Vote, type LucideIcon } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 
 import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdrop";
 import { APP_RESUME_EVENT } from "@/lib/app-lifecycle";
@@ -20,12 +20,12 @@ import {
 } from "@/lib/interaction-physics";
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
 import { holdMovementExceeded, useSolarisPressHold } from "@/lib/use-solaris-press-hold";
-import { PUBLIC_GLOBAL_AREAS, PUBLIC_RELEASE_GLOBAL_AREAS } from "@/lib/public-navigation";
-import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
-
-const NAV_AREAS = GLOBAL_MAINTENANCE_MODE ? PUBLIC_RELEASE_GLOBAL_AREAS : PUBLIC_GLOBAL_AREAS;
+import { PUBLIC_GLOBAL_AREAS } from "@/lib/public-navigation";
+import { publicLaunchAllows } from "@/lib/public-launch-availability";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
+
+const LAUNCH_TAB_AREAS = PUBLIC_GLOBAL_AREAS.filter((area) => publicLaunchAllows(area.to));
 
 const ICONS: Record<(typeof PUBLIC_GLOBAL_AREAS)[number]["id"], LucideIcon> = {
   home: Home,
@@ -47,11 +47,11 @@ type DragState = {
 };
 
 function isPrimaryArea(value: string): value is PrimaryArea {
-  return NAV_AREAS.some((area) => area.id === value);
+  return LAUNCH_TAB_AREAS.some((area) => area.id === value);
 }
 
 function rootDestinationForIndex(index: number, signedIn: boolean) {
-  const area = NAV_AREAS[index];
+  const area = LAUNCH_TAB_AREAS[index];
   if (!area) return null;
   return appTabRoot(area.id, signedIn);
 }
@@ -170,12 +170,12 @@ export function AppTabBar({
   const activeArea: PrimaryArea = routeArea;
   const activeIndex = Math.max(
     0,
-    NAV_AREAS.findIndex((area) => area.id === activeArea),
+    LAUNCH_TAB_AREAS.findIndex((area) => area.id === activeArea),
   );
   const visualActiveIndex = dragging ? activeIndex : dragPreviewIndex ?? activeIndex;
 
   const openTab = (index: number) => {
-    const area = NAV_AREAS[index];
+    const area = LAUNCH_TAB_AREAS[index];
     if (!area) return;
     const target = getAppTabDestination(area.id, signedIn);
     const root = appTabRoot(area.id, signedIn);
@@ -195,7 +195,7 @@ export function AppTabBar({
   };
 
   const activateCurrentTab = (index: number) => {
-    const area = NAV_AREAS[index];
+    const area = LAUNCH_TAB_AREAS[index];
     if (!area) return;
     const root = appTabRoot(area.id, signedIn);
     const normalizedPath = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
@@ -384,7 +384,7 @@ export function AppTabBar({
       rawDelta: event.clientX - drag.startX,
       originIndex: drag.originIndex,
       slotWidth: origin.width,
-      itemCount: NAV_AREAS.length,
+      itemCount: LAUNCH_TAB_AREAS.length,
       activationRatio: 0.62,
     });
     setDragPreviewIndex((current) => (current === preview ? current : preview));
@@ -409,7 +409,7 @@ export function AppTabBar({
       rawDelta: event.clientX - drag.startX,
       originIndex: drag.originIndex,
       slotWidth: origin?.width ?? 1,
-      itemCount: NAV_AREAS.length,
+      itemCount: LAUNCH_TAB_AREAS.length,
       activationRatio: 0.72,
     });
     const moved = drag.moved;
@@ -426,7 +426,7 @@ export function AppTabBar({
     clearDrag();
 
     if (!moved || targetIndex === drag.originIndex) return;
-    const area = NAV_AREAS[targetIndex];
+    const area = LAUNCH_TAB_AREAS[targetIndex];
     if (!area) return;
     const target = getAppTabDestination(area.id, signedIn);
 
@@ -458,7 +458,7 @@ export function AppTabBar({
       data-collapsed={collapsed ? "true" : "false"}
       data-layout={railMode ? "rail" : "bar"}
       data-mode={tabbarMode}
-      data-public-tab-count={NAV_AREAS.length}
+      style={{ "--solaris-tab-count": LAUNCH_TAB_AREAS.length, "--solaris-tab-gap-total": `${Math.max(0, LAUNCH_TAB_AREAS.length - 1) * 0.15}rem` } as CSSProperties}
       onPointerDown={() => {
         if (collapsed) expandTabBar();
       }}
@@ -473,7 +473,7 @@ export function AppTabBar({
         <KubeLiquidGlassBackdrop className="solaris-app-tabbar-backdrop" sourceKey={pathname} />
         <span className="solaris-app-tab-indicator" aria-hidden="true" />
 
-        {NAV_AREAS.map((area, index) => {
+        {LAUNCH_TAB_AREAS.map((area, index) => {
           const Icon = ICONS[area.id];
           const to = rootDestinationForIndex(index, signedIn)!;
           const active = activeArea === area.id;

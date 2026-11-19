@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
+import { LIMITED_PUBLIC_LAUNCH } from "./public-launch-availability";
 import {
   requireLocalPlaywrightTarget,
   requireLocalPlaywrightSupabaseEnvironment,
@@ -38,6 +39,9 @@ function configFor(environment: Record<string, string | undefined>) {
       if (name === "./src/lib/maintenance") {
         return { GLOBAL_MAINTENANCE_MODE: false };
       }
+      if (name === "./src/lib/public-launch-availability") {
+        return { LIMITED_PUBLIC_LAUNCH };
+      }
       if (name === "./scripts/lib/require-local-playwright-target.mjs") {
         // Execute the real, dependency-free guard before evaluating any project selection.
         return { requireLocalPlaywrightTarget, requireLocalPlaywrightSupabaseEnvironment };
@@ -59,13 +63,11 @@ describe("Browser Audit CI selection", () => {
     { GITHUB_EVENT_NAME: "push", GITHUB_REF: "refs/heads/main" },
   ])("bounds routine integration while retaining required smoke projects: %j", (env) => {
     const config = configFor(env);
-    expect(config.projects.map(({ name }) => name)).toEqual([
-      "public-390",
-      "public-1440",
-      "personality-390",
-      "account-states",
-      "ios-pwa-portrait",
-    ]);
+    expect(config.projects.map(({ name }) => name)).toEqual(
+      LIMITED_PUBLIC_LAUNCH
+        ? ["limited-public-390", "limited-public-1440", "limited-ios-pwa-portrait"]
+        : ["public-390", "public-1440", "personality-390", "account-states", "ios-pwa-portrait"],
+    );
     expect(config.timeout).toBe(90_000);
     expect(config.retries).toBe(0);
   });
@@ -75,6 +77,7 @@ describe("Browser Audit CI selection", () => {
     { GITHUB_EVENT_NAME: "pull_request", GITHUB_HEAD_REF: "release-candidate" },
   ])("retains exhaustive explicit certification without branch-name coupling: %j", (env) => {
     const config = configFor({ ...env, E2E_FULL_AUDIT: "1" });
+    // Explicit full certification must never be silently reduced to launch smoke.
     expect(config.projects.length).toBeGreaterThan(20);
     expect(config.projects.map(({ name }) => name)).toContain("public-320");
     expect(config.grepInvert).toBeUndefined();
@@ -87,7 +90,7 @@ describe("Browser Audit CI selection", () => {
       GITHUB_REF: "refs/heads/main",
       E2E_FULL_AUDIT: "1",
     });
-    expect(config.projects).toHaveLength(5);
+    expect(config.projects).toHaveLength(LIMITED_PUBLIC_LAUNCH ? 3 : 5);
     expect(config.retries).toBe(0);
   });
 

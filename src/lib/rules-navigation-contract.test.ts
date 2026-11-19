@@ -61,7 +61,9 @@ describe("Rules and Integrity navigation", () => {
     expect(appShell).toContain("<PublicSectionNav");
     expect(appShell).toContain("<PublicDrawerNavigation");
     expect(appShell).not.toContain("<PublicSiteSidebar");
-    expect(appShell).toContain('to="/guide"');
+    // Restriction is temporary: keep legacy help as a reversible branch,
+    // while the currently visible entry opens the official Rules.
+    expect(appShell).toContain('LIMITED_PUBLIC_LAUNCH ? "/rules" : "/guide"');
     for (const route of ["/rules", "/rules/changes", "/rules/interpretations", "/integrity", "/integrity/appeals"])
       expect(publicNavigation).toContain(`"${route}"`);
     expect(publicNavigation).toContain('"Rule clarifications"');
