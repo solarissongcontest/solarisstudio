@@ -45,8 +45,10 @@ describe("P04 V3 participant intake: one reviewed receipt/operation authority", 
 
   it("requires actual role-denied original physical writers and clean/upgrade catalog proof", () => {
     expect(installed).toContain("Retired duplicate intake implementation remains installed");
-    expect(installed).toContain("select public.create_protected_integrity_case_impl(");
-    expect(installed).toContain("select public.public_create_anonymous_integrity_case_impl(");
+    expect(installed).toContain("perform public.create_protected_integrity_case_impl(");
+    expect(installed).toContain("perform public.public_create_anonymous_integrity_case_impl(");
+    expect(installed).toContain("Duplicate original anonymous physical writer remains installed");
+    expect(installed).toContain("Canonical anonymous intake physical-write, privacy, history or replay evidence missing");
     expect(authority).toContain("Duplicate participant intake implementation remains:");
     expect(sql).toContain("set local lock_timeout = '5s'");
     expect(sql).toContain("set local statement_timeout = '30s'");
