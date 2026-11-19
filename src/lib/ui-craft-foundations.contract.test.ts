@@ -179,6 +179,7 @@ describe("Solaris UI craft foundations", () => {
       expect(source(file), file).toContain(exemption);
     }
     expect(source("src/unified-design.css")).toContain(".admin-control-room input" + exemption);
+    expect(source("src/confirmations.css")).toContain(".confirmations-theme input" + exemption);
     expect(source("src/components/rules/RulesHomeV5.tsx")).toContain("border-0 bg-transparent");
     expect(source("src/components/public/PublicSearchField.tsx")).toContain("!bg-transparent");
   });
