@@ -21,6 +21,7 @@ import {
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
 import { holdMovementExceeded, useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import { PUBLIC_GLOBAL_AREAS } from "@/lib/public-navigation";
+import { GLOBAL_MAINTENANCE_MODE, MAINTENANCE_PUBLIC_PRIMARY_AREAS } from "@/lib/maintenance";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +35,10 @@ const ICONS: Record<(typeof PUBLIC_GLOBAL_AREAS)[number]["id"], LucideIcon> = {
 
 type PrimaryArea = (typeof PUBLIC_GLOBAL_AREAS)[number]["id"];
 
+const VISIBLE_APP_AREAS = GLOBAL_MAINTENANCE_MODE
+  ? PUBLIC_GLOBAL_AREAS.filter((area) => (MAINTENANCE_PUBLIC_PRIMARY_AREAS as readonly string[]).includes(area.id))
+  : PUBLIC_GLOBAL_AREAS;
+
 type DragState = {
   pointerId: number;
   captureTarget: HTMLAnchorElement;
@@ -44,11 +49,11 @@ type DragState = {
 };
 
 function isPrimaryArea(value: string): value is PrimaryArea {
-  return PUBLIC_GLOBAL_AREAS.some((area) => area.id === value);
+  return VISIBLE_APP_AREAS.some((area) => area.id === value);
 }
 
 function rootDestinationForIndex(index: number, signedIn: boolean) {
-  const area = PUBLIC_GLOBAL_AREAS[index];
+  const area = VISIBLE_APP_AREAS[index];
   if (!area) return null;
   return appTabRoot(area.id, signedIn);
 }
@@ -167,12 +172,12 @@ export function AppTabBar({
   const activeArea: PrimaryArea = routeArea;
   const activeIndex = Math.max(
     0,
-    PUBLIC_GLOBAL_AREAS.findIndex((area) => area.id === activeArea),
+    VISIBLE_APP_AREAS.findIndex((area) => area.id === activeArea),
   );
   const visualActiveIndex = dragging ? activeIndex : dragPreviewIndex ?? activeIndex;
 
   const openTab = (index: number) => {
-    const area = PUBLIC_GLOBAL_AREAS[index];
+    const area = VISIBLE_APP_AREAS[index];
     if (!area) return;
     const target = getAppTabDestination(area.id, signedIn);
     const root = appTabRoot(area.id, signedIn);
@@ -192,7 +197,7 @@ export function AppTabBar({
   };
 
   const activateCurrentTab = (index: number) => {
-    const area = PUBLIC_GLOBAL_AREAS[index];
+    const area = VISIBLE_APP_AREAS[index];
     if (!area) return;
     const root = appTabRoot(area.id, signedIn);
     const normalizedPath = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
@@ -381,7 +386,7 @@ export function AppTabBar({
       rawDelta: event.clientX - drag.startX,
       originIndex: drag.originIndex,
       slotWidth: origin.width,
-      itemCount: PUBLIC_GLOBAL_AREAS.length,
+      itemCount: VISIBLE_APP_AREAS.length,
       activationRatio: 0.62,
     });
     setDragPreviewIndex((current) => (current === preview ? current : preview));
@@ -406,7 +411,7 @@ export function AppTabBar({
       rawDelta: event.clientX - drag.startX,
       originIndex: drag.originIndex,
       slotWidth: origin?.width ?? 1,
-      itemCount: PUBLIC_GLOBAL_AREAS.length,
+      itemCount: VISIBLE_APP_AREAS.length,
       activationRatio: 0.72,
     });
     const moved = drag.moved;
@@ -423,7 +428,7 @@ export function AppTabBar({
     clearDrag();
 
     if (!moved || targetIndex === drag.originIndex) return;
-    const area = PUBLIC_GLOBAL_AREAS[targetIndex];
+    const area = VISIBLE_APP_AREAS[targetIndex];
     if (!area) return;
     const target = getAppTabDestination(area.id, signedIn);
 
@@ -469,7 +474,7 @@ export function AppTabBar({
         <KubeLiquidGlassBackdrop className="solaris-app-tabbar-backdrop" sourceKey={pathname} />
         <span className="solaris-app-tab-indicator" aria-hidden="true" />
 
-        {PUBLIC_GLOBAL_AREAS.map((area, index) => {
+        {VISIBLE_APP_AREAS.map((area, index) => {
           const Icon = ICONS[area.id];
           const to = rootDestinationForIndex(index, signedIn)!;
           const active = activeArea === area.id;
