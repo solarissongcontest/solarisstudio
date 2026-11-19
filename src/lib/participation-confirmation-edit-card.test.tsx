@@ -41,6 +41,9 @@ describe("Participate existing Confirmation edit action", () => {
     expect(code).toContain("createCountryAccountConfirmationEditToken(edit.roundId)");
     expect(code).toContain("encodeURIComponent(result.token)");
     expect(code).toContain("window.location.assign");
+    expect(code).toContain('key={actor}');
+    expect(code).toContain('data-participate-confirmation-edit="closed"');
+    expect(code).toContain('Confirmation editing is no longer available');
     expect(code).not.toContain('window.location.assign("/confirmations")');
   });
 
