@@ -17,6 +17,8 @@ import {
   maintenanceHodAccessEnabled,
   maintenancePublicAccountAccessEnabled,
   isMaintenancePublicAccountRouteAllowed,
+  isMaintenancePublicWebsiteRouteAllowed,
+  maintenancePublicWebsiteEnabled,
 } from "./lib/maintenance";
 import { renderMaintenanceHodPortal } from "./lib/maintenance-hod-portal";
 import { renderMaintenancePage } from "./lib/maintenance-page";
@@ -35,6 +37,7 @@ type ServerEnv = {
   MAINTENANCE_ADMIN_SECRET?: string;
   MAINTENANCE_HOD_ACCESS?: string;
   PUBLIC_SOFT_LAUNCH_ACCESS?: string;
+  PUBLIC_V3_WEBSITE_ACCESS?: string;
   SUPABASE_URL?: string;
   SUPABASE_PUBLISHABLE_KEY?: string;
   VITE_SUPABASE_URL?: string;
@@ -513,6 +516,9 @@ export default {
       const softLaunchEnabled = maintenancePublicAccountAccessEnabled(
         serverEnv(env)?.PUBLIC_SOFT_LAUNCH_ACCESS ?? process.env.PUBLIC_SOFT_LAUNCH_ACCESS,
       );
+      const publicV3Enabled = maintenancePublicWebsiteEnabled(
+        serverEnv(env)?.PUBLIC_V3_WEBSITE_ACCESS ?? process.env.PUBLIC_V3_WEBSITE_ACCESS,
+      );
 
       // Explicit public, static, zero-network rulebook preview during maintenance.
       // Neither the TanStack app nor Supabase is initialized for this response.
@@ -578,6 +584,8 @@ export default {
 
       const publicAccountRouteAllowed = GLOBAL_MAINTENANCE_MODE &&
         isMaintenancePublicAccountRouteAllowed(url.pathname, request.method, softLaunchEnabled);
+      const publicWebsiteRouteAllowed = GLOBAL_MAINTENANCE_MODE &&
+        isMaintenancePublicWebsiteRouteAllowed(url.pathname, request.method, publicV3Enabled);
       const hodAppRouteAllowed = isMaintenanceHodAppRouteAllowed(
         url.pathname,
         request.method,
@@ -615,6 +623,7 @@ export default {
         !teaserPreviewAllowed &&
         !hodAppRouteAllowed &&
         !publicAccountRouteAllowed &&
+        !publicWebsiteRouteAllowed &&
         !recoveryRouteAllowed
       ) {
         const localE2EBypass = hasLocalE2EMaintenanceBypass(request);
