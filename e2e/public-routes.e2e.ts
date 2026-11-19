@@ -567,6 +567,35 @@ test("Rulebook chapter directory preserves all 22 links across mobile web and de
 });
 
 
+test("Rules and directory search controls render one surface on mobile and desktop web", async ({ page }, testInfo) => {
+  test.skip(!["public-390", "public-1440"].includes(testInfo.project.name), "Public phone/desktop search visuals");
+
+  for (const [route, selector] of [
+    ["/rules", 'input[placeholder="Search rules or ask a question…"]'],
+    ["/rules/search?q=friend", 'input[aria-label="Search rules"]'],
+    ["/site-directory", 'input[aria-label="Search Solaris Studio pages"]'],
+  ] as const) {
+    await page.goto(route, { waitUntil: "domcontentloaded" });
+    const inner = page.locator(selector);
+    await expect(inner, route).toBeVisible();
+    const appearance = await inner.evaluate((input) => {
+      const css = getComputedStyle(input);
+      return {
+        backgroundImage: css.backgroundImage,
+        backgroundColor: css.backgroundColor,
+        border: css.borderTopWidth,
+        shadow: css.boxShadow,
+      };
+    });
+    expect(appearance, `No nested input skin on ${route}`).toEqual({
+      backgroundImage: "none",
+      backgroundColor: "rgba(0, 0, 0, 0)",
+      border: "0px",
+      shadow: "none",
+    });
+  }
+});
+
 test("soft launch hides deferred discovery and rejects direct links without mounting the tools", async ({ page }, testInfo) => {
   test.skip(!["public-390", "public-1440"].includes(testInfo.project.name), "Phone and desktop public launch acceptance");
   await page.goto("/site-directory", { waitUntil: "domcontentloaded" });

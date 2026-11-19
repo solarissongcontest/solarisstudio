@@ -173,10 +173,20 @@ describe("Solaris UI craft foundations", () => {
     expect(accessibility).toContain("var(--ease-out, ease-out)");
   });
 
+  it("never paints a second global field surface over semantic or transparent search inputs", () => {
+    const exemption = ':not(:where([type="search"], [role="searchbox"], [enterkeyhint="search"], [placeholder^="Search" i], [placeholder^="Find" i], [placeholder^="Ask" i], [aria-label*="search" i], [class*="bg-transparent"], [class*="border-0"]))';
+    for (const file of ["src/styles.css", "src/unified-design.css", "src/calm-public-chrome.css", "src/solaris-surfaces.css"]) {
+      expect(source(file), file).toContain(exemption);
+    }
+    expect(source("src/unified-design.css")).toContain(".admin-control-room input" + exemption);
+    expect(source("src/components/rules/RulesHomeV5.tsx")).toContain("border-0 bg-transparent");
+    expect(source("src/components/public/PublicSearchField.tsx")).toContain("!bg-transparent");
+  });
+
   it("keeps a visible focus outline on text and selection controls", () => {
     const styles = source("src/styles.css");
     const controlFocus = styles.match(
-      /input(?::not\(\.solaris-app-search-input\))?:focus-visible, textarea:focus-visible, select:focus-visible, \[role="combobox"\]:focus-visible \{([\s\S]*?)\n\}/,
+      /input[^\n]*:focus-visible, textarea:focus-visible, select:focus-visible, \[role="combobox"\]:focus-visible \{([\s\S]*?)\n\}/,
     )?.[1];
 
     expect(controlFocus).toBeDefined();
