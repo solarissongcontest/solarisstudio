@@ -100,7 +100,7 @@ test("public early access exposes account screens while contest mutations remain
     const publicResponse = await request.get(publicPath);
     expect(publicResponse.status(), publicPath + " must serve the actual website").toBe(200);
   }
-  for (const unpublishedPath of ["/explore", "/results", "/results/ssc-20"]) {
+  for (const unpublishedPath of ["/explore", "/results", "/results/ssc-20", "/countries", "/editions/ssc-20", "/shows", "/records", "/wiki", "/archive"]) {
     const unpublishedResponse = await request.get(unpublishedPath);
     expect(unpublishedResponse.status(), unpublishedPath + " must stay closed in the 3-tab release").toBe(503);
   }
@@ -116,6 +116,40 @@ test("public early access exposes account screens while contest mutations remain
   expect(deniedPage.status()).toBe(503);
   const deniedServerMutation = await request.post("/_serverFn/blocked", { data: { probe: true } });
   expect(deniedServerMutation.status()).toBe(503);
+});
+
+test("mobile drawer navigation releases its scroll lock and P0 directory is flat and scoped", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const pageResponse = await page.goto("/", { waitUntil: "domcontentloaded" });
+  expect(pageResponse?.status()).toBe(200);
+  await page.getByRole("button", { name: "Open navigation" }).click();
+  const drawer = page.getByRole("navigation", { name: "Mobile navigation" });
+  await expect(drawer).toBeVisible();
+  await drawer.getByRole("link", { name: /All Solaris pages/ }).click();
+  await expect(page).toHaveURL(/\/site-directory\/?$/);
+  await expect(page.locator("[data-directory-experience]")).toHaveAttribute("data-directory-experience", "mobile-web");
+
+  await expect(page.getByRole("heading", { name: "Available Solaris pages" })).toBeVisible();
+  await expect(page.locator('a[href="/explore"]')).toHaveCount(0);
+  await expect(page.locator('a[href="/results"]')).toHaveCount(0);
+  await expect(page.locator('a[href="/countries"]')).toHaveCount(0);
+  await expect(page.locator('a[href="/editions"]')).toHaveCount(0);
+  await expect(page.locator(".v3-directory-group-title").filter({ hasText: "Explore" })).toHaveCount(0);
+  await expect(page.locator(".v3-directory-group-title").filter({ hasText: "Results" })).toHaveCount(0);
+
+  const search = page.getByRole("searchbox", { name: "Search Solaris Studio pages" });
+  const appearance = await search.evaluate((input) => {
+    const css = getComputedStyle(input);
+    return { background: css.backgroundImage, border: css.borderTopWidth, shadow: css.boxShadow };
+  });
+  expect(appearance).toEqual({ background: "none", border: "0px", shadow: "none" });
+  await expect.poll(() => page.evaluate(() => document.body.style.overflow)).not.toBe("hidden");
+  const maxScroll = await page.evaluate(() =>
+    Math.max(0, (document.scrollingElement?.scrollHeight ?? 0) - window.innerHeight)
+  );
+  expect(maxScroll).toBeGreaterThan(150);
+  await page.evaluate(() => window.scrollTo(0, 400));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
 });
 
 test("TerraOS teaser preview route renders all five production V3 destinations without live data", async ({ page }) => {
