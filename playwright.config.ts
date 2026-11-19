@@ -81,7 +81,7 @@ const appAuditStorageState = maintenanceAuditBypass
 const limitedLaunchProjects = [
   { name: "limited-public-390", testMatch: /limited-public-launch\.e2e\.ts/, use: { viewport: { width: 390, height: 844 } } },
   { name: "limited-public-1440", testMatch: /limited-public-launch\.e2e\.ts/, use: { viewport: { width: 1440, height: 900 } } },
-  { name: "limited-ios-pwa-portrait", testMatch: /limited-public-launch\.e2e\.ts/, use: { ...devices["iPhone 13"], browserName: "webkit" as const, viewport: { width: 390, height: 844 } } },
+  { name: "limited-ios-pwa-portrait", testMatch: /limited-public-launch\.e2e\.ts/, use: { ...devices["iPhone 13"], browserName: "webkit" as const, viewport: { width: 390, height: 844 }, reducedMotion: "reduce" as const } },
 ];
 
 const maintenanceProjects = [

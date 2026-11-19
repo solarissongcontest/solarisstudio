@@ -27,7 +27,9 @@ describe("installed/tablet Results master-pane launch visibility", () => {
       </PublicLaunchContext.Provider>,
     );
     expect(html).toContain("Published official result");
-    expect(html).toContain('href="/results"');
+    // The Results pane code remains intact for the eventual full release,
+    // but restricted-launch Public links must not advertise it.
+    expect(html).not.toContain('href="/results"');
     expect(html).not.toContain('href="/analysis"');
     expect(html).not.toContain('href="/scorecharts"');
     expect(html).not.toContain("Detailed published voting");
