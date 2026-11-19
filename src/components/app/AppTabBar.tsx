@@ -467,6 +467,7 @@ export function AppTabBar({
       <div
         ref={materialRef}
         className="solaris-app-tabbar-material"
+        data-visible-tab-count={VISIBLE_APP_AREAS.length}
         data-active-index={activeIndex}
         data-dragging={dragging ? "true" : "false"}
         data-held={held ? "true" : "false"}
