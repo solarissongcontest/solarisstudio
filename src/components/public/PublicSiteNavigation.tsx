@@ -26,7 +26,7 @@ export function PublicDrawerNavigation({
   user: PublicUserContext;
   onNavigate?: () => void;
 }) {
-  const { allows } = usePublicLaunchAvailability();
+  const { allowsReleased: allows } = usePublicLaunchAvailability();
   const area = publicAreaForPath(pathname);
   const globalAreas = publicGlobalAreasForContext(user).filter(
     (item) => !GLOBAL_MAINTENANCE_MODE || PUBLIC_RELEASE_GLOBAL_AREAS.some((allowed) => allowed.id === item.id),
