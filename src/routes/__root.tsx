@@ -359,6 +359,16 @@ function RootComponent() {
   // Client-side navigation must not bypass the Worker HTTP maintenance gate.
   // A GET-only Worker allowlist alone cannot stop SPA navigation or browser-side
   // Supabase commands on pages whose main content has already been mounted.
+  // Strictly local browser-audit fixtures exercise legacy Organizer and
+  // installed-app chrome against a disposable Supabase. Never translate this
+  // into a production bypass: BOTH origins must be loopback.
+  const localDisposableBrowserAudit =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") &&
+    /^http:\/\/(?:127\.0\.0\.1|localhost):\d+\//.test(
+      String(import.meta.env.VITE_SUPABASE_URL || "").replace(/:\d+$/, (port: string) => port + "/"),
+    );
+
   const maintenanceRouteAllowed =
     isMaintenancePublicWebsiteRouteAllowed(pathname, "GET", true) ||
     isMaintenancePublicAccountRouteAllowed(pathname, "GET", true) ||
@@ -376,7 +386,7 @@ function RootComponent() {
     outlet
   );
 
-  if (GLOBAL_MAINTENANCE_MODE && !maintenanceRouteAllowed) {
+  if (GLOBAL_MAINTENANCE_MODE && !localDisposableBrowserAudit && !maintenanceRouteAllowed) {
     return (
       <main className="grid min-h-dvh place-items-center bg-background px-5 text-foreground"
         data-maintenance-client-denied="true">
@@ -394,7 +404,7 @@ function RootComponent() {
     );
   }
 
-  if (GLOBAL_MAINTENANCE_MODE && (pathname === "/my-solaris" || pathname === "/my-solaris/")) {
+  if (GLOBAL_MAINTENANCE_MODE && !localDisposableBrowserAudit && (pathname === "/my-solaris" || pathname === "/my-solaris/")) {
     return (
       <QueryClientProvider client={queryClient}>
         <PublicEarlyAccessMe />
