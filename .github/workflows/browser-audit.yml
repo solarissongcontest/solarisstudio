@@ -565,6 +565,15 @@ jobs:
           SUPABASE_PROJECT_ID: local
           SUPABASE_PROJECT_REF: local
 
+      - name: Capture authenticated Organizer and country-delegation views (local-only)
+        if: success()
+        run: bash .github/scripts/v3-browser-playwright-container.sh run node scripts/temporary-v3-auth-capture.mjs
+        env:
+          E2E_BASE_URL: http://127.0.0.1:4173
+          SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
+          SUPABASE_PROJECT_ID: local
+          SUPABASE_PROJECT_REF: local
+
       - name: Print audit server log on failure
         if: failure()
         run: tail -n 300 /tmp/solaris-audit-server.log || true
@@ -614,5 +623,6 @@ jobs:
             test-results/playwright
             artifacts/browser-audit/provenance.txt
             artifacts/v3-permanent-captures
+            artifacts/v3-permanent-auth-captures
           if-no-files-found: ignore
           retention-days: 14
