@@ -206,8 +206,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: v3-s14-archive-forward-${{ github.ref }}
-  cancel-in-progress: true
+  # Push runs must never cancel or replace another integrated main SHA's evidence.
+  # Only superseded PR-head runs may be cancelled.
+  group: v3-s14-archive-forward-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   local-forward-upgrade:
