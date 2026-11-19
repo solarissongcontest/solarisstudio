@@ -596,6 +596,54 @@ test("Rules and directory search controls render one surface on mobile and deskt
   }
 });
 
+test("global web Search shows a clean single-surface dialog and compact results", async ({ page }, testInfo) => {
+  test.skip(!["public-390", "public-1440"].includes(testInfo.project.name), "Web Search presentation");
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.locator('button[aria-label="Search Solaris Studio"]').first().click();
+  const dialog = page.locator('[role="dialog"].solaris-public-search-dialog');
+  await expect(dialog).toBeVisible();
+  const input = dialog.locator('input[aria-label="Search Solaris Studio"]');
+  await expect(input).toBeVisible();
+  const visuals = await input.evaluate((element) => {
+    const input = getComputedStyle(element);
+    const container = element.closest("[cmdk-input-wrapper]")!;
+    const shell = getComputedStyle(container);
+    const rect = element.closest('[role="dialog"]')!.getBoundingClientRect();
+    return {
+      innerBackground: input.backgroundImage,
+      innerColor: input.backgroundColor,
+      innerBorder: input.borderTopWidth,
+      innerShadow: input.boxShadow,
+      outerBorder: shell.borderTopWidth,
+      top: rect.top,
+      left: rect.left,
+      right: rect.right,
+      screen: window.innerWidth,
+    };
+  });
+  expect(visuals.innerBackground).toBe("none");
+  expect(visuals.innerColor).toBe("rgba(0, 0, 0, 0)");
+  expect(visuals.innerBorder).toBe("0px");
+  expect(visuals.innerShadow).toBe("none");
+  expect(visuals.outerBorder).not.toBe("0px");
+  expect(visuals.top).toBeGreaterThanOrEqual(0);
+  expect(visuals.top).toBeLessThan(160);
+  expect(visuals.left).toBeGreaterThanOrEqual(0);
+  expect(visuals.right).toBeLessThanOrEqual(visuals.screen + 1);
+
+  const firstRow = dialog.locator("[cmdk-item]").first();
+  await expect(firstRow).toBeVisible();
+  const rowHeight = await firstRow.evaluate((node) => node.getBoundingClientRect().height);
+  expect(rowHeight, "Recent entries must be compact, not giant highlighted cards").toBeLessThan(88);
+
+  await input.fill("rules");
+  await expect(dialog.getByRole("button", { name: "Clear search" })).toBeVisible();
+  await dialog.getByRole("button", { name: "Clear search" }).click();
+  await expect(input).toHaveValue("");
+  await dialog.getByRole("button", { name: "Close search" }).click();
+  await expect(dialog).toHaveCount(0);
+});
+
 test("soft launch hides deferred discovery and rejects direct links without mounting the tools", async ({ page }, testInfo) => {
   test.skip(!["public-390", "public-1440"].includes(testInfo.project.name), "Phone and desktop public launch acceptance");
   await page.goto("/site-directory", { waitUntil: "domcontentloaded" });
