@@ -57,6 +57,9 @@ import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 import { loadPublicStoryline, loadPublicStorylines } from "@/lib/studio2-storytelling";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
+import "./public-command-palette.css";
+import { fetchCurrentRulebookRelease } from "@/lib/rules-governance";
+import { refreshPublicRuleRecentLabels } from "@/lib/public-rule-recent-labels";
 
 export function PublicCommandPalette({
   compact = false,
@@ -207,6 +210,14 @@ function publicRecentShowIds(recents: readonly { path: string }[]): string[] {
 function usePublicationSafeRecents() {
   const { preferences } = useAppExperiencePreferences();
   const recents = useMemo(() => readPublicRecents(), []);
+  const hasRuleRecents = useMemo(() => recents.some((recent) => /^\/rules\//.test(recent.path)), [recents]);
+  const currentRulebook = useQuery({
+    queryKey: ["public-rulebook-release"],
+    queryFn: fetchCurrentRulebookRelease,
+    enabled: hasRuleRecents,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
   const showIds = useMemo(() => publicRecentShowIds(recents), [recents]);
   const publicationSlugs = useMemo(() => recentPublicationSlugs(recents), [recents]);
   const { editionSlugs, storySlugs } = publicationSlugs;
@@ -306,18 +317,26 @@ function usePublicationSafeRecents() {
       !storyVisibility.isFetching
         ? storyVisibility.data
         : [];
-    return spoilerSafePublicRecents(
-      visiblePublicationVerifiedRecents(
-        visibleRecentShowDestinations(recents, allowedShows),
-        {
-          publishedEditionLabels: new Map(allowedEditionLabels.map((row) => [row.slug, row.label])),
-          publishedStoryLabels: new Map(allowedStoryLabels.map((row) => [row.slug, row.label])),
-        },
-      ),
-      preferences.spoilerFree,
+    const verified = visiblePublicationVerifiedRecents(
+      visibleRecentShowDestinations(recents, allowedShows),
+      {
+        publishedEditionLabels: new Map(allowedEditionLabels.map((row) => [row.slug, row.label])),
+        publishedStoryLabels: new Map(allowedStoryLabels.map((row) => [row.slug, row.label])),
+      },
     );
+    // Never replay stale rule names before the current published release is verified.
+    const currentLabels = refreshPublicRuleRecentLabels(
+      hasRuleRecents && !currentRulebook.isSuccess
+        ? verified.filter((recent) => !/^\/rules\//.test(recent.path))
+        : verified,
+      currentRulebook.data,
+    );
+    return spoilerSafePublicRecents(currentLabels, preferences.spoilerFree);
   }, [
     recents,
+    hasRuleRecents,
+    currentRulebook.isSuccess,
+    currentRulebook.data,
     preferences.spoilerFree,
     showVisibility.isSuccess,
     showVisibility.isFetchedAfterMount,
@@ -724,30 +743,45 @@ function WebPublicPaletteDialog({
   }, [actionResults, recentResults, allows]);
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
-      <div className="relative">
-        <CommandInput
-          ref={webSearchInputRef}
-          autoFocus
-          value={query}
-          onValueChange={setQuery}
-          placeholder="Search Solaris Studio…"
-          aria-label="Search Solaris Studio"
-          className={query ? "pr-28" : "pr-14"}
-        />
-        {query ? (
-          <button
-            type="button"
-            aria-label="Clear search"
-            onClick={() => {
-              setQuery("");
-              webSearchInputRef.current?.focus();
-            }}
-            className="absolute right-16 top-1/2 inline-flex size-10 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-          >
-            <X className="size-4" aria-hidden="true" />
+    <CommandDialog
+      open={open}
+      onOpenChange={setOpen}
+      shouldFilter={false}
+      showCloseButton={false}
+      contentLayout="fullscreen"
+      contentClassName="solaris-public-search-dialog"
+      commandClassName="solaris-public-search-command"
+    >
+      <div className="solaris-public-search-header">
+        <div className="solaris-public-search-field">
+          <CommandInput
+            ref={webSearchInputRef}
+            appearance="appSearch"
+            autoFocus
+            value={query}
+            onValueChange={setQuery}
+            placeholder="Search Solaris Studio…"
+            aria-label="Search Solaris Studio"
+          />
+          {query ? (
+            <button
+              type="button"
+              aria-label="Clear search"
+              onClick={() => {
+                setQuery("");
+                webSearchInputRef.current?.focus();
+              }}
+              className="solaris-public-search-clear"
+            >
+              <X className="size-4" aria-hidden="true" />
+            </button>
+          ) : null}
+        </div>
+        <DialogClose asChild>
+          <button type="button" className="solaris-public-search-close" aria-label="Close search">
+            <X className="size-[18px]" aria-hidden="true" />
           </button>
-        ) : null}
+        </DialogClose>
       </div>
 
       {normalized.length >= 2 ? (
