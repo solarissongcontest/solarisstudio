@@ -520,6 +520,17 @@ export default {
         serverEnv(env)?.PUBLIC_V3_WEBSITE_ACCESS ?? process.env.PUBLIC_V3_WEBSITE_ACCESS,
       );
 
+      // Keep the fully static TerraOS maintenance artwork available as a
+      // bounded noindex legacy preview while the real V3 public site is open.
+      // This is never the public homepage and never admits a mutating method.
+      if (
+        GLOBAL_MAINTENANCE_MODE &&
+        url.pathname === "/maintenance/story" &&
+        (request.method === "GET" || request.method === "HEAD")
+      ) {
+        return maintenanceResponse(request, env, true);
+      }
+
       // Explicit public, static, zero-network rulebook preview during maintenance.
       // Neither the TanStack app nor Supabase is initialized for this response.
       // Every non-GET/HEAD method remains subject to the normal maintenance gate.
