@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { PageHeader, Panel } from "@/components/AppShell";
+import { SoftLaunchAccountShell } from "@/components/SoftLaunchAccountShell";
+import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
 import {
   createCountryAccount,
   requestSolarisPasswordRecovery,
@@ -43,6 +45,7 @@ function AuthPage() {
   const [countryId, setCountryId] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [completedAction, setCompletedAction] = useState<"signin" | "signup" | null>(null);
   const { data: claims, isLoading: claimsLoading } = useAvailableCountryClaims();
 
   const destinationFor = async (userId: string) => {
@@ -62,6 +65,11 @@ function AuthPage() {
     try {
       if (mode === "signin") {
         const userId = await signInSolarisAccount(identifier, password);
+        if (GLOBAL_MAINTENANCE_MODE) {
+          setPassword("");
+          setCompletedAction("signin");
+          return;
+        }
         window.location.assign(await destinationFor(userId));
         return;
       }
@@ -78,6 +86,11 @@ function AuthPage() {
         password,
         email: email.trim() || undefined,
       });
+      if (GLOBAL_MAINTENANCE_MODE) {
+        setPassword("");
+        setCompletedAction("signup");
+        return;
+      }
       window.location.assign(await destinationFor(userId));
     } catch (error) {
       setMsg(error instanceof Error ? error.message : "Something went wrong.");
@@ -111,8 +124,27 @@ function AuthPage() {
 
   const signupUnavailable = mode === "signup" && claims?.schemaReady === false;
 
+  if (completedAction) {
+    return (
+      <SoftLaunchAccountShell>
+        <section className="mx-auto max-w-md rounded-2xl border border-border bg-surface p-6" role="status">
+          <h1 className="text-xl font-bold">
+            {completedAction === "signup" ? "Country account created" : "Signed in successfully"}
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            Your Solaris Studio session is active. The full account dashboard is not yet part of early access.
+            If you have a secure Confirmation edit link, you can use it now.
+          </p>
+          <a className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground" href="/">
+            Return to Solaris Studio
+          </a>
+        </section>
+      </SoftLaunchAccountShell>
+    );
+  }
+
   return (
-    <AppShell>
+    <SoftLaunchAccountShell>
       <PageHeader
         eyebrow="Account access"
         title={mode === "signin" ? "Sign in" : "Create a country account"}
@@ -295,6 +327,6 @@ function AuthPage() {
           </button>
         </Panel>
       </div>
-    </AppShell>
+    </SoftLaunchAccountShell>
   );
 }
