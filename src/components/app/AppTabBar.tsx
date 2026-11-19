@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Compass, Home, Trophy, UserRound, Vote, type LucideIcon } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 
 import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdrop";
 import { APP_RESUME_EVENT } from "@/lib/app-lifecycle";
@@ -22,11 +22,10 @@ import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
 import { holdMovementExceeded, useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import { PUBLIC_GLOBAL_AREAS } from "@/lib/public-navigation";
 import { publicLaunchAllows } from "@/lib/public-launch-availability";
-import type { CSSProperties } from "react";
-
-const LAUNCH_TAB_AREAS = PUBLIC_GLOBAL_AREAS.filter((area) => publicLaunchAllows(area.to));
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
+
+const LAUNCH_TAB_AREAS = PUBLIC_GLOBAL_AREAS.filter((area) => publicLaunchAllows(area.to));
 
 const ICONS: Record<(typeof PUBLIC_GLOBAL_AREAS)[number]["id"], LucideIcon> = {
   home: Home,

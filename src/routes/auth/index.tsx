@@ -8,6 +8,7 @@ import {
   signInSolarisAccount,
 } from "@/lib/country-auth";
 import { getCurrentAccountAccess, useAvailableCountryClaims } from "@/lib/country-account";
+import { publicLaunchAllows } from "@/lib/public-launch-availability";
 import {
   resolveV3AuthReturnPath,
   v3AuthReturnRequiresOrganizer,
@@ -47,7 +48,7 @@ function AuthPage() {
 
   const destinationFor = async (userId: string) => {
     const access = await getCurrentAccountAccess(userId);
-    if (safeRedirect && (!v3AuthReturnRequiresOrganizer(safeRedirect) || access.isOrganizer)) {
+    if (safeRedirect && (publicLaunchAllows(safeRedirect) || (v3AuthReturnRequiresOrganizer(safeRedirect) && access.isOrganizer))) {
       return safeRedirect;
     }
     if (access.isOrganizer) return "/admin";
