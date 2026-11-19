@@ -26,14 +26,22 @@ describe("global Search rule recents", () => {
         before_snapshot: null,
         after_snapshot: { title: "What SSC is" },
         rationale: "Published clarity update",
+      }, {
+        rule_id: "22.5",
+        change_kind: "modified" as const,
+        before_snapshot: null,
+        after_snapshot: { title: "When a country becomes Unprotected" },
+        rationale: "Use v4.2 terminology",
       }],
     };
     const updated = refreshPublicRuleRecentLabels([
       recent("/rules/1.1", "Old text from another release"),
+      recent("/rules/22.5", "22.5 Dormant Countries"),
       recent("/countries/oland", "Oland"),
     ], release);
     expect(updated).toEqual([
       recent("/rules/1.1", "1.1 What SSC is"),
+      recent("/rules/22.5", "22.5 When a country becomes Unprotected"),
       recent("/countries/oland", "Oland"),
     ]);
   });

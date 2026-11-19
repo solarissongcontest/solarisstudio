@@ -29,7 +29,7 @@ export function refreshPublicRuleRecentLabels<T extends PublicRecent>(
     if (/^\/rules\/chapters\/?$/.test(recent.path)) {
       return [{ ...recent, label: "Rulebook Chapters" } as T];
     }
-    const ruleMatch = /^\/rules\/(\d{1,2}\.\d{1,2})\/?$/.exec(recent.path);
+    const ruleMatch = /^\/rules\/(\d+\.\d+)\/?$/.exec(recent.path);
     if (!ruleMatch) return [recent];
     const rule = getRuleById(ruleMatch[1]);
     if (!rule) return [];
