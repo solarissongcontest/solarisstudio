@@ -12,14 +12,9 @@ on:
       - ".github/workflows/v3-s16-catalog-rehearsal.yml"
   push:
     branches: [main]
-    paths:
-      - "src/lib/v3-s16*"
-      - "scripts/*v3-s16*"
-      - "supabase/migrations/**"
-      - ".github/scripts/v3-s16-catalog-rehearsal.sh"
-      - ".github/scripts/v3-start-disposable-supabase.sh"
-      - ".github/scripts/prepare-archive-local-config.py"
-      - ".github/workflows/v3-s16-catalog-rehearsal.yml"
+    # Audit every integrated main commit, even when only Confirmation, UI, or
+    # cross-domain runtime code changed. Otherwise S16 evidence goes stale.
+    # Keep all local-only Supabase guards and the unchanged S16 auditor.
   workflow_dispatch:
 permissions:
   contents: read
