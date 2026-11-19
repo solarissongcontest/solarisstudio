@@ -117,38 +117,51 @@ jobs:
       - name: Verify locked Playwright runner
         run: test "$(bunx playwright --version)" = "Version 1.55.0"
 
-      - name: Install browser-audit browser binaries
+      # The official pinned Playwright image includes WebKit and Chromium's
+      # full native Linux library closure. Hosted Ubuntu apt mirrors repeatedly
+      # failed before running a single browser test, and fallback engine binaries
+      # alone could not launch WebKit (missing GTK4, GStreamer, codecs).
+      # Keep the application/Supabase processes on the same owned runner, then
+      # run every Playwright process in the pinned browser container via host
+      # loopback. No hosted Supabase URLs/credentials are passed.
+      - name: Prepare pinned browser runtime with both engines
         timeout-minutes: 15
+        shell: bash
         run: |
-          # Hosted runners' Azure apt mirror can fail DNS and stall for half an
-          # hour. Keep Ubuntu's signed package sources, using primary mirrors.
-          if [[ -f /etc/apt/apt-mirrors.txt ]]; then
-            printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
-          fi
-          if [[ -f /etc/apt/apt-mirrors-security.txt ]]; then
-            printf '%s\n' 'https://security.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors-security.txt >/dev/null
-          fi
-          printf '%s\n' 'Acquire::Retries "3";' 'Acquire::http::Timeout "30";' 'Acquire::https::Timeout "30";' \
-            | sudo tee /etc/apt/apt.conf.d/80-solaris-browser-network >/dev/null
-          # apt normally treats failed index downloads as warnings and then
-          # uses stale indexes, which can request removed package versions.
-          # If fresh signed indexes are available, install OS dependencies.
-          # If the hosted runner's Ubuntu mirror is down, never trust stale
-          # indexes or silently skip the browser suite: use only already
-          # installed runner libraries, then prove both browser engines launch.
-          if sudo apt-get -o APT::Update::Error-Mode=any update; then
-            if ! bunx playwright install --with-deps chromium webkit; then
-              echo "::warning::Playwright apt dependency install unavailable; verifying runner's installed libraries by launching both browsers"
-              bunx playwright install chromium webkit
-            fi
-          else
-            echo "::warning::Fresh signed Ubuntu package indexes unavailable; refusing stale apt packages and verifying both Playwright engines instead"
-            bunx playwright install chromium webkit
-          fi
-          # This is a positive, real browser runtime requirement, not a skip:
-          # missing system libraries or engine downloads fail the job before
-          # any release/browser evidence is collected.
-          node --input-type=module <<'VERIFY_BROWSERS'
+          set -euo pipefail
+          image="mcr.microsoft.com/playwright:v1.55.0-noble"
+          docker pull "$image"
+          docker image inspect "$image" --format 'Browser runtime {{.Id}}'
+          wrapper="$RUNNER_TEMP/solaris-playwright-container"
+          cat > "$wrapper" <<'WRAPPER'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          : "${GITHUB_WORKSPACE:?Exact repository workspace required}"
+          [[ "${E2E_SUPABASE_URL:-http://127.0.0.1:54321}" == http://127.0.0.1:* ||
+             "${E2E_SUPABASE_URL:-}" == http://localhost:* ]] ||
+            { echo 'Refusing non-loopback browser test database' >&2; exit 1; }
+          exec docker run --rm -i --init --ipc=host --network host \
+            --mount "type=bind,src=${GITHUB_WORKSPACE},dst=${GITHUB_WORKSPACE}" \
+            --workdir "${GITHUB_WORKSPACE}" \
+            -e CI -e GITHUB_EVENT_NAME -e GITHUB_REF -e GITHUB_SHA \
+            -e GITHUB_RUN_ID -e GITHUB_RUN_ATTEMPT \
+            -e E2E_BASE_URL -e E2E_FULL_AUDIT -e E2E_VISUAL_CAPTURE \
+            -e PERSONALITY_REFERENCE_CAPTURE -e SOLARIS_E2E_BYPASS_MAINTENANCE \
+            -e SOLARIS_PR455_PREFLIGHT_ALREADY_PASSED \
+            -e SUPABASE_URL -e SUPABASE_PUBLISHABLE_KEY -e SUPABASE_PROJECT_ID -e SUPABASE_PROJECT_REF \
+            -e VITE_SUPABASE_URL -e VITE_SUPABASE_PUBLISHABLE_KEY \
+            -e VITE_SUPABASE_PROJECT_ID -e VITE_SUPABASE_PROJECT_REF \
+            -e E2E_SUPABASE_URL -e E2E_SUPABASE_PUBLISHABLE_KEY \
+            -e E2E_SUPABASE_PROJECT_ID -e E2E_SUPABASE_PROJECT_REF \
+            -e CONFIRMATIONS_SUPABASE_URL -e CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY \
+            -e VITE_CONFIRMATIONS_SUPABASE_URL -e VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY \
+            -e E2E_CONFIRMATIONS_SUPABASE_URL -e E2E_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY \
+            -e E2E_MAINTENANCE_MODE -e E2E_API_URL -e E2E_API_KEY \
+            mcr.microsoft.com/playwright:v1.55.0-noble node "$@"
+          WRAPPER
+          chmod 0755 "$wrapper"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+          "$wrapper" --input-type=module <<'VERIFY_BROWSERS'
           import { chromium, webkit } from '@playwright/test';
           for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
             const browser = await engine.launch({ headless: true });
@@ -156,7 +169,7 @@ jobs:
               const page = await browser.newPage();
               await page.goto('about:blank');
               await page.close();
-              console.log('PASS: pinned ' + name + ' browser launches with all required runner libraries');
+              console.log('PASS: pinned ' + name + ' browser launches with native runtime');
             } finally {
               await browser.close();
             }
@@ -419,7 +432,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --input-type=module <<'NODE'
+          solaris-playwright-container --input-type=module <<'NODE'
           import { chromium } from "@playwright/test";
 
           const expectedUrl = process.env.E2E_SUPABASE_URL;
@@ -491,7 +504,7 @@ jobs:
           SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
           SUPABASE_PROJECT_ID: local
           SUPABASE_PROJECT_REF: local
-        run: bun run test:e2e:organizer-preflight
+        run: solaris-playwright-container node_modules/@playwright/test/cli.js test --config=playwright.pr455-preflight.config.ts
 
       - name: Summarize organizer preflight
         if: always()
@@ -532,7 +545,7 @@ jobs:
           exit 1
 
       - name: Run responsive browser audit
-        run: bunx playwright test
+        run: solaris-playwright-container node_modules/@playwright/test/cli.js test
         env:
           E2E_BASE_URL: http://127.0.0.1:4173
           SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
