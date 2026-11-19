@@ -1,6 +1,22 @@
 // Outage maintenance is off; the separate limited-public-launch gate stays on.
 export const GLOBAL_MAINTENANCE_MODE = false;
 
+/** Public account access while the rest of the application remains under maintenance. */
+export function maintenancePublicAccountAccessEnabled(rawValue: string | null | undefined) {
+  return rawValue?.trim().toLowerCase() === "true";
+}
+
+/** Only account screens may render. No generic POST or application API routes. */
+export function isMaintenancePublicAccountRouteAllowed(
+  pathname: string,
+  method: string,
+  enabled: boolean,
+) {
+  if (!enabled || (method !== "GET" && method !== "HEAD")) return false;
+  return pathname === "/auth" || pathname === "/auth/" || pathname === "/auth/reset" || pathname === "/auth/reset/";
+}
+
+
 export const MAINTENANCE_RETURN_DATE = "15 November 2026";
 export const MAINTENANCE_LAST_UPDATED = "29 October 2026";
 // Public estimate only. The maintenance/release gate remains authoritative.

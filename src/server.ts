@@ -15,6 +15,8 @@ import {
   MAINTENANCE_PLATFORM_PREFLIGHT_PATH,
   MAINTENANCE_PLATFORM_RECOVERY_PATH,
   maintenanceHodAccessEnabled,
+  maintenancePublicAccountAccessEnabled,
+  isMaintenancePublicAccountRouteAllowed,
 } from "./lib/maintenance";
 import { LIMITED_PUBLIC_LAUNCH, limitedPublicLaunchAllows } from "./lib/public-launch-availability";
 import { renderMaintenanceHodPortal } from "./lib/maintenance-hod-portal";
@@ -33,6 +35,7 @@ type ServerEnv = {
   };
   MAINTENANCE_ADMIN_SECRET?: string;
   MAINTENANCE_HOD_ACCESS?: string;
+  PUBLIC_SOFT_LAUNCH_ACCESS?: string;
   SUPABASE_URL?: string;
   SUPABASE_PUBLISHABLE_KEY?: string;
   VITE_SUPABASE_URL?: string;
@@ -450,6 +453,10 @@ function isolateMaintenanceHodPortalMarkup(portal: string) {
 }
 
 function maintenanceResponse(request: Request, env: unknown, includeHodPortal: boolean) {
+  const softLaunchAccess = maintenancePublicAccountAccessEnabled(
+    serverEnv(env)?.PUBLIC_SOFT_LAUNCH_ACCESS ?? process.env.PUBLIC_SOFT_LAUNCH_ACCESS,
+  );
+  const earlyAccessHome = softLaunchAccess && new URL(request.url).pathname === "/";
   const headers = {
     "cache-control": "no-store, max-age=0",
     "content-language": "en",
@@ -458,6 +465,14 @@ function maintenanceResponse(request: Request, env: unknown, includeHodPortal: b
 
   if (request.method === "GET" || request.method === "HEAD") {
     let html = renderMaintenancePage();
+    if (earlyAccessHome) {
+      // The older, maintenance-only account entry stays available as rollback
+      // insurance; the independent limited launch uses normal app routing.
+      html = html.replace(
+        '<div class="hero-actions">',
+        '<div class="hero-actions"><a class="hero-action hero-action-primary" href="/auth">Sign in or register</a><a class="hero-action" href="#confirmation-access">Edit Confirmation</a></div><p style="margin:16px 0 0;max-width:44rem;font-size:14px;line-height:1.6">Account access and existing Confirmation editing are available during this early release. Official Jury Voting and other unfinished services are not yet open.</p><div class="hero-actions">',
+      );
+    }
     if (new URL(request.url).pathname !== "/") {
       html = html.replaceAll('href="#confirmation-access"', 'href="/#confirmation-access"');
     }
@@ -473,7 +488,7 @@ function maintenanceResponse(request: Request, env: unknown, includeHodPortal: b
     }
 
     return new Response(request.method === "HEAD" ? null : html, {
-      status: 503,
+      status: earlyAccessHome ? 200 : 503,
       headers: {
         ...headers,
         "content-type": "text/html; charset=utf-8",
@@ -564,6 +579,9 @@ export default {
       const url = new URL(request.url);
       const secret = maintenanceSecret(env);
       const hod = maintenanceHodRuntime(env);
+      const softLaunchEnabled = maintenancePublicAccountAccessEnabled(
+        serverEnv(env)?.PUBLIC_SOFT_LAUNCH_ACCESS ?? process.env.PUBLIC_SOFT_LAUNCH_ACCESS,
+      );
 
       // The limited installed-app entry needs a synchronous, network-free
       // redirect before any SSR or hydration can delay the iOS WebKit launch.
@@ -645,6 +663,8 @@ export default {
         return handleMaintenanceConfirmationRequest(request, serverEnv(env));
       }
 
+      const publicAccountRouteAllowed = GLOBAL_MAINTENANCE_MODE &&
+        isMaintenancePublicAccountRouteAllowed(url.pathname, request.method, softLaunchEnabled);
       const hodAppRouteAllowed = isMaintenanceHodAppRouteAllowed(
         url.pathname,
         request.method,
@@ -681,6 +701,7 @@ export default {
         !maintenanceAppAssetAllowed &&
         !teaserPreviewAllowed &&
         !hodAppRouteAllowed &&
+        !publicAccountRouteAllowed &&
         !recoveryRouteAllowed
       ) {
         const localE2EBypass = hasLocalE2EMaintenanceBypass(request);
