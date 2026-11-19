@@ -28,9 +28,8 @@ describe("actual V3 public launch while voting maintenance remains", () => {
   it("opens the real public V3 destinations for GET and HEAD only", () => {
     for (const path of [
       "/", "/participate", "/me", "/my-solaris",
-      "/countries", "/countries/ABE", "/editions/ssc-20", "/shows",
-      "/stories", "/wiki", "/encyclopedia", "/records", "/archive",
-      "/guide", "/site-directory", "/rules", "/me", "/my-solaris",
+      "/guide", "/site-directory", "/rules", "/rules/chapters",
+      "/rules/answers", "/me", "/my-solaris",
     ]) {
       expect(isMaintenancePublicWebsiteRouteAllowed(path, "GET", true), path).toBe(true);
       expect(isMaintenancePublicWebsiteRouteAllowed(path, "HEAD", true), path).toBe(true);
@@ -42,6 +41,10 @@ describe("actual V3 public launch while voting maintenance remains", () => {
   it("never opens official voting, private commands or broader account/edit routes", () => {
     for (const path of [
       "/explore", "/explore/anything", "/results", "/results/ssc-20",
+      "/countries", "/countries/ABE", "/editions", "/editions/ssc-20",
+      "/shows", "/stories", "/wiki", "/encyclopedia", "/records",
+      "/archive", "/calendar", "/library", "/scorecharts", "/analysis", "/tools",
+      "/integrity",
       "/admin", "/admin/operations", "/confirmations", "/confirmations/admin",
       "/jury-voting", "/televoting", "/next-in-line",
       "/api/admin", "/api/maintenance-confirmation", "/_serverFn", "/_serverFn/abc",
