@@ -1,4 +1,5 @@
-export const GLOBAL_MAINTENANCE_MODE = true;
+// Outage maintenance is off; the separate limited-public-launch gate stays on.
+export const GLOBAL_MAINTENANCE_MODE = false;
 
 export const MAINTENANCE_RETURN_DATE = "15 November 2026";
 export const MAINTENANCE_LAST_UPDATED = "29 October 2026";

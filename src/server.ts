@@ -16,6 +16,7 @@ import {
   MAINTENANCE_PLATFORM_RECOVERY_PATH,
   maintenanceHodAccessEnabled,
 } from "./lib/maintenance";
+import { LIMITED_PUBLIC_LAUNCH, limitedPublicLaunchAllows } from "./lib/public-launch-availability";
 import { renderMaintenanceHodPortal } from "./lib/maintenance-hod-portal";
 import { renderMaintenancePage } from "./lib/maintenance-page";
 import { renderV42MaintenancePreview } from "./lib/rules-v42-maintenance-preview";
@@ -155,6 +156,33 @@ function hasLocalE2EMaintenanceBypass(request: Request) {
 
 function isMaintenanceAppAssetPath(pathname: string) {
   return MAINTENANCE_APP_ASSET_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+/** Non-page paths needed for static delivery, server functions and privately
+ * authenticated Organizer operations. The existing handlers still authorize. */
+function isLimitedLaunchInfrastructurePath(pathname: string) {
+  return MAINTENANCE_ASSET_PATHS.has(pathname) ||
+    isMaintenanceAppAssetPath(pathname) ||
+    pathname === "/favicon.svg" || pathname === "/app-launch" ||
+    pathname.startsWith("/api/") ||
+    pathname === "/_serverFn" || pathname.startsWith("/_serverFn/") ||
+    pathname === "/admin" || pathname.startsWith("/admin/") ||
+    pathname === "/confirmations/admin" || pathname.startsWith("/confirmations/admin/") ||
+    pathname === "/televoting/admin" || pathname.startsWith("/televoting/admin/");
+}
+
+function limitedLaunchUnavailableResponse(method: string) {
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>Not available — Solaris Studio</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#020817;color:#f1f5f9;font:16px/1.6 system-ui,sans-serif}main{max-width:34rem;padding:2rem}a{color:#9ed7fa;margin-right:1rem}</style></head><body><main><h1>This page is not available yet</h1><p>Solaris Studio is open for Home, participation, sign-in and the official rules while more features are prepared.</p><nav><a href="/">Home</a><a href="/participate">Participate</a><a href="/auth">Sign in</a><a href="/rules">Rules</a></nav></main></body></html>`;
+  return new Response(method === "HEAD" ? null : html, {
+    status: 404,
+    headers: {
+      "cache-control": "no-store, max-age=0",
+      "content-type": "text/html; charset=utf-8",
+      "x-robots-tag": "noindex, nofollow",
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    },
+  });
 }
 
 function isTerraOsTeaserPreviewRequest(url: URL, method: string) {
@@ -496,6 +524,16 @@ export default {
       const url = new URL(request.url);
       const secret = maintenanceSecret(env);
       const hod = maintenanceHodRuntime(env);
+
+      // Removing outage maintenance never implies releasing the whole V3 app.
+      // Enforce the limited public surface before TanStack SSR or routing.
+      if (
+        !GLOBAL_MAINTENANCE_MODE && LIMITED_PUBLIC_LAUNCH &&
+        !limitedPublicLaunchAllows(url.pathname) &&
+        !isLimitedLaunchInfrastructurePath(url.pathname)
+      ) {
+        return limitedLaunchUnavailableResponse(request.method);
+      }
 
       // Explicit public, static, zero-network rulebook preview during maintenance.
       // Neither the TanStack app nor Supabase is initialized for this response.
