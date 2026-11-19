@@ -140,9 +140,14 @@ begin
        v_expected := false;
      end if;
      v_actual := has_table_privilege(v_role,v_target,'TRUNCATE');
-     if (v_target in ('public.submissions','public.edit_tokens',
-           'public.televote_votes','televoting.televote_aggregations')
-           and v_actual is distinct from v_expected)
+     -- Hosted emergency ACL hardening PRs #2590/#2591 removed all 42
+     -- audited API-role TRUNCATE grants before the governed S16 stage.
+     -- Permit this strict pre-revoked Confirmation input *or* the prior
+     -- local observed-owner donor input; both must converge to zero grants.
+     -- S08/Combined Televote projection must already be revoked; surprise
+     -- grants on any other relation/role remain a hard failure.
+     if (v_target in ('public.televote_votes','televoting.televote_aggregations')
+           and v_actual)
         or (v_target not in ('public.submissions','public.edit_tokens',
            'public.televote_votes','televoting.televote_aggregations')
            and v_actual and not v_expected) then
