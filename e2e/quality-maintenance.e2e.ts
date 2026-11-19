@@ -27,8 +27,8 @@ async function mobileHeroContract(page: Page) {
 
 test("phone hero contract is sensitive to accidentally restoring the side devices", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  const response = await page.goto("/", { waitUntil: "domcontentloaded" });
-  expect(response?.status()).toBe(200);
+  const response = await page.goto("/maintenance/story", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(503);
 
   const expected = {
     mainVisible: true,
@@ -54,8 +54,8 @@ test("maintenance artwork makes no remote image requests", async ({ page }) => {
     if (!LOCAL_HOSTS.has(url.hostname)) remoteImages.push(request.url());
   });
 
-  const response = await page.goto("/", { waitUntil: "domcontentloaded" });
-  expect(response?.status()).toBe(200);
+  const response = await page.goto("/maintenance/story", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(503);
 
   const photos = page.locator('[data-photo-kind="photo"]');
   await expect(photos).toHaveCount(3);
@@ -71,8 +71,8 @@ test("maintenance artwork makes no remote image requests", async ({ page }) => {
 });
 
 test("versioned local maintenance runtime places the real HOD portal in Confirmation", async ({ page }) => {
-  const response = await page.goto("/", { waitUntil: "domcontentloaded" });
-  expect(response?.status()).toBe(200);
+  const response = await page.goto("/maintenance/story", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(503);
 
   const runtimeSource = await page.locator('script[src*="/assets/terraos-maintenance.js"]').getAttribute("src");
   expect(runtimeSource).toBeTruthy();
