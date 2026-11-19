@@ -72,7 +72,7 @@ begin
       where not has_table_privilege('postgres',t.name,'TRUNCATE')) then
    raise exception 'Remaining S16 TRUNCATE: canonical owner authority lost' using errcode='55000';
  end if;
- select md5(string_agg(format('%s|%s|%s|%s|%s|%s|%s|%s|%s|%s',
+ select md5(string_agg(format('%s|%s|%s|%s|%s|%s|%s|%s|%s',
    t.name,r.name,
    has_table_privilege(r.name,t.name,'SELECT'),
    has_table_privilege(r.name,t.name,'INSERT'),
