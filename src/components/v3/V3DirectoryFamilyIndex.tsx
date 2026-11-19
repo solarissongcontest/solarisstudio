@@ -60,7 +60,7 @@ export function V3DirectoryFamilyIndex({
   /** Rules owns its own governed rollout shell. */
   noShell?: boolean;
 }) {
-  const { allows } = usePublicLaunchAvailability();
+  const { allowsReleased: allows } = usePublicLaunchAvailability();
   groups = groups.map(group => ({ ...group, items: group.items.filter(item => allows(item.to)) }))
     .filter(group => group.items.length > 0);
   const { platformResolved } = useSolarisApp();
