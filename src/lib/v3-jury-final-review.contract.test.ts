@@ -54,3 +54,27 @@ describe("organizer jury exact show context", () => {
     expect(organizerJury).not.toContain("orderedShows.find((show) => show.id === search.show) ?? orderedShows[0]");
   });
 });
+
+describe("organizer jury official decision context binding", () => {
+  it("binds pending DNV and submitted-ballot review operations to actor, edition and show", () => {
+    expect(organizerJury).toContain("const actorId = useFanSession().data?.id ?? null;");
+    expect(organizerJury).toContain("pendingDnvChange.actorId !== actorId");
+    expect(organizerJury).toContain("pendingDnvChange.editionId !== edition.id");
+    expect(organizerJury).toContain("pendingDnvChange.showId !== selectedShow.id");
+    expect(organizerJury).toContain("pendingBallotReview.actorId !== actorId");
+    expect(organizerJury).toContain("pendingBallotReview.editionId !== edition.id");
+    expect(organizerJury).toContain("pendingBallotReview.showId !== selectedShow.id");
+    expect(organizerJury).toContain("pendingBallotReview.ballot.show_id !== selectedShow.id");
+    expect(organizerJury).toContain("Jury actor, edition or show changed. Review a fresh operation.");
+    expect(organizerJury).toContain("Jury actor, edition or show changed. Review a fresh ballot.");
+  });
+
+  it("hides stale confirmation sheets and prevents stale roster editing", () => {
+    expect(organizerJury).toContain("pendingDnvChange.actorId === actorId");
+    expect(organizerJury).toContain("pendingDnvChange.showId === selectedShow.id");
+    expect(organizerJury).toContain("pendingBallotReview.actorId === actorId");
+    expect(organizerJury).toContain("pendingBallotReview.showId === selectedShow.id");
+    expect(organizerJury).toContain("showVoters.some((voter) => voter.id === editDraft.id)");
+    expect(organizerJury).toContain("showVoters.some((voter) => voter.id === deleteTarget.id)");
+  });
+});
