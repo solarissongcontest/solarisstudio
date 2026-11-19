@@ -45,6 +45,22 @@ describe("Browser Audit regression boundaries", () => {
     expect(resultsReveal.match(/<ResultsRevealHeader \/>/g)).toHaveLength(4);
   });
 
+  it("launch-proves both browser engines before using signed apt as a fail-closed fallback", () => {
+    const workflow = source(".github/workflows/browser-audit.yml");
+    const smoke = workflow.indexOf("if browser_launch_smoke; then");
+    const apt = workflow.indexOf("sudo apt-get -o APT::Update::Error-Mode=any update");
+    expect(workflow).toContain("bunx playwright install chromium webkit");
+    expect(workflow).toContain("import { chromium, webkit } from \"@playwright/test\"");
+    expect(workflow).toContain("await page.screenshot()");
+    expect(workflow).toContain("bunx playwright install --with-deps chromium webkit");
+    expect(workflow).toContain("browser_launch_smoke\n          fi");
+    expect(smoke).toBeGreaterThan(0);
+    expect(apt).toBeGreaterThan(smoke);
+    expect(workflow).toContain("Start isolated local Supabase for browser audit");
+    expect(workflow).toContain("bun run scripts/check-v3-production-isolation.ts");
+    expect(workflow).toContain("http://127.0.0.1:54321");
+  });
+
   it("keeps Browser Audit controls and launch probes aligned with runtime contracts", () => {
     const mediaAssets = source("src/routes/_authenticated/admin/media-assets.tsx");
     const integrity = source("src/routes/_authenticated/admin/integrity-investigations.tsx");
