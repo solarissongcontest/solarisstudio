@@ -46,6 +46,19 @@ describe("Participate core service discovery", () => {
     }
   });
 
+  it("separates official delegation work and optional public voting", () => {
+    rollout.released = false;
+    const html = renderToStaticMarkup(<ParticipationServiceDirectory />);
+    const official = html.split('data-participate-official-services')[1]?.split('data-participate-optional-services')[0] ?? "";
+    const optional = html.split('data-participate-optional-services')[1] ?? "";
+    for (const label of ["Confirmations", "Entry submission &amp; media", "Jury voting"]) {
+      expect(official).toContain(label);
+    }
+    expect(official).not.toContain("Televoting");
+    expect(optional).toContain("Televoting");
+    expect(optional).not.toContain("Jury voting");
+  });
+
   it("appears on both the legacy browser/app and the V3 installed screen", () => {
     for (const path of [
       "src/routes/participate/index.tsx",
