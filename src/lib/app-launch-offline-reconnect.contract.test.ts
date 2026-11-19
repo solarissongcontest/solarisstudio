@@ -24,7 +24,9 @@ describe("App Experience v3 cold launch offline and reconnect foundation", () =>
     expect(launch).toContain("APP_LAUNCH_TRANSACTION_KEY");
     expect(launch).toContain("navigationSnapshot");
     expect(coordinator).toContain('"cold_launch_session_timeout"');
-    expect(coordinator).toContain("const safeRoot = getAppLaunchSafeRootFromSnapshot");
+    expect(coordinator).toContain("const rememberedRoot = getAppLaunchSafeRootFromSnapshot");
+    expect(coordinator).toContain("LIMITED_PUBLIC_LAUNCH && !publicLaunchAllows(rememberedRoot.pathname)");
+    expect(coordinator).toContain("LIMITED_PUBLIC_LAUNCH && !publicLaunchAllows(appEntryHref(rememberedTarget))");
     expect(coordinator).toContain('source === "timeout"');
     expect(coordinator).toContain("? safeRoot");
     expect(coordinator).toContain("window.location.replace(targetHref)");
