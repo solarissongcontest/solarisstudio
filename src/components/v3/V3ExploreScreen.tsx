@@ -48,12 +48,14 @@ const DISCOVERY_ICONS: Record<V3ExploreCollection["key"], LucideIcon> = {
 
 const DESTINATION_ICONS: Record<string, LucideIcon> = {
   editions: CalendarDays,
+  archive: Archive,
   reference: BookOpen,
   rules: ScrollText,
   results: Trophy,
   live: RadioTower,
   "archive-games": Gamepad2,
   "advanced-discovery": LayoutGrid,
+  tools: LayoutGrid,
   predictions: Sparkles,
 };
 
@@ -62,7 +64,8 @@ const MORE_DESCRIPTIONS: Record<string, string> = {
   results: "Open official Results, records and deeper result tools",
   rules: "Official rules, guidance, interpretations and rule history",
   "archive-games": "Play public experiences built from Solaris archive history",
-  "advanced-discovery": "Browse the site directory and specialist public discovery tools",
+  "advanced-discovery": "Browse all Solaris public destinations by area",
+  tools: "Explore public comparison, discovery and archive tools",
 };
 
 function experiencePresentation(experience: V3EditionExperience): {

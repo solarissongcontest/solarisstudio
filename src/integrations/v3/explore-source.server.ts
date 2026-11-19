@@ -324,6 +324,8 @@ export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundl
       // authorization states. Explore only provides a navigation gateway.
       predictions: "/predictions",
       advancedDiscovery: "/site-directory",
+      archiveRoot: "/archive",
+      tools: "/tools",
     },
   });
 

@@ -245,3 +245,46 @@ body .v3-directory-search > input[type="search"]:focus-visible {
 body .v3-directory-search > input[type="search"]::-webkit-search-cancel-button {
   display: none;
 }
+
+/* Archive + Site Directory share the deliberate editorial list grammar.
+   Avoid randomly spaced floating cards on desktop and retain 44px+ targets. */
+.v3-directory-family[data-directory-kind="sitemap"][data-directory-experience="desktop-web"] .v3-directory-desktop-grid {
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 0 1.5rem;
+  border-top: 1px solid var(--border);
+}
+.v3-directory-family[data-directory-kind="sitemap"][data-directory-experience="desktop-web"] .v3-directory-desktop-card {
+  min-height: 5.2rem;
+  padding: 1rem .35rem;
+  margin: 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  box-shadow: none;
+  gap: .35rem;
+}
+.v3-directory-family[data-directory-kind="sitemap"][data-directory-experience="desktop-web"] .v3-directory-desktop-card:hover {
+  background: var(--surface);
+  border-bottom-color: var(--border);
+}
+.v3-directory-family[data-directory-kind="sitemap"] .v3-directory-group {
+  min-width: 0;
+}
+.v3-directory-family[data-directory-kind="sitemap"] .v3-directory-group-title {
+  margin-bottom: .85rem;
+}
+.v3-directory-family[data-directory-kind="sitemap"] .v3-directory-card-description {
+  max-width: 48ch;
+  text-wrap: pretty;
+}
+@media (max-width: 940px) {
+  .v3-directory-family[data-directory-kind="sitemap"][data-directory-experience="desktop-web"] .v3-directory-desktop-grid {
+    grid-template-columns: minmax(0,1fr);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .v3-directory-family[data-directory-kind="sitemap"] * {
+    transition-duration: 0.001ms !important;
+  }
+}

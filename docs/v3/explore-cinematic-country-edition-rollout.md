@@ -40,3 +40,8 @@
 - Country published history and related destinations use separated editorial rows rather than repeated boxed cards. Existing full history and canonical result paths remain.
 - Edition dedicated navigation now sits immediately after the hero introduction, overview statistics are a semantic flat fact strip, and Participant/Song previews become bounded editorial list rows.
 - Continue to treat World Country deep links as independently gated; no claimed country-specific World detail yet.
+
+## Whole-Explore directory convergence
+- Explore projection now carries explicit existing destinations `/archive` and `/tools`; public availability remains enforced by the shared presentation link and existing top-level feature/maintenance gates.
+- Archive and Site Directory share one responsive, divided editorial desktop list rather than inconsistent isolated cards, without changing their search, URL, area filters, source registry or permissions. Mobile and installed app keep their own control models.
+- No new Supabase client, data fanout, or parallel search route is created.
