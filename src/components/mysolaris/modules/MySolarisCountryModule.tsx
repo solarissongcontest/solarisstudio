@@ -506,11 +506,7 @@ function OwnedCountryHub({
               : country.name
         }
         description={
-          section === "history"
-            ? "Review delegation handovers and manage one canonical artist, song and set of listening links for each edition."
-            : organizerOverride
-              ? "Manage this country's identity and national facts. Page, media, appearance and history stay in their own MySolaris sections."
-              : "Manage identity and national facts here. Page, media, appearance and participation history each have a focused MySolaris section."
+          section === "history" ? "Entries and participation history." : "Country facts and identity."
         }
         actions={
           <div className="flex flex-wrap gap-2">
@@ -1084,16 +1080,9 @@ function OwnedCountryHub({
           {!organizerOverride && <CountryHodHistoryPanel inline />}
           <Panel
           title="SSC entries"
-          description={
-            organizerOverride
-              ? "One artist and one song per country per edition. Semi-final and final appearances use that same entry."
-              : "Each edition has one artist and one song. Reaching the final does not create a second participation."
-          }
+          description="One entry per edition."
         >
-          <div className="mb-4 rounded-xl border border-sky-200/15 bg-sky-200/[0.045] p-3 text-xs leading-5 text-muted-foreground">
-            <strong className="text-foreground">Edit once per edition:</strong> Solaris uses the
-            same artist, song and listening links for every show appearance in that edition.
-          </div>
+
           <div className="space-y-3">
             {myEntries.map((group) => (
               <EntryEditor
@@ -1129,12 +1118,12 @@ function OwnedCountryHub({
               />
             ))}
           </div>
-          <div className="mt-5 rounded-xl border border-border bg-surface p-4">
-            <p className="text-sm font-semibold">Add a missing edition participation</p>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              Choose the edition and enter the artist and song once. Listening links are optional.
-            </p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <details className="solaris-history-add mt-5 overflow-hidden rounded-xl border border-border bg-surface">
+            <summary className="flex min-h-14 cursor-pointer items-center justify-between px-4 py-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary">
+              Add edition participation
+            </summary>
+            <div className="border-t border-border/60 p-4">
+              <div className="grid gap-3 sm:grid-cols-2">
               <label className="sm:col-span-2">
                 <span className="mb-1 block text-xs font-semibold text-muted-foreground">
                   Edition
@@ -1205,8 +1194,9 @@ function OwnedCountryHub({
               >
                 Save edition participation
               </button>
+              </div>
             </div>
-          </div>
+          </details>
           </Panel>
         </div>
       )}
@@ -1436,12 +1426,19 @@ function EntryEditor({
   const uniqueShows = [...new Set(showNames)];
 
   return (
-    <div className="rounded-xl bg-surface p-3 sm:p-4">
+    <details className="solaris-history-entry group overflow-hidden rounded-xl border border-border bg-surface">
+      <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary">
+        <span className="min-w-0">
+          <strong className="block text-sm">{edition ? editionLabel(edition as any) : "Edition"}</strong>
+          <span className="mt-1 block truncate text-xs text-muted-foreground">
+            {[entry.artist, entry.song].filter(Boolean).join(" · ") || "Entry details"}
+          </span>
+        </span>
+        <span aria-hidden="true" className="shrink-0 rounded-lg bg-background/70 px-3 py-2 text-xs font-semibold text-primary">Edit</span>
+      </summary>
+      <div className="border-t border-border/60 p-3 sm:p-4">
       <div className="mb-3">
-        <p className="text-sm font-semibold">
-          {edition ? editionLabel(edition as any) : "Edition"}
-        </p>
-        <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {uniqueShows.length ? (
             uniqueShows.map((showName) => (
               <span
@@ -1459,8 +1456,7 @@ function EntryEditor({
         </div>
         {uniqueShows.length > 1 ? (
           <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
-            These are appearances of the same edition entry. Artist, song and listening links are
-            entered once.
+            The same artist and song apply to every show in this edition.
           </p>
         ) : null}
       </div>
@@ -1510,6 +1506,7 @@ function EntryEditor({
           {busy ? "Saving…" : "Save edition entry"}
         </button>
       </div>
-    </div>
+      </div>
+    </details>
   );
 }

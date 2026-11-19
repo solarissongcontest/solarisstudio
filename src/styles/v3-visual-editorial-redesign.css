@@ -471,3 +471,32 @@ html:not([data-solaris-app]) .wiki-editorial-article .wiki-introduction > h2 {
     font-size: .85rem;
   }
 }
+
+
+/* MySolaris history: browse edition summaries first, edit intentionally. */
+html:not([data-solaris-app]) .solaris-history-entry,
+html:not([data-solaris-app]) .solaris-history-add {
+  background: color-mix(in oklab, var(--surface) 78%, transparent);
+  border-color: var(--v3-editorial-rule);
+  box-shadow: none;
+}
+.solaris-history-entry > summary,
+.solaris-history-add > summary {
+  list-style: none;
+}
+.solaris-history-entry > summary::-webkit-details-marker,
+.solaris-history-add > summary::-webkit-details-marker {
+  display: none;
+}
+.solaris-history-entry > summary::marker,
+.solaris-history-add > summary::marker {
+  content: "";
+}
+html:not([data-solaris-app]) .solaris-history-entry[open] > summary,
+html:not([data-solaris-app]) .solaris-history-add[open] > summary {
+  background: color-mix(in oklab, var(--primary) 8%, var(--surface));
+}
+html:not([data-solaris-app]) .solaris-history-entry > summary:hover,
+html:not([data-solaris-app]) .solaris-history-add > summary:hover {
+  background: color-mix(in oklab, var(--primary) 10%, var(--surface));
+}
