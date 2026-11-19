@@ -696,6 +696,33 @@ export default {
         );
       }
 
+      // Private, loopback-only CI bypass proof. Playwright sets an HttpOnly
+      // test cookie; the Worker validates BOTH that cookie and loopback host.
+      // React cannot read the cookie, so SSR transmits a one-request proof
+      // only to the isolated browser test document. Never enabled by query
+      // strings, browser storage, production hostnames or app feature flags.
+      if (
+        GLOBAL_MAINTENANCE_MODE &&
+        request.method === "GET" &&
+        hasLocalE2EMaintenanceBypass(request) &&
+        (normalized.headers.get("content-type") ?? "").includes("text/html")
+      ) {
+        const markup = await normalized.text();
+        if (markup.includes("</head>")) {
+          const headers = new Headers(normalized.headers);
+          headers.delete("content-length");
+          headers.set("cache-control", "no-store");
+          return new Response(
+            markup.replace(
+              "</head>",
+              '<meta name="solaris-local-e2e-maintenance-bypass" content="1"></head>',
+            ),
+            { status: normalized.status, headers },
+          );
+        }
+        return new Response(markup, { status: normalized.status, headers: normalized.headers });
+      }
+
       return normalized;
     } catch (error) {
       console.error(error);
