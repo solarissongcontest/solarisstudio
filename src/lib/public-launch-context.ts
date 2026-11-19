@@ -36,10 +36,13 @@ export function usePublicLaunchAvailability() {
 
     // Mirror RootComponent's strictly disposable browser-audit exception.
     // A remote or hosted Supabase URL can NEVER bypass P0 navigation gating.
+    const localDisposableSupabase =
+      /^http:\/\/(?:127\.0\.0\.1|localhost):\d+\/?$/.test(String(import.meta.env.VITE_SUPABASE_URL || ""));
     const localDisposableBrowserAudit =
-      /^http:\/\/(?:127\.0\.0\.1|localhost):\d+\/?$/.test(String(import.meta.env.VITE_SUPABASE_URL || "")) &&
-      typeof window !== "undefined" &&
-      (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost");
+      localDisposableSupabase &&
+      (typeof window === "undefined"
+        ? process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1"
+        : window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost");
     if (localDisposableBrowserAudit) return true;
 
     return isMaintenancePublicWebsiteRouteAllowed(path, "GET", true) ||
