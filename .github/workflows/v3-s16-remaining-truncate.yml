@@ -1,0 +1,78 @@
+name: V3 remaining RLS-independent TRUNCATE networkless PG17.11
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/v3/recovery-candidates/s16-emergency-remaining-truncate-retirement.sql"
+      - ".github/workflows/v3-s16-remaining-truncate.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  networkless-postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PROJECT_REF: local
+      V3_VERIFICATION_TARGET: local
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Pull PostgreSQL 17.11 local image
+        run: docker pull postgres:17.11
+      - name: Prove exact SQL against networkless synthetic observed grants
+        shell: bash
+        run: |
+          set -euo pipefail
+          cid="$(docker run --rm -d --network none -e POSTGRES_PASSWORD=isolated-test postgres:17.11)"
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          for i in $(seq 1 60); do
+            if docker exec "$cid" pg_isready -U postgres >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]]
+          [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]]
+          docker exec -i "$cid" psql -X -v ON_ERROR_STOP=1 -U postgres <<'SQL'
+          create role anon nologin;
+          create role authenticated nologin;
+          create role service_role nologin;
+          create schema televoting;
+          do $setup$
+          declare t text;
+          begin
+            foreach t in array array['public.country_accounts','public.editions','public.entries','public.edit_tokens','public.jury_votes','public.results','public.shows','public.studio2_result_operations','public.studio2_show_publication_controls','public.studio2_upload_authorizations','public.submissions','public.televote_votes','televoting.televote_aggregations','televoting.vote_submissions'] loop
+              execute format('create table %s(id integer primary key)',t);
+              execute format('alter table %s enable row level security',t);
+              execute format('grant select,insert,update,delete,references,trigger on table %s to anon,authenticated,service_role',t);
+              if t = any(array['public.country_accounts','public.entries','public.edit_tokens','public.submissions']) then
+                execute format('grant truncate on table %s to anon,authenticated,service_role',t);
+              elsif t = any(array['public.studio2_result_operations','public.studio2_show_publication_controls','public.studio2_upload_authorizations','televoting.televote_aggregations','televoting.vote_submissions']) then
+                execute format('grant truncate on table %s to service_role',t);
+              end if;
+            end loop;
+          end $setup$;
+          SQL
+          file=docs/v3/recovery-candidates/s16-emergency-remaining-truncate-retirement.sql
+          docker exec -i "$cid" psql -X -v ON_ERROR_STOP=1 -U postgres < "$file"
+          docker exec -i "$cid" psql -X -v ON_ERROR_STOP=1 -U postgres <<'SQL'
+          do $verify$
+          declare t text; r text;
+          begin
+            foreach t in array array['public.country_accounts','public.editions','public.entries','public.edit_tokens','public.jury_votes','public.results','public.shows','public.studio2_result_operations','public.studio2_show_publication_controls','public.studio2_upload_authorizations','public.submissions','public.televote_votes','televoting.televote_aggregations','televoting.vote_submissions'] loop
+              foreach r in array array['anon','authenticated','service_role'] loop
+                if has_table_privilege(r,t,'TRUNCATE') then raise exception 'TRUNCATE survived % %',r,t;end if;
+                if not has_table_privilege(r,t,'SELECT,INSERT,UPDATE,DELETE,REFERENCES,TRIGGER') then
+                  raise exception 'Other access lost % %',r,t;
+                end if;
+              end loop;
+              if not has_table_privilege('postgres',t,'TRUNCATE') then raise exception 'Owner authority lost';end if;
+            end loop;
+          end $verify$;
+          SQL
+          if docker exec -i "$cid" psql -X -v ON_ERROR_STOP=1 -U postgres < "$file" > /tmp/repeat.log 2>&1; then
+            echo 'ERROR: duplicate accepted'; exit 1
+          fi
+          grep -Fq 'current API privilege envelope differs' /tmp/repeat.log
+          echo 'PASS: 42 of 42 API TRUNCATE denied, non-TRUNCATE access unchanged, duplicate refused, networkless PG17.11'
