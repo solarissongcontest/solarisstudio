@@ -11,10 +11,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: browser-audit-${{ github.ref }}
-  # PR updates supersede obsolete verification. Main pushes instead finish the
-  # currently running exact-SHA check and retain only the newest pending run.
-  # Otherwise rapid merges can starve every post-merge Quality/Browser result.
+  # Every integrated main SHA needs its own browser result: GitHub
+  # concurrency also replaces queued runs that share a group.
+  # Cancel superseded PR-head checks only, never integrated main evidence.
+  group: browser-audit-${{ github.event_name == 'push' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -130,11 +130,39 @@ jobs:
           fi
           printf '%s\n' 'Acquire::Retries "3";' 'Acquire::http::Timeout "30";' 'Acquire::https::Timeout "30";' \
             | sudo tee /etc/apt/apt.conf.d/80-solaris-browser-network >/dev/null
-          # apt normally treats failed index downloads as warnings and then
-          # uses stale indexes, which can request removed package versions.
-          # Require a fresh signed index; DNS failure must fail this step.
-          sudo apt-get -o APT::Update::Error-Mode=any update
-          bunx playwright install --with-deps chromium webkit
+          # Ubuntu's GitHub-hosted mirror intermittently fails with EAGAIN
+          # ("Could not wait for server fd"). Retry transient transport errors
+          # without using stale indexes, unsigned sources or skipping WebKit.
+          # A failed fresh signed-index refresh remains a hard Browser failure.
+          fresh_index=0
+          for attempt in 1 2 3; do
+            if sudo apt-get -o APT::Update::Error-Mode=any update; then
+              fresh_index=1
+              break
+            fi
+            echo "::warning::Browser apt refresh failed on attempt ${attempt}/3; retrying clean signed-index fetch"
+            sleep "$((attempt * 5))"
+          done
+          if [[ "$fresh_index" -ne 1 ]]; then
+            echo "::error::Browser could not refresh signed Ubuntu package indexes after three attempts"
+            exit 1
+          fi
+          # Playwright also installs system libraries via apt. Retry that
+          # complete, pinned Chromium+WebKit installation on transient mirrors;
+          # never mark Browser green unless both engines really installed.
+          installed=0
+          for attempt in 1 2 3; do
+            if bunx playwright install --with-deps chromium webkit; then
+              installed=1
+              break
+            fi
+            echo "::warning::Pinned Chromium/WebKit dependency install failed on attempt ${attempt}/3"
+            sleep "$((attempt * 5))"
+          done
+          if [[ "$installed" -ne 1 ]]; then
+            echo "::error::Required Chromium/WebKit binaries or dependencies unavailable"
+            exit 1
+          fi
 
       - name: Start isolated local Supabase for browser audit
         shell: bash
