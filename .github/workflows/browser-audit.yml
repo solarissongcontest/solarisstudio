@@ -133,7 +133,23 @@ jobs:
           # apt normally treats failed index downloads as warnings and then
           # uses stale indexes, which can request removed package versions.
           # Require a fresh signed index; DNS failure must fail this step.
-          sudo apt-get -o APT::Update::Error-Mode=any update
+          # Retry only transient index retrieval failures. Every attempt still
+          # requires a complete signed index; never treat stale indexes as PASS.
+          index_ready=0
+          for attempt in 1 2 3; do
+            if sudo apt-get -o APT::Update::Error-Mode=any update; then
+              index_ready=1
+              break
+            fi
+            if [[ "$attempt" -lt 3 ]]; then
+              echo "::warning::Signed Ubuntu apt index unavailable (attempt $attempt/3); retrying"
+              sleep "$((attempt * 10))"
+            fi
+          done
+          if [[ "$index_ready" -ne 1 ]]; then
+            echo "::error::Signed Ubuntu apt index unavailable after three strict attempts"
+            exit 1
+          fi
           bunx playwright install --with-deps chromium webkit
 
       - name: Start isolated local Supabase for browser audit
