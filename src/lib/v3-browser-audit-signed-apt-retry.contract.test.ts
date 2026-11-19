@@ -16,6 +16,12 @@ describe("V3 Browser audit reproducible pinned OS/browser runtime", () => {
   });
 
   it("preserves exact-SHA checkout, Supabase loopback proof and real Playwright tests", () => {
+    expect(workflow).toContain(
+      "group: browser-audit-${{ github.event_name == 'push' && github.sha || github.ref }}",
+    );
+    expect(workflow).toContain(
+      "cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
+    );
     expect(workflow).toContain("BROWSER_AUDIT_SOURCE_SHA");
     expect(workflow).toContain('if [ "$checkout_sha" != "$expected" ]; then');
     expect(workflow).toContain("Start isolated local Supabase for browser audit");
