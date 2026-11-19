@@ -68,17 +68,18 @@ describe("V3 Edition Songs collection", () => {
 
     expect(protectedStart).toBeGreaterThanOrEqual(0);
     expect(productStart).toBeGreaterThan(protectedStart);
-    expect(protectedSource).not.toContain('to="/music"');
+    expect(protectedSource).not.toContain('to="/encyclopedia"');
     expect(source).toContain("!hideSpoilers ? (");
-    expect(source).toContain('to="/music"');
+    expect(source).toContain('to="/encyclopedia"');
     expect(source).toContain("broader music discovery stays outside this local reveal");
   });
 
-  it("connects to first-class music discovery when spoiler protection is not active", () => {
+  it("uses the existing public Reference destination until Music discovery has a live route", () => {
     const source = screen();
-    expect(source).toContain('title="Songs & artists"');
-    expect(source).toContain("first-class publication-safe music discovery surface");
-    expect(source).toContain('to="/music"');
+    expect(source).toContain('title="Published songs & artists"');
+    expect(source).toContain("Browse published entries, artists and songs in Solaris Reference");
+    expect(source).not.toContain('to="/music"');
+    expect(source).toContain('to="/encyclopedia"');
   });
 
   it("does not invent media or add a second publication/fetch boundary", () => {
