@@ -62,7 +62,8 @@ export const Route = createFileRoute("/sitemap.xml")({
         try {
           const supabaseUrl = process.env.SUPABASE_URL;
           const key = process.env.SUPABASE_PUBLISHABLE_KEY;
-          // No edition/country archive reads when these paths cannot be published.\n          if (supabaseUrl && key && !LIMITED_PUBLIC_LAUNCH) {
+          // No edition/country archive reads when these paths cannot be published.
+          if (supabaseUrl && key && !LIMITED_PUBLIC_LAUNCH) {
             const { createClient } = await import("@supabase/supabase-js");
             const client = createClient(supabaseUrl, key, {
               auth: { persistSession: false, autoRefreshToken: false },
