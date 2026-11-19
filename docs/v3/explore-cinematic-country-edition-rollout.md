@@ -62,3 +62,9 @@
 - The six published "On this day" previews use clean article-like rows; the existing canonical Solaris time, event context, links and local spoiler-reveal boundary are retained.
 - Ordinary mobile and desktop Stories archives keep existing published RPC/query ownership but swap boxed listing cards and moment tiles to bounded editorial reading rows.
 - No new Story/Media fetch, image inference, authoring authority, or World overlap. Story images are intentionally **not** invented on index listings without a published image projection.
+
+## Cinematic published Story detail (installed PWA)
+- Released Story detail now puts server-supplied, published-Edition artwork behind its editorial headline in a large, responsive and bottom-fading masthead. When artwork is absent or fails, it shows a calm abstract fallback rather than stretching an edition logo or fabricating scenery.
+- The spoiler-hidden route returns **before** any artwork/title/timeline sharing content renders. Existing public story and edition ID mapping, share, canonical Solaris times, related links and publication security are unchanged.
+- Timeline moments use divided article entries with proper chronology and comfortable reading line-height, not nested floating cards. Related published Stories use direct quiet rows.
+- Mobile-web and desktop Story-detail parity remain future slices; no new queries, rights, schema or Story writer was added here.
