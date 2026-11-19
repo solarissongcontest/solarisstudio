@@ -322,6 +322,12 @@ export function V3EditionOverviewScreen({
         </V3Surface>
       )}
 
+      <SectionNav
+        projection={projection}
+        spoilerSafe={spoilerSafe}
+        globalSpoilerProtection={hideSpoilers}
+      />
+
       {projection.hub.liveAction ? (
         <V3Section title="Live now" meta={<V3StatusChip tone="live">Live</V3StatusChip>}>
           <V3ActionCard
@@ -379,11 +385,7 @@ export function V3EditionOverviewScreen({
         </V3Section>
       ) : null}
 
-      <SectionNav
-        projection={projection}
-        spoilerSafe={spoilerSafe}
-        globalSpoilerProtection={hideSpoilers}
-      />
+
 
       <V3Section
         title="At a glance"

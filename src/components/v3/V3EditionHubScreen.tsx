@@ -210,6 +210,28 @@ export function V3EditionHubScreen({ projection }: V3EditionHubScreenProps) {
         </div>
       </V3Surface>
 
+      <nav aria-label={`Explore ${projection.hub.hero.name}`} className="v3-edition-section-nav flex flex-wrap gap-2">
+        {navigationSections.map((section) =>
+          section.state === "available" ? (
+            <a
+              key={section.key}
+              href={section.href}
+              className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-xs font-semibold text-white/70 transition hover:bg-white/[0.07] hover:text-white"
+            >
+              {section.label}
+            </a>
+          ) : (
+            <span
+              key={section.key}
+              className="rounded-full border border-white/[0.06] px-3 py-2 text-xs font-semibold text-white/32"
+              aria-disabled="true"
+            >
+              {section.label}
+            </span>
+          ),
+        )}
+      </nav>
+
       {projection.hub.liveAction ? (
         <V3Section title="Live now" meta={<V3StatusChip tone="live">Live</V3StatusChip>}>
           <V3ActionCard
@@ -276,27 +298,7 @@ export function V3EditionHubScreen({ projection }: V3EditionHubScreenProps) {
         </V3Section>
       ) : null}
 
-      <nav aria-label={`Explore ${projection.hub.hero.name}`} className="v3-edition-section-nav flex flex-wrap gap-2">
-        {navigationSections.map((section) =>
-          section.state === "available" ? (
-            <a
-              key={section.key}
-              href={section.href}
-              className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-xs font-semibold text-white/70 transition hover:bg-white/[0.07] hover:text-white"
-            >
-              {section.label}
-            </a>
-          ) : (
-            <span
-              key={section.key}
-              className="rounded-full border border-white/[0.06] px-3 py-2 text-xs font-semibold text-white/32"
-              aria-disabled="true"
-            >
-              {section.label}
-            </span>
-          ),
-        )}
-      </nav>
+
 
       <V3Section
         title="At a glance"
