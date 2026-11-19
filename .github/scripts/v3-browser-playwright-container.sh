@@ -34,7 +34,7 @@ VALIDATE_LOCAL
 fi
 
 args=(
-  run --rm --init --ipc=host --network "$network"
+  run --rm -i --init --ipc=host --network "$network"
   --mount "type=bind,src=${workspace},dst=/workspace"
   --workdir /workspace
   --env "PLAYWRIGHT_BROWSERS_PATH=/ms-playwright"
