@@ -61,6 +61,8 @@ describe("P04 Integrity intake: eliminate a real V3 -> legacy -> V3 recursion", 
     expect(finalConsolidation).toContain("private.v3_anonymous_integrity_case_operations");
     expect(finalConsolidation).toContain("app.integrity_operation_id");
     expect(finalConsolidation).toContain("replayed");
+    expect(runtimeSql).toContain("Duplicate original anonymous physical writer remains installed");
+    expect(runtimeSql).toContain("Canonical anonymous intake physical-write, privacy, history or replay evidence missing");
     expect(runtimeSql).toContain("Retired duplicate intake implementation remains installed");
     expect(runtimeSql).toContain("exception when undefined_function then");
     expect(runtimeSql).toContain("Retired V3 Intake intermediate remained callable for role");
