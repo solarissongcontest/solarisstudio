@@ -24,10 +24,12 @@ describe("P0 published navigation is only Home Participate Me", () => {
     expect(css).toContain("grid-template-columns: repeat(3, minmax(0, 1fr))");
   });
   it("keeps the currently unreleased Explore and Results roots closed", () => {
-    for (const path of ["/explore","/explore/","/results","/results/ssc-20"]) {
+    for (const path of ["/explore","/explore/","/results","/results/ssc-20",
+      "/countries","/countries/ABE","/editions/ssc-20","/shows","/wiki",
+      "/archive","/records","/scorecharts"]) {
       expect(isMaintenancePublicWebsiteRouteAllowed(path,"GET",true)).toBe(false);
     }
-    for (const path of ["/","/participate","/me","/my-solaris"]) {
+    for (const path of ["/","/participate","/me","/my-solaris","/site-directory","/rules"]) {
       expect(isMaintenancePublicWebsiteRouteAllowed(path,"GET",true)).toBe(true);
     }
   });
