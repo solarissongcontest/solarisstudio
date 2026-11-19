@@ -1,0 +1,27 @@
+name: V3 S13-S16 frozen hosted catalog evidence - offline only
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/v3/recovery-candidates/evidence/s13-s16-current-hosted-frontier-2026-11-19.json"
+      - "docs/v3/recovery-candidates/s13-s16-current-hosted-frontier-2026-11-19.md"
+      - "scripts/check-v3-s13-s16-current-hosted-frontier.mjs"
+      - ".github/workflows/v3-s13-s16-current-hosted-frontier-offline.yml"
+permissions:
+  contents: read
+jobs:
+  local-metadata-proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PROJECT_REF: local
+      V3_VERIFICATION_TARGET: local
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify offline script syntax
+        run: node --check scripts/check-v3-s13-s16-current-hosted-frontier.mjs
+      - name: Check immutable production snapshot offline only
+        run: node scripts/check-v3-s13-s16-current-hosted-frontier.mjs
