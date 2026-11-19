@@ -257,7 +257,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
           <p className="mb-3 text-sm leading-relaxed text-muted-foreground">
             Historical show pages stay locked to their published edition context.
           </p>
-          <div className="space-y-2">
+          <div className="v3-shows-editorial-list">
             {discovery.archive.slice(0, 8).map((item) =>
               presentation === "mobile-web"
                 ? <ShowRow key={item.show.id} item={item} web />
@@ -314,7 +314,7 @@ function ShowCollection({
   return (
     <section aria-labelledby={id}>
       <AppSectionHeader eyebrow={eyebrow} title={title} id={id} />
-      <div className={presentation === "mobile-web" ? "v3-shows-web-list" : emphasis === "live" ? "grid gap-3" : "grid gap-2 sm:grid-cols-2"}>
+      <div className={presentation === "mobile-web" ? "v3-shows-web-list" : emphasis === "live" ? "v3-shows-live-list" : "v3-shows-editorial-list"}>
         {items.map((item) =>
           presentation === "mobile-web"
             ? <ShowRow key={item.show.id} item={item} web />
@@ -327,7 +327,7 @@ function ShowCollection({
 
 function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: boolean }) {
   return (
-    <div className={`rounded-2xl border p-4 ${live ? "border-primary/45 bg-primary/5" : "border-border bg-surface"}`}>
+    <div className={live ? "v3-shows-editorial-card v3-shows-editorial-card--live" : "v3-shows-editorial-card"}>
       <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <ShowStateBadge item={item} />
@@ -377,7 +377,7 @@ function ShowRow({
     <Link to="/shows/$showId" params={{ showId: item.show.id }}
       className={web
         ? "v3-show-web-row flex min-h-20 items-center gap-3 border-b border-border py-3"
-        : "flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3"}>
+        : "v3-show-app-editorial-row flex min-h-16 items-center gap-3"}>
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-2">
           <ShowStateBadge item={item} />

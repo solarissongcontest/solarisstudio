@@ -68,3 +68,8 @@
 - The spoiler-hidden route returns **before** any artwork/title/timeline sharing content renders. Existing public story and edition ID mapping, share, canonical Solaris times, related links and publication security are unchanged.
 - Timeline moments use divided article entries with proper chronology and comfortable reading line-height, not nested floating cards. Related published Stories use direct quiet rows.
 - Mobile-web and desktop Story-detail parity remain future slices; no new queries, rights, schema or Story writer was added here.
+
+## Shows broadcast-first directory design pass
+- Live/paused broadcast material is still the only highlighted show surface; Upcoming, Recent, Current Edition, archive and filtered browsing use flat, predictable editorial rows instead of repeated rounded cards.
+- Installed app keeps its single filter sheet and keyboard-operable search; mobile website keeps border-separated native-style rows; desktop keeps a left filter rail and one wide scannable list.
+- Existing publication-status badges, official published Results hints, Show links, safely exposed broadcast links, fixed page window and chronological event formatting are retained. No Results/Show data refetch added.
