@@ -20,8 +20,8 @@ export function V3ExploreEditorialLink({
   meta?: string;
   icon: LucideIcon;
 }) {
-  const { allows } = usePublicLaunchAvailability();
-  if (!allows(href)) return null;
+  const { allowsReleased } = usePublicLaunchAvailability();
+  if (!allowsReleased(href)) return null;
   return (
     <Link to={href as any} className="v3-explore-editorial-link">
       <span className="v3-explore-editorial-link__icon" aria-hidden="true">

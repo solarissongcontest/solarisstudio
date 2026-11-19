@@ -103,3 +103,5 @@
 ## Strict World Explore subroute availability
 - Web Explore now checks `allowsReleased` for each World Search, World Organizations and World Countries secondary link individually, not merely the World root; this avoids advertising subroutes excluded from restricted/maintenance public policy.
 - Installed Explore's shared editorial link primitive is checked for equivalent subroute availability before release.
+
+- All V3 Explore editorial route rows now rely on central `allowsReleased(href)` rather than a weaker generic `allows(href)`, so restricted/maintenance paths (including World subroutes) cannot be advertised as released navigation.
