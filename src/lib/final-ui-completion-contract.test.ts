@@ -168,7 +168,9 @@ describe("final UI completion contracts", () => {
     expect(playwright).toContain('"ios-pwa-landscape"');
     expect(installed).toContain('navigator, "standalone"');
     expect(installed).toContain("data-solaris-runtime");
-    expect(workflow).toContain("chromium webkit");
+    expect(workflow).toContain("import { chromium, webkit } from '@playwright/test'");
+    expect(workflow).toContain("await engine.launch({ headless: true })");
+    expect(workflow).toContain("bash .github/scripts/v3-browser-playwright-container.sh run ./node_modules/.bin/playwright test");
   });
 
   it("keeps the edition archive and Pulse hierarchy in the compact public system", () => {
