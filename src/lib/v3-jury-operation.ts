@@ -1,8 +1,13 @@
 export type V3JuryOperationStatus = "ready" | "dispatched" | "uncertain";
 
-export type V3JuryOperation = {
-  version: 1;
+export type V3JuryOperationScope = {
+  actorId: string;
+  countryId: string;
   showId: string;
+};
+
+export type V3JuryOperation = V3JuryOperationScope & {
+  version: 2;
   operationId: string;
   ballotFingerprint: string;
   status: V3JuryOperationStatus;
@@ -12,7 +17,9 @@ export type V3JuryOperation = {
 
 function validate(operation: V3JuryOperation) {
   if (
-    operation.version !== 1 ||
+    operation.version !== 2 ||
+    !operation.actorId ||
+    !operation.countryId ||
     !operation.showId ||
     !operation.operationId ||
     !operation.ballotFingerprint ||
@@ -23,9 +30,17 @@ function validate(operation: V3JuryOperation) {
   }
 }
 
-export function prepareV3JuryOperation(input: {
+export function sameV3JuryOperationScope(
+  left: V3JuryOperationScope,
+  right: V3JuryOperationScope,
+) {
+  return left.actorId === right.actorId &&
+    left.countryId === right.countryId &&
+    left.showId === right.showId;
+}
+
+export function prepareV3JuryOperation(input: V3JuryOperationScope & {
   existing: V3JuryOperation | null;
-  showId: string;
   ballotFingerprint: string;
   newOperationId: string;
   now: string;
@@ -33,13 +48,15 @@ export function prepareV3JuryOperation(input: {
   if (input.existing) validate(input.existing);
   if (
     input.existing?.status === "uncertain" &&
-    input.existing.showId === input.showId &&
+    sameV3JuryOperationScope(input.existing, input) &&
     input.existing.ballotFingerprint === input.ballotFingerprint
   ) {
     return { operation: input.existing, reused: true as const };
   }
   const operation: V3JuryOperation = {
-    version: 1,
+    version: 2,
+    actorId: input.actorId,
+    countryId: input.countryId,
     showId: input.showId,
     operationId: input.newOperationId,
     ballotFingerprint: input.ballotFingerprint,
@@ -67,16 +84,19 @@ export function updateV3JuryOperation(
   return next;
 }
 
-const storageKey = (showId: string) => `ssc.v3.jury.operation.${showId}`;
+// v1 persisted only a show-scoped operation. It is never trusted as an
+// actor-scoped retry, since another delegation could have used this browser.
+const storageKey = (scope: V3JuryOperationScope) =>
+  `ssc.v3.jury.operation.v2.${scope.actorId}.${scope.countryId}.${scope.showId}`;
 
-export function readV3JuryOperation(showId: string): V3JuryOperation | null {
+export function readV3JuryOperation(scope: V3JuryOperationScope): V3JuryOperation | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(storageKey(showId));
+    const raw = window.localStorage.getItem(storageKey(scope));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as V3JuryOperation;
     validate(parsed);
-    return parsed.showId === showId ? parsed : null;
+    return sameV3JuryOperationScope(parsed, scope) ? parsed : null;
   } catch {
     return null;
   }
@@ -86,17 +106,17 @@ export function writeV3JuryOperation(operation: V3JuryOperation) {
   if (typeof window === "undefined") return;
   validate(operation);
   try {
-    window.localStorage.setItem(storageKey(operation.showId), JSON.stringify(operation));
+    window.localStorage.setItem(storageKey(operation), JSON.stringify(operation));
   } catch {
     // The in-memory operation still protects this page lifetime. Never mint a
     // replacement id merely because browser storage is unavailable.
   }
 }
 
-export function clearV3JuryOperation(showId: string) {
+export function clearV3JuryOperation(scope: V3JuryOperationScope) {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.removeItem(storageKey(showId));
+    window.localStorage.removeItem(storageKey(scope));
   } catch {
     // Receipt authority is server-side; cleanup is best effort only.
   }
