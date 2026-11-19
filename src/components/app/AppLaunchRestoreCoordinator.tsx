@@ -14,6 +14,7 @@ import {
   markAppNavigationRestore,
 } from "@/lib/app-navigation";
 import { useHydrationSafeRouterLocation } from "@/lib/hydration-safe-router-location";
+import { LIMITED_PUBLIC_LAUNCH, publicLaunchAllows } from "@/lib/public-launch-availability";
 import { beginLifecycleGeneration } from "@/lib/lifecycle-generation";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 
@@ -34,7 +35,12 @@ export function AppLaunchRestoreCoordinator() {
     const transaction = readAppLaunchTransaction();
     if (!transaction) return;
 
-    const safeRoot = getAppLaunchSafeRootFromSnapshot(transaction.navigationSnapshot);
+    // Snapshots from the full five-tab app can outlive the restricted release.
+    // Never restore an unpublished root merely because it was cached on-device.
+    const rememberedRoot = getAppLaunchSafeRootFromSnapshot(transaction.navigationSnapshot);
+    const safeRoot = LIMITED_PUBLIC_LAUNCH && !publicLaunchAllows(rememberedRoot.pathname)
+      ? { ...rememberedRoot, pathname: "/", searchStr: "", scrollY: 0 }
+      : rememberedRoot;
     if (pathname !== "/" && pathname !== safeRoot.pathname) {
       clearAppLaunchTransaction();
       return;
@@ -47,10 +53,14 @@ export function AppLaunchRestoreCoordinator() {
     }).then(({ signedIn, source }) => {
       if (!lifecycle.isCurrent()) return;
 
-      const target =
+      const rememberedTarget =
         source === "timeout"
           ? safeRoot
           : getAppLaunchDestinationFromSnapshot(signedIn, transaction.navigationSnapshot);
+      const target =
+        LIMITED_PUBLIC_LAUNCH && !publicLaunchAllows(appEntryHref(rememberedTarget))
+          ? safeRoot
+          : rememberedTarget;
       const targetHref = appEntryHref(target);
 
       try {
