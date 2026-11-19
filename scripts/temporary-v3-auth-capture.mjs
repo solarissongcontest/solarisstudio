@@ -65,9 +65,11 @@ for(const persona of personas){
    try{
     const resp=await page.goto(new URL(route,base).href,{waitUntil:"domcontentloaded",timeout:15000});
     const status=resp?.status()||0;
-    await page.waitForTimeout(400);
-    if(status>=400||status<200||page.url().includes("/auth?")||new URL(page.url()).pathname==="/auth" ||
-       !await page.locator("main").first().isVisible().catch(()=>false)){
+    await page.waitForLoadState("networkidle",{timeout:3500}).catch(()=>undefined);
+    await page.waitForTimeout(550);
+    // Organizer uses dedicated workspace DOM, not necessarily an HTML <main>.
+    // Do not incorrectly discard its real screens just for missing this tag.
+    if(status>=400||status<200||page.url().includes("/auth?")||new URL(page.url()).pathname==="/auth"){
       manifest.skipped.push({persona:persona.id,viewport:preset.id,route,status,redirect:new URL(page.url()).pathname});
       continue;
     }
