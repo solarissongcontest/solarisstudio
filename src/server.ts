@@ -407,7 +407,10 @@ function maintenanceResponse(request: Request, env: unknown, includeHodPortal: b
         '<div class="hero-actions"><a class="hero-action hero-action-primary" href="/auth">Sign in or register</a><a class="hero-action" href="#confirmation-access">Edit Confirmation</a></div><p style="margin:16px 0 0;max-width:44rem;font-size:14px;line-height:1.6">Account access and existing Confirmation editing are available during this early release. Official Jury Voting and other unfinished services are not yet open.</p><div class="hero-actions">',
       );
     }
-    if (new URL(request.url).pathname !== "/") {
+    // The archived maintenance story keeps its own working in-page anchor.
+    // Only unrelated 503 routes should jump back to the root fragment.
+    const maintenancePathname = new URL(request.url).pathname;
+    if (maintenancePathname !== "/" && maintenancePathname !== "/maintenance/story") {
       html = html.replaceAll('href="#confirmation-access"', 'href="/#confirmation-access"');
     }
     if (request.method === "GET" && includeHodPortal) {
