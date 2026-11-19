@@ -85,3 +85,9 @@
 - Organization pages add a restrained institutional hero, responsive offices/history-friendly rows, and live dedicated **Public bodies** navigation; their existing authoritative leadership/membership and body readers remain source of truth.
 - Explore offers World Search, World Countries and Organizations as secondary links only after the same strictly verified World rollout and central public-availability policy. No sixth PWA bottom tab.
 - Search and publication contract tests are ported from the donor where applicable. This is **TG3 product progress**; TG4 documents, TG5 membership actions, TG6–9 sessions/proposals/votes/resolutions, TG10 private follower/task events and TG14 Court are NOT complete. They require independent System adoption, secured projections, permissioned workflows and exact-head release evidence before any public buttons.
+
+## World deep-route visual continuity / only published facts
+- World Countries directory and each verified International country detail get a calm editorial layout with a strong text-led identity and separate current versus former memberships and in-page semantic nav.
+- World search results now link to canonical `/world/countries/:code` (not SSC-only Country pages), with published country affiliation context; institution member rows also link to international country details.
+- World public bodies directory and real body details get matching institutional headings, without changing their independently verified, paginated public body/source readers.
+- No speculative country-photo upload, World Court, Sessions, Measures or Resolutions routes. Those remain blocked on missing authoritative System projections.

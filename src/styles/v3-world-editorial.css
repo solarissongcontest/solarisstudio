@@ -66,3 +66,63 @@
  .world-editorial-hero,.world-editorial-institution{background:Canvas;color:CanvasText;}
  .world-editorial-hero h1,.world-editorial-institution h1{color:CanvasText;}
 }
+
+/* World countries / world-search / institutional bodies retain the verified
+ * publication boundary and reuse the same restrained editorial hierarchy. */
+.world-country-identity-hero {
+  position:relative;isolation:isolate;min-height:clamp(17rem,41svh,25rem);
+  padding:clamp(1.5rem,4vw,3rem);align-content:flex-end;
+  background:radial-gradient(ellipse at 82% 13%,rgba(97,139,175,.3),transparent 54%),
+             linear-gradient(155deg,#163145,#0c2335 62%,#03101d);
+  color:#fff;overflow:hidden;
+}
+.world-country-identity-hero h1{
+  font-family:"Iowan Old Style","Baskerville","Times New Roman",serif;
+  font-size:clamp(2.15rem,6vw,4.5rem);font-weight:650;line-height:1.08;letter-spacing:-.045em;
+  text-wrap:balance;overflow-wrap:anywhere;color:#fff;
+}
+.world-country-identity-hero p{color:rgba(255,255,255,.79);}
+.world-country-identity-hero a{color:#c8e8f7;}
+.world-country-local-nav {
+  display:flex;flex-wrap:nowrap;gap:1.35rem;overflow-x:auto;scrollbar-width:thin;
+  overscroll-behavior-inline:contain;border-bottom:1px solid var(--border);
+}
+.world-country-local-nav>a {
+  display:inline-flex;align-items:center;min-height:3rem;border-bottom:2px solid transparent;
+  white-space:nowrap;font-size:.85rem;font-weight:700;color:var(--muted-foreground);
+  text-decoration:none;
+}
+.world-country-local-nav>a:hover,.world-country-local-nav>a:focus-visible {
+  color:var(--foreground);border-bottom-color:var(--primary);
+}
+.world-country-affiliation-group{scroll-margin-top:7rem;}
+.world-country-affiliation-list{display:grid;border-top:1px solid var(--border);}
+.world-country-affiliation-row{border-bottom:1px solid var(--border);min-width:0;}
+.world-country-directory-row{min-width:0;text-decoration:none;color:inherit;}
+.world-search-editorial-hero {
+  padding:clamp(2rem,5vw,3.5rem);
+  background:linear-gradient(145deg,#173249,#0a2031 55%,#03111f);color:#fff;
+  min-height:clamp(14rem,27svh,19rem);display:flex;flex-direction:column;justify-content:flex-end;
+}
+.world-search-editorial-hero h1 {
+  font-family:"Iowan Old Style","Baskerville","Times New Roman",serif;
+  font-size:clamp(2.5rem,6vw,4.25rem);font-weight:650;line-height:1.05;letter-spacing:-.05em;color:#fff;
+}
+.world-search-editorial-hero p{color:rgba(255,255,255,.85);}
+.world-bodies-editorial-header {
+  padding:clamp(1.5rem,4vw,3rem);
+  max-width:none;background:linear-gradient(150deg,#173248,#0b2030 66%,#03111d);
+  color:#fff;
+}
+.world-bodies-editorial-header h1 {
+  font-family:"Iowan Old Style","Baskerville","Times New Roman",serif;
+  font-size:clamp(2.2rem,5vw,4rem);font-weight:650;letter-spacing:-.04em;color:#fff;
+}
+.world-bodies-editorial-header p{color:rgba(255,255,255,.78);}
+@media (max-width:390px){
+  .world-country-identity-hero{padding:1.45rem 1rem;}
+  .world-country-identity-hero h1{font-size:clamp(2rem,10vw,2.9rem);}
+}
+@media (prefers-reduced-motion:reduce){
+  .world-country-detail *, .world-search-editorial *, .world-bodies-editorial *{transition:none!important;animation:none!important;}
+}

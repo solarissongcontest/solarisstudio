@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Search } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
+import "@/styles/v3-world-editorial.css";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
   WORLD_BODIES_PAGE_SIZE, WORLD_BODIES_MAX_PAGE, WORLD_BODY_OFFICE_LIMIT, cleanWorldBodySearch, readPublicWorldBodies, readPublicWorldBody, readPublicBodyOffices, validWorldSlug,
@@ -14,7 +15,7 @@ function Frame({ children }: { children: ReactNode }) {
   // AppShell owns the single page <main> landmark and shared navigation.
   // Keep it mounted through platform detection, so SSR and app hydration
   // never replace the entire navigation with a standalone loading <div>.
-  return <AppShell><div className={"mx-auto w-full pb-28 " +
+  return <AppShell><div className={"world-bodies-editorial mx-auto w-full pb-28 " +
     (isAppMode ? "max-w-2xl px-3 pt-3" : "max-w-6xl px-4 pt-6 sm:px-6 sm:pt-8")}>
     {platformResolved ? children : (
       <div role="status" aria-label="Opening Terra Solaris" className="min-h-20" />
@@ -131,7 +132,7 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
     {valid && !publicationBlocked && query.isSuccess && query.isFetchedAfterMount &&
       !query.isFetching && !result ? <Unavailable missing /> : null}
     {result ? <>
-      <header className="max-w-3xl">
+      <header className="world-bodies-editorial-header max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{result.organization.shortName} · Governance</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-5xl">Institutional bodies</h1>
         <p className="mt-3 leading-7 text-muted-foreground">Public assemblies, committees and other organs of {result.organization.officialName}.</p>
@@ -220,7 +221,7 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
     {valid && !officeNetworkBlocked && query.isSuccess && query.isFetchedAfterMount &&
       !query.isFetching && !result ? <Unavailable missing /> : null}
     {result ? <>
-      <header className="max-w-3xl">
+      <header className="world-bodies-editorial-header max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{result.organization.shortName} · Institutional body</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-5xl">{result.body.name}</h1>
         <p className="mt-4 text-sm capitalize text-muted-foreground">{result.body.type.replace(/_/g, " ")} · {result.body.status}</p>

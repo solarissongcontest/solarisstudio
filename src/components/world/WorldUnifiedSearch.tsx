@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, Globe2, Landmark, Search, X } from "lucide-react
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 
 import { AppShell } from "@/components/AppShell";
+import "@/styles/v3-world-editorial.css";
 import { FlagChip } from "@/components/FlagChip";
 import {
   fetchWorldCountrySearchPage,
@@ -55,7 +56,7 @@ function WorldRow({ country, organization }: { country?: WorldSearchCountry; org
   );
   const className = "group flex min-h-16 items-center gap-3 border-b border-border py-3 last:border-0 focus-visible:rounded-lg focus-visible:outline-2";
   return country ? (
-    <Link to="/countries/$code" params={{ code: country.code }} className={className}>{identity}</Link>
+    <Link to="/world/countries/$code" params={{ code: country.code }} className={className}>{identity}</Link>
   ) : (
     <Link to="/world/organizations/$slug" params={{ slug: organization!.slug }}
       search={{ tab: "overview" }} className={className}>{identity}</Link>
@@ -90,7 +91,7 @@ function ResultSection({ id, title, count, browse, page, onPageChange, children 
       <div className="flex flex-wrap items-end justify-between gap-3 border-b pb-3">
         <h2 id={id} className="text-xl font-semibold">{title} <span className="text-sm font-normal text-muted-foreground">({count})</span></h2>
         {title === "Countries" ? (
-          <Link to="/countries" className="text-sm font-semibold text-primary">Browse countries</Link>
+          <Link to="/world/countries" className="text-sm font-semibold text-primary">Browse countries</Link>
         ) : (
           <Link to="/world/organizations" className="text-sm font-semibold text-primary">Browse organizations</Link>
         )}
@@ -174,11 +175,11 @@ export function WorldUnifiedSearchPage({
 
   return (
     <AppShell>
-      <div className="mx-auto w-full max-w-5xl px-4 pb-28 pt-5 sm:px-6">
+      <div className="world-search-editorial mx-auto w-full max-w-5xl px-4 pb-28 pt-5 sm:px-6">
         <Link to="/world" className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground">
           <ArrowLeft className="size-4" aria-hidden="true" /> Terra Solaris
         </Link>
-        <header className="mt-5 max-w-2xl">
+        <header className="world-search-editorial-hero mt-5">
           <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">World Directory</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-5xl">Search Terra Solaris</h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
@@ -217,7 +218,7 @@ export function WorldUnifiedSearchPage({
             <h2 className="text-xl font-semibold">Explore the world</h2>
             <p className="mt-2 text-sm text-muted-foreground">Enter at least two characters, or browse the directories below.</p>
             <div className="mt-4 flex flex-wrap gap-3">
-              <Link to="/countries" className="inline-flex min-h-11 items-center gap-2 rounded-xl border px-4">
+              <Link to="/world/countries" className="inline-flex min-h-11 items-center gap-2 rounded-xl border px-4">
                 <Globe2 className="size-4" aria-hidden="true" /> Countries
               </Link>
               <Link to="/world/organizations" className="inline-flex min-h-11 items-center gap-2 rounded-xl border px-4">

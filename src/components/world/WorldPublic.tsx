@@ -503,7 +503,7 @@ export function WorldOrganizationPage({
                       <div key={member.id} className="flex min-h-16 items-center gap-3 py-3">
                         {country ? <FlagChip code={country.short_code} color={country.accent_color || "#426ba6"} image={country.flag_image} size="sm" /> : <span className="size-9 shrink-0 rounded-lg bg-muted" aria-hidden="true" />}
                         <div className="min-w-0 flex-1">
-                          {country ? <Link to="/countries/$code" params={{ code: country.short_code.toLowerCase() }} className="font-medium hover:underline focus-visible:rounded focus-visible:outline focus-visible:outline-2">{country.name}</Link> :
+                          {country ? <Link to="/world/countries/$code" params={{ code: country.short_code.toLowerCase() }} className="font-medium hover:underline focus-visible:rounded focus-visible:outline focus-visible:outline-2">{country.name}</Link> :
                             <span className="font-medium">Country identity unavailable</span>}
                           <p className="mt-1 text-xs leading-5 text-muted-foreground">
                             {representativesByCountry.get(member.countryId)?.displayName
