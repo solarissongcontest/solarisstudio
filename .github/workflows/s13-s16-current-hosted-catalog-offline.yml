@@ -1,0 +1,23 @@
+name: S13-S16 immutable hosted catalog evidence offline
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/v3/recovery-candidates/evidence/s13-s16-current-hosted-catalog-2026-11-19.json'
+      - 'scripts/check-s13-s16-current-hosted-catalog.mjs'
+      - '.github/workflows/s13-s16-current-hosted-catalog-offline.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  catalog-evidence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    env:
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PROJECT_REF: local
+      V3_VERIFICATION_TARGET: local
+    steps:
+      - uses: actions/checkout@v4
+      - run: node --check scripts/check-s13-s16-current-hosted-catalog.mjs
+      - run: node scripts/check-s13-s16-current-hosted-catalog.mjs
