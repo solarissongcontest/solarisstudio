@@ -12,6 +12,16 @@ const web = palette.slice(
 );
 
 describe("V3 web Search canonical discovery shortcuts", () => {
+  it("cancels Radix centered-dialog translation before top-anchoring public Search", () => {
+    const css = readFileSync(
+      resolve(process.cwd(), "src/components/public/public-command-palette.css"),
+      "utf8",
+    );
+    expect(css).toContain("translate: none !important;");
+    expect(css).toContain("transform: translateX(-50%) !important;");
+    expect(css).toContain("transform: none !important;");
+  });
+
   it("chooses the canonical published current edition instead of guessing lifecycle status", () => {
     expect(web).toContain("resolveCurrentPublicEdition(editions)");
     expect(web).not.toContain('"complete", "completed", "finished"');

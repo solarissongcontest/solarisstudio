@@ -8,6 +8,9 @@ body [role="dialog"].solaris-public-search-dialog {
   width: min(39rem, calc(100vw - 2rem)) !important;
   max-width: calc(100vw - 1.5rem) !important;
   max-height: min(78dvh, 43rem) !important;
+  /* Radix/Tailwind centers DialogContent using the CSS translate longhand;
+     transform alone does not cancel that vertical -50% offset. */
+  translate: none !important;
   transform: translateX(-50%) !important;
   display: flex !important;
   flex-direction: column !important;
