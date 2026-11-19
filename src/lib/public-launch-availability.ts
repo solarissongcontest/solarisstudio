@@ -94,10 +94,16 @@ export function limitedPublicLaunchAllows(href: string): boolean {
   return LIMITED_PATH_PREFIXES.some(matches);
 }
 
-export function publicLaunchAllows(href: string, flags: PublicLaunchFlags = {}): boolean {
-  if (LIMITED_PUBLIC_LAUNCH) return limitedPublicLaunchAllows(href);
+export function standardPublicLaunchAllows(href: string, flags: PublicLaunchFlags = {}): boolean {
   if (publicLaunchPath(href) === null) return false;
   const requirement = publicLaunchRequirement(href);
   if (!requirement) return true;
   return requirement.flag !== null && flags[requirement.flag] === true;
+}
+
+/** User-visible launch decision. Keep the previous flag policy testable and reversible. */
+export function publicLaunchAllows(href: string, flags: PublicLaunchFlags = {}): boolean {
+  return LIMITED_PUBLIC_LAUNCH
+    ? limitedPublicLaunchAllows(href)
+    : standardPublicLaunchAllows(href, flags);
 }
