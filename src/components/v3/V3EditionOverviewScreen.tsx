@@ -285,7 +285,20 @@ export function V3EditionOverviewScreen({
         title={projection.hub.hero.name}
         subtitle={meta || "Discover this Solaris edition"}
         imageUrl={spoilerSafe ? null : projection.hub.hero.artworkUrl}
-        context={<V3StatusChip tone={status.tone}>{status.label}</V3StatusChip>}
+        context={
+          <>
+            {projection.hub.hero.logoUrl ? (
+              <img
+                className="cinematic-edition-logo"
+                src={projection.hub.hero.logoUrl}
+                alt={`${projection.hub.hero.name} logo`}
+                loading="lazy"
+                decoding="async"
+              />
+            ) : null}
+            <V3StatusChip tone={status.tone}>{status.label}</V3StatusChip>
+          </>
+        }
       />
       {spoilerSafe ? (
         <SpoilerRevealCard onReveal={() => setRevealed(true)} />

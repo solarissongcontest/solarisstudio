@@ -119,6 +119,10 @@ function CurrentEditionCard({ edition }: { edition: V3ExploreEditionCard }) {
             <span>Current edition</span>
             <V3StatusChip tone={status.tone}>{status.label}</V3StatusChip>
           </div>
+          {!edition.artworkUrl && edition.logoUrl ? (
+            <img className="v3-explore-feature__logo" src={edition.logoUrl}
+              alt={`${edition.name} logo`} loading="lazy" decoding="async" />
+          ) : null}
           <h2>{edition.name}</h2>
           {meta ? <p className="v3-explore-feature__meta">{meta}</p> : null}
           {allows(edition.href) ? (

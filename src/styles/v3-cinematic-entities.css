@@ -237,3 +237,15 @@
   position: absolute;
   inset: 0;
 }
+
+/* Official Edition artwork is the visual background; the Edition logo remains
+   a distinct contained brand asset, not a stretched full-bleed photo. */
+.cinematic-entity-hero__context .cinematic-edition-logo {
+  display: block;
+  flex: 0 0 auto;
+  max-width: min(25vw, 7rem);
+  max-height: 3.25rem;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}

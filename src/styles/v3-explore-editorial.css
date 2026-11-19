@@ -146,3 +146,13 @@
   .v3-explore-feature__primary { border: 1px solid ButtonText; }
   .v3-explore-editorial-link { border-bottom: 1px solid CanvasText; }
 }
+
+.v3-explore-feature__logo {
+  display: block;
+  max-width: 7rem;
+  max-height: 3.25rem;
+  margin-top: 1rem;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}

@@ -51,3 +51,8 @@
 - Accessible keyboard range inputs adjust local focal X/Y 0–100 without changing Country V2 design or current published background. Remove private preview to return to the existing image or color fallback; blob URLs are revoked on replacement/unmount.
 - The shared cinematic hero keeps its safe color gradient rendered underneath media and restores it on asset decode/load failure; non-visible MySolaris preview uses lazy rather than LCP-priority loading.
 - This is **not** a secure ready-draft/upload/publish feature. Media/System contract and revised authorization checks remain required.
+
+## Edition artwork vs logo: final visual source split
+- Existing publication-safe edition reads already select both official `artwork_url` and `logo`; project them as separate `artworkUrl` and `logoUrl` fields.
+- Full-bleed cinematic background uses **artwork only**. The official logo is presented as a separate contained image in the Edition identity row; Explore current edition uses the logo as a compact graphic if full artwork is absent.
+- No migration, extra Supabase query, or invented image fallbacks. The absence of artwork uses the designed abstract hero, never an enlarged edition logo.

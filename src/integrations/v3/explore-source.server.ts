@@ -170,7 +170,8 @@ function makeEditionInput(input: {
     editionNumber: edition.edition_number,
     year: edition.year,
     hostLabel: edition.host_city,
-    artworkUrl: edition.artwork_url ?? edition.logo ?? null,
+    artworkUrl: edition.artwork_url ?? null,
+    logoUrl: edition.logo ?? null,
     visibility: edition.published ? "public" : "private",
     experience:
       isCurrent && currentExperience ? currentExperience : archiveExperience(edition),

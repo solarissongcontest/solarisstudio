@@ -30,6 +30,8 @@ export type V3ExploreEditionInput = {
   year: number | null;
   hostLabel: string | null;
   artworkUrl: string | null;
+  /** Official logo is a separate identity asset, never a backdrop fallback. */
+  logoUrl?: string | null;
   visibility: V3PublicationVisibility;
   experience: V3EditionExperience;
   resultsPublication: V3EditionResultsPublication;
@@ -99,6 +101,7 @@ export type V3ExploreEditionCard = {
   year: number | null;
   hostLabel: string | null;
   artworkUrl: string | null;
+  logoUrl?: string | null;
   experience: V3EditionExperience;
   href: string;
   liveHref?: string | null;
@@ -233,6 +236,7 @@ function projectEdition(edition: V3ExploreEditionInput): V3ExploreEditionCard {
     year: edition.year,
     hostLabel: edition.hostLabel,
     artworkUrl: edition.artworkUrl,
+    logoUrl: edition.logoUrl ?? null,
     experience: edition.experience,
     href: edition.href,
     liveHref:
