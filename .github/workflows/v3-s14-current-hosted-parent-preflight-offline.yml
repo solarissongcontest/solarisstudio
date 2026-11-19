@@ -1,0 +1,28 @@
+name: V3 S14 hosted parent preflight evidence (offline)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/v3/recovery-candidates/evidence/s14-current-hosted-parent-preflight-2026-11-19.json"
+      - "docs/v3/recovery-candidates/s14-current-hosted-parent-preflight-readonly.sql"
+      - "docs/v3/recovery-candidates/s14-current-hosted-parent-preflight-2026-11-19.md"
+      - "scripts/check-v3-s14-current-hosted-parent-preflight.mjs"
+      - ".github/workflows/v3-s14-current-hosted-parent-preflight-offline.yml"
+permissions:
+  contents: read
+jobs:
+  verify-offline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PROJECT_REF: local
+      V3_VERIFICATION_TARGET: local
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Validate offline script syntax
+        run: node --check scripts/check-v3-s14-current-hosted-parent-preflight.mjs
+      - name: Verify S14 immutable catalog without contacting production
+        run: node scripts/check-v3-s14-current-hosted-parent-preflight.mjs
