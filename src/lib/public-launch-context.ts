@@ -1,6 +1,10 @@
 import { createContext, useContext, useCallback } from "react";
 import { publicLaunchAllows, publicLaunchPath, type PublicLaunchFlags } from "./public-launch-availability";
-import { GLOBAL_MAINTENANCE_MODE, isMaintenancePublicWebsiteRouteAllowed } from "./maintenance";
+import {
+  GLOBAL_MAINTENANCE_MODE,
+  isMaintenancePublicAccountRouteAllowed,
+  isMaintenancePublicWebsiteRouteAllowed,
+} from "./maintenance";
 
 export type PublicLaunchAvailability = {
   active: boolean;
@@ -24,7 +28,11 @@ export function usePublicLaunchAvailability() {
       if (path === null) return false;
       // Public navigation, global search and directory must share the exact
       // Worker GET allowlist during P0, not merely the future rollout flags.
-      if (GLOBAL_MAINTENANCE_MODE && !isMaintenancePublicWebsiteRouteAllowed(path, "GET", true)) return false;
+      if (
+        GLOBAL_MAINTENANCE_MODE &&
+        !isMaintenancePublicWebsiteRouteAllowed(path, "GET", true) &&
+        !isMaintenancePublicAccountRouteAllowed(path, "GET", true)
+      ) return false;
       return !state.active || publicLaunchAllows(href, state.flags);
     },
     [state.active, state.flags],
