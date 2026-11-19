@@ -377,7 +377,7 @@ jobs:
 
           // Preserve the original local-data sitemap identity proof for the
           // full release. During the limited release the sitemap must be
-          // withheld, otherwise it advertises inaccessible Countries/Wiki pages.
+          // restricted to approved paths, otherwise it would advertise hidden pages.
           // The direct PostgREST proof above still confirms local-only identity.
           const { readFileSync } = await import("node:fs");
           const limitedSource = readFileSync("src/lib/public-launch-availability.ts", "utf8");
@@ -387,8 +387,27 @@ jobs:
             headers: { cookie: "solaris_e2e_maintenance_bypass=1" },
           });
           if (limitedLaunch) {
-            if (sitemapResponse.status !== 404) {
-              throw new Error(`Limited launch must hide the full sitemap: HTTP ${sitemapResponse.status}`);
+            if (sitemapResponse.status !== 200) {
+              throw new Error(`Limited launch filtered sitemap must render: HTTP ${sitemapResponse.status}`);
+            }
+            const xml = await sitemapResponse.text();
+            const published = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)]
+              .map((match) => new URL(match[1]));
+            if (!published.length) throw new Error("Limited launch sitemap has no public entries");
+            const forbidden = published.filter((url) => {
+              if (url.origin !== "http://127.0.0.1:4173") return true;
+              const path = url.pathname;
+              const prefix = (name) => path === name || path.startsWith(`${name}/`);
+              if (["/confirmations/admin", "/confirmations/next-in-line", "/televoting/results", "/televoting/admin"].some(prefix)) return true;
+              return path !== "/" && !["/participate", "/confirmations", "/jury-voting", "/televoting", "/auth", "/rules"].some(prefix);
+            });
+            if (forbidden.length) {
+              throw new Error(`Limited launch sitemap exposed hidden routes: ${forbidden.map((x) => x.pathname).join(", ")}`);
+            }
+            for (const essential of ["/", "/participate", "/rules", "/auth"]) {
+              if (!published.some((url) => url.pathname === essential)) {
+                throw new Error(`Limited launch sitemap omitted ${essential}`);
+              }
             }
             const home = await fetch("http://127.0.0.1:4173/");
             if (home.status !== 200) {
