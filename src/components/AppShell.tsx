@@ -253,6 +253,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     pathname.startsWith("/my-solaris/");
   const focusedParticipationTask = appScreen.behavior.criticalTask;
   const showSectionNavigation =
+    !GLOBAL_MAINTENANCE_MODE &&
     !isAppMode &&
     !isMySolarisWorkspace &&
     !focusedParticipationTask &&
