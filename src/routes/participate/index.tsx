@@ -339,6 +339,9 @@ function LegacyParticipatePage() {
     (action) => action.status === "available" && action.id !== primary?.id,
   );
   const upcoming = upcomingParticipationActions(releasedActions);
+  const gatedAvailable = actions.some(
+    (action) => action.status === "available" && !allowsReleased(action.to),
+  );
   const appAuthKnown = !juryQuery.isLoading;
   const appSignedIn = juryQuery.data?.signedIn === true;
   const statusError =
@@ -465,8 +468,12 @@ function LegacyParticipatePage() {
           <PublicCurrentStatus
             icon={CheckCircle2}
             eyebrow="Up to date"
-            title="Nothing needs your attention right now"
-            description="Solaris will surface confirmations and voting here when they become actionable."
+            title={gatedAvailable ? "Some active services are restricted here" : "Nothing needs your attention right now"}
+            description={
+              gatedAvailable
+                ? "An official round may be active, but its normal page is not part of this release. Check the services below and any authorized Confirmation editing option above."
+                : "Solaris will surface confirmations and voting here when they become actionable."
+            }
             tone="complete"
           />
         )}
