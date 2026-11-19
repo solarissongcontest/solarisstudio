@@ -406,9 +406,6 @@ function maintenanceResponse(request: Request, env: unknown, includeHodPortal: b
     }
     if (request.method === "GET" && includeHodPortal) {
       const hod = maintenanceHodRuntime(env);
-      const softLaunchEnabled = maintenancePublicAccountAccessEnabled(
-        serverEnv(env)?.PUBLIC_SOFT_LAUNCH_ACCESS ?? process.env.PUBLIC_SOFT_LAUNCH_ACCESS,
-      );
       if (hod.enabled && hod.supabaseUrl && hod.publishableKey) {
         const portal = isolateMaintenanceHodPortalMarkup(renderMaintenanceHodPortal({
           supabaseUrl: hod.supabaseUrl,
@@ -510,6 +507,9 @@ export default {
       const url = new URL(request.url);
       const secret = maintenanceSecret(env);
       const hod = maintenanceHodRuntime(env);
+      const softLaunchEnabled = maintenancePublicAccountAccessEnabled(
+        serverEnv(env)?.PUBLIC_SOFT_LAUNCH_ACCESS ?? process.env.PUBLIC_SOFT_LAUNCH_ACCESS,
+      );
 
       // Explicit public, static, zero-network rulebook preview during maintenance.
       // Neither the TanStack app nor Supabase is initialized for this response.
