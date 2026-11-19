@@ -25,33 +25,23 @@ export function maintenancePublicWebsiteEnabled(rawValue: string | null | undefi
   return rawValue?.trim().toLowerCase() === "true";
 }
 
-const PUBLIC_V3_READ_ONLY_FAMILIES = [
-  "/countries", "/editions", "/shows", "/stories", "/results",
-  "/wiki", "/encyclopedia", "/records", "/archive", "/calendar",
-  "/guide", "/site-directory", "/library", "/rules",
-] as const;
-
-const PUBLIC_V3_READ_ONLY_ROOTS = [
-  "/explore", "/participate", "/me", "/my-solaris", "/app-launch",
-] as const;
-
-/** Exact public pages + audited read-only detail families. No account,
- * Organizer, vote, Confirmation submission or generic server-function paths.
- * GET/HEAD is a necessary boundary, not sufficient permission for a write.
+/**
+ * The emergency public release has exactly three top-level experiences.
+ * Login/signup and token-authorized Confirmation editing use separate routes.
+ * Do not accidentally publish Explore, Results or archive detail URLs.
  */
+export const MAINTENANCE_PUBLIC_PRIMARY_AREAS = ["home", "participate", "me"] as const;
+
 export function isMaintenancePublicWebsiteRouteAllowed(
   pathname: string,
   method: string,
   enabled: boolean,
 ) {
   if (!enabled || (method !== "GET" && method !== "HEAD")) return false;
-  if (pathname === "/") return true;
-  if (PUBLIC_V3_READ_ONLY_ROOTS.some((root) => pathname === root || pathname === root + "/")) {
-    return true;
-  }
-  return PUBLIC_V3_READ_ONLY_FAMILIES.some(
-    (root) => pathname === root || pathname === root + "/" || pathname.startsWith(root + "/"),
-  );
+  return pathname === "/" ||
+    pathname === "/participate" || pathname === "/participate/" ||
+    pathname === "/me" || pathname === "/me/" ||
+    pathname === "/my-solaris" || pathname === "/my-solaris/";
 }
 
 export const MAINTENANCE_RETURN_DATE = "15 November 2026";
