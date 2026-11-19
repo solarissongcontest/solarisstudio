@@ -1,0 +1,28 @@
+name: V3 S13 current hosted source preflight evidence (offline)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/v3/recovery-candidates/evidence/s13-current-hosted-preflight-2026-11-19.json"
+      - "docs/v3/recovery-candidates/s13-current-hosted-preflight-readonly.sql"
+      - "docs/v3/recovery-candidates/s13-current-hosted-preflight-2026-11-19.md"
+      - "scripts/check-v3-s13-current-hosted-preflight.mjs"
+      - ".github/workflows/v3-s13-current-hosted-preflight-offline.yml"
+permissions:
+  contents: read
+jobs:
+  offline-immutable-preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PROJECT_REF: local
+      V3_VERIFICATION_TARGET: local
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Check offline verifier syntax
+        run: node --check scripts/check-v3-s13-current-hosted-preflight.mjs
+      - name: Validate frozen S13 catalog, never hosted production
+        run: node scripts/check-v3-s13-current-hosted-preflight.mjs
