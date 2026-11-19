@@ -172,6 +172,45 @@ function isLimitedLaunchInfrastructurePath(pathname: string) {
     pathname === "/televoting/admin" || pathname.startsWith("/televoting/admin/");
 }
 
+/** Standalone HTML trampoline for iOS PWA cold launch. Deliberately bypasses
+ * React/TanStack hydration and the database: an app start must never be stuck
+ * waiting for a slow or unavailable runtime. Navigation memory only determines
+ * one of the currently published roots; critical task deep links are excluded.
+ */
+function limitedAppLaunchResponse(method: string) {
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Opening Solaris Studio</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#020817;color:#f1f5f9;font:16px system-ui,sans-serif}a{color:#9ed7fa}</style><script>
+(() => {
+  let target = "/";
+  let snapshot = null;
+  try {
+    snapshot = localStorage.getItem("solaris:app-navigation:v1");
+    if (typeof snapshot === "string") {
+      const parsed = JSON.parse(snapshot);
+      if (parsed?.activeTab === "participate") target = "/participate";
+      else if (parsed?.activeTab === "me") target = "/auth";
+    }
+  } catch {}
+  try {
+    sessionStorage.setItem("solaris:app-launch-transaction:v1", JSON.stringify({
+      version: 1, startedAt: new Date().toISOString(),
+      navigationSnapshot: typeof snapshot === "string" ? snapshot : null
+    }));
+  } catch {}
+  location.replace(target);
+})();
+</script><noscript><meta http-equiv="refresh" content="0;url=/"></noscript></head><body><main><p>Opening Solaris Studio… <a href="/">Home</a></p></main></body></html>`;
+  return new Response(method === "HEAD" ? null : html, {
+    status: 200,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store, max-age=0",
+      "x-robots-tag": "noindex, nofollow",
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
+    },
+  });
+}
+
 function limitedLaunchUnavailableResponse(method: string) {
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>Not available — Solaris Studio</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#020817;color:#f1f5f9;font:16px/1.6 system-ui,sans-serif}main{max-width:34rem;padding:2rem}a{color:#9ed7fa;margin-right:1rem}</style></head><body><main><h1>This page is not available yet</h1><p>Solaris Studio is open for Home, participation, sign-in and the official rules while more features are prepared.</p><nav><a href="/">Home</a><a href="/participate">Participate</a><a href="/auth">Sign in</a><a href="/rules">Rules</a></nav></main></body></html>`;
   return new Response(method === "HEAD" ? null : html, {
@@ -525,6 +564,14 @@ export default {
       const url = new URL(request.url);
       const secret = maintenanceSecret(env);
       const hod = maintenanceHodRuntime(env);
+
+      // The limited installed-app entry needs a synchronous, network-free
+      // redirect before any SSR or hydration can delay the iOS WebKit launch.
+      if (!GLOBAL_MAINTENANCE_MODE && LIMITED_PUBLIC_LAUNCH &&
+          url.pathname === "/app-launch" &&
+          (request.method === "GET" || request.method === "HEAD")) {
+        return limitedAppLaunchResponse(request.method);
+      }
 
       // Removing outage maintenance never implies releasing the whole V3 app.
       // Enforce the limited public surface before TanStack SSR or routing.
