@@ -272,7 +272,9 @@ for (const viewport of MAINTENANCE_VIEWPORTS) {
 test("Confirmation remains an immediate maintenance destination", async ({ page }) => {
   const response = await page.goto("/maintenance/story", { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(503);
-  const confirmationLink = page.locator('.confirmation-link[href="#confirmation-access"]');
+  // The fixed maintenance story keeps its hero Confirmation shortcut; the
+  // responsive product bar may hide its duplicate header anchor.
+  const confirmationLink = page.locator('.hero-action[href="#confirmation-access"]').first();
   await expect(confirmationLink).toBeVisible();
   await confirmationLink.click();
   await expect(page.locator("#confirmation-access")).toBeInViewport();
