@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { loadConfirmationResponsesForEdition } from "@/integrations/confirmations/scoped-admin-reads";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import { confirmationResponseCountLabel, describeConfirmationResponseLoadFailure } from "@/lib/v3-confirmation-response-load-state";
 
 export const Route = createFileRoute("/confirmations/admin/responses")({
   head: () => ({
@@ -259,11 +260,13 @@ function ConfirmationResponsesList() {
   const [rows, setRows] = useState<ResponseRow[]>([]);
   const [loadedEditionId, setLoadedEditionId] = useState<string | null>(null);
   const [authEpoch, setAuthEpoch] = useState(0);
+  const [retryEpoch, setRetryEpoch] = useState(0);
   const [pageIndex, setPageIndex] = useState(0);
   const [totalResponses, setTotalResponses] = useState(0);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [nextRows, setNextRows] = useState<NextInLineRow[]>([]);
   const [nextError, setNextError] = useState<string | null>(null);
+  const [nextLoading, setNextLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -277,6 +280,7 @@ function ConfirmationResponsesList() {
       if (!["SIGNED_IN", "SIGNED_OUT", "USER_UPDATED", "TOKEN_REFRESHED"].includes(event)) return;
       setRows([]);
       setNextRows([]);
+      setNextError(null);
       setLoadedEditionId(null);
       setTotalResponses(0);
       setHasNextPage(false);
@@ -294,6 +298,7 @@ function ConfirmationResponsesList() {
     setLoadedEditionId(null);
     setTotalResponses(0);
     setHasNextPage(false);
+    setError(null);
     if (!editionId) {
       setLoading(false);
       return () => { alive = false; };
@@ -317,10 +322,10 @@ function ConfirmationResponsesList() {
       if (!alive) return;
       setRows([]);
       setLoadedEditionId(null);
-      setError(caught instanceof Error ? caught.message : "Exact-edition responses could not be loaded.");
+      setError(describeConfirmationResponseLoadFailure(caught));
     }).finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, [editionId, pageIndex, authEpoch]);
+  }, [editionId, pageIndex, authEpoch, retryEpoch]);
 
   useEffect(() => {
     setPageIndex(0);
@@ -332,30 +337,36 @@ function ConfirmationResponsesList() {
 
   useEffect(() => {
     let alive = true;
+    setNextRows([]);
+    setNextError(null);
     if (!editionId) {
-      setNextRows([]);
-      return () => {
-        alive = false;
-      };
+      setNextLoading(false);
+      return () => { alive = false; };
     }
 
+    setNextLoading(true);
     void (async () => {
-      const result = await confirmationsSupabase.rpc("admin_confirmation_next_in_line", {
-        _edition_id: editionId,
-      });
-      if (!alive) return;
-      if (result.error) {
-        setNextError(result.error.message);
+      try {
+        const result = await confirmationsSupabase.rpc("admin_confirmation_next_in_line", {
+          _edition_id: editionId,
+        });
+        if (!alive) return;
+        if (result.error) {
+          setNextError(result.error.message || "Next in Line responses could not be loaded.");
+          setNextRows([]);
+        } else {
+          setNextRows(Array.isArray(result.data) ? (result.data as unknown as NextInLineRow[]) : []);
+        }
+      } catch (caught: unknown) {
+        if (!alive) return;
         setNextRows([]);
-      } else {
-        setNextError(null);
-        setNextRows(Array.isArray(result.data) ? (result.data as unknown as NextInLineRow[]) : []);
+        setNextError(caught instanceof Error ? caught.message : "Next in Line responses could not be loaded.");
+      } finally {
+        if (alive) setNextLoading(false);
       }
     })();
 
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [editionId, authEpoch]);
 
   const rounds = useMemo(() => {
@@ -429,6 +440,7 @@ function ConfirmationResponsesList() {
   const reviewCount = scopedRows.filter((row) => responseCardState(row) === "review").length;
   const issueCount = scopedRows.filter((row) => responseCardState(row) === "issue").length;
   const readyCount = scopedRows.filter((row) => responseCardState(row) === "ready").length;
+  const countsAvailable = Boolean(editionId && loadedEditionId === editionId && !loading && !error);
 
   return (
     <div className="admin-page pb-5" data-v3-organizer-entry-review="">
@@ -469,15 +481,15 @@ function ConfirmationResponsesList() {
         <div className="mb-4 grid grid-cols-3 gap-2">
           <div className="rounded-xl border border-rose-300/20 bg-rose-300/[0.035] p-3 text-center">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-rose-100/70">Review</p>
-            <p className="mt-1 text-xl font-bold">{reviewCount}</p>
+            <p className="mt-1 text-xl font-bold" aria-label={countsAvailable ? undefined : "Review count unavailable"}>{confirmationResponseCountLabel(reviewCount, countsAvailable)}</p>
           </div>
           <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.035] p-3 text-center">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-100/70">Problems</p>
-            <p className="mt-1 text-xl font-bold">{issueCount}</p>
+            <p className="mt-1 text-xl font-bold" aria-label={countsAvailable ? undefined : "Problem count unavailable"}>{confirmationResponseCountLabel(issueCount, countsAvailable)}</p>
           </div>
           <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/[0.035] p-3 text-center">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-100/70">Ready</p>
-            <p className="mt-1 text-xl font-bold">{readyCount}</p>
+            <p className="mt-1 text-xl font-bold" aria-label={countsAvailable ? undefined : "Ready count unavailable"}>{confirmationResponseCountLabel(readyCount, countsAvailable)}</p>
           </div>
         </div>
       ) : null}
@@ -557,17 +569,21 @@ function ConfirmationResponsesList() {
         </AdminCard>
       ) : null}
 
-      {loading ? (
+      {mode === "confirmations" && loading ? (
         <AdminCard className="py-8 text-center text-sm text-muted-foreground">
           Loading responses…
         </AdminCard>
-      ) : error ? (
-        <AdminCard className="border-rose-200/20 bg-rose-200/[0.045]">
+      ) : mode === "confirmations" && error ? (
+        <AdminCard className="border-rose-200/20 bg-rose-200/[0.045]" role="alert">
           <div className="flex items-start gap-3">
             <ShieldAlert className="mt-0.5 size-5 shrink-0 text-rose-200" />
             <div>
               <p className="font-semibold">Responses could not be loaded</p>
               <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+              <p className="mt-2 text-xs text-muted-foreground">Response counts are unavailable until this edition loads successfully.</p>
+              <button type="button" className="admin-action-secondary mt-4" onClick={() => setRetryEpoch((current) => current + 1)}>
+                Retry loading responses
+              </button>
             </div>
           </div>
         </AdminCard>
@@ -580,7 +596,9 @@ function ConfirmationResponsesList() {
           />
         </AdminCard>
       ) : mode === "next_in_line" ? (
-        nextError ? (
+        nextLoading ? (
+          <AdminCard className="py-8 text-center text-sm text-muted-foreground">Loading Next in Line responses…</AdminCard>
+        ) : nextError ? (
           <AdminCard className="border-rose-200/20 bg-rose-200/[0.045]">
             <p className="text-sm text-rose-100">{nextError}</p>
           </AdminCard>
