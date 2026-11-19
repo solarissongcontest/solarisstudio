@@ -14,7 +14,7 @@ import {
 } from "@/lib/public-recents";
 
 export function AppExplorePersonalized() {
-  const { allows } = usePublicLaunchAvailability();
+  const { allowsReleased: allows } = usePublicLaunchAvailability();
   const [recents, setRecents] = useState<PublicRecentDestination[]>([]);
   const user = useFanSession();
   const follows = useMyFollows(user.data?.id);
