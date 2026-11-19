@@ -168,7 +168,15 @@ describe("final UI completion contracts", () => {
     expect(playwright).toContain('"ios-pwa-landscape"');
     expect(installed).toContain('navigator, "standalone"');
     expect(installed).toContain("data-solaris-runtime");
-    expect(workflow).toContain("chromium webkit");
+    // A pinned official runtime replaces the apt-based engine installer;
+    // assert the actual browser executions and fail-closed local-only boundary.
+    expect(workflow).toContain("mcr.microsoft.com/playwright:v1.55.0-noble");
+    expect(workflow).toContain("for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]])");
+    expect(workflow).toContain("await engine.launch({ headless: true })");
+    expect(workflow).toContain("--network host");
+    expect(workflow).toContain("solaris-playwright-container node_modules/@playwright/test/cli.js test");
+    expect(workflow).toContain("Start isolated local Supabase for browser audit");
+    expect(workflow).toContain("bun run scripts/check-v3-production-isolation.ts");
   });
 
   it("keeps the edition archive and Pulse hierarchy in the compact public system", () => {
