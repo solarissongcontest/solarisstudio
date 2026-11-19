@@ -170,6 +170,12 @@ describe("final UI completion contracts", () => {
     expect(installed).toContain("data-solaris-runtime");
     // A pinned official runtime replaces the apt-based engine installer;
     // assert the actual browser executions and fail-closed local-only boundary.
+    expect(workflow).toContain(
+      "group: browser-audit-${{ github.event_name == 'push' && github.sha || github.ref }}",
+    );
+    expect(workflow).toContain(
+      "cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
+    );
     expect(workflow).toContain("mcr.microsoft.com/playwright:v1.55.0-noble");
     expect(workflow).toContain("for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]])");
     expect(workflow).toContain("await engine.launch({ headless: true })");
