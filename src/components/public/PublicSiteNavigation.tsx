@@ -88,7 +88,6 @@ export function PublicDrawerNavigation({
           {allows("/guide") ? <Link
             to="/guide"
             onClick={onNavigate}
-            onClick={onNavigate}
             aria-current={publicPathMatches(pathname, "/guide") ? "page" : undefined}
             className={cn(
               "public-drawer-page-link",
@@ -100,7 +99,6 @@ export function PublicDrawerNavigation({
           </Link> : null}
           <Link
             to="/rules"
-            onClick={onNavigate}
             onClick={onNavigate}
             aria-current={publicPathMatches(pathname, "/rules") ? "page" : undefined}
             className={cn(
