@@ -150,7 +150,7 @@ test("Public directory family distinguishes mobile website from desktop explorer
       "data-directory-experience", mobile ? "mobile-web" : "desktop-web",
     );
     await expect(page.locator("[data-directory-boot]")).toHaveCount(0);
-    const title = route === "/tools" ? "Tools" : "All Solaris pages";
+    const title = route === "/tools" ? "Tools" : "Available Solaris pages";
     await expect(page.getByRole("heading", { level: 1, name: title })).toHaveCount(1);
     if (mobile) {
       await expect(page.locator("[data-directory-mobile-header]")).toBeVisible();
@@ -571,7 +571,11 @@ test("soft launch hides deferred discovery and rejects direct links without moun
   test.skip(!["public-390", "public-1440"].includes(testInfo.project.name), "Phone and desktop public launch acceptance");
   await page.goto("/site-directory", { waitUntil: "domcontentloaded" });
   const directory = page.locator("[data-directory-experience]");
-  await expect(directory.getByRole("heading", { name: "All Solaris pages", exact: true })).toBeVisible();
+  await expect(directory.getByRole("heading", { name: "Available Solaris pages", exact: true })).toBeVisible();
+  await expect(directory.locator('a[href="/rules"]')).toBeVisible();
+  for (const href of ["/explore", "/results", "/countries", "/editions"]) {
+    await expect(directory.locator(`a[href="${href}"]`)).toHaveCount(0);
+  }
   for (const href of ["/fantasy", "/prediction-league", "/voting-dna", "/analysis", "/scorecharts", "/result-lab", "/tools"]) {
     await expect(directory.locator(`a[href="${href}"]`)).toHaveCount(0);
   }
@@ -584,8 +588,11 @@ test("soft launch hides deferred discovery and rejects direct links without moun
     await expect(page.getByRole("heading", { name: "This experience is not available", exact: true })).toBeVisible();
     const recovery = page.getByRole("navigation", { name: "Available Solaris destinations" });
     await expect(recovery).toBeVisible();
-    for (const href of ["/", "/explore", "/participate", "/results", "/me"]) {
+    for (const href of ["/", "/participate", "/me"]) {
       await expect(recovery.locator(`a[href="${href}"]`)).toBeVisible();
+    }
+    for (const href of ["/explore", "/results"]) {
+      await expect(recovery.locator(`a[href="${href}"]`)).toHaveCount(0);
     }
   }
 });

@@ -346,8 +346,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               </SheetClose>
             </div>
 
-            <nav className="scroll-slim flex-1 overflow-y-auto overscroll-contain p-3" aria-label="Mobile navigation">
-              <PublicDrawerNavigation pathname={pathname} user={publicUser} />
+            <nav className="scroll-slim min-h-0 flex-1 overflow-y-auto overscroll-contain p-3" aria-label="Mobile navigation">
+              <PublicDrawerNavigation pathname={pathname} user={publicUser} onNavigate={() => setMenuOpen(false)} />
             </nav>
 
             <div

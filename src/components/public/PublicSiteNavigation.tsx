@@ -20,11 +20,13 @@ import { cn } from "@/lib/utils";
 export function PublicDrawerNavigation({
   pathname,
   user,
+  onNavigate,
 }: {
   pathname: string;
   user: PublicUserContext;
+  onNavigate?: () => void;
 }) {
-  const { allows } = usePublicLaunchAvailability();
+  const { allowsReleased: allows } = usePublicLaunchAvailability();
   const area = publicAreaForPath(pathname);
   const globalAreas = publicGlobalAreasForContext(user).filter(
     (item) => !GLOBAL_MAINTENANCE_MODE || PUBLIC_RELEASE_GLOBAL_AREAS.some((allowed) => allowed.id === item.id),
@@ -53,12 +55,13 @@ export function PublicDrawerNavigation({
                 key={item.id}
                 to={item.to as any}
                 aria-current={active ? "page" : undefined}
-                onClick={() =>
+                onClick={() => {
+                  onNavigate?.();
                   trackPublicUxEvent("public_nav_clicked", {
                     target: item.to,
                     metadata: { area: item.id, source: "mobile_drawer" },
-                  })
-                }
+                  });
+                }}
                 className={cn("public-drawer-page-link", active && "is-active")}
               >
                 <span>{item.label}</span>
@@ -74,6 +77,7 @@ export function PublicDrawerNavigation({
           title={area === "help" ? "Rules & help" : `In ${areaLabel(area)}`}
           items={localItems}
           pathname={pathname}
+          onNavigate={onNavigate}
         />
       ) : null}
 
@@ -84,12 +88,13 @@ export function PublicDrawerNavigation({
           </h2>
         </div>
         <div className="mt-1.5 space-y-0.5">
-          <Link to="/site-directory" className="public-drawer-page-link">
+          <Link to="/site-directory" onClick={onNavigate} className="public-drawer-page-link">
             <span>All Solaris pages</span>
             <small>Browse every public destination without cluttering the main navigation.</small>
           </Link>
           <Link
             to="/guide"
+            onClick={onNavigate}
             aria-current={publicPathMatches(pathname, "/guide") ? "page" : undefined}
             className={cn(
               "public-drawer-page-link",
@@ -101,6 +106,7 @@ export function PublicDrawerNavigation({
           </Link>
           <Link
             to="/rules"
+            onClick={onNavigate}
             aria-current={publicPathMatches(pathname, "/rules") ? "page" : undefined}
             className={cn(
               "public-drawer-page-link",
@@ -111,7 +117,7 @@ export function PublicDrawerNavigation({
             <small>Official SSC rules and rulebook guidance.</small>
           </Link>
           {user.organizer ? (
-            <Link to="/admin/operations" className="public-drawer-page-link">
+            <Link to="/admin/operations" onClick={onNavigate} className="public-drawer-page-link">
               <span>Open Organizer</span>
               <small>Enter the operational workspace.</small>
             </Link>
@@ -126,10 +132,12 @@ function DrawerSection({
   title,
   items,
   pathname,
+  onNavigate,
 }: {
   title: string;
   items: PublicDestination[];
   pathname: string;
+  onNavigate?: () => void;
 }) {
   const activeTo = items
     .filter((item) => publicPathMatches(pathname, item.to))
@@ -146,12 +154,13 @@ function DrawerSection({
             key={item.id}
             to={item.to as any}
             aria-current={item.to === activeTo ? "page" : undefined}
-            onClick={() =>
+            onClick={() => {
+              onNavigate?.();
               trackPublicUxEvent("section_nav_clicked", {
                 target: item.to,
                 metadata: { area: item.area, visibility: item.visibility, source: "mobile_drawer" },
-              })
-            }
+              });
+            }}
             className={cn("public-drawer-page-link", item.to === activeTo && "is-active")}
           >
             <span>{item.label}</span>

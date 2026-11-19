@@ -18,7 +18,7 @@ export function PublicSecondaryLinks({
   eyebrow?: string;
   items: PublicSecondaryLink[];
 }) {
-  const { allows } = usePublicLaunchAvailability();
+  const { allowsReleased: allows } = usePublicLaunchAvailability();
   const visibleItems = items.filter(item => allows(item.to));
   if (!visibleItems.length) return null;
   return (

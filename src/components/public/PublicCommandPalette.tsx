@@ -340,7 +340,7 @@ function AppPublicPaletteDialog({
   originPath,
   initialQuery,
 }: PublicPaletteDialogProps) {
-  const { allows } = usePublicLaunchAvailability();
+  const { allowsReleased: allows } = usePublicLaunchAvailability();
   const router = useRouter();
   const initialSearchState = useMemo(() => readAppSearchState(), []);
   const [query, setQuery] = useState(() => initialQuery ?? initialSearchState.lastQuery);
@@ -606,7 +606,7 @@ function WebPublicPaletteDialog({
   setOpen,
   access,
 }: PublicPaletteDialogProps) {
-  const { allows } = usePublicLaunchAvailability();
+  const { allowsReleased: allows } = usePublicLaunchAvailability();
   const router = useRouter();
   const webSearchInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
@@ -799,7 +799,7 @@ function WebSearchArchiveResults({
   actionResults: PublicSearchResult[];
   setOpen: (open: boolean) => void;
 }) {
-  const { allows } = usePublicLaunchAvailability();
+  const { allowsReleased: allows } = usePublicLaunchAvailability();
   const router = useRouter();
   const { preferences } = useAppExperiencePreferences();
   const showsQuery = useAllShows();

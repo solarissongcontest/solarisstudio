@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { V3DirectoryFamilyIndex, type V3DirectoryGroup } from "@/components/v3/V3DirectoryFamilyIndex";
 import { publicSearchText } from "@/lib/public-navigation";
+import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
 import {
   siteDirectoryDestinations,
   SITE_DIRECTORY_AREA_LABELS,
@@ -18,7 +19,7 @@ export const Route = createFileRoute("/site-directory/")({
   component: SiteDirectoryPage,
 });
 
-const ALL_PAGES = siteDirectoryDestinations();
+const ALL_PAGES = siteDirectoryDestinations({ releaseOnly: GLOBAL_MAINTENANCE_MODE });
 const GROUPS: V3DirectoryGroup[] = SITE_DIRECTORY_AREA_ORDER.map((area) => ({
   id: area,
   label: SITE_DIRECTORY_AREA_LABELS[area],
@@ -31,16 +32,18 @@ const GROUPS: V3DirectoryGroup[] = SITE_DIRECTORY_AREA_ORDER.map((area) => ({
     eyebrow: item.visibility === "advanced" ? "Advanced" : undefined,
     aliases: item.aliases,
   })),
-}));
+})).filter((group) => group.items.length > 0);
 
 function SiteDirectoryPage() {
   return (
     <V3DirectoryFamilyIndex
       variant="sitemap"
-      title="All Solaris pages"
+      title={GLOBAL_MAINTENANCE_MODE ? "Available Solaris pages" : "All Solaris pages"}
       eyebrow="FIND YOUR WAY"
       intro="Find public pages, tools and destinations by topic."
-      browserIntro="Browse Solaris by topic or search for a page, tool or feature."
+      browserIntro={GLOBAL_MAINTENANCE_MODE
+        ? "Browse pages currently available in Solaris Studio."
+        : "Browse Solaris by topic or search for a page, tool or feature."}
       searchLabel="Search Solaris Studio pages"
       searchPlaceholder="Search pages, tools or old feature names…"
       scopeLabel="All areas"

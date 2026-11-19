@@ -20,23 +20,25 @@ import { PublicLaunchContext } from "./public-launch-context";
 describe("installed/tablet Results master-pane launch visibility", () => {
   const workspace: ReactNode = <AppAdaptiveWorkspace pathname="/results" searchStr=""><p>Published official result</p></AppAdaptiveWorkspace>;
 
-  it("preserves published content and core navigation without advertising hidden analysis", () => {
+  it("keeps existing Results content but hides all unreleased navigation in P0", () => {
     const html = renderToStaticMarkup(
       <PublicLaunchContext.Provider value={{ active: true, flags: {}, checking: false, error: false, retry: () => {} }}>
         {workspace}
       </PublicLaunchContext.Provider>,
     );
     expect(html).toContain("Published official result");
-    expect(html).toContain('href="/results"');
+    expect(html).not.toContain('href="/results"');
     expect(html).not.toContain('href="/analysis"');
     expect(html).not.toContain('href="/scorecharts"');
     expect(html).not.toContain("Detailed published voting");
     expect(html).not.toContain("Voting and result patterns");
   });
 
-  it("does not change consumers outside the Public launch provider", () => {
+  it("keeps P0 route visibility enforced even without an optional-feature provider", () => {
     const html = renderToStaticMarkup(workspace);
-    expect(html).toContain('href="/analysis"');
-    expect(html).toContain('href="/scorecharts"');
+    expect(html).toContain("Published official result");
+    expect(html).not.toContain('href="/results"');
+    expect(html).not.toContain('href="/analysis"');
+    expect(html).not.toContain('href="/scorecharts"');
   });
 });

@@ -333,7 +333,7 @@ const SECTIONS = [
 ];
 
 function PublicGuidePage() {
-  const { allows } = usePublicLaunchAvailability();
+  const { allowsReleased: allows } = usePublicLaunchAvailability();
   // The guide is public discovery too: do not advertise tools that the same
   // caller cannot open. Empty deferred sections disappear, core help remains.
   const visibleSections = SECTIONS.map((section) => ({
