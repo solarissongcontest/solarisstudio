@@ -496,7 +496,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             style={{ paddingBottom: "max(.4rem, env(safe-area-inset-bottom))" }}
             aria-label="Primary navigation"
           >
-            <div className="mx-auto grid max-w-xl grid-cols-5 gap-1">
+            <div className="mx-auto grid max-w-xl gap-1"
+              style={{ gridTemplateColumns: `repeat(${Math.max(1, quickNavigation.length)}, minmax(0,1fr))` }}>
               {quickNavigation.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -592,6 +593,7 @@ function NewPublicDesktopNavigation({
       >
         {LIMITED_PUBLIC_LAUNCH ? "Rules" : "Help"}
       </Link>
+      {LIMITED_PUBLIC_LAUNCH && !email ? <Link to="/auth" className={desktopNavClass(pathname.startsWith("/auth"))}>Sign in</Link> : null}
 
       {access.isOrganizer ? (
         <Link

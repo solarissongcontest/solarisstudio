@@ -26,16 +26,16 @@ describe("V3 installed-app shortcut information architecture", () => {
     expect(readManifest().start_url).toBe("/app-launch");
   });
 
-  it("exposes canonical Public destinations instead of the retired MySolaris mental model", () => {
+  it("advertises only approved public launch shortcuts instead of the full V3 directory", () => {
     const shortcuts = readManifest().shortcuts ?? [];
     const destinations = shortcuts.map(({ short_name, url }) => ({ short_name, url }));
 
     expect(destinations).toEqual(
       expect.arrayContaining([
-        { short_name: "Explore", url: "/explore" },
+        { short_name: "Home", url: "/" },
         { short_name: "Participate", url: "/participate" },
-        { short_name: "Results", url: "/results" },
-        { short_name: "Me", url: "/me" },
+        { short_name: "Rules", url: "/rules" },
+        { short_name: "Sign in", url: "/auth" },
       ]),
     );
 
@@ -51,20 +51,16 @@ describe("V3 installed-app shortcut information architecture", () => {
     ).toBe(false);
   });
 
-  it("keeps the offline shell on the same visible five-area V3 navigation model", () => {
+  it("keeps offline navigation within the same limited public destination list", () => {
     const offline = source("public/offline.html");
 
     expect(offline).toContain('href="/" data-tab="home"');
-    expect(offline).toContain('href="/explore" data-tab="explore"');
     expect(offline).toContain('href="/participate" data-tab="participate"');
-    expect(offline).toContain('href="/results" data-tab="results"');
-    expect(offline).toContain('href="/me" data-tab="me"');
-    expect(offline).not.toContain('href="/my-solaris" data-tab="me"');
-
-    // Compatibility recognition is intentionally retained so an old cached or
-    // bookmarked MySolaris deep link still resolves to the Me offline surface.
-    expect(offline).toContain('path.startsWith("/my-solaris")');
-    expect(offline).toContain('path.startsWith("/me")');
+    expect(offline).toContain('href="/rules" data-tab="rules"');
+    expect(offline).toContain('href="/auth" data-tab="auth"');
+    expect(offline).not.toContain('href="/explore" data-tab="explore"');
+    expect(offline).not.toContain('href="/results" data-tab="results"');
+    expect(offline).not.toContain('href="/me" data-tab="me"');
   });
 
   it("uses navigation-link current-page semantics in the offline shell", () => {

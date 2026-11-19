@@ -9,7 +9,7 @@ import { PublicLaunchContext } from "@/lib/public-launch-context";
  * No cohort lists, local tester override, new flag, polling or mutation API.
  * studio2-* uses the existing private account-cache eviction boundary.
  */
-function FlagDrivenPublicLaunchAvailabilityProvider({
+export function FlagDrivenPublicLaunchAvailabilityProvider({
   children,
   enabled = true,
 }: {

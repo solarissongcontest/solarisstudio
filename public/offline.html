@@ -128,7 +128,7 @@
       min-height: 68px;
       transform: translateX(-50%);
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 2px;
       border: 1px solid rgba(210,236,248,.14);
       border-radius: 24px;
@@ -244,14 +244,27 @@
         <p>Device-only preferences and drafts stay local. Account, delegation and notification changes wait for a verified connection.</p>
       </div>
     </section>
+    <section class="view" data-view="rules" hidden>
+      <div class="hero">
+        <p class="eyebrow">Official rules</p>
+        <h1>Reconnect to read the current rules</h1>
+        <p>Official contest rules and publication updates require a verified online connection.</p>
+      </div>
+    </section>
+    <section class="view" data-view="auth" hidden>
+      <div class="hero">
+        <p class="eyebrow">Sign in</p>
+        <h1>Reconnect to sign in</h1>
+        <p>Authentication and account recovery require a secure connection.</p>
+      </div>
+    </section>
   </main>
 
   <nav class="tabbar" aria-label="Offline Solaris Studio">
     <a class="tab" href="/" data-tab="home"><span aria-hidden="true">⌂</span>Home</a>
-    <a class="tab" href="/explore" data-tab="explore"><span aria-hidden="true">⌕</span>Explore</a>
     <a class="tab" href="/participate" data-tab="participate"><span aria-hidden="true">◎</span>Participate</a>
-    <a class="tab" href="/results" data-tab="results"><span aria-hidden="true">♜</span>Results</a>
-    <a class="tab" href="/me" data-tab="me"><span aria-hidden="true">◉</span>Me</a>
+    <a class="tab" href="/rules" data-tab="rules"><span aria-hidden="true">§</span>Rules</a>
+    <a class="tab" href="/auth" data-tab="auth"><span aria-hidden="true">◉</span>Sign in</a>
   </nav>
 
   <script>
@@ -272,25 +285,21 @@
       };
 
       const path = location.pathname || "/";
+      // Limited public launch: stale offline navigation cannot show withheld
+      // Explore, Results, Me or other unpublished destination content.
       const initialView =
         path === "/" ? "home" :
-        path === "/televoting/results" || path === "/televoting/results/" ? "results" :
         path.startsWith("/participate") ||
         path.startsWith("/confirmations") ||
         path.startsWith("/jury-voting") ||
         path.startsWith("/televoting") ||
-        path.startsWith("/next-in-line") ||
         path.startsWith("/my-solaris/entry") ||
-        path.startsWith("/integrity/report") ? "participate" :
-        path.startsWith("/results") ||
-        path.startsWith("/scorecharts") ||
-        path.startsWith("/analysis") ||
-        path.startsWith("/records") ||
-        path.startsWith("/relationships") ? "results" :
-        path.startsWith("/my-solaris") ||
-        path.startsWith("/me") ||
-        path.startsWith("/auth") ? "me" :
-        "explore";
+        path.startsWith("/my-solaris/tasks") ||
+        path.startsWith("/my-solaris/notices") ||
+        path.startsWith("/my-solaris/voting") ? "participate" :
+        path.startsWith("/auth") ? "auth" :
+        path.startsWith("/rules") ? "rules" :
+        "home";
       setView(initialView);
 
       const navigation = safeParse("solaris:app-navigation:v1");
@@ -302,7 +311,7 @@
         const copy = document.getElementById("last-screen-copy");
         if (panel && copy) {
           panel.hidden = false;
-          const names = { home: "Home", explore: "Explore", participate: "Participate", results: "Results", me: "Me" };
+          const names = { home: "Home", participate: "Participate" };
           copy.textContent = names[activeTab] || "Solaris Studio";
         }
       }
