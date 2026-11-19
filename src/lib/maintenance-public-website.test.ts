@@ -25,12 +25,10 @@ describe("actual V3 public launch while voting maintenance remains", () => {
     expect(worker).toContain("maintenanceResponse(request, env, url.pathname === \"/\")");
   });
 
-  it("opens the real public V3 destinations for GET and HEAD only", () => {
+  it("opens only Home, Participate and Me for GET and HEAD", () => {
     for (const path of [
-      "/", "/explore", "/participate", "/results", "/results/ssc-20",
-      "/countries", "/countries/ABE", "/editions/ssc-20", "/shows",
-      "/stories", "/wiki", "/encyclopedia", "/records", "/archive",
-      "/guide", "/site-directory", "/rules", "/me", "/my-solaris",
+      "/", "/participate", "/participate/", "/me", "/me/",
+      "/my-solaris", "/my-solaris/",
     ]) {
       expect(isMaintenancePublicWebsiteRouteAllowed(path, "GET", true), path).toBe(true);
       expect(isMaintenancePublicWebsiteRouteAllowed(path, "HEAD", true), path).toBe(true);
@@ -41,7 +39,10 @@ describe("actual V3 public launch while voting maintenance remains", () => {
 
   it("never opens official voting, private commands or broader account/edit routes", () => {
     for (const path of [
-      "/admin", "/admin/operations", "/confirmations", "/confirmations/admin",
+      "/explore", "/results", "/results/ssc-20", "/countries",
+      "/countries/ABE", "/editions/ssc-20", "/shows", "/stories",
+      "/wiki", "/encyclopedia", "/records", "/archive",
+      "/guide", "/site-directory", "/rules", "/admin", "/admin/operations", "/confirmations", "/confirmations/admin",
       "/jury-voting", "/televoting", "/next-in-line",
       "/api/admin", "/api/maintenance-confirmation", "/_serverFn", "/_serverFn/abc",
       "/my-solaris/account", "/my-solaris/country", "/my-solaris/page-builder",
