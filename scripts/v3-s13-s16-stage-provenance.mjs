@@ -7,8 +7,8 @@ import path from 'node:path';
 
 export function classifyStages(root, proof, expectedSha) {
   assert.match(proof.sourceSha, /^[a-f0-9]{40}$/);
-  if(expectedSha) assert.equal(proof.sourceSha,expectedSha,'Exact source SHA drift');
-  assert.equal(proof.observedProductionProject,'dkxmnvekiopyesuzggeu');
+  if(expectedSha) assert.equal(proof.sourceSha,expectedSha,'Source SHA drift');
+  if(proof.observedProductionProject!==undefined) assert.equal(proof.observedProductionProject,'dkxmnvekiopyesuzggeu');
   assert.equal(proof.postgresVersion,'17.11');
   assert.equal(proof.network,'none');
   assert.equal(proof.portsPublished,false);
@@ -31,7 +31,7 @@ export function classifyStages(root, proof, expectedSha) {
     assert.equal(fs.lstatSync(p).isFile(),true,'Stage must be an ordinary file');
     const bytes=fs.readFileSync(p);
     const sha=crypto.createHash('sha256').update(bytes).digest('hex');
-    assert.equal(sha,entry.sha256,'Stage-byte integrity failure: '+entry.path);
+    assert.equal(sha,entry.sha256,'Stage SHA-256 mismatch: '+entry.path);
     let classification;
     if(entry.path.startsWith('scripts/')&&entry.path.endsWith('.mjs'))
       classification='local_generator_not_sql';
@@ -55,7 +55,7 @@ export function classifyStages(root, proof, expectedSha) {
     observedProductionProject:proof.observedProductionProject,postgresVersion:proof.postgresVersion,
     networkMode:proof.network,portsPublished:proof.portsPublished,
     artifactScope:'Synthetic networkless PostgreSQL 17.11 observed-owner recovery; NOT restored 15-Nov real backup',
-    stages,counts,verifiedStageHashes:29,productionExecutableStageCount:0,
+    stages,counts,stageCount:29,verifiedStageHashes:29,productionExecutableStageCount:0,
     backupRestorationCertified:false,hostedEquivalenceCertified:false,
     productionMigrationAuthorized:false,productionMutation:false};
 }
@@ -63,6 +63,7 @@ export function classifyStages(root, proof, expectedSha) {
 if(process.argv[1]?.endsWith('/v3-s13-s16-stage-provenance.mjs')){
   const root=path.resolve(process.argv[2]||'.');
   const proof=JSON.parse(fs.readFileSync(path.join(root,'observed-owner-recovery-proof.json'),'utf8'));
+  assert.equal(proof.observedProductionProject,'dkxmnvekiopyesuzggeu','Real recovery proof must name production source');
   const result=classifyStages(root,proof,process.env.EXACT_SHA);
   const output=path.join(root,'s13-s16-stage-provenance-classification.json');
   fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n',{flag:'wx'});
