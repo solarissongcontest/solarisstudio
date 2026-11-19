@@ -21,6 +21,7 @@ import { PublicHubHero } from "@/components/public/PublicHubHero";
 import { PublicPrimaryAction } from "@/components/public/PublicPrimaryAction";
 import { PublicSecondaryLinks } from "@/components/public/PublicSecondaryLinks";
 import { ParticipationServiceDirectory } from "@/components/public/ParticipationServiceDirectory";
+import { ParticipationConfirmationEdit } from "@/components/public/ParticipationConfirmationEdit";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import { televotingSupabase } from "@/integrations/televoting/client";
 import { getCountryConfirmationAccess } from "@/lib/confirmation-country-account";
@@ -360,6 +361,8 @@ function LegacyParticipatePage() {
           description="Current actions come first. Upcoming and inactive services stay available without competing with work that actually needs you now."
         />
       ) : null}
+
+      <ParticipationConfirmationEdit />
 
       {isAppMode ? (
         !appAuthKnown ? (
