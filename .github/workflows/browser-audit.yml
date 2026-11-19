@@ -11,10 +11,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: browser-audit-${{ github.ref }}
-  # PR updates supersede obsolete verification. Main pushes instead finish the
-  # currently running exact-SHA check and retain only the newest pending run.
-  # Otherwise rapid merges can starve every post-merge Quality/Browser result.
+  # Push groups must be isolated by exact integrated SHA: queued runs with
+  # the same branch key are replaced even with cancel-in-progress=false.
+  # PR-head runs may still supersede their own obsolete predecessors.
+  group: browser-audit-${{ github.event_name == 'push' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
