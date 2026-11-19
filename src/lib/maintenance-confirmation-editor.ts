@@ -63,11 +63,31 @@ async function deterministicOperationId(browserSessionId: string, logicalPayload
   const digest = await sha256Hex(
     `maintenance-confirmation-edit\n${browserSessionId}\n${JSON.stringify(logicalPayload)}`,
   );
-  return [
+  const legacyId = [
     digest.slice(0, 8),
     digest.slice(8, 12),
     digest.slice(12, 16),
     digest.slice(16, 20),
+    digest.slice(20, 32),
+  ].join("-");
+
+  // The request contract requires a real UUID. Raw SHA-256 nibbles do not
+  // guarantee its required version and variant bits, so most saves previously
+  // failed Zod validation with HTTP 400 before reaching the canonical writer.
+  // Keep already-valid legacy operation IDs stable for safe reconciliation.
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(legacyId)) {
+    return legacyId;
+  }
+
+  // RFC 9562 UUIDv8: deterministic SHA-256-derived identifier with valid
+  // version and variant bits. The same edit/session produces the same key.
+  const version = `8${digest.slice(13, 16)}`;
+  const variant = `${((Number.parseInt(digest[16], 16) & 0x3) | 0x8).toString(16)}${digest.slice(17, 20)}`;
+  return [
+    digest.slice(0, 8),
+    digest.slice(8, 12),
+    version,
+    variant,
     digest.slice(20, 32),
   ].join("-");
 }
