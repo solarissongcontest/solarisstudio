@@ -45,6 +45,8 @@ export function isMaintenancePublicWebsiteRouteAllowed(
   enabled: boolean,
 ) {
   if (!enabled || (method !== "GET" && method !== "HEAD")) return false;
+  // Explore and Results are not part of the initial three-tab public release.
+  if (/^\/(?:explore|results)(?:\/|$)/.test(pathname)) return false;
   if (pathname === "/") return true;
   if (PUBLIC_V3_READ_ONLY_ROOTS.some((root) => pathname === root || pathname === root + "/")) {
     return true;
