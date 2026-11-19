@@ -407,7 +407,10 @@ function maintenanceResponse(request: Request, env: unknown, includeHodPortal: b
         '<div class="hero-actions"><a class="hero-action hero-action-primary" href="/auth">Sign in or register</a><a class="hero-action" href="#confirmation-access">Edit Confirmation</a></div><p style="margin:16px 0 0;max-width:44rem;font-size:14px;line-height:1.6">Account access and existing Confirmation editing are available during this early release. Official Jury Voting and other unfinished services are not yet open.</p><div class="hero-actions">',
       );
     }
-    if (new URL(request.url).pathname !== "/") {
+    const currentPath = new URL(request.url).pathname;
+    // On the isolated maintenance-story preview, Confirmation links should
+    // navigate within that document. On other 503 pages they still point home.
+    if (currentPath !== "/" && currentPath !== "/maintenance/story") {
       html = html.replaceAll('href="#confirmation-access"', 'href="/#confirmation-access"');
     }
     if (request.method === "GET" && includeHodPortal) {
