@@ -56,3 +56,9 @@
 - Existing publication-safe edition reads already select both official `artwork_url` and `logo`; project them as separate `artworkUrl` and `logoUrl` fields.
 - Full-bleed cinematic background uses **artwork only**. The official logo is presented as a separate contained image in the Edition identity row; Explore current edition uses the logo as a compact graphic if full artwork is absent.
 - No migration, extra Supabase query, or invented image fallbacks. The absence of artwork uses the designed abstract hero, never an enlarged edition logo.
+
+## Stories editorial release slice
+- Installed V3 Stories index uses one visually emphasized **current published Story** and flat historical Story links instead of stacking nested raised cards; the unclassified publication-safe fallback remains.
+- The six published "On this day" previews use clean article-like rows; the existing canonical Solaris time, event context, links and local spoiler-reveal boundary are retained.
+- Ordinary mobile and desktop Stories archives keep existing published RPC/query ownership but swap boxed listing cards and moment tiles to bounded editorial reading rows.
+- No new Story/Media fetch, image inference, authoring authority, or World overlap. Story images are intentionally **not** invented on index listings without a published image projection.
