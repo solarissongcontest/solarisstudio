@@ -179,7 +179,9 @@ function JuryWorkspace() {
   const { data: entities = [] } = useContestEntities(edition?.id);
 
   const orderedShows = useMemo(() => [...shows].sort((a, b) => a.sort_order - b.sort_order), [shows]);
-  const selectedShow = orderedShows.find((show) => show.id === search.show) ?? orderedShows[0] ?? null;
+  const selectedShow = search.show
+    ? orderedShows.find((show) => show.id === search.show) ?? null
+    : orderedShows[0] ?? null;
   const participants = useMemo(
     () => allParticipants
       .filter((participant) => participant.show_id === selectedShow?.id)
@@ -677,6 +679,23 @@ function JuryWorkspace() {
   if (loadingEdition || loadingShows) return <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading jury workspace…</p></AdminCard>;
   if (!edition) return <AdminCard><AdminEmptyState icon={Vote} title="Edition not found" description="Choose another edition from the organizer workspace." action={<Link to="/admin" className="admin-action-secondary">Back to editions</Link>} /></AdminCard>;
   if (!orderedShows.length) return <AdminPage><AdminPageHeader eyebrow={editionLabel(edition)} title="Jury voting" description="Create a show before configuring its juries and ballots." /><AdminCard><AdminEmptyState icon={Users} title="No shows yet" description="Juries belong to a show." action={<Link to="/admin/shows/$slug" params={{ slug }} className="admin-action-primary">Create a show</Link>} /></AdminCard></AdminPage>;
+  // Never substitute a different show for an invalid deep link. Every voting
+  // read and operation must stay bound to the exact requested edition/show.
+  if (search.show && !selectedShow) {
+    return (
+      <AdminPage>
+        <AdminPageHeader eyebrow={editionLabel(edition)} title="Jury voting" description="The requested show is not part of this edition. No voting action is available for this link." />
+        <AdminCard>
+          <AdminEmptyState
+            icon={Vote}
+            title="Show not found in this edition"
+            description="Choose a valid show in this edition to continue. Solaris has not substituted another show."
+            action={<Link to="/admin/jury/$slug" params={{ slug }} search={{}} className="admin-action-secondary">Choose a show</Link>}
+          />
+        </AdminCard>
+      </AdminPage>
+    );
+  }
 
   return (
     <AdminPage>
