@@ -20,6 +20,7 @@ import { PublicDestinationGrid } from "@/components/public/PublicDestinationGrid
 import { PublicHubHero } from "@/components/public/PublicHubHero";
 import { PublicPrimaryAction } from "@/components/public/PublicPrimaryAction";
 import { PublicSecondaryLinks } from "@/components/public/PublicSecondaryLinks";
+import { ParticipationServiceDirectory } from "@/components/public/ParticipationServiceDirectory";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import { televotingSupabase } from "@/integrations/televoting/client";
 import { getCountryConfirmationAccess } from "@/lib/confirmation-country-account";
@@ -327,9 +328,6 @@ function LegacyParticipatePage() {
     (action) => action.status === "available" && action.id !== primary?.id,
   );
   const upcoming = upcomingParticipationActions(actions);
-  const inactive = actions.filter(
-    (action) => action.status === "complete" || action.status === "unavailable",
-  );
   const appAuthKnown = !juryQuery.isLoading;
   const appSignedIn = juryQuery.data?.signedIn === true;
   const statusError =
@@ -483,16 +481,12 @@ function LegacyParticipatePage() {
         </section>
       ) : null}
 
+      <ParticipationServiceDirectory />
+
       <PublicSecondaryLinks
         eyebrow="Other participation"
         title="Services and instructions"
         items={[
-          ...inactive.map((action) => ({
-            to: action.to,
-            icon: iconForAction(action),
-            title: action.title,
-            description: action.description,
-          })),
           {
             to: "/next-in-line",
             icon: Music2,
