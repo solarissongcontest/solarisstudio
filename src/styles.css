@@ -252,6 +252,33 @@ aside[class*="bg-background"], [data-sidebar] {
   border-color: rgba(190, 225, 240, 0.18) !important;
 }
 
+/* One decorated search container, one visible surface. In particular, iOS Safari
+   must not draw its native search-field pill behind the component's own shell. */
+:is(
+  label[class*="rounded"][class*="border"],
+  .v3-directory-search,
+  .solaris-app-search-shell,
+  [data-solaris-search-field],
+  .solaris-app-command-search-shell
+) > input:is([type="search"], [role="searchbox"], [enterkeyhint="search"], [class*="bg-transparent"]) {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+:is(
+  label[class*="rounded"][class*="border"],
+  .v3-directory-search,
+  .solaris-app-search-shell,
+  [data-solaris-search-field],
+  .solaris-app-command-search-shell
+) > input[type="search"]::-webkit-search-cancel-button {
+  display: none;
+}
+
 /* Nested search text belongs to its outer search surface. Respect explicitly transparent fields. */
 input:not(.solaris-app-search-input):not(:where([type="search"], [role="searchbox"], [enterkeyhint="search"], [placeholder^="Search" i], [placeholder^="Find" i], [placeholder^="Ask" i], [aria-label*="search" i], [class*="bg-transparent"], [class*="border-0"])):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), textarea, select, [role="combobox"] {
   color: var(--foreground);
