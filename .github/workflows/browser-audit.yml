@@ -2,7 +2,7 @@ name: Browser audit
 
 on:
   push:
-    branches: [main]
+    branches: [main, audit/v3-permanent-screenshots-20261119]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -290,6 +290,12 @@ jobs:
             esac
           done
 
+          # Temporary visual-capture branch: permanent routes in this disposable LOCAL build.
+          # Production release flags and hosted configuration remain untouched.
+          if [ "$GITHUB_REF" = "refs/heads/audit/v3-permanent-screenshots-20261119" ]; then
+            grep -q 'export const LIMITED_PUBLIC_LAUNCH = true;' src/lib/public-launch-availability.ts
+            sed -i 's/export const LIMITED_PUBLIC_LAUNCH = true;/export const LIMITED_PUBLIC_LAUNCH = false;/' src/lib/public-launch-availability.ts
+          fi
           bun run build
 
       - name: Start stable audit server
@@ -534,7 +540,7 @@ jobs:
           exit 1
 
       - name: Run responsive browser audit
-        run: bash .github/scripts/v3-browser-playwright-container.sh run ./node_modules/.bin/playwright test
+        run: bash .github/scripts/v3-browser-playwright-container.sh run ./node_modules/.bin/playwright test e2e/app-visual-capture.e2e.ts --project=visual-ios-320 --project=visual-ios-390
         env:
           E2E_BASE_URL: http://127.0.0.1:4173
           SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
@@ -544,11 +550,20 @@ jobs:
           # Pull requests and main pushes run the representative smoke set. Exhaustive
           # and visual certification are explicit manual actions, so temporary release
           # branches cannot silently become permanent workflow semantics.
-          E2E_FULL_AUDIT: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
-          PERSONALITY_REFERENCE_CAPTURE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
-          E2E_VISUAL_CAPTURE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
+          E2E_FULL_AUDIT: "1"
+          PERSONALITY_REFERENCE_CAPTURE: "0"
+          E2E_VISUAL_CAPTURE: "1"
           # E2E Supabase URL/key are inherited from the isolated local stack.
           # Hosted account credentials are intentionally unavailable in browser CI.
+
+      - name: Capture actual permanent mobile-browser and desktop pages (local-only)
+        if: success()
+        run: bash .github/scripts/v3-browser-playwright-container.sh run node scripts/temporary-v3-permanent-capture.mjs
+        env:
+          E2E_BASE_URL: http://127.0.0.1:4173
+          SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
+          SUPABASE_PROJECT_ID: local
+          SUPABASE_PROJECT_REF: local
 
       - name: Print audit server log on failure
         if: failure()
@@ -598,5 +613,6 @@ jobs:
             playwright-report
             test-results/playwright
             artifacts/browser-audit/provenance.txt
+            artifacts/v3-permanent-captures
           if-no-files-found: ignore
           retention-days: 14
