@@ -65,11 +65,19 @@ export function ParticipationServiceDirectory() {
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold">{title}</span>
                 <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  {released ? description : "Not available in the current public release."}
+                  {released
+                    ? description
+                    : id === "confirmation"
+                      ? "Existing confirmations may still be editable through your authorized Confirmation access or edit link. The general Confirmations page is restricted."
+                      : "Not available in the current public release."}
                 </span>
               </span>
               {released ? (
                 <span className="shrink-0 text-xs font-semibold text-primary">View</span>
+              ) : id === "confirmation" ? (
+                <span className="max-w-24 shrink-0 text-right text-[11px] font-medium leading-4 text-muted-foreground">
+                  Edit via existing access
+                </span>
               ) : (
                 <LockKeyhole className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-label="Not released" />
               )}
