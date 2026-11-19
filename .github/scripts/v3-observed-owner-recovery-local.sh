@@ -94,6 +94,38 @@ for confirmation_drift in column policy; do
   [[ "$(operator_state_digest "$confirmation_probe")" == "$confirmation_before" ]] || { echo "Confirmation rejected drift but changed schema/data" >&2; exit 1; }
   operator_sql -c "drop database ${confirmation_probe};"
 done
+# New hosted ACL before-state: emergency security PRs #2591/#2594 already
+# revoked direct API TRUNCATE on Confirmation tables. Exercise ONLY on a
+# disposable networkless PostgreSQL clone, never on production.
+operator_sql -c "create database confirmation_emergency_acl owner postgres template recovery_operator_baseline;"
+docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d confirmation_emergency_acl -c   "revoke truncate on table public.edit_tokens, public.submissions from anon,authenticated,service_role;"
+docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d confirmation_emergency_acl -f - < /tmp/confirmation-access-recovery.sql
+docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d confirmation_emergency_acl <<'CONFIRMATION_REVOCATION_POSTCHECK'
+do $check$
+begin
+ if to_regprocedure('public.studio2_apply_confirmation_response_access_change(uuid,uuid,text,jsonb,text,uuid,text,bigint)') is null then
+   raise exception 'Hardened pre-revoked Confirmation failed to install governed command';
+ end if;
+ if exists(select 1 from unnest(array['public.edit_tokens','public.submissions']) tab(name)
+   cross join unnest(array['anon','authenticated','service_role']) r(name)
+   where has_table_privilege(r.name,tab.name,'TRUNCATE')) then
+   raise exception 'Hardened Confirmation recovered unsafe API TRUNCATE';
+ end if;
+end $check$;
+CONFIRMATION_REVOCATION_POSTCHECK
+operator_sql -c "drop database confirmation_emergency_acl;"
+echo 'PASS: reviewed emergency pre-revoked Confirmation ACL accepted; governed command installed without API TRUNCATE regrant'
+# Unknown table ACL mutation must still abort before any schema or data effect.
+operator_sql -c "create database confirmation_unknown_acl owner postgres template recovery_operator_baseline;"
+docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d confirmation_unknown_acl -c   "revoke truncate on table public.edit_tokens, public.submissions from anon,authenticated,service_role; revoke select on table public.submissions from anon;"
+confirmation_unknown_before="$(operator_state_digest confirmation_unknown_acl)"
+if docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d confirmation_unknown_acl -f - < /tmp/confirmation-access-recovery.sql > /tmp/confirmation-unknown-acl.log 2>&1; then
+ echo 'ERROR: Confirmation accepted an unrelated ACL downgrade'; exit 1
+fi
+grep -Fq 'Confirmation table column/policy/owner/RLS/ACL drift' /tmp/confirmation-unknown-acl.log || { cat /tmp/confirmation-unknown-acl.log; exit 1; }
+[[ "$(operator_state_digest confirmation_unknown_acl)" == "$confirmation_unknown_before" ]] || { echo 'Unknown Confirmation ACL drift modified schema/data'; exit 1; }
+operator_sql -c "drop database confirmation_unknown_acl;"
+echo 'PASS: unrelated Confirmation ACL drift rejected atomically'
 operator_apply /tmp/confirmation-access-recovery.sql
 echo 'PASS: Confirmation governed cutover installed in observed-owner recovery'
 operator_sql -f - < .github/scripts/v3-confirmation-legacy-writer-denial.sql

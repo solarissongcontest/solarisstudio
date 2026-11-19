@@ -20,6 +20,12 @@ test('frozen source effects form one atomic guarded recovery, not five unchecked
   assert.match(sql,/Legacy Confirmation writer still accessible/);
   assert.match(sql,/columnShapeMd5/);
   assert.match(sql,/policyMd5/);
+  // PRs #2591/#2594 pre-revoked API TRUNCATE on the two Confirmation tables.
+  // Retain original Nov15 synthetic fixture AND only the exact hardened ACL envelope.
+  assert.match(sql,/actual - 'acl'/);
+  assert.match(sql,/item->>'identity' not in \('public\.edit_tokens','public\.submissions'\)/);
+  assert.match(sql,/replace\(item->>'acl','arwdDxt\/postgres','arwdxt\/postgres'\)/);
+
   assert.match(sql,/pg_attribute/);
   assert.match(sql,/pg_policy/);
   assert.match(sql,/already\/partially installed/);
