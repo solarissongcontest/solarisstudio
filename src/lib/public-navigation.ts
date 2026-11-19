@@ -59,6 +59,12 @@ export const PUBLIC_GLOBAL_AREAS: PublicGlobalArea[] = [
   },
 ];
 
+/** P0 public release has exactly three global tabs; the full five-tab
+ * catalog stays untouched for the later full-V3 release. */
+export const PUBLIC_RELEASE_GLOBAL_AREAS: PublicGlobalArea[] = PUBLIC_GLOBAL_AREAS.filter(
+  (area) => area.id === "home" || area.id === "participate" || area.id === "me",
+);
+
 export const PUBLIC_DESTINATIONS: PublicDestination[] = [
   destination("home", "/", "home", "Home", "What is happening in Solaris Studio now.", "primary", {
     aliases: ["start"],

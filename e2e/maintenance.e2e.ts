@@ -96,9 +96,13 @@ test("public early access exposes account screens while contest mutations remain
   expect(root?.status()).toBe(200);
   await expect(page.locator('[data-solaris-maintenance="true"]')).toHaveCount(0);
   await expect(page).toHaveTitle(/Solaris Today/);
-  for (const publicPath of ["/explore", "/countries", "/editions", "/shows", "/results", "/participate"]) {
+  for (const publicPath of ["/", "/participate", "/me", "/my-solaris"]) {
     const publicResponse = await request.get(publicPath);
     expect(publicResponse.status(), publicPath + " must serve the actual website").toBe(200);
+  }
+  for (const unpublishedPath of ["/explore", "/results", "/results/ssc-20"]) {
+    const unpublishedResponse = await request.get(unpublishedPath);
+    expect(unpublishedResponse.status(), unpublishedPath + " must stay closed in the 3-tab release").toBe(503);
   }
 
   const auth = await page.goto("/auth", { waitUntil: "domcontentloaded" });

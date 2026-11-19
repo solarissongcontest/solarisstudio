@@ -69,7 +69,7 @@ export function PublicEarlyAccessMe() {
       <header className="border-b border-border/70 bg-surface/80">
         <nav aria-label="Solaris account navigation" className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-4">
           <a className="text-sm font-black tracking-tight" href="/">Solaris Studio</a>
-          <a className="inline-flex min-h-11 items-center text-sm font-semibold text-primary" href="/explore">Explore</a>
+          <a className="inline-flex min-h-11 items-center text-sm font-semibold text-primary" href="/participate">Participate</a>
         </nav>
       </header>
       <main className="mx-auto w-full max-w-2xl px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))]">

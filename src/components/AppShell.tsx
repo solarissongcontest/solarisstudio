@@ -39,7 +39,8 @@ import {
 import { useAppAttentionSummary } from "@/lib/app-attention";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
 import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
-import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
+import { PUBLIC_GLOBAL_AREAS, PUBLIC_RELEASE_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
+import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
 import {
   publicCanvasForArchetype,
   publicLayoutTokenForArchetype,
@@ -229,7 +230,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   const publicUser = buildPublicUserContext({ userId: access.userId, access });
-  const globalAreas = publicGlobalAreasForContext(publicUser);
+  const globalAreas = publicGlobalAreasForContext(publicUser).filter(
+    (area) => !GLOBAL_MAINTENANCE_MODE || PUBLIC_RELEASE_GLOBAL_AREAS.some((allowed) => allowed.id === area.id),
+  );
   const publicArchetype = publicRouteArchetype(pathname);
   const publicLayout = publicLayoutTokenForArchetype(publicArchetype);
   const publicArea = publicAreaForPath(pathname);
@@ -495,7 +498,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             style={{ paddingBottom: "max(.4rem, env(safe-area-inset-bottom))" }}
             aria-label="Primary navigation"
           >
-            <div className="mx-auto grid max-w-xl grid-cols-5 gap-1">
+            <div className={cn("mx-auto grid max-w-xl gap-1", GLOBAL_MAINTENANCE_MODE ? "grid-cols-3" : "grid-cols-5")}>
               {quickNavigation.map((item) => {
                 const Icon = item.icon;
                 return (

@@ -3,11 +3,17 @@ import { describe, expect, it } from "vitest";
 import {
   PUBLIC_DESTINATIONS,
   PUBLIC_GLOBAL_AREAS,
+  PUBLIC_RELEASE_GLOBAL_AREAS,
   publicAreaForPath,
   publicSearchText,
 } from "./public-navigation";
 
 describe("public navigation contract", () => {
+  it("launches with only Home Participate and Me in the primary tabs", () => {
+    expect(PUBLIC_RELEASE_GLOBAL_AREAS.map((area) => area.id)).toEqual(["home", "participate", "me"]);
+    expect(PUBLIC_RELEASE_GLOBAL_AREAS.map((area) => area.to)).toEqual(["/", "/participate", "/my-solaris"]);
+  });
+
   it("keeps the five stable global areas", () => {
     expect(PUBLIC_GLOBAL_AREAS.map((area) => area.id)).toEqual([
       "home",

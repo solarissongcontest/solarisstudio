@@ -312,6 +312,15 @@ html[data-solaris-app-boot] body::before {
       scaleX(var(--solaris-tab-drag-scale-x));
   }
 
+  /* Three-tab early-release dock; full V3 keeps its original five-tab geometry. */
+  .solaris-app-tabbar[data-public-tab-count="3"] .solaris-app-tabbar-material {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .solaris-app-tabbar[data-public-tab-count="3"] .solaris-app-tab-indicator {
+    width: calc((100% - var(--solaris-tab-total-inset) - .3rem) / 3);
+  }
+
   .solaris-app-tabbar-material[data-dragging="true"] {
     transition: none;
   }

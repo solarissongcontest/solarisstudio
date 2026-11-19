@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 
 import {
   PUBLIC_GLOBAL_AREAS,
+  PUBLIC_RELEASE_GLOBAL_AREAS,
   publicAreaForPath,
   publicDestinationsForArea,
   publicPathMatches,
@@ -13,6 +14,7 @@ import {
   type PublicUserContext,
 } from "@/lib/public-user-context";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
+import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
 import { cn } from "@/lib/utils";
 
 export function PublicDrawerNavigation({
@@ -24,7 +26,9 @@ export function PublicDrawerNavigation({
 }) {
   const { allows } = usePublicLaunchAvailability();
   const area = publicAreaForPath(pathname);
-  const globalAreas = publicGlobalAreasForContext(user);
+  const globalAreas = publicGlobalAreasForContext(user).filter(
+    (item) => !GLOBAL_MAINTENANCE_MODE || PUBLIC_RELEASE_GLOBAL_AREAS.some((allowed) => allowed.id === item.id),
+  );
   const areaRoot = PUBLIC_GLOBAL_AREAS.find((item) => item.id === area)?.to ?? null;
   const localItems =
     area === "home" || area === "me"
