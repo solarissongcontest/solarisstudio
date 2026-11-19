@@ -164,7 +164,8 @@ function isLimitedLaunchInfrastructurePath(pathname: string) {
   return MAINTENANCE_ASSET_PATHS.has(pathname) ||
     isMaintenanceAppAssetPath(pathname) ||
     pathname === "/favicon.svg" || pathname === "/app-launch" ||
-    pathname.startsWith("/api/") ||
+    pathname === "/robots.txt" || pathname === "/sitemap.xml" ||
+    pathname === "/api/flag" ||
     pathname === "/_serverFn" || pathname.startsWith("/_serverFn/") ||
     pathname === "/admin" || pathname.startsWith("/admin/") ||
     pathname === "/confirmations/admin" || pathname.startsWith("/confirmations/admin/") ||
