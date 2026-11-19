@@ -49,7 +49,7 @@
 .world-editorial-members{display:grid;border-top:1px solid var(--world-line);}
 .world-editorial-members>div{border-bottom:1px solid var(--world-line);}
 @media (min-width:740px) {
- .world-editorial-quicklinks{grid-template-columns:repeat(3,minmax(0,1fr));}
+ .world-editorial-quicklinks{grid-template-columns:repeat(2,minmax(0,1fr));}
  .world-editorial-quicklinks a{padding:1.15rem;border-right:1px solid var(--world-line);}
  .world-editorial-quicklinks a:last-child{border-right:0;}
  .world-editorial-offices{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:1.75rem;}

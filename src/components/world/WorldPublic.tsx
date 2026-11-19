@@ -153,20 +153,9 @@ export function WorldLanding() {
           <Link to="/world/search" search={{ q: "", c: 0, o: 0, type: "all" }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
             <Search className="size-4" aria-hidden="true" /> Search the world
           </Link>
-          <Link to="/world/organizations" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-5 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
-            <Landmark className="size-4" aria-hidden="true" /> Explore organizations
-          </Link>
-          <Link to="/world/countries" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-5 text-sm font-semibold">
-            <Globe2 className="size-4" aria-hidden="true" /> Discover countries
-          </Link>
         </div>
       </div>
       <nav aria-label="Explore the World" className="world-editorial-quicklinks">
-        <Link to="/world/search" search={{ q: "", c: 0, o: 0, type: "all" }}>
-          <Search className="size-5" aria-hidden="true" />
-          <span><strong>Search the world</strong><small>Countries and international institutions</small></span>
-          <ArrowRight className="size-4" aria-hidden="true" />
-        </Link>
         <Link to="/world/countries">
           <Globe2 className="size-5" aria-hidden="true" />
           <span><strong>Countries</strong><small>Durable identities and international ties</small></span>
