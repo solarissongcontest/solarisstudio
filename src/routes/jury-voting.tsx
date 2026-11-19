@@ -414,9 +414,11 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
         throw new Error("Jury submission is unavailable until the secure voting service is enabled.");
       }
       const fingerprint = JSON.stringify(ballot);
+      if (userId === "anonymous") throw new Error("Your Solaris sign-in must be verified before voting.");
+      const operationScope = { actorId: userId, countryId: country.id, showId: round.show_id };
       const prepared = prepareV3JuryOperation({
-        existing: readV3JuryOperation(round.show_id),
-        showId: round.show_id,
+        existing: readV3JuryOperation(operationScope),
+        ...operationScope,
         ballotFingerprint: fingerprint,
         newOperationId: crypto.randomUUID(),
         now: new Date().toISOString(),
@@ -465,7 +467,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
       }
     },
     onSuccess: (receipt) => {
-      if (v3ReliabilityEnabled) clearV3JuryOperation(round.show_id);
+      if (v3ReliabilityEnabled && userId !== "anonymous") clearV3JuryOperation({ actorId: userId, countryId: country.id, showId: round.show_id });
       setSubmissionReceipt(receipt);
       setGovernanceReceipt(captureGovernanceSnapshot("jury.vote"));
       try {
@@ -504,13 +506,10 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
     onSuccess: (nextReport) => {
       setReport(nextReport);
       resetDeclaration();
-      if (nextReport.requiresAttestation) {
-        setStage("integrity");
-      } else if (nextReport.interventionLevel === "notice" || nextReport.interventionLevel === "review") {
-        setStage("review");
-      } else {
-        submitMutation.mutate(nextReport.token);
-      }
+      // Every official ballot requires an explicit final review and a
+      // deliberate submit action, even when the integrity screen is clear.
+      // The preflight token alone must never trigger an official write.
+      setStage(nextReport.requiresAttestation ? "integrity" : "review");
     },
     onError: (caught) => toast.error(caught instanceof Error ? caught.message : "The automatic integrity check failed"),
   });
@@ -586,11 +585,18 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
   if (stage === "review" && report) {
     return (
       <div className="space-y-4">
-        <section className={cn("rounded-2xl border p-5 sm:p-7", severityClass(report.severity))}>
-          <div className="flex items-start gap-3"><ShieldAlert className="mt-0.5 size-6 shrink-0" /><div><p className="text-xs font-black uppercase tracking-[0.15em]">Voting integrity review</p><h2 className="mt-2 text-2xl font-black">Review your jury ballot before submitting</h2><p className="mt-2 text-sm leading-6 opacity-85">Solaris found an unusual pattern, but the evidence does not require a declaration. This is not a finding of misconduct.</p></div></div>
-        </section>
-        <IntegrityEvidence report={report} />
-        <Panel title="Your choice" description="Nothing has been submitted yet">
+        {report.interventionLevel === "notice" || report.interventionLevel === "review" ? (
+          <section className={cn("rounded-2xl border p-5 sm:p-7", severityClass(report.severity))}>
+            <div className="flex items-start gap-3"><ShieldAlert className="mt-0.5 size-6 shrink-0" /><div><p className="text-xs font-black uppercase tracking-[0.15em]">Voting integrity review</p><h2 className="mt-2 text-2xl font-black">Review your jury ballot before submitting</h2><p className="mt-2 text-sm leading-6 opacity-85">Solaris found an unusual pattern, but the evidence does not require a declaration. This is not a finding of misconduct.</p></div></div>
+          </section>
+        ) : (
+          <Panel title="Integrity check complete" description="No additional declaration is required">
+            <p className="text-sm leading-6 text-muted-foreground">Your ballot has passed the preliminary checks. It has not been submitted. Review each allocation before confirming the official vote.</p>
+          </Panel>
+        )}
+        <JuryBallotReview round={round} selections={selections} />
+        {report.interventionLevel === "notice" || report.interventionLevel === "review" ? <IntegrityEvidence report={report} /> : null}
+        <Panel title="Final submission" description="No ballot has been recorded yet">
           <div className="grid gap-2 sm:grid-cols-2"><Button variant="outline" onClick={returnToBallot}><ArrowLeft className="size-4" /> Change my votes</Button><Button disabled={!v3ReliabilityEnabled || submitMutation.isPending} onClick={() => submitMutation.mutate(report.token)}><CheckCircle2 className="size-4" /> {checkingSubmission ? "Checking submission status…" : submitMutation.isPending ? "Submitting…" : "My ballot is correct · submit"}</Button></div>
         </Panel>
       </div>
@@ -622,6 +628,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
             <button type="button" onClick={returnToBallot} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-current/25 bg-black/10 px-4 text-sm font-semibold"><ArrowLeft className="size-4" /> Change ballot</button>
           </div>
         </section>
+        <JuryBallotReview round={round} selections={selections} />
         <IntegrityEvidence report={report} />
         <Panel title="Voting Integrity Declaration" description={report.interventionLevel === "provisional_review" ? "This ballot will be recorded for organizer review after you sign. Automated analysis does not delete it." : "Sign only if this ballot is genuinely independent."}>
           <div className="space-y-3">
@@ -666,6 +673,25 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
         <GovernanceInlineReference context="jury.vote" ruleIds={["9.2", "11.2", "11.4"]} label="Voting rules" />
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3 text-xs text-muted-foreground"><span>{ballot.length}/{round.point_scale.length} scores assigned</span><span aria-live="polite">{!v3ReliabilityEnabled ? "Saved on this device" : draftStatus === "loading" ? "Loading server draft…" : draftStatus === "saving" ? "Saving…" : draftStatus === "saved" ? `Saved · revision ${serverRevision}` : draftStatus === "conflict" ? "Save conflict" : "Saved on this device · reconnect to sync"}</span><span className="inline-flex items-center gap-1.5"><ShieldCheck className="size-3.5 text-primary" /> Integrity v4 · recent editions weighted most</span></div>
         <Button className="w-full" disabled={!v3ReliabilityEnabled || !complete || !acceptedRule || preflightMutation.isPending || submitMutation.isPending} onClick={() => preflightMutation.mutate()}><Vote className="size-4" />{preflightMutation.isPending || submitMutation.isPending ? "Checking ballot…" : "Review and submit jury vote"}</Button>
+      </div>
+    </Panel>
+  );
+}
+
+function JuryBallotReview({ round, selections }: { round: JuryRound; selections: Array<string | null> }) {
+  return (
+    <Panel title="Review your jury allocations" description={`SSC ${round.edition_number} · ${round.show_name} · Confirm every point before submission.`}>
+      <div className="divide-y divide-border/60" data-jury-final-review="allocations">
+        {round.point_scale.map((points, index) => {
+          const targetId = selections[index];
+          const entry = round.entries.find((candidate) => candidate.country_id === targetId);
+          return (
+            <div key={`${points}-${index}`} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+              <span className="font-semibold tabular-nums text-primary">{points} points</span>
+              <span className="text-right text-sm font-medium">{entry?.name ?? "Entry unavailable"}</span>
+            </div>
+          );
+        })}
       </div>
     </Panel>
   );

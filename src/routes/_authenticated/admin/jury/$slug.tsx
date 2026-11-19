@@ -49,6 +49,7 @@ import {
 } from "@/lib/data";
 import { DEFAULT_ACCENT, entityDisplayMap } from "@/lib/entities";
 import { reportSupabaseError } from "@/lib/errors";
+import { useFanSession } from "@/lib/prediction-data";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
 import { resolveVoting } from "@/lib/voting";
 
@@ -86,6 +87,9 @@ type JuryBallotSubmission = {
 };
 
 type PendingBallotReview = {
+  actorId: string;
+  editionId: string;
+  showId: string;
   ballot: JuryBallotSubmission;
   targetStatus: Exclude<JurySubmissionState, "submitted">;
   expectedVersion: number;
@@ -94,6 +98,9 @@ type PendingBallotReview = {
 };
 
 type PendingDnvChange = {
+  actorId: string;
+  editionId: string;
+  showId: string;
   option: VoterOption;
   action: "set" | "clear";
   voterId: string | null;
@@ -168,6 +175,7 @@ export const Route = createFileRoute("/_authenticated/admin/jury/$slug")({
 });
 
 function JuryWorkspace() {
+  const actorId = useFanSession().data?.id ?? null;
   const { slug } = Route.useParams();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -179,7 +187,9 @@ function JuryWorkspace() {
   const { data: entities = [] } = useContestEntities(edition?.id);
 
   const orderedShows = useMemo(() => [...shows].sort((a, b) => a.sort_order - b.sort_order), [shows]);
-  const selectedShow = orderedShows.find((show) => show.id === search.show) ?? orderedShows[0] ?? null;
+  const selectedShow = search.show
+    ? orderedShows.find((show) => show.id === search.show) ?? null
+    : orderedShows[0] ?? null;
   const participants = useMemo(
     () => allParticipants
       .filter((participant) => participant.show_id === selectedShow?.id)
@@ -348,7 +358,7 @@ function JuryWorkspace() {
   }
 
   async function setDidNotVote(voterKey: string, didNotVote: boolean) {
-    if (!edition || !selectedShow || busy) return;
+    if (!edition || !selectedShow || !actorId || busy) return;
     const option = voterOptions.find((item) => item.key === voterKey);
     if (!option) return;
 
@@ -393,6 +403,9 @@ function JuryWorkspace() {
 
       setLifecycleReason("");
       setPendingDnvChange({
+        actorId,
+        editionId: edition.id,
+        showId: selectedShow.id,
         option,
         action,
         voterId: option.voterId,
@@ -411,7 +424,14 @@ function JuryWorkspace() {
   }
 
   async function applyDnvChange() {
-    if (!pendingDnvChange || !selectedShow || !lifecycleReason.trim() || busy) return;
+    if (!pendingDnvChange || !selectedShow || !edition || !lifecycleReason.trim() || busy) return;
+    if (!actorId || pendingDnvChange.actorId !== actorId ||
+      pendingDnvChange.editionId !== edition.id || pendingDnvChange.showId !== selectedShow.id) {
+      setPendingDnvChange(null);
+      setLifecycleReason("");
+      toast.error("Jury actor, edition or show changed. Review a fresh operation.");
+      return;
+    }
     setBusy(true);
     try {
       const result = await lifecycleRpc("studio2_apply_jury_dnv", {
@@ -446,7 +466,11 @@ function JuryWorkspace() {
     ballot: JuryBallotSubmission,
     targetStatus: Exclude<JurySubmissionState, "submitted">,
   ) {
-    if (busy) return;
+    if (busy || !actorId || !edition || !selectedShow) return;
+    if (ballot.edition_id !== edition.id || ballot.show_id !== selectedShow.id) {
+      toast.error("This ballot does not belong to the selected jury show.");
+      return;
+    }
     setBusy(true);
     try {
       const previewResult = await lifecycleRpc("studio2_jury_ballot_review_preview", {
@@ -475,6 +499,9 @@ function JuryWorkspace() {
 
       setLifecycleReason("");
       setPendingBallotReview({
+        actorId,
+        editionId: edition.id,
+        showId: selectedShow.id,
         ballot,
         targetStatus,
         expectedVersion: preview.expectedVersion,
@@ -490,6 +517,17 @@ function JuryWorkspace() {
 
   async function applyBallotReview() {
     if (!pendingBallotReview || busy) return;
+    if (!actorId || !edition || !selectedShow ||
+      pendingBallotReview.actorId !== actorId ||
+      pendingBallotReview.editionId !== edition.id ||
+      pendingBallotReview.showId !== selectedShow.id ||
+      pendingBallotReview.ballot.edition_id !== edition.id ||
+      pendingBallotReview.ballot.show_id !== selectedShow.id) {
+      setPendingBallotReview(null);
+      setLifecycleReason("");
+      toast.error("Jury actor, edition or show changed. Review a fresh ballot.");
+      return;
+    }
     const requiresReason = pendingBallotReview.targetStatus !== "valid";
     if (requiresReason && !lifecycleReason.trim()) return;
 
@@ -606,6 +644,11 @@ function JuryWorkspace() {
 
   async function saveEdit() {
     if (!editDraft?.name.trim()) return;
+    if (!selectedShow || !showVoters.some((voter) => voter.id === editDraft.id)) {
+      setEditDraft(null);
+      toast.error("The jury show changed. Select a jury from the current show.");
+      return;
+    }
     setBusy(true);
     try {
       const { error } = await (supabase.from("voters") as any)
@@ -649,6 +692,11 @@ function JuryWorkspace() {
 
   async function deleteVoter() {
     if (!deleteTarget) return;
+    if (!selectedShow || !showVoters.some((voter) => voter.id === deleteTarget.id)) {
+      setDeleteTarget(null);
+      toast.error("The jury show changed. Select a jury from the current show.");
+      return;
+    }
     setBusy(true);
     try {
       const voteRows = votesForVoter(deleteTarget);
@@ -677,6 +725,23 @@ function JuryWorkspace() {
   if (loadingEdition || loadingShows) return <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading jury workspace…</p></AdminCard>;
   if (!edition) return <AdminCard><AdminEmptyState icon={Vote} title="Edition not found" description="Choose another edition from the organizer workspace." action={<Link to="/admin" className="admin-action-secondary">Back to editions</Link>} /></AdminCard>;
   if (!orderedShows.length) return <AdminPage><AdminPageHeader eyebrow={editionLabel(edition)} title="Jury voting" description="Create a show before configuring its juries and ballots." /><AdminCard><AdminEmptyState icon={Users} title="No shows yet" description="Juries belong to a show." action={<Link to="/admin/shows/$slug" params={{ slug }} className="admin-action-primary">Create a show</Link>} /></AdminCard></AdminPage>;
+  // Never substitute a different show for an invalid deep link. Every voting
+  // read and operation must stay bound to the exact requested edition/show.
+  if (search.show && !selectedShow) {
+    return (
+      <AdminPage>
+        <AdminPageHeader eyebrow={editionLabel(edition)} title="Jury voting" description="The requested show is not part of this edition. No voting action is available for this link." />
+        <AdminCard>
+          <AdminEmptyState
+            icon={Vote}
+            title="Show not found in this edition"
+            description="Choose a valid show in this edition to continue. Solaris has not substituted another show."
+            action={<Link to="/admin/jury/$slug" params={{ slug }} search={{}} className="admin-action-secondary">Choose a show</Link>}
+          />
+        </AdminCard>
+      </AdminPage>
+    );
+  }
 
   return (
     <AdminPage>
@@ -841,7 +906,7 @@ function JuryWorkspace() {
       <AdminSheet open={!!editDraft} onClose={() => !busy && setEditDraft(null)} title="Edit jury" description="Identity binding stays unchanged. Edit its display and jury call order here.">{editDraft ? <div className="space-y-4"><label className="block"><span className="admin-section-label">Name</span><input value={editDraft.name} onChange={(event) => setEditDraft((current) => current ? { ...current, name: event.target.value } : current)} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><label className="block"><span className="admin-section-label">Flag / logo URL</span><input value={editDraft.flag_image} onChange={(event) => setEditDraft((current) => current ? { ...current, flag_image: event.target.value } : current)} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><label className="block"><span className="admin-section-label">Accent colour</span><input value={editDraft.accent_color} onChange={(event) => setEditDraft((current) => current ? { ...current, accent_color: event.target.value } : current)} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><label className="block"><span className="admin-section-label">Call order</span><input type="number" min={1} value={editDraft.sort_order} onChange={(event) => setEditDraft((current) => current ? { ...current, sort_order: Number(event.target.value) || 1 } : current)} className="numeric mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><button type="button" disabled={busy || !editDraft.name.trim()} onClick={() => void saveEdit()} className="admin-action-primary w-full">{busy ? "Saving…" : "Save jury"}</button></div> : null}</AdminSheet>
 
       <AdminConfirmSheet
-        open={Boolean(pendingBallotReview)}
+        open={Boolean(pendingBallotReview && actorId && edition && selectedShow && pendingBallotReview.actorId === actorId && pendingBallotReview.editionId === edition.id && pendingBallotReview.showId === selectedShow.id)}
         onClose={() => {
           if (!busy) {
             setPendingBallotReview(null);
@@ -903,7 +968,7 @@ function JuryWorkspace() {
       />
 
       <AdminConfirmSheet
-        open={Boolean(pendingDnvChange)}
+        open={Boolean(pendingDnvChange && actorId && edition && selectedShow && pendingDnvChange.actorId === actorId && pendingDnvChange.editionId === edition.id && pendingDnvChange.showId === selectedShow.id)}
         onClose={() => {
           if (!busy) {
             setPendingDnvChange(null);
