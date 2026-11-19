@@ -22,20 +22,28 @@ export const PublicLaunchContext = createContext<PublicLaunchAvailability>({
 });
 export function usePublicLaunchAvailability() {
   const state = useContext(PublicLaunchContext);
+  // Future full-V3 feature-flag policy remains independent of temporary P0
+  // Worker maintenance gating. Existing consumers/tests rely on this contract.
   const allows = useCallback(
-    (href: string) => {
-      const path = publicLaunchPath(href);
-      if (path === null) return false;
-      // Public navigation, global search and directory must share the exact
-      // Worker GET allowlist during P0, not merely the future rollout flags.
-      if (
-        GLOBAL_MAINTENANCE_MODE &&
-        !isMaintenancePublicWebsiteRouteAllowed(path, "GET", true) &&
-        !isMaintenancePublicAccountRouteAllowed(path, "GET", true)
-      ) return false;
-      return !state.active || publicLaunchAllows(href, state.flags);
-    },
+    (href: string) => !state.active || publicLaunchAllows(href, state.flags),
     [state.active, state.flags],
   );
-  return { ...state, allows };
+  const allowsReleased = useCallback((href: string) => {
+    if (!allows(href)) return false;
+    if (!GLOBAL_MAINTENANCE_MODE) return true;
+    const path = publicLaunchPath(href);
+    if (path === null) return false;
+
+    // Mirror RootComponent's strictly disposable browser-audit exception.
+    // A remote or hosted Supabase URL can NEVER bypass P0 navigation gating.
+    const localDisposableBrowserAudit =
+      /^http:\/\/(?:127\.0\.0\.1|localhost):\d+\/?$/.test(String(import.meta.env.VITE_SUPABASE_URL || "")) &&
+      typeof window !== "undefined" &&
+      (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost");
+    if (localDisposableBrowserAudit) return true;
+
+    return isMaintenancePublicWebsiteRouteAllowed(path, "GET", true) ||
+      isMaintenancePublicAccountRouteAllowed(path, "GET", true);
+  }, [allows]);
+  return { ...state, allows, allowsReleased };
 }
