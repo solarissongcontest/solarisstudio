@@ -203,3 +203,30 @@
     background: linear-gradient(0deg, var(--cinematic-canvas, #020817) 0%, #020817 43%, rgba(2,8,23,.84) 72%);
   }
 }
+
+/* Second editorial pass: reliable spacing for long and dense entity pages. */
+.cinematic-entity-section-nav [aria-current="page"] { color: #fff; border-bottom-color: var(--v3-accent, #8ecae6); }
+.cinematic-entity-section-nav__disabled { display: inline-flex; align-items: center; min-height: 2.75rem; font-size: .85rem; font-weight: 650; color: rgba(255,255,255,.43); white-space: nowrap; }
+.cinematic-country-history { margin: 0; padding: 0; list-style: none; border-top: 1px solid rgba(255,255,255,.13); }
+.cinematic-country-history__row { display: flex; align-items: center; justify-content: space-between; gap: 1.25rem; min-height: 4.5rem; border-bottom: 1px solid rgba(255,255,255,.12); padding: .9rem .25rem; }
+.cinematic-country-history__row .v3-status-chip { flex-shrink: 0; }
+.cinematic-country-world__layout { display: grid; align-items: start; gap: 1.5rem; }
+.cinematic-country-world__headline { margin: 0; font-weight: 750; font-size: 1rem; }
+.cinematic-country-world__copy { margin: .5rem 0 0; max-width: 55ch; font-size: .875rem; line-height: 1.7; color: rgba(255,255,255,.7); }
+.cinematic-country-related { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; border-top: 1px solid rgba(255,255,255,.13); }
+.cinematic-country-related .v3-action-card { min-height: 4.5rem; border: 0; border-bottom: 1px solid rgba(255,255,255,.12); border-radius: 0; background: transparent; padding-inline: .25rem; }
+.cinematic-edition-nav { margin-top: 1.5rem; }
+.cinematic-edition-facts { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-block: 1px solid rgba(255,255,255,.13); }
+.cinematic-edition-facts__item { display: flex; flex-direction: column-reverse; gap: .4rem; padding: 1.15rem .65rem; border-bottom: 1px solid rgba(255,255,255,.09); }
+.cinematic-edition-facts__item dt { font-size: .77rem; line-height: 1.5; color: rgba(255,255,255,.65); }
+.cinematic-edition-facts__item dd { margin: 0; font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 750; line-height: 1; font-variant-numeric: tabular-nums; }
+.cinematic-edition-entity-list { display: grid; border-top: 1px solid rgba(255,255,255,.13); }
+.cinematic-edition-entity-list .cinematic-edition-entity-row { border: 0; border-bottom: 1px solid rgba(255,255,255,.11); border-radius: 0; background: transparent; box-shadow: none; }
+@media (min-width: 768px) {
+  .cinematic-country-world__layout { grid-template-columns: minmax(0, 1.15fr) minmax(15rem, .85fr); }
+  .cinematic-edition-facts { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .cinematic-edition-facts__item { padding-inline: 1.1rem; border-bottom: 0; border-right: 1px solid rgba(255,255,255,.1); }
+  .cinematic-edition-facts__item:last-child { border-right: 0; }
+  .cinematic-edition-entity-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cinematic-edition-entity-list .cinematic-edition-entity-row:nth-child(odd) { border-right: 1px solid rgba(255,255,255,.1); }
+}

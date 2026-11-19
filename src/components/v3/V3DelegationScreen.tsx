@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { Archive, BarChart3, BookOpen, GitCompareArrows, Trophy, Vote } from "lucide-react";
+import { Archive, BarChart3, BookOpen, GitCompareArrows, Globe2, Trophy, Vote } from "lucide-react";
 
 import type { ReactNode } from "react";
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { CinematicEditorialHero } from "./CinematicEditorialHero";
 import type { V3CountryExploreProjection } from "@/lib/v3-explore-entities";
 import {
@@ -18,6 +19,7 @@ export type V3DelegationScreenProps = {
   followControl: ReactNode;
   hideResultSpoilers: boolean;
   activeEditionLabel?: string | null;
+  worldEnabled?: boolean;
 };
 
 function statusPresentation(status: string | null): {
@@ -70,7 +72,9 @@ export function V3DelegationScreen({
   followControl,
   hideResultSpoilers,
   activeEditionLabel,
+  worldEnabled = false,
 }: V3DelegationScreenProps) {
+  const { allows } = usePublicLaunchAvailability();
   const currentStatus = projection.currentEntry
     ? statusPresentation(projection.currentEntry.status)
     : null;
@@ -109,11 +113,13 @@ export function V3DelegationScreen({
         <div className="cinematic-country-identity__follow">{followControl}</div>
       </section>
       <nav className="cinematic-entity-section-nav" aria-label="Country page sections">
-        <a href="#country-overview">Overview</a>
-        <a href="#country-current">Current entry</a>
+        <a href="#country-overview" aria-current="page">Overview</a>
+        <a href="#country-current">Entries</a>
         {currentResult ? <a href="#country-result">Results</a> : null}
         <a href="#country-history">History</a>
-        <a href="#country-more">Explore more</a>
+        {worldEnabled ? <a href="#country-world">World</a> : null}
+        {allows("/relationships") ? <Link to="/relationships">Voting</Link> : null}
+        {allows("/stories") ? <Link to="/stories">Stories</Link> : null}
       </nav>
 
       <div id="country-current" className="cinematic-entity-anchor">
@@ -213,25 +219,23 @@ export function V3DelegationScreen({
         }
       >
         {projection.participationHistory.length ? (
-          <div className="grid gap-2">
+          <ol className="cinematic-country-history" aria-label="Published participation history">
             {projection.participationHistory.map((entry) => {
               const status = statusPresentation(entry.status);
               return (
-                <V3Surface key={entry.editionId} className="px-4 py-3">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <EditionContextLink
-                        entry={entry}
-                        className="block text-sm font-semibold text-white/92"
-                      />
-                      <p className="mt-1 truncate text-xs text-white/48">{entryTitle(entry)}</p>
-                    </div>
-                    {status ? <V3StatusChip tone={status.tone}>{status.label}</V3StatusChip> : null}
+                <li key={entry.editionId} className="cinematic-country-history__row">
+                  <div className="min-w-0">
+                    <EditionContextLink
+                      entry={entry}
+                      className="block text-sm font-semibold text-white/92"
+                    />
+                    <p className="mt-1 text-xs leading-5 text-white/65">{entryTitle(entry)}</p>
                   </div>
-                </V3Surface>
+                  {status ? <V3StatusChip tone={status.tone}>{status.label}</V3StatusChip> : null}
+                </li>
               );
             })}
-          </div>
+          </ol>
         ) : (
           <V3Surface className="p-4">
             <p className="text-sm text-white/52">No published participation history is available yet.</p>
@@ -240,9 +244,32 @@ export function V3DelegationScreen({
       </V3Section>
       </div>
 
+      {worldEnabled ? (
+        <section id="country-world" className="cinematic-entity-anchor cinematic-country-world">
+          <V3Section title="Terra Solaris" meta="World">
+            <div className="cinematic-country-world__layout">
+              <div>
+                <p className="cinematic-country-world__headline">Beyond the contest</p>
+                <p className="cinematic-country-world__copy">
+                  Explore published institutions, international organizations and country history.
+                  Political facts appear only in their canonical World profiles.
+                </p>
+              </div>
+              <V3ActionCard
+                title="Discover Terra Solaris"
+                description="GUARD, UNITY and published international history"
+                icon={Globe2}
+                tone="neutral"
+                to="/world"
+              />
+            </div>
+          </V3Section>
+        </section>
+      ) : null}
+
       <div id="country-more" className="cinematic-entity-anchor">
       <V3Section title="Explore more">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="cinematic-country-related">
           <V3ActionCard
             title="Results"
             description="Placements, points and score analysis"

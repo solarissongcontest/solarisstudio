@@ -217,12 +217,12 @@ function SectionNav({
   ];
 
   return (
-    <nav aria-label={`Explore ${projection.hub.hero.name}`} className="flex flex-wrap gap-2">
+    <nav aria-label={`Explore ${projection.hub.hero.name}`} className="cinematic-entity-section-nav cinematic-edition-nav">
       {links.map((item) =>
         item.locked ? (
           <span
             key={item.key}
-            className="rounded-full border border-white/[0.06] px-3 py-2 text-xs font-semibold text-white/32"
+            className="cinematic-entity-section-nav__disabled"
             aria-disabled="true"
           >
             {item.label}
@@ -231,7 +231,8 @@ function SectionNav({
           <Link
             key={item.key}
             to={item.href as any}
-            className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-xs font-semibold text-white/70 transition hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+            className="cinematic-edition-nav__link"
+            aria-current={item.key === "overview" ? "page" : undefined}
           >
             {item.label}
           </Link>
@@ -299,6 +300,12 @@ export function V3EditionOverviewScreen({
         </div>
       )}
 
+      <SectionNav
+        projection={projection}
+        spoilerSafe={spoilerSafe}
+        globalSpoilerProtection={hideSpoilers}
+      />
+
       {projection.hub.liveAction ? (
         <V3Section title="Live now" meta={<V3StatusChip tone="live">Live</V3StatusChip>}>
           <V3ActionCard
@@ -356,12 +363,6 @@ export function V3EditionOverviewScreen({
         </V3Section>
       ) : null}
 
-      <SectionNav
-        projection={projection}
-        spoilerSafe={spoilerSafe}
-        globalSpoilerProtection={hideSpoilers}
-      />
-
       <V3Section
         title="At a glance"
         meta={
@@ -370,26 +371,26 @@ export function V3EditionOverviewScreen({
             : undefined
         }
       >
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <dl className="cinematic-edition-facts">
           {[
             ["Delegations", projection.overview.participantCount],
             ["Revealed entries", projection.overview.entryCount],
             ["Public shows", projection.overview.showCount],
             ["Semi-finals", projection.overview.semiFinalCount],
           ].map(([label, value]) => (
-            <V3Surface key={String(label)} className="p-4">
-              <p className="text-2xl font-black tabular-nums tracking-[-0.04em]">{value}</p>
-              <p className="mt-1 text-[0.68rem] font-semibold text-white/45">{label}</p>
-            </V3Surface>
+            <div key={String(label)} className="cinematic-edition-facts__item">
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
           ))}
-        </div>
+        </dl>
       </V3Section>
 
       <V3Section title="Participants" meta={`${projection.participants.length} public`}>
         {participantPreview.length ? (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="cinematic-edition-entity-list">
             {participantPreview.map((participant) => (
-              <V3Surface key={participant.id} className="px-4 py-2.5">
+              <V3Surface key={participant.id} className="cinematic-edition-entity-row px-3 py-1">
                 <IdentityRow
                   item={participant}
                   detail={participant.shortCode}
@@ -426,9 +427,9 @@ export function V3EditionOverviewScreen({
       ) : (
         <V3Section title="Songs & artists" meta={`${projection.entries.length} revealed`}>
           {entryPreview.length ? (
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="cinematic-edition-entity-list">
               {entryPreview.map((entry) => (
-                <V3Surface key={entry.id} className="px-4 py-2.5">
+                <V3Surface key={entry.id} className="cinematic-edition-entity-row px-3 py-1">
                   <IdentityRow
                     item={entry}
                     detail={

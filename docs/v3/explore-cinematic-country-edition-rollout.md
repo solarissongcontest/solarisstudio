@@ -34,3 +34,9 @@
 - The existing authorized `MySolarisDesignV2Module` embeds the **Country Hero Studio V3 preview**. It consumes the current Country V2 background selection and existing focal-position sliders as *local editor draft state only*.
 - Preview modes: installed app, mobile browser website and desktop, with a separate official 3:2 flag identity strip and the shared cinematic fading title.
 - **No new Publish V3 control**: existing `Publish V2` is explicitly not the V3 Hero publish authority. The next server-authoritative System/Media slice must establish published hero revision and private draft lifecycle before activation.
+
+## Second visual implementation pass
+- Country now exposes World section/navigation only after a verified and centrally allowed World rollout; no country politics or GUARD/UNITY membership is fabricated.
+- Country published history and related destinations use separated editorial rows rather than repeated boxed cards. Existing full history and canonical result paths remain.
+- Edition dedicated navigation now sits immediately after the hero introduction, overview statistics are a semantic flat fact strip, and Participant/Song previews become bounded editorial list rows.
+- Continue to treat World Country deep links as independently gated; no claimed country-specific World detail yet.
