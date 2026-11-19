@@ -25,6 +25,7 @@ import { ParticipationConfirmationEdit } from "@/components/public/Participation
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import { televotingSupabase } from "@/integrations/televoting/client";
 import { getCountryConfirmationAccess } from "@/lib/confirmation-country-account";
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.functions";
 import { formatEventDateTime } from "@/lib/public-time";
 import {
@@ -128,6 +129,7 @@ function ParticipatePage() {
 
 function LegacyParticipatePage() {
   const { isAppMode } = useSolarisApp();
+  const { allowsReleased } = usePublicLaunchAvailability();
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
     const update = () => setNow(Date.now());
@@ -324,11 +326,19 @@ function LegacyParticipatePage() {
     televoteQuery.isError,
   ]);
 
-  const primary = primaryParticipationAction(actions);
-  const otherAvailable = actions.filter(
+  // Live round status is not proof that its destination is released. Keep
+  // services discoverable below, but never render a dead primary CTA through
+  // maintenance/rollout gates. Existing Confirmation editing has its own
+  // authorized token route and is surfaced independently above.
+  const releasedActions = useMemo(
+    () => actions.filter((action) => allowsReleased(action.to)),
+    [actions, allowsReleased],
+  );
+  const primary = primaryParticipationAction(releasedActions);
+  const otherAvailable = releasedActions.filter(
     (action) => action.status === "available" && action.id !== primary?.id,
   );
-  const upcoming = upcomingParticipationActions(actions);
+  const upcoming = upcomingParticipationActions(releasedActions);
   const appAuthKnown = !juryQuery.isLoading;
   const appSignedIn = juryQuery.data?.signedIn === true;
   const statusError =
