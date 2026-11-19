@@ -119,22 +119,55 @@ jobs:
 
       - name: Install browser-audit browser binaries
         timeout-minutes: 15
+        shell: bash
         run: |
-          # Hosted runners' Azure apt mirror can fail DNS and stall for half an
-          # hour. Keep Ubuntu's signed package sources, using primary mirrors.
-          if [[ -f /etc/apt/apt-mirrors.txt ]]; then
-            printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          set -euo pipefail
+
+          # The GitHub-hosted Ubuntu image can already run pinned Playwright
+          # engines. Prove that first: a failing APT mirror must not block an
+          # otherwise usable local-only Browser Audit before any browser runs.
+          bunx playwright install chromium webkit
+          browser_launch_smoke() {
+            node --input-type=module <<'NODE'
+          import { chromium, webkit } from "@playwright/test";
+
+          for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
+            const browser = await engine.launch({ headless: true });
+            try {
+              const page = await browser.newPage();
+              await page.goto("data:text/html,<main id='local-browser-smoke'>local browser smoke</main>");
+              const observed = await page.locator("#local-browser-smoke").innerText();
+              if (observed !== "local browser smoke") throw new Error(name + " DOM smoke failed");
+              await page.screenshot();
+              await page.close();
+              console.log("PASS: " + name + " executes headless DOM and screenshot smoke");
+            } finally {
+              await browser.close();
+            }
+          }
+          NODE
+          }
+
+          if browser_launch_smoke; then
+            echo "PASS: installed browser system libraries launch both engines; apt unnecessary"
+          else
+            # Browser startup failed on real engine execution, so install
+            # system dependencies from signed Ubuntu package indexes.
+            # Fail closed if package index verification or dependency install
+            # fails; never skip the browser suite or use hosted Supabase.
+            if [[ -f /etc/apt/apt-mirrors.txt ]]; then
+              printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+            fi
+            if [[ -f /etc/apt/apt-mirrors-security.txt ]]; then
+              printf '%s\n' 'https://security.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors-security.txt >/dev/null
+            fi
+            printf '%s\n' 'Acquire::Retries "3";' 'Acquire::http::Timeout "30";' 'Acquire::https::Timeout "30";' \
+              | sudo tee /etc/apt/apt.conf.d/80-solaris-browser-network >/dev/null
+            sudo apt-get -o APT::Update::Error-Mode=any update
+            bunx playwright install --with-deps chromium webkit
+            # Dependency installation is not proof the engines work.
+            browser_launch_smoke
           fi
-          if [[ -f /etc/apt/apt-mirrors-security.txt ]]; then
-            printf '%s\n' 'https://security.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors-security.txt >/dev/null
-          fi
-          printf '%s\n' 'Acquire::Retries "3";' 'Acquire::http::Timeout "30";' 'Acquire::https::Timeout "30";' \
-            | sudo tee /etc/apt/apt.conf.d/80-solaris-browser-network >/dev/null
-          # apt normally treats failed index downloads as warnings and then
-          # uses stale indexes, which can request removed package versions.
-          # Require a fresh signed index; DNS failure must fail this step.
-          sudo apt-get -o APT::Update::Error-Mode=any update
-          bunx playwright install --with-deps chromium webkit
 
       - name: Start isolated local Supabase for browser audit
         shell: bash
