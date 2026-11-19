@@ -61,7 +61,8 @@ export function V3DirectoryFamilyIndex({
   noShell?: boolean;
 }) {
   const { allows } = usePublicLaunchAvailability();
-  groups = groups.map(group => ({ ...group, items: group.items.filter(item => allows(item.to)) }));
+  groups = groups.map(group => ({ ...group, items: group.items.filter(item => allows(item.to)) }))
+    .filter(group => group.items.length > 0);
   const { platformResolved } = useSolarisApp();
   const presentation = useV3DirectoryPresentation();
   const [search, setSearch] = useState("");
