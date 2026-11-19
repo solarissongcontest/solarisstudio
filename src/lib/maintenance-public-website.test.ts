@@ -58,7 +58,9 @@ describe("actual V3 public launch while voting maintenance remains", () => {
     expect(root).toContain("data-maintenance-client-denied");
     expect(root).toContain("maintenanceRouteAllowed");
     expect(root).toContain("PublicEarlyAccessMe");
-    expect(root).toContain("GLOBAL_MAINTENANCE_MODE && !maintenanceRouteAllowed");
+    expect(root).toContain("GLOBAL_MAINTENANCE_MODE && !localDisposableBrowserAudit && !maintenanceRouteAllowed");
+    expect(root).toContain("process.env.SOLARIS_E2E_BYPASS_MAINTENANCE");
+    expect(root).toContain("localDisposableSupabase");
     expect(account).toContain("data-public-early-access-me");
     expect(account).not.toContain("MySolarisOperationsPanel");
     expect(account).not.toContain("V3MeRoot");
