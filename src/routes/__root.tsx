@@ -139,10 +139,10 @@ function NotFoundComponent() {
           Go home
         </Link>
         <Link
-          to="/explore"
+          to="/participate"
           className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-surface px-4 text-sm font-semibold"
         >
-          Explore Solaris
+          Participate
         </Link>
       </div>
     </div>
