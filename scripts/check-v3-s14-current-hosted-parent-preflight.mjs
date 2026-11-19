@@ -1,0 +1,45 @@
+// Offline, fail-closed S14 catalog/source checkpoint verifier. No DB/network calls.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+const f='docs/v3/recovery-candidates/evidence/s14-current-hosted-parent-preflight-2026-11-19.json';
+const p=JSON.parse(fs.readFileSync(f,'utf8'));
+assert.equal(p.schema_version,1);
+assert.equal(p.project_id,'dkxmnvekiopyesuzggeu');
+assert.match(p.source_main_sha,/^[0-9a-f]{40}$/);
+assert.equal(p.postgres_version_num,'170011');
+assert.ok(Number.isFinite(Date.parse(p.observed_at)));
+const original=fs.readFileSync(p.source_candidate.path);
+assert.equal(crypto.createHash('sha1').update(Buffer.concat([Buffer.from('blob '+original.length+String.fromCharCode(0)),original])).digest('hex'),p.source_candidate.git_blob_sha);
+assert.match(original.toString('utf8').slice(0,400),/LOCAL REHEARSAL ONLY/);
+const source=original.toString('utf8');
+const extract=(pattern)=>[...source.matchAll(pattern)].map(x=>[...x[1].matchAll(/'([^']+)'/g)].map(m=>m[1]));
+const rel=extract(/select required_object into v_absent\\s+from unnest\\(array\\[([\\s\\S]*?)\\]\\) required_object\\s+where to_regclass/g);
+const fn=extract(/select wanted into v_absent\\s+from unnest\\(array\\[([\\s\\S]*?)\\]\\) wanted\\s+where to_regprocedure/g);
+const newFn=extract(/select wanted into v_existing from unnest\\(array\\[([\\s\\S]*?)\\]\\) wanted where to_regprocedure/g);
+assert.deepEqual(rel.map(x=>x.length),[16,29]);
+assert.deepEqual(fn.map(x=>x.length),[4,21]);
+assert.deepEqual(newFn.map(x=>x.length),[18]);
+const expected=[...rel.flatMap((a,i)=>a.map(identity=>['relation',i===0?'core-parent':'runtime-parent',identity])),
+...fn.flatMap((a,i)=>a.map(identity=>['function',i===0?'original-helper':'required-runtime',identity])),
+...newFn[0].map(identity=>['function','must-be-absent-new',identity])];
+assert.equal(expected.length,88);
+const id=(x)=>x.join('|');
+assert.deepEqual(p.identities.map(x=>id([x.kind,x.group,x.identity])).sort(),expected.map(id).sort());
+assert.equal(new Set(expected.map(id)).size,expected.length);
+assert.ok(p.identities.every(x=>x.present===(x.group!=='must-be-absent-new')));
+assert.equal(p.upstream_security_definers.length,2);
+assert.ok(p.upstream_security_definers.every(x=>x.owner==='postgres'&&x.security_definer&&/^[0-9a-f]{32}$/.test(x.definition_md5)));
+assert.equal(p.new_archive_trigger_collisions,0);
+assert.equal(p.private_gate_collisions,0);
+assert.equal(p.s13_governance_missing.registry_table,true);
+assert.equal(p.s13_governance_missing.registry_rpc,true);
+assert.equal(p.previous_20261119_column_contracts_compatible,31);
+assert.equal(p.proof.actual_backup_restore_certified,false);
+assert.equal(p.proof.hosted_only_forward_manifest_approved,false);
+assert.equal(p.proof.production_schema_changed,false);
+assert.equal(p.proof.cloudflare_promoted,false);
+const query=fs.readFileSync(p.query_path,'utf8').split('\\n').filter(x=>!x.trimStart().startsWith('--')).join('\\n').trim();
+assert.ok(/^with\\b/i.test(query));
+assert.equal(query.split(';').filter(x=>x.trim()).length,1);
+console.log('PASS S14 local candidate: 45 required relations, 25 required original helpers, 18 new names absent; NO hosted deployment authorization');
