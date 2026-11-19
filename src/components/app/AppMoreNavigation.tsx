@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { SheetClose } from "@/components/ui/sheet";
+import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
 import type { AccountAccess } from "@/lib/country-account";
 
 const LINKS = [
@@ -54,16 +55,16 @@ export function AppMoreNavigation({
         className="mt-5 grid gap-2"
         aria-label="More Solaris Studio destinations"
       >
-        {LINKS.map(({ to, label, icon: Icon }) => (
+        {!GLOBAL_MAINTENANCE_MODE ? LINKS.map(({ to, label, icon: Icon }) => (
           <SheetClose asChild key={to}>
             <Link to={to as any} className="solaris-app-more-link">
               <Icon className="size-4" aria-hidden="true" />
               <span>{label}</span>
             </Link>
           </SheetClose>
-        ))}
+        )) : null}
 
-        {signedIn ? (
+        {!GLOBAL_MAINTENANCE_MODE && signedIn ? (
           <SheetClose asChild>
             <Link to="/my-solaris/account" className="solaris-app-more-link">
               <UserRound className="size-4" aria-hidden="true" />
@@ -72,7 +73,7 @@ export function AppMoreNavigation({
           </SheetClose>
         ) : null}
 
-        {access.isOrganizer ? (
+        {!GLOBAL_MAINTENANCE_MODE && access.isOrganizer ? (
           <SheetClose asChild>
             <Link to="/admin/tasks" search={{ filter: "all" }} className="solaris-app-more-link">
               <UserRound className="size-4" aria-hidden="true" />
