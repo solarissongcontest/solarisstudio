@@ -73,3 +73,8 @@
 - Live/paused broadcast material is still the only highlighted show surface; Upcoming, Recent, Current Edition, archive and filtered browsing use flat, predictable editorial rows instead of repeated rounded cards.
 - Installed app keeps its single filter sheet and keyboard-operable search; mobile website keeps border-separated native-style rows; desktop keeps a left filter rail and one wide scannable list.
 - Existing publication-status badges, official published Results hints, Show links, safely exposed broadcast links, fixed page window and chronological event formatting are retained. No Results/Show data refetch added.
+
+## Stories detail: ordinary mobile + desktop web editorial parity
+- Website Stories detail keeps the existing public `loadPublicStoryline` and its stable published Edition slug reader, but replaces the overloaded text header with a generous, adaptive text-led editorial masthead and the scattered timeline tile cards with continuous chronological narrative rows.
+- No speculative artwork is loaded: the website public Storyline result does not supply an authorized image, whereas the installed V3 published detail has a separately verified Edition artwork projection.
+- The installed PWA gate/legacy fallback and Story metadata contract remain unmodified.

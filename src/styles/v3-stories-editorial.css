@@ -146,3 +146,41 @@
 @media (forced-colors:active) {
   .v3-story-detail-hero__fade {background:linear-gradient(0deg,Canvas 0%,Canvas 48%,transparent 100%);}
 }
+
+/* Ordinary web Story detail: editorial reading, responsive but NOT a PWA fake shell.
+   Text-led because the public storyline RPC does not project artwork. */
+.v3-story-web-detail-hero {
+  position:relative;isolation:isolate;
+  display:flex;flex-direction:column;justify-content:flex-end;gap:.1rem;
+  min-height:clamp(20rem,45svh,31rem);
+  max-width:none;overflow:hidden;
+  padding:3.5rem clamp(1rem,4vw,3rem) clamp(2.5rem,5vw,4.5rem);
+  background:radial-gradient(ellipse at 74% 12%,rgba(90,130,169,.3),transparent 55%),
+    linear-gradient(155deg,#1c3950 0%,#0a192b 67%,#020817 100%);
+  color:#fff;
+}
+.v3-story-web-detail-hero h1 {
+  max-width:21ch;
+  font-family:"Iowan Old Style","Baskerville","Times New Roman",serif;
+  color:#fff;
+  font-size:clamp(2.5rem,6vw,5rem);
+  font-weight:650;letter-spacing:-.05em;
+  line-height:1.06;text-wrap:balance;overflow-wrap:anywhere;
+}
+.v3-story-web-detail-hero p {max-width:64ch;color:rgba(255,255,255,.83);line-height:1.65;}
+.v3-story-web-detail-hero p:first-child {color:#c3e0ee;}
+.v3-story-web-timeline-entry {
+  padding:.2rem .3rem 1.5rem 0;margin-bottom:1rem;
+  border-bottom:1px solid var(--border);
+  background:transparent;box-shadow:none;
+}
+.v3-story-web-timeline-entry h2 {text-wrap:pretty;overflow-wrap:anywhere;}
+.v3-story-web-timeline-entry p {max-width:66ch;line-height:1.75;}
+.v3-story-web-timeline-importance {font-size:.72rem;color:var(--muted-foreground);}
+@media (max-width:430px) {
+  .v3-story-web-detail-hero {min-height:18rem;padding:2.5rem 1.1rem 2.7rem;}
+  .v3-story-web-detail-hero h1 {font-size:clamp(2.15rem,10vw,3.25rem);}
+}
+@media (prefers-reduced-motion:reduce) {
+  .v3-story-web-detail-hero * {animation:none!important;transition:none!important;}
+}
