@@ -11,6 +11,7 @@ on:
       - "scripts/rehearse-v3-s14-archive-forward-effects-local.sh"
       - "scripts/v3-s14-archive-forward-effects.contract.test.mjs"
       - "scripts/stage-v3-s07-televote-source-truth.mjs"
+      - "scripts/v3-s13-s16-stage-provenance.mjs"
       - "supabase/migrations/20261113211759_v3_atomic_calculation_actor_binding.sql"
       - ".github/tests/v3-atomic-calculation-actor.sql"
       - ".github/tests/v3-atomic-observed-grants-local.sql"
@@ -381,6 +382,7 @@ jobs:
       - name: Test S16 Publication certificate refusal cases and evidence collector syntax
         run: |
           node --check scripts/v3-s16-publication-execution-evidence.mjs
+          node --check scripts/v3-s13-s16-stage-provenance.mjs
           node --test scripts/v3-s16-publication-certificate.test.mjs
       - name: Assert 21 upstream fingerprint source integrity and fail-closed cases
         run: node scripts/verify-v3-s06-hosted-upstream-rpc-catalog.mjs --self-test
@@ -1034,6 +1036,8 @@ jobs:
           echo 'PASS: ordered S13 -> Archive -> S07 -> S08; interrupted rollback, API-role DML denial and duplicate refusal'
           # Rehearse the identical ordered recovery as the actual observed operator.
           source .github/scripts/v3-observed-owner-recovery-local.sh
+          # Rehash and classify every local-stage byte; publish no hosted-ready SQL.
+          node scripts/v3-s13-s16-stage-provenance.mjs .
           node scripts/v3-s13-s16-stage-provenance.mjs .
           docker rm -f "$cid" >/dev/null
           cid=""
@@ -1047,6 +1051,7 @@ jobs:
           name: s06-hosted-observed-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             observed-owner-recovery-proof.json
+            s13-s16-stage-provenance-classification.json
             s13-s16-stage-provenance-classification.json
             s16-publication-domain-execution.json
             ordered-recovery-sql/
