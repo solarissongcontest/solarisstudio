@@ -410,16 +410,26 @@ jobs:
           const page = await browser.newPage();
           let sawRest = false;
           const failures = [];
+          const pendingHeaderChecks = [];
 
-          page.on("request", async (request) => {
+          // Playwright does not await async EventEmitter handlers. Closing
+          // Chromium before an allHeaders() listener finishes races the page
+          // context and can falsely fail an otherwise isolated credential probe.
+          page.on("request", (request) => {
             if (!request.url().startsWith(`${expectedUrl}/rest/v1/`)) return;
             sawRest = true;
-            const headers = await request.allHeaders();
-            if (headers.apikey !== expectedKey) failures.push(`apikey mismatch for ${new URL(request.url()).pathname}`);
-            const auth = headers.authorization ?? "";
-            if (auth && auth !== `Bearer ${expectedKey}`) {
-              failures.push(`unexpected Authorization identity for ${new URL(request.url()).pathname}`);
-            }
+            pendingHeaderChecks.push(
+              (async () => {
+                const headers = await request.allHeaders();
+                if (headers.apikey !== expectedKey) failures.push(`apikey mismatch for ${new URL(request.url()).pathname}`);
+                const auth = headers.authorization ?? "";
+                if (auth && auth !== `Bearer ${expectedKey}`) {
+                  failures.push(`unexpected Authorization identity for ${new URL(request.url()).pathname}`);
+                }
+              })().catch((error) => {
+                failures.push(`Cannot verify local Supabase request headers: ${String(error)}`);
+              }),
+            );
           });
 
           page.on("response", async (response) => {
@@ -451,6 +461,7 @@ jobs:
             { url: expectedUrl, key: expectedKey },
           );
           await page.waitForTimeout(250);
+          await Promise.all(pendingHeaderChecks);
           await browser.close();
 
           if (!sawRest) failures.push("Browser local Supabase REST probe was not observed");
