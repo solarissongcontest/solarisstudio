@@ -1,4 +1,5 @@
 import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
+import { GLOBAL_MAINTENANCE_MODE, MAINTENANCE_PUBLIC_PRIMARY_AREAS } from "@/lib/maintenance";
 import { Link } from "@tanstack/react-router";
 
 import {
@@ -24,7 +25,10 @@ export function PublicDrawerNavigation({
 }) {
   const { allows } = usePublicLaunchAvailability();
   const area = publicAreaForPath(pathname);
-  const globalAreas = publicGlobalAreasForContext(user);
+  const globalAreas = publicGlobalAreasForContext(user).filter(
+    (item) => !GLOBAL_MAINTENANCE_MODE ||
+      (MAINTENANCE_PUBLIC_PRIMARY_AREAS as readonly string[]).includes(item.id),
+  );
   const areaRoot = PUBLIC_GLOBAL_AREAS.find((item) => item.id === area)?.to ?? null;
   const localItems =
     area === "home" || area === "me"
@@ -65,7 +69,7 @@ export function PublicDrawerNavigation({
         </div>
       </section>
 
-      {localItems.length ? (
+      {!GLOBAL_MAINTENANCE_MODE && localItems.length ? (
         <DrawerSection
           title={area === "help" ? "Rules & help" : `In ${areaLabel(area)}`}
           items={localItems}
@@ -73,7 +77,7 @@ export function PublicDrawerNavigation({
         />
       ) : null}
 
-      <section aria-labelledby="drawer-utilities">
+      {!GLOBAL_MAINTENANCE_MODE ? <section aria-labelledby="drawer-utilities">
         <div className="px-2">
           <h2 id="drawer-utilities" className="public-site-sidebar-label">
             Find & help
@@ -113,7 +117,7 @@ export function PublicDrawerNavigation({
             </Link>
           ) : null}
         </div>
-      </section>
+      </section> : null}
     </div>
   );
 }
