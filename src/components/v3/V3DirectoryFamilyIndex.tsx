@@ -170,7 +170,7 @@ export function V3DirectoryFamilyIndex({
   );
 
   const content = (
-      <div className="v3-directory-family" data-directory-experience={presentation} data-directory-kind={variant}>
+      <div className="v3-directory-family v3-editorial-directory" data-directory-experience={presentation} data-directory-kind={variant}>
         {presentation === "installed-app" ? (
           <AppScreen>
             <header className="v3-directory-app-heading">

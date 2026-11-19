@@ -1,0 +1,473 @@
+/*
+ * Solaris Studio V3: editorial WEBSITE composition.
+ * This file is loaded last by the root head stylesheet list.
+ * Installed app / PWA chrome and safe-zone geometry are intentionally excluded.
+ * Existing country personality, release, spoilers and RLS remain authoritative.
+ */
+html:not([data-solaris-app]) {
+  --v3-editorial-rule: color-mix(in oklab, var(--foreground) 14%, transparent);
+  --v3-editorial-soft: color-mix(in oklab, var(--surface) 65%, transparent);
+  --v3-editorial-gap: clamp(1.5rem, 3.5vw, 3rem);
+}
+/* Mobile web is a normal browser page, not an installed floating-tab app. */
+html:not([data-solaris-app]) [data-v3-shell-experience="web"] .v3-mobile-web-primary-nav {
+  position: relative;
+  border-block: 1px solid var(--v3-border-subtle);
+  background: transparent;
+  box-shadow: none;
+  scroll-padding-inline: 1rem;
+}
+html:not([data-solaris-app]) [data-v3-shell-experience="web"] .v3-mobile-web-primary-nav__item {
+  min-height: 44px;
+  font-size: .81rem;
+  font-weight: 650;
+  letter-spacing: -.01em;
+}
+html:not([data-solaris-app]) [data-v3-shell-experience="web"] .v3-screen {
+  width: min(100%, 74rem);
+  padding-inline: clamp(1rem, 3vw, 2.5rem);
+}
+html:not([data-solaris-app]) [data-v3-shell-experience="web"] .v3-screen-header {
+  max-width: 59rem;
+  margin-bottom: clamp(1.25rem, 3vw, 2.5rem);
+}
+html:not([data-solaris-app]) [data-v3-shell-experience="web"] .v3-display {
+  font-size: clamp(2.1rem, 5.2vw, 4.5rem);
+  line-height: .99;
+  letter-spacing: -.055em;
+  text-wrap: balance;
+}
+html:not([data-solaris-app]) [data-v3-shell-experience="web"] .v3-lead {
+  max-width: 55ch;
+  font-size: clamp(.88rem, 1.2vw, 1rem);
+  line-height: 1.6;
+}
+html:not([data-solaris-app]) [data-v3-shell-experience="web"] .v3-screen > .v3-section {
+  margin-block: 0 var(--v3-editorial-gap);
+}
+html:not([data-solaris-app]) [data-v3-shell-experience="web"] .v3-section__header {
+  margin-bottom: 1rem;
+  padding-bottom: .85rem;
+  border-bottom: 1px solid var(--v3-editorial-rule);
+}
+html:not([data-solaris-app]) [data-v3-shell-experience="web"] .v3-section__title {
+  font-size: clamp(1.25rem, 2.8vw, 1.8rem);
+  letter-spacing: -.035em;
+  text-wrap: balance;
+}
+html:not([data-solaris-app]) [data-v3-shell-experience="web"] .v3-action-card[data-interactive="true"] {
+  border-color: var(--v3-editorial-rule);
+  border-radius: .88rem;
+  background: var(--v3-editorial-soft);
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+html:not([data-solaris-app]) [data-v3-shell-experience="web"] .v3-action-card[data-interactive="true"]:hover {
+  border-color: color-mix(in oklab, var(--v3-accent-strong) 34%, var(--v3-border));
+  background: var(--surface-strong, var(--surface));
+}
+/* Home: one strong feature, with a restrained editorial rhythm below. */
+html:not([data-solaris-app]) .v3-editorial-home .v3-current-contest-editorial {
+  overflow: clip;
+  border: 1px solid color-mix(in oklab, var(--v3-accent) 24%, var(--v3-border));
+  border-radius: clamp(1rem, 2.5vw, 1.65rem);
+  padding: clamp(1.4rem, 3.5vw, 2.9rem);
+  background: radial-gradient(ellipse at 85% 10%, color-mix(in oklab, var(--v3-accent) 17%, transparent), transparent 65%), var(--v3-bg-raised);
+}
+html:not([data-solaris-app]) .v3-editorial-home .v3-current-contest-editorial h2 {
+  max-width: 19ch;
+  font-size: clamp(2rem, 5vw, 4rem);
+  letter-spacing: -.055em;
+  line-height: 1.04;
+  text-wrap: balance;
+}
+html:not([data-solaris-app]) .v3-editorial-home .v3-preview-meta-grid {
+  gap: 0;
+  border-block: 1px solid var(--v3-editorial-rule);
+}
+html:not([data-solaris-app]) .v3-editorial-home .v3-current-contest-editorial .v3-preview-stat {
+  padding-block: .9rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+html:not([data-solaris-app]) .v3-editorial-home .v3-current-contest-editorial .v3-preview-stat + .v3-preview-stat {
+  border-left: 1px solid var(--v3-editorial-rule);
+}
+/* Public directories: flags / actual content above repeated controls. */
+html:not([data-solaris-app]) .v3-editorial-country-index .v3-countries-collections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  margin-bottom: .6rem;
+}
+html:not([data-solaris-app]) .v3-editorial-country-index .v3-countries-scope-button {
+  min-height: 44px;
+  padding: .5rem .9rem;
+  border-radius: 999px;
+  font-size: .8rem;
+  background: transparent;
+}
+html:not([data-solaris-app]) .v3-editorial-country-index .v3-countries-scope-button.is-selected {
+  background: color-mix(in oklab, var(--primary) 13%, var(--surface));
+  border-color: color-mix(in oklab, var(--primary) 42%, var(--border));
+}
+html:not([data-solaris-app]) .v3-editorial-country-index .v3-country-web-row {
+  min-height: 5rem;
+  border-bottom: 1px solid var(--v3-editorial-rule);
+}
+html:not([data-solaris-app]) .v3-editorial-country-index .v3-countries-desktop-grid {
+  gap: clamp(.75rem, 1.4vw, 1.25rem);
+}
+html:not([data-solaris-app]) .v3-editorial-country-index .v3-country-desktop-item {
+  min-height: 8rem;
+  border: 1px solid var(--v3-editorial-rule);
+  border-radius: .95rem;
+  padding: 1rem;
+  background: var(--v3-editorial-soft);
+}
+/* Country web detail: keep canonical 3:2 flag and individualized personality. */
+html:not([data-solaris-app]) .country-editorial-profile {
+  min-width: 0;
+}
+html:not([data-solaris-app]) .country-editorial-profile .country-editorial-hero {
+  min-height: clamp(21rem, 38vw, 35rem);
+  margin-bottom: 0;
+  overflow: clip;
+  border-radius: clamp(.9rem, 2vw, 1.5rem);
+}
+html:not([data-solaris-app]) .country-editorial-profile .country-editorial-hero :is(h1, .country-v2-hero-title) {
+  max-width: 18ch;
+  font-size: clamp(2.6rem, 7vw, 6.2rem);
+  line-height: 1.01;
+  letter-spacing: -.055em;
+  text-wrap: balance;
+}
+html:not([data-solaris-app]) .country-editorial-profile .country-editorial-hero :is(.country-official-flag, .country-v2-hero-flag) img {
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+}
+html:not([data-solaris-app]) .country-editorial-profile .country-editorial-hero + * {
+  margin-top: clamp(.9rem, 2.5vw, 1.5rem);
+}
+html:not([data-solaris-app]) .country-editorial-profile .data-panel {
+  border-color: var(--v3-editorial-rule);
+  box-shadow: none;
+}
+html:not([data-solaris-app]) .country-editorial-profile .data-panel :is(h2, h3) {
+  letter-spacing: -.03em;
+}
+/* Official edition legacy web: artwork-driven, fewer nested framed surfaces. */
+html:not([data-solaris-app]) .edition-editorial-refresh {
+  gap: clamp(1.5rem, 3.5vw, 3rem);
+  padding-bottom: max(3rem, env(safe-area-inset-bottom));
+}
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-hero {
+  min-height: clamp(23rem, 41vw, 38rem);
+  border: 0;
+  border-radius: clamp(.9rem, 2vw, 1.45rem);
+}
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-hero h1 {
+  font-size: clamp(3.1rem, 8vw, 7.2rem);
+  line-height: .94;
+  text-wrap: balance;
+}
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-hero-artwork {
+  opacity: .45;
+}
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-navigation {
+  position: relative;
+  top: auto;
+  width: 100%;
+  max-width: 100%;
+  margin-top: -.85rem;
+  border: 0;
+  border-bottom: 1px solid var(--v3-editorial-rule);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-quick-facts {
+  border-block-color: var(--v3-editorial-rule);
+}
+/* V3 projection edition. Keep contain fit: published artwork can be a logo. */
+html:not([data-solaris-app]) .v3-editorial-edition .v3-edition-feature {
+  border: 1px solid color-mix(in oklab, var(--v3-accent) 20%, var(--v3-border));
+  border-radius: clamp(.9rem, 2vw, 1.5rem);
+  overflow: clip;
+  background: radial-gradient(circle at 80% 0%, color-mix(in oklab, var(--v3-accent) 16%, transparent), transparent 65%), var(--v3-bg-base);
+}
+html:not([data-solaris-app]) .v3-editorial-edition .v3-edition-feature-art {
+  min-height: clamp(13rem, 29vw, 28rem);
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: linear-gradient(to bottom, transparent, var(--v3-bg-base));
+}
+html:not([data-solaris-app]) .v3-editorial-edition .v3-edition-feature-art img {
+  width: 100%;
+  height: auto;
+  max-height: 28rem;
+  object-fit: contain;
+}
+html:not([data-solaris-app]) .v3-editorial-edition .v3-edition-feature > .p-5 {
+  padding: clamp(1.2rem, 2.8vw, 2rem);
+}
+html:not([data-solaris-app]) .v3-editorial-edition .v3-edition-section-nav {
+  flex-wrap: nowrap;
+  gap: .3rem;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  border-bottom: 1px solid var(--v3-editorial-rule);
+  padding-bottom: .55rem;
+}
+html:not([data-solaris-app]) .v3-editorial-edition .v3-edition-section-nav > :is(a, span) {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  white-space: nowrap;
+  border: 0;
+  border-radius: .5rem;
+  background: transparent;
+}
+html:not([data-solaris-app]) .v3-editorial-edition .v3-edition-facts {
+  gap: 0;
+  border-block: 1px solid var(--v3-editorial-rule);
+}
+html:not([data-solaris-app]) .v3-editorial-edition .v3-edition-facts > .v3-surface {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+/* Show listings and reference directories: legible, information-forward. */
+html:not([data-solaris-app]) .v3-editorial-directory .v3-directory-mobile-row {
+  min-height: 4.5rem;
+  border-color: var(--v3-editorial-rule);
+}
+html:not([data-solaris-app]) .v3-editorial-directory .v3-directory-group-title {
+  border-color: var(--v3-editorial-rule);
+  letter-spacing: -.025em;
+}
+html:not([data-solaris-app]) .v3-editorial-directory .v3-directory-desktop-card {
+  min-height: 7rem;
+  border-color: var(--v3-editorial-rule);
+  border-radius: .9rem;
+  background: var(--v3-editorial-soft);
+}
+html:not([data-solaris-app]) .v3-editorial-show-index .v3-shows-browse-heading {
+  font-size: clamp(1.3rem, 2.7vw, 1.9rem);
+  letter-spacing: -.035em;
+}
+html:not([data-solaris-app]) .v3-editorial-show-index .v3-shows-filter-fields {
+  gap: .6rem;
+}
+html:not([data-solaris-app]) .v3-editorial-show-index .v3-show-web-row {
+  min-height: 4.5rem;
+  border-bottom: 1px solid var(--v3-editorial-rule);
+}
+html:not([data-solaris-app]) .v3-editorial-show-index .v3-directory-results-count {
+  font-size: .75rem;
+}
+/* Organizer: scroll the task filters instead of making eight unreadable columns. */
+.admin-control-room [data-solaris-morphing-layout="scroll"] {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  gap: .25rem;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scroll-padding-inline: .25rem;
+}
+.admin-control-room [data-solaris-morphing-layout="scroll"] > button {
+  flex: 0 0 auto;
+  min-width: max-content;
+  min-height: 44px;
+  padding: .6rem .95rem;
+  overflow-wrap: normal;
+  white-space: nowrap;
+}
+.admin-control-room [data-solaris-morphing-layout="scroll"] > button[aria-selected="true"] {
+  background: color-mix(in oklab, var(--admin-accent) 15%, var(--admin-bg));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--admin-accent) 35%, transparent);
+}
+.admin-control-room .admin-page-title { text-wrap: balance; }
+html:not([data-solaris-app]) .solaris-mysolaris-editorial {
+  gap: clamp(1rem, 2.5vw, 2rem);
+}
+html:not([data-solaris-app]) .solaris-mysolaris-editorial :is(input, select, textarea) {
+  max-width: 100%;
+}
+@media (max-width: 767px) {
+  html:not([data-solaris-app]) [data-v3-shell-experience="web"] .v3-screen {
+    padding-inline: clamp(.9rem, 4vw, 1.3rem);
+  }
+  html:not([data-solaris-app]) .v3-editorial-country-index .v3-countries-collections {
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    scroll-padding-inline: .5rem;
+  }
+  html:not([data-solaris-app]) .v3-editorial-country-index .v3-countries-scope-button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  html:not([data-solaris-app]) .v3-editorial-show-index .v3-shows-filter-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  html:not([data-solaris-app]) .v3-editorial-edition .v3-edition-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  html:not([data-solaris-app]) .country-editorial-profile .country-editorial-hero {
+    min-height: clamp(19rem, 84vw, 28rem);
+  }
+  html:not([data-solaris-app]) .country-editorial-profile .country-editorial-hero :is(h1, .country-v2-hero-title) {
+    font-size: clamp(2.35rem, 10vw, 4.2rem);
+  }
+  html:not([data-solaris-app]) .edition-editorial-refresh .edition-hero {
+    min-height: 23rem;
+  }
+  html:not([data-solaris-app]) .edition-editorial-refresh .edition-hero h1 {
+    font-size: clamp(3rem, 12vw, 5.7rem);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-solaris-app]) [data-v3-shell-experience="web"] .v3-action-card {
+    transition: none;
+  }
+}
+@media (forced-colors: active) {
+  .admin-control-room [data-solaris-morphing-layout="scroll"] > button[aria-selected="true"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
+
+
+/* Results are a scoreboard, not a stack of explanatory cards. */
+html:not([data-solaris-app]) .v3-editorial-results .v3-results-archive-control {
+  max-width: 38rem;
+  border-color: var(--v3-editorial-rule);
+  background: transparent;
+  box-shadow: none;
+}
+html:not([data-solaris-app]) .v3-editorial-results .v3-results-mode-switch {
+  display: flex;
+  width: max-content;
+  max-width: 100%;
+  gap: .25rem;
+  padding: .3rem;
+  border: 1px solid var(--v3-editorial-rule);
+  border-radius: .85rem;
+  background: var(--v3-editorial-soft);
+}
+html:not([data-solaris-app]) .v3-editorial-results .v3-results-mode-switch > button {
+  min-width: min(26vw, 7.5rem);
+  border: 0;
+  border-radius: .6rem;
+  padding-inline: .8rem;
+  font-weight: 650;
+}
+html:not([data-solaris-app]) .v3-editorial-results .v3-results-mode-switch > button[aria-pressed="true"] {
+  background: color-mix(in oklab, var(--v3-accent) 15%, var(--v3-bg-raised));
+  color: var(--v3-text-primary);
+}
+html:not([data-solaris-app]) .v3-editorial-results .v3-results-related-link {
+  border: 0;
+  border-bottom: 1px solid var(--v3-editorial-rule);
+  border-radius: 0;
+  text-decoration: none;
+}
+html:not([data-solaris-app]) .v3-editorial-results .v3-results-related-link:hover {
+  background: var(--v3-editorial-soft);
+}
+
+/* Records: the number and the record holder matter more than the frame. */
+html:not([data-solaris-app]) .v3-editorial-records .v3-records-coverage {
+  border: 0;
+  border-left: 2px solid var(--v3-editorial-rule);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+html:not([data-solaris-app]) .v3-editorial-records .v3-record-editorial-card {
+  min-height: 16rem;
+  border: 1px solid var(--v3-editorial-rule);
+  background: var(--v3-editorial-soft);
+  box-shadow: none;
+}
+html:not([data-solaris-app]) .v3-editorial-records .v3-record-editorial-card > p.text-3xl {
+  font-size: clamp(2.15rem, 3.8vw, 3.5rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.055em;
+  line-height: 1.07;
+}
+
+/* Public delegation profile. Canonical 3:2 flag remains unmodified. */
+html:not([data-solaris-app]) .v3-editorial-delegation .v3-delegation-identity {
+  border: 1px solid color-mix(in oklab, var(--v3-accent) 22%, var(--v3-border));
+  border-radius: 1.25rem;
+  background: radial-gradient(ellipse at 100% 0%, color-mix(in oklab, var(--v3-accent) 11%, transparent), transparent 65%), var(--v3-bg-raised);
+}
+html:not([data-solaris-app]) .v3-editorial-delegation .v3-delegation-identity > div {
+  gap: clamp(1rem, 3vw, 2.5rem);
+  padding: clamp(1.2rem, 3vw, 2.25rem);
+}
+html:not([data-solaris-app]) .v3-editorial-delegation .v3-delegation-identity img {
+  aspect-ratio: 3 / 2;
+}
+html:not([data-solaris-app]) .v3-editorial-delegation .v3-section__header + .v3-surface {
+  border-color: var(--v3-editorial-rule);
+}
+
+/* The Wiki is a readable publication, not a form. */
+html:not([data-solaris-app]) .wiki-editorial-index {
+  border: 0;
+  border-bottom: 1px solid var(--v3-editorial-rule);
+  border-radius: 0;
+  background: transparent;
+}
+html:not([data-solaris-app]) .wiki-editorial-filter {
+  border-color: var(--v3-editorial-rule);
+  background: var(--v3-editorial-soft);
+  box-shadow: none;
+}
+html:not([data-solaris-app]) .wiki-editorial-grid .directory-country-card {
+  border-color: var(--v3-editorial-rule);
+  background: var(--v3-editorial-soft);
+  border-radius: .9rem;
+}
+html:not([data-solaris-app]) .wiki-editorial-grid .directory-country-card:hover {
+  border-color: color-mix(in oklab, var(--primary) 37%, var(--border));
+}
+html:not([data-solaris-app]) .wiki-editorial-article .wiki-reading-grid {
+  gap: clamp(1.25rem, 3vw, 2.75rem);
+}
+html:not([data-solaris-app]) .wiki-editorial-article .wiki-article-surface {
+  min-width: 0;
+  max-width: 70ch;
+}
+html:not([data-solaris-app]) .wiki-editorial-article .wiki-prose {
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+html:not([data-solaris-app]) .wiki-editorial-article .wiki-introduction > h2 {
+  letter-spacing: -.035em;
+}
+@media (max-width: 767px) {
+  html:not([data-solaris-app]) .v3-editorial-results .v3-results-mode-switch {
+    width: 100%;
+  }
+  html:not([data-solaris-app]) .v3-editorial-results .v3-results-mode-switch > button {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: .3rem;
+    font-size: .85rem;
+  }
+}

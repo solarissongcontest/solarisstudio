@@ -79,7 +79,7 @@ export function V3DelegationScreen({
   const currentResult = projection.currentResult;
 
   return (
-    <V3Screen>
+    <V3Screen className="v3-editorial-delegation">
       <V3ScreenHeader
         kicker="Delegation"
         title={projection.name}
@@ -91,7 +91,7 @@ export function V3DelegationScreen({
         editorial
       />
 
-      <V3Surface level="raised" className="overflow-hidden">
+      <V3Surface level="raised" className="v3-delegation-identity overflow-hidden">
         <div className="grid gap-5 p-5 sm:grid-cols-[160px_minmax(0,1fr)] sm:items-center">
           <div className="mx-auto aspect-[3/2] w-full max-w-40 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
             {projection.flag.src ? (
@@ -116,7 +116,7 @@ export function V3DelegationScreen({
               <p className="mt-3 text-sm leading-6 text-white/58">{projection.description}</p>
             ) : (
               <p className="mt-3 text-sm leading-6 text-white/48">
-                Public Solaris delegation identity and published entry history.
+                Published entries and competition history.
               </p>
             )}
             <div className="mt-4 flex min-h-11 items-center">

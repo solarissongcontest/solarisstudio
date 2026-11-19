@@ -113,7 +113,7 @@ function CurrentEditionCard({ edition }: { edition: V3ExploreEditionCard }) {
         <div className={edition.experience === "live" && edition.liveHref ? "mt-3" : "mt-4"}>
           <V3ActionCard
             title="Open edition"
-            description="Participants, published entries, schedule, stories and official result availability"
+            description="Participants, songs, shows and results"
             tone="neutral"
             to={edition.href}
           />
@@ -157,18 +157,18 @@ function ArchiveEditionCard({ edition }: { edition: V3ExploreEditionCard }) {
  */
 export function V3ExploreScreen({ projection, onOpenSearch }: V3ExploreScreenProps) {
   return (
-    <V3Screen>
+    <V3Screen className="v3-editorial-explore">
       <V3ScreenHeader
         kicker="Explore Solaris"
-        title="Discover the contest"
-        description="Browse editions, delegations, published entries, shows and stories. Rankings and score analysis stay in Results."
+        title="Explore"
+        description="Editions, countries, shows and stories."
         editorial
       />
 
-      <V3Section title="Search" meta="Global Solaris search">
+      <V3Section title="Search">
         <V3ActionCard
           title="Search Solaris"
-          description="Find public editions, countries, entries, shows and stories"
+          description="Countries, editions, songs and shows"
           icon={Search}
           tone="neutral"
           onClick={onOpenSearch}
@@ -182,7 +182,7 @@ export function V3ExploreScreen({ projection, onOpenSearch }: V3ExploreScreenPro
           <V3Surface className="p-4">
             <p className="text-sm font-semibold">No public current edition</p>
             <p className="mt-1 text-xs leading-5 text-white/48">
-              Explore remains available through the public archive and discovery collections.
+              Browse published editions and collections below.
             </p>
           </V3Surface>
         )}

@@ -217,7 +217,7 @@ function SectionNav({
   ];
 
   return (
-    <nav aria-label={`Explore ${projection.hub.hero.name}`} className="flex flex-wrap gap-2">
+    <nav aria-label={`Explore ${projection.hub.hero.name}`} className="v3-edition-section-nav flex flex-wrap gap-2">
       {links.map((item) =>
         item.locked ? (
           <span
@@ -277,7 +277,7 @@ export function V3EditionOverviewScreen({
     : [];
 
   return (
-    <V3Screen>
+    <V3Screen className="v3-editorial-edition">
       <V3ScreenHeader
         kicker="Edition"
         title={projection.hub.hero.name}
@@ -288,9 +288,9 @@ export function V3EditionOverviewScreen({
       {spoilerSafe ? (
         <SpoilerRevealCard onReveal={() => setRevealed(true)} />
       ) : (
-        <V3Surface level="raised" className="overflow-hidden">
+        <V3Surface level="raised" className="v3-edition-feature overflow-hidden">
           {projection.hub.hero.artworkUrl ? (
-            <div className="relative border-b border-white/[0.06] bg-white/[0.025]">
+            <div className="v3-edition-feature-art relative border-b border-white/[0.06] bg-white/[0.025]">
               <img
                 src={projection.hub.hero.artworkUrl}
                 alt=""
@@ -393,7 +393,7 @@ export function V3EditionOverviewScreen({
             : undefined
         }
       >
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="v3-edition-facts grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
             ["Delegations", projection.overview.participantCount],
             ["Revealed entries", projection.overview.entryCount],

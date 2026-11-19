@@ -261,7 +261,7 @@ function LegacyEditionPage() {
 
   return (
     <AppShell>
-      <div className="edition-public-page">
+      <div className="edition-public-page edition-editorial-refresh">
         {!isAppMode ? (
           <div className="edition-page-toolbar">
             <Link to="/editions" className="text-xs font-medium text-muted-foreground hover:text-foreground">← Editions</Link>

@@ -127,7 +127,7 @@ export function V3CountriesDiscoveryScreen({
   ].filter((group) => group.countries.length > 0);
 
   return (
-    <div className="v3-countries-discovery space-y-6" data-country-directory-experience={presentation}>
+    <div className="v3-countries-discovery v3-editorial-country-index space-y-6" data-country-directory-experience={presentation}>
       {presentation !== "installed-app" ? (
         <h2 id="countries-page-title" className="sr-only">Browse all countries</h2>
       ) : (

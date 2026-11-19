@@ -136,7 +136,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
   }
 
   return (
-    <div className="v3-shows-directory space-y-8" data-show-directory-experience={presentation}>
+    <div className="v3-shows-directory v3-editorial-show-index space-y-8" data-show-directory-experience={presentation}>
       {[
         { id: "shows-live-now", eyebrow: "Live now", title: "On air",
           items: discovery.liveNow, emphasis: "live" as const },
@@ -152,7 +152,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
       ))}
 
       <section id="shows-browse" aria-labelledby="shows-browse-title" className="scroll-mt-24">
-        <h2 id="shows-browse-title" className="v3-shows-browse-heading">All public shows</h2>
+        <h2 id="shows-browse-title" className="v3-shows-browse-heading">All shows</h2>
         <div className={presentation === "installed-app"
           ? "v3-shows-filter-fields v3-shows-filter-fields--app"
           : "v3-shows-filter-fields grid gap-2 sm:grid-cols-3"}>
@@ -187,7 +187,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
               <div className="v3-directory-search" role="search">
                 <Search size={18} aria-hidden="true" />
                 <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
-                  aria-label="Search shows" placeholder="Search show name, edition or type…" />
+                  aria-label="Search shows" placeholder="Search shows…" />
                 {search ? (
                   <button type="button" className="v3-directory-search-clear" aria-label="Clear search"
                     onClick={() => setSearch("")}><X size={16} aria-hidden="true" /></button>

@@ -191,7 +191,7 @@ function OrganizerTasksPage() {
         <AdminPageHeader
           eyebrow={organizerEditionLabel ? `${organizerEditionLabel} · Organizer work` : "Organizer · Work"}
           title="Tasks"
-          description="One domain-backed queue for work that is genuinely unresolved. Reading a notification never completes a task; the authoritative source state does."
+          description="Tasks that need attention in the selected edition."
           actions={
             <div className="flex flex-wrap gap-2">
               <Link to="/admin/inbox" className="admin-action-secondary">
@@ -228,6 +228,7 @@ function OrganizerTasksPage() {
               });
             }}
             className="border-white/[0.07] bg-white/[0.02]"
+            layout="scroll"
           />
         ) : null}
 

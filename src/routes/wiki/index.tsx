@@ -210,8 +210,8 @@ function WebWikiIndexPage() {
       <PageHeader
         eyebrow="Terra Solaris"
         title="Wiki"
-        description="Browse national profiles, country information and Solaris Song Contest history."
-        className="directory-page-hero wiki-library-hero"
+        description="Countries, histories and facts."
+        className="directory-page-hero wiki-library-hero wiki-editorial-index"
         actions={
           <Link
             to="/countries"
@@ -222,7 +222,7 @@ function WebWikiIndexPage() {
         }
       />
 
-      <section className="directory-page-filter mb-5 rounded-2xl border p-3 sm:p-4">
+      <section className="directory-page-filter wiki-editorial-filter mb-5 rounded-2xl border p-3 sm:p-4">
         <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
         <label className="relative block min-w-0">
           <span className="sr-only">Search the Wiki</span>
@@ -279,7 +279,7 @@ function WebWikiIndexPage() {
           <span className="numeric text-xs text-muted-foreground">{filtered.length}</span>
         </div>
 
-        <div className="wiki-library-grid grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="wiki-library-grid wiki-editorial-grid grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {visibleCountries.map((country) => (
             <Link
               key={country.id}

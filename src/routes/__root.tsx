@@ -23,6 +23,7 @@ import solarisMotionCss from "../solaris-motion.css?url";
 import flagMediaCss from "../flag-media.css?url";
 import appShellCss from "../styles/app-shell.css?url";
 import solarisDepthCss from "../solaris-depth.css?url";
+import visualEditorialCss from "../styles/v3-visual-editorial-redesign.css?url";
 import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdminGate";
 import { AppRuntime, useSolarisApp } from "../components/app/AppRuntime";
 import { AppExperiencePreferenceSync } from "../components/app/AppExperiencePreferenceSync";
@@ -305,6 +306,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: flagMediaCss },
       { rel: "stylesheet", href: appShellCss },
       { rel: "stylesheet", href: solarisDepthCss },
+      { rel: "stylesheet", href: visualEditorialCss },
     ],
   }),
   shellComponent: RootShell,

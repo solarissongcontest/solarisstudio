@@ -456,7 +456,7 @@ function CountryProfilePage() {
           className="solaris-app-entity-content"
         >
       <div
-        className={publishedDesign ? "country-profile-v8 country-design-v2" : "country-profile-v8"}
+        className={publishedDesign ? "country-profile-v8 country-design-v2 country-editorial-profile" : "country-profile-v8 country-editorial-profile"}
         data-country-personality={publishedDesign ? undefined : heroPersonality}
         data-country-composition={publishedDesign ? undefined : sourcePersonality.compositionFamily}
         data-country-background-policy={publishedDesign ? undefined : sourcePersonality.backgroundPolicy}
@@ -477,7 +477,7 @@ function CountryProfilePage() {
             region={identityModel.region}
             description={identityModel.description}
             flagImage={identityModel.flag.src}
-            className="mb-6"
+            className="country-editorial-hero mb-6"
             actions={
               <>
                 <div className="country-v2-hero-secondary-actions">
@@ -501,7 +501,7 @@ function CountryProfilePage() {
             flagImage={identityModel.flag.src}
             accentColor={identityModel.colors.accent}
             geography={identityModel.geography}
-            className="mb-6"
+            className="country-editorial-hero mb-6"
             actions={
               <>
                 <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
@@ -536,7 +536,7 @@ function CountryProfilePage() {
               <>
                 <Panel
                   title="SSC at a glance"
-                  description="A compact summary. Full history and qualification details live in Results."
+                  description="Published participation record."
                 >
                   <div className="grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-5">
                     <StatTile label="Participations" value={stats.participations} />
@@ -552,7 +552,7 @@ function CountryProfilePage() {
 
                 <Panel
                   title="Current entry"
-                  description="The latest published canonical entry for this delegation."
+                  description="Latest published entry."
                 >
                   {latestEntry ? (
                     <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
