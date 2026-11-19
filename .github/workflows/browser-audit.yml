@@ -132,9 +132,36 @@ jobs:
             | sudo tee /etc/apt/apt.conf.d/80-solaris-browser-network >/dev/null
           # apt normally treats failed index downloads as warnings and then
           # uses stale indexes, which can request removed package versions.
-          # Require a fresh signed index; DNS failure must fail this step.
-          sudo apt-get -o APT::Update::Error-Mode=any update
-          bunx playwright install --with-deps chromium webkit
+          # If fresh signed indexes are available, install OS dependencies.
+          # If the hosted runner's Ubuntu mirror is down, never trust stale
+          # indexes or silently skip the browser suite: use only already
+          # installed runner libraries, then prove both browser engines launch.
+          if sudo apt-get -o APT::Update::Error-Mode=any update; then
+            if ! bunx playwright install --with-deps chromium webkit; then
+              echo "::warning::Playwright apt dependency install unavailable; verifying runner's installed libraries by launching both browsers"
+              bunx playwright install chromium webkit
+            fi
+          else
+            echo "::warning::Fresh signed Ubuntu package indexes unavailable; refusing stale apt packages and verifying both Playwright engines instead"
+            bunx playwright install chromium webkit
+          fi
+          # This is a positive, real browser runtime requirement, not a skip:
+          # missing system libraries or engine downloads fail the job before
+          # any release/browser evidence is collected.
+          node --input-type=module <<'VERIFY_BROWSERS'
+          import { chromium, webkit } from '@playwright/test';
+          for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
+            const browser = await engine.launch({ headless: true });
+            try {
+              const page = await browser.newPage();
+              await page.goto('about:blank');
+              await page.close();
+              console.log('PASS: pinned ' + name + ' browser launches with all required runner libraries');
+            } finally {
+              await browser.close();
+            }
+          }
+          VERIFY_BROWSERS
 
       - name: Start isolated local Supabase for browser audit
         shell: bash
