@@ -12,11 +12,13 @@ const web = palette.slice(
 );
 
 describe("V3 web Search canonical discovery shortcuts", () => {
-  it("cancels Radix centered-dialog translation before top-anchoring public Search", () => {
+  it("top-anchors Search without inheriting centered-dialog layout", () => {
     const css = readFileSync(
       resolve(process.cwd(), "src/components/public/public-command-palette.css"),
       "utf8",
     );
+    expect(web).toContain('contentLayout="fullscreen"');
+    expect(css).toContain("bottom: auto !important;");
     expect(css).toContain("translate: none !important;");
     expect(css).toContain("transform: translateX(-50%) !important;");
     expect(css).toContain("transform: none !important;");

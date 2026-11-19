@@ -5,6 +5,7 @@ body [role="dialog"].solaris-public-search-dialog {
   top: min(12dvh, 6.5rem) !important;
   left: 50% !important;
   right: auto !important;
+  bottom: auto !important;
   width: min(39rem, calc(100vw - 2rem)) !important;
   max-width: calc(100vw - 1.5rem) !important;
   max-height: min(78dvh, 43rem) !important;

@@ -748,6 +748,7 @@ function WebPublicPaletteDialog({
       onOpenChange={setOpen}
       shouldFilter={false}
       showCloseButton={false}
+      contentLayout="fullscreen"
       contentClassName="solaris-public-search-dialog"
       commandClassName="solaris-public-search-command"
     >
