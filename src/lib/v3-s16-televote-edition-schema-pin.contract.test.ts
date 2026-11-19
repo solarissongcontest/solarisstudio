@@ -11,6 +11,7 @@ const source = readFileSync(sourcePath, "utf8");
 const client = readFileSync("src/integrations/televoting/client.server.ts", "utf8");
 const sql = readFileSync(".github/tests/v3-s16-televote-edition-schema-pin.sql", "utf8");
 const runner = readFileSync(".github/scripts/v3-s16-catalog-rehearsal.sh", "utf8");
+const s14Workflow = readFileSync(".github/workflows/v3-s14-archive-forward-effects-local.yml", "utf8");
 
 describe("P13: Televote edition updates cannot accidentally target public.editions", () => {
   it("pins every edition query and write to the correct Televote schema", () => {
@@ -36,6 +37,12 @@ describe("P13: Televote edition updates cannot accidentally target public.editio
     expect(sql).toContain("'public.editions'::regclass");
     expect(sql).toContain("'televoting.editions'::regclass");
     expect(runner).toContain("v3-s16-televote-edition-schema-pin.sql");
+    // Without the independent producer, S16 must (and did) refuse a missing
+    // same-SHA Publication certificate. Keep that failure closed and trigger
+    // its actual PostgreSQL evidence for this class of S16 source changes.
+    expect(s14Workflow).toContain('".github/scripts/v3-s16-catalog-rehearsal.sh"');
+    expect(s14Workflow).toContain('".github/tests/v3-s16-*.sql"');
+    expect(s14Workflow).toContain('"src/lib/v3-s16-*.contract.test.ts"');
   });
 
   it("produces identical Televote PostgREST request scope with explicit or default schema", async () => {
