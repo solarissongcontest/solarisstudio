@@ -599,7 +599,9 @@ test("Rules and directory search controls render one surface on mobile and deskt
 test("global web Search shows a clean single-surface dialog and compact results", async ({ page }, testInfo) => {
   test.skip(!["public-390", "public-1440"].includes(testInfo.project.name), "Web Search presentation");
   await page.goto("/", { waitUntil: "domcontentloaded" });
-  await page.locator('button[aria-label="Search Solaris Studio"]').first().click();
+  // Home has both desktop and mobile global Search owners; only click the
+  // viewport-visible trigger, never the hidden desktop duplicate.
+  await page.locator('button[aria-label="Search Solaris Studio"]:visible').first().click();
   const dialog = page.locator('[role="dialog"].solaris-public-search-dialog');
   await expect(dialog).toBeVisible();
   const input = dialog.locator('input[aria-label="Search Solaris Studio"]');
