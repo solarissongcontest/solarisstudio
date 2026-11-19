@@ -8,6 +8,7 @@
     "NODE_ENV": "production",
     "MAINTENANCE_HOD_ACCESS": "true",
     "PUBLIC_SOFT_LAUNCH_ACCESS": "true",
+    "PUBLIC_V3_WEBSITE_ACCESS": "false",
     "SUPABASE_URL": "https://dkxmnvekiopyesuzggeu.supabase.co",
     "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_88TCCj0swFjn6xESWLwqlQ_HVUpU7Fa"
   },

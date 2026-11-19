@@ -1,9 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const ROUTES = [
-  "/",
-  "/countries/ABE",
-  "/editions/ssc-20",
+  "/maintenance/story",
   "/confirmations",
   "/televoting",
   "/mysolaris",
@@ -43,7 +41,7 @@ async function expectNoHorizontalOverflow(page: Page) {
 test("Solaris Studio serves the final TerraOS 3 maintenance story across the app", async ({ page }) => {
   for (const route of ROUTES) {
     const response = await page.goto(route, { waitUntil: "domcontentloaded" });
-    expect(response?.status(), `${route} has the expected maintenance/early-access status`).toBe(route === "/" ? 200 : 503);
+    expect(response?.status(), `${route} has the expected maintenance/early-access status`).toBe(503);
     expect(response?.headers()["retry-after"]).toBeUndefined();
     expect(response?.headers()["x-robots-tag"]).toContain("noindex");
 
@@ -96,8 +94,12 @@ test("Solaris Studio serves the final TerraOS 3 maintenance story across the app
 test("public early access exposes account screens while contest mutations remain blocked", async ({ page, request }) => {
   const root = await page.goto("/", { waitUntil: "domcontentloaded" });
   expect(root?.status()).toBe(200);
-  await expect(page.getByRole("link", { name: "Sign in or register" })).toBeVisible();
-  await expect(page.getByText("Official Jury Voting and other unfinished services are not yet open.")).toBeVisible();
+  await expect(page.locator('[data-solaris-maintenance="true"]')).toHaveCount(0);
+  await expect(page).toHaveTitle(/Solaris Today/);
+  for (const publicPath of ["/explore", "/countries", "/editions", "/shows", "/results", "/participate"]) {
+    const publicResponse = await request.get(publicPath);
+    expect(publicResponse.status(), publicPath + " must serve the actual website").toBe(200);
+  }
 
   const auth = await page.goto("/auth", { waitUntil: "domcontentloaded" });
   expect(auth?.status()).toBe(200);
@@ -148,8 +150,8 @@ test("TerraOS teaser preview route renders all five production V3 destinations w
 });
 
 test("Take a closer look exposes all five real V3 previews with non-swipe controls", async ({ page }) => {
-  const response = await page.goto("/", { waitUntil: "domcontentloaded" });
-  expect(response?.status()).toBe(200);
+  const response = await page.goto("/maintenance/story", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(503);
   const gallery = page.locator('[data-look-track]');
   await gallery.scrollIntoViewIfNeeded();
   await expect(gallery.locator('[data-look-card]')).toHaveCount(5);
@@ -166,8 +168,8 @@ test("Take a closer look exposes all five real V3 previews with non-swipe contro
 
 test("phone layout removes desktop overlaps and keeps every major chapter contained", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  const response = await page.goto("/", { waitUntil: "domcontentloaded" });
-  expect(response?.status()).toBe(200);
+  const response = await page.goto("/maintenance/story", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(503);
 
   await expect(page.locator('[data-product-bar]')).toBeVisible();
   await expect(page.locator('.hero-device-main')).toBeVisible();
@@ -198,8 +200,8 @@ for (const viewport of MAINTENANCE_VIEWPORTS) {
   test(`maintenance composition passes the ${viewport.width}x${viewport.height} acceptance matrix`, async ({ page }) => {
     const hostedSupabase = collectHostedSupabaseRequests(page);
     await page.setViewportSize(viewport);
-    const response = await page.goto("/", { waitUntil: "domcontentloaded" });
-    expect(response?.status()).toBe(200);
+    const response = await page.goto("/maintenance/story", { waitUntil: "domcontentloaded" });
+    expect(response?.status()).toBe(503);
 
     const productBar = page.locator("[data-product-bar]");
     await expect(productBar).toHaveAttribute("data-scrolled", "false");
@@ -268,9 +270,11 @@ for (const viewport of MAINTENANCE_VIEWPORTS) {
 }
 
 test("Confirmation remains an immediate maintenance destination", async ({ page }) => {
-  const response = await page.goto("/", { waitUntil: "domcontentloaded" });
-  expect(response?.status()).toBe(200);
-  const confirmationLink = page.locator('.confirmation-link[href="#confirmation-access"]');
+  const response = await page.goto("/maintenance/story", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(503);
+  // The fixed maintenance story keeps its hero Confirmation shortcut; the
+  // responsive product bar may hide its duplicate header anchor.
+  const confirmationLink = page.locator('.hero-action[href="#confirmation-access"]').first();
   await expect(confirmationLink).toBeVisible();
   await confirmationLink.click();
   await expect(page.locator("#confirmation-access")).toBeInViewport();
@@ -349,8 +353,8 @@ test("iPhone standalone maintenance reserves top system space before its first f
   });
 
   await page.setViewportSize({ width: 390, height: 844 });
-  const response = await page.goto("/", { waitUntil: "domcontentloaded" });
-  expect(response?.status()).toBe(200);
+  const response = await page.goto("/maintenance/story", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(503);
   await expect(page.locator("html")).toHaveAttribute("data-terraos-ios-standalone", "true");
 
   const portrait = await topGeometry(page);
@@ -371,8 +375,8 @@ test("iPhone standalone maintenance reserves top system space before its first f
 
 test("ordinary mobile browsers do not inherit the standalone iPhone fallback", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  const response = await page.goto("/", { waitUntil: "domcontentloaded" });
-  expect(response?.status()).toBe(200);
+  const response = await page.goto("/maintenance/story", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(503);
   await expect(page.locator("html")).not.toHaveAttribute("data-terraos-ios-standalone");
 
   const geometry = await topGeometry(page);

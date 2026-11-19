@@ -17,6 +17,8 @@ import {
   maintenanceHodAccessEnabled,
   maintenancePublicAccountAccessEnabled,
   isMaintenancePublicAccountRouteAllowed,
+  isMaintenancePublicWebsiteRouteAllowed,
+  maintenancePublicWebsiteEnabled,
 } from "./lib/maintenance";
 import { LIMITED_PUBLIC_LAUNCH, limitedPublicLaunchAllows } from "./lib/public-launch-availability";
 import { renderMaintenanceHodPortal } from "./lib/maintenance-hod-portal";
@@ -36,6 +38,7 @@ type ServerEnv = {
   MAINTENANCE_ADMIN_SECRET?: string;
   MAINTENANCE_HOD_ACCESS?: string;
   PUBLIC_SOFT_LAUNCH_ACCESS?: string;
+  PUBLIC_V3_WEBSITE_ACCESS?: string;
   SUPABASE_URL?: string;
   SUPABASE_PUBLISHABLE_KEY?: string;
   VITE_SUPABASE_URL?: string;
@@ -473,7 +476,10 @@ function maintenanceResponse(request: Request, env: unknown, includeHodPortal: b
         '<div class="hero-actions"><a class="hero-action hero-action-primary" href="/auth">Sign in or register</a><a class="hero-action" href="#confirmation-access">Edit Confirmation</a></div><p style="margin:16px 0 0;max-width:44rem;font-size:14px;line-height:1.6">Account access and existing Confirmation editing are available during this early release. Official Jury Voting and other unfinished services are not yet open.</p><div class="hero-actions">',
       );
     }
-    if (new URL(request.url).pathname !== "/") {
+    const currentPath = new URL(request.url).pathname;
+    // On the isolated maintenance-story preview, Confirmation links should
+    // navigate within that document. On other 503 pages they still point home.
+    if (currentPath !== "/" && currentPath !== "/maintenance/story") {
       html = html.replaceAll('href="#confirmation-access"', 'href="/#confirmation-access"');
     }
     if (request.method === "GET" && includeHodPortal) {
@@ -582,6 +588,20 @@ export default {
       const softLaunchEnabled = maintenancePublicAccountAccessEnabled(
         serverEnv(env)?.PUBLIC_SOFT_LAUNCH_ACCESS ?? process.env.PUBLIC_SOFT_LAUNCH_ACCESS,
       );
+      const publicV3Enabled = maintenancePublicWebsiteEnabled(
+        serverEnv(env)?.PUBLIC_V3_WEBSITE_ACCESS ?? process.env.PUBLIC_V3_WEBSITE_ACCESS,
+      );
+
+      // Keep the fully static TerraOS maintenance artwork available as a
+      // bounded noindex legacy preview while the real V3 public site is open.
+      // This is never the public homepage and never admits a mutating method.
+      if (
+        GLOBAL_MAINTENANCE_MODE &&
+        url.pathname === "/maintenance/story" &&
+        (request.method === "GET" || request.method === "HEAD")
+      ) {
+        return maintenanceResponse(request, env, true);
+      }
 
       // The limited installed-app entry needs a synchronous, network-free
       // redirect before any SSR or hydration can delay the iOS WebKit launch.
@@ -665,6 +685,8 @@ export default {
 
       const publicAccountRouteAllowed = GLOBAL_MAINTENANCE_MODE &&
         isMaintenancePublicAccountRouteAllowed(url.pathname, request.method, softLaunchEnabled);
+      const publicWebsiteRouteAllowed = GLOBAL_MAINTENANCE_MODE &&
+        isMaintenancePublicWebsiteRouteAllowed(url.pathname, request.method, publicV3Enabled);
       const hodAppRouteAllowed = isMaintenanceHodAppRouteAllowed(
         url.pathname,
         request.method,
@@ -702,6 +724,7 @@ export default {
         !teaserPreviewAllowed &&
         !hodAppRouteAllowed &&
         !publicAccountRouteAllowed &&
+        !publicWebsiteRouteAllowed &&
         !recoveryRouteAllowed
       ) {
         const localE2EBypass = hasLocalE2EMaintenanceBypass(request);
@@ -761,6 +784,33 @@ export default {
           normalized,
           maintenanceDeploymentVersion(env),
         );
+      }
+
+      // Private, loopback-only CI bypass proof. Playwright sets an HttpOnly
+      // test cookie; the Worker validates BOTH that cookie and loopback host.
+      // React cannot read the cookie, so SSR transmits a one-request proof
+      // only to the isolated browser test document. Never enabled by query
+      // strings, browser storage, production hostnames or app feature flags.
+      if (
+        GLOBAL_MAINTENANCE_MODE &&
+        request.method === "GET" &&
+        hasLocalE2EMaintenanceBypass(request) &&
+        (normalized.headers.get("content-type") ?? "").includes("text/html")
+      ) {
+        const markup = await normalized.text();
+        if (markup.includes("</head>")) {
+          const headers = new Headers(normalized.headers);
+          headers.delete("content-length");
+          headers.set("cache-control", "no-store");
+          return new Response(
+            markup.replace(
+              "</head>",
+              '<meta name="solaris-local-e2e-maintenance-bypass" content="1"></head>',
+            ),
+            { status: normalized.status, headers },
+          );
+        }
+        return new Response(markup, { status: normalized.status, headers: normalized.headers });
       }
 
       return normalized;

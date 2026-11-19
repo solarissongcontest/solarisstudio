@@ -17,6 +17,44 @@ export function isMaintenancePublicAccountRouteAllowed(
 }
 
 
+/**
+ * The real public V3 website can be served during emergency maintenance without
+ * granting any new mutation transport. The runtime switch is separate from the
+ * account-only switch and defaults to CLOSED if absent.
+ */
+export function maintenancePublicWebsiteEnabled(rawValue: string | null | undefined) {
+  return rawValue?.trim().toLowerCase() === "true";
+}
+
+const PUBLIC_V3_READ_ONLY_FAMILIES = [
+  "/countries", "/editions", "/shows", "/stories", "/results",
+  "/wiki", "/encyclopedia", "/records", "/archive", "/calendar",
+  "/guide", "/site-directory", "/library", "/rules",
+] as const;
+
+const PUBLIC_V3_READ_ONLY_ROOTS = [
+  "/explore", "/participate", "/me", "/my-solaris", "/app-launch",
+] as const;
+
+/** Exact public pages + audited read-only detail families. No account,
+ * Organizer, vote, Confirmation submission or generic server-function paths.
+ * GET/HEAD is a necessary boundary, not sufficient permission for a write.
+ */
+export function isMaintenancePublicWebsiteRouteAllowed(
+  pathname: string,
+  method: string,
+  enabled: boolean,
+) {
+  if (!enabled || (method !== "GET" && method !== "HEAD")) return false;
+  if (pathname === "/") return true;
+  if (PUBLIC_V3_READ_ONLY_ROOTS.some((root) => pathname === root || pathname === root + "/")) {
+    return true;
+  }
+  return PUBLIC_V3_READ_ONLY_FAMILIES.some(
+    (root) => pathname === root || pathname === root + "/" || pathname.startsWith(root + "/"),
+  );
+}
+
 export const MAINTENANCE_RETURN_DATE = "15 November 2026";
 export const MAINTENANCE_LAST_UPDATED = "29 October 2026";
 // Public estimate only. The maintenance/release gate remains authoritative.

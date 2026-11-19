@@ -449,41 +449,20 @@ jobs:
 
           const browser = await chromium.launch();
           const page = await browser.newPage();
-          let sawRest = false;
-          const failures = [];
-
-          page.on("request", async (request) => {
-            if (!request.url().startsWith(`${expectedUrl}/rest/v1/`)) return;
-            sawRest = true;
-            const headers = await request.allHeaders();
-            if (headers.apikey !== expectedKey) failures.push(`apikey mismatch for ${new URL(request.url()).pathname}`);
-            const auth = headers.authorization ?? "";
-            if (auth && auth !== `Bearer ${expectedKey}`) {
-              failures.push(`unexpected Authorization identity for ${new URL(request.url()).pathname}`);
-            }
-          });
-
-          page.on("response", async (response) => {
-            if (!response.url().startsWith(`${expectedUrl}/rest/v1/`) || response.status() < 400) return;
-            let body = "";
-            try { body = (await response.text()).slice(0, 500); } catch {}
-            failures.push(`${response.status()} ${new URL(response.url()).pathname}: ${body}`);
-          });
-
-          // Home remains publicly reachable in both the limited and full launch.\n          await page.goto("http://127.0.0.1:4173/", { waitUntil: "domcontentloaded" });
-
-          // The editions route may satisfy its initial data read during SSR, so a
-          // browser-side REST request is not guaranteed merely by navigation.
-          // Force one harmless browser-originated read with the exact local
-          // identity that the audit server received from GITHUB_ENV. The request
-          // listeners above still verify the actual wire headers and response.
+          // Verify exactly one completed, locally-targeted browser request.
+          // Do not attach async EventEmitter callbacks: page lifecycle changes
+          // can close requests at any time and falsely report a credential error.
+          const expectedProbe = `${expectedUrl}/rest/v1/countries?select=id&limit=1`;
+          // Home remains publicly reachable in both the limited and full launch.
+          await page.goto("http://127.0.0.1:4173/", { waitUntil: "domcontentloaded" });
+          const confirmed = page.waitForResponse(
+            (response) => response.url() === expectedProbe,
+            { timeout: 15_000 },
+          );
           await page.evaluate(
             async ({ url, key }) => {
               const response = await fetch(`${url}/rest/v1/countries?select=id&limit=1`, {
-                headers: {
-                  apikey: key,
-                  Authorization: `Bearer ${key}`,
-                },
+                headers: { apikey: key, Authorization: `Bearer ${key}` },
               });
               if (!response.ok) {
                 throw new Error(`Browser local Supabase probe failed: HTTP ${response.status} ${await response.text()}`);
@@ -491,14 +470,18 @@ jobs:
             },
             { url: expectedUrl, key: expectedKey },
           );
-          await page.waitForTimeout(250);
-          await browser.close();
 
-          if (!sawRest) failures.push("Browser local Supabase REST probe was not observed");
-          if (failures.length) {
-            console.error(failures.join("\n"));
-            process.exit(1);
+          const response = await confirmed;
+          await response.finished();
+          if (response.status() !== 200) {
+            throw new Error(`Unexpected browser local Supabase status: ${response.status()}`);
           }
+          const headers = await response.request().allHeaders();
+          if (headers.apikey !== expectedKey ||
+              headers.authorization !== `Bearer ${expectedKey}`) {
+            throw new Error("Browser local Supabase credential identity mismatch");
+          }
+          await browser.close();
           NODE
 
       - name: Organizer fail-fast preflight
