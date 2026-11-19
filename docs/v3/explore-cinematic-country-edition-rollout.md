@@ -29,3 +29,8 @@
 - [#2251](https://github.com/solarissongcontest/solarisstudio/pull/2251): narrow **published edition/archive root queries**, limit expensive Show and winner/Results reads to the four visible historical previews, isolate current full Show Mode data from minimal published finals and result proof; carry over associated contract tests. This is a *selective source forward-port* of the existing PR's four changed files, NOT a Git merge of its stale history. Validate against the PR's current base and new CI head before any release.
 - [#2163](https://github.com/solarissongcontest/solarisstudio/pull/2163) / [#1991](https://github.com/solarissongcontest/solarisstudio/pull/1991): take **only** the World Explore entry pattern, adapted to the present soft-launch route availability and canonical World rollout query. Do not import its overlapping World data readers or public security mutations.
 - **No merge into main**; original old PRs retain their independent ownership until upstream integrator decides whether they are superseded.
+
+## MySolaris first visual integration (non-publishing)
+- The existing authorized `MySolarisDesignV2Module` embeds the **Country Hero Studio V3 preview**. It consumes the current Country V2 background selection and existing focal-position sliders as *local editor draft state only*.
+- Preview modes: installed app, mobile browser website and desktop, with a separate official 3:2 flag identity strip and the shared cinematic fading title.
+- **No new Publish V3 control**: existing `Publish V2` is explicitly not the V3 Hero publish authority. The next server-authoritative System/Media slice must establish published hero revision and private draft lifecycle before activation.

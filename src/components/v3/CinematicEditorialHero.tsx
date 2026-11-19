@@ -11,6 +11,8 @@ export type CinematicEditorialHeroProps = {
   imageUrl?: string | null;
   focalPoint?: CinematicFocalPoint | null;
   context?: ReactNode;
+  /** Preview embeds should not create a second page-level h1. */
+  headingLevel?: 1 | 2;
 };
 
 /**
@@ -25,7 +27,9 @@ export function CinematicEditorialHero({
   imageUrl,
   focalPoint,
   context,
+  headingLevel = 1,
 }: CinematicEditorialHeroProps) {
+  const Heading = headingLevel === 2 ? "h2" : "h1";
   return (
     <header
       className={`cinematic-entity-hero cinematic-entity-hero--${kind}`}
@@ -49,7 +53,7 @@ export function CinematicEditorialHero({
       <div className="cinematic-entity-hero__fade" aria-hidden="true" />
       <div className="cinematic-entity-hero__copy">
         <p className="cinematic-entity-hero__eyebrow">{eyebrow}</p>
-        <h1 className="cinematic-entity-hero__title">{title}</h1>
+        <Heading className="cinematic-entity-hero__title">{title}</Heading>
         {subtitle ? <p className="cinematic-entity-hero__subtitle">{subtitle}</p> : null}
         {context ? <div className="cinematic-entity-hero__context">{context}</div> : null}
       </div>
