@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 
 import { resolveCinematicObjectPosition, safeCinematicColor, type CinematicFocalPoint } from "@/lib/cinematic-hero";
 import "@/styles/v3-cinematic-entities.css";
@@ -9,6 +9,8 @@ export type CinematicEditorialHeroProps = {
   eyebrow: string;
   subtitle?: string | null;
   imageUrl?: string | null;
+  imageAltText?: string | null;
+  priority?: boolean;
   focalPoint?: CinematicFocalPoint | null;
   fallbackColors?: readonly [string | null | undefined, string | null | undefined];
   context?: ReactNode;
@@ -26,11 +28,15 @@ export function CinematicEditorialHero({
   eyebrow,
   subtitle,
   imageUrl,
+  imageAltText,
+  priority = true,
   focalPoint,
   fallbackColors,
   context,
   headingLevel = 1,
 }: CinematicEditorialHeroProps) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const usableImage = imageUrl && imageUrl !== failedUrl ? imageUrl : null;
   const Heading = headingLevel === 2 ? "h2" : "h1";
   const fallbackStyle = {
     "--cinematic-identity-primary": safeCinematicColor(fallbackColors?.[0]) ?? "#385e7d",
@@ -41,21 +47,21 @@ export function CinematicEditorialHero({
       className={`cinematic-entity-hero cinematic-entity-hero--${kind}`}
       style={fallbackStyle}
       data-cinematic-entity={kind}
-      data-has-image={imageUrl ? "true" : "false"}
+      data-has-image={usableImage ? "true" : "false"}
     >
       <div className="cinematic-entity-hero__media" aria-hidden="true">
-        {imageUrl ? (
+        <div className="cinematic-entity-hero__fallback" />
+        {usableImage ? (
           <img
-            src={imageUrl}
-            alt=""
+            src={usableImage}
+            alt={imageAltText ?? ""}
             decoding="async"
-            loading="eager"
-            fetchPriority="high"
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : "auto"}
+            onError={() => setFailedUrl(usableImage)}
             style={{ objectPosition: resolveCinematicObjectPosition(focalPoint) }}
           />
-        ) : (
-          <div className="cinematic-entity-hero__fallback" />
-        )}
+        ) : null}
       </div>
       <div className="cinematic-entity-hero__fade" aria-hidden="true" />
       <div className="cinematic-entity-hero__copy">

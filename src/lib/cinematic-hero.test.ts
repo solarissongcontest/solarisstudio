@@ -39,8 +39,9 @@ describe("Explore cinematic Country and Edition first slice", () => {
     expect(edition).toContain("canOpenV3EditionResults");
   });
   it("reserves the visual fade and safe responsive reading design without nested hero cards", () => {
-    expect(hero).toContain('data-has-image={imageUrl ? "true" : "false"}');
-    expect(hero).toContain("loading=\"eager\"");
+    expect(hero).toContain('data-has-image={usableImage ? "true" : "false"}');
+    expect(hero).toContain('onError={() => setFailedUrl(usableImage)}');
+    expect(hero).toContain('loading={priority ? "eager" : "lazy"}');
     expect(css).toContain("var(--cinematic-canvas");
     expect(css).toContain("aspect-ratio: 3 / 2");
     expect(css).toContain("@media (prefers-reduced-motion: reduce)");

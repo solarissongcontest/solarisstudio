@@ -24,6 +24,11 @@ describe("MySolaris Country Hero Studio safe first slice", () => {
     expect(preview).not.toContain(".from(");
     expect(preview).not.toContain("mutateAsync");
     expect(preview).toContain("this does not publish a V3 hero");
+    expect(preview).toContain('URL.createObjectURL(file)');
+    expect(preview).toContain('URL.revokeObjectURL(url)');
+    expect(preview).toContain('type="range"');
+    expect(preview).toContain('type="file"');
+    expect(preview).toContain('priority={false}');
     expect(hero).toContain('const Heading = headingLevel === 2 ? "h2" : "h1"');
   });
   it("preserves full flag ratio and a calm fade into ordinary sections", () => {

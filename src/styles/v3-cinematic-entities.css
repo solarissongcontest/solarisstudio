@@ -230,3 +230,10 @@
   .cinematic-edition-entity-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cinematic-edition-entity-list .cinematic-edition-entity-row:nth-child(odd) { border-right: 1px solid rgba(255,255,255,.1); }
 }
+
+/* Keep a real country-themed fallback UNDER the decoded media. Invalid or
+   revoked public artwork must never leave a broken-image icon or blank masthead. */
+.cinematic-entity-hero__media img {
+  position: absolute;
+  inset: 0;
+}

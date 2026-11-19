@@ -45,3 +45,9 @@
 - Explore projection now carries explicit existing destinations `/archive` and `/tools`; public availability remains enforced by the shared presentation link and existing top-level feature/maintenance gates.
 - Archive and Site Directory share one responsive, divided editorial desktop list rather than inconsistent isolated cards, without changing their search, URL, area filters, source registry or permissions. Mobile and installed app keep their own control models.
 - No new Supabase client, data fanout, or parallel search route is created.
+
+## Country Hero Studio: private local image rehearsal
+- Authorized Country designer now permits selecting an image **for a local-only object URL preview** (JPEG/PNG/WebP <= 5 MB); selection never writes to Supabase or registers public media.
+- Accessible keyboard range inputs adjust local focal X/Y 0–100 without changing Country V2 design or current published background. Remove private preview to return to the existing image or color fallback; blob URLs are revoked on replacement/unmount.
+- The shared cinematic hero keeps its safe color gradient rendered underneath media and restores it on asset decode/load failure; non-visible MySolaris preview uses lazy rather than LCP-priority loading.
+- This is **not** a secure ready-draft/upload/publish feature. Media/System contract and revised authorization checks remain required.

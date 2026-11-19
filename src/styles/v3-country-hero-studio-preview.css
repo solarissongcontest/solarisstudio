@@ -110,3 +110,18 @@
   .country-hero-preview *, .country-hero-preview *::before,
   .country-hero-preview *::after { transition: none !important; animation: none !important; }
 }
+
+/* Draft-only UX keeps an accessible chooser and keyboard-operable focal sliders. */
+.country-hero-preview__chooser { display: grid; gap: .6rem; margin-bottom: 1.1rem; }
+.country-hero-preview__picker { display: grid; gap: .45rem; font-size: .86rem; font-weight: 700; }
+.country-hero-preview__picker input { display: block; width: 100%; font-size: .8rem; }
+.country-hero-preview__upload-note, .country-hero-preview__filename { margin: 0; font-size: .76rem; line-height: 1.55; color: var(--muted-foreground); }
+.country-hero-preview__error { margin: 0; font-size: .85rem; color: var(--destructive); }
+.country-hero-preview__clear { justify-self: start; min-height: 2.75rem; padding: .45rem .75rem; border: 1px solid var(--border); border-radius: .6rem; font-size: .8rem; font-weight: 650; }
+.country-hero-preview__focus { display: grid; gap: .8rem; margin-bottom: 1.1rem; }
+.country-hero-preview__focus label { display: grid; gap: .4rem; font-size: .82rem; line-height: 1.5; }
+.country-hero-preview__focus output { margin-left: .4rem; font-variant-numeric: tabular-nums; }
+.country-hero-preview__focus input[type="range"] { width: 100%; min-height: 2rem; accent-color: var(--primary); }
+@media (min-width: 700px) {
+  .country-hero-preview__focus { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1.5rem; }
+}
