@@ -183,8 +183,12 @@ def inspect_member(name, stated_size, stream):
         objects[(sha, size)] += 1
 
 def mc(*args, data=None, capture=True):
-    cmd = ["docker", "run", "--rm", "--network", network,
-           "-e", "MC_HOST_recovery", mc_image, *args]
+    # docker run needs -i to forward binary input to "mc pipe".
+    # Without it the client can create an empty object and still exit 0.
+    cmd = ["docker", "run", "--rm"]
+    if data is not None:
+        cmd.append("-i")
+    cmd.extend(["--network", network, "-e", "MC_HOST_recovery", mc_image, *args])
     result = subprocess.run(cmd, input=data, stdout=subprocess.PIPE if capture else subprocess.DEVNULL,
                             stderr=subprocess.PIPE, check=False)
     if result.returncode != 0:
@@ -261,6 +265,23 @@ for internal_bucket in sorted(set(buckets.values())):
     mc("mb", "recovery/" + internal_bucket, capture=False)
     mc("anonymous", "set", "none", "recovery/" + internal_bucket, capture=False)
 
+# Guard against a silent stdin failure *before* uploading user media. This
+# includes NUL and non-UTF8 bytes to verify a binary-clean S3 round trip.
+# The temporary probe object is removed immediately afterwards.
+probe_bucket = sorted(set(buckets.values()))[0]
+probe_key = "__solaris_restore_pipe_selftest_" + hashlib.sha256(os.urandom(32)).hexdigest()
+probe_target = "recovery/" + probe_bucket + "/" + probe_key
+probe_bytes = b"solaris S3 streaming probe: \\x00\\xff\\x80\\n"
+mc("pipe", probe_target, data=probe_bytes, capture=False)
+probe_result = mc("cat", probe_target)
+if probe_result != probe_bytes:
+    restore_error(
+        "S3 binary pipe self-test failed: expected %d bytes, retrieved %d bytes" %
+        (len(probe_bytes), len(probe_result))
+    )
+mc("rm", probe_target, capture=False)
+print("PASS: isolated S3 binary upload/download self-test")
+
 uploaded = 0
 def upload_member(name, stated_size, stream):
     global uploaded
@@ -292,8 +313,16 @@ for entry in expected_files:
     payload = mc("cat", "recovery/" + bucket + "/" + path)
     size = int(entry["size"])
     digest = entry["sha256"].removeprefix("sha256:").lower()
-    if len(payload) != size or hashlib.sha256(payload).hexdigest() != digest:
-        restore_error("read-back digest/size mismatch")
+    if len(payload) != size:
+        restore_error(
+            "read-back SIZE mismatch at object %d: expected %d bytes, got %d" %
+            (retrieved + 1, size, len(payload))
+        )
+    if hashlib.sha256(payload).hexdigest() != digest:
+        restore_error(
+            "read-back HASH mismatch at object %d (both lengths %d)" %
+            (retrieved + 1, size)
+        )
     retrieved += 1
     probe_paths.setdefault(bucket, path)
     if retrieved % 25 == 0:
