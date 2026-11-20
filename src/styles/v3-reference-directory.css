@@ -29,3 +29,120 @@ body .v3-reference-directory .v3-directory-search:focus-within {
 .v3-reference-directory .v3-directory-search-clear:focus-visible {
   outline:2px solid var(--primary);outline-offset:2px
 }
+
+
+/* Reference is a knowledge index, not a dashboard of nested tiles. These
+ * composition classes apply only to the existing publication-gated route. */
+.v3-reference-directory__controls {
+  display: grid;
+  gap: .75rem;
+  padding: 0 0 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.v3-reference-directory__controls .v3-directory-search {
+  margin: 0;
+  min-height: 3.1rem;
+  border-radius: .6rem;
+}
+.v3-reference-directory__controls .v3-directory-sheet-trigger {
+  min-height: 2.75rem;
+}
+.v3-reference-directory__coverage {
+  padding: 1rem 0 .85rem;
+  border-bottom: 1px solid var(--border);
+}
+.v3-reference-directory__coverage-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .35rem 1rem;
+}
+.v3-reference-directory__coverage-heading h2 {
+  font-size: .82rem;
+  font-weight: 750;
+  line-height: 1.5;
+}
+.v3-reference-directory__coverage-heading span {
+  color: var(--muted-foreground);
+  font-size: .72rem;
+}
+.v3-reference-directory__coverage-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .8rem 1rem;
+  margin-top: .8rem;
+}
+.v3-reference-directory__coverage-list div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.v3-reference-directory__coverage-list dt {
+  color: var(--muted-foreground);
+  font-size: .78rem;
+}
+.v3-reference-directory__coverage-list dd {
+  margin: 0;
+  color: var(--foreground);
+  font-size: .95rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+.v3-reference-directory__coverage-error {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  align-items: center;
+  color: var(--muted-foreground);
+  font-size: .75rem;
+  line-height: 1.5;
+  padding-top: .9rem;
+}
+.v3-reference-directory__index {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border-top: 1px solid var(--border);
+}
+.v3-reference-directory__row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+  min-height: 5.25rem;
+  padding: 1rem .25rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--foreground);
+  text-decoration: none;
+}
+.v3-reference-directory__row > div { min-width: 0; flex: 1 1 auto; }
+.v3-reference-directory__row > span { flex: 0 0 auto; }
+.v3-reference-directory__row:hover p.font-semibold { color: var(--primary); }
+.v3-reference-directory__row:focus-visible,
+.v3-reference-directory__coverage-error button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+@media (min-width: 48rem) {
+  .v3-reference-directory__coverage-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (min-width: 76rem) {
+  .v3-reference-directory[data-directory-experience="desktop-web"] .v3-reference-directory__index {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 2rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .v3-reference-directory__row,
+  .v3-reference-directory__row * { transition: none; }
+}
+@media (forced-colors: active) {
+  .v3-reference-directory__index,
+  .v3-reference-directory__row,
+  .v3-reference-directory__controls,
+  .v3-reference-directory__coverage { border-color: CanvasText; }
+}
