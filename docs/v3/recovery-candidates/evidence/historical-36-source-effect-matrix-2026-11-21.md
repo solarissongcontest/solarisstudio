@@ -5,7 +5,7 @@
 - Project: `dkxmnvekiopyesuzggeu` · database `postgres` · PostgreSQL 17.11
 - GitHub source reviewed at `94546072463fd9cbd3c6d8a00cd5fcaa37288f0a`.
 - The hosted `supabase_migrations.schema_migrations` history remains **497 entries**, tip `20261101181812`. The **36 historical identities are still missing**, and no fake ledger repair has occurred.
-- Counts by source effects: `9` newly/effect verified (including the earlier S13 foundation), `2` previously satisfied ACL-only effects, `2` partial, `1` obsolete intermediate window to reconcile, and `22` pending/unqualified. **Do not interpret this as 36 migrations to replay** or as complete effect equivalence based only on object presence.
+- Counts by source effects: `11` newly/effect verified (including the earlier S13 foundation), `2` previously satisfied ACL-only effects, `2` partial, `1` obsolete intermediate window to reconcile, and `22` pending/unqualified. **Do not interpret this as 36 migrations to replay** or as complete effect equivalence based only on object presence.
 - Exact historical SQL files are immutable. Legacy ledger gaps are not automatically safe to repair. New effect SQL must be forward-only, dependency-ordered, independently rehearsed against the restored owner/ACL baseline, and protected by exact-target preflight and postcheck.
 
 ### A · S14 Televote source/projection
@@ -26,7 +26,7 @@
 | `20261018053000_v3_s6_confirmation_requirement_reconciliation.sql` | EFFECT VERIFIED | Service-only read-only verifier installed, canonical body exact |
 | `20261018081500_v3_s5_entry_lifecycle_consequences.sql` | PENDING | Entry event/consequence helpers and triggers absent |
 | `20261018111500_v3_confirmation_sync_service_role_privileges.sql` | EXISTING EFFECT VERIFIED | All 20 expected service-role table privileges satisfied before this pass |
-| `20261018122500_v3_voting_declaration_expected_edition_scope.sql` | UNQUALIFIED | Existing routines require full signature/body/authority reconciliation |
+| `20261018122500_v3_voting_declaration_expected_edition_scope.sql` | EFFECT VERIFIED | Two canonical reviewed-edition RPC overloads installed; exact bodies, owner and grants verified |
 | `20261019000500_v3_confirmation_sync_publication_event_service_role.sql` | EXISTING EFFECT VERIFIED | service_role execute true; anon/authenticated false |
 | `20261019013000_v3_public_live_rollout_flag.sql` | EFFECT VERIFIED | Feature CHECK extended by exactly one key; new flag disabled |
 
@@ -47,7 +47,7 @@
 | `20261019113100_v3_s6_notification_reactivation.sql` | PENDING | Notification reactivation routine absent |
 | `20261019113200_v3_s6_notification_failure_visibility.sql` | PENDING | Canonical final verifier definition absent; semantic contract absent |
 | `20261019113300_v3_s13_strict_registration_restore.sql` | EFFECT VERIFIED | Current strict register-function body exactly matches canonical SQL, one semantic contract seed exists |
-| `20261024200300_v3_s6_confirmation_requirement_bounded_repair.sql` | PENDING | Bounded repair RPC absent |
+| `20261024200300_v3_s6_confirmation_requirement_bounded_repair.sql` | EFFECT VERIFIED | Service-only bounded repair RPC and semantic seed installed, no real editions repaired |
 
 ### E · S14 Archive
 
