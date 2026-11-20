@@ -7,8 +7,34 @@ fail() { printf '\n[v3-public-result-snapshot] FAIL: %s\n' "$*" >&2; exit 1; }
 eval "$(supabase status -o env)"
 : "${API_URL:?missing local Supabase API_URL}"
 : "${DB_URL:?missing local Supabase DB_URL}"
-case "$API_URL" in http://127.0.0.1:*|http://localhost:*) ;; *) fail "Refusing hosted Supabase rehearsal ($API_URL)" ;; esac
-case "$DB_URL" in postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;; *) fail "Refusing non-local database rehearsal" ;; esac
+# Prefix checks can match deceptive URLs such as localhost:5432@evil.example.
+# Parse effective URL authority and forbid libpq query/environment overrides before
+# any database command can execute. Browser/API and PostgreSQL stay loopback-only.
+if ! API_URL="$API_URL" DB_URL="$DB_URL" node --input-type=module <<'NODE'
+const deny = (message) => { console.error("[v3-public-result-snapshot] " + message); process.exit(1); };
+const hostAllowed = (value) => value === "127.0.0.1" || value === "localhost";
+const url = (value, label) => {
+  try { return new URL(value); } catch { deny(label + ": invalid connection URL"); }
+};
+const portAllowed = (value) => /^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= 65535;
+const api = url(process.env.API_URL, "API_URL");
+if (api.protocol !== "http:" || !hostAllowed(api.hostname) || !portAllowed(api.port) ||
+    api.username || api.password || api.pathname !== "/" || api.search || api.hash) {
+  deny("Refusing hosted/non-loopback Supabase API URL");
+}
+const db = url(process.env.DB_URL, "DB_URL");
+if (!["postgres:", "postgresql:"].includes(db.protocol) || !hostAllowed(db.hostname) ||
+    !portAllowed(db.port) || db.username !== "postgres" || db.password !== "postgres" ||
+    db.pathname !== "/postgres" || db.search || db.hash) {
+  deny("Refusing hosted/non-loopback database URL or connection override");
+}
+for (const envName of ["PGHOST", "PGHOSTADDR", "PGSERVICE", "PGSERVICEFILE", "PGOPTIONS"]) {
+  if (process.env[envName]) deny("Refusing libpq connection override: " + envName);
+}
+NODE
+then
+  fail "Unsafe Supabase rehearsal configuration"
+fi
 
 db_exec() { psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "$1" >/dev/null; }
 db_value() { psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "$1"; }
