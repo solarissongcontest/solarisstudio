@@ -298,6 +298,33 @@ reconcile the five archived owner labels versus three current owner roles.
 No passwords, memberships or Auth/Vault encryption keys are assumed to
 be stored in this archive.
 
+## 19:55 local owner-observed role/ACL rehearsal preflight (still blocked)
+
+The owner-supplied terminal screenshot of the role/ACL replay script at
+`02767d93bf801fc0f252db65f50f110d576d7e4b` stopped **before
+restoration**, during private archive owner inventory, with:
+
+```text
+[3/4] Preparing restricted archive-owner/ACL role identities
+STOP: unexpected TABLE inventory: application=225, ledger=1, total=236
+```
+
+The earlier successful TOC audit correctly counted only the five application
+schemas (225 tables) while separately reporting one migration-ledger TABLE;
+this later output proves **10 other TABLE TOC definitions** in the archive
+outside that application+ledger scope. The older rehearsal script wrongly
+required 226 total, not the observed 236. No production access or schema write
+was involved.
+
+Corrected script and synthetic tests require exactly **225 application,
+1 migration ledger, 10 other, 236 total** and do not treat other object names
+as role identities. The static CI safety workflow passed at
+`cea115fd9bd1463f6ae0599af3d90ce3a2b9c9ab`.
+**Actual owner/ACL replay remains UNEXECUTED/UNCERTIFIED** until the owner
+runs that corrected revision against the private encrypted backup. The other
+ten TABLE owners must be resolved safely during the same networkless restore;
+their precise schema identities are not claimed in public evidence.
+
 ## What this does NOT prove
 
 - Individual row/data integrity and official contest vote/result parity were not checked in this run.
