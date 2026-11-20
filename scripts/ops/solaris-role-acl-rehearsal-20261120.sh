@@ -191,6 +191,15 @@ if age -d -i "$KEY" "$DB" | docker exec -i "$CONTAINER" sh -c '
            '; tables with explicit ACL=' || count(*) FILTER(WHERE relacl IS NOT NULL) ||
            '; table-owner role identities=' || count(DISTINCT relowner)
       FROM x" || abort 'Restored catalog inventory failed'
+  RESTORED_COUNTS=$(docker exec "$CONTAINER" psql -X -U supabase_admin -d postgres -At \
+    -v ON_ERROR_STOP=1 -c "
+      SELECT count(*)::text || '|' ||
+             count(*) FILTER (WHERE c.relrowsecurity)::text
+        FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+       WHERE c.relkind='r'
+         AND n.nspname IN ('public','private','televoting','auth','storage')")
+  test "$RESTORED_COUNTS" = '225|202' \
+    || abort 'Unexpected restored table/RLS counts; refusing permission certificate'
   POLICY_COUNT=$(docker exec "$CONTAINER" psql -X -U supabase_admin -d postgres -At -v ON_ERROR_STOP=1 \
     -c "SELECT count(*) FROM pg_policies WHERE schemaname IN ('public','private','televoting','auth','storage')")
   test "$POLICY_COUNT" = 265 || abort "Unexpected policy count after role/ACL replay: $POLICY_COUNT"
