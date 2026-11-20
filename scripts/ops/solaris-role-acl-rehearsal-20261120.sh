@@ -7,7 +7,7 @@ umask 077
 BASE="$HOME/solaris-recovery"
 KEY="$BASE/recovery-private.key"
 IMAGE="supabase/postgres:17.11.0.019"
-CONTAINER="solaris-role-acl-test-$"
+CONTAINER="solaris-role-acl-test-${BASHPID}"
 REPORT=""
 STARTED=0
 cleanup() {
