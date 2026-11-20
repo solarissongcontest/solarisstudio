@@ -108,12 +108,19 @@ const TABS = [
   { value: "overview", label: "Overview" },
   { value: "entries", label: "Entries" },
   { value: "results", label: "Results" },
+  { value: "history", label: "History" },
+  { value: "world", label: "World" },
   { value: "voting", label: "Voting" },
   { value: "relationships", label: "Relationships" },
   { value: "form", label: "Form" },
 ] as const;
 
 type Tab = (typeof TABS)[number]["value"];
+
+function countryTabFromHash(hash: string): Tab {
+  const value = hash.startsWith("#country-") ? hash.slice("#country-".length) : "overview";
+  return TABS.find((item) => item.value === value)?.value ?? "overview";
+}
 
 function CountryProfilePage() {
   const { code } = Route.useParams();
@@ -134,6 +141,28 @@ function CountryProfilePage() {
   const { data: jury } = juryQuery;
   const { data: televote } = televoteQuery;
   const [tab, setTab] = useState<Tab>("overview");
+
+  // Browser country sections have bookmarkable URLs and follow Back/Forward.
+  // The installed PWA retains its established in-app section navigation.
+  useEffect(() => {
+    if (isAppMode) return;
+    const restoreSection = () => setTab(countryTabFromHash(window.location.hash));
+    restoreSection();
+    window.addEventListener("hashchange", restoreSection);
+    window.addEventListener("popstate", restoreSection);
+    return () => {
+      window.removeEventListener("hashchange", restoreSection);
+      window.removeEventListener("popstate", restoreSection);
+    };
+  }, [code, isAppMode]);
+
+  const selectCountrySection = (next: Tab) => {
+    if (!isAppMode && typeof window !== "undefined" && next !== tab) {
+      const url = `${window.location.pathname}${window.location.search}#country-${next}`;
+      window.history.pushState(window.history.state, "", url);
+    }
+    setTab(next);
+  };
 
   useEffect(() => {
     if (!isAppMode) {
@@ -539,14 +568,30 @@ function CountryProfilePage() {
           </div>
         )}
 
-        <ResponsiveTabs
-          value={tab}
-          options={TABS}
-          onChange={setTab}
-          label="Country section"
-          collapseAt="lg"
-          className="mb-5"
-        />
+        {isAppMode ? (
+          <ResponsiveTabs
+            value={tab}
+            options={TABS}
+            onChange={selectCountrySection}
+            label="Country section"
+            collapseAt="lg"
+            className="mb-5"
+          />
+        ) : (
+          <nav className="country-editorial-section-nav" aria-label="Country sections">
+            {TABS.map((section) => (
+              <button
+                key={section.value}
+                type="button"
+                className="country-editorial-section-button"
+                aria-pressed={tab === section.value}
+                onClick={() => selectCountrySection(section.value)}
+              >
+                {section.label}
+              </button>
+            ))}
+          </nav>
+        )}
 
         {archiveLoading ? (
           <ArchiveDataLoading label="Loading country history…" />
@@ -606,7 +651,7 @@ function CountryProfilePage() {
                   actions={
                     <button
                       type="button"
-                      onClick={() => setTab("results")}
+                      onClick={() => selectCountrySection("results")}
                       className="rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold text-primary"
                     >
                       Full results →
@@ -682,10 +727,7 @@ function CountryProfilePage() {
                   </Panel>
                 )}
 
-                <CountryWorldSupplement
-                  country={country}
-                  defaultLayout={publishedDesign?.content.defaultLayout}
-                />
+
               </>
             ) : (
               <Panel title="Solaris Song Contest">
@@ -695,6 +737,59 @@ function CountryProfilePage() {
               </Panel>
             )}
           </div>
+        )}
+
+        {tab === "history" && (
+          <section className="country-editorial-history" aria-label="Published country history">
+            <header className="country-editorial-content-heading">
+              <h2>Participation history</h2>
+              <span>{entryHistory.length} published {entryHistory.length === 1 ? "entry" : "entries"}</span>
+            </header>
+            {entryHistory.length ? (
+              <ol className="country-editorial-history-list">
+                {entryHistory.map((entry) => {
+                  const edition = editionMap.get(entry.edition_id);
+                  return (
+                    <li key={entry.id}>
+                      <div className="country-editorial-history-main">
+                        {edition ? (
+                          <Link to="/editions/$slug" params={{ slug: edition.slug }} className="country-editorial-history-edition">
+                            {editionLabel(edition)}
+                          </Link>
+                        ) : <span className="country-editorial-history-edition">Edition</span>}
+                        <span className="country-editorial-history-song">
+                          {[entry.artist, entry.song].filter(Boolean).join(" · ") || "Entry details unavailable"}
+                        </span>
+                        <EntryListenLinks entry={entry} compact />
+                      </div>
+                      <QualificationBadge status={qualificationFor(entry.edition_id)} />
+                    </li>
+                  );
+                })}
+              </ol>
+            ) : (
+              <p className="text-sm text-muted-foreground">No published participation history yet.</p>
+            )}
+            {hostedEditions.length > 0 && (
+              <section className="country-editorial-hosted-editions">
+                <h3>Hosted editions</h3>
+                <div>
+                  {hostedEditions.map((edition) => (
+                    <Link key={edition.id} to="/editions/$slug" params={{ slug: edition.slug }}>
+                      {editionLabel(edition)}{edition.host_city ? ` · ${edition.host_city}` : ""}
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+          </section>
+        )}
+
+        {tab === "world" && (
+          <section className="country-editorial-world" aria-label="Terra Solaris">
+            <CountryWorldOverview country={country} />
+            <CountryWorldSupplement country={country} defaultLayout={publishedDesign?.content.defaultLayout} />
+          </section>
         )}
 
         {tab === "entries" && (
@@ -724,37 +819,13 @@ function CountryProfilePage() {
                 )}
               </Panel>
 
-              <Panel
-                title="Entry history"
-                description="Canonical entries in reverse chronological order. Chronology is never rearranged for personality styling."
+              <button
+                type="button"
+                className="country-editorial-more-history"
+                onClick={() => selectCountrySection("history")}
               >
-                {entryHistory.length ? (
-                  <div className="divide-y divide-border/60">
-                    {entryHistory.map((entry) => {
-                      const edition = editionMap.get(entry.edition_id);
-                      const status = qualificationFor(entry.edition_id);
-                      return (
-                        <div key={entry.id} className="py-3 first:pt-0 last:pb-0">
-                          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold">
-                                {edition ? editionLabel(edition) : "Edition"}
-                              </p>
-                              <p className="mt-1 truncate text-xs text-muted-foreground">
-                                {[entry.artist, entry.song].filter(Boolean).join(" · ") || "Entry details unavailable"}
-                              </p>
-                              <EntryListenLinks entry={entry} compact className="mt-2" />
-                            </div>
-                            <QualificationBadge status={status} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No published entry history is available yet.</p>
-                )}
-              </Panel>
+                View participation history
+              </button>
             </div>
           ) : <NoContestData countryName={country.name} />
         )}
