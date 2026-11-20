@@ -21,6 +21,21 @@ test("only the approved public and participation routes render", async ({ page }
   }
 });
 
+test("mobile Safari and desktop reach the actual Home instead of staying on the SSR bootstrap", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+
+  const response = await page.goto("/", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(200);
+  // A 200 response can still display the query-free SSR bootstrap forever if
+  // hydration or client assets fail. This was visible on an actual iPhone.
+  await expect(page.locator("[data-v3-primary-boot]")).toHaveCount(0, { timeout: 20_000 });
+  await expect(page.locator("header.site-nav")).toBeVisible();
+  await expect(page.locator("main[data-public-layout]")).toHaveCount(1);
+  await expect(page.locator("html")).toHaveAttribute("data-solaris-runtime", "web");
+  expect(errors, "Home must not crash during browser hydration").toEqual([]);
+});
+
 test("hidden public URLs fail closed at the Worker before app SSR", async ({ request }) => {
   for (const route of HIDDEN_ROUTES) {
     const response = await request.get(route, { maxRedirects: 0 });
