@@ -10,14 +10,30 @@ const sender = readFileSync("supabase/functions/solaris-push-dispatch/index.ts",
 const worker = readFileSync("public/sw.js", "utf8");
 
 function serviceWorkerDisplay(candidate: unknown) {
-  const start = worker.indexOf("function resolvePushDisplayContent(");
-  const end = worker.indexOf('\n\nself.addEventListener("push", (event) => {', start);
-  expect(start).toBeGreaterThanOrEqual(0);
-  expect(end).toBeGreaterThan(start);
-  const resolver = new Function(
-    `${worker.slice(start, end)}; return resolvePushDisplayContent;`,
-  )() as (data: unknown) => { title: string; body: string; tag?: string };
-  return resolver(candidate);
+  // Evaluate the shipped route and privacy helpers together. The sensitive
+  // display resolver calls isWorldPushRoute, which in turn normalizes routes.
+  const routesStart = worker.indexOf("function pushBaseOrigin()");
+  const routesEnd = worker.indexOf("async function reportPushReceipt(", routesStart);
+  const privacyStart = worker.indexOf("function isWorldPushRoute(");
+  const privacyEnd = worker.indexOf('\n\nself.addEventListener("push", (event) => {', privacyStart);
+  expect(routesStart).toBeGreaterThanOrEqual(0);
+  expect(routesEnd).toBeGreaterThan(routesStart);
+  expect(privacyStart).toBeGreaterThan(routesEnd);
+  expect(privacyEnd).toBeGreaterThan(privacyStart);
+
+  const factory = new Function(
+    "self",
+    "URL",
+    [
+      worker.slice(routesStart, routesEnd),
+      worker.slice(privacyStart, privacyEnd),
+      "return resolvePushDisplayContent;",
+    ].join("\n"),
+  ) as (
+    scope: { location: { origin: string } },
+    urlClass: typeof URL | undefined,
+  ) => (data: unknown) => { title: string; body: string; tag?: string };
+  return factory({ location: { origin: "https://solaris.test" } }, URL)(candidate);
 }
 
 const deliveryId = "a1234567-89ab-4cde-8f01-a123456789ab";
