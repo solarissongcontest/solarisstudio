@@ -240,10 +240,63 @@ media, user identities or SQL bodies), the connected Supabase project reported:
   provider-managed Vault encryption roots, Auth provider secrets, or global role
   memberships. Those remain recovery blockers.
 
-The next safe operator-side diagnostic is a read-only **encrypted archive TOC
-inventory** checking whether the source custom-format dump even contains ACL,
-DEFAULT ACL and role-owner metadata before designing another isolated role-
-faithful restore. Preserve all raw TOC entries privately; report counts only.
+The encrypted archive's TOC inventory is now owner-observed as completed: **1,058 ACL** and **27 DEFAULT ACL** entries exist. A role-faithful isolated restore and effective permission checks are still required.
+
+## Owner-observed encrypted database role/ACL TOC audit (20 November 2026)
+
+The owner supplied a screenshot of the successful read-only Cloud Shell run of
+`scripts/ops/solaris-encrypted-dump-role-acl-toc-preflight-20261120.sh`
+at commit `989d3c291b1722a10c1d42dae43fbb505126ded5`.
+The screenshot reports:
+
+```text
+Custom archive version: PostgreSQL 17.11
+Application TABLE definitions: 225
+Application TABLE DATA entries: 225
+ACL entries: 1058
+DEFAULT ACL entries: 27
+POLICY entries: 265
+TRIGGER entries: 301
+Unique TABLE owner names in TOC: 5
+Vault TABLE definitions in scoped dump: 0
+Migration-ledger TABLE definitions in scoped dump: 1
+auth: 27 table definitions; 27 table-data entries
+private: 13 table definitions; 13 table-data entries
+public: 149 table definitions; 149 table-data entries
+storage: 10 table definitions; 10 table-data entries
+televoting: 26 table definitions; 26 table-data entries
+READ-ONLY TOC AUDIT COMPLETE; ownership/role recovery NOT CERTIFIED.
+```
+
+**Meaning:** The archive does contain ACL/default ACL and RLS policy TOC
+entries, unlike a stripped schema-only export; therefore original database
+grant/ownership metadata is plausibly available for an isolated
+role-faithful recovery. This is **inventory only**, not proof that original
+grants can be successfully applied or that effective permissions will match
+hosted production.
+
+The observed `supabase_migrations` table *definition* does **not** prove
+that all 497 migration records or their checksums were captured. The
+absence of `vault` table definitions in the scoped archive does not prove
+that Vault was empty: provider-managed encryption root recovery is
+**unverified and remains blocked**.
+
+A bounded, read-only 20-Nov hosted catalog inspection independently reports
+**three distinct current table-owner roles** across the same five
+application schemas, of which one can bypass RLS, with **11** role-membership
+edges related to those current owners and **32** roles in the hosted
+database. The archived TOC reported **five distinct owner labels**, so
+owner identity mapping/date drift and parser scope need explicit
+reconciliation; **do not declare owner parity from counts**.
+
+**Next safe work, without requesting another backup script run:** inspect
+the existing source-side role/permission recovery tooling; design a
+networkless test that restores grant metadata using compatible roles,
+checks exact owner/ACL/policy fingerprints, and performs positive/negative
+anonymous/authenticated/service-role access probes. Before any such test,
+reconcile the five archived owner labels versus three current owner roles.
+No passwords, memberships or Auth/Vault encryption keys are assumed to
+be stored in this archive.
 
 ## What this does NOT prove
 
