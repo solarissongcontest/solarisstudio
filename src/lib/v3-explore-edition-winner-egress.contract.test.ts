@@ -30,6 +30,9 @@ describe("Explore Editions winner egress and public release gates", () => {
     expect(editions).toContain("Winner details temporarily unavailable");
     expect(editions).toContain("Checking published winner");
     expect(editions).toContain("Result not public yet");
+    expect(editions).toContain("hasPublishedEditions={cards.length > 0}");
+    expect(editions).toContain("No public editions yet");
+    expect(editions).toContain("No matching editions");
     expect(editions).toContain("final_rank === 1");
   });
 
