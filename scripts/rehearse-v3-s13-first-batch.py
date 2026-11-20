@@ -102,7 +102,8 @@ def validate_package(directory):
         'supabase/migrations/20261019111000_v3_s13_migration_hardening.sql',
         'supabase/migrations/20261019113300_v3_s13_strict_registration_restore.sql',
         'docs/v3/recovery-candidates/evidence/s13-current-hosted-preflight-2026-11-19.json',
-        'docs/v3/recovery-candidates/evidence/s13-s16-current-hosted-catalog-2026-11-20.json']
+        'docs/v3/recovery-candidates/evidence/s13-s16-current-hosted-catalog-2026-11-20.json',
+        'scripts/ops/solaris-role-acl-rehearsal-20261120.sh','scripts/ops/solaris-s13-first-batch-operator.sh']
     if sorted(e['path'] for e in manifest['inputs'])!=sorted(required):
         raise RehearsalFailure('Missing or unknown exact-source input')
     if manifest.get('target')!={'projectRef':'dkxmnvekiopyesuzggeu','database':'postgres','postgresVersionNum':170011,'actor':'postgres'}:
@@ -226,18 +227,25 @@ def rehearse(container,source_db,package,output,baseline_kind):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--container',required=True);parser.add_argument('--source-database',default='postgres')
-    parser.add_argument('--package',type=Path,required=True);parser.add_argument('--proof',required=True)
-    parser.add_argument('--baseline-kind',choices=['observed-subset','recovered-private'],required=True)
+    parser.add_argument('--container');parser.add_argument('--source-database',default='postgres')
+    parser.add_argument('--check-package',type=Path)
+    parser.add_argument('--package',type=Path);parser.add_argument('--proof')
+    parser.add_argument('--baseline-kind',choices=['observed-subset','recovered-private'])
     args=parser.parse_args()
     try:
+        if args.check_package:
+            validate_package(args.check_package)
+            print('VALID: exact-source S13 dark package; no SQL executed')
+            return 0
+        if not all((args.container,args.package,args.proof,args.baseline_kind)):
+            raise RehearsalFailure('Container, package, proof and baseline kind required')
         if os.environ.get('SOLARIS_RUN_LOCAL_DB_REHEARSAL')!='YES':raise RehearsalFailure('Local opt-in missing')
         result=rehearse(args.container,args.source_database,args.package,args.proof,args.baseline_kind)
         print(json.dumps({k:result[k]for k in ('batchId','sourceSha','batchAcceptancePassed','baselineKind','privateBackupOriginIndependentlyVerified','productionAuthorized')}))
         return 0
     except (RehearsalFailure,subprocess.SubprocessError,ValueError,KeyError,OSError) as error:
         try:
-            fd=os.open(args.proof+'.failure.private.log',os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+            fd=os.open((args.proof or 's13-batch')+'.failure.private.log',os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
             with os.fdopen(fd,'wb') as log:
                 log.write(error.stderr if isinstance(error,subprocess.CalledProcessError) and error.stderr else str(error).encode())
         except OSError:pass

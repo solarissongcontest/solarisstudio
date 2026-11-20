@@ -59,7 +59,7 @@ export function renderBatch(){
 }
 export function packageBatch(output){
  const sha=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
- const sourcePaths=[...inputs,...canonicalPaths,...evidencePaths,'scripts/package-v3-s13-first-batch.mjs','scripts/rehearse-v3-s13-first-batch.py'];
+ const sourcePaths=[...inputs,...canonicalPaths,...evidencePaths,'scripts/package-v3-s13-first-batch.mjs','scripts/rehearse-v3-s13-first-batch.py','scripts/ops/solaris-role-acl-rehearsal-20261120.sh','scripts/ops/solaris-s13-first-batch-operator.sh'];
  for(const p of sourcePaths){
   const expected=execFileSync('git',['show',sha+':'+p],{cwd:root});
   assert.equal(digest(expected),digest(fs.readFileSync(path.join(root,p))),'Uncommitted batch source: '+p);
