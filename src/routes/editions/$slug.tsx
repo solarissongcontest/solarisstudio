@@ -270,6 +270,7 @@ function LegacyEditionPage() {
         ) : null}
 
         <EditionHero
+          editorialWeb={!isAppMode}
           eyebrow={edition.host_city ?? "Solaris Song Contest"}
           title={editionLabel(edition)}
           subtitle={meaningfulEditionSubtitle(edition.name, editionLabel(edition), edition.edition_number)}
