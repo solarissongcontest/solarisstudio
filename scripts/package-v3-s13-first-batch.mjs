@@ -15,12 +15,19 @@ export function renderBatch(){
  assert.equal((source.match(/^begin;$/gm)||[]).length,1);
  assert.equal((source.match(/^commit;$/gm)||[]).length,1);
  const fragments=inputs.slice(1).map(p=>fs.readFileSync(path.join(root,p),'utf8'));
+ const bodies=new Map();
+ const functions=[...source.matchAll(/^create or replace function public\.(\w+)\([\s\S]*?^as\s+(\$[a-z_]*\$)([\s\S]*?)\2;/gm)];
+ for(const m of functions)bodies.set(m[1],digest(m[3]));
+ assert.equal(bodies.size,7,'Canonical function body extraction drift');
+ const rows=[...bodies].map(([name,sha])=>"('"+name+"','"+sha+"')").join(',');
+ const definitions="do $s13_batch_bodies$ declare r record; begin for r in select * from (values "+rows+") v(name,hash) loop if not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname=r.name and encode(sha256(convert_to(p.prosrc,'UTF8')),'hex')=r.hash and p.prorettype='jsonb'::regtype and p.prokind='f' and not p.proleakproof and not p.proisstrict) then raise exception 'S13 exact function body differs: %',r.name using errcode='55000'; end if; end loop; end $s13_batch_bodies$;\n";
+ const post=fragments[2]+'\n'+definitions;
  const core=source.slice(source.indexOf('\nbegin;')+1).replace(/^begin;\n/,'').replace(/\ncommit;\s*$/,'');
  const header='-- S13-FOUNDATION-DARK-1: forward-only control-plane installation, not activation.\n-- Execute ONLY approved bytes against the independently verified target.\n';
  return {
   'preflight.sql':'begin transaction read only;\nset local lock_timeout=\'2s\';\nset local statement_timeout=\'10s\';\n'+fragments[0]+source.slice(source.indexOf('do $v3_s13_recovery_preflight$'),source.indexOf('-- Unmodified core S13'))+'\ncommit;\n',
-  'install.sql':header+'begin;\nset local lock_timeout=\'5s\';\nset local statement_timeout=\'120s\';\nset local search_path=pg_catalog,public,private;\n'+fragments[0]+core+'\n'+fragments[1]+'\n'+fragments[2]+'\ncommit;\n',
-  'postcheck.sql':'begin transaction read only;\nset local statement_timeout=\'10s\';\nset local lock_timeout=\'2s\';\n'+fragments[2]+"\nselect 'S13-FOUNDATION-DARK-1 postconditions passed; no API writers activated' as status;\ncommit;\n"
+  'install.sql':header+'begin;\nset local lock_timeout=\'5s\';\nset local statement_timeout=\'120s\';\nset local search_path=pg_catalog,public,private;\n'+fragments[0]+core+'\n'+fragments[1]+'\n'+post+'\ncommit;\n',
+  'postcheck.sql':'begin transaction read only;\nset local statement_timeout=\'10s\';\nset local lock_timeout=\'2s\';\n'+post+"\nselect 'S13-FOUNDATION-DARK-1 postconditions passed; no API writers activated' as status;\ncommit;\n"
  };
 }
 export function packageBatch(output){
