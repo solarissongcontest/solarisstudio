@@ -6,7 +6,20 @@ set -Eeuo pipefail
 umask 077
 BASE="$HOME/solaris-recovery"
 KEY="$BASE/recovery-private.key"
-command -v age >/dev/null 2>&1 || { echo 'STOP: age is not installed'; exit 1; }
+# Cloud Shell system-installed packages can disappear on restart.
+# Install only the official Ubuntu age package when missing; fail closed.
+if ! command -v age >/dev/null 2>&1; then
+  echo '[setup] Installing age (missing after Cloud Shell restart)'
+  if ! command -v sudo >/dev/null 2>&1 || ! command -v apt-get >/dev/null 2>&1; then
+    echo 'STOP: Cannot install age; sudo or apt-get unavailable'
+    exit 1
+  fi
+  sudo apt-get update -qq && sudo apt-get install -y age || {
+    echo 'STOP: age installation failed; encrypted backup unchanged'
+    exit 1
+  }
+fi
+command -v age >/dev/null 2>&1 || { echo 'STOP: age unavailable'; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo 'STOP: python3 is not installed'; exit 1; }
 test -s "$KEY" || { echo 'STOP: decryption identity missing'; exit 1; }
 ST=$(find "$BASE" -maxdepth 6 -type f -name 'solaris-storage-20261115T175307Z.tar.age' -print -quit 2>/dev/null || true)
