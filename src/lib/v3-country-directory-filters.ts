@@ -1,9 +1,4 @@
-/** Match typed country names even when a keyboard omits diacritics. Never changes canonical identity. */
-function normaliseCountrySearch(value: string): string {
-  return value.toLocaleLowerCase().normalize("NFKD").replace(/\p{M}/gu, "")
-    .replace(/ø/g, "o").replace(/æ/g, "ae").replace(/œ/g, "oe")
-    .replace(/ł/g, "l").replace(/ß/g, "ss");
-}
+import { matchesPublicDirectorySearch } from "./v3-public-directory-search";
 
 /** Current-edition selection is usable only with a successful published lineup read. */
 export function effectiveParticipatingScope(requested: boolean, currentLineupReady: boolean): boolean {
@@ -28,19 +23,15 @@ export function filterCountryDirectory<T extends DirectoryCountry>(
     participatingCountryIds: ReadonlySet<string>;
   },
 ): T[] {
-  const query = normaliseCountrySearch(input.search.trim());
-
   return countries
     .filter((country) => !input.participatingOnly || input.participatingCountryIds.has(country.id))
     .filter((country) => input.region === "all" || (country.region?.trim() || "Other") === input.region)
-    .filter(
-      (country) =>
-        !query ||
-        normaliseCountrySearch(country.name).includes(query) ||
-        normaliseCountrySearch(country.short_code).includes(query) ||
-        normaliseCountrySearch(country.native_name ?? "").includes(query) ||
-        normaliseCountrySearch(country.region?.trim() || "Other").includes(query),
-    )
+    .filter((country) => matchesPublicDirectorySearch(input.search, [
+      country.name,
+      country.short_code,
+      country.native_name,
+      country.region?.trim() || "Other",
+    ]))
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
