@@ -122,8 +122,7 @@ describe('Studio 2 Phase 12 Storytelling & Anniversary architecture', () => {
     expect(migration).toContain("'2022-09-17'");
     expect(migration).toContain('first_participations as');
     expect(route).toContain('Anniversary Engine preview');
-    expect(publicArchive).toContain('id="today-heading"');
-    expect(publicArchive).toContain('>On this day</h2>');
+    expect(publicArchive).toContain('On this day in Solaris');
   });
 
   it('is route-native and does not reintroduce the old anniversary portal injection pattern', () => {
