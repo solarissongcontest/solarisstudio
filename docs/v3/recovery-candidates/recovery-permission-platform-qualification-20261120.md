@@ -95,6 +95,9 @@ to ChatGPT, CI or GitHub. The implementing environment has no access to those fi
      "base_url": "http://127.0.0.1:54321",
      "synthetic_fixture": true,
      "egress_isolated": true,
+     "runtime_containers": ["GATEWAY_64_HEX_ID", "DB_64_HEX_ID", "AUTH_64_HEX_ID", "STORAGE_64_HEX_ID"],
+     "gateway_container": "GATEWAY_64_HEX_ID",
+     "database_container": "DB_64_HEX_ID",
      "anon_key": "LOCAL_ONLY",
      "owner_token": "LOCAL_ONLY",
      "other_token": "LOCAL_ONLY",
@@ -117,9 +120,13 @@ to ChatGPT, CI or GitHub. The implementing environment has no access to those fi
    This sends only bounded GET requests to literal loopback, ignores proxies,
    rejects redirects, verifies both Auth identities, rejects absent/expired Auth
    credentials and unauthorized admin access, verifies exact permitted object
-   bytes and rejects wrong-user/anonymous/expired/public-path access. The
-   egress-isolation attestation must be independently checked on the service
-   network; a loopback proxy to production is forbidden. HTTP contract tests use
+   bytes and rejects wrong-user/anonymous/expired/public-path access. Before sending HTTP, the runner inspects the exact running gateway/Auth/Storage/
+   DB containers: all networks must be Docker-internal, all published ports must
+   bind literal loopback, no privileged container or Docker socket, and the requested
+   port must belong to that gateway. It checks actual PG17.11 over a forced local
+   Unix socket. The operator must list the complete stack; an unlisted host proxy,
+   external callback or production connection is forbidden. An attestation alone
+   cannot bypass these checks. HTTP contract tests use
    a fake server and **do not certify real Supabase API recovery**.
 
 ## Auth and Vault: supported recovery boundaries

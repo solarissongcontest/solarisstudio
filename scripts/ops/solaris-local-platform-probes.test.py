@@ -8,6 +8,8 @@ from pathlib import Path
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
+import subprocess
 
 ROOT=Path(__file__).resolve().parent
 spec=importlib.util.spec_from_file_location('probes',ROOT/'solaris-local-platform-probes.py')
@@ -56,6 +58,28 @@ class Tests(unittest.TestCase):
             with self.assertRaises(module.ProbeFailure): module.load_config(p)
             (Path(d)/'link').symlink_to(p)
             with self.assertRaises(OSError): module.load_config(Path(d)/'link')
+
+    def test_runtime_verifies_gateway_internal_network_and_pg_version(self):
+        config=self.config()
+        ids=[x*64 for x in 'abcd']; network='e'*64
+        config.update(runtime_containers=ids,gateway_container=ids[0],database_container=ids[1])
+        observed=[{'Id':identity,'State':{'Running':True},'HostConfig':{'NetworkMode':'internal','Privileged':False},
+                   'NetworkSettings':{'Networks':{'internal':{'NetworkID':network}},'Ports':{'8000/tcp':[{'HostIp':'127.0.0.1','HostPort':'54321'}]} if i==0 else {}},'Mounts':[]}
+                   for i,identity in enumerate(ids)]
+        def responses(internal=True,version=b'170011\n'):
+            return [subprocess.CompletedProcess([],0,json.dumps(observed).encode()),
+                    subprocess.CompletedProcess([],0,json.dumps([{'Id':network,'Internal':internal}]).encode()),
+                    subprocess.CompletedProcess([],0,version)]
+        with patch.object(module.subprocess,'run',side_effect=responses()) as call:
+            module.verify_runtime(config)
+            self.assertIn('/var/run/postgresql',call.call_args.args[0])
+        for internal,version in [(False,b'170011'),(True,b'170006')]:
+            with patch.object(module.subprocess,'run',side_effect=responses(internal,version)):
+                with self.assertRaises(module.ProbeFailure): module.verify_runtime(config)
+        observed[0]['NetworkSettings']['Ports']['8000/tcp'][0]['HostIp']='0.0.0.0'
+        with patch.object(module.subprocess,'run',side_effect=responses()):
+            with self.assertRaises(module.ProbeFailure): module.verify_runtime(config)
+        with self.assertRaises(module.ProbeFailure): module.verify_runtime(self.config())
 
     def test_http_contract_and_negative_authority(self):
         server=HTTPServer(('127.0.0.1',0),Handler)

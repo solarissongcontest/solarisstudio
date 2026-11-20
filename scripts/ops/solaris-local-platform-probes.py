@@ -10,6 +10,8 @@ import http.client
 import json
 import os
 import stat
+import subprocess
+import re
 import sys
 from urllib.parse import quote, urlsplit
 
@@ -46,6 +48,52 @@ def validate_config(config):
         if any(p in ('','.', '..') for p in config[key].split('/')) or '\\' in config[key]:
             raise ProbeFailure('Invalid fixture object path')
     return target
+
+def verify_runtime(config):
+    """Reject a loopback gateway backed by an externally connected Docker stack."""
+    containers=config.get('runtime_containers',[])
+    gateway=config.get('gateway_container','')
+    database=config.get('database_container','')
+    if (not isinstance(containers,list) or not 4 <= len(containers) <= 12 or len(set(containers)) != len(containers)
+        or any(not isinstance(c,str) or not re.fullmatch(r'[a-f0-9]{64}',c) for c in containers)
+        or gateway not in containers or database not in containers or gateway == database):
+        raise ProbeFailure('Exact gateway/Auth/Storage/database container identities required')
+    def docker_json(*args):
+        result=subprocess.run(['docker',*args],capture_output=True,check=True,timeout=10)
+        return json.loads(result.stdout)
+    observed=docker_json('inspect','--type','container',*containers)
+    if {c['Id'] for c in observed} != set(containers):
+        raise ProbeFailure('Container identity mismatch')
+    networks=set(); port_verified=False
+    for container in observed:
+        host=container['HostConfig']; net=container['NetworkSettings']
+        if not container['State']['Running'] or host.get('Privileged') or host.get('NetworkMode') == 'host':
+            raise ProbeFailure('Unsafe or stopped fixture container')
+        if any(m.get('Source','').endswith('docker.sock') for m in container.get('Mounts',[])):
+            raise ProbeFailure('Docker control socket forbidden in fixture')
+        if not net.get('Networks'):
+            raise ProbeFailure('Unverified fixture network')
+        networks.update(n['NetworkID'] for n in net['Networks'].values())
+        for bindings in (net.get('Ports') or {}).values():
+            for binding in bindings or []:
+                if binding['HostIp'] != '127.0.0.1':
+                    raise ProbeFailure('Fixture exposes a nonloopback port')
+                if container['Id'] == gateway and int(binding['HostPort']) == validate_config(config).port:
+                    port_verified=True
+    if not port_verified:
+        raise ProbeFailure('Loopback port does not belong to the inspected gateway')
+    if not networks or any(not re.fullmatch(r'[a-f0-9]{64}',n) for n in networks):
+        raise ProbeFailure('Invalid network identity')
+    observed_networks=docker_json('network','inspect',*sorted(networks))
+    if {n['Id'] for n in observed_networks} != networks or any(n.get('Internal') is not True for n in observed_networks):
+        raise ProbeFailure('Every fixture network must be Docker-internal; no hosted fallback')
+    # Force a Unix socket, never inherited PGHOST or a remote database URL.
+    version=subprocess.run(['docker','exec',database,'psql','-X','-qAt','-h','/var/run/postgresql',
+                            '-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1','-c',
+                            "BEGIN READ ONLY; SELECT current_setting('server_version_num'); COMMIT;"],
+                           capture_output=True,check=True,timeout=10).stdout.decode().strip()
+    if version != '170011':
+        raise ProbeFailure('Actual isolated PostgreSQL 17.11 runtime required')
 
 def request(config, path, token=None):
     target = validate_config(config)
@@ -109,13 +157,17 @@ def main():
     try:
         if os.environ.get('SOLARIS_RUN_LOCAL_API_RECOVERY') != 'YES':
             raise ProbeFailure('Explicit local API opt-in required')
-        result=run(load_config(args.config))
+        config=load_config(args.config)
+        verify_runtime(config)
+        result=run(config)
+        result['docker_internal_networks_verified']=True
+        result['postgres_version_num']='170011'
         fd=os.open(args.report,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
         with os.fdopen(fd,'w') as out:
             json.dump(result,out,indent=2); out.write('\n')
         print('PASS: 11 scoped loopback Auth/Storage canaries; complete platform recovery NOT certified')
         return 0
-    except (ProbeFailure,OSError,ValueError,TypeError,KeyError,http.client.HTTPException):
+    except (ProbeFailure,OSError,ValueError,TypeError,KeyError,http.client.HTTPException,subprocess.SubprocessError):
         print('STOP: isolated Auth/Storage prerequisite or authorization probe failed; no certification',file=sys.stderr)
         return 1
 
