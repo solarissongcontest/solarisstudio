@@ -38,7 +38,7 @@ function SavedPage() {
   ) {
     return (
       <V3AppShell editionLabel="Solaris Studio" phaseLabel="Following & Saved" activeArea="me">
-        <V3FollowingSavedScreen viewerId={rollout.data.userId} />
+        <V3FollowingSavedScreen key={rollout.data.userId} viewerId={rollout.data.userId} />
       </V3AppShell>
     );
   }
