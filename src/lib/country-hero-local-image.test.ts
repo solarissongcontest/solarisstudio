@@ -45,6 +45,18 @@ describe("Country Hero Studio browser-local image validation", () => {
     expect(localHeroPreviewNeedsHighResolutionWarning(1920, 1080)).toBe(false);
   });
 
+  it("releases an in-flight image URL immediately on replacement, cancellation, unmount and country change", () => {
+    expect(preview).toContain("const pendingDecodeUrlRef = useRef<string | null>(null)");
+    expect(preview).toContain("const cancelPendingDecode = useCallback(() => {");
+    expect(preview).toContain("const pending = pendingDecodeUrlRef.current");
+    expect(preview).toContain("if (pending) URL.revokeObjectURL(pending)");
+    expect(preview).toContain("pendingDecodeUrlRef.current = blobUrl");
+    expect(preview).toContain("useEffect(() => () => { cancelPendingDecode(); }, [cancelPendingDecode])");
+    expect(preview).toContain("}, [code, cancelPendingDecode]);");
+    expect(preview).toContain("onClick={() => { cancelPendingDecode();");
+    expect(preview).toContain("if (pendingDecodeUrlRef.current === blobUrl) pendingDecodeUrlRef.current = null");
+  });
+
   it("revokes stale local URLs and never publishes them or uploads to the backend", () => {
     expect(preview).toContain("generation !== selectionRef.current");
     expect(preview).toContain("selectionRef.current += 1");
