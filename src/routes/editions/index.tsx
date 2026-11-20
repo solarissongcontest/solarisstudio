@@ -7,6 +7,7 @@ import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useV3DirectoryPresentation, type V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import { directoryCountLabel } from "@/lib/v3-directory-count";
+import { matchesPublicDirectorySearch } from "@/lib/v3-public-directory-search";
 import "@/styles/v3-directory-family.css";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
@@ -181,13 +182,13 @@ function EditionsPage() {
     const hostNames = card.hosts
       .map((host) => [host.city, host.country?.name].filter(Boolean).join(" "))
       .join(" ");
-    return [
+    return matchesPublicDirectorySearch(normalizedSearch, [
       editionLabel(card.edition),
       card.edition.slug,
       card.edition.edition_number,
       hostNames,
       card.winner?.name,
-    ].filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch);
+    ]);
   });
   const latestCount = latest && searched.some((card) => card.edition.id === latest.edition.id) ? 1 : 0;
   const pastCount = searched.length - latestCount;
