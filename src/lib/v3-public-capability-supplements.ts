@@ -16,6 +16,21 @@ const ALL_PUBLIC_PERSONAS = [
  */
 export const V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES = [
   {
+    id: "p9-music-catalogue",
+    sourceFeatureFlags: [],
+    legacyRoutes: ["/music", "/music/*", "/songs", "/songs/*", "/artists", "/artists/*"],
+    legacyComponents: [],
+    backendOwners: ["entry", "publication", "media"],
+    personas: ALL_PUBLIC_PERSONAS,
+    authRequirement: "public",
+    classification: "redesign",
+    targetArea: "explore",
+    targetRoute: "/music",
+    specificationStatus: "building",
+    acceptanceScenarioId: "public.p9-durable-artist-song-catalogue",
+    migrationEvidence: "Source-only consolidation of System P9 opaque identity and publication-safe RPCs with Public Music/Songs/Artists discovery; hosted migration, identity curation, full pagination, release and visual approval are not claimed.",
+  },
+  {
     id: "prediction-league",
     sourceFeatureFlags: [],
     legacyRoutes: ["/prediction-league", "/prediction-league/*"],
