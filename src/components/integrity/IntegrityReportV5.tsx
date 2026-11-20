@@ -18,7 +18,8 @@ import { toast } from "sonner";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { IntegrityReportShell } from "@/components/integrity/IntegrityReportShell";
 import { RulesApplyingHere } from "@/components/rules/GovernanceRules";
-import { createAnonymousIntegrityCase } from "@/lib/integrity.functions";
+import { createIdempotentAnonymousIntegrityCase } from "@/lib/integrity-case-create.functions";
+import { createIdempotentProtectedIntegrityCase } from "@/lib/integrity-case-create";
 import {
   INTEGRITY_CATEGORIES,
   INTEGRITY_IDENTITY_MODES,
@@ -29,16 +30,14 @@ import {
 import {
   clearIntegrityReportV5Draft,
   detectIntegrityPrivacySignals,
+  getOrCreateIntegrityReportV5SubmissionIdentity,
   integrityCategoryPrompt,
   readIntegrityReportV5Draft,
   readIntegrityReportV5Receipt,
   writeIntegrityReportV5Draft,
   writeIntegrityReportV5Receipt,
 } from "@/lib/integrity-report-v5";
-import {
-  createProtectedIntegrityCase,
-  getCurrentIntegrityUser,
-} from "@/lib/integrity-portal";
+import { getCurrentIntegrityUser } from "@/lib/integrity-portal";
 
 const buttonClass =
   "inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-bold";
@@ -363,7 +362,7 @@ export function IntegritySupportStep() {
 export function IntegrityReviewStep() {
   const navigate = useNavigate();
   const { connectivity } = useSolarisApp();
-  const createAnonymous = useServerFn(createAnonymousIntegrityCase);
+  const createAnonymous = useServerFn(createIdempotentAnonymousIntegrityCase);
   const user = useQuery({ queryKey: ["integrity-user", "report-review-v5"], queryFn: getCurrentIntegrityUser });
   const [draft] = useState(readIntegrityReportV5Draft);
   const signals = detectIntegrityPrivacySignals(draft);
@@ -374,11 +373,18 @@ export function IntegrityReviewStep() {
         throw new Error("Solaris cannot safely acknowledge a new report while the data service is unavailable.");
       }
       if (!draft.category || !draft.identityMode) throw new Error("Return to the earlier steps and complete the report.");
+      if (draft.identityMode !== "anonymous" && !user.data) {
+        throw new Error("Sign in before submitting a sealed or confidential report.");
+      }
+
       const relatedCountries = draft.relatedCountries.split(",").map((item) => item.trim()).filter(Boolean);
+      const submissionIdentity = getOrCreateIntegrityReportV5SubmissionIdentity();
 
       if (draft.identityMode === "anonymous") {
         const result = await createAnonymous({
           data: {
+            operationId: submissionIdentity.operationId,
+            idempotencyKey: submissionIdentity.idempotencyKey,
             category: draft.category,
             summary: draft.summary,
             details: draft.details,
@@ -392,13 +398,13 @@ export function IntegrityReviewStep() {
           kind: "anonymous",
           caseCode: result.case_code,
           recoveryKey: result.recovery_key,
+          operationId: result.operation_id,
           createdAt: new Date().toISOString(),
         });
         return;
       }
 
-      if (!user.data) throw new Error("Sign in before submitting a sealed or confidential report.");
-      const result = await createProtectedIntegrityCase({
+      const result = await createIdempotentProtectedIntegrityCase(submissionIdentity, {
         identityMode: draft.identityMode,
         caseKind: "report",
         category: draft.category,
@@ -413,6 +419,8 @@ export function IntegrityReviewStep() {
         kind: "protected",
         caseCode: result.case_code,
         caseId: result.case_id,
+        operationId: result.operation_id,
+        receiptId: result.receipt_id,
         createdAt: new Date().toISOString(),
       });
     },

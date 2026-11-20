@@ -13,22 +13,45 @@ export type IntegrityReportV5Draft = {
   updatedAt: string;
 };
 
+export type IntegrityReportV5SubmissionIdentity = {
+  operationId: string;
+  idempotencyKey: string;
+  createdAt: string;
+};
+
 export type IntegrityReportV5Receipt =
   | {
       kind: "anonymous";
       caseCode: string;
       recoveryKey: string;
+      operationId?: string;
       createdAt: string;
     }
   | {
       kind: "protected";
       caseCode: string;
       caseId: string;
+      operationId?: string;
+      receiptId?: string;
       createdAt: string;
     };
 
 const DRAFT_KEY = "solaris:integrity-report-v5:draft";
 const RECEIPT_KEY = "solaris:integrity-report-v5:receipt";
+const SUBMISSION_IDENTITY_KEY = "solaris:integrity-report-v5:submission-identity";
+
+const SEMANTIC_DRAFT_KEYS = [
+  "category",
+  "identityMode",
+  "summary",
+  "details",
+  "observedFacts",
+  "uncertainties",
+  "relatedCountries",
+  "editionReference",
+] as const satisfies ReadonlyArray<keyof IntegrityReportV5Draft>;
+
+let memorySubmissionIdentity: IntegrityReportV5SubmissionIdentity | null = null;
 
 export const EMPTY_INTEGRITY_REPORT_V5: IntegrityReportV5Draft = {
   category: "",
@@ -52,6 +75,88 @@ function session(): Storage | null {
   }
 }
 
+function isSubmissionIdentity(value: unknown): value is IntegrityReportV5SubmissionIdentity {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<IntegrityReportV5SubmissionIdentity>;
+  return (
+    typeof candidate.operationId === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      candidate.operationId,
+    ) &&
+    typeof candidate.idempotencyKey === "string" &&
+    /^[0-9a-f]{64}$/.test(candidate.idempotencyKey) &&
+    typeof candidate.createdAt === "string"
+  );
+}
+
+function secureRandomBytes(length: number) {
+  const cryptoApi = globalThis.crypto;
+  if (!cryptoApi?.getRandomValues) {
+    throw new Error("Secure retry identity is unavailable in this browser.");
+  }
+  return cryptoApi.getRandomValues(new Uint8Array(length));
+}
+
+function randomUuidV4() {
+  const cryptoApi = globalThis.crypto;
+  if (cryptoApi?.randomUUID) return cryptoApi.randomUUID();
+
+  const bytes = secureRandomBytes(16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function randomHex(bytes: number) {
+  return Array.from(secureRandomBytes(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export function readIntegrityReportV5SubmissionIdentity(): IntegrityReportV5SubmissionIdentity | null {
+  try {
+    const raw = session()?.getItem(SUBMISSION_IDENTITY_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as unknown;
+      if (isSubmissionIdentity(parsed)) {
+        memorySubmissionIdentity = parsed;
+        return parsed;
+      }
+    }
+  } catch {
+    // Fall through to the in-memory identity for the current page lifetime.
+  }
+  return memorySubmissionIdentity;
+}
+
+export function getOrCreateIntegrityReportV5SubmissionIdentity(): IntegrityReportV5SubmissionIdentity {
+  const existing = readIntegrityReportV5SubmissionIdentity();
+  if (existing) return existing;
+
+  const identity: IntegrityReportV5SubmissionIdentity = {
+    operationId: randomUuidV4(),
+    idempotencyKey: randomHex(32),
+    createdAt: new Date().toISOString(),
+  };
+  memorySubmissionIdentity = identity;
+
+  try {
+    session()?.setItem(SUBMISSION_IDENTITY_KEY, JSON.stringify(identity));
+  } catch {
+    // Keep the same identity in memory so an in-page retry remains exact-once.
+  }
+
+  return identity;
+}
+
+export function clearIntegrityReportV5SubmissionIdentity() {
+  memorySubmissionIdentity = null;
+  try {
+    session()?.removeItem(SUBMISSION_IDENTITY_KEY);
+  } catch {
+    // Best effort.
+  }
+}
+
 export function readIntegrityReportV5Draft(): IntegrityReportV5Draft {
   try {
     const raw = session()?.getItem(DRAFT_KEY);
@@ -70,6 +175,11 @@ export function readIntegrityReportV5Draft(): IntegrityReportV5Draft {
 
 export function writeIntegrityReportV5Draft(patch: Partial<IntegrityReportV5Draft>) {
   const current = readIntegrityReportV5Draft();
+  const semanticChange = SEMANTIC_DRAFT_KEYS.some(
+    (key) => Object.prototype.hasOwnProperty.call(patch, key) && patch[key] !== current[key],
+  );
+  if (semanticChange) clearIntegrityReportV5SubmissionIdentity();
+
   const now = new Date().toISOString();
   const next: IntegrityReportV5Draft = {
     ...current,
@@ -86,6 +196,7 @@ export function writeIntegrityReportV5Draft(patch: Partial<IntegrityReportV5Draf
 }
 
 export function clearIntegrityReportV5Draft() {
+  clearIntegrityReportV5SubmissionIdentity();
   try {
     session()?.removeItem(DRAFT_KEY);
   } catch {
