@@ -18,3 +18,12 @@ export function sectionFromCountryHash(hash: string | null | undefined): Country
 export function countrySectionHash(section: CountryWebSection): string {
   return section === "overview" ? "" : section;
 }
+
+/**
+ * Full ballot tables are not needed to read public Country identity, entries,
+ * placements, or participation history. Loading them on every country visit
+ * wastes potentially many pages of Supabase archive egress.
+ */
+export function countryTabNeedsDetailedVotes(tab: CountryWebSection): boolean {
+  return tab === "voting" || tab === "relationships" || tab === "form";
+}
