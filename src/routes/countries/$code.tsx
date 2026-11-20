@@ -639,14 +639,15 @@ function CountryProfilePage() {
           <>
         {tab === "overview" && (
           <div className="space-y-5">
-            <CountryWorldOverview country={country} />
+            {isAppMode ? <CountryWorldOverview country={country} /> : null}
 
             {hasContestData && stats ? (
               <>
                 <Panel
+                  variant={isAppMode ? "data" : "editorial"}
                   title="At a glance"
                 >
-                  <div className="grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-5">
+                  <div className="country-editorial-stat-strip grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-5">
                     <StatTile label="Participations" value={stats.participations} />
                     <StatTile label="Wins" value={stats.wins} />
                     <StatTile label="Podiums" value={stats.podiums} />
@@ -682,6 +683,7 @@ function CountryProfilePage() {
                 </Panel>
 
                 <Panel
+                  variant={isAppMode ? "data" : "editorial"}
                   title="Recent results"
                   actions={
                     <button
@@ -735,6 +737,7 @@ function CountryProfilePage() {
 
                 {allTime ? (
                   <Panel
+                    variant={isAppMode ? "data" : "editorial"}
                     title="All-time record"
                     description="Cumulative published Grand Final score and the country's all-time position."
                   >
@@ -746,7 +749,7 @@ function CountryProfilePage() {
                 ) : null}
 
                 {hostedEditions.length > 0 && (
-                  <Panel title="Hosted editions">
+                  <Panel title="Hosted editions" variant={isAppMode ? "data" : "editorial"}>
                     <div className="flex flex-wrap gap-2">
                       {hostedEditions.map((edition) => (
                         <Link
