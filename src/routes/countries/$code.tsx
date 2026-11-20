@@ -135,13 +135,18 @@ function CountryProfilePage() {
   const { code } = Route.useParams();
   const { isAppMode } = useSolarisApp();
   const [archiveEnabled, setArchiveEnabled] = useState(!isAppMode);
+  const [tab, setTab] = useState<Tab>("overview");
+  // Detailed ballot tables are many times larger than the entry/result
+  // projection. Fetch them only for screens that truly need vote-level data.
+  const needsDetailedVotes =
+    tab === "voting" || tab === "relationships" || tab === "form";
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
   const participantsQuery = useAllParticipants({ enabled: archiveEnabled });
   const resultsQuery = useAllResults({ enabled: archiveEnabled });
-  const juryQuery = useAllJuryVotes({ enabled: archiveEnabled });
-  const televoteQuery = useAllTelevotes({ enabled: archiveEnabled });
+  const juryQuery = useAllJuryVotes({ enabled: archiveEnabled && needsDetailedVotes });
+  const televoteQuery = useAllTelevotes({ enabled: archiveEnabled && needsDetailedVotes });
   const { data: countries } = countriesQuery;
   const { data: editions } = editionsQuery;
   const { data: shows } = showsQuery;
@@ -149,7 +154,6 @@ function CountryProfilePage() {
   const { data: results } = resultsQuery;
   const { data: jury } = juryQuery;
   const { data: televote } = televoteQuery;
-  const [tab, setTab] = useState<Tab>("overview");
   const [historySearch, setHistorySearch] = useState("");
   const [historyOutcome, setHistoryOutcome] = useState<CountryHistoryOutcome>("all");
 
@@ -256,15 +260,18 @@ function CountryProfilePage() {
     [country, opts],
   );
   const form = useMemo(
-    () => (country ? computeCountryForm(country.id, opts) : null),
-    [country, opts],
+    () => (country && tab === "form" ? computeCountryForm(country.id, opts) : null),
+    [country, opts, tab],
   );
   const allTime = useMemo(
     () => (country ? allTimeScoreForCountry(country.id, publicArchive.shows, publicArchive.results) : null),
     [country, publicArchive],
   );
 
-  const archiveQueries = [editionsQuery, showsQuery, participantsQuery, resultsQuery, juryQuery, televoteQuery];
+  const archiveQueries = [
+    editionsQuery, showsQuery, participantsQuery, resultsQuery,
+    ...(needsDetailedVotes ? [juryQuery, televoteQuery] : []),
+  ];
   const archiveLoading = !archiveEnabled || archiveIsLoading(...archiveQueries);
   const archiveError = archiveHasError(...archiveQueries);
   const visualLoading = Boolean(country?.id) && (countryThemeQuery.isLoading || designV2Query.isLoading);
