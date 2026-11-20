@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight, Search, SlidersHorizontal, X } from "lucide-react";
 import type { V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import "@/styles/v3-shows-directory.css";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppEmptyState, AppSectionHeader } from "@/components/app/AppPrimitives";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
@@ -14,6 +14,8 @@ import { showPublishesResults } from "@/lib/publication";
 import { publicBroadcastHref } from "@/lib/v3-public-broadcast-url";
 import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { matchesShowDirectorySearch, resolveShowDirectoryFacet } from "@/lib/v3-shows-directory-filters";
+import { MAX_PUBLIC_DIRECTORY_QUERY_LENGTH, normalizePublicDirectoryUrlQuery } from "@/lib/v3-directory-url-search";
+import { type ShowDirectoryUrlSearch } from "@/lib/v3-explore-browse-url";
 import { formatEventDateTime } from "@/lib/public-time";
 import { getV3ShowBrowsePage, V3_SHOW_BROWSE_PAGE_SIZE } from "@/lib/v3-show-browse-page";
 import {
@@ -34,14 +36,29 @@ const STATE_ORDER: ShowDiscoveryState[] = [
   "other",
 ];
 
-export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { presentation?: V3DirectoryPresentation }) {
+export function V3ShowsDiscoveryScreen({
+  presentation = "installed-app",
+  urlSearch,
+  onUrlSearchChange,
+}: {
+  presentation?: V3DirectoryPresentation;
+  urlSearch?: ShowDirectoryUrlSearch;
+  onUrlSearchChange?: (next: ShowDirectoryUrlSearch) => void;
+}) {
   const { allowsReleased } = usePublicLaunchAvailability();
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
-  const [search, setSearch] = useState("");
-  const [editionId, setEditionId] = useState("all");
-  const [kind, setKind] = useState("all");
-  const [state, setState] = useState<ShowDiscoveryState | "all">("all");
+  const [search, setSearch] = useState(urlSearch?.q ?? "");
+  const [editionId, setEditionId] = useState(urlSearch?.edition ?? "all");
+  const [kind, setKind] = useState(urlSearch?.kind ?? "all");
+  const [state, setState] = useState<ShowDiscoveryState | "all">(urlSearch?.state ?? "all");
+  const changeSearch = (value: string) =>
+    setSearch(value.slice(0, MAX_PUBLIC_DIRECTORY_QUERY_LENGTH));
+  // Direct links and browser history restore only user-selected filters.
+  useEffect(() => setSearch(urlSearch?.q ?? ""), [urlSearch?.q]);
+  useEffect(() => setEditionId(urlSearch?.edition ?? "all"), [urlSearch?.edition]);
+  useEffect(() => setKind(urlSearch?.kind ?? "all"), [urlSearch?.kind]);
+  useEffect(() => setState(urlSearch?.state ?? "all"), [urlSearch?.state]);
   // Keyed pagination resets synchronously with any filter change, without a
   // render/effect cycle that could briefly reveal a stale historical window.
   const normalizedSearch = search.trim().toLowerCase();
@@ -82,6 +99,31 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
   // Keep the rendered facet and the actual query on the same permitted value.
   const effectiveEditionId = resolveShowDirectoryFacet(editionId, editions.map((edition) => edition.id));
   const effectiveKind = resolveShowDirectoryFacet(kind, kinds);
+  const publicSourcesReady =
+    editionsQuery.isSuccess && showsQuery.isSuccess &&
+    !editionsQuery.isFetching && !showsQuery.isFetching &&
+    !editionsQuery.isRefetchError && !showsQuery.isRefetchError;
+  // Keep a deep-linked facet while public data loads; revoke it only after a
+  // fresh published dataset proves the option is no longer available.
+  useEffect(() => {
+    if (!publicSourcesReady) return;
+    if (editionId !== effectiveEditionId) setEditionId("all");
+    if (kind !== effectiveKind) setKind("all");
+  }, [publicSourcesReady, editionId, effectiveEditionId, kind, effectiveKind]);
+  useEffect(() => {
+    if (!publicSourcesReady || !urlSearch || !onUrlSearchChange) return;
+    const next: ShowDirectoryUrlSearch = {
+      q: normalizePublicDirectoryUrlQuery(search),
+      edition: effectiveEditionId === "all" ? undefined : effectiveEditionId,
+      kind: effectiveKind === "all" ? undefined : effectiveKind,
+      state: state === "all" ? undefined : state,
+    };
+    if (next.q === urlSearch.q && next.edition === urlSearch.edition &&
+      next.kind === urlSearch.kind && next.state === urlSearch.state) return;
+    const timeoutId = window.setTimeout(() => onUrlSearchChange(next), 250);
+    return () => window.clearTimeout(timeoutId);
+  }, [publicSourcesReady, search, effectiveEditionId, effectiveKind, state,
+      urlSearch?.q, urlSearch?.edition, urlSearch?.kind, urlSearch?.state, onUrlSearchChange]);
   const browseFilterKey = JSON.stringify([normalizedSearch, effectiveEditionId, effectiveKind, state]);
   const browseItems = useMemo(
     () =>
@@ -187,7 +229,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
           : "v3-shows-filter-fields grid gap-2 sm:grid-cols-3"}>
           {presentation === "installed-app" ? (
             <>
-              <SolarisSearchField value={search} onChange={setSearch}
+              <SolarisSearchField value={search} onChange={changeSearch}
                 label="Search shows" placeholder="Search shows…" />
               <Sheet>
                 <SheetTrigger asChild>
@@ -215,7 +257,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
             <>
               <div className="v3-directory-search" role="search">
                 <Search size={18} aria-hidden="true" />
-                <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
+                <input type="search" value={search} onChange={(event) => changeSearch(event.target.value)}
                   aria-label="Search shows" placeholder="Search show name, edition or type…" />
                 {search ? (
                   <button type="button" className="v3-directory-search-clear" aria-label="Clear search"
@@ -229,6 +271,12 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
         <p className="v3-directory-results-count" role="status" aria-live="polite">
           Showing {browseWindow.visible.length} of {browseItems.length} matching shows · {allItems.length} published
         </p>
+        {browseItems.length > 0 && (search.trim() || activeFilterCount) ? (
+          <button type="button" className="v3-directory-clear-filters"
+            onClick={() => {
+              setSearch(""); setEditionId("all"); setKind("all"); setState("all");
+            }}>Clear filters</button>
+        ) : null}
         <div id="v3-shows-browse-results" className="v3-shows-browse-results">
           {browseWindow.visible.map((item) =>
             presentation === "mobile-web" ? (
