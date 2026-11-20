@@ -16,6 +16,15 @@
 | `20261024170500_v3_public_published_result_snapshot.sql` | Exact-version `public.v3_public_published_result_snapshot(uuid)` plus `v3.public.published-result-snapshot` semantic contract; only selects explicitly public, version-bound, release-ready snapshots; NULL/missing-show negative check passed; `anon`/`authenticated`/`service_role` read grants as specified | `3446974a0bc04c7d52b4990d67af4463581d5c11` |
 | `20261019013000_v3_public_live_rollout_flag.sql` | Feature-key CHECK allowlist expanded by **exactly** `solaris_app_v3_live`; persisted single flag row with `enabled=false`, `admins_only=false`, and empty user/edition scope arrays. Existing allowed keys unchanged | `c023976215ae942160a8737c6aceb196d38ec036` |
 
+## Two historical ACL-only effects verified already present
+
+These were **not newly executed**. A fresh bounded read-only privilege check against the live schema found all their exact expected effects present:
+
+- `20261018111500_v3_confirmation_sync_service_role_privileges.sql`: all 20 source-declared `service_role` table privilege requirements across Confirmation/Solaris sync tables were satisfied; none missing.
+- `20261019000500_v3_confirmation_sync_publication_event_service_role.sql`: `public.emit_entry_published_event(uuid,uuid)` exists; `service_role` can EXECUTE, while `anon` and `authenticated` cannot.
+
+The historical ledger records for these two versions remain missing, and a bounded role-grant match does not claim all adjacent application workflows are certified. **Do not reapply an already-present permission repair.**
+
 ## Body SHA-256 and ACL verification
 
 A separate read-only `pg_proc` query matched the installed `prosrc` SHA-256 against the exact canonical SQL dollar-quoted bodies:
