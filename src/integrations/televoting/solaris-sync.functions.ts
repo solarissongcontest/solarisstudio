@@ -51,6 +51,12 @@ export const getMergedRoundSolarisSource = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }) => {
+    // Private cross-edition participant source is not an ordinary public read.
+    // Prove read authority before importing the service-role-backed service.
+    const { requireSolarisCapabilityServer } = await import(
+      "@/integrations/supabase/capabilities.server"
+    );
+    await requireSolarisCapabilityServer("voting.read", null);
     const { getMergedRoundSolarisSourceServer } = await import(
       "@/integrations/televoting/solaris-sync.server"
     );
@@ -74,6 +80,12 @@ export const syncMergedRoundFromSolaris = createServerFn({ method: "POST" })
     };
   })
   .handler(async ({ data }) => {
+    // The legacy sync may update countries and round entries. Enforce its
+    // global management capability before importing or mutating either store.
+    const { requireSolarisCapabilityServer } = await import(
+      "@/integrations/supabase/capabilities.server"
+    );
+    await requireSolarisCapabilityServer("voting.manage", null);
     const { syncMergedRoundFromSolarisServer } = await import(
       "@/integrations/televoting/solaris-sync.server"
     );
