@@ -1,9 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import {
-  ChevronDown,
-  Menu,
-  X,
-} from "lucide-react";
+import { ChevronDown, Menu, X } from "lucide-react";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 
 import { AppAdaptiveWorkspace } from "@/components/app/AppAdaptiveWorkspace";
@@ -471,15 +467,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           />
         ) : null}
 
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
-        )}
+
       </div>
     </Sheet>
   );
