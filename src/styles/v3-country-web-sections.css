@@ -1,0 +1,50 @@
+/* Browser-native Country section navigation; the installed app keeps its own
+ * controls and shell. No duplicate five-tab app dock on ordinary mobile web.
+ */
+.country-web-section-nav {
+  display: flex;
+  align-items: stretch;
+  gap: clamp(.35rem, 1vw, 1.1rem);
+  padding: .45rem .15rem 1.15rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--foreground) 15%, transparent);
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+.country-web-section-nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  flex: 0 0 auto;
+  padding-inline: clamp(.7rem, 1vw, 1.1rem);
+  border-bottom: 2px solid transparent;
+  color: var(--muted-foreground);
+  font-size: .875rem;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color .15s ease, border-color .15s ease;
+}
+.country-web-section-nav a[aria-current="page"] {
+  color: var(--foreground);
+  border-bottom-color: var(--primary);
+}
+.country-web-section-nav a:hover { color: var(--foreground); }
+.country-web-section-nav a:focus-visible {
+  border-radius: .25rem;
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+@media (max-width: 47.99rem) {
+  .country-web-section-nav {
+    margin-inline: -.75rem;
+    padding-inline: .75rem;
+    gap: .1rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .country-web-section-nav a { transition: none; }
+}
