@@ -26,7 +26,9 @@ describe("Countries directory three deliberate experiences", () => {
     expect(screen).toContain("v3-countries-region-rail");
     expect(screen).toContain("v3-countries-web-list");
     expect(screen).toContain("v3-countries-desktop-grid");
-    expect(screen).toContain("useState(false)");
+    expect(screen).toContain('useState(urlSearch?.scope === "participants")');
+    expect(route).toContain("validateSearch: parseCountryDirectoryUrlSearch");
+    expect(screen).toContain("effectiveParticipatingScope(participatingOnly, currentLineupReady)");
     expect(screen).toContain("FlagFrame");
     expect(screen).toContain('to="/countries/$code"');
     expect(screen).not.toContain("useAllResults");
