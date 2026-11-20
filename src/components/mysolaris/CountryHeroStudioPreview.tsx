@@ -47,6 +47,7 @@ export function CountryHeroStudioPreview({
   currentCountryRef.current = code;
   const visibleLocalPreview = localPreview?.countryCode === code ? localPreview : null;
   const [fileError, setFileError] = useState<string | null>(null);
+  const [checkingPreview, setCheckingPreview] = useState(false);
   const [draftFocus, setDraftFocus] = useState<[number, number]>([50, 50]);
   const currentImage = design.background.mode === "image"
     ? design.background.imageUrl
@@ -72,6 +73,7 @@ export function CountryHeroStudioPreview({
     selectionRef.current += 1;
     setLocalPreview(null);
     setFileError(null);
+    setCheckingPreview(false);
   }, [code]);
 
   const chooseLocalImage = async (file: File | undefined) => {
@@ -80,8 +82,11 @@ export function CountryHeroStudioPreview({
     const selectedCountry = code;
     if (file.size <= 0 || file.size > 5 * 1024 * 1024) {
       setFileError("Choose an image between 1 byte and 5 MB.");
+      setCheckingPreview(false);
       return;
     }
+    setFileError(null);
+    setCheckingPreview(true);
     let blobUrl: string | null = null;
     try {
       const signature = new Uint8Array(await file.slice(0, 12).arrayBuffer());
@@ -112,6 +117,9 @@ export function CountryHeroStudioPreview({
       if (blobUrl) URL.revokeObjectURL(blobUrl);
       if (generation === selectionRef.current && selectedCountry === currentCountryRef.current)
         setFileError("The image could not be decoded. Try another JPEG, PNG or WebP.");
+    } finally {
+      if (generation === selectionRef.current && selectedCountry === currentCountryRef.current)
+        setCheckingPreview(false);
     }
   };
 
@@ -121,7 +129,7 @@ export function CountryHeroStudioPreview({
         Design preview only. Your selected Country V2 background is shown here
         to test the new cinematic layout; this does not publish a V3 hero.
       </p>
-      <div className="country-hero-preview__chooser">
+      <div className="country-hero-preview__chooser" aria-busy={checkingPreview}>
         <label className="country-hero-preview__picker">
           Choose image for private preview
           <input
@@ -133,15 +141,24 @@ export function CountryHeroStudioPreview({
             }}
           />
         </label>
+        {checkingPreview ? (
+          <button type="button" className="country-hero-preview__clear"
+            onClick={() => { selectionRef.current += 1; setCheckingPreview(false); setFileError(null); }}>
+            Cancel image check
+          </button>
+        ) : null}
         {visibleLocalPreview ? (
           <button type="button" className="country-hero-preview__clear"
-            onClick={() => { selectionRef.current += 1; setLocalPreview(null); setFileError(null); }}>
+            onClick={() => { selectionRef.current += 1; setLocalPreview(null); setFileError(null); setCheckingPreview(false); }}>
             Remove private preview
           </button>
         ) : null}
         <p className="country-hero-preview__upload-note">
           JPEG, PNG or WebP · up to 5 MB · local preview only. No upload or publication occurs.
         </p>
+        {checkingPreview ? (
+          <p className="country-hero-preview__upload-note" role="status">Checking the local image and its dimensions…</p>
+        ) : null}
         {fileError ? <p className="country-hero-preview__error" role="alert">{fileError}</p> : null}
         {visibleLocalPreview ? (
           <>
