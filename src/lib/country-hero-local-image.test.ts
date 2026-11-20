@@ -55,6 +55,10 @@ describe("Country Hero Studio browser-local image validation", () => {
     expect(preview).toContain("selectedCountry !== currentCountryRef.current");
     expect(preview).toContain("setLocalPreview(null)");
     expect(preview).toContain("countryCode: selectedCountry");
+    expect(preview).toContain("aria-busy={checkingPreview}");
+    expect(preview).toContain("Cancel image check");
+    expect(preview).toContain("setCheckingPreview(false)");
+    expect(preview).toContain('role="status"');
     expect(preview).not.toContain("supabase.");
     expect(preview).not.toContain("uploadVerifiedFile");
   });
