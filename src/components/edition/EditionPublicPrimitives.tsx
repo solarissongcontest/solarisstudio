@@ -30,19 +30,26 @@ export function EditionHero({
   winner?: ReactNode;
   actions?: ReactNode;
 }) {
-  const plateImage = logo ?? artwork;
-  const plateAlt = logo ? (logoAlt ?? `${title} logo`) : artworkAlt;
+  // Artwork is a decorative environment; the logo is a separate identity mark.
+  // Never duplicate the artwork into a foreground plate when no logo exists.
+  // If a published asset becomes unavailable, fall back without a broken image.
+  const [failedArtwork, setFailedArtwork] = useState<string | null>(null);
+  const [failedLogo, setFailedLogo] = useState<string | null>(null);
+  const visibleArtwork = artwork && artwork !== failedArtwork ? artwork : null;
+  const visibleLogo = logo && logo !== failedLogo ? logo : null;
+  const plateAlt = logoAlt ?? `${title} logo`;
 
   return (
     <header
       className="edition-hero"
-      data-has-artwork={artwork ? "true" : "false"}
-      data-has-logo={logo ? "true" : "false"}
+      data-has-artwork={visibleArtwork ? "true" : "false"}
+      data-has-logo={visibleLogo ? "true" : "false"}
       data-liquid-glass={liquidGlass ? "true" : undefined}
     >
-      {artwork ? (
+      {visibleArtwork ? (
         <div className="edition-hero-artwork" aria-hidden="true">
-          <img src={artwork} alt="" fetchPriority="high" decoding="async" />
+          <img src={visibleArtwork} alt="" fetchPriority="high" decoding="async"
+            onError={() => setFailedArtwork(visibleArtwork)} />
         </div>
       ) : null}
       {liquidGlass ? (
@@ -60,13 +67,14 @@ export function EditionHero({
         {winner ? <div className="edition-hero-winner">{winner}</div> : null}
         {actions ? <div className="edition-hero-actions">{actions}</div> : null}
       </div>
-      {plateImage ? (
+      {visibleLogo ? (
         <figure className="edition-artwork-plate">
           <img
-            src={plateImage}
+            src={visibleLogo}
             alt={plateAlt}
             loading="eager"
             decoding="async"
+            onError={() => setFailedLogo(visibleLogo)}
           />
         </figure>
       ) : null}
