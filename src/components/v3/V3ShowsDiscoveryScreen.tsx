@@ -10,6 +10,7 @@ import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/s
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import { showPublishesResults } from "@/lib/publication";
+import { publicBroadcastHref } from "@/lib/v3-public-broadcast-url";
 import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { matchesShowDirectorySearch, resolveShowDirectoryFacet } from "@/lib/v3-shows-directory-filters";
 import { formatEventDateTime } from "@/lib/public-time";
@@ -334,6 +335,7 @@ function ShowCollection({
 }
 
 function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: boolean }) {
+  const broadcastHref = publicBroadcastHref(item.broadcastUrl);
   return (
     <div className={live ? "v3-shows-editorial-card v3-shows-editorial-card--live" : "v3-shows-editorial-card"}>
       <div className="min-w-0">
@@ -363,11 +365,11 @@ function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: bool
         {showPublishesResults(item.show) ? (
           <span className="text-muted-foreground">Results published</span>
         ) : null}
-        {item.broadcastUrl ? (
+        {broadcastHref ? (
           <a
-            href={item.broadcastUrl}
+            href={broadcastHref}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className="inline-flex min-h-11 items-center gap-1 font-semibold text-primary"
           >
             Broadcast <span aria-hidden="true">↗</span>
