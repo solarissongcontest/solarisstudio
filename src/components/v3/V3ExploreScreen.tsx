@@ -187,6 +187,12 @@ function ArchiveEditionCard({ edition }: { edition: V3ExploreEditionCard }) {
  * cannot become a second data, Search or Results authority.
  */
 export function V3ExploreScreen({ projection, onOpenSearch, showWorld = false }: V3ExploreScreenProps) {
+  // P9 has no dedicated published artist/song identity route yet. Do not send
+  // a Songs & Artists discovery tile to Edition Overview as a fake catalogue.
+  // When a real destination is wired, this collection appears automatically.
+  const discoverableCollections = projection.discover.filter(
+    (collection) => collection.key !== "songs-and-artists" || !/^\/editions(?:\/|$)/.test(collection.href),
+  );
   return (
     <V3Screen>
       <div className="v3-explore-editorial">
@@ -220,9 +226,9 @@ export function V3ExploreScreen({ projection, onOpenSearch, showWorld = false }:
         )}
       </V3Section>
 
-      <V3Section title="Discover" meta={`${projection.discover.length} collections`}>
+      <V3Section title="Discover" meta={`${discoverableCollections.length} collections`}>
         <div className="v3-explore-editorial-list">
-          {projection.discover.map((collection) => (
+          {discoverableCollections.map((collection) => (
             <V3ExploreEditorialLink
               key={collection.key}
               title={collection.label}
