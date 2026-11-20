@@ -26,7 +26,8 @@ describe("Countries directory three deliberate experiences", () => {
     expect(screen).toContain("v3-countries-region-rail");
     expect(screen).toContain("v3-countries-web-list");
     expect(screen).toContain("v3-countries-desktop-grid");
-    expect(screen).toContain("useState(false)");
+    expect(screen).toContain('useState(urlSearch?.scope === "participants")');
+    expect(screen).toContain("verifyingRequestedLineup");
     expect(screen).toContain("FlagFrame");
     expect(screen).toContain('to="/countries/$code"');
     expect(screen).not.toContain("useAllResults");
@@ -37,7 +38,7 @@ describe("Countries directory three deliberate experiences", () => {
     const css = source("src/styles/v3-countries-discovery.css");
     expect(screen).toContain('aria-label="Countries"');
     expect(screen).toContain('aria-label="Filter by region"');
-    expect(screen).toContain('aria-pressed={selectedParticipatingOnly}');
+    expect(screen).toContain('aria-pressed={selectedScopeButtonParticipatingOnly}');
     expect(screen).toContain("setVisibleCount((count) => count + BROWSE_PAGE_SIZE)");
     expect(css).toContain('[data-country-directory-experience="mobile-web"]');
     expect(css).toContain('[data-country-directory-experience="desktop-web"]');
