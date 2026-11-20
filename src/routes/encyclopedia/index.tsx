@@ -383,7 +383,9 @@ function ReferencePage() {
           </div>
           {browseDestinations.length === 0 ? (
             <p className="mt-3 py-5 text-sm text-muted-foreground" role="status">
-              No released directory is available for this topic. Search above for published entries and related records.
+              {kind === "entry"
+                ? "No standalone index exists for this topic. Search above to find published entries and related records."
+                : "No released directory is available for this topic."}
             </p>
           ) : null}
         </section>
