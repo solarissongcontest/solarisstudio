@@ -9,7 +9,7 @@ import "@/styles/v3-directory-family.css";
 import "@/styles/v3-reference-directory.css";
 import { useEffect, useMemo, useState } from "react";
 
-import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
+import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { ArchiveDataLoading } from "@/components/ArchiveDataState";
 import { supabase } from "@/integrations/supabase/client";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
@@ -242,34 +242,7 @@ function ReferencePage() {
             </aside>
           ) : null}
           <div className="v3-directory-results">
-      <Panel
-        title="Archive coverage"
-        description="Small server-owned aggregates describe the public archive without downloading it into this page."
-      >
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatTile
-            label="Countries"
-            value={coverageValue(coverage?.countries)}
-          />
-          <StatTile
-            label="Published entries"
-            value={coverageValue(coverage?.entries)}
-          />
-          <StatTile label="Shows" value={coverageValue(coverage?.shows)} />
-          <StatTile label="Stories" value={coverageValue(coverage?.stories)} />
-        </div>
-        {coverageQuery.isError ? (
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            <p>Archive totals are temporarily unavailable. Search and reference links still work.</p>
-            <button type="button" onClick={() => void coverageQuery.refetch()}
-              className="min-h-11 rounded-xl border border-border px-3 font-semibold text-foreground">
-              Retry archive totals
-            </button>
-          </div>
-        ) : null}
-      </Panel>
-
-      <section className="mt-5 rounded-2xl border border-border bg-surface/60 p-3 sm:p-4">
+      <section className="v3-reference-directory__controls" aria-label="Search and filter Reference">
         {presentation === "installed-app" ? (
           <SolarisSearchField value={query} onChange={setQuery}
             label="Search Reference" placeholder="Search published Solaris history…" />
@@ -323,6 +296,28 @@ function ReferencePage() {
         ) : null}
       </section>
 
+      <section className="v3-reference-directory__coverage" aria-label="Published archive coverage">
+        <div className="v3-reference-directory__coverage-heading">
+          <h2>Published archive</h2>
+          <span>Official public records</span>
+        </div>
+        <dl className="v3-reference-directory__coverage-list">
+          <div><dt>Countries</dt><dd>{coverageValue(coverage?.countries)}</dd></div>
+          <div><dt>Entries</dt><dd>{coverageValue(coverage?.entries)}</dd></div>
+          <div><dt>Shows</dt><dd>{coverageValue(coverage?.shows)}</dd></div>
+          <div><dt>Stories</dt><dd>{coverageValue(coverage?.stories)}</dd></div>
+        </dl>
+        {coverageQuery.isError ? (
+          <div className="v3-reference-directory__coverage-error" role="status">
+            <p>Archive totals are temporarily unavailable. Search and reference links still work.</p>
+            <button type="button" onClick={() => void coverageQuery.refetch()}
+              className="min-h-11 rounded-lg border border-border px-3 font-semibold text-foreground">
+              Retry archive totals
+            </button>
+          </div>
+        ) : null}
+      </section>
+
       {normalizedQuery.length === 0 || dedicatedTopicOnly ? (
         <section className="mt-5" aria-labelledby="reference-browse-heading">
           <div className="mb-3 border-b border-border/60 pb-3">
@@ -342,12 +337,12 @@ function ReferencePage() {
               {KIND_LABELS[kind]} has a dedicated published index. The bounded Reference record search does not index this topic; open its public index below.
             </p>
           ) : null}
-          <div className={presentation === "mobile-web" ? "v3-directory-mobile-list" : presentation === "installed-app" ? "solaris-app-grouped-list" : "v3-directory-desktop-grid"}>
+          <div className={presentation === "mobile-web" ? "v3-directory-mobile-list v3-reference-directory__index" : presentation === "installed-app" ? "solaris-app-grouped-list" : "v3-reference-directory__index"}>
             {browseDestinations.map(({ label, description, href }) => (
               <Link
                 key={href}
                 to={href as any}
-                className={presentation === "mobile-web" ? "v3-directory-mobile-row" : presentation === "installed-app" ? "solaris-app-list-row" : "v3-directory-desktop-card"}
+                className={presentation === "installed-app" ? "solaris-app-list-row" : "v3-reference-directory__row"}
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">{label}</p>
@@ -363,7 +358,7 @@ function ReferencePage() {
           </div>
           {browseDestinations.length === 0 ? (
             <p className="mt-3 py-5 text-sm text-muted-foreground" role="status">
-              No standalone index exists for this topic. Search above to find published entries, songs and artists in their edition context.
+              No released directory is available for this topic. Search above for published entries and related records.
             </p>
           ) : null}
         </section>
@@ -409,12 +404,12 @@ function ReferencePage() {
             </span>
           </div>
 
-          <div className={presentation === "mobile-web" ? "v3-directory-mobile-list" : presentation === "installed-app" ? "solaris-app-grouped-list" : "v3-directory-desktop-grid"}>
+          <div className={presentation === "mobile-web" ? "v3-directory-mobile-list v3-reference-directory__index" : presentation === "installed-app" ? "solaris-app-grouped-list" : "v3-reference-directory__index"}>
             {filtered.map((item) => (
               <Link
                 key={item.id}
                 to={item.href as any}
-                className={presentation === "mobile-web" ? "v3-directory-mobile-row" : presentation === "installed-app" ? "solaris-app-list-row" : "v3-directory-desktop-card"}
+                className={presentation === "installed-app" ? "solaris-app-list-row" : "v3-reference-directory__row"}
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">
