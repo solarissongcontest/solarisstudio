@@ -34,6 +34,7 @@ import {
   type OrganizerTaskV5,
 } from "@/lib/admin-tasks-v5";
 import { editionLabel as formatEditionLabel, useEditions } from "@/lib/data";
+import "@/styles/v3-organizer-tasks-editorial.css";
 
 const FILTERS = [
   "all",
@@ -233,7 +234,12 @@ function OrganizerTasksPage() {
         ) : null}
 
         {edition && filter !== "resolved" ? (
-          <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 xl:grid-cols-5">
+          <section
+            className="v3-organizer-task-metrics grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 xl:grid-cols-5"
+            role="region"
+            aria-label="Task status summary"
+            tabIndex={0}
+          >
             <Metric label="Actionable" value={actionable} tone="info" />
             <Metric label="Blocked" value={blocked} tone="blocked" />
             <Metric label="Waiting" value={waiting} tone="info" />
