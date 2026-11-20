@@ -94,6 +94,8 @@ on:
       - "src/lib/v3-s16-internal-entry-api-dml.contract.test.ts"
       - "src/lib/v3-s16-permission-r3-legacy-overload.contract.test.ts"
       - ".github/scripts/v3-observed-owner-recovery-local.sh"
+      - "scripts/v3-s13-s16-stage-provenance.mjs"
+      - "scripts/v3-s13-s16-stage-provenance.test.mjs"
       - ".github/scripts/v3-s16-publication-api-local.sh"
       - ".github/tests/v3-s16-publication-archive-guard-authority.sql"
       - "scripts/v3-s16-publication-execution-evidence.mjs"
@@ -246,6 +248,9 @@ jobs:
       - name: Verify Archive source-integrity tests without dependencies
         id: source_contract
         run: node --test scripts/v3-s14-archive-forward-effects.contract.test.mjs
+
+      - name: Verify 29-stage classifier with synthetic local artifacts
+        run: node --test scripts/v3-s13-s16-stage-provenance.test.mjs
 
       - name: Check shell syntax
         run: bash -n scripts/rehearse-v3-s14-archive-forward-effects-local.sh
@@ -1029,6 +1034,7 @@ jobs:
           echo 'PASS: ordered S13 -> Archive -> S07 -> S08; interrupted rollback, API-role DML denial and duplicate refusal'
           # Rehearse the identical ordered recovery as the actual observed operator.
           source .github/scripts/v3-observed-owner-recovery-local.sh
+          node scripts/v3-s13-s16-stage-provenance.mjs .
           docker rm -f "$cid" >/dev/null
           cid=""
           echo "PASS: S13 then S14 against 215 hosted-observed PG17.11 table identities (56 scoped + 159 exact fingerprints); missing S13/duplicate fail closed."
@@ -1041,6 +1047,7 @@ jobs:
           name: s06-hosted-observed-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             observed-owner-recovery-proof.json
+            s13-s16-stage-provenance-classification.json
             s16-publication-domain-execution.json
             ordered-recovery-sql/
             s06-archive-catalog-proof.json

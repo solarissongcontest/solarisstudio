@@ -1,0 +1,80 @@
+name: V3 public anonymous TRUNCATE legacy table isolated hardening
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/v3/recovery-candidates/s16-emergency-public-client-truncate.sql"
+      - ".github/workflows/v3-public-client-truncate-isolated.yml"
+permissions:
+  contents: read
+jobs:
+  pg17-isolated:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      SUPABASE_PROJECT_REF: local
+      SUPABASE_URL: http://127.0.0.1:54321
+      V3_VERIFICATION_TARGET: local
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Pull local PostgreSQL 17.11
+        run: docker pull postgres:17.11
+      - name: Run actual SQL in networkless synthetic privilege fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          cid="$(docker run --rm -d --network none -e POSTGRES_PASSWORD=local-only postgres:17.11)"
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          for i in $(seq 1 60); do
+            if docker exec "$cid" pg_isready -U postgres >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          [[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$cid")" == none ]]
+          [[ "$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid")" == '{}' ]]
+          docker exec -i "$cid" psql -X -v ON_ERROR_STOP=1 -U postgres <<'SQL'
+          create role anon nologin;
+          create role authenticated nologin;
+          create role service_role nologin;
+          do $fixture$
+          declare t text;
+          begin
+            foreach t in array array['admin_deadlines','admin_preferences','app_push_subscriptions','content_events','contest_entities','countries','country_design_presets','country_edition_identities','country_font_assets','country_hod_edition_claims','country_media','country_profile_sections','country_profiles','country_themes','delegation_hod_assignments','delegation_people','fan_event_reads','fan_follows','fan_profiles','fan_taste_ballots','fantasy_game_entries','fantasy_games','fantasy_team_entries','fantasy_teams','friend_voting_settings','integration_events','integration_links','internal_entries','jury_ballot_statuses','jury_ballot_submissions','jury_voting_windows','national_final_entries','national_finals','next_in_line_responses','next_in_line_submissions','notification_deliveries','notification_preferences','participants','prediction_consensus_snapshots','prediction_entries','prediction_entry_versions','prediction_items','prediction_rounds','prediction_scores','public_televote_country_contributions','round_stats','submission_browser_sessions','submission_drafts','submission_ip_history','submission_review_history','submission_rounds','televoting_round_bindings','themes','user_roles','voters'] loop
+              execute format('create table public.%I(id integer primary key)',t);
+              execute format('alter table public.%I enable row level security',t);
+              execute format('grant select,insert,update,delete,references,trigger,truncate on public.%I to authenticated, service_role',t);
+              execute format('grant select,insert,update,delete,references,trigger on public.%I to anon',t);
+              if t <> all(array['admin_deadlines','admin_preferences','fan_taste_ballots']) then
+                execute format('grant truncate on public.%I to anon',t);
+              end if;
+            end loop;
+            execute 'create table public.editions(id integer primary key)';
+            execute 'alter table public.editions enable row level security';
+            execute 'grant select on public.editions to anon,authenticated';
+            execute 'grant truncate on public.editions to service_role';
+          end $fixture$;
+          SQL
+          file=docs/v3/recovery-candidates/s16-emergency-public-client-truncate.sql
+          docker exec -i "$cid" psql -X -v ON_ERROR_STOP=1 -U postgres < "$file"
+          docker exec -i "$cid" psql -X -v ON_ERROR_STOP=1 -U postgres <<'SQL'
+          do $verify$
+          declare t text;
+          begin
+            foreach t in array array['admin_deadlines','admin_preferences','app_push_subscriptions','content_events','contest_entities','countries','country_design_presets','country_edition_identities','country_font_assets','country_hod_edition_claims','country_media','country_profile_sections','country_profiles','country_themes','delegation_hod_assignments','delegation_people','fan_event_reads','fan_follows','fan_profiles','fan_taste_ballots','fantasy_game_entries','fantasy_games','fantasy_team_entries','fantasy_teams','friend_voting_settings','integration_events','integration_links','internal_entries','jury_ballot_statuses','jury_ballot_submissions','jury_voting_windows','national_final_entries','national_finals','next_in_line_responses','next_in_line_submissions','notification_deliveries','notification_preferences','participants','prediction_consensus_snapshots','prediction_entries','prediction_entry_versions','prediction_items','prediction_rounds','prediction_scores','public_televote_country_contributions','round_stats','submission_browser_sessions','submission_drafts','submission_ip_history','submission_review_history','submission_rounds','televoting_round_bindings','themes','user_roles','voters'] loop
+              if has_table_privilege('anon',format('public.%I',t),'TRUNCATE') or
+                 has_table_privilege('authenticated',format('public.%I',t),'TRUNCATE') then
+                  raise exception 'Client TRUNCATE survived on %',t;
+              end if;
+              if not has_table_privilege('authenticated',format('public.%I',t),'SELECT,INSERT,UPDATE,DELETE') or
+                 not has_table_privilege('service_role',format('public.%I',t),'TRUNCATE') then
+                  raise exception 'Unrelated privilege changed on %',t;
+              end if;
+            end loop;
+          end $verify$;
+          SQL
+          if docker exec -i "$cid" psql -X -v ON_ERROR_STOP=1 -U postgres < "$file" > /tmp/repeat.log 2>&1; then
+            echo 'ERROR: duplicate accepted'; exit 1
+          fi
+          grep -Fq 'actual 55-table set differs from manifest' /tmp/repeat.log
+          echo 'PASS: 107 client TRUNCATE grants denied, service_role and other DML preserved, networkless PG17.11'

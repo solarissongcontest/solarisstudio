@@ -1,0 +1,574 @@
+{
+  "schema_version": 1,
+  "source_main_sha": "15091c4aa394ccd9fd48cdecec03e5faab9d5f6c",
+  "project_id": "dkxmnvekiopyesuzggeu",
+  "source_candidate": {
+    "path": "docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql",
+    "git_blob_sha": "c866ebc8aea24891ee6648acf03c90ee192e6480",
+    "classification": "EXPLICIT LOCAL-ONLY, NOT HOSTED-APPROVED"
+  },
+  "query_path": "docs/v3/recovery-candidates/s14-current-hosted-parent-preflight-readonly.sql",
+  "observed_at": "2026-11-19 22:16:44.625378+00",
+  "postgres_version_num": "170011",
+  "identities": [
+    {
+      "kind": "relation",
+      "group": "core-parent",
+      "present": true,
+      "identity": "private.v3_domain_event_outbox"
+    },
+    {
+      "kind": "relation",
+      "group": "core-parent",
+      "present": true,
+      "identity": "private.v3_domain_events"
+    },
+    {
+      "kind": "relation",
+      "group": "core-parent",
+      "present": true,
+      "identity": "public.admin_notifications"
+    },
+    {
+      "kind": "relation",
+      "group": "core-parent",
+      "present": true,
+      "identity": "public.editions"
+    },
+    {
+      "kind": "relation",
+      "group": "core-parent",
+      "present": true,
+      "identity": "public.next_in_line_responses"
+    },
+    {
+      "kind": "relation",
+      "group": "core-parent",
+      "present": true,
+      "identity": "public.notification_deliveries"
+    },
+    {
+      "kind": "relation",
+      "group": "core-parent",
+      "present": true,
+      "identity": "public.shows"
+    },
+    {
+      "kind": "relation",
+      "group": "core-parent",
+      "present": true,
+      "identity": "public.studio2_contest_events"
+    },
+    {
+      "kind": "relation",
+      "group": "core-parent",
+      "present": true,
+      "identity": "public.studio2_edition_runtime"
+    },
+    {
+      "kind": "relation",
+      "group": "core-parent",
+      "present": true,
+      "identity": "public.studio2_eligibility_overrides"
+    },
+    {
+      "kind": "relation",
+      "group": "core-parent",
+      "present": true,
+      "identity": "public.studio2_next_in_line_windows"
+    },
+    {
+      "kind": "relation",
+      "group": "core-parent",
+      "present": true,
+      "identity": "public.studio2_operation_receipts"
+    },
+    {
+      "kind": "relation",
+      "group": "core-parent",
+      "present": true,
+      "identity": "public.studio2_organizer_tasks"
+    },
+    {
+      "kind": "relation",
+      "group": "core-parent",
+      "present": true,
+      "identity": "public.studio2_result_operations"
+    },
+    {
+      "kind": "relation",
+      "group": "core-parent",
+      "present": true,
+      "identity": "public.televoting_round_bindings"
+    },
+    {
+      "kind": "relation",
+      "group": "core-parent",
+      "present": true,
+      "identity": "televoting.rounds"
+    },
+    {
+      "kind": "function",
+      "group": "must-be-absent-new",
+      "present": false,
+      "identity": "private.studio2_transition_edition_v3(uuid,text,text,uuid,bigint,uuid,text)"
+    },
+    {
+      "kind": "function",
+      "group": "must-be-absent-new",
+      "present": false,
+      "identity": "private.v3_archive_task_reconciliation_gate_active(uuid)"
+    },
+    {
+      "kind": "function",
+      "group": "must-be-absent-new",
+      "present": false,
+      "identity": "private.v3_archive_task_type_is_current_workflow(text)"
+    },
+    {
+      "kind": "function",
+      "group": "must-be-absent-new",
+      "present": false,
+      "identity": "private.v3_archived_workflow_row_edition(jsonb)"
+    },
+    {
+      "kind": "function",
+      "group": "must-be-absent-new",
+      "present": false,
+      "identity": "private.v3_arm_archive_runtime_transition_gate(uuid)"
+    },
+    {
+      "kind": "function",
+      "group": "must-be-absent-new",
+      "present": false,
+      "identity": "private.v3_edition_final_results_ready(uuid)"
+    },
+    {
+      "kind": "function",
+      "group": "must-be-absent-new",
+      "present": false,
+      "identity": "private.v3_guard_archive_runtime_transition()"
+    },
+    {
+      "kind": "function",
+      "group": "must-be-absent-new",
+      "present": false,
+      "identity": "private.v3_guard_archived_edition_task_resurrection()"
+    },
+    {
+      "kind": "function",
+      "group": "must-be-absent-new",
+      "present": false,
+      "identity": "private.v3_guard_archived_edition_workflow_write()"
+    },
+    {
+      "kind": "function",
+      "group": "must-be-absent-new",
+      "present": false,
+      "identity": "private.v3_guard_archived_legacy_edition_status()"
+    },
+    {
+      "kind": "function",
+      "group": "must-be-absent-new",
+      "present": false,
+      "identity": "private.v3_guard_archived_televote_write()"
+    },
+    {
+      "kind": "function",
+      "group": "must-be-absent-new",
+      "present": false,
+      "identity": "private.v3_project_resolved_task_delivery_state()"
+    },
+    {
+      "kind": "function",
+      "group": "must-be-absent-new",
+      "present": false,
+      "identity": "private.v3_reconcile_resolved_task_notifications(uuid)"
+    },
+    {
+      "kind": "function",
+      "group": "must-be-absent-new",
+      "present": false,
+      "identity": "private.v3_resolve_archived_edition_workflow_tasks(uuid)"
+    },
+    {
+      "kind": "function",
+      "group": "must-be-absent-new",
+      "present": false,
+      "identity": "private.v3_sync_archived_edition_legacy_status()"
+    },
+    {
+      "kind": "function",
+      "group": "must-be-absent-new",
+      "present": false,
+      "identity": "private.v3_televote_row_solaris_editions(text,jsonb)"
+    },
+    {
+      "kind": "function",
+      "group": "must-be-absent-new",
+      "present": false,
+      "identity": "public.studio2_process_edition_domain_event(uuid,text,text)"
+    },
+    {
+      "kind": "function",
+      "group": "must-be-absent-new",
+      "present": false,
+      "identity": "public.studio2_transition_edition_v3(uuid,text,text,uuid,bigint,uuid,text)"
+    },
+    {
+      "kind": "function",
+      "group": "original-helper",
+      "present": true,
+      "identity": "private.studio2_prune_stale_task_notifications(uuid)"
+    },
+    {
+      "kind": "function",
+      "group": "original-helper",
+      "present": true,
+      "identity": "private.studio2_reconcile_all_organizer_tasks(uuid)"
+    },
+    {
+      "kind": "function",
+      "group": "original-helper",
+      "present": true,
+      "identity": "private.studio2_request_is_service_role()"
+    },
+    {
+      "kind": "function",
+      "group": "original-helper",
+      "present": true,
+      "identity": "public.studio2_transition_edition_v2(uuid,text,text,uuid)"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "private.studio2_claim_operation(uuid,text,uuid,text,text,jsonb,jsonb)"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "private.studio2_complete_operation(uuid,jsonb)"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "private.studio2_default_subsystems(text)"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "private.studio2_normalise_publication_config(jsonb)"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "private.studio2_reconcile_confirmation_requirement_tasks(uuid)"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "private.studio2_reconcile_confirmation_sync_tasks()"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "private.studio2_reconcile_jury_ballot_review_tasks(uuid)"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "private.studio2_reconcile_organizer_tasks_operational(uuid)"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "private.studio2_reconcile_organizer_tasks_truth(uuid)"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "private.studio2_reconcile_organizer_tasks(uuid)"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "private.studio2_reconcile_permission_approval_tasks()"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "private.studio2_reconcile_system_job_tasks()"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "private.studio2_repair_jury_missing_ballot_tasks(uuid)"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "private.studio2_sync_task_notifications(uuid)"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "private.studio2_task_recipient_eligible(uuid,uuid)"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "private.studio2_transition_risk(text,text)"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "private.v3_emit_domain_event(text,text,text,bigint,uuid,uuid,uuid,jsonb,integer,text[])"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "private.v3_publication_result_version_release_ready(uuid,bigint)"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "public.studio2_access_allowed(text,uuid,boolean)"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "public.studio2_complete_domain_event_delivery(uuid,text,text,jsonb)"
+    },
+    {
+      "kind": "function",
+      "group": "required-runtime",
+      "present": true,
+      "identity": "public.studio2_transition_edition_v2(uuid,text,text,uuid)"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "private.v3_result_versions"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "public.entries"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "public.internal_entries"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "public.jury_ballot_statuses"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "public.jury_ballot_submissions"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "public.jury_votes"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "public.jury_voting_windows"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "public.national_final_entries"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "public.national_finals"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "public.next_in_line_submissions"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "public.participants"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "public.results"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "public.studio2_confirmation_requirements"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "public.studio2_media_asset_reviews"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "public.studio2_show_publication_controls"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "public.submission_rounds"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "public.submissions"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "public.televote_votes"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "public.voters"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "televoting.combined_televote_component_results"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "televoting.combined_televote_results"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "televoting.round_countries"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "televoting.round_entries"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "televoting.round_results"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "televoting.televote_aggregation_participants"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "televoting.televote_aggregation_sources"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "televoting.televote_aggregations"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "televoting.vote_entries"
+    },
+    {
+      "kind": "relation",
+      "group": "runtime-parent",
+      "present": true,
+      "identity": "televoting.vote_submissions"
+    }
+  ],
+  "upstream_security_definers": [
+    {
+      "owner": "postgres",
+      "identity": "private.studio2_prune_stale_task_notifications(uuid)",
+      "definition_md5": "f059ed84963db4bbde4dd3e5ee59fd9e",
+      "security_definer": true
+    },
+    {
+      "owner": "postgres",
+      "identity": "private.studio2_reconcile_all_organizer_tasks(uuid)",
+      "definition_md5": "756db08b6994b189992bd527f97c4b37",
+      "security_definer": true
+    }
+  ],
+  "new_archive_trigger_collisions": 0,
+  "private_gate_collisions": 0,
+  "s13_governance_missing": {
+    "registry_table": true,
+    "registry_rpc": true
+  },
+  "previous_20261119_column_contracts_compatible": 31,
+  "proof": {
+    "all_non_S13_S14_source_preconditions_covered": false,
+    "all_checked_preexisting_objects_present": true,
+    "all_18_new_function_names_absent": true,
+    "source_preflight_catalog_qualified_without_S13": true,
+    "actual_backup_restore_certified": false,
+    "hosted_only_forward_manifest_approved": false,
+    "production_schema_changed": false,
+    "cloudflare_promoted": false
+  }
+}

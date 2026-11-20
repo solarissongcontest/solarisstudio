@@ -94,6 +94,38 @@ for confirmation_drift in column policy; do
   [[ "$(operator_state_digest "$confirmation_probe")" == "$confirmation_before" ]] || { echo "Confirmation rejected drift but changed schema/data" >&2; exit 1; }
   operator_sql -c "drop database ${confirmation_probe};"
 done
+# New hosted ACL before-state: emergency security PRs #2591/#2594 already
+# revoked direct API TRUNCATE on Confirmation tables. Exercise ONLY on a
+# disposable networkless PostgreSQL clone, never on production.
+operator_sql -c "create database confirmation_emergency_acl owner postgres template recovery_operator_baseline;"
+docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d confirmation_emergency_acl -c   "revoke truncate on table public.edit_tokens, public.submissions from anon,authenticated,service_role;"
+docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d confirmation_emergency_acl -f - < /tmp/confirmation-access-recovery.sql
+docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d confirmation_emergency_acl <<'CONFIRMATION_REVOCATION_POSTCHECK'
+do $check$
+begin
+ if to_regprocedure('public.studio2_apply_confirmation_response_access_change(uuid,uuid,text,jsonb,text,uuid,text,bigint)') is null then
+   raise exception 'Hardened pre-revoked Confirmation failed to install governed command';
+ end if;
+ if exists(select 1 from unnest(array['public.edit_tokens','public.submissions']) tab(name)
+   cross join unnest(array['anon','authenticated','service_role']) r(name)
+   where has_table_privilege(r.name,tab.name,'TRUNCATE')) then
+   raise exception 'Hardened Confirmation recovered unsafe API TRUNCATE';
+ end if;
+end $check$;
+CONFIRMATION_REVOCATION_POSTCHECK
+operator_sql -c "drop database confirmation_emergency_acl;"
+echo 'PASS: reviewed emergency pre-revoked Confirmation ACL accepted; governed command installed without API TRUNCATE regrant'
+# Unknown table ACL mutation must still abort before any schema or data effect.
+operator_sql -c "create database confirmation_unknown_acl owner postgres template recovery_operator_baseline;"
+docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d confirmation_unknown_acl -c   "revoke truncate on table public.edit_tokens, public.submissions from anon,authenticated,service_role; revoke select on table public.submissions from anon;"
+confirmation_unknown_before="$(operator_state_digest confirmation_unknown_acl)"
+if docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d confirmation_unknown_acl -f - < /tmp/confirmation-access-recovery.sql > /tmp/confirmation-unknown-acl.log 2>&1; then
+ echo 'ERROR: Confirmation accepted an unrelated ACL downgrade'; exit 1
+fi
+grep -Fq 'Confirmation table column/policy/owner/RLS/ACL drift' /tmp/confirmation-unknown-acl.log || { cat /tmp/confirmation-unknown-acl.log; exit 1; }
+[[ "$(operator_state_digest confirmation_unknown_acl)" == "$confirmation_unknown_before" ]] || { echo 'Unknown Confirmation ACL drift modified schema/data'; exit 1; }
+operator_sql -c "drop database confirmation_unknown_acl;"
+echo 'PASS: unrelated Confirmation ACL drift rejected atomically'
 operator_apply /tmp/confirmation-access-recovery.sql
 echo 'PASS: Confirmation governed cutover installed in observed-owner recovery'
 operator_sql -f - < .github/scripts/v3-confirmation-legacy-writer-denial.sql
@@ -233,6 +265,38 @@ for s16_drift in extra_grant disabled_rls results_column_grant publication_colum
   operator_sql -c "drop database ${s16_probe};"
 done
 echo 'PASS: S16 preflight rejects unreviewed RLS and API TRUNCATE role drift atomically'
+# PRs #2590/#2591 already removed API TRUNCATE grants in real production.
+# Isolated clone: verify S16 accepts that stricter before-state without
+# regranting access to satisfy historical fixture expectations.
+operator_sql -c "create database s16_emergency_pre_revoked owner postgres template recovery_operator_baseline;"
+docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d s16_emergency_pre_revoked -c "revoke truncate on table public.country_accounts,public.editions,public.entries,public.edit_tokens,public.jury_votes,public.results,public.shows,public.studio2_result_operations,public.studio2_show_publication_controls,public.studio2_upload_authorizations,public.submissions,public.televote_votes,televoting.televote_aggregations,televoting.vote_submissions from public,anon,authenticated,service_role;"
+docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d s16_emergency_pre_revoked <<'S16_REVOKED_PREFLIGHT'
+do $precheck$
+begin
+ if exists (
+   select 1 from unnest(array['public.country_accounts','public.editions','public.entries','public.edit_tokens','public.jury_votes','public.results','public.shows','public.studio2_result_operations','public.studio2_show_publication_controls','public.studio2_upload_authorizations','public.submissions','public.televote_votes','televoting.televote_aggregations','televoting.vote_submissions']) t(name)
+   cross join unnest(array['anon','authenticated','service_role']) r(name)
+   where has_table_privilege(r.name,t.name,'TRUNCATE')
+ ) then raise exception 'Emergency baseline still has API TRUNCATE grants'; end if;
+end $precheck$;
+S16_REVOKED_PREFLIGHT
+docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d s16_emergency_pre_revoked -f - < docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql
+docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d s16_emergency_pre_revoked <<'S16_REVOKED_POSTCHECK'
+do $postcheck$
+begin
+ if exists (
+   select 1 from unnest(array['public.country_accounts','public.editions','public.entries','public.edit_tokens','public.jury_votes','public.results','public.shows','public.studio2_result_operations','public.studio2_show_publication_controls','public.studio2_upload_authorizations','public.submissions','public.televote_votes','televoting.televote_aggregations','televoting.vote_submissions']) t(name)
+   cross join unnest(array['anon','authenticated','service_role']) r(name)
+   where has_table_privilege(r.name,t.name,'TRUNCATE')
+ ) then raise exception 'S16 pre-revoked baseline regained TRUNCATE'; end if;
+ if not exists (select 1 from private.v3_migration_contracts
+   where migration_key='v3.s16.launch-table-truncate-cutover') then
+   raise exception 'S16 pre-revoked baseline omitted registration';
+ end if;
+end $postcheck$;
+S16_REVOKED_POSTCHECK
+operator_sql -c "drop database s16_emergency_pre_revoked;"
+echo 'PASS: S16 local production-ACL simulation accepts all-14 pre-revoked TRUNCATE and preserves canonical guards'
 operator_apply docs/v3/recovery-candidates/s16-launch-table-truncate-cutover.sql
 # The hosted-observed S02 fixture omits the separate, already source-defined
 # S14 Televote reconciliation command. Exact PG17.11 execution confirmed that
