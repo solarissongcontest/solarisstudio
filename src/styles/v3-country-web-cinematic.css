@@ -1,0 +1,112 @@
+/* Explore V3: ordinary mobile-browser and desktop Country identity.
+ * This is a WEB composition. The installed app keeps V3DelegationScreen and
+ * its independently gated AppShell, bottom dock and top safe area.
+ */
+.country-web-cinematic {
+  --cinematic-canvas: var(--background, #020817);
+  margin-bottom: clamp(1.25rem, 3vw, 2.5rem);
+  min-width: 0;
+}
+.country-web-cinematic .cinematic-entity-hero {
+  min-height: clamp(25rem, 50svh, 41rem);
+  margin-inline: 0;
+  border: 0;
+  border-radius: 0;
+}
+.country-web-cinematic .cinematic-entity-hero__copy {
+  padding: clamp(5rem, 12vw, 9rem) clamp(1.35rem, 5vw, 5.5rem) clamp(3.25rem, 7vw, 5rem);
+}
+.country-web-cinematic .cinematic-entity-hero__title {
+  max-width: 22ch;
+  font-size: clamp(3.25rem, 6.5vw, 7rem);
+}
+.country-web-cinematic__identity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem 1.25rem;
+  padding: 1rem clamp(.25rem, 3vw, 2rem) 1.5rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--foreground) 14%, transparent);
+}
+.country-web-cinematic__details { min-width: 0; }
+.country-web-cinematic__code {
+  font-size: .7rem;
+  font-weight: 750;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.country-web-cinematic__description {
+  max-width: 55ch;
+  margin-top: .4rem;
+  font-size: .9rem;
+  line-height: 1.6;
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+.country-web-cinematic__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem .85rem;
+}
+.country-web-cinematic__actions :is(a, button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  font-size: .8125rem;
+  font-weight: 650;
+}
+.country-web-cinematic__actions a {
+  color: var(--muted-foreground);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: .25rem;
+}
+.country-web-cinematic__actions a:hover,
+.country-web-cinematic__actions a:focus-visible {
+  color: var(--foreground);
+  text-decoration-color: currentColor;
+}
+.country-web-cinematic__actions :is(a, button):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+@media (min-width: 70rem) {
+  .country-web-cinematic__identity {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 1.5rem;
+  }
+  .country-web-cinematic__actions {
+    grid-column: auto;
+    justify-self: end;
+    max-width: 26rem;
+  }
+}
+@media (max-width: 47.99rem) {
+  .country-web-cinematic .cinematic-entity-hero {
+    min-height: clamp(19rem, 47svh, 30rem);
+  }
+  .country-web-cinematic .cinematic-entity-hero__copy {
+    padding: 4rem 1.15rem 3rem;
+  }
+  .country-web-cinematic .cinematic-entity-hero__title {
+    font-size: clamp(2.65rem, 11vw, 4.5rem);
+  }
+  .country-web-cinematic .cinematic-entity-hero__subtitle {
+    font-size: .9rem;
+  }
+  .country-web-cinematic__identity {
+    gap: .85rem;
+    padding-inline: .25rem;
+  }
+  .country-web-cinematic__actions {
+    border-top: 1px solid color-mix(in oklab, var(--foreground) 10%, transparent);
+    padding-top: .5rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .country-web-cinematic * { scroll-behavior: auto; }
+}
