@@ -28,7 +28,7 @@ function Back({ institution }: { institution?: PublicWorldInstitution }) {
     {institution ? <Link to="/world/organizations/$slug" params={{ slug: institution.slug }}
       search={{ tab: "overview" }} className="inline-flex min-h-11 items-center gap-2 hover:text-foreground">
       <ArrowLeft className="size-4" aria-hidden="true" /> {institution.shortName}
-    </Link> : <Link to="/world/organizations" className="inline-flex min-h-11 items-center gap-2">
+    </Link> : <Link to="/world/organizations" search={{ q: "", status: "all", page: 1 }} className="inline-flex min-h-11 items-center gap-2">
       <ArrowLeft className="size-4" aria-hidden="true" /> Organizations
     </Link>}
   </nav>;
