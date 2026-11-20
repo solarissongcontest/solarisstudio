@@ -6,8 +6,8 @@ const detailSource = readFileSync("src/routes/stories/$editionSlug.tsx", "utf8")
 
 describe("public Stories error and recovery states", () => {
   it("distinguishes failed story archive reads from a genuinely empty published archive", () => {
-    const errorIndex = indexSource.indexOf("storiesQuery.isError ?");
-    const loadingIndex = indexSource.indexOf("storiesQuery.isLoading ?");
+    const errorIndex = indexSource.indexOf("storiesQuery.isError || storiesQuery.isRefetchError ?");
+    const loadingIndex = indexSource.indexOf("storiesQuery.isLoading || storiesQuery.isFetching ?");
     const emptyIndex = indexSource.indexOf("No edition stories published yet");
     expect(errorIndex).toBeGreaterThan(-1);
     expect(loadingIndex).toBeGreaterThan(errorIndex);
@@ -17,16 +17,18 @@ describe("public Stories error and recovery states", () => {
   });
 
   it("fails closed on cached calendar data when the latest publication read fails", () => {
-    expect(indexSource).toContain("anniversaryQuery.isError ?");
+    expect(indexSource).toContain("anniversaryQuery.isError || anniversaryQuery.isRefetchError ?");
     expect(indexSource).toContain("onRetry={() => void anniversaryQuery.refetch()}");
     expect(indexSource).toContain("No published moments for today");
     // An old empty success must not be mistaken for a verified current empty
     // archive when the latest refresh failed.
     expect(indexSource).not.toContain("anniversaryQuery.isError && !anniversaryQuery.data");
+    expect(indexSource).toContain("anniversaryQuery.isSuccess && !anniversaryQuery.isFetching");
+    expect(indexSource).toContain("!anniversaryQuery.isRefetchError ? anniversaryQuery.data ?? null : null");
   });
 
   it("offers actionable recovery for story details without exposing internal error messages", () => {
-    const errorIndex = detailSource.indexOf("storyQuery.isError ?");
+    const errorIndex = detailSource.indexOf("storyQuery.isError || storyQuery.isRefetchError ?");
     const emptyIndex = detailSource.indexOf("No published story for this edition");
     expect(errorIndex).toBeGreaterThan(-1);
     expect(emptyIndex).toBeGreaterThan(errorIndex);
@@ -45,14 +47,15 @@ describe("public Stories error and recovery states", () => {
     expect(indexSource).not.toContain("anniversaryQuery.isError && !anniversary?.onThisDay.length");
     expect(indexSource).toContain("!anniversaryQuery.isError && anniversary?.sscAnniversary");
     expect(detailSource).not.toContain("storyQuery.isError && !story");
+    expect(detailSource).toContain("storyQuery.isSuccess && !storyQuery.isFetching && !storyQuery.isRefetchError");
 
-    expect(indexSource.indexOf("anniversaryQuery.isError ?")).toBeLessThan(
+    expect(indexSource.indexOf("anniversaryQuery.isError || anniversaryQuery.isRefetchError ?")).toBeLessThan(
       indexSource.indexOf("anniversary.onThisDay.slice(0, 6)"),
     );
-    expect(indexSource.indexOf("storiesQuery.isError ?")).toBeLessThan(
+    expect(indexSource.indexOf("storiesQuery.isError || storiesQuery.isRefetchError ?")).toBeLessThan(
       indexSource.indexOf("filteredStories.map((story)"),
     );
-    expect(detailSource.indexOf("storyQuery.isError ?")).toBeLessThan(
+    expect(detailSource.indexOf("storyQuery.isError || storyQuery.isRefetchError ?")).toBeLessThan(
       detailSource.indexOf("story.items.map((item, index)"),
     );
   });

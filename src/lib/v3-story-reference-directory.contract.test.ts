@@ -14,20 +14,23 @@ describe("V3 editorial directory family: Stories and Reference", () => {
     expect(stories).toContain("v3-directory-mobile-list");
     expect(stories).not.toContain('className="v3-directory-back"');
     expect(stories).toContain("filteredStories.map");
-    expect(stories).toContain("storiesQuery.isError ?");
+    expect(stories).toContain("storiesQuery.isError || storiesQuery.isRefetchError ?");
     expect(stories).toContain("onRetry={() => void storiesQuery.refetch()}");
-    expect(stories).toContain("loadPublicStorylines(30)");
+    expect(stories).toContain("loadPublicStorylines(storyLimit)");
     expect(stories).toContain("No edition stories published yet");
     const gate = read("src/components/v3/V3StoriesGates.tsx");
     expect(gate).toContain("resolveV3ResultsSpoilerProtection");
     expect(gate).toContain("hideSpoilers={hideSpoilers}");
+    expect(gate).toContain("StoryFallbackSpoilerContext.Provider value={protectedContent}");
+    expect(stories).toContain("<PublicStorySpoilerDisclosure");
+    expect(stories).toContain("queryKey: [\'public-storylines\', storyLimit]");
   });
 
   it("does not confuse a user search with a failed or unpublished Stories archive", () => {
     const source = read("src/routes/stories/index.tsx");
     expect(source).toContain('aria-label="Search published stories"');
-    expect(source).toContain("storiesQuery.isError ?");
-    expect(source).toContain("storiesQuery.isLoading ?");
+    expect(source).toContain("storiesQuery.isError || storiesQuery.isRefetchError ?");
+    expect(source).toContain("storiesQuery.isLoading || storiesQuery.isFetching ?");
     expect(source).toContain("filteredStories.length ?");
     expect(source).toContain("No matching stories");
     expect(source).toContain("No edition stories published yet");
