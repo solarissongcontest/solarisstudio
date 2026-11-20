@@ -1,0 +1,386 @@
+begin;
+
+-- System V3 / Public Results boundary: Voting DNA must preserve the independent
+-- publication authority of generic Results, Jury Results and Televote Results.
+--
+-- The legacy public_country_voting_dna(uuid) aggregate admits a result row when
+-- generic Results are public and then serializes jury_points + televote_points
+-- together. More importantly, public.results itself has historically been
+-- row-readable once generic Results are public. RLS cannot redact individual
+-- columns, so leaving that policy unchanged would let callers bypass any safe
+-- projection and request hidden split-point columns directly.
+--
+-- This migration therefore does two things together:
+--   1. fail closed for legacy/direct public.results reads until all split-result
+--      layers are public, while preserving capability-gated Organizer reads;
+--   2. expose a bounded SECURITY DEFINER projection that can still publish
+--      generic rank/total earlier, but only after explicit per-layer checks and
+--      with hidden Jury/Televote values serialized as null.
+select public.v3_register_migration_contract(
+  'v3.results.public-voting-dna-publication-boundary-v1',
+  1,
+  'forward_fix_only',
+  false,
+  null,
+  'Adds the V3 Public Voting DNA projection with independently gated Jury and Televote result layers and fails legacy direct Result reads closed while split layers are withheld'
+);
+
+-- A public.results row contains generic + Jury + Televote fields. PostgreSQL
+-- row policies cannot hide selected columns, so a row must not cross the raw
+-- table boundary while either split layer is intentionally private. New V3
+-- Public consumers use bounded projections for independently publishable data.
+-- Authorized Organizer preview/verification remains unchanged.
+drop policy if exists "solaris consolidated anon read" on public.results;
+create policy "solaris consolidated anon read"
+on public.results
+for select
+to anon
+using (
+  (
+    show_id is not null
+    and public.show_publication_enabled(show_id, 'results')
+    and public.show_publication_enabled(show_id, 'jury_results')
+    and public.show_publication_enabled(show_id, 'televote_results')
+  )
+  -- Preview is never an anonymous capability: only public layers qualify.
+);
+
+drop policy if exists "solaris consolidated authenticated read" on public.results;
+create policy "solaris consolidated authenticated read"
+on public.results
+for select
+to authenticated
+using (
+  public.studio2_access_allowed('results.verify', edition_id, true)
+  or public.studio2_access_allowed('results.preview', edition_id, false)
+  or (
+    show_id is not null
+    and public.show_publication_enabled(show_id, 'results')
+    and public.show_publication_enabled(show_id, 'jury_results')
+    and public.show_publication_enabled(show_id, 'televote_results')
+  )
+);
+
+-- Raw Jury votes contain individual voting relationships. A published edition
+-- alone does not authorize detailed voting disclosure, especially for legacy
+-- show-less rows with no canonical show publication decision. Historical raw
+-- votes remain accessible to authorized Jury readers through existing scoped
+-- capabilities, but anonymous access requires an exact published show/edition.
+drop policy if exists "solaris consolidated anon read" on public.jury_votes;
+create policy "solaris consolidated anon read"
+on public.jury_votes
+for select
+to anon
+using (
+  show_id is not null
+  and exists (
+    select 1
+    from public.shows jury_show
+    where jury_show.id = jury_votes.show_id
+      and jury_show.edition_id = jury_votes.edition_id
+      and public.show_publication_enabled(jury_show.id, 'detailed_voting')
+  )
+);
+
+drop policy if exists "solaris consolidated authenticated read" on public.jury_votes;
+create policy "solaris consolidated authenticated read"
+on public.jury_votes
+for select
+to authenticated
+using (
+  public.studio2_access_allowed('jury.ballots.read', edition_id, false)
+  or public.studio2_access_allowed('jury.ballots.manage', edition_id, true)
+  or (
+    show_id is not null
+    and exists (
+      select 1
+      from public.shows jury_show
+      where jury_show.id = jury_votes.show_id
+        and jury_show.edition_id = jury_votes.edition_id
+        and public.show_publication_enabled(jury_show.id, 'detailed_voting')
+    )
+  )
+);
+
+-- televote_votes: a published edition alone is not a detailed-vote disclosure grant.
+-- Match the source show to the row's edition and require explicit publication.
+drop policy if exists "solaris consolidated anon read" on public.televote_votes;
+create policy "solaris consolidated anon read"
+on public.televote_votes
+for select
+to anon
+using (
+  show_id is not null
+  and exists (
+    select 1
+    from public.shows tv_show
+    where tv_show.id = televote_votes.show_id
+      and tv_show.edition_id = televote_votes.edition_id
+      and public.show_publication_enabled(tv_show.id, 'detailed_voting')
+  )
+);
+
+drop policy if exists "solaris consolidated authenticated read" on public.televote_votes;
+create policy "solaris consolidated authenticated read"
+on public.televote_votes
+for select
+to authenticated
+using (
+  public.studio2_access_allowed('televote.ballots.read', edition_id, false)
+  or public.studio2_access_allowed('televote.ballots.manage', edition_id, true)
+  or (
+    show_id is not null
+    and exists (
+      select 1
+      from public.shows tv_show
+      where tv_show.id = televote_votes.show_id
+        and tv_show.edition_id = televote_votes.edition_id
+        and public.show_publication_enabled(tv_show.id, 'detailed_voting')
+    )
+  )
+);
+
+-- voters: a published edition alone is not a detailed-vote disclosure grant.
+-- Match the source show to the row's edition and require explicit publication.
+drop policy if exists "solaris consolidated anon read" on public.voters;
+create policy "solaris consolidated anon read"
+on public.voters
+for select
+to anon
+using (
+  show_id is not null
+  and exists (
+    select 1
+    from public.shows voter_show
+    where voter_show.id = voters.show_id
+      and voter_show.edition_id = voters.edition_id
+      and public.show_publication_enabled(voter_show.id, 'detailed_voting')
+  )
+);
+
+drop policy if exists "solaris consolidated authenticated read" on public.voters;
+create policy "solaris consolidated authenticated read"
+on public.voters
+for select
+to authenticated
+using (
+  public.studio2_access_allowed('voting.read', edition_id, false)
+  or public.studio2_access_allowed('voting.manage', edition_id, true)
+  or (
+    show_id is not null
+    and exists (
+      select 1
+      from public.shows voter_show
+      where voter_show.id = voters.show_id
+        and voter_show.edition_id = voters.edition_id
+        and public.show_publication_enabled(voter_show.id, 'detailed_voting')
+    )
+  )
+);
+
+create or replace function public.v3_public_country_voting_dna(
+  p_country_id uuid
+)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $function$
+  with detailed_votes as (
+    select
+      vote.edition_id,
+      vote.show_id,
+      coalesce(vote.voter_country_id, voter_entity.country_id) as voter_country_id,
+      coalesce(vote.receiving_country_id, receiving_entity.country_id) as receiving_country_id,
+      vote.points
+    from public.jury_votes vote
+    -- jury_votes has independent edition/show FKs, not a composite scope FK.
+    -- A mismatched show must never borrow another edition's publication gate.
+    join public.shows vote_show
+      on vote_show.id = vote.show_id
+     and vote_show.edition_id = vote.edition_id
+    join public.editions edition on edition.id = vote.edition_id
+    left join public.contest_entities voter_entity
+      on voter_entity.id = vote.voter_entity_id
+     and voter_entity.edition_id = vote.edition_id
+    left join public.contest_entities receiving_entity
+      on receiving_entity.id = vote.receiving_entity_id
+     and receiving_entity.edition_id = vote.edition_id
+    where edition.published = true
+      and vote.show_id is not null
+      and public.show_publication_enabled(vote.show_id, 'detailed_voting')
+      -- The definer RPC is public and country-specific. Never materialize
+      -- unrelated countries' detailed ballots for a single country's lookup.
+      and (
+        coalesce(vote.voter_country_id, voter_entity.country_id) = p_country_id
+        or coalesce(vote.receiving_country_id, receiving_entity.country_id) = p_country_id
+      )
+  ),
+  detailed_scope as (
+    select distinct detailed_votes.edition_id
+    from detailed_votes
+    where detailed_votes.voter_country_id = p_country_id
+       or detailed_votes.receiving_country_id = p_country_id
+  ),
+  given as (
+    select
+      detailed_votes.receiving_country_id as country_id,
+      sum(detailed_votes.points)::bigint as points,
+      count(*)::bigint as ballots
+    from detailed_votes
+    where detailed_votes.voter_country_id = p_country_id
+      and detailed_votes.receiving_country_id is not null
+      and detailed_votes.receiving_country_id <> p_country_id
+    group by detailed_votes.receiving_country_id
+    order by points desc, ballots desc, detailed_votes.receiving_country_id
+    limit 10
+  ),
+  received as (
+    select
+      detailed_votes.voter_country_id as country_id,
+      sum(detailed_votes.points)::bigint as points,
+      count(*)::bigint as ballots
+    from detailed_votes
+    where detailed_votes.receiving_country_id = p_country_id
+      and detailed_votes.voter_country_id is not null
+      and detailed_votes.voter_country_id <> p_country_id
+    group by detailed_votes.voter_country_id
+    order by points desc, ballots desc, detailed_votes.voter_country_id
+    limit 10
+  ),
+  visible_results as (
+    select
+      result.edition_id,
+      result.show_id,
+      result.final_rank,
+      result.jury_points,
+      result.televote_points,
+      result.total_points,
+      public.show_publication_enabled(result.show_id, 'jury_results') as jury_published,
+      public.show_publication_enabled(result.show_id, 'televote_results') as televote_published,
+      show.kind,
+      show.sort_order,
+      result.updated_at
+    from public.results result
+    join public.shows show on show.id = result.show_id
+    join public.editions edition on edition.id = result.edition_id
+    left join public.contest_entities result_entity
+      on result_entity.id = result.contest_entity_id
+     and result_entity.edition_id = result.edition_id
+    where edition.published = true
+      and result.show_id is not null
+      and (
+        result.country_id = p_country_id
+        or result_entity.country_id = p_country_id
+      )
+      and public.show_publication_enabled(result.show_id, 'results')
+  ),
+  ranked_results as (
+    select
+      visible_results.*,
+      row_number() over (
+        partition by visible_results.edition_id
+        order by
+          case visible_results.kind
+            when 'grand-final' then 0
+            when 'semi-final' then 1
+            when 'second-chance' then 2
+            when 'heat' then 3
+            else 4
+          end,
+          visible_results.sort_order desc nulls last,
+          visible_results.updated_at desc,
+          visible_results.show_id
+      ) as rn
+    from visible_results
+  ),
+  selected_results as (
+    select *
+    from ranked_results
+    where ranked_results.rn = 1
+  ),
+  sample as (
+    select
+      (select count(*)::bigint from detailed_scope) as detailed_editions,
+      (
+        select coalesce(sum(detailed_votes.points), 0)::bigint
+        from detailed_votes
+        where detailed_votes.voter_country_id = p_country_id
+      ) as given_points,
+      (
+        select coalesce(sum(detailed_votes.points), 0)::bigint
+        from detailed_votes
+        where detailed_votes.receiving_country_id = p_country_id
+      ) as received_points,
+      (select count(*)::bigint from selected_results) as result_editions
+  )
+  select jsonb_build_object(
+    'schemaVersion', 1,
+    'formulaVersion', 'v1',
+    'sample', jsonb_build_object(
+      'detailedEditions', sample.detailed_editions,
+      'detailedEditionIds', coalesce((
+        select jsonb_agg(detailed_scope.edition_id order by detailed_scope.edition_id)
+        from detailed_scope
+      ), '[]'::jsonb),
+      'givenPoints', sample.given_points,
+      'receivedPoints', sample.received_points,
+      'resultEditions', sample.result_editions
+    ),
+    'topGiven', coalesce((
+      select jsonb_agg(
+        jsonb_build_object(
+          'countryId', given.country_id,
+          'points', given.points,
+          'ballots', given.ballots
+        )
+        order by given.points desc, given.ballots desc, given.country_id
+      )
+      from given
+    ), '[]'::jsonb),
+    'topReceived', coalesce((
+      select jsonb_agg(
+        jsonb_build_object(
+          'countryId', received.country_id,
+          'points', received.points,
+          'ballots', received.ballots
+        )
+        order by received.points desc, received.ballots desc, received.country_id
+      )
+      from received
+    ), '[]'::jsonb),
+    'results', coalesce((
+      select jsonb_agg(
+        jsonb_build_object(
+          'editionId', selected_results.edition_id,
+          'showId', selected_results.show_id,
+          'finalRank', selected_results.final_rank,
+          'totalPoints', selected_results.total_points,
+          'juryPublished', selected_results.jury_published,
+          'juryPoints', case
+            when selected_results.jury_published then selected_results.jury_points
+            else null
+          end,
+          'televotePublished', selected_results.televote_published,
+          'televotePoints', case
+            when selected_results.televote_published then selected_results.televote_points
+            else null
+          end
+        )
+        order by edition.edition_number desc nulls last, edition.year desc nulls last, selected_results.edition_id
+      )
+      from selected_results
+      join public.editions edition on edition.id = selected_results.edition_id
+    ), '[]'::jsonb)
+  )
+  from sample;
+$function$;
+
+revoke all on function public.v3_public_country_voting_dna(uuid) from public;
+grant execute on function public.v3_public_country_voting_dna(uuid) to anon, authenticated, service_role;
+
+comment on function public.v3_public_country_voting_dna(uuid) is
+  'V3 bounded Public Country Voting DNA projection. SECURITY DEFINER is required because direct public.results reads fail closed while split layers are hidden; the function independently enforces generic Results, Jury, Televote and detailed-voting publication policy before serializing data.';
+
+commit;

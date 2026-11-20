@@ -1,0 +1,74 @@
+name: V3 Public Voting DNA publication boundary
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/migrations/*v3_public_voting_dna_publication_boundary.sql"
+      - "scripts/rehearse-v3-public-voting-dna-publication.sh"
+      - "src/lib/v3-public-voting-dna-system.contract.test.ts"
+      - ".github/workflows/v3-public-voting-dna-publication-rehearsal.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-voting-dna-publication-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-role-matrix:
+    name: Voting DNA publication / ${{ matrix.mode }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [clean-replay, current-main-upgrade]
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Prepare isolated database and prove publication boundaries
+        shell: bash
+        env:
+          REHEARSAL_MODE: ${{ matrix.mode }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+        run: |
+          set -euo pipefail
+          feature_root="$GITHUB_WORKSPACE"
+          work_root="$feature_root"
+          if [[ "$REHEARSAL_MODE" == "current-main-upgrade" ]]; then
+            git fetch origin main --no-tags
+            [[ -n "$BASE_SHA" ]] || BASE_SHA="$(git rev-parse origin/main)"
+            work_root="$RUNNER_TEMP/v3-voting-dna-main"
+            git worktree add --detach "$work_root" "$BASE_SHA"
+          fi
+          cd "$work_root"
+          supabase start
+          supabase db reset --local --no-seed
+          if [[ "$REHEARSAL_MODE" == "current-main-upgrade" ]]; then
+            install -m 0644 "$feature_root/supabase/migrations/20261104120000_v3_public_voting_dna_publication_boundary.sql" supabase/migrations/
+            supabase migration up --local --include-all
+          fi
+          # The runner obtains only local CLI endpoints; it refuses any hosted
+          # API/DB authority before issuing even fixture cleanup SQL.
+          bash "$feature_root/scripts/rehearse-v3-public-voting-dna-publication.sh"
+      - name: Stop disposable Supabase
+        if: always()
+        shell: bash
+        env:
+          REHEARSAL_MODE: ${{ matrix.mode }}
+        run: |
+          set +e
+          if [[ "$REHEARSAL_MODE" == "current-main-upgrade" ]]; then
+            cd "$RUNNER_TEMP/v3-voting-dna-main" 2>/dev/null || exit 0
+          fi
+          supabase stop --no-backup
