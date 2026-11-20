@@ -107,7 +107,7 @@ function RecordsPageHeader({ mobileWeb, ready }: { mobileWeb: boolean; ready: bo
       title="Records"
       description={
         ready
-          ? "The extreme, impressive and occasionally unfortunate corners of SSC history, with ties shown properly instead of quietly choosing one country and hoping nobody notices."
+          ? "Published records, remarkable achievements and the countries that hold them."
           : "Verified records from the published archive."
       }
       actions={ready ? (
@@ -123,6 +123,8 @@ function RecordsPageHeader({ mobileWeb, ready }: { mobileWeb: boolean; ready: bo
 }
 
 function LegacyRecordsPage() {
+  const { isAppMode } = useSolarisApp();
+  const [recordSearch, setRecordSearch] = useState("");
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
@@ -155,10 +157,24 @@ function LegacyRecordsPage() {
     [countries, editions, shows, participants, results, jury],
   );
 
-  const filtered =
-    tab === "all"
-      ? records
-      : records.filter((record) => record.category === tab);
+  const normalizedRecordSearch = isAppMode ? "" : recordSearch.trim().toLocaleLowerCase();
+  const filtered = records.filter((record) => {
+    if (tab !== "all" && record.category !== tab) return false;
+    if (!normalizedRecordSearch) return true;
+    const searchText = [
+      record.label,
+      record.value,
+      record.explanation,
+      ...record.holders.flatMap((holder) => [
+        holder.countryName,
+        holder.shortCode,
+        holder.artist,
+        holder.song,
+        holder.editionLabel,
+      ]),
+    ].filter(Boolean).join(" ").toLocaleLowerCase();
+    return searchText.includes(normalizedRecordSearch);
+  });
   const coverageDescription = (
     <>
       These records use {archivedFinalEditions} edition{archivedFinalEditions === 1 ? "" : "s"} with archived
@@ -194,22 +210,22 @@ function LegacyRecordsPage() {
       <div data-records-presentation={presentationMode}>
         <RecordsPageHeader mobileWeb={mobileWeb} ready />
 
-        {mobileWeb ? (
-          <details className="mb-5 border-y border-border/70" data-records-mobile-web-coverage>
+        {isAppMode ? (
+          <Panel className="mb-5" title="Archive coverage">
+            <p className="text-xs leading-relaxed text-muted-foreground">{coverageDescription}</p>
+          </Panel>
+        ) : (
+          <details
+            className="records-editorial-coverage mb-5 border-y border-border/70"
+            data-records-mobile-web-coverage={mobileWeb ? "" : undefined}
+            data-records-desktop-web-coverage={!mobileWeb ? "" : undefined}
+          >
             <summary className="flex min-h-12 cursor-pointer items-center justify-between gap-3 py-3 text-sm font-semibold">
               <span>Archive coverage</span>
               <span className="text-xs font-medium text-muted-foreground">{archivedFinalEditions} final editions</span>
             </summary>
-            <p className="pb-4 text-sm leading-6 text-muted-foreground">
-              {coverageDescription}
-            </p>
+            <p className="pb-4 text-sm leading-6 text-muted-foreground">{coverageDescription}</p>
           </details>
-        ) : (
-          <Panel className="mb-5" title="Archive coverage">
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              {coverageDescription}
-            </p>
-          </Panel>
         )}
 
         {mobileWeb ? (
@@ -232,16 +248,37 @@ function LegacyRecordsPage() {
           <ResponsiveTabs value={tab} options={TABS} onChange={setTab} label="Record category" className="mb-5" />
         )}
 
+        {!isAppMode ? (
+          <div className="records-editorial-searchbar">
+            <label htmlFor="records-editorial-query">Search published records</label>
+            <input
+              id="records-editorial-query"
+              type="search"
+              value={recordSearch}
+              onChange={(event) => setRecordSearch(event.target.value)}
+              placeholder="Record, country, artist or song"
+              autoComplete="off"
+            />
+            <span role="status" aria-live="polite">
+              {filtered.length} {filtered.length === 1 ? "record" : "records"}
+            </span>
+          </div>
+        ) : null}
+
         {filtered.length ? (
-          <div className={mobileWeb ? "min-w-0 divide-y divide-border/70" : "grid gap-3 lg:grid-cols-2 2xl:grid-cols-3"}>
+          <div className={mobileWeb ? "min-w-0 divide-y divide-border/70" : "records-editorial-grid grid gap-3 lg:grid-cols-2 2xl:grid-cols-3"}>
             {filtered.map((record) => (
               <RecordCard key={record.id} record={record} mobileWeb={mobileWeb} />
             ))}
           </div>
         ) : mobileWeb ? (
-          <p role="status" className="py-6 text-sm text-muted-foreground">No records in this category yet.</p>
+          <p role="status" className="py-6 text-sm text-muted-foreground">
+            {normalizedRecordSearch ? "No published records match your search." : "No records in this category yet."}
+          </p>
         ) : (
-          <Panel><p className="text-sm text-muted-foreground">No records in this category yet.</p></Panel>
+          <Panel><p className="text-sm text-muted-foreground">
+            {normalizedRecordSearch ? "No published records match your search." : "No records in this category yet."}
+          </p></Panel>
         )}
       </div>
     </AppShell>
@@ -253,7 +290,7 @@ function RecordCard({ record, mobileWeb }: { record: FanRecord; mobileWeb: boole
   const remainingHolders = record.holders.slice(8);
 
   return (
-    <article className={mobileWeb ? "min-w-0 py-5 first:pt-0" : "glass flex min-h-[250px] min-w-0 flex-col overflow-hidden p-4 sm:p-5"} data-records-mobile-web-row={mobileWeb ? "" : undefined}>
+    <article className={mobileWeb ? "min-w-0 py-5 first:pt-0" : "records-editorial-desktop-row flex min-h-[250px] min-w-0 flex-col overflow-hidden p-4 sm:p-5"} data-records-mobile-web-row={mobileWeb ? "" : undefined}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
@@ -277,7 +314,7 @@ function RecordCard({ record, mobileWeb }: { record: FanRecord; mobileWeb: boole
         {record.explanation}
       </p>
 
-      <div className={mobileWeb ? "mt-4 divide-y divide-border/55 border-y border-border/65" : "mt-4 divide-y divide-border/55 rounded-xl border border-border/60 bg-surface/45 px-3"}>
+      <div className={mobileWeb ? "mt-4 divide-y divide-border/55 border-y border-border/65" : "records-editorial-holders mt-4 divide-y divide-border/55 rounded-xl border border-border/60 bg-surface/45 px-3"}>
         {primaryHolders.map((holder) => (
           <RecordHolderRow key={holder.countryId} holder={holder} mobileWeb={mobileWeb} />
         ))}
