@@ -168,7 +168,18 @@ export function V3LiveRouteGate({ fallback }: { fallback: ReactNode }) {
       />
     );
   }
-  if (!rollout.data || !v3Enabled) {
+  // A confirmed server-disabled rollout may use legacy; an absent rollout
+  // snapshot is unknown authority and must not launch archive-wide queries.
+  if (!rollout.data) {
+    return (
+      <LiveBootSurface
+        message="Official Live rollout state could not be verified. Retry to check availability."
+        onRetry={() => { void rollout.refetch(); }}
+        refreshing={rollout.isFetching}
+      />
+    );
+  }
+  if (!v3Enabled) {
     return <>{fallback}</>;
   }
 
@@ -188,10 +199,17 @@ export function V3LiveRouteGate({ fallback }: { fallback: ReactNode }) {
     );
   }
 
-  // Keep the reversible fallback for genuinely absent initial data without a
-  // transport failure. Refetch errors with cached data stay on the V3 screen.
+  // A missing first snapshot while the server explicitly enables V3 does not
+  // authorize archive-wide legacy queries. Keep the read boundary fail-closed.
+  // Legitimate empty show state is represented inside an authoritative bundle.
   if (!bundle.data) {
-    return <>{fallback}</>;
+    return (
+      <LiveBootSurface
+        message="Official Live state could not be verified. Retry to check the current show."
+        onRetry={() => { void bundle.refetch(); }}
+        refreshing={bundle.isFetching}
+      />
+    );
   }
 
   const degraded = rollout.isError || bundle.isError;
