@@ -41,7 +41,7 @@ describe("World institution directory deep links", () => {
     let checked = 0;
     for (const path of owners) {
       const source = readFileSync(path, "utf8");
-      const references = [...source.matchAll(/to="\\/world\\/organizations"/g)];
+      const references = [...source.matchAll(new RegExp('to="/world/organizations"', "g"))];
       expect(references.length).toBeGreaterThan(0);
       for (const reference of references) {
         expect(source.slice(reference.index!, reference.index! + 95)).toContain(expected);
