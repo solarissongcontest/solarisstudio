@@ -1,8 +1,29 @@
 -- Run only through the loopback-only shell runner after the TG1/TG2 migrations.
 -- Real Postgres roles exercise RLS and the canonical RPC in one rolled-back
--- transaction. No hosted credentials, persistent fixtures, or rollout changes.
+-- transaction. No hosted credentials or persistent fixtures; the local rollout change is rolled back.
 \set ON_ERROR_STOP on
 begin;
+
+-- TG2 privacy/office tests verify public projections. World correctly defaults
+-- to dark launch, so opt in only inside this disposable local transaction.
+-- This is not a production rollout: the existing ROLLBACK undoes this write.
+update public.studio2_feature_flags
+set enabled = true, admins_only = false,
+    user_ids = '{}'::uuid[], edition_ids = '{}'::uuid[]
+where key = 'terra_world_public';
+
+do $tg2_fixture_rollout$
+begin
+  if not exists (
+    select 1 from public.studio2_feature_flags
+    where key = 'terra_world_public'
+      and enabled is true and admins_only is false
+      and cardinality(user_ids) = 0 and cardinality(edition_ids) = 0
+  ) then
+    raise exception 'TG2_WORLD_PUBLIC_LOCAL_FIXTURE_FLAG_UNAVAILABLE';
+  end if;
+end
+$tg2_fixture_rollout$;
 
 do $fixtures$
 declare
