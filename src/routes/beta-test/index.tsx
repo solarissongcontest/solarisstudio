@@ -20,8 +20,14 @@ import {
 import type { BetaAnswer, BetaAnswers, BetaBugReport } from "@/features/beta-test/types";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadBetaFeedbackScreenshot } from "@/lib/beta-feedback-upload";
+import {
+  readPublicBetaFeedbackStorage,
+  removePublicBetaFeedbackStorage,
+  writePublicBetaFeedbackStorage,
+} from "@/lib/public-beta-feedback-storage";
 import { publicBetaFeedbackErrorMessage } from "@/lib/public-beta-feedback-safety";
 import { completePublicUxBetaTask } from "@/lib/public-ux-events";
+import { readV3BetaFeedbackContext } from "@/lib/v3-beta-feedback-context";
 
 export const Route = createFileRoute("/beta-test/")({
   head: () => ({
@@ -37,6 +43,33 @@ export const Route = createFileRoute("/beta-test/")({
   component: BetaTestPage,
 });
 
+type BetaDraft = {
+  answers: BetaAnswers;
+  bugs: Omit<BetaBugReport, "file">[];
+  step: number;
+};
+
+function serializeBugs(bugs: BetaBugReport[]): Omit<BetaBugReport, "file">[] {
+  return bugs.map(({ file: _file, ...bug }) => bug);
+}
+
+function persistBetaDraft({
+  answers,
+  bugs,
+  step,
+}: {
+  answers: BetaAnswers;
+  bugs: BetaBugReport[];
+  step: number;
+}) {
+  const draft: BetaDraft = {
+    answers,
+    bugs: serializeBugs(bugs),
+    step,
+  };
+  writePublicBetaFeedbackStorage(BETA_DRAFT_KEY, JSON.stringify(draft));
+}
+
 function BetaTestPage() {
   const [answers, setAnswers] = useState<BetaAnswers>({});
   const [bugs, setBugs] = useState<BetaBugReport[]>([]);
@@ -50,20 +83,16 @@ function BetaTestPage() {
 
   useEffect(() => {
     try {
-      const saved = window.localStorage.getItem(BETA_DRAFT_KEY);
+      const saved = readPublicBetaFeedbackStorage(BETA_DRAFT_KEY);
       if (saved) {
-        const parsed = JSON.parse(saved) as {
-          answers?: BetaAnswers;
-          bugs?: Omit<BetaBugReport, "file">[];
-          step?: number;
-        };
+        const parsed = JSON.parse(saved) as Partial<BetaDraft>;
         if (parsed.answers) setAnswers(parsed.answers);
         if (parsed.bugs) setBugs(parsed.bugs.map((bug) => ({ ...bug })));
         if (typeof parsed.step === "number") {
           setStep(Math.min(Math.max(parsed.step, 0), betaSections.length));
         }
       }
-      setSubmitted(window.localStorage.getItem(BETA_SUBMITTED_KEY) === "true");
+      setSubmitted(readPublicBetaFeedbackStorage(BETA_SUBMITTED_KEY) === "true");
     } catch {
       // A damaged local draft should never block the test.
     } finally {
@@ -73,11 +102,7 @@ function BetaTestPage() {
 
   useEffect(() => {
     if (!hydrated || submitted) return;
-    const serializableBugs = bugs.map(({ file: _file, ...bug }) => bug);
-    window.localStorage.setItem(
-      BETA_DRAFT_KEY,
-      JSON.stringify({ answers, bugs: serializableBugs, step }),
-    );
+    persistBetaDraft({ answers, bugs, step });
   }, [answers, bugs, step, hydrated, submitted]);
 
   useEffect(() => {
@@ -96,6 +121,22 @@ function BetaTestPage() {
   const updateAnswer = (id: string, value: BetaAnswer) => {
     setAnswers((previous) => ({ ...previous, [id]: value }));
     setSectionError(null);
+  };
+
+  const updateBugs = (nextBugs: BetaBugReport[]) => {
+    setBugs((previous) =>
+      nextBugs.map((nextBug) => {
+        const previousBug = previous.find((bug) => bug.id === nextBug.id);
+        if (
+          nextBug.file &&
+          nextBug.file !== previousBug?.file &&
+          previousBug?.screenshotPath
+        ) {
+          return { ...nextBug, screenshotPath: undefined };
+        }
+        return nextBug;
+      }),
+    );
   };
 
   const recordCurrentSectionTime = () => {
@@ -167,37 +208,51 @@ function BetaTestPage() {
     setSubmitting(true);
     setError(null);
     const submissionId = crypto.randomUUID();
-    const uploadedPaths: string[] = [];
 
     try {
       const preparedBugs: Omit<BetaBugReport, "file">[] = [];
+      let workingBugs = bugs;
 
-      for (const bug of bugs) {
+      for (const originalBug of bugs) {
+        let bug = workingBugs.find((item) => item.id === originalBug.id) ?? originalBug;
         let screenshotPath = bug.screenshotPath;
-        if (bug.file) {
+
+        if (bug.file && !screenshotPath) {
           screenshotPath = await uploadBetaFeedbackScreenshot({
             submissionId,
             bugId: bug.id,
             file: bug.file,
             admin: false,
           });
-          uploadedPaths.push(screenshotPath);
+
+          workingBugs = workingBugs.map((item) =>
+            item.id === bug.id
+              ? { ...item, screenshotPath }
+              : item,
+          );
+          setBugs(workingBugs);
+          persistBetaDraft({ answers, bugs: workingBugs, step });
+          bug = workingBugs.find((item) => item.id === originalBug.id) ?? bug;
         }
 
         const { file: _file, ...bugData } = bug;
         preparedBugs.push({ ...bugData, screenshotPath });
       }
 
+      const screenshotPaths = preparedBugs
+        .map((bug) => bug.screenshotPath)
+        .filter((path): path is string => Boolean(path));
       const activityPoints = calculateActivityPoints(answers, bugs);
+      const runtimeContext = readV3BetaFeedbackContext();
       const payload = {
         id: submissionId,
         tester_name: testerName,
         device,
         browser: answers.browser || null,
         familiarity: answers.familiarity || null,
-        answers: { ...answers, activityPoints },
+        answers: { ...answers, activityPoints, _runtimeContext: runtimeContext },
         bug_reports: preparedBugs,
-        screenshot_paths: uploadedPaths,
+        screenshot_paths: screenshotPaths,
         user_agent: null,
         form_version: BETA_FORM_VERSION,
       };
@@ -208,8 +263,11 @@ function BetaTestPage() {
 
       if (insertError) throw insertError;
 
-      window.localStorage.removeItem(BETA_DRAFT_KEY);
-      window.localStorage.setItem(BETA_SUBMITTED_KEY, "true");
+      // The authoritative submission has succeeded at this point. Browser
+      // storage is optional bookkeeping and must not be allowed to turn that
+      // success into a false error (or encourage a duplicate retry).
+      removePublicBetaFeedbackStorage(BETA_DRAFT_KEY);
+      writePublicBetaFeedbackStorage(BETA_SUBMITTED_KEY, "true");
       setAnswers((previous) => ({ ...previous, activityPoints }));
       setSubmitted(true);
     } catch (submissionError) {
@@ -220,8 +278,8 @@ function BetaTestPage() {
   };
 
   const restart = () => {
-    window.localStorage.removeItem(BETA_DRAFT_KEY);
-    window.localStorage.removeItem(BETA_SUBMITTED_KEY);
+    removePublicBetaFeedbackStorage(BETA_DRAFT_KEY);
+    removePublicBetaFeedbackStorage(BETA_SUBMITTED_KEY);
     setAnswers({});
     setBugs([]);
     setStep(0);
@@ -318,6 +376,8 @@ function BetaTestPage() {
             </p>
             <p className="mt-2">
               The feedback submission stores the device and browser categories you provide, not your full browser user-agent string.
+              It also records only a coarse viewport category, browser-versus-installed-app state and reduced-motion preference,
+              never exact screen dimensions.
             </p>
             <p className="mt-2">
               Activity points reward the amount and usefulness of testing, never whether your feedback is positive
@@ -342,7 +402,18 @@ function BetaTestPage() {
                 />
               ))}
               {current.id === "final" && answers.bugsFound === "Yes" ? (
-                <BetaBugReports bugs={bugs} onChange={setBugs} />
+                <>
+                  {bugs.some((bug) => bug.screenshotPath) ? (
+                    <div
+                      role="status"
+                      className="rounded-xl border border-primary/20 bg-primary/[0.07] p-3 text-xs leading-5 text-muted-foreground"
+                    >
+                      Verified screenshots already attached are kept in this draft and reused on retry. Choosing a
+                      new screenshot replaces the saved one for that bug.
+                    </div>
+                  ) : null}
+                  <BetaBugReports bugs={bugs} onChange={updateBugs} />
+                </>
               ) : null}
             </div>
           </>
