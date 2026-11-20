@@ -291,6 +291,11 @@ function OwnedCountryHub({
 
   const [activeTab, setActiveTab] = useState<HubTab>(section === "history" ? "entries" : "overview");
   const [historyFocus, setHistoryFocus] = useState<string | null>(null);
+  // Route transitions may reuse this mounted component. Always show the
+  // destination's actual workspace instead of retaining the previous tab.
+  useEffect(() => {
+    setActiveTab(section === "history" ? "entries" : "overview");
+  }, [section]);
   const [message, setMessage] = useState<string | null>(null);
   const [identity, setIdentity] = useState({
     name: country.name,
