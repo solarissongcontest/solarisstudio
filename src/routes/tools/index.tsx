@@ -16,6 +16,7 @@ export const Route = createFileRoute("/tools/")({
 const GROUPS: V3DirectoryGroup[] = PUBLIC_TOOL_GROUPS.map((group) => ({
   id: group.id,
   label: group.title,
+  description: group.description,
   items: group.tools.map((tool) => ({
     id: tool.to,
     title: tool.title,
