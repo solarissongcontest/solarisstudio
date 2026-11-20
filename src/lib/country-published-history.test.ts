@@ -34,6 +34,25 @@ describe("browser Country history public-only filters", () => {
       .toEqual([]);
   });
 
+  it("recognizes published Grand Finals in editions without semi-finals", () => {
+    const noSemi = { id: "no-semi", edition_id: "e5", artist: "Nera", song: "Solo Final" };
+    const withFinal = filterPublishedCountryHistory(
+      [...entries, noSemi],
+      { search: "", outcome: "finalist" },
+      terms,
+      status,
+      (editionId) => editionId === "e5",
+    );
+    expect(withFinal.map((item) => item.id)).toEqual(["newest", "oldest", "no-semi"]);
+    const noProof = filterPublishedCountryHistory(
+      [...entries, noSemi],
+      { search: "", outcome: "finalist" },
+      terms,
+      status,
+    );
+    expect(noProof.map((item) => item.id)).toEqual(["newest", "oldest"]);
+  });
+
   it("recognizes direct qualifiers and wildcards; does not guess unknown statuses", () => {
     const withUnknown = [...entries, { id: "unknown", edition_id: "e4", artist: null, song: null }];
     expect(filterPublishedCountryHistory(withUnknown, { search: "", outcome: "finalist" }, terms, status)
