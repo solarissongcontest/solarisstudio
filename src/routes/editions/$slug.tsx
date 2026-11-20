@@ -222,11 +222,8 @@ function LegacyEditionPage() {
         results: resultList,
         jury: [],
         labels: new Map([...displayMap.entries()].map(([id, display]) => [id, display.name])),
-        // Result stories here describe this released final only. Never
-        // claim an all-time record using an unrestricted mutable results archive;
-        // historical records belong to the Results-owned canonical experience.
-        allResults: resultList,
-        allShows: publicShows,
+        // Cross-edition record claims are intentionally omitted. Only
+        // Results-owned canonical records can establish an all-time record.
       })
     : [];
 
