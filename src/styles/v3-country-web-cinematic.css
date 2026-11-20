@@ -1,0 +1,65 @@
+/*
+ * Cinematic Country on ordinary mobile / desktop web.
+ * This layer never applies to the installed app. The official flag and links
+ * are rendered by the one identity strip owned by the Country route.
+ */
+html:not([data-solaris-app]) .country-web-cinematic {
+  --cinematic-canvas: var(--background, #071023);
+  min-width: 0;
+  margin: 0;
+}
+html:not([data-solaris-app]) .country-web-cinematic .cinematic-entity-hero {
+  display: flex;
+  min-height: clamp(26rem, 38vw, 36rem);
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--cinematic-canvas);
+}
+html:not([data-solaris-app]) .country-web-cinematic .cinematic-entity-hero__copy {
+  padding: clamp(5rem, 8vw, 8rem) clamp(1.15rem, 4vw, 4.5rem) clamp(3.25rem, 6vw, 5.5rem);
+}
+html:not([data-solaris-app]) .country-web-cinematic .cinematic-entity-hero__title {
+  max-width: 22ch;
+  font-size: clamp(2.95rem, 7vw, 6.8rem);
+  overflow-wrap: anywhere;
+}
+html:not([data-solaris-app]) .country-web-cinematic .cinematic-entity-hero__fade {
+  background:
+    linear-gradient(0deg, var(--cinematic-canvas) 0%, rgba(2,8,23,.92) 13%, rgba(2,8,23,.54) 37%, transparent 74%),
+    linear-gradient(90deg, rgba(2,8,23,.35), transparent 87%);
+}
+html:not([data-solaris-app]) .country-editorial-profile:has(.country-web-cinematic) .country-editorial-identity-strip {
+  margin-top: -.5rem;
+  position: relative;
+  z-index: 2;
+  border-top: 0;
+  background: var(--cinematic-canvas);
+}
+@media (max-width: 767px) {
+  html:not([data-solaris-app]) .country-web-cinematic .cinematic-entity-hero {
+    min-height: clamp(19rem, 48svh, 27rem);
+  }
+  html:not([data-solaris-app]) .country-web-cinematic .cinematic-entity-hero__copy {
+    padding: 4rem 1.1rem 2.85rem;
+  }
+  html:not([data-solaris-app]) .country-web-cinematic .cinematic-entity-hero__title {
+    font-size: clamp(2.5rem, 11vw, 4.6rem);
+  }
+}
+@media (min-width: 1440px) {
+  html:not([data-solaris-app]) .country-web-cinematic .cinematic-entity-hero {
+    min-height: 36rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-solaris-app]) .country-web-cinematic * {
+    scroll-behavior: auto;
+    animation: none;
+  }
+}
+@media (forced-colors: active), (prefers-contrast: more) {
+  html:not([data-solaris-app]) .country-web-cinematic .cinematic-entity-hero__fade {
+    background: linear-gradient(0deg, var(--cinematic-canvas) 0%, #020817 40%, rgba(2,8,23,.9) 80%);
+  }
+}
