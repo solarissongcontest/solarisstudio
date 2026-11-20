@@ -8,6 +8,7 @@ import {
   WorkspaceHeader,
 } from "@/components/admin/AdminUI";
 import { cn } from "@/lib/utils";
+import "@/styles/v3-organizer-workspaces-editorial.css";
 
 export { WorkspaceHeader };
 
@@ -21,7 +22,7 @@ export function ObjectPage({
   children: ReactNode;
   className?: string;
 }) {
-  return <div className={cn("mx-auto max-w-[1500px] space-y-4", className)}>{children}</div>;
+  return <div className={cn("admin-editorial-object-page mx-auto max-w-[1500px] space-y-4", className)}>{children}</div>;
 }
 
 export function WorkspaceTabs({
@@ -36,7 +37,7 @@ export function WorkspaceTabs({
   return (
     <nav
       aria-label={label}
-      className={cn("grid grid-cols-2 gap-1 sm:flex sm:flex-wrap", className)}
+      className={cn("admin-editorial-workspace-tabs flex gap-1 overflow-x-auto", className)}
     >
       {children}
     </nav>
@@ -51,7 +52,7 @@ export function MetricStrip({
   className?: string;
 }) {
   return (
-    <section className={cn("grid gap-3 sm:grid-cols-2 xl:grid-cols-4", className)}>
+    <section className={cn("admin-editorial-metric-strip grid gap-3 sm:grid-cols-2 xl:grid-cols-4", className)}>
       {children}
     </section>
   );
@@ -64,7 +65,7 @@ export function WorkQueue({
   children: ReactNode;
   className?: string;
 }) {
-  return <div className={cn("divide-y divide-white/[0.06]", className)}>{children}</div>;
+  return <div className={cn("admin-editorial-workqueue divide-y divide-white/[0.06]", className)}>{children}</div>;
 }
 
 export function WorkspaceActionBar({
@@ -77,7 +78,7 @@ export function WorkspaceActionBar({
   return (
     <div
       className={cn(
-        "admin-sticky-actions flex min-w-0 flex-wrap items-center justify-end gap-2",
+        "admin-sticky-actions admin-editorial-action-bar flex min-w-0 flex-wrap items-center justify-end gap-2",
         className,
       )}
       data-admin-action-layer="task"
@@ -95,7 +96,7 @@ export function FilterBar({
   className?: string;
 }) {
   return (
-    <AdminCard className={cn("min-w-0", className)}>
+    <AdminCard className={cn("admin-editorial-filterbar min-w-0", className)}>
       <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-4">{children}</div>
     </AdminCard>
   );
