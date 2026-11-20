@@ -1,63 +1,16 @@
-import buttonStyles from "@/country-button-theme.css?inline";
-import sharedFoundation from "@/country-personality-shared-foundation.css?inline";
-import wikiV8 from "@/country-wiki-v8.css?inline";
-import wikiComponentsV8 from "@/country-wiki-components-v8.css?inline";
-import sourceFoundation from "@/country-personality-source-foundation.css?inline";
-import minimalSource from "@/styles/personalities/minimal-source.adapter.css?inline";
-import retroSource from "@/styles/personalities/retro-source.adapter.css?inline";
-import editorialSource from "@/styles/personalities/editorial-source.adapter.css?inline";
-import posterSource from "@/styles/personalities/poster-source.adapter.css?inline";
-import diplomaticSource from "@/styles/personalities/diplomatic-source.adapter.css?inline";
-import broadcastSource from "@/styles/personalities/broadcast-source.adapter.css?inline";
-import heritageSource from "@/styles/personalities/heritage-source.adapter.css?inline";
-import brutalistSource from "@/styles/personalities/brutalist-source.adapter.css?inline";
-import luxurySource from "@/styles/personalities/luxury-source.adapter.css?inline";
-import scientificSource from "@/styles/personalities/scientific-source.adapter.css?inline";
-import civicSource from "@/styles/personalities/civic-source.adapter.css?inline";
-import festivalSource from "@/styles/personalities/festival-source.adapter.css?inline";
-import newspaperSource from "@/styles/personalities/newspaper-source.adapter.css?inline";
-import avantGardeSource from "@/styles/personalities/avant-garde-source.adapter.css?inline";
-import passportSource from "@/styles/personalities/passport-source.adapter.css?inline";
-import atlasSource from "@/styles/personalities/atlas-source.adapter.css?inline";
-import glassSource from "@/styles/personalities/glass-source.adapter.css?inline";
-import personalityCompositions from "@/styles/personality-compositions.css?inline";
-
-const countryPersonalityStyles = `@layer personality {
-${[
-  buttonStyles,
-  sharedFoundation,
-  wikiV8,
-  wikiComponentsV8,
-  sourceFoundation,
-  minimalSource,
-  retroSource,
-  editorialSource,
-  posterSource,
-  diplomaticSource,
-  broadcastSource,
-  heritageSource,
-  brutalistSource,
-  luxurySource,
-  scientificSource,
-  civicSource,
-  festivalSource,
-  newspaperSource,
-  avantGardeSource,
-  passportSource,
-  atlasSource,
-  glassSource,
-  personalityCompositions,
-].join("\n")}
-}`;
+import "@/styles/country-personality-bundle.css";
 
 /**
- * One route-scoped style payload.
+ * Route-owned Country personality stylesheet.
  *
- * The shared foundation owns semantic geometry. Source adapters provide pinned
- * source-derived design grammar, then the Solaris composition layer arranges
- * semantic country content per personality. No legacy all-personality stylesheet
- * participates in production rendering.
+ * Importing the component keeps its complete CSS source-adapter bundle behind
+ * the existing Country/Wiki/personality-lab route chunks. Vite emits a real
+ * minified stylesheet rather than embedding 23 adapter files as JavaScript
+ * strings. The single named personality cascade layer and original adapter
+ * order are maintained by country-personality-bundle.css.
+ *
+ * Preserve the marker for existing route-level stylesheet diagnostics.
  */
 export function CountryPersonalityStyles() {
-  return <style data-country-personality-styles>{countryPersonalityStyles}</style>;
+  return <style data-country-personality-styles />;
 }
