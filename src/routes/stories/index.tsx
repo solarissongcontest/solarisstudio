@@ -12,6 +12,7 @@ import '@/styles/v3-stories-editorial.css';
 import { V3StoriesIndexGate } from '@/components/v3/V3StoriesGates';
 import { SOLARIS_TIME_ZONE } from '@/lib/public-time';
 import { loadAnniversaryEngine, loadPublicStorylines } from '@/lib/studio2-storytelling';
+import { canExpandPublicStoryBatch, nextPublicStoryBatchLimit, PUBLIC_STORY_INITIAL_BATCH } from '@/lib/v3-public-story-browse';
 
 export const Route = createFileRoute('/stories/')({
   head: () => ({
@@ -73,10 +74,14 @@ function StoriesArchivePage() {
 
 function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryPresentation }) {
   const referenceDate = Route.useLoaderData();
+  const [storyLimit, setStoryLimit] = useState(PUBLIC_STORY_INITIAL_BATCH);
   const storiesQuery = useQuery({
-    queryKey: ['public-storylines'],
-    queryFn: () => loadPublicStorylines(30),
+    queryKey: ['public-storylines', storyLimit],
+    queryFn: () => loadPublicStorylines(storyLimit),
     staleTime: 60_000,
+    // Keep existing published stories visible during a visitor-requested expansion.
+    placeholderData: (previous) => previous,
+    retry: false,
   });
   const anniversaryQuery = useQuery({
     queryKey: ['studio2-anniversary-engine', referenceDate],
@@ -86,6 +91,7 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
 
   const stories = storiesQuery.data ?? [];
   const anniversary = anniversaryQuery.data ?? null;
+  const canLoadMoreStories = !storiesQuery.isError && canExpandPublicStoryBatch(stories.length, storyLimit);
   const [search, setSearch] = useState("");
   const filteredStories = useMemo(() => {
     const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -200,9 +206,24 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
             <ArchiveEmpty icon={Sparkles}
               title={search.trim() && stories.length ? "No matching stories" : "No edition stories published yet"}
               copy={search.trim() && stories.length
-                ? "Try a different title, edition or moment."
+                ? "Try a different title, edition or moment, or load more published stories."
                 : "Story drafts remain private until organizers explicitly publish them."} />
           )}
+          {canLoadMoreStories ? (
+            <div className="v3-stories-batch-action mt-5 flex flex-wrap items-center gap-3" data-v3-stories-batch="">
+              <button type="button"
+                className="min-h-11 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                disabled={storiesQuery.isFetching}
+                onClick={() => setStoryLimit((limit) => nextPublicStoryBatchLimit(limit)}>
+                {storiesQuery.isFetching ? "Loading more stories…" : "Load more published stories"}
+              </button>
+              <span className="text-xs text-muted-foreground">More published archive records may be available.</span>
+            </div>
+          ) : null}
+          {search.trim() && stories.length > 0 && filteredStories.length === 0 ? (
+            <button type="button" className="mt-3 min-h-11 text-sm font-semibold text-primary underline-offset-4 hover:underline"
+              onClick={() => setSearch("")}>Clear story search</button>
+          ) : null}
         </section>
 
         <section className="mt-10" aria-labelledby="today-heading">
@@ -230,12 +251,18 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
               {anniversary.onThisDay.slice(0, 6).map((moment, index) => (
                 <article key={`${moment.editionSlug ?? 'moment'}-${moment.occurredAt}-${index}`} className={presentation === "mobile-web" ? "v3-story-mobile-moment border-b border-border py-4" : "v3-story-calendar-item"}>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-[11px] font-black uppercase tracking-[0.14em] text-primary">{moment.yearsAgo ?? '?'} years ago</span>
-                    <span className="text-xs text-muted-foreground">{moment.importance}</span>
+                    <span className="text-[11px] font-black uppercase tracking-[0.14em] text-primary">{moment.yearsAgo != null ? `${moment.yearsAgo} years ago` : 'Archive moment'}</span>
+                    {moment.editionNumber != null ? <span className="text-xs text-muted-foreground">SSC {moment.editionNumber}</span> : null}
                   </div>
                   <h3 className="mt-3 text-lg font-bold tracking-[-0.02em]">{moment.headline}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{moment.summary}</p>
                   <p className="mt-4 text-xs text-muted-foreground">{moment.editionName ?? 'Solaris Song Contest'}</p>
+                  {moment.editionSlug ? (
+                    <Link to="/stories/$editionSlug" params={{ editionSlug: moment.editionSlug }}
+                      className="mt-2 inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                      Read this edition story <ChevronRight size={15} aria-hidden="true" />
+                    </Link>
+                  ) : null}
                 </article>
               ))}
             </div>
