@@ -29,7 +29,7 @@ import {
 import { useAppAttentionSummary } from "@/lib/app-attention";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
 import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
-import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
+import { publicAreaForPath } from "@/lib/public-navigation";
 import { LIMITED_PUBLIC_LAUNCH, publicLaunchAllows } from "@/lib/public-launch-availability";
 import {
   publicCanvasForArchetype,
