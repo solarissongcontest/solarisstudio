@@ -34,7 +34,7 @@ docker image inspect supabase/postgres:17.11.0.002 >/dev/null 2>&1 || docker pul
 R=$(mktemp -d "$B/recovery-mobile-XXXXXXXX")
 echo "Private logs in: $R"
 echo '[2/5] Checking database archive'
-age -d -i "$K" "$D" | docker run --rm --network none -i supabase/postgres:17.11.0.002 sh -c 'pg_restore --list >/dev/null; r=$?; cat >/dev/null; exit "$r"'
+age -d -i "$K" "$D" | docker run --rm --network none -i supabase/postgres:17.11.0.002 sh -c 'pg_restore --list; r=$?; cat >/dev/null; exit "$r"' >"$R/archive-toc.private.txt"
 echo '[3/5] Checking Storage archive and full contents'
 age -d -i "$K" "$S" | tar -tf - >"$R/storage-names.private.txt"
 age -d -i "$K" "$S" | tar -xOf - >/dev/null
@@ -50,47 +50,46 @@ for i in $(seq 1 50); do
 done
 test "$READY" = 1 || { echo 'Isolated PostgreSQL not ready'; exit 1; }
 docker exec "$C" createdb -U postgres -T template0 solaris_restore
-echo '[5/5] Attempting isolated transactional restore'
-# A scoped Supabase dump may reference a provider-managed schema without
-# containing CREATE SCHEMA for that dependency. Only bootstrap known schema
-# names in this disposable, network-disabled database. Do not fake success:
-# every retry must pass the full transactional pg_restore.
-RESTORED=0
-PRECREATED=""
-MISSING_SCHEMA=""
-for ATTEMPT in 1 2 3 4; do
-  echo "Restore attempt $ATTEMPT"
-  if age -d -i "$K" "$D" | docker exec -i "$C" sh -c 'pg_restore -U postgres -d solaris_restore --clean --if-exists --no-owner --no-acl --exit-on-error --single-transaction >/dev/null 2>/tmp/restore.log; r=$?; cat >/dev/null; cat /tmp/restore.log >&2; exit "$r"' 2>"$R/restore.private.log"; then
-    RESTORED=1
-    break
+echo '[5/5] Preparing the fresh database from the backup TOC'
+# The dump may omit CREATE SCHEMA for provider-managed schemas. Create only
+# schema containers, never fake missing tables or rows. The source backup
+# must supply every application table and its data.
+archive_declares_schema() {
+  local schema="$1"
+  grep -Eq "^[[:space:]]*[0-9]+;[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+SCHEMA[[:space:]]+-[[:space:]]+$schema([[:space:]]|$)" "$R/archive-toc.private.txt"
+}
+for schema in public private auth storage televoting extensions vault; do
+  if archive_declares_schema "$schema"; then
+    # PG17 template0 can contain an empty public schema. The dump owns it
+    # when SCHEMA public is in the archive, so remove that empty duplicate.
+    if [ "$schema" = public ]; then
+      docker exec "$C" psql -U postgres -d solaris_restore -v ON_ERROR_STOP=1 \
+        -c 'DROP SCHEMA IF EXISTS public CASCADE' >/dev/null
+      echo 'Backup owns public schema; removed default empty copy'
+    fi
+  else
+    docker exec "$C" psql -U postgres -d solaris_restore -v ON_ERROR_STOP=1 \
+      -c "CREATE SCHEMA IF NOT EXISTS \"$schema\"" >/dev/null
+    echo "Created missing schema container '$schema' in isolated database only"
   fi
-  MISSING_SCHEMA=$(grep -m 1 -oE 'schema "[a-z_][a-z0-9_]*" does not exist' "$R/restore.private.log" | sed -E 's/^schema "([^"]+)" does not exist$/\1/' || true)
-  case "$MISSING_SCHEMA" in
-    extensions|auth|storage|private|vault|televoting|net|cron|realtime|graphql|graphql_public)
-      case " $PRECREATED " in
-        *" $MISSING_SCHEMA "*) echo 'Previously prepared schema still missing. Stopping.'; break ;;
-      esac
-      echo "Restored fixture needs existing schema '$MISSING_SCHEMA'; creating it in isolated database only."
-      docker exec "$C" psql -U postgres -d solaris_restore -v ON_ERROR_STOP=1 -c "CREATE SCHEMA IF NOT EXISTS \"$MISSING_SCHEMA\";" >/dev/null || break
-      PRECREATED="$PRECREATED $MISSING_SCHEMA"
-      ;;
-    *) break ;;
-  esac
 done
-if [ "$RESTORED" != 1 ]; then
+echo '[5/5] Attempting transactional restore WITHOUT --clean'
+# --clean is for overwriting existing objects; this database is fresh.
+# On empty destinations, cleanup can fail before archive tables are created.
+# --single-transaction aborts everything on any restore error.
+if age -d -i "$K" "$D" | docker exec -i "$C" sh -c 'pg_restore -U postgres -d solaris_restore --no-owner --no-acl --exit-on-error --single-transaction >/dev/null 2>/tmp/restore.log; r=$?; cat >/dev/null; cat /tmp/restore.log >&2; exit "$r"' 2>"$R/restore.private.log"; then
+  echo 'ISOLATED DATABASE RESTORE SUCCESSFUL (ownership/ACL and Supabase services not certified)'
+  docker exec "$C" psql -U postgres -d solaris_restore -At -v ON_ERROR_STOP=1 \
+    -c "select 'Restored tables=' || count(*) || ', RLS-enabled=' || count(*) filter (where c.relrowsecurity) from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind='r' and n.nspname in ('public','private','televoting','auth','storage')"
+  docker exec "$C" psql -U postgres -d solaris_restore -At -v ON_ERROR_STOP=1 \
+    -c "select 'televoting.televote_aggregations present=' || (to_regclass('televoting.televote_aggregations') is not null)"
+else
   echo 'ISOLATED RESTORE NOT COMPLETED'
-  if [ -n "$MISSING_SCHEMA" ]; then
-    echo "Missing schema: $MISSING_SCHEMA"
-  fi
-  echo 'First redacted error:'
-  grep -m 1 -oE 'extension "[a-zA-Z0-9_]+" is not available' "$R/restore.private.log" || \
-    (grep -m 1 -E '(pg_restore: error:|ERROR:)' "$R/restore.private.log" | sed -E 's/"[^"]*"/"[hidden]"/g' | cut -c 1-180) || true
-  echo "Private diagnostic log: $R/restore.private.log"
+  echo 'Cause (limited sanitized diagnostic):'
+  grep -m 1 -oE '(schema|relation) "[A-Za-z0-9_.]+" (does not exist|already exists)' "$R/restore.private.log" || \
+  grep -m 1 -oE 'extension "[A-Za-z0-9_]+" is not available' "$R/restore.private.log" || \
+  (grep -m 1 -E '(pg_restore: error:|ERROR:)' "$R/restore.private.log" | sed -E 's/"[^"]*"/"[hidden]"/g' | cut -c 1-180) || true
+  echo "Full PRIVATE diagnostic log: $R/restore.private.log"
   exit 1
-fi
-echo 'ISOLATED DATABASE RESTORE SUCCESSFUL (owner/ACL and Supabase services not restored)'
-docker exec "$C" psql -U postgres -d solaris_restore -At -c "select 'Restored tables: ' || count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind='r' and n.nspname in ('public','private','televoting','auth','storage','vault')"
-if [ -n "$PRECREATED" ]; then
-  echo "Local-only compatibility schemas created: $PRECREATED"
 fi
 echo 'Production unchanged. Still requires Storage service, role/Auth/Vault and migration rehearsal certification.'
