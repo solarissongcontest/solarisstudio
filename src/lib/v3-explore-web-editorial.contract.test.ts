@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 const route = readFileSync("src/routes/explore/index.tsx", "utf8");
 const installed = readFileSync("src/components/v3/V3ExploreScreen.tsx", "utf8");
 const style = readFileSync("src/styles/explore-web-editorial.css", "utf8");
+const wiki = readFileSync("src/routes/wiki/index.tsx", "utf8");
+const wikiStyle = readFileSync("src/styles/wiki-web-editorial.css", "utf8");
 
 describe("Explore website editorial completion", () => {
   it("keeps the installed PWA and the ordinary browser as distinct compositions", () => {
@@ -33,6 +35,19 @@ describe("Explore website editorial completion", () => {
     expect(route).toContain('WEB_ARCHIVE_DESTINATIONS.filter((item) => allowsReleased(item.to))');
     expect(route).toContain('WEB_MORE_DESTINATIONS.filter((item) => allowsReleased(item.to))');
     expect(route).toContain(".filter((item) => allowsReleased(item.to))");
+  });
+
+  it("keeps Wiki compatibility and country filters while giving website articles an editorial layout", () => {
+    expect(wiki).toContain('<Navigate to="/encyclopedia"');
+    expect(wiki).toContain("return isAppMode ? <AppWikiIndexPage /> : <WebWikiIndexPage />");
+    expect(wiki).toContain('className="wiki-web-editorial__masthead"');
+    expect(wiki).toContain('className="wiki-web-editorial__articles"');
+    expect(wiki).toContain('role="group" aria-label="Filter Wiki by first letter"');
+    expect(wiki).toContain('const visibleCountries = filtered.slice(0, visibleCount)');
+    expect(wiki).toContain('allowsReleased("/countries")');
+    expect(wikiStyle).toContain("@media (min-width: 52rem)");
+    expect(wikiStyle).toContain("@media (forced-colors: active)");
+    expect(wiki).not.toContain("useAllJuryVotes(");
   });
 
   it("does not pretend Edition Overview is a dedicated music catalogue", () => {
