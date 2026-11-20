@@ -57,9 +57,10 @@ describe("S14 Grand Final result calculation readback", () => {
     const refetch = resultsView.indexOf("queryClient.invalidateQueries({ queryKey: completedQueryKey })", cacheWrite);
     expect(cacheWrite).toBeGreaterThanOrEqual(0);
     expect(refetch).toBeGreaterThan(cacheWrite);
-    expect(resultsView).toContain('const completedQueryKey = ["merged-televoting-conversion", target.editionId, target.roundId] as const');
+    expect(resultsView).toContain('const completedQueryKey = ["merged-televoting-conversion", target.actorId, target.editionId, target.roundId] as const');
     expect(resultsView).toContain("result.state.round.id === target.roundId");
     expect(resultsView).toContain("target.roundId, confirm: target.confirmProtected");
+    expect(resultsView).toContain("roundId: effectiveRoundId, editionId, actorId, confirmProtected:");
     expect(resultsView).toContain("onError: async (caught, target) => {");
   });
 

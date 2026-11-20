@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Archive, Calculator, Trophy } from "lucide-react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import {
   AdminCard,
   AdminCardHeader,
@@ -44,13 +45,19 @@ type ArchivedStoredResult = {
 
 export function VotingResultsWorkspace() {
   const { editionId } = useAdminContext();
+  const actorId = useAuthenticatedUser().id;
   const getRoundsPage = useServerFn(getMergedTelevotingRoundsPage);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["merged-televoting-results-edition", editionId],
+    queryKey: ["merged-televoting-results-edition", actorId, editionId],
     queryFn: () => getRoundsPage({ data: { editionId } }),
-    enabled: Boolean(editionId),
-    staleTime: 15_000,
+    enabled: Boolean(actorId && editionId),
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   if (!editionId || isLoading) {
@@ -93,12 +100,12 @@ export function VotingResultsWorkspace() {
   }
 
   if (data.edition.is_archived) {
-    return <ArchivedVotingResults edition={data.edition} />;
+    return <ArchivedVotingResults key={`${actorId}:${data.edition.solaris_id}`} edition={data.edition} />;
   }
 
   return (
     <VotingResultsView
-      key={editionId}
+      key={`${actorId}:${editionId}`}
       editionId={editionId}
       editionName={data.edition.name}
       rounds={data.edition.rounds}
@@ -107,6 +114,7 @@ export function VotingResultsWorkspace() {
 }
 
 function ArchivedVotingResults({ edition }: { edition: MergedAdminRoundsPageEdition }) {
+  const actorId = useAuthenticatedUser().id;
   const getConversion = useServerFn(getMergedTelevoteConversion);
   const [roundId, setRoundId] = useState("");
 
@@ -119,10 +127,15 @@ function ArchivedVotingResults({ edition }: { edition: MergedAdminRoundsPageEdit
     : defaultRoundId;
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["merged-televoting-archive-result", edition.solaris_id, effectiveRoundId],
+    queryKey: ["merged-televoting-archive-result", actorId, edition.solaris_id, effectiveRoundId],
     queryFn: () => getConversion({ data: { roundId: effectiveRoundId } }),
-    enabled: Boolean(effectiveRoundId),
-    staleTime: 30_000,
+    enabled: Boolean(actorId && effectiveRoundId),
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const storedRows = useMemo(() => {
