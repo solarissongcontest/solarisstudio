@@ -14,6 +14,7 @@ import { ArchiveDataLoading } from "@/components/ArchiveDataState";
 import { supabase } from "@/integrations/supabase/client";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 import { parseReferenceSearchRows } from "@/lib/v3-reference-search-rows";
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 
 export const Route = createFileRoute("/encyclopedia/")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -97,6 +98,7 @@ function parseCoverage(value: unknown): Coverage {
 
 function ReferencePage() {
   const { platformResolved } = useSolarisApp();
+  const { allowsReleased } = usePublicLaunchAvailability();
   const presentation = useV3DirectoryPresentation();
   const search = Route.useSearch();
   const [query, setQuery] = useState(search.artist ?? "");
@@ -156,15 +158,13 @@ function ReferencePage() {
   // Topic choices must also filter the idle browse index, not only typed search hits.
   // Entries have no independent public directory yet: users search the published projection.
   const browseDestinations = BROWSE_DESTINATIONS.filter((destination) =>
-    kind === "all" || destination.kind === kind,
+    (kind === "all" || destination.kind === kind) && allowsReleased(destination.href),
   );
 
   const filtered = useMemo(
-    () =>
-      kind === "all"
-        ? referenceQuery.data ?? []
-        : (referenceQuery.data ?? []).filter((item) => item.kind === kind),
-    [kind, referenceQuery.data],
+    () => (referenceQuery.data ?? [])
+      .filter((item) => (kind === "all" || item.kind === kind) && allowsReleased(item.href)),
+    [kind, referenceQuery.data, allowsReleased],
   );
 
   if (!platformResolved) {
@@ -455,6 +455,7 @@ function ReferencePage() {
 }
 
 function ReferenceDirectoryHeader({ presentation }: { presentation: V3DirectoryPresentation }) {
+  const { allowsReleased } = usePublicLaunchAvailability();
   if (presentation === "mobile-web") {
     return (
       <header className="v3-directory-mobile-header" data-directory-mobile-header="">
@@ -478,7 +479,7 @@ function ReferenceDirectoryHeader({ presentation }: { presentation: V3DirectoryP
       eyebrow="Explore Solaris"
       title="Reference"
       description="A publication-safe knowledge base across editions, countries, published entries and shows."
-      actions={<Link to="/countries" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold">Browse countries →</Link>}
+      actions={allowsReleased("/countries") ? <Link to="/countries" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold">Browse countries →</Link> : undefined}
     />
   );
 }
