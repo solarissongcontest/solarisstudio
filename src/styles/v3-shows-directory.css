@@ -132,3 +132,73 @@ body .v3-shows-family[data-directory-experience="desktop-web"] .page-header h1 {
 .v3-shows-directory[data-show-directory-experience="desktop-web"] #shows-browse > .v3-shows-browse-heading {
   grid-column: 1 / -1;
 }
+
+/* Web-only Shows composition: search first, details on demand. */
+html:not([data-solaris-app]) .v3-shows-directory[data-show-directory-experience="mobile-web"] .v3-shows-filter-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: .55rem;
+}
+html:not([data-solaris-app]) .v3-shows-directory .v3-shows-web-filters {
+  min-width: 0;
+  margin: 0;
+  border: 1px solid color-mix(in oklab, var(--foreground) 14%, transparent);
+  border-radius: .85rem;
+  background: color-mix(in oklab, var(--surface) 60%, transparent);
+}
+html:not([data-solaris-app]) .v3-shows-directory .v3-shows-web-filters > summary {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: .65rem;
+  padding: .6rem .85rem;
+  cursor: pointer;
+  list-style: none;
+  color: var(--foreground);
+  font-size: .87rem;
+  font-weight: 650;
+}
+html:not([data-solaris-app]) .v3-shows-directory .v3-shows-web-filters > summary::-webkit-details-marker { display: none; }
+html:not([data-solaris-app]) .v3-shows-directory .v3-shows-web-filters-chevron {
+  margin-left: auto;
+  font-size: 1.15rem;
+  transition: transform 160ms ease;
+}
+html:not([data-solaris-app]) .v3-shows-directory .v3-shows-web-filters[open] .v3-shows-web-filters-chevron {
+  transform: rotate(180deg);
+}
+html:not([data-solaris-app]) .v3-shows-directory .v3-shows-web-filters-content {
+  display: grid;
+  gap: .8rem;
+  min-width: 0;
+  padding: 1rem .85rem;
+  border-top: 1px solid color-mix(in oklab, var(--foreground) 13%, transparent);
+}
+html:not([data-solaris-app]) .v3-shows-directory .v3-shows-web-clear-filters {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: .6rem;
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  font-size: .86rem;
+  font-weight: 650;
+}
+html:not([data-solaris-app]) .v3-shows-directory .v3-show-editorial-card {
+  border-color: color-mix(in oklab, var(--foreground) 14%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in oklab, var(--surface) 62%, transparent);
+}
+html:not([data-solaris-app]) .v3-shows-directory .v3-show-editorial-card:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+html:not([data-solaris-app]) .v3-shows-directory .v3-show-editorial-card > div > a.block {
+  font-size: clamp(1rem, 1.6vw, 1.22rem);
+  line-height: 1.25;
+  letter-spacing: -.02em;
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-solaris-app]) .v3-shows-directory .v3-shows-web-filters-chevron { transition: none; }
+}

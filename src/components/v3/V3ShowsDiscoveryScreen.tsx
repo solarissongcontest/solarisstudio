@@ -12,6 +12,7 @@ import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import { showPublishesResults } from "@/lib/publication";
 import { formatEventDateTime } from "@/lib/public-time";
 import { getV3ShowBrowsePage, V3_SHOW_BROWSE_PAGE_SIZE } from "@/lib/v3-show-browse-page";
+import { buildShowSpotlights } from "@/lib/v3-show-spotlights";
 import {
   buildShowDiscovery,
   type ShowDiscoveryItem,
@@ -96,6 +97,20 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
     [browseItems, browseFilterKey, browseWindowState],
   );
   const activeFilterCount = Number(editionId !== "all") + Number(kind !== "all") + Number(state !== "all");
+  const spotlightCollections = useMemo(
+    () => buildShowSpotlights(
+      discovery,
+      discovery.currentEdition ? editionLabel(discovery.currentEdition) : "",
+      presentation === "installed-app" ? "legacy-app" : "curated-web",
+    ),
+    [discovery, presentation],
+  );
+
+  const clearFacets = () => {
+    setEditionId("all");
+    setKind("all");
+    setState("all");
+  };
   // Shared fields render in the app filter sheet or desktop/mobile-web filter row,
   // avoiding duplicate controls, translation drift and client bundle cost.
   const filterFields = [
@@ -137,22 +152,12 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
 
   return (
     <div className="v3-shows-directory v3-editorial-show-index space-y-8" data-show-directory-experience={presentation}>
-      {[
-        { id: "shows-live-now", eyebrow: "Live now", title: "On air",
-          items: discovery.liveNow, emphasis: "live" as const },
-        { id: "shows-up-next", eyebrow: "Up next", title: "Coming shows",
-          items: discovery.upNext.slice(0, 4), emphasis: "normal" as const },
-        { id: "shows-recent", eyebrow: "Recent", title: "Latest completed",
-          items: discovery.recent, emphasis: "normal" as const },
-        { id: "shows-current-edition", eyebrow: "Current edition",
-          title: discovery.currentEdition ? editionLabel(discovery.currentEdition) : "",
-          items: discovery.currentEditionShows, emphasis: "normal" as const },
-      ].filter((collection) => collection.items.length > 0).map((collection) => (
+      {spotlightCollections.map((collection) => (
         <ShowCollection key={collection.id} presentation={presentation} {...collection} />
       ))}
 
       <section id="shows-browse" aria-labelledby="shows-browse-title" className="scroll-mt-24">
-        <h2 id="shows-browse-title" className="v3-shows-browse-heading">All shows</h2>
+        <h2 id="shows-browse-title" className="v3-shows-browse-heading">{presentation === "installed-app" ? "All public shows" : "All shows"}</h2>
         <div className={presentation === "installed-app"
           ? "v3-shows-filter-fields v3-shows-filter-fields--app"
           : "v3-shows-filter-fields grid gap-2 sm:grid-cols-3"}>
@@ -193,12 +198,30 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
                     onClick={() => setSearch("")}><X size={16} aria-hidden="true" /></button>
                 ) : null}
               </div>
-          {filterFields}
+              {presentation === "mobile-web" ? (
+                <details className="v3-shows-web-filters">
+                  <summary className="v3-shows-web-filters-summary">
+                    <SlidersHorizontal size={17} aria-hidden="true" />
+                    <span>Filters{activeFilterCount ? ` · ${activeFilterCount} active` : ""}</span>
+                    <span className="v3-shows-web-filters-chevron" aria-hidden="true">⌄</span>
+                  </summary>
+                  <div className="v3-shows-web-filters-content">
+                    {filterFields}
+                    {activeFilterCount ? (
+                      <button type="button" className="v3-shows-web-clear-filters" onClick={clearFacets}>
+                        Clear filters
+                      </button>
+                    ) : null}
+                  </div>
+                </details>
+              ) : filterFields}
             </>
           )}
         </div>
         <p className="v3-directory-results-count" role="status" aria-live="polite">
-          Showing {browseWindow.visible.length} of {browseItems.length} matching shows · {allItems.length} published
+          {presentation === "installed-app"
+            ? `Showing ${browseWindow.visible.length} of ${browseItems.length} matching shows · ${allItems.length} published`
+            : `Showing ${browseWindow.visible.length} of ${browseItems.length} shows`}
         </p>
         <div id="v3-shows-browse-results" className="v3-shows-browse-results">
           {browseWindow.visible.map((item) =>
@@ -234,9 +257,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
                 type="button"
                 onClick={() => {
                   setSearch("");
-                  setEditionId("all");
-                  setKind("all");
-                  setState("all");
+                  clearFacets();
                 }}
                 className="solaris-app-empty-action"
               >
@@ -247,22 +268,17 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
         ) : null}
       </section>
 
-      {discovery.archive.length > 0 ? (
+
+      {presentation === "installed-app" && discovery.archive.length > 0 ? (
         <section aria-labelledby="shows-archive-title">
-          <AppSectionHeader
-            eyebrow="Archive"
-            title="Earlier editions"
-            id="shows-archive-title"
-          />
+          <AppSectionHeader eyebrow="Archive" title="Earlier editions" id="shows-archive-title" />
           <p className="mb-3 text-sm leading-relaxed text-muted-foreground">
             Historical show pages stay locked to their published edition context.
           </p>
           <div className="space-y-2">
-            {discovery.archive.slice(0, 8).map((item) =>
-              presentation === "mobile-web"
-                ? <ShowRow key={item.show.id} item={item} web />
-                : <ShowRow key={item.show.id} item={item} compact />,
-            )}
+            {discovery.archive.slice(0, 8).map((item) => (
+              <ShowRow key={item.show.id} item={item} compact />
+            ))}
           </div>
           {discovery.archive.length > 8 ? (
             <a href="#shows-browse" className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary">
@@ -271,6 +287,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
           ) : null}
         </section>
       ) : null}
+
     </div>
   );
 }
@@ -327,7 +344,7 @@ function ShowCollection({
 
 function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: boolean }) {
   return (
-    <div className={`rounded-2xl border p-4 ${live ? "border-primary/45 bg-primary/5" : "border-border bg-surface"}`}>
+    <div className={`v3-show-editorial-card rounded-2xl border p-4 ${live ? "border-primary/45 bg-primary/5" : "border-border bg-surface"}`}>
       <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <ShowStateBadge item={item} />
