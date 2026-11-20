@@ -15,7 +15,11 @@ describe("V3 Edition's independent artwork and logo roles", () => {
     }
     expect(overview).toContain("className=\"cinematic-edition-logo\"");
     expect(overview).toContain('imageUrl={spoilerSafe ? null : projection.hub.hero.artworkUrl}');
-    expect(screen).toContain("!edition.artworkUrl && edition.logoUrl");
+    expect(screen).toContain("!visibleArtwork && visibleLogo");
+    expect(screen).toContain("edition.artworkUrl && edition.artworkUrl !== failedArtwork");
+    expect(screen).toContain("edition.logoUrl && edition.logoUrl !== failedLogo");
+    expect(screen).toContain("onError={() => setFailedArtwork(visibleArtwork)}");
+    expect(screen).toContain("onError={() => setFailedLogo(visibleLogo)}");
   });
   it("passes both published roles through the canonical Explore projection", () => {
     const input = {
