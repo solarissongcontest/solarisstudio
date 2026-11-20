@@ -15,6 +15,7 @@ import {
   useCountries,
   useEditions,
 } from "@/lib/data";
+import { buildPublicAnniversaryArchive } from "@/lib/public-anniversary-archive";
 
 export const Route = createFileRoute("/anniversary/")({
   head: () => ({
@@ -37,38 +38,49 @@ function AnniversaryPage() {
   const { data: results } = useAllResults();
   const { data: countries } = useCountries();
 
-  const recap = useMemo(
+  const publicArchive = useMemo(
     () =>
-      buildAnniversaryRecap({
-        anniversaryYear: anniversary.year,
+      buildPublicAnniversaryArchive({
         editions: editions ?? [],
         shows: shows ?? [],
         participants: participants ?? [],
         results: results ?? [],
+      }),
+    [editions, shows, participants, results],
+  );
+
+  const recap = useMemo(
+    () =>
+      buildAnniversaryRecap({
+        anniversaryYear: anniversary.year,
+        editions: publicArchive.editions,
+        shows: publicArchive.shows,
+        participants: publicArchive.participants,
+        results: publicArchive.results,
         countries: countries ?? [],
       }),
-    [anniversary.year, editions, shows, participants, results, countries],
+    [anniversary.year, publicArchive, countries],
   );
 
   const publishedEditions = useMemo(
     () =>
-      (editions ?? [])
-        .filter((edition) => edition.published)
+      publicArchive.editions
+        .slice()
         .sort((a, b) => (a.edition_number ?? 999) - (b.edition_number ?? 999)),
-    [editions],
+    [publicArchive.editions],
   );
   const publishedEditionIds = useMemo(
     () => new Set(publishedEditions.map((edition) => edition.id)),
     [publishedEditions],
   );
   const allTimeShows = useMemo(
-    () => (shows ?? []).filter((show) => show.published && publishedEditionIds.has(show.edition_id)),
-    [shows, publishedEditionIds],
+    () => publicArchive.shows.filter((show) => publishedEditionIds.has(show.edition_id)),
+    [publicArchive.shows, publishedEditionIds],
   );
   const allTimeCountries = useMemo(() => {
     const realCountryIds = new Set((countries ?? []).map((country) => country.id));
     const ids = new Set(
-      (participants ?? [])
+      publicArchive.participants
         .filter(
           (entry) =>
             publishedEditionIds.has(entry.edition_id) &&
@@ -77,7 +89,7 @@ function AnniversaryPage() {
         .map((entry) => entry.country_id),
     );
     return ids.size;
-  }, [countries, participants, publishedEditionIds]);
+  }, [countries, publicArchive.participants, publishedEditionIds]);
 
   const anniversaryLegacy = useMemo(() => {
     const countryMap = new Map((countries ?? []).map((country) => [country.id, country]));
@@ -88,13 +100,13 @@ function AnniversaryPage() {
         showResultsArePublished(show),
     );
     const resolvedFinalShows = finalShows.filter((show) => {
-      const ranking = (results ?? [])
+      const ranking = publicArchive.results
         .filter((result) => result.show_id === show.id && result.final_rank != null)
         .sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999));
       return finalRankingIsResolved(ranking);
     });
     const finalIds = new Set(resolvedFinalShows.map((show) => show.id));
-    const finalResults = (results ?? []).filter((result) => result.show_id && finalIds.has(result.show_id));
+    const finalResults = publicArchive.results.filter((result) => result.show_id && finalIds.has(result.show_id));
     const showMap = new Map(resolvedFinalShows.map((show) => [show.id, show]));
 
     let highest: typeof finalResults[number] | null = null;
@@ -119,7 +131,7 @@ function AnniversaryPage() {
     }
 
     const countryStats = new Map<string, { participations: Set<string>; finals: Set<string>; wins: number; points: number }>();
-    for (const entry of participants ?? []) {
+    for (const entry of publicArchive.participants) {
       if (!entry.country_id || !publishedEditionIds.has(entry.edition_id)) continue;
       const stat = countryStats.get(entry.country_id) ?? {
         participations: new Set<string>(),
@@ -183,7 +195,7 @@ function AnniversaryPage() {
       latestWinner: describeResult(latestWinner),
       delegations,
     };
-  }, [countries, participants, results, publishedEditions, publishedEditionIds, allTimeShows]);
+  }, [countries, publicArchive, publishedEditions, publishedEditionIds, allTimeShows]);
 
   const firstEdition = publishedEditions[0] ?? null;
 
@@ -327,7 +339,7 @@ function AnniversaryPage() {
             <HubLink to="/archive-games" eyebrow="Archive Games" title="Test your Solaris knowledge" copy="Play with past placements, jury splits and results." />
             <HubLink to="/relationships" eyebrow="Voting history" title="Explore voting relationships" copy="See which countries have voted alike over the years." />
             <HubLink to="/broadcast-intelligence" eyebrow="Scoreboard replay" title="Relive the turning points" copy="Replay how jury and televote scores changed the final ranking." />
-            <HubLink to="/my-solaris" eyebrow="Your history" title="Open your Solaris story" copy="See your country's participations, results and best moments." />
+            <HubLink to="/me" eyebrow="Your history" title="Open your Solaris story" copy="See your country's participations, results and best moments." />
           </div>
         </section>
       </div>
@@ -355,7 +367,7 @@ function HubLink({
   title,
   copy,
 }: {
-  to: "/editions" | "/records" | "/archive-games" | "/relationships" | "/broadcast-intelligence" | "/my-solaris";
+  to: "/editions" | "/records" | "/archive-games" | "/relationships" | "/broadcast-intelligence" | "/me";
   eyebrow: string;
   title: string;
   copy: string;

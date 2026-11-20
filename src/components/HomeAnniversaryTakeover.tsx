@@ -16,6 +16,7 @@ import {
   useCountries,
   useEditions,
 } from "@/lib/data";
+import { buildPublicAnniversaryArchive } from "@/lib/public-anniversary-archive";
 
 export function HomeAnniversaryTakeover() {
   const pathname = useLocation({ select: (location) => location.pathname });
@@ -52,17 +53,28 @@ function AnniversaryData({ anniversary }: { anniversary: SolarisAnniversary }) {
   const { data: results } = useAllResults();
   const { data: countries } = useCountries();
 
-  const recap = useMemo(
+  const publicArchive = useMemo(
     () =>
-      buildAnniversaryRecap({
-        anniversaryYear: anniversary.year,
+      buildPublicAnniversaryArchive({
         editions: editions ?? [],
         shows: shows ?? [],
         participants: participants ?? [],
         results: results ?? [],
+      }),
+    [editions, shows, participants, results],
+  );
+
+  const recap = useMemo(
+    () =>
+      buildAnniversaryRecap({
+        anniversaryYear: anniversary.year,
+        editions: publicArchive.editions,
+        shows: publicArchive.shows,
+        participants: publicArchive.participants,
+        results: publicArchive.results,
         countries: countries ?? [],
       }),
-    [anniversary.year, editions, shows, participants, results, countries],
+    [anniversary.year, publicArchive, countries],
   );
 
   return <AnniversaryTakeover anniversary={anniversary} recap={recap} />;
