@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { LiquidGlassBackdrop } from "@/components/LiquidGlassBackdrop";
 import { cn } from "@/lib/utils";
@@ -94,6 +94,7 @@ export function EditionNavigation({
   const [active, setActive] = useState(available[0]?.href ?? "");
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
+  const morePanelId = useId();
   const primary = available.length > 4 ? available.slice(0, 3) : available;
   const secondary = available.length > 4 ? available.slice(3) : [];
 
@@ -105,11 +106,13 @@ export function EditionNavigation({
       const current = [...sections].reverse().find((node) => node.getBoundingClientRect().top <= threshold) ?? sections[0];
       setActive(`#${current.id}`);
     };
-    const observer = new IntersectionObserver(update, { rootMargin: "-120px 0px -70% 0px", threshold: 0 });
-    sections.forEach((node) => observer.observe(node));
+    const observer = typeof IntersectionObserver === "undefined"
+      ? null
+      : new IntersectionObserver(update, { rootMargin: "-120px 0px -70% 0px", threshold: 0 });
+    sections.forEach((node) => observer?.observe(node));
     window.addEventListener("scroll", update, { passive: true });
     update();
-    return () => { observer.disconnect(); window.removeEventListener("scroll", update); };
+    return () => { observer?.disconnect(); window.removeEventListener("scroll", update); };
   }, [items]);
 
   useEffect(() => {
@@ -143,8 +146,8 @@ export function EditionNavigation({
       <div className="edition-navigation-mobile">
         {primary.map(link)}
         {secondary.length ? <div className="edition-navigation-more" ref={moreRef}>
-          <button type="button" aria-expanded={moreOpen} aria-controls="edition-navigation-more-panel" aria-current={secondary.some((item) => item.href === active) ? "location" : undefined} onClick={() => setMoreOpen((value) => !value)}>More <span aria-hidden="true">⌄</span></button>
-          {moreOpen ? <div id="edition-navigation-more-panel" className="edition-navigation-more-panel">{secondary.map(link)}</div> : null}
+          <button type="button" aria-expanded={moreOpen} aria-controls={moreOpen ? morePanelId : undefined} aria-current={secondary.some((item) => item.href === active) ? "location" : undefined} onClick={() => setMoreOpen((value) => !value)}>More <span aria-hidden="true">⌄</span></button>
+          {moreOpen ? <div id={morePanelId} className="edition-navigation-more-panel">{secondary.map(link)}</div> : null}
         </div> : null}
       </div>
     </nav>
