@@ -367,7 +367,7 @@ export function V3CountriesDiscoveryScreen({
         </div>
 
         {filtered.length > 0 && (search.trim() || effectiveRegion !== "all" || selectedParticipatingOnly) ? (
-          <button type="button" className="v3-directory-clear-filters"
+          <button type="button" className="v3-directory-clear-filters inline-flex min-h-11 items-center rounded-md px-2 text-sm font-semibold underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             onClick={() => {
               setSearch(""); setRegion("all"); setParticipatingOnly(false);
               setVisibleCount(BROWSE_PAGE_SIZE);
