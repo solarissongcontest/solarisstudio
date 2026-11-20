@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   COUNTRY_WEB_SECTIONS,
   countrySectionHash,
+  countryTabNeedsDetailedVotes,
   sectionFromCountryHash,
 } from "./v3-country-web-tabs";
 
@@ -12,6 +13,20 @@ const styles = readFileSync("src/styles/v3-country-web-sections.css", "utf8");
 const hero = readFileSync("src/components/country/CountryWebCinematicHero.tsx", "utf8");
 
 describe("ordinary-web country section permalinks", () => {
+  it("avoids full ballot archive downloads on public Country overview, history, entries and results", () => {
+    for (const tab of ["overview", "entries", "results"] as const) {
+      expect(countryTabNeedsDetailedVotes(tab)).toBe(false);
+    }
+    for (const tab of ["voting", "relationships", "form"] as const) {
+      expect(countryTabNeedsDetailedVotes(tab)).toBe(true);
+    }
+    expect(route).toContain("const needsDetailedVotes = countryTabNeedsDetailedVotes(tab)");
+    expect(route).toContain("useAllJuryVotes({ enabled: archiveEnabled && needsDetailedVotes })");
+    expect(route).toContain("useAllTelevotes({ enabled: archiveEnabled && needsDetailedVotes })");
+    expect(route).toContain("...(needsDetailedVotes ? [juryQuery, televoteQuery] : [])");
+    expect(route).toContain('tab === "relationships" && !archiveLoading');
+  });
+
   it("maps public fragments to the actual supported tabs", () => {
     expect(COUNTRY_WEB_SECTIONS).toEqual([
       "overview", "entries", "results", "voting", "relationships", "form",
