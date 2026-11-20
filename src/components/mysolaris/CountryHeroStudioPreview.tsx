@@ -1,7 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { CinematicEditorialHero } from "@/components/v3/CinematicEditorialHero";
 import type { CountryDesignV2 } from "@/lib/country-design-v2";
+import {
+  localHeroPreviewDimensionsError,
+  localHeroPreviewFileError,
+  localHeroPreviewNeedsHighResolutionWarning,
+  readLocalHeroImageDimensions,
+  sniffLocalHeroImageFormat,
+} from "@/lib/country-hero-local-image";
 import "@/styles/v3-country-hero-studio-preview.css";
 
 type Experience = "app" | "mobile-web" | "desktop";
@@ -32,7 +39,8 @@ export function CountryHeroStudioPreview({
   design: CountryDesignV2;
 }) {
   const [experience, setExperience] = useState<Experience>("app");
-  const [localPreview, setLocalPreview] = useState<{ url: string; name: string } | null>(null);
+  const [localPreview, setLocalPreview] = useState<{ url: string; name: string; width: number; height: number } | null>(null);
+  const selectionRef = useRef(0);
   const [fileError, setFileError] = useState<string | null>(null);
   const [draftFocus, setDraftFocus] = useState<[number, number]>([50, 50]);
   const currentImage = design.background.mode === "image"
@@ -52,19 +60,47 @@ export function CountryHeroStudioPreview({
     return () => { if (url) URL.revokeObjectURL(url); };
   }, [localPreview?.url]);
 
-  const chooseLocalImage = (file: File | undefined) => {
+  // Invalidate unresolved decodes when the editor closes or a newer file is chosen.
+  useEffect(() => () => { selectionRef.current += 1; }, []);
+
+  const chooseLocalImage = async (file: File | undefined) => {
     if (!file) return;
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      setFileError("Select a JPEG, PNG or WebP image.");
-      return;
-    }
+    const generation = ++selectionRef.current;
     if (file.size <= 0 || file.size > 5 * 1024 * 1024) {
       setFileError("Choose an image between 1 byte and 5 MB.");
       return;
     }
-    setLocalPreview({ url: URL.createObjectURL(file), name: file.name });
-    setDraftFocus([50, 50]);
-    setFileError(null);
+    let blobUrl: string | null = null;
+    try {
+      const signature = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+      if (generation !== selectionRef.current) return;
+      const validationError = localHeroPreviewFileError(file, sniffLocalHeroImageFormat(signature));
+      if (validationError) {
+        setFileError(validationError);
+        return;
+      }
+
+      blobUrl = URL.createObjectURL(file);
+      const dimensions = await readLocalHeroImageDimensions(blobUrl);
+      if (generation !== selectionRef.current) {
+        URL.revokeObjectURL(blobUrl);
+        return;
+      }
+      const dimensionsError = localHeroPreviewDimensionsError(dimensions.width, dimensions.height);
+      if (dimensionsError) {
+        URL.revokeObjectURL(blobUrl);
+        setFileError(dimensionsError);
+        return;
+      }
+
+      setLocalPreview({ url: blobUrl, name: file.name, ...dimensions });
+      setDraftFocus([50, 50]);
+      setFileError(null);
+    } catch {
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      if (generation === selectionRef.current)
+        setFileError("The image could not be decoded. Try another JPEG, PNG or WebP.");
+    }
   };
 
   return (
@@ -80,14 +116,14 @@ export function CountryHeroStudioPreview({
             type="file"
             accept="image/jpeg,image/png,image/webp"
             onChange={(event) => {
-              chooseLocalImage(event.currentTarget.files?.[0]);
+              void chooseLocalImage(event.currentTarget.files?.[0]);
               event.currentTarget.value = "";
             }}
           />
         </label>
         {localPreview ? (
           <button type="button" className="country-hero-preview__clear"
-            onClick={() => { setLocalPreview(null); setFileError(null); }}>
+            onClick={() => { selectionRef.current += 1; setLocalPreview(null); setFileError(null); }}>
             Remove private preview
           </button>
         ) : null}
@@ -95,7 +131,18 @@ export function CountryHeroStudioPreview({
           JPEG, PNG or WebP · up to 5 MB · local preview only. No upload or publication occurs.
         </p>
         {fileError ? <p className="country-hero-preview__error" role="alert">{fileError}</p> : null}
-        {localPreview ? <p className="country-hero-preview__filename">Preview: {localPreview.name}</p> : null}
+        {localPreview ? (
+          <>
+            <p className="country-hero-preview__filename">
+              Preview: {localPreview.name} · {localPreview.width} × {localPreview.height} px
+            </p>
+            {localHeroPreviewNeedsHighResolutionWarning(localPreview.width, localPreview.height) ? (
+              <p className="country-hero-preview__upload-note" role="status">
+                This image may look soft on desktop. For future publication, choose roughly 1920 × 1080 px or larger.
+              </p>
+            ) : null}
+          </>
+        ) : null}
       </div>
       {localPreview ? (
         <div className="country-hero-preview__focus" aria-label="Private draft focal point controls">
