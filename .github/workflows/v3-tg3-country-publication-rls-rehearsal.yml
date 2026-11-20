@@ -1,0 +1,54 @@
+name: V3 TG3 Country section publication RLS rehearsal
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/20261104184000_v3_tg3_country_section_publication_rls.sql"
+      - "scripts/rehearse-v3-world-country-publication.*"
+      - "src/lib/world-country-section-publication-rls.contract.test.ts"
+      - ".github/workflows/v3-tg3-country-publication-rls-rehearsal.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  country-section-rls:
+    name: Anonymous/outsider/owner Country section RLS
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+
+      - name: Setup pinned Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Ensure PostgreSQL client exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Start isolated local Supabase and replay migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase start
+          supabase db reset --local --no-seed
+
+      - name: Rehearse public section publication RLS and owner access
+        shell: bash
+        run: bash scripts/rehearse-v3-world-country-publication.sh
+
+      - name: Stop and discard disposable local database
+        if: always()
+        shell: bash
+        run: supabase stop --no-backup || true

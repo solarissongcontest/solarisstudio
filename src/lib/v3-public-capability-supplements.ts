@@ -216,4 +216,20 @@ export const V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES = [
     acceptanceScenarioId: "public.terraos-teaser-real-v3-render",
     migrationEvidence: "Maintenance-only, noindex/nofollow, fixture-backed visual renderer for the TerraOS teaser. It reuses the production V3 Home, Explore and Participate screen components without querying Supabase, reading account state or exposing mutations. Normal product routes remain maintenance-blocked.",
   },
+  {
+    id: "world-country-government",
+    sourceFeatureFlags: [],
+    legacyRoutes: ["/world/countries/:code/government"],
+    legacyComponents: [],
+    backendOwners: ["country-profile", "publication"],
+    personas: ALL_PUBLIC_PERSONAS,
+    authRequirement: "public",
+    classification: "contextualize",
+    targetArea: "explore",
+    targetRoute: "/world/countries/:code/government",
+    specificationStatus: "building",
+    acceptanceScenarioId: "public.world-country-government-publication-safe",
+    migrationEvidence:
+      "TG3 public Country Government read-only detail, using existing country/profile authority. Country-authored political references remain explicitly non-official; structured offices and legal institutions are not invented.",
+  },
 ] as const satisfies readonly PublicCapabilityMigration[];

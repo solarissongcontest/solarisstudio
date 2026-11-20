@@ -309,10 +309,16 @@ export function WorldCountryInternational({ code }: { code: string }) {
           </p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{country.name} · International</h1>
           <p className="mt-1 text-sm text-muted-foreground">{country.region} · {country.code}</p>
-          <Link to="/countries/$code" params={{ code: country.code }}
-            className="mt-3 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary">
-            Song Contest profile <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
+          <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1">
+            <Link to="/countries/$code" params={{ code: country.code }}
+              className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary">
+              Song Contest profile <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
+            <Link to="/world/countries/$code/government" params={{ code: country.code }}
+              className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary">
+              Government <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
+          </div>
         </div>
       </div>
       <p className="mt-6 max-w-3xl text-sm leading-7 text-muted-foreground">
