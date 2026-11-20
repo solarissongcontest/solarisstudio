@@ -13,6 +13,7 @@ import { useCountries } from "@/lib/data";
 import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import "@/styles/wiki-web-editorial.css";
 import { countryDirectoryRegionOptions, filterCountryDirectory } from "@/lib/v3-country-directory-filters";
+import { resolvePublicDirectoryFacet } from "@/lib/v3-public-directory-search";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 
 export const Route = createFileRoute("/wiki/")({
@@ -62,7 +63,11 @@ function WikiIndexPage() {
 
 function AppWikiIndexPage() {
   const countriesQuery = useCountries();
-  const { data: countries } = countriesQuery;
+  // During a published-country refetch do not render a cached, potentially
+  // revoked Wiki article as verified current public content.
+  const countries = countriesQuery.isSuccess && !countriesQuery.isFetching && !countriesQuery.isRefetchError
+    ? countriesQuery.data
+    : undefined;
   const [search, setSearch] = useState("");
   const [region, setRegion] = useState("all");
 
@@ -74,12 +79,17 @@ function AppWikiIndexPage() {
     [countries],
   );
 
-  const filtered = useMemo(() => filterCountryDirectory(countries ?? [], {
-    search, region, participatingOnly: false, participatingCountryIds: ALL_COUNTRIES_SCOPE,
-  }), [countries, region, search]);
+  const effectiveRegion = resolvePublicDirectoryFacet(region, regions);
+  useEffect(() => {
+    if (region !== effectiveRegion) setRegion("all");
+  }, [region, effectiveRegion]);
 
-  if (countriesQuery.isLoading) return <AppShell><ArchiveDataLoading label="Loading the Wiki…" /></AppShell>;
-  if (countriesQuery.isError) return <AppShell><ArchiveDataError /></AppShell>;
+  const filtered = useMemo(() => filterCountryDirectory(countries ?? [], {
+    search, region: effectiveRegion, participatingOnly: false, participatingCountryIds: ALL_COUNTRIES_SCOPE,
+  }), [countries, effectiveRegion, search]);
+
+  if (countriesQuery.isLoading || countriesQuery.isFetching) return <AppShell><ArchiveDataLoading label="Loading the Wiki…" /></AppShell>;
+  if (countriesQuery.isError || countriesQuery.isRefetchError) return <AppShell><ArchiveDataError /></AppShell>;
 
   return (
     <AppShell>
@@ -97,7 +107,7 @@ function AppWikiIndexPage() {
               <SheetTrigger asChild>
                 <button type="button" className="solaris-app-filter-chip">
                   <SlidersHorizontal className="size-4" aria-hidden="true" />
-                  <span>{region === "all" ? "All regions" : region}</span>
+                  <span>{effectiveRegion === "all" ? "All regions" : effectiveRegion}</span>
                 </button>
               </SheetTrigger>
               <SheetContent
@@ -111,7 +121,7 @@ function AppWikiIndexPage() {
                 </div>
                 <div className="mt-3">
                   {["all", ...regions].map((item) => {
-                    const active = region === item;
+                    const active = effectiveRegion === item;
                     return (
                       <SheetClose key={item} asChild>
                         <button
@@ -179,7 +189,11 @@ function AppWikiIndexPage() {
 function WebWikiIndexPage() {
   const { allowsReleased } = usePublicLaunchAvailability();
   const countriesQuery = useCountries();
-  const { data: countries } = countriesQuery;
+  // During a published-country refetch do not render a cached, potentially
+  // revoked Wiki article as verified current public content.
+  const countries = countriesQuery.isSuccess && !countriesQuery.isFetching && !countriesQuery.isRefetchError
+    ? countriesQuery.data
+    : undefined;
   const [search, setSearch] = useState("");
   const [region, setRegion] = useState("all");
   const [letter, setLetter] = useState("all");
@@ -198,17 +212,24 @@ function WebWikiIndexPage() {
     [countries],
   );
 
+  const effectiveRegion = resolvePublicDirectoryFacet(region, regions);
+  const effectiveLetter = resolvePublicDirectoryFacet(letter, letters);
+  useEffect(() => {
+    if (region !== effectiveRegion) setRegion("all");
+    if (letter !== effectiveLetter) setLetter("all");
+  }, [region, effectiveRegion, letter, effectiveLetter]);
+
   const filtered = useMemo(() => filterCountryDirectory(countries ?? [], {
-    search, region, participatingOnly: false, participatingCountryIds: ALL_COUNTRIES_SCOPE,
-  }).filter((country) => letter === "all" || country.name.toUpperCase().startsWith(letter)),
-  [countries, search, region, letter]);
+    search, region: effectiveRegion, participatingOnly: false, participatingCountryIds: ALL_COUNTRIES_SCOPE,
+  }).filter((country) => effectiveLetter === "all" || country.name.toUpperCase().startsWith(effectiveLetter)),
+  [countries, search, effectiveRegion, effectiveLetter]);
 
   const visibleCountries = filtered.slice(0, visibleCount);
-  useEffect(() => setVisibleCount(DIRECTORY_PAGE_SIZE), [search, region, letter]);
+  useEffect(() => setVisibleCount(DIRECTORY_PAGE_SIZE), [search, effectiveRegion, effectiveLetter]);
   useEffect(() => setHydrated(true), []);
 
-  if (!hydrated || countriesQuery.isLoading) return <AppShell><PageHeader eyebrow="Terra Solaris" title="Wiki" description="Browse national profiles and country histories." /><ArchiveDataLoading label="Loading the Wiki library…" /></AppShell>;
-  if (countriesQuery.isError) return <AppShell><PageHeader eyebrow="Terra Solaris" title="Wiki" description="Browse national profiles and country histories." /><ArchiveDataError /></AppShell>;
+  if (!hydrated || countriesQuery.isLoading || countriesQuery.isFetching) return <AppShell><PageHeader eyebrow="Terra Solaris" title="Wiki" description="Browse national profiles and country histories." /><ArchiveDataLoading label="Loading the Wiki library…" /></AppShell>;
+  if (countriesQuery.isError || countriesQuery.isRefetchError) return <AppShell><PageHeader eyebrow="Terra Solaris" title="Wiki" description="Browse national profiles and country histories." /><ArchiveDataError /></AppShell>;
 
   return (
     <AppShell>
@@ -240,7 +261,7 @@ function WebWikiIndexPage() {
         <label>
           <span className="sr-only">Filter Wiki by region</span>
           <select
-            value={region}
+            value={effectiveRegion}
             onChange={(event) => setRegion(event.target.value)}
             className="min-h-11 w-full rounded-xl border border-border bg-background/45 px-3 text-sm outline-none transition focus:border-primary/55"
           >
@@ -254,7 +275,7 @@ function WebWikiIndexPage() {
           <button
             type="button"
             onClick={() => setLetter("all")}
-            aria-pressed={letter === "all"}
+            aria-pressed={effectiveLetter === "all"}
             className={`min-h-9 shrink-0 rounded-lg px-3 text-xs font-semibold ${letter === "all" ? "bg-primary/12 text-primary" : "bg-background/35 text-muted-foreground"}`}
           >
             All
@@ -264,7 +285,7 @@ function WebWikiIndexPage() {
               key={item}
               type="button"
               onClick={() => setLetter(item)}
-              aria-pressed={letter === item}
+              aria-pressed={effectiveLetter === item}
               className={`min-h-9 min-w-9 shrink-0 rounded-lg px-2 text-xs font-semibold ${letter === item ? "bg-primary/12 text-primary" : "bg-background/35 text-muted-foreground"}`}
             >
               {item}
