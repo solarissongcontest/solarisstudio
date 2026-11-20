@@ -1,5 +1,6 @@
 import "@/styles/v3-organizer-overview-editorial.css";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { AdminPage } from "@/components/admin/AdminShell";
 import { LiveRundownCueSummary } from "@/components/admin/LiveRundownCueSummary";
 import {
@@ -46,6 +48,9 @@ export const Route = createFileRoute("/_authenticated/admin/operations")({
 
 function OrganizerOverview() {
   const { editionId } = useAdminContext();
+  const { isAppMode } = useSolarisApp();
+  const [showReady, setShowReady] = useState(false);
+  const [showSecondary, setShowSecondary] = useState(false);
   const projectionQuery = useV3OrganizerProjection(editionId || null);
   const projection = projectionQuery.data ?? null;
   const overviewStatus = projection
@@ -64,7 +69,13 @@ function OrganizerOverview() {
   return (
     <AdminPage>
       <div className="admin-organizer-overview mx-auto max-w-6xl" data-admin-overview="">
-<AdminPageHeader title="Solaris Organizer" />
+<AdminPageHeader
+          eyebrow={isAppMode ? "Overview" : undefined}
+          title="Solaris Organizer"
+          description={isAppMode
+            ? "Current scope, what needs intervention, what happens next and why the edition is or is not ready."
+            : undefined}
+        />
 
         {!editionId ? (
           <AdminCard>
@@ -276,7 +287,7 @@ function OrganizerOverview() {
                     tone="attention"
                   />
                 </div>
-                <details className="admin-overview-ready-details">
+                <details className="admin-overview-ready-details" open={isAppMode || showReady} onToggle={(event) => setShowReady(event.currentTarget.open)}>
                   <summary>
                     <span>Verified ready</span>
                     <span>{projection.readiness.ready.length} factors</span>
@@ -294,7 +305,7 @@ function OrganizerOverview() {
               </AdminCard>
             </section>
 
-            <details className="admin-overview-secondary mt-5">
+            <details className="admin-overview-secondary mt-5" open={isAppMode || showSecondary} onToggle={(event) => setShowSecondary(event.currentTarget.open)}>
               <summary className="admin-overview-secondary-summary">
                 <span>Operational details</span>
                 <span>
