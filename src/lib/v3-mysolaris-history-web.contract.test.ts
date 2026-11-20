@@ -24,6 +24,7 @@ describe("MySolaris country History browser redesign", () => {
   it("restores browser Back/Forward and shareable edit URLs without changing PWA navigation", () => {
     const source = read("src/components/mysolaris/modules/MySolarisCountryModule.tsx");
     expect(source).toContain('if (section !== "history" || isAppMode) return;');
+    expect(source).toContain('setActiveTab(section === "history" ? "entries" : "overview")');
     expect(source).toContain('window.addEventListener("popstate", restoreHistoryFocus)');
     expect(source).toContain('window.addEventListener("hashchange", restoreHistoryFocus)');
     expect(source).toContain('window.history.pushState(');
