@@ -59,6 +59,52 @@ for (const route of publicRouteAuditSet) {
   });
 }
 
+test("published Country and Edition use continuous cinematic browser heroes with no installed dock", async ({ page, baseURL }, testInfo) => {
+  test.skip(!["public-390", "public-1440"].includes(testInfo.project.name));
+  const target = new URL(process.env.E2E_SUPABASE_URL ?? "http://127.0.0.1:54321");
+  if (target.protocol !== "http:" ||
+      !["127.0.0.1", "localhost", "[::1]", "::1"].includes(target.hostname) ||
+      target.username || target.password || !target.port) {
+    throw new Error("Cinematic screenshot audit requires isolated loopback Supabase.");
+  }
+
+  const discovered = await sitemapRoutes(baseURL!);
+  const country = discovered.find((route) => /^\/countries\/[^/]+$/.test(route));
+  const edition = discovered.find((route) => /^\/editions\/[^/]+$/.test(route));
+  expect(country, "Seeded sitemap needs a published Country").toBeTruthy();
+  expect(edition, "Seeded sitemap needs a published Edition").toBeTruthy();
+
+  await page.goto(country!, { waitUntil: "domcontentloaded" });
+  const countryHero = page.locator('[data-country-web-experience="editorial"]');
+  await expect(countryHero).toBeVisible({ timeout: 15_000 });
+  await expect(countryHero.locator('[data-cinematic-entity="country"]')).toBeVisible();
+  await expect(page.locator(".country-editorial-identity-strip")).toBeVisible();
+  await expect(page.locator(".country-editorial-section-nav")).toBeVisible();
+  await expect(page.locator(".solaris-app-tabbar")).toHaveCount(0);
+  await expect(page.locator("html")).not.toHaveAttribute("data-solaris-app", "");
+  await expect(page.locator("h1")).toHaveCount(1);
+  await testInfo.attach(`country-cinematic-${testInfo.project.name}.png`, {
+    body: await page.screenshot({ fullPage: true, animations: "disabled", caret: "hide" }),
+    contentType: "image/png",
+  });
+
+  await page.goto(edition!, { waitUntil: "domcontentloaded" });
+  const editionHero = page.locator('[data-edition-web-experience="editorial"]');
+  await expect(editionHero).toBeVisible({ timeout: 15_000 });
+  await expect(editionHero.locator('[data-cinematic-entity="edition"]')).toBeVisible();
+  await expect(page.locator(".edition-navigation-editorial")).toBeVisible();
+  await expect(page.locator(".solaris-app-tabbar")).toHaveCount(0);
+  await expect(page.locator("h1")).toHaveCount(1);
+  const overflow = await page.evaluate(() =>
+    Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+  );
+  expect(overflow, "Cinematic Edition must stay inside the normal browser viewport").toBeLessThanOrEqual(2);
+  await testInfo.attach(`edition-cinematic-${testInfo.project.name}.png`, {
+    body: await page.screenshot({ fullPage: true, animations: "disabled", caret: "hide" }),
+    contentType: "image/png",
+  });
+});
+
 test("real Country and Wiki pages pass collision and flag audits at this viewport", async ({ page, baseURL }, testInfo) => {
   const discovered = await sitemapRoutes(baseURL!);
   const country = discovered.find((route) => /^\/countries\/[^/]+$/.test(route));
