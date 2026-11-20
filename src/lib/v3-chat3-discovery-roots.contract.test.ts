@@ -13,7 +13,7 @@ describe("V3 Public completion Chat 3 discovery roots", () => {
     expect(screen).toContain('className="v3-countries-title"');
     expect(screen).toContain('presentation === "installed-app"');
     expect(screen).toContain('? "Countries"');
-    expect(screen).toContain('aria-pressed={!selectedParticipatingOnly}');
+    expect(screen).toContain('aria-pressed={!selectedScopeButtonParticipatingOnly}');
     expect(screen).toContain('<Check size={16}');
     expect(screen).toContain('data-country-directory-experience={presentation}');
     expect(screen).toContain('aria-labelledby="countries-page-title"');

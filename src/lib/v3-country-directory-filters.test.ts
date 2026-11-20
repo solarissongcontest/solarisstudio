@@ -114,8 +114,12 @@ describe("V3 countries directory filters", () => {
     expect(source).toContain("participatingOnly: selectedParticipatingOnly");
     expect(source).toContain("selectedParticipatingOnly ? filtered : filtered.slice(0, visibleCount)");
     expect(source).toContain('aria-label="Country collections"');
-    expect(source).toContain("aria-pressed={selectedParticipatingOnly}");
-    expect(source).toContain("aria-pressed={!selectedParticipatingOnly}");
+    expect(source).toContain("aria-pressed={selectedScopeButtonParticipatingOnly}");
+    expect(source).toContain("aria-pressed={!selectedScopeButtonParticipatingOnly}");
+    // The requested participant collection remains visibly selected during
+    // public data revalidation; effective rows still fail closed.
+    expect(source).toContain("const selectedScopeButtonParticipatingOnly = selectedParticipatingOnly || verifyingRequestedLineup");
+    expect(source).toContain('verifyingRequestedLineup ? (');
     expect(source).toContain("setParticipatingOnly(true)");
     expect(source).toContain("setParticipatingOnly(false)");
     expect(source).toContain('<CountryTile key={country.id} country={country} presentation={presentation}');
