@@ -18,7 +18,8 @@ export type UnifiedUploadDomain =
   | "country_media"
   | "edition_artwork"
   | "country_font"
-  | "beta_feedback";
+  | "beta_feedback"
+  | "entry_media";
 
 export type PreparedUnifiedUpload = ServerAuthorizedUploadDescriptor & {
   token_id: string;
@@ -134,20 +135,39 @@ export async function prepareUnifiedUpload(input: {
   if (!input.file || input.file.size <= 0) throw new Error("Cannot prepare an empty file.");
   const client = runtimeClient(input.client);
 
-  const { data, error } = await client.rpc("studio2_prepare_upload", {
-    p_domain: input.domain,
-    p_entity_id: input.entityId ?? null,
-    p_scope: input.scope ?? null,
-    p_name: input.file.name,
-    p_mime: input.file.type || "application/octet-stream",
-    p_size: input.file.size,
-    p_context: input.context ?? {},
-  });
+  const request = input.domain === "entry_media"
+    ? {
+        name: "v3_prepare_entry_media_upload",
+        args: {
+          p_entry_id: input.entityId ?? null,
+          p_asset_type: input.scope ?? null,
+          p_name: input.file.name,
+          p_mime: input.file.type || "application/octet-stream",
+          p_size: input.file.size,
+        },
+      }
+    : {
+        name: "studio2_prepare_upload",
+        args: {
+          p_domain: input.domain,
+          p_entity_id: input.entityId ?? null,
+          p_scope: input.scope ?? null,
+          p_name: input.file.name,
+          p_mime: input.file.type || "application/octet-stream",
+          p_size: input.file.size,
+          p_context: input.context ?? {},
+        },
+      };
+
+  const { data, error } = await client.rpc(request.name, request.args);
   if (error) throw new Error(error.message || "Solaris could not authorize this upload.");
 
   const row = object(data, "upload authorization");
   if (row.bucket !== "solaris-upload-quarantine") {
     throw new Error("Solaris returned an unsafe upload bucket.");
+  }
+  if (input.domain === "entry_media" && row.final_bucket !== "country-media") {
+    throw new Error("Solaris returned an unsafe Entry media destination.");
   }
 
   return {
