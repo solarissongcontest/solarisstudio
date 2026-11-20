@@ -7,7 +7,8 @@ import { useMemo, useState } from "react";
 import { AppEmptyState, AppSectionHeader } from "@/components/app/AppPrimitives";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
+import { ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
+import { PublicDataState } from "@/components/public/PublicDataState";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import { showPublishesResults } from "@/lib/publication";
 import { publicBroadcastHref } from "@/lib/v3-public-broadcast-url";
@@ -127,7 +128,26 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
     return <ArchiveDataLoading label="Loading show discovery…" />;
   }
   if (archiveHasError(editionsQuery, showsQuery)) {
-    return <ArchiveDataError />;
+    return (
+      <PublicDataState
+        kind="error"
+        title="Show directory unavailable"
+        description="Published show information could not be verified. No cached shows or results are exposed as a fallback."
+        action={(
+          <button
+            type="button"
+            className="min-h-11 rounded-lg border border-border bg-surface px-4 text-sm font-semibold"
+            disabled={editionsQuery.isFetching || showsQuery.isFetching}
+            onClick={() => {
+              if (editionsQuery.isError) void editionsQuery.refetch();
+              if (showsQuery.isError) void showsQuery.refetch();
+            }}
+          >
+            {editionsQuery.isFetching || showsQuery.isFetching ? "Retrying…" : "Retry published shows"}
+          </button>
+        )}
+      />
+    );
   }
 
   if (!allItems.length) {
