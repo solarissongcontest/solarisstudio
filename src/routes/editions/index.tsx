@@ -7,6 +7,12 @@ import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useV3DirectoryPresentation, type V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import { directoryCountLabel } from "@/lib/v3-directory-count";
+import { matchesPublicDirectorySearch } from "@/lib/v3-public-directory-search";
+import {
+  MAX_PUBLIC_DIRECTORY_QUERY_LENGTH,
+  normalizePublicDirectoryUrlQuery,
+  parseEditionDirectoryUrlSearch,
+} from "@/lib/v3-directory-url-search";
 import "@/styles/v3-directory-family.css";
 import "@/styles/v3-editions-editorial.css";
 import { useSolarisApp } from "@/components/app/AppRuntime";
@@ -27,6 +33,7 @@ import {
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 
 export const Route = createFileRoute("/editions/")({
+  validateSearch: parseEditionDirectoryUrlSearch,
   head: () => ({
     meta: [
       { title: "Editions — Solaris Song Contest" },
@@ -63,9 +70,30 @@ type EditionCard = {
 function EditionsPage() {
   const { isAppMode, platformResolved } = useSolarisApp();
   const presentation = useV3DirectoryPresentation();
+  const urlSearch = Route.useSearch();
+  const navigate = Route.useNavigate();
   const [resultsEnabled, setResultsEnabled] = useState(!isAppMode);
-  const [search, setSearch] = useState("");
-  const [scope, setScope] = useState<EditionDirectoryScope>("all");
+  const [search, setSearch] = useState(urlSearch.q ?? "");
+  const [scope, setScope] = useState<EditionDirectoryScope>(urlSearch.scope ?? "all");
+  const [order, setOrder] = useState<EditionDirectoryOrder>(urlSearch.order ?? "newest");
+  const changeSearch = (value: string) =>
+    setSearch(value.slice(0, MAX_PUBLIC_DIRECTORY_QUERY_LENGTH));
+  // Search, scope and chronology are URL navigation state, not publication gates.
+  useEffect(() => setSearch(urlSearch.q ?? ""), [urlSearch.q]);
+  useEffect(() => setScope(urlSearch.scope ?? "all"), [urlSearch.scope]);
+  useEffect(() => setOrder(urlSearch.order ?? "newest"), [urlSearch.order]);
+  useEffect(() => {
+    if (!platformResolved) return;
+    const q = normalizePublicDirectoryUrlQuery(search);
+    const selectedScope = scope === "all" ? undefined : scope;
+    const selectedOrder = order === "oldest" ? order : undefined;
+    if (q === urlSearch.q && selectedScope === urlSearch.scope &&
+      selectedOrder === urlSearch.order) return;
+    const timer = window.setTimeout(() => {
+      void navigate({ search: { q, scope: selectedScope, order: selectedOrder }, replace: true });
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [platformResolved, search, scope, order, urlSearch.q, urlSearch.scope, urlSearch.order, navigate]);
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
   const resultsQuery = useAllResults({ enabled: resultsEnabled });
@@ -182,13 +210,15 @@ function EditionsPage() {
     const hostNames = card.hosts
       .map((host) => [host.city, host.country?.name].filter(Boolean).join(" "))
       .join(" ");
-    return [
+    return matchesPublicDirectorySearch(normalizedSearch, [
       editionLabel(card.edition),
       card.edition.slug,
       card.edition.edition_number,
+      card.edition.year,
+      card.edition.host_city,
       hostNames,
       card.winner?.name,
-    ].filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch);
+    ]);
   });
   const latestCount = latest && searched.some((card) => card.edition.id === latest.edition.id) ? 1 : 0;
   const pastCount = searched.length - latestCount;
@@ -199,6 +229,12 @@ function EditionsPage() {
   ));
   const visibleLatest = visible.find((card) => card.edition.id === latest?.edition.id) ?? null;
   const visiblePast = visible.filter((card) => card.edition.id !== latest?.edition.id);
+  // Keep the latest spotlight fixed while sorting only published past chapters.
+  const orderedPast = order === "oldest"
+    ? [...visiblePast].sort((a, b) =>
+        (a.edition.edition_number ?? Number.POSITIVE_INFINITY) -
+        (b.edition.edition_number ?? Number.POSITIVE_INFINITY))
+    : visiblePast;
   const archiveQueries = isAppMode
     ? [editionsQuery, showsQuery, countriesQuery]
     : [editionsQuery, showsQuery, resultsQuery, countriesQuery];
@@ -230,13 +266,15 @@ function EditionsPage() {
   }
 
   const searchLabel = "Search editions";
-  const reset = () => { setSearch(""); setScope("all"); };
+  const reset = () => { setSearch(""); setScope("all"); setOrder("newest"); };
   const control = (
     <EditionDirectoryControls
       presentation={presentation}
       search={search}
-      setSearch={setSearch}
+      setSearch={changeSearch}
       scope={scope}
+      order={order}
+      setOrder={setOrder}
       setScope={setScope}
       latestCount={latestCount}
       pastCount={pastCount}
@@ -256,12 +294,15 @@ function EditionsPage() {
             </header>
             {control}
             <p className="v3-directory-results-count" role="status" aria-live="polite">{directoryCountLabel({ available: cards.length, matches: visible.length, rendered: visible.length, noun: "published editions" })}</p>
+            {visible.length > 0 && (search.trim() || scope !== "all" || order !== "newest") ? (
+              <button type="button" className="v3-directory-clear-filters" onClick={reset}>Clear filters</button>
+            ) : null}
             {visibleLatest ? <LatestEdition card={visibleLatest} appMode /> : null}
             {visiblePast.length ? (
               <section className="v3-directory-group" aria-labelledby="app-edition-archive">
                 <h2 id="app-edition-archive" className="v3-directory-group-title">Past editions <span className="v3-directory-group-count">{visiblePast.length}</span></h2>
                 <AppGroupedList>
-                  {visiblePast.map((card) => <ArchiveEdition key={card.edition.id} card={card} appMode />)}
+                  {orderedPast.map((card) => <ArchiveEdition key={card.edition.id} card={card} appMode />)}
                 </AppGroupedList>
               </section>
             ) : null}
@@ -294,17 +335,20 @@ function EditionsPage() {
               <div className="v3-directory-results">
                 {control}
                 <p className="v3-directory-results-count" role="status" aria-live="polite">{directoryCountLabel({ available: cards.length, matches: visible.length, rendered: visible.length, noun: "published editions" })}</p>
+                {visible.length > 0 && (search.trim() || scope !== "all" || order !== "newest") ? (
+                  <button type="button" className="v3-directory-clear-filters" onClick={reset}>Clear filters</button>
+                ) : null}
                 {visibleLatest ? <LatestEdition card={visibleLatest} /> : null}
                 {visiblePast.length ? (
                   <section className="v3-directory-group v3-editions-history" aria-labelledby="editions-archive-heading">
                     <h2 id="editions-archive-heading" className="v3-directory-group-title">Past editions</h2>
                     {presentation === "mobile-web" ? (
                       <div className="v3-directory-mobile-list">
-                        {visiblePast.map((card) => <EditionMobileRow key={card.edition.id} card={card} />)}
+                        {orderedPast.map((card) => <EditionMobileRow key={card.edition.id} card={card} />)}
                       </div>
                     ) : (
                       <ol className="v3-directory-desktop-grid v3-editions-timeline" aria-label="Published edition history">
-                        {visiblePast.map((card) => (
+                        {orderedPast.map((card) => (
                           <li key={card.edition.id} className="v3-editions-timeline-item">
                             <EditionDesktopCard card={card} />
                           </li>
@@ -324,6 +368,7 @@ function EditionsPage() {
 }
 
 type EditionDirectoryScope = "all" | "latest" | "past";
+type EditionDirectoryOrder = "newest" | "oldest";
 
 function EditionDirectoryControls({
   presentation,
@@ -331,6 +376,8 @@ function EditionDirectoryControls({
   setSearch,
   scope,
   setScope,
+  order,
+  setOrder,
   latestCount,
   pastCount,
   searchLabel,
@@ -340,6 +387,8 @@ function EditionDirectoryControls({
   setSearch: (value: string) => void;
   scope: EditionDirectoryScope;
   setScope: (value: EditionDirectoryScope) => void;
+  order: EditionDirectoryOrder;
+  setOrder: (value: EditionDirectoryOrder) => void;
   latestCount: number;
   pastCount: number;
   searchLabel: string;
@@ -349,6 +398,16 @@ function EditionDirectoryControls({
     { id: "latest", label: "Latest edition", count: latestCount },
     { id: "past", label: "Past editions", count: pastCount },
   ] as const;
+  const sortControl = (
+    <label className="v3-directory-area-select">
+      <span className="sr-only">Sort past editions</span>
+      <select aria-label="Sort past editions" value={order}
+        onChange={(event) => setOrder(event.target.value as EditionDirectoryOrder)}>
+        <option value="newest">Past editions: newest first</option>
+        <option value="oldest">Past editions: oldest first</option>
+      </select>
+    </label>
+  );
   const webSearch = (
     <div className="v3-directory-search" role="search">
       <Search size={18} aria-hidden="true" />
@@ -362,12 +421,13 @@ function EditionDirectoryControls({
     </div>
   );
   if (presentation === "desktop-web") {
-    return <div className="v3-directory-controls">{webSearch}</div>;
+    return <div className="v3-directory-controls">{webSearch}{sortControl}</div>;
   }
   if (presentation === "mobile-web") {
     return (
       <div className="v3-directory-controls">
         {webSearch}
+        {sortControl}
         <label className="v3-directory-area-select">
           <span className="sr-only">Browse edition history</span>
           <select aria-label="Browse edition history" value={scope}
@@ -383,6 +443,7 @@ function EditionDirectoryControls({
   return (
     <div className="v3-directory-controls">
       <SolarisSearchField value={search} onChange={setSearch} label={searchLabel} placeholder="Search editions or hosts…" />
+      {sortControl}
       <Sheet>
         <SheetTrigger asChild>
           <button type="button" className="v3-directory-sheet-trigger" aria-label="Filter editions">
