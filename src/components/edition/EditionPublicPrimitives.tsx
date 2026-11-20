@@ -78,10 +78,13 @@ export function EditionNavigation({
   label,
   items,
   liquidGlass = false,
+  editorialWeb = false,
 }: {
   label: string;
   items: readonly { href: string; label: string; available?: boolean }[];
   liquidGlass?: boolean;
+  /** Plain-browser navigation: all public sections stay visible in a scrollable editorial row. */
+  editorialWeb?: boolean;
 }) {
   const available = items.filter((item) => item.available !== false);
   const [active, setActive] = useState(available[0]?.href ?? "");
@@ -119,6 +122,14 @@ export function EditionNavigation({
   const link = (item: (typeof available)[number]) => (
     <a key={item.href} href={item.href} aria-current={active === item.href ? "location" : undefined} onClick={() => { setActive(item.href); setMoreOpen(false); }}>{item.label}</a>
   );
+
+  if (editorialWeb) {
+    return (
+      <nav className="edition-navigation edition-navigation--editorial" aria-label={label}>
+        <div className="edition-navigation-editorial">{available.map(link)}</div>
+      </nav>
+    );
+  }
 
   return (
     <nav
