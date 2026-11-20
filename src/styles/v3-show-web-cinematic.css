@@ -1,0 +1,84 @@
+/* Published Show detail only. All results, publication and spoiler logic
+ * stays in the existing route; the installed PWA keeps its own presentation.
+ */
+.show-web-cinematic {
+  --cinematic-canvas: var(--background, #020817);
+  min-width: 0;
+  margin-bottom: 1.5rem;
+}
+.show-web-cinematic .cinematic-entity-hero {
+  min-height: clamp(21rem, 44svh, 35rem);
+  margin-inline: 0;
+  border-radius: 0;
+}
+.show-web-cinematic .cinematic-entity-hero--show .cinematic-entity-hero__title {
+  max-width: 23ch;
+  font-size: clamp(2.8rem, 6.6vw, 6.25rem);
+  font-family: var(--font-display, ui-sans-serif), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 750;
+}
+.show-web-cinematic .cinematic-entity-hero__copy {
+  padding: 5rem clamp(1.2rem, 4vw, 3rem) clamp(3rem, 6vw, 4.5rem);
+}
+.show-web-cinematic__identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .8rem 1.25rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--foreground) 13%, transparent);
+  padding: .9rem clamp(.2rem, 2vw, 1.25rem) 1.1rem;
+}
+.show-web-cinematic__identity p {
+  margin: 0;
+  max-width: 60ch;
+  font-size: .875rem;
+  line-height: 1.65;
+  color: var(--foreground);
+}
+.show-web-cinematic__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .7rem;
+}
+.show-web-cinematic__actions :is(a, button) {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  font-size: .875rem;
+}
+.show-web-cinematic__actions a {
+  color: var(--muted-foreground);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: .22rem;
+}
+.show-web-cinematic__actions a:hover,
+.show-web-cinematic__actions a:focus-visible {
+  color: var(--foreground);
+  text-decoration-color: currentColor;
+}
+.show-web-cinematic__actions :is(a, button):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+@media (max-width: 47.99rem) {
+  .show-web-cinematic .cinematic-entity-hero {
+    min-height: clamp(18rem, 39svh, 27rem);
+  }
+  .show-web-cinematic .cinematic-entity-hero__copy {
+    padding: 3.7rem 1.1rem 2.8rem;
+  }
+  .show-web-cinematic .cinematic-entity-hero--show .cinematic-entity-hero__title {
+    font-size: clamp(2.4rem, 10vw, 4.2rem);
+  }
+  .show-web-cinematic__identity { align-items: flex-start; flex-direction: column; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .show-web-cinematic * { scroll-behavior: auto; transition: none; }
+}
+@media (forced-colors: active) {
+  .show-web-cinematic__identity { border-color: CanvasText; }
+}
