@@ -13,6 +13,7 @@ import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { CountryDesignV2Hero } from "@/components/country/CountryDesignV2Hero";
+import { CountryWebCinematicHero } from "@/components/country/CountryWebCinematicHero";
 import { CountryDesignV2Styles } from "@/components/country/CountryDesignV2Styles";
 import { CountryIdentityHero } from "@/components/country/CountryIdentityHero";
 import { V3DelegationRouteGate } from "@/components/v3/V3DelegationRouteGate";
@@ -468,7 +469,26 @@ function CountryProfilePage() {
         style={publishedDesign ? countryDesignCssVariables(publishedDesign) : undefined}
       >
         {publishedDesign && countryDesignFontCss(publishedDesign) ? <style>{countryDesignFontCss(publishedDesign)}</style> : null}
-        {publishedDesign ? (
+        {!isAppMode ? (
+          <CountryWebCinematicHero
+            code={identityModel.code}
+            name={identityModel.name}
+            nativeName={identityModel.nativeName}
+            region={identityModel.region}
+            description={identityModel.description}
+            flagImage={identityModel.flag.src}
+            accentColor={identityModel.colors.accent}
+            publishedDesign={publishedDesign}
+            actions={
+              <>
+                <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
+                <Link to="/compare" search={{ a: country.short_code }}>Compare</Link>
+                <Link to="/voting-dna/$code" params={{ code: country.short_code }}>Voting DNA</Link>
+                <FollowButton entityType="country" entityId={country.id} label={country.name} />
+              </>
+            }
+          />
+        ) : publishedDesign ? (
           <CountryDesignV2Hero
             design={publishedDesign}
             code={identityModel.code}
