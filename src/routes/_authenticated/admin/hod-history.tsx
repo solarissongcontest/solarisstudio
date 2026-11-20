@@ -6,6 +6,7 @@ import { ArrowLeft, History, Info, Lightbulb, Plus, Trash2, UserRoundCog } from 
 import { toast } from "sonner";
 
 import { AdminPage } from "@/components/admin/AdminShell";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import {
   AdminCard,
   AdminCardHeader,
@@ -161,6 +162,12 @@ export const Route = createFileRoute("/_authenticated/admin/hod-history")({
 });
 
 function HodHistoryPage() {
+  const actorId = useAuthenticatedUser().id;
+  // Remount every local draft and review sheet when the signed-in actor changes.
+  return <HodHistoryWorkspace key={actorId} actorId={actorId} />;
+}
+
+function HodHistoryWorkspace({ actorId }: { actorId: string }) {
   const queryClient = useQueryClient();
   const getHistory = useServerFn(getHodHistory);
   const getSuggestions = useServerFn(getHodIdentitySuggestions);
@@ -168,11 +175,35 @@ function HodHistoryPage() {
   const saveAssignmentsFn = useServerFn(saveHodAssignments);
   const deleteAssignmentFn = useServerFn(deleteHodAssignment);
 
-  const { data, isLoading, error } = useQuery({ queryKey: ["hod-history"], queryFn: () => getHistory() });
-  const { data: suggestions = [], isLoading: suggestionsLoading } = useQuery({
-    queryKey: ["hod-identity-suggestions"],
-    queryFn: () => getSuggestions(),
+  const historyQuery = useQuery({
+    queryKey: ["hod-history", actorId],
+    queryFn: () => getHistory(),
+    enabled: Boolean(actorId),
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
   });
+  const suggestionsQuery = useQuery({
+    queryKey: ["hod-identity-suggestions", actorId],
+    queryFn: () => getSuggestions(),
+    enabled: Boolean(actorId),
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+  });
+  // A cached private result is not fresh authorization or current history.
+  // Mask stale people, assignments and Televote-derived evidence during
+  // refreshes, errors and account transitions.
+  const data =
+    historyQuery.isSuccess && !historyQuery.isFetching && !historyQuery.error
+      ? historyQuery.data
+      : undefined;
+  const suggestionsVerified =
+    suggestionsQuery.isSuccess && !suggestionsQuery.isFetching && !suggestionsQuery.error;
+  const suggestions = suggestionsVerified ? (suggestionsQuery.data ?? []) : [];
+  const isLoading = historyQuery.isPending || historyQuery.isFetching;
+  const error = historyQuery.error;
+  const suggestionsLoading = suggestionsQuery.isPending || suggestionsQuery.isFetching;
 
   const [personName, setPersonName] = useState("");
   const [countryId, setCountryId] = useState("");
@@ -341,11 +372,19 @@ function HodHistoryPage() {
         actions={<Link to="/admin/sync-health" className="admin-action-secondary"><ArrowLeft className="size-4" /> Sync health</Link>}
       />
 
-      <div className="grid grid-cols-3 gap-2">
-        <Metric label="People" value={people.length} />
-        <Metric label="Assignments" value={assignments.length} />
-        <Metric label="Suggestions" value={(suggestions as Suggestion[]).length} attention={(suggestions as Suggestion[]).some((item) => item.ambiguous)} />
-      </div>
+      {data ? (
+        <div className="grid grid-cols-3 gap-2">
+          <Metric label="People" value={people.length} />
+          <Metric label="Assignments" value={assignments.length} />
+          {suggestionsVerified ? (
+            <Metric label="Suggestions" value={(suggestions as Suggestion[]).length} attention={(suggestions as Suggestion[]).some((item) => item.ambiguous)} />
+          ) : (
+            <AdminCard>
+              <p className="text-xs text-muted-foreground">{suggestionsQuery.isError ? "Suggestion evidence unavailable" : "Verifying suggestion evidence…"}</p>
+            </AdminCard>
+          )}
+        </div>
+      ) : null}
 
       <AdminCard className="mt-4 !border-sky-200/12 !bg-sky-200/[0.035]">
         <div className="flex items-start gap-3">
@@ -406,7 +445,14 @@ function HodHistoryPage() {
 
           <AdminCard className="mt-4">
             <AdminCardHeader eyebrow="Evidence" title="Identity suggestions" description="Username patterns from Televoting are clues about the real controller, not proof that a country's current name or current manager applies to older editions. Prefilling never writes history until you verify and save it yourself." action={suggestionsLoading ? <AdminStatus tone="neutral">Checking…</AdminStatus> : <AdminStatus tone={(suggestions as Suggestion[]).some((item) => item.ambiguous) ? "attention" : "info"}>{(suggestions as Suggestion[]).length} available</AdminStatus>} />
-            {suggestionsLoading ? <p className="py-6 text-center text-sm text-muted-foreground">Checking Televoting identity evidence…</p> : visibleSuggestions.length ? (
+            {suggestionsQuery.isError ? (
+              <div className="space-y-3 py-4">
+                <p className="text-sm text-muted-foreground">HOD identity suggestions could not be verified. Cached Televoting evidence is hidden until an authorized read succeeds.</p>
+                <button type="button" className="admin-action-secondary" disabled={suggestionsQuery.isFetching} onClick={() => void suggestionsQuery.refetch()}>
+                  Retry identity suggestions
+                </button>
+              </div>
+            ) : suggestionsLoading ? <p className="py-6 text-center text-sm text-muted-foreground">Checking Televoting identity evidence…</p> : visibleSuggestions.length ? (
               <div className="divide-y divide-white/[0.07]">
                 {visibleSuggestions.map((suggestion) => (
                   <div key={`${suggestion.editionId}:${suggestion.countryId}`} className="py-3 first:pt-0 last:pb-0">
