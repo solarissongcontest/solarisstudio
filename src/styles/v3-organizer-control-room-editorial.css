@@ -1,0 +1,154 @@
+/*
+ * Screenshot-audit Control Room, ordinary desktop/mobile browser only.
+ * The installed PWA remains governed by its existing Organizer layout.
+ * Critical warnings, approval reviews, readiness and mutation paths remain mounted.
+ */
+html:not([data-solaris-app]) .admin-control-room .admin-control-room-editorial {
+  --control-rule: color-mix(in oklab, var(--foreground) 13%, transparent);
+  min-width: 0;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-room-editorial .admin-workspace-header {
+  margin-bottom: clamp(.85rem, 2vw, 1.5rem);
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-room-editorial .admin-workspace-header h1 {
+  text-wrap: balance;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-room-workspace {
+  min-width: 0;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-crisis {
+  border-width: 2px;
+  border-radius: .8rem;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-state-strip {
+  min-width: 0;
+  gap: 0;
+  border-block: 1px solid var(--control-rule);
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-state-strip > .admin-card {
+  min-width: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: clamp(.85rem, 2vw, 1.25rem);
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-state-strip > .admin-card + .admin-card {
+  border-left: 1px solid var(--control-rule) !important;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-state-strip .admin-card > :first-child {
+  margin-bottom: .35rem;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-state-strip .admin-card h2 {
+  overflow-wrap: anywhere;
+  font-size: clamp(1.15rem, 2.6vw, 1.7rem);
+  letter-spacing: -.025em;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-commands,
+html:not([data-solaris-app]) .admin-control-room .admin-control-incidents {
+  align-items: start;
+  min-width: 0;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-commands > *,
+html:not([data-solaris-app]) .admin-control-room .admin-control-incidents > * {
+  min-width: 0;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-commands .admin-card-header,
+html:not([data-solaris-app]) .admin-control-room .admin-control-incidents .admin-card-header {
+  max-width: 62ch;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-transition-list {
+  min-width: 0;
+  gap: 0;
+  border-top: 1px solid var(--control-rule);
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-transition {
+  min-width: 0;
+  border: 0;
+  border-bottom: 1px solid var(--control-rule);
+  border-radius: 0;
+  background: transparent;
+  padding: clamp(.8rem, 1.5vw, 1.1rem) .1rem;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-transition > :first-child {
+  min-width: 0;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-transition :is(button, a, select) {
+  min-height: 44px;
+  max-width: 100%;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-transition button:focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-subsystems {
+  min-width: 0;
+  gap: 0;
+  border-top: 1px solid var(--control-rule);
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-subsystems > div {
+  min-width: 0;
+  border: 0;
+  border-bottom: 1px solid var(--control-rule);
+  border-radius: 0;
+  padding: .75rem .1rem;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-subsystems .admin-status {
+  flex-shrink: 0;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-incidents form {
+  min-width: 0;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-incidents form :is(input, textarea, select, button) {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-control-incidents form :is(input, textarea, select, button):focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
+}
+@media (max-width: 767px) {
+  html:not([data-solaris-app]) .admin-control-room .admin-control-state-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  html:not([data-solaris-app]) .admin-control-room .admin-control-state-strip > .admin-card {
+    padding: .85rem .65rem;
+  }
+  html:not([data-solaris-app]) .admin-control-room .admin-control-state-strip > .admin-card:last-child {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--control-rule) !important;
+    border-left: 0 !important;
+  }
+  html:not([data-solaris-app]) .admin-control-room .admin-control-transition {
+    align-items: stretch;
+  }
+  html:not([data-solaris-app]) .admin-control-room .admin-control-transition > button {
+    width: 100%;
+    white-space: normal;
+  }
+  html:not([data-solaris-app]) .admin-control-room .admin-control-subsystems > div {
+    align-items: center;
+    gap: .75rem;
+  }
+}
+@media (max-width: 359px) {
+  html:not([data-solaris-app]) .admin-control-room .admin-control-state-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  html:not([data-solaris-app]) .admin-control-room .admin-control-state-strip > .admin-card + .admin-card {
+    border-left: 0 !important;
+    border-top: 1px solid var(--control-rule) !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-solaris-app]) .admin-control-room .admin-control-transition button {
+    transition: none;
+  }
+}
+@media (forced-colors: active) {
+  html:not([data-solaris-app]) .admin-control-room .admin-control-transition button:focus-visible,
+  html:not([data-solaris-app]) .admin-control-room .admin-control-incidents form :is(input, textarea, select, button):focus-visible {
+    outline-color: Highlight;
+  }
+}
