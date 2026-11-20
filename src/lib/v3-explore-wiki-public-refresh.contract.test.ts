@@ -10,6 +10,10 @@ describe("Explore Wiki publication-refresh and navigable facet integrity", () =>
     expect(wiki).toContain("countriesQuery.isLoading || countriesQuery.isFetching");
     expect(wiki).toContain("countriesQuery.isError || countriesQuery.isRefetchError");
     expect(wiki).toContain("useCountries()");
+    expect(wiki).toContain("WikiPublicReadError");
+    expect(wiki).toContain("onRetry={() => void countriesQuery.refetch()}");
+    expect(wiki).toContain('kind="error"');
+    expect(wiki).toContain("Retry Wiki articles");
     expect(wiki).not.toContain('from "@/integrations/supabase/client"');
   });
 
