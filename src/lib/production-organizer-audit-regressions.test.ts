@@ -130,7 +130,8 @@ describe("production Organizer audit regressions", () => {
     expect(inbox).toContain("item.requires_action && !item.resolved_at");
     expect(inbox).toContain("filter === \"unread\"");
     expect(home).toContain("projection.attention");
-    expect(home).toContain("highest-priority unresolved canonical conditions");
+    expect(home).toContain("projection.attention.map((item) =>");
+    expect(home).toContain("projection.tasks.total");
     expect(home).not.toContain("read_at");
   });
 
