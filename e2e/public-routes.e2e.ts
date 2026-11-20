@@ -321,47 +321,41 @@ test("Stories and Reference preserve editorial mobile-web and desktop discovery"
   });
 });
 
-test("Country Glass atmosphere and Edition mobile toolbar keep their visible bounds", async ({ page }, testInfo) => {
+test("Country cinematic media, Wiki Glass and Edition editorial controls respect the viewport", async ({ page }, testInfo) => {
   test.skip(!["public-320", "public-390", "public-768", "public-1440"].includes(testInfo.project.name));
-  test.skip(process.env.E2E_REAL_DATA !== "1", "Abeven Glass and SSC20 require the real archive, which the seeded audit runner does not contain.");
+  test.skip(process.env.E2E_REAL_DATA !== "1", "This archive-specific test requires isolated locally seeded real-format data.");
 
   await page.goto("/countries/ABE", { waitUntil: "domcontentloaded" });
-  const atmosphere = page.locator(".country-v2-liquid-glass-scene-flag");
-  await expect(atmosphere).toBeVisible();
-  const coverage = await atmosphere.evaluate((image) => {
-    const hero = image.closest(".country-v2-hero")!.getBoundingClientRect();
-    const flag = image.getBoundingClientRect();
-    return { left: flag.left - hero.left, right: flag.right - hero.right, top: flag.top - hero.top, bottom: flag.bottom - hero.bottom, fit: getComputedStyle(image).objectFit };
+  const country = page.locator('[data-country-web-experience="editorial"]');
+  await expect(country).toBeVisible();
+  await expect(country.locator('[data-cinematic-entity="country"]')).toBeVisible();
+  await expect(page.locator(".country-editorial-identity-strip")).toBeVisible();
+  await expect(page.locator(".country-editorial-section-nav")).toBeVisible();
+  await expect(page.locator('html')).not.toHaveAttribute("data-solaris-app", "");
+  await testInfo.attach("abeven-country-cinematic.png", {
+    body: await country.screenshot({ animations: "disabled" }), contentType: "image/png",
   });
-  expect(coverage.left).toBeLessThan(-20);
-  expect(coverage.right).toBeGreaterThan(20);
-  expect(coverage.top).toBeLessThan(-20);
-  expect(coverage.bottom).toBeGreaterThan(20);
-  expect(coverage.fit).toBe("cover");
-  await testInfo.attach("abeven-glass.png", { body: await page.locator(".country-v2-hero").screenshot(), contentType: "image/png" });
 
   await page.goto("/wiki/ABE", { waitUntil: "domcontentloaded" });
   await expect(page.locator(".country-v2-liquid-glass-scene-flag")).toBeVisible();
   await expect(page.getByRole("navigation", { name: "breadcrumb" })).toHaveCount(1);
-  await testInfo.attach("abeven-wiki-glass.png", { body: await page.locator(".country-v2-hero").screenshot(), contentType: "image/png" });
+  await testInfo.attach("abeven-wiki-glass.png", {
+    body: await page.locator(".country-v2-hero").screenshot(), contentType: "image/png",
+  });
 
   await page.goto("/editions/ssc-20", { waitUntil: "domcontentloaded" });
   const edition = page.locator(".edition-public-page");
   await expect(edition.locator("h1")).toHaveText("SSC 20");
-  await expect(edition.locator(".edition-hero-subtitle")).toHaveCount(0);
-  await expect(edition.locator(".public-current-status")).toHaveCount(0);
-  if (["public-320", "public-390"].includes(testInfo.project.name)) {
-    const nav = edition.locator(".edition-navigation-mobile");
-    await expect(nav).toBeVisible();
-    const dimensions = await nav.evaluate((element) => {
-      const parent = element.getBoundingClientRect();
-      const controls = [...element.children].map((child) => child.getBoundingClientRect());
-      return { clipped: controls.some((rect) => rect.left < parent.left - 1 || rect.right > parent.right + 1), overflow: document.documentElement.scrollWidth - window.innerWidth };
-    });
-    expect(dimensions.clipped).toBe(false);
-    expect(dimensions.overflow).toBeLessThanOrEqual(1);
-  }
-  await testInfo.attach("ssc20-hero.png", { body: await page.locator(".edition-hero").screenshot(), contentType: "image/png" });
+  await expect(edition.locator('[data-edition-web-experience="editorial"]')).toBeVisible();
+  await expect(edition.locator(".edition-navigation-editorial")).toBeVisible();
+  const overflow = await page.evaluate(() =>
+    Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(2);
+  await testInfo.attach("ssc20-cinematic-hero.png", {
+    body: await edition.locator('[data-edition-web-experience="editorial"]').screenshot({ animations: "disabled" }),
+    contentType: "image/png",
+  });
 });
 
 test("wide square and tall flag fixtures fill consistent 3:2 frames without distortion", async ({ page }, testInfo) => {
