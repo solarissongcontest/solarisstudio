@@ -21,7 +21,7 @@ export const Route = createFileRoute("/archive/")({
 
 // Navigation only: archive entities and publication remain with their canonical
 // owners. A dedicated Songs/Artists catalogue must not be invented by duplicating
-// Reference; published credits remain searchable there until P9 identity exists.
+// Reference; broader credit search appears only after its own approved rollout.
 const ARCHIVE_DESTINATIONS = [
   { title: "Editions", description: "Browse published contest editions in their original historical context.", to: "/editions", group: "contests", aliases: ["ssc", "contests", "years"] },
   { title: "Shows", description: "Find published semi-finals, finals and official broadcast history.", to: "/shows", group: "contests", aliases: ["broadcasts", "finals", "schedule"] },
