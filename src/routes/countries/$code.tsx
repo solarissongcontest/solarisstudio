@@ -352,6 +352,7 @@ function CountryProfilePage() {
       return [edition?.name, edition?.slug, edition ? editionLabel(edition) : null];
     },
     qualificationFor,
+    (editionId) => finalResults.some((result) => result.edition_id === editionId),
   );
 
   const qualificationEditionIds = new Set<string>();
