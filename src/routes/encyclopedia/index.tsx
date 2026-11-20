@@ -117,11 +117,17 @@ function ReferencePage() {
     queryKey: ["studio2-feature", "public_encyclopedia"],
     queryFn: () => isStudio2FeatureEnabled("public_encyclopedia"),
     staleTime: 30_000,
+    refetchOnMount: "always",
+    retry: false,
   });
+  // Cached rollout decisions are never sufficient publication proof after a
+  // new mount or a failed refresh. Search and coverage wait for a fresh check.
+  const referenceReleased = feature.isSuccess && !feature.isFetching &&
+    !feature.isRefetchError && feature.data === true;
 
   const coverageQuery = useQuery({
     queryKey: ["v3", "reference", "coverage"],
-    enabled: feature.data === true,
+    enabled: referenceReleased,
     staleTime: 60 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc(
@@ -139,7 +145,7 @@ function ReferencePage() {
       "search",
       settledQuery.toLocaleLowerCase(),
     ],
-    enabled: feature.data === true && !dedicatedTopicOnly && normalizedQuery.length >= 2 &&
+    enabled: referenceReleased && !dedicatedTopicOnly && normalizedQuery.length >= 2 &&
       normalizedQuery.length <= MAX_REFERENCE_QUERY_LENGTH && !searchPending,
     staleTime: 60_000,
     queryFn: async () => {
@@ -171,7 +177,7 @@ function ReferencePage() {
     return <div data-directory-boot="" role="status" aria-label="Opening Reference" className="min-h-20" />;
   }
 
-  if (feature.isLoading) {
+  if (feature.isLoading || feature.isFetching) {
     return (
       <AppShell>
         <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
@@ -201,7 +207,7 @@ function ReferencePage() {
     );
   }
 
-  if (feature.data !== true) {
+  if (!referenceReleased) {
     return (
       <AppShell>
         <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
