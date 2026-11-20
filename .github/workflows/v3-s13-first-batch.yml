@@ -8,6 +8,7 @@ on:
       - scripts/ops/solaris-role-acl-rehearsal-20261120.sh
       - docs/v3/recovery-candidates/evidence/s13-current-hosted-preflight-2026-11-19.json
       - docs/v3/recovery-candidates/evidence/s13-s16-current-hosted-catalog-2026-11-20.json
+      - docs/v3/recovery-candidates/evidence/s13-first-batch-postgrest-watch-2026-11-20.json
       - docs/v3/recovery-candidates/s13-first-batch-*.sql
       - docs/v3/recovery-candidates/forward-only-s13-foundation.sql
       - .github/workflows/v3-s13-first-batch.yml
