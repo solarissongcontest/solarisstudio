@@ -6,7 +6,7 @@ import { AppShell } from '@/components/AppShell';
 import { PublicStorySpoilerDisclosure } from '@/components/public/PublicStorySpoilerDisclosure';
 import { useSolarisApp } from '@/components/app/AppRuntime';
 import { useAppExperiencePreferences } from '@/lib/app-experience';
-import { V3StoryDetailGate } from '@/components/v3/V3StoriesGates';
+import { V3StoryDetailGate, useV3StoryFallbackSpoilerProtection } from '@/components/v3/V3StoriesGates';
 import { loadPublicStoryline } from '@/lib/studio2-storytelling';
 import { formatSolarisStoryDate } from '@/lib/public-story-date';
 import '@/styles/v3-stories-editorial.css';
@@ -75,6 +75,8 @@ function EditionStoryPage() {
 
 function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
   const { preferences } = useAppExperiencePreferences();
+  const installedFallbackProtection = useV3StoryFallbackSpoilerProtection();
+  const spoilerFree = installedFallbackProtection ?? preferences.spoilerFree;
   const storyQuery = useQuery({
     queryKey: ['public-storyline', editionSlug],
     queryFn: () => loadPublicStoryline(editionSlug),
@@ -101,8 +103,8 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
           <EmptyStory title="No published story for this edition" copy="The edition may not have a reviewed storyline yet, or its storyline has been returned to draft for editing." />
         ) : (
           <PublicStorySpoilerDisclosure
-            key={`${editionSlug}:${preferences.spoilerFree ? "protected" : "open"}`}
-            spoilerFree={preferences.spoilerFree}
+            key={`${editionSlug}:${spoilerFree ? "protected" : "open"}`}
+            spoilerFree={spoilerFree}
             subject="this published story"
           >
             <header className="v3-story-web-detail-hero mt-8">
