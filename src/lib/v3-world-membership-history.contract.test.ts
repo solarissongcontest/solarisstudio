@@ -18,4 +18,18 @@ describe("World history: published completed institution membership terms",()=>{
   // JSX line wraps are formatting, not different user-visible copy.
   expect(view.replace(/\s+/g, " ")).toContain("does not establish any current rights");
  });
+
+ it("keeps the history section discoverable even when no terms have ended",()=>{
+  expect(view).toContain('["overview", "leadership", "members", "history"] as const');
+  expect(view).toContain('No completed public membership terms have been recorded.');
+  expect(view).toContain('.sort((a, b) => (b.endedAt ?? "").localeCompare(a.endedAt ?? "") || a.id.localeCompare(b.id))');
+ });
+ it("reconciles current and historical page indexes after authoritative publication rechecks",()=>{
+  expect(view).toContain('if (!verifiedProjection) return;');
+  expect(view).toContain('const maxCurrentPage = Math.max(0, Math.ceil(currentMembers.length / WORLD_MEMBER_PAGE_SIZE) - 1)');
+  expect(view).toContain('const maxHistoryPage = Math.max(0, Math.ceil(historicalMembers.length / WORLD_MEMBER_PAGE_SIZE) - 1)');
+  expect(view).toContain('setMemberPage((previous) => Math.min(previous, maxCurrentPage))');
+  expect(view).toContain('setHistoryPage((previous) => Math.min(previous, maxHistoryPage))');
+  expect(view).toContain('Showing {visibleHistory.length} of {historicalMembers.length} completed terms, newest first');
+ });
 });
