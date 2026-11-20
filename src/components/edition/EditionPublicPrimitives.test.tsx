@@ -6,6 +6,7 @@ import { EditionHero } from "./EditionPublicPrimitives";
 
 const css = readFileSync("src/edition-public-v5.css", "utf8");
 const source = readFileSync("src/components/edition/EditionPublicPrimitives.tsx", "utf8");
+const publicRoute = readFileSync("src/routes/editions/$slug.tsx", "utf8");
 
 function renderHero(artwork: string | null, logo: string | null): string {
   return renderToStaticMarkup(
@@ -53,5 +54,13 @@ describe("public-web Edition identity artwork", () => {
     expect(source).toContain('onError={() => setFailedArtwork(visibleArtwork)}');
     expect(source).toContain('onError={() => setFailedLogo(visibleLogo)}');
     expect(source).not.toContain("logo ?? artwork");
+  });
+
+  it("has a distinct cinematic composition for ordinary web without altering installed fallback", () => {
+    expect(publicRoute).toContain('data-v3-web-cinematic={!isAppMode ? "" : undefined}');
+    expect(css).toContain('.edition-public-page[data-v3-web-cinematic] .edition-hero');
+    expect(css).toContain("@media (max-width: 47.99rem)");
+    expect(css).toContain(".edition-hero-artwork::after");
+    expect(css).toContain(".edition-artwork-plate img");
   });
 });
