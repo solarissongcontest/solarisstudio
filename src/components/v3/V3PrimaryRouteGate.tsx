@@ -20,6 +20,7 @@ function ResolvingPrimarySurface({ surface }: { surface: V3PrimarySurface }) {
     <main
       className="relative z-10 mx-auto w-full max-w-3xl px-4 py-10 sm:py-14"
       data-v3-primary-boot=""
+      aria-busy="true"
     >
       <header className="border-b border-border/70 pb-5">
         <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">
@@ -54,8 +55,8 @@ function ResolvingPrimarySurface({ surface }: { surface: V3PrimarySurface }) {
         )}
       </nav>
 
-      <p className="sr-only" role="status" aria-live="polite">
-        Checking the current app experience.
+      <p className="mt-7 max-w-xl text-xs leading-5 text-muted-foreground" role="status" aria-live="polite">
+        Opening the Solaris website… If this page stays here, the full experience has not finished loading.
       </p>
     </main>
   );
