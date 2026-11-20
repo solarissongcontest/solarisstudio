@@ -20,6 +20,13 @@ SERVICE_USER="solarisrestore"
 SERVICE_PASSWORD="$(openssl rand -hex 24)"
 CREATED_NETWORK=0
 CREATED_SERVICE=0
+# Reject malformed names before creating any Docker resources.
+for docker_name in "$NETWORK" "$SERVICE"; do
+  if [[ ! "$docker_name" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]]; then
+    echo 'STOP: invalid temporary Docker resource name'
+    exit 1
+  fi
+done
 
 cleanup() {
   if [ "$CREATED_SERVICE" = 1 ]; then
