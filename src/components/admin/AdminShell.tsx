@@ -43,7 +43,7 @@ export function AdminShell({
   ).length;
 
   const pageAlreadyShowsHealth = pathname === "/admin/operations";
-  const pageOwnsContextLock = pathname === "/admin/operations";
+  const pageOwnsContextLock = pathname === "/admin/operations" || pathname === "/admin/tasks";
   const showJuryWindowControl = pathname.startsWith("/admin/jury/");
 
   return (
