@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { CountryHodHistoryPanel } from "@/components/CountryHodHistoryPanel";
 import { FlagChip } from "@/components/FlagChip";
 import { ProfileActivityPanel } from "@/components/country/ProfileActivityPanel";
@@ -272,6 +273,7 @@ function OwnedCountryHub({
   targetCountryId?: string;
   section: "country" | "history";
 }) {
+  const { isAppMode } = useSolarisApp();
   const world = useCountryWorldProfile(country.id);
   const updateIdentity = useUpdateCountryIdentity(country.id, organizerOverride);
   const saveProfile = useSaveCountryProfile(country.id);
@@ -287,6 +289,7 @@ function OwnedCountryHub({
   const { data: contestEntities } = useAllContestEntities();
 
   const [activeTab, setActiveTab] = useState<HubTab>(section === "history" ? "entries" : "overview");
+  const [historyFocus, setHistoryFocus] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [identity, setIdentity] = useState({
     name: country.name,
@@ -397,6 +400,52 @@ function OwnedCountryHub({
         (editions?.find((edition) => edition.id === a.editionId)?.edition_number ?? -1),
     );
   }, [participants, editions, country.id, ownedEntityIds]);
+
+  // Only ordinary browser History uses a focused list/editor flow. It is
+  // URL-addressable and restores the list/editor when browser history changes.
+  // Installed PWA keeps its existing independent expansion behavior.
+  useEffect(() => {
+    if (section !== "history" || isAppMode) return;
+    const restoreHistoryFocus = () => {
+      const hash = window.location.hash;
+      if (hash === "#history-add") {
+        setHistoryFocus("add");
+        return;
+      }
+      if (hash.startsWith("#history-entry-")) {
+        try {
+          const editionId = decodeURIComponent(hash.slice("#history-entry-".length));
+          setHistoryFocus(myEntries.some((group) => group.editionId === editionId) ? editionId : null);
+          return;
+        } catch {
+          // An invalid or obsolete deep link falls back to the history list.
+        }
+      }
+      setHistoryFocus(null);
+    };
+    restoreHistoryFocus();
+    window.addEventListener("popstate", restoreHistoryFocus);
+    window.addEventListener("hashchange", restoreHistoryFocus);
+    return () => {
+      window.removeEventListener("popstate", restoreHistoryFocus);
+      window.removeEventListener("hashchange", restoreHistoryFocus);
+    };
+  }, [section, isAppMode, myEntries]);
+
+  const openHistoryFocus = (target: string | null) => {
+    if (!isAppMode && section === "history" && typeof window !== "undefined") {
+      const hash =
+        target === "add"
+          ? "#history-add"
+          : target ? `#history-entry-${encodeURIComponent(target)}` : "";
+      window.history.pushState(
+        window.history.state,
+        "",
+        `${window.location.pathname}${window.location.search}${hash}`,
+      );
+    }
+    setHistoryFocus(target);
+  };
 
   const countrySearch = targetCountryId ? { country: targetCountryId } : {};
 
@@ -1087,8 +1136,51 @@ function OwnedCountryHub({
 
           <div className="space-y-3">
             <p className="sr-only">Edit once per edition: use the same song and artist for each show in this edition.</p>
-            {myEntries.map((group) => (
+            {!isAppMode && historyFocus === null && (
+              <div className="solaris-history-web-directory">
+                <ol className="solaris-history-web-list" aria-label="Edition participation history">
+                  {myEntries.map((group) => {
+                    const edition = editions?.find((item) => item.id === group.editionId);
+                    return (
+                      <li key={group.editionId}>
+                        <button
+                          type="button"
+                          onClick={() => openHistoryFocus(group.editionId)}
+                          className="solaris-history-web-row"
+                          aria-label={`Edit ${edition ? editionLabel(edition) : "edition"} entry`}
+                        >
+                          <span className="solaris-history-web-row-copy">
+                            <strong>{edition ? editionLabel(edition) : "Edition"}</strong>
+                            <span>{[group.entry.artist, group.entry.song].filter(Boolean).join(" · ") || "Entry details unavailable"}</span>
+                          </span>
+                          <span className="solaris-history-web-row-action" aria-hidden="true">Edit</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ol>
+                {!myEntries.length && <p className="text-sm text-muted-foreground">No participation history recorded yet.</p>}
+                <button
+                  type="button"
+                  onClick={() => openHistoryFocus("add")}
+                  className="solaris-history-web-add"
+                >
+                  Add edition participation
+                </button>
+              </div>
+            )}
+            {!isAppMode && historyFocus !== null && historyFocus !== "add" && (
+              <button
+                type="button"
+                className="solaris-history-web-back"
+                onClick={() => openHistoryFocus(null)}
+              >
+                ← All editions
+              </button>
+            )}
+            {myEntries.filter((group) => isAppMode || group.editionId === historyFocus).map((group) => (
               <EntryEditor
+                focused={!isAppMode}
                 key={group.editionId}
                 entry={group.entry}
                 edition={editions?.find((item) => item.id === group.editionId)}
@@ -1121,7 +1213,18 @@ function OwnedCountryHub({
               />
             ))}
           </div>
-          <details className="solaris-history-add mt-5 overflow-hidden rounded-xl border border-border bg-surface">
+          {(isAppMode || historyFocus === "add") && (
+            <div className="solaris-history-web-focus">
+              {!isAppMode && (
+                <button type="button" onClick={() => openHistoryFocus(null)} className="solaris-history-web-back">
+                  ← All editions
+                </button>
+              )}
+              <details
+                open={!isAppMode ? true : undefined}
+                className="solaris-history-add mt-5 overflow-hidden rounded-xl border border-border bg-surface"
+                data-history-focused={!isAppMode ? "true" : undefined}
+              >
             <summary className="flex min-h-14 cursor-pointer items-center justify-between px-4 py-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary">
               Add a missing edition participation
             </summary>
@@ -1199,7 +1302,9 @@ function OwnedCountryHub({
               </button>
               </div>
             </div>
-          </details>
+              </details>
+            </div>
+          )}
           </Panel>
         </div>
       )}
@@ -1401,8 +1506,10 @@ function EntryEditor({
   showNames,
   busy,
   onSave,
+  focused = false,
 }: {
   entry: Participant;
+  focused?: boolean;
   edition: { edition_number: number | null; name: string; year: number | null } | undefined;
   showNames: string[];
   busy: boolean;
@@ -1429,7 +1536,11 @@ function EntryEditor({
   const uniqueShows = [...new Set(showNames)];
 
   return (
-    <details className="solaris-history-entry group overflow-hidden rounded-xl border border-border bg-surface">
+    <details
+      open={focused ? true : undefined}
+      data-history-focused={focused ? "true" : undefined}
+      className="solaris-history-entry group overflow-hidden rounded-xl border border-border bg-surface"
+    >
       <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary">
         <span className="min-w-0">
           <strong className="block text-sm">{edition ? editionLabel(edition as any) : "Edition"}</strong>
