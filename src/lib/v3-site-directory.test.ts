@@ -59,7 +59,8 @@ describe("V3 public directory family", () => {
     expect(family).toContain("v3-directory-mobile-list");
     expect(family).toContain("<AppGroupedList>");
     expect(family).toContain("platformResolved");
-    expect(family).toContain('aria-pressed={area === option.id}');
+    expect(family).toContain('aria-pressed={effectiveArea === option.id}');
+    expect(family).toContain("resolveDirectoryScope(area, groups)");
     expect(styles).toContain('[data-directory-experience="desktop-web"]');
     expect(styles).toContain('[data-directory-experience="mobile-web"]');
     expect(styles).toContain('[data-directory-experience="installed-app"]');

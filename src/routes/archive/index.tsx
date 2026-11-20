@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { parsePublicDirectoryUrlSearch } from "@/lib/v3-directory-url-search";
 import { Archive } from "lucide-react";
 import "@/styles/v3-archive-editorial.css";
 
 import { V3DirectoryFamilyIndex, type V3DirectoryGroup } from "@/components/v3/V3DirectoryFamilyIndex";
 
 export const Route = createFileRoute("/archive/")({
+  validateSearch: parsePublicDirectoryUrlSearch,
   head: () => ({
     meta: [
       { title: "Archive — Solaris Studio" },
@@ -49,8 +51,12 @@ const GROUPS: V3DirectoryGroup[] = [
 ];
 
 function ArchiveRootPage() {
+  const urlSearch = Route.useSearch();
+  const navigate = Route.useNavigate();
   return (
     <V3DirectoryFamilyIndex
+      urlSearch={urlSearch}
+      onUrlSearchChange={(next) => { void navigate({ search: next, replace: true }); }}
       title="Archive"
       visualClassName="v3-editorial-archive"
       eyebrow="HISTORICAL SOLARIS"
