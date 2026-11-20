@@ -52,7 +52,8 @@ function EditionContextLink({
   entry: V3CountryExploreProjection["participationHistory"][number];
   className: string;
 }) {
-  if (!entry.editionHref) {
+  const { allowsReleased } = usePublicLaunchAvailability();
+  if (!entry.editionHref || !allowsReleased(entry.editionHref)) {
     return <p className={className}>{entry.editionLabel}</p>;
   }
 
@@ -77,7 +78,7 @@ export function V3DelegationScreen({
   activeEditionLabel,
   worldEnabled = false,
 }: V3DelegationScreenProps) {
-  const { allows } = usePublicLaunchAvailability();
+  const { allowsReleased } = usePublicLaunchAvailability();
   const currentStatus = projection.currentEntry
     ? statusPresentation(projection.currentEntry.status)
     : null;
@@ -127,8 +128,8 @@ export function V3DelegationScreen({
         {currentResult ? <a href="#country-result">Results</a> : null}
         <a href="#country-history">History</a>
         {worldEnabled ? <a href="#country-world">World</a> : null}
-        {allows("/relationships") ? <Link to="/relationships">Voting</Link> : null}
-        {allows("/stories") ? <Link to="/stories">Stories</Link> : null}
+        {allowsReleased("/relationships") ? <Link to="/relationships">Voting</Link> : null}
+        {allowsReleased("/stories") ? <Link to="/stories">Stories</Link> : null}
       </nav>
 
       <div id="country-current" className="cinematic-entity-anchor">
@@ -279,28 +280,28 @@ export function V3DelegationScreen({
       <div id="country-more" className="cinematic-entity-anchor">
       <V3Section title="Explore more">
         <div className="cinematic-country-related">
-          <V3ActionCard
+          {allowsReleased(projection.resultsDestination) ? <V3ActionCard
             title="Results"
             description="Placements, points and score analysis"
             icon={BarChart3}
             tone="neutral"
             to={projection.resultsDestination}
-          />
-          <V3ActionCard
+          /> : null}
+          {allowsReleased("/relationships") ? <V3ActionCard
             title="Voting relationships"
             description="Explore published historical support patterns across delegations"
             icon={Vote}
             tone="neutral"
             to="/relationships"
-          />
-          <V3ActionCard
+          /> : null}
+          {allowsReleased("/stories") ? <V3ActionCard
             title="Stories"
             description="Published edition narratives and archive moments"
             icon={BookOpen}
             tone="neutral"
             to="/stories"
-          />
-          {wiki ? (
+          /> : null}
+          {wiki && allowsReleased(wiki.href) ? (
             <V3ActionCard
               title={wiki.label}
               description="Open the public Solaris reference profile"
@@ -309,7 +310,7 @@ export function V3DelegationScreen({
               to={wiki.href}
             />
           ) : null}
-          {compare ? (
+          {compare && allowsReleased(compare.href) ? (
             <V3ActionCard
               title={compare.label}
               description="Compare this delegation with another country"
@@ -318,13 +319,13 @@ export function V3DelegationScreen({
               to={compare.href}
             />
           ) : null}
-          <V3ActionCard
+          {allowsReleased("/countries") ? <V3ActionCard
             title="All delegations"
             description="Return to the public country archive"
             icon={Archive}
             tone="neutral"
             to="/countries"
-          />
+          /> : null}
         </div>
       </V3Section>
       </div>
