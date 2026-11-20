@@ -108,6 +108,7 @@ test('TOC role parser collects exactly 225 table owners, not arbitrary object na
     const missingTable = spawnSync('python3', ['-c', snippet, toc], { encoding: 'utf8' });
     assert.notEqual(missingTable.status, 0);
     assert.match(missingTable.stderr, /unexpected TABLE inventory/);
+    tableLines[0] = '1; 1259 1000 TABLE public sample_1 postgres';
     const withoutLedger = [...tableLines, ...dataLines, unusual, ''].join('\n');
     writeFileSync(toc, withoutLedger);
     const missingLedger = spawnSync('python3', ['-c', snippet, toc], { encoding: 'utf8' });
