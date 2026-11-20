@@ -32,5 +32,8 @@ describe("Organizer command palette discovery and accessibility", () => {
     expect(source).toContain('event.key !== "Tab"');
     expect(source).toContain("triggerRef.current?.focus()");
     expect(source).toContain("matchesOrganizerCommandSearch(query, item)");
+    expect(source.indexOf("...inboxItems,")).toBeLessThan(source.indexOf("...countryItems,"));
+    expect(source.indexOf("...currentEdition,")).toBeLessThan(source.indexOf("...countryItems,"));
+    expect(source).toContain("Showing the first 30 of");
   });
 });

@@ -146,11 +146,11 @@ export function AdminCommandPalette() {
       unavailableReason: null,
     }));
 
+    // Search opens with immediate work and edition shortcuts, not a wall
+    // of 66 countries. Country and historical-edition lookup remain searchable.
     return [
-      ...countryItems,
       ...inboxItems,
       ...currentEdition,
-      ...navigation,
       {
         id: "workspace:all-organizer-pages",
         label: "All organizer pages",
@@ -160,6 +160,8 @@ export function AdminCommandPalette() {
         available: true,
         unavailableReason: null,
       },
+      ...navigation,
+      ...countryItems,
       {
         id: "workspace:public-site",
         label: "Public Solaris Studio",
@@ -330,6 +332,11 @@ export function AdminCommandPalette() {
                   </div>
                 );
               })}
+              {mergedResults.length > 30 ? (
+                <p role="note" className="px-3 py-3 text-xs text-muted-foreground">
+                  Showing the first 30 of {mergedResults.length} matches. Refine your search to find more.
+                </p>
+              ) : null}
               {!mergedResults.length ? (
                 <p className="p-7 text-center text-sm text-muted-foreground">
                   Nothing in Solaris matches that search.
