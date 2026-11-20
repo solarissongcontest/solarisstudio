@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { CinematicEditorialHero } from "@/components/v3/CinematicEditorialHero";
 import { LiquidGlassBackdrop } from "@/components/LiquidGlassBackdrop";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +14,7 @@ export function EditionHero({
   logo,
   logoAlt,
   liquidGlass = false,
+  editorialWeb = false,
   status,
   winner,
   actions,
@@ -26,23 +28,60 @@ export function EditionHero({
   logo?: string | null;
   logoAlt?: string;
   liquidGlass?: boolean;
+  /** Published, ordinary browser web uses the immersive editorial identity. */
+  editorialWeb?: boolean;
   status: ReactNode;
   winner?: ReactNode;
   actions?: ReactNode;
 }) {
-  const plateImage = logo ?? artwork;
-  const plateAlt = logo ? (logoAlt ?? `${title} logo`) : artworkAlt;
+  const [failedArtwork, setFailedArtwork] = useState<string | null>(null);
+  const [failedLogo, setFailedLogo] = useState<string | null>(null);
+  const visibleArtwork = artwork && artwork !== failedArtwork ? artwork : null;
+  const visibleLogo = logo && logo !== failedLogo ? logo : null;
+  const plateImage = visibleLogo ?? visibleArtwork;
+  const plateAlt = visibleLogo ? (logoAlt ?? `${title} logo`) : artworkAlt;
+
+  if (editorialWeb) {
+    return (
+      <div className="edition-web-cinematic" data-edition-web-experience="editorial">
+        <CinematicEditorialHero
+          kind="edition"
+          eyebrow={eyebrow}
+          title={title}
+          subtitle={subtitle}
+          imageUrl={visibleArtwork}
+          context={
+            <div className="edition-web-cinematic__identity">
+              <div className="edition-web-cinematic__status">{status}</div>
+              {visibleLogo ? (
+                <img
+                  className="edition-web-cinematic__logo"
+                  src={visibleLogo}
+                  alt={logoAlt ?? `${title} official logo`}
+                  loading="eager"
+                  decoding="async"
+                  onError={() => setFailedLogo(visibleLogo)}
+                />
+              ) : null}
+            </div>
+          }
+        />
+        {winner ? <div className="edition-web-cinematic__winner">{winner}</div> : null}
+        {description ? <p className="edition-web-cinematic__description">{description}</p> : null}
+      </div>
+    );
+  }
 
   return (
     <header
       className="edition-hero"
-      data-has-artwork={artwork ? "true" : "false"}
-      data-has-logo={logo ? "true" : "false"}
+      data-has-artwork={visibleArtwork ? "true" : "false"}
+      data-has-logo={visibleLogo ? "true" : "false"}
       data-liquid-glass={liquidGlass ? "true" : undefined}
     >
-      {artwork ? (
+      {visibleArtwork ? (
         <div className="edition-hero-artwork" aria-hidden="true">
-          <img src={artwork} alt="" fetchPriority="high" decoding="async" />
+          <img src={visibleArtwork} alt="" fetchPriority="high" decoding="async" onError={() => setFailedArtwork(visibleArtwork)} />
         </div>
       ) : null}
       {liquidGlass ? (
@@ -67,6 +106,7 @@ export function EditionHero({
             alt={plateAlt}
             loading="eager"
             decoding="async"
+            onError={() => visibleLogo ? setFailedLogo(visibleLogo) : visibleArtwork ? setFailedArtwork(visibleArtwork) : undefined}
           />
         </figure>
       ) : null}
