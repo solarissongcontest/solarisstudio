@@ -3,7 +3,9 @@ import { createFileRoute } from '@tanstack/react-router';
 import { ArrowLeft, BookOpen, CalendarDays } from 'lucide-react';
 
 import { AppShell } from '@/components/AppShell';
+import { PublicStorySpoilerDisclosure } from '@/components/public/PublicStorySpoilerDisclosure';
 import { useSolarisApp } from '@/components/app/AppRuntime';
+import { useAppExperiencePreferences } from '@/lib/app-experience';
 import { V3StoryDetailGate } from '@/components/v3/V3StoriesGates';
 import { loadPublicStoryline } from '@/lib/studio2-storytelling';
 import { formatSolarisStoryDate } from '@/lib/public-story-date';
@@ -72,6 +74,7 @@ function EditionStoryPage() {
 }
 
 function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
+  const { preferences } = useAppExperiencePreferences();
   const storyQuery = useQuery({
     queryKey: ['public-storyline', editionSlug],
     queryFn: () => loadPublicStoryline(editionSlug),
@@ -97,7 +100,11 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
         ) : !story ? (
           <EmptyStory title="No published story for this edition" copy="The edition may not have a reviewed storyline yet, or its storyline has been returned to draft for editing." />
         ) : (
-          <>
+          <PublicStorySpoilerDisclosure
+            key={`${editionSlug}:${preferences.spoilerFree ? "protected" : "open"}`}
+            spoilerFree={preferences.spoilerFree}
+            subject="this published story"
+          >
             <header className="v3-story-web-detail-hero mt-8">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">
                 {story.editionNumber != null ? `SSC ${story.editionNumber}` : story.editionName}
@@ -132,7 +139,7 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
                 ))}
               </div>
             </section>
-          </>
+          </PublicStorySpoilerDisclosure>
         )}
       </div>
     </AppShell>
