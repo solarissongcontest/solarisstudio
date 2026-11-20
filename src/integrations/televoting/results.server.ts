@@ -57,6 +57,43 @@ type RawPublishedResultRow = {
   remainder_bonus?: number | string | null;
 };
 
+function publishedResultSelection(advanced: boolean, robust: boolean) {
+  const fields = [
+    "entry_key",
+    "country_code",
+    "original_votes",
+    "final_points",
+    "original_rank",
+  ];
+
+  if (advanced && robust) {
+    fields.push(
+      "robust_rank",
+      "effective_points",
+      "effective_supporters",
+      "breadth_factor",
+      "robust_support",
+      "rank_boost",
+      "weighted_score",
+      "exact_points",
+      "floored_points",
+      "decimal_remainder",
+      "remainder_bonus",
+    );
+  } else if (advanced) {
+    fields.push(
+      "rank_factor",
+      "weighted_score",
+      "exact_points",
+      "floored_points",
+      "decimal_remainder",
+      "remainder_bonus",
+    );
+  }
+
+  return fields.join(",");
+}
+
 async function readPublishedResults(
   client: TelevotingClient,
   roundId?: string,
@@ -101,16 +138,16 @@ async function readPublishedResults(
   const editionName = Array.isArray(editionRelation)
     ? editionRelation[0]?.name ?? null
     : editionRelation?.name ?? null;
+  const advanced = Boolean(round.public_advanced_transparency);
+  const robust = round.televote_engine_version === "robust-televote-v2";
 
   const { data: results, error: resultError } = await client
     .from("round_results")
-    .select("*")
+    .select(publishedResultSelection(advanced, robust))
     .eq("round_id", round.id)
     .order("final_points", { ascending: false });
   if (resultError) throw new Error(resultError.message);
 
-  const advanced = Boolean(round.public_advanced_transparency);
-  const robust = round.televote_engine_version === "robust-televote-v2";
   const rows: PublishedResultRow[] = ((results ?? []) as RawPublishedResultRow[]).map(
     (result) => ({
       entry_key: String(result.entry_key ?? result.country_code ?? ""),
