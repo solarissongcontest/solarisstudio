@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const archive = readFileSync("src/routes/archive/index.tsx", "utf8");
 const directory = readFileSync("src/components/v3/V3DirectoryFamilyIndex.tsx", "utf8");
+const wiki = readFileSync("src/routes/wiki/index.tsx", "utf8");
 
 describe("Explore historical Archive integrity and discovery", () => {
   it("groups published-history topics without inventing a second archive data source", () => {
@@ -20,8 +21,10 @@ describe("Explore historical Archive integrity and discovery", () => {
     const routes = [...archive.matchAll(/\bto: "(\/[^"]+)"/g)].map((m) => m[1]);
     expect(routes).toHaveLength(7);
     expect(new Set(routes).size).toBe(routes.length);
-    expect(archive).toContain('to: "/encyclopedia", group: "reference-results"');
-    expect(archive).toContain('aliases: ["songs", "artists", "music", "entries"');
+    expect(archive).toContain('to: "/wiki", group: "reference-results"');
+    expect(archive).toContain('aliases: ["wiki", "encyclopedia", "country articles"');
+    expect(wiki).toContain('<Navigate to="/encyclopedia"');
+    expect(wiki).toContain("referenceRollout.data === true");
     expect(archive).not.toContain('title: "Songs & artists"');
     expect(directory).toContain("item.aliases");
     expect(directory).toContain("allows(item.to)");
