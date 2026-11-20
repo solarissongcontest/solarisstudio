@@ -19,7 +19,9 @@ import {
   UsersRound,
 } from 'lucide-react';
 
+import '@/styles/v3-organizer-communications-editorial.css';
 import { useAdminContext } from '@/components/admin/AdminContext';
+import { useSolarisApp } from '@/components/app/AppRuntime';
 import { AdminPage } from '@/components/admin/AdminShell';
 import {
   AdminCard,
@@ -69,6 +71,7 @@ const NOTICE_STATE_SET = new Set<string>([...NOTICE_STATES, 'archived']);
 type CommunicationsSearch = {
   notice?: string;
   state?: CommunicationsStateFilter;
+  desk?: 'compose';
 };
 
 type PendingLifecycleReview = {
@@ -80,6 +83,7 @@ type PendingLifecycleReview = {
 export const Route = createFileRoute('/_authenticated/admin/communications')({
   validateSearch: (search: Record<string, unknown>): CommunicationsSearch => ({
     notice: typeof search.notice === 'string' && search.notice ? search.notice : undefined,
+    desk: search.desk === 'compose' ? 'compose' : undefined,
     state: typeof search.state === 'string' && NOTICE_STATE_SET.has(search.state)
       ? search.state as CommunicationsStateFilter
       : undefined,
@@ -97,6 +101,7 @@ function CommunicationsCentre() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const { editionId } = useAdminContext();
+  const { isAppMode } = useSolarisApp();
   const queryClient = useQueryClient();
   const { data: countries = [] } = useCountries();
 
@@ -128,10 +133,21 @@ function CommunicationsCentre() {
   });
 
   const notices = noticesQuery.data ?? [];
+  const showCompose = isAppMode || search.desk === 'compose';
+  const showArchive = isAppMode || search.desk !== 'compose';
+  const openDesk = (desk: 'compose' | 'history') => {
+    void navigate({
+      search: {
+        ...search,
+        desk: !isAppMode && desk === 'compose' ? 'compose' : undefined,
+        notice: desk === 'compose' ? undefined : search.notice,
+      },
+    });
+  };
   const selectedNotice = notices.find((item) => item.notice.id === search.notice)?.notice ?? null;
   const revisionsQuery = useQuery({
     queryKey: ['studio2-notice-revisions', editionId ?? 'unscoped', selectedNotice?.id ?? 'none'],
-    enabled: Boolean(editionId && selectedNotice),
+    enabled: Boolean(editionId && selectedNotice && showArchive),
     queryFn: () => {
       if (!editionId || !selectedNotice || selectedNotice.editionId !== editionId) {
         throw new Error('The selected communication is outside the current edition scope.');
@@ -224,7 +240,7 @@ function CommunicationsCentre() {
     mutationFn: (id: string) => createSupersedingStudio2NoticeDraft(id),
     onSuccess: async (draft) => {
       loadIntoComposer(draft);
-      void navigate({ search: { ...search, notice: draft.id }, replace: true });
+      void navigate({ search: { ...search, notice: draft.id, desk: isAppMode ? undefined : 'compose' }, replace: true });
       await refresh();
     },
   });
@@ -398,17 +414,24 @@ function CommunicationsCentre() {
 
   return (
     <AdminPage>
-      <div className="mx-auto max-w-7xl space-y-4">
+      <div className="admin-communications-workspace mx-auto max-w-7xl space-y-4" data-communications-web="">
         <AdminPageHeader
-          eyebrow="Operations · Communications"
+          eyebrow={isAppMode ? "Operations · Communications" : undefined}
           title="Official Communications"
-          description="Publish one authoritative message to delegation inboxes, every MySolaris home, the public homepage, or any combination of those destinations. Archive removes a publication everywhere without erasing its audit history."
+          description={isAppMode
+            ? "Publish one authoritative message to delegation inboxes, every MySolaris home, the public homepage, or any combination of those destinations. Archive removes a publication everywhere without erasing its audit history."
+            : undefined}
           actions={
             <button
               type="button"
               onClick={() => {
                 resetComposer();
-                void navigate({ search: search.state ? { state: search.state } : {}, replace: true });
+                void navigate({
+                  search: {
+                    state: search.state,
+                    desk: isAppMode ? undefined : 'compose',
+                  },
+                });
               }}
               className="admin-action-secondary"
             >
@@ -417,7 +440,16 @@ function CommunicationsCentre() {
           }
         />
 
-        <section className="grid gap-4 md:grid-cols-5">
+        {!isAppMode ? (
+          <nav className="admin-communications-desk-tabs" aria-label="Communications workspace views">
+            <button type="button" aria-pressed={showArchive} onClick={() => openDesk('history')}>History</button>
+            <button type="button" aria-pressed={showCompose} onClick={() => openDesk('compose')}>
+              {editingId ? 'Edit communication' : 'Compose'}
+            </button>
+          </nav>
+        ) : null}
+
+        <section className="admin-communications-stat-strip grid gap-4 md:grid-cols-5">
           <Metric label="Total" value={notices.length} />
           <Metric label="Draft / scheduled" value={notices.filter((item) => ['draft', 'scheduled'].includes(item.notice.state)).length} />
           <Metric label="Published" value={notices.filter((item) => item.notice.state === 'published' && !item.notice.archivedAt).length} />
@@ -425,8 +457,9 @@ function CommunicationsCentre() {
           <Metric label="Acknowledged" value={acknowledgementCount} />
         </section>
 
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-          <AdminCard strong>
+        <div className={isAppMode ? "grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]" : "admin-communications-desk"}>
+          {showCompose ? (
+          <AdminCard strong className="admin-communications-composer">
             <AdminCardHeader
               eyebrow={editingId ? 'Edit lifecycle' : 'Compose'}
               title={editingId ? 'Edit communication' : 'Create communication'}
@@ -613,8 +646,10 @@ function CommunicationsCentre() {
               </div>
             </div>
           </AdminCard>
+          ) : null}
 
-          <div className="space-y-4">
+          {showArchive ? (
+          <div className="admin-communications-history space-y-4">
             <AdminCard>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <AdminCardHeader eyebrow="Operations history" title="Communications" />
@@ -698,7 +733,7 @@ function CommunicationsCentre() {
                               className="admin-action-secondary"
                               onClick={() => {
                                 loadIntoComposer(notice);
-                                void navigate({ search: { ...search, notice: notice.id }, replace: true });
+                                void navigate({ search: { ...search, notice: notice.id, desk: isAppMode ? undefined : 'compose' }, replace: true });
                               }}
                             >
                               Edit
@@ -859,6 +894,7 @@ function CommunicationsCentre() {
               </AdminCard>
             ) : null}
           </div>
+          ) : null}
         </div>
 
         <AdminConfirmSheet

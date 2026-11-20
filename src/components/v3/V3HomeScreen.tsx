@@ -265,10 +265,9 @@ export function V3HomeScreen({
       : currentContest.headline;
 
   return (
-    <V3Screen>
+    <V3Screen className="v3-editorial-home">
       <V3ScreenHeader
         title={now.headerTitle}
-        description="What matters now, followed by the current contest, what comes next and the latest Solaris updates."
       />
 
       <V3NowCard eyebrow={now.eyebrow} title={now.title} count={now.count}>
@@ -279,7 +278,7 @@ export function V3HomeScreen({
         title="Current contest"
         meta={<V3StatusChip tone={status.tone}>{status.label}</V3StatusChip>}
       >
-        <V3Surface level="raised" className="p-5">
+        <V3Surface level="raised" className="v3-current-contest-editorial p-5">
           <p className="v3-kicker">{currentContest.title}</p>
           <h2 className="mt-2 text-[1.55rem] font-bold leading-[1.02] tracking-[-0.045em]">
             {contestHeadline}
@@ -300,9 +299,7 @@ export function V3HomeScreen({
           <div className="mt-4" data-v3-home-contest-entry="">
             <V3ActionCard
               title={currentContest.href ? "Explore current edition" : "Browse editions"}
-              description={currentContest.href
-                ? "Open the official edition overview, schedule and published content."
-                : "Discover published Solaris editions in the archive."}
+              description={currentContest.href ? "Participants, shows and results" : "Browse past editions"}
               tone="neutral"
               to={currentContest.href ?? "/editions"}
             />
@@ -350,7 +347,7 @@ export function V3HomeScreen({
           <V3Surface className="p-4">
             <p className="text-sm font-semibold">No new updates</p>
             <p className="mt-1 text-xs leading-5 text-white/48">
-              Important Solaris updates will appear here without turning Home into an endless feed.
+              Updates will appear when published.
             </p>
           </V3Surface>
         )}

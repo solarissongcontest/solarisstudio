@@ -168,7 +168,7 @@ export function V3EditionHubScreen({ projection }: V3EditionHubScreenProps) {
         : "Top published result";
 
   return (
-    <V3Screen>
+    <V3Screen className="v3-editorial-edition">
       <V3ScreenHeader
         kicker="Edition"
         title={projection.hub.hero.name}
@@ -176,9 +176,9 @@ export function V3EditionHubScreen({ projection }: V3EditionHubScreenProps) {
         editorial
       />
 
-      <V3Surface level="raised" className="overflow-hidden">
+      <V3Surface level="raised" className="v3-edition-feature overflow-hidden">
         {projection.hub.hero.artworkUrl ? (
-          <div className="relative border-b border-white/[0.06] bg-white/[0.025]">
+          <div className="v3-edition-feature-art relative border-b border-white/[0.06] bg-white/[0.025]">
             <img
               src={projection.hub.hero.artworkUrl}
               alt=""
@@ -209,6 +209,28 @@ export function V3EditionHubScreen({ projection }: V3EditionHubScreenProps) {
           ) : null}
         </div>
       </V3Surface>
+
+      <nav aria-label={`Explore ${projection.hub.hero.name}`} className="v3-edition-section-nav flex flex-wrap gap-2">
+        {navigationSections.map((section) =>
+          section.state === "available" ? (
+            <a
+              key={section.key}
+              href={section.href}
+              className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-xs font-semibold text-white/70 transition hover:bg-white/[0.07] hover:text-white"
+            >
+              {section.label}
+            </a>
+          ) : (
+            <span
+              key={section.key}
+              className="rounded-full border border-white/[0.06] px-3 py-2 text-xs font-semibold text-white/32"
+              aria-disabled="true"
+            >
+              {section.label}
+            </span>
+          ),
+        )}
+      </nav>
 
       {projection.hub.liveAction ? (
         <V3Section title="Live now" meta={<V3StatusChip tone="live">Live</V3StatusChip>}>
@@ -276,34 +298,14 @@ export function V3EditionHubScreen({ projection }: V3EditionHubScreenProps) {
         </V3Section>
       ) : null}
 
-      <nav aria-label={`Explore ${projection.hub.hero.name}`} className="flex flex-wrap gap-2">
-        {navigationSections.map((section) =>
-          section.state === "available" ? (
-            <a
-              key={section.key}
-              href={section.href}
-              className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-xs font-semibold text-white/70 transition hover:bg-white/[0.07] hover:text-white"
-            >
-              {section.label}
-            </a>
-          ) : (
-            <span
-              key={section.key}
-              className="rounded-full border border-white/[0.06] px-3 py-2 text-xs font-semibold text-white/32"
-              aria-disabled="true"
-            >
-              {section.label}
-            </span>
-          ),
-        )}
-      </nav>
+
 
       <V3Section
         title="At a glance"
         meta={projection.hub.hero.editionNumber != null ? `SSC ${projection.hub.hero.editionNumber}` : undefined}
         className="scroll-mt-24"
       >
-        <div id="edition-overview" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div id="edition-overview" className="v3-edition-facts grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
             ["Delegations", projection.overview.participantCount],
             ["Revealed entries", projection.overview.entryCount],

@@ -1,0 +1,146 @@
+/*
+ * Terra Solaris World: published institutional bodies, browser editorial design.
+ * The installed PWA retains its own geometry and navigation.
+ * Authority remains in the World rollout gate and per-route publication checks.
+ */
+html:not([data-solaris-app]) .world-bodies-editorial {
+  --world-body-rule: color-mix(in oklab, var(--foreground) 15%, transparent);
+  width: min(100%, 76rem);
+  padding-inline: clamp(1rem, 3.2vw, 2.5rem);
+  padding-top: clamp(1.2rem, 2.75vw, 2.75rem);
+  padding-bottom: max(3.5rem, env(safe-area-inset-bottom));
+}
+html:not([data-solaris-app]) .world-bodies-editorial > nav[aria-label="Breadcrumb"] {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 44px;
+  margin-bottom: clamp(.8rem, 2vw, 1.5rem);
+  color: var(--muted-foreground);
+}
+html:not([data-solaris-app]) .world-bodies-editorial .world-bodies-page-header {
+  max-width: 65rem;
+  padding-bottom: clamp(1rem, 2.7vw, 2.2rem);
+  border-bottom: 1px solid var(--world-body-rule);
+}
+html:not([data-solaris-app]) .world-bodies-editorial .world-bodies-page-header h1 {
+  max-width: 22ch;
+  font-size: clamp(2.25rem, 5.8vw, 5.25rem);
+  font-weight: 760;
+  line-height: .99;
+  letter-spacing: -.056em;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+html:not([data-solaris-app]) .world-bodies-editorial .world-bodies-page-header > p:last-child {
+  max-width: 57ch;
+  margin-top: clamp(.85rem, 2.1vw, 1.3rem);
+  font-size: clamp(.88rem, 1.4vw, 1.05rem);
+  line-height: 1.6;
+}
+html:not([data-solaris-app]) .world-bodies-editorial .world-bodies-search {
+  max-width: 65rem;
+  gap: .7rem;
+  margin-top: clamp(1rem, 2.5vw, 2rem);
+  padding-block: 0;
+  border: 0;
+}
+html:not([data-solaris-app]) .world-bodies-editorial .world-bodies-search input,
+html:not([data-solaris-app]) .world-bodies-editorial .world-bodies-search select {
+  min-height: 48px;
+  font-size: .92rem;
+}
+html:not([data-solaris-app]) .world-bodies-editorial .world-bodies-search > label:first-child {
+  border-color: var(--world-body-rule);
+  background: color-mix(in oklab, var(--surface) 64%, transparent);
+}
+html:not([data-solaris-app]) .world-bodies-editorial .world-bodies-results {
+  max-width: 65rem;
+  margin-top: clamp(1rem, 2.7vw, 1.8rem);
+  border-top: 1px solid var(--world-body-rule);
+}
+html:not([data-solaris-app]) .world-bodies-editorial .world-bodies-results > p[aria-live="polite"] {
+  padding-block: 1rem .45rem;
+  font-size: .8rem;
+  font-variant-numeric: tabular-nums;
+}
+html:not([data-solaris-app]) .world-bodies-editorial .world-bodies-item {
+  min-height: 5.5rem;
+  gap: .85rem;
+  padding: 1.1rem clamp(.25rem, 1vw, .65rem);
+  border-color: var(--world-body-rule);
+  border-radius: .25rem;
+  text-decoration: none;
+  transition: background-color 160ms ease;
+}
+html:not([data-solaris-app]) .world-bodies-editorial .world-bodies-item:hover {
+  background: color-mix(in oklab, var(--surface) 58%, transparent);
+}
+html:not([data-solaris-app]) .world-bodies-editorial .world-bodies-item > span > span:first-child {
+  font-size: clamp(1rem, 1.6vw, 1.2rem);
+  font-weight: 720;
+  line-height: 1.23;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+}
+html:not([data-solaris-app]) .world-bodies-editorial .world-bodies-item > span > span:nth-child(2) {
+  line-height: 1.5;
+}
+html:not([data-solaris-app]) .world-bodies-editorial .world-body-reading-grid {
+  gap: clamp(1.5rem, 4vw, 4rem);
+  padding-top: clamp(1.2rem, 3vw, 2.5rem);
+  margin-top: 0;
+  border: 0;
+}
+html:not([data-solaris-app]) .world-bodies-editorial .world-body-reading-grid > section > p {
+  max-width: 68ch;
+  font-size: clamp(.95rem, 1.3vw, 1.05rem);
+  line-height: 1.76;
+  text-wrap: pretty;
+}
+html:not([data-solaris-app]) .world-bodies-editorial .world-body-reading-grid h2 {
+  font-size: clamp(1.18rem, 2vw, 1.55rem);
+  font-weight: 730;
+  letter-spacing: -.03em;
+}
+html:not([data-solaris-app]) .world-bodies-editorial .world-body-detail-aside {
+  border-color: var(--world-body-rule);
+}
+html:not([data-solaris-app]) .world-bodies-editorial .world-body-detail-aside > p {
+  font-size: .8rem;
+  line-height: 1.55;
+}
+html:not([data-solaris-app]) .world-bodies-editorial .world-body-offices > li {
+  padding-block: .9rem;
+  border-color: var(--world-body-rule);
+}
+@media (max-width: 767px) {
+  html:not([data-solaris-app]) .world-bodies-editorial {
+    padding-inline: 1rem;
+  }
+  html:not([data-solaris-app]) .world-bodies-editorial .world-bodies-page-header h1 {
+    font-size: clamp(2.15rem, 10vw, 3.7rem);
+  }
+  html:not([data-solaris-app]) .world-bodies-editorial .world-bodies-search > label {
+    width: 100%;
+    flex-basis: 100%;
+    min-width: 0;
+  }
+  html:not([data-solaris-app]) .world-bodies-editorial .world-bodies-search > button {
+    flex: 1 1 auto;
+    min-height: 48px;
+  }
+  html:not([data-solaris-app]) .world-bodies-editorial .world-body-reading-grid {
+    gap: 1.75rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-solaris-app]) .world-bodies-editorial .world-bodies-item {
+    transition: none;
+  }
+}
+@media (forced-colors: active) {
+  html:not([data-solaris-app]) .world-bodies-editorial .world-bodies-item:focus-visible {
+    outline: 2px solid Highlight;
+  }
+}

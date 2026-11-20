@@ -35,7 +35,16 @@ describe("three-experience public layout boundary", () => {
     expect(records).toContain("aria-pressed={tab === option.value}");
     expect(records).toContain("mobileWeb={mobileWeb}");
     expect(records).toContain("<ResponsiveTabs");
-    expect(records).toContain('"glass flex min-h-[250px]'); // Retained as the desktop fallback.
+    expect(records).toContain('data-records-presentation={presentationMode}');
+    expect(records).toContain("records-editorial-desktop-row");
+    expect(records).toContain("filterPublishedFanRecords(records, tab, normalizedRecordSearch)");
+    expect(records).toContain('allowsReleased("/archive-games")');
+    expect(records).toContain("showArchiveGames={false}");
+    expect(records).toContain("showArchiveGames ? (");
+    expect(records).toContain("records-editorial-coverage");
+    const recordsStyle = source("src/styles/v3-records-website-editorial.css");
+    expect(recordsStyle).toContain("html:not([data-solaris-app])");
+    expect(recordsStyle).toContain(".records-editorial-desktop-row");
     expect(records).toContain("buildCanonicalFanRecords");
     expect(records).toContain("archivedFinalEditions");
   });

@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { CountryHodHistoryPanel } from "@/components/CountryHodHistoryPanel";
 import { FlagChip } from "@/components/FlagChip";
 import { ProfileActivityPanel } from "@/components/country/ProfileActivityPanel";
@@ -38,6 +39,7 @@ import {
   type Participant,
 } from "@/lib/data";
 import { NAV_TARGETS } from "@/lib/navigation-targets";
+import "@/styles/v3-mysolaris-history-editorial.css";
 
 const EMPTY_PROFILE = {
   capital: "",
@@ -272,6 +274,7 @@ function OwnedCountryHub({
   targetCountryId?: string;
   section: "country" | "history";
 }) {
+  const { isAppMode } = useSolarisApp();
   const world = useCountryWorldProfile(country.id);
   const updateIdentity = useUpdateCountryIdentity(country.id, organizerOverride);
   const saveProfile = useSaveCountryProfile(country.id);
@@ -287,6 +290,12 @@ function OwnedCountryHub({
   const { data: contestEntities } = useAllContestEntities();
 
   const [activeTab, setActiveTab] = useState<HubTab>(section === "history" ? "entries" : "overview");
+  const [historyFocus, setHistoryFocus] = useState<string | null>(null);
+  // Route transitions may reuse this mounted component. Always show the
+  // destination's actual workspace instead of retaining the previous tab.
+  useEffect(() => {
+    setActiveTab(section === "history" ? "entries" : "overview");
+  }, [section]);
   const [message, setMessage] = useState<string | null>(null);
   const [identity, setIdentity] = useState({
     name: country.name,
@@ -398,6 +407,53 @@ function OwnedCountryHub({
     );
   }, [participants, editions, country.id, ownedEntityIds]);
 
+  // Only ordinary browser History uses a focused list/editor flow. It is
+  // URL-addressable and restores the list/editor when browser history changes.
+  // Installed PWA keeps its existing independent expansion behavior.
+  useEffect(() => {
+    if (section !== "history" || isAppMode) return;
+    const restoreHistoryFocus = () => {
+      const hash = window.location.hash;
+      if (hash === "#history-add") {
+        setHistoryFocus("add");
+        return;
+      }
+      if (hash.startsWith("#history-entry-")) {
+        try {
+          const editionId = decodeURIComponent(hash.slice("#history-entry-".length));
+          setHistoryFocus(myEntries.some((group) => group.editionId === editionId) ? editionId : null);
+          return;
+        } catch {
+          // An invalid or obsolete deep link falls back to the history list.
+        }
+      }
+      setHistoryFocus(null);
+    };
+    restoreHistoryFocus();
+    window.addEventListener("popstate", restoreHistoryFocus);
+    window.addEventListener("hashchange", restoreHistoryFocus);
+    return () => {
+      window.removeEventListener("popstate", restoreHistoryFocus);
+      window.removeEventListener("hashchange", restoreHistoryFocus);
+    };
+  }, [section, isAppMode, myEntries]);
+
+  const openHistoryFocus = (target: string | null) => {
+    if (!isAppMode && section === "history" && typeof window !== "undefined") {
+      const hash =
+        target === "add"
+          ? "#history-add"
+          : target ? `#history-entry-${encodeURIComponent(target)}` : "";
+      window.history.pushState(
+        window.history.state,
+        "",
+        `${window.location.pathname}${window.location.search}${hash}`,
+      );
+    }
+    setHistoryFocus(target);
+  };
+
+  const focusedHistoryEdition = editions?.find((edition) => edition.id === historyFocus);
   const countrySearch = targetCountryId ? { country: targetCountryId } : {};
 
   const run = async (task: () => Promise<unknown>, success: string) => {
@@ -506,11 +562,9 @@ function OwnedCountryHub({
               : country.name
         }
         description={
-          section === "history"
-            ? "Review delegation handovers and manage one canonical artist, song and set of listening links for each edition."
-            : organizerOverride
+          section === "history" ? "Entries and participation history." : organizerOverride
               ? "Manage this country's identity and national facts. Page, media, appearance and history stay in their own MySolaris sections."
-              : "Manage identity and national facts here. Page, media, appearance and participation history each have a focused MySolaris section."
+              : "Country facts and identity."
         }
         actions={
           <div className="flex flex-wrap gap-2">
@@ -1081,22 +1135,69 @@ function OwnedCountryHub({
 
       {section === "history" && activeTab === "entries" && (
         <div className="space-y-5">
-          {!organizerOverride && <CountryHodHistoryPanel inline />}
+          {!organizerOverride && isAppMode && <CountryHodHistoryPanel inline />}
           <Panel
-          title="SSC entries"
-          description={
-            organizerOverride
-              ? "One artist and one song per country per edition. Semi-final and final appearances use that same entry."
-              : "Each edition has one artist and one song. Reaching the final does not create a second participation."
-          }
-        >
-          <div className="mb-4 rounded-xl border border-sky-200/15 bg-sky-200/[0.045] p-3 text-xs leading-5 text-muted-foreground">
-            <strong className="text-foreground">Edit once per edition:</strong> Solaris uses the
-            same artist, song and listening links for every show appearance in that edition.
-          </div>
+            title={
+              !isAppMode && historyFocus === "add"
+                ? "Add edition participation"
+                : !isAppMode && historyFocus
+                  ? focusedHistoryEdition ? `Edit ${editionLabel(focusedHistoryEdition)}` : "Edit edition"
+                  : "SSC entries"
+            }
+            description={
+              isAppMode
+                ? "Each edition has one artist and one song. Reaching the final does not create a second participation."
+                : undefined
+            }
+          >
+
           <div className="space-y-3">
-            {myEntries.map((group) => (
+            <p className="sr-only">Edit once per edition: use the same song and artist for each show in this edition.</p>
+            {!isAppMode && historyFocus === null && (
+              <div className="solaris-history-web-directory">
+                <ol className="solaris-history-web-list" aria-label="Edition participation history">
+                  {myEntries.map((group) => {
+                    const edition = editions?.find((item) => item.id === group.editionId);
+                    return (
+                      <li key={group.editionId}>
+                        <button
+                          type="button"
+                          onClick={() => openHistoryFocus(group.editionId)}
+                          className="solaris-history-web-row"
+                          aria-label={`Edit ${edition ? editionLabel(edition) : "edition"} entry`}
+                        >
+                          <span className="solaris-history-web-row-copy">
+                            <strong>{edition ? editionLabel(edition) : "Edition"}</strong>
+                            <span>{[group.entry.artist, group.entry.song].filter(Boolean).join(" · ") || "Entry details unavailable"}</span>
+                          </span>
+                          <span className="solaris-history-web-row-action" aria-hidden="true">Edit</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ol>
+                {!myEntries.length && <p className="text-sm text-muted-foreground">No participation history recorded yet.</p>}
+                <button
+                  type="button"
+                  onClick={() => openHistoryFocus("add")}
+                  className="solaris-history-web-add"
+                >
+                  Add edition participation
+                </button>
+              </div>
+            )}
+            {!isAppMode && historyFocus !== null && historyFocus !== "add" && (
+              <button
+                type="button"
+                className="solaris-history-web-back"
+                onClick={() => openHistoryFocus(null)}
+              >
+                ← All editions
+              </button>
+            )}
+            {myEntries.filter((group) => isAppMode || group.editionId === historyFocus).map((group) => (
               <EntryEditor
+                focused={!isAppMode}
                 key={group.editionId}
                 entry={group.entry}
                 edition={editions?.find((item) => item.id === group.editionId)}
@@ -1129,12 +1230,23 @@ function OwnedCountryHub({
               />
             ))}
           </div>
-          <div className="mt-5 rounded-xl border border-border bg-surface p-4">
-            <p className="text-sm font-semibold">Add a missing edition participation</p>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              Choose the edition and enter the artist and song once. Listening links are optional.
-            </p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          {(isAppMode || historyFocus === "add") && (
+            <div className="solaris-history-web-focus">
+              {!isAppMode && (
+                <button type="button" onClick={() => openHistoryFocus(null)} className="solaris-history-web-back">
+                  ← All editions
+                </button>
+              )}
+              <details
+                open={!isAppMode ? true : undefined}
+                className="solaris-history-add mt-5 overflow-hidden rounded-xl border border-border bg-surface"
+                data-history-focused={!isAppMode ? "true" : undefined}
+              >
+            <summary className="flex min-h-14 cursor-pointer items-center justify-between px-4 py-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary">
+              Add a missing edition participation
+            </summary>
+            <div className="border-t border-border/60 p-4">
+              <div className="grid gap-3 sm:grid-cols-2">
               <label className="sm:col-span-2">
                 <span className="mb-1 block text-xs font-semibold text-muted-foreground">
                   Edition
@@ -1205,9 +1317,17 @@ function OwnedCountryHub({
               >
                 Save edition participation
               </button>
+              </div>
             </div>
-          </div>
+              </details>
+            </div>
+          )}
           </Panel>
+          {!organizerOverride && !isAppMode && (
+            <section className="solaris-history-hod-secondary" aria-label="Delegation history">
+              <CountryHodHistoryPanel inline />
+            </section>
+          )}
         </div>
       )}
     </AppShell>
@@ -1408,8 +1528,10 @@ function EntryEditor({
   showNames,
   busy,
   onSave,
+  focused = false,
 }: {
   entry: Participant;
+  focused?: boolean;
   edition: { edition_number: number | null; name: string; year: number | null } | undefined;
   showNames: string[];
   busy: boolean;
@@ -1436,12 +1558,23 @@ function EntryEditor({
   const uniqueShows = [...new Set(showNames)];
 
   return (
-    <div className="rounded-xl bg-surface p-3 sm:p-4">
+    <details
+      open={focused ? true : undefined}
+      data-history-focused={focused ? "true" : undefined}
+      className="solaris-history-entry group overflow-hidden rounded-xl border border-border bg-surface"
+    >
+      <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary">
+        <span className="min-w-0">
+          <strong className="block text-sm">{edition ? editionLabel(edition as any) : "Edition"}</strong>
+          <span className="mt-1 block truncate text-xs text-muted-foreground">
+            {[entry.artist, entry.song].filter(Boolean).join(" · ") || "Entry details"}
+          </span>
+        </span>
+        <span aria-hidden="true" className="shrink-0 rounded-lg bg-background/70 px-3 py-2 text-xs font-semibold text-primary">Edit</span>
+      </summary>
+      <div className="border-t border-border/60 p-3 sm:p-4">
       <div className="mb-3">
-        <p className="text-sm font-semibold">
-          {edition ? editionLabel(edition as any) : "Edition"}
-        </p>
-        <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {uniqueShows.length ? (
             uniqueShows.map((showName) => (
               <span
@@ -1459,8 +1592,7 @@ function EntryEditor({
         </div>
         {uniqueShows.length > 1 ? (
           <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
-            These are appearances of the same edition entry. Artist, song and listening links are
-            entered once.
+            These are appearances of the same edition entry. Artist, song and listening links are entered once.
           </p>
         ) : null}
       </div>
@@ -1510,6 +1642,7 @@ function EntryEditor({
           {busy ? "Saving…" : "Save edition entry"}
         </button>
       </div>
-    </div>
+      </div>
+    </details>
   );
 }

@@ -1,6 +1,7 @@
 import "@/admin.css";
 import "@/admin-desktop.css";
 import "@/admin-storytelling.css";
+import "@/styles/v3-organizer-editorial-shell.css";
 
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ExternalLink, Inbox } from "lucide-react";
@@ -43,7 +44,7 @@ export function AdminShell({
   ).length;
 
   const pageAlreadyShowsHealth = pathname === "/admin/operations";
-  const pageOwnsContextLock = pathname === "/admin/operations";
+  const pageOwnsContextLock = pathname === "/admin/operations" || pathname === "/admin/tasks";
   const showJuryWindowControl = pathname.startsWith("/admin/jury/");
 
   return (
@@ -68,7 +69,7 @@ export function AdminShell({
                 Solaris Organizer
               </p>
               <p className="mt-1 hidden text-[11px] font-semibold text-muted-foreground sm:block">
-                Contest control workspace
+                Contest administration
               </p>
             </Link>
 

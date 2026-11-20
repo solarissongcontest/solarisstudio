@@ -16,11 +16,13 @@ describe("Public Records browser presentation consolidation", () => {
   });
 
   it("renders the same mobile/desktop header in ready, pending and error states", () => {
-    expect(route).toContain("function RecordsPageHeader({ mobileWeb, ready }");
+    expect(route).toContain("function RecordsPageHeader({ mobileWeb, ready, showArchiveGames }");
     expect(route).toContain("data-records-mobile-web-header");
     expect(route.match(/data-records-mobile-web-header/g)?.length).toBe(1);
-    expect(route).toContain("<RecordsPageHeader mobileWeb={mobileWeb} ready={false} />");
-    expect(route).toContain("<RecordsPageHeader mobileWeb={mobileWeb} ready />");
+    expect(route).toContain("<RecordsPageHeader mobileWeb={mobileWeb} ready={false} showArchiveGames={false} />");
+    expect(route).toContain('<RecordsPageHeader mobileWeb={mobileWeb} ready showArchiveGames={allowsReleased("/archive-games")} />');
+    expect(route).toContain("const { allowsReleased } = usePublicLaunchAvailability();");
+    expect(route).toContain("showArchiveGames ? (");
     expect(route).toContain("const loading = archiveIsLoading(...archiveQueries)");
     expect(route).toContain("const failed = archiveHasError(...archiveQueries)");
     expect(route).toContain("if (loading || failed)");
@@ -38,5 +40,24 @@ describe("Public Records browser presentation consolidation", () => {
     expect(route).toContain('to="/archive-games"');
     expect(route).toContain("RecordHolderRow");
     expect(route).not.toContain("setInterval(");
+  });
+
+  it("offers website-only search recovery without changing the installed-app fallback", () => {
+    expect(route).toContain("const categoryTotal = tab === \"all\"");
+    expect(route).toContain("data-records-website-count");
+    expect(route).toContain("Clear search");
+    expect(route).toContain("onClick={showAllRecords}");
+    expect(route).toContain(") : isAppMode ? (");
+    expect(route).toContain("No published records are available yet.");
+    expect(route).toContain("min-h-11 cursor-pointer");
+    expect(route).toContain('role="search" aria-label="Search published records"');
+    expect(route).toContain('window.addEventListener("popstate", restoreFromLocation)');
+    expect(route).toContain('createRecordsDirectorySearch(window.location.search');
+  });
+
+  it("does not link to country profiles blocked by the current public release", () => {
+    expect(route).toContain("allowsReleased(`/countries/${encodeURIComponent(holder.shortCode)}`)");
+    expect(route).toContain("{canOpenCountry ? (");
+    expect(route).toContain('<span className="break-words text-sm font-semibold text-foreground">{holder.countryName}</span>');
   });
 });

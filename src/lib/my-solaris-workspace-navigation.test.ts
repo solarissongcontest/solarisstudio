@@ -35,7 +35,12 @@ describe("MySolaris product consolidation", () => {
     expect(workspaceNav).toContain("MY_SOLARIS_MOBILE_PRIMARY_IDS");
     expect(workspaceNav).toContain("<MoreHorizontal");
     expect(workspaceNav).toContain("More");
-    expect(shell).toContain("!isMySolarisWorkspace && (");
+    // Ordinary mobile web uses the site's navigation without a second fixed
+    // app dock; only installed app mode owns the persistent app tab bar.
+    expect(shell).toContain('!isAppMode && !isMySolarisWorkspace && !focusedParticipationTask ? (');
+    expect(shell).toContain('isAppMode && appChrome.tabBar !== "hidden" ? (');
+    expect(shell).toContain('<MySolarisWorkspaceShell>{children}</MySolarisWorkspaceShell>');
+    expect(shell).toContain('!isMySolarisWorkspace &&');
   });
 
   it("loads shared participant context once at the workspace shell", () => {

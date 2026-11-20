@@ -321,7 +321,7 @@ function CountryWikiArticle({
   return (
     <AppShell>
       <div
-        className={publishedDesign ? "wiki-canvas min-w-0 country-design-v2" : "wiki-canvas min-w-0"}
+        className={publishedDesign ? "wiki-canvas wiki-editorial-article min-w-0 country-design-v2" : "wiki-canvas wiki-editorial-article min-w-0"}
         data-country-surface={publishedDesign?.surface}
         data-country-accent={publishedDesign?.accent}
         data-country-motion={publishedDesign?.motion}

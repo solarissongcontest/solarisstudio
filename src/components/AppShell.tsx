@@ -1,15 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import {
-  ChevronDown,
-  Compass,
-  Home,
-  Menu,
-  Trophy,
-  User,
-  Vote,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { ChevronDown, Menu, X } from "lucide-react";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 
 import { AppAdaptiveWorkspace } from "@/components/app/AppAdaptiveWorkspace";
@@ -39,7 +29,7 @@ import {
 import { useAppAttentionSummary } from "@/lib/app-attention";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
 import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
-import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
+import { publicAreaForPath } from "@/lib/public-navigation";
 import { LIMITED_PUBLIC_LAUNCH, publicLaunchAllows } from "@/lib/public-launch-availability";
 import {
   publicCanvasForArchetype,
@@ -81,14 +71,6 @@ const EMPTY_ACCESS: AccountAccess = {
   countryStatus: null,
   suspensionReason: null,
   schemaReady: true,
-};
-
-const GLOBAL_ICON_BY_AREA: Record<(typeof PUBLIC_GLOBAL_AREAS)[number]["id"], LucideIcon> = {
-  home: Home,
-  explore: Compass,
-  participate: Vote,
-  results: Trophy,
-  me: User,
 };
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -261,12 +243,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       publicArea === "participate" ||
       publicArea === "results" ||
       publicArea === "help");
-  const quickNavigation = globalAreas.map((item) => ({
-    to: item.to,
-    label: item.label,
-    icon: GLOBAL_ICON_BY_AREA[item.id],
-    active: !pathname.startsWith("/site-directory") && publicArea === item.id,
-  }));
+
 
   return (
     <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
@@ -490,45 +467,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           />
         ) : null}
 
-        {!isAppMode && !isMySolarisWorkspace && (
-          <nav
-            className="mobile-quick-nav fixed inset-x-0 bottom-0 z-50 border-t border-border/70 px-2 pt-1.5 lg:hidden"
-            style={{ paddingBottom: "max(.4rem, env(safe-area-inset-bottom))" }}
-            aria-label="Primary navigation"
-          >
-            <div className="mx-auto grid max-w-xl gap-1"
-              style={{ gridTemplateColumns: `repeat(${Math.max(1, quickNavigation.length)}, minmax(0,1fr))` }}>
-              {quickNavigation.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.label}
-                    to={item.to as any}
-                    aria-current={item.active ? "page" : undefined}
-                    onClick={() =>
-                      trackPublicUxEvent("public_nav_clicked", {
-                        target: item.to,
-                        metadata: {
-                          area:
-                            globalAreas.find((area) => area.to === item.to)?.id ??
-                            (item.to === "/auth" ? "me" : "unknown"),
-                          source: "mobile_bottom",
-                        },
-                      })
-                    }
-                    className={cn(
-                      "flex min-h-13 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-semibold transition-colors",
-                      item.active ? "bg-surface-strong text-foreground" : "text-muted-foreground",
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
-        )}
+
       </div>
     </Sheet>
   );
