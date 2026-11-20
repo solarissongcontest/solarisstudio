@@ -218,7 +218,7 @@ function ExplorePage() {
       {isAppMode ? (
         <>
           <AppExplorePersonalized />
-          <section aria-labelledby="explore-primary-title">
+          <section className="solaris-app-explore-catalog" aria-labelledby="explore-primary-title">
             <div className="solaris-app-section-heading">
               <p>Browse Solaris</p>
               <h2 id="explore-primary-title">Explore</h2>
