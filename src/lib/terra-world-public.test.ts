@@ -21,6 +21,7 @@ import {
   WORLD_PUBLIC_ROLLOUT_KEY,
   cleanWorldSearch,
   currentWorldMemberships,
+  currentPublicWorldRepresentativeNames,
   fetchWorldDirectory,
   fetchFeaturedWorldOrganizations,
   fetchWorldPublicEnabled,
@@ -129,6 +130,25 @@ describe("TG3 world publication-safe projections", () => {
     expect(projection?.representatives[0]).not.toHaveProperty("votingToken");
     expect(projection?.representatives[0]).not.toHaveProperty("userId");
     expect(projection?.representatives[0]).not.toHaveProperty("personId");
+  });
+
+
+  it("lists non-voting public representatives without turning them into voting authority", () => {
+    const names = currentPublicWorldRepresentativeNames([
+      { id: "rep-a", countryId: "country-a", displayName: "Delegate A",
+        role: "representative", votingAuthority: false, endsAt: null },
+      { id: "rep-b", countryId: "country-a", displayName: "Delegate B",
+        role: "representative", votingAuthority: true, endsAt: null },
+      { id: "rep-dup", countryId: "country-a", displayName: "Delegate B",
+        role: "representative", votingAuthority: false, endsAt: null },
+      { id: "former", countryId: "country-b", displayName: "Former delegate",
+        role: "representative", votingAuthority: true, endsAt: "2026-01-01" },
+      { id: "observer", countryId: "country-c", displayName: "Observer official",
+        role: "observer", votingAuthority: false, endsAt: null },
+    ]);
+    expect(names.get("country-a")).toEqual(["Delegate A", "Delegate B"]);
+    expect(names.has("country-b")).toBe(false);
+    expect(names.has("country-c")).toBe(false);
   });
 
   it("counts current membership statuses but not concluded historical terms", () => {
