@@ -30,7 +30,7 @@ describe("V3 Explore editorial World discovery integration", () => {
 
   it("replaces stacked Explore directory cards with readable editorial rows and image-first featured edition", () => {
     expect(screen).toContain("v3-explore-feature__visual");
-    expect(screen).toContain("projection.discover.map");
+    expect(screen).toContain("discoverableCollections.map");
     expect(screen).toContain("projection.archive.links.map");
     expect(screen).toContain('className="v3-explore-editorial-list"');
     expect(style).toContain("min-height: 4.65rem");
