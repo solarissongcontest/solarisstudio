@@ -37,15 +37,29 @@ describe("V3 global Search spoiler-safe web previews", () => {
     expect(web).toContain("excludeSearchSpoilerStories(");
     expect(web).toContain("spoilerScope.editionSlug");
     expect(web).toContain('href: `/stories/${story.editionSlug}`');
-    expect(web).toContain("storiesQuery.isError ? [] : storiesQuery.data ?? []");
+    expect(web).toContain("verifiedStoryPreviews");
+    expect(web).toContain("spoilerPreviewVerificationPending ? [] : verifiedStoryPreviews");
   });
 
   it("fails closed while publication scope is loading, refreshing or failed", () => {
     expect(web).toContain("const spoilerPreviewVerificationPending =");
     expect(web).toContain("!showsQuery.isSuccess || showsQuery.isFetching || showsQuery.isError");
     expect(web).toContain("!publicEditions.length");
-    expect(web).toContain("spoilerPreviewVerificationPending || storiesQuery.isError ? []");
+    expect(web).toContain("spoilerPreviewVerificationPending ? [] : verifiedStoryPreviews");
     expect(web).toContain("!spoilerPreviewVerificationPending && participantsQuery.isSuccess");
+  });
+
+  it("does not replay cached published Story headlines after unpublication or a failed refresh", () => {
+    expect(web).toContain('queryKey: ["public-command-palette-stories"]');
+    expect(web).toContain("loadPublicStorylines(40)");
+    expect(web).toContain("staleTime: 0");
+    expect(web).toContain('refetchOnMount: "always"');
+    expect(web).toContain("retry: false");
+    expect(web).toContain("storiesQuery.isSuccess");
+    expect(web).toContain("storiesQuery.isFetchedAfterMount");
+    expect(web).toContain("!storiesQuery.isFetching");
+    expect(web).toContain("!storiesQuery.isError");
+    expect(web).toContain("verifiedStoryPreviews");
   });
 
   it("shows a spoiler-mode explanation while leaving canonical route navigation available", () => {

@@ -51,7 +51,25 @@ describe("public personalized Shows discovery", () => {
       [show("public", "published-edition"), show("edition-draft", "private-edition")],
       editions,
     );
-    expect(visibleRecentShowDestinations(recents, visible)).toEqual([recents[0], recents[2], recents[4]]);
+    expect(visibleRecentShowDestinations(recents, visible)).toEqual([
+      { ...recents[0], label: "Show" },
+      { ...recents[2], label: "Show" },
+      recents[4],
+    ]);
+  });
+
+  it("replaces stale and potentially spoiler-revealing Show titles with canonical names", () => {
+    const recents = [
+      { path: "/shows/public", label: "Oland wins the final" },
+      { path: "/shows/withdrawn", label: "Withdrawn Show" },
+      { path: "/countries/ol", label: "Oland profile" },
+    ];
+    const publicShows = [{ id: "public", name: "Grand Final" }];
+    expect(visibleRecentShowDestinations(recents, publicShows)).toEqual([
+      { path: "/shows/public", label: "Grand Final" },
+      recents[2],
+    ]);
+    expect(recents[0].label).toBe("Oland wins the final");
   });
 
   it("fails closed for show recents while public-show data is unavailable", () => {

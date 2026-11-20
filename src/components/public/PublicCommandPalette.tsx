@@ -233,7 +233,7 @@ function usePublicationSafeRecents() {
     queryFn: async () => {
       const { data: rows, error } = await supabase
         .from("shows")
-        .select("id,edition_id,published,publication_config")
+        .select("id,edition_id,name,published,publication_config")
         .in("id", showIds);
       if (error) throw error;
       const publicRows = (rows ?? []).filter(isRecentShowPublic);
@@ -251,7 +251,7 @@ function usePublicationSafeRecents() {
       );
       return publicRows
         .filter((show) => publishedEditionIds.has(show.edition_id))
-        .map((show) => ({ id: show.id }));
+        .map((show) => ({ id: show.id, name: show.name?.trim() || "Show" }));
     },
   });
   const editionVisibility = useQuery({
@@ -381,7 +381,11 @@ function AppPublicPaletteDialog({
   const remote = useQuery({
     queryKey: ["solaris-public-app-search", debouncedQuery.toLowerCase()],
     enabled: normalized.length >= 2 && !awaitingRemote,
-    staleTime: 60_000,
+    // A cached result was public when fetched, not necessarily now.
+    // Never replay previously published entries on a new Search opening
+    // before the current mounted request confirms their publication state.
+    staleTime: 0,
+    refetchOnMount: "always",
     // A failed search must be recoverable without automatically repeating
     // hosted read traffic. Explicit Retry remains under the visitor's control.
     retry: false,
@@ -453,9 +457,16 @@ function AppPublicPaletteDialog({
   const unfilteredSearchResults = useMemo<PublicSearchResult[]>(() => {
     if (!normalized) return [];
 
-    const remoteResults = (
-      normalized.length < 2 || awaitingRemote || remote.isError ? [] : remote.data ?? []
-    ).map((item) => ({
+    const verifiedRemoteRows =
+      normalized.length < 2 ||
+      awaitingRemote ||
+      !remote.isSuccess ||
+      !remote.isFetchedAfterMount ||
+      remote.isFetching ||
+      remote.isError
+        ? []
+        : remote.data ?? [];
+    const remoteResults = verifiedRemoteRows.map((item) => ({
       id: item.result_id,
       label: item.title,
       description: item.subtitle ?? "",
@@ -479,7 +490,16 @@ function AppPublicPaletteDialog({
     ];
 
     return limitV3PublicSearchGroups(rankV3PublicSearchResults(dedupePublicSearchResults([...local, ...remoteResults]), normalized));
-  }, [actionResults, normalized, awaitingRemote, remote.data, remote.isError]);
+  }, [
+    actionResults,
+    normalized,
+    awaitingRemote,
+    remote.data,
+    remote.isSuccess,
+    remote.isFetchedAfterMount,
+    remote.isFetching,
+    remote.isError,
+  ]);
 
   const searchResults = useMemo(() => unfilteredSearchResults.filter(item => allows(item.href)), [unfilteredSearchResults, allows]);
 
@@ -849,8 +869,30 @@ function WebSearchArchiveResults({
   const storiesQuery = useQuery({
     queryKey: ["public-command-palette-stories"],
     queryFn: () => loadPublicStorylines(40),
-    staleTime: 5 * 60 * 1000,
+    // Story titles may reveal results. A previously published story may have
+    // been withdrawn since the last dialog opening; cached rows are not a
+    // publication grant until this mounted dialog has refreshed them.
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+    retry: false,
   });
+  const verifiedStoryPreviews = useMemo(
+    () =>
+      storiesQuery.isSuccess &&
+      storiesQuery.isFetchedAfterMount &&
+      !storiesQuery.isFetching &&
+      !storiesQuery.isError
+        ? storiesQuery.data ?? []
+        : [],
+    [
+      storiesQuery.isSuccess,
+      storiesQuery.isFetchedAfterMount,
+      storiesQuery.isFetching,
+      storiesQuery.isError,
+      storiesQuery.data,
+    ],
+  );
 
   // The same published-data projection must apply to anonymous visitors and
   // signed-in delegation users, even when their database read scope differs.
@@ -1022,7 +1064,7 @@ function WebSearchArchiveResults({
           };
         }),
       ...excludeSearchSpoilerStories(
-        spoilerPreviewVerificationPending || storiesQuery.isError ? [] : storiesQuery.data ?? [],
+        spoilerPreviewVerificationPending ? [] : verifiedStoryPreviews,
         spoilerScope.editionSlug,
       )
         .filter((story) =>
@@ -1150,8 +1192,7 @@ function WebSearchArchiveResults({
     scorechartShows,
     searchableEntries,
     publicShows,
-    storiesQuery.data,
-    storiesQuery.isError,
+    verifiedStoryPreviews,
     spoilerScope.editionSlug,
     spoilerPreviewVerificationPending,
   ]);
