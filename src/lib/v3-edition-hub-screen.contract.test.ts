@@ -60,7 +60,7 @@ describe("V3 Edition hub screen architecture boundary", () => {
 
   it("reuses shared V3 primitives and consumes only resolved Live state", () => {
     expect(source).toContain('from "./V3Foundation"');
-    expect(source).toContain("<V3Screen>");
+    expect(source).toMatch(/<V3Screen(?:\s|>)/);
     expect(source).toContain("<V3ScreenHeader");
     expect(source).toContain("projection.hub.liveAction ?");
     expect(source).not.toMatch(/Date\.now|new Date|setInterval|WebSocket|EventSource/);

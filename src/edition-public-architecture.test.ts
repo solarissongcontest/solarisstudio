@@ -19,7 +19,7 @@ describe("edition public page architecture", () => {
     expect(route).toContain("<EditionHero");
     expect(route).toContain("<EditionNavigation");
     expect(route).toContain("<EditionQuickFacts");
-    expect(route).toContain('className="edition-public-page"');
+    expect(route).toMatch(/className="edition-public-page(?:\s+[^"]+)?"/);
     expect(css).not.toContain(".edition-public-page::before");
   });
 

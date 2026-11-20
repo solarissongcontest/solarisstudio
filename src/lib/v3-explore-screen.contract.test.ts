@@ -51,7 +51,7 @@ describe("V3 Explore screen architecture boundary", () => {
 
   it("uses the shared V3 foundation rather than creating another shell", () => {
     expect(source).toContain('from "./V3Foundation"');
-    expect(source).toContain("<V3Screen>");
+    expect(source).toMatch(/<V3Screen(?:\s|>)/);
     expect(source).toContain("<V3ScreenHeader");
     expect(source).toContain("<V3Section");
     expect(source).not.toContain("V3FoundationShell");

@@ -506,7 +506,9 @@ function OwnedCountryHub({
               : country.name
         }
         description={
-          section === "history" ? "Entries and participation history." : "Country facts and identity."
+          section === "history" ? "Entries and participation history." : organizerOverride
+              ? "Manage this country's identity and national facts. Page, media, appearance and history stay in their own MySolaris sections."
+              : "Country facts and identity."
         }
         actions={
           <div className="flex flex-wrap gap-2">
@@ -1080,10 +1082,11 @@ function OwnedCountryHub({
           {!organizerOverride && <CountryHodHistoryPanel inline />}
           <Panel
           title="SSC entries"
-          description="One entry per edition."
+          description="Each edition has one artist and one song. Reaching the final does not create a second participation."
         >
 
           <div className="space-y-3">
+            <p className="sr-only">Edit once per edition: use the same song and artist for each show in this edition.</p>
             {myEntries.map((group) => (
               <EntryEditor
                 key={group.editionId}
@@ -1120,7 +1123,7 @@ function OwnedCountryHub({
           </div>
           <details className="solaris-history-add mt-5 overflow-hidden rounded-xl border border-border bg-surface">
             <summary className="flex min-h-14 cursor-pointer items-center justify-between px-4 py-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary">
-              Add edition participation
+              Add a missing edition participation
             </summary>
             <div className="border-t border-border/60 p-4">
               <div className="grid gap-3 sm:grid-cols-2">
@@ -1456,7 +1459,7 @@ function EntryEditor({
         </div>
         {uniqueShows.length > 1 ? (
           <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
-            The same artist and song apply to every show in this edition.
+            These are appearances of the same edition entry. Artist, song and listening links are entered once.
           </p>
         ) : null}
       </div>

@@ -191,7 +191,7 @@ function OrganizerTasksPage() {
         <AdminPageHeader
           eyebrow={organizerEditionLabel ? `${organizerEditionLabel} · Organizer work` : "Organizer · Work"}
           title="Tasks"
-          description="Tasks that need attention in the selected edition."
+          description="Tasks that need attention in the selected edition. Reading a notification never completes a task; the authoritative source state does."
           actions={
             <div className="flex flex-wrap gap-2">
               <Link to="/admin/inbox" className="admin-action-secondary">

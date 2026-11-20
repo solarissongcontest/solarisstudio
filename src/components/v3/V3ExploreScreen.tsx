@@ -161,7 +161,7 @@ export function V3ExploreScreen({ projection, onOpenSearch }: V3ExploreScreenPro
       <V3ScreenHeader
         kicker="Explore Solaris"
         title="Explore"
-        description="Editions, countries, shows and stories."
+        description="Countries, editions, published entries, shows and stories."
         editorial
       />
 

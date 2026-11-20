@@ -68,7 +68,7 @@ export function V3ResultsScreen({
                   </option>
                 ))}
               </select>
-
+              <p className="sr-only">Only canonically published final results appear here. Selection never changes publication state.</p>
             </V3Surface>
           </V3Section>
         ) : null}
