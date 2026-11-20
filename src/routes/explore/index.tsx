@@ -20,6 +20,8 @@ import { WorldExploreEntry } from "@/components/world/WorldExploreEntry";
 import { AppExplorePersonalized } from "@/components/app/AppExplorePersonalized";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
+import { useEditions } from "@/lib/data";
+import { resolveActivePublicEdition } from "@/lib/v3-discovery-entities";
 import { V3ExploreRouteGate } from "@/components/v3/V3ExploreRouteGate";
 import "@/styles/explore-web-editorial.css";
 
@@ -128,6 +130,66 @@ function ExploreWebRow({ destination }: { destination: ExploreWebDestination }) 
   );
 }
 
+/**
+ * Lightweight existing Editions query; mounted only after the effective
+ * public release gate permits Edition browsing. No result/show/vote fan-out.
+ * Never advertise an unapproved edition or classify a terminal edition as live.
+ */
+function ExploreWebEditionFeature() {
+  const { allowsReleased } = usePublicLaunchAvailability();
+  const editionsQuery = useEditions();
+  const published = editionsQuery.isSuccess && !editionsQuery.isFetching && !editionsQuery.isRefetchError
+    ? (editionsQuery.data ?? []).filter((item) => item.published)
+    : [];
+  const active = resolveActivePublicEdition(published);
+  const latest = [...published].sort(
+    (left, right) => (right.edition_number ?? -1) - (left.edition_number ?? -1),
+  )[0] ?? null;
+  const featured = active ?? latest;
+  const detailAllowed = featured ? allowsReleased(`/editions/${featured.slug}`) : false;
+
+  return (
+    <section className="explore-web-editorial__feature" aria-labelledby="explore-web-contest-title">
+      <div>
+        <p className="explore-web-editorial__feature-kicker">
+          {active ? "Current published edition" : featured ? "Latest published edition" : "The contest"}
+        </p>
+        <h2 id="explore-web-contest-title">
+          {featured
+            ? featured.edition_number != null
+              ? `SSC ${featured.edition_number} · ${featured.name}`
+              : featured.name
+            : "Editions and their stories"}
+        </h2>
+        {featured ? (
+          <>
+            {featured.host_city ? (
+              <p className="explore-web-editorial__feature-meta">Host city: {featured.host_city}</p>
+            ) : null}
+            <p>{active
+              ? "Explore the current contest, its published shows and delegation history."
+              : "Revisit the most recent published edition and its historical record."}</p>
+          </>
+        ) : (
+          <p>{editionsQuery.isError || editionsQuery.isRefetchError
+            ? "Edition details are temporarily unavailable. The edition index remains accessible."
+            : "Browse the contest archive and its published chapters."}</p>
+        )}
+      </div>
+      {featured && detailAllowed ? (
+        <Link to="/editions/$slug" params={{ slug: featured.slug }}
+          className="explore-web-editorial__feature-link">
+          Open edition <ArrowRight className="size-4" aria-hidden="true" />
+        </Link>
+      ) : (
+        <Link to="/editions" className="explore-web-editorial__feature-link">
+          Browse editions <ArrowRight className="size-4" aria-hidden="true" />
+        </Link>
+      )}
+    </section>
+  );
+}
+
 /** Website composition only. Installed PWA keeps its independent app layout. */
 function ExploreWebEditorial() {
   const { allowsReleased } = usePublicLaunchAvailability();
@@ -154,18 +216,7 @@ function ExploreWebEditorial() {
         </div>
       </header>
 
-      {editionsAvailable ? (
-        <section className="explore-web-editorial__feature" aria-labelledby="explore-web-contest-title">
-          <div>
-            <p className="explore-web-editorial__feature-kicker">The contest</p>
-            <h2 id="explore-web-contest-title">Editions and their stories</h2>
-            <p>Browse the current contest and published editions from previous years.</p>
-          </div>
-          <Link to="/editions" className="explore-web-editorial__feature-link">
-            Browse editions <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
-        </section>
-      ) : null}
+      {editionsAvailable ? <ExploreWebEditionFeature /> : null}
 
       <div className="explore-web-editorial__columns">
         {discover.length ? (
