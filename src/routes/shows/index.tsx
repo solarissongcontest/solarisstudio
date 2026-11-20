@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { parseShowDirectoryUrlSearch } from "@/lib/v3-explore-browse-url";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { AppScreen } from "@/components/app/AppPrimitives";
@@ -8,6 +9,7 @@ import { useV3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import "@/styles/v3-directory-family.css";
 
 export const Route = createFileRoute("/shows/")({
+  validateSearch: parseShowDirectoryUrlSearch,
   head: () => ({
     meta: [
       { title: "Shows — Solaris Song Contest" },
@@ -30,6 +32,11 @@ export const Route = createFileRoute("/shows/")({
 function ShowsPage() {
   const { platformResolved } = useSolarisApp();
   const presentation = useV3DirectoryPresentation();
+  const urlSearch = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const onUrlSearchChange = (next: typeof urlSearch) => {
+    void navigate({ search: next, replace: true });
+  };
 
   if (!platformResolved) {
     return <div data-directory-boot="" className="min-h-20" role="status" aria-label="Opening shows" />;
@@ -45,7 +52,8 @@ function ShowsPage() {
               <h1>Shows</h1>
               <p>On air, coming up and published show history.</p>
             </header>
-            <V3ShowsDiscoveryScreen presentation={presentation} />
+            <V3ShowsDiscoveryScreen presentation={presentation}
+              urlSearch={urlSearch} onUrlSearchChange={onUrlSearchChange} />
           </AppScreen>
         </div>
       </AppShell>
@@ -69,7 +77,8 @@ function ShowsPage() {
           />
         )}
         <div className={presentation === "mobile-web" ? "mx-auto w-full max-w-2xl pb-8" : "mx-auto w-full max-w-6xl pb-8"}>
-          <V3ShowsDiscoveryScreen presentation={presentation} />
+          <V3ShowsDiscoveryScreen presentation={presentation}
+            urlSearch={urlSearch} onUrlSearchChange={onUrlSearchChange} />
         </div>
       </div>
     </AppShell>

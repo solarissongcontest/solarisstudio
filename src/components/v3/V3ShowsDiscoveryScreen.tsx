@@ -2,17 +2,23 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight, Search, SlidersHorizontal, X } from "lucide-react";
 import type { V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import "@/styles/v3-shows-directory.css";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppEmptyState, AppSectionHeader } from "@/components/app/AppPrimitives";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
+import { ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
+import { PublicDataState } from "@/components/public/PublicDataState";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import { showPublishesResults } from "@/lib/publication";
 import { formatEventDateTime } from "@/lib/public-time";
 import { getV3ShowBrowsePage, V3_SHOW_BROWSE_PAGE_SIZE } from "@/lib/v3-show-browse-page";
 import { buildShowSpotlights } from "@/lib/v3-show-spotlights";
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
+import { publicBroadcastHref } from "@/lib/v3-public-broadcast-url";
+import { matchesShowDirectorySearch, resolveShowDirectoryFacet } from "@/lib/v3-shows-directory-filters";
+import { MAX_PUBLIC_DIRECTORY_QUERY_LENGTH, normalizePublicDirectoryUrlQuery } from "@/lib/v3-directory-url-search";
+import type { ShowDirectoryUrlSearch } from "@/lib/v3-explore-browse-url";
 import {
   buildShowDiscovery,
   type ShowDiscoveryItem,
@@ -31,17 +37,33 @@ const STATE_ORDER: ShowDiscoveryState[] = [
   "other",
 ];
 
-export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { presentation?: V3DirectoryPresentation }) {
+export function V3ShowsDiscoveryScreen({
+  presentation = "installed-app",
+  urlSearch,
+  onUrlSearchChange,
+}: {
+  presentation?: V3DirectoryPresentation;
+  urlSearch?: ShowDirectoryUrlSearch;
+  onUrlSearchChange?: (next: ShowDirectoryUrlSearch) => void;
+}) {
+  const { allowsReleased } = usePublicLaunchAvailability();
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
-  const [search, setSearch] = useState("");
-  const [editionId, setEditionId] = useState("all");
-  const [kind, setKind] = useState("all");
-  const [state, setState] = useState<ShowDiscoveryState | "all">("all");
+  const [search, setSearch] = useState(urlSearch?.q ?? "");
+  const [editionId, setEditionId] = useState(urlSearch?.edition ?? "all");
+  const [kind, setKind] = useState(urlSearch?.kind ?? "all");
+  const [state, setState] = useState<ShowDiscoveryState | "all">(urlSearch?.state ?? "all");
+  const changeSearch = (value: string) =>
+    setSearch(value.slice(0, MAX_PUBLIC_DIRECTORY_QUERY_LENGTH));
+  // Direct links and browser history restore only user-selected filters.
+  useEffect(() => setSearch(urlSearch?.q ?? ""), [urlSearch?.q]);
+  useEffect(() => setEditionId(urlSearch?.edition ?? "all"), [urlSearch?.edition]);
+  useEffect(() => setKind(urlSearch?.kind ?? "all"), [urlSearch?.kind]);
+  useEffect(() => setState(urlSearch?.state ?? "all"), [urlSearch?.state]);
   // Keyed pagination resets synchronously with any filter change, without a
   // render/effect cycle that could briefly reveal a stale historical window.
   const normalizedSearch = search.trim().toLowerCase();
-  const browseFilterKey = JSON.stringify([normalizedSearch, editionId, kind, state]);
+  // The effective public facets are included below after the destination list resolves.
   const [browseWindowState, setBrowseWindowState] = useState({ key: "", page: 1 });
 
   const discovery = useMemo(
@@ -74,19 +96,49 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
       (left, right) => (right.edition_number ?? -1) - (left.edition_number ?? -1),
     );
   }, [allItems]);
+  // An edition can disappear from public discovery during a publication change.
+  // Keep the rendered facet and the actual query on the same permitted value.
+  const effectiveEditionId = resolveShowDirectoryFacet(editionId, editions.map((edition) => edition.id));
+  const effectiveKind = resolveShowDirectoryFacet(kind, kinds);
+  const publicSourcesReady =
+    editionsQuery.isSuccess && showsQuery.isSuccess &&
+    !editionsQuery.isFetching && !showsQuery.isFetching &&
+    !editionsQuery.isRefetchError && !showsQuery.isRefetchError;
+  // Keep a deep-linked facet while public data loads; revoke it only after a
+  // fresh published dataset proves the option is no longer available.
+  useEffect(() => {
+    if (!publicSourcesReady) return;
+    if (editionId !== effectiveEditionId) setEditionId("all");
+    if (kind !== effectiveKind) setKind("all");
+  }, [publicSourcesReady, editionId, effectiveEditionId, kind, effectiveKind]);
+  useEffect(() => {
+    if (!publicSourcesReady || !urlSearch || !onUrlSearchChange) return;
+    const next: ShowDirectoryUrlSearch = {
+      q: normalizePublicDirectoryUrlQuery(search),
+      edition: effectiveEditionId === "all" ? undefined : effectiveEditionId,
+      kind: effectiveKind === "all" ? undefined : effectiveKind,
+      state: state === "all" ? undefined : state,
+    };
+    if (next.q === urlSearch.q && next.edition === urlSearch.edition &&
+      next.kind === urlSearch.kind && next.state === urlSearch.state) return;
+    const timeoutId = window.setTimeout(() => onUrlSearchChange(next), 250);
+    return () => window.clearTimeout(timeoutId);
+  }, [publicSourcesReady, search, effectiveEditionId, effectiveKind, state,
+      urlSearch?.q, urlSearch?.edition, urlSearch?.kind, urlSearch?.state, onUrlSearchChange]);
+  const browseFilterKey = JSON.stringify([normalizedSearch, effectiveEditionId, effectiveKind, state]);
   const browseItems = useMemo(
     () =>
       allItems.filter(
         (item) =>
-          (!normalizedSearch || [
+          matchesShowDirectorySearch(normalizedSearch, [
             item.show.name, editionLabel(item.edition),
             showKindLabel(item.show.kind), item.stateLabel,
-          ].join(" ").toLowerCase().includes(normalizedSearch)) &&
-          (editionId === "all" || item.edition.id === editionId) &&
-          (kind === "all" || item.show.kind === kind) &&
+          ]) &&
+          (effectiveEditionId === "all" || item.edition.id === effectiveEditionId) &&
+          (effectiveKind === "all" || item.show.kind === effectiveKind) &&
           (state === "all" || item.state === state),
       ),
-    [allItems, editionId, kind, state, normalizedSearch],
+    [allItems, effectiveEditionId, effectiveKind, state, normalizedSearch],
   );
 
   const browseWindow = useMemo(
@@ -96,7 +148,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
     ),
     [browseItems, browseFilterKey, browseWindowState],
   );
-  const activeFilterCount = Number(editionId !== "all") + Number(kind !== "all") + Number(state !== "all");
+  const activeFilterCount = Number(effectiveEditionId !== "all") + Number(effectiveKind !== "all") + Number(state !== "all");
   const spotlightCollections = useMemo(
     () => buildShowSpotlights(
       discovery,
@@ -115,11 +167,11 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
   // avoiding duplicate controls, translation drift and client bundle cost.
   const filterFields = [
     {
-      label: "Edition", allLabel: "All editions", value: editionId, onChange: setEditionId,
+      label: "Edition", allLabel: "All editions", value: effectiveEditionId, onChange: setEditionId,
       options: editions.map((edition) => ({ value: edition.id, label: editionLabel(edition) })),
     },
     {
-      label: "Show type", allLabel: "All show types", value: kind, onChange: setKind,
+      label: "Show type", allLabel: "All show types", value: effectiveKind, onChange: setKind,
       options: kinds.map((value) => ({ value, label: showKindLabel(value) })),
     },
     {
@@ -133,7 +185,26 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
     return <ArchiveDataLoading label="Loading show discovery…" />;
   }
   if (archiveHasError(editionsQuery, showsQuery)) {
-    return <ArchiveDataError />;
+    return (
+      <PublicDataState
+        kind="error"
+        title="Show directory unavailable"
+        description="Published show information could not be verified. No cached shows or results are exposed as a fallback."
+        action={(
+          <button
+            type="button"
+            className="min-h-11 rounded-lg border border-border bg-surface px-4 text-sm font-semibold"
+            disabled={editionsQuery.isFetching || showsQuery.isFetching}
+            onClick={() => {
+              if (editionsQuery.isError) void editionsQuery.refetch();
+              if (showsQuery.isError) void showsQuery.refetch();
+            }}
+          >
+            {editionsQuery.isFetching || showsQuery.isFetching ? "Retrying…" : "Retry published shows"}
+          </button>
+        )}
+      />
+    );
   }
 
   if (!allItems.length) {
@@ -141,11 +212,11 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
       <AppEmptyState
         title="No public shows yet"
         description="Published shows will appear here when their public pages become available."
-        action={
+        action={allowsReleased("/editions") ? (
           <Link to="/editions" className="solaris-app-empty-action">
             Browse editions
           </Link>
-        }
+        ) : undefined}
       />
     );
   }
@@ -163,7 +234,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
           : "v3-shows-filter-fields grid gap-2 sm:grid-cols-3"}>
           {presentation === "installed-app" ? (
             <>
-              <SolarisSearchField value={search} onChange={setSearch}
+              <SolarisSearchField value={search} onChange={changeSearch}
                 label="Search shows" placeholder="Search shows…" />
               <Sheet>
                 <SheetTrigger asChild>
@@ -191,7 +262,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
             <>
               <div className="v3-directory-search" role="search">
                 <Search size={18} aria-hidden="true" />
-                <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
+                <input type="search" value={search} onChange={(event) => changeSearch(event.target.value)}
                   aria-label="Search shows" placeholder="Search shows…" />
                 {search ? (
                   <button type="button" className="v3-directory-search-clear" aria-label="Clear search"
@@ -223,6 +294,9 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
             ? `Showing ${browseWindow.visible.length} of ${browseItems.length} matching shows · ${allItems.length} published`
             : `Showing ${browseWindow.visible.length} of ${browseItems.length} shows`}
         </p>
+        {browseItems.length > 0 && (search.trim() || activeFilterCount) ? (
+          <button type="button" className="v3-directory-clear-filters" onClick={() => { setSearch(""); clearFacets(); }}>Clear filters</button>
+        ) : null}
         <div id="v3-shows-browse-results" className="v3-shows-browse-results">
           {browseWindow.visible.map((item) =>
             presentation === "mobile-web" ? (
@@ -343,6 +417,7 @@ function ShowCollection({
 }
 
 function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: boolean }) {
+  const broadcastHref = publicBroadcastHref(item.broadcastUrl);
   return (
     <div className={`v3-show-editorial-card rounded-2xl border p-4 ${live ? "border-primary/45 bg-primary/5" : "border-border bg-surface"}`}>
       <div className="min-w-0">
@@ -372,11 +447,11 @@ function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: bool
         {showPublishesResults(item.show) ? (
           <span className="text-muted-foreground">Results published</span>
         ) : null}
-        {item.broadcastUrl ? (
+        {broadcastHref ? (
           <a
-            href={item.broadcastUrl}
+            href={broadcastHref}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className="inline-flex min-h-11 items-center gap-1 font-semibold text-primary"
           >
             Broadcast <span aria-hidden="true">↗</span>
