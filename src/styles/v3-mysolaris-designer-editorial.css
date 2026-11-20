@@ -14,6 +14,13 @@ html:not([data-solaris-app]) .mysolaris-designer-web-preview {
   min-width: 0;
   max-width: 100%;
 }
+html:not([data-solaris-app]) .mysolaris-designer-web-preview :is(button, select, input:not([type="range"])) {
+  min-height: 44px;
+}
+html:not([data-solaris-app]) .mysolaris-designer-web-preview :is(button, select, input):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
 html:not([data-solaris-app]) .mysolaris-designer-web-preview img,
 html:not([data-solaris-app]) .mysolaris-designer-web-preview video,
 html:not([data-solaris-app]) .mysolaris-designer-web-preview canvas {
