@@ -138,7 +138,7 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     canonicalReadProjection: "jury operational readiness",
     participantProjection: "jury ballot",
     organizerProjection: "Organizer Jury",
-    commands: ["jury.open", "jury.close", "jury.ballot_review", "jury.dnv"],
+    commands: ["jury.submit", "jury.open", "jury.close", "jury.ballot_review", "jury.dnv"],
     events: ["jury.opened", "jury.closed", "jury.ballot_changed"],
     tasks: ["jury.ballot_missing", "jury.review_required"],
     legacySources: ["direct ballot lifecycle mutation"],
