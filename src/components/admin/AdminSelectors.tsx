@@ -168,7 +168,7 @@ export function AdminSelectors() {
         open={open}
         onClose={() => setOpen(false)}
         title="Switch edition"
-        description={`${orderedEditions.length} edition${orderedEditions.length === 1 ? "" : "s"} available. Solaris Organizer keeps you in the same workspace when it can.`}
+        description={`Choose from ${orderedEditions.length} edition${orderedEditions.length === 1 ? "" : "s"}.`}
       >
         <div className="sticky top-0 z-10 -mx-1 mb-3 bg-[#081326] pb-2">
           <label className="flex min-h-11 items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.035] px-3">
