@@ -14,13 +14,11 @@ import { ArchiveDataLoading } from "@/components/ArchiveDataState";
 import { supabase } from "@/integrations/supabase/client";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 import { parseReferenceSearchRows } from "@/lib/v3-reference-search-rows";
+import { MAX_REFERENCE_QUERY_LENGTH, parseReferenceUrlSearch, referenceQueryFromUrl } from "@/lib/v3-reference-url-search";
 import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 
 export const Route = createFileRoute("/encyclopedia/")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    // Backward-compatible search hint only. This must not become Artist identity.
-    artist: typeof search.artist === "string" ? search.artist : undefined,
-  }),
+  validateSearch: parseReferenceUrlSearch,
   head: () => ({
     meta: [
       { title: "Reference — Solaris Studio" },
@@ -66,7 +64,6 @@ const RESULT_LABELS: Record<ResultKind, string> = {
 };
 const KINDS = Object.keys(KIND_LABELS) as Kind[];
 const REFERENCE_SEARCH_DELAY_MS = 300;
-const MAX_REFERENCE_QUERY_LENGTH = 120;
 const BROWSE_DESTINATIONS = [
   { kind: "edition", label: "Editions", description: "Browse every published Solaris edition.", href: "/editions" },
   { kind: "country", label: "Countries", description: "Open canonical country profiles and participation history.", href: "/countries" },
@@ -101,9 +98,31 @@ function ReferencePage() {
   const { allowsReleased } = usePublicLaunchAvailability();
   const presentation = useV3DirectoryPresentation();
   const search = Route.useSearch();
-  const [query, setQuery] = useState(search.artist ?? "");
-  const [kind, setKind] = useState<Kind>("all");
+  const navigate = Route.useNavigate();
+  const urlQuery = referenceQueryFromUrl(search);
+  const urlKind: Kind = search.kind ?? "all";
+  const [query, setQuery] = useState(urlQuery);
+  const [kind, setKind] = useState<Kind>(urlKind);
   const normalizedQuery = query.trim();
+  // Browser history/refresh restores the same public Reference filter. User
+  // typing stays local until the bounded debounce, without extra DB readers.
+  useEffect(() => setQuery(urlQuery), [urlQuery]);
+  useEffect(() => setKind(urlKind), [urlKind]);
+  useEffect(() => {
+    if (!platformResolved || query.length > MAX_REFERENCE_QUERY_LENGTH) return;
+    if (normalizedQuery === urlQuery && kind === urlKind) return;
+    const timeoutId = window.setTimeout(() => {
+      void navigate({
+        search: {
+          q: normalizedQuery || undefined,
+          kind: kind === "all" ? undefined : kind,
+          artist: undefined,
+        },
+        replace: true,
+      });
+    }, REFERENCE_SEARCH_DELAY_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [platformResolved, query.length, normalizedQuery, urlQuery, kind, urlKind, navigate]);
   const [settledQuery, setSettledQuery] = useState(normalizedQuery);
   useEffect(() => {
     if (settledQuery === normalizedQuery) return;
