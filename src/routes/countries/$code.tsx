@@ -478,7 +478,7 @@ function CountryProfilePage() {
             description={identityModel.description}
             flagImage={identityModel.flag.src}
             className="country-editorial-hero mb-6"
-            actions={
+            actions={isAppMode ? (
               <>
                 <div className="country-v2-hero-secondary-actions">
                   <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
@@ -487,7 +487,7 @@ function CountryProfilePage() {
                 </div>
                 <div className="country-v2-hero-follow"><FollowButton entityType="country" entityId={country.id} label={country.name} /></div>
               </>
-            }
+            ) : null}
           />
         ) : (
           <CountryIdentityHero
@@ -502,15 +502,41 @@ function CountryProfilePage() {
             accentColor={identityModel.colors.accent}
             geography={identityModel.geography}
             className="country-editorial-hero mb-6"
-            actions={
+            actions={isAppMode ? (
               <>
                 <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
                 <Link to="/compare" search={{ a: country.short_code }}>Compare</Link>
                 <Link to="/voting-dna/$code" params={{ code: country.short_code }}>Voting DNA</Link>
                 <FollowButton entityType="country" entityId={country.id} label={country.name} />
               </>
-            }
+            ) : null}
           />
+        )}
+
+        {!isAppMode && (
+          <div className="country-editorial-identity-strip">
+            <FlagChip
+              code={country.short_code}
+              color={country.accent_color}
+              image={country.flag_image}
+              size="lg"
+            />
+            <div className="country-editorial-identity-summary">
+              <span className="country-editorial-identity-code">{country.short_code}</span>
+              {country.native_name && country.native_name !== country.name ? (
+                <span className="country-editorial-identity-native">{country.native_name}</span>
+              ) : null}
+              {country.region ? <span className="country-editorial-identity-region">{country.region}</span> : null}
+            </div>
+            <nav className="country-editorial-identity-links" aria-label={`More about ${country.name}`}>
+              <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
+              <Link to="/compare" search={{ a: country.short_code }}>Compare</Link>
+              <Link to="/voting-dna/$code" params={{ code: country.short_code }}>Voting DNA</Link>
+            </nav>
+            <div className="country-editorial-identity-follow">
+              <FollowButton entityType="country" entityId={country.id} label={country.name} />
+            </div>
+          </div>
         )}
 
         <ResponsiveTabs
