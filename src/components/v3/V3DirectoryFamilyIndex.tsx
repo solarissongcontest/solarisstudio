@@ -27,6 +27,8 @@ export type V3DirectoryItem = {
 export type V3DirectoryGroup = {
   id: string;
   label: string;
+  /** Optional context for purpose-built historical and specialist directories. */
+  description?: string;
   items: readonly V3DirectoryItem[];
 };
 
@@ -45,7 +47,7 @@ export function V3DirectoryFamilyIndex({
   context,
   noShell = false,
 }: {
-  variant?: "tools" | "sitemap";
+  variant?: "tools" | "sitemap" | "archive";
   title: string;
   eyebrow: string;
   intro: string;
@@ -160,6 +162,7 @@ export function V3DirectoryFamilyIndex({
             <h2 id={`directory-${group.id}`} className="v3-directory-group-title">
               {group.label}<span className="v3-directory-group-count">{group.items.length}</span>
             </h2>
+            {group.description ? <p className="v3-directory-group-description">{group.description}</p> : null}
             <DirectoryItems items={group.items} presentation={presentation} variant={variant} groupId={group.id} />
           </section>
         ))}
@@ -220,7 +223,7 @@ export function V3DirectoryFamilyIndex({
 function DirectoryItems({ items, presentation, variant, groupId }: {
   items: readonly V3DirectoryItem[];
   presentation: V3DirectoryPresentation;
-  variant: "tools" | "sitemap";
+  variant: "tools" | "sitemap" | "archive";
   groupId: string;
 }) {
   const ToolIcon = groupId === "results" ? BarChart3 : groupId === "archive" ? History : CalendarDays;
