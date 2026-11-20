@@ -14,6 +14,7 @@ import {
   WORLD_DIRECTORY_MAX_PAGE_INDEX,
   cleanWorldSearch,
   currentWorldMemberships,
+  currentPublicWorldRepresentativeNames,
   fetchWorldDirectory,
   fetchFeaturedWorldOrganizations,
   fetchWorldPublicEnabled,
@@ -395,9 +396,7 @@ export function WorldOrganizationPage({
     new Map((verifiedCountries ?? []).map((country) => [country.id, country])),
     [verifiedCountries]);
   const representativesByCountry = useMemo(() =>
-    new Map((verifiedProjection?.representatives ?? [])
-      .filter((rep) => rep.endsAt === null && rep.role === "representative" && rep.votingAuthority)
-      .map((rep) => [rep.countryId, rep])),
+    currentPublicWorldRepresentativeNames(verifiedProjection?.representatives ?? []),
     [verifiedProjection]);
   const officesByCountry = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -574,9 +573,9 @@ export function WorldOrganizationPage({
                           {country ? <Link to="/world/countries/$code" params={{ code: country.short_code.toLowerCase() }} className="font-medium hover:underline focus-visible:rounded focus-visible:outline focus-visible:outline-2">{country.name}</Link> :
                             <span className="font-medium">Country identity unavailable</span>}
                           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                            {representativesByCountry.get(member.countryId)?.displayName
-                              ? `Representative: ${representativesByCountry.get(member.countryId)?.displayName}`
-                              : "Representative not recorded"}
+                            {representativesByCountry.get(member.countryId)?.length
+                              ? `Representatives: ${representativesByCountry.get(member.countryId)?.join(", ")}`
+                              : "Representatives not recorded"}
                           </p>
                           {officesByCountry.get(member.countryId)?.length ? (
                             <p className="text-xs leading-5 text-muted-foreground">Office: {officesByCountry.get(member.countryId)?.join(", ")}</p>
