@@ -32,6 +32,7 @@ import {
   useCountries,
   useEditions,
 } from "@/lib/data";
+import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 
 import {
   computeRelationship,
@@ -164,6 +165,15 @@ function ComparePage() {
       ],
     );
 
+  const publicArchive =
+    useMemo(
+      () =>
+        buildPublicCountryArchive(
+          opts,
+        ),
+      [opts],
+    );
+
   const statsA =
     countryA
       ? computeCanonicalCountryStats(
@@ -198,20 +208,16 @@ function ComparePage() {
           countryB.id,
           {
             editions:
-              editions ??
-              [],
+              publicArchive.editions,
 
             jury:
-              jury ??
-              [],
+              publicArchive.jury,
 
             results:
-              results ??
-              [],
+              publicArchive.results,
 
             shows:
-              shows ??
-              [],
+              publicArchive.shows,
           },
         )
       : null;
@@ -515,7 +521,10 @@ function ComparePage() {
               )}
             </Panel>
 
-            <Panel title="Voting relationship">
+            <Panel
+              title="Voting relationship"
+              description="Uses published detailed voting only. Open the relationship page for methodology, sample scope and limitations."
+            >
               {relationship ? (
                 <div className="divide-y divide-border/60">
                   <Row
@@ -546,7 +555,7 @@ function ComparePage() {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No voting data.
+                  No published detailed voting data.
                 </p>
               )}
             </Panel>
