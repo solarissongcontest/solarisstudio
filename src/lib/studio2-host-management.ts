@@ -177,16 +177,32 @@ type HostOperationInput = {
   payload?: Record<string, unknown>;
 };
 
+type PendingHostExecution = {
+  executionId: string;
+  requestFingerprint: string;
+};
+
 const rpcClient = supabase as unknown as RpcClient;
 
-// Keep the first execution identity for an operation whose result is uncertain.
-// The server's immutable execution receipt makes reusing this id safe: if the
-// first request committed but its response was lost, retrying returns the same
-// receipt instead of applying the mutation a second time.
-const pendingHostExecutionIds = new Map<string, string>();
+// Keep one execution identity for an unresolved semantic operation. The key
+// deliberately excludes the audit reason: once an attempt has crossed the
+// network boundary, changing only the reason must not mint a second operation
+// for the same reviewed state. The exact request fingerprint still includes the
+// reason and therefore lets us fail closed if a retry tries to mutate payload.
+const pendingHostExecutions = new Map<string, PendingHostExecution>();
 const MAX_PENDING_HOST_EXECUTIONS = 64;
 
-function hostOperationFingerprint(input: HostOperationInput, reason: string): string {
+function hostOperationIdentityFingerprint(input: HostOperationInput): string {
+  return JSON.stringify({
+    editionId: input.editionId,
+    action: input.action,
+    bidId: input.bidId ?? null,
+    expectedRevision: input.expectedRevision ?? null,
+    payload: input.payload ?? {},
+  });
+}
+
+function hostOperationRequestFingerprint(input: HostOperationInput, reason: string): string {
   return JSON.stringify({
     editionId: input.editionId,
     action: input.action,
@@ -197,15 +213,29 @@ function hostOperationFingerprint(input: HostOperationInput, reason: string): st
   });
 }
 
-function executionIdForHostOperation(fingerprint: string, proposedExecutionId: string): string {
-  const existing = pendingHostExecutionIds.get(fingerprint);
-  if (existing) return existing;
-
-  if (pendingHostExecutionIds.size >= MAX_PENDING_HOST_EXECUTIONS) {
-    const oldest = pendingHostExecutionIds.keys().next().value;
-    if (oldest) pendingHostExecutionIds.delete(oldest);
+function executionIdForHostOperation(
+  identityFingerprint: string,
+  requestFingerprint: string,
+  proposedExecutionId: string,
+): string {
+  const existing = pendingHostExecutions.get(identityFingerprint);
+  if (existing) {
+    if (existing.requestFingerprint !== requestFingerprint) {
+      throw new Error(
+        'This Host operation already has an unresolved attempt with a different audit reason or payload. Reconcile or retry the exact reviewed operation before creating a new command.',
+      );
+    }
+    return existing.executionId;
   }
-  pendingHostExecutionIds.set(fingerprint, proposedExecutionId);
+
+  if (pendingHostExecutions.size >= MAX_PENDING_HOST_EXECUTIONS) {
+    const oldest = pendingHostExecutions.keys().next().value;
+    if (oldest) pendingHostExecutions.delete(oldest);
+  }
+  pendingHostExecutions.set(identityFingerprint, {
+    executionId: proposedExecutionId,
+    requestFingerprint,
+  });
   return proposedExecutionId;
 }
 
@@ -363,12 +393,17 @@ function parseExecution(value: unknown): HostOperationExecution {
 
 export function validateHostOperationExecution(
   execution: HostOperationExecution,
-  request: Pick<HostOperationInput, 'editionId' | 'action'> & { executionId: string },
+  request: Pick<HostOperationInput, 'editionId' | 'action' | 'bidId'> & {
+    executionId: string;
+    reason: string;
+  },
 ): HostOperationExecution {
   const mismatches: string[] = [];
   if (execution.executionId !== request.executionId) mismatches.push('executionId');
   if (execution.editionId !== request.editionId) mismatches.push('editionId');
   if (execution.action !== request.action) mismatches.push('action');
+  if (execution.bidId !== (request.bidId ?? null)) mismatches.push('bidId');
+  if (execution.reason !== request.reason) mismatches.push('reason');
   if (mismatches.length) {
     throw new Error(`Host operation receipt does not match the requested command (${mismatches.join(', ')}).`);
   }
@@ -405,8 +440,13 @@ export async function executeStudio2HostOperation(input: HostOperationInput): Pr
     throw new Error('Expected host revision is invalid.');
   }
 
-  const fingerprint = hostOperationFingerprint(input, reason);
-  const executionId = executionIdForHostOperation(fingerprint, input.executionId);
+  const identityFingerprint = hostOperationIdentityFingerprint(input);
+  const requestFingerprint = hostOperationRequestFingerprint(input, reason);
+  const executionId = executionIdForHostOperation(
+    identityFingerprint,
+    requestFingerprint,
+    input.executionId,
+  );
   const data = await rpc('studio2_execute_host_operation', {
     p_edition_id: input.editionId,
     p_action: input.action,
@@ -420,11 +460,13 @@ export async function executeStudio2HostOperation(input: HostOperationInput): Pr
     executionId,
     editionId: input.editionId,
     action: input.action,
+    bidId: input.bidId,
+    reason,
   });
   // Only a receipt that proves it belongs to this exact semantic operation can
   // retire the retry identity. A malformed/stale receipt leaves the identity
   // available so response-loss recovery cannot accidentally mint a duplicate.
-  pendingHostExecutionIds.delete(fingerprint);
+  pendingHostExecutions.delete(identityFingerprint);
   return execution;
 }
 
