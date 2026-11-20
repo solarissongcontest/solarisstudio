@@ -149,6 +149,13 @@ function CountryProfilePage() {
   const { data: jury } = juryQuery;
   const { data: televote } = televoteQuery;
   const [tab, setTab] = useState<Tab>("overview");
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyOutcome, setHistoryOutcome] = useState<"all" | "finalist" | "eliminated">("all");
+
+  useEffect(() => {
+    setHistorySearch("");
+    setHistoryOutcome("all");
+  }, [code]);
 
   // Browser country sections have bookmarkable URLs and follow Back/Forward.
   // The installed PWA retains its established in-app section navigation.
@@ -336,6 +343,22 @@ function CountryProfilePage() {
         (editionMap.get(a.edition_id)?.edition_number ?? -1),
     );
   const latestEntry = entryHistory[0] ?? null;
+  const normalizedHistorySearch = historySearch.trim().toLocaleLowerCase();
+  const filteredEntryHistory = entryHistory.filter((entry) => {
+    const status = qualificationFor(entry.edition_id);
+    if (historyOutcome === "finalist" && !["q", "aq", "wildcard"].includes(status ?? "")) return false;
+    if (historyOutcome === "eliminated" && status !== "nq") return false;
+    if (!normalizedHistorySearch) return true;
+    const edition = editionMap.get(entry.edition_id);
+    const searchable = [
+      edition?.name,
+      edition?.slug,
+      edition ? editionLabel(edition) : "",
+      entry.song,
+      entry.artist,
+    ].filter(Boolean).join(" ").toLocaleLowerCase();
+    return searchable.includes(normalizedHistorySearch);
+  });
 
   const qualificationEditionIds = new Set<string>();
   myParticipants.forEach((participant) => qualificationEditionIds.add(participant.edition_id));
@@ -770,9 +793,34 @@ function CountryProfilePage() {
               <h2>Participation history</h2>
               <span>{entryHistory.length} published {entryHistory.length === 1 ? "entry" : "entries"}</span>
             </header>
-            {entryHistory.length ? (
+            <div className="country-editorial-history-controls">
+              <label>
+                <span>Search published entries</span>
+                <input
+                  type="search"
+                  value={historySearch}
+                  onChange={(event) => setHistorySearch(event.target.value)}
+                  placeholder="Edition, artist or song"
+                />
+              </label>
+              <label>
+                <span>Result</span>
+                <select
+                  value={historyOutcome}
+                  onChange={(event) => setHistoryOutcome(event.target.value as "all" | "finalist" | "eliminated")}
+                >
+                  <option value="all">All entries</option>
+                  <option value="finalist">Reached the final</option>
+                  <option value="eliminated">Did not qualify</option>
+                </select>
+              </label>
+            </div>
+            <p className="country-editorial-history-count" role="status" aria-live="polite">
+              {filteredEntryHistory.length} of {entryHistory.length} published entries
+            </p>
+            {filteredEntryHistory.length ? (
               <ol className="country-editorial-history-list">
-                {entryHistory.map((entry) => {
+                {filteredEntryHistory.map((entry) => {
                   const edition = editionMap.get(entry.edition_id);
                   return (
                     <li key={entry.id}>
@@ -793,7 +841,9 @@ function CountryProfilePage() {
                 })}
               </ol>
             ) : (
-              <p className="text-sm text-muted-foreground">No published participation history yet.</p>
+              <p className="text-sm text-muted-foreground">
+                {entryHistory.length ? "No published entries match your filters." : "No published participation history yet."}
+              </p>
             )}
             {hostedEditions.length > 0 && (
               <section className="country-editorial-hosted-editions">
