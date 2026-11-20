@@ -351,8 +351,18 @@ export function WorldOrganizationPage({
     .filter((office) => office.currentTerm !== null)
     .slice(0, 3);
   const historicalMembers = useMemo(() =>
-    verifiedProjection ? verifiedProjection.memberships.filter((row) => row.endedAt !== null) : [],
+    verifiedProjection ? verifiedProjection.memberships.filter((row) => row.endedAt !== null)
+      .sort((a, b) => (b.endedAt ?? "").localeCompare(a.endedAt ?? "") || a.id.localeCompare(b.id)) : [],
     [verifiedProjection]);
+  // Publication rechecks may remove or conclude terms while the visitor is on
+  // a later page. Keep both pagers inside the now-verified projection bounds.
+  useEffect(() => {
+    if (!verifiedProjection) return;
+    const maxCurrentPage = Math.max(0, Math.ceil(currentMembers.length / WORLD_MEMBER_PAGE_SIZE) - 1);
+    const maxHistoryPage = Math.max(0, Math.ceil(historicalMembers.length / WORLD_MEMBER_PAGE_SIZE) - 1);
+    setMemberPage((previous) => Math.min(previous, maxCurrentPage));
+    setHistoryPage((previous) => Math.min(previous, maxHistoryPage));
+  }, [verifiedProjection, currentMembers.length, historicalMembers.length]);
   const visibleMembers = useMemo(
     () => currentMembers.slice(memberPage * WORLD_MEMBER_PAGE_SIZE, (memberPage + 1) * WORLD_MEMBER_PAGE_SIZE),
     [currentMembers, memberPage],
@@ -427,7 +437,7 @@ export function WorldOrganizationPage({
             </div>
           </header>
           <nav aria-label="Organization sections" className="world-editorial-org-nav mt-8 flex gap-1 overflow-x-auto border-b border-border pb-1">
-            {(["overview", "leadership", "members", ...(historicalMembers.length ? ["history" as const] : [])] as const).map((tab) => (
+            {(["overview", "leadership", "members", "history"] as const).map((tab) => (
               <button key={tab} type="button" aria-current={view === tab ? "page" : undefined}
                 onClick={() => onViewChange(tab)}
                 className={"min-h-11 shrink-0 border-b-2 px-4 text-sm font-semibold capitalize transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 " +
@@ -552,6 +562,9 @@ export function WorldOrganizationPage({
               {!currentMembers.length ? <p className="mt-6 rounded-xl border border-border px-5 py-7 text-sm text-muted-foreground">No current memberships have been recorded. This does not imply the institution has no historical members.</p> : null}
               {worldPublicQueryVerified(countries) && currentMembers.length ? (
                 <div className="world-editorial-members mt-5" aria-label="Current member countries">
+                  <p className="pb-2 text-xs tabular-nums text-muted-foreground" aria-live="polite">
+                    Showing {visibleMembers.length} of {currentMembers.length} current membership records
+                  </p>
                   {visibleMembers.map((member) => {
                     const country = countryMap.get(member.countryId);
                     return (
@@ -617,6 +630,9 @@ export function WorldOrganizationPage({
               ) : null}
               {worldPublicQueryVerified(countries) && historicalMembers.length ? (
                 <div className="world-editorial-members mt-5" aria-label="Completed membership terms">
+                  <p className="pb-2 text-xs tabular-nums text-muted-foreground" aria-live="polite">
+                    Showing {visibleHistory.length} of {historicalMembers.length} completed terms, newest first
+                  </p>
                   {visibleHistory.map((member) => {
                     const country = countryMap.get(member.countryId);
                     return (
