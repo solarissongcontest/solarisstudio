@@ -288,3 +288,76 @@ body .v3-directory-search > input[type="search"]::-webkit-search-cancel-button {
     transition-duration: 0.001ms !important;
   }
 }
+
+
+/* Archive subject index: separate historical browsing from the site sitemap.
+ * Content comes from the existing publication-gated navigation registry.
+ * No new historical data source, edition image or results authority. */
+.v3-directory-family[data-directory-kind="archive"] .v3-directory-group {
+  min-width: 0;
+}
+.v3-directory-family[data-directory-kind="archive"] .v3-directory-group-title {
+  font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+  letter-spacing: -.025em;
+}
+.v3-directory-family[data-directory-kind="archive"] .v3-directory-group-description {
+  max-width: 59ch;
+  margin: -.25rem 0 .9rem;
+  color: var(--muted-foreground);
+  font-size: .82rem;
+  line-height: 1.6;
+}
+.v3-directory-family[data-directory-kind="archive"] .v3-directory-desktop-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: clamp(1.2rem, 3vw, 2.5rem);
+  gap: 0 clamp(1.2rem, 3vw, 2.5rem);
+}
+.v3-directory-family[data-directory-kind="archive"] .v3-directory-desktop-card {
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  min-height: 6rem;
+  padding: 1rem .2rem;
+  gap: .4rem;
+}
+.v3-directory-family[data-directory-kind="archive"] .v3-directory-desktop-card:hover {
+  background: var(--surface);
+  border-color: var(--primary);
+}
+.v3-directory-family[data-directory-kind="archive"] .v3-directory-desktop-card:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.v3-directory-family[data-directory-kind="archive"] .v3-directory-mobile-row {
+  min-height: 5rem;
+}
+.v3-directory-family[data-directory-kind="archive"] .v3-archive-context {
+  max-width: 72ch;
+  margin-bottom: 1.35rem;
+}
+.v3-directory-family[data-directory-kind="archive"] .v3-archive-context p {
+  max-width: 66ch;
+  line-height: 1.6;
+}
+@media (max-width: 70rem) {
+  .v3-directory-family[data-directory-kind="archive"] .v3-directory-desktop-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 35rem) {
+  .v3-directory-family[data-directory-kind="archive"] .v3-directory-group-description {
+    font-size: .79rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .v3-directory-family[data-directory-kind="archive"] * {
+    transition-duration: .001ms;
+    scroll-behavior: auto;
+  }
+}
+@media (forced-colors: active) {
+  .v3-directory-family[data-directory-kind="archive"] .v3-directory-desktop-card {
+    border-color: CanvasText;
+  }
+}
