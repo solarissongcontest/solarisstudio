@@ -7,6 +7,7 @@ import { CountryWorldOverview } from "@/components/CountryWorldOverview";
 import { CountryCustomSections } from "@/components/country/CountryCustomSections";
 import { CountryDesignV2Hero } from "@/components/country/CountryDesignV2Hero";
 import { CountryHeroStudioPreview } from "@/components/mysolaris/CountryHeroStudioPreview";
+import "@/styles/v3-mysolaris-designer-editorial.css";
 import { CountryDesignV2Styles } from "@/components/country/CountryDesignV2Styles";
 import { uploadCountryBackground } from "@/lib/country-background";
 import { useCountryWorldProfile, useMyCountryAccount } from "@/lib/country-account";
@@ -296,8 +297,8 @@ function CountryDesignEditor({
           </button>
         </div>
 
-        <div className="grid gap-5 2xl:grid-cols-[minmax(420px,.82fr)_minmax(0,1.18fr)] 2xl:items-start">
-          <div className="space-y-4">
+        <div className="mysolaris-designer-web-shell grid gap-5 2xl:grid-cols-[minmax(420px,.82fr)_minmax(0,1.18fr)] 2xl:items-start">
+          <div className="mysolaris-designer-web-settings space-y-4">
             <Panel title="Surface" description="One material language applies across the whole page. Sections vary by emphasis, not by randomly switching material.">
               <OptionGrid
                 value={design.surface}
@@ -585,7 +586,7 @@ function CountryDesignEditor({
             </Panel>
           </div>
 
-          <div className="2xl:sticky 2xl:top-24">
+          <div className="mysolaris-designer-web-preview 2xl:sticky 2xl:top-24">
             <Panel
               title="Live public renderer"
               description="This preview uses the same V2 hero, surface tokens and real country sections as the public routes. Click editable regions to jump their design focus."
