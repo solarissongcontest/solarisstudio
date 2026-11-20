@@ -1,0 +1,102 @@
+name: V3 S14 Hosted Catalog Compatibility (local comparison)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/v3-s14-hosted-catalog-local-comparison.yml"
+      - ".github/scripts/v3-start-disposable-supabase.sh"
+      - "scripts/v3-s14-schema-metadata-readonly.sql"
+      - "scripts/compare-v3-s14-hosted-metadata.mjs"
+      - "scripts/compare-v3-s14-hosted-metadata.test.mjs"
+      - "docs/v3/recovery-candidates/evidence/s14-hosted-eight-table-schema-metadata-2026-11-08.json"
+      - "supabase/migrations/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s14-hosted-shape-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hosted-schema-shape-compatibility:
+    name: Hosted metadata snapshot vs source-clean local schema
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      REVIEWED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      SOLARIS_VERIFICATION_TARGET: local
+      SOLARIS_RUN_LOCAL_DB_REHEARSAL: "YES"
+      SUPABASE_PROJECT_ID: local
+      SUPABASE_PROJECT_REF: local
+      SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      E2E_SUPABASE_URL: http://127.0.0.1:54321
+      CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+    steps:
+      - name: Checkout exact reviewed commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Deny hosted database credentials or endpoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$REVIEWED_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          [[ "$(git rev-parse HEAD)" == "$REVIEWED_SHA" ]] || exit 1
+          [[ "$SOLARIS_VERIFICATION_TARGET" == local ]] || exit 1
+          [[ "$SUPABASE_URL" == http://127.0.0.1:54321 ]] || exit 1
+          for var in VITE_SUPABASE_URL E2E_SUPABASE_URL CONFIRMATIONS_SUPABASE_URL VITE_CONFIRMATIONS_SUPABASE_URL; do
+            [[ "${!var:-}" == http://127.0.0.1:54321 ]] || { echo "::error::Nonlocal client endpoint: $var"; exit 1; }
+          done
+          for var in DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN PGSERVICE PGSERVICEFILE PGHOST PGHOSTADDR; do
+            [[ -z "${!var:-}" ]] || { echo "::error::Forbidden DB environment: $var"; exit 1; }
+          done
+
+      - name: Test schema comparator negative controls
+        run: node --test scripts/compare-v3-s14-hosted-metadata.test.mjs
+
+      - name: Setup pinned Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Start isolated loopback-only Supabase
+        run: bash .github/scripts/v3-start-disposable-supabase.sh
+
+      - name: Rebuild local source chain (no seed)
+        run: supabase db reset --local --no-seed
+
+      - name: Compare source-clean local metadata against observed hosted metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v psql
+          eval "$(supabase status -o env)"
+          case "${API_URL:-}" in
+            http://127.0.0.1:*|http://localhost:*) ;;
+            *) echo "::error::Refusing nonloopback API URL"; exit 1 ;;
+          esac
+          case "${DB_URL:-}" in
+            postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;;
+            *) echo "::error::Refusing nonlocal PostgreSQL URL"; exit 1 ;;
+          esac
+          psql "$DB_URL" -w -X -qAt -v ON_ERROR_STOP=1 -f scripts/v3-s14-schema-metadata-readonly.sql > "$RUNNER_TEMP/v3-s14-local-metadata.json"
+          node scripts/compare-v3-s14-hosted-metadata.mjs \
+            docs/v3/recovery-candidates/evidence/s14-hosted-eight-table-schema-metadata-2026-11-08.json \
+            "$RUNNER_TEMP/v3-s14-local-metadata.json"
+
+      - name: State release boundary
+        if: always()
+        run: |
+          echo "Eight catalog tables only. Zero hosted CI connections."
+          echo "Drift means NO-GO. Matching these tables never proves full release readiness."
+
+      - name: Stop disposable Supabase
+        if: always()
+        run: supabase stop --no-backup || true
