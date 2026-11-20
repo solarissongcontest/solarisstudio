@@ -103,3 +103,29 @@ html:not([data-solaris-app]) [data-records-presentation] .records-editorial-desk
     outline-color: Highlight;
   }
 }
+
+/* Search, empty-state recovery and record deep links are browser-only. */
+html:not([data-solaris-app]) [data-records-presentation] .records-editorial-clear,
+html:not([data-solaris-app]) [data-records-presentation] .records-editorial-reset {
+  min-height: 44px;
+  padding: .5rem .75rem;
+  border: 1px solid var(--border);
+  border-radius: .65rem;
+  color: var(--foreground);
+  font-size: .875rem;
+  font-weight: 650;
+}
+html:not([data-solaris-app]) [data-records-presentation] .records-editorial-empty {
+  border-top: 1px solid var(--border);
+}
+html:not([data-solaris-app]) [data-records-presentation] .records-editorial-reset {
+  margin-top: .9rem;
+}
+html:not([data-solaris-app]) [data-records-presentation] .records-editorial-clear:focus-visible,
+html:not([data-solaris-app]) [data-records-presentation] .records-editorial-reset:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+html:not([data-solaris-app]) [data-records-presentation] article[id^="record-"] {
+  scroll-margin-top: 6rem;
+}
