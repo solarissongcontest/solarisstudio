@@ -15,6 +15,8 @@ describe("Explore Shows public browse search and live facets", () => {
     expect(matchesShowDirectorySearch("GRAND    22", fields)).toBe(true);
     expect(matchesShowDirectorySearch("ssc semi", fields)).toBe(false);
     expect(matchesShowDirectorySearch("  ", fields)).toBe(true);
+    expect(matchesShowDirectorySearch("ålanti finaL", ["SSC 22 · Ålanti", "Grand Final"])).toBe(true);
+    expect(matchesShowDirectorySearch("Ornadal ended", ["Ørnådal", "Ended"])).toBe(true);
   });
 
   it("recovers a revoked or renamed selection rather than silently filtering everything", () => {
