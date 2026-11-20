@@ -426,7 +426,7 @@ export function V3CountriesDiscoveryScreen({
       </section>
 
 
-      {movementGroups.length > 0 ? (
+      {currentLineupReady && movementGroups.length > 0 ? (
         <section className="v3-countries-secondary" aria-labelledby="countries-current-movement">
           <AppSectionHeader
             eyebrow="Current movement"
