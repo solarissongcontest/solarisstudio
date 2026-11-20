@@ -196,6 +196,46 @@ if age -d -i "$KEY" "$DB" | docker exec -i "$CONTAINER" sh -c '
   test "$POLICY_COUNT" = 265 || abort "Unexpected policy count after role/ACL replay: $POLICY_COUNT"
   echo "RLS policies present: $POLICY_COUNT / 265"
 
+  # Compare the local table-owner/ACL/RLS fingerprints with the bounded
+  # 2026-11-20 production METADATA baseline. This backup is Nov 15, so a
+  # difference is dated drift, never a reason to modify production or falsely
+  # claim failed file integrity. The actual GRANT/ALTER OWNER replay itself
+  # must have succeeded transactionally before this comparison runs.
+  HOSTED_MATCHES=0
+  HOSTED_DRIFTS=0
+  while IFS='|' read -r SCHEMA OWNER_DIGEST; do
+    case "$SCHEMA" in
+      auth) EXPECTED_DIGEST='8f329f2a8c9d5912237cae44373b17b5e9d37c195a852ef8420f28fbad18536f' ;;
+      private) EXPECTED_DIGEST='9d7d119f0d4a6caa086f0d8a83c173388f7858aa21611188105745ef4cb92087' ;;
+      public) EXPECTED_DIGEST='868f63c6f61ad87edc56ea03f1d362906c9d9c0e78c71af3efbc3e93be83e981' ;;
+      storage) EXPECTED_DIGEST='d0703297d0e3fb86340d92dfee386c98b9a48815ea93117e5c2d67a3e505ee8e' ;;
+      televoting) EXPECTED_DIGEST='ad19940a504a5cc06fe7ec7ebf9f45c38c3e61c0ed44c310851bd734b648bad0' ;;
+      *) abort 'Unexpected schema returned from owner/ACL catalog comparison' ;;
+    esac
+    if [ "$OWNER_DIGEST" = "$EXPECTED_DIGEST" ]; then
+      echo "Hosted Nov20 vs Nov15 replay $SCHEMA owner/ACL/RLS: MATCH"
+      HOSTED_MATCHES=$((HOSTED_MATCHES + 1))
+    else
+      echo "Hosted Nov20 vs Nov15 replay $SCHEMA owner/ACL/RLS: DIFFERENT (dated drift/role change requires review)"
+      HOSTED_DRIFTS=$((HOSTED_DRIFTS + 1))
+    fi
+  done < <(docker exec "$CONTAINER" psql -X -U supabase_admin -d postgres -At \
+    -v ON_ERROR_STOP=1 -c "
+    SELECT n.nspname || '|' ||
+           encode(sha256(convert_to(string_agg(
+             c.relname || '|' || pg_get_userbyid(c.relowner) || '|' ||
+             coalesce(c.relacl::text,'<default>') || '|' ||
+             c.relrowsecurity::text || '|' ||
+             c.relforcerowsecurity::text,
+             E'\n' ORDER BY c.relname),'UTF8')),'hex')
+    FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+    WHERE n.nspname IN ('auth','private','public','storage','televoting')
+      AND c.relkind IN ('r','p')
+    GROUP BY n.nspname ORDER BY n.nspname;")
+  test "$((HOSTED_MATCHES + HOSTED_DRIFTS))" = 5 || abort 'Incomplete schema digest comparison'
+  echo "Dated hosted-owner/ACL digest matches: $HOSTED_MATCHES / 5"
+  echo 'NOTE: 2026-11-15 backup vs 2026-11-20 hosted drift cannot certify CURRENT ownership parity.'
+
   # Safely probe effective privilege and row-security activation while
   # impersonating nonprivileged roles. Fake JWT subject never corresponds
   # to a real user. No private rows are printed.
@@ -259,9 +299,17 @@ if age -d -i "$KEY" "$DB" | docker exec -i "$CONTAINER" sh -c '
   echo 'full row-level authority matrix, exact hosted parity, migration deployment.'
 else
   echo 'ISOLATED OWNER/ACL REPLAY BLOCKED'
-  grep -m 1 -oE '(schema|relation) "[a-zA-Z0-9_.]+" (does not exist|already exists)' "$REPORT/restore.private.log" || \
-  grep -m 1 -oE 'extension "[a-zA-Z0-9_]+" is not available' "$REPORT/restore.private.log" || \
-  (grep -m 1 -E 'pg_restore: error:|ERROR:' "$REPORT/restore.private.log" | sed -E 's/"[^"]*"/"[hidden]"/g' | cut -c 1-180) || true
+  if grep -Eiq 'role .* does not exist' "$REPORT/restore.private.log"; then
+    echo 'Blocked by an archived role absent from the restricted local role fixture'
+  elif grep -Eiq 'extension .* is not available|could not open extension control' "$REPORT/restore.private.log"; then
+    echo 'Blocked by a missing local PostgreSQL extension'
+  elif grep -Eiq 'permission denied|must be owner' "$REPORT/restore.private.log"; then
+    echo 'Blocked by local permissions/ownership prerequisite'
+  elif grep -Eiq 'already exists' "$REPORT/restore.private.log"; then
+    echo 'Blocked by an existing local object in the clean archive restore'
+  else
+    echo 'Blocked by a PostgreSQL restore error; details are private'
+  fi
   echo 'Full private diagnostics were kept in the local recovery folder; do not share them.'
   exit 1
 fi
