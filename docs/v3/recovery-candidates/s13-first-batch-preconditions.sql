@@ -51,12 +51,35 @@ begin
      '_v3_migration_contracts','_v3_schema_compatibility','_v3_schema_compatibility_history','_v3_backfill_jobs','_v3_migration_parity_runs')) then
     raise exception 'S13 batch implicit table type name collision' using errcode='55000';
   end if;
-  -- Supabase event handlers are not guessed or disabled. Unobserved handlers
-  -- relevant to this batch must be separately qualified, otherwise fail closed.
-  if exists(select 1 from pg_event_trigger where evtenabled in ('O','A')
-     and evtevent in ('ddl_command_start','ddl_command_end')
-     and (evttags is null or evttags && array['CREATE TABLE','CREATE INDEX','CREATE FUNCTION','COMMENT','GRANT','REVOKE'])) then
-    raise exception 'S13 batch relevant DDL event triggers require explicit qualification' using errcode='55000';
+  -- The 20-Nov hosted bounded catalog/definition check identified exactly one
+  -- relevant provider-owned DDL handler: extensions.pgrst_ddl_watch(), which
+  -- sends only NOTIFY pgrst, 'reload schema' for supported non-temp DDL.
+  -- Permit ONLY its byte-fingerprinted known definition. No handler is disabled,
+  -- replaced, granted new privileges, or excluded from transaction execution.
+  -- Every other relevant DDL handler (including a modified watcher) is NO-GO.
+  if exists (
+    select 1
+      from pg_event_trigger e
+      join pg_proc p on p.oid=e.evtfoid
+      join pg_namespace n on n.oid=p.pronamespace
+      join pg_language l on l.oid=p.prolang
+     where e.evtenabled in ('O','A')
+       and e.evtevent in ('ddl_command_start','ddl_command_end')
+       and (e.evttags is null or e.evttags && array['CREATE TABLE','CREATE INDEX','CREATE FUNCTION','COMMENT','GRANT','REVOKE'])
+       and not (
+         e.evtname='pgrst_ddl_watch'
+         and e.evtevent='ddl_command_end'
+         and e.evtenabled='O'
+         and e.evttags is null
+         and n.nspname='extensions'
+         and p.proname='pgrst_ddl_watch'
+         and pg_get_userbyid(p.proowner)='supabase_admin'
+         and p.prokind='f' and not p.prosecdef
+         and l.lanname='plpgsql'
+         and md5(pg_get_functiondef(p.oid))='afaad7193dcf8f81e728d2bedb85e43e'
+       )
+  ) then
+    raise exception 'S13 batch unqualified DDL event handler (only pinned PostgREST watcher allowed)' using errcode='55000';
   end if;
   if not pg_try_advisory_xact_lock(1395733297,1) then
     raise exception 'S13 batch another installation is active' using errcode='55P03';
