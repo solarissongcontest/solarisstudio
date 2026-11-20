@@ -187,7 +187,27 @@ def rehearse(container,source_db,package,output,baseline_kind):
     before_data=data_digest(container,source_db,baseline);before_catalog=catalog_digest(container,source_db)
     clone='solaris_s13_batch_'+uuid.uuid4().hex[:16];created=False
     try:
-        sql(container,source_db,f'CREATE DATABASE {clone} OWNER postgres TEMPLATE {source_db}',actor='supabase_admin');created=True
+        # PostgreSQL copies template databases only when they have no other sessions.
+        # Use a different, disposable-cluster maintenance database for CREATE; never
+        # keep the connection issuing CREATE inside the database being copied.
+        # A restored cluster is network-none, but internal sessions can still race.
+        for attempt in range(3):
+            attached=sql(container,'template1',
+                "SELECT count(*) FROM pg_stat_activity WHERE datname='"+source_db+"'",
+                actor='supabase_admin')
+            if attached!='0':
+                if attempt<2: time.sleep(1)
+                continue
+            try:
+                sql(container,'template1',f'CREATE DATABASE {clone} OWNER postgres TEMPLATE {source_db}',actor='supabase_admin')
+            except subprocess.CalledProcessError as error:
+                if b'55006' not in (error.stderr or b''):raise
+                if attempt<2:time.sleep(1)
+                continue
+            created=True
+            break
+        if not created:
+            raise RehearsalFailure('Isolated restored database still has active sessions; clone refused safely (55006)')
         clone_before_data=data_digest(container,clone,baseline);clone_before_catalog=catalog_digest(container,clone)
         if clone_before_data!=before_data or clone_before_catalog!=before_catalog:
             raise RehearsalFailure('Cloned baseline differs before installation')
@@ -233,7 +253,17 @@ def rehearse(container,source_db,package,output,baseline_kind):
         with os.fdopen(fd,'w')as out:json.dump(result,out,indent=2);out.write('\n')
         return result
     finally:
-        if created:sql(container,source_db,'DROP DATABASE '+clone,actor='supabase_admin')
+        if created:
+            try:
+                # DROP from a separate database, never from the object being dropped.
+                sql(container,'template1','DROP DATABASE '+clone,actor='supabase_admin')
+            except subprocess.CalledProcessError as cleanup_error:
+                if sys.exc_info()[0] is not None:
+                    # Do not mask the original failure. The enclosing operator always
+                    # destroys the entire network-none temporary container.
+                    print('STOP: disposable clone cleanup also failed; original error retained',file=sys.stderr)
+                else:
+                    raise RehearsalFailure('Disposable test-clone cleanup failed; source database unchanged') from None
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
