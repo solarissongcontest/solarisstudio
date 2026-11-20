@@ -9,6 +9,8 @@ describe("Explore countries editorial movement and stale filter protection", () 
     expect(countries).toContain("const currentLineupReady = Boolean(activeEdition?.id) && participantsQuery.isSuccess");
     expect(countries).toContain("currentParticipants: participantsQuery.isSuccess ? participantsQuery.data ?? [] : []");
     expect(countries).toContain("currentLineupReady && movementGroups.length > 0");
+    // Both the teaser and detail rows must withhold unverified lineup movements.
+    expect(countries.split("currentLineupReady && movementGroups.length > 0").length - 1).toBe(2);
     expect(countries).toContain('href="#countries-current-movement"');
     expect(countries).toContain('id="countries-current-movement"');
     expect(countries).not.toContain("useAllResults(");
