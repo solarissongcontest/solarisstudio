@@ -4,6 +4,7 @@ import {
   parseShowDirectoryUrlSearch,
   parseCountryDirectoryUrlSearch,
 } from "./v3-explore-browse-url";
+import { shouldHoldCountryLineupUrlScope } from "./v3-country-directory-filters";
 
 describe("Explore published Show and Country URL search state", () => {
   it("retains valid published Show browse parameters without claiming publication", () => {
@@ -25,6 +26,23 @@ describe("Explore published Show and Country URL search state", () => {
       .toEqual({q: "Ålanti Oland", region: "North Hydra", scope: "participants"});
     expect(parseCountryDirectoryUrlSearch({q: 12, region: "x".repeat(200), scope: "secret"}))
       .toEqual({q: undefined, region: undefined, scope: undefined});
+  });
+
+  it("does not erase a participant permalink before the edition and lineup resolve", () => {
+    // Initial page load: countries have arrived, but editions have not.
+    expect(shouldHoldCountryLineupUrlScope(true, false, false)).toBe(true);
+    // A background edition refresh may change the active edition.
+    expect(shouldHoldCountryLineupUrlScope(true, false, true)).toBe(true);
+    // The edition exists, but its public lineup is still being refreshed.
+    expect(shouldHoldCountryLineupUrlScope(true, true, true)).toBe(true);
+    // Once verification is settled, invalid scopes can be reconciled.
+    expect(shouldHoldCountryLineupUrlScope(true, true, false)).toBe(false);
+    // Normal all-country browsing never depends on the optional lineup.
+    expect(shouldHoldCountryLineupUrlScope(false, false, true)).toBe(false);
+
+    const view = readFileSync("src/components/v3/V3CountriesDiscoveryScreen.tsx", "utf8");
+    expect(view).toContain("shouldHoldCountryLineupUrlScope(");
+    expect(view).toContain("editionsQuery.isSuccess && !editionsQuery.isFetching && !editionsQuery.isRefetchError");
   });
 
   it("links Country filtering without making a participant roster authoritative", () => {
