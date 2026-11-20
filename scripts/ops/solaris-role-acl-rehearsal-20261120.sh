@@ -212,6 +212,12 @@ if age -d -i "$KEY" "$DB" | docker exec -i "$CONTAINER" sh -c '
     -c "SELECT count(*) FROM pg_policies WHERE schemaname IN ('public','private','televoting','auth','storage')")
   test "$POLICY_COUNT" = 265 || abort "Unexpected policy count after role/ACL replay: $POLICY_COUNT"
   echo "RLS policies present: $POLICY_COUNT / 265"
+  DEFAULT_ACL_COUNT=$(docker exec "$CONTAINER" psql -X -U supabase_admin -d postgres -At \
+    -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM pg_default_acl") \
+    || abort 'Restored default ACL catalog check failed'
+  test "$DEFAULT_ACL_COUNT" = 27 \
+    || abort "Expected 27 restored DEFAULT ACL entries; got $DEFAULT_ACL_COUNT"
+  echo "DEFAULT ACL entries present: $DEFAULT_ACL_COUNT / 27"
 
   # Compare the local table-owner/ACL/RLS fingerprints with the bounded
   # 2026-11-20 production METADATA baseline. This backup is Nov 15, so a
