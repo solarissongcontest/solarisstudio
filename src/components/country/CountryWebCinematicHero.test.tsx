@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 
 import type { CountryDesignV2 } from "@/lib/country-design-v2";
@@ -18,9 +19,20 @@ const identity = {
   description: "Published country identity",
 };
 
+function renderCountry(publishedDesign?: CountryDesignV2) {
+  // FlagChip resolves canonical flag crops through useCountries; its React Query
+  // provider is needed even during static rendering. SSR itself makes no fetch.
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return renderToStaticMarkup(
+    <QueryClientProvider client={client}>
+      <CountryWebCinematicHero {...identity} publishedDesign={publishedDesign} />
+    </QueryClientProvider>,
+  );
+}
+
 describe("ordinary web Country cinematic Explore presentation", () => {
   it("renders a complete identity with a designed fallback when no hero has been published", () => {
-    const html = renderToStaticMarkup(<CountryWebCinematicHero {...identity} />);
+    const html = renderCountry();
     expect(html).toContain('data-country-web-experience="editorial"');
     expect(html).toContain('data-has-image="false"');
     expect(html).toContain("Oland");
@@ -34,7 +46,7 @@ describe("ordinary web Country cinematic Explore presentation", () => {
       background: { mode: "image", imageUrl: "/approved-country-hero.webp", positionX: 25, positionY: 75 },
       palette: { backgroundSecondary: "#234567" },
     } as unknown as CountryDesignV2;
-    const html = renderToStaticMarkup(<CountryWebCinematicHero {...identity} publishedDesign={design} />);
+    const html = renderCountry(design);
     expect(html).toContain('data-has-image="true"');
     expect(html).toContain("/approved-country-hero.webp");
     expect(html).toContain("25% 75%");
