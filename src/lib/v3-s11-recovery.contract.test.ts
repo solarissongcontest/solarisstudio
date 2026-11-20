@@ -64,8 +64,8 @@ describe("System V3 S11 recovery foundation", () => {
   it("does not confuse Storage metadata with recovered object bytes", () => {
     expect(storageRunbook).toContain("PostgreSQL can restore bucket/object metadata while every binary object is still missing");
     expect(storageRunbook).toContain("Never delete, overwrite, empty or rewrite production buckets");
-    expect(storageRunbook).toContain("provider-level Storage byte restore drill");
-    expect(storageRunbook).toContain("not proof that S11 Storage recovery is certified");
+    expect(storageRunbook).toContain("isolated local Supabase Storage byte-recovery drill");
+    expect(storageRunbook).toContain("not proof that hosted Supabase Storage recovery is certified");
   });
 
   it("keeps application rollback separate from unsafe schema/data rollback", () => {
