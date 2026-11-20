@@ -1,0 +1,72 @@
+# Solaris V3 manual Storage recovery
+
+**Status:** implementation + isolated tests only. **No production write authorization or release certification.**
+
+Source: oxtbskojiexkaspputvo (old solaris-studio-production, eu-north-1).
+Destination: dkxmnvekiopyesuzggeu (current V3 Solaris Studio, eu-central-1).
+
+This augments storage-restore.md and migration-hardening.md. Direction is pinned in code. No PostgreSQL bulk copy, policy changes, bucket creation, CDN publication, database writer, or PR #1400 Results changes are part of this operation. The old project remains intact.
+
+## Operator-only dry run
+
+1. Verify both exact project identities, active media PRs, current SHA, and bucket privacy. Resolve missing/mismatched buckets through separately reviewed infrastructure changes, never inside the recovery command.
+2. Rehearse the focused failure modes locally with: node --test scripts/lib/v3-media-recovery-core.test.mjs. The tests use fake Storage without hosted endpoints. They do not constitute the provider restore drill or S14 certification.
+3. On a trusted operator machine with the repository dependencies installed, load distinct old and V3 service-role Storage credentials from the secrets manager. Never commit, print or expose them to GitHub Actions.
+4. Set SOLARIS_OLD_SUPABASE_SERVICE_ROLE_KEY, SOLARIS_V3_SUPABASE_SERVICE_ROLE_KEY, and SOLARIS_RECOVERY_MANUAL_INVENTORY_APPROVED=YES_READ_BOTH_PROJECTS.
+5. Run: node scripts/v3-media-recovery.mjs. Without --execute this performs read-only, bounded Storage inventory, real byte SHA-256 checks, MIME signature/size validation, destination byte comparisons, and guarded DB reference-table reads.
+
+Confidential reports live under ~/.local/state/solaris-v3-media-recovery/ with 0700 directory and 0600 file permissions. Files include recovery-manifest.json (actual per-object hashes and keys), references-source.json, references-destination.json, reference-proposals.json, summary.json, transfer-results.json, and verified-checkpoints.jsonl. These may contain private and unpublished paths. NEVER attach them verbatim to the public PR or CI logs. Publish redacted aggregate counts and the manifest digest only.
+
+## Verified V3 quarantine staging and operational state (2026-11-04)
+
+- The user manually uploaded 54 recovered public-origin images into **private** `solaris-upload-quarantine`, not into public final buckets. Exact source bucket/path is preserved as the quarantine key prefix (`country-media/...` or `edition-artwork/...`). The 47 country images and 7 edition images have 25,673,162 metadata bytes; a read-only destination SQL fingerprint of prefix-stripped key/size/MIME matches the old project's metadata digest `7010a5b1ed4eee24443a0a5b370c8fd6`.
+- These metadata matches are **not** destination byte SHA-256 readbacks, final public publication authorization, or media validation receipts. Both public final buckets remained empty when checked.
+- **The V3 platform operating mode is `read_only`.** Canonical `private.studio2_platform_mutation_allowed('media.review')` disallows media review in this mode, as does the existing upload preparation/finalization flow. Do not change system operating mode merely to force publication. Privileged manual recovery code now checks the platform state before transfer and before each asset and fails closed in read-only or maintenance.
+- Existing `solaris-upload-finalize` expects a real, unexpired `studio2_upload_authorizations` record with a matching authorization secret and token-named quarantine object. Manual legacy staging does **not** create these receipts; do not forge upload authorizations or infer review decisions from bucket metadata.
+- A validated, audited restoration mechanism for preexisting staging keys, canonical per-asset clearances, and post-publication reference repair is still required. One 5,679,181-byte country gallery image exceeds the canonical 5 MiB upload validation ceiling, despite fitting the bucket's 8 MiB Storage limit; never silently waive it or alter the original. Retain the private source for rollback.
+
+## Manual production-write gate
+
+The responsible operator and independent protected signing authority must review every exact file's trust/publication status. Old public Storage placement alone does not establish authorization for new public exposure. Untrusted legacy media must be revalidated through Solaris's existing quarantine/validation/finalization contract before publication.
+
+A separately issued expiring HMAC-SHA-256 signed JSON approval contains:
+
+- source_project and destination_project, matching the exact IDs above;
+- manifest_sha256 equal to the current read-only inventory digest;
+- scope equal to storage-only-non-overwrite;
+- operator, change_ticket, local_rehearsal_sha and expires_at;
+- reviewed_assets listing every individually approved bucket/path#SHA256 identity that would transfer;
+- asset_clearances: one additional signed record per reviewed object, with identity equal to bucket/path#SHA256.
+  Public country-media and edition-artwork require visibility=already_published, canonical_subject_id,
+  publication_evidence_id and validation_evidence_id, each independently reviewed against the
+  current V3 canonical authority. An old public bucket is not sufficient publication evidence.
+  Private beta-feedback requires visibility=retain_private. Other source buckets are inventoried
+  but not eligible for the automatic transfer path.
+- signature: HMAC-SHA-256 over canonical stableJson() of every field excluding signature, using a protected key at least 32 bytes long.
+
+Load the key from the approved credential manager into SOLARIS_RECOVERY_APPROVAL_HMAC_KEY only on the manual machine. Set SOLARIS_RECOVERY_PRODUCTION_WRITE_APPROVED=APPROVE_REAL_PRODUCTION_STORAGE_WRITE. Only after separate approval and rehearsal, invoke:
+
+node scripts/v3-media-recovery.mjs --execute --approval-file /private/path/approved.json
+
+The command refuses CI, wrong direction, unsigned/expired/mismatched approvals, unreviewed source hashes, unresolved collisions, unavailable objects, missing buckets, and incomplete DB reference inspection. Each supported Storage upload uses upsert:false, with destination re-download and SHA-256 equality required before checkpointing. Ambiguous transport is never automatically accepted. New run, new manifest and approval. Old Storage objects are never deleted.
+
+## DB reference recovery and R2
+
+The command produces **proposals only**, never DB writes. Match stable canonical identifiers, including (country_id,edition_id) for historical flags. Missing references, stale URLs, or missing rows require governed Organizer recovery with expected-version guards, owner/asset validation, audit receipt and unchanged publication state. Preserve V3 conflicts. Do not migrate unrelated Auth, grants, ballots, Results or receipts.
+
+R2 may later receive only individually verified *published* public derivatives. Use immutable content-addressed/versioned keys and a server-authorized public projection. R2 must not approve uploads, change permissions, moderate content, or publish Results. Never expose beta-feedback, integrity-evidence, unpublished entries, draft data, ballots, tokens or Organizer responses through public R2 or Workers Cache. No D1 is required.
+
+## Release gate
+
+Evidence must cover exact final SHA, isolated rehearsal, manual approval, source/target byte equality, per-bucket transfer counts, private denial checks, public rendering on the actual destination, authorized DB restoration receipts, and rollback proof. Until then this is preparation, not recovery certification.
+
+## R2 candidate preparation (not an R2 rollout)
+
+The pure module scripts/lib/v3-public-media-r2-plan.mjs can prepare a restricted manifest
+for files verified in the destination and separately approved as already published. It
+proposes immutable keys of the form public/media/v1/sha256/<prefix>/<full-sha256>.<extension>.
+It cannot publish an asset, upload to R2, or make a Worker Cache response. The output
+remains private review evidence until an independently validated server-owned public
+projection, R2 byte readback, access-control test, invalidation policy and deployment
+approval are available. Never cache private feedback, Integrity evidence, draft media,
+personalized data or unpublished Results.
