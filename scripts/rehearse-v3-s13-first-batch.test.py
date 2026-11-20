@@ -9,9 +9,45 @@ import subprocess
 import tempfile
 import time
 import unittest
+from unittest import mock
 ROOT=Path(__file__).resolve().parent.parent
 spec=importlib.util.spec_from_file_location('rehearsal',ROOT/'scripts/rehearse-v3-s13-first-batch.py')
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+
+class CronGuardTests(unittest.TestCase):
+    """No Docker or production access: prove the protected GUC read's role boundary."""
+    def test_cron_guard_reads_as_local_bootstrap_admin(self):
+        class GuardReached(Exception): pass
+        observed=[]
+        def probe(container,database,source,actor='postgres'):
+            observed.append((source,actor))
+            if "server_version_num" in source:
+                self.assertEqual(actor,'postgres')
+                return '170011'
+            if "cron.launch_active_jobs" in source:
+                self.assertEqual(actor,'supabase_admin')
+                raise GuardReached
+            self.fail('Unrelated SQL executed before the cron guard')
+        with mock.patch.object(module,'validate_container'), \
+             mock.patch.object(module,'validate_package',return_value={}), \
+             mock.patch.object(module,'sql',side_effect=probe):
+            with self.assertRaises(GuardReached):
+                module.rehearse('isolated-container','postgres',Path('/not-read'),'/not-written','observed-subset')
+        self.assertEqual(len(observed),2)
+
+    def test_cron_guard_still_fails_closed_when_enabled(self):
+        def probe(container,database,source,actor='postgres'):
+            if "server_version_num" in source: return '170011'
+            if "cron.launch_active_jobs" in source:
+                self.assertEqual(actor,'supabase_admin')
+                return 'on'
+            self.fail('Cron-enabled baseline should never reach subsequent SQL')
+        with mock.patch.object(module,'validate_container'), \
+             mock.patch.object(module,'validate_package',return_value={}), \
+             mock.patch.object(module,'sql',side_effect=probe):
+            with self.assertRaisesRegex(module.RehearsalFailure,'Local restored cron must be disabled'):
+                module.rehearse('isolated-container','postgres',Path('/not-read'),'/not-written','observed-subset')
+
 
 class Tests(unittest.TestCase):
     @classmethod
