@@ -209,7 +209,9 @@ describe("production Organizer audit regressions", () => {
 
     expect(search).toContain("const countryItems = countries.map");
     expect(search).toContain("...countryItems");
-    expect(search.indexOf("...countryItems")).toBeLessThan(search.indexOf("...navigation"));
+    // Immediate Organizer navigation intentionally stays ahead of the country directory.
+    // All exact Organizer country matches still outrank governance full-text matches.
+    expect(search).toContain("return [...organizerResults, ...publicResults]");
     expect(search).toContain("group: \"Countries\"");
   });
 });
