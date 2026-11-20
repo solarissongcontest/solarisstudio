@@ -1,6 +1,6 @@
 import { PublicLaunchLink as Link } from "@/components/public/PublicLaunchLink";
-import { createFileRoute} from "@tanstack/react-router";
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { createFileRoute, useRouterState } from "@tanstack/react-router";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 
 import { AppShell, Panel, StatTile } from "@/components/AppShell";
 import { AppEntitySidebar } from "@/components/app/AppEntitySidebar";
@@ -40,8 +40,9 @@ import {
   useEditions,
 } from "@/lib/data-live";
 import { canonicalEditionEntries, canonicalEntryFor } from "@/lib/entry-utils";
+import { countrySectionHash, countryTabNeedsDetailedVotes, sectionFromCountryHash } from "@/lib/v3-country-web-tabs";
+import "@/styles/v3-country-web-sections.css";
 import { computeCountryForm } from "@/lib/form";
-import { filterPublishedCountryHistory, type CountryHistoryOutcome } from "@/lib/country-published-history";
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 import {
   resolveCountryEditionQualification,
@@ -106,7 +107,7 @@ function CountryProfileRoute() {
   );
 }
 
-const APP_TABS = [
+const TABS = [
   { value: "overview", label: "Overview" },
   { value: "entries", label: "Entries" },
   { value: "results", label: "Results" },
@@ -115,31 +116,22 @@ const APP_TABS = [
   { value: "form", label: "Form" },
 ] as const;
 
-// Browser-only IA follows the screenshot review. The installed fallback retains
-// its proven tabs, history and World content until its separately owned cutover.
-const BROWSER_TABS = [
-  ...APP_TABS.slice(0, 3),
-  { value: "history", label: "History" },
-  { value: "world", label: "World" },
-  ...APP_TABS.slice(3),
-] as const;
-
-type Tab = (typeof BROWSER_TABS)[number]["value"];
-
-function countryTabFromHash(hash: string): Tab {
-  const value = hash.startsWith("#country-") ? hash.slice("#country-".length) : "overview";
-  return BROWSER_TABS.find((item) => item.value === value)?.value ?? "overview";
-}
+type Tab = (typeof TABS)[number]["value"];
 
 function CountryProfilePage() {
   const { code } = Route.useParams();
   const { isAppMode } = useSolarisApp();
+  const navigate = Route.useNavigate();
+  const routeHash = useRouterState({ select: (state) => state.location.hash });
+  const previousWebHashRef = useRef(routeHash);
+  const [appTab, setAppTab] = useState<Tab>("overview");
+  const tab: Tab = isAppMode ? appTab : sectionFromCountryHash(routeHash);
+  const changeTab = (next: Tab) => {
+    if (isAppMode) setAppTab(next);
+    else void navigate({ hash: countrySectionHash(next) });
+  };
   const [archiveEnabled, setArchiveEnabled] = useState(!isAppMode);
-  const [tab, setTab] = useState<Tab>("overview");
-  // Detailed ballot tables are many times larger than the entry/result
-  // projection. Fetch them only for screens that truly need vote-level data.
-  const needsDetailedVotes =
-    tab === "voting" || tab === "relationships" || tab === "form";
+  const needsDetailedVotes = countryTabNeedsDetailedVotes(tab);
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
@@ -154,39 +146,7 @@ function CountryProfilePage() {
   const { data: results } = resultsQuery;
   const { data: jury } = juryQuery;
   const { data: televote } = televoteQuery;
-  const [historySearch, setHistorySearch] = useState("");
-  const [historyOutcome, setHistoryOutcome] = useState<CountryHistoryOutcome>("all");
 
-  useEffect(() => {
-    setHistorySearch("");
-    setHistoryOutcome("all");
-  }, [code]);
-
-  // Browser country sections have bookmarkable URLs and follow Back/Forward.
-  // The installed PWA retains its established in-app section navigation.
-  useEffect(() => {
-    if (isAppMode) {
-      // A delayed runtime handover to standalone app must not retain a web-only tab.
-      setTab((current) => APP_TABS.some((item) => item.value === current) ? current : "overview");
-      return;
-    }
-    const restoreSection = () => setTab(countryTabFromHash(window.location.hash));
-    restoreSection();
-    window.addEventListener("hashchange", restoreSection);
-    window.addEventListener("popstate", restoreSection);
-    return () => {
-      window.removeEventListener("hashchange", restoreSection);
-      window.removeEventListener("popstate", restoreSection);
-    };
-  }, [code, isAppMode]);
-
-  const selectCountrySection = (next: Tab) => {
-    if (!isAppMode && typeof window !== "undefined" && next !== tab) {
-      const url = `${window.location.pathname}${window.location.search}#country-${next}`;
-      window.history.pushState(window.history.state, "", url);
-    }
-    setTab(next);
-  };
 
   useEffect(() => {
     if (!isAppMode) {
@@ -260,8 +220,8 @@ function CountryProfilePage() {
     [country, opts],
   );
   const form = useMemo(
-    () => (country && tab === "form" ? computeCountryForm(country.id, opts) : null),
-    [country, opts, tab],
+    () => (country ? computeCountryForm(country.id, opts) : null),
+    [country, opts],
   );
   const allTime = useMemo(
     () => (country ? allTimeScoreForCountry(country.id, publicArchive.shows, publicArchive.results) : null),
@@ -275,6 +235,22 @@ function CountryProfilePage() {
   const archiveLoading = !archiveEnabled || archiveIsLoading(...archiveQueries);
   const archiveError = archiveHasError(...archiveQueries);
   const visualLoading = Boolean(country?.id) && (countryThemeQuery.isLoading || designV2Query.isLoading);
+
+  useEffect(() => {
+    // Direct links must scroll after identity/design loading ends; otherwise
+    // the Country loading placeholder would swallow the first hash jump.
+    // On a return to the canonical hash-free Overview URL, restore the hero
+    // instead of leaving readers stranded near the previously selected tab.
+    const previousHash = previousWebHashRef.current;
+    previousWebHashRef.current = routeHash;
+    if (!country || visualLoading || isAppMode) return;
+    if (!routeHash && !previousHash) return;
+    const section = sectionFromCountryHash(routeHash);
+    document.getElementById(section === "overview" ? "country-overview" : section)?.scrollIntoView({
+      block: "start",
+      behavior: "auto",
+    });
+  }, [isAppMode, routeHash, country?.id, visualLoading]);
 
   if (countriesQuery.isLoading || visualLoading) {
     return (
@@ -339,7 +315,6 @@ function CountryProfilePage() {
       (editionMap.get(b.edition_id)?.edition_number ?? -1) -
       (editionMap.get(a.edition_id)?.edition_number ?? -1),
   );
-  const publishedGrandFinalEditionIds = new Set(finalResults.map((result) => result.edition_id));
 
   const qualificationFor = (editionId: string) =>
     resolveCountryEditionQualification(country.id, editionId, publicArchive);
@@ -352,16 +327,6 @@ function CountryProfilePage() {
         (editionMap.get(a.edition_id)?.edition_number ?? -1),
     );
   const latestEntry = entryHistory[0] ?? null;
-  const filteredEntryHistory = filterPublishedCountryHistory(
-    entryHistory,
-    { search: historySearch, outcome: historyOutcome },
-    (editionId) => {
-      const edition = editionMap.get(editionId);
-      return [edition?.name, edition?.slug, edition ? editionLabel(edition) : null];
-    },
-    qualificationFor,
-    (editionId) => publishedGrandFinalEditionIds.has(editionId),
-  );
 
   const qualificationEditionIds = new Set<string>();
   myParticipants.forEach((participant) => qualificationEditionIds.add(participant.edition_id));
@@ -433,7 +398,7 @@ function CountryProfilePage() {
     }
   }
 
-  const relationshipRows = [...sharedIds]
+  const relationshipRows = tab === "relationships" && !archiveLoading ? [...sharedIds]
     .map((id) => {
       const other = countryMap.get(id);
       if (!other) return null;
@@ -449,7 +414,7 @@ function CountryProfilePage() {
       };
     })
     .filter((row): row is NonNullable<typeof row> => Boolean(row))
-    .sort((a, b) => b.relationship.friendshipScore - a.relationship.friendshipScore);
+    .sort((a, b) => b.relationship.friendshipScore - a.relationship.friendshipScore) : [];
 
   const identityModel: CountryIdentityModel = {
     code: country.short_code,
@@ -523,7 +488,7 @@ function CountryProfilePage() {
           className="solaris-app-entity-content"
         >
       <div
-        className={publishedDesign ? "country-profile-v8 country-design-v2 country-editorial-profile" : "country-profile-v8 country-editorial-profile"}
+        className={publishedDesign ? "country-profile-v8 country-design-v2" : "country-profile-v8"}
         data-country-personality={publishedDesign ? undefined : heroPersonality}
         data-country-composition={publishedDesign ? undefined : sourcePersonality.compositionFamily}
         data-country-background-policy={publishedDesign ? undefined : sourcePersonality.backgroundPolicy}
@@ -537,12 +502,22 @@ function CountryProfilePage() {
         {publishedDesign && countryDesignFontCss(publishedDesign) ? <style>{countryDesignFontCss(publishedDesign)}</style> : null}
         {!isAppMode ? (
           <CountryWebCinematicHero
-            code={country.short_code}
-            name={country.name}
-            nativeName={country.native_name}
-            region={country.region}
-            accentColor={country.accent_color}
+            code={identityModel.code}
+            name={identityModel.name}
+            nativeName={identityModel.nativeName}
+            region={identityModel.region}
+            description={identityModel.description}
+            flagImage={identityModel.flag.src}
+            accentColor={identityModel.colors.accent}
             publishedDesign={publishedDesign}
+            actions={
+              <>
+                <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
+                <Link to="/compare" search={{ a: country.short_code }}>Compare</Link>
+                <Link to="/voting-dna/$code" params={{ code: country.short_code }}>Voting DNA</Link>
+                <FollowButton entityType="country" entityId={country.id} label={country.name} />
+              </>
+            }
           />
         ) : publishedDesign ? (
           <CountryDesignV2Hero
@@ -553,8 +528,8 @@ function CountryProfilePage() {
             region={identityModel.region}
             description={identityModel.description}
             flagImage={identityModel.flag.src}
-            className="country-editorial-hero mb-6"
-            actions={isAppMode ? (
+            className="mb-6"
+            actions={
               <>
                 <div className="country-v2-hero-secondary-actions">
                   <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
@@ -563,7 +538,7 @@ function CountryProfilePage() {
                 </div>
                 <div className="country-v2-hero-follow"><FollowButton entityType="country" entityId={country.id} label={country.name} /></div>
               </>
-            ) : null}
+            }
           />
         ) : (
           <CountryIdentityHero
@@ -577,68 +552,41 @@ function CountryProfilePage() {
             flagImage={identityModel.flag.src}
             accentColor={identityModel.colors.accent}
             geography={identityModel.geography}
-            className="country-editorial-hero mb-6"
-            actions={isAppMode ? (
+            className="mb-6"
+            actions={
               <>
                 <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
                 <Link to="/compare" search={{ a: country.short_code }}>Compare</Link>
                 <Link to="/voting-dna/$code" params={{ code: country.short_code }}>Voting DNA</Link>
                 <FollowButton entityType="country" entityId={country.id} label={country.name} />
               </>
-            ) : null}
+            }
           />
         )}
 
-        {!isAppMode && (
-          <div className="country-editorial-identity-strip">
-            <FlagChip
-              code={country.short_code}
-              color={country.accent_color}
-              image={country.flag_image}
-              size="lg"
-            />
-            <div className="country-editorial-identity-summary">
-              <span className="country-editorial-identity-code">{country.short_code}</span>
-              {country.native_name && country.native_name !== country.name ? (
-                <span className="country-editorial-identity-native">{country.native_name}</span>
-              ) : null}
-              {country.region ? <span className="country-editorial-identity-region">{country.region}</span> : null}
-            </div>
-            <nav className="country-editorial-identity-links" aria-label={`More about ${country.name}`}>
-              <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
-              <Link to="/compare" search={{ a: country.short_code }}>Compare</Link>
-              <Link to="/voting-dna/$code" params={{ code: country.short_code }}>Voting DNA</Link>
-            </nav>
-            <div className="country-editorial-identity-follow">
-              <FollowButton entityType="country" entityId={country.id} label={country.name} />
-            </div>
-          </div>
-        )}
-
-        {isAppMode ? (
+        {!isAppMode ? (
+          <nav className="country-web-section-nav" aria-label="Country sections">
+            {TABS.map((item) => (
+              <Link key={item.value} to="/countries/$code"
+                params={{ code: country.short_code }}
+                hash={countrySectionHash(item.value)}
+                aria-current={tab === item.value ? "page" : undefined}>
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        ) : (
           <ResponsiveTabs
             value={tab}
-            options={APP_TABS}
-            onChange={selectCountrySection}
+            options={TABS}
+            onChange={changeTab}
             label="Country section"
             collapseAt="lg"
             className="mb-5"
           />
-        ) : (
-          <nav className="country-editorial-section-nav" aria-label="Country sections">
-            {BROWSER_TABS.map((section) => (
-              <button
-                key={section.value}
-                type="button"
-                className="country-editorial-section-button"
-                aria-pressed={tab === section.value}
-                onClick={() => selectCountrySection(section.value)}
-              >
-                {section.label}
-              </button>
-            ))}
-          </nav>
         )}
+
+        {!isAppMode ? <span id={tab} className="country-web-section-anchor" aria-hidden="true" /> : null}
 
         {archiveLoading ? (
           <ArchiveDataLoading label="Loading country history…" />
@@ -648,15 +596,15 @@ function CountryProfilePage() {
           <>
         {tab === "overview" && (
           <div className="space-y-5">
-            {isAppMode ? <CountryWorldOverview country={country} /> : null}
+            <CountryWorldOverview country={country} />
 
             {hasContestData && stats ? (
               <>
                 <Panel
-                  variant={isAppMode ? "data" : "editorial"}
-                  title="At a glance"
+                  title="SSC at a glance"
+                  description="A compact summary. Full history and qualification details live in Results."
                 >
-                  <div className="country-editorial-stat-strip grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-5">
+                  <div className="grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-5">
                     <StatTile label="Participations" value={stats.participations} />
                     <StatTile label="Wins" value={stats.wins} />
                     <StatTile label="Podiums" value={stats.podiums} />
@@ -669,7 +617,8 @@ function CountryProfilePage() {
                 </Panel>
 
                 <Panel
-                  title="Latest entry"
+                  title="Current entry"
+                  description="The latest published canonical entry for this delegation."
                 >
                   {latestEntry ? (
                     <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
@@ -692,12 +641,12 @@ function CountryProfilePage() {
                 </Panel>
 
                 <Panel
-                  variant={isAppMode ? "data" : "editorial"}
-                  title="Recent results"
+                  title="Recent SSC history"
+                  description="One row per edition, with direct listening links when the delegation has added them."
                   actions={
                     <button
                       type="button"
-                      onClick={() => selectCountrySection("results")}
+                      onClick={() => changeTab("results")}
                       className="rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold text-primary"
                     >
                       Full results →
@@ -746,7 +695,6 @@ function CountryProfilePage() {
 
                 {allTime ? (
                   <Panel
-                    variant={isAppMode ? "data" : "editorial"}
                     title="All-time record"
                     description="Cumulative published Grand Final score and the country's all-time position."
                   >
@@ -758,7 +706,7 @@ function CountryProfilePage() {
                 ) : null}
 
                 {hostedEditions.length > 0 && (
-                  <Panel title="Hosted editions" variant={isAppMode ? "data" : "editorial"}>
+                  <Panel title="Hosted editions" description="Published SSC editions hosted by this country.">
                     <div className="flex flex-wrap gap-2">
                       {hostedEditions.map((edition) => (
                         <Link
@@ -774,14 +722,10 @@ function CountryProfilePage() {
                   </Panel>
                 )}
 
-
-              {isAppMode && (
                 <CountryWorldSupplement
                   country={country}
                   defaultLayout={publishedDesign?.content.defaultLayout}
                 />
-              )}
-
               </>
             ) : (
               <Panel title="Solaris Song Contest">
@@ -793,91 +737,12 @@ function CountryProfilePage() {
           </div>
         )}
 
-        {!isAppMode && tab === "history" && (
-          <section className="country-editorial-history" aria-label="Published country history">
-            <header className="country-editorial-content-heading">
-              <h2>Participation history</h2>
-              <span>{entryHistory.length} published {entryHistory.length === 1 ? "entry" : "entries"}</span>
-            </header>
-            <div className="country-editorial-history-controls">
-              <label>
-                <span>Search published entries</span>
-                <input
-                  type="search"
-                  value={historySearch}
-                  onChange={(event) => setHistorySearch(event.target.value)}
-                  placeholder="Edition, artist or song"
-                />
-              </label>
-              <label>
-                <span>Result</span>
-                <select
-                  value={historyOutcome}
-                  onChange={(event) => setHistoryOutcome(event.target.value as CountryHistoryOutcome)}
-                >
-                  <option value="all">All entries</option>
-                  <option value="finalist">Reached the final</option>
-                  <option value="eliminated">Did not qualify</option>
-                </select>
-              </label>
-            </div>
-            <p className="country-editorial-history-count" role="status" aria-live="polite">
-              {filteredEntryHistory.length} of {entryHistory.length} published entries
-            </p>
-            {filteredEntryHistory.length ? (
-              <ol className="country-editorial-history-list">
-                {filteredEntryHistory.map((entry) => {
-                  const edition = editionMap.get(entry.edition_id);
-                  return (
-                    <li key={entry.id}>
-                      <div className="country-editorial-history-main">
-                        {edition ? (
-                          <Link to="/editions/$slug" params={{ slug: edition.slug }} className="country-editorial-history-edition">
-                            {editionLabel(edition)}
-                          </Link>
-                        ) : <span className="country-editorial-history-edition">Edition</span>}
-                        <span className="country-editorial-history-song">
-                          {[entry.artist, entry.song].filter(Boolean).join(" · ") || "Entry details unavailable"}
-                        </span>
-                        <EntryListenLinks entry={entry} compact />
-                      </div>
-                      <QualificationBadge status={qualificationFor(entry.edition_id)} />
-                    </li>
-                  );
-                })}
-              </ol>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                {entryHistory.length ? "No published entries match your filters." : "No published participation history yet."}
-              </p>
-            )}
-            {hostedEditions.length > 0 && (
-              <section className="country-editorial-hosted-editions">
-                <h3>Hosted editions</h3>
-                <div>
-                  {hostedEditions.map((edition) => (
-                    <Link key={edition.id} to="/editions/$slug" params={{ slug: edition.slug }}>
-                      {editionLabel(edition)}{edition.host_city ? ` · ${edition.host_city}` : ""}
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            )}
-          </section>
-        )}
-
-        {!isAppMode && tab === "world" && (
-          <section className="country-editorial-world" aria-label="Terra Solaris">
-            <CountryWorldOverview country={country} />
-            <CountryWorldSupplement country={country} defaultLayout={publishedDesign?.content.defaultLayout} />
-          </section>
-        )}
-
         {tab === "entries" && (
           hasContestData ? (
             <div className="space-y-5">
               <Panel
                 title="Latest entry"
+                description="The newest published canonical entry remains prominent; the full chronology follows below."
               >
                 {latestEntry ? (
                   <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
@@ -899,7 +764,6 @@ function CountryProfilePage() {
                 )}
               </Panel>
 
-              {isAppMode ? (
               <Panel
                 title="Entry history"
                 description="Canonical entries in reverse chronological order. Chronology is never rearranged for personality styling."
@@ -931,15 +795,6 @@ function CountryProfilePage() {
                   <p className="text-sm text-muted-foreground">No published entry history is available yet.</p>
                 )}
               </Panel>
-              ) : (
-              <button
-                type="button"
-                className="country-editorial-more-history"
-                onClick={() => selectCountrySection("history")}
-              >
-                View participation history
-              </button>
-              )}
             </div>
           ) : <NoContestData countryName={country.name} />
         )}
@@ -948,7 +803,8 @@ function CountryProfilePage() {
           hasContestData ? (
             <div className="space-y-5">
               <Panel
-                title="Placement history"
+                title="Placement timeline"
+                description="One archived placement per edition. Lower placement is better."
               >
                 {chartData.length ? (
                   <Suspense
@@ -971,6 +827,7 @@ function CountryProfilePage() {
                 </Panel>
                 <Panel
                   title="Qualification history"
+                  description="Q means a top-N semi-final qualification. AQ means a direct Grand Final place. Wildcard means the country finished outside the semi-final top N but still reached the Grand Final through the wildcard route."
                 >
                   {qualificationRows.length ? (
                     <div className="divide-y divide-border/60">
@@ -1024,7 +881,7 @@ function CountryProfilePage() {
           hasContestData ? (
             <Panel
               title="Closest relationships"
-              description="Mutual jury support over time."
+              description="Countries with the strongest repeated two-way support in the published archive."
             >
               {relationshipRows.length ? (
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -1068,6 +925,7 @@ function CountryProfilePage() {
             <div className="space-y-5">
               <Panel
                 title="Current form"
+                description="A recent-performance summary. This is optional context, not another version of the country history."
               >
                 <div className="grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-4">
                   <StatTile
@@ -1186,7 +1044,7 @@ function NoContestData({ countryName }: { countryName: string }) {
   return (
     <Panel>
       <p className="text-sm leading-relaxed text-muted-foreground">
-        No published contest history for {countryName} yet.
+        No published Solaris Song Contest data is available for {countryName} in this section yet.
       </p>
     </Panel>
   );

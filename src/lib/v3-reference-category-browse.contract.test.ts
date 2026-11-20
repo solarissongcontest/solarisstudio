@@ -22,15 +22,20 @@ describe("Reference category browsing", () => {
     expect(source).toContain("browseDestinations.length === 0");
     expect(source).toContain("No standalone index exists for this topic.");
     expect(source).toContain("Search above to find published entries");
+    expect(source).toContain('kind === "entry"');
+    expect(source).toContain("No released directory is available for this topic.");
     expect(source).not.toContain('href: "/entries"');
   });
 
   it("keeps unavailable rollout distinct from a deliberate disabled Reference", () => {
-    expect(source).toContain("if (feature.isError || feature.isRefetchError) {");
+    expect(source).toContain("if (feature.isError) {");
     expect(source).toContain('title="Reference availability could not be checked"');
     expect(source).toContain("Retry availability check");
     expect(source).toContain("feature.refetch()");
     expect(source).toContain("if (!referenceReleased) {");
+    expect(source).toContain("const referenceReleased = feature.isSuccess && !feature.isFetching");
+    expect(source).toContain("!feature.isRefetchError && feature.data === true");
+    expect(source).toContain("enabled: referenceReleased");
     expect(source).toContain('title="Reference is not enabled yet"');
     expect(source).toContain("Retry archive totals");
     expect(source).toContain("coverageQuery.refetch()");

@@ -45,11 +45,9 @@ describe("Bounded public Stories archive pagination", () => {
     const sql = readFileSync("supabase/migrations/20260912194100_studio2_storytelling_anniversary.sql", "utf8");
     expect(route).toContain("queryKey: ['public-storylines', storyLimit]");
     expect(route).toContain("queryFn: () => loadPublicStorylines(storyLimit)");
-    // Do not display cached public rows while publication is revalidated.
-    expect(route).toContain("!storiesQuery.isFetching && !storiesQuery.isRefetchError");
-    expect(route).not.toContain("placeholderData: (previous) => previous");
+    expect(route).toContain("placeholderData: (previous) => previous");
     expect(route).toContain("disabled={storiesQuery.isFetching}");
-    expect(route).toContain("storiesQuery.isError || storiesQuery.isRefetchError ?");
+    expect(route).toContain("storiesQuery.isError ?");
     expect(route).toContain("Clear story search");
     expect(route).toContain("Search more published history");
     expect(route).toContain("setStoryLimit(PUBLIC_STORY_RPC_MAX)");

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Clock3, Radio, Trophy, Vote } from "lucide-react";
-import { useEffect, useState } from "react";
+
 
 import { AppShell, Panel } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
@@ -22,8 +22,6 @@ import { V3EditionRouteGate } from "@/components/v3/V3EditionRouteGate";
 import { resolvePublicEditionState } from "@/lib/current-contest-state";
 import {
   editionLabel,
-  useAllResults,
-  useAllShows,
   useContestEntities,
   useEditionResults,
   useCountries,
@@ -93,48 +91,18 @@ function LegacyEditionPage() {
   const { slug } = Route.useParams();
   const editionQuery = useEdition(slug);
   const { data: edition } = editionQuery;
-  const [historyEnabled, setHistoryEnabled] = useState(!isAppMode);
   const showsQuery = useShows(edition?.id);
   const participantsQuery = usePublicEditionParticipants(edition?.id);
   const countriesQuery = useCountries();
   const entitiesQuery = useContestEntities(edition?.id);
   const resultsQuery = useEditionResults(edition?.id);
-  const historicalResultsQuery = useAllResults({ enabled: historyEnabled });
-  const allShowsQuery = useAllShows({ enabled: historyEnabled });
   const { data: shows } = showsQuery;
   const { data: participants } = participantsQuery;
   const { data: countries } = countriesQuery;
   const { data: entities } = entitiesQuery;
   const { data: editionResults } = resultsQuery;
-  const { data: allResults } = historicalResultsQuery;
-  const { data: allShows } = allShowsQuery;
   const archiveQueries = [editionQuery, showsQuery, participantsQuery, countriesQuery, entitiesQuery, resultsQuery];
 
-  useEffect(() => {
-    if (!isAppMode) {
-      setHistoryEnabled(true);
-      return;
-    }
-
-    const idleWindow = window as typeof window & {
-      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
-      cancelIdleCallback?: (handle: number) => void;
-    };
-    let timeout = 0;
-    let idle: number | null = null;
-    const enable = () => setHistoryEnabled(true);
-
-    if (idleWindow.requestIdleCallback) {
-      idle = idleWindow.requestIdleCallback(enable, { timeout: 900 });
-    } else {
-      timeout = window.setTimeout(enable, 320);
-    }
-
-    return () => {
-      if (idle != null) idleWindow.cancelIdleCallback?.(idle);
-      if (timeout) window.clearTimeout(timeout);
-    };
-  }, [isAppMode]);
   const liquidGlass = resolveEditionPublicStyle(edition?.theme_colors) === "glass";
 
   if (archiveIsLoading(...archiveQueries)) return <AppShell><ArchiveDataLoading label="Loading edition…" /></AppShell>;
@@ -254,30 +222,14 @@ function LegacyEditionPage() {
         results: resultList,
         jury: [],
         labels: new Map([...displayMap.entries()].map(([id, display]) => [id, display.name])),
-        allResults: allResults ?? resultList,
-        allShows: allShows ?? publicShows,
+        // Cross-edition record claims are intentionally omitted. Only
+        // Results-owned canonical records can establish an all-time record.
       })
     : [];
 
-  const editionNavigation = (
-        <EditionNavigation
-          liquidGlass={liquidGlass}
-          editorialWeb={!isAppMode}
-          label={`Explore ${editionLabel(edition)}`}
-          items={[
-            { href: "#edition-overview", label: "Overview" },
-            { href: "#edition-entries", label: "Entries", available: Boolean(publicEntries.length) },
-            { href: "#edition-results", label: "Results", available: Boolean(grandFinalPublication?.results) },
-            { href: "#edition-stories", label: "Stories", available: Boolean(editionStories.length) },
-            { href: "#edition-shows", label: "Shows", available: Boolean(publicShows.length) },
-            { href: "#edition-countries", label: "Countries", available: Boolean(participatingCountries.length) },
-          ]}
-        />
-  );
-
   return (
     <AppShell>
-      <div className="edition-public-page edition-editorial-refresh">
+      <div className="edition-public-page" data-v3-web-cinematic={!isAppMode ? "" : undefined}>
         {!isAppMode ? (
           <div className="edition-page-toolbar">
             <Link to="/editions" className="text-xs font-medium text-muted-foreground hover:text-foreground">← Editions</Link>
@@ -286,7 +238,6 @@ function LegacyEditionPage() {
         ) : null}
 
         <EditionHero
-          editorialWeb={!isAppMode}
           eyebrow={edition.host_city ?? "Solaris Song Contest"}
           title={editionLabel(edition)}
           subtitle={meaningfulEditionSubtitle(edition.name, editionLabel(edition), edition.edition_number)}
@@ -316,8 +267,6 @@ function LegacyEditionPage() {
               ) : null}
         />
 
-        {!isAppMode && editionNavigation}
-
         {!(winner && (editionState.phase === "post_edition" || editionState.phase === "results_published")) && <PublicCurrentStatus
           icon={editionStatusIcon}
           eyebrow="Edition status"
@@ -337,7 +286,18 @@ function LegacyEditionPage() {
           }
         />}
 
-        {isAppMode && editionNavigation}
+        <EditionNavigation
+          liquidGlass={liquidGlass}
+          label={`Explore ${editionLabel(edition)}`}
+          items={[
+            { href: "#edition-overview", label: "Overview" },
+            { href: "#edition-entries", label: "Entries", available: Boolean(publicEntries.length) },
+            { href: "#edition-results", label: "Results", available: Boolean(grandFinalPublication?.results) },
+            { href: "#edition-stories", label: "Stories", available: Boolean(editionStories.length) },
+            { href: "#edition-shows", label: "Shows", available: Boolean(publicShows.length) },
+            { href: "#edition-countries", label: "Countries", available: Boolean(participatingCountries.length) },
+          ]}
+        />
 
         <div id="edition-overview" className="scroll-mt-28">
           <EditionQuickFacts facts={[

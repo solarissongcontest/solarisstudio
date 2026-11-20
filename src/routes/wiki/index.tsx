@@ -11,9 +11,11 @@ import { PublicDataState } from "@/components/public/PublicDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useCountries } from "@/lib/data";
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
+import "@/styles/wiki-web-editorial.css";
 import { countryDirectoryRegionOptions, filterCountryDirectory } from "@/lib/v3-country-directory-filters";
-import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 import { resolvePublicDirectoryFacet } from "@/lib/v3-public-directory-search";
+import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 
 export const Route = createFileRoute("/wiki/")({
   head: () => ({
@@ -36,10 +38,10 @@ function WikiPublicReadError({ onRetry, retrying }: { onRetry: () => void; retry
     <PublicDataState
       kind="error"
       title="Wiki articles unavailable"
-      description="Current published country articles could not be verified. Cached Wiki entries are not shown until the public source is available again."
+      description="The public country library could not be refreshed. Previously cached country links are hidden until the read succeeds."
       action={
         <button type="button" onClick={onRetry} disabled={retrying}
-          className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold disabled:opacity-50">
+          className="min-h-11 rounded-lg border border-border bg-surface px-4 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
           {retrying ? "Retrying…" : "Retry Wiki articles"}
         </button>
       }
@@ -78,9 +80,11 @@ function WikiIndexPage() {
 
 function AppWikiIndexPage() {
   const countriesQuery = useCountries();
-  // A cached country record can become unpublished while a public refresh is pending.
+  // During a published-country refetch do not render a cached, potentially
+  // revoked Wiki article as verified current public content.
   const countries = countriesQuery.isSuccess && !countriesQuery.isFetching && !countriesQuery.isRefetchError
-    ? countriesQuery.data : undefined;
+    ? countriesQuery.data
+    : undefined;
   const [search, setSearch] = useState("");
   const [region, setRegion] = useState("all");
 
@@ -94,9 +98,9 @@ function AppWikiIndexPage() {
 
   const effectiveRegion = resolvePublicDirectoryFacet(region, regions);
   useEffect(() => {
-    if (countriesQuery.isSuccess && !countriesQuery.isFetching && !countriesQuery.isRefetchError &&
-        region !== effectiveRegion) setRegion("all");
-  }, [countriesQuery.isSuccess, countriesQuery.isFetching, countriesQuery.isRefetchError, region, effectiveRegion]);
+    if (region !== effectiveRegion) setRegion("all");
+  }, [region, effectiveRegion]);
+
   const filtered = useMemo(() => filterCountryDirectory(countries ?? [], {
     search, region: effectiveRegion, participatingOnly: false, participatingCountryIds: ALL_COUNTRIES_SCOPE,
   }), [countries, effectiveRegion, search]);
@@ -200,10 +204,13 @@ function AppWikiIndexPage() {
 }
 
 function WebWikiIndexPage() {
+  const { allowsReleased } = usePublicLaunchAvailability();
   const countriesQuery = useCountries();
-  // A cached country record can become unpublished while a public refresh is pending.
+  // During a published-country refetch do not render a cached, potentially
+  // revoked Wiki article as verified current public content.
   const countries = countriesQuery.isSuccess && !countriesQuery.isFetching && !countriesQuery.isRefetchError
-    ? countriesQuery.data : undefined;
+    ? countriesQuery.data
+    : undefined;
   const [search, setSearch] = useState("");
   const [region, setRegion] = useState("all");
   const [letter, setLetter] = useState("all");
@@ -225,10 +232,10 @@ function WebWikiIndexPage() {
   const effectiveRegion = resolvePublicDirectoryFacet(region, regions);
   const effectiveLetter = resolvePublicDirectoryFacet(letter, letters);
   useEffect(() => {
-    if (!countriesQuery.isSuccess || countriesQuery.isFetching || countriesQuery.isRefetchError) return;
     if (region !== effectiveRegion) setRegion("all");
     if (letter !== effectiveLetter) setLetter("all");
-  }, [countriesQuery.isSuccess, countriesQuery.isFetching, countriesQuery.isRefetchError, region, effectiveRegion, letter, effectiveLetter]);
+  }, [region, effectiveRegion, letter, effectiveLetter]);
+
   const filtered = useMemo(() => filterCountryDirectory(countries ?? [], {
     search, region: effectiveRegion, participatingOnly: false, participatingCountryIds: ALL_COUNTRIES_SCOPE,
   }).filter((country) => effectiveLetter === "all" || country.name.toUpperCase().startsWith(effectiveLetter)),
@@ -243,22 +250,19 @@ function WebWikiIndexPage() {
 
   return (
     <AppShell>
-      <PageHeader
-        eyebrow="Terra Solaris"
-        title="Wiki"
-        description="Countries, histories and facts."
-        className="directory-page-hero wiki-library-hero wiki-editorial-index"
-        actions={
-          <Link
-            to="/countries"
-            className="directory-page-action w-full rounded-xl border px-3 py-2 text-center text-sm font-semibold sm:w-auto"
-          >
-            SSC country directory →
-          </Link>
-        }
-      />
+      <div className="wiki-web-editorial">
+        <header className="wiki-web-editorial__masthead">
+          <p className="wiki-web-editorial__eyebrow">Terra Solaris / Reference</p>
+          <h1>Wiki</h1>
+          <p>Browse national profiles, country information and published contest history.</p>
+          {allowsReleased("/countries") ? (
+            <Link to="/countries" className="wiki-web-editorial__directory-link">
+              SSC country directory <ChevronRight className="size-4" aria-hidden="true" />
+            </Link>
+          ) : null}
+        </header>
 
-      <section className="directory-page-filter wiki-editorial-filter mb-5 rounded-2xl border p-3 sm:p-4">
+      <section className="wiki-web-editorial__filters">
         <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
         <label className="relative block min-w-0">
           <span className="sr-only">Search the Wiki</span>
@@ -266,6 +270,7 @@ function WebWikiIndexPage() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
+            type="search"
             placeholder="Search country or code…"
             className="min-h-11 w-full rounded-xl border border-border bg-background/45 pl-10 pr-3 text-sm outline-none transition focus:border-primary/55"
           />
@@ -283,7 +288,7 @@ function WebWikiIndexPage() {
         </label>
         </div>
 
-        <div className="scroll-slim mt-3 flex gap-1 overflow-x-auto pb-1" aria-label="Filter Wiki by first letter">
+        <div className="wiki-web-editorial__alphabet scroll-slim mt-3 flex gap-1 overflow-x-auto pb-1" role="group" aria-label="Filter Wiki by first letter">
           <button
             type="button"
             onClick={() => setLetter("all")}
@@ -315,13 +320,13 @@ function WebWikiIndexPage() {
           <span className="numeric text-xs text-muted-foreground">{filtered.length}</span>
         </div>
 
-        <div className="wiki-library-grid wiki-editorial-grid grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="wiki-web-editorial__articles">
           {visibleCountries.map((country) => (
             <Link
               key={country.id}
               to="/wiki/$code"
               params={{ code: country.short_code }}
-              className="directory-country-card group flex min-w-0 items-center gap-3 rounded-2xl border p-4 transition"
+              className="wiki-web-editorial__article group flex min-w-0 items-center gap-3"
               style={{ "--country-card-accent": country.accent_color } as React.CSSProperties}
             >
               <FlagChip
@@ -341,7 +346,7 @@ function WebWikiIndexPage() {
           ))}
 
           {!filtered.length && (
-            <div className="rounded-2xl border border-border/70 bg-surface p-7 text-center text-sm text-muted-foreground sm:col-span-2 lg:col-span-3">
+            <div className="wiki-web-editorial__empty p-7 text-center text-sm text-muted-foreground">
               <p>{countries?.length ? "No Wiki country matches that search." : "No published Wiki countries are available."}</p>
               {countries?.length && (search || region !== "all" || letter !== "all") ? (
                 <button type="button" onClick={() => { setSearch(""); setRegion("all"); setLetter("all"); setVisibleCount(DIRECTORY_PAGE_SIZE); }}
@@ -365,6 +370,7 @@ function WebWikiIndexPage() {
           </div>
         )}
       </section>
+      </div>
     </AppShell>
   );
 }

@@ -133,72 +133,57 @@ body .v3-shows-family[data-directory-experience="desktop-web"] .page-header h1 {
   grid-column: 1 / -1;
 }
 
-/* Web-only Shows composition: search first, details on demand. */
-html:not([data-solaris-app]) .v3-shows-directory[data-show-directory-experience="mobile-web"] .v3-shows-filter-fields {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: .55rem;
+/* Explore Shows: state priority, one measured editorial rhythm, no card sea.
+   Live is the single emphasized surface; other public rows are flat. */
+.v3-shows-directory .v3-shows-editorial-list,
+.v3-shows-directory .v3-shows-browse-results {
+  display:grid;grid-template-columns:minmax(0,1fr);
+  gap:0;border-top:1px solid var(--border);
 }
-html:not([data-solaris-app]) .v3-shows-directory .v3-shows-web-filters {
-  min-width: 0;
-  margin: 0;
-  border: 1px solid color-mix(in oklab, var(--foreground) 14%, transparent);
-  border-radius: .85rem;
-  background: color-mix(in oklab, var(--surface) 60%, transparent);
+.v3-shows-directory .v3-shows-editorial-card {
+  min-width:0;min-height:6.5rem;
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;
+  column-gap:1.25rem;row-gap:.1rem;
+  padding:1.2rem .4rem;
+  background:transparent;border:0;border-bottom:1px solid var(--border);
+  border-radius:0;box-shadow:none;
 }
-html:not([data-solaris-app]) .v3-shows-directory .v3-shows-web-filters > summary {
-  display: flex;
-  min-height: 44px;
-  align-items: center;
-  gap: .65rem;
-  padding: .6rem .85rem;
-  cursor: pointer;
-  list-style: none;
-  color: var(--foreground);
-  font-size: .87rem;
-  font-weight: 650;
+.v3-shows-directory .v3-shows-editorial-card > div:first-child {min-width:0;flex:1 1 15rem;}
+.v3-shows-directory .v3-shows-editorial-card > div:last-child {margin-top:0;flex:0 1 auto;}
+.v3-shows-directory .v3-shows-editorial-card > div:last-child > a {min-height:2.75rem;}
+.v3-shows-directory .v3-shows-live-list {display:grid;gap:.85rem;}
+.v3-shows-directory .v3-shows-editorial-card--live {
+  display:block;min-height:10rem;
+  padding:1.4rem 1.25rem;
+  border:1px solid color-mix(in srgb,var(--primary) 42%,var(--border));
+  border-radius:1rem;
+  background:radial-gradient(ellipse at 90% 6%,color-mix(in srgb,var(--primary) 12%,transparent),transparent 65%),var(--surface);
 }
-html:not([data-solaris-app]) .v3-shows-directory .v3-shows-web-filters > summary::-webkit-details-marker { display: none; }
-html:not([data-solaris-app]) .v3-shows-directory .v3-shows-web-filters-chevron {
-  margin-left: auto;
-  font-size: 1.15rem;
-  transition: transform 160ms ease;
+.v3-shows-directory .v3-shows-editorial-card--live > div:last-child {margin-top:.8rem;}
+.v3-shows-directory .v3-show-app-editorial-row {
+  min-width:0;padding:1rem .25rem;border:0;border-bottom:1px solid var(--border);
+  border-radius:0;background:transparent;line-height:1.45;text-decoration:none;color:inherit;
 }
-html:not([data-solaris-app]) .v3-shows-directory .v3-shows-web-filters[open] .v3-shows-web-filters-chevron {
-  transform: rotate(180deg);
+.v3-shows-directory .v3-show-app-editorial-row strong {white-space:normal;overflow-wrap:anywhere;line-height:1.4;}
+.v3-shows-directory .v3-show-app-editorial-row:focus-visible,
+.v3-shows-directory .v3-shows-editorial-card a:focus-visible {
+  outline:2px solid var(--primary);outline-offset:3px;
 }
-html:not([data-solaris-app]) .v3-shows-directory .v3-shows-web-filters-content {
-  display: grid;
-  gap: .8rem;
-  min-width: 0;
-  padding: 1rem .85rem;
-  border-top: 1px solid color-mix(in oklab, var(--foreground) 13%, transparent);
+.v3-shows-directory .v3-shows-editorial-card:hover:not(.v3-shows-editorial-card--live),
+.v3-shows-directory .v3-show-app-editorial-row:hover {background:var(--surface);}
+.v3-shows-directory[data-show-directory-experience="desktop-web"] .v3-shows-browse-results {
+  grid-template-columns:minmax(0,1fr);
 }
-html:not([data-solaris-app]) .v3-shows-directory .v3-shows-web-clear-filters {
-  display: inline-flex;
-  min-height: 44px;
-  align-items: center;
-  justify-content: center;
-  border-radius: .6rem;
-  border: 1px solid var(--border);
-  color: var(--foreground);
-  font-size: .86rem;
-  font-weight: 650;
+@media (min-width:768px) {
+  .v3-shows-directory .v3-shows-editorial-card {
+    min-height:6.25rem;
+  }
+  .v3-shows-directory .v3-shows-live-list {grid-template-columns:repeat(2,minmax(0,1fr));}
+  .v3-shows-directory[data-show-directory-experience="desktop-web"] #shows-browse .v3-shows-browse-results {
+    grid-template-columns:minmax(0,1fr);
+  }
 }
-html:not([data-solaris-app]) .v3-shows-directory .v3-show-editorial-card {
-  border-color: color-mix(in oklab, var(--foreground) 14%, transparent);
-  border-radius: 1rem;
-  background: color-mix(in oklab, var(--surface) 62%, transparent);
-}
-html:not([data-solaris-app]) .v3-shows-directory .v3-show-editorial-card:focus-within {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-}
-html:not([data-solaris-app]) .v3-shows-directory .v3-show-editorial-card > div > a.block {
-  font-size: clamp(1rem, 1.6vw, 1.22rem);
-  line-height: 1.25;
-  letter-spacing: -.02em;
-}
-@media (prefers-reduced-motion: reduce) {
-  html:not([data-solaris-app]) .v3-shows-directory .v3-shows-web-filters-chevron { transition: none; }
+@media (prefers-reduced-motion:reduce) {
+  .v3-shows-directory .v3-shows-editorial-card,
+  .v3-shows-directory .v3-show-app-editorial-row {transition:none!important;transform:none!important;}
 }

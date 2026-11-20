@@ -30,6 +30,8 @@ export type V3ExploreEditionInput = {
   year: number | null;
   hostLabel: string | null;
   artworkUrl: string | null;
+  /** Official logo is a separate identity asset, never a backdrop fallback. */
+  logoUrl?: string | null;
   visibility: V3PublicationVisibility;
   experience: V3EditionExperience;
   resultsPublication: V3EditionResultsPublication;
@@ -67,6 +69,10 @@ export type V3ExploreRoutes = {
   /** Link to the existing public Prediction Arena; not a new voting authority. */
   predictions?: string | null;
   advancedDiscovery?: string | null;
+  /** Published archive index; never a separate archive data reader. */
+  archiveRoot?: string | null;
+  /** Optional tools index, still governed by public launch policy. */
+  tools?: string | null;
 };
 
 export type V3ExploreCollectionKey =
@@ -95,6 +101,7 @@ export type V3ExploreEditionCard = {
   year: number | null;
   hostLabel: string | null;
   artworkUrl: string | null;
+  logoUrl?: string | null;
   experience: V3EditionExperience;
   href: string;
   liveHref?: string | null;
@@ -229,6 +236,7 @@ function projectEdition(edition: V3ExploreEditionInput): V3ExploreEditionCard {
     year: edition.year,
     hostLabel: edition.hostLabel,
     artworkUrl: edition.artworkUrl,
+    logoUrl: edition.logoUrl ?? null,
     experience: edition.experience,
     href: edition.href,
     liveHref:
@@ -290,6 +298,7 @@ export function buildV3ExploreRootProjection(
   ];
 
   const archiveLinks: V3ExploreLink[] = [
+    ...(input.routes.archiveRoot ? [{ key: "archive", label: "Complete archive", href: input.routes.archiveRoot }] : []),
     { key: "editions", label: "Editions", href: input.routes.editionsArchive },
     // One public Reference destination. Until the independently gated
     // Reference rollout is available, the legacy Wiki remains a usable path.
@@ -320,6 +329,9 @@ export function buildV3ExploreRootProjection(
       label: "Predictions",
       href: input.routes.predictions,
     });
+  }
+  if (input.routes.tools) {
+    more.push({ key: "tools", label: "Tools", href: input.routes.tools });
   }
   if (input.routes.advancedDiscovery) {
     more.push({

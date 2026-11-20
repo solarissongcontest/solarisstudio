@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
+import "@/styles/v3-world-editorial.css";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Globe2, Landmark, Search } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { PageHeader } from "@/components/AppShell";
-import "@/styles/v3-world-country-editorial.css";
 import { WorldPublicGate } from "@/components/world/WorldPublic";
 import { ArchiveDataLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
@@ -55,7 +55,7 @@ function FailureState({ retry, title = "International records unavailable" }: { 
 
 function CountryRow({ country }: { country: WorldPublicCountry }) {
   return <Link to="/world/countries/$code" params={{ code: country.code }}
-    className="world-country-editorial-row group flex min-h-20 items-center gap-4 border-b border-border/60 py-3 focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+    className="world-country-directory-row group flex min-h-20 items-center gap-4 border-b border-border/60 py-3 focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
     <FlagChip code={country.code} image={country.flagImage} color={country.accentColor} size="md" />
     <span className="min-w-0 flex-1">
       <span className="block font-semibold group-hover:text-primary">{country.name}</span>
@@ -97,22 +97,22 @@ export function WorldCountriesDirectory() {
   const visibleCountryData = verifiedWorldQueryData(query);
   const total = visibleCountryData?.count ?? 0;
   const start = page * WORLD_COUNTRY_PAGE_SIZE;
-  return <div className="world-country-editorial-directory">
-    <PageHeader eyebrow="Terra Solaris" title="World countries"
-      description="Countries and international memberships." />
-    <div className="world-country-editorial-directory-content mx-auto w-full max-w-5xl px-4 pb-14 sm:px-6">
-      <div className="world-country-editorial-search border-b border-border pb-6">
+  return <>
+    <PageHeader eyebrow="Terra Solaris / Countries" title="Countries in the world"
+      description="Discover the formal international memberships of Terra Solaris countries, whether or not they compete in the current Song Contest." />
+    <div className="world-country-directory mx-auto w-full max-w-5xl px-4 pb-14 sm:px-6">
+      <div className="border-b border-border pb-6">
         <label className="block max-w-2xl">
           <span className="mb-2 block text-sm font-semibold">Find a country</span>
           <span className="relative block">
             <Search className="pointer-events-none absolute left-3 top-3.5 size-4 text-muted-foreground" aria-hidden="true" />
             <input type="search" value={search} maxLength={100} onChange={(event) => { setSearch(event.target.value); setPage(0); }}
-              placeholder="Search countries"
+              placeholder="Search country name or code"
               className="min-h-11 w-full rounded-xl border border-border bg-background pl-10 pr-4 text-sm outline-none focus-visible:border-primary" />
           </span>
         </label>
         <p className="mt-3 text-xs text-muted-foreground">
-          International memberships are separate from Song Contest participation.
+          These are persistent country identities. Current SSC participation does not determine international membership.
         </p>
       </div>
 
@@ -131,7 +131,7 @@ export function WorldCountriesDirectory() {
             className="mt-3 min-h-11 text-sm font-semibold text-primary">Clear search</button>
         </div>
       ) : null}
-      {visibleCountryData ? <div className="world-country-editorial-list divide-y divide-border/60">
+      {visibleCountryData ? <div className="divide-y divide-border/60">
         {visibleCountryData.countries.map((country) => <CountryRow key={country.id} country={country} />)}
       </div> : null}
 
@@ -148,7 +148,7 @@ export function WorldCountriesDirectory() {
         Song Contest country profiles <ArrowRight className="size-4" aria-hidden="true" />
       </Link>
     </div>
-  </div>;
+  </>;
 }
 
 function useCountryMemberships(countryId: string | undefined, phase: Phase, page: number) {
@@ -179,8 +179,8 @@ function AffiliationGroup({
 }) {
   const total = data?.count ?? 0;
   const safeRows = visibleWorldCountryAffiliations(data?.rows ?? [], institutions);
-  return <section className="world-country-editorial-affiliations py-7" aria-labelledby={"world-country-" + phase}>
-    <div className="world-country-editorial-section-heading flex flex-wrap items-end justify-between gap-3">
+  return <section className="world-country-affiliation-group py-7" aria-labelledby={"world-country-" + phase}>
+    <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h2 id={"world-country-" + phase} className="text-xl font-bold">{title}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
@@ -196,23 +196,18 @@ function AffiliationGroup({
     {data && total > 0 && safeRows.length === 0 ? <p className="mt-5 text-sm text-muted-foreground">
       Public organization identity is unavailable for this page. Affiliation names cannot be verified.
     </p> : null}
-    {safeRows.length ? <div className="world-country-editorial-memberships mt-4 divide-y divide-border/60">
-      {safeRows.map(({ affiliation, organization }) => <div key={affiliation.id} className="world-country-editorial-membership flex min-h-20 items-center gap-4 py-4">
+    {safeRows.length ? <div className="world-country-affiliation-list mt-4">
+      {safeRows.map(({ affiliation, organization }) => <div key={affiliation.id} className="world-country-affiliation-row flex min-h-20 items-center gap-4 py-4">
         <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/40 text-xs font-bold tracking-wide" aria-hidden="true">
           {organization.name.slice(0, 3)}
         </span>
         <span className="min-w-0 flex-1">
-          <Link
-            to="/world/organizations/$slug"
-            params={{ slug: organization.slug }}
+          <Link to="/world/organizations/$slug" params={{ slug: organization.slug }}
             search={{ tab: "overview" }}
-            className="inline-flex min-h-11 items-center text-sm font-semibold underline-offset-4 hover:text-primary hover:underline focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          >
+            className="inline-flex min-h-11 items-center text-sm font-semibold hover:text-primary hover:underline focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
             {organization.name}
           </Link>
-          {organization.officialName !== organization.name ? (
-            <span className="block text-xs text-muted-foreground">{organization.officialName}</span>
-          ) : null}
+          <span className="block text-xs text-muted-foreground">{organization.officialName}</span>
           <span className="mt-1 block text-xs capitalize text-muted-foreground">
             {affiliation.membershipType} · {affiliation.status.replace(/_/g, " ")}
           </span>
@@ -307,17 +302,17 @@ export function WorldCountryInternational({ code }: { code: string }) {
   const institutionsReady = !organizationIds.length || Array.isArray(verifiedInstitutions);
   const institutionError = institutions.isError;
   return <>
-    <div className="world-country-editorial-profile mx-auto w-full max-w-5xl px-4 pb-14 pt-6 sm:px-6">
+    <div className="world-country-detail mx-auto w-full max-w-5xl px-4 pb-14 pt-6 sm:px-6">
       <Link to="/world/countries" className="mb-5 inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" aria-hidden="true" /> World countries
       </Link>
-      <header className="world-country-editorial-identity flex flex-wrap items-center gap-5 border-b border-border pb-7">
+      <header className="world-country-identity-hero flex flex-wrap items-center gap-5">
         <FlagChip code={country.code} color={country.accentColor} image={country.flagImage} size="xl" />
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
-            <Globe2 className="size-4" aria-hidden="true" /> Terra Solaris · World
+            <Globe2 className="size-4" aria-hidden="true" /> Country · International
           </p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{country.name}</h1>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{country.name} · International</h1>
           <p className="mt-1 text-sm text-muted-foreground">{country.region} · {country.code}</p>
           <Link to="/countries/$code" params={{ code: country.code }}
             className="mt-3 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary">
@@ -325,36 +320,29 @@ export function WorldCountryInternational({ code }: { code: string }) {
           </Link>
         </div>
       </header>
-      <nav aria-label="International membership sections"
-        className="mt-6 flex flex-wrap items-center gap-2 border-b border-border pb-5 text-sm">
-        <a href="#world-country-current"
-          className="inline-flex min-h-11 items-center rounded-full border border-border px-4 font-semibold hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-          Current memberships
-        </a>
-        <a href="#world-country-historical"
-          className="inline-flex min-h-11 items-center rounded-full border border-border px-4 font-semibold hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-          Former affiliations
-        </a>
-        <Link to="/world/organizations"
-          className="inline-flex min-h-11 items-center rounded-full border border-border px-4 font-semibold text-primary hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-          Browse organizations
-        </Link>
+      <nav className="world-country-local-nav" aria-label="Country international sections">
+        <a href="#world-country-current">Current memberships</a>
+        <a href="#world-country-historical">Former affiliations</a>
+        <Link to="/world/organizations" search={{ q: "", status: "all", page: 1 }}>Organizations</Link>
+        <Link to="/countries/$code" params={{ code: country.code }}>Contest profile</Link>
       </nav>
-      <p className="world-country-editorial-context mt-6 max-w-3xl text-sm leading-7 text-muted-foreground">
-        International memberships are separate from Song Contest participation.
+      <p className="mt-6 max-w-3xl text-sm leading-7 text-muted-foreground">
+        Membership is country-level and persists independently of SSC participation.
+        Only institutions whose records are currently public can appear here.
+        Historical affiliations are separated from current ones.
       </p>
       {!institutionError && !institutionsReady && organizationIds.length > 0 ?
         <p className="mt-4 text-sm text-muted-foreground" role="status">Verifying public institutional identities…</p> : null}
       {institutionError ? <FailureState title="Institution identities unavailable" retry={() => void institutions.refetch()} /> : null}
       {institutionsReady ? <>
         <AffiliationGroup title="Current memberships"
-          description="Current published memberships, including observers, associates and suspended memberships."
+          description="Active memberships, associates, observers and suspended members recorded by each institution."
           phase="current" page={currentPage} setPage={setCurrentPage}
           data={verifiedCurrent} loading={!current.isError && (current.isPending || current.isFetching || !current.isFetchedAfterMount)} error={current.isError}
           fetching={current.isFetching} institutions={verifiedInstitutions ?? []} retry={() => void current.refetch()} />
         <div className="border-t border-border" />
         <AffiliationGroup title="Former affiliations"
-          description="Published historical terms. Former affiliation does not imply present membership."
+          description="Published historical terms. These records do not imply current membership."
           phase="historical" page={historyPage} setPage={setHistoryPage}
           data={verifiedHistorical} loading={!historical.isError && (historical.isPending || historical.isFetching || !historical.isFetchedAfterMount)} error={historical.isError}
           fetching={historical.isFetching} institutions={verifiedInstitutions ?? []} retry={() => void historical.refetch()} />

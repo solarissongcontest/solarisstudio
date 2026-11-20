@@ -5,8 +5,8 @@ import { useMemo, useState } from 'react';
 
 import { AppShell } from '@/components/AppShell';
 import { PublicStorySpoilerDisclosure } from '@/components/public/PublicStorySpoilerDisclosure';
-import { useAppExperiencePreferences } from '@/lib/app-experience';
 import { useSolarisApp } from '@/components/app/AppRuntime';
+import { useAppExperiencePreferences } from '@/lib/app-experience';
 import { SolarisSearchField } from '@/components/app/SolarisSearchField';
 import { useV3DirectoryPresentation, type V3DirectoryPresentation } from '@/lib/v3-directory-presentation';
 import '@/styles/v3-directory-family.css';
@@ -84,6 +84,8 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
     queryKey: ['public-storylines', storyLimit],
     queryFn: () => loadPublicStorylines(storyLimit),
     staleTime: 60_000,
+    // Keep existing published stories visible during a visitor-requested expansion.
+    placeholderData: (previous) => previous,
     retry: false,
   });
   const anniversaryQuery = useQuery({
@@ -92,18 +94,15 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
     staleTime: 60_000,
   });
 
-  // A cached response is not a current publication decision during refetch.
-  const stories = storiesQuery.isSuccess && !storiesQuery.isFetching && !storiesQuery.isRefetchError
-    ? storiesQuery.data ?? [] : [];
-  const anniversary = anniversaryQuery.isSuccess && !anniversaryQuery.isFetching &&
-    !anniversaryQuery.isRefetchError ? anniversaryQuery.data ?? null : null;
+  const stories = storiesQuery.data ?? [];
+  const anniversary = anniversaryQuery.data ?? null;
+  const canLoadMoreStories = !storiesQuery.isError && (
+    canExpandPublicStoryBatch(stories.length, storyLimit) ||
+    (storiesQuery.isFetching && stories.length < storyLimit)
+  );
   const [search, setSearch] = useState("");
-  const canLoadMoreStories = storiesQuery.isSuccess && !storiesQuery.isFetching &&
-    canExpandPublicStoryBatch(stories.length, storyLimit);
-  const searchCoverageIncomplete = canLoadMoreStories &&
-    canExpandPublishedStorySearch(search, stories.length, storyLimit);
-  const reachedStoryLimit = storiesQuery.isSuccess && !storiesQuery.isFetching &&
-    publicStoryBatchAtServerCap(stories.length, storyLimit);
+  const searchCoverageIncomplete = !storiesQuery.isError && canExpandPublishedStorySearch(search, stories.length, storyLimit);
+  const reachedStoryLimit = !storiesQuery.isError && publicStoryBatchAtServerCap(stories.length, storyLimit);
   const filteredStories = useMemo(() => {
     const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
     return stories.filter((story) => {
@@ -121,12 +120,12 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
 
   return (
     <AppShell>
-      <div className="v3-directory-family v3-stories-directory v3-editorial-stories mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12" data-directory-experience={presentation}>
+      <div className="v3-directory-family v3-stories-directory mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12" data-directory-experience={presentation}>
         {presentation === "mobile-web" ? (
           <header className="v3-directory-mobile-header" data-directory-mobile-header="">
-                        <p className="v3-directory-eyebrow">PUBLISHED NARRATIVES</p>
+            <p className="v3-directory-eyebrow">PUBLISHED NARRATIVES</p>
             <h1>Stories</h1>
-
+            <p>Read the moments that shaped Solaris, edition by edition.</p>
           </header>
         ) : presentation === "installed-app" ? (
           <header className="v3-directory-app-heading">
@@ -139,7 +138,7 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
             <p className="v3-directory-eyebrow">PUBLISHED NARRATIVES</p>
             <h1 className="mt-2 font-sans text-4xl font-bold tracking-[-0.035em] text-foreground">Stories</h1>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-              Published stories from Solaris editions.
+              Read published edition stories and the moments that shaped Solaris.
             </p>
           </header>
         )}
@@ -152,7 +151,7 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
         <section className="mt-6" aria-labelledby="stories-heading">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Published narratives</p>
-            <h2 id="stories-heading" className="mt-1 text-2xl font-bold tracking-[-0.03em]">{presentation === "installed-app" ? "Edition stories" : "Latest stories"}</h2>
+            <h2 id="stories-heading" className="mt-1 text-2xl font-bold tracking-[-0.03em]">Edition stories</h2>
           </div>
 
           {presentation === "installed-app" ? (
@@ -175,43 +174,22 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
             {filteredStories.length} of {stories.length} published stories in this batch
             {searchCoverageIncomplete ? " · More published stories may match beyond this batch" : ""}
           </p>
-          {storiesQuery.isError || storiesQuery.isRefetchError ? (
+          {storiesQuery.isError ? (
             <ArchiveEmpty
               icon={BookOpen}
               title="Published stories could not be loaded"
               copy="Solaris could not read the story archive. This is a loading failure, not confirmation that no stories are published."
               onRetry={() => void storiesQuery.refetch()}
             />
-          ) : storiesQuery.isLoading || storiesQuery.isFetching ? (
+          ) : storiesQuery.isLoading ? (
             <ArchiveEmpty icon={BookOpen} title="Loading edition stories…" copy="Only explicitly published narratives appear here." />
           ) : filteredStories.length ? (
-            <div className={presentation === "mobile-web" ? "v3-directory-mobile-list mt-4" : "mt-4 grid gap-4 md:grid-cols-2"}>
+            <div className={presentation === "mobile-web" ? "v3-directory-mobile-list mt-4" : "v3-story-web-list mt-4"}>
               {filteredStories.map((story) => (
-                presentation !== "installed-app" && !search.trim() && story === filteredStories[0] ? (
-                  <Link
-                    key={story.editionId}
-                    to="/stories/$editionSlug"
-                    params={{ editionSlug: story.editionSlug }}
-                    className="v3-stories-feature group"
-                  >
-                    <span className="v3-stories-feature-edition">
-                      {story.editionNumber != null ? `SSC ${story.editionNumber}` : story.editionName}
-                    </span>
-                    <h3>{story.title}</h3>
-                    {story.subtitle ? <p className="v3-stories-feature-subtitle">{story.subtitle}</p> : null}
-                    {story.introduction ? <p className="v3-stories-feature-intro line-clamp-3">{story.introduction}</p> : null}
-                    {story.heroMoment ? (
-                      <div className="v3-stories-feature-moment">
-                        <span>Defining moment</span>
-                        <strong>{story.heroMoment.headline}</strong>
-                      </div>
-                    ) : null}
-                    <span className="v3-stories-feature-link">Read story <ChevronRight size={18} aria-hidden="true" /></span>
-                  </Link>
-                ) : presentation === "mobile-web" ? (
+                presentation === "mobile-web" ? (
                   <Link key={story.editionId} to="/stories/$editionSlug"
                     params={{ editionSlug: story.editionSlug }}
-                    className="v3-directory-mobile-row v3-stories-web-row">
+                    className="v3-directory-mobile-row">
                     <span className="min-w-0 flex-1">
                       <strong>{story.title}</strong>
                       <span>{story.editionNumber != null ? `SSC ${story.editionNumber}` : story.editionName} · {story.itemCount} moments</span>
@@ -220,7 +198,7 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
                     <ChevronRight size={19} className="shrink-0" aria-hidden="true" />
                   </Link>
                 ) : (
-                <Link key={story.editionId} to="/stories/$editionSlug" params={{ editionSlug: story.editionSlug }} className="v3-stories-teaser group rounded-2xl border border-border/60 bg-card/55 p-5 transition hover:border-primary/25 hover:bg-card/75">
+                <Link key={story.editionId} to="/stories/$editionSlug" params={{ editionSlug: story.editionSlug }} className="v3-story-web-teaser group">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-[11px] font-black uppercase tracking-[0.14em] text-primary">
                       {story.editionNumber != null ? `SSC ${story.editionNumber}` : story.editionName}
@@ -231,7 +209,10 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
                   {story.subtitle ? <p className="mt-1 text-sm font-semibold text-foreground/80">{story.subtitle}</p> : null}
                   <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted-foreground">{story.introduction ?? story.heroMoment?.summary ?? 'Open the reviewed edition timeline.'}</p>
                   {story.heroMoment ? (
-                    <p className="v3-stories-teaser-moment mt-4 text-sm font-semibold">{story.heroMoment.headline}</p>
+                    <div className="v3-story-web-highlight">
+                      <p className="text-[10px] font-black uppercase tracking-[0.13em] text-muted-foreground">Defining moment</p>
+                      <p className="mt-1 text-sm font-semibold">{story.heroMoment.headline}</p>
+                    </div>
                   ) : null}
                 </Link>
                 )
@@ -241,18 +222,18 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
             <ArchiveEmpty icon={Sparkles}
               title={search.trim() && stories.length ? "No matching stories" : "No edition stories published yet"}
               copy={search.trim() && stories.length
-                ? "Try another title, edition or moment, or load more published history."
+                ? "Try a different title, edition or moment, or load more published stories."
                 : "Story drafts remain private until organizers explicitly publish them."} />
           )}
           {canLoadMoreStories ? (
-            <div className="mt-5 flex flex-wrap items-center gap-3" data-v3-stories-batch="">
+            <div className="v3-stories-batch-action mt-5 flex flex-wrap items-center gap-3" data-v3-stories-batch="">
               <button type="button"
-                className="min-h-11 rounded-lg border border-border bg-surface px-4 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                className="min-h-11 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 disabled={storiesQuery.isFetching}
                 onClick={() => setStoryLimit((limit) => nextPublicStoryBatchLimit(limit))}>
-                Load more published stories
+                {storiesQuery.isFetching ? "Loading more stories…" : "Load more published stories"}
               </button>
-              <span className="text-xs text-muted-foreground">Older published records may be available.</span>
+              <span className="text-xs text-muted-foreground">More published archive records may be available.</span>
             </div>
           ) : null}
           {searchCoverageIncomplete ? (
@@ -260,7 +241,7 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
               className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold text-primary hover:bg-primary/10"
               disabled={storiesQuery.isFetching}
               onClick={() => setStoryLimit(PUBLIC_STORY_RPC_MAX)}>
-              Search more published history
+              {storiesQuery.isFetching ? "Searching more published history…" : "Search more published history"}
             </button>
           ) : null}
           {reachedStoryLimit ? (
@@ -278,29 +259,29 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
           <div className="flex items-end justify-between gap-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">{referenceDate}</p>
-              <h2 id="today-heading" className="mt-1 text-2xl font-bold tracking-[-0.03em]">On this day</h2>
+              <h2 id="today-heading" className="mt-1 text-2xl font-bold tracking-[-0.03em]">On this day in Solaris</h2>
             </div>
             {!anniversaryQuery.isError && anniversary?.sscAnniversary ? (
               <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{anniversary.sscAnniversary.label}</span>
             ) : null}
           </div>
 
-          {anniversaryQuery.isError || anniversaryQuery.isRefetchError ? (
+          {anniversaryQuery.isError ? (
             <ArchiveEmpty
               icon={Clock3}
               title="Calendar moments could not be loaded"
               copy="The public history service did not respond. Reconnect and try again."
               onRetry={() => void anniversaryQuery.refetch()}
             />
-          ) : anniversaryQuery.isLoading || anniversaryQuery.isFetching ? (
+          ) : anniversaryQuery.isLoading ? (
             <ArchiveEmpty icon={Clock3} title="Reading the archive…" copy="Matching published story moments to today's calendar date." />
           ) : anniversary?.onThisDay.length ? (
-            <div className={presentation === "mobile-web" ? "v3-directory-mobile-list mt-4" : "mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3"}>
+            <div className={presentation === "mobile-web" ? "v3-directory-mobile-list mt-4" : "v3-story-calendar-list mt-4"}>
               {anniversary.onThisDay.slice(0, 6).map((moment, index) => (
-                <article key={`${moment.editionSlug ?? 'moment'}-${moment.occurredAt}-${index}`} className={presentation === "mobile-web" ? "v3-story-mobile-moment v3-stories-date-item border-b border-border py-4" : "v3-stories-date-item rounded-2xl border border-border/60 bg-card/55 p-5"}>
+                <article key={`${moment.editionSlug ?? 'moment'}-${moment.occurredAt}-${index}`} className={presentation === "mobile-web" ? "v3-story-mobile-moment border-b border-border py-4" : "v3-story-calendar-item"}>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-[11px] font-black uppercase tracking-[0.14em] text-primary">{moment.yearsAgo != null ? `${moment.yearsAgo} years ago` : 'Archive moment'}</span>
-                    {presentation === "installed-app" ? <span className="text-xs text-muted-foreground">{moment.importance}</span> : null}
+                    {moment.editionNumber != null ? <span className="text-xs text-muted-foreground">SSC {moment.editionNumber}</span> : null}
                   </div>
                   <h3 className="mt-3 text-lg font-bold tracking-[-0.02em]">{moment.headline}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{moment.summary}</p>

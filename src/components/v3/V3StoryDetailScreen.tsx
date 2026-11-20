@@ -1,11 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { BookOpen, CalendarDays, Share2 } from "lucide-react";
+import { BookOpen, CalendarDays, ChevronRight, Share2 } from "lucide-react";
+import "@/styles/v3-stories-editorial.css";
 
 import { formatEventWallTime } from "@/lib/public-time";
 import type { V3StoryDetailBundle } from "@/lib/v3-stories";
 import {
-  V3ActionCard,
   V3Screen,
   V3ScreenHeader,
   V3Section,
@@ -22,6 +22,7 @@ export function V3StoryDetailScreen({
 }) {
   const [revealed, setRevealed] = useState(false);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
+  const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
   const story = bundle.story;
 
   if (!story) {
@@ -112,30 +113,36 @@ export function V3StoryDetailScreen({
         ← Story archive
       </Link>
 
-      <div className="mt-5">
-        <V3ScreenHeader
-          kicker={`${story.editionNumber != null ? `SSC ${story.editionNumber}` : story.editionName}${story.eventDate ? ` · ${story.eventDate}` : ""}`}
-          title={story.title}
-          description={story.introduction ?? undefined}
-          editorial
-        />
-        {bundle.artwork ? (
-          <div className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.025]">
+      <div className="v3-story-detail-hero" data-has-artwork={Boolean(bundle.artwork && failedArtworkUrl !== bundle.artwork.src)}>
+        <div className="v3-story-detail-hero__media">
+          {bundle.artwork ? (
             <img
               src={bundle.artwork.src}
               alt={bundle.artwork.alt}
-              className="aspect-[16/9] w-full object-cover"
+              className={failedArtworkUrl === bundle.artwork.src ? "v3-story-detail-hero__image-failed" : ""}
+              loading="eager"
               decoding="async"
+              fetchPriority="high"
+              onError={() => setFailedArtworkUrl(bundle.artwork?.src ?? null)}
             />
-          </div>
-        ) : null}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {story.subtitle ? <V3StatusChip tone="neutral">{story.subtitle}</V3StatusChip> : null}
-          <span className="text-xs text-white/38">
-            Published {formatEventWallTime(story.publishedAt, { locale: "en-GB" })} · {story.items.length} reviewed moments
-          </span>
+          ) : null}
         </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+        <div className="v3-story-detail-hero__fade" aria-hidden="true" />
+        <div className="v3-story-detail-hero__copy">
+          <V3ScreenHeader
+            kicker={`${story.editionNumber != null ? `SSC ${story.editionNumber}` : story.editionName}${story.eventDate ? ` · ${story.eventDate}` : ""}`}
+            title={story.title}
+            description={story.introduction ?? undefined}
+            editorial
+          />
+        </div>
+      </div>
+      <div className="v3-story-detail-byline">
+        {story.subtitle ? <p className="v3-story-detail-deck">{story.subtitle}</p> : null}
+        <p className="v3-story-detail-published">
+          Published {formatEventWallTime(story.publishedAt, { locale: "en-GB" })} · {story.items.length} reviewed moments
+        </p>
+        <div className="v3-story-detail-actions">
           {bundle.relatedEdition ? (
             <Link
               to={bundle.relatedEdition.href as any}
@@ -167,11 +174,11 @@ export function V3StoryDetailScreen({
               className="absolute bottom-0 left-[15px] top-1 w-px bg-white/[0.08]"
               aria-hidden="true"
             />
-            <div className="space-y-4">
+            <div className="v3-story-timeline-list">
               {story.items.map((item, index) => (
                 <article
                   key={item.id ?? `${item.occurredAt}:${index}`}
-                  className="relative pl-11"
+                  className="v3-story-timeline-item relative pl-11"
                 >
                   <span
                     className="absolute left-[9px] top-5 grid size-3 place-items-center rounded-full border border-primary/55 bg-[var(--v3-bg)]"
@@ -179,13 +186,13 @@ export function V3StoryDetailScreen({
                   >
                     <span className="size-1 rounded-full bg-primary" />
                   </span>
-                  <V3Surface level="raised" className="p-5">
+                  <div className="v3-story-timeline-entry">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="inline-flex items-center gap-1.5 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-white/42">
                         <CalendarDays className="size-3.5" aria-hidden="true" />
                         {formatEventWallTime(item.occurredAt, { locale: "en-GB" })}
                       </span>
-                      <V3StatusChip tone="neutral">importance {item.importance}</V3StatusChip>
+                      <span className="v3-story-timeline-importance">importance {item.importance}</span>
                     </div>
                     <h2 className="mt-3 text-xl font-black tracking-[-0.025em] sm:text-2xl">
                       {item.headline}
@@ -198,7 +205,7 @@ export function V3StoryDetailScreen({
                         {item.sourceEventType}
                       </p>
                     ) : null}
-                  </V3Surface>
+                  </div>
                 </article>
               ))}
             </div>
@@ -214,18 +221,22 @@ export function V3StoryDetailScreen({
 
       {bundle.relatedStories.length ? (
         <V3Section title="More published stories" meta={`${bundle.relatedStories.length} stories`}>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="v3-story-detail-related">
             {bundle.relatedStories.map((related) => (
-              <V3ActionCard
+              <Link
                 key={related.editionId}
-                title={related.title}
-                description={
-                  related.subtitle ??
-                  `${related.editionNumber != null ? `SSC ${related.editionNumber}` : related.editionName} · ${related.itemCount} moments`
-                }
-                tone="neutral"
-                to={`/stories/${encodeURIComponent(related.editionSlug)}`}
-              />
+                to={`/stories/${encodeURIComponent(related.editionSlug)}` as any}
+                className="v3-story-detail-related__link"
+              >
+                <span className="v3-story-detail-related__copy">
+                  <strong>{related.title}</strong>
+                  <span>
+                    {related.subtitle ??
+                      `${related.editionNumber != null ? `SSC ${related.editionNumber}` : related.editionName} · ${related.itemCount} moments`}
+                  </span>
+                </span>
+                <ChevronRight size={18} aria-hidden="true" />
+              </Link>
             ))}
           </div>
         </V3Section>

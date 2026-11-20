@@ -24,26 +24,25 @@ describe("V3 broadcast and historical directories: three experiences", () => {
     expect(screen).toContain("activeFilterCount");
     expect(screen).toContain('role="status" aria-live="polite"');
     expect(screen).toContain('aria-label="Clear search"');
-    const spotlights = source("src/lib/v3-show-spotlights.ts");
-    expect(screen).toContain("buildShowSpotlights");
-    expect(spotlights).toContain('eyebrow: "Live now"');
-    expect(spotlights).toContain("items: discovery.liveNow");
-    expect(spotlights).toContain('eyebrow: "Up next"');
-    expect(spotlights).toContain('eyebrow: "Recent"');
-    expect(spotlights).toContain("seen.has(item.show.id)");
-    expect(spotlights).toContain("seen.add(item.show.id)");
-    expect(spotlights).toContain('mode === "legacy-app"');
+    expect(screen).toContain('eyebrow: "Live now"');
+    expect(screen).toContain("items: discovery.liveNow");
+    expect(screen).toContain('eyebrow: "Up next"');
+    expect(screen).toContain('eyebrow: "Recent"');
     expect(screen).toContain('eyebrow="Archive"');
     expect(screen).toContain("showPublishesResults(item.show)");
     expect(screen).toContain("item.broadcastUrl");
     expect(screen).not.toContain("useAllResults");
   });
 
-  it("retains exactly the six published Archive destinations, without current tasks", () => {
+  it("retains the seven release-filtered Archive topics without current tasks", () => {
     const root = source("src/routes/archive/index.tsx");
-    for (const route of ["/countries", "/editions", "/shows", "/stories", "/encyclopedia", "/archive-games"]) {
+    for (const route of ["/countries", "/editions", "/shows", "/stories", "/wiki", "/records", "/archive-games"]) {
       expect(root).toContain(`to: "${route}"`);
     }
+    const destinations = [...root.matchAll(/\bto: "(\/[^"]+)"/g)].map((match) => match[1]);
+    expect(destinations).toHaveLength(7);
+    expect(new Set(destinations).size).toBe(7);
+    expect(root).not.toContain('to: "/encyclopedia"');
     expect(root).toContain("Historical context stays historical");
     expect(root).toContain('className="v3-archive-context mb-4 border-b');
     expect(root).not.toContain('rounded-2xl border border-border bg-surface/55');

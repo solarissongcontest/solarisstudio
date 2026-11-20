@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
-import { CinematicEditorialHero } from "@/components/v3/CinematicEditorialHero";
 import { LiquidGlassBackdrop } from "@/components/LiquidGlassBackdrop";
 import { cn } from "@/lib/utils";
 
@@ -10,11 +9,9 @@ export function EditionHero({
   subtitle,
   description,
   artwork,
-  artworkAlt,
   logo,
   logoAlt,
   liquidGlass = false,
-  editorialWeb = false,
   status,
   winner,
   actions,
@@ -28,49 +25,18 @@ export function EditionHero({
   logo?: string | null;
   logoAlt?: string;
   liquidGlass?: boolean;
-  /** Published, ordinary browser web uses the immersive editorial identity. */
-  editorialWeb?: boolean;
   status: ReactNode;
   winner?: ReactNode;
   actions?: ReactNode;
 }) {
+  // Artwork is a decorative environment; the logo is a separate identity mark.
+  // Never duplicate the artwork into a foreground plate when no logo exists.
+  // If a published asset becomes unavailable, fall back without a broken image.
   const [failedArtwork, setFailedArtwork] = useState<string | null>(null);
   const [failedLogo, setFailedLogo] = useState<string | null>(null);
   const visibleArtwork = artwork && artwork !== failedArtwork ? artwork : null;
   const visibleLogo = logo && logo !== failedLogo ? logo : null;
-  const plateImage = visibleLogo ?? visibleArtwork;
-  const plateAlt = visibleLogo ? (logoAlt ?? `${title} logo`) : artworkAlt;
-
-  if (editorialWeb) {
-    return (
-      <div className="edition-web-cinematic" data-edition-web-experience="editorial">
-        <CinematicEditorialHero
-          kind="edition"
-          eyebrow={eyebrow}
-          title={title}
-          subtitle={subtitle}
-          imageUrl={visibleArtwork}
-          context={
-            <div className="edition-web-cinematic__identity">
-              <div className="edition-web-cinematic__status">{status}</div>
-              {visibleLogo ? (
-                <img
-                  className="edition-web-cinematic__logo"
-                  src={visibleLogo}
-                  alt={logoAlt ?? `${title} official logo`}
-                  loading="eager"
-                  decoding="async"
-                  onError={() => setFailedLogo(visibleLogo)}
-                />
-              ) : null}
-            </div>
-          }
-        />
-        {winner ? <div className="edition-web-cinematic__winner">{winner}</div> : null}
-        {description ? <p className="edition-web-cinematic__description">{description}</p> : null}
-      </div>
-    );
-  }
+  const plateAlt = logoAlt ?? `${title} logo`;
 
   return (
     <header
@@ -81,7 +47,8 @@ export function EditionHero({
     >
       {visibleArtwork ? (
         <div className="edition-hero-artwork" aria-hidden="true">
-          <img src={visibleArtwork} alt="" fetchPriority="high" decoding="async" onError={() => setFailedArtwork(visibleArtwork)} />
+          <img src={visibleArtwork} alt="" fetchPriority="high" decoding="async"
+            onError={() => setFailedArtwork(visibleArtwork)} />
         </div>
       ) : null}
       {liquidGlass ? (
@@ -99,14 +66,14 @@ export function EditionHero({
         {winner ? <div className="edition-hero-winner">{winner}</div> : null}
         {actions ? <div className="edition-hero-actions">{actions}</div> : null}
       </div>
-      {plateImage ? (
+      {visibleLogo ? (
         <figure className="edition-artwork-plate">
           <img
-            src={plateImage}
+            src={visibleLogo}
             alt={plateAlt}
             loading="eager"
             decoding="async"
-            onError={() => visibleLogo ? setFailedLogo(visibleLogo) : visibleArtwork ? setFailedArtwork(visibleArtwork) : undefined}
+            onError={() => setFailedLogo(visibleLogo)}
           />
         </figure>
       ) : null}
@@ -118,18 +85,16 @@ export function EditionNavigation({
   label,
   items,
   liquidGlass = false,
-  editorialWeb = false,
 }: {
   label: string;
   items: readonly { href: string; label: string; available?: boolean }[];
   liquidGlass?: boolean;
-  /** Plain-browser navigation: all public sections stay visible in a scrollable editorial row. */
-  editorialWeb?: boolean;
 }) {
   const available = items.filter((item) => item.available !== false);
   const [active, setActive] = useState(available[0]?.href ?? "");
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
+  const morePanelId = useId();
   const primary = available.length > 4 ? available.slice(0, 3) : available;
   const secondary = available.length > 4 ? available.slice(3) : [];
 
@@ -141,11 +106,13 @@ export function EditionNavigation({
       const current = [...sections].reverse().find((node) => node.getBoundingClientRect().top <= threshold) ?? sections[0];
       setActive(`#${current.id}`);
     };
-    const observer = new IntersectionObserver(update, { rootMargin: "-120px 0px -70% 0px", threshold: 0 });
-    sections.forEach((node) => observer.observe(node));
+    const observer = typeof IntersectionObserver === "undefined"
+      ? null
+      : new IntersectionObserver(update, { rootMargin: "-120px 0px -70% 0px", threshold: 0 });
+    sections.forEach((node) => observer?.observe(node));
     window.addEventListener("scroll", update, { passive: true });
     update();
-    return () => { observer.disconnect(); window.removeEventListener("scroll", update); };
+    return () => { observer?.disconnect(); window.removeEventListener("scroll", update); };
   }, [items]);
 
   useEffect(() => {
@@ -163,14 +130,6 @@ export function EditionNavigation({
     <a key={item.href} href={item.href} aria-current={active === item.href ? "location" : undefined} onClick={() => { setActive(item.href); setMoreOpen(false); }}>{item.label}</a>
   );
 
-  if (editorialWeb) {
-    return (
-      <nav className="edition-navigation edition-navigation--editorial" aria-label={label}>
-        <div className="edition-navigation-editorial">{available.map(link)}</div>
-      </nav>
-    );
-  }
-
   return (
     <nav
       className="edition-navigation"
@@ -187,8 +146,8 @@ export function EditionNavigation({
       <div className="edition-navigation-mobile">
         {primary.map(link)}
         {secondary.length ? <div className="edition-navigation-more" ref={moreRef}>
-          <button type="button" aria-expanded={moreOpen} aria-controls="edition-navigation-more-panel" aria-current={secondary.some((item) => item.href === active) ? "location" : undefined} onClick={() => setMoreOpen((value) => !value)}>More <span aria-hidden="true">⌄</span></button>
-          {moreOpen ? <div id="edition-navigation-more-panel" className="edition-navigation-more-panel">{secondary.map(link)}</div> : null}
+          <button type="button" aria-expanded={moreOpen} aria-controls={moreOpen ? morePanelId : undefined} aria-current={secondary.some((item) => item.href === active) ? "location" : undefined} onClick={() => setMoreOpen((value) => !value)}>More <span aria-hidden="true">⌄</span></button>
+          {moreOpen ? <div id={morePanelId} className="edition-navigation-more-panel">{secondary.map(link)}</div> : null}
         </div> : null}
       </div>
     </nav>

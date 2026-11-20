@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { BookOpen, CalendarDays } from "lucide-react";
+import { BookOpen, CalendarDays, ArrowUpRight } from "lucide-react";
+import "@/styles/v3-stories-editorial.css";
 
 import type { V3StoriesIndexBundle, V3StorySummary } from "@/lib/v3-stories";
 import {
@@ -65,12 +66,11 @@ export function V3StoriesIndexScreen({
             }
           >
             {bundle.anniversary.onThisDay.length ? (
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div className="v3-stories-moments">
                 {bundle.anniversary.onThisDay.slice(0, 6).map((moment, index) => (
-                  <V3Surface
+                  <article
                     key={`${moment.editionSlug ?? "moment"}:${moment.occurredAt}:${index}`}
-                    level="raised"
-                    className="p-4"
+                    className="v3-stories-moment"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-[0.65rem] font-bold uppercase tracking-[0.13em] text-primary">
@@ -96,7 +96,7 @@ export function V3StoriesIndexScreen({
                         </Link>
                       ) : null}
                     </div>
-                  </V3Surface>
+                  </article>
                 ))}
               </div>
             ) : (
@@ -122,14 +122,14 @@ export function V3StoriesIndexScreen({
               }
             >
               <div className="max-w-3xl">
-                <StoryCard story={bundle.currentStory} />
+                <StoryCard story={bundle.currentStory} featured />
               </div>
             </V3Section>
           ) : null}
 
           {bundle.historicalStories.length ? (
             <V3Section title="Story archive" meta={`${bundle.historicalStories.length} historical`}>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="v3-stories-archive-list">
                 {bundle.historicalStories.map((story) => (
                   <StoryCard key={story.editionId} story={story} />
                 ))}
@@ -140,7 +140,7 @@ export function V3StoriesIndexScreen({
           {!hasClassifiedStories ? (
             <V3Section title="Edition stories" meta={`${bundle.stories.length} published`}>
               {bundle.stories.length ? (
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="v3-stories-archive-list">
                   {bundle.stories.map((story) => (
                     <StoryCard key={story.editionId} story={story} />
                   ))}
@@ -164,36 +164,31 @@ export function V3StoriesIndexScreen({
   );
 }
 
-function StoryCard({ story }: { story: V3StorySummary }) {
+function StoryCard({ story, featured = false }: { story: V3StorySummary; featured?: boolean }) {
   return (
     <Link
       to="/stories/$editionSlug"
       params={{ editionSlug: story.editionSlug }}
-      className="block rounded-[var(--v3-radius-xl)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+      className={featured ? "v3-story-editorial-teaser v3-story-editorial-teaser--featured" : "v3-story-editorial-teaser"}
     >
-      <V3Surface level="raised" className="h-full p-5 transition hover:bg-white/[0.045]">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-[0.65rem] font-bold uppercase tracking-[0.13em] text-primary">
-            {story.editionNumber != null ? `SSC ${story.editionNumber}` : story.editionName}
-          </span>
-          <span className="text-xs text-white/38">{story.itemCount} moments</span>
-        </div>
-        <h3 className="mt-3 text-2xl font-black tracking-[-0.03em]">{story.title}</h3>
-        {story.subtitle ? (
-          <p className="mt-1 text-sm font-semibold text-white/70">{story.subtitle}</p>
-        ) : null}
-        <p className="mt-3 line-clamp-3 text-sm leading-6 text-white/48">
-          {story.introduction ?? story.heroMoment?.summary ?? "Open the reviewed edition timeline."}
+      <span className="v3-story-editorial-teaser__meta">
+        <span>{story.editionNumber != null ? `SSC ${story.editionNumber}` : story.editionName}</span>
+        <span>{story.itemCount} reviewed moments</span>
+      </span>
+      <h3 className="v3-story-editorial-teaser__title">{story.title}</h3>
+      {story.subtitle ? <p className="v3-story-editorial-teaser__subtitle">{story.subtitle}</p> : null}
+      <p className="v3-story-editorial-teaser__intro">
+        {story.introduction ?? story.heroMoment?.summary ?? "Read the published edition timeline."}
+      </p>
+      {story.heroMoment ? (
+        <p className="v3-story-editorial-teaser__highlight">
+          <span>Defining moment</span>
+          {story.heroMoment.headline}
         </p>
-        {story.heroMoment ? (
-          <div className="mt-5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-            <p className="text-[0.62rem] font-bold uppercase tracking-[0.12em] text-white/35">
-              Defining moment
-            </p>
-            <p className="mt-1 text-sm font-semibold">{story.heroMoment.headline}</p>
-          </div>
-        ) : null}
-      </V3Surface>
+      ) : null}
+      <span className="v3-story-editorial-teaser__action">
+        Read story <ArrowUpRight size={17} aria-hidden="true" />
+      </span>
     </Link>
   );
 }

@@ -48,7 +48,6 @@ export function V3DirectoryFamilyIndex({
   groups,
   context,
   noShell = false,
-  visualClassName,
   urlSearch,
   onUrlSearchChange,
 }: {
@@ -66,8 +65,6 @@ export function V3DirectoryFamilyIndex({
   context?: ReactNode;
   /** Rules owns its own governed rollout shell. */
   noShell?: boolean;
-  /** Browser-only editorial class; preserves the visual design of #2602. */
-  visualClassName?: string;
   /** Optional validated permalink state, supplied by the owning route. */
   urlSearch?: PublicDirectoryUrlSearch;
   onUrlSearchChange?: (search: PublicDirectoryUrlSearch) => void;
@@ -213,7 +210,7 @@ export function V3DirectoryFamilyIndex({
   );
 
   const content = (
-      <div className={`v3-directory-family v3-editorial-directory${visualClassName ? ` ${visualClassName}` : ""}`} data-directory-experience={presentation} data-directory-kind={variant}>
+      <div className="v3-directory-family" data-directory-experience={presentation} data-directory-kind={variant}>
         {presentation === "installed-app" ? (
           <AppScreen>
             <header className="v3-directory-app-heading">

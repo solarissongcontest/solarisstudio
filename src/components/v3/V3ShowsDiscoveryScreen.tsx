@@ -11,14 +11,13 @@ import { ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/compone
 import { PublicDataState } from "@/components/public/PublicDataState";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import { showPublishesResults } from "@/lib/publication";
-import { formatEventDateTime } from "@/lib/public-time";
-import { getV3ShowBrowsePage, V3_SHOW_BROWSE_PAGE_SIZE } from "@/lib/v3-show-browse-page";
-import { buildShowSpotlights } from "@/lib/v3-show-spotlights";
-import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { publicBroadcastHref } from "@/lib/v3-public-broadcast-url";
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { matchesShowDirectorySearch, resolveShowDirectoryFacet } from "@/lib/v3-shows-directory-filters";
 import { MAX_PUBLIC_DIRECTORY_QUERY_LENGTH, normalizePublicDirectoryUrlQuery } from "@/lib/v3-directory-url-search";
-import type { ShowDirectoryUrlSearch } from "@/lib/v3-explore-browse-url";
+import { type ShowDirectoryUrlSearch } from "@/lib/v3-explore-browse-url";
+import { formatEventDateTime } from "@/lib/public-time";
+import { getV3ShowBrowsePage, V3_SHOW_BROWSE_PAGE_SIZE } from "@/lib/v3-show-browse-page";
 import {
   buildShowDiscovery,
   type ShowDiscoveryItem,
@@ -149,20 +148,6 @@ export function V3ShowsDiscoveryScreen({
     [browseItems, browseFilterKey, browseWindowState],
   );
   const activeFilterCount = Number(effectiveEditionId !== "all") + Number(effectiveKind !== "all") + Number(state !== "all");
-  const spotlightCollections = useMemo(
-    () => buildShowSpotlights(
-      discovery,
-      discovery.currentEdition ? editionLabel(discovery.currentEdition) : "",
-      presentation === "installed-app" ? "legacy-app" : "curated-web",
-    ),
-    [discovery, presentation],
-  );
-
-  const clearFacets = () => {
-    setEditionId("all");
-    setKind("all");
-    setState("all");
-  };
   // Shared fields render in the app filter sheet or desktop/mobile-web filter row,
   // avoiding duplicate controls, translation drift and client bundle cost.
   const filterFields = [
@@ -222,13 +207,23 @@ export function V3ShowsDiscoveryScreen({
   }
 
   return (
-    <div className="v3-shows-directory v3-editorial-show-index space-y-8" data-show-directory-experience={presentation}>
-      {spotlightCollections.map((collection) => (
+    <div className="v3-shows-directory space-y-8" data-show-directory-experience={presentation}>
+      {[
+        { id: "shows-live-now", eyebrow: "Live now", title: "On air",
+          items: discovery.liveNow, emphasis: "live" as const },
+        { id: "shows-up-next", eyebrow: "Up next", title: "Coming shows",
+          items: discovery.upNext.slice(0, 4), emphasis: "normal" as const },
+        { id: "shows-recent", eyebrow: "Recent", title: "Latest completed",
+          items: discovery.recent, emphasis: "normal" as const },
+        { id: "shows-current-edition", eyebrow: "Current edition",
+          title: discovery.currentEdition ? editionLabel(discovery.currentEdition) : "",
+          items: discovery.currentEditionShows, emphasis: "normal" as const },
+      ].filter((collection) => collection.items.length > 0).map((collection) => (
         <ShowCollection key={collection.id} presentation={presentation} {...collection} />
       ))}
 
       <section id="shows-browse" aria-labelledby="shows-browse-title" className="scroll-mt-24">
-        <h2 id="shows-browse-title" className="v3-shows-browse-heading">{presentation === "installed-app" ? "All public shows" : "All shows"}</h2>
+        <h2 id="shows-browse-title" className="v3-shows-browse-heading">All public shows</h2>
         <div className={presentation === "installed-app"
           ? "v3-shows-filter-fields v3-shows-filter-fields--app"
           : "v3-shows-filter-fields grid gap-2 sm:grid-cols-3"}>
@@ -263,39 +258,24 @@ export function V3ShowsDiscoveryScreen({
               <div className="v3-directory-search" role="search">
                 <Search size={18} aria-hidden="true" />
                 <input type="search" value={search} onChange={(event) => changeSearch(event.target.value)}
-                  aria-label="Search shows" placeholder="Search shows…" />
+                  aria-label="Search shows" placeholder="Search show name, edition or type…" />
                 {search ? (
                   <button type="button" className="v3-directory-search-clear" aria-label="Clear search"
                     onClick={() => setSearch("")}><X size={16} aria-hidden="true" /></button>
                 ) : null}
               </div>
-              {presentation === "mobile-web" ? (
-                <details className="v3-shows-web-filters">
-                  <summary className="v3-shows-web-filters-summary">
-                    <SlidersHorizontal size={17} aria-hidden="true" />
-                    <span>Filters{activeFilterCount ? ` · ${activeFilterCount} active` : ""}</span>
-                    <span className="v3-shows-web-filters-chevron" aria-hidden="true">⌄</span>
-                  </summary>
-                  <div className="v3-shows-web-filters-content">
-                    {filterFields}
-                    {activeFilterCount ? (
-                      <button type="button" className="v3-shows-web-clear-filters" onClick={clearFacets}>
-                        Clear filters
-                      </button>
-                    ) : null}
-                  </div>
-                </details>
-              ) : filterFields}
+          {filterFields}
             </>
           )}
         </div>
         <p className="v3-directory-results-count" role="status" aria-live="polite">
-          {presentation === "installed-app"
-            ? `Showing ${browseWindow.visible.length} of ${browseItems.length} matching shows · ${allItems.length} published`
-            : `Showing ${browseWindow.visible.length} of ${browseItems.length} shows`}
+          Showing {browseWindow.visible.length} of {browseItems.length} matching shows · {allItems.length} published
         </p>
         {browseItems.length > 0 && (search.trim() || activeFilterCount) ? (
-          <button type="button" className="v3-directory-clear-filters" onClick={() => { setSearch(""); clearFacets(); }}>Clear filters</button>
+          <button type="button" className="v3-directory-clear-filters"
+            onClick={() => {
+              setSearch(""); setEditionId("all"); setKind("all"); setState("all");
+            }}>Clear filters</button>
         ) : null}
         <div id="v3-shows-browse-results" className="v3-shows-browse-results">
           {browseWindow.visible.map((item) =>
@@ -331,7 +311,9 @@ export function V3ShowsDiscoveryScreen({
                 type="button"
                 onClick={() => {
                   setSearch("");
-                  clearFacets();
+                  setEditionId("all");
+                  setKind("all");
+                  setState("all");
                 }}
                 className="solaris-app-empty-action"
               >
@@ -342,17 +324,22 @@ export function V3ShowsDiscoveryScreen({
         ) : null}
       </section>
 
-
-      {presentation === "installed-app" && discovery.archive.length > 0 ? (
+      {discovery.archive.length > 0 ? (
         <section aria-labelledby="shows-archive-title">
-          <AppSectionHeader eyebrow="Archive" title="Earlier editions" id="shows-archive-title" />
+          <AppSectionHeader
+            eyebrow="Archive"
+            title="Earlier editions"
+            id="shows-archive-title"
+          />
           <p className="mb-3 text-sm leading-relaxed text-muted-foreground">
             Historical show pages stay locked to their published edition context.
           </p>
-          <div className="space-y-2">
-            {discovery.archive.slice(0, 8).map((item) => (
-              <ShowRow key={item.show.id} item={item} compact />
-            ))}
+          <div className="v3-shows-editorial-list">
+            {discovery.archive.slice(0, 8).map((item) =>
+              presentation === "mobile-web"
+                ? <ShowRow key={item.show.id} item={item} web />
+                : <ShowRow key={item.show.id} item={item} compact />,
+            )}
           </div>
           {discovery.archive.length > 8 ? (
             <a href="#shows-browse" className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary">
@@ -361,7 +348,6 @@ export function V3ShowsDiscoveryScreen({
           ) : null}
         </section>
       ) : null}
-
     </div>
   );
 }
@@ -405,7 +391,7 @@ function ShowCollection({
   return (
     <section aria-labelledby={id}>
       <AppSectionHeader eyebrow={eyebrow} title={title} id={id} />
-      <div className={presentation === "mobile-web" ? "v3-shows-web-list" : emphasis === "live" ? "grid gap-3" : "grid gap-2 sm:grid-cols-2"}>
+      <div className={presentation === "mobile-web" ? "v3-shows-web-list" : emphasis === "live" ? "v3-shows-live-list" : "v3-shows-editorial-list"}>
         {items.map((item) =>
           presentation === "mobile-web"
             ? <ShowRow key={item.show.id} item={item} web />
@@ -419,7 +405,7 @@ function ShowCollection({
 function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: boolean }) {
   const broadcastHref = publicBroadcastHref(item.broadcastUrl);
   return (
-    <div className={`v3-show-editorial-card rounded-2xl border p-4 ${live ? "border-primary/45 bg-primary/5" : "border-border bg-surface"}`}>
+    <div className={live ? "v3-shows-editorial-card v3-shows-editorial-card--live" : "v3-shows-editorial-card"}>
       <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <ShowStateBadge item={item} />
@@ -469,7 +455,7 @@ function ShowRow({
     <Link to="/shows/$showId" params={{ showId: item.show.id }}
       className={web
         ? "v3-show-web-row flex min-h-20 items-center gap-3 border-b border-border py-3"
-        : "flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3"}>
+        : "v3-show-app-editorial-row flex min-h-16 items-center gap-3"}>
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-2">
           <ShowStateBadge item={item} />

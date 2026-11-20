@@ -1,189 +1,154 @@
-/*
- * Solaris Studio V3 — World website presentation.
- * Public publication/rollout and membership authority remain in WorldPublic.tsx.
- * No synthetic photography, map, organizations, member counts, or flags.
- * Installed app uses its separately governed layout.
- */
-html:not([data-solaris-app]) .world-editorial-frame {
-  --world-rule: color-mix(in oklab, var(--foreground) 15%, transparent);
-  --world-muted: color-mix(in oklab, var(--foreground) 65%, transparent);
-  width: min(100%, 78rem);
-  padding-inline: clamp(1rem, 3vw, 2.75rem);
-  padding-top: clamp(1.1rem, 3vw, 2.75rem);
-  padding-bottom: max(3.5rem, env(safe-area-inset-bottom));
+/* Terra Solaris World TG3 public editorial presentation.
+ * Real institutions and publication proof come from canonical TG2/TG3 readers.
+ * CSS never permits unpublished data or creates fake bodies, Court cases or votes. */
+.world-public-editorial{--world-ink:var(--foreground);--world-line:var(--border);}
+.world-editorial-hero{
+  position:relative;isolation:isolate;overflow:clip;display:flex;flex-direction:column;justify-content:flex-end;
+  min-height:clamp(24rem,64svh,42rem);
+  padding:clamp(2rem,5vw,4rem) clamp(1.25rem,4vw,3.5rem);
+  background:radial-gradient(ellipse at 78% 16%,rgba(105,150,169,.34),transparent 53%),
+    radial-gradient(ellipse at 15% 73%,rgba(43,95,132,.32),transparent 60%),
+    linear-gradient(155deg,#163047 0%,#0a2030 51%,#020b17 100%);
+  color:#fff;
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-landing {
-  position: relative;
-  overflow: clip;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  width: 100%;
-  max-width: none;
-  min-height: clamp(23rem, 43vw, 37rem);
-  padding: clamp(1.3rem, 4.5vw, 4rem);
-  border: 1px solid color-mix(in oklab, var(--primary) 19%, var(--world-rule));
-  border-radius: clamp(1rem, 2.4vw, 1.65rem);
-  background:
-    radial-gradient(ellipse at 92% 4%, color-mix(in oklab, var(--primary) 15%, transparent), transparent 60%),
-    linear-gradient(150deg, color-mix(in oklab, var(--surface) 71%, var(--background)), var(--background));
+.world-editorial-hero::after {
+  content:"";position:absolute;inset:auto 0 0;height:42%;z-index:-1;
+  background:linear-gradient(0deg,#020b17,transparent);pointer-events:none;
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-landing > h1 {
-  max-width: 15ch;
-  margin-top: .8rem;
-  font-size: clamp(2.9rem, 8vw, 7.25rem);
-  font-weight: 740;
-  line-height: .94;
-  letter-spacing: -.07em;
-  text-wrap: balance;
+.world-editorial-hero h1{font-family:"Iowan Old Style","Baskerville","Times New Roman",serif;font-size:clamp(3rem,8vw,6rem);font-weight:650;line-height:1.03;letter-spacing:-.05em;max-width:17ch;text-wrap:balance;color:#fff;}
+.world-editorial-hero p{color:rgba(255,255,255,.86);}
+.world-editorial-hero p:first-child{color:#cae2ed;}
+.world-editorial-hero a{background-color:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.22);}
+.world-editorial-hero a:first-child{background:#fff;color:#092034;}
+.world-editorial-hero a:focus-visible{outline:2px solid #fff;outline-offset:3px;}
+.world-editorial-quicklinks{display:grid;grid-template-columns:minmax(0,1fr);margin-top:0;border-top:1px solid var(--world-line);}
+.world-editorial-quicklinks a{
+  display:flex;align-items:center;gap:1rem;min-height:5rem;padding:1rem .4rem;
+  border-bottom:1px solid var(--world-line);text-decoration:none;color:var(--world-ink);
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-landing > p:not(:first-child) {
-  max-width: 41ch;
-  margin-top: clamp(.8rem, 2vw, 1.5rem);
-  color: var(--world-muted);
-  font-size: clamp(1rem, 1.9vw, 1.3rem);
-  line-height: 1.45;
+.world-editorial-quicklinks a>span{display:grid;flex:1;gap:.25rem;min-width:0;}
+.world-editorial-quicklinks a strong{font-size:.91rem;line-height:1.4;}
+.world-editorial-quicklinks a small{font-size:.79rem;color:var(--muted-foreground);line-height:1.5;}
+.world-editorial-quicklinks a:hover strong{color:var(--primary);}
+.world-editorial-quicklinks a:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.world-public-editorial .world-editorial-institution{
+  position:relative;overflow:clip;max-width:none;padding:clamp(2rem,5vw,3.5rem);
+  background:radial-gradient(ellipse at 74% 18%,rgba(76,124,157,.25),transparent 57%),
+    linear-gradient(145deg,#102b3e,#081726 68%,#020b17);color:white;
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-landing > div:last-child {
-  display: flex;
-  gap: .75rem;
-  margin-top: clamp(1.5rem, 2.7vw, 2.4rem);
+.world-editorial-institution h1{font-family:"Iowan Old Style","Baskerville","Times New Roman",serif;
+  font-size:clamp(2.6rem,8vw,5.5rem);line-height:1.03;letter-spacing:-.05em;
+  overflow-wrap:anywhere;color:#fff;text-wrap:balance;}
+.world-editorial-institution p{color:rgba(255,255,255,.8);}
+.world-editorial-institution p:first-child{color:rgba(255,255,255,.87);}
+.world-editorial-org-nav{scrollbar-width:thin;overscroll-behavior-inline:contain;}
+.world-editorial-org-nav>a{white-space:nowrap;}
+.world-editorial-offices{display:grid;grid-template-columns:minmax(0,1fr);gap:0;border-top:1px solid var(--world-line);}
+.world-editorial-office{padding:1.1rem .3rem;border-bottom:1px solid var(--world-line);}
+.world-editorial-office h3{line-height:1.4;text-wrap:pretty;}
+.world-editorial-members{display:grid;border-top:1px solid var(--world-line);}
+.world-editorial-members>div{border-bottom:1px solid var(--world-line);}
+@media (min-width:740px) {
+ .world-editorial-quicklinks{grid-template-columns:repeat(2,minmax(0,1fr));}
+ .world-editorial-quicklinks a{padding:1.15rem;border-right:1px solid var(--world-line);}
+ .world-editorial-quicklinks a:last-child{border-right:0;}
+ .world-editorial-offices{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:1.75rem;}
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-landing > div:last-child a {
-  min-height: 48px;
-  border-radius: .75rem;
-  transition: background-color 160ms ease, border-color 160ms ease;
+@media (max-width:380px) {
+ .world-editorial-hero{min-height:25rem;padding:2.25rem 1rem;}
+ .world-editorial-hero h1{font-size:clamp(2.5rem,12vw,3.5rem);}
+ .world-editorial-institution{padding:1.75rem 1rem;}
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-featured {
-  margin-top: clamp(2rem, 4vw, 4rem);
-  padding-top: clamp(1.2rem, 3vw, 2.5rem);
-  border-color: var(--world-rule);
+@media (prefers-reduced-motion:reduce){
+ .world-public-editorial *{transition:none!important;animation:none!important;}
 }
-html:not([data-solaris-app]) .world-editorial-frame #world-institutions-title {
-  font-size: clamp(1.55rem, 3vw, 2.35rem);
-  letter-spacing: -.04em;
-  line-height: 1.12;
-  text-wrap: balance;
+@media (forced-colors:active){
+ .world-editorial-hero,.world-editorial-institution{background:Canvas;color:CanvasText;}
+ .world-editorial-hero h1,.world-editorial-institution h1{color:CanvasText;}
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-organization-row {
-  min-height: 6rem;
-  padding-block: clamp(.9rem, 2vw, 1.4rem);
-  border-color: var(--world-rule);
-  transition: background-color 160ms ease;
+
+/* World countries / world-search / institutional bodies retain the verified
+ * publication boundary and reuse the same restrained editorial hierarchy. */
+.world-country-identity-hero {
+  position:relative;isolation:isolate;min-height:clamp(17rem,41svh,25rem);
+  padding:clamp(1.5rem,4vw,3rem);align-content:flex-end;
+  background:radial-gradient(ellipse at 82% 13%,rgba(97,139,175,.3),transparent 54%),
+             linear-gradient(155deg,#163145,#0c2335 62%,#03101d);
+  color:#fff;overflow:hidden;
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-organization-row:hover {
-  background: color-mix(in oklab, var(--surface) 55%, transparent);
+.world-country-identity-hero h1{
+  font-family:"Iowan Old Style","Baskerville","Times New Roman",serif;
+  font-size:clamp(2.15rem,6vw,4.5rem);font-weight:650;line-height:1.08;letter-spacing:-.045em;
+  text-wrap:balance;overflow-wrap:anywhere;color:#fff;
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-organization-row > span:first-child {
-  width: 3rem;
-  height: 3rem;
-  border: 1px solid var(--world-rule);
-  border-radius: .75rem;
-  background: transparent;
-  color: var(--primary);
+.world-country-identity-hero p{color:rgba(255,255,255,.79);}
+.world-country-identity-hero a{color:#c8e8f7;}
+.world-country-local-nav {
+  display:flex;flex-wrap:nowrap;gap:1.35rem;overflow-x:auto;scrollbar-width:thin;
+  overscroll-behavior-inline:contain;border-bottom:1px solid var(--border);
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-organization-row > span:nth-child(2) > span:first-child {
-  font-size: clamp(1rem, 1.65vw, 1.22rem);
-  font-weight: 710;
-  letter-spacing: -.022em;
+.world-country-local-nav>a {
+  display:inline-flex;align-items:center;min-height:3rem;border-bottom:2px solid transparent;
+  white-space:nowrap;font-size:.85rem;font-weight:700;color:var(--muted-foreground);
+  text-decoration:none;
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-organization-row .world-editorial-organization-description {
-  max-width: 60ch;
-  line-height: 1.55;
+.world-country-local-nav>a:hover,.world-country-local-nav>a:focus-visible {
+  color:var(--foreground);border-bottom-color:var(--primary);
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-directory-header {
-  max-width: 66rem;
-  padding-bottom: clamp(1rem, 3vw, 2.5rem);
-  border-bottom: 1px solid var(--world-rule);
+.world-country-affiliation-group{scroll-margin-top:7rem;}
+.world-country-affiliation-list{display:grid;border-top:1px solid var(--border);}
+.world-country-affiliation-row{border-bottom:1px solid var(--border);min-width:0;}
+.world-country-directory-row{min-width:0;text-decoration:none;color:inherit;}
+.world-search-editorial-hero {
+  padding:clamp(2rem,5vw,3.5rem);
+  background:linear-gradient(145deg,#173249,#0a2031 55%,#03111f);color:#fff;
+  min-height:clamp(14rem,27svh,19rem);display:flex;flex-direction:column;justify-content:flex-end;
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-directory-header h1 {
-  max-width: 20ch;
-  font-size: clamp(2.25rem, 5.2vw, 4.65rem);
-  line-height: 1;
-  letter-spacing: -.06em;
+.world-search-editorial-hero h1 {
+  font-family:"Iowan Old Style","Baskerville","Times New Roman",serif;
+  font-size:clamp(2.5rem,6vw,4.25rem);font-weight:650;line-height:1.05;letter-spacing:-.05em;color:#fff;
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-directory-header p {
-  max-width: 55ch;
-  color: var(--world-muted);
+.world-search-editorial-hero p{color:rgba(255,255,255,.85);}
+.world-bodies-editorial-header {
+  padding:clamp(1.5rem,4vw,3rem);
+  max-width:none;background:linear-gradient(150deg,#173248,#0b2030 66%,#03111d);
+  color:#fff;
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-directory-tools {
-  gap: .75rem;
-  border: 0;
-  padding-block: 1rem;
-  margin-top: clamp(.8rem, 2vw, 1.4rem);
+.world-bodies-editorial-header h1 {
+  font-family:"Iowan Old Style","Baskerville","Times New Roman",serif;
+  font-size:clamp(2.2rem,5vw,4rem);font-weight:650;letter-spacing:-.04em;color:#fff;
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-directory-tools :is(input, select) {
-  min-height: 48px;
-  font-size: .9rem;
+.world-bodies-editorial-header p{color:rgba(255,255,255,.78);}
+@media (max-width:390px){
+  .world-country-identity-hero{padding:1.45rem 1rem;}
+  .world-country-identity-hero h1{font-size:clamp(2rem,10vw,2.9rem);}
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-directory-tools > label:first-child {
-  background: color-mix(in oklab, var(--surface) 60%, transparent);
+@media (prefers-reduced-motion:reduce){
+  .world-country-detail *, .world-search-editorial *, .world-bodies-editorial *{transition:none!important;animation:none!important;}
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-institution-header {
-  width: 100%;
-  max-width: 70rem;
-  padding-bottom: clamp(1.25rem, 3vw, 2.5rem);
-  border-bottom: 1px solid var(--world-rule);
+
+/* Official, concluded membership terms: typography and links only, no voting UI. */
+.world-public-editorial [aria-label="Completed membership terms"] article{
+  min-height:5rem;gap:1rem;line-height:1.45;
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-institution-header h1 {
-  max-width: 16ch;
-  font-size: clamp(2.5rem, 6vw, 5.7rem);
-  line-height: 1;
-  letter-spacing: -.065em;
-  text-wrap: balance;
-  overflow-wrap: anywhere;
+.world-public-editorial [aria-label="Completed membership terms"] a:focus-visible{
+  outline:2px solid var(--primary);outline-offset:3px;
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-institution-nav {
-  min-height: 50px;
-  margin-top: .6rem;
-  border-color: var(--world-rule);
-  scrollbar-width: thin;
+
+/* Canonically registered active General Assembly and current officers.
+   Do not imply an agenda, bill, quorum or vote that TG6–TG9 have not published. */
+.world-editorial-assembly{scroll-margin-top:7rem;}
+.world-editorial-assembly__link{
+  display:flex;align-items:center;gap:1rem;
+  min-height:5rem;margin-top:1rem;padding:1rem .2rem;
+  border-block:1px solid var(--border);color:var(--foreground);text-decoration:none;
 }
-html:not([data-solaris-app]) .world-editorial-frame .world-editorial-institution-nav > button {
-  flex: 0 0 auto;
-  min-height: 48px;
-  font-size: .88rem;
-  border-bottom-width: 2px;
-}
-html:not([data-solaris-app]) .world-editorial-frame :is(h2, h3) {
-  letter-spacing: -.028em;
-  text-wrap: balance;
-}
-@media (max-width: 767px) {
-  html:not([data-solaris-app]) .world-editorial-frame .world-editorial-landing {
-    min-height: 24rem;
-    padding: 1.4rem 1.15rem;
-  }
-  html:not([data-solaris-app]) .world-editorial-frame .world-editorial-landing > h1 {
-    font-size: clamp(2.6rem, 11vw, 4rem);
-  }
-  html:not([data-solaris-app]) .world-editorial-frame .world-editorial-landing > div:last-child {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  html:not([data-solaris-app]) .world-editorial-frame .world-editorial-landing > div:last-child a {
-    width: 100%;
-    justify-content: center;
-  }
-  html:not([data-solaris-app]) .world-editorial-frame .world-editorial-organization-row {
-    gap: .8rem;
-    padding-block: 1.1rem;
-  }
-  html:not([data-solaris-app]) .world-editorial-frame .world-editorial-organization-row .world-editorial-organization-description {
-    display: none;
-  }
-  html:not([data-solaris-app]) .world-editorial-frame .world-editorial-institution-header h1 {
-    font-size: clamp(2.4rem, 11vw, 4.3rem);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  html:not([data-solaris-app]) .world-editorial-frame .world-editorial-organization-row,
-  html:not([data-solaris-app]) .world-editorial-frame .world-editorial-landing a {
-    transition: none;
-  }
-}
-@media (forced-colors: active) {
-  html:not([data-solaris-app]) .world-editorial-frame .world-editorial-organization-row:focus-visible {
-    outline-color: Highlight;
-  }
+.world-editorial-assembly__link>span{display:grid;gap:.4rem;min-width:0;flex:1;}
+.world-editorial-assembly__link strong{font-size:.95rem;overflow-wrap:anywhere;}
+.world-editorial-assembly__link small{font-size:.8rem;color:var(--muted-foreground);}
+.world-editorial-assembly__link:hover strong{color:var(--primary);}
+.world-editorial-leadership-preview{display:grid;border-top:1px solid var(--border);}
+.world-editorial-leadership-preview>div{border-bottom:1px solid var(--border);}
+@media (min-width:720px){
+ .world-editorial-leadership-preview{grid-template-columns:repeat(2,minmax(0,1fr));gap:0 1.25rem;}
 }

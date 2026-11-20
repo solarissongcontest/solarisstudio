@@ -6,8 +6,7 @@ import {
   type WorldDirectoryFilter,
 } from "@/lib/terra-world-public";
 
-// Search metadata is optional to preserve links from existing public World routes.
-type DirectorySearch = { q?: string; status?: WorldDirectoryFilter; page?: number };
+type DirectorySearch = { q: string; status: WorldDirectoryFilter; page: number };
 
 export const Route = createFileRoute("/world/organizations/")({
   validateSearch: (search: Record<string, unknown>): DirectorySearch => ({
@@ -26,7 +25,7 @@ export const Route = createFileRoute("/world/organizations/")({
 });
 
 function WorldDirectoryRoute() {
-  const { q = "", status = "all", page = 1 } = Route.useSearch();
+  const { q, status, page } = Route.useSearch();
   const navigate = Route.useNavigate();
   return (
     <WorldPublicGate verifyOnMount>

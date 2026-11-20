@@ -11,7 +11,9 @@ describe("V3 Explore screen architecture boundary", () => {
   it("renders the canonical Explore projection instead of owning data access", () => {
     expect(source).toContain("V3ExploreRootProjection");
     expect(source).toContain("projection.currentEdition");
-    expect(source).toContain("projection.discover.map");
+    expect(source).toContain("projection.discover.filter");
+    expect(source).toContain("discoverableCollections.map");
+    expect(source).toContain('collection.key !== "songs-and-artists"');
     expect(source).toContain("projection.archive.links.map");
 
     for (const forbidden of [
@@ -51,7 +53,7 @@ describe("V3 Explore screen architecture boundary", () => {
 
   it("uses the shared V3 foundation rather than creating another shell", () => {
     expect(source).toContain('from "./V3Foundation"');
-    expect(source).toMatch(/<V3Screen(?:\s|>)/);
+    expect(source).toContain("<V3Screen>");
     expect(source).toContain("<V3ScreenHeader");
     expect(source).toContain("<V3Section");
     expect(source).not.toContain("V3FoundationShell");

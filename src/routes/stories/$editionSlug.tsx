@@ -5,9 +5,9 @@ import { ArrowLeft, BookOpen, CalendarDays } from 'lucide-react';
 import { AppShell } from '@/components/AppShell';
 import { PublicStorySpoilerDisclosure } from '@/components/public/PublicStorySpoilerDisclosure';
 import { PublicShareStoryButton } from '@/components/public/PublicShareStoryButton';
+import { useSolarisApp } from '@/components/app/AppRuntime';
 import { useAppExperiencePreferences } from '@/lib/app-experience';
 import { usePublicLaunchAvailability } from '@/lib/public-launch-context';
-import { useSolarisApp } from '@/components/app/AppRuntime';
 import { V3StoryDetailGate, useV3StoryFallbackSpoilerProtection } from '@/components/v3/V3StoriesGates';
 import { loadPublicStoryline } from '@/lib/studio2-storytelling';
 import { formatSolarisStoryDate } from '@/lib/public-story-date';
@@ -84,21 +84,19 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
     queryKey: ['public-storyline', editionSlug],
     queryFn: () => loadPublicStoryline(editionSlug),
     staleTime: 60_000,
-    retry: false,
   });
-  const story = storyQuery.isSuccess && !storyQuery.isFetching && !storyQuery.isRefetchError
-    ? storyQuery.data ?? null : null;
+  const story = storyQuery.data ?? null;
 
   return (
     <AppShell>
-      <div className="v3-editorial-story-detail mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
+      <div className="v3-story-web-detail mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
         <a href="/stories" className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" /> Story archive
         </a>
 
-        {storyQuery.isLoading || storyQuery.isFetching ? (
+        {storyQuery.isLoading ? (
           <EmptyStory title="Loading edition story…" copy="Reading the published narrative." />
-        ) : storyQuery.isError || storyQuery.isRefetchError ? (
+        ) : storyQuery.isError ? (
           <EmptyStory
             title="Edition story could not be loaded"
             copy="Solaris could not read this published story. This is a temporary loading error, not proof the story is unpublished."
@@ -112,7 +110,7 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
             spoilerFree={spoilerFree}
             subject="this published story"
           >
-            <header className="v3-story-article-header mt-8 max-w-3xl">
+            <header className="v3-story-web-detail-hero mt-8">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">
                 {story.editionNumber != null ? `SSC ${story.editionNumber}` : story.editionName}
                 {story.eventDate ? ` · ${story.eventDate}` : ''}
@@ -123,14 +121,17 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
               <p className="mt-4 text-xs text-muted-foreground">Published {formatSolarisStoryDate(story.publishedAt)} · {story.items.length} reviewed moments</p>
               <PublicShareStoryButton title={story.title} />
               {allowsReleased(`/editions/${story.editionSlug}`) ? (
-                <Link to="/editions/$slug" params={{ slug: story.editionSlug }}
-                  className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                <Link
+                  to="/editions/$slug"
+                  params={{ slug: story.editionSlug }}
+                  className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                >
                   Explore {story.editionName}
                 </Link>
               ) : null}
             </header>
 
-            <section className="v3-story-article-timeline relative mt-12" aria-label={`${story.editionName} timeline`}>
+            <section className="v3-story-web-timeline relative mt-12" aria-label={`${story.editionName} timeline`}>
               <div className="absolute bottom-0 left-[17px] top-1 w-px bg-border/70 sm:left-[21px]" aria-hidden="true" />
               <div className="space-y-6">
                 {story.items.map((item, index) => (
@@ -138,11 +139,12 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
                     <div className="absolute left-2.5 top-1.5 grid size-4 place-items-center rounded-full border border-primary/40 bg-background sm:left-3.5" aria-hidden="true">
                       <span className="size-1.5 rounded-full bg-primary" />
                     </div>
-                    <div className="v3-story-article-event rounded-2xl border border-border/60 bg-card/55 p-5 sm:p-6">
+                    <div className="v3-story-web-timeline-entry">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.13em] text-muted-foreground">
                           <CalendarDays className="size-3.5" /> {formatSolarisStoryDate(item.occurredAt)}
                         </span>
+                        <span className="v3-story-web-timeline-importance">importance {item.importance}</span>
                       </div>
                       <h2 className="mt-3 text-xl font-black tracking-[-0.025em] sm:text-2xl">{item.headline}</h2>
                       <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">{item.summary}</p>

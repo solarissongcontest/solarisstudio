@@ -193,7 +193,7 @@ export function V3CountriesDiscoveryScreen({
   ].filter((group) => group.countries.length > 0);
 
   return (
-    <div className="v3-countries-discovery v3-editorial-country-index space-y-6" data-country-directory-experience={presentation}>
+    <div className="v3-countries-discovery space-y-6" data-country-directory-experience={presentation}>
       {presentation !== "installed-app" ? (
         <h2 id="countries-page-title" className="sr-only">Browse all countries</h2>
       ) : (
@@ -215,6 +215,20 @@ export function V3CountriesDiscoveryScreen({
         </p>
       </header>
       )}
+
+      {currentLineupReady && movementGroups.length > 0 ? (
+        <section className="v3-countries-current-pulse" aria-label="Current edition country changes">
+          <div>
+            <p className="v3-countries-current-pulse__eyebrow">This edition</p>
+            <h3>Countries in motion</h3>
+            <p>Explore newly participating and changed delegations using published lineup data.</p>
+          </div>
+          <a href="#countries-current-movement" className="v3-countries-current-pulse__link">
+            {movementGroups.map((group) => `${group.countries.length} ${group.label.toLowerCase()}`).join(" · ")}
+            <ChevronRight size={17} aria-hidden="true" />
+          </a>
+        </section>
+      ) : null}
 
       <section
         id="countries-browse-all"
@@ -367,7 +381,7 @@ export function V3CountriesDiscoveryScreen({
         </div>
 
         {filtered.length > 0 && (search.trim() || effectiveRegion !== "all" || selectedParticipatingOnly) ? (
-          <button type="button" className="v3-directory-clear-filters inline-flex min-h-11 items-center rounded-md px-2 text-sm font-semibold underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+          <button type="button" className="v3-directory-clear-filters"
             onClick={() => {
               setSearch(""); setRegion("all"); setParticipatingOnly(false);
               setVisibleCount(BROWSE_PAGE_SIZE);

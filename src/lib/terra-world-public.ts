@@ -101,7 +101,6 @@ export function parseWorldDirectoryUrlPage(value: unknown): number {
     page <= WORLD_DIRECTORY_MAX_PAGE_INDEX + 1 ? page : 1;
 }
 
-
 const object = (value: unknown): Record<string, unknown> | null =>
   typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -179,6 +178,26 @@ export function currentWorldMemberships(projection: WorldProjection): WorldMembe
   return projection.memberships.filter((row) =>
     row.endedAt === null && ["member", "associate", "observer", "suspended"].includes(row.status));
 }
+
+/**
+ * Current PUBLIC representatives are not synonymous with authorized voters.
+ * Observer/non-voting delegates still hold a recorded representative role.
+ * Consume only the canonical public projection, with no account/user lookup.
+ */
+export function currentPublicWorldRepresentativeNames(
+  representatives: readonly WorldRepresentative[],
+): Map<string, string[]> {
+  const names = new Map<string, string[]>();
+  for (const representative of representatives) {
+    if (representative.role !== "representative" || representative.endsAt !== null) continue;
+    const existing = names.get(representative.countryId) ?? [];
+    if (!existing.includes(representative.displayName)) {
+      names.set(representative.countryId, [...existing, representative.displayName]);
+    }
+  }
+  return names;
+}
+
 
 export function cleanWorldSearch(term: string): string {
   return term.normalize("NFC").replace(/[^\p{L}\p{N} -]/gu, "").replace(/\s+/g, " ").trim().slice(0, 64);

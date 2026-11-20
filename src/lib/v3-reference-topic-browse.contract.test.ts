@@ -18,6 +18,7 @@ describe("Chat 2 Reference knowledge topics", () => {
   it("never invents searchable article records or performs unsupported topic RPC queries", () => {
     expect(route).toContain('const dedicatedTopicOnly = kind === "story" || kind === "rule"');
     expect(route).toContain("enabled: referenceReleased && !dedicatedTopicOnly");
+    expect(route).toContain("const referenceReleased = feature.isSuccess && !feature.isFetching");
     expect(route).toContain('normalizedQuery.length === 0 || dedicatedTopicOnly');
     expect(route).toContain("bounded Reference record search does not index this topic");
     expect(route).toContain('role="status"');

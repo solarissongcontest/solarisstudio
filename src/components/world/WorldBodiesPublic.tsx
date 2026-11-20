@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Search } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
-import "@/styles/v3-world-bodies-editorial.css";
+import "@/styles/v3-world-editorial.css";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
   WORLD_BODIES_PAGE_SIZE, WORLD_BODIES_MAX_PAGE, WORLD_BODY_OFFICE_LIMIT, cleanWorldBodySearch, readPublicWorldBodies, readPublicWorldBody, readPublicBodyOffices, validWorldSlug,
@@ -15,8 +15,7 @@ function Frame({ children }: { children: ReactNode }) {
   // AppShell owns the single page <main> landmark and shared navigation.
   // Keep it mounted through platform detection, so SSR and app hydration
   // never replace the entire navigation with a standalone loading <div>.
-  return <AppShell><div className={"world-bodies-frame mx-auto w-full pb-28 " +
-    (isAppMode ? "" : "world-bodies-editorial ") +
+  return <AppShell><div className={"world-bodies-editorial mx-auto w-full pb-28 " +
     (isAppMode ? "max-w-2xl px-3 pt-3" : "max-w-6xl px-4 pt-6 sm:px-6 sm:pt-8")}>
     {platformResolved ? children : (
       <div role="status" aria-label="Opening Terra Solaris" className="min-h-20" />
@@ -29,7 +28,7 @@ function Back({ institution }: { institution?: PublicWorldInstitution }) {
     {institution ? <Link to="/world/organizations/$slug" params={{ slug: institution.slug }}
       search={{ tab: "overview" }} className="inline-flex min-h-11 items-center gap-2 hover:text-foreground">
       <ArrowLeft className="size-4" aria-hidden="true" /> {institution.shortName}
-    </Link> : <Link to="/world/organizations" className="inline-flex min-h-11 items-center gap-2">
+    </Link> : <Link to="/world/organizations" search={{ q: "", status: "all", page: 1 }} className="inline-flex min-h-11 items-center gap-2">
       <ArrowLeft className="size-4" aria-hidden="true" /> Organizations
     </Link>}
   </nav>;
@@ -133,12 +132,12 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
     {valid && !publicationBlocked && query.isSuccess && query.isFetchedAfterMount &&
       !query.isFetching && !result ? <Unavailable missing /> : null}
     {result ? <>
-      <header className="world-bodies-page-header max-w-3xl">
+      <header className="world-bodies-editorial-header max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{result.organization.shortName} · Governance</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-5xl">Institutional bodies</h1>
-        <p className="mt-3 leading-7 text-muted-foreground">Assemblies and committees of {result.organization.officialName}.</p>
+        <p className="mt-3 leading-7 text-muted-foreground">Public assemblies, committees and other organs of {result.organization.officialName}.</p>
       </header>
-      <form onSubmit={applySearch} className="world-bodies-search mt-8 flex max-w-4xl flex-wrap items-stretch gap-3 border-y border-border py-5" role="search">
+      <form onSubmit={applySearch} className="mt-8 flex max-w-4xl flex-wrap items-stretch gap-3 border-y border-border py-5" role="search">
         <label className="flex min-h-12 min-w-[12rem] flex-1 items-center gap-3 rounded-xl border border-border bg-background px-4 focus-within:ring-2 focus-within:ring-ring">
           <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <span className="sr-only">Search public bodies by name</span>
@@ -160,14 +159,14 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
           className="min-h-12 rounded-xl border border-border px-4 text-sm font-medium">Clear</button> : null}
       </form>
       {query.isPlaceholderData ? <p role="status" className="mt-6 text-sm text-muted-foreground">Updating public body results…</p> : null}
-      {!query.isPlaceholderData ? <section aria-label="Published institutional bodies" className="world-bodies-results mt-4 max-w-4xl">
+      {!query.isPlaceholderData ? <section aria-label="Published institutional bodies" className="mt-4 max-w-4xl">
         <p className="py-4 text-sm text-muted-foreground" aria-live="polite">{result.total} matching public {result.total === 1 ? "body" : "bodies"}</p>
         {result.bodies.length === 0 ? <p className="py-6 text-sm text-muted-foreground">
           {term || status !== "all" ? "No matching public bodies. Try another name or status." : "No public bodies are recorded."}
         </p> : null}
         {result.bodies.map((body) => <Link key={body.id} to="/world/organizations/$slug/bodies/$bodySlug"
           params={{ slug, bodySlug: body.slug }}
-          className="world-bodies-item group flex min-h-20 items-center gap-4 border-b border-border py-4 focus-visible:rounded-md focus-visible:outline focus-visible:outline-2">
+          className="group flex min-h-20 items-center gap-4 border-b border-border py-4 focus-visible:rounded-md focus-visible:outline focus-visible:outline-2">
           <span className="min-w-0 flex-1"><span className="block font-semibold group-hover:underline">{body.name}</span>
             <span className="mt-1 block text-sm capitalize text-muted-foreground">{body.type.replace(/_/g, " ")} · {body.status}</span>
           </span><ArrowRight className="size-4 shrink-0" aria-hidden="true" /></Link>)}
@@ -222,12 +221,12 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
     {valid && !officeNetworkBlocked && query.isSuccess && query.isFetchedAfterMount &&
       !query.isFetching && !result ? <Unavailable missing /> : null}
     {result ? <>
-      <header className="world-bodies-page-header max-w-3xl">
+      <header className="world-bodies-editorial-header max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{result.organization.shortName} · Institutional body</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-5xl">{result.body.name}</h1>
         <p className="mt-4 text-sm capitalize text-muted-foreground">{result.body.type.replace(/_/g, " ")} · {result.body.status}</p>
       </header>
-      <div className="world-body-reading-grid mt-8 grid gap-8 border-t border-border pt-7 lg:grid-cols-[minmax(0,1fr)_16rem]">
+      <div className="mt-8 grid gap-8 border-t border-border pt-7 lg:grid-cols-[minmax(0,1fr)_16rem]">
         <section className="max-w-2xl"><h2 className="text-xl font-semibold">About this body</h2>
           <p className="mt-4 whitespace-pre-line leading-7 text-muted-foreground">
             {result.body.description || "An official description has not been published."}
@@ -236,10 +235,11 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
             className="mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary">
             All public bodies <ArrowRight className="size-4" aria-hidden="true" /></Link>
         </section>
-        <aside className="world-body-detail-aside border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+        <aside className="border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
           <h2 className="font-semibold">Active offices of this body</h2>
           <p className="mt-2 text-xs leading-5 text-muted-foreground">
-            Only active, published offices are shown.
+            Currently active public office definitions only. This is not a historical office roster;
+            private terms and unpublished appointments are excluded.
           </p>
           {offices.isPending || !offices.isFetchedAfterMount || offices.isFetching ? <p role="status" className="mt-4 text-sm text-muted-foreground">Checking offices…</p> : null}
           {offices.isError ? <div role="alert" className="mt-4 text-sm">
@@ -259,7 +259,7 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
             <p className="mt-4 text-sm text-muted-foreground">No active public offices are assigned to this body.</p>
           ) : null}
           {offices.isSuccess && offices.isFetchedAfterMount && !offices.isFetching && offices.data.length > 0 ? (
-            <ul className="world-body-offices mt-3 divide-y divide-border">
+            <ul className="mt-3 divide-y divide-border">
               {offices.data.map((office) => <li key={office.id} className="py-3">
                 <p className="text-sm font-semibold">{office.title}</p>
                 <p className="mt-1 text-xs capitalize text-muted-foreground">{office.officeType.replace(/_/g, " ")}</p>

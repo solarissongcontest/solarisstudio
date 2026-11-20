@@ -23,7 +23,8 @@ describe("V3 Delegation Edition context", () => {
 
     expect(projection).toContain("editionHref: string | null");
     expect(projection).toContain("editionHrefById.get(editionId)");
-    expect(screen).toContain("if (!entry.editionHref)");
+    expect(screen).toContain("if (!entry.editionHref || !allowsReleased(entry.editionHref))");
+    expect(screen).toContain("currentResult.editionHref && allowsReleased(currentResult.editionHref)");
     expect(screen).toContain("to={entry.editionHref as any}");
     expect(screen).not.toMatch(/editionLabel.*\/editions|encodeURIComponent\(entry\.editionLabel\)/);
   });
