@@ -46,6 +46,19 @@ describe("V3 public directory family", () => {
     expect(filterSiteDirectory(items, "no-such-solaris-navigation-destination")).toEqual([]);
   });
 
+  it("matches aliases and accented route descriptions across multiple words without altering release scope", () => {
+    const publicPages = siteDirectoryDestinations();
+    const fixture = [
+      { ...publicPages[0], aliases: ["Ørnådal public guide"], keywords: ["Ålanti"] },
+      ...publicPages.slice(1),
+    ];
+    const results = filterSiteDirectory(fixture, "ornadal alanti");
+    expect(results).toHaveLength(1);
+    expect(results[0].id).toBe(publicPages[0].id);
+    expect(filterSiteDirectory(fixture, "ornadal alanti", "results")).toEqual([]);
+    expect(filterSiteDirectory(publicPages, "not-a-real-page", "all")).toEqual([]);
+  });
+
   it("maintains three distinct usable presentations without duplicating domain data", () => {
     const route = readFileSync("src/routes/site-directory/index.tsx", "utf8");
     const family = readFileSync("src/components/v3/V3DirectoryFamilyIndex.tsx", "utf8");
