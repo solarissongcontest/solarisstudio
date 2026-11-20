@@ -154,14 +154,34 @@ READ-ONLY BUCKET IDENTITY SUMMARY COMPLETE
 These exactly match the three populated Supabase buckets in the
 same-day hosted metadata query. All other hosted bucket object counts are
 zero. **Bucket ID and per-bucket object-count parity therefore pass.**
-The source-to-host object **key set** still needs equality proof; a separate
-read-only key-set fingerprint verifier is provided at
-`scripts/ops/solaris-storage-object-key-set-compare-20261120.sh`.
+The source-to-host object **key set** has now passed a complete SHA-256 fingerprint comparison for all 108 objects (see follow-up evidence below).
 
 Additional bounded hosted metadata checks confirmed presence of the
 `auth.users`, `auth.sessions`, `vault.secrets`, and migration ledger
 relations, 6 inspected core roles, and 10 RLS-enabled Storage base tables,
 but **not** a recoverability or enforcement certification.
+
+## Exact archived object-key identity comparison (20 November 2026)
+
+The owner supplied a screenshot from Cloud Shell executing the read-only
+`scripts/ops/solaris-storage-object-key-set-compare-20261120.sh`
+at commit `e2f8b068b3767907f6b6617330008370d5088498`.
+All three November 15 archive bucket fingerprints and sorted object-key set
+digests **MATCH** the hashed 20 November hosted `storage.objects` snapshot:
+
+```text
+Bucket 3cd69f7a19514465: 47 objects; exact object-key set MATCH
+Bucket 8a47ec53ee41941d: 7 objects; exact object-key set MATCH
+Bucket 9874ed086020c7de: 54 objects; exact object-key set MATCH
+PASS: ALL 108 OBJECT BUCKETS AND KEYS MATCH THE HOSTED METADATA SNAPSHOT
+```
+
+**Certified scope of this comparison:** all 108 archived manifest records have
+the same bucket identities, object counts and key sets as the dated hosted
+metadata inventory, with no bucket names or object keys disclosed. Media byte
+integrity and independent S3 object-readback were proven by separate tests.
+This does **not** prove hosted object-byte equality, Auth/Vault recovery,
+original Supabase bucket access rules or full provider-level Storage restore.
 
 ## What this does NOT prove
 
