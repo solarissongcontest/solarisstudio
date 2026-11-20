@@ -139,7 +139,7 @@ function ExploreWebEditorial() {
   const editionsAvailable = allowsReleased("/editions");
 
   return (
-    <main className="explore-web-editorial" data-explore-web-experience="website">
+    <div className="explore-web-editorial" data-explore-web-experience="website">
       <header className="explore-web-editorial__masthead">
         <p className="explore-web-editorial__eyebrow">Solaris Studio / Explore</p>
         <h1>Explore Solaris</h1>
@@ -205,7 +205,7 @@ function ExploreWebEditorial() {
           </div>
         </section>
       ) : null}
-    </main>
+    </div>
   );
 }
 
