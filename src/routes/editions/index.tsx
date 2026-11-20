@@ -236,6 +236,15 @@ function EditionsPage() {
         (b.edition.edition_number ?? Number.POSITIVE_INFINITY))
     : visiblePast;
   const archiveQueries = [editionsQuery, showsQuery, countriesQuery];
+  const winnerRecovery = winnerReadState === "error" &&
+    visible.some((card) => card.hasPublishedFinalResults) ? (
+      <div className="v3-editions-winner-recovery" role="status">
+        <p>Published winner details could not be loaded.</p>
+        <button type="button" onClick={() => void resultsQuery.refetch()}>
+          Retry winner details
+        </button>
+      </div>
+    ) : null;
 
   // Never flash website navigation before the installed runtime is resolved.
   if (!platformResolved) {
@@ -295,6 +304,7 @@ function EditionsPage() {
                 {visible.length > 0 && (search.trim() || scope !== "all" || order !== "newest") ? (
                   <button type="button" className="v3-directory-clear-filters" onClick={reset}>Clear filters</button>
                 ) : null}
+            {winnerRecovery}
             {visibleLatest ? <LatestEdition card={visibleLatest} appMode /> : null}
             {visiblePast.length ? (
               <section className="v3-directory-group" aria-labelledby="app-edition-archive">
@@ -312,13 +322,13 @@ function EditionsPage() {
               <header className="v3-directory-mobile-header" data-directory-mobile-header="">
                 <p className="v3-directory-eyebrow">CONTEST ARCHIVE</p>
                 <h1>Editions</h1>
-                <p>Explore every published SSC edition, from the latest contest back through history.</p>
+                <p>Current contest and past editions.</p>
               </header>
             ) : (
               <PageHeader
                 eyebrow="Contest archive"
                 title="Editions"
-                description="Every published Solaris chapter, from the latest contest back through the archive."
+                description="Current contest and past editions."
               />
             )}
             <div className="v3-directory-workspace">
@@ -336,6 +346,7 @@ function EditionsPage() {
                 {visible.length > 0 && (search.trim() || scope !== "all" || order !== "newest") ? (
                   <button type="button" className="v3-directory-clear-filters" onClick={reset}>Clear filters</button>
                 ) : null}
+                {winnerRecovery}
                 {visibleLatest ? <LatestEdition card={visibleLatest} /> : null}
                 {visiblePast.length ? (
                   <section className="v3-directory-group v3-editions-history" aria-labelledby="editions-archive-heading">
@@ -508,6 +519,7 @@ function EditionMobileRow({ card }: { card: EditionCard }) {
           {card.editionShows.length} public show{card.editionShows.length === 1 ? "" : "s"}
         </span>
         <span><HostLine hosts={card.hosts} /></span>
+        <span className="v3-editions-mobile-winner">Winner: <WinnerLine winner={card.winner} points={card.winnerResult?.total_points} readState={card.winnerReadState} hasPublishedFinalResults={card.hasPublishedFinalResults} /></span>
       </span>
       <ChevronRight size={19} aria-hidden="true" />
     </Link>
@@ -587,6 +599,7 @@ function WinnerLine({ winner, points, readState = "ready", hasPublishedFinalResu
   readState?: EditionCard["winnerReadState"];
   hasPublishedFinalResults?: boolean;
 }) {
+  if (!hasPublishedFinalResults) return <span className="text-muted-foreground">Result not public yet</span>;
   if (readState === "loading") return <span className="text-muted-foreground">Checking published winner…</span>;
   if (readState === "error") return <span className="text-muted-foreground">Winner details temporarily unavailable</span>;
   if (!winner) return <span className="text-muted-foreground">{hasPublishedFinalResults ? "Winner information unavailable" : "Result not public yet"}</span>;
