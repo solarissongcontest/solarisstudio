@@ -25,7 +25,9 @@ describe("Explore Editions winner egress and public release gates", () => {
   it("does not block released edition browsing when optional winner details fail", () => {
     expect(editions).toContain("const archiveQueries = [editionsQuery, showsQuery, countriesQuery]");
     expect(editions).toContain('resultsQuery.isError ? "error"');
-    expect(editions).toContain('resultsQuery.isSuccess ? resultsQuery.data : undefined');
+    expect(editions).toContain("resultsQuery.isSuccess && !resultsQuery.isFetching && !resultsQuery.isRefetchError");
+    expect(editions).toContain("const results = winnerResultsFresh ? resultsQuery.data : undefined");
+    expect(editions).toContain("resultsQuery.isError || resultsQuery.isRefetchError");
     expect(editions).toContain("publication?.results ? winnerReadState");
     expect(editions).toContain("Winner details temporarily unavailable");
     expect(editions).toContain("Checking published winner");
