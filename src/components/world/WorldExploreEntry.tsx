@@ -50,7 +50,7 @@ export function WorldExploreEntry() {
       <div className="mt-2 flex flex-wrap gap-3 text-sm">
         {allowsReleased("/world/search") ? <Link to="/world/search" search={{ q: "", c: 0, o: 0, type: "all" }}
           className="inline-flex min-h-11 items-center text-primary hover:underline">World search</Link> : null}
-        {allowsReleased("/world/organizations") ? <Link to="/world/organizations"
+        {allowsReleased("/world/organizations") ? <Link to="/world/organizations" search={{ q: "", status: "all", page: 1 }}
           className="inline-flex min-h-11 items-center text-primary hover:underline">Organizations</Link> : null}
         {allowsReleased("/world/countries") ? <Link to="/world/countries"
           className="inline-flex min-h-11 items-center text-primary hover:underline">World countries</Link> : null}
