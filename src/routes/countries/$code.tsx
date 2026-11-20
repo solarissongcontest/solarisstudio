@@ -414,7 +414,7 @@ function CountryProfilePage() {
       };
     })
     .filter((row): row is NonNullable<typeof row> => Boolean(row))
-    .sort((a, b) => b.relationship.friendshipScore - a.relationship.friendshipScore);
+    .sort((a, b) => b.relationship.friendshipScore - a.relationship.friendshipScore) : [];
 
   const identityModel: CountryIdentityModel = {
     code: country.short_code,
