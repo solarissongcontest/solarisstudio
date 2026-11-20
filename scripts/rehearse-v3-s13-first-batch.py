@@ -10,6 +10,8 @@ import json
 import os
 from pathlib import Path
 import re
+import selectors
+import time
 import subprocess
 import sys
 import uuid
@@ -29,9 +31,11 @@ def validate_container(container):
         or metadata['HostConfig'].get('Privileged') or any(metadata['NetworkSettings'].get('Ports',{}).values())):
         raise RehearsalFailure('Require running network-none, unprivileged container without published ports')
 
+def exec_args(container,*args):
+    return ['docker','exec','-i',container,'env','-u','PGHOSTADDR','-u','PGSERVICE','-u','PGSERVICEFILE',
+            '-u','PGOPTIONS','-u','PGPASSWORD','-u','PGDATABASE','PGPASSFILE=/dev/null',*args]
 def exec_pg(container,*args,input=None):
-    return command('docker','exec','-i',container,'env','-u','PGHOSTADDR','-u','PGSERVICE','-u','PGSERVICEFILE',
-                   '-u','PGOPTIONS','-u','PGPASSWORD','-u','PGDATABASE','PGPASSFILE=/dev/null',*args,input=input)
+    return command(*exec_args(container,*args),input=input)
 
 def sql(container,database,source,actor='postgres'):
     if actor not in ('postgres','supabase_admin','anon','authenticated','service_role'):raise RehearsalFailure('Unreviewed SQL actor')
@@ -124,6 +128,41 @@ def expect_denial(container,database,statement,role):
         if b'42501' not in error.stderr:raise RehearsalFailure('Denial was not an authorization failure') from None
     else:raise RehearsalFailure('Unexpected API mutation permission')
 
+def interrupt_owned_session(container,database,install):
+    application='s13_batch_interrupt_'+uuid.uuid4().hex
+    fault=install.rsplit('\ncommit;',1)[0]+"\nDO $stop$ BEGIN RAISE NOTICE 'S13_BATCH_INTERRUPTION_REACHED pid=%',pg_backend_pid(); PERFORM pg_sleep(25); RAISE EXCEPTION 'S13_INTERRUPT_CONTROL_DID_NOT_TERMINATE'; END $stop$;\ncommit;\n"
+    text="SET SESSION AUTHORIZATION postgres; SET application_name='"+application+"';\n"+fault
+    args=exec_args(container,'psql','-X','-qAt','-h','/var/run/postgresql','-p','5432','-U','supabase_admin',
+                   '-d',database,'-v','ON_ERROR_STOP=1')
+    process=subprocess.Popen(args,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    selected=selectors.DefaultSelector();selected.register(process.stderr,selectors.EVENT_READ)
+    reached=False;terminated=False;stderr=[]
+    try:
+        process.stdin.write(text.encode());process.stdin.close();process.stdin=None
+        deadline=time.monotonic()+30
+        while time.monotonic()<deadline:
+            if not selected.select(timeout=.2):
+                if process.poll() is not None:break
+                continue
+            line=process.stderr.readline()
+            if not line:break
+            stderr.append(line)
+            match=re.search(rb'S13_BATCH_INTERRUPTION_REACHED pid=(\d+)',line)
+            if match:
+                reached=True;pid=int(match[1])
+                result=sql(container,'postgres',f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid={pid} AND datname='{database}' AND application_name='{application}'",actor='supabase_admin')
+                terminated=result=='t'
+                break
+        _,tail=process.communicate(timeout=15);stderr.append(tail)
+        if not reached or not terminated or process.returncode==0 or b'terminating connection' not in b''.join(stderr):
+            raise RehearsalFailure('Controlled session interruption did not reach/terminate intended backend')
+    finally:
+        selected.close()
+        if process.poll() is None:
+            # Terminate only this program-owned nonce/clone session, never other sessions.
+            sql(container,'postgres',f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='{database}' AND application_name='{application}'",actor='supabase_admin')
+            process.communicate(timeout=15)
+
 def rehearse(container,source_db,package,output,baseline_kind):
     validate_container(container); manifest=validate_package(package)
     if not re.fullmatch('[a-z_][a-z_0-9]{0,62}',source_db):raise RehearsalFailure('Unreviewed source database identifier')
@@ -144,12 +183,7 @@ def rehearse(container,source_db,package,output,baseline_kind):
         sql(container,clone,(package/'preflight.sql').read_text())
         install=(package/'install.sql').read_text()
         # Inject only into a temporary in-memory copy; immutable artifact is unchanged.
-        interrupted=install.rsplit('\ncommit;',1)[0]+"\nDO $stop$ BEGIN RAISE NOTICE 'S13_BATCH_INTERRUPTION_REACHED'; PERFORM pg_terminate_backend(pg_backend_pid()); END $stop$;\ncommit;\n"
-        try:sql(container,clone,interrupted)
-        except subprocess.CalledProcessError as error:
-            if b'S13_BATCH_INTERRUPTION_REACHED' not in error.stderr or b'terminating connection' not in error.stderr:
-                raise RehearsalFailure('Interruption failed before intended point') from None
-        else:raise RehearsalFailure('Interrupted batch committed')
+        interrupt_owned_session(container,clone,install)
         if tables(container,clone)!=baseline or data_digest(container,clone,baseline)!=before_data or catalog_digest(container,clone)!=before_catalog:
             raise RehearsalFailure('Interrupted transaction did not preserve baseline')
         sql(container,clone,install)
