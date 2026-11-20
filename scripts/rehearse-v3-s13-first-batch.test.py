@@ -163,7 +163,7 @@ END; $function$;""",db,user='supabase_admin')
         different=self.clone()
         self.sql('CREATE SCHEMA extensions AUTHORIZATION supabase_admin',different,user='supabase_admin')
         self.sql("""CREATE FUNCTION extensions.pgrst_ddl_watch() RETURNS event_trigger
-                     LANGUAGE plpgsql AS $ BEGIN NULL; END $;""",different,user='supabase_admin')
+                     LANGUAGE plpgsql AS 'BEGIN NULL; END';""",different,user='supabase_admin')
         self.sql("CREATE EVENT TRIGGER pgrst_ddl_watch ON ddl_command_end EXECUTE FUNCTION extensions.pgrst_ddl_watch()",different,user='supabase_admin')
         initial=module.catalog_digest(self.container,different)
         with self.assertRaises(subprocess.CalledProcessError) as caught:
