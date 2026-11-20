@@ -16,9 +16,39 @@ for command in psql pg_dump pg_restore python3; do
   command -v "$command" >/dev/null 2>&1 || fail "$command is required"
 done
 
+EVIDENCE_OUTPUT="${V3_RECOVERY_EVIDENCE_OUTPUT:-}"
+EVIDENCE_SHA="${V3_RECOVERY_EVIDENCE_SHA:-}"
+EVIDENCE_ENVIRONMENT="${V3_RECOVERY_EVIDENCE_ENVIRONMENT:-isolated-local-supabase}"
+EVIDENCE_OPERATOR="${V3_RECOVERY_EVIDENCE_OPERATOR:-}"
+
+verify_evidence_checkout() {
+  [[ -n "$EVIDENCE_OUTPUT" ]] || return 0
+  command -v git >/dev/null 2>&1 || fail "git is required when exact-SHA evidence output is requested"
+  [[ "$EVIDENCE_SHA" =~ ^[0-9a-fA-F]{40}$ ]] \
+    || fail "V3_RECOVERY_EVIDENCE_SHA must be an exact 40-character commit SHA when evidence output is requested"
+  local head_sha
+  head_sha="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+  [[ "$head_sha" == "$(printf '%s' "$EVIDENCE_SHA" | tr '[:upper:]' '[:lower:]')" ]] \
+    || fail "recovery evidence SHA does not match checked-out HEAD"
+  [[ -z "$(git status --porcelain --untracked-files=all)" ]] \
+    || fail "recovery evidence requires a clean worktree"
+  [[ -n "$EVIDENCE_ENVIRONMENT" && ${#EVIDENCE_ENVIRONMENT} -le 120 ]] \
+    || fail "V3_RECOVERY_EVIDENCE_ENVIRONMENT must be 1..120 characters"
+  [[ -n "$EVIDENCE_OPERATOR" && ${#EVIDENCE_OPERATOR} -le 120 ]] \
+    || fail "V3_RECOVERY_EVIDENCE_OPERATOR must be 1..120 characters when evidence output is requested"
+}
+
+verify_evidence_checkout
+
 RESTORE_DB="v3_s11_restore_${RANDOM}_$$"
 TMP_ROOT="$(mktemp -d)"
 DUMP_PATH="$TMP_ROOT/solaris.dump"
+FINGERPRINTS_PATH="$TMP_ROOT/critical-fingerprints.tsv"
+REHEARSAL_ID="$(python3 - <<'PY'
+import uuid
+print(uuid.uuid4())
+PY
+)"
 
 restore_url() {
   python3 - "$DB_URL" "$RESTORE_DB" <<'PY'
@@ -54,6 +84,21 @@ insert into v3_s11_rehearsal.restore_sentinel(id, payload)
 values (1, 'solaris-v3-s11-restore-proof'), (2, 'canonical-truth-survives-restore');
 SQL
 
+SOURCE_MIGRATION_HEAD="$(source_scalar "select coalesce(max(version::text), '') from supabase_migrations.schema_migrations;")"
+[[ -n "$SOURCE_MIGRATION_HEAD" ]] || fail "source migration head is missing"
+
+# Test setup is intentionally excluded from the measured recovery interval.
+STARTED_AT="$(python3 - <<'PY'
+from datetime import datetime, timezone
+print(datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'))
+PY
+)"
+START_NS="$(python3 - <<'PY'
+import time
+print(time.time_ns())
+PY
+)"
+
 log "Creating full local database dump"
 pg_dump "$DB_URL" \
   --format=custom \
@@ -61,6 +106,22 @@ pg_dump "$DB_URL" \
   --no-privileges \
   --file="$DUMP_PATH"
 [[ -s "$DUMP_PATH" ]] || fail "database dump is empty"
+
+SNAPSHOT_SHA256="$(python3 - "$DUMP_PATH" <<'PY'
+import hashlib, pathlib, sys
+path = pathlib.Path(sys.argv[1])
+h = hashlib.sha256()
+with path.open('rb') as handle:
+    for chunk in iter(lambda: handle.read(1024 * 1024), b''):
+        h.update(chunk)
+print(h.hexdigest())
+PY
+)"
+SNAPSHOT_BYTES="$(python3 - "$DUMP_PATH" <<'PY'
+import os, sys
+print(os.path.getsize(sys.argv[1]))
+PY
+)"
 
 log "Creating isolated restore database"
 psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "drop database if exists \"$RESTORE_DB\" with (force);"
@@ -73,6 +134,10 @@ pg_restore \
   --no-privileges \
   --exit-on-error \
   "$DUMP_PATH"
+
+RESTORE_MIGRATION_HEAD="$(restore_scalar "select coalesce(max(version::text), '') from supabase_migrations.schema_migrations;")"
+[[ "$RESTORE_MIGRATION_HEAD" == "$SOURCE_MIGRATION_HEAD" ]] \
+  || fail "migration head differs after restore"
 
 log "Verifying sentinel survived the restore"
 [[ "$(restore_scalar "select count(*) from v3_s11_rehearsal.restore_sentinel;")" == "2" ]] \
@@ -98,6 +163,7 @@ fingerprint_sql() {
 }
 
 log "Comparing critical canonical relation fingerprints"
+: >"$FINGERPRINTS_PATH"
 for relation in "${critical_tables[@]}"; do
   source_exists="$(source_scalar "select to_regclass('$relation') is not null;")"
   [[ "$source_exists" == "t" ]] || fail "critical source relation is missing: $relation"
@@ -109,6 +175,7 @@ for relation in "${critical_tables[@]}"; do
   restore_fingerprint="$(restore_scalar "$sql")"
   [[ "$source_fingerprint" == "$restore_fingerprint" ]] \
     || fail "$relation fingerprint differs after restore"
+  printf '%s\t%s\n' "$relation" "$restore_fingerprint" >>"$FINGERPRINTS_PATH"
   log "PASS: $relation -> $restore_fingerprint"
 done
 
@@ -125,5 +192,106 @@ log "Checking canonical S2/S4 recovery evidence exists after restore"
   || fail "domain event ledger missing after restore"
 [[ "$(restore_scalar "select to_regclass('private.v3_domain_event_outbox') is not null;")" == "t" ]] \
   || fail "domain event outbox missing after restore"
+
+COMPLETED_AT="$(python3 - <<'PY'
+from datetime import datetime, timezone
+print(datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'))
+PY
+)"
+END_NS="$(python3 - <<'PY'
+import time
+print(time.time_ns())
+PY
+)"
+REHEARSAL_RTO_MS="$(((END_NS - START_NS) / 1000000))"
+
+if [[ -n "$EVIDENCE_OUTPUT" ]]; then
+  # Exact-head identity is rechecked after the rehearsal so a concurrent local
+  # edit cannot be retained as evidence for an older commit.
+  verify_evidence_checkout
+  mkdir -p "$(dirname "$EVIDENCE_OUTPUT")"
+  python3 - \
+    "$EVIDENCE_OUTPUT" \
+    "$(printf '%s' "$EVIDENCE_SHA" | tr '[:upper:]' '[:lower:]')" \
+    "$EVIDENCE_ENVIRONMENT" \
+    "$EVIDENCE_OPERATOR" \
+    "$REHEARSAL_ID" \
+    "$STARTED_AT" \
+    "$COMPLETED_AT" \
+    "$SOURCE_MIGRATION_HEAD" \
+    "$SNAPSHOT_SHA256" \
+    "$SNAPSHOT_BYTES" \
+    "$REHEARSAL_RTO_MS" \
+    "$source_fk_state" \
+    "$FINGERPRINTS_PATH" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+(
+    output_path,
+    commit_sha,
+    environment,
+    operator_identity,
+    rehearsal_id,
+    started_at,
+    completed_at,
+    migration_head,
+    snapshot_sha256,
+    snapshot_bytes,
+    rehearsal_rto_ms,
+    foreign_key_state,
+    fingerprints_path,
+) = sys.argv[1:]
+
+fingerprints = {}
+for line in Path(fingerprints_path).read_text(encoding="utf-8").splitlines():
+    relation, fingerprint = line.split("\t", 1)
+    fingerprints[relation] = fingerprint
+
+evidence = {
+    "schemaVersion": 1,
+    "kind": "database_restore_rehearsal",
+    "scope": "isolated_local_supabase",
+    "status": "passed",
+    "commitSha": commit_sha,
+    "environment": environment,
+    "operatorIdentity": operator_identity,
+    "rehearsalId": rehearsal_id,
+    "startedAt": started_at,
+    "completedAt": completed_at,
+    "migrationHead": migration_head,
+    "snapshot": {
+        "format": "pg_dump_custom",
+        "sha256": snapshot_sha256,
+        "bytes": int(snapshot_bytes),
+    },
+    "achieved": {
+        "exerciseRpoSeconds": 0,
+        "exerciseRtoMs": int(rehearsal_rto_ms),
+        "providerRpoClaim": False,
+        "providerRtoClaim": False,
+    },
+    "validation": {
+        "sentinelVerified": True,
+        "migrationHeadVerified": True,
+        "criticalRelationFingerprints": fingerprints,
+        "foreignKeyValidationState": foreign_key_state,
+        "operationReceiptsPresent": True,
+        "domainEventsPresent": True,
+        "domainEventOutboxPresent": True,
+    },
+    "issuesFound": [],
+    "followUpActions": [
+        "Validate hosted/provider backup and restore capability separately before final S11 certification."
+    ],
+    "certificationClaim": False,
+    "qaReviewRequired": True,
+}
+
+Path(output_path).write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
+PY
+  log "Wrote exact-SHA database restore evidence to $EVIDENCE_OUTPUT"
+fi
 
 log "Database restore rehearsal passed against an isolated local target"
