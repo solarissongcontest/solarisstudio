@@ -38,12 +38,14 @@ function WikiIndexPage() {
     queryFn: () => isStudio2FeatureEnabled("public_encyclopedia"),
     enabled: platformResolved,
     staleTime: 30_000,
+    refetchOnMount: "always",
+    retry: false,
   });
 
   // Wiki and Reference solve the same search job. Once Reference is
   // published, every browser and the installed app follow one canonical root.
   // A rollout error must NOT silently hide the still-public Wiki fallback.
-  if (!platformResolved || referenceRollout.isLoading) {
+  if (!platformResolved || referenceRollout.isLoading || referenceRollout.isFetching) {
     return (
       <AppShell>
         <ArchiveDataLoading label="Opening Solaris Reference…" />
@@ -51,7 +53,7 @@ function WikiIndexPage() {
     );
   }
 
-  if (!referenceRollout.isError && referenceRollout.data === true) {
+  if (referenceRollout.isSuccess && !referenceRollout.isRefetchError && referenceRollout.data === true) {
     return <Navigate to="/encyclopedia" search={{ artist: undefined }} replace />;
   }
 
