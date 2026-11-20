@@ -11,7 +11,7 @@ import { SolarisSearchField } from '@/components/app/SolarisSearchField';
 import { useV3DirectoryPresentation, type V3DirectoryPresentation } from '@/lib/v3-directory-presentation';
 import '@/styles/v3-directory-family.css';
 import '@/styles/v3-stories-editorial.css';
-import { V3StoriesIndexGate } from '@/components/v3/V3StoriesGates';
+import { V3StoriesIndexGate, useV3StoryFallbackSpoilerProtection } from '@/components/v3/V3StoriesGates';
 import { SOLARIS_TIME_ZONE } from '@/lib/public-time';
 import { loadAnniversaryEngine, loadPublicStorylines } from '@/lib/studio2-storytelling';
 import { canExpandPublicStoryBatch, canExpandPublishedStorySearch, nextPublicStoryBatchLimit, publicStoryBatchAtServerCap, PUBLIC_STORY_INITIAL_BATCH, PUBLIC_STORY_RPC_MAX } from '@/lib/v3-public-story-browse';
@@ -77,6 +77,8 @@ function StoriesArchivePage() {
 function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryPresentation }) {
   const referenceDate = Route.useLoaderData();
   const { preferences } = useAppExperiencePreferences();
+  const installedFallbackProtection = useV3StoryFallbackSpoilerProtection();
+  const spoilerFree = installedFallbackProtection ?? preferences.spoilerFree;
   const [storyLimit, setStoryLimit] = useState(PUBLIC_STORY_INITIAL_BATCH);
   const storiesQuery = useQuery({
     queryKey: ['public-storylines', storyLimit],
@@ -142,8 +144,8 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
         )}
 
         <PublicStorySpoilerDisclosure
-          key={preferences.spoilerFree ? "spoiler-protected" : "spoilers-open"}
-          spoilerFree={preferences.spoilerFree}
+          key={spoilerFree ? "spoiler-protected" : "spoilers-open"}
+          spoilerFree={spoilerFree}
           subject="published edition stories and historical moments"
         >
         <section className="mt-6" aria-labelledby="stories-heading">
