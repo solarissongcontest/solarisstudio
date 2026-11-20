@@ -250,6 +250,9 @@ export function V3EditionOverviewScreen({
   hideSpoilers: boolean;
 }) {
   const [revealed, setRevealed] = useState(false);
+  const [failedLogoUrl, setFailedLogoUrl] = useState<string | null>(null);
+  const visibleLogoUrl = projection.hub.hero.logoUrl && projection.hub.hero.logoUrl !== failedLogoUrl
+    ? projection.hub.hero.logoUrl : null;
   const spoilerSafe = hideSpoilers && !revealed;
   const status = experiencePresentation(projection.hub.hero.experience);
   const meta = editionMeta(projection);
@@ -287,13 +290,14 @@ export function V3EditionOverviewScreen({
         imageUrl={spoilerSafe ? null : projection.hub.hero.artworkUrl}
         context={
           <>
-            {projection.hub.hero.logoUrl ? (
+            {visibleLogoUrl ? (
               <img
                 className="cinematic-edition-logo"
-                src={projection.hub.hero.logoUrl}
+                src={visibleLogoUrl}
                 alt={`${projection.hub.hero.name} logo`}
                 loading="lazy"
                 decoding="async"
+                onError={() => setFailedLogoUrl(visibleLogoUrl)}
               />
             ) : null}
             <V3StatusChip tone={status.tone}>{status.label}</V3StatusChip>
