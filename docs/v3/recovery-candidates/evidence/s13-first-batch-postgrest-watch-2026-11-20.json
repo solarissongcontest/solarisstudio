@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "projectRef": "dkxmnvekiopyesuzggeu",
+  "observedDate": "2026-11-20",
+  "observationKind": "bounded read-only production PostgreSQL catalog and handler-function inspection",
+  "s13TargetEffects": {
+    "present": 0,
+    "absent": 14
+  },
+  "relevantEnabledDdlHandlers": 1,
+  "handler": {
+    "eventTriggerName": "pgrst_ddl_watch",
+    "event": "ddl_command_end",
+    "enabled": "O",
+    "tags": null,
+    "functionIdentity": "extensions.pgrst_ddl_watch()",
+    "functionOwner": "supabase_admin",
+    "functionLanguage": "plpgsql",
+    "securityDefiner": false,
+    "definitionMd5": "afaad7193dcf8f81e728d2bedb85e43e",
+    "behaviorSummary": "For supported non-temporary DDL commands, issues NOTIFY pgrst, 'reload schema'; no table writes in inspected function body."
+  },
+  "sharedS13Helper": {
+    "identity": "private.studio2_request_is_service_role()",
+    "owner": "postgres",
+    "definitionMd5": "84d3f05e5f537908732a3875ba0178e6",
+    "aclMd5": "341a58cafc38a872c684592babc76f83"
+  },
+  "limitations": [
+    "Snapshot is time-bounded metadata, not an authorization to run production SQL.",
+    "DDL-handler allowlist permits only this exact handler. Any new or modified relevant trigger is a hard stop.",
+    "No hosted migration, SQL rehearsal or production modification was performed during this observation."
+  ]
+}
