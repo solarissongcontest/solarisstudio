@@ -226,12 +226,14 @@ export function resolveStudio2MediaAssetState(input: {
 }): Studio2MediaAssetState {
   if (!input.sourceUrl?.trim()) return input.required ? 'required' : 'missing';
   if (input.processing) return 'processing';
+  // A prior approval cannot override a presently blocked canonical source.
+  // Validation must win before applying the historical review overlay.
+  if (input.validation.some((check) => check.level === 'blocked')) return 'invalid';
   if (input.activeReview?.decision === 'invalid') return 'invalid';
   if (input.activeReview?.decision === 'approved') return 'approved';
   if (input.previousReview && input.previousReview.sourceFingerprint !== sourceFingerprint(input.sourceUrl)) {
     return 'superseded';
   }
-  if (input.validation.some((check) => check.level === 'blocked')) return 'invalid';
   if (input.validation.length) return 'valid';
   return 'uploaded';
 }
