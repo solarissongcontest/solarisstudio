@@ -202,7 +202,11 @@ function AffiliationGroup({
           {organization.name.slice(0, 3)}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold">{organization.name}</span>
+          <Link to="/world/organizations/$slug" params={{ slug: organization.slug }}
+            search={{ tab: "overview" }}
+            className="inline-flex min-h-11 items-center text-sm font-semibold hover:text-primary hover:underline focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+            {organization.name}
+          </Link>
           <span className="block text-xs text-muted-foreground">{organization.officialName}</span>
           <span className="mt-1 block text-xs capitalize text-muted-foreground">
             {affiliation.membershipType} · {affiliation.status.replace(/_/g, " ")}
