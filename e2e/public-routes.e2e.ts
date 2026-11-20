@@ -59,6 +59,49 @@ for (const route of publicRouteAuditSet) {
   });
 }
 
+test("Country History web search uses only published rows and preserves desktop/mobile layout", async ({ page, baseURL }, testInfo) => {
+  test.skip(!["public-390", "public-1440"].includes(testInfo.project.name));
+  if (!process.env.E2E_SUPABASE_URL) throw new Error("Local Supabase required for Country History browser audit.");
+  const target = new URL(process.env.E2E_SUPABASE_URL);
+  if (target.protocol !== "http:" ||
+      !["127.0.0.1", "localhost", "[::1]", "::1"].includes(target.hostname) ||
+      target.username || target.password || !target.port) {
+    throw new Error("Country History screenshot audit refuses hosted Supabase.");
+  }
+
+  const routes = await sitemapRoutes(baseURL!);
+  const country = routes.find((route) => /^\/countries\/[^/]+$/.test(route));
+  expect(country, "Need a seeded published Country").toBeTruthy();
+  await page.goto(country!, { waitUntil: "domcontentloaded" });
+  const sections = page.getByRole("navigation", { name: "Country sections" });
+  await expect(sections).toBeVisible({ timeout: 15_000 });
+  await sections.getByRole("button", { name: "History", exact: true }).click();
+  await expect(page).toHaveURL(/#country-history$/);
+  await expect(page.getByRole("region", { name: "Published country history" })).toBeVisible();
+  const search = page.getByRole("searchbox", { name: "Search published entries" });
+  const outcome = page.getByRole("combobox", { name: "Result" });
+  await expect(search).toBeVisible();
+  await expect(outcome).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: /published entries/ })).toBeVisible();
+  await search.fill("solaris-no-such-published-artist-zz");
+  await expect(page.getByRole("status").filter({ hasText: /0 of \d+ published entries/ })).toBeVisible();
+  await search.clear();
+  await outcome.selectOption("finalist");
+  await outcome.selectOption("all");
+
+  const overflow = await page.evaluate(() =>
+    Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+  );
+  expect(overflow, "Country History should not overflow ordinary browser").toBeLessThanOrEqual(2);
+  await testInfo.attach(`country-history-${testInfo.project.name}.png`, {
+    body: await page.screenshot({ fullPage: true, animations: "disabled", caret: "hide" }),
+    contentType: "image/png",
+  });
+  await sections.getByRole("button", { name: "Overview", exact: true }).click();
+  await page.goBack();
+  await expect(page).toHaveURL(/#country-history$/);
+});
+
 test("published Country and Edition use continuous cinematic browser heroes with no installed dock", async ({ page, baseURL }, testInfo) => {
   test.skip(!["public-390", "public-1440"].includes(testInfo.project.name));
   if (!process.env.E2E_SUPABASE_URL) throw new Error("Missing local E2E_SUPABASE_URL: refusing screenshot audit.");
