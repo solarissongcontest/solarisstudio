@@ -60,13 +60,26 @@ docker run -d --name "$CONTAINER" --network none \
   --memory 3g --tmpfs /var/lib/postgresql/data:rw,size=1g \
   --entrypoint /bin/bash "$IMAGE" -ec '
     chown postgres:postgres /var/lib/postgresql/data
-    gosu postgres initdb -D /var/lib/postgresql/data \
+    export PATH="/usr/lib/postgresql/17/bin:$PATH"
+    if command -v runuser >/dev/null 2>&1; then
+      as_postgres() { runuser -u postgres -- "$@"; }
+    elif command -v su >/dev/null 2>&1; then
+      as_postgres() { su -s /bin/bash postgres -c "$(printf "%q " "$@")"; }
+    else
+      echo "No supported user-switch utility (runuser or su) in image" >&2
+      exit 1
+    fi
+    as_postgres initdb -D /var/lib/postgresql/data \
       -U supabase_admin --auth=trust --no-instructions > /tmp/solaris-initdb.log 2>&1 || {
         cat /tmp/solaris-initdb.log >&2; exit 1;
       }
-    exec gosu postgres postgres -D /var/lib/postgresql/data \
-      -c config_file=/etc/postgresql/postgresql.conf \
-      -c listen_addresses="" -c cron.launch_active_jobs=off
+    if command -v runuser >/dev/null 2>&1; then
+      exec runuser -u postgres -- postgres -D /var/lib/postgresql/data \
+        -c config_file=/etc/postgresql/postgresql.conf \
+        -c listen_addresses="" -c cron.launch_active_jobs=off
+    else
+      exec su -s /bin/bash postgres -c "exec postgres -D /var/lib/postgresql/data -c config_file=/etc/postgresql/postgresql.conf -c listen_addresses= -c cron.launch_active_jobs=off"
+    fi
   ' >/dev/null || abort 'Clean PG container failed to start'
 STARTED=1
 READY=0
