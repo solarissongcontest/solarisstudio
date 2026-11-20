@@ -75,6 +75,9 @@ export type WorldProjection = {
 
 export type WorldDirectoryFilter = "all" | "current" | "historical";
 export const WORLD_DIRECTORY_PAGE_SIZE = 12;
+export const WORLD_PUBLIC_ORGANIZATION_STATUSES = [
+  "recognized", "active", "suspended", "historical", "dissolved",
+] as const;
 
 const object = (value: unknown): Record<string, unknown> | null =>
   typeof value === "object" && value !== null && !Array.isArray(value)
@@ -90,6 +93,7 @@ export function parseWorldOrganization(value: unknown): WorldOrganization | null
   const row = object(value);
   if (!row || !nonempty(row.id) || !nonempty(row.slug) || !nonempty(row.officialName) ||
       !nonempty(row.shortName) || !nonempty(row.type) || !nonempty(row.status) ||
+      !(WORLD_PUBLIC_ORGANIZATION_STATUSES as readonly string[]).includes(row.status) ||
       !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(row.slug)) return null;
   return {
     id: row.id, slug: row.slug, officialName: row.officialName,
@@ -184,6 +188,7 @@ export async function fetchWorldDirectory(input: {
   let request = (supabase as any).from("world_organizations")
     .select("id,slug,official_name,short_name,type,description,status,public_visibility", { count: "exact" })
     .eq("public_visibility", "public")
+    .in("status", [...WORLD_PUBLIC_ORGANIZATION_STATUSES])
     .order("official_name", { ascending: true });
   if (input.filter === "current") request = request.in("status", ["active", "recognized", "suspended"]);
   if (input.filter === "historical") request = request.in("status", ["historical", "dissolved"]);
@@ -209,6 +214,7 @@ export async function fetchFeaturedWorldOrganizations(): Promise<WorldOrganizati
   const { data, error } = await (supabase as any).from("world_organizations")
     .select("id,slug,official_name,short_name,type,description,status,public_visibility")
     .eq("public_visibility", "public")
+    .in("status", [...WORLD_PUBLIC_ORGANIZATION_STATUSES])
     .in("slug", ["guard", "unity"])
     .order("short_name", { ascending: true });
   if (error) throw new Error("World institutions are temporarily unavailable.");
