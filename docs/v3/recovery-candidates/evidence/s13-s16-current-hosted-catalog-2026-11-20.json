@@ -1,0 +1,1980 @@
+{
+  "schema_version": 1,
+  "source_main_sha": "f17a015e52c1e3f6e48ebcc07844f1633aa3fba8",
+  "project_ref": "dkxmnvekiopyesuzggeu",
+  "captured_at": "2026-11-20T04:09:26.751261+00:00",
+  "capture_method": "manual approved connector queries, modified source SELECT-only execution",
+  "sql_query_blobs": {
+    "catalog": "a5b8d664fbf221bc947414ebc57657a557e8bb25",
+    "downstream": "2c366e2313f6e67a4bd3afab5dd264fc0831c0b0"
+  },
+  "prior_evidence_blobs": {
+    "catalog": "c26c19c8a6863925aec4cde238590af4d78ca1e5",
+    "downstream": "c1aba9488d985fd2ee012dcc65ae6e4ae161c243"
+  },
+  "sql_session_read_only": "off",
+  "supabase_history": {
+    "count": 497,
+    "tip": "20261101181812",
+    "source_sql_file_count": 521,
+    "legacy_cutoff_inclusive": "20261014020000",
+    "legacy_unpaired_count": 281,
+    "postbootstrap_historical_missing": [
+      {
+        "version": "20261017001000",
+        "path": "supabase/migrations/20261017001000_v3_s14_televote_result_truth.sql",
+        "github_blob_sha": "d222d8a3eb81ed6da9d798c17e22a6fe23ac027f"
+      },
+      {
+        "version": "20261017001010",
+        "path": "supabase/migrations/20261017001010_v3_s14_televote_projection_guard_hardening.sql",
+        "github_blob_sha": "e1c1907631576b74775bb603ef3ca41ae27a5c26"
+      },
+      {
+        "version": "20261017001020",
+        "path": "supabase/migrations/20261017001020_v3_s14_televote_projection_replay_hardening.sql",
+        "github_blob_sha": "5718db22be4b7774216bee16fc8309d6aab2749c"
+      },
+      {
+        "version": "20261017123000",
+        "path": "supabase/migrations/20261017123000_v3_s5_acknowledgement_consequences.sql",
+        "github_blob_sha": "328d291588621a116cdceed8f4932ce55b932e71"
+      },
+      {
+        "version": "20261018024500",
+        "path": "supabase/migrations/20261018024500_v3_entry_review_conflict_http409.sql",
+        "github_blob_sha": "124d8afa7f7179447af60754be2a4d88c93c22fd"
+      },
+      {
+        "version": "20261018031000",
+        "path": "supabase/migrations/20261018031000_v3_http409_deterministic_conflicts.sql",
+        "github_blob_sha": "5b442c53ec97338f9584c1f43ab5e155715573f4"
+      },
+      {
+        "version": "20261018053000",
+        "path": "supabase/migrations/20261018053000_v3_s6_confirmation_requirement_reconciliation.sql",
+        "github_blob_sha": "ad0c38b75c9db7a41fb184dfb0aef85e07326715"
+      },
+      {
+        "version": "20261018081500",
+        "path": "supabase/migrations/20261018081500_v3_s5_entry_lifecycle_consequences.sql",
+        "github_blob_sha": "6004b329b2f747187e0c9e396829fb976c5e621c"
+      },
+      {
+        "version": "20261018111500",
+        "path": "supabase/migrations/20261018111500_v3_confirmation_sync_service_role_privileges.sql",
+        "github_blob_sha": "4894ff0ccde8cefc50998fb5b0ab46f75a4e4032"
+      },
+      {
+        "version": "20261018122500",
+        "path": "supabase/migrations/20261018122500_v3_voting_declaration_expected_edition_scope.sql",
+        "github_blob_sha": "7fcf047292030291a1bc5f0e11d6bfb2c772c771"
+      },
+      {
+        "version": "20261019000500",
+        "path": "supabase/migrations/20261019000500_v3_confirmation_sync_publication_event_service_role.sql",
+        "github_blob_sha": "e9e388f961d297c4e8f22a3ab8962fa221d4bf4d"
+      },
+      {
+        "version": "20261019013000",
+        "path": "supabase/migrations/20261019013000_v3_public_live_rollout_flag.sql",
+        "github_blob_sha": "c023976215ae942160a8737c6aceb196d38ec036"
+      },
+      {
+        "version": "20261019110000",
+        "path": "supabase/migrations/20261019110000_v3_s9_safe_metrics.sql",
+        "github_blob_sha": "7b278640058ec29887a5b3abadde4f196262e222"
+      },
+      {
+        "version": "20261019111000",
+        "path": "supabase/migrations/20261019111000_v3_s13_migration_hardening.sql",
+        "github_blob_sha": "7355d6b116713013902b22967a1bd83ed9c8e709"
+      },
+      {
+        "version": "20261019112000",
+        "path": "supabase/migrations/20261019112000_v3_s10_sli_snapshot.sql",
+        "github_blob_sha": "59432ede1c28d8c4df5dc5fbcf40aa3562764a02"
+      },
+      {
+        "version": "20261019112100",
+        "path": "supabase/migrations/20261019112100_v3_s14_archive_consequence_reconciliation.sql",
+        "github_blob_sha": "8d93738dd04b6f17c2b999ea1b128ab7549dd688"
+      },
+      {
+        "version": "20261019112200",
+        "path": "supabase/migrations/20261019112200_v3_s14_final_results_readiness_hardening.sql",
+        "github_blob_sha": "09a9708a6ae26b290c30eedd67d2f6b6967602a5"
+      },
+      {
+        "version": "20261019112300",
+        "path": "supabase/migrations/20261019112300_v3_s14_transition_http409.sql",
+        "github_blob_sha": "98cb5a7f550800bb4bb8761e9a0e87f7bd32aa4f"
+      },
+      {
+        "version": "20261019112400",
+        "path": "supabase/migrations/20261019112400_v3_s14_archive_task_registry_alignment.sql",
+        "github_blob_sha": "d93a5b704491a3fc75b6194dd2bfbc1d8a145f1f"
+      },
+      {
+        "version": "20261019112500",
+        "path": "supabase/migrations/20261019112500_v3_s14_resolved_task_notification_invariant.sql",
+        "github_blob_sha": "d465058685b4b005d2e2375edabae8e1e7fe670f"
+      },
+      {
+        "version": "20261019112900",
+        "path": "supabase/migrations/20261019112900_v3_s13_migration_registration_context.sql",
+        "github_blob_sha": "cac382903856ff686ffc7ee3a4b83059ab2daef1"
+      },
+      {
+        "version": "20261019113000",
+        "path": "supabase/migrations/20261019113000_v3_s6_notification_reconciliation.sql",
+        "github_blob_sha": "7c0c4ad6f64d3cda96926628f1d4108c18decb86"
+      },
+      {
+        "version": "20261019113100",
+        "path": "supabase/migrations/20261019113100_v3_s6_notification_reactivation.sql",
+        "github_blob_sha": "c9dd3e7bd0095451370b11195abf77aaf565bca8"
+      },
+      {
+        "version": "20261019113200",
+        "path": "supabase/migrations/20261019113200_v3_s6_notification_failure_visibility.sql",
+        "github_blob_sha": "1f7839052620016853f1e7b54d311080759cebc1"
+      },
+      {
+        "version": "20261019113300",
+        "path": "supabase/migrations/20261019113300_v3_s13_strict_registration_restore.sql",
+        "github_blob_sha": "178083ead66110fd8544a350cf4fd405e71a3f67"
+      },
+      {
+        "version": "20261019202636",
+        "path": "supabase/migrations/20261019202636_v3_s14_resolved_task_delivery_reconciliation.sql",
+        "github_blob_sha": "c1227a63a5cd4aaf58a593234a11e9c7134b45b3"
+      },
+      {
+        "version": "20261020130000",
+        "path": "supabase/migrations/20261020130000_v3_s14_archive_invariant_forward_fixes.sql",
+        "github_blob_sha": "7f76931c45aac73fdc40c4d812c5aa88ed3b44c5"
+      },
+      {
+        "version": "20261020140000",
+        "path": "supabase/migrations/20261020140000_v3_s14_archive_runtime_update_guard.sql",
+        "github_blob_sha": "bce6e933b95332a9d548dbf2f4e359678a370803"
+      },
+      {
+        "version": "20261021110000",
+        "path": "supabase/migrations/20261021110000_v3_s14_archive_guard_authority_forward_fix.sql",
+        "github_blob_sha": "3836a2e249c439f213cf7d2cc6138fea5286abeb"
+      },
+      {
+        "version": "20261021161000",
+        "path": "supabase/migrations/20261021161000_v3_s14_task_reconciliation_service_boundary.sql",
+        "github_blob_sha": "0c9a851a8a8e428ef02bcb6a21824dfd1d46ff78"
+      },
+      {
+        "version": "20261021163000",
+        "path": "supabase/migrations/20261021163000_v3_s14_failed_task_delivery_evidence.sql",
+        "github_blob_sha": "d0fa93cb58da25b04270d3bb77eda45bdbb91bd2"
+      },
+      {
+        "version": "20261021202000",
+        "path": "supabase/migrations/20261021202000_v3_s14_archive_reconciliation_convergence.sql",
+        "github_blob_sha": "6c61b00ba1cb33106ae10db84d16d1ddeb9b9c5f"
+      },
+      {
+        "version": "20261022151607",
+        "path": "supabase/migrations/20261022151607_batch_running_order_result_sync.sql",
+        "github_blob_sha": "8aed8951245d239f3fcc705eaee6a3076c994725"
+      },
+      {
+        "version": "20261023205400",
+        "path": "supabase/migrations/20261023205400_v3_s13_adopt_batch_running_order_result_sync.sql",
+        "github_blob_sha": "50f0ea9772ca59f7e28206bd9e138049b3b0961c"
+      },
+      {
+        "version": "20261024170500",
+        "path": "supabase/migrations/20261024170500_v3_public_published_result_snapshot.sql",
+        "github_blob_sha": "3446974a0bc04c7d52b4990d67af4463581d5c11"
+      },
+      {
+        "version": "20261024200300",
+        "path": "supabase/migrations/20261024200300_v3_s6_confirmation_requirement_bounded_repair.sql",
+        "github_blob_sha": "d689f76db26d4efc796abec218e16a32784fe7e7"
+      }
+    ],
+    "post_tip_pending": [
+      {
+        "version": "20261102170500",
+        "path": "supabase/migrations/20261102170500_v3_tg1_world_country_control_foundation.sql",
+        "github_blob_sha": "744e679867e7c077917afc614dbd8ee430d20632"
+      },
+      {
+        "version": "20261102171500",
+        "path": "supabase/migrations/20261102171500_v3_tg2_world_institution_core.sql",
+        "github_blob_sha": "88df76e9775676ce58c25050743ada10c09f7492"
+      },
+      {
+        "version": "20261102171600",
+        "path": "supabase/migrations/20261102171600_v3_tg2_world_institution_access.sql",
+        "github_blob_sha": "a8659140018eceb5fb2b576b1fa1057e2a0882b4"
+      },
+      {
+        "version": "20261102171700",
+        "path": "supabase/migrations/20261102171700_v3_tg2_world_office_term_canonical_alignment.sql",
+        "github_blob_sha": "45c6a41e373286efbc962b6ad861684a92fab164"
+      },
+      {
+        "version": "20261102171800",
+        "path": "supabase/migrations/20261102171800_v3_tg2_world_office_term_dependents.sql",
+        "github_blob_sha": "0d06272b1fff9720c6d09d21e6cacb4e6de4a9a0"
+      },
+      {
+        "version": "20261102171950",
+        "path": "supabase/migrations/20261102171950_v3_tg1_current_controller_identity_guard.sql",
+        "github_blob_sha": "e4bf9b10500dc0ffdce60ec2cd7d9ab3fd5fda36"
+      },
+      {
+        "version": "20261102205000",
+        "path": "supabase/migrations/20261102205000_v3_service_role_claim_compatibility.sql",
+        "github_blob_sha": "9665428e45d8412692ba25484b9532db90031b67"
+      },
+      {
+        "version": "20261103004500",
+        "path": "supabase/migrations/20261103004500_v3_s14_atomic_televote_calculation.sql",
+        "github_blob_sha": "c655f91f52e4ff76fadef03e272d682a2e08bf05"
+      },
+      {
+        "version": "20261103004600",
+        "path": "supabase/migrations/20261103004600_v3_canonical_result_recalculation.sql",
+        "github_blob_sha": "ff1bcd9e544c10bc400baf4dac8e9bfc43ed8683"
+      },
+      {
+        "version": "20261103004700",
+        "path": "supabase/migrations/20261103004700_v3_result_reconciliation_hardening.sql",
+        "github_blob_sha": "62633f6da9b654a3177c5e7d7bc2554f168dae7a"
+      },
+      {
+        "version": "20261103004800",
+        "path": "supabase/migrations/20261103004800_v3_s14_televoting_round_bindings_runtime_access.sql",
+        "github_blob_sha": "0f040f82c5eaf4919a83cf8530bab6b68dec504b"
+      },
+      {
+        "version": "20261103004900",
+        "path": "supabase/migrations/20261103004900_v3_result_countback_parity.sql",
+        "github_blob_sha": "3374e94e283ef5fa5599907e7fb50f7361ce389d"
+      },
+      {
+        "version": "20261103090202",
+        "path": "supabase/migrations/20261103090202_v3_results_jury_review_invalidation.sql",
+        "github_blob_sha": "fb55d0f5a2414d10aa7a9ebadc954f0be17b8050"
+      },
+      {
+        "version": "20261103194500",
+        "path": "supabase/migrations/20261103194500_v3_s14_televote_sync_service_role_acl.sql",
+        "github_blob_sha": "95b9f75a4941e8dbd1ce635454976f66201b96f7"
+      },
+      {
+        "version": "20261103210000",
+        "path": "supabase/migrations/20261103210000_v3_s14_televote_sync_audit_rpc.sql",
+        "github_blob_sha": "592fff8c6e7028b38629ef8fbc74d74e1179660a"
+      },
+      {
+        "version": "20261103220000",
+        "path": "supabase/migrations/20261103220000_v3_s14_atomic_televote_recovery.sql",
+        "github_blob_sha": "5201b317b29d12f8f86d7eba0329adbaebd3b6bf"
+      },
+      {
+        "version": "20261103220001",
+        "path": "supabase/migrations/20261103220001_v3_qualification_null_rank_reset.sql",
+        "github_blob_sha": "45937ef8f21bcb8ddc7bb099d65a9baf36e4d3e9"
+      },
+      {
+        "version": "20261104110000",
+        "path": "supabase/migrations/20261104110000_v3_reference_literal_search.sql",
+        "github_blob_sha": "5351acbdf64beee2f2b40e3364a4325efc4fb392"
+      },
+      {
+        "version": "20261104115831",
+        "path": "supabase/migrations/20261104115831_v3_tg2_world_identity_linkage_privacy.sql",
+        "github_blob_sha": "c9564453acfce86d383acbe5c10ebcefc5e97ab2"
+      },
+      {
+        "version": "20261104120600",
+        "path": "supabase/migrations/20261104120600_v3_tg1_controller_login_privacy.sql",
+        "github_blob_sha": "b2db98fb4b98c0188f706827ac1dc8590495157d"
+      },
+      {
+        "version": "20261104120800",
+        "path": "supabase/migrations/20261104120800_v3_tg2_nonpublic_organ_office_privacy.sql",
+        "github_blob_sha": "c1efaef98c490213fb7aefb6f86220f71f7f3b85"
+      },
+      {
+        "version": "20261104120900",
+        "path": "supabase/migrations/20261104120900_v3_tg2_cross_organization_organ_integrity.sql",
+        "github_blob_sha": "3151a5026d37ec51e3af158996281ab3731985b7"
+      },
+      {
+        "version": "20261104121000",
+        "path": "supabase/migrations/20261104121000_v3_tg3_world_public_rollout_flag.sql",
+        "github_blob_sha": "8f6985a8a71f4a9ad4d40ef1f6239f29cd17c433"
+      },
+      {
+        "version": "20261104121500",
+        "path": "supabase/migrations/20261104121500_v3_tg2_office_term_effective_authority.sql",
+        "github_blob_sha": "6f227c0b022e1a41ba5c48bac063e53a5bd2f03c"
+      },
+      {
+        "version": "20261104121600",
+        "path": "supabase/migrations/20261104121600_v3_tg2_membership_effective_representation.sql",
+        "github_blob_sha": "1ff9e744f176def3971b80d804ae87b88004deeb"
+      },
+      {
+        "version": "20261104132500",
+        "path": "supabase/migrations/20261104132500_v3_s14_results_reconciliation_authority.sql",
+        "github_blob_sha": "dbae8bbbbf8033a0695c58bfa617de44cc89af29"
+      },
+      {
+        "version": "20261104135245",
+        "path": "supabase/migrations/20261104135245_v3_results_active_snapshot_and_qualification.sql",
+        "github_blob_sha": "b820373f77fa52bd42fd6c33a2b2b3c6f3661935"
+      },
+      {
+        "version": "20261104165500",
+        "path": "supabase/migrations/20261104165500_v3_tg8_exact_rational_legislative_tally.sql",
+        "github_blob_sha": "323543551e3f769786b4f833d429d4ad6c779010"
+      },
+      {
+        "version": "20261104170500",
+        "path": "supabase/migrations/20261104170500_v3_results_reviewed_input_cas.sql",
+        "github_blob_sha": "19b7c099b23d9f84d41e88a77194558ad3d878dc"
+      },
+      {
+        "version": "20261104185330",
+        "path": "supabase/migrations/20261104185330_v3_publication_control_initialization_retry.sql",
+        "github_blob_sha": "02e9f8de9c38b95b87e3f5766e77979b32a3a1a5"
+      },
+      {
+        "version": "20261105045922",
+        "path": "supabase/migrations/20261105045922_v3_pending_nf_winner_worker_authority.sql",
+        "github_blob_sha": "a4696d016b626b151162f9d6971c802908f37b92"
+      },
+      {
+        "version": "20261105115452",
+        "path": "supabase/migrations/20261105115452_v3_edition_metadata_command.sql",
+        "github_blob_sha": "0c315187d22f33b5f11584d56ffbd0b180559955"
+      },
+      {
+        "version": "20261105140500",
+        "path": "supabase/migrations/20261105140500_v3_televote_influence_role_runtime_access.sql",
+        "github_blob_sha": "b9690967c88a6e94c309487b1ba0060fcb207e35"
+      },
+      {
+        "version": "20261108004000",
+        "path": "supabase/migrations/20261108004000_v3_s14_signed_combined_projection.sql",
+        "github_blob_sha": "e81ab9f80bd3f3c330adbbdffecb51a4e33cf387"
+      },
+      {
+        "version": "20261113211759",
+        "path": "supabase/migrations/20261113211759_v3_atomic_calculation_actor_binding.sql",
+        "github_blob_sha": "85e43618eef03b3fc453e882b945a489d55945ee"
+      },
+      {
+        "version": "20261114102706",
+        "path": "supabase/migrations/20261114102706_v3_jury_governed_submission_cutover.sql",
+        "github_blob_sha": "f200307b00a3aa1abd2e1f5b686417a101c43486"
+      },
+      {
+        "version": "20261114141934",
+        "path": "supabase/migrations/20261114141934_v3_defer_combined_televote_database_writes.sql",
+        "github_blob_sha": "67ba3e69a3c7c7ce6bfba254a060ae0cfde6fae6"
+      },
+      {
+        "version": "20261114182000",
+        "path": "supabase/migrations/20261114182000_v3_confirmation_exact_edition_reads.sql",
+        "github_blob_sha": "2ceee2dbddd6104d96d5b22fafd67ad34d17d6b6"
+      },
+      {
+        "version": "20261114183000",
+        "path": "supabase/migrations/20261114183000_v3_confirmation_governed_response_access.sql",
+        "github_blob_sha": "d97e9c7cc5b0fc3714631c867b1339f045d5c41c"
+      },
+      {
+        "version": "20261114184000",
+        "path": "supabase/migrations/20261114184000_v3_confirmation_legacy_access_grants_retirement.sql",
+        "github_blob_sha": "e9771550ddda2617bd954d4f7df06cd5cdb30daa"
+      },
+      {
+        "version": "20261114185000",
+        "path": "supabase/migrations/20261114185000_v3_confirmation_governed_maintenance_gate.sql",
+        "github_blob_sha": "599f5a22d48006ea2f4dcac2cac8fd025106293e"
+      },
+      {
+        "version": "20261114191333",
+        "path": "supabase/migrations/20261114191333_v3_confirmation_legacy_writers_owner_only.sql",
+        "github_blob_sha": "43e5de9d383b462086b12a20cc98532f300d9da4"
+      },
+      {
+        "version": "20261114194701",
+        "path": "supabase/migrations/20261114194701_v3_results_operation_tables_owner_only.sql",
+        "github_blob_sha": "4a5debca55938597678282d78ba46ad0246e3338"
+      },
+      {
+        "version": "20261115000100",
+        "path": "supabase/migrations/20261115000100_v3_televote_ballot_writer_retirement.sql",
+        "github_blob_sha": "dc6101db91b8f634ee2af7e115fc3259aadc1a4b"
+      },
+      {
+        "version": "20261115084647",
+        "path": "supabase/migrations/20261115084647_v3_jury_canonical_table_authority.sql",
+        "github_blob_sha": "6b4586dfe7280a39051d91d9afda598997fbb896"
+      },
+      {
+        "version": "20261115204228",
+        "path": "supabase/migrations/20261115204228_v3_media_finalization_authority.sql",
+        "github_blob_sha": "00376b882e5fbf9d6dd98b3213b1240d43567733"
+      },
+      {
+        "version": "20261116080000",
+        "path": "supabase/migrations/20261116080000_v3_edition_public_design_visual_command.sql",
+        "github_blob_sha": "4c7a89b7fd2efcdbd6c93f16074699522ff7115b"
+      },
+      {
+        "version": "20261116110000",
+        "path": "supabase/migrations/20261116110000_v3_s16_publication_api_dml_retirement.sql",
+        "github_blob_sha": "cdf6dbebe4091964e367e8f7e202b72edcd59ecf"
+      },
+      {
+        "version": "20261116120000",
+        "path": "supabase/migrations/20261116120000_v3_s16_permission_api_grants_retirement.sql",
+        "github_blob_sha": "568c7172979c23891ccaa227f8464414ab32d7da"
+      },
+      {
+        "version": "20261116193000",
+        "path": "supabase/migrations/20261116193000_v3_s16_shared_guard_reviewed_api_dml_retirement.sql",
+        "github_blob_sha": "1680c98b3d22f60bd1710e43b8b9858b600c0b2e"
+      },
+      {
+        "version": "20261116211500",
+        "path": "supabase/migrations/20261116211500_v3_s16_country_account_api_dml_retirement.sql",
+        "github_blob_sha": "7d873c1ced61c909dfbfd2bd93bece731223aa04"
+      },
+      {
+        "version": "20261117042000",
+        "path": "supabase/migrations/20261117042000_v3_s16_session_revocation_api_dml_retirement.sql",
+        "github_blob_sha": "59b00dfa879cd7a6dc3e7e27670cc1b7650fcc60"
+      },
+      {
+        "version": "20261117071000",
+        "path": "supabase/migrations/20261117071000_v3_s16_integrity_api_table_dml_retirement.sql",
+        "github_blob_sha": "bc74c7bb1c0791f9eb092dd42d10683176a86297"
+      },
+      {
+        "version": "20261117072000",
+        "path": "supabase/migrations/20261117072000_v3_s16_confirmation_ledger_api_dml_retirement.sql",
+        "github_blob_sha": "411b71af71826ab0dabd1786bb07727669dcc5da"
+      },
+      {
+        "version": "20261117150000",
+        "path": "supabase/migrations/20261117150000_v3_s16_edition_runtime_api_dml_retirement.sql",
+        "github_blob_sha": "a76bd6a50bdfe982e51a15d7ca0d287fe5c78c40"
+      },
+      {
+        "version": "20261117151000",
+        "path": "supabase/migrations/20261117151000_v3_s16_internal_entry_api_dml_retirement.sql",
+        "github_blob_sha": "cea5896708219c89147ad0551a166f1d905231a7"
+      },
+      {
+        "version": "20261117152000",
+        "path": "supabase/migrations/20261117152000_v3_s16_permission_r3_legacy_overload_retirement.sql",
+        "github_blob_sha": "1c5038e104c2d60e596ea3c94e4228ae57d320b8"
+      },
+      {
+        "version": "20261117180000",
+        "path": "supabase/migrations/20261117180000_v3_s16_confirmation_legacy_round_rpc_retirement.sql",
+        "github_blob_sha": "5870afbdb9ce85c4b9a9635a0cbe42bf1a9bb201"
+      },
+      {
+        "version": "20261117190000",
+        "path": "supabase/migrations/20261117190000_v3_s16_jury_window_r2_single_writer_cutover.sql",
+        "github_blob_sha": "a60cd460c7453302dc3b75ad498332b0c0e329bb"
+      }
+    ]
+  },
+  "catalog": {
+    "tables": [
+      {
+        "rls": null,
+        "owner": null,
+        "relkind": null,
+        "identity": "private.v3_archive_runtime_transition_gates",
+        "force_rls": null,
+        "exists_now": false,
+        "privileges": {
+          "anon": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          },
+          "service_role": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          },
+          "authenticated": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          }
+        }
+      },
+      {
+        "rls": null,
+        "owner": null,
+        "relkind": null,
+        "identity": "private.v3_archive_task_reconciliation_gates",
+        "force_rls": null,
+        "exists_now": false,
+        "privileges": {
+          "anon": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          },
+          "service_role": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          },
+          "authenticated": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          }
+        }
+      },
+      {
+        "rls": null,
+        "owner": null,
+        "relkind": null,
+        "identity": "private.v3_backfill_jobs",
+        "force_rls": null,
+        "exists_now": false,
+        "privileges": {
+          "anon": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          },
+          "service_role": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          },
+          "authenticated": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          }
+        }
+      },
+      {
+        "rls": null,
+        "owner": null,
+        "relkind": null,
+        "identity": "private.v3_migration_contracts",
+        "force_rls": null,
+        "exists_now": false,
+        "privileges": {
+          "anon": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          },
+          "service_role": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          },
+          "authenticated": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          }
+        }
+      },
+      {
+        "rls": null,
+        "owner": null,
+        "relkind": null,
+        "identity": "private.v3_migration_parity_runs",
+        "force_rls": null,
+        "exists_now": false,
+        "privileges": {
+          "anon": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          },
+          "service_role": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          },
+          "authenticated": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          }
+        }
+      },
+      {
+        "rls": null,
+        "owner": null,
+        "relkind": null,
+        "identity": "private.v3_schema_compatibility",
+        "force_rls": null,
+        "exists_now": false,
+        "privileges": {
+          "anon": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          },
+          "service_role": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          },
+          "authenticated": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          }
+        }
+      },
+      {
+        "rls": null,
+        "owner": null,
+        "relkind": null,
+        "identity": "private.v3_schema_compatibility_history",
+        "force_rls": null,
+        "exists_now": false,
+        "privileges": {
+          "anon": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          },
+          "service_role": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          },
+          "authenticated": {
+            "delete": null,
+            "insert": null,
+            "select": null,
+            "update": null,
+            "truncate": null,
+            "schema_usage": null
+          }
+        }
+      },
+      {
+        "rls": true,
+        "owner": "postgres",
+        "relkind": "r",
+        "identity": "public.editions",
+        "force_rls": false,
+        "exists_now": true,
+        "privileges": {
+          "anon": {
+            "delete": true,
+            "insert": true,
+            "select": true,
+            "update": true,
+            "truncate": false,
+            "schema_usage": true
+          },
+          "service_role": {
+            "delete": true,
+            "insert": true,
+            "select": true,
+            "update": true,
+            "truncate": false,
+            "schema_usage": true
+          },
+          "authenticated": {
+            "delete": true,
+            "insert": true,
+            "select": true,
+            "update": true,
+            "truncate": false,
+            "schema_usage": true
+          }
+        }
+      },
+      {
+        "rls": true,
+        "owner": "postgres",
+        "relkind": "r",
+        "identity": "public.notification_deliveries",
+        "force_rls": false,
+        "exists_now": true,
+        "privileges": {
+          "anon": {
+            "delete": true,
+            "insert": true,
+            "select": true,
+            "update": true,
+            "truncate": false,
+            "schema_usage": true
+          },
+          "service_role": {
+            "delete": true,
+            "insert": true,
+            "select": true,
+            "update": true,
+            "truncate": true,
+            "schema_usage": true
+          },
+          "authenticated": {
+            "delete": true,
+            "insert": true,
+            "select": true,
+            "update": true,
+            "truncate": false,
+            "schema_usage": true
+          }
+        }
+      },
+      {
+        "rls": true,
+        "owner": "postgres",
+        "relkind": "r",
+        "identity": "public.studio2_edition_runtime",
+        "force_rls": false,
+        "exists_now": true,
+        "privileges": {
+          "anon": {
+            "delete": false,
+            "insert": false,
+            "select": false,
+            "update": false,
+            "truncate": false,
+            "schema_usage": true
+          },
+          "service_role": {
+            "delete": true,
+            "insert": true,
+            "select": true,
+            "update": true,
+            "truncate": true,
+            "schema_usage": true
+          },
+          "authenticated": {
+            "delete": false,
+            "insert": false,
+            "select": true,
+            "update": false,
+            "truncate": false,
+            "schema_usage": true
+          }
+        }
+      },
+      {
+        "rls": true,
+        "owner": "postgres",
+        "relkind": "r",
+        "identity": "public.studio2_organizer_tasks",
+        "force_rls": false,
+        "exists_now": true,
+        "privileges": {
+          "anon": {
+            "delete": false,
+            "insert": false,
+            "select": false,
+            "update": false,
+            "truncate": false,
+            "schema_usage": true
+          },
+          "service_role": {
+            "delete": true,
+            "insert": true,
+            "select": true,
+            "update": true,
+            "truncate": true,
+            "schema_usage": true
+          },
+          "authenticated": {
+            "delete": false,
+            "insert": false,
+            "select": false,
+            "update": false,
+            "truncate": false,
+            "schema_usage": true
+          }
+        }
+      }
+    ],
+    "columns": [
+      {
+        "name": "consumer_key",
+        "not_null": true,
+        "relation": "private.v3_domain_event_outbox",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "text",
+        "expected_type": "text",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "event_id",
+        "not_null": true,
+        "relation": "private.v3_domain_event_outbox",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "uuid",
+        "expected_type": "uuid",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "status",
+        "not_null": true,
+        "relation": "private.v3_domain_event_outbox",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "text",
+        "expected_type": "text",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "aggregate_version",
+        "not_null": true,
+        "relation": "private.v3_domain_events",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "bigint",
+        "expected_type": "bigint",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "event_type",
+        "not_null": true,
+        "relation": "private.v3_domain_events",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "text",
+        "expected_type": "text",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "payload",
+        "not_null": true,
+        "relation": "private.v3_domain_events",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "jsonb",
+        "expected_type": "jsonb",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "result_rows",
+        "not_null": true,
+        "relation": "private.v3_result_versions",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "jsonb",
+        "expected_type": "jsonb",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "show_id",
+        "not_null": true,
+        "relation": "private.v3_result_versions",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "uuid",
+        "expected_type": "uuid",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "version",
+        "not_null": true,
+        "relation": "private.v3_result_versions",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "bigint",
+        "expected_type": "bigint",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "recipient_id",
+        "not_null": true,
+        "relation": "public.admin_notifications",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "uuid",
+        "expected_type": "uuid",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "requires_action",
+        "not_null": true,
+        "relation": "public.admin_notifications",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "boolean",
+        "expected_type": "boolean",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "resolution_mode",
+        "not_null": true,
+        "relation": "public.admin_notifications",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "text",
+        "expected_type": "text",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "resolved_at",
+        "not_null": false,
+        "relation": "public.admin_notifications",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "timestamp with time zone",
+        "expected_type": "timestamptz",
+        "parent_exists": true,
+        "expected_not_null": "false"
+      },
+      {
+        "name": "source_key",
+        "not_null": false,
+        "relation": "public.admin_notifications",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "text",
+        "expected_type": "text",
+        "parent_exists": true,
+        "expected_not_null": "false"
+      },
+      {
+        "name": "category",
+        "not_null": true,
+        "relation": "public.notification_deliveries",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "text",
+        "expected_type": "text",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "scheduled_for",
+        "not_null": true,
+        "relation": "public.notification_deliveries",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "timestamp with time zone",
+        "expected_type": "timestamptz",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "status",
+        "not_null": true,
+        "relation": "public.notification_deliveries",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "text",
+        "expected_type": "text",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "subject_id",
+        "not_null": true,
+        "relation": "public.notification_deliveries",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "text",
+        "expected_type": "text",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "edition_id",
+        "not_null": true,
+        "relation": "public.studio2_edition_runtime",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "uuid",
+        "expected_type": "uuid",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "state",
+        "not_null": true,
+        "relation": "public.studio2_edition_runtime",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "text",
+        "expected_type": "text",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "subsystems",
+        "not_null": true,
+        "relation": "public.studio2_edition_runtime",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "jsonb",
+        "expected_type": "jsonb",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "updated_at",
+        "not_null": true,
+        "relation": "public.studio2_edition_runtime",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "timestamp with time zone",
+        "expected_type": "timestamptz",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "version",
+        "not_null": true,
+        "relation": "public.studio2_edition_runtime",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "bigint",
+        "expected_type": "bigint",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "correlation_id",
+        "not_null": true,
+        "relation": "public.studio2_operation_receipts",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "uuid",
+        "expected_type": "uuid",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "idempotency_key",
+        "not_null": true,
+        "relation": "public.studio2_operation_receipts",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "text",
+        "expected_type": "text",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "operation_id",
+        "not_null": true,
+        "relation": "public.studio2_operation_receipts",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "uuid",
+        "expected_type": "uuid",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "edition_id",
+        "not_null": false,
+        "relation": "public.studio2_organizer_tasks",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "uuid",
+        "expected_type": "uuid",
+        "parent_exists": true,
+        "expected_not_null": "false"
+      },
+      {
+        "name": "id",
+        "not_null": true,
+        "relation": "public.studio2_organizer_tasks",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "uuid",
+        "expected_type": "uuid",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "source_key",
+        "not_null": true,
+        "relation": "public.studio2_organizer_tasks",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "text",
+        "expected_type": "text",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "state",
+        "not_null": true,
+        "relation": "public.studio2_organizer_tasks",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "text",
+        "expected_type": "text",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      },
+      {
+        "name": "task_type",
+        "not_null": true,
+        "relation": "public.studio2_organizer_tasks",
+        "compatible": true,
+        "exists_now": true,
+        "actual_type": "text",
+        "expected_type": "text",
+        "parent_exists": true,
+        "expected_not_null": "true"
+      }
+    ],
+    "indexes": [
+      {
+        "ready": null,
+        "valid": null,
+        "identity": "private.v3_backfill_jobs_status_idx",
+        "relation": null,
+        "exists_now": false,
+        "definition_md5": null
+      },
+      {
+        "ready": null,
+        "valid": null,
+        "identity": "private.v3_migration_parity_runs_key_time_idx",
+        "relation": null,
+        "exists_now": false,
+        "definition_md5": null
+      }
+    ],
+    "triggers": [
+      {
+        "name": "studio2_platform_direct_write_guard",
+        "enabled": "O",
+        "function": "private.studio2_guard_direct_client_write()",
+        "relation": "public.admin_notifications",
+        "exists_now": true,
+        "parent_exists": true,
+        "definition_md5": "2ae8e682d3bd6c9c6ba5738014681357"
+      },
+      {
+        "name": "v3_guard_archived_legacy_edition_status",
+        "enabled": null,
+        "function": null,
+        "relation": "public.editions",
+        "exists_now": false,
+        "parent_exists": true,
+        "definition_md5": null
+      },
+      {
+        "name": "studio2_platform_direct_write_guard",
+        "enabled": "O",
+        "function": "private.studio2_guard_direct_client_write()",
+        "relation": "public.notification_deliveries",
+        "exists_now": true,
+        "parent_exists": true,
+        "definition_md5": "9a98e162443857e540419ba2659d85f5"
+      },
+      {
+        "name": "v3_project_resolved_task_delivery_state",
+        "enabled": null,
+        "function": null,
+        "relation": "public.notification_deliveries",
+        "exists_now": false,
+        "parent_exists": true,
+        "definition_md5": null
+      },
+      {
+        "name": "v3_guard_archive_runtime_delete",
+        "enabled": null,
+        "function": null,
+        "relation": "public.studio2_edition_runtime",
+        "exists_now": false,
+        "parent_exists": true,
+        "definition_md5": null
+      },
+      {
+        "name": "v3_guard_archive_runtime_insert",
+        "enabled": null,
+        "function": null,
+        "relation": "public.studio2_edition_runtime",
+        "exists_now": false,
+        "parent_exists": true,
+        "definition_md5": null
+      },
+      {
+        "name": "v3_guard_archive_runtime_transition",
+        "enabled": null,
+        "function": null,
+        "relation": "public.studio2_edition_runtime",
+        "exists_now": false,
+        "parent_exists": true,
+        "definition_md5": null
+      },
+      {
+        "name": "v3_guard_archive_runtime_update",
+        "enabled": null,
+        "function": null,
+        "relation": "public.studio2_edition_runtime",
+        "exists_now": false,
+        "parent_exists": true,
+        "definition_md5": null
+      },
+      {
+        "name": "v3_sync_archived_edition_legacy_status",
+        "enabled": null,
+        "function": null,
+        "relation": "public.studio2_edition_runtime",
+        "exists_now": false,
+        "parent_exists": true,
+        "definition_md5": null
+      },
+      {
+        "name": "v3_guard_archived_edition_task_resurrection",
+        "enabled": null,
+        "function": null,
+        "relation": "public.studio2_organizer_tasks",
+        "exists_now": false,
+        "parent_exists": true,
+        "definition_md5": null
+      },
+      {
+        "name": "v3_project_resolved_task_delivery_state",
+        "enabled": null,
+        "function": null,
+        "relation": "public.studio2_organizer_tasks",
+        "exists_now": false,
+        "parent_exists": true,
+        "definition_md5": null
+      }
+    ],
+    "functions": [
+      {
+        "acl": "{postgres=X/postgres}",
+        "owner": "postgres",
+        "strict": false,
+        "acl_md5": "341a58cafc38a872c684592babc76f83",
+        "execute": {
+          "anon": false,
+          "service_role": false,
+          "authenticated": false
+        },
+        "identity": "private.studio2_prune_stale_task_notifications(uuid)",
+        "language": "plpgsql",
+        "parallel": "u",
+        "leakproof": false,
+        "exists_now": true,
+        "volatility": "v",
+        "search_path": [
+          "search_path=pg_catalog, public, private"
+        ],
+        "settings_md5": "f4d108644d77d4da19cf67dcdd506153",
+        "definition_md5": "f059ed84963db4bbde4dd3e5ee59fd9e",
+        "security_definer": true
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "owner": "postgres",
+        "strict": false,
+        "acl_md5": "341a58cafc38a872c684592babc76f83",
+        "execute": {
+          "anon": false,
+          "service_role": false,
+          "authenticated": false
+        },
+        "identity": "private.studio2_reconcile_all_organizer_tasks(uuid)",
+        "language": "plpgsql",
+        "parallel": "u",
+        "leakproof": false,
+        "exists_now": true,
+        "volatility": "v",
+        "search_path": [
+          "search_path=pg_catalog, public, private, televoting, auth"
+        ],
+        "settings_md5": "5128a303384d3d46f80fb9af2e6f4921",
+        "definition_md5": "756db08b6994b189992bd527f97c4b37",
+        "security_definer": true
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "owner": "postgres",
+        "strict": false,
+        "acl_md5": "341a58cafc38a872c684592babc76f83",
+        "execute": {
+          "anon": false,
+          "service_role": false,
+          "authenticated": false
+        },
+        "identity": "private.studio2_request_is_service_role()",
+        "language": "sql",
+        "parallel": "u",
+        "leakproof": false,
+        "exists_now": true,
+        "volatility": "s",
+        "search_path": [
+          "search_path=pg_catalog"
+        ],
+        "settings_md5": "86848e74287bde206a1238f01a1c9b0b",
+        "definition_md5": "84d3f05e5f537908732a3875ba0178e6",
+        "security_definer": false
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "strict": null,
+        "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "private.studio2_transition_edition_v3(uuid,text,text,uuid,bigint,uuid,text)",
+        "language": null,
+        "parallel": null,
+        "leakproof": null,
+        "exists_now": false,
+        "volatility": null,
+        "search_path": null,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "strict": null,
+        "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "private.v3_archive_task_reconciliation_gate_active(uuid)",
+        "language": null,
+        "parallel": null,
+        "leakproof": null,
+        "exists_now": false,
+        "volatility": null,
+        "search_path": null,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "strict": null,
+        "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "private.v3_edition_final_results_ready(uuid)",
+        "language": null,
+        "parallel": null,
+        "leakproof": null,
+        "exists_now": false,
+        "volatility": null,
+        "search_path": null,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "strict": null,
+        "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "private.v3_guard_archive_runtime_transition()",
+        "language": null,
+        "parallel": null,
+        "leakproof": null,
+        "exists_now": false,
+        "volatility": null,
+        "search_path": null,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "strict": null,
+        "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "private.v3_project_resolved_task_delivery_state()",
+        "language": null,
+        "parallel": null,
+        "leakproof": null,
+        "exists_now": false,
+        "volatility": null,
+        "search_path": null,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "strict": null,
+        "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "private.v3_reconcile_resolved_task_notifications(uuid)",
+        "language": null,
+        "parallel": null,
+        "leakproof": null,
+        "exists_now": false,
+        "volatility": null,
+        "search_path": null,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "strict": null,
+        "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "private.v3_resolve_archived_edition_workflow_tasks(uuid)",
+        "language": null,
+        "parallel": null,
+        "leakproof": null,
+        "exists_now": false,
+        "volatility": null,
+        "search_path": null,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "strict": null,
+        "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "public.studio2_process_edition_domain_event(uuid,text,text)",
+        "language": null,
+        "parallel": null,
+        "leakproof": null,
+        "exists_now": false,
+        "volatility": null,
+        "search_path": null,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "owner": "postgres",
+        "strict": false,
+        "acl_md5": "b4461a8291c4a36a68f3e21fc818e4ab",
+        "execute": {
+          "anon": false,
+          "service_role": true,
+          "authenticated": true
+        },
+        "identity": "public.studio2_transition_edition_v2(uuid,text,text,uuid)",
+        "language": "plpgsql",
+        "parallel": "u",
+        "leakproof": false,
+        "exists_now": true,
+        "volatility": "v",
+        "search_path": [
+          "search_path=pg_catalog, public, private"
+        ],
+        "settings_md5": "f4d108644d77d4da19cf67dcdd506153",
+        "definition_md5": "4ef023751dbfc3d7ee142e83bd983974",
+        "security_definer": true
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "strict": null,
+        "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "public.studio2_transition_edition_v3(uuid,text,text,uuid,bigint,uuid,text)",
+        "language": null,
+        "parallel": null,
+        "leakproof": null,
+        "exists_now": false,
+        "volatility": null,
+        "search_path": null,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "strict": null,
+        "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "public.v3_checkpoint_backfill(text,text,jsonb,integer,integer,text,boolean)",
+        "language": null,
+        "parallel": null,
+        "leakproof": null,
+        "exists_now": false,
+        "volatility": null,
+        "search_path": null,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "strict": null,
+        "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "public.v3_claim_backfill(text,integer,integer,text,integer,bigint)",
+        "language": null,
+        "parallel": null,
+        "leakproof": null,
+        "exists_now": false,
+        "volatility": null,
+        "search_path": null,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "strict": null,
+        "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "public.v3_fail_backfill(text,text,text)",
+        "language": null,
+        "parallel": null,
+        "leakproof": null,
+        "exists_now": false,
+        "volatility": null,
+        "search_path": null,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "strict": null,
+        "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "public.v3_record_migration_parity(text,text,bigint,bigint,bigint,bigint,integer,jsonb)",
+        "language": null,
+        "parallel": null,
+        "leakproof": null,
+        "exists_now": false,
+        "volatility": null,
+        "search_path": null,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "strict": null,
+        "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "public.v3_register_migration_contract(text,integer,text,boolean,text,text)",
+        "language": null,
+        "parallel": null,
+        "leakproof": null,
+        "exists_now": false,
+        "volatility": null,
+        "search_path": null,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "strict": null,
+        "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "public.v3_schema_compatibility(integer)",
+        "language": null,
+        "parallel": null,
+        "leakproof": null,
+        "exists_now": false,
+        "volatility": null,
+        "search_path": null,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "strict": null,
+        "acl_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "public.v3_set_schema_compatibility(integer,integer,integer,text,text,text)",
+        "language": null,
+        "parallel": null,
+        "leakproof": null,
+        "exists_now": false,
+        "volatility": null,
+        "search_path": null,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      }
+    ],
+    "checkpoint": {
+      "observed_at": "2026-11-20T04:09:26.751261+00:00",
+      "lock_timeout": "0",
+      "statement_timeout": "2min",
+      "server_version_num": "170011",
+      "transaction_read_only": "off"
+    },
+    "project_ref": "dkxmnvekiopyesuzggeu",
+    "schema_version": 1
+  },
+  "downstream": {
+    "tables": [
+      {
+        "rls": true,
+        "owner": "postgres",
+        "relkind": "r",
+        "identity": "private.v3_result_versions",
+        "exists_now": true
+      },
+      {
+        "rls": null,
+        "owner": null,
+        "relkind": null,
+        "identity": "private.v3_televote_result_projection_sources",
+        "exists_now": false
+      },
+      {
+        "rls": true,
+        "owner": "postgres",
+        "relkind": "r",
+        "identity": "public.studio2_show_publication_controls",
+        "exists_now": true
+      },
+      {
+        "rls": true,
+        "owner": "postgres",
+        "relkind": "r",
+        "identity": "public.televote_votes",
+        "exists_now": true
+      },
+      {
+        "rls": true,
+        "owner": "postgres",
+        "relkind": "r",
+        "identity": "public.televoting_round_bindings",
+        "exists_now": true
+      },
+      {
+        "rls": true,
+        "owner": "postgres",
+        "relkind": "r",
+        "identity": "televoting.round_influence_results",
+        "exists_now": true
+      }
+    ],
+    "functions": [
+      {
+        "acl": "{postgres=X/postgres}",
+        "owner": "postgres",
+        "execute": {
+          "anon": false,
+          "service_role": false,
+          "authenticated": false
+        },
+        "identity": "private.v3_capture_result_version()",
+        "exists_now": true,
+        "settings_md5": "f4d108644d77d4da19cf67dcdd506153",
+        "definition_md5": "486ad0593166fe76ac8734de05e0f22f",
+        "security_definer": true
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "private.v3_guard_source_managed_televote_projection()",
+        "exists_now": false,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "owner": "postgres",
+        "execute": {
+          "anon": false,
+          "service_role": false,
+          "authenticated": false
+        },
+        "identity": "private.v3_publication_result_version_release_ready(uuid,bigint)",
+        "exists_now": true,
+        "settings_md5": "f4d108644d77d4da19cf67dcdd506153",
+        "definition_md5": "e7e1a32f91de1a3ec9734c988270e4fa",
+        "security_definer": true
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "private.v3_sync_published_televote_aggregation(uuid)",
+        "exists_now": false,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "private.v3_sync_published_televote_round(uuid)",
+        "exists_now": false,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "private.v3_televote_projection_snapshot(uuid)",
+        "exists_now": false,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "public.studio2_televote_projection_status(uuid)",
+        "exists_now": false,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "public.v3_public_published_result_snapshot(uuid)",
+        "exists_now": false,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      },
+      {
+        "acl": null,
+        "owner": null,
+        "execute": {
+          "anon": null,
+          "service_role": null,
+          "authenticated": null
+        },
+        "identity": "televoting.v3_commit_official_round_calculation(uuid,integer,timestamptz,uuid,text,text[],jsonb,jsonb)",
+        "exists_now": false,
+        "settings_md5": "d41d8cd98f00b204e9800998ecf8427e",
+        "definition_md5": null,
+        "security_definer": null
+      }
+    ],
+    "read_only": "off",
+    "observed_at": "2026-11-20T04:09:28.846018+00:00",
+    "project_ref": "dkxmnvekiopyesuzggeu",
+    "schema_version": 1
+  },
+  "legacy_comparison": {
+    "scoped_differences": [
+      {
+        "section": "tables",
+        "identity": "public.editions"
+      },
+      {
+        "section": "tables",
+        "identity": "public.notification_deliveries"
+      }
+    ],
+    "downstream_unchanged": true
+  },
+  "attestations": {
+    "live_catalog_observed": true,
+    "local_rehearsals_reused": true,
+    "original_production_restore_certified": false,
+    "hosted_forward_only_stage_manifest_qualified": false,
+    "production_migration_applied": false,
+    "cloudflare_promoted": false
+  }
+}
