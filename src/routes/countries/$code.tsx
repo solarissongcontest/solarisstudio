@@ -41,6 +41,7 @@ import {
 } from "@/lib/data-live";
 import { canonicalEditionEntries, canonicalEntryFor } from "@/lib/entry-utils";
 import { computeCountryForm } from "@/lib/form";
+import { filterPublishedCountryHistory, type CountryHistoryOutcome } from "@/lib/country-published-history";
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 import {
   resolveCountryEditionQualification,
@@ -150,7 +151,7 @@ function CountryProfilePage() {
   const { data: televote } = televoteQuery;
   const [tab, setTab] = useState<Tab>("overview");
   const [historySearch, setHistorySearch] = useState("");
-  const [historyOutcome, setHistoryOutcome] = useState<"all" | "finalist" | "eliminated">("all");
+  const [historyOutcome, setHistoryOutcome] = useState<CountryHistoryOutcome>("all");
 
   useEffect(() => {
     setHistorySearch("");
@@ -343,22 +344,15 @@ function CountryProfilePage() {
         (editionMap.get(a.edition_id)?.edition_number ?? -1),
     );
   const latestEntry = entryHistory[0] ?? null;
-  const normalizedHistorySearch = historySearch.trim().toLocaleLowerCase();
-  const filteredEntryHistory = entryHistory.filter((entry) => {
-    const status = qualificationFor(entry.edition_id);
-    if (historyOutcome === "finalist" && !["q", "aq", "wildcard"].includes(status ?? "")) return false;
-    if (historyOutcome === "eliminated" && status !== "nq") return false;
-    if (!normalizedHistorySearch) return true;
-    const edition = editionMap.get(entry.edition_id);
-    const searchable = [
-      edition?.name,
-      edition?.slug,
-      edition ? editionLabel(edition) : "",
-      entry.song,
-      entry.artist,
-    ].filter(Boolean).join(" ").toLocaleLowerCase();
-    return searchable.includes(normalizedHistorySearch);
-  });
+  const filteredEntryHistory = filterPublishedCountryHistory(
+    entryHistory,
+    { search: historySearch, outcome: historyOutcome },
+    (editionId) => {
+      const edition = editionMap.get(editionId);
+      return [edition?.name, edition?.slug, edition ? editionLabel(edition) : null];
+    },
+    qualificationFor,
+  );
 
   const qualificationEditionIds = new Set<string>();
   myParticipants.forEach((participant) => qualificationEditionIds.add(participant.edition_id));
@@ -807,7 +801,7 @@ function CountryProfilePage() {
                 <span>Result</span>
                 <select
                   value={historyOutcome}
-                  onChange={(event) => setHistoryOutcome(event.target.value as "all" | "finalist" | "eliminated")}
+                  onChange={(event) => setHistoryOutcome(event.target.value as CountryHistoryOutcome)}
                 >
                   <option value="all">All entries</option>
                   <option value="finalist">Reached the final</option>
