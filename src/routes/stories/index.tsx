@@ -14,7 +14,7 @@ import '@/styles/v3-stories-editorial.css';
 import { V3StoriesIndexGate } from '@/components/v3/V3StoriesGates';
 import { SOLARIS_TIME_ZONE } from '@/lib/public-time';
 import { loadAnniversaryEngine, loadPublicStorylines } from '@/lib/studio2-storytelling';
-import { canExpandPublicStoryBatch, nextPublicStoryBatchLimit, PUBLIC_STORY_INITIAL_BATCH } from '@/lib/v3-public-story-browse';
+import { canExpandPublicStoryBatch, canExpandPublishedStorySearch, nextPublicStoryBatchLimit, publicStoryBatchAtServerCap, PUBLIC_STORY_INITIAL_BATCH, PUBLIC_STORY_RPC_MAX } from '@/lib/v3-public-story-browse';
 
 export const Route = createFileRoute('/stories/')({
   head: () => ({
@@ -99,6 +99,8 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
     (storiesQuery.isFetching && stories.length < storyLimit)
   );
   const [search, setSearch] = useState("");
+  const searchCoverageIncomplete = !storiesQuery.isError && canExpandPublishedStorySearch(search, stories.length, storyLimit);
+  const reachedStoryLimit = !storiesQuery.isError && publicStoryBatchAtServerCap(stories.length, storyLimit);
   const filteredStories = useMemo(() => {
     const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
     return stories.filter((story) => {
@@ -168,6 +170,7 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
           )}
           <p className="v3-directory-results-count" role="status" aria-live="polite">
             {filteredStories.length} of {stories.length} published stories in this batch
+            {searchCoverageIncomplete ? " · More published stories may match beyond this batch" : ""}
           </p>
           {storiesQuery.isError ? (
             <ArchiveEmpty
@@ -230,6 +233,19 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
               </button>
               <span className="text-xs text-muted-foreground">More published archive records may be available.</span>
             </div>
+          ) : null}
+          {searchCoverageIncomplete ? (
+            <button type="button"
+              className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold text-primary hover:bg-primary/10"
+              disabled={storiesQuery.isFetching}
+              onClick={() => setStoryLimit(PUBLIC_STORY_RPC_MAX)}>
+              {storiesQuery.isFetching ? "Searching more published history…" : "Search more published history"}
+            </button>
+          ) : null}
+          {reachedStoryLimit ? (
+            <p className="mt-3 max-w-prose text-xs leading-5 text-muted-foreground" role="status">
+              Showing the latest 100 published edition stories. Earlier history may exist beyond this archive search limit.
+            </p>
           ) : null}
           {search.trim() && stories.length > 0 && filteredStories.length === 0 ? (
             <button type="button" className="mt-3 min-h-11 text-sm font-semibold text-primary underline-offset-4 hover:underline"
