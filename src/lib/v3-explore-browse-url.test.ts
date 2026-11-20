@@ -37,7 +37,7 @@ describe("Explore published Show and Country URL search state", () => {
     expect(view).toContain("urlSearch?.scope === \"participants\"");
     expect(view).toContain("onUrlSearchChange(next)");
     expect(view).toContain("effectiveParticipatingScope(participatingOnly, currentLineupReady)");
-    expect(view).toContain("participantsQuery.isLoading) return");
+    expect(view).toContain("participantsQuery.isLoading || participantsQuery.isFetching");
     expect(view).toContain("resolvePublicDirectoryFacet(region, regionOptions.map");
     expect(view).not.toContain("useAllResults(");
     expect(view).not.toContain("useAllJuryVotes(");
