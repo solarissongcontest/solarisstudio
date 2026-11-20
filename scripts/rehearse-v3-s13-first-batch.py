@@ -105,6 +105,7 @@ def validate_package(directory):
         'supabase/migrations/20261019113300_v3_s13_strict_registration_restore.sql',
         'docs/v3/recovery-candidates/evidence/s13-current-hosted-preflight-2026-11-19.json',
         'docs/v3/recovery-candidates/evidence/s13-s16-current-hosted-catalog-2026-11-20.json',
+        'docs/v3/recovery-candidates/evidence/s13-first-batch-postgrest-watch-2026-11-20.json',
         'scripts/ops/solaris-role-acl-rehearsal-20261120.sh','scripts/ops/solaris-s13-first-batch-operator.sh']
     if sorted(e['path'] for e in manifest['inputs'])!=sorted(required):
         raise RehearsalFailure('Missing or unknown exact-source input')
