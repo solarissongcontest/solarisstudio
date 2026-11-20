@@ -942,3 +942,38 @@ html:not([data-solaris-app]) .country-editorial-profile .country-editorial-histo
     outline-color: Highlight;
   }
 }
+
+
+/* Public Country Overview: real results lead, while the full World body lives
+   in its own dedicated section. Statistics form one scan-friendly fact strip. */
+html:not([data-solaris-app]) .country-editorial-profile .country-editorial-stat-strip {
+  gap: 0;
+  border-block: 1px solid var(--v3-editorial-rule);
+}
+html:not([data-solaris-app]) .country-editorial-profile .country-editorial-stat-strip > .stat-line {
+  min-width: 0;
+  padding: clamp(.8rem, 1.5vw, 1.25rem);
+  border: 0;
+  border-bottom: 1px solid var(--v3-editorial-rule);
+}
+html:not([data-solaris-app]) .country-editorial-profile .country-editorial-stat-strip .stat-line > p:first-child {
+  font-size: .69rem;
+  line-height: 1.5;
+}
+html:not([data-solaris-app]) .country-editorial-profile .country-editorial-stat-strip .numeric {
+  font-size: clamp(1.65rem, 3vw, 2.45rem);
+  font-variant-numeric: tabular-nums;
+}
+@media (min-width: 640px) {
+  html:not([data-solaris-app]) .country-editorial-profile .country-editorial-stat-strip > .stat-line + .stat-line {
+    border-left: 1px solid var(--v3-editorial-rule);
+  }
+  html:not([data-solaris-app]) .country-editorial-profile .country-editorial-stat-strip > .stat-line {
+    border-bottom: 0;
+  }
+}
+@media (max-width: 639px) {
+  html:not([data-solaris-app]) .country-editorial-profile .country-editorial-stat-strip > .stat-line:nth-child(odd) {
+    border-right: 1px solid var(--v3-editorial-rule);
+  }
+}
