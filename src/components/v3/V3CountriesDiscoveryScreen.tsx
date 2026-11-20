@@ -15,6 +15,7 @@ import type { CountryDirectoryPresentation } from "@/lib/country-directory-prese
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { type Country, useCountries, useEditions } from "@/lib/data";
 import { countryDirectoryRegionOptions, effectiveParticipatingScope, filterCountryDirectory } from "@/lib/v3-country-directory-filters";
+import { resolvePublicDirectoryFacet } from "@/lib/v3-public-directory-search";
 import { publishedCountryStatusMap, type PublishedCountryStatus } from "@/lib/v3-country-published-status";
 import { directoryCountLabel } from "@/lib/v3-directory-count";
 import { usePublicEditionParticipants } from "@/lib/public-participants";
@@ -77,6 +78,13 @@ export function V3CountriesDiscoveryScreen({
     }),
     [countriesQuery.data, selectedParticipatingOnly, participatingCountryIds],
   );
+  const effectiveRegion = resolvePublicDirectoryFacet(region, regionOptions.map((option) => option.name));
+  // Revoke invalid facets when the published country or lineup collection changes,
+  // rather than silently resurrecting a stale selection later.
+  useEffect(() => {
+    if (region !== effectiveRegion) setRegion("all");
+  }, [region, effectiveRegion]);
+
   const collectionCount = selectedParticipatingOnly
     ? discovery.participating.length
     : countriesQuery.data?.length ?? 0;
@@ -86,11 +94,11 @@ export function V3CountriesDiscoveryScreen({
     () =>
       filterCountryDirectory(countriesQuery.data ?? [], {
         search,
-        region,
+        region: effectiveRegion,
         participatingOnly: selectedParticipatingOnly,
         participatingCountryIds,
       }),
-    [countriesQuery.data, region, search, selectedParticipatingOnly, participatingCountryIds],
+    [countriesQuery.data, effectiveRegion, search, selectedParticipatingOnly, participatingCountryIds],
   );
 
   // All-country browsing remains available even if the optional lineup is loading or fails.
@@ -213,14 +221,14 @@ export function V3CountriesDiscoveryScreen({
           {presentation === "desktop-web" ? (
             <aside className="v3-countries-region-rail" aria-label="Browse by region">
               <h3>Regions</h3>
-              <button type="button" aria-pressed={region === "all"}
-                className={region === "all" ? "is-selected" : undefined}
+              <button type="button" aria-pressed={effectiveRegion === "all"}
+                className={effectiveRegion === "all" ? "is-selected" : undefined}
                 onClick={() => { setRegion("all"); setVisibleCount(BROWSE_PAGE_SIZE); }}>
                 <span>All regions</span><span>{collectionCount}</span>
               </button>
               {regionOptions.map((item) => (
-                <button key={item.name} type="button" aria-pressed={region === item.name}
-                  className={region === item.name ? "is-selected" : undefined}
+                <button key={item.name} type="button" aria-pressed={effectiveRegion === item.name}
+                  className={effectiveRegion === item.name ? "is-selected" : undefined}
                   onClick={() => { setRegion(item.name); setVisibleCount(BROWSE_PAGE_SIZE); }}>
                   <span>{item.name}</span><span>{item.count}</span>
                 </button>
@@ -245,7 +253,7 @@ export function V3CountriesDiscoveryScreen({
               <SheetTrigger asChild>
                 <button type="button" className="solaris-app-filter-chip">
                   <SlidersHorizontal className="size-4" aria-hidden="true" />
-                  <span>{region === "all" ? "All regions" : region}</span>
+                  <span>{effectiveRegion === "all" ? "All regions" : region}</span>
                 </button>
               </SheetTrigger>
               <SheetContent
@@ -259,7 +267,7 @@ export function V3CountriesDiscoveryScreen({
                 </div>
                 <div className="mt-3">
                   {["all", ...regionOptions.map((item) => item.name)].map((item) => {
-                    const active = region === item;
+                    const active = effectiveRegion === item;
                     return (
                       <SheetClose key={item} asChild>
                         <button
@@ -283,7 +291,7 @@ export function V3CountriesDiscoveryScreen({
             ) : presentation === "mobile-web" ? (
               <label className="v3-countries-web-region">
                 <span className="sr-only">Filter by region</span>
-                <select aria-label="Filter by region" value={region}
+                <select aria-label="Filter by region" value={effectiveRegion}
                   onChange={(event) => { setRegion(event.target.value); setVisibleCount(BROWSE_PAGE_SIZE); }}>
                   <option value="all">All regions</option>
                   {regionOptions.map((item) => (
