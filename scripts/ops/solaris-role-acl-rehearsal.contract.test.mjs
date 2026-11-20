@@ -3,6 +3,10 @@ import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 const file = 'scripts/ops/solaris-role-acl-rehearsal-20261120.sh';
 const source = readFileSync(file, 'utf8');
 
@@ -64,4 +68,52 @@ test('raw restoration diagnostics and private data are not echoed', () => {
   assert.doesNotMatch(source, /cat "\$KEY"|cat "\$DB"|echo "\$KEY"/);
   assert.doesNotMatch(source, /tail -n.*restore\.private\.log|sed .*restore\.private\.log/);
   assert.match(source, /Full private diagnostics were kept/);
+});
+
+
+test('TOC owner parser ignores unusual non-table descriptor tails without relaxing table checks', () => {
+  const start = "<<'PYROLE'\n";
+  const end = '\nPYROLE\n';
+  const snippet = source.split(start)[1].split(end)[0];
+  const work = mkdtempSync(join(tmpdir(), 'solaris-role-toc-test-'));
+  try {
+    const toc = join(work, 'sample.toc');
+    const tableLines = Array.from({ length: 225 }, (_, i) =>
+      (i + 1) + '; 1259 ' + (1000 + i) +
+      ' TABLE public sample_' + (i + 1) + ' postgres');
+    const unusual = '226; 0 0 ACL public complicated descriptor-tail!not_an_owner';
+    writeFileSync(toc, [...tableLines, unusual, ''].join('\n'));
+    const result = spawnSync('python3', ['-c', snippet, toc], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stderr, /ignored 1 non-table TOC descriptor tails/);
+    assert.match(result.stdout, /CREATE ROLE/);
+    assert.doesNotMatch(result.stdout, /descriptor-tail/);
+
+    tableLines[0] = '1; 1259 1000 TABLE public sample_1 unsafe-owner';
+    writeFileSync(toc, [...tableLines, unusual, ''].join('\n'));
+    const bad = spawnSync('python3', ['-c', snippet, toc], { encoding: 'utf8' });
+    assert.notEqual(bad.status, 0);
+    assert.match(bad.stderr, /unusual TABLE owner field/);
+    assert.equal(bad.stdout.trim(), '', 'No SQL emitted for unsafe table owner');
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+});
+
+test('script has no duplicate or truncated execution bodies', () => {
+  for (const pattern of [
+    /<<'PYROLE'/g,
+    /^PYROLE$/gm,
+    /^archive_defines_schema\(\) \{/gm,
+    /echo '\[4\/4\]/g,
+    /ISOLATED OWNER\/ACL REPLAY AND SCOPED AUTHORIZATION PROBES SUCCESSFUL/g,
+    /Production was never contacted; disposable container will now be deleted/g,
+  ]) {
+    assert.equal([...source.matchAll(pattern)].length, 1,
+      'Unexpected duplication of recovery script section: ' + pattern);
+  }
+  assert.ok(source.trimEnd().endsWith(
+    "echo 'Production was never contacted; disposable container will now be deleted.'"));
 });
