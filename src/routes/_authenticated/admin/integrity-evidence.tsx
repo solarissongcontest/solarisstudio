@@ -13,6 +13,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPage } from "@/components/admin/AdminShell";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { AdminCard, AdminConfirmSheet, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import {
   cleanExpiredEvidenceUpload,
@@ -30,22 +31,44 @@ export const Route = createFileRoute("/_authenticated/admin/integrity-evidence")
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: IntegrityEvidenceLifecycle,
+  component: IntegrityEvidenceLifecycleScope,
 });
 
-function IntegrityEvidenceLifecycle() {
+function IntegrityEvidenceLifecycleScope() {
+  const actorId = useAuthenticatedUser().id;
+  return <IntegrityEvidenceLifecycle key={actorId} actorId={actorId} />;
+}
+
+function IntegrityEvidenceLifecycle({ actorId }: { actorId: string }) {
   const dueQuery = useQuery({
-    queryKey: ["admin-integrity-evidence-due"],
+    queryKey: ["admin-integrity-evidence-due", actorId],
+    enabled: Boolean(actorId),
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
     queryFn: listDueEvidenceDeletions,
     refetchInterval: 60_000,
   });
   const expiredQuery = useQuery({
-    queryKey: ["admin-integrity-evidence-expired-uploads"],
+    queryKey: ["admin-integrity-evidence-expired-uploads", actorId],
+    enabled: Boolean(actorId),
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
     queryFn: listExpiredEvidenceUploads,
     refetchInterval: 60_000,
   });
-  const due = dueQuery.data ?? [];
-  const expired = expiredQuery.data ?? [];
+  // Zero means verified empty only when both private reads succeeded.
+  // Do not expose cached evidence or destructive actions while refreshing.
+  const recordsVerified = Boolean(actorId) &&
+    dueQuery.isSuccess && expiredQuery.isSuccess &&
+    !dueQuery.isFetching && !expiredQuery.isFetching &&
+    !dueQuery.error && !expiredQuery.error;
+  const due = recordsVerified ? (dueQuery.data ?? []) : [];
+  const expired = recordsVerified ? (expiredQuery.data ?? []) : [];
+  const evidenceError = dueQuery.error || expiredQuery.error;
+  const verifying = !actorId || dueQuery.isPending || expiredQuery.isPending ||
+    dueQuery.isFetching || expiredQuery.isFetching;
 
   const refresh = async () => {
     await Promise.all([dueQuery.refetch(), expiredQuery.refetch()]);
@@ -68,6 +91,8 @@ function IntegrityEvidenceLifecycle() {
           }
         />
 
+        {recordsVerified ? (
+          <>
         <div className="grid gap-3 sm:grid-cols-3">
           <Metric label="Due deletions" value={due.length} tone={due.length ? "blocked" : "ready"} />
           <Metric label="Expired uploads" value={expired.length} tone={expired.length ? "attention" : "ready"} />
@@ -87,7 +112,7 @@ function IntegrityEvidenceLifecycle() {
 
             <div className="mt-4 space-y-3">
               {due.map((item) => <DueEvidenceCard key={item.id} item={item} onChanged={refresh} />)}
-              {!dueQuery.isLoading && !due.length ? <EmptyState text="No evidence has reached a scheduled deletion date." /> : null}
+              {!due.length ? <EmptyState text="No evidence has reached a scheduled deletion date." /> : null}
             </div>
           </AdminCard>
 
@@ -103,10 +128,25 @@ function IntegrityEvidenceLifecycle() {
 
             <div className="mt-4 space-y-3">
               {expired.map((item) => <ExpiredUploadCard key={item.token_id} item={item} onChanged={refresh} />)}
-              {!expiredQuery.isLoading && !expired.length ? <EmptyState text="No expired unfinished evidence uploads." /> : null}
+              {!expired.length ? <EmptyState text="No expired unfinished evidence uploads." /> : null}
             </div>
           </AdminCard>
         </div>
+          </>
+        ) : (
+          <AdminCard className="mt-4">
+            <p role={evidenceError && !verifying ? "alert" : "status"} className="text-sm text-muted-foreground">
+              {evidenceError && !verifying
+                ? "Evidence lifecycle could not be verified. Counts, records and deletion actions are hidden until both private reads succeed."
+                : "Verifying private evidence retention and expired-upload records…"}
+            </p>
+            {evidenceError && !verifying ? (
+              <button type="button" className="admin-action-secondary mt-3" onClick={() => void refresh()}>
+                <RefreshCw className="size-4" />Retry evidence verification
+              </button>
+            ) : null}
+          </AdminCard>
+        )}
 
         <AdminCard className="mt-4">
           <div className="flex gap-3">
