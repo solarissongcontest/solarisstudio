@@ -14,6 +14,7 @@ import {
   parseEditionDirectoryUrlSearch,
 } from "@/lib/v3-directory-url-search";
 import "@/styles/v3-directory-family.css";
+import "@/styles/v3-editions-editorial.css";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
   AppEmptyState,
@@ -344,9 +345,13 @@ function EditionsPage() {
                         {orderedPast.map((card) => <EditionMobileRow key={card.edition.id} card={card} />)}
                       </div>
                     ) : (
-                      <div className="v3-directory-desktop-grid">
-                        {orderedPast.map((card) => <EditionDesktopCard key={card.edition.id} card={card} />)}
-                      </div>
+                      <ol className="v3-directory-desktop-grid v3-editions-timeline" aria-label="Published edition history">
+                        {orderedPast.map((card) => (
+                          <li key={card.edition.id} className="v3-editions-timeline-item">
+                            <EditionDesktopCard card={card} />
+                          </li>
+                        ))}
+                      </ol>
                     )}
                   </section>
                 ) : null}
@@ -494,10 +499,15 @@ function EditionDirectoryRail({
 
 function EditionMobileRow({ card }: { card: EditionCard }) {
   return (
-    <Link to="/editions/$slug" params={{ slug: card.edition.slug }} className="v3-directory-mobile-row">
+    <Link to="/editions/$slug" params={{ slug: card.edition.slug }} className="v3-directory-mobile-row v3-editions-timeline-mobile-row">
+      <span className="v3-editions-timeline-mobile-number" aria-hidden="true">{card.edition.edition_number ?? "·"}</span>
       <span className="min-w-0 flex-1">
         <strong>{editionLabel(card.edition)}</strong>
-        <span>{card.editionShows.length} public show{card.editionShows.length === 1 ? "" : "s"} · <HostLine hosts={card.hosts} /></span>
+        <span>
+          {card.edition.year != null ? `${card.edition.year} · ` : ""}
+          {card.editionShows.length} public show{card.editionShows.length === 1 ? "" : "s"}
+        </span>
+        <span><HostLine hosts={card.hosts} /></span>
       </span>
       <ChevronRight size={19} aria-hidden="true" />
     </Link>
@@ -506,15 +516,24 @@ function EditionMobileRow({ card }: { card: EditionCard }) {
 
 function EditionDesktopCard({ card }: { card: EditionCard }) {
   return (
-    <Link to="/editions/$slug" params={{ slug: card.edition.slug }} className="v3-directory-desktop-card">
-      <span className="v3-directory-eyebrow">SSC {card.edition.edition_number ?? "archive"}</span>
-      <span className="v3-directory-card-top">
-        <strong>{editionLabel(card.edition)}</strong>
-        <ChevronRight size={19} aria-hidden="true" />
+    <Link
+      to="/editions/$slug"
+      params={{ slug: card.edition.slug }}
+      className="v3-directory-desktop-card v3-editions-timeline-link"
+    >
+      <span className="v3-editions-timeline-date">
+        <span className="v3-directory-eyebrow">SSC {card.edition.edition_number ?? "archive"}</span>
+        {card.edition.year != null ? <span>{card.edition.year}</span> : null}
       </span>
-      <span className="v3-directory-card-description">{card.editionShows.length} published show{card.editionShows.length === 1 ? "" : "s"}</span>
-      <span className="v3-directory-card-description">Host: <HostLine hosts={card.hosts} /></span>
-      <span className="v3-directory-card-description">Winner: <WinnerLine winner={card.winner} points={card.winnerResult?.total_points} readState={card.winnerReadState} hasPublishedFinalResults={card.hasPublishedFinalResults} /></span>
+      <span className="v3-editions-timeline-heading">
+        <strong>{editionLabel(card.edition)}</strong>
+        <span>{card.editionShows.length} published show{card.editionShows.length === 1 ? "" : "s"}</span>
+      </span>
+      <span className="v3-editions-timeline-details">
+        <span>Host: <HostLine hosts={card.hosts} /></span>
+        <span>Winner: <WinnerLine winner={card.winner} points={card.winnerResult?.total_points} readState={card.winnerReadState} hasPublishedFinalResults={card.hasPublishedFinalResults} /></span>
+      </span>
+      <ChevronRight className="v3-editions-timeline-chevron" size={19} aria-hidden="true" />
     </Link>
   );
 }
