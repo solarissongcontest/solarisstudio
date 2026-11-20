@@ -604,14 +604,14 @@ function WinnerLine({ winner, points, readState = "ready", hasPublishedFinalResu
   if (readState === "error") return <span className="text-muted-foreground">Winner details temporarily unavailable</span>;
   if (!winner) return <span className="text-muted-foreground">{hasPublishedFinalResults ? "Winner information unavailable" : "Result not public yet"}</span>;
   return (
-    <span className="inline-flex min-w-0 items-center gap-1.5">
+    <span className="v3-editions-winner-identity inline-flex max-w-full min-w-0 flex-wrap items-center gap-1.5">
       <FlagChip
         code={winner.short_code}
         color={winner.accent_color}
         image={winner.flag_image}
         size="sm"
       />
-      <span className="truncate">{winner.name}</span>
+      <span className="v3-editions-winner-name min-w-0 break-words">{winner.name}</span>
       {points != null ? <span className="numeric text-muted-foreground">· {points} pts</span> : null}
     </span>
   );

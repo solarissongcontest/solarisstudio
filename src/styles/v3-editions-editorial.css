@@ -58,8 +58,14 @@ html:not([data-solaris-app]) .v3-editions-directory .v3-editions-mobile-winner >
   flex-wrap: wrap;
   align-items: center;
 }
-html:not([data-solaris-app]) .v3-editions-directory .v3-editions-mobile-winner .truncate {
+.v3-editions-directory .v3-editions-winner-name {
   flex: 1 1 8rem;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.v3-editions-directory .v3-editions-winner-identity {
+  max-width: 100%;
+  flex-wrap: wrap;
 }
 html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-details .truncate,
 html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-mobile-row .truncate {
