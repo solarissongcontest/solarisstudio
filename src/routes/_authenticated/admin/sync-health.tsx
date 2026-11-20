@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { AdminPage } from "@/components/admin/AdminShell";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import {
   AdminCard,
   AdminCardHeader,
@@ -39,12 +40,20 @@ export const Route = createFileRoute("/_authenticated/admin/sync-health")({
 });
 
 function SyncHealthPage() {
+  const actorId = useAuthenticatedUser().id;
   const getHealth = useServerFn(getUnifiedSyncHealth);
-  const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ["unified-sync-health"],
+  const { data: snapshot, isLoading, error, refetch, isFetching, isSuccess } = useQuery({
+    queryKey: ["unified-sync-health", actorId],
     queryFn: () => getHealth(),
+    enabled: Boolean(actorId),
+    // Cross-service status is private and time-sensitive. Reverify on remount,
+    // discard inactive actor caches, and do not expose an old success on refresh.
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
     refetchOnWindowFocus: false,
   });
+  const data = actorId && isSuccess && !isFetching && !error ? snapshot : undefined;
 
   const hasAttention =
     !!data &&
@@ -73,7 +82,7 @@ function SyncHealthPage() {
         }
       />
 
-      {isLoading ? (
+      {isLoading || isFetching || !actorId ? (
         <AdminCard>
           <p className="py-8 text-center text-sm text-muted-foreground">
             Checking the connected parts of Solaris Studio…
