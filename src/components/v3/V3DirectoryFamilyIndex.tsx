@@ -1,7 +1,7 @@
 import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { Link } from "@tanstack/react-router";
 import { BarChart3, CalendarDays, Check, ChevronRight, History, Search, SlidersHorizontal, X } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { AppEmptyState, AppGroupedList, AppScreen } from "@/components/app/AppPrimitives";
@@ -9,7 +9,7 @@ import { useSolarisApp } from "@/components/app/AppRuntime";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useV3DirectoryPresentation, type V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
-import { directoryCountLabel } from "@/lib/v3-directory-count";
+import { directoryCountLabel, resolveDirectoryScope } from "@/lib/v3-directory-count";
 import "@/styles/v3-directory-family.css";
 
 export type V3DirectoryItem = {
@@ -67,6 +67,11 @@ export function V3DirectoryFamilyIndex({
   const presentation = useV3DirectoryPresentation();
   const [search, setSearch] = useState("");
   const [area, setArea] = useState("all");
+  const effectiveArea = resolveDirectoryScope(area, groups);
+  // Revoked/unpublished category choices must not silently come back later.
+  useEffect(() => {
+    if (effectiveArea !== area) setArea("all");
+  }, [area, effectiveArea]);
 
   const searched = useMemo(() => {
     const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -81,7 +86,7 @@ export function V3DirectoryFamilyIndex({
   }, [groups, search]);
   const total = groups.reduce((sum, group) => sum + group.items.length, 0);
   const searchMatches = searched.reduce((sum, group) => sum + group.items.length, 0);
-  const scoped = searched.filter((group) => area === "all" || area === group.id);
+  const scoped = searched.filter((group) => effectiveArea === "all" || effectiveArea === group.id);
   const visible = scoped.reduce((sum, group) => sum + group.items.length, 0);
   const options = [
     { id: "all", label: scopeLabel, count: searchMatches },
@@ -89,7 +94,7 @@ export function V3DirectoryFamilyIndex({
       id: group.id, label: group.label, count: group.items.length,
     })),
   ];
-  const selected = options.find((entry) => entry.id === area) ?? options[0];
+  const selected = options.find((entry) => entry.id === effectiveArea) ?? options[0];
   const resultCount = directoryCountLabel({ available: total, matches: visible, rendered: visible, noun: itemNoun });
   const reset = () => { setSearch(""); setArea("all"); };
 
@@ -126,8 +131,8 @@ export function V3DirectoryFamilyIndex({
         <div className="v3-directory-sheet-options">
           {options.map((option) => (
             <SheetClose key={option.id} asChild>
-              <button type="button" aria-pressed={area === option.id} onClick={() => setArea(option.id)}>
-                <span className="v3-directory-option-label">{area === option.id ? <Check size={17} aria-hidden="true" /> : null}{option.label}</span>
+              <button type="button" aria-pressed={effectiveArea === option.id} onClick={() => setArea(option.id)}>
+                <span className="v3-directory-option-label">{effectiveArea === option.id ? <Check size={17} aria-hidden="true" /> : null}{option.label}</span>
                 <span>{option.count}</span>
               </button>
             </SheetClose>
@@ -138,7 +143,7 @@ export function V3DirectoryFamilyIndex({
   ) : presentation === "mobile-web" ? (
     <label className="v3-directory-area-select">
       <span className="sr-only">{`Browse ${itemNoun} by category`}</span>
-      <select aria-label={`Browse ${itemNoun} by category`} value={area}
+      <select aria-label={`Browse ${itemNoun} by category`} value={effectiveArea}
         onChange={(event) => setArea(event.target.value)}>
         {options.map((option) => <option key={option.id} value={option.id}>{option.label} ({option.count})</option>)}
       </select>
@@ -196,7 +201,7 @@ export function V3DirectoryFamilyIndex({
                 <aside className="v3-directory-desktop-rail" aria-label={`Filter ${itemNoun} by category`}>
                   <h2>Browse by category</h2>
                   {options.map((option) => (
-                    <button key={option.id} type="button" aria-pressed={area === option.id}
+                    <button key={option.id} type="button" aria-pressed={effectiveArea === option.id}
                       onClick={() => setArea(option.id)}>
                       <span>{option.label}</span><span>{option.count}</span>
                     </button>
