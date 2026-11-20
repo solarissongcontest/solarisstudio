@@ -164,7 +164,7 @@ export function WorldLanding() {
           <span><strong>Countries</strong><small>Durable identities and international ties</small></span>
           <ArrowRight className="size-4" aria-hidden="true" />
         </Link>
-        <Link to="/world/organizations">
+        <Link to="/world/organizations" search={{ q: "", status: "all", page: 1 }}>
           <Landmark className="size-5" aria-hidden="true" />
           <span><strong>Organizations</strong><small>GUARD, UNITY and recognized institutions</small></span>
           <ArrowRight className="size-4" aria-hidden="true" />
@@ -176,7 +176,7 @@ export function WorldLanding() {
             <Kicker>Institutions</Kicker>
             <h2 id="world-institutions-title" className="mt-2 text-2xl font-semibold tracking-tight">International organizations</h2>
           </div>
-          <Link to="/world/organizations" className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary">
+          <Link to="/world/organizations" search={{ q: "", status: "all", page: 1 }} className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary">
             Browse all <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
         </div>
@@ -409,7 +409,7 @@ export function WorldOrganizationPage({
   }, [verifiedProjection]);
   return (
     <PublicFrame>
-      <Link to="/world/organizations" className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+      <Link to="/world/organizations" search={{ q: "", status: "all", page: 1 }} className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" aria-hidden="true" /> All organizations
       </Link>
       {!(projection.isError || projection.isRefetchError) &&
@@ -421,7 +421,7 @@ export function WorldOrganizationPage({
         <div className="mt-6 rounded-2xl border border-border px-5 py-9">
           <h1 className="text-2xl font-semibold">Organization not available</h1>
           <p className="mt-2 text-sm text-muted-foreground">This organization does not have a published profile, or this link is no longer valid.</p>
-          <Link to="/world/organizations" className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground">Browse organizations</Link>
+          <Link to="/world/organizations" search={{ q: "", status: "all", page: 1 }} className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground">Browse organizations</Link>
         </div>
       ) : null}
       {verifiedProjection ? (
