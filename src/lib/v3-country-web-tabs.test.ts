@@ -9,6 +9,7 @@ import {
 
 const route = readFileSync("src/routes/countries/$code.tsx", "utf8");
 const styles = readFileSync("src/styles/v3-country-web-sections.css", "utf8");
+const hero = readFileSync("src/components/country/CountryWebCinematicHero.tsx", "utf8");
 
 describe("ordinary-web country section permalinks", () => {
   it("maps public fragments to the actual supported tabs", () => {
@@ -27,6 +28,14 @@ describe("ordinary-web country section permalinks", () => {
     expect(sectionFromCountryHash("#")).toBe("overview");
     expect(sectionFromCountryHash(null)).toBe("overview");
     expect(sectionFromCountryHash("%3Cscript%3E")).toBe("overview");
+  });
+
+  it("returns from a selected section to the real Overview hero and supports #overview deep links", () => {
+    expect(hero).toContain('id="country-overview"');
+    expect(route).toContain("previousWebHashRef.current = routeHash");
+    expect(route).toContain("if (!routeHash && !previousHash) return");
+    expect(route).toContain('section === "overview" ? "country-overview" : section');
+    expect(route).toContain('document.getElementById(section === "overview"');
   });
 
   it("shares browser URLs through router navigation and keeps installed-app tabs separate", () => {
