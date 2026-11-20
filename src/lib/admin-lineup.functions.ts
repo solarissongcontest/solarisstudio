@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { requireSolarisOrganizerServer } from "@/integrations/supabase/organizer.server";
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
+import { createSolarisAuthenticatedClientServer } from "@/integrations/supabase/organizer.server";
 
 type AddCountriesInput = {
   editionId: string;
@@ -48,9 +49,7 @@ export const getSolarisEditionSyncTargets = createServerFn({ method: "POST" })
     return { editionNumber };
   })
   .handler(async ({ data }): Promise<SolarisSyncTargets> => {
-    await requireSolarisOrganizerServer();
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const db = supabaseAdmin as any;
+    const db = createSolarisAuthenticatedClientServer() as any;
 
     const editionResult = await db
       .from("editions")
@@ -59,6 +58,8 @@ export const getSolarisEditionSyncTargets = createServerFn({ method: "POST" })
       .maybeSingle();
     if (editionResult.error) throw new Error(editionResult.error.message);
     if (!editionResult.data) throw new Error(`SSC${data.editionNumber} does not exist in Solaris Studio.`);
+
+    await requireSolarisCapabilityServer("entry.edit", editionResult.data.id);
 
     const showsResult = await db
       .from("shows")
@@ -84,7 +85,7 @@ export const addCountriesToShow = createServerFn({ method: "POST" })
       : [],
   }))
   .handler(async ({ data }): Promise<AddCountriesToShowResult> => {
-    await requireSolarisOrganizerServer();
+    await requireSolarisCapabilityServer("entry.edit", data.editionId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
 
