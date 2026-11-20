@@ -12,12 +12,21 @@ const HIDDEN_ROUTES = [
   "/confirmations/next-in-line", "/televoting/results",
 ] as const;
 
-test("only the approved public and participation routes render", async ({ page }) => {
+test("only the approved public and participation routes render", async ({ context }) => {
+  // Each destination is an independent direct-load contract. Reusing one
+  // WebKit document for seven full navigations can leave its old service
+  // worker / page process alive and produce browser-internal navigation
+  // errors unrelated to these routes. Keep every render and HTTP assertion.
   for (const route of OPEN_ROUTES) {
-    const response = await page.goto(route, { waitUntil: "domcontentloaded" });
-    expect(response?.status(), route).toBe(200);
-    await expect(page.locator('[data-solaris-maintenance="true"]')).toHaveCount(0);
-    await expect(page.locator("body")).not.toContainText("This page is not available yet");
+    const routePage = await context.newPage();
+    try {
+      const response = await routePage.goto(route, { waitUntil: "domcontentloaded" });
+      expect(response?.status(), route).toBe(200);
+      await expect(routePage.locator('[data-solaris-maintenance="true"]')).toHaveCount(0);
+      await expect(routePage.locator("body")).not.toContainText("This page is not available yet");
+    } finally {
+      await routePage.close();
+    }
   }
 });
 
