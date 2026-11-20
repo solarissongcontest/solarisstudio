@@ -1,3 +1,4 @@
+import '@/styles/v3-organizer-control-room-editorial.css';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
@@ -351,11 +352,9 @@ function ControlRoomV2() {
 
   return (
     <AdminPage>
-      <div className="mx-auto max-w-7xl">
+      <div className="admin-control-room-editorial mx-auto max-w-7xl" data-control-room-design="operational">
         <AdminPageHeader
-          eyebrow="Solaris Studio 2"
           title="Live Control Room"
-          description="Run the current contest phase, incidents and live operations. Solaris checks the edition setup before forward lifecycle changes."
         />
 
         {!editionId ? (
@@ -382,15 +381,15 @@ function ControlRoomV2() {
             />
           </AdminCard>
         ) : (
-          <div className="space-y-4">
+          <div className="admin-control-room-workspace space-y-4">
             {commandError ? (
-              <div className="rounded-xl border border-red-300/25 bg-red-300/10 px-4 py-3 text-sm text-red-100">
+              <div role="alert" className="rounded-xl border border-red-300/25 bg-red-300/10 px-4 py-3 text-sm text-red-100">
                 {errorMessage(commandError, 'The Control Room command failed.')}
               </div>
             ) : null}
 
             {snapshot.incidentSummary.crisisMode ? (
-              <div className="flex items-start gap-3 rounded-2xl border border-red-300/30 bg-red-300/10 p-4 text-red-50">
+              <div role="alert" className="admin-control-crisis flex items-start gap-3 rounded-2xl border border-red-300/30 bg-red-300/10 p-4 text-red-50">
                 <ShieldAlert className="mt-0.5 size-5 shrink-0" />
                 <div>
                   <p className="font-semibold">Crisis mode required</p>
@@ -408,7 +407,7 @@ function ControlRoomV2() {
               readinessError={readinessDataQuery.error ?? showsQuery.error}
             />
 
-            <section className="grid gap-4 md:grid-cols-3">
+            <section className="admin-control-state-strip grid gap-4 md:grid-cols-3" aria-label="Edition state and incident summary">
               <AdminCard strong>
                 <AdminCardHeader eyebrow="Edition state" title={humanize(snapshot.runtime.runtime.edition)} />
                 <div className="mt-3 flex items-center gap-2">
@@ -439,12 +438,12 @@ function ControlRoomV2() {
               </AdminCard>
             </section>
 
-            <section className="grid gap-4 xl:grid-cols-[1.15fr_.85fr]">
+            <section className="admin-control-commands grid gap-4 xl:grid-cols-[1.15fr_.85fr]" aria-label="Edition transitions and subsystems">
               <AdminCard>
                 <AdminCardHeader
                   eyebrow="Edition command"
                   title={transitions.length ? 'Available state transitions' : 'No further transitions'}
-                  description="Elevated transitions require a reason. Critical rollbacks require a short-lived approval from a different authorized operator. Final approval and apply steps are reviewed against the displayed runtime snapshot."
+                  description="Elevated moves need a reason. Critical rollbacks require another authorized approver."
                 />
 
                 {approvals.length ? (
@@ -504,7 +503,7 @@ function ControlRoomV2() {
                       />
                     </label>
 
-                    <div className="space-y-2">
+                    <div className="admin-control-transition-list space-y-2">
                       {transitions.map((transition) => {
                         const missingReason = transition.risk !== 'normal' && !reason.trim();
                         const matchingApprovals = approvals.filter(
@@ -533,7 +532,7 @@ function ControlRoomV2() {
                         return (
                           <div
                             key={transition.to}
-                            className="flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 sm:flex-row sm:items-center sm:justify-between"
+                            className="admin-control-transition flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 sm:flex-row sm:items-center sm:justify-between"
                           >
                             <div>
                               <div className="flex flex-wrap items-center gap-2">
@@ -615,7 +614,7 @@ function ControlRoomV2() {
 
               <AdminCard>
                 <AdminCardHeader eyebrow="Subsystems" title="Lifecycle-derived state" />
-                <div className="space-y-2">
+                <div className="admin-control-subsystems space-y-2">
                   {Object.entries(snapshot.runtime.runtime.subsystems).map(([name, state]) => (
                     <div
                       key={name}
@@ -631,7 +630,7 @@ function ControlRoomV2() {
               </AdminCard>
             </section>
 
-            <section className="grid gap-4 xl:grid-cols-[.9fr_1.1fr]">
+            <section className="admin-control-incidents grid gap-4 xl:grid-cols-[.9fr_1.1fr]" aria-label="Incident command and operational history">
               <AdminCard>
                 <AdminCardHeader
                   eyebrow="Incident command"
