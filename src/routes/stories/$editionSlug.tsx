@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowLeft, BookOpen, CalendarDays } from 'lucide-react';
 
 import { AppShell } from '@/components/AppShell';
@@ -7,6 +7,7 @@ import { PublicStorySpoilerDisclosure } from '@/components/public/PublicStorySpo
 import { PublicShareStoryButton } from '@/components/public/PublicShareStoryButton';
 import { useSolarisApp } from '@/components/app/AppRuntime';
 import { useAppExperiencePreferences } from '@/lib/app-experience';
+import { usePublicLaunchAvailability } from '@/lib/public-launch-context';
 import { V3StoryDetailGate, useV3StoryFallbackSpoilerProtection } from '@/components/v3/V3StoriesGates';
 import { loadPublicStoryline } from '@/lib/studio2-storytelling';
 import { formatSolarisStoryDate } from '@/lib/public-story-date';
@@ -76,6 +77,7 @@ function EditionStoryPage() {
 
 function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
   const { preferences } = useAppExperiencePreferences();
+  const { allowsReleased } = usePublicLaunchAvailability();
   const installedFallbackProtection = useV3StoryFallbackSpoilerProtection();
   const spoilerFree = installedFallbackProtection ?? preferences.spoilerFree;
   const storyQuery = useQuery({
@@ -118,6 +120,15 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
               {story.introduction ? <p className="mt-5 text-base leading-relaxed text-muted-foreground">{story.introduction}</p> : null}
               <p className="mt-4 text-xs text-muted-foreground">Published {formatSolarisStoryDate(story.publishedAt)} · {story.items.length} reviewed moments</p>
               <PublicShareStoryButton title={story.title} />
+              {allowsReleased(`/editions/${story.editionSlug}`) ? (
+                <Link
+                  to="/editions/$slug"
+                  params={{ slug: story.editionSlug }}
+                  className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                >
+                  Explore {story.editionName}
+                </Link>
+              ) : null}
             </header>
 
             <section className="v3-story-web-timeline relative mt-12" aria-label={`${story.editionName} timeline`}>
