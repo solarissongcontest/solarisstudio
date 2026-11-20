@@ -10,7 +10,7 @@ export const Route = createFileRoute("/integrity/report/category")({
   head: () => ({
     meta: [
       { title: "Report a concern — Trust & Integrity" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: CategoryPage,
