@@ -259,6 +259,22 @@ function LegacyEditionPage() {
       })
     : [];
 
+  const editionNavigation = (
+        <EditionNavigation
+          liquidGlass={liquidGlass}
+          editorialWeb={!isAppMode}
+          label={`Explore ${editionLabel(edition)}`}
+          items={[
+            { href: "#edition-overview", label: "Overview" },
+            { href: "#edition-entries", label: "Entries", available: Boolean(publicEntries.length) },
+            { href: "#edition-results", label: "Results", available: Boolean(grandFinalPublication?.results) },
+            { href: "#edition-stories", label: "Stories", available: Boolean(editionStories.length) },
+            { href: "#edition-shows", label: "Shows", available: Boolean(publicShows.length) },
+            { href: "#edition-countries", label: "Countries", available: Boolean(participatingCountries.length) },
+          ]}
+        />
+  );
+
   return (
     <AppShell>
       <div className="edition-public-page edition-editorial-refresh">
@@ -300,6 +316,8 @@ function LegacyEditionPage() {
               ) : null}
         />
 
+        {!isAppMode && editionNavigation}
+
         {!(winner && (editionState.phase === "post_edition" || editionState.phase === "results_published")) && <PublicCurrentStatus
           icon={editionStatusIcon}
           eyebrow="Edition status"
@@ -316,6 +334,12 @@ function LegacyEditionPage() {
                 {editionState.primaryAction.label} →
               </Link>
             ) : null
+          }
+        />}
+
+        {isAppMode && editionNavigation}
+
+ ) : null
           }
         />}
 
