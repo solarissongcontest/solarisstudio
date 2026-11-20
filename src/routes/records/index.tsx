@@ -15,6 +15,7 @@ import { useSolarisApp } from "@/components/app/AppRuntime";
 import { usePublicPresentationMode } from "@/lib/use-public-presentation-mode";
 import { V3RecordsGate } from "@/components/v3/V3RecordsGate";
 import { buildCanonicalFanRecordsWithCoverage } from "@/lib/canonical-fan-records";
+import { filterPublishedFanRecords } from "@/lib/fan-records-search";
 import {
   useAllJuryVotes,
   useAllParticipants,
@@ -158,24 +159,8 @@ function LegacyRecordsPage() {
     [countries, editions, shows, participants, results, jury],
   );
 
-  const normalizedRecordSearch = isAppMode ? "" : recordSearch.trim().toLocaleLowerCase();
-  const filtered = records.filter((record) => {
-    if (tab !== "all" && record.category !== tab) return false;
-    if (!normalizedRecordSearch) return true;
-    const searchText = [
-      record.label,
-      record.value,
-      record.explanation,
-      ...record.holders.flatMap((holder) => [
-        holder.countryName,
-        holder.shortCode,
-        holder.artist,
-        holder.song,
-        holder.editionLabel,
-      ]),
-    ].filter(Boolean).join(" ").toLocaleLowerCase();
-    return searchText.includes(normalizedRecordSearch);
-  });
+  const normalizedRecordSearch = isAppMode ? "" : recordSearch.trim();
+  const filtered = filterPublishedFanRecords(records, tab, normalizedRecordSearch);
   const coverageDescription = (
     <>
       These records use {archivedFinalEditions} edition{archivedFinalEditions === 1 ? "" : "s"} with archived
