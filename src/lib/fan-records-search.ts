@@ -1,4 +1,5 @@
 import type { FanRecord, FanRecordCategory } from "./fan-records";
+import { matchesPublicSearch } from "./public-search";
 
 /**
  * Search only the already-built published record projection. Never read
@@ -9,11 +10,11 @@ export function filterPublishedFanRecords<T extends FanRecord>(
   category: FanRecordCategory | "all",
   search: string,
 ): T[] {
-  const normalized = search.trim().toLocaleLowerCase();
   return records.filter((record) => {
     if (category !== "all" && record.category !== category) return false;
-    if (!normalized) return true;
-    const fields = [
+
+    return matchesPublicSearch(
+      search,
       record.label,
       record.value,
       record.explanation,
@@ -24,7 +25,6 @@ export function filterPublishedFanRecords<T extends FanRecord>(
         holder.song,
         holder.editionLabel,
       ]),
-    ];
-    return fields.filter((part): part is string => typeof part === "string").join(" ").toLocaleLowerCase().includes(normalized);
+    );
   });
 }
