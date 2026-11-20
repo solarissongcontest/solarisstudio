@@ -6,7 +6,7 @@ const reportPath =
   process.argv[2] ??
   process.env.CLIENT_BUNDLE_BUDGET_REPORT ??
   "client-bundle-budget-report.json";
-const CANONICAL_THRESHOLD_BYTES = 1_800 * 1024;
+const CANONICAL_THRESHOLD_BYTES = 1_200 * 1024;
 
 function fail(message) {
   console.error(`Invalid client bundle budget report: ${message}`);
