@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 
 import { AdminDataView, type AdminDataColumn } from "@/components/admin/AdminDataView";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { AdminConfirmSheet, AdminPageHeader } from "@/components/admin/AdminUI";
 import { DangerZone } from "@/components/admin/AdminWorkspacePrimitives";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,7 @@ export const Route = createFileRoute("/televoting/admin/combined")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: CombinedResultsPage,
+  component: CombinedResultsAccountBoundary,
 });
 
 type SourceDraft = {
@@ -89,7 +90,14 @@ function emptySource(): SourceDraft {
   };
 }
 
+function CombinedResultsAccountBoundary() {
+  const actorId = useAuthenticatedUser().id;
+  // Drop all prepared operations on a signed-in account transition.
+  return <CombinedResultsPage key={actorId ?? "signed-out"} />;
+}
+
 function CombinedResultsPage() {
+  const actorId = useAuthenticatedUser().id;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const getAdmin = useServerFn(getMergedTelevotingAdmin);
@@ -114,18 +122,29 @@ function CombinedResultsPage() {
   const [createExponent, setCreateExponent] = useState("1.33");
 
   const { data: admin, isLoading: adminLoading } = useQuery({
-    queryKey: ["merged-televoting-admin"],
+    queryKey: ["merged-televoting-admin", actorId],
     queryFn: () => getAdmin(),
+    enabled: Boolean(actorId),
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   useEffect(() => {
-    if (!adminLoading && !admin) void navigate({ to: "/televoting/admin/sign-in" });
-  }, [admin, adminLoading, navigate]);
+    if (actorId && !adminLoading && !admin) void navigate({ to: "/televoting/admin/sign-in" });
+  }, [actorId, admin, adminLoading, navigate]);
 
-  const { data: aggregations = [], isLoading: listLoading } = useQuery({
-    queryKey: ["merged-combined-aggregations"],
+  const { data: aggregations = [], isLoading: listLoading, error: listError, refetch: retryList } = useQuery({
+    queryKey: ["merged-combined-aggregations", actorId],
     queryFn: () => listFn(),
-    enabled: Boolean(admin),
+    enabled: Boolean(actorId && admin),
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   useEffect(() => {
@@ -133,9 +152,14 @@ function CombinedResultsPage() {
   }, [aggregations, selectedId]);
 
   const { data: editionRounds = [] } = useQuery({
-    queryKey: ["merged-televoting-rounds"],
+    queryKey: ["merged-televoting-rounds", actorId],
     queryFn: () => roundsFn(),
-    enabled: Boolean(admin),
+    enabled: Boolean(actorId && admin),
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const allRounds = useMemo(
@@ -144,16 +168,21 @@ function CombinedResultsPage() {
   );
 
   const { data: detail, isLoading: detailLoading, error: detailError } = useQuery({
-    queryKey: ["merged-combined-detail", selectedId],
+    queryKey: ["merged-combined-detail", actorId, selectedId],
     queryFn: () => detailFn({ data: { id: selectedId } }),
-    enabled: Boolean(admin && selectedId),
+    enabled: Boolean(actorId && admin && selectedId),
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const refresh = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["merged-combined-aggregations"] }),
-      queryClient.invalidateQueries({ queryKey: ["merged-combined-detail", selectedId] }),
-      queryClient.invalidateQueries({ queryKey: ["merged-televoting-audit"] }),
+      queryClient.invalidateQueries({ queryKey: ["merged-combined-aggregations", actorId] }),
+      queryClient.invalidateQueries({ queryKey: ["merged-combined-detail", actorId, selectedId] }),
+      queryClient.invalidateQueries({ queryKey: ["merged-televoting-audit", actorId] }),
     ]);
   };
 
@@ -175,10 +204,23 @@ function CombinedResultsPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-  if (adminLoading || listLoading) {
+  if (!actorId || adminLoading || listLoading) {
     return <section className="glass p-8 text-center text-sm text-muted-foreground">Loading Combined Results…</section>;
   }
   if (!admin) return null;
+  if (listError) {
+    return (
+      <section className="glass space-y-3 p-6" role="alert">
+        <p className="text-sm font-semibold">Combined Results unavailable</p>
+        <p className="text-sm text-muted-foreground">
+          Private result evidence could not be verified. No calculation or publication action is available until it reloads.
+        </p>
+        <button type="button" className="admin-action-secondary min-h-11" onClick={() => void retryList()}>
+          Retry Combined Results
+        </button>
+      </section>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-5 py-2">
