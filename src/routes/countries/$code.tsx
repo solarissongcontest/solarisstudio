@@ -13,6 +13,7 @@ import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { CountryDesignV2Hero } from "@/components/country/CountryDesignV2Hero";
+import { CountryWebCinematicHero } from "@/components/country/CountryWebCinematicHero";
 import { CountryDesignV2Styles } from "@/components/country/CountryDesignV2Styles";
 import { CountryIdentityHero } from "@/components/country/CountryIdentityHero";
 import { V3DelegationRouteGate } from "@/components/v3/V3DelegationRouteGate";
@@ -508,7 +509,16 @@ function CountryProfilePage() {
         style={publishedDesign ? countryDesignCssVariables(publishedDesign) : undefined}
       >
         {publishedDesign && countryDesignFontCss(publishedDesign) ? <style>{countryDesignFontCss(publishedDesign)}</style> : null}
-        {publishedDesign ? (
+        {!isAppMode ? (
+          <CountryWebCinematicHero
+            code={country.short_code}
+            name={country.name}
+            nativeName={country.native_name}
+            region={country.region}
+            accentColor={country.accent_color}
+            publishedDesign={publishedDesign}
+          />
+        ) : publishedDesign ? (
           <CountryDesignV2Hero
             design={publishedDesign}
             code={identityModel.code}
