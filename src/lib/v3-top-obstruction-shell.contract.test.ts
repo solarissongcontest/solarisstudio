@@ -11,7 +11,7 @@ describe("Solaris Studio V3 shared top obstruction", () => {
 
   it("owns one safe-area-aware top-context obstruction authority", () => {
     expect(responsive).toContain(
-      "--v3-top-context-obstruction: calc(3.25rem + env(safe-area-inset-top))",
+      "--v3-top-context-obstruction: calc(var(--v3-top-system-safe) + var(--v3-top-safe-comfort) + var(--v3-top-chrome-content-height))",
     );
     expect(responsive).toContain(
       "--v3-shell-top-obstruction: calc(var(--v3-top-context-obstruction) + 0.5rem)",
@@ -24,7 +24,7 @@ describe("Solaris Studio V3 shared top obstruction", () => {
     expect(foundations).toContain("width: 2.75rem");
     expect(foundations).toContain("height: 2.75rem");
     expect(responsive).toContain("align-items: center");
-    expect(responsive).toContain("calc(env(safe-area-inset-top) + 0.25rem)");
+    expect(responsive).toContain("calc(var(--v3-top-system-safe) + var(--v3-top-safe-comfort))");
   });
 
   it("keeps anchors and keyboard-focus targets below active sticky chrome", () => {
