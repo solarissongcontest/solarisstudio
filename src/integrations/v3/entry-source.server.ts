@@ -1,4 +1,5 @@
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
+import { resolveV3EntryHistoryTarget } from "@/lib/v3-entry-history-target";
 import {
   createSolarisAuthenticatedClientServer,
   getSolarisAccessTokenServer,
@@ -351,17 +352,7 @@ export async function loadCurrentV3EntryBundle(): Promise<V3EntryServerBundle> {
   const lifecycle = deriveV3EntryLifecycle(confirmation);
 
   let versionHistory: V3EntryVersionEvidence[] = [];
-  let historyTarget: { targetType: "internal" | "national_final"; entryId: string } | null = null;
-  if (internalEntry?.id) {
-    historyTarget = { targetType: "internal", entryId: internalEntry.id };
-  } else if (nationalFinalEntries.length) {
-    const affectedId = lifecycle.affectedCandidateIds.find((id) =>
-      nationalFinalEntries.some((entry) => entry.id === id),
-    );
-    const winnerId = stringOrNull(nationalFinalRaw?.winning_entry_id);
-    const entryId = affectedId ?? winnerId ?? nationalFinalEntries[0]?.id ?? null;
-    if (entryId) historyTarget = { targetType: "national_final", entryId };
-  }
+  const historyTarget = resolveV3EntryHistoryTarget(confirmation, lifecycle);
 
   if (historyTarget) {
     const historyResult = await client.rpc("v3_confirmation_entry_versions", {
@@ -394,6 +385,9 @@ export async function loadCurrentV3EntryBundle(): Promise<V3EntryServerBundle> {
       actions: workspace.model.actions.map((action) => ({ ...action })),
     },
     versionHistory,
+    versionHistorySubject: historyTarget
+      ? { entryId: historyTarget.entryId, label: historyTarget.label, source: historyTarget.targetType }
+      : null,
   };
 
   return {
