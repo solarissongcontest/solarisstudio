@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { AlertTriangle, CheckCircle2, RadioTower, ShieldAlert } from 'lucide-react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
+import { useSolarisApp } from '@/components/app/AppRuntime';
 import { ControlRoomImmediateAttention } from '@/components/admin/ControlRoomImmediateAttention';
 import { AdminPage } from '@/components/admin/AdminShell';
 import {
@@ -74,6 +75,7 @@ export const Route = createFileRoute('/_authenticated/admin/control-room')({
 
 function ControlRoomV2() {
   const { editionId } = useAdminContext();
+  const { isAppMode } = useSolarisApp();
   const queryClient = useQueryClient();
   const { data: editions = [] } = useEditions();
   const showsQuery = useShows(editionId || undefined);
@@ -354,7 +356,11 @@ function ControlRoomV2() {
     <AdminPage>
       <div className="admin-control-room-editorial mx-auto max-w-7xl" data-control-room-design="operational">
         <AdminPageHeader
+          eyebrow={isAppMode ? "Solaris Studio 2" : undefined}
           title="Live Control Room"
+          description={isAppMode
+            ? "Run the current contest phase, incidents and live operations. Solaris checks the edition setup before forward lifecycle changes."
+            : undefined}
         />
 
         {!editionId ? (
