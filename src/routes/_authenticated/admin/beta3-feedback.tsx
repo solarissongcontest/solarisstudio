@@ -66,7 +66,7 @@ function Beta3FeedbackDashboard() {
       const [result, firstClicks] = await Promise.all([
         supabase
           .from("beta3_test_submissions" as never)
-          .select("*")
+          .select("id,tester_name,device,browser,familiarity,answers,bug_reports,created_at")
           .order("created_at", { ascending: false }),
         loadBeta3FirstClickEvidence(90),
       ]);
