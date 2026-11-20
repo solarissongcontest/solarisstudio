@@ -144,3 +144,29 @@ test('script has no duplicate or truncated execution bodies', () => {
   assert.match(source, /permission-differences\.private\.json/);
   assert.doesNotMatch(source, /difference is dated drift/);
 });
+
+test('expected metadata must match an independently approved target-bound SHA-256', () => {
+  assert.match(source, /EXPECTED_PERMISSIONS_SHA256.*SOLARIS_EXPECTED_PERMISSIONS_SHA256/);
+  assert.match(source, /sha256sum "\$EXPECTED_PERMISSIONS"/);
+  assert.match(source, /Expected catalog does not match/);
+});
+
+test('dated sanitized observation binds the reviewed SQL, not a recovery certificate', async () => {
+  const { createHash } = await import('node:crypto');
+  const summary = JSON.parse(readFileSync('docs/v3/recovery-candidates/evidence/permission-capture-summary-2026-11-20.json','utf8'));
+  assert.equal(summary.project_ref,'dkxmnvekiopyesuzggeu');
+  assert.equal(summary.read_only,true);
+  assert.equal(summary.server_version_num,170011);
+  assert.equal(summary.scope_counts.policies,265);
+  assert.equal(summary.scope_counts.roles,32);
+  assert.equal(summary.scope_counts.memberships,25);
+  assert.equal(summary.uncaptured_setting_count,0);
+  assert.equal(summary.historical_hosted_raw_digests_reproduced,5);
+  assert.equal(summary.original_four_restore_mismatches_resolved,false);
+  assert.equal(summary.certifies_s16_or_platform_recovery,false);
+  assert.equal(summary.production_mutation_performed,false);
+  assert.equal(Object.keys(summary.critical_effective_truncate_roles).length,5);
+  assert.ok(Object.values(summary.critical_effective_truncate_roles).every(x=>x.length===0));
+  assert.match(summary.private_snapshot_sha256,/^[a-f0-9]{64}$/);
+  assert.equal(createHash('sha256').update(readFileSync('scripts/ops/solaris-permission-snapshot.sql')).digest('hex'),summary.query_sha256);
+});

@@ -42,6 +42,14 @@ configs AS (
 sections AS (SELECT
  (SELECT coalesce(jsonb_agg(jsonb_build_object('identity',format('%I.%I',nspname,relname),'kind',relkind,
  'owner',pg_get_userbyid(relowner),'rls',relrowsecurity,'force_rls',relforcerowsecurity,
+ 'view_security_options',ARRAY(SELECT v FROM unnest(coalesce(reloptions,ARRAY[]::text[])) v
+   WHERE v LIKE 'security_invoker=%' OR v LIKE 'security_barrier=%' ORDER BY v),
+ 'effective_api_grants',(SELECT jsonb_object_agg(r.rolname,ARRAY(
+   SELECT p FROM unnest(CASE WHEN c.relkind='S' THEN ARRAY['SELECT','UPDATE','USAGE']
+   ELSE ARRAY['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER','MAINTAIN'] END) p
+   WHERE CASE WHEN c.relkind='S' THEN has_sequence_privilege(r.oid,c.oid,p)
+   ELSE has_table_privilege(r.oid,c.oid,p) END ORDER BY p))
+   FROM pg_roles r WHERE r.rolname IN ('anon','authenticated','service_role')),
  'raw_acl',relacl::text,'grants',(SELECT grants FROM acls WHERE kind='relation' AND identity=format('%I.%I',c.nspname,c.relname)))
  ORDER BY nspname,relname),'[]'::jsonb) FROM rels c) AS relations,
  (SELECT coalesce(jsonb_agg(jsonb_build_object('identity',quote_ident(nspname),'owner',pg_get_userbyid(nspowner),

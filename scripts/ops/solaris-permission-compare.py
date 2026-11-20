@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 from collections import Counter
 
@@ -11,6 +12,7 @@ SCOPE = ['auth', 'private', 'public', 'storage', 'televoting']
 SAFE_CONFIG = {'search_path','statement_timeout','lock_timeout','idle_in_transaction_session_timeout',
                'row_security','default_transaction_read_only','default_transaction_isolation','session_replication_role',
                'app.settings.jwt_exp','pgrst.db_max_rows','pgrst.db_pre_request','pgrst.db_schemas','session_preload_libraries','log_statement'}
+API_ROLES = {'anon','authenticated','service_role'}
 SECTIONS = ('relations', 'schemas', 'columns', 'policies', 'default_acls', 'roles', 'memberships', 'role_config')
 
 def canonical(value):
@@ -47,7 +49,7 @@ def validate(data):
                     if set(grant) != {'grantor','grantee','privilege','grantable'} or not isinstance(grant['grantable'], bool):
                         raise ValueError('Incomplete ACL evidence')
             required = {
-                'relations': {'kind','owner','rls','force_rls','raw_acl'},
+                'relations': {'kind','owner','rls','force_rls','raw_acl','view_security_options','effective_api_grants'},
                 'schemas': {'owner'}, 'columns': {'type','not_null'},
                 'policies': {'command','permissive','roles','using_md5','check_md5'},
                 'roles': {'superuser','inherit','create_role','create_db','login','replication','bypass_rls','connection_limit','valid_until'},
@@ -66,6 +68,14 @@ def validate(data):
                         raise ValueError('Unapproved or incomplete configuration value')
                 elif row['value'] is not None:
                     raise ValueError('Uncaptured configuration must not include a value')
+    if not API_ROLES.issubset({r['identity'] for r in sections['roles']}):
+        raise ValueError('Missing API role authority evidence')
+    for relation in sections['relations']:
+        effective=relation['effective_api_grants']
+        if not isinstance(effective,dict) or set(effective) != API_ROLES or any(not isinstance(v,list) or any(not isinstance(p,str) for p in v) for v in effective.values()):
+            raise ValueError('Missing effective API privileges')
+        if not isinstance(relation['view_security_options'],list):
+            raise ValueError('Missing view security properties')
     if not sections['roles'] or not sections['relations']:
         raise ValueError('Empty authority evidence')
     return data
@@ -93,12 +103,31 @@ def compare(left, right):
             'counts_by_section':dict(sorted(Counter(x['section'] for x in changes).items())),
             'certifies_s16_or_platform_recovery':False}
 
+def summarize(data):
+    validate(data)
+    schemas={}
+    for schema in SCOPE:
+        rows=sorted((r for r in data['sections']['relations'] if r['kind'] in ('r','p') and r['identity'].startswith(schema+'.')), key=lambda r:r['identity'])
+        # Reproduce only the original simple-identifier fingerprint contract.
+        if any(not re.fullmatch(r'[a-z_][a-z0-9_]*',r['identity'].split('.',1)[1]) for r in rows):
+            raise ValueError('Legacy digest requires reviewed identifier rendering')
+        raw='\n'.join('|'.join([r['identity'].split('.',1)[1],r['owner'],r['raw_acl'] if r['raw_acl'] is not None else '<default>',str(r['rls']).lower(),str(r['force_rls']).lower()]) for r in rows)
+        schemas[schema]={'tables':len(rows),'raw_owner_acl_rls_sha256':hashlib.sha256(raw.encode()).hexdigest()}
+    return {'schema_version':1,'observed_at':data['observed_at'],'read_only':data['read_only'],
+            'server_version_num':data['server_version_num'],'scope_counts':{s:len(data['sections'][s]) for s in SECTIONS},
+            'schemas':schemas,'uncaptured_setting_count':sum(not x['captured'] for x in data['sections']['role_config']),
+            'certifies_s16_or_platform_recovery':False}
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('expected', nargs='?'); parser.add_argument('restored', nargs='?')
-    parser.add_argument('--report'); parser.add_argument('--validate')
+    parser.add_argument('--report'); parser.add_argument('--validate'); parser.add_argument('--summary')
     args = parser.parse_args()
     try:
+        if args.summary:
+            with open(args.summary) as snapshot:
+                print(json.dumps(summarize(json.load(snapshot)),indent=2))
+            return 0
         if args.validate:
             with open(args.validate) as snapshot:
                 validate(json.load(snapshot))

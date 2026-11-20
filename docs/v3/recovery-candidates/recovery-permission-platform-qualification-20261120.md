@@ -22,7 +22,8 @@ ownership or role recovery from the surviving aggregate hashes alone.
 `scripts/ops/solaris-permission-snapshot.sql` now captures a single JSON result
 inside an explicit read-only transaction (10s statement / 2s lock limit). Scope:
 Auth, Private, Public, Storage, Televoting; relation/column/schema/default ACLs,
-owners, RLS flags, policy-expression hashes, global role flags/membership options,
+owners, RLS flags, view security options, effective API grants (including inherited
+TRUNCATE), policy-expression hashes, global role flags/membership options,
 and current-database/global role configuration. No rows, password hashes, raw
 policy/function bodies, Vault data or secret-valued settings are queried.
 Other database settings and schemas are outside this snapshot's certification.
@@ -36,6 +37,12 @@ role-config differences, and never generates corrective SQL. Missing sections,
 flags, duplicate identities and uncaptured settings fail closed. A scoped match
 is **not** S16, application authorization or platform recovery certification.
 Reports are new 0600 files; private evidence is never overwritten or printed.
+The independently verified production capture and query hashes/counts are in
+`evidence/permission-capture-summary-2026-11-20.json`; its private snapshot hash
+binds the expected file to that observed target. No private snapshot is committed.
+This later capture found **zero effective API TRUNCATE grants on all five named
+critical tables**; do not repeat the earlier finding as current. This is a dated
+grant observation, not general S16 certification or a change made by this PR.
 
 ## One consolidated private operator pass
 
@@ -58,6 +65,7 @@ to ChatGPT, CI or GitHub. The implementing environment has no access to those fi
 3. With the already established private `$HOME/solaris-recovery` layout, run once:
 
    ```sh
+   SOLARIS_EXPECTED_PERMISSIONS_SHA256="APPROVED_TARGET_BOUND_CAPTURE_SHA256" \
    SOLARIS_EXPECTED_PERMISSIONS="$HOME/solaris-recovery/permissions-current.private.json" \
      bash scripts/ops/solaris-role-acl-rehearsal-20261120.sh
    ```

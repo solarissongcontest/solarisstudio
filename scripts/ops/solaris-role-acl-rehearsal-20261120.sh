@@ -14,6 +14,7 @@ SNAPSHOT_SQL="$SCRIPT_DIR/solaris-permission-snapshot.sql"
 COMPARATOR="$SCRIPT_DIR/solaris-permission-compare.py"
 # Optional, approved catalog-only JSON; never use a connection string here.
 EXPECTED_PERMISSIONS="${SOLARIS_EXPECTED_PERMISSIONS:-}"
+EXPECTED_PERMISSIONS_SHA256="${SOLARIS_EXPECTED_PERMISSIONS_SHA256:-}"
 STARTED=0
 PERMISSION_COMPARISON=BLOCKED
 cleanup() {
@@ -37,6 +38,9 @@ for cmd in age docker sha256sum tar find python3; do
 done
 test -s "$SNAPSHOT_SQL" && test -s "$COMPARATOR" || abort 'Run from the complete reviewed checkout; catalog helpers missing'
 if [ -n "$EXPECTED_PERMISSIONS" ]; then
+  [[ "$EXPECTED_PERMISSIONS_SHA256" =~ ^[0-9a-f]{64}$ ]] || abort 'Approved expected-catalog SHA-256 missing'
+  test "$(sha256sum "$EXPECTED_PERMISSIONS" | cut -c 1-64)" = "$EXPECTED_PERMISSIONS_SHA256" \
+    || abort 'Expected catalog does not match its independently approved target-bound capture'
   python3 "$COMPARATOR" --validate "$EXPECTED_PERMISSIONS" || abort 'Expected catalog snapshot is invalid or incomplete'
 fi
 test -s "$KEY" || abort 'Age private key is missing at expected location (never upload it)'
