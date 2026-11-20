@@ -20,12 +20,15 @@ describe("Explore cinematic Country and Edition first slice", () => {
     expect(safeCinematicColor("url(https://example.org/a)")).toBeNull();
     expect(safeCinematicColor("red; background:red")).toBeNull();
     expect(safeCinematicColor(null)).toBeNull();
-    expect(country).toContain("fallbackColors={[projection.colors.primary, projection.colors.secondary]}");
+    expect(country).toContain("fallbackColors={[projection.colors.primary, publishedDesign?.palette.backgroundSecondary ?? projection.colors.secondary]}");
+    expect(country).toContain("publishedHeroImage");
+    expect(country).toContain('background?.mode === "image" ? background.imageUrl : null');
   });
 
   it("keeps country identity, 3:2 flag and existing publication-safe content", () => {
     expect(country).toContain('<CinematicEditorialHero');
-    expect(country).toContain('imageUrl={null}');
+    expect(country).toContain("imageUrl={publishedHeroImage}");
+    expect(country).toContain("focalPoint={publishedFocalPoint}");
     expect(country).toContain('data-cinematic-flag-ratio="3:2"');
     expect(country).toContain("projection.currentResult");
     expect(country).toContain("hideResultSpoilers");
