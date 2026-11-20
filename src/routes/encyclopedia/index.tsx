@@ -9,17 +9,16 @@ import "@/styles/v3-directory-family.css";
 import "@/styles/v3-reference-directory.css";
 import { useEffect, useMemo, useState } from "react";
 
-import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
+import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { ArchiveDataLoading } from "@/components/ArchiveDataState";
 import { supabase } from "@/integrations/supabase/client";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 import { parseReferenceSearchRows } from "@/lib/v3-reference-search-rows";
+import { MAX_REFERENCE_QUERY_LENGTH, parseReferenceUrlSearch, referenceQueryFromUrl } from "@/lib/v3-reference-url-search";
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 
 export const Route = createFileRoute("/encyclopedia/")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    // Backward-compatible search hint only. This must not become Artist identity.
-    artist: typeof search.artist === "string" ? search.artist : undefined,
-  }),
+  validateSearch: parseReferenceUrlSearch,
   head: () => ({
     meta: [
       { title: "Reference — Solaris Studio" },
@@ -65,7 +64,6 @@ const RESULT_LABELS: Record<ResultKind, string> = {
 };
 const KINDS = Object.keys(KIND_LABELS) as Kind[];
 const REFERENCE_SEARCH_DELAY_MS = 300;
-const MAX_REFERENCE_QUERY_LENGTH = 120;
 const BROWSE_DESTINATIONS = [
   { kind: "edition", label: "Editions", description: "Browse every published Solaris edition.", href: "/editions" },
   { kind: "country", label: "Countries", description: "Open canonical country profiles and participation history.", href: "/countries" },
@@ -97,11 +95,34 @@ function parseCoverage(value: unknown): Coverage {
 
 function ReferencePage() {
   const { platformResolved } = useSolarisApp();
+  const { allowsReleased } = usePublicLaunchAvailability();
   const presentation = useV3DirectoryPresentation();
   const search = Route.useSearch();
-  const [query, setQuery] = useState(search.artist ?? "");
-  const [kind, setKind] = useState<Kind>("all");
+  const navigate = Route.useNavigate();
+  const urlQuery = referenceQueryFromUrl(search);
+  const urlKind: Kind = search.kind ?? "all";
+  const [query, setQuery] = useState(urlQuery);
+  const [kind, setKind] = useState<Kind>(urlKind);
   const normalizedQuery = query.trim();
+  // Browser history/refresh restores the same public Reference filter. User
+  // typing stays local until the bounded debounce, without extra DB readers.
+  useEffect(() => setQuery(urlQuery), [urlQuery]);
+  useEffect(() => setKind(urlKind), [urlKind]);
+  useEffect(() => {
+    if (!platformResolved || query.length > MAX_REFERENCE_QUERY_LENGTH) return;
+    if (normalizedQuery === urlQuery && kind === urlKind) return;
+    const timeoutId = window.setTimeout(() => {
+      void navigate({
+        search: {
+          q: normalizedQuery || undefined,
+          kind: kind === "all" ? undefined : kind,
+          artist: undefined,
+        },
+        replace: true,
+      });
+    }, REFERENCE_SEARCH_DELAY_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [platformResolved, query.length, normalizedQuery, urlQuery, kind, urlKind, navigate]);
   const [settledQuery, setSettledQuery] = useState(normalizedQuery);
   useEffect(() => {
     if (settledQuery === normalizedQuery) return;
@@ -115,11 +136,17 @@ function ReferencePage() {
     queryKey: ["studio2-feature", "public_encyclopedia"],
     queryFn: () => isStudio2FeatureEnabled("public_encyclopedia"),
     staleTime: 30_000,
+    refetchOnMount: "always",
+    retry: false,
   });
+  // Cached rollout decisions are never sufficient publication proof after a
+  // new mount or a failed refresh. Search and coverage wait for a fresh check.
+  const referenceReleased = feature.isSuccess && !feature.isFetching &&
+    !feature.isRefetchError && feature.data === true;
 
   const coverageQuery = useQuery({
     queryKey: ["v3", "reference", "coverage"],
-    enabled: feature.data === true,
+    enabled: referenceReleased,
     staleTime: 60 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc(
@@ -137,7 +164,7 @@ function ReferencePage() {
       "search",
       settledQuery.toLocaleLowerCase(),
     ],
-    enabled: feature.data === true && !dedicatedTopicOnly && normalizedQuery.length >= 2 &&
+    enabled: referenceReleased && !dedicatedTopicOnly && normalizedQuery.length >= 2 &&
       normalizedQuery.length <= MAX_REFERENCE_QUERY_LENGTH && !searchPending,
     staleTime: 60_000,
     queryFn: async () => {
@@ -156,22 +183,20 @@ function ReferencePage() {
   // Topic choices must also filter the idle browse index, not only typed search hits.
   // Entries have no independent public directory yet: users search the published projection.
   const browseDestinations = BROWSE_DESTINATIONS.filter((destination) =>
-    kind === "all" || destination.kind === kind,
+    (kind === "all" || destination.kind === kind) && allowsReleased(destination.href),
   );
 
   const filtered = useMemo(
-    () =>
-      kind === "all"
-        ? referenceQuery.data ?? []
-        : (referenceQuery.data ?? []).filter((item) => item.kind === kind),
-    [kind, referenceQuery.data],
+    () => (referenceQuery.data ?? [])
+      .filter((item) => (kind === "all" || item.kind === kind) && allowsReleased(item.href)),
+    [kind, referenceQuery.data, allowsReleased],
   );
 
   if (!platformResolved) {
     return <div data-directory-boot="" role="status" aria-label="Opening Reference" className="min-h-20" />;
   }
 
-  if (feature.isLoading) {
+  if (feature.isLoading || feature.isFetching) {
     return (
       <AppShell>
         <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
@@ -201,7 +226,7 @@ function ReferencePage() {
     );
   }
 
-  if (feature.data !== true) {
+  if (!referenceReleased) {
     return (
       <AppShell>
         <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
@@ -242,34 +267,7 @@ function ReferencePage() {
             </aside>
           ) : null}
           <div className="v3-directory-results">
-      <Panel
-        title="Archive coverage"
-        description="Small server-owned aggregates describe the public archive without downloading it into this page."
-      >
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatTile
-            label="Countries"
-            value={coverageValue(coverage?.countries)}
-          />
-          <StatTile
-            label="Published entries"
-            value={coverageValue(coverage?.entries)}
-          />
-          <StatTile label="Shows" value={coverageValue(coverage?.shows)} />
-          <StatTile label="Stories" value={coverageValue(coverage?.stories)} />
-        </div>
-        {coverageQuery.isError ? (
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            <p>Archive totals are temporarily unavailable. Search and reference links still work.</p>
-            <button type="button" onClick={() => void coverageQuery.refetch()}
-              className="min-h-11 rounded-xl border border-border px-3 font-semibold text-foreground">
-              Retry archive totals
-            </button>
-          </div>
-        ) : null}
-      </Panel>
-
-      <section className="mt-5 rounded-2xl border border-border bg-surface/60 p-3 sm:p-4">
+      <section className="v3-reference-directory__controls" aria-label="Search and filter Reference">
         {presentation === "installed-app" ? (
           <SolarisSearchField value={query} onChange={setQuery}
             label="Search Reference" placeholder="Search published Solaris history…" />
@@ -323,6 +321,28 @@ function ReferencePage() {
         ) : null}
       </section>
 
+      <section className="v3-reference-directory__coverage" aria-label="Published archive coverage">
+        <div className="v3-reference-directory__coverage-heading">
+          <h2>Published archive</h2>
+          <span>Official public records</span>
+        </div>
+        <dl className="v3-reference-directory__coverage-list">
+          <div><dt>Countries</dt><dd>{coverageValue(coverage?.countries)}</dd></div>
+          <div><dt>Entries</dt><dd>{coverageValue(coverage?.entries)}</dd></div>
+          <div><dt>Shows</dt><dd>{coverageValue(coverage?.shows)}</dd></div>
+          <div><dt>Stories</dt><dd>{coverageValue(coverage?.stories)}</dd></div>
+        </dl>
+        {coverageQuery.isError ? (
+          <div className="v3-reference-directory__coverage-error" role="status">
+            <p>Archive totals are temporarily unavailable. Search and reference links still work.</p>
+            <button type="button" onClick={() => void coverageQuery.refetch()}
+              className="min-h-11 rounded-lg border border-border px-3 font-semibold text-foreground">
+              Retry archive totals
+            </button>
+          </div>
+        ) : null}
+      </section>
+
       {normalizedQuery.length === 0 || dedicatedTopicOnly ? (
         <section className="mt-5" aria-labelledby="reference-browse-heading">
           <div className="mb-3 border-b border-border/60 pb-3">
@@ -342,12 +362,12 @@ function ReferencePage() {
               {KIND_LABELS[kind]} has a dedicated published index. The bounded Reference record search does not index this topic; open its public index below.
             </p>
           ) : null}
-          <div className={presentation === "mobile-web" ? "v3-directory-mobile-list" : presentation === "installed-app" ? "solaris-app-grouped-list" : "v3-directory-desktop-grid"}>
+          <div className={presentation === "mobile-web" ? "v3-directory-mobile-list v3-reference-directory__index" : presentation === "installed-app" ? "solaris-app-grouped-list" : "v3-reference-directory__index"}>
             {browseDestinations.map(({ label, description, href }) => (
               <Link
                 key={href}
                 to={href as any}
-                className={presentation === "mobile-web" ? "v3-directory-mobile-row" : presentation === "installed-app" ? "solaris-app-list-row" : "v3-directory-desktop-card"}
+                className={presentation === "installed-app" ? "solaris-app-list-row" : "v3-reference-directory__row"}
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">{label}</p>
@@ -363,7 +383,9 @@ function ReferencePage() {
           </div>
           {browseDestinations.length === 0 ? (
             <p className="mt-3 py-5 text-sm text-muted-foreground" role="status">
-              No standalone index exists for this topic. Search above to find published entries, songs and artists in their edition context.
+              {kind === "entry"
+                ? "No standalone index exists for this topic. Search above to find published entries and related records."
+                : "No released directory is available for this topic."}
             </p>
           ) : null}
         </section>
@@ -409,12 +431,12 @@ function ReferencePage() {
             </span>
           </div>
 
-          <div className={presentation === "mobile-web" ? "v3-directory-mobile-list" : presentation === "installed-app" ? "solaris-app-grouped-list" : "v3-directory-desktop-grid"}>
+          <div className={presentation === "mobile-web" ? "v3-directory-mobile-list v3-reference-directory__index" : presentation === "installed-app" ? "solaris-app-grouped-list" : "v3-reference-directory__index"}>
             {filtered.map((item) => (
               <Link
                 key={item.id}
                 to={item.href as any}
-                className={presentation === "mobile-web" ? "v3-directory-mobile-row" : presentation === "installed-app" ? "solaris-app-list-row" : "v3-directory-desktop-card"}
+                className={presentation === "installed-app" ? "solaris-app-list-row" : "v3-reference-directory__row"}
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">
@@ -455,6 +477,7 @@ function ReferencePage() {
 }
 
 function ReferenceDirectoryHeader({ presentation }: { presentation: V3DirectoryPresentation }) {
+  const { allowsReleased } = usePublicLaunchAvailability();
   if (presentation === "mobile-web") {
     return (
       <header className="v3-directory-mobile-header" data-directory-mobile-header="">
@@ -478,7 +501,7 @@ function ReferenceDirectoryHeader({ presentation }: { presentation: V3DirectoryP
       eyebrow="Explore Solaris"
       title="Reference"
       description="A publication-safe knowledge base across editions, countries, published entries and shows."
-      actions={<Link to="/countries" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold">Browse countries →</Link>}
+      actions={allowsReleased("/countries") ? <Link to="/countries" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold">Browse countries →</Link> : undefined}
     />
   );
 }

@@ -24,11 +24,13 @@ describe("soft-launch entry-point integration", () => {
       "src/components/public/PublicMobileSectionNav.tsx",
       "src/components/public/PublicSiteNavigation.tsx",
       "src/components/v3/V3DirectoryFamilyIndex.tsx",
-      "src/routes/explore/index.tsx",
     ]) {
       expect(source(path)).toContain("usePublicLaunchAvailability");
       expect(source(path)).toContain("allows(item.to)");
     }
+    // Explore uses the stricter effective-release policy so maintenance and
+    // temporary launch restrictions cannot leave dead discovery links.
+    expect(source("src/routes/explore/index.tsx")).toContain("allowsReleased(item.to)");
     expect(source("src/components/app/AppExplorePersonalized.tsx")).toContain("allows(item.path)");
     const search = source("src/components/public/PublicCommandPalette.tsx");
     expect(

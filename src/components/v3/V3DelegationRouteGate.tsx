@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
@@ -5,6 +6,9 @@ import { useSolarisApp } from "@/components/app/AppRuntime";
 import { FollowButton } from "@/components/FollowButton";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
 import { useNotificationPreferences } from "@/lib/engagement-data";
+import { useCountryDesignV2 } from "@/lib/country-design-v2";
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
+import { fetchWorldPublicEnabled } from "@/lib/terra-world-public";
 import { useV3DelegationBundle } from "@/lib/v3-delegation-runtime";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { resolveV3ResultsSpoilerProtection } from "@/lib/v3-results";
@@ -50,6 +54,7 @@ export function V3DelegationRouteGate({
   legacy: ReactNode;
 }) {
   const { isAppMode, platformResolved } = useSolarisApp();
+  const { allowsReleased } = usePublicLaunchAvailability();
   const { preferences } = useAppExperiencePreferences();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
@@ -62,6 +67,18 @@ export function V3DelegationRouteGate({
     rollout.data?.exploreEnabled === true &&
     rollout.data?.delegationEnabled === true;
   const bundleQuery = useV3DelegationBundle(code, shouldLoadBundle);
+  // The installed Country hero may reuse the already-published V2 design,
+  // never a private Hero Studio draft or a second Country publication writer.
+  const publicDesignQuery = useCountryDesignV2(shouldLoadBundle ? bundleQuery.data?.countryId : null);
+  const worldRouteAllowed = allowsReleased("/world");
+  const worldRollout = useQuery({
+    queryKey: ["world", "public", "rollout"],
+    queryFn: fetchWorldPublicEnabled,
+    enabled: shouldLoadBundle && worldRouteAllowed,
+    staleTime: 45_000,
+    refetchOnMount: "always",
+    retry: false,
+  });
   const hideResultSpoilers = resolveV3ResultsSpoilerProtection({
     localSpoilerFree: preferences.spoilerFree,
     viewerResolved: Boolean(rollout.data),
@@ -107,9 +124,20 @@ export function V3DelegationRouteGate({
     >
       <V3DelegationScreen
         projection={bundle.projection}
+        publishedDesign={
+          publicDesignQuery.isSuccess && !publicDesignQuery.isFetching &&
+          !publicDesignQuery.isRefetchError && publicDesignQuery.data.isPublishedV2
+            ? publicDesignQuery.data.design
+            : null
+        }
         followControl={<FollowButton entityType="country" entityId={bundle.countryId} label={bundle.projection.name} />}
         activeEditionLabel={bundle.activeEditionLabel}
         hideResultSpoilers={hideResultSpoilers}
+        worldEnabled={
+          worldRouteAllowed && worldRollout.isSuccess &&
+          !worldRollout.isFetching && !worldRollout.isRefetchError &&
+          worldRollout.data === true
+        }
       />
     </V3AppShell>
   );

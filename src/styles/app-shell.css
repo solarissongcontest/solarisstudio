@@ -777,7 +777,7 @@ html[data-solaris-app-boot] body::before {
     margin-bottom: .25rem;
   }
 
-  [data-solaris-app-explore-personalized] + .public-hub-section {
+  [data-solaris-app-explore-personalized] + .solaris-app-explore-catalog {
     margin-top: 2rem;
   }
 

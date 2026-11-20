@@ -1,0 +1,127 @@
+/* Local Country Hero Studio composition preview. It cannot own public state. */
+.country-hero-preview__note {
+  margin: 0 0 1rem;
+  color: var(--muted-foreground);
+  font-size: .82rem;
+  line-height: 1.65;
+}
+.country-hero-preview__switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: 1.25rem;
+}
+.country-hero-preview__switch button {
+  min-height: 2.75rem;
+  padding: .6rem .85rem;
+  border: 1px solid var(--border);
+  border-radius: .65rem;
+  color: var(--foreground);
+  font-size: .78rem;
+  font-weight: 650;
+}
+.country-hero-preview__switch button[aria-pressed="true"] {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+}
+.country-hero-preview__frame {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 1.25rem .65rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--background) 94%, white);
+}
+.country-hero-preview__page {
+  width: min(100%, 360px);
+  overflow: hidden;
+  background: var(--v3-bg-base, #020817);
+  color: #fff;
+}
+.country-hero-preview__frame[data-experience="mobile-web"] .country-hero-preview__page {
+  width: min(100%, 420px);
+}
+.country-hero-preview__frame[data-experience="desktop"] .country-hero-preview__page {
+  width: 100%;
+}
+.country-hero-preview__page .cinematic-entity-hero {
+  min-height: 325px;
+  margin: 0;
+}
+.country-hero-preview__frame[data-experience="mobile-web"] .cinematic-entity-hero {
+  min-height: 265px;
+}
+.country-hero-preview__frame[data-experience="desktop"] .cinematic-entity-hero {
+  min-height: 300px;
+}
+.country-hero-preview__page .cinematic-entity-hero__copy {
+  padding: 5rem 1rem 2.75rem;
+}
+.country-hero-preview__page .cinematic-entity-hero__title {
+  font-size: clamp(2.25rem, 8vw, 3.5rem);
+}
+.country-hero-preview__identity {
+  display: flex;
+  align-items: center;
+  gap: .9rem;
+  padding: .8rem 1rem;
+}
+.country-hero-preview__flag {
+  display: grid;
+  place-items: center;
+  width: 4.5rem;
+  flex: 0 0 4.5rem;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: .4rem;
+  font-size: .7rem;
+}
+.country-hero-preview__flag img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.country-hero-preview__country {
+  font-size: .82rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.country-hero-preview__sections {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 1.15rem;
+  padding: .85rem 1rem;
+  border-block: 1px solid rgba(255,255,255,.15);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  font-size: .75rem;
+  font-weight: 650;
+}
+.country-hero-preview__sample {
+  margin: 0;
+  padding: 1rem;
+  color: rgba(255,255,255,.65);
+  font-size: .77rem;
+  line-height: 1.6;
+}
+@media (prefers-reduced-motion: reduce) {
+  .country-hero-preview *, .country-hero-preview *::before,
+  .country-hero-preview *::after { transition: none !important; animation: none !important; }
+}
+
+/* Draft-only UX keeps an accessible chooser and keyboard-operable focal sliders. */
+.country-hero-preview__chooser { display: grid; gap: .6rem; margin-bottom: 1.1rem; }
+.country-hero-preview__picker { display: grid; gap: .45rem; font-size: .86rem; font-weight: 700; }
+.country-hero-preview__picker input { display: block; width: 100%; font-size: .8rem; }
+.country-hero-preview__upload-note, .country-hero-preview__filename { margin: 0; font-size: .76rem; line-height: 1.55; color: var(--muted-foreground); }
+.country-hero-preview__error { margin: 0; font-size: .85rem; color: var(--destructive); }
+.country-hero-preview__clear { justify-self: start; min-height: 2.75rem; padding: .45rem .75rem; border: 1px solid var(--border); border-radius: .6rem; font-size: .8rem; font-weight: 650; }
+.country-hero-preview__focus { display: grid; gap: .8rem; margin-bottom: 1.1rem; }
+.country-hero-preview__focus label { display: grid; gap: .4rem; font-size: .82rem; line-height: 1.5; }
+.country-hero-preview__focus output { margin-left: .4rem; font-variant-numeric: tabular-nums; }
+.country-hero-preview__focus input[type="range"] { width: 100%; min-height: 2rem; accent-color: var(--primary); }
+@media (min-width: 700px) {
+  .country-hero-preview__focus { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1.5rem; }
+}

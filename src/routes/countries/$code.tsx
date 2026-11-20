@@ -1,6 +1,6 @@
 import { PublicLaunchLink as Link } from "@/components/public/PublicLaunchLink";
-import { createFileRoute} from "@tanstack/react-router";
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { createFileRoute, useRouterState } from "@tanstack/react-router";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 
 import { AppShell, Panel, StatTile } from "@/components/AppShell";
 import { AppEntitySidebar } from "@/components/app/AppEntitySidebar";
@@ -13,6 +13,7 @@ import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { CountryDesignV2Hero } from "@/components/country/CountryDesignV2Hero";
+import { CountryWebCinematicHero } from "@/components/country/CountryWebCinematicHero";
 import { CountryDesignV2Styles } from "@/components/country/CountryDesignV2Styles";
 import { CountryIdentityHero } from "@/components/country/CountryIdentityHero";
 import { V3DelegationRouteGate } from "@/components/v3/V3DelegationRouteGate";
@@ -39,6 +40,8 @@ import {
   useEditions,
 } from "@/lib/data-live";
 import { canonicalEditionEntries, canonicalEntryFor } from "@/lib/entry-utils";
+import { countrySectionHash, countryTabNeedsDetailedVotes, sectionFromCountryHash } from "@/lib/v3-country-web-tabs";
+import "@/styles/v3-country-web-sections.css";
 import { computeCountryForm } from "@/lib/form";
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 import {
@@ -118,14 +121,24 @@ type Tab = (typeof TABS)[number]["value"];
 function CountryProfilePage() {
   const { code } = Route.useParams();
   const { isAppMode } = useSolarisApp();
+  const navigate = Route.useNavigate();
+  const routeHash = useRouterState({ select: (state) => state.location.hash });
+  const previousWebHashRef = useRef(routeHash);
+  const [appTab, setAppTab] = useState<Tab>("overview");
+  const tab: Tab = isAppMode ? appTab : sectionFromCountryHash(routeHash);
+  const changeTab = (next: Tab) => {
+    if (isAppMode) setAppTab(next);
+    else void navigate({ hash: countrySectionHash(next) });
+  };
   const [archiveEnabled, setArchiveEnabled] = useState(!isAppMode);
+  const needsDetailedVotes = countryTabNeedsDetailedVotes(tab);
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
   const participantsQuery = useAllParticipants({ enabled: archiveEnabled });
   const resultsQuery = useAllResults({ enabled: archiveEnabled });
-  const juryQuery = useAllJuryVotes({ enabled: archiveEnabled });
-  const televoteQuery = useAllTelevotes({ enabled: archiveEnabled });
+  const juryQuery = useAllJuryVotes({ enabled: archiveEnabled && needsDetailedVotes });
+  const televoteQuery = useAllTelevotes({ enabled: archiveEnabled && needsDetailedVotes });
   const { data: countries } = countriesQuery;
   const { data: editions } = editionsQuery;
   const { data: shows } = showsQuery;
@@ -133,7 +146,7 @@ function CountryProfilePage() {
   const { data: results } = resultsQuery;
   const { data: jury } = juryQuery;
   const { data: televote } = televoteQuery;
-  const [tab, setTab] = useState<Tab>("overview");
+
 
   useEffect(() => {
     if (!isAppMode) {
@@ -215,10 +228,29 @@ function CountryProfilePage() {
     [country, publicArchive],
   );
 
-  const archiveQueries = [editionsQuery, showsQuery, participantsQuery, resultsQuery, juryQuery, televoteQuery];
+  const archiveQueries = [
+    editionsQuery, showsQuery, participantsQuery, resultsQuery,
+    ...(needsDetailedVotes ? [juryQuery, televoteQuery] : []),
+  ];
   const archiveLoading = !archiveEnabled || archiveIsLoading(...archiveQueries);
   const archiveError = archiveHasError(...archiveQueries);
   const visualLoading = Boolean(country?.id) && (countryThemeQuery.isLoading || designV2Query.isLoading);
+
+  useEffect(() => {
+    // Direct links must scroll after identity/design loading ends; otherwise
+    // the Country loading placeholder would swallow the first hash jump.
+    // On a return to the canonical hash-free Overview URL, restore the hero
+    // instead of leaving readers stranded near the previously selected tab.
+    const previousHash = previousWebHashRef.current;
+    previousWebHashRef.current = routeHash;
+    if (!country || visualLoading || isAppMode) return;
+    if (!routeHash && !previousHash) return;
+    const section = sectionFromCountryHash(routeHash);
+    document.getElementById(section === "overview" ? "country-overview" : section)?.scrollIntoView({
+      block: "start",
+      behavior: "auto",
+    });
+  }, [isAppMode, routeHash, country?.id, visualLoading]);
 
   if (countriesQuery.isLoading || visualLoading) {
     return (
@@ -366,7 +398,7 @@ function CountryProfilePage() {
     }
   }
 
-  const relationshipRows = [...sharedIds]
+  const relationshipRows = tab === "relationships" && !archiveLoading ? [...sharedIds]
     .map((id) => {
       const other = countryMap.get(id);
       if (!other) return null;
@@ -382,7 +414,7 @@ function CountryProfilePage() {
       };
     })
     .filter((row): row is NonNullable<typeof row> => Boolean(row))
-    .sort((a, b) => b.relationship.friendshipScore - a.relationship.friendshipScore);
+    .sort((a, b) => b.relationship.friendshipScore - a.relationship.friendshipScore) : [];
 
   const identityModel: CountryIdentityModel = {
     code: country.short_code,
@@ -468,7 +500,26 @@ function CountryProfilePage() {
         style={publishedDesign ? countryDesignCssVariables(publishedDesign) : undefined}
       >
         {publishedDesign && countryDesignFontCss(publishedDesign) ? <style>{countryDesignFontCss(publishedDesign)}</style> : null}
-        {publishedDesign ? (
+        {!isAppMode ? (
+          <CountryWebCinematicHero
+            code={identityModel.code}
+            name={identityModel.name}
+            nativeName={identityModel.nativeName}
+            region={identityModel.region}
+            description={identityModel.description}
+            flagImage={identityModel.flag.src}
+            accentColor={identityModel.colors.accent}
+            publishedDesign={publishedDesign}
+            actions={
+              <>
+                <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
+                <Link to="/compare" search={{ a: country.short_code }}>Compare</Link>
+                <Link to="/voting-dna/$code" params={{ code: country.short_code }}>Voting DNA</Link>
+                <FollowButton entityType="country" entityId={country.id} label={country.name} />
+              </>
+            }
+          />
+        ) : publishedDesign ? (
           <CountryDesignV2Hero
             design={publishedDesign}
             code={identityModel.code}
@@ -513,14 +564,29 @@ function CountryProfilePage() {
           />
         )}
 
-        <ResponsiveTabs
-          value={tab}
-          options={TABS}
-          onChange={setTab}
-          label="Country section"
-          collapseAt="lg"
-          className="mb-5"
-        />
+        {!isAppMode ? (
+          <nav className="country-web-section-nav" aria-label="Country sections">
+            {TABS.map((item) => (
+              <Link key={item.value} to="/countries/$code"
+                params={{ code: country.short_code }}
+                hash={countrySectionHash(item.value)}
+                aria-current={tab === item.value ? "page" : undefined}>
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        ) : (
+          <ResponsiveTabs
+            value={tab}
+            options={TABS}
+            onChange={changeTab}
+            label="Country section"
+            collapseAt="lg"
+            className="mb-5"
+          />
+        )}
+
+        {!isAppMode ? <span id={tab} className="country-web-section-anchor" aria-hidden="true" /> : null}
 
         {archiveLoading ? (
           <ArchiveDataLoading label="Loading country history…" />
@@ -580,7 +646,7 @@ function CountryProfilePage() {
                   actions={
                     <button
                       type="button"
-                      onClick={() => setTab("results")}
+                      onClick={() => changeTab("results")}
                       className="rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold text-primary"
                     >
                       Full results →

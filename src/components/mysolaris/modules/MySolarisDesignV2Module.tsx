@@ -6,6 +6,7 @@ import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { CountryWorldOverview } from "@/components/CountryWorldOverview";
 import { CountryCustomSections } from "@/components/country/CountryCustomSections";
 import { CountryDesignV2Hero } from "@/components/country/CountryDesignV2Hero";
+import { CountryHeroStudioPreview } from "@/components/mysolaris/CountryHeroStudioPreview";
 import { CountryDesignV2Styles } from "@/components/country/CountryDesignV2Styles";
 import { uploadCountryBackground } from "@/lib/country-background";
 import { useCountryWorldProfile, useMyCountryAccount } from "@/lib/country-account";
@@ -393,6 +394,20 @@ function CountryDesignEditor({
                   onChange={(showMotto) => setDesign((current) => ({ ...current, hero: { ...current.hero, showMotto } }))}
                 />
               </div>
+            </Panel>
+
+            <Panel
+              title="Country Hero Studio · V3 preview"
+              description="See how the new cinematic Country page treats an existing image and fades into the rest of the page. This is a preview, not a V3 publication control."
+            >
+              <CountryHeroStudioPreview
+                name={country.name}
+                nativeName={country.native_name}
+                region={country.region}
+                code={country.short_code}
+                flagImage={country.flag_image}
+                design={design}
+              />
             </Panel>
 
             <Panel title="Default content layout" description="Individual sections can override this in Sections & media.">

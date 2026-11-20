@@ -113,8 +113,8 @@ describe("Solaris installed-app foundation", () => {
   it("keeps Explore personalized content separated from the next section", () => {
     const explore = source("src/routes/explore/index.tsx");
     const styles = source("src/styles/app-shell.css");
-    expect(explore).toContain('className="public-hub-section"');
-    expect(styles).toContain("[data-solaris-app-explore-personalized] + .public-hub-section");
+    expect(explore).toContain('className="solaris-app-explore-catalog"');
+    expect(styles).toContain("[data-solaris-app-explore-personalized] + .solaris-app-explore-catalog");
   });
 
   it("uses a bottom utility sheet instead of duplicating section navigation", () => {

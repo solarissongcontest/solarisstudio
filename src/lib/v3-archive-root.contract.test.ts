@@ -25,10 +25,10 @@ describe("V3 P34 Archive root", () => {
 
     expect(source).toContain('to: "/editions"');
     expect(source).toContain('to: "/countries"');
-    // Until the durable Music directory lands, the historical songs/artist
-    // discovery entry uses the already-published Reference search, not a dead route.
-    expect(source).toContain('title: "Songs & artists"');
-    expect(source).toContain('to: "/encyclopedia", group: "history"');
+    // Artist/Song identity is not yet an independent public catalogue. Archive
+    // retains a Wiki gateway; it cannot advertise a disabled Reference rollout.
+    expect(source).not.toContain('title: "Songs & artists"');
+    expect(source).toContain('to: "/wiki", group: "reference-results"');
     expect(source).not.toContain('to: "/music"');
     expect(source).toContain('to: "/shows"');
     expect(source).toContain('to: "/stories"');
@@ -36,7 +36,10 @@ describe("V3 P34 Archive root", () => {
     // duplicating or calculating official outcomes in this navigation root.
     expect(source).toContain('to: "/records"');
     expect(source).not.toContain('to: "/admin/time-machine"');
-    expect(source).toContain('to: "/encyclopedia"');
+    expect(source).not.toContain('to: "/encyclopedia"');
+    const wiki = read("src/routes/wiki/index.tsx");
+    expect(wiki).toContain('<Navigate to="/encyclopedia"');
+    expect(wiki).toContain("referenceRollout.data === true");
     expect(source).toContain('to: "/archive-games"');
   });
 

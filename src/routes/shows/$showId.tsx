@@ -17,6 +17,7 @@ import {
 import { DetailedTelevoteBreakdown } from "@/components/DetailedTelevoteBreakdown";
 import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
+import { ShowWebCinematicHero } from "@/components/show/ShowWebCinematicHero";
 import { JuryTelevoteComparison } from "@/components/JuryTelevoteComparison";
 import { PublicDataState } from "@/components/public/PublicDataState";
 import { PublicShowResultSpoilerGuard } from "@/components/public/PublicShowResultSpoilerGuard";
@@ -560,6 +561,24 @@ function ShowPage() {
       meta: item.kind.replace("-", " "),
     }));
 
+  const showHeaderDescription = winner && winnerStanding && publication.results
+    ? `${winner.name} won with ${winnerStanding.total} points.`
+    : publication.participants
+      ? "Entries and show information."
+      : "Published show information.";
+  const showHeaderActions = (
+    <div className="flex flex-wrap justify-end gap-2">
+      <FollowButton entityType="show" entityId={show.id} label={show.name} />
+      <Link
+        to="/editions/$slug"
+        params={{ slug: showEdition.slug }}
+        className="rounded-xl border border-border px-4 py-2.5 text-sm"
+      >
+        ← {editionLabel(showEdition)}
+      </Link>
+    </div>
+  );
+
   return (
     <AppShell>
       <div className="solaris-app-entity-workspace">
@@ -574,29 +593,23 @@ function ShowPage() {
           }
         />
         <div className="solaris-app-entity-content">
-          <PageHeader
-            eyebrow={`${editionLabel(showEdition)} · ${show.kind.replace("-", " ")}`}
-            title={show.name}
-            description={
-              winner && winnerStanding && publication.results
-                ? `${winner.name} won with ${winnerStanding.total} points.`
-                : publication.participants
-                  ? "Entries and show information."
-                  : "Published show information."
-            }
-            actions={
-              <div className="flex flex-wrap justify-end gap-2">
-                <FollowButton entityType="show" entityId={show.id} label={show.name} />
-                <Link
-                  to="/editions/$slug"
-                  params={{ slug: showEdition.slug }}
-                  className="rounded-xl border border-border px-4 py-2.5 text-sm"
-                >
-                  ← {editionLabel(showEdition)}
-                </Link>
-              </div>
-            }
-          />
+          {!isAppMode ? (
+            <ShowWebCinematicHero
+              name={show.name}
+              edition={editionLabel(showEdition)}
+              kind={show.kind}
+              artworkUrl={showEdition.artwork_url ?? null}
+              publishedDescription={showHeaderDescription}
+              actions={showHeaderActions}
+            />
+          ) : (
+            <PageHeader
+              eyebrow={`${editionLabel(showEdition)} · ${show.kind.replace("-", " ")}`}
+              title={show.name}
+              description={showHeaderDescription}
+              actions={showHeaderActions}
+            />
+          )}
 
           <Panel className="mb-5">
             <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">

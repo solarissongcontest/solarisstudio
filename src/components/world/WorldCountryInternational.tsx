@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import "@/styles/v3-world-editorial.css";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Globe2, Landmark, Search } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -54,7 +55,7 @@ function FailureState({ retry, title = "International records unavailable" }: { 
 
 function CountryRow({ country }: { country: WorldPublicCountry }) {
   return <Link to="/world/countries/$code" params={{ code: country.code }}
-    className="group flex min-h-20 items-center gap-4 border-b border-border/60 py-3 focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+    className="world-country-directory-row group flex min-h-20 items-center gap-4 border-b border-border/60 py-3 focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
     <FlagChip code={country.code} image={country.flagImage} color={country.accentColor} size="md" />
     <span className="min-w-0 flex-1">
       <span className="block font-semibold group-hover:text-primary">{country.name}</span>
@@ -99,7 +100,7 @@ export function WorldCountriesDirectory() {
   return <>
     <PageHeader eyebrow="Terra Solaris / Countries" title="Countries in the world"
       description="Discover the formal international memberships of Terra Solaris countries, whether or not they compete in the current Song Contest." />
-    <div className="mx-auto w-full max-w-5xl px-4 pb-14 sm:px-6">
+    <div className="world-country-directory mx-auto w-full max-w-5xl px-4 pb-14 sm:px-6">
       <div className="border-b border-border pb-6">
         <label className="block max-w-2xl">
           <span className="mb-2 block text-sm font-semibold">Find a country</span>
@@ -178,7 +179,7 @@ function AffiliationGroup({
 }) {
   const total = data?.count ?? 0;
   const safeRows = visibleWorldCountryAffiliations(data?.rows ?? [], institutions);
-  return <section className="py-7" aria-labelledby={"world-country-" + phase}>
+  return <section className="world-country-affiliation-group py-7" aria-labelledby={"world-country-" + phase}>
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h2 id={"world-country-" + phase} className="text-xl font-bold">{title}</h2>
@@ -195,13 +196,17 @@ function AffiliationGroup({
     {data && total > 0 && safeRows.length === 0 ? <p className="mt-5 text-sm text-muted-foreground">
       Public organization identity is unavailable for this page. Affiliation names cannot be verified.
     </p> : null}
-    {safeRows.length ? <div className="mt-4 divide-y divide-border/60">
-      {safeRows.map(({ affiliation, organization }) => <div key={affiliation.id} className="flex min-h-20 items-center gap-4 py-4">
+    {safeRows.length ? <div className="world-country-affiliation-list mt-4">
+      {safeRows.map(({ affiliation, organization }) => <div key={affiliation.id} className="world-country-affiliation-row flex min-h-20 items-center gap-4 py-4">
         <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/40 text-xs font-bold tracking-wide" aria-hidden="true">
           {organization.name.slice(0, 3)}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold">{organization.name}</span>
+          <Link to="/world/organizations/$slug" params={{ slug: organization.slug }}
+            search={{ tab: "overview" }}
+            className="inline-flex min-h-11 items-center text-sm font-semibold hover:text-primary hover:underline focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+            {organization.name}
+          </Link>
           <span className="block text-xs text-muted-foreground">{organization.officialName}</span>
           <span className="mt-1 block text-xs capitalize text-muted-foreground">
             {affiliation.membershipType} · {affiliation.status.replace(/_/g, " ")}
@@ -297,11 +302,11 @@ export function WorldCountryInternational({ code }: { code: string }) {
   const institutionsReady = !organizationIds.length || Array.isArray(verifiedInstitutions);
   const institutionError = institutions.isError;
   return <>
-    <div className="mx-auto w-full max-w-5xl px-4 pb-14 pt-6 sm:px-6">
+    <div className="world-country-detail mx-auto w-full max-w-5xl px-4 pb-14 pt-6 sm:px-6">
       <Link to="/world/countries" className="mb-5 inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" aria-hidden="true" /> World countries
       </Link>
-      <div className="flex flex-wrap items-center gap-5 border-b border-border pb-7">
+      <header className="world-country-identity-hero flex flex-wrap items-center gap-5">
         <FlagChip code={country.code} color={country.accentColor} image={country.flagImage} size="xl" />
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
@@ -314,7 +319,13 @@ export function WorldCountryInternational({ code }: { code: string }) {
             Song Contest profile <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
         </div>
-      </div>
+      </header>
+      <nav className="world-country-local-nav" aria-label="Country international sections">
+        <a href="#world-country-current">Current memberships</a>
+        <a href="#world-country-historical">Former affiliations</a>
+        <Link to="/world/organizations" search={{ q: "", status: "all", page: 1 }}>Organizations</Link>
+        <Link to="/countries/$code" params={{ code: country.code }}>Contest profile</Link>
+      </nav>
       <p className="mt-6 max-w-3xl text-sm leading-7 text-muted-foreground">
         Membership is country-level and persists independently of SSC participation.
         Only institutions whose records are currently public can appear here.

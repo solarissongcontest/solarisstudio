@@ -47,7 +47,9 @@ describe("Public V3 Stories contract", () => {
     expect(gates).toContain("useV3RolloutProbe");
     expect(gates).toContain("useV3EditionRolloutProbe");
     expect(gates).toContain("rollout.data.exploreEnabled !== true");
-    expect(gates).toContain("return <>{fallback}</>");
+    expect(gates).toContain("return <StoryFallback protectedContent={hideSpoilers}>{fallback}</StoryFallback>");
+    expect(gates).toContain("StoryFallbackSpoilerContext.Provider value={protectedContent}");
+    expect(gates).toContain("useV3StoryFallbackSpoilerProtection");
     expect(indexRoute).toContain('<V3StoriesIndexGate fallback={<LegacyStoriesArchivePage presentation="installed-app" />} />');
     expect(indexRoute).toContain("if (isAppMode)");
     expect(indexRoute).toContain("return <LegacyStoriesArchivePage presentation={presentation} />;");

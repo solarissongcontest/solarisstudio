@@ -9,8 +9,8 @@ describe("V3 country browsing and bottom navigation clearance", () => {
     expect(countries).not.toContain("discovery.participating.slice(0, 9)");
     expect(countries).not.toContain("<AppGroupedList>");
     expect(countries).toContain('aria-label="Country collections"');
-    expect(countries).toContain('aria-pressed={selectedParticipatingOnly}');
-    expect(countries).toContain('aria-pressed={!selectedParticipatingOnly}');
+    expect(countries).toContain('aria-pressed={selectedScopeButtonParticipatingOnly}');
+    expect(countries).toContain('aria-pressed={!selectedScopeButtonParticipatingOnly}');
     expect(countries).toContain("<CountryTile key={country.id} country={country} presentation={presentation}");
     expect(countries).toContain("status={selectedParticipatingOnly ? undefined : publishedStatuses.get(country.id)}");
     expect(countries).toContain('"v3-countries-grid grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4"');

@@ -16,7 +16,12 @@ describe("V3 editorial directory family: Stories and Reference", () => {
     expect(stories).toContain("filteredStories.map");
     expect(stories).toContain("storiesQuery.isError ?");
     expect(stories).toContain("onRetry={() => void storiesQuery.refetch()}");
-    expect(stories).toContain("loadPublicStorylines(30)");
+    expect(stories).toContain("loadPublicStorylines(storyLimit)");
+    expect(stories).toContain("PUBLIC_STORY_INITIAL_BATCH");
+    expect(stories).toContain("canExpandPublicStoryBatch");
+    expect(stories).toContain("Load more published stories");
+    expect(stories).toContain("moment.editionSlug ? (");
+    expect(stories).toContain("Read this edition story");
     expect(stories).toContain("No edition stories published yet");
     const gate = read("src/components/v3/V3StoriesGates.tsx");
     expect(gate).toContain("resolveV3ResultsSpoilerProtection");

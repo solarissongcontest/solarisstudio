@@ -45,8 +45,9 @@ describe("default page colour system", () => {
     const wiki = read("src/routes/wiki/index.tsx");
     expect(harmony).toContain("--solaris-bg-primary: 59 126 166");
     expect(harmony).not.toContain("--solaris-bg-primary: 224 171 72");
-    expect(wiki).toContain('className="directory-page-hero wiki-library-hero"');
-    expect(wiki).toContain("directory-country-card");
+    expect(wiki).toContain('className="wiki-web-editorial__masthead"');
+    expect(wiki).toContain('className="wiki-web-editorial__articles"');
+    expect(read("src/styles/wiki-web-editorial.css")).toContain(".wiki-web-editorial__article");
     expect(wiki).not.toContain("wandering into a 404");
   });
 

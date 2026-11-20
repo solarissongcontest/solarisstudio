@@ -11,7 +11,9 @@ describe("V3 Explore screen architecture boundary", () => {
   it("renders the canonical Explore projection instead of owning data access", () => {
     expect(source).toContain("V3ExploreRootProjection");
     expect(source).toContain("projection.currentEdition");
-    expect(source).toContain("projection.discover.map");
+    expect(source).toContain("projection.discover.filter");
+    expect(source).toContain("discoverableCollections.map");
+    expect(source).toContain('collection.key !== "songs-and-artists"');
     expect(source).toContain("projection.archive.links.map");
 
     for (const forbidden of [

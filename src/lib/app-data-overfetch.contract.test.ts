@@ -27,16 +27,20 @@ describe("installed app archive loading policy", () => {
     expect(wiki).toContain("{ enabled: archiveEnabled }");
   });
 
-  it("renders edition detail from edition-scoped results before historical stories", () => {
+  it("renders edition detail from edition-scoped results without global archive fan-out", () => {
     const edition = source("src/routes/editions/$slug.tsx");
     const data = source("src/lib/data.ts");
 
     expect(data).toContain("export function useEditionResults");
     expect(data).toContain('"results",\n      "edition"');
     expect(edition).toContain("useEditionResults(edition?.id)");
-    expect(edition).toContain("useAllResults({ enabled: historyEnabled })");
-    expect(edition).toContain("useAllShows({ enabled: historyEnabled })");
     expect(edition).toContain("const resultList = editionResults ?? []");
+    expect(edition).not.toContain("allResults:");
+    expect(edition).not.toContain("allShows:");
+    expect(edition).not.toContain("useAllResults");
+    expect(edition).not.toContain("useAllShows");
+    expect(edition).not.toContain("historyEnabled");
+    expect(edition).not.toContain("useAllJuryVotes");
   });
 
   it("keeps deferable full-archive hooks cache-compatible", () => {

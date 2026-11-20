@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { WorldOrganizationPage, WorldPublicGate } from "@/components/world/WorldPublic";
 
-type WorldSection = "overview" | "leadership" | "members";
+type WorldSection = "overview" | "leadership" | "members" | "history";
 
 export const Route = createFileRoute("/world/organizations/$slug")({
   validateSearch: (search: Record<string, unknown>): { tab: WorldSection } => ({
-    tab: search.tab === "leadership" || search.tab === "members" ? search.tab : "overview",
+    tab: search.tab === "leadership" || search.tab === "members" || search.tab === "history" ? search.tab : "overview",
   }),
   head: ({ params }) => ({
     meta: [
@@ -25,7 +25,7 @@ function OrganizationRoute() {
   const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
   return (
-    <WorldPublicGate>
+    <WorldPublicGate verifyOnMount>
       <WorldOrganizationPage
         slug={slug}
         view={tab}

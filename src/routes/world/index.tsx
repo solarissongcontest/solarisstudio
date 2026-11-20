@@ -13,5 +13,5 @@ export const Route = createFileRoute("/world/")({
 });
 
 function WorldLandingRoute() {
-  return <WorldPublicGate><WorldLanding /></WorldPublicGate>;
+  return <WorldPublicGate verifyOnMount><WorldLanding /></WorldPublicGate>;
 }

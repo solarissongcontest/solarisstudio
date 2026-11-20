@@ -7,6 +7,12 @@ import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useV3DirectoryPresentation, type V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import { directoryCountLabel } from "@/lib/v3-directory-count";
+import { matchesPublicDirectorySearch } from "@/lib/v3-public-directory-search";
+import {
+  MAX_PUBLIC_DIRECTORY_QUERY_LENGTH,
+  normalizePublicDirectoryUrlQuery,
+  parseEditionDirectoryUrlSearch,
+} from "@/lib/v3-directory-url-search";
 import "@/styles/v3-directory-family.css";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
@@ -18,14 +24,15 @@ import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading
 import { FlagChip } from "@/components/FlagChip";
 import {
   editionLabel,
-  useAllResults,
   useAllShows,
   useCountries,
   useEditions,
 } from "@/lib/data";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
+import { usePublicFinalWinners } from "@/lib/public-final-winners";
 
 export const Route = createFileRoute("/editions/")({
+  validateSearch: parseEditionDirectoryUrlSearch,
   head: () => ({
     meta: [
       { title: "Editions — Solaris Song Contest" },
@@ -56,49 +63,67 @@ type EditionCard = {
   editionShows: any[];
   winner: any;
   winnerResult: any;
+  hasPublishedFinalResults: boolean;
+  winnerReadState: "ready" | "loading" | "error";
   hosts: HostLocation[];
 };
 
 function EditionsPage() {
-  const { isAppMode, platformResolved } = useSolarisApp();
+  const { platformResolved } = useSolarisApp();
   const presentation = useV3DirectoryPresentation();
-  const [resultsEnabled, setResultsEnabled] = useState(!isAppMode);
-  const [search, setSearch] = useState("");
-  const [scope, setScope] = useState<EditionDirectoryScope>("all");
+  const urlSearch = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const [search, setSearch] = useState(urlSearch.q ?? "");
+  const [scope, setScope] = useState<EditionDirectoryScope>(urlSearch.scope ?? "all");
+  const [order, setOrder] = useState<EditionDirectoryOrder>(urlSearch.order ?? "newest");
+  const changeSearch = (value: string) =>
+    setSearch(value.slice(0, MAX_PUBLIC_DIRECTORY_QUERY_LENGTH));
+  useEffect(() => setSearch(urlSearch.q ?? ""), [urlSearch.q]);
+  useEffect(() => setScope(urlSearch.scope ?? "all"), [urlSearch.scope]);
+  useEffect(() => setOrder(urlSearch.order ?? "newest"), [urlSearch.order]);
+  useEffect(() => {
+    if (!platformResolved) return;
+    const q = normalizePublicDirectoryUrlQuery(search);
+    const selectedScope = scope === "all" ? undefined : scope;
+    const selectedOrder = order === "oldest" ? order : undefined;
+    if (q === urlSearch.q && selectedScope === urlSearch.scope &&
+      selectedOrder === urlSearch.order) return;
+    const timer = window.setTimeout(() => {
+      void navigate({ search: { q, scope: selectedScope, order: selectedOrder }, replace: true });
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [platformResolved, search, scope, order, urlSearch.q, urlSearch.scope, urlSearch.order, navigate]);
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
-  const resultsQuery = useAllResults({ enabled: resultsEnabled });
   const countriesQuery = useCountries();
   const { data: editions } = editionsQuery;
   const { data: shows } = showsQuery;
-  const { data: results } = resultsQuery;
   const { data: countries } = countriesQuery;
 
-  useEffect(() => {
-    if (!isAppMode) {
-      setResultsEnabled(true);
-      return;
-    }
-
-    const idleWindow = window as typeof window & {
-      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
-      cancelIdleCallback?: (handle: number) => void;
-    };
-    let timeout = 0;
-    let idle: number | null = null;
-    const enable = () => setResultsEnabled(true);
-
-    if (idleWindow.requestIdleCallback) {
-      idle = idleWindow.requestIdleCallback(enable, { timeout: 650 });
-    } else {
-      timeout = window.setTimeout(enable, 220);
-    }
-
-    return () => {
-      if (idle != null) idleWindow.cancelIdleCallback?.(idle);
-      if (timeout) window.clearTimeout(timeout);
-    };
-  }, [isAppMode]);
+  // A directory needs only the first-place rows of already published finals.
+  // Derive the finite allowlist from published Edition, public Show and
+  // results-publication gates before executing the optional winner read.
+  const publishedFinalShowIds = useMemo(() => {
+    const publicEditionIds = new Set((editions ?? []).filter((item) => item.published).map((item) => item.id));
+    return [...new Set((shows ?? [])
+      .filter((show) =>
+        publicEditionIds.has(show.edition_id) &&
+        isShowPublic(show) &&
+        (show.kind === "grand-final" || show.kind === "final") &&
+        resolveShowPublication(show).results,
+      )
+      .map((show) => show.id))].sort();
+  }, [editions, shows]);
+  const resultsQuery = usePublicFinalWinners(publishedFinalShowIds);
+  // Invalidate cached winner labels on a failed refresh rather than showing
+  // historical data as if the public result read just succeeded.
+  const winnerResultsFresh =
+    resultsQuery.isSuccess && !resultsQuery.isFetching && !resultsQuery.isRefetchError;
+  const results = winnerResultsFresh ? resultsQuery.data : undefined;
+  const winnerReadState: EditionCard["winnerReadState"] =
+    publishedFinalShowIds.length === 0 ? "ready" :
+    resultsQuery.isError || resultsQuery.isRefetchError ? "error" :
+    winnerResultsFresh ? "ready" : "loading";
 
   const editionList = useMemo(
     () =>
@@ -169,10 +194,12 @@ function EditionsPage() {
           editionShows,
           winner,
           winnerResult,
+          hasPublishedFinalResults: Boolean(publication?.results),
+          winnerReadState: publication?.results ? winnerReadState : "ready",
           hosts: [...hostMap.values()],
         };
       }),
-    [editionList, shows, results, countryMap],
+    [editionList, shows, results, countryMap, winnerReadState],
   );
 
   const latest = cards[0] ?? null;
@@ -181,13 +208,15 @@ function EditionsPage() {
     const hostNames = card.hosts
       .map((host) => [host.city, host.country?.name].filter(Boolean).join(" "))
       .join(" ");
-    return [
+    return matchesPublicDirectorySearch(normalizedSearch, [
       editionLabel(card.edition),
       card.edition.slug,
       card.edition.edition_number,
+      card.edition.year,
+      card.edition.host_city,
       hostNames,
       card.winner?.name,
-    ].filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch);
+    ]);
   });
   const latestCount = latest && searched.some((card) => card.edition.id === latest.edition.id) ? 1 : 0;
   const pastCount = searched.length - latestCount;
@@ -198,9 +227,14 @@ function EditionsPage() {
   ));
   const visibleLatest = visible.find((card) => card.edition.id === latest?.edition.id) ?? null;
   const visiblePast = visible.filter((card) => card.edition.id !== latest?.edition.id);
-  const archiveQueries = isAppMode
-    ? [editionsQuery, showsQuery, countriesQuery]
-    : [editionsQuery, showsQuery, resultsQuery, countriesQuery];
+  // The latest spotlight remains stable; sort past editions without new reads.
+  // Missing edition numbers stay last even in oldest-first mode.
+  const orderedPast = order === "oldest"
+    ? [...visiblePast].sort((a, b) =>
+        (a.edition.edition_number ?? Number.POSITIVE_INFINITY) -
+        (b.edition.edition_number ?? Number.POSITIVE_INFINITY))
+    : visiblePast;
+  const archiveQueries = [editionsQuery, showsQuery, countriesQuery];
 
   // Never flash website navigation before the installed runtime is resolved.
   if (!platformResolved) {
@@ -213,7 +247,7 @@ function EditionsPage() {
         {presentation === "desktop-web" ? (
           <PageHeader eyebrow="Contest archive" title="Editions" description="Browse the published Solaris Song Contest editions." />
         ) : null}
-        <ArchiveDataLoading label={isAppMode ? "Loading editions…" : "Loading editions and results…"} />
+        <ArchiveDataLoading label="Loading published editions…" />
       </AppShell>
     );
   }
@@ -229,14 +263,16 @@ function EditionsPage() {
   }
 
   const searchLabel = "Search editions";
-  const reset = () => { setSearch(""); setScope("all"); };
+  const reset = () => { setSearch(""); setScope("all"); setOrder("newest"); };
   const control = (
     <EditionDirectoryControls
       presentation={presentation}
       search={search}
-      setSearch={setSearch}
+      setSearch={changeSearch}
       scope={scope}
       setScope={setScope}
+      order={order}
+      setOrder={setOrder}
       latestCount={latestCount}
       pastCount={pastCount}
       searchLabel={searchLabel}
@@ -255,16 +291,19 @@ function EditionsPage() {
             </header>
             {control}
             <p className="v3-directory-results-count" role="status" aria-live="polite">{directoryCountLabel({ available: cards.length, matches: visible.length, rendered: visible.length, noun: "published editions" })}</p>
+                {visible.length > 0 && (search.trim() || scope !== "all" || order !== "newest") ? (
+                  <button type="button" className="v3-directory-clear-filters" onClick={reset}>Clear filters</button>
+                ) : null}
             {visibleLatest ? <LatestEdition card={visibleLatest} appMode /> : null}
             {visiblePast.length ? (
               <section className="v3-directory-group" aria-labelledby="app-edition-archive">
                 <h2 id="app-edition-archive" className="v3-directory-group-title">Past editions <span className="v3-directory-group-count">{visiblePast.length}</span></h2>
                 <AppGroupedList>
-                  {visiblePast.map((card) => <ArchiveEdition key={card.edition.id} card={card} appMode />)}
+                  {orderedPast.map((card) => <ArchiveEdition key={card.edition.id} card={card} appMode />)}
                 </AppGroupedList>
               </section>
             ) : null}
-            {!visible.length ? <EditionDirectoryEmpty onReset={reset} /> : null}
+            {!visible.length ? <EditionDirectoryEmpty onReset={reset} hasPublishedEditions={cards.length > 0} /> : null}
           </AppScreen>
         ) : (
           <>
@@ -293,22 +332,25 @@ function EditionsPage() {
               <div className="v3-directory-results">
                 {control}
                 <p className="v3-directory-results-count" role="status" aria-live="polite">{directoryCountLabel({ available: cards.length, matches: visible.length, rendered: visible.length, noun: "published editions" })}</p>
+                {visible.length > 0 && (search.trim() || scope !== "all" || order !== "newest") ? (
+                  <button type="button" className="v3-directory-clear-filters" onClick={reset}>Clear filters</button>
+                ) : null}
                 {visibleLatest ? <LatestEdition card={visibleLatest} /> : null}
                 {visiblePast.length ? (
                   <section className="v3-directory-group v3-editions-history" aria-labelledby="editions-archive-heading">
                     <h2 id="editions-archive-heading" className="v3-directory-group-title">Past editions</h2>
                     {presentation === "mobile-web" ? (
                       <div className="v3-directory-mobile-list">
-                        {visiblePast.map((card) => <EditionMobileRow key={card.edition.id} card={card} />)}
+                        {orderedPast.map((card) => <EditionMobileRow key={card.edition.id} card={card} />)}
                       </div>
                     ) : (
                       <div className="v3-directory-desktop-grid">
-                        {visiblePast.map((card) => <EditionDesktopCard key={card.edition.id} card={card} />)}
+                        {orderedPast.map((card) => <EditionDesktopCard key={card.edition.id} card={card} />)}
                       </div>
                     )}
                   </section>
                 ) : null}
-                {!visible.length ? <EditionDirectoryEmpty onReset={reset} /> : null}
+                {!visible.length ? <EditionDirectoryEmpty onReset={reset} hasPublishedEditions={cards.length > 0} /> : null}
               </div>
             </div>
           </>
@@ -319,6 +361,7 @@ function EditionsPage() {
 }
 
 type EditionDirectoryScope = "all" | "latest" | "past";
+type EditionDirectoryOrder = "newest" | "oldest";
 
 function EditionDirectoryControls({
   presentation,
@@ -326,6 +369,8 @@ function EditionDirectoryControls({
   setSearch,
   scope,
   setScope,
+  order,
+  setOrder,
   latestCount,
   pastCount,
   searchLabel,
@@ -335,6 +380,8 @@ function EditionDirectoryControls({
   setSearch: (value: string) => void;
   scope: EditionDirectoryScope;
   setScope: (value: EditionDirectoryScope) => void;
+  order: EditionDirectoryOrder;
+  setOrder: (value: EditionDirectoryOrder) => void;
   latestCount: number;
   pastCount: number;
   searchLabel: string;
@@ -344,6 +391,16 @@ function EditionDirectoryControls({
     { id: "latest", label: "Latest edition", count: latestCount },
     { id: "past", label: "Past editions", count: pastCount },
   ] as const;
+  const sortControl = (
+    <label className="v3-directory-area-select">
+      <span className="sr-only">Sort past editions</span>
+      <select aria-label="Sort past editions" value={order}
+        onChange={(event) => setOrder(event.target.value as EditionDirectoryOrder)}>
+        <option value="newest">Past editions: newest first</option>
+        <option value="oldest">Past editions: oldest first</option>
+      </select>
+    </label>
+  );
   const webSearch = (
     <div className="v3-directory-search" role="search">
       <Search size={18} aria-hidden="true" />
@@ -357,12 +414,13 @@ function EditionDirectoryControls({
     </div>
   );
   if (presentation === "desktop-web") {
-    return <div className="v3-directory-controls">{webSearch}</div>;
+    return <div className="v3-directory-controls">{webSearch}{sortControl}</div>;
   }
   if (presentation === "mobile-web") {
     return (
       <div className="v3-directory-controls">
         {webSearch}
+        {sortControl}
         <label className="v3-directory-area-select">
           <span className="sr-only">Browse edition history</span>
           <select aria-label="Browse edition history" value={scope}
@@ -378,6 +436,7 @@ function EditionDirectoryControls({
   return (
     <div className="v3-directory-controls">
       <SolarisSearchField value={search} onChange={setSearch} label={searchLabel} placeholder="Search editions or hosts…" />
+      {sortControl}
       <Sheet>
         <SheetTrigger asChild>
           <button type="button" className="v3-directory-sheet-trigger" aria-label="Filter editions">
@@ -455,17 +514,25 @@ function EditionDesktopCard({ card }: { card: EditionCard }) {
       </span>
       <span className="v3-directory-card-description">{card.editionShows.length} published show{card.editionShows.length === 1 ? "" : "s"}</span>
       <span className="v3-directory-card-description">Host: <HostLine hosts={card.hosts} /></span>
-      <span className="v3-directory-card-description">Winner: <WinnerLine winner={card.winner} points={card.winnerResult?.total_points} /></span>
+      <span className="v3-directory-card-description">Winner: <WinnerLine winner={card.winner} points={card.winnerResult?.total_points} readState={card.winnerReadState} hasPublishedFinalResults={card.hasPublishedFinalResults} /></span>
     </Link>
   );
 }
 
-function EditionDirectoryEmpty({ onReset }: { onReset: () => void }) {
-  return (
+function EditionDirectoryEmpty({ onReset, hasPublishedEditions }: {
+  onReset: () => void;
+  hasPublishedEditions: boolean;
+}) {
+  return hasPublishedEditions ? (
     <AppEmptyState
       title="No matching editions"
       description="Try another edition number, country or host city."
       action={<button type="button" onClick={onReset} className="solaris-app-empty-action">Clear filters</button>}
+    />
+  ) : (
+    <AppEmptyState
+      title="No public editions yet"
+      description="Published editions will appear in this historical collection when they are released."
     />
   );
 }
@@ -495,8 +562,15 @@ function HostLine({ hosts }: { hosts: HostLocation[] }) {
   );
 }
 
-function WinnerLine({ winner, points }: { winner: any; points?: number | null }) {
-  if (!winner) return <span className="text-muted-foreground">Result not public yet</span>;
+function WinnerLine({ winner, points, readState = "ready", hasPublishedFinalResults = false }: {
+  winner: any;
+  points?: number | null;
+  readState?: EditionCard["winnerReadState"];
+  hasPublishedFinalResults?: boolean;
+}) {
+  if (readState === "loading") return <span className="text-muted-foreground">Checking published winner…</span>;
+  if (readState === "error") return <span className="text-muted-foreground">Winner details temporarily unavailable</span>;
+  if (!winner) return <span className="text-muted-foreground">{hasPublishedFinalResults ? "Winner information unavailable" : "Result not public yet"}</span>;
   return (
     <span className="inline-flex min-w-0 items-center gap-1.5">
       <FlagChip
@@ -512,7 +586,7 @@ function WinnerLine({ winner, points }: { winner: any; points?: number | null })
 }
 
 function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?: boolean }) {
-  const { edition, editionShows, winner, winnerResult, hosts } = card;
+  const { edition, editionShows, winner, winnerResult, winnerReadState, hasPublishedFinalResults, hosts } = card;
 
   return (
     <section aria-labelledby="current-edition-heading">
@@ -539,7 +613,7 @@ function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?:
         <div className="v3-editions-feature-meta mt-3 grid gap-1.5 border-t border-border/60 pt-3 text-sm sm:grid-cols-3">
           <p><span className="text-muted-foreground">Shows:</span> {editionShows.length}</p>
           <p className="min-w-0"><span className="text-muted-foreground">Host:</span> <HostLine hosts={hosts} /></p>
-          {winner ? <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} /></p> : null}
+          {winner || hasPublishedFinalResults ? <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} readState={winnerReadState} hasPublishedFinalResults={hasPublishedFinalResults} /></p> : null}
         </div>
       </Link>
     </section>
@@ -547,7 +621,7 @@ function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?:
 }
 
 function ArchiveEdition({ card, appMode = false }: { card: EditionCard; appMode?: boolean }) {
-  const { edition, editionShows, winner, winnerResult, hosts } = card;
+  const { edition, editionShows, winner, winnerResult, winnerReadState, hasPublishedFinalResults, hosts } = card;
 
   return (
     <Link
@@ -562,7 +636,7 @@ function ArchiveEdition({ card, appMode = false }: { card: EditionCard; appMode?
             <p className="mt-1 text-xs text-muted-foreground">
               {editionShows.length} public show{editionShows.length === 1 ? "" : "s"}
             </p>
-            <p className="mt-1 min-w-0 text-xs"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} /></p>
+            <p className="mt-1 min-w-0 text-xs"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} readState={winnerReadState} hasPublishedFinalResults={hasPublishedFinalResults} /></p>
           </div>
           <span className="shrink-0 text-primary" aria-hidden="true">›</span>
         </>
@@ -580,7 +654,7 @@ function ArchiveEdition({ card, appMode = false }: { card: EditionCard; appMode?
 
           <div className="min-w-0 space-y-1 text-xs">
             <p className="min-w-0"><span className="text-muted-foreground">Host:</span> <HostLine hosts={hosts} /></p>
-            <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} /></p>
+            <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} readState={winnerReadState} hasPublishedFinalResults={hasPublishedFinalResults} /></p>
           </div>
 
           <span className="hidden shrink-0 text-base font-semibold text-primary transition-transform group-hover:translate-x-0.5 sm:block">→</span>
