@@ -15,6 +15,7 @@ describe("World history: published completed institution membership terms",()=>{
   expect(route).toContain('"history"');
   expect(view).toContain('view === "history"');
   expect(view).toContain("Former member countries");
-  expect(view).toContain("does not establish any current rights");
+  // JSX line wraps are formatting, not different user-visible copy.
+  expect(view.replace(/\s+/g, " ")).toContain("does not establish any current rights");
  });
 });
