@@ -71,7 +71,7 @@ test('raw restoration diagnostics and private data are not echoed', () => {
 });
 
 
-test('TOC owner parser ignores unusual non-table descriptor tails without relaxing table checks', () => {
+test('TOC role parser collects exactly 225 table owners, not arbitrary object names', () => {
   const start = "<<'PYROLE'\n";
   const end = '\nPYROLE\n';
   const snippet = source.split(start)[1].split(end)[0];
@@ -84,14 +84,16 @@ test('TOC owner parser ignores unusual non-table descriptor tails without relaxi
     const dataLines = Array.from({ length: 225 }, (_, i) =>
       (i + 226) + '; 0 ' + (1000 + i) +
       ' TABLE DATA public sample_' + (i + 1) + ' postgres');
-    const unusual = '451; 0 0 ACL public complicated descriptor-tail!not_an_owner';
-    writeFileSync(toc, [...tableLines, ...dataLines, unusual, ''].join('\n'));
-    const result = spawnSync('python3', ['-c', snippet, toc], {
-      encoding: 'utf8',
-    });
+    const unrelated = Array.from({ length: 125 }, (_, i) =>
+      (i + 451) + '; 0 ' + (2000 + i) +
+      (i % 2 ? ' INDEX public idx_' + i + ' arbitraryvalidowner' + i :
+               ' ACL public object_' + i + ' arbitraryvalidowner' + i));
+    const unusual = '576; 0 0 ACL public complicated descriptor-tail!not_an_owner';
+    writeFileSync(toc, [...tableLines, ...dataLines, ...unrelated, unusual, ''].join('\n'));
+    const result = spawnSync('python3', ['-c', snippet, toc], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stderr, /ignored 1 non-table TOC descriptor tails/);
     assert.match(result.stdout, /CREATE ROLE/);
+    assert.doesNotMatch(result.stdout, /arbitraryvalidowner/);
     assert.doesNotMatch(result.stdout, /descriptor-tail/);
 
     tableLines[0] = '1; 1259 1000 TABLE public sample_1 unsafe-owner';
@@ -99,7 +101,12 @@ test('TOC owner parser ignores unusual non-table descriptor tails without relaxi
     const bad = spawnSync('python3', ['-c', snippet, toc], { encoding: 'utf8' });
     assert.notEqual(bad.status, 0);
     assert.match(bad.stderr, /unusual TABLE owner field/);
-    assert.equal(bad.stdout.trim(), '', 'No SQL emitted for unsafe table owner');
+    assert.equal(bad.stdout.trim(), '', 'No SQL emitted for unsafe TABLE owner');
+
+    writeFileSync(toc, [...tableLines.slice(1), ...dataLines, unusual, ''].join('\n'));
+    const missingTable = spawnSync('python3', ['-c', snippet, toc], { encoding: 'utf8' });
+    assert.notEqual(missingTable.status, 0);
+    assert.match(missingTable.stderr, /unexpected TABLE owner inventory/);
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
