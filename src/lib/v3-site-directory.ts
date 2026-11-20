@@ -8,6 +8,7 @@ import {
   type PublicArea,
   type PublicDestination,
 } from "@/lib/public-navigation";
+import { matchesPublicDirectorySearch } from "./v3-public-directory-search";
 
 export const SITE_DIRECTORY_AREA_ORDER: readonly PublicArea[] = [
   "explore",
@@ -58,10 +59,9 @@ export function filterSiteDirectory(
   query: string,
   area: SiteDirectoryArea = "all",
 ): PublicDestination[] {
-  const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
   return destinations.filter((item) =>
     (area === "all" || item.area === area) &&
-    terms.every((term) => publicSearchText(item).includes(term)),
+    matchesPublicDirectorySearch(query, [publicSearchText(item)]),
   );
 }
 
