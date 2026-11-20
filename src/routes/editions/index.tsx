@@ -62,7 +62,7 @@ type EditionCard = {
 };
 
 function EditionsPage() {
-  const { isAppMode, platformResolved } = useSolarisApp();
+  const { platformResolved } = useSolarisApp();
   const presentation = useV3DirectoryPresentation();
   const [search, setSearch] = useState("");
   const [scope, setScope] = useState<EditionDirectoryScope>("all");
