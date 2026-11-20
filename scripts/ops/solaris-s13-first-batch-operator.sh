@@ -47,7 +47,7 @@ receipt={'schemaVersion':1,'batchId':proof['batchId'],'sourceSha':expected,'inst
          'restoreAppTables':225,'restoreRlsTables':202,'restorePolicies':265,'restoreGlobalDefaultAclRecords':27,
          'operatorBoundPrivateArchiveRehearsalPassed':True,'fullRoleComparisonPassed':rc==0,
          'batchProofPath':str(p),'productionAuthorized':False,'authVaultCertified':False,
-         'livePreflightFresh':False,'independentOperatorEvidenceReviewRequired':True}
+         'livePreflightFresh':False,'systemReviewOfOperatorEvidenceRequired':True}
 fd=os.open(work/'operator-receipt.private.json',os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
 with os.fdopen(fd,'w')as stream:json.dump(receipt,stream,indent=2);stream.write('\n')
 print('PASS: first S13 batch rehearsed against the private archive clone; source unchanged.')

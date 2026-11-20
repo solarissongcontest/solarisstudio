@@ -107,7 +107,8 @@ class Tests(unittest.TestCase):
                     "GRANT EXECUTE ON FUNCTION public.v3_register_migration_contract(text,integer,text,boolean,text,text) TO authenticated"]:
             with self.subTest(sql=sql):
                 # Transaction rollback restores the sanctioned baseline after failed postconditions.
-                with self.assertRaises(subprocess.CalledProcessError):self.sql('BEGIN; '+sql+'; '+(ROOT/'docs/v3/recovery-candidates/s13-first-batch-postconditions.sql').read_text(),db)
+                with self.assertRaises(subprocess.CalledProcessError) as caught:self.sql('BEGIN; '+sql+'; '+(ROOT/'docs/v3/recovery-candidates/s13-first-batch-postconditions.sql').read_text(),db)
+                self.assertIn(b'42501',caught.exception.stderr)
                 self.assertEqual(module.catalog_digest(self.container,db),before)
     def test_06_no_source_database_or_clone_left_over(self):
         self.assertEqual(self.sql("SELECT count(*) FROM pg_database WHERE datname LIKE 'solaris_s13_batch_%'"),'0')

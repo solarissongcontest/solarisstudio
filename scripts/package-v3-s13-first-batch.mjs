@@ -26,6 +26,13 @@ export function reconcileEffects(){
  const functions=current.catalog.functions.filter(r=>r.identity.startsWith('public.v3_'));
  const indexes=current.catalog.indexes;
  assert.equal(relations.length,5);assert.equal(functions.length,7);assert.equal(indexes.length,2);
+ const source=fs.readFileSync(path.join(root,candidate),'utf8');
+ const expectedTables=[...source.matchAll(/^create table if not exists (private\.\w+)/gm)].map(x=>x[1]).sort();
+ const expectedIndexes=[...source.matchAll(/^create index if not exists (\w+)/gm)].map(x=>'private.'+x[1]).sort();
+ const expectedFunctions=[...new Set([...fs.readFileSync(path.join(root,inputs[3]),'utf8').matchAll(/'(public\.v3_\w+\([^'\n]+\))'/g)].map(x=>x[1]))].sort();
+ assert.deepEqual(relations.map(x=>x.identity).sort(),expectedTables);
+ assert.deepEqual(indexes.map(x=>x.identity).sort(),expectedIndexes);
+ assert.deepEqual(functions.map(x=>x.identity).sort(),expectedFunctions);
  const effects=[...relations.map(x=>({...x,kind:'table'})),...functions.map(x=>({...x,kind:'function'})),...indexes.map(x=>({...x,kind:'index'}))];
  assert.ok(effects.every(x=>x.exists_now===false),'Previously absent S13 effects changed; requalify');
  return {observedAt:current.captured_at,sourceEvidence:evidencePaths[1],

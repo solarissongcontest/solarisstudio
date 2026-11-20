@@ -28,7 +28,9 @@ def validate_container(container):
     if not re.fullmatch('[a-f0-9]{64}',container):raise RehearsalFailure('Full isolated container ID required')
     metadata=json.loads(command('docker','inspect','--type','container',container))[0]
     if (metadata['Id']!=container or not metadata['State']['Running'] or metadata['HostConfig']['NetworkMode']!='none'
-        or metadata['HostConfig'].get('Privileged') or any(metadata['NetworkSettings'].get('Ports',{}).values())):
+        or metadata['HostConfig'].get('Privileged') or metadata['HostConfig'].get('PidMode')=='host'
+        or any(m.get('Type')!='tmpfs' for m in metadata.get('Mounts',[]))
+        or any(metadata['NetworkSettings'].get('Ports',{}).values())):
         raise RehearsalFailure('Require running network-none, unprivileged container without published ports')
 
 def exec_args(container,*args):
@@ -50,7 +52,7 @@ def data_digest(container,database,identities):
     if not identities:raise RehearsalFailure('Empty original-table preservation scope')
     args=['docker','exec',container,'env','-u','PGHOSTADDR','-u','PGSERVICE','-u','PGSERVICEFILE','-u','PGOPTIONS','-u','PGPASSWORD',
           '-u','PGDATABASE','PGPASSFILE=/dev/null','pg_dump','-h','/var/run/postgresql','-p','5432','-U','supabase_admin','-d',database,
-          '--restrict-key=S13BatchLocalPreservationOnly','--no-comments']
+          '--restrict-key=S13BatchLocalPreservationOnly','--no-comments','--lock-wait-timeout=5s']
     for identity in identities:args.extend(['--table',identity])
     # Stream into a digest, not stdout/files/memory/private logs. Dump errors are never echoed.
     with subprocess.Popen(args,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL) as process:
@@ -151,6 +153,11 @@ def interrupt_owned_session(container,database,install):
             match=re.search(rb'S13_BATCH_INTERRUPTION_REACHED pid=(\d+)',line)
             if match:
                 reached=True;pid=int(match[1])
+                try:sql(container,database,install)
+                except subprocess.CalledProcessError as concurrent:
+                    if b'55P03' not in concurrent.stderr or b'another installation is active' not in concurrent.stderr:
+                        raise RehearsalFailure('Concurrent install failed for unrelated reason') from None
+                else:raise RehearsalFailure('Concurrent installation bypassed batch lock')
                 result=sql(container,'postgres',f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid={pid} AND datname='{database}' AND application_name='{application}'",actor='supabase_admin')
                 terminated=result=='t'
                 break
@@ -216,7 +223,7 @@ def rehearse(container,source_db,package,output,baseline_kind):
                 'operatorAssertedRecoveredBaseline':baseline_kind=='recovered-private',
                 'batchAcceptancePassed':True,'existingTablesVerified':len(baseline),'existingDataPreserved':True,
                 'existingCatalogPermissionsPreserved':True,'cloneOwnerMappedToObservedPostgres':True,'sourceDatabaseUnchanged':True,'transactionInterruptionRollback':True,
-                'identicalRetryPassed':True,'duplicateInstallationRefused':True,'apiWritersEnabled':False,
+                'identicalRetryPassed':True,'concurrentInstallationDenied':True,'duplicateInstallationRefused':True,'apiWritersEnabled':False,
                 'productionAuthorized':False,'authVaultRestorationCertified':False,
                 'dataSha256':before_data,'catalogSha256':before_catalog}
         fd=os.open(output,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
