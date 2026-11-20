@@ -56,7 +56,7 @@ function ResolvingPrimarySurface({ surface }: { surface: V3PrimarySurface }) {
       </nav>
 
       <p className="mt-7 max-w-xl text-xs leading-5 text-muted-foreground" role="status" aria-live="polite">
-        Opening the Solaris website… If this page stays here, the full experience has not finished loading.
+        Opening Solaris Studio… If this page stays here, the full experience has not finished loading.
       </p>
     </main>
   );
