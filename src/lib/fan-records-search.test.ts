@@ -35,6 +35,28 @@ describe("published fan-record directory search", () => {
     expect(filterPublishedFanRecords(rows, "all", " Oland ").map((x) => x.id)).toEqual(["wins"]);
   });
 
+  it("uses the shared accent-insensitive search for country and artist names", () => {
+    const accented = [{
+      ...rows[1],
+      holders: [{
+        ...rows[1].holders[0],
+        countryName: "Ørnådal",
+        artist: "Élira Våren",
+        song: "Åka län",
+      }],
+    }];
+    for (const query of ["ornadal", "elira varen", "aka lan", "ornadal elira SSC 22"]) {
+      expect(filterPublishedFanRecords(accented, "all", query).map((record) => record.id)).toEqual(["jury"]);
+    }
+  });
+
+  it("matches several terms across published record fields in any order", () => {
+    expect(filterPublishedFanRecords(rows, "all", "Reya 22 jury").map((record) => record.id)).toEqual(["jury"]);
+    expect(filterPublishedFanRecords(rows, "all", "421 Aotea Northern").map((record) => record.id)).toEqual(["jury"]);
+    expect(filterPublishedFanRecords(rows, "career", "421 Aotea Northern")).toEqual([]);
+    expect(filterPublishedFanRecords(rows, "all", "Northern missing")).toEqual([]);
+  });
+
   it("combines categories with search and does not infer missing records", () => {
     expect(filterPublishedFanRecords(rows, "career", "Reya")).toEqual([]);
     expect(filterPublishedFanRecords(rows, "voting", "Reya").map((x) => x.id)).toEqual(["jury"]);
