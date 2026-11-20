@@ -13,6 +13,7 @@ import { FlagChip } from "@/components/FlagChip";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { usePublicPresentationMode } from "@/lib/use-public-presentation-mode";
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { V3RecordsGate } from "@/components/v3/V3RecordsGate";
 import { buildCanonicalFanRecordsWithCoverage } from "@/lib/canonical-fan-records";
 import { filterPublishedFanRecords } from "@/lib/fan-records-search";
@@ -77,7 +78,7 @@ function RecordsPage() {
   return <LegacyRecordsPage />;
 }
 
-function RecordsPageHeader({ mobileWeb, ready }: { mobileWeb: boolean; ready: boolean }) {
+function RecordsPageHeader({ mobileWeb, ready, showArchiveGames }: { mobileWeb: boolean; ready: boolean; showArchiveGames: boolean }) {
   if (mobileWeb) {
     return (
       <header
@@ -91,7 +92,7 @@ function RecordsPageHeader({ mobileWeb, ready }: { mobileWeb: boolean; ready: bo
             ? "Achievements, streaks and unusual results from the published SSC archive. Tied countries share the record."
             : "Verified records from the published archive."}
         </p>
-        {ready ? (
+        {showArchiveGames ? (
           <Link
             to="/archive-games"
             className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary"
@@ -112,7 +113,7 @@ function RecordsPageHeader({ mobileWeb, ready }: { mobileWeb: boolean; ready: bo
           ? "Published records, remarkable achievements and the countries that hold them."
           : "Verified records from the published archive."
       }
-      actions={ready ? (
+      actions={showArchiveGames ? (
         <Link
           to="/archive-games"
           className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm sm:w-auto"
@@ -126,6 +127,7 @@ function RecordsPageHeader({ mobileWeb, ready }: { mobileWeb: boolean; ready: bo
 
 function LegacyRecordsPage() {
   const { isAppMode } = useSolarisApp();
+  const { allowsReleased } = usePublicLaunchAvailability();
   const [recordSearch, setRecordSearch] = useState("");
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
@@ -181,7 +183,7 @@ function LegacyRecordsPage() {
   if (loading || failed) {
     return (
       <AppShell>
-        <RecordsPageHeader mobileWeb={mobileWeb} ready={false} />
+        <RecordsPageHeader mobileWeb={mobileWeb} ready={false} showArchiveGames={false} />
         {loading ? (
           <ArchiveDataLoading label="Calculating records from the archive…" />
         ) : (
@@ -194,7 +196,7 @@ function LegacyRecordsPage() {
   return (
     <AppShell>
       <div data-records-presentation={presentationMode}>
-        <RecordsPageHeader mobileWeb={mobileWeb} ready />
+        <RecordsPageHeader mobileWeb={mobileWeb} ready showArchiveGames={allowsReleased("/archive-games")} />
 
         {isAppMode ? (
           <Panel className="mb-5" title="Archive coverage">
