@@ -18,3 +18,24 @@ export function nextPublicStoryBatchLimit(current: number): number {
 export function canExpandPublicStoryBatch(loadedCount: number, requestedLimit: number): boolean {
   return requestedLimit < PUBLIC_STORY_RPC_MAX && loadedCount >= requestedLimit;
 }
+
+/**
+ * Search uses the currently fetched bounded batch. Offer a deliberate
+ * expansion rather than claiming that a zero-match query searched history.
+ */
+export function canExpandPublishedStorySearch(
+  query: string,
+  loadedCount: number,
+  requestedLimit: number,
+): boolean {
+  return query.trim().length > 0 &&
+    canExpandPublicStoryBatch(loadedCount, requestedLimit);
+}
+
+export function publicStoryBatchAtServerCap(
+  loadedCount: number,
+  requestedLimit: number,
+): boolean {
+  return requestedLimit >= PUBLIC_STORY_RPC_MAX &&
+    loadedCount >= PUBLIC_STORY_RPC_MAX;
+}
