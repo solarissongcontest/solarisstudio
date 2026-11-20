@@ -11,7 +11,9 @@ describe("Voting Rounds & entries page runtime contract", () => {
 
     expect(page).toContain("useAdminContext");
     expect(page).toContain("getMergedTelevotingRoundsPage");
-    expect(page).toContain('["merged-televoting-rounds-page", editionId]');
+    expect(page).toContain('["merged-televoting-rounds-page", actorId, editionId]');
+    expect(page).toContain("const actorId = useAuthenticatedUser().id");
+    expect(page).toContain("enabled: Boolean(actorId && editionId)");
     expect(page).toContain("getRoundsPage({ data: { editionId } })");
     expect(page).not.toContain("getMergedTelevotingAdmin");
     expect(page).not.toContain("getMergedTelevotingRounds,");

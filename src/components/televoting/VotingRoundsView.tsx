@@ -6,6 +6,7 @@ import { Edit3, Layers3, Lock, Plus, Radio, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import {
   AdminActionItem,
   AdminCard,
@@ -37,6 +38,7 @@ type PendingRoundStatusChange = {
 };
 
 export function VotingRoundsView() {
+  const actorId = useAuthenticatedUser().id;
   const queryClient = useQueryClient();
   const { editionId } = useAdminContext();
   const getRoundsPage = useServerFn(getMergedTelevotingRoundsPage);
@@ -55,10 +57,15 @@ export function VotingRoundsView() {
   const [statusBusy, setStatusBusy] = useState<string | null>(null);
 
   const { data: pageData, isLoading, error } = useQuery({
-    queryKey: ["merged-televoting-rounds-page", editionId],
+    queryKey: ["merged-televoting-rounds-page", actorId, editionId],
     queryFn: () => getRoundsPage({ data: { editionId } }),
-    enabled: Boolean(editionId),
-    staleTime: 10_000,
+    enabled: Boolean(actorId && editionId),
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const edition = pageData?.edition ?? null;
@@ -66,7 +73,7 @@ export function VotingRoundsView() {
   const openRound = rounds.find((round) => round.status === "open") ?? null;
   const remoteEditionId = edition?.id ?? "";
   const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: ["merged-televoting-rounds-page", editionId] });
+    queryClient.invalidateQueries({ queryKey: ["merged-televoting-rounds-page", actorId, editionId] });
 
   const createMutation = useMutation({
     mutationFn: () => createRound({ data: { editionId: remoteEditionId, name: newName.trim() } }),
@@ -191,6 +198,13 @@ export function VotingRoundsView() {
           <p className="mt-1 text-rose-100/70">
             The rest of Solaris Organizer remains available. Retry this section after the voting connection recovers.
           </p>
+          <button
+            type="button"
+            onClick={() => void refresh()}
+            className="admin-action-secondary mt-3 min-h-11"
+          >
+            Retry voting rounds
+          </button>
           <details className="mt-3 rounded-xl border border-white/[0.08] bg-black/10 p-3 text-xs text-rose-100/65">
             <summary className="cursor-pointer font-semibold">Technical details</summary>
             <p className="mt-2 break-words">{error instanceof Error ? error.message : "Unknown voting-round error"}</p>
