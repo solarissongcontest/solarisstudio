@@ -25,7 +25,7 @@ function OrganizationRoute() {
   const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
   return (
-    <WorldPublicGate>
+    <WorldPublicGate verifyOnMount>
       <WorldOrganizationPage
         slug={slug}
         view={tab}

@@ -8,6 +8,7 @@ import "@/styles/v3-world-editorial.css";
 import { FlagChip } from "@/components/FlagChip";
 import { supabase } from "@/integrations/supabase/client";
 import { publicWorldRolloutDisplay } from "@/lib/terra-world-rollout-gate";
+import { worldPublicQueryVerified } from "@/lib/terra-world-unified-search";
 import {
   WORLD_DIRECTORY_PAGE_SIZE,
   WORLD_DIRECTORY_MAX_PAGE_INDEX,
@@ -333,11 +334,14 @@ export function WorldOrganizationPage({
     queryKey: ["world", "public", "organization", slug],
     queryFn: () => fetchWorldProjection(slug),
     staleTime: 60_000,
+    refetchOnMount: "always",
     retry: false,
   });
+  // Never use a prior success while the authoritative public projection is being rechecked.
+  const verifiedProjection = worldPublicQueryVerified(projection) ? projection.data : null;
   const currentMembers = useMemo(() =>
-    projection.data ? currentWorldMemberships(projection.data) : [],
-    [projection.data]);
+    verifiedProjection ? currentWorldMemberships(verifiedProjection) : [],
+    [verifiedProjection]);
   const visibleMembers = useMemo(
     () => currentMembers.slice(memberPage * WORLD_MEMBER_PAGE_SIZE, (memberPage + 1) * WORLD_MEMBER_PAGE_SIZE),
     [currentMembers, memberPage],
@@ -347,9 +351,10 @@ export function WorldOrganizationPage({
     [visibleMembers]);
   const countries = useQuery({
     queryKey: ["world", "public", "member-countries", countryIds],
-    enabled: view === "members" && countryIds.length > 0,
+    enabled: verifiedProjection !== null && view === "members" && countryIds.length > 0,
     retry: false,
     staleTime: 300_000,
+    refetchOnMount: "always",
     queryFn: async () => {
       // Exact member IDs and five display fields. Never download account owners,
       // country controls, private delegation or membership authority.
@@ -359,45 +364,47 @@ export function WorldOrganizationPage({
       return parseCountryRows(data);
     },
   });
+  // A cached member label must not survive a failed or pending public recheck.
+  const verifiedCountries = worldPublicQueryVerified(countries) ? countries.data : null;
   const countryMap = useMemo(() =>
-    new Map((countries.data ?? []).map((country) => [country.id, country])),
-    [countries.data]);
+    new Map((verifiedCountries ?? []).map((country) => [country.id, country])),
+    [verifiedCountries]);
   const representativesByCountry = useMemo(() =>
-    new Map((projection.data?.representatives ?? [])
+    new Map((verifiedProjection?.representatives ?? [])
       .filter((rep) => rep.endsAt === null && rep.role === "representative" && rep.votingAuthority)
       .map((rep) => [rep.countryId, rep])),
-    [projection.data]);
+    [verifiedProjection]);
   const officesByCountry = useMemo(() => {
     const map = new Map<string, string[]>();
-    for (const office of projection.data?.offices ?? []) {
+    for (const office of verifiedProjection?.offices ?? []) {
       const countryId = office.currentTerm?.representedCountryId;
       if (!countryId) continue;
       map.set(countryId, [...(map.get(countryId) ?? []), office.title]);
     }
     return map;
-  }, [projection.data]);
+  }, [verifiedProjection]);
   return (
     <PublicFrame>
       <Link to="/world/organizations" className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" aria-hidden="true" /> All organizations
       </Link>
-      {projection.isPending ? <div className="mt-6"><LoadingWorld label="Loading organization" /></div> : null}
-      {projection.isError ? <div className="mt-6"><QueryFailure message="Public institution information is temporarily unavailable." retry={() => void projection.refetch()} /></div> : null}
-      {projection.isSuccess && !projection.data ? (
+      {(projection.isPending || projection.isFetching) && !projection.isRefetchError ? <div className="mt-6"><LoadingWorld label="Loading organization" /></div> : null}
+      {(projection.isError || projection.isRefetchError) ? <div className="mt-6"><QueryFailure message="Public institution information is temporarily unavailable." retry={() => void projection.refetch()} /></div> : null}
+      {worldPublicQueryVerified(projection) && !verifiedProjection ? (
         <div className="mt-6 rounded-2xl border border-border px-5 py-9">
           <h1 className="text-2xl font-semibold">Organization not available</h1>
           <p className="mt-2 text-sm text-muted-foreground">This organization does not have a published profile, or this link is no longer valid.</p>
           <Link to="/world/organizations" className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground">Browse organizations</Link>
         </div>
       ) : null}
-      {projection.data ? (
+      {verifiedProjection ? (
         <>
           <header className="world-editorial-institution-header mt-5 max-w-4xl">
             <Kicker>Terra Solaris · International institution</Kicker>
-            <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight sm:text-6xl">{projection.data.organization.shortName}</h1>
-            <p className="mt-2 text-base font-medium text-muted-foreground">{projection.data.organization.officialName}</p>
+            <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight sm:text-6xl">{verifiedProjection.organization.shortName}</h1>
+            <p className="mt-2 text-base font-medium text-muted-foreground">{verifiedProjection.organization.officialName}</p>
             <div className="mt-5 flex flex-wrap gap-2">
-              <span className="rounded-full border border-border px-3 py-1 text-xs font-medium capitalize">{projection.data.organization.status}</span>
+              <span className="rounded-full border border-border px-3 py-1 text-xs font-medium capitalize">{verifiedProjection.organization.status}</span>
               <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">{currentMembers.length} current {currentMembers.length === 1 ? "membership" : "memberships"}</span>
             </div>
           </header>
@@ -417,14 +424,14 @@ export function WorldOrganizationPage({
                 <Kicker>About</Kicker>
                 <h2 className="mt-2 text-2xl font-semibold">The institution</h2>
                 <p className="mt-4 max-w-2xl whitespace-pre-line text-base leading-7 text-muted-foreground">
-                  {projection.data.organization.description || "An official description has not yet been published."}
+                  {verifiedProjection.organization.description || "An official description has not yet been published."}
                 </p>
                 <section className="mt-10 border-t border-border pt-6" aria-labelledby="world-organs-title">
                   <Kicker>Organization</Kicker>
                   <h2 id="world-organs-title" className="mt-2 text-xl font-semibold">Public bodies</h2>
-                  {projection.data.organs.length ? (
+                  {verifiedProjection.organs.length ? (
                     <div className="mt-4 divide-y divide-border">
-                      {projection.data.organs.slice(0, 5).map((organ) => (
+                      {verifiedProjection.organs.slice(0, 5).map((organ) => (
                         <Link key={organ.id} to="/world/organizations/$slug/bodies/$bodySlug"
                           params={{ slug, bodySlug: organ.slug }}
                           className="flex min-h-14 flex-wrap items-center justify-between gap-2 py-4 focus-visible:rounded-md focus-visible:outline focus-visible:outline-2">
@@ -444,8 +451,8 @@ export function WorldOrganizationPage({
                 <Kicker>At a glance</Kicker>
                 <div className="mt-4 space-y-5">
                   <div><p className="text-xs text-muted-foreground">Active memberships</p><p className="mt-1 text-2xl font-semibold">{currentMembers.length}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Recorded public organs</p><p className="mt-1 text-2xl font-semibold">{projection.data.organs.length}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Leadership offices</p><p className="mt-1 text-2xl font-semibold">{projection.data.offices.length}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Recorded public organs</p><p className="mt-1 text-2xl font-semibold">{verifiedProjection.organs.length}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Leadership offices</p><p className="mt-1 text-2xl font-semibold">{verifiedProjection.offices.length}</p></div>
                 </div>
                 <button type="button" className="mt-6 flex min-h-11 items-center gap-2 text-sm font-semibold text-primary" onClick={() => onViewChange("leadership")}>
                   Meet the leadership <ArrowRight className="size-4" aria-hidden="true" />
@@ -458,9 +465,9 @@ export function WorldOrganizationPage({
               <Kicker>Institutional offices</Kicker>
               <h2 id="world-leadership-title" className="mt-2 text-2xl font-semibold">Leadership</h2>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">Only recorded current office terms appear below. Empty offices are not assigned fictional holders.</p>
-              {projection.data.offices.length ? (
+              {verifiedProjection.offices.length ? (
                 <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                  {projection.data.offices.map((office) => (
+                  {verifiedProjection.offices.map((office) => (
                     <article key={office.id} className="rounded-xl border border-border p-5">
                       <p className="text-xs text-muted-foreground">{office.title}</p>
                       <h3 className="mt-2 text-lg font-semibold">{office.currentTerm?.holderDisplayName ?? "Vacant or unrecorded"}</h3>
@@ -476,10 +483,10 @@ export function WorldOrganizationPage({
               <Kicker>Membership</Kicker>
               <h2 id="world-members-title" className="mt-2 flex items-center gap-2 text-2xl font-semibold"><Users className="size-5" aria-hidden="true" /> Member countries</h2>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">Current institutional memberships. Historical terms remain recorded by the governance system.</p>
-              {countries.isPending && countryIds.length ? <div className="mt-6"><LoadingWorld label="Loading member countries" /></div> : null}
-              {countries.isError ? <div className="mt-6"><QueryFailure message="Member country labels could not be retrieved." retry={() => void countries.refetch()} /></div> : null}
+              {(countries.isPending || countries.isFetching) && countryIds.length && !countries.isRefetchError ? <div className="mt-6"><LoadingWorld label="Loading member countries" /></div> : null}
+              {(countries.isError || countries.isRefetchError) ? <div className="mt-6"><QueryFailure message="Member country labels could not be retrieved." retry={() => void countries.refetch()} /></div> : null}
               {!currentMembers.length ? <p className="mt-6 rounded-xl border border-border px-5 py-7 text-sm text-muted-foreground">No current memberships have been recorded. This does not imply the institution has no historical members.</p> : null}
-              {countries.isSuccess && currentMembers.length ? (
+              {worldPublicQueryVerified(countries) && currentMembers.length ? (
                 <div className="mt-5 divide-y divide-border" aria-label="Current member countries">
                   {visibleMembers.map((member) => {
                     const country = countryMap.get(member.countryId);

@@ -38,6 +38,15 @@ describe("Terra Solaris World editorial web composition", () => {
     expect(screen).toContain("organization.officialName !== organization.shortName");
     expect(screen).toContain("organization.description");
     expect(screen).toContain("organization.slug");
-    expect(screen).toContain("projection.data.organization.shortName");
+    expect(screen).toContain("verifiedProjection.organization.shortName");
   });
+  it("hides cached institution and member labels during publication refetch", () => {
+    const screen = source();
+    expect(screen).toContain("worldPublicQueryVerified(projection) ? projection.data : null");
+    expect(screen).toContain("worldPublicQueryVerified(countries) ? countries.data : null");
+    expect(screen).toContain("enabled: verifiedProjection !== null");
+    expect(screen).toContain("projection.isRefetchError");
+    expect(screen).toContain("countries.isRefetchError");
+  });
+
 });
