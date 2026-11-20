@@ -248,7 +248,7 @@ function WebWikiIndexPage() {
         </label>
         </div>
 
-        <div className="wiki-web-editorial__alphabet scroll-slim mt-3 flex gap-1 overflow-x-auto pb-1" aria-label="Filter Wiki by first letter">
+        <div className="wiki-web-editorial__alphabet scroll-slim mt-3 flex gap-1 overflow-x-auto pb-1" role="group" aria-label="Filter Wiki by first letter">
           <button
             type="button"
             onClick={() => setLetter("all")}
