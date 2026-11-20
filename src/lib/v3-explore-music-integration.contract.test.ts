@@ -25,6 +25,8 @@ describe("Explore P9 music-first routing integration", () => {
     expect(directory).toContain('destination("music", "/music", "explore"');
     expect(directory).toContain('destination("songs", "/songs", "explore"');
     expect(directory).toContain('destination("artists", "/artists", "explore"');
+    expect(source("src/routes/archive/index.tsx")).toContain('to: "/music", group: "countries-stories"');
+
     // Search palette must also apply release availability to navigation results.
     expect(source("src/components/public/PublicCommandPalette.tsx")).toContain("unfilteredSearchResults.filter(item => allows(item.href))");
 

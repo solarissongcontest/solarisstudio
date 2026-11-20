@@ -22,13 +22,15 @@ export const Route = createFileRoute("/archive/")({
 });
 
 // Navigation only: archive entities and publication remain with their canonical
-// owners. A dedicated Songs/Artists catalogue must not be invented by duplicating
-// Reference; broader credit search appears only after its own approved rollout.
+// owners. P9 Songs & Artists are first-class only through the independent System
+// publication-safe catalogue, subject to the shared release gate in
+// V3DirectoryFamilyIndex. Do not derive song identities from Entry text.
 const ARCHIVE_DESTINATIONS = [
   { title: "Editions", description: "Browse published contest editions in their original historical context.", to: "/editions", group: "contests", aliases: ["ssc", "contests", "years"] },
   { title: "Shows", description: "Find published semi-finals, finals and official broadcast history.", to: "/shows", group: "contests", aliases: ["broadcasts", "finals", "schedule"] },
   { title: "Countries", description: "Follow national participation, published entries and delegation history.", to: "/countries", group: "countries-stories", aliases: ["nations", "delegations", "entries"] },
   { title: "Stories", description: "Read edition stories and past moments that have been released publicly.", to: "/stories", group: "countries-stories", aliases: ["timeline", "moments", "history"] },
+  { title: "Songs & artists", description: "Browse historically published music through the canonical identity catalogue.", to: "/music", group: "countries-stories", aliases: ["songs", "artists", "performers", "music"] },
   { title: "Wiki & Reference", description: "Read published country articles. Broader contest Reference opens here when its rollout is enabled.", to: "/wiki", group: "reference-results", aliases: ["wiki", "encyclopedia", "country articles", "knowledge"] },
   { title: "Records", description: "Open official all-time records and historical results in Results.", to: "/records", group: "reference-results", aliases: ["results", "rankings", "winners"] },
   { title: "Archive Games", description: "Play retained historical experiences built from public contest history.", to: "/archive-games", group: "reference-results", aliases: ["games", "play", "history"] },
@@ -36,7 +38,7 @@ const ARCHIVE_DESTINATIONS = [
 
 const ARCHIVE_SECTIONS = [
   { id: "contests", label: "Contests and broadcasts", description: "Follow the published SSC timeline and the shows in each edition." },
-  { id: "countries-stories", label: "Countries and stories", description: "Explore national participation and the moments recorded around it." },
+  { id: "countries-stories", label: "Countries, music and stories", description: "Explore published national participation, canonical music identities and recorded moments." },
   { id: "reference-results", label: "Reference and records", description: "Find public reference knowledge and official result history in their respective sections." },
 ] as const;
 
