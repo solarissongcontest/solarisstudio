@@ -16,6 +16,8 @@ import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/s
 import { type Country, useCountries, useEditions } from "@/lib/data";
 import { countryDirectoryRegionOptions, effectiveParticipatingScope, filterCountryDirectory } from "@/lib/v3-country-directory-filters";
 import { resolvePublicDirectoryFacet } from "@/lib/v3-public-directory-search";
+import { MAX_PUBLIC_DIRECTORY_QUERY_LENGTH, normalizePublicDirectoryUrlQuery } from "@/lib/v3-directory-url-search";
+import { type CountryDirectoryUrlSearch } from "@/lib/v3-explore-browse-url";
 import { publishedCountryStatusMap, type PublishedCountryStatus } from "@/lib/v3-country-published-status";
 import { directoryCountLabel } from "@/lib/v3-directory-count";
 import { usePublicEditionParticipants } from "@/lib/public-participants";
@@ -29,8 +31,12 @@ const BROWSE_PAGE_SIZE = 24;
 
 export function V3CountriesDiscoveryScreen({
   presentation = "installed-app",
+  urlSearch,
+  onUrlSearchChange,
 }: {
   presentation?: CountryDirectoryPresentation;
+  urlSearch?: CountryDirectoryUrlSearch;
+  onUrlSearchChange?: (next: CountryDirectoryUrlSearch) => void;
 }) {
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
@@ -39,10 +45,18 @@ export function V3CountriesDiscoveryScreen({
     [editionsQuery.data],
   );
   const participantsQuery = usePublicEditionParticipants(activeEdition?.id);
-  const [search, setSearch] = useState("");
-  const [region, setRegion] = useState("all");
-  const [participatingOnly, setParticipatingOnly] = useState(false);
+  const [search, setSearch] = useState(urlSearch?.q ?? "");
+  const [region, setRegion] = useState(urlSearch?.region ?? "all");
+  const [participatingOnly, setParticipatingOnly] = useState(urlSearch?.scope === "participants");
   const [visibleCount, setVisibleCount] = useState(BROWSE_PAGE_SIZE);
+  const changeSearch = (value: string) =>
+    setSearch(value.slice(0, MAX_PUBLIC_DIRECTORY_QUERY_LENGTH));
+  // Restoring a public directory link never grants any country participation.
+  useEffect(() => { setSearch(urlSearch?.q ?? ""); setVisibleCount(BROWSE_PAGE_SIZE); }, [urlSearch?.q]);
+  useEffect(() => { setRegion(urlSearch?.region ?? "all"); setVisibleCount(BROWSE_PAGE_SIZE); }, [urlSearch?.region]);
+  useEffect(() => { setParticipatingOnly(urlSearch?.scope === "participants");
+    setVisibleCount(BROWSE_PAGE_SIZE);
+  }, [urlSearch?.scope]);
 
   const discovery = useMemo(
     () =>
@@ -82,8 +96,28 @@ export function V3CountriesDiscoveryScreen({
   // Revoke invalid facets when the published country or lineup collection changes,
   // rather than silently resurrecting a stale selection later.
   useEffect(() => {
+    // Wait for a fresh public collection before revoking a deep-linked region.
+    if (!countriesQuery.isSuccess || countriesQuery.isFetching || countriesQuery.isRefetchError) return;
     if (region !== effectiveRegion) setRegion("all");
-  }, [region, effectiveRegion]);
+  }, [region, effectiveRegion, countriesQuery.isSuccess, countriesQuery.isFetching, countriesQuery.isRefetchError]);
+  useEffect(() => {
+    if (!countriesQuery.isSuccess || countriesQuery.isFetching || countriesQuery.isRefetchError ||
+      !urlSearch || !onUrlSearchChange) return;
+    // A requested SSC lineup needs a fresh read before it can be accepted or
+    // denied. Keep its URL unchanged while the optional roster is still loading.
+    if (participatingOnly && activeEdition?.id && participantsQuery.isLoading) return;
+    const next: CountryDirectoryUrlSearch = {
+      q: normalizePublicDirectoryUrlQuery(search),
+      region: effectiveRegion === "all" ? undefined : effectiveRegion,
+      scope: selectedParticipatingOnly ? "participants" : undefined,
+    };
+    if (next.q === urlSearch.q && next.region === urlSearch.region &&
+      next.scope === urlSearch.scope) return;
+    const timer = window.setTimeout(() => onUrlSearchChange(next), 250);
+    return () => window.clearTimeout(timer);
+  }, [countriesQuery.isSuccess, countriesQuery.isFetching, countriesQuery.isRefetchError,
+    participantsQuery.isLoading, activeEdition?.id, participatingOnly, selectedParticipatingOnly,
+    search, effectiveRegion, urlSearch?.q, urlSearch?.region, urlSearch?.scope, onUrlSearchChange]);
 
   const collectionCount = selectedParticipatingOnly
     ? discovery.participating.length
@@ -254,7 +288,7 @@ export function V3CountriesDiscoveryScreen({
           <SolarisSearchField
             value={search}
             onChange={(value) => {
-              setSearch(value);
+              changeSearch(value);
               setVisibleCount(BROWSE_PAGE_SIZE);
             }}
             label="Search countries"
@@ -320,6 +354,13 @@ export function V3CountriesDiscoveryScreen({
           </div>
         </div>
 
+        {filtered.length > 0 && (search.trim() || effectiveRegion !== "all" || selectedParticipatingOnly) ? (
+          <button type="button" className="v3-directory-clear-filters"
+            onClick={() => {
+              setSearch(""); setRegion("all"); setParticipatingOnly(false);
+              setVisibleCount(BROWSE_PAGE_SIZE);
+            }}>Clear filters</button>
+        ) : null}
         <div
           className={presentation === "installed-app"
             ? "v3-countries-grid grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4"

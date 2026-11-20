@@ -1,5 +1,6 @@
 import { PublicLaunchLink as Link } from "@/components/public/PublicLaunchLink";
-import { createFileRoute} from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { parseCountryDirectoryUrlSearch, type CountryDirectoryUrlSearch } from "@/lib/v3-explore-browse-url";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { AppScreen } from "@/components/app/AppPrimitives";
@@ -8,6 +9,7 @@ import { useCountryDirectoryPresentation } from "@/lib/use-country-directory-pre
 import { V3CountriesDiscoveryScreen } from "@/components/v3/V3CountriesDiscoveryScreen";
 
 export const Route = createFileRoute("/countries/")({
+  validateSearch: parseCountryDirectoryUrlSearch,
   head: () => ({
     meta: [
       { title: "Countries — Solaris Song Contest" },
@@ -27,9 +29,19 @@ export const Route = createFileRoute("/countries/")({
   component: CountriesPage,
 });
 
+type CountryDirectoryPermalinkProps = {
+  urlSearch: CountryDirectoryUrlSearch;
+  onUrlSearchChange: (next: CountryDirectoryUrlSearch) => void;
+};
+
 function CountriesPage() {
   const { platformResolved } = useSolarisApp();
   const presentation = useCountryDirectoryPresentation();
+  const urlSearch = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const onUrlSearchChange = (next: CountryDirectoryUrlSearch) => {
+    void navigate({ search: next, replace: true });
+  };
 
   // Avoid flashing website navigation before installed-app identity resolves.
   if (!platformResolved) {
@@ -38,21 +50,25 @@ function CountriesPage() {
     );
   }
   return presentation === "installed-app"
-    ? <AppCountriesPage />
-    : <WebCountriesPage presentation={presentation} />;
+    ? <AppCountriesPage urlSearch={urlSearch} onUrlSearchChange={onUrlSearchChange} />
+    : <WebCountriesPage presentation={presentation} urlSearch={urlSearch}
+        onUrlSearchChange={onUrlSearchChange} />;
 }
 
-function AppCountriesPage() {
+function AppCountriesPage({ urlSearch, onUrlSearchChange }: CountryDirectoryPermalinkProps) {
   return (
     <AppShell>
       <AppScreen>
-        <V3CountriesDiscoveryScreen presentation="installed-app" />
+        <V3CountriesDiscoveryScreen presentation="installed-app"
+          urlSearch={urlSearch} onUrlSearchChange={onUrlSearchChange} />
       </AppScreen>
     </AppShell>
   );
 }
 
-function WebCountriesPage({ presentation }: { presentation: "mobile-web" | "desktop-web" }) {
+function WebCountriesPage({
+  presentation, urlSearch, onUrlSearchChange,
+}: CountryDirectoryPermalinkProps & { presentation: "mobile-web" | "desktop-web" }) {
   const mobileWeb = presentation === "mobile-web";
   return (
     <AppShell>
@@ -86,7 +102,8 @@ function WebCountriesPage({ presentation }: { presentation: "mobile-web" | "desk
       />
       )}
       <div className={mobileWeb ? "mx-auto w-full max-w-2xl pb-8" : "mx-auto w-full max-w-6xl pb-8"}>
-        <V3CountriesDiscoveryScreen presentation={presentation} />
+        <V3CountriesDiscoveryScreen presentation={presentation}
+          urlSearch={urlSearch} onUrlSearchChange={onUrlSearchChange} />
       </div>
     </AppShell>
   );

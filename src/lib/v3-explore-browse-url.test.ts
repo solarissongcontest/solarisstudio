@@ -27,6 +27,22 @@ describe("Explore published Show and Country URL search state", () => {
       .toEqual({q: undefined, region: undefined, scope: undefined});
   });
 
+  it("links Country filtering without making a participant roster authoritative", () => {
+    const route = readFileSync("src/routes/countries/index.tsx", "utf8");
+    const view = readFileSync("src/components/v3/V3CountriesDiscoveryScreen.tsx", "utf8");
+    expect(route).toContain("validateSearch: parseCountryDirectoryUrlSearch");
+    expect(route).toContain("Route.useSearch()");
+    expect(route).toContain("Route.useNavigate()");
+    expect(route).toContain("replace: true");
+    expect(view).toContain("urlSearch?.scope === \"participants\"");
+    expect(view).toContain("onUrlSearchChange(next)");
+    expect(view).toContain("effectiveParticipatingScope(participatingOnly, currentLineupReady)");
+    expect(view).toContain("participantsQuery.isLoading) return");
+    expect(view).toContain("resolvePublicDirectoryFacet(region, regionOptions.map");
+    expect(view).not.toContain("useAllResults(");
+    expect(view).not.toContain("useAllJuryVotes(");
+  });
+
   it("keeps Shows search in the public route and publication-filtered component", () => {
     const route = readFileSync("src/routes/shows/index.tsx", "utf8");
     const view = readFileSync("src/components/v3/V3ShowsDiscoveryScreen.tsx", "utf8");
@@ -37,7 +53,7 @@ describe("Explore published Show and Country URL search state", () => {
     expect(view).toContain("resolveShowDirectoryFacet(editionId");
     expect(view).toContain("browseFilterKey = JSON.stringify([normalizedSearch, effectiveEditionId, effectiveKind, state])");
     expect(view).toContain("onUrlSearchChange(next)");
-    expect(view).toContain("replace: true");
+    expect(route).toContain("replace: true");
     expect(view).not.toContain("useAllResults(");
     expect(view).not.toContain("useAllJuryVotes(");
   });
