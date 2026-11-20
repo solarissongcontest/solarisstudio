@@ -13,6 +13,18 @@ const options = [
 ] as const;
 
 describe("SolarisMorphingSelection layouts", () => {
+  it("exposes one tab stop, falling back safely when selection is unavailable", () => {
+    for (const value of ["blocked", "missing", "disabled"]) {
+      const html = renderToStaticMarkup(
+        <SolarisMorphingSelection value={value} options={[
+          { value: "disabled", label: "Disabled", disabled: true }, ...options,
+        ]} onChange={() => {}} ariaLabel="Task filters" />,
+      );
+      expect(html.match(/tabindex="0"/g)).toHaveLength(1);
+      expect(html).toContain('tabindex="-1" disabled=""');
+      expect(html).toContain("min-h-11");
+    }
+  });
   it("keeps task filters readable without equal-width squeeze", () => {
     const html = renderToStaticMarkup(
       <SolarisMorphingSelection

@@ -1,6 +1,7 @@
-import { type ReactNode } from "react";
+import { type KeyboardEvent, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
+import { selectionKeyboardTarget } from "@/lib/selection-keyboard";
 
 export type SolarisSelectionOption = {
   value: string;
@@ -25,6 +26,20 @@ export function SolarisMorphingSelection({
 }) {
   const selectedIndex = Math.max(0, options.findIndex((option) => option.value === value));
   const count = Math.max(1, options.length);
+  const focusIndex = options.findIndex((option) => option.value === value && !option.disabled);
+  const tabStop = focusIndex >= 0 ? focusIndex : options.findIndex((option) => !option.disabled);
+  const moveFocus = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    const next = selectionKeyboardTarget(options, index, event.key,
+      getComputedStyle(event.currentTarget).direction === "rtl");
+    if (next == null) return;
+    const button = event.currentTarget.parentElement
+      ?.querySelectorAll<HTMLButtonElement>('button[role="tab"]')[next];
+    if (!button) return;
+    event.preventDefault();
+    button.focus();
+    if (options[next].value !== value) onChange(options[next].value);
+  };
 
   return (
     <div
@@ -46,7 +61,7 @@ export function SolarisMorphingSelection({
           transform: `translateX(calc(${selectedIndex} * 100%))`,
         }}
       /> : null}
-      {options.map((option) => {
+      {options.map((option, index) => {
         const selected = option.value === value;
         return (
           <button
@@ -54,10 +69,12 @@ export function SolarisMorphingSelection({
             type="button"
             role="tab"
             aria-selected={selected}
+            tabIndex={index === tabStop ? 0 : -1}
             disabled={option.disabled}
+            onKeyDown={(event) => moveFocus(event, index)}
             onClick={() => onChange(option.value)}
             className={cn(
-              "relative z-[1] min-h-9 min-w-0 rounded-lg px-3 text-sm font-semibold",
+              "relative z-[1] min-h-11 min-w-0 rounded-lg px-3 text-sm font-semibold",
               "transition-[color,transform] duration-150 active:scale-[0.97] motion-reduce:active:scale-100",
               selected ? "text-foreground" : "text-muted-foreground",
               layout === "scroll" && "whitespace-nowrap",
