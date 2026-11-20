@@ -33,9 +33,13 @@ scoring engine or application write workflow is an intrinsic SQL dependency.
 Existing evidence is reconciled offline by the packager: fourteen absent objects
 from Nov20 and the Nov19 helper/owner/ACL checkpoint. These are dated observations;
 they do not replace the fresh exact-target preflight at approved installation.
-Relevant enabled DDL event handlers are not covered by that evidence. The batch
-refuses them rather than guessing or disabling a provider handler. If present,
-System must qualify their effects before a revised batch can be approved.
+A fresh bounded 20-Nov read-only observation identified exactly one relevant
+enabled DDL handler: Supabase's `extensions.pgrst_ddl_watch()`, owned by
+`supabase_admin`, which issues a PostgREST schema-reload `NOTIFY` after
+supported non-temporary DDL. The batch permits ONLY its pinned function and
+event-trigger fingerprint (`afaad7193dcf8f81e728d2bedb85e43e` MD5),
+without modifying or disabling the handler. A new/changed handler is still an
+explicit hard stop. This is catalog qualification, not production installation.
 
 ## Reproducible exact-source artifacts
 
@@ -143,8 +147,8 @@ automated contest test, full data crawl or backup restoration.
 ## Batch-specific remaining gates
 
 - Actual private-archive clone receipt from the consolidated Cloud Shell run.
-- Fresh approved exact-target preflight, including generated-name and relevant
-  DDL-handler closure; existing observations cannot certify unknown handlers.
+- Fresh approved exact-target preflight, including generated-name collisions,
+  exact PostgREST handler fingerprint, and rejection of all other DDL handlers.
 - Acceptable operation-specific backup/RPO, reviewed source/SQL hashes and
   **separate explicit approval** for this exact hosted SQL operation.
 
