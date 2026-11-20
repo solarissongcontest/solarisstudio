@@ -25,6 +25,13 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { uploadBetaFeedbackScreenshot } from "@/lib/beta-feedback-upload";
 import { editionLabel, useEditions } from "@/lib/data";
+import {
+  isOrganizerAcceptanceSubmissionId,
+  organizerAcceptanceEvidenceMatches,
+  organizerAcceptanceEvidenceMatchesEdition,
+  type OrganizerAcceptanceEvidencePayload,
+  type OrganizerAcceptanceEvidenceRow,
+} from "@/lib/v3-organizer-acceptance-evidence";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admin/beta-test")({
@@ -50,6 +57,7 @@ function AdminBetaTestPage() {
   const [answers, setAnswers] = useState<BetaAnswers>({});
   const [bugs, setBugs] = useState<BetaBugReport[]>([]);
   const [step, setStep] = useState(0);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -57,47 +65,110 @@ function AdminBetaTestPage() {
   const [sectionError, setSectionError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     setHydrated(false);
     setAnswers({});
     setBugs([]);
     setStep(0);
+    setSubmissionId(null);
     setSubmitted(false);
     setError(null);
     setSectionError(null);
 
-    if (!draftKey || !submittedKey) {
+    if (!draftKey || !submittedKey || !activeEdition) {
       if (!editionsQuery.isLoading) setHydrated(true);
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
-    try {
-      const saved = window.localStorage.getItem(draftKey);
-      if (saved) {
-        const parsed = JSON.parse(saved) as {
-          answers?: BetaAnswers;
-          bugs?: Omit<BetaBugReport, "file">[];
-          step?: number;
-        };
-        if (parsed.answers) setAnswers(parsed.answers);
-        if (parsed.bugs) setBugs(parsed.bugs.map((bug) => ({ ...bug })));
-        if (typeof parsed.step === "number") setStep(Math.min(Math.max(parsed.step, 0), sections.length));
+    const hydrate = async () => {
+      let restoredSubmissionId = crypto.randomUUID();
+
+      try {
+        const saved = window.localStorage.getItem(draftKey);
+        if (saved) {
+          const parsed = JSON.parse(saved) as {
+            answers?: BetaAnswers;
+            bugs?: Omit<BetaBugReport, "file">[];
+            step?: number;
+            submissionId?: string;
+          };
+          if (parsed.answers) setAnswers(parsed.answers);
+          if (parsed.bugs) setBugs(parsed.bugs.map((bug) => ({ ...bug })));
+          if (typeof parsed.step === "number") setStep(Math.min(Math.max(parsed.step, 0), sections.length));
+          if (isOrganizerAcceptanceSubmissionId(parsed.submissionId)) {
+            restoredSubmissionId = parsed.submissionId;
+          }
+        }
+      } catch {
+        // A damaged or unavailable local draft must not become acceptance truth.
       }
-      setSubmitted(window.localStorage.getItem(submittedKey) === "true");
-    } catch {
-      // A damaged draft should not block testing.
-    } finally {
-      setHydrated(true);
-    }
-  }, [draftKey, editionsQuery.isLoading, sections.length, submittedKey]);
+
+      if (!cancelled) setSubmissionId(restoredSubmissionId);
+
+      let submittedMarker: string | null = null;
+      try {
+        submittedMarker = window.localStorage.getItem(submittedKey);
+      } catch {
+        // Local storage is only a convenience hint. Server evidence remains authoritative.
+      }
+
+      if (isOrganizerAcceptanceSubmissionId(submittedMarker)) {
+        const { data: existingEvidence, error: evidenceError } = await supabase
+          .from("admin_beta_test_submissions" as never)
+          .select("id,answers")
+          .eq("id", submittedMarker)
+          .maybeSingle();
+
+        if (!cancelled && !evidenceError) {
+          const matchesEdition = organizerAcceptanceEvidenceMatchesEdition(
+            existingEvidence as unknown as Pick<OrganizerAcceptanceEvidenceRow, "id" | "answers"> | null,
+            { submissionId: submittedMarker, editionId: activeEdition.id },
+          );
+          if (matchesEdition) {
+            setSubmissionId(submittedMarker);
+            setSubmitted(true);
+          } else {
+            try {
+              window.localStorage.removeItem(submittedKey);
+            } catch {
+              // The invalid marker is already ignored for this runtime.
+            }
+          }
+        } else if (!cancelled && evidenceError) {
+          setError("Solaris could not verify this device's previous acceptance evidence yet. The local marker is not being treated as proof of submission.");
+        }
+      } else if (submittedMarker) {
+        try {
+          window.localStorage.removeItem(submittedKey);
+        } catch {
+          // Legacy boolean markers are ignored even if storage cannot be updated.
+        }
+      }
+
+      if (!cancelled) setHydrated(true);
+    };
+
+    void hydrate();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeEdition, draftKey, editionsQuery.isLoading, sections.length, submittedKey]);
 
   useEffect(() => {
-    if (!hydrated || submitted || !draftKey) return;
+    if (!hydrated || submitted || !draftKey || !submissionId) return;
     const serializableBugs = bugs.map(({ file: _file, ...bug }) => bug);
-    window.localStorage.setItem(
-      draftKey,
-      JSON.stringify({ answers, bugs: serializableBugs, step }),
-    );
-  }, [answers, bugs, draftKey, step, hydrated, submitted]);
+    try {
+      window.localStorage.setItem(
+        draftKey,
+        JSON.stringify({ answers, bugs: serializableBugs, step, submissionId }),
+      );
+    } catch {
+      // Draft persistence is best-effort and never becomes acceptance authority.
+    }
+  }, [answers, bugs, draftKey, step, hydrated, submissionId, submitted]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -155,9 +226,10 @@ function AdminBetaTestPage() {
       !editionId ||
       activeEdition.id !== editionId ||
       !draftKey ||
-      !submittedKey
+      !submittedKey ||
+      !submissionId
     ) {
-      setError("Edition context changed before submission. Reopen the selected edition and review this acceptance pass again.");
+      setError("Edition context or acceptance identity changed before submission. Reopen the selected edition and review this acceptance pass again.");
       return;
     }
 
@@ -174,11 +246,10 @@ function AdminBetaTestPage() {
 
     setSubmitting(true);
     setError(null);
-    const submissionId = crypto.randomUUID();
-    const uploadedPaths: string[] = [];
 
     try {
       const preparedBugs: Omit<BetaBugReport, "file">[] = [];
+      const screenshotPaths: string[] = [];
 
       for (const bug of bugs) {
         let screenshotPath = bug.screenshotPath;
@@ -189,9 +260,17 @@ function AdminBetaTestPage() {
             file: bug.file,
             admin: true,
           });
-          uploadedPaths.push(screenshotPath);
+
+          setBugs((currentBugs) =>
+            currentBugs.map((currentBug) => {
+              if (currentBug.id !== bug.id) return currentBug;
+              const { file: _file, ...withoutFile } = currentBug;
+              return { ...withoutFile, screenshotPath };
+            }),
+          );
         }
 
+        if (screenshotPath) screenshotPaths.push(screenshotPath);
         const { file: _file, ...bugData } = bug;
         preparedBugs.push({ ...bugData, screenshotPath });
       }
@@ -202,7 +281,7 @@ function AdminBetaTestPage() {
         organizerEditionSlug: activeEdition.slug,
         organizerEditionLabel: editionLabel(activeEdition),
       };
-      const payload = {
+      const payload: OrganizerAcceptanceEvidencePayload = {
         id: submissionId,
         tester_name: testerName,
         device,
@@ -210,25 +289,45 @@ function AdminBetaTestPage() {
         familiarity: answers.familiarity || null,
         answers: scopedAnswers,
         bug_reports: preparedBugs,
-        screenshot_paths: uploadedPaths,
-        user_agent: navigator.userAgent,
+        screenshot_paths: screenshotPaths,
         form_version: ADMIN_BETA_FORM_VERSION,
       };
 
       const { error: insertError } = await supabase
         .from("admin_beta_test_submissions" as never)
-        .insert(payload as never);
-      if (insertError) throw insertError;
+        .insert({ ...payload, user_agent: navigator.userAgent } as never);
 
-      window.localStorage.removeItem(draftKey);
-      window.localStorage.setItem(submittedKey, "true");
+      if (insertError) {
+        const { data: existingEvidence, error: reconcileError } = await supabase
+          .from("admin_beta_test_submissions" as never)
+          .select("id,tester_name,device,browser,familiarity,answers,bug_reports,screenshot_paths,form_version")
+          .eq("id", submissionId)
+          .maybeSingle();
+
+        if (
+          reconcileError ||
+          !organizerAcceptanceEvidenceMatches(
+            existingEvidence as unknown as OrganizerAcceptanceEvidenceRow | null,
+            payload,
+          )
+        ) {
+          throw insertError;
+        }
+      }
+
+      try {
+        window.localStorage.removeItem(draftKey);
+        window.localStorage.setItem(submittedKey, submissionId);
+      } catch {
+        // The authoritative row already exists; local acknowledgement is optional.
+      }
       setSubmitted(true);
     } catch (submissionError) {
       console.error("Organizer acceptance evidence submission failed", submissionError);
       setError(
         submissionError instanceof Error
-          ? `Your acceptance evidence was not submitted yet: ${submissionError.message}`
-          : "Your acceptance evidence was not submitted yet. Please try again.",
+          ? `Your acceptance evidence is not confirmed yet: ${submissionError.message}. Retry will reuse the same evidence identity and reconcile it before creating anything new.`
+          : "Your acceptance evidence is not confirmed yet. Retry will reuse the same evidence identity and reconcile it before creating anything new.",
       );
     } finally {
       setSubmitting(false);
@@ -236,11 +335,24 @@ function AdminBetaTestPage() {
   }
 
   function restart() {
-    if (draftKey) window.localStorage.removeItem(draftKey);
-    if (submittedKey) window.localStorage.removeItem(submittedKey);
+    if (draftKey) {
+      try {
+        window.localStorage.removeItem(draftKey);
+      } catch {
+        // A fresh in-memory pass can still start.
+      }
+    }
+    if (submittedKey) {
+      try {
+        window.localStorage.removeItem(submittedKey);
+      } catch {
+        // Local acknowledgement is optional.
+      }
+    }
     setAnswers({});
     setBugs([]);
     setStep(0);
+    setSubmissionId(crypto.randomUUID());
     setSubmitted(false);
     setError(null);
   }
@@ -249,7 +361,7 @@ function AdminBetaTestPage() {
     return (
       <AdminPage>
         <div className="mx-auto max-w-4xl py-10">
-          <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Confirming Organizer edition context…</p></AdminCard>
+          <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Confirming Organizer edition context and acceptance evidence…</p></AdminCard>
         </div>
       </AdminPage>
     );
@@ -281,10 +393,15 @@ function AdminBetaTestPage() {
             </div>
             <p className="admin-section-label">Organizer Acceptance Test</p>
             <div className="mt-3 flex justify-center"><AdminStatus tone="info">{editionLabel(activeEdition)}</AdminStatus></div>
-            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Acceptance evidence submitted</h1>
+            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Acceptance evidence confirmed</h1>
             <p className="mx-auto mt-5 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-              This pass is bound to {editionLabel(activeEdition)}. Bugs, confusion, risky controls, slow workflows and anything that caused hesitation during normal organizer work all count as release evidence.
+              Solaris confirmed a server evidence row for this exact edition-scoped pass. Bugs, confusion, risky controls, slow workflows and anything that caused hesitation during normal organizer work all count as release evidence.
             </p>
+            {submissionId ? (
+              <p className="mx-auto mt-3 max-w-2xl break-all font-mono text-[10px] leading-4 text-muted-foreground">
+                Evidence {submissionId}
+              </p>
+            ) : null}
             <button type="button" onClick={restart} className="admin-action-secondary mt-8">
               Start another pass for this edition
             </button>
