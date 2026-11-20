@@ -1,6 +1,6 @@
 import { PublicLaunchLink as Link } from "@/components/public/PublicLaunchLink";
 import { createFileRoute, useRouterState } from "@tanstack/react-router";
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 
 import { AppShell, Panel, StatTile } from "@/components/AppShell";
 import { AppEntitySidebar } from "@/components/app/AppEntitySidebar";
@@ -123,6 +123,7 @@ function CountryProfilePage() {
   const { isAppMode } = useSolarisApp();
   const navigate = Route.useNavigate();
   const routeHash = useRouterState({ select: (state) => state.location.hash });
+  const previousWebHashRef = useRef(routeHash);
   const [appTab, setAppTab] = useState<Tab>("overview");
   const tab: Tab = isAppMode ? appTab : sectionFromCountryHash(routeHash);
   const changeTab = (next: Tab) => {
@@ -234,9 +235,14 @@ function CountryProfilePage() {
   useEffect(() => {
     // Direct links must scroll after identity/design loading ends; otherwise
     // the Country loading placeholder would swallow the first hash jump.
-    if (!country || visualLoading || isAppMode || !routeHash ||
-      sectionFromCountryHash(routeHash) === "overview") return;
-    document.getElementById(sectionFromCountryHash(routeHash))?.scrollIntoView({
+    // On a return to the canonical hash-free Overview URL, restore the hero
+    // instead of leaving readers stranded near the previously selected tab.
+    const previousHash = previousWebHashRef.current;
+    previousWebHashRef.current = routeHash;
+    if (!country || visualLoading || isAppMode) return;
+    if (!routeHash && !previousHash) return;
+    const section = sectionFromCountryHash(routeHash);
+    document.getElementById(section === "overview" ? "country-overview" : section)?.scrollIntoView({
       block: "start",
       behavior: "auto",
     });
