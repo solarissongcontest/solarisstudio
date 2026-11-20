@@ -57,6 +57,7 @@ type EditionCard = {
   editionShows: any[];
   winner: any;
   winnerResult: any;
+  hasPublishedFinalResults: boolean;
   winnerReadState: "ready" | "loading" | "error";
   hosts: HostLocation[];
 };
@@ -167,6 +168,7 @@ function EditionsPage() {
           editionShows,
           winner,
           winnerResult,
+          hasPublishedFinalResults: Boolean(publication?.results),
           winnerReadState: publication?.results ? winnerReadState : "ready",
           hosts: [...hostMap.values()],
         };
@@ -452,7 +454,7 @@ function EditionDesktopCard({ card }: { card: EditionCard }) {
       </span>
       <span className="v3-directory-card-description">{card.editionShows.length} published show{card.editionShows.length === 1 ? "" : "s"}</span>
       <span className="v3-directory-card-description">Host: <HostLine hosts={card.hosts} /></span>
-      <span className="v3-directory-card-description">Winner: <WinnerLine winner={card.winner} points={card.winnerResult?.total_points} readState={card.winnerReadState} /></span>
+      <span className="v3-directory-card-description">Winner: <WinnerLine winner={card.winner} points={card.winnerResult?.total_points} readState={card.winnerReadState} hasPublishedFinalResults={card.hasPublishedFinalResults} /></span>
     </Link>
   );
 }
@@ -500,14 +502,15 @@ function HostLine({ hosts }: { hosts: HostLocation[] }) {
   );
 }
 
-function WinnerLine({ winner, points, readState = "ready" }: {
+function WinnerLine({ winner, points, readState = "ready", hasPublishedFinalResults = false }: {
   winner: any;
   points?: number | null;
   readState?: EditionCard["winnerReadState"];
+  hasPublishedFinalResults?: boolean;
 }) {
   if (readState === "loading") return <span className="text-muted-foreground">Checking published winner…</span>;
   if (readState === "error") return <span className="text-muted-foreground">Winner details temporarily unavailable</span>;
-  if (!winner) return <span className="text-muted-foreground">Result not public yet</span>;
+  if (!winner) return <span className="text-muted-foreground">{hasPublishedFinalResults ? "Winner information unavailable" : "Result not public yet"}</span>;
   return (
     <span className="inline-flex min-w-0 items-center gap-1.5">
       <FlagChip
@@ -523,7 +526,7 @@ function WinnerLine({ winner, points, readState = "ready" }: {
 }
 
 function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?: boolean }) {
-  const { edition, editionShows, winner, winnerResult, winnerReadState, hosts } = card;
+  const { edition, editionShows, winner, winnerResult, winnerReadState, hasPublishedFinalResults, hosts } = card;
 
   return (
     <section aria-labelledby="current-edition-heading">
@@ -550,7 +553,7 @@ function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?:
         <div className="v3-editions-feature-meta mt-3 grid gap-1.5 border-t border-border/60 pt-3 text-sm sm:grid-cols-3">
           <p><span className="text-muted-foreground">Shows:</span> {editionShows.length}</p>
           <p className="min-w-0"><span className="text-muted-foreground">Host:</span> <HostLine hosts={hosts} /></p>
-          {winner ? <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} readState={winnerReadState} /></p> : null}
+          {winner || hasPublishedFinalResults ? <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} readState={winnerReadState} hasPublishedFinalResults={hasPublishedFinalResults} /></p> : null}
         </div>
       </Link>
     </section>
@@ -558,7 +561,7 @@ function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?:
 }
 
 function ArchiveEdition({ card, appMode = false }: { card: EditionCard; appMode?: boolean }) {
-  const { edition, editionShows, winner, winnerResult, winnerReadState, hosts } = card;
+  const { edition, editionShows, winner, winnerResult, winnerReadState, hasPublishedFinalResults, hosts } = card;
 
   return (
     <Link
@@ -573,7 +576,7 @@ function ArchiveEdition({ card, appMode = false }: { card: EditionCard; appMode?
             <p className="mt-1 text-xs text-muted-foreground">
               {editionShows.length} public show{editionShows.length === 1 ? "" : "s"}
             </p>
-            <p className="mt-1 min-w-0 text-xs"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} readState={winnerReadState} /></p>
+            <p className="mt-1 min-w-0 text-xs"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} readState={winnerReadState} hasPublishedFinalResults={hasPublishedFinalResults} /></p>
           </div>
           <span className="shrink-0 text-primary" aria-hidden="true">›</span>
         </>
@@ -591,7 +594,7 @@ function ArchiveEdition({ card, appMode = false }: { card: EditionCard; appMode?
 
           <div className="min-w-0 space-y-1 text-xs">
             <p className="min-w-0"><span className="text-muted-foreground">Host:</span> <HostLine hosts={hosts} /></p>
-            <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} readState={winnerReadState} /></p>
+            <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} readState={winnerReadState} hasPublishedFinalResults={hasPublishedFinalResults} /></p>
           </div>
 
           <span className="hidden shrink-0 text-base font-semibold text-primary transition-transform group-hover:translate-x-0.5 sm:block">→</span>
