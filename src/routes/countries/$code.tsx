@@ -40,7 +40,7 @@ import {
   useEditions,
 } from "@/lib/data-live";
 import { canonicalEditionEntries, canonicalEntryFor } from "@/lib/entry-utils";
-import { countrySectionHash, sectionFromCountryHash } from "@/lib/v3-country-web-tabs";
+import { countrySectionHash, countryTabNeedsDetailedVotes, sectionFromCountryHash } from "@/lib/v3-country-web-tabs";
 import "@/styles/v3-country-web-sections.css";
 import { computeCountryForm } from "@/lib/form";
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
@@ -131,13 +131,14 @@ function CountryProfilePage() {
     else void navigate({ hash: countrySectionHash(next) });
   };
   const [archiveEnabled, setArchiveEnabled] = useState(!isAppMode);
+  const needsDetailedVotes = countryTabNeedsDetailedVotes(tab);
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
   const participantsQuery = useAllParticipants({ enabled: archiveEnabled });
   const resultsQuery = useAllResults({ enabled: archiveEnabled });
-  const juryQuery = useAllJuryVotes({ enabled: archiveEnabled });
-  const televoteQuery = useAllTelevotes({ enabled: archiveEnabled });
+  const juryQuery = useAllJuryVotes({ enabled: archiveEnabled && needsDetailedVotes });
+  const televoteQuery = useAllTelevotes({ enabled: archiveEnabled && needsDetailedVotes });
   const { data: countries } = countriesQuery;
   const { data: editions } = editionsQuery;
   const { data: shows } = showsQuery;
@@ -227,7 +228,10 @@ function CountryProfilePage() {
     [country, publicArchive],
   );
 
-  const archiveQueries = [editionsQuery, showsQuery, participantsQuery, resultsQuery, juryQuery, televoteQuery];
+  const archiveQueries = [
+    editionsQuery, showsQuery, participantsQuery, resultsQuery,
+    ...(needsDetailedVotes ? [juryQuery, televoteQuery] : []),
+  ];
   const archiveLoading = !archiveEnabled || archiveIsLoading(...archiveQueries);
   const archiveError = archiveHasError(...archiveQueries);
   const visualLoading = Boolean(country?.id) && (countryThemeQuery.isLoading || designV2Query.isLoading);
@@ -394,7 +398,7 @@ function CountryProfilePage() {
     }
   }
 
-  const relationshipRows = [...sharedIds]
+  const relationshipRows = tab === "relationships" && !archiveLoading ? [...sharedIds]
     .map((id) => {
       const other = countryMap.get(id);
       if (!other) return null;
