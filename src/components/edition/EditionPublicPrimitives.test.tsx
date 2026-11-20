@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { EditionHero } from "./EditionPublicPrimitives";
+import { EditionHero, EditionNavigation } from "./EditionPublicPrimitives";
 
 const css = readFileSync("src/edition-public-v5.css", "utf8");
 const source = readFileSync("src/components/edition/EditionPublicPrimitives.tsx", "utf8");
@@ -62,5 +62,34 @@ describe("public-web Edition identity artwork", () => {
     expect(css).toContain("@media (max-width: 47.99rem)");
     expect(css).toContain(".edition-hero-artwork::after");
     expect(css).toContain(".edition-artwork-plate img");
+  });
+});
+
+describe("Edition section navigation accessibility", () => {
+  it("keeps closed More controls honest and safely scopes independently rendered menus", () => {
+    const items = ["Overview", "Participants", "Songs", "Schedule", "Results"].map((label) => ({
+      label, href: `#${label.toLowerCase()}`,
+    }));
+    const html = renderToStaticMarkup(
+      <div>
+        <EditionNavigation label="Edition A sections" items={items} />
+        <EditionNavigation label="Edition B sections" items={items} />
+      </div>,
+    );
+    expect(html).toContain('aria-label="Edition A sections"');
+    expect(html).toContain('aria-label="Edition B sections"');
+    expect((html.match(/aria-expanded="false"/g) ?? [])).toHaveLength(2);
+    // The panel is only in the DOM while open. A closed control must not
+    // claim a reference to an element that does not yet exist.
+    expect(html).not.toContain("aria-controls=");
+    expect(source).toContain("const morePanelId = useId()");
+    expect(source).toContain("aria-controls={moreOpen ? morePanelId : undefined}");
+    expect(source).toContain("id={morePanelId}");
+  });
+
+  it("preserves scroll tracking on browsers without IntersectionObserver", () => {
+    expect(source).toContain('typeof IntersectionObserver === "undefined"');
+    expect(source).toContain('window.addEventListener("scroll", update, { passive: true })');
+    expect(source).toContain("observer?.disconnect()");
   });
 });
