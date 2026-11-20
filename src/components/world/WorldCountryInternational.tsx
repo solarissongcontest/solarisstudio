@@ -323,7 +323,7 @@ export function WorldCountryInternational({ code }: { code: string }) {
       <nav className="world-country-local-nav" aria-label="Country international sections">
         <a href="#world-country-current">Current memberships</a>
         <a href="#world-country-historical">Former affiliations</a>
-        <Link to="/world/organizations">Organizations</Link>
+        <Link to="/world/organizations" search={{ q: "", status: "all", page: 1 }}>Organizations</Link>
         <Link to="/countries/$code" params={{ code: country.code }}>Contest profile</Link>
       </nav>
       <p className="mt-6 max-w-3xl text-sm leading-7 text-muted-foreground">
