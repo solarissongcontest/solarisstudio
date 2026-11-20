@@ -20,11 +20,16 @@ export function filterPublishedCountryHistory<T extends CountryHistoryEntry>(
   filters: CountryHistoryFilter,
   editionSearchTerms: (editionId: string) => readonly (string | null | undefined)[],
   qualification: (editionId: string) => string | null,
+  hasPublishedGrandFinal: (editionId: string) => boolean = () => false,
 ): T[] {
   const query = filters.search.trim().toLowerCase();
   return entries.filter((entry) => {
     const status = qualification(entry.edition_id);
-    if (filters.outcome === "finalist" && status !== "q" && status !== "aq" && status !== "wildcard") return false;
+    // Editions without semi-finals have no Q/AQ status. A published Grand Final
+    // participation is sufficient evidence that an entry reached the final.
+    if (filters.outcome === "finalist" &&
+        status !== "q" && status !== "aq" && status !== "wildcard" &&
+        !hasPublishedGrandFinal(entry.edition_id)) return false;
     if (filters.outcome === "eliminated" && status !== "nq") return false;
     if (!query) return true;
     const terms = [...editionSearchTerms(entry.edition_id), entry.artist, entry.song]
