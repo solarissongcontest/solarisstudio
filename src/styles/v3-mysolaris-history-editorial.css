@@ -124,3 +124,10 @@ html:not([data-solaris-app]) .solaris-history-add[data-history-focused="true"] >
     outline-color: Highlight;
   }
 }
+
+/* Delegation handovers are secondary reading, never above the entry editor. */
+html:not([data-solaris-app]) .solaris-history-hod-secondary {
+  margin-top: clamp(1.4rem, 3vw, 2.4rem);
+  padding-top: clamp(1rem, 2vw, 1.6rem);
+  border-top: 1px solid var(--border);
+}
