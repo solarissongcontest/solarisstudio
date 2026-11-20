@@ -81,8 +81,16 @@ export function V3CountriesDiscoveryScreen({
     !participantsQuery.isFetching && !participantsQuery.isRefetchError &&
     editionsQuery.isSuccess && !editionsQuery.isFetching && !editionsQuery.isRefetchError &&
     countriesQuery.isSuccess && !countriesQuery.isFetching && !countriesQuery.isRefetchError;
+  // Keep the selected lineup control stable while its sources refresh,
+  // without revealing cached participants or switching the grid to All.
+  const verifyingRequestedLineup = participatingOnly && !currentLineupReady && (
+    editionsQuery.isLoading || editionsQuery.isFetching ||
+    participantsQuery.isLoading || participantsQuery.isFetching ||
+    countriesQuery.isFetching
+  );
   // An unavailable optional lineup must never strand the visitor on its selected scope.
   const selectedParticipatingOnly = effectiveParticipatingScope(participatingOnly, currentLineupReady);
+  const selectedScopeButtonParticipatingOnly = selectedParticipatingOnly || verifyingRequestedLineup;
   const publishedStatuses = useMemo(
     () => publishedCountryStatusMap(discovery, currentLineupReady),
     [discovery, currentLineupReady],
@@ -235,7 +243,7 @@ export function V3CountriesDiscoveryScreen({
           <div className="v3-countries-collections grid grid-cols-2 gap-2" role="group" aria-label="Country collections">
             <button
               type="button"
-              aria-pressed={selectedParticipatingOnly}
+              aria-pressed={selectedScopeButtonParticipatingOnly}
               aria-label={currentLineupReady
                 ? `SSC ${discovery.currentEdition.edition_number ?? "current"}: ${discovery.participating.length} participating countries`
                 : `SSC ${discovery.currentEdition.edition_number ?? "current"} lineup ${pendingCurrentParticipants ? "loading" : "unavailable"}`}
@@ -245,23 +253,23 @@ export function V3CountriesDiscoveryScreen({
                 setRegion("all");
                 setVisibleCount(BROWSE_PAGE_SIZE);
               }}
-              className={`v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors ${selectedParticipatingOnly ? "is-selected" : ""}`}
+              className={`v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors ${selectedScopeButtonParticipatingOnly ? "is-selected" : ""}`}
             >
-              {selectedParticipatingOnly ? <Check size={16} aria-hidden="true" /> : null}
+              {selectedScopeButtonParticipatingOnly ? <Check size={16} aria-hidden="true" /> : null}
               <span>SSC {discovery.currentEdition.edition_number ?? "current"} · {currentLineupReady ? discovery.participating.length : pendingCurrentParticipants ? "Loading…" : "Unavailable"}</span>
             </button>
             <button
               type="button"
-              aria-pressed={!selectedParticipatingOnly}
+              aria-pressed={!selectedScopeButtonParticipatingOnly}
               aria-label={`All ${countriesQuery.data?.length ?? 0} countries`}
               onClick={() => {
                 setParticipatingOnly(false);
                 setRegion("all");
                 setVisibleCount(BROWSE_PAGE_SIZE);
               }}
-              className={`v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors ${!selectedParticipatingOnly ? "is-selected" : ""}`}
+              className={`v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors ${!selectedScopeButtonParticipatingOnly ? "is-selected" : ""}`}
             >
-              {!selectedParticipatingOnly ? <Check size={16} aria-hidden="true" /> : null}
+              {!selectedScopeButtonParticipatingOnly ? <Check size={16} aria-hidden="true" /> : null}
               <span>All countries · {countriesQuery.data?.length ?? 0}</span>
             </button>
           </div>
@@ -360,7 +368,9 @@ export function V3CountriesDiscoveryScreen({
               </label>
             ) : null}
             <span className="solaris-app-directory-count" aria-live="polite" role="status">
-              {directoryCountLabel({ available: collectionCount, matches: filtered.length, rendered: visible.length, noun: "countries" })}
+              {verifyingRequestedLineup
+                ? "Verifying published participant lineup…"
+                : directoryCountLabel({ available: collectionCount, matches: filtered.length, rendered: visible.length, noun: "countries" })}
             </span>
           </div>
         </div>
@@ -372,21 +382,25 @@ export function V3CountriesDiscoveryScreen({
               setVisibleCount(BROWSE_PAGE_SIZE);
             }}>Clear filters</button>
         ) : null}
-        <div
-          className={presentation === "installed-app"
-            ? "v3-countries-grid grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4"
-            : presentation === "mobile-web"
-              ? "v3-countries-web-list"
-              : "v3-countries-desktop-grid grid grid-cols-2 gap-4 xl:grid-cols-3"}
-          aria-label="Countries"
-        >
-          {visible.map((country) => (
-            <CountryTile key={country.id} country={country} presentation={presentation}
-              status={selectedParticipatingOnly ? undefined : publishedStatuses.get(country.id)} />
-          ))}
-        </div>
+        {verifyingRequestedLineup ? (
+          <ArchiveDataLoading label="Verifying published participant lineup…" />
+        ) : (
+          <div
+            className={presentation === "installed-app"
+              ? "v3-countries-grid grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4"
+              : presentation === "mobile-web"
+                ? "v3-countries-web-list"
+                : "v3-countries-desktop-grid grid grid-cols-2 gap-4 xl:grid-cols-3"}
+            aria-label="Countries"
+          >
+            {visible.map((country) => (
+              <CountryTile key={country.id} country={country} presentation={presentation}
+                status={selectedParticipatingOnly ? undefined : publishedStatuses.get(country.id)} />
+            ))}
+          </div>
+        )}
 
-        {!filtered.length ? (
+        {!verifyingRequestedLineup && !filtered.length ? (
           <AppEmptyState
             className="my-3"
             title={noPublishedCountries
@@ -416,7 +430,7 @@ export function V3CountriesDiscoveryScreen({
           />
         ) : null}
 
-        {visible.length < filtered.length ? (
+        {!verifyingRequestedLineup && visible.length < filtered.length ? (
           <button
             type="button"
             onClick={() => setVisibleCount((count) => count + BROWSE_PAGE_SIZE)}
