@@ -104,22 +104,29 @@ function CountryProfileRoute() {
   );
 }
 
-const TABS = [
+const APP_TABS = [
   { value: "overview", label: "Overview" },
   { value: "entries", label: "Entries" },
   { value: "results", label: "Results" },
-  { value: "history", label: "History" },
-  { value: "world", label: "World" },
   { value: "voting", label: "Voting" },
   { value: "relationships", label: "Relationships" },
   { value: "form", label: "Form" },
 ] as const;
 
-type Tab = (typeof TABS)[number]["value"];
+// Browser-only IA follows the screenshot review. The installed fallback retains
+// its proven tabs, history and World content until its separately owned cutover.
+const BROWSER_TABS = [
+  ...APP_TABS.slice(0, 3),
+  { value: "history", label: "History" },
+  { value: "world", label: "World" },
+  ...APP_TABS.slice(3),
+] as const;
+
+type Tab = (typeof BROWSER_TABS)[number]["value"];
 
 function countryTabFromHash(hash: string): Tab {
   const value = hash.startsWith("#country-") ? hash.slice("#country-".length) : "overview";
-  return TABS.find((item) => item.value === value)?.value ?? "overview";
+  return BROWSER_TABS.find((item) => item.value === value)?.value ?? "overview";
 }
 
 function CountryProfilePage() {
@@ -571,7 +578,7 @@ function CountryProfilePage() {
         {isAppMode ? (
           <ResponsiveTabs
             value={tab}
-            options={TABS}
+            options={APP_TABS}
             onChange={selectCountrySection}
             label="Country section"
             collapseAt="lg"
@@ -579,7 +586,7 @@ function CountryProfilePage() {
           />
         ) : (
           <nav className="country-editorial-section-nav" aria-label="Country sections">
-            {TABS.map((section) => (
+            {BROWSER_TABS.map((section) => (
               <button
                 key={section.value}
                 type="button"
@@ -725,6 +732,13 @@ function CountryProfilePage() {
                 )}
 
 
+              {isAppMode && (
+                <CountryWorldSupplement
+                  country={country}
+                  defaultLayout={publishedDesign?.content.defaultLayout}
+                />
+              )}
+
               </>
             ) : (
               <Panel title="Solaris Song Contest">
@@ -736,7 +750,7 @@ function CountryProfilePage() {
           </div>
         )}
 
-        {tab === "history" && (
+        {!isAppMode && tab === "history" && (
           <section className="country-editorial-history" aria-label="Published country history">
             <header className="country-editorial-content-heading">
               <h2>Participation history</h2>
@@ -782,7 +796,7 @@ function CountryProfilePage() {
           </section>
         )}
 
-        {tab === "world" && (
+        {!isAppMode && tab === "world" && (
           <section className="country-editorial-world" aria-label="Terra Solaris">
             <CountryWorldOverview country={country} />
             <CountryWorldSupplement country={country} defaultLayout={publishedDesign?.content.defaultLayout} />
@@ -815,6 +829,39 @@ function CountryProfilePage() {
                 )}
               </Panel>
 
+              {isAppMode ? (
+              <Panel
+                title="Entry history"
+                description="Canonical entries in reverse chronological order. Chronology is never rearranged for personality styling."
+              >
+                {entryHistory.length ? (
+                  <div className="divide-y divide-border/60">
+                    {entryHistory.map((entry) => {
+                      const edition = editionMap.get(entry.edition_id);
+                      const status = qualificationFor(entry.edition_id);
+                      return (
+                        <div key={entry.id} className="py-3 first:pt-0 last:pb-0">
+                          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold">
+                                {edition ? editionLabel(edition) : "Edition"}
+                              </p>
+                              <p className="mt-1 truncate text-xs text-muted-foreground">
+                                {[entry.artist, entry.song].filter(Boolean).join(" · ") || "Entry details unavailable"}
+                              </p>
+                              <EntryListenLinks entry={entry} compact className="mt-2" />
+                            </div>
+                            <QualificationBadge status={status} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No published entry history is available yet.</p>
+                )}
+              </Panel>
+              ) : (
               <button
                 type="button"
                 className="country-editorial-more-history"
@@ -822,6 +869,7 @@ function CountryProfilePage() {
               >
                 View participation history
               </button>
+              )}
             </div>
           ) : <NoContestData countryName={country.name} />
         )}
