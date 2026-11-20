@@ -15,12 +15,14 @@ test('S13 batch reuses immutable core, one transaction and no official/global wr
  assert.match(batch['install.sql'],/has_any_column_privilege/);
  assert.match(batch['install.sql'],/'TRUNCATE'/);
  assert.match(batch['install.sql'],/pg_event_trigger/);
+ assert.match(batch['install.sql'],/pgrst_ddl_watch/);
+ assert.match(batch['install.sql'],/afaad7193dcf8f81e728d2bedb85e43e/);
  assert.match(batch['install.sql'],/pg_try_advisory_xact_lock/);
  assert.match(batch['preflight.sql'],/begin transaction read only/);
  assert.match(batch['postcheck.sql'],/begin transaction read only/);
 });
 
-test('fourteen missing S13 effects are reconciled offline, history is preserved',()=>{const x=reconcileEffects();assert.equal(x.effects.length,14);assert.ok(x.effects.every(e=>e.observed==='absent'&&e.action==='create'));assert.equal(x.history.historyWrites,0);assert.equal(x.externalDependency.action,'preserve');});
+test('fourteen missing S13 effects are reconciled offline, history is preserved',()=>{const x=reconcileEffects();assert.equal(x.effects.length,14);assert.ok(x.effects.every(e=>e.observed==='absent'&&e.action==='create'));assert.equal(x.history.historyWrites,0);assert.equal(x.externalDependency.action,'preserve');assert.equal(x.qualifiedDdlHandler.identity,'extensions.pgrst_ddl_watch()');assert.equal(x.qualifiedDdlHandler.definitionMd5,'afaad7193dcf8f81e728d2bedb85e43e');});
 
 test('one operator procedure invokes the private restore and clone-only hook safely',async()=>{
  const {spawnSync}=await import('node:child_process');
