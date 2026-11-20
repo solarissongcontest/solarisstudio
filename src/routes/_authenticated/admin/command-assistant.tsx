@@ -7,7 +7,12 @@ import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { useEditions } from "@/lib/data";
-import { matchSolarisAssistantCommands } from "@/lib/solaris-command-assistant";
+import { loadSolarisAssistantCapabilityAccess } from "@/lib/solaris-command-assistant-access";
+import {
+  filterSolarisAssistantCommandsByAccess,
+  SOLARIS_ASSISTANT_COMMANDS,
+  matchSolarisAssistantCommands,
+} from "@/lib/solaris-command-assistant";
 import { buildCommandAssistantInsight } from "@/lib/solaris-command-assistant-insights";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 import { useV3OrganizerProjection } from "@/lib/v3-organizer-projection.query";
@@ -16,7 +21,7 @@ export const Route = createFileRoute("/_authenticated/admin/command-assistant")(
   head: () => ({
     meta: [
       { title: "Command Assistant — Solaris Organizer" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: CommandAssistantPage,
@@ -26,23 +31,93 @@ function CommandAssistantPage() {
   const { editionId } = useAdminContext();
   const editionsQuery = useEditions();
   const [prompt, setPrompt] = useState("");
+  const selectedEdition = editionsQuery.data?.find((edition) => edition.id === editionId) ?? null;
+  const resolvedEditionId = selectedEdition?.id ?? "";
   const feature = useQuery({
-    queryKey: ["studio2-feature", "solaris_command_assistant"],
-    queryFn: () => isStudio2FeatureEnabled("solaris_command_assistant"),
+    queryKey: ["studio2-feature", "solaris_command_assistant", resolvedEditionId || "none"],
+    enabled: Boolean(resolvedEditionId),
+    queryFn: () => isStudio2FeatureEnabled("solaris_command_assistant", resolvedEditionId),
     staleTime: 30_000,
   });
 
-  const selectedEdition = editionsQuery.data?.find((edition) => edition.id === editionId) ?? null;
-  const resolvedEditionId = selectedEdition?.id ?? "";
   const projectionQuery = useV3OrganizerProjection(resolvedEditionId || null);
+  const commandAccessQuery = useQuery({
+    queryKey: ["command-assistant-access", resolvedEditionId],
+    queryFn: () =>
+      loadSolarisAssistantCapabilityAccess(SOLARIS_ASSISTANT_COMMANDS, resolvedEditionId),
+    enabled: Boolean(resolvedEditionId),
+    staleTime: 30_000,
+  });
 
-  const matches = useMemo(() => matchSolarisAssistantCommands(prompt), [prompt]);
-  const insight = useMemo(
-    () => prompt.trim() && projectionQuery.data
-      ? buildCommandAssistantInsight(prompt, projectionQuery.data)
-      : null,
-    [projectionQuery.data, prompt],
+  const candidateMatches = useMemo(
+    () => matchSolarisAssistantCommands(prompt),
+    [prompt],
   );
+  const matches = useMemo(
+    () =>
+      filterSolarisAssistantCommandsByAccess(
+        candidateMatches,
+        commandAccessQuery.data,
+      ),
+    [candidateMatches, commandAccessQuery.data],
+  );
+  const hasAuthorizedPromptMatch = Boolean(prompt.trim()) && matches.length > 0;
+  const insight = useMemo(
+    () =>
+      hasAuthorizedPromptMatch && projectionQuery.data
+        ? buildCommandAssistantInsight(prompt, projectionQuery.data)
+        : null,
+    [hasAuthorizedPromptMatch, projectionQuery.data, prompt],
+  );
+
+  if (editionId && editionsQuery.isLoading) {
+    return (
+      <AdminPage>
+        <AdminCard>
+          <AdminStatus tone="neutral">Confirming edition context…</AdminStatus>
+        </AdminCard>
+      </AdminPage>
+    );
+  }
+
+  if (editionId && editionsQuery.error) {
+    return (
+      <AdminPage>
+        <AdminCard>
+          <AdminCardHeader
+            eyebrow="Edition context"
+            title="Could not verify the selected edition"
+            description="Command Assistant will not treat an edition lookup failure as missing context or silently substitute another edition."
+          />
+          <div className="flex flex-wrap items-center gap-3">
+            <AdminStatus tone="blocked">
+              {editionsQuery.error instanceof Error ? editionsQuery.error.message : "Edition lookup failed"}
+            </AdminStatus>
+            <button
+              type="button"
+              onClick={() => void editionsQuery.refetch()}
+              disabled={editionsQuery.isFetching}
+              className="admin-action-secondary"
+            >
+              Retry edition lookup
+            </button>
+          </div>
+        </AdminCard>
+      </AdminPage>
+    );
+  }
+
+  if (!selectedEdition) {
+    return (
+      <AdminPage>
+        <AdminEmptyState
+          icon={Sparkles}
+          title="Choose an edition"
+          description="Select an exact Organizer edition before loading Command Assistant. Solaris will not probe a global rollout, substitute another edition or expose commands without verified scope."
+        />
+      </AdminPage>
+    );
+  }
 
   if (feature.isLoading) {
     return <AdminPage><p className="text-sm text-muted-foreground">Loading Command Assistant…</p></AdminPage>;
@@ -53,7 +128,7 @@ function CommandAssistantPage() {
         <AdminEmptyState
           icon={Sparkles}
           title="Command Assistant is disabled"
-          description="The read-only command registry is installed, but its rollout flag remains off until verification is complete."
+          description="The read-only command registry is installed, but its rollout flag remains off for this edition until verification is complete."
         />
       </AdminPage>
     );
@@ -65,7 +140,7 @@ function CommandAssistantPage() {
         <AdminPageHeader
           eyebrow="Organizer command layer"
           title="Solaris Command Assistant"
-          description="Read-only first: natural wording is matched to a fixed command registry and the canonical Organizer projection. It can explain blockers and point to the next safe workspace, but it cannot generate arbitrary SQL, bypass permissions or silently execute a write."
+          description="Read-only first: natural wording is matched to a fixed, permission-aware command registry and the canonical Organizer projection. It can explain blockers and point to the next safe workspace, but it cannot generate arbitrary SQL, bypass permissions or silently execute a write."
         />
 
         <AdminCard strong>
@@ -82,115 +157,118 @@ function CommandAssistantPage() {
             </div>
           </label>
           <p className="mt-2 text-xs text-muted-foreground">
-            Requests are interpreted against registered read-only operations and the selected edition projection. Unknown wording is never converted into an invented database command.
+            Requests are interpreted against registered read-only operations available to you in the selected edition. Unknown or unauthorized wording is never converted into an invented database command or disclosed as a hidden workspace.
           </p>
         </AdminCard>
 
-        {editionId && editionsQuery.isLoading ? (
-          <AdminCard>
-            <AdminStatus tone="neutral">Confirming edition context…</AdminStatus>
-          </AdminCard>
-        ) : editionId && editionsQuery.error ? (
-          <AdminCard>
-            <AdminCardHeader
-              eyebrow="Edition context"
-              title="Could not verify the selected edition"
-              description="Command Assistant will not treat an edition lookup failure as missing context or silently substitute another edition."
-            />
-            <div className="flex flex-wrap items-center gap-3">
-              <AdminStatus tone="blocked">
-                {editionsQuery.error instanceof Error ? editionsQuery.error.message : "Edition lookup failed"}
-              </AdminStatus>
-              <button
-                type="button"
-                onClick={() => void editionsQuery.refetch()}
-                disabled={editionsQuery.isFetching}
-                className="admin-action-secondary"
-              >
-                Retry edition lookup
-              </button>
+        <AdminCard>
+          <AdminCardHeader eyebrow="Current edition" title="Canonical operational summary" description="One projection shared with Control and readiness surfaces, rather than a second set of browser database queries." />
+          {projectionQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">Reading canonical Organizer projection…</p>
+          ) : projectionQuery.error ? (
+            <AdminStatus tone="blocked">{projectionQuery.error instanceof Error ? projectionQuery.error.message : "Could not load edition state"}</AdminStatus>
+          ) : projectionQuery.data ? (
+            <div className="grid gap-3 sm:grid-cols-4">
+              <Metric label="Readiness" value={projectionQuery.data.readiness.overall} suffix="%" />
+              <Metric label="Critical tasks" value={projectionQuery.data.tasks.critical} tone={projectionQuery.data.tasks.critical ? "attention" : "ready"} />
+              <Metric label="Attention items" value={projectionQuery.data.attention.length} tone={projectionQuery.data.attention.length ? "attention" : "ready"} />
+              <Metric label="System issues" value={projectionQuery.data.systemHealth.issueCount} tone={projectionQuery.data.systemHealth.issueCount ? "attention" : "ready"} />
             </div>
-          </AdminCard>
-        ) : selectedEdition ? (
-          <AdminCard>
-            <AdminCardHeader eyebrow="Current edition" title="Canonical operational summary" description="One projection shared with Control and readiness surfaces, rather than a second set of browser database queries." />
-            {projectionQuery.isLoading ? (
-              <p className="text-sm text-muted-foreground">Reading canonical Organizer projection…</p>
-            ) : projectionQuery.error ? (
-              <AdminStatus tone="blocked">{projectionQuery.error instanceof Error ? projectionQuery.error.message : "Could not load edition state"}</AdminStatus>
-            ) : projectionQuery.data ? (
-              <div className="grid gap-3 sm:grid-cols-4">
-                <Metric label="Readiness" value={projectionQuery.data.readiness.overall} suffix="%" />
-                <Metric label="Critical tasks" value={projectionQuery.data.tasks.critical} tone={projectionQuery.data.tasks.critical ? "attention" : "ready"} />
-                <Metric label="Attention items" value={projectionQuery.data.attention.length} tone={projectionQuery.data.attention.length ? "attention" : "ready"} />
-                <Metric label="System issues" value={projectionQuery.data.systemHealth.issueCount} tone={projectionQuery.data.systemHealth.issueCount ? "attention" : "ready"} />
-              </div>
-            ) : null}
-          </AdminCard>
-        ) : (
-          <AdminCard>
-            <AdminEmptyState
-              icon={Sparkles}
-              title="Choose an edition"
-              description="Select an exact Organizer edition before loading operational context. Command Assistant will not turn a missing or stale edition into an all-editions query or a misleading zero-state summary."
-            />
-          </AdminCard>
-        )}
+          ) : null}
+        </AdminCard>
 
-        {selectedEdition && prompt.trim() ? (
-          <AdminCard strong>
+        {commandAccessQuery.error ? (
+          <AdminCard>
             <AdminCardHeader
-              eyebrow="Canonical explanation"
-              title={insight?.title ?? "Checking blockers…"}
-              description="Derived from the same Organizer projection used by Control and readiness surfaces."
+              eyebrow="Access verification"
+              title="Could not verify command access"
+              description="Command Assistant fails closed when capability evidence is unavailable. It will not reveal specialist commands by guessing from roles or cached UI state."
             />
-            {projectionQuery.isLoading ? (
-              <p className="text-sm text-muted-foreground">Reading current blockers and recommended action…</p>
-            ) : projectionQuery.error ? (
-              <AdminStatus tone="blocked">{projectionQuery.error instanceof Error ? projectionQuery.error.message : "Organizer projection is unavailable"}</AdminStatus>
-            ) : insight ? (
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <AdminStatus tone={insight.blockerCount ? "blocked" : "ready"}>
-                    {insight.blockerCount ? `${insight.blockerCount} critical blocker${insight.blockerCount === 1 ? "" : "s"}` : "No critical blocker in this domain"}
-                  </AdminStatus>
-                  <AdminStatus tone="neutral">Read-only explanation</AdminStatus>
-                </div>
-                <p className="text-sm leading-6 text-muted-foreground">{insight.summary}</p>
-                {insight.nextAction ? (
-                  <Link to={insight.nextAction.route as any} className="admin-action-primary w-full sm:w-auto">
-                    {insight.nextAction.label}
-                  </Link>
-                ) : (
-                  <p className="text-xs text-muted-foreground">No action is currently projected for this scope.</p>
-                )}
-              </div>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => void commandAccessQuery.refetch()}
+              disabled={commandAccessQuery.isFetching}
+              className="admin-action-secondary"
+            >
+              Retry access check
+            </button>
+          </AdminCard>
+        ) : null}
+
+        {prompt.trim() && !commandAccessQuery.isLoading && !commandAccessQuery.error ? (
+          <AdminCard strong>
+            {hasAuthorizedPromptMatch ? (
+              <>
+                <AdminCardHeader
+                  eyebrow="Canonical explanation"
+                  title={insight?.title ?? "Checking blockers…"}
+                  description="Derived from the same Organizer projection used by Control and readiness surfaces, after permission-aware command matching."
+                />
+                {projectionQuery.isLoading ? (
+                  <p className="text-sm text-muted-foreground">Reading current blockers and recommended action…</p>
+                ) : projectionQuery.error ? (
+                  <AdminStatus tone="blocked">{projectionQuery.error instanceof Error ? projectionQuery.error.message : "Organizer projection is unavailable"}</AdminStatus>
+                ) : insight ? (
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <AdminStatus tone={insight.blockerCount ? "blocked" : "ready"}>
+                        {insight.blockerCount ? `${insight.blockerCount} critical blocker${insight.blockerCount === 1 ? "" : "s"}` : "No critical blocker in this domain"}
+                      </AdminStatus>
+                      <AdminStatus tone="neutral">Read-only explanation</AdminStatus>
+                    </div>
+                    <p className="text-sm leading-6 text-muted-foreground">{insight.summary}</p>
+                    {insight.nextAction ? (
+                      <Link to={insight.nextAction.route as any} className="admin-action-primary w-full sm:w-auto">
+                        {insight.nextAction.label}
+                      </Link>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No action is currently projected for this scope.</p>
+                    )}
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <AdminEmptyState
+                icon={Search}
+                title="No available command matched"
+                description="Try another status or workflow request. Commands outside your selected-edition access are not exposed through search results or explanations."
+              />
+            )}
           </AdminCard>
         ) : null}
 
         <AdminCard>
-          <AdminCardHeader eyebrow="Registered commands" title={prompt ? "Best matches" : "Available read-only workflows"} />
-          <div className="space-y-2">
-            {matches.length ? matches.map((command) => (
-              <Link
-                key={command.id}
-                to={command.route as any}
-                className="block rounded-xl border border-white/[0.08] bg-black/10 p-4 transition hover:bg-white/[0.04]"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-semibold">{command.label}</p>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">{command.description}</p>
+          <AdminCardHeader eyebrow="Registered commands" title={prompt ? "Best available matches" : "Available read-only workflows"} />
+          {commandAccessQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">Checking command access for this edition…</p>
+          ) : commandAccessQuery.error ? (
+            <p className="text-sm text-muted-foreground">Commands stay hidden until access can be verified.</p>
+          ) : matches.length ? (
+            <div className="space-y-2">
+              {matches.map((command) => (
+                <Link
+                  key={command.id}
+                  to={command.route as any}
+                  className="block rounded-xl border border-white/[0.08] bg-black/10 p-4 transition hover:bg-white/[0.04]"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold">{command.label}</p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">{command.description}</p>
+                    </div>
+                    <AdminStatus tone="info">Read-only navigation</AdminStatus>
                   </div>
-                  <AdminStatus tone="info">Read-only navigation</AdminStatus>
-                </div>
-                {command.capability ? <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Capability context: {command.capability}</p> : null}
-              </Link>
-            )) : (
-              <AdminEmptyState icon={Search} title="No registered command matched" description="Try a status, results, voting, confirmation, Inbox or Integrity request. Unknown wording is not converted into an invented database operation." />
-            )}
-          </div>
+                  {command.capability ? <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Capability context: {command.capability}</p> : null}
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <AdminEmptyState
+              icon={Search}
+              title="No available command matched"
+              description="Try another status or workflow request. Unknown and unauthorized commands are intentionally indistinguishable here."
+            />
+          )}
         </AdminCard>
       </div>
     </AdminPage>
