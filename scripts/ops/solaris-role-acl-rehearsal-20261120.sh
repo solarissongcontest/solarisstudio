@@ -149,11 +149,18 @@ for line in toc.splitlines():
 application_count = sum(table_schemas[x] for x in application_schemas)
 migration_count = table_schemas['supabase_migrations']
 all_tables = sum(table_schemas.values())
-if (application_count != 225 or migration_count != 1 or all_tables != 226
-        or not owners or len(owners) > 50):
-    print('STOP: unexpected TABLE inventory: application=%d, ledger=%d, total=%d' %
-          (application_count, migration_count, all_tables), file=sys.stderr)
+# The privately verified Nov-15 archive contains 10 other TABLE entries
+# in provider-managed/additional schemas. They were excluded from the 225
+# application-table count in the independent TOC audit. They remain subject
+# to the original, fail-closed owner/ACL restore, not silently discarded.
+other_count = all_tables - application_count - migration_count
+if (application_count != 225 or migration_count != 1 or
+        other_count != 10 or all_tables != 236 or
+        not owners or len(owners) > 50):
+    print('STOP: unexpected TABLE inventory: application=%d, ledger=%d, other=%d, total=%d' %
+          (application_count, migration_count, other_count, all_tables), file=sys.stderr)
     raise SystemExit(1)
+print('TABLE owner inventory verified: application=225, ledger=1, other=10, total=236', file=sys.stderr)
 roles = sorted(known | owners)
 if len(roles) > 75: raise SystemExit("STOP: role inventory is too large")
 for role in roles:
