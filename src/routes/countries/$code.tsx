@@ -152,7 +152,11 @@ function CountryProfilePage() {
   // Browser country sections have bookmarkable URLs and follow Back/Forward.
   // The installed PWA retains its established in-app section navigation.
   useEffect(() => {
-    if (isAppMode) return;
+    if (isAppMode) {
+      // A delayed runtime handover to standalone app must not retain a web-only tab.
+      setTab((current) => APP_TABS.some((item) => item.value === current) ? current : "overview");
+      return;
+    }
     const restoreSection = () => setTab(countryTabFromHash(window.location.hash));
     restoreSection();
     window.addEventListener("hashchange", restoreSection);
