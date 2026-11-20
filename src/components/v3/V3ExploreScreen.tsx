@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import {
   ArrowRight, Archive, BookOpen, CalendarDays, Compass, Flag, Gamepad2,
@@ -102,13 +103,20 @@ function CurrentEditionCard({ edition }: { edition: V3ExploreEditionCard }) {
   const status = experiencePresentation(edition.experience);
   const meta = editionMeta(edition);
   const { allows } = usePublicLaunchAvailability();
+  const [failedArtwork, setFailedArtwork] = useState<string | null>(null);
+  const [failedLogo, setFailedLogo] = useState<string | null>(null);
+  const visibleArtwork = edition.artworkUrl && edition.artworkUrl !== failedArtwork
+    ? edition.artworkUrl : null;
+  const visibleLogo = edition.logoUrl && edition.logoUrl !== failedLogo
+    ? edition.logoUrl : null;
 
   return (
-    <article className="v3-explore-feature" data-has-artwork={edition.artworkUrl ? "true" : "false"}>
+    <article className="v3-explore-feature" data-has-artwork={visibleArtwork ? "true" : "false"}>
       <div className="v3-explore-feature__visual">
         <div className="v3-explore-feature__media" aria-hidden="true">
-          {edition.artworkUrl ? (
-            <img src={edition.artworkUrl} alt="" decoding="async" loading="eager" fetchPriority="high" />
+          {visibleArtwork ? (
+            <img src={visibleArtwork} alt="" decoding="async" loading="eager"
+              fetchPriority="high" onError={() => setFailedArtwork(visibleArtwork)} />
           ) : (
             <span className="v3-explore-feature__fallback" />
           )}
@@ -119,9 +127,10 @@ function CurrentEditionCard({ edition }: { edition: V3ExploreEditionCard }) {
             <span>Current edition</span>
             <V3StatusChip tone={status.tone}>{status.label}</V3StatusChip>
           </div>
-          {!edition.artworkUrl && edition.logoUrl ? (
-            <img className="v3-explore-feature__logo" src={edition.logoUrl}
-              alt={`${edition.name} logo`} loading="lazy" decoding="async" />
+          {!visibleArtwork && visibleLogo ? (
+            <img className="v3-explore-feature__logo" src={visibleLogo}
+              alt={`${edition.name} logo`} loading="lazy" decoding="async"
+              onError={() => setFailedLogo(visibleLogo)} />
           ) : null}
           <h2>{edition.name}</h2>
           {meta ? <p className="v3-explore-feature__meta">{meta}</p> : null}
