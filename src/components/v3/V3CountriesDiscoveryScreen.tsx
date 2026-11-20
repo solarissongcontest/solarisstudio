@@ -253,7 +253,7 @@ export function V3CountriesDiscoveryScreen({
               <SheetTrigger asChild>
                 <button type="button" className="solaris-app-filter-chip">
                   <SlidersHorizontal className="size-4" aria-hidden="true" />
-                  <span>{effectiveRegion === "all" ? "All regions" : region}</span>
+                  <span>{effectiveRegion === "all" ? "All regions" : effectiveRegion}</span>
                 </button>
               </SheetTrigger>
               <SheetContent
