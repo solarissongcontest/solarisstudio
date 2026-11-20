@@ -51,6 +51,22 @@ describe("V3 Songs & Artists discovery", () => {
     expect(hooks).toContain("limit: boundedLimit");
   });
 
+  it("can extend a published catalogue from 50 to at most 100 without claiming pagination", () => {
+    for (const [routeSource, hook] of [[songsRoute(), "Song"], [artistsRoute(), "Artist"]] as const) {
+      expect(routeSource).toContain('limit: search.limit === 100 || search.limit === "100" ? 100 : undefined');
+      expect(routeSource).toContain("const requestedLimit = search.limit ?? 50");
+      expect(routeSource).toContain(`useV3${hook}IndexProjection(query, requestedLimit)`);
+      expect(routeSource).toContain('search: { q: query || undefined, limit: 100 }');
+      expect(routeSource).toContain('search: { q: nextQuery || undefined, limit: undefined }');
+    }
+    const screen = entityScreens();
+    expect(screen).toContain("projection.items.length >= requestedLimit && requestedLimit < 100");
+    expect(screen).toContain('className="v3-music-load-more"');
+    expect(screen).toContain("full historical pagination is not available yet");
+    expect(screen).toContain("onClick={onLoadMore}");
+    expect(runtime()).toContain("const MAX_INDEX_LIMIT = 100");
+  });
+
   it("shares canonical queries across three runtime-owned music presentations", () => {
     const music = screen();
     const styles = read("src/styles/v3-music-directory.css");

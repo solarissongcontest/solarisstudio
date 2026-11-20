@@ -103,3 +103,14 @@
   font-size: .75rem;
   line-height: 1.5;
 }
+
+/* A bounded second page of public catalogue rows, never an unbounded feed. */
+.v3-music-load-more {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px; margin-top: .9rem; padding: .65rem 1rem;
+  border: 1px solid var(--music-divider); border-radius: .65rem;
+  background: rgba(255,255,255,.045); color: var(--foreground);
+  font-size: .85rem; font-weight: 700; cursor: pointer;
+}
+.v3-music-load-more:hover { background: rgba(255,255,255,.09); }
+.v3-music-load-more:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }

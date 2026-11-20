@@ -9,7 +9,7 @@ import {
 } from "@/components/v3/V3MusicEntityScreens";
 import { useV3SongIndexProjection } from "@/lib/v3-music-entities-runtime";
 
-type SongsSearch = { q?: string };
+type SongsSearch = { q?: string; limit?: 100 };
 
 const SONGS_URL = "https://studio.solaris-song-contest.workers.dev/songs";
 const SONGS_DESCRIPTION =
@@ -21,6 +21,7 @@ export const Route = createFileRoute("/songs/")({
       typeof search.q === "string" && search.q.trim()
         ? search.q.trim().slice(0, 120)
         : undefined,
+    limit: search.limit === 100 || search.limit === "100" ? 100 : undefined,
   }),
   head: () => ({
     meta: [
@@ -40,7 +41,8 @@ function SongsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const query = search.q ?? "";
-  const projection = useV3SongIndexProjection(query);
+  const requestedLimit = search.limit ?? 50;
+  const projection = useV3SongIndexProjection(query, requestedLimit);
 
   return (
     <AppShell>
@@ -61,9 +63,15 @@ function SongsPage() {
         <V3SongIndexScreen
           projection={projection.data}
           query={query}
+          requestedLimit={requestedLimit}
+          onLoadMore={() => {
+            void navigate({
+              search: { q: query || undefined, limit: 100 },
+            });
+          }}
           onQueryChange={(nextQuery) => {
             void navigate({
-              search: { q: nextQuery || undefined },
+              search: { q: nextQuery || undefined, limit: undefined },
               replace: true,
             });
           }}

@@ -103,11 +103,15 @@ function MusicRootLink() {
 export function V3ArtistIndexScreen({
   projection,
   query,
+  requestedLimit,
   onQueryChange,
+  onLoadMore,
 }: {
   projection: V3ArtistIndexProjection;
   query: string;
+  requestedLimit: number;
   onQueryChange: (query: string) => void;
+  onLoadMore: () => void;
 }) {
   const presentation = useV3DirectoryPresentation();
   return (
@@ -152,6 +156,21 @@ export function V3ArtistIndexScreen({
             }
           />
         )}
+        {projection.items.length >= requestedLimit && requestedLimit < 100 ? (
+          <button
+            type="button"
+            className="v3-music-load-more"
+            onClick={onLoadMore}
+            aria-label="Show up to 100 published artists"
+          >
+            Show more artists (up to 100)
+          </button>
+        ) : null}
+        {requestedLimit === 100 && projection.items.length >= 100 ? (
+          <p className="v3-music-index-coverage" role="status">
+            You are viewing the first 100 published artists. Search to find others; full historical pagination is not available yet.
+          </p>
+        ) : null}
       </V3Section>
 
       <nav className="v3-music-related-links" aria-label="More music">
@@ -168,11 +187,15 @@ export function V3ArtistIndexScreen({
 export function V3SongIndexScreen({
   projection,
   query,
+  requestedLimit,
   onQueryChange,
+  onLoadMore,
 }: {
   projection: V3SongIndexProjection;
   query: string;
+  requestedLimit: number;
   onQueryChange: (query: string) => void;
+  onLoadMore: () => void;
 }) {
   const presentation = useV3DirectoryPresentation();
   return (
@@ -221,6 +244,21 @@ export function V3SongIndexScreen({
             }
           />
         )}
+        {projection.items.length >= requestedLimit && requestedLimit < 100 ? (
+          <button
+            type="button"
+            className="v3-music-load-more"
+            onClick={onLoadMore}
+            aria-label="Show up to 100 published songs"
+          >
+            Show more songs (up to 100)
+          </button>
+        ) : null}
+        {requestedLimit === 100 && projection.items.length >= 100 ? (
+          <p className="v3-music-index-coverage" role="status">
+            You are viewing the first 100 published songs. Search to find others; full historical pagination is not available yet.
+          </p>
+        ) : null}
       </V3Section>
 
       <nav className="v3-music-related-links" aria-label="More music">
