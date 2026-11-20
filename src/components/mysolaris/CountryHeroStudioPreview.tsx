@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CinematicEditorialHero } from "@/components/v3/CinematicEditorialHero";
 import type { CountryDesignV2 } from "@/lib/country-design-v2";
@@ -43,6 +43,7 @@ export function CountryHeroStudioPreview({
     countryCode: string; url: string; name: string; width: number; height: number;
   } | null>(null);
   const selectionRef = useRef(0);
+  const pendingDecodeUrlRef = useRef<string | null>(null);
   const currentCountryRef = useRef(code);
   currentCountryRef.current = code;
   const visibleLocalPreview = localPreview?.countryCode === code ? localPreview : null;
@@ -59,6 +60,13 @@ export function CountryHeroStudioPreview({
         design.background.positionY / 100,
       ] as const;
 
+  const cancelPendingDecode = useCallback(() => {
+    selectionRef.current += 1;
+    const pending = pendingDecodeUrlRef.current;
+    pendingDecodeUrlRef.current = null;
+    if (pending) URL.revokeObjectURL(pending);
+  }, []);
+
   // Only a browser-local object URL: never write, upload or publish the draft.
   // Revoke old blobs when a different local selection is made or editor unmounts.
   useEffect(() => {
@@ -67,18 +75,19 @@ export function CountryHeroStudioPreview({
   }, [localPreview?.url]);
 
   // Invalidate unresolved decodes when the editor closes or a newer file is chosen.
-  useEffect(() => () => { selectionRef.current += 1; }, []);
+  useEffect(() => () => { cancelPendingDecode(); }, [cancelPendingDecode]);
   // Country controller changes invalidate pending async reads and local blobs.
   useEffect(() => {
-    selectionRef.current += 1;
+    cancelPendingDecode();
     setLocalPreview(null);
     setFileError(null);
     setCheckingPreview(false);
-  }, [code]);
+  }, [code, cancelPendingDecode]);
 
   const chooseLocalImage = async (file: File | undefined) => {
     if (!file) return;
-    const generation = ++selectionRef.current;
+    cancelPendingDecode();
+    const generation = selectionRef.current;
     const selectedCountry = code;
     if (file.size <= 0 || file.size > 5 * 1024 * 1024) {
       setFileError("Choose an image between 1 byte and 5 MB.");
@@ -98,11 +107,15 @@ export function CountryHeroStudioPreview({
       }
 
       blobUrl = URL.createObjectURL(file);
+      pendingDecodeUrlRef.current = blobUrl;
       const dimensions = await readLocalHeroImageDimensions(blobUrl);
       if (generation !== selectionRef.current || selectedCountry !== currentCountryRef.current) {
         URL.revokeObjectURL(blobUrl);
+        if (pendingDecodeUrlRef.current === blobUrl) pendingDecodeUrlRef.current = null;
         return;
       }
+      // The verified image is now owned by localPreview, not the pending decoder.
+      if (pendingDecodeUrlRef.current === blobUrl) pendingDecodeUrlRef.current = null;
       const dimensionsError = localHeroPreviewDimensionsError(dimensions.width, dimensions.height);
       if (dimensionsError) {
         URL.revokeObjectURL(blobUrl);
@@ -114,7 +127,10 @@ export function CountryHeroStudioPreview({
       setDraftFocus([50, 50]);
       setFileError(null);
     } catch {
-      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
+        if (pendingDecodeUrlRef.current === blobUrl) pendingDecodeUrlRef.current = null;
+      }
       if (generation === selectionRef.current && selectedCountry === currentCountryRef.current)
         setFileError("The image could not be decoded. Try another JPEG, PNG or WebP.");
     } finally {
@@ -143,13 +159,13 @@ export function CountryHeroStudioPreview({
         </label>
         {checkingPreview ? (
           <button type="button" className="country-hero-preview__clear"
-            onClick={() => { selectionRef.current += 1; setCheckingPreview(false); setFileError(null); }}>
+            onClick={() => { cancelPendingDecode(); setCheckingPreview(false); setFileError(null); }}>
             Cancel image check
           </button>
         ) : null}
         {visibleLocalPreview ? (
           <button type="button" className="country-hero-preview__clear"
-            onClick={() => { selectionRef.current += 1; setLocalPreview(null); setFileError(null); setCheckingPreview(false); }}>
+            onClick={() => { cancelPendingDecode(); setLocalPreview(null); setFileError(null); setCheckingPreview(false); }}>
             Remove private preview
           </button>
         ) : null}
