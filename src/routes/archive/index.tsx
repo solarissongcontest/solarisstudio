@@ -33,14 +33,15 @@ const ARCHIVE_DESTINATIONS = [
 ] as const;
 
 const ARCHIVE_SECTIONS = [
-  { id: "contests", label: "Contests and broadcasts" },
-  { id: "countries-stories", label: "Countries and stories" },
-  { id: "reference-results", label: "Reference and records" },
+  { id: "contests", label: "Contests and broadcasts", description: "Follow the published SSC timeline and the shows in each edition." },
+  { id: "countries-stories", label: "Countries and stories", description: "Explore national participation and the moments recorded around it." },
+  { id: "reference-results", label: "Reference and records", description: "Find public reference knowledge and official result history in their respective sections." },
 ] as const;
 
-const GROUPS: V3DirectoryGroup[] = ARCHIVE_SECTIONS.map(({ id, label }) => ({
+const GROUPS: V3DirectoryGroup[] = ARCHIVE_SECTIONS.map(({ id, label, description }) => ({
   id,
   label,
+  description,
   items: ARCHIVE_DESTINATIONS.filter((item) => item.group === id).map((item) => ({
     id: item.to, title: item.title, description: item.description,
     to: item.to, aliases: item.aliases,
@@ -50,6 +51,7 @@ const GROUPS: V3DirectoryGroup[] = ARCHIVE_SECTIONS.map(({ id, label }) => ({
 function ArchiveRootPage() {
   return (
     <V3DirectoryFamilyIndex
+      variant="archive"
       title="Archive"
       eyebrow="HISTORICAL SOLARIS"
       intro="Read the contest by edition, country and subject. Only published history appears here."
