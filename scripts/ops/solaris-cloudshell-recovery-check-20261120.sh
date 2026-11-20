@@ -42,7 +42,7 @@ echo "Storage entries: $(wc -l < "$R/storage-names.private.txt")"
 C="solaris-mobile-restore-$$"
 trap 'docker rm -f "$C" >/dev/null 2>&1 || true' EXIT
 echo '[4/5] Starting fresh network-isolated Supabase PostgreSQL 17.11'
-docker run --rm -d --name "$C" --network none -e POSTGRES_HOST_AUTH_METHOD=trust supabase/postgres:17.11.0.019 >/dev/null
+docker run --rm -d --name "$C" --network none -e POSTGRES_HOST_AUTH_METHOD=trust supabase/postgres:17.11.0.019 postgres -c config_file=/etc/postgresql/postgresql.conf -c cron.launch_active_jobs=off >/dev/null
 READY=0
 for i in $(seq 1 50); do
   if docker exec "$C" pg_isready -U postgres >/dev/null 2>&1; then READY=1; break; fi
@@ -54,15 +54,9 @@ test "$READY" = 1 || { echo 'Isolated PostgreSQL not ready'; exit 1; }
 # This is how the November 15 production-derived scoped restore succeeded.
 # For safety, all commands here run through docker exec "$C"; this container
 # was created above with --network none and no mounted volumes or ports.
-echo '[5/5] Disabling scheduled jobs in isolated container'
-docker exec "$C" psql -X -U postgres -d template1 -v ON_ERROR_STOP=1 \
-  -c "ALTER SYSTEM SET cron.launch_active_jobs = 'off'" >/dev/null || {
-  echo 'Cannot disable pg_cron jobs: stopping.'; exit 1;
-}
-docker exec "$C" psql -X -U postgres -d template1 -v ON_ERROR_STOP=1 \
-  -c "SELECT pg_reload_conf()" >/dev/null
+echo '[5/5] Verifying pg_cron is disabled by server startup configuration'
 if [ "$(docker exec "$C" psql -X -U postgres -d template1 -At -v ON_ERROR_STOP=1 -c "SELECT setting FROM pg_settings WHERE name='cron.launch_active_jobs'")" != off ]; then
-  echo 'pg_cron launch policy not confirmed OFF: stopping.'; exit 1
+  echo 'pg_cron was not disabled at startup; stopping.'; exit 1
 fi
 echo '[5/5] Recreating only the network-isolated postgres database from template0'
 docker exec "$C" psql -X -U postgres -d template1 -v ON_ERROR_STOP=1 \
