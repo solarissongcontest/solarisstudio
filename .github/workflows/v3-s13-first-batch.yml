@@ -1,0 +1,34 @@
+name: V3 S13 first dark foundation batch
+on:
+  pull_request:
+    paths:
+      - scripts/package-v3-s13-first-batch*
+      - scripts/rehearse-v3-s13-first-batch*
+      - docs/v3/recovery-candidates/s13-first-batch-*.sql
+      - docs/v3/recovery-candidates/forward-only-s13-foundation.sql
+      - .github/workflows/v3-s13-first-batch.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dark-batch-pg17:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SOLARIS_RUN_LOCAL_DB_REHEARSAL: YES
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: node --test scripts/package-v3-s13-first-batch.test.mjs
+      - run: docker pull postgres:17.11
+      - name: Real observed-subset clone, non-superuser install and negative tests
+        run: python3 scripts/rehearse-v3-s13-first-batch.test.py
+      - name: Package exact-SHA operator artifacts, without production qualification
+        run: node scripts/package-v3-s13-first-batch.mjs "$RUNNER_TEMP/s13-first-batch"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: s13-first-dark-batch-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/s13-first-batch
+          if-no-files-found: error

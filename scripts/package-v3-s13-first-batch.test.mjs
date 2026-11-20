@@ -1,0 +1,21 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {renderBatch,inputs} from './package-v3-s13-first-batch.mjs';
+test('S13 batch reuses immutable core, one transaction and no official/global writers',()=>{
+ const batch=renderBatch(),core=fs.readFileSync(inputs[0],'utf8');
+ assert.deepEqual(Object.keys(batch),['preflight.sql','install.sql','postcheck.sql']);
+ const canonical=core.slice(core.indexOf('\nbegin;')+1).replace(/^begin;\n/,'').replace(/\ncommit;\s*$/,'');
+ assert.ok(batch['install.sql'].includes(canonical),'Original complete implementation must remain exact');
+ assert.equal((batch['install.sql'].match(/^begin;$/gm)||[]).length,1);
+ assert.equal((batch['install.sql'].match(/^commit;$/gm)||[]).length,1);
+ assert.ok(batch['install.sql'].lastIndexOf('revoke all on function')>batch['install.sql'].lastIndexOf('grant execute'));
+ assert.doesNotMatch(batch['install.sql'],/alter default privileges|insert into supabase_migrations|update public\.|delete from public\.|drop\s+(table|function|trigger)|create\s+extension/i);
+ assert.match(batch['install.sql'],/has_sequence_privilege/);
+ assert.match(batch['install.sql'],/has_any_column_privilege/);
+ assert.match(batch['install.sql'],/'TRUNCATE'/);
+ assert.match(batch['install.sql'],/pg_event_trigger/);
+ assert.match(batch['install.sql'],/pg_try_advisory_xact_lock/);
+ assert.match(batch['preflight.sql'],/begin transaction read only/);
+ assert.match(batch['postcheck.sql'],/begin transaction read only/);
+});
