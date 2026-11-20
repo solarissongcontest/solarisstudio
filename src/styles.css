@@ -354,7 +354,7 @@ a.bg-primary:active,
 @utility scroll-slim { scrollbar-width: thin; scrollbar-color: rgba(120, 180, 205, 0.38) transparent; }
 
 html:not([data-solaris-app]) .app-main {
-  padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
+  padding-bottom: max(2rem, calc(1rem + env(safe-area-inset-bottom)));
 }
 .app-background {
   position: fixed;

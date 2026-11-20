@@ -36,7 +36,7 @@ export function V3ResultsScreen({
   const mode = projection.tabs.includes(selectedMode) ? selectedMode : "combined";
 
   return (
-    <V3Screen>
+    <V3Screen className="v3-editorial-results">
       <div data-v3-results-root="" data-v3-results-state={projection.status}>
         <V3ScreenHeader
           kicker="Results"
@@ -44,13 +44,13 @@ export function V3ResultsScreen({
           description={
             input.showId
               ? `${input.editionName} · ${input.showName}`
-              : "Published outcomes and their story."
+              : "Official rankings and points."
           }
         />
 
         {options.length > 1 && onResultChange ? (
           <V3Section title="Result archive" meta={`${options.length} published finals`}>
-            <V3Surface className="p-4">
+            <V3Surface className="v3-results-archive-control p-4">
               <label htmlFor="v3-results-history" className="text-xs font-semibold text-[var(--v3-text-secondary)]">
                 Official result
               </label>
@@ -68,9 +68,7 @@ export function V3ResultsScreen({
                   </option>
                 ))}
               </select>
-              <p className="mt-2 text-xs leading-5 text-[var(--v3-text-secondary)]">
-                Only canonically published final results appear here. Selecting a result never changes its publication state.
-              </p>
+              <p className="sr-only">Only canonically published final results appear here. Selection never changes publication state.</p>
             </V3Surface>
           </V3Section>
         ) : null}
@@ -125,7 +123,7 @@ export function V3ResultsScreen({
               {projection.officialResult.rows.length ? (
                 <>
                   <div
-                    className="mb-4 grid grid-cols-3 gap-2"
+                    className="v3-results-mode-switch mb-4 grid grid-cols-3 gap-2"
                     role="group"
                     aria-label="Published points view"
                   >
@@ -212,7 +210,7 @@ export function V3ResultsScreen({
                     <Link
                       key={link.key}
                       to={link.href as any}
-                      className="flex min-h-11 items-center rounded-xl border border-[var(--v3-border-subtle)] px-4"
+                      className="v3-results-related-link flex min-h-11 items-center rounded-xl border border-[var(--v3-border-subtle)] px-4"
                     >
                       {link.label}
                     </Link>

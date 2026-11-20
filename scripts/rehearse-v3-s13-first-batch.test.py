@@ -49,6 +49,60 @@ class CronGuardTests(unittest.TestCase):
                 module.rehearse('isolated-container','postgres',Path('/not-read'),'/not-written','observed-subset')
 
 
+
+class PrivateCloneIsolationTests(unittest.TestCase):
+    """No hosted/backup access: prove maintenance-DB cloning and busy-source refusal."""
+    def test_clone_is_issued_from_template1_not_restored_source(self):
+        class CloneReached(Exception): pass
+        operations=[]
+        def probe(container,database,source,actor='postgres'):
+            operations.append((database,source,actor))
+            if "server_version_num" in source: return '170011'
+            if "cron.launch_active_jobs" in source: return 'off'
+            if "pg_stat_activity" in source: return '0'
+            if source.startswith('CREATE DATABASE '): return ''
+            if source.startswith('DROP DATABASE '): return ''
+            self.fail('Unexpected SQL issued in mock clone check')
+        def catalog(container,database):
+            if database.startswith('solaris_s13_batch_'): raise CloneReached
+            return 'source-fingerprint'
+        with mock.patch.object(module,'validate_container'), \
+             mock.patch.object(module,'validate_package',return_value={}), \
+             mock.patch.object(module,'sql',side_effect=probe), \
+             mock.patch.object(module,'tables',return_value=['public.fixture']), \
+             mock.patch.object(module,'data_digest',return_value='source-data'), \
+             mock.patch.object(module,'catalog_digest',side_effect=catalog):
+            with self.assertRaises(CloneReached):
+                module.rehearse('network-none-container','postgres',Path('/not-used'),'/not-written','observed-subset')
+        creates=[op for op in operations if op[1].startswith('CREATE DATABASE ')]
+        drops=[op for op in operations if op[1].startswith('DROP DATABASE ')]
+        self.assertEqual(len(creates),1)
+        self.assertEqual(len(drops),1)
+        self.assertEqual(creates[0][0],'template1')
+        self.assertEqual(drops[0][0],'template1')
+        self.assertEqual(creates[0][2],'supabase_admin')
+
+    def test_busy_source_never_cloned_or_terminated(self):
+        operations=[]
+        def probe(container,database,source,actor='postgres'):
+            operations.append((database,source))
+            if "server_version_num" in source:return '170011'
+            if "cron.launch_active_jobs" in source:return 'off'
+            if "pg_stat_activity" in source:return '2'
+            self.fail('No mutation permitted when the source remains busy')
+        with mock.patch.object(module,'validate_container'), \
+             mock.patch.object(module,'validate_package',return_value={}), \
+             mock.patch.object(module,'sql',side_effect=probe), \
+             mock.patch.object(module,'tables',return_value=['public.fixture']), \
+             mock.patch.object(module,'data_digest',return_value='source-data'), \
+             mock.patch.object(module,'catalog_digest',return_value='source-catalog'), \
+             mock.patch.object(module.time,'sleep'):
+            with self.assertRaisesRegex(module.RehearsalFailure,'active sessions'):
+                module.rehearse('network-none-container','postgres',Path('/not-used'),'/not-written','observed-subset')
+        self.assertEqual(sum('pg_stat_activity' in sql for _,sql in operations),3)
+        self.assertFalse(any(sql.startswith('CREATE DATABASE ') or sql.startswith('DROP DATABASE ') for _,sql in operations))
+
+
 class Tests(unittest.TestCase):
     @classmethod
     def command(cls,*args,input=None):return subprocess.run(args,input=input,capture_output=True,check=True).stdout

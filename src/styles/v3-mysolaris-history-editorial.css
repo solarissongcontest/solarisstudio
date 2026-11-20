@@ -1,0 +1,133 @@
+/*
+ * MySolaris country History on ordinary browsers: browse first, edit one edition
+ * at a time. All mutation authority stays in MySolarisCountryModule.
+ * Installed app retains its prior disclosure-based workflow.
+ */
+html:not([data-solaris-app]) .solaris-history-web-directory,
+html:not([data-solaris-app]) .solaris-history-web-focus {
+  min-width: 0;
+  max-width: 70rem;
+}
+html:not([data-solaris-app]) .solaris-history-web-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+html:not([data-solaris-app]) .solaris-history-web-list > li {
+  margin: 0;
+  border-bottom: 1px solid var(--border);
+}
+html:not([data-solaris-app]) .solaris-history-web-row {
+  display: flex;
+  width: 100%;
+  min-height: 74px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem .4rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--foreground);
+  text-align: start;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+html:not([data-solaris-app]) .solaris-history-web-row-copy {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+  gap: .3rem;
+}
+html:not([data-solaris-app]) .solaris-history-web-row-copy strong {
+  font-size: .95rem;
+  font-weight: 720;
+}
+html:not([data-solaris-app]) .solaris-history-web-row-copy > span {
+  overflow-wrap: anywhere;
+  color: var(--muted-foreground);
+  font-size: .82rem;
+  line-height: 1.4;
+}
+html:not([data-solaris-app]) .solaris-history-web-row-action {
+  flex: 0 0 auto;
+  color: var(--primary);
+  font-size: .82rem;
+  font-weight: 680;
+}
+html:not([data-solaris-app]) .solaris-history-web-row:hover {
+  background: var(--surface);
+}
+html:not([data-solaris-app]) .solaris-history-web-row:focus-visible,
+html:not([data-solaris-app]) .solaris-history-web-add:focus-visible,
+html:not([data-solaris-app]) .solaris-history-web-back:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+html:not([data-solaris-app]) .solaris-history-web-add,
+html:not([data-solaris-app]) .solaris-history-web-back {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  padding: .55rem .35rem;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: .85rem;
+  font-weight: 670;
+  text-align: start;
+  cursor: pointer;
+}
+html:not([data-solaris-app]) .solaris-history-web-add {
+  margin-top: 1rem;
+}
+html:not([data-solaris-app]) .solaris-history-web-focus .solaris-history-web-back {
+  margin-bottom: .35rem;
+}
+html:not([data-solaris-app]) .solaris-history-entry[data-history-focused="true"],
+html:not([data-solaris-app]) .solaris-history-add[data-history-focused="true"] {
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+html:not([data-solaris-app]) .solaris-history-entry[data-history-focused="true"] > summary,
+html:not([data-solaris-app]) .solaris-history-add[data-history-focused="true"] > summary {
+  display: none;
+}
+html:not([data-solaris-app]) .solaris-history-entry[data-history-focused="true"] > div,
+html:not([data-solaris-app]) .solaris-history-add[data-history-focused="true"] > div {
+  border-top: 0;
+  padding-inline: 0;
+}
+@media (max-width: 639px) {
+  html:not([data-solaris-app]) .solaris-history-web-row {
+    min-height: 68px;
+    padding-block: .85rem;
+  }
+  html:not([data-solaris-app]) .solaris-history-web-row-copy strong {
+    font-size: .87rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-solaris-app]) .solaris-history-web-row {
+    transition: none;
+  }
+}
+@media (forced-colors: active) {
+  html:not([data-solaris-app]) .solaris-history-web-row:focus-visible,
+  html:not([data-solaris-app]) .solaris-history-web-add:focus-visible,
+  html:not([data-solaris-app]) .solaris-history-web-back:focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+/* Delegation handovers are secondary reading, never above the entry editor. */
+html:not([data-solaris-app]) .solaris-history-hod-secondary {
+  margin-top: clamp(1.4rem, 3vw, 2.4rem);
+  padding-top: clamp(1rem, 2vw, 1.6rem);
+  border-top: 1px solid var(--border);
+}

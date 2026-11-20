@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { Command, Search, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { editionLabel, useCountries, useEditions } from "@/lib/data";
 import { useAdminNotifications } from "@/lib/admin-ops";
+import { matchesOrganizerCommandSearch } from "@/lib/admin-command-search";
 import { searchGovernanceLibrary } from "@/lib/public-library-governance";
 import { useAdminContext } from "./AdminContext";
 import { resolveAdminEditionContext } from "./admin-edition-context";
@@ -22,6 +23,8 @@ type AdminCommand = {
 export function AdminCommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const wasOpenRef = useRef(false);
   const { editionId } = useAdminContext();
   const { data: editions = [] } = useEditions();
   const { data: countries = [] } = useCountries();
@@ -43,6 +46,12 @@ export function AdminCommandPalette() {
 
   useEffect(() => {
     if (!open) setQuery("");
+    if (open) wasOpenRef.current = true;
+    else if (wasOpenRef.current) {
+      // Return keyboard users to a predictable control after closing the dialog.
+      triggerRef.current?.focus();
+      wasOpenRef.current = false;
+    }
   }, [open]);
 
   const commands = useMemo(() => {
@@ -137,11 +146,11 @@ export function AdminCommandPalette() {
       unavailableReason: null,
     }));
 
+    // Search opens with immediate work and edition shortcuts, not a wall
+    // of 66 countries. Country and historical-edition lookup remain searchable.
     return [
-      ...countryItems,
       ...inboxItems,
       ...currentEdition,
-      ...navigation,
       {
         id: "workspace:all-organizer-pages",
         label: "All organizer pages",
@@ -151,6 +160,8 @@ export function AdminCommandPalette() {
         available: true,
         unavailableReason: null,
       },
+      ...navigation,
+      ...countryItems,
       {
         id: "workspace:public-site",
         label: "Public Solaris Studio",
@@ -172,11 +183,7 @@ export function AdminCommandPalette() {
     ];
   }, [activeEdition, countries, editions, notifications]);
 
-  const needle = query.trim().toLowerCase();
-  const filtered = commands.filter(
-    (item) =>
-      !needle || `${item.label} ${item.group} ${item.keywords}`.toLowerCase().includes(needle),
-  );
+  const filtered = commands.filter((item) => matchesOrganizerCommandSearch(query, item));
 
   const publicGovernanceResults = useMemo(
     () => searchGovernanceLibrary(query).slice(0, query.trim() ? 10 : 5),
@@ -217,9 +224,12 @@ export function AdminCommandPalette() {
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
-        className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground sm:flex sm:w-auto sm:px-3"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        className="grid size-11 shrink-0 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground sm:flex sm:w-auto sm:px-3"
         aria-label="Search Solaris Organizer"
       >
         <Search className="size-4" />
@@ -236,11 +246,36 @@ export function AdminCommandPalette() {
             if (event.target === event.currentTarget) setOpen(false);
           }}
         >
-          <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-white/[0.1] bg-[#081326] shadow-2xl">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Search Solaris Organizer"
+            onKeyDown={(event) => {
+              if (event.key !== "Tab") return;
+              const controls = Array.from(
+                event.currentTarget.querySelectorAll<HTMLElement>(
+                  'input:not([disabled]), button:not([disabled]), a[href]',
+                ),
+              ).filter((control) => control.getClientRects().length > 0);
+              const first = controls[0];
+              const last = controls[controls.length - 1];
+              if (!first || !last) return;
+              if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+              } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+              }
+            }}
+            className="w-full max-w-xl overflow-hidden rounded-2xl border border-white/[0.1] bg-[#081326] shadow-2xl"
+          >
             <div className="flex items-center gap-3 border-b border-white/[0.08] px-3 sm:px-4">
               <Command className="size-4 shrink-0 text-sky-100" />
               <input
                 autoFocus
+                type="search"
+                aria-label="Search Organizer commands and reference"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search Solaris, rules, cases or tools…"
@@ -249,13 +284,14 @@ export function AdminCommandPalette() {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="grid size-9 shrink-0 place-items-center rounded-xl text-muted-foreground hover:bg-white/[0.05] hover:text-foreground"
+                className="grid size-11 shrink-0 place-items-center rounded-xl text-muted-foreground hover:bg-white/[0.05] hover:text-foreground"
                 aria-label="Close search"
               >
                 <X className="size-4" />
               </button>
             </div>
 
+            <p role="status" aria-live="polite" className="sr-only">{mergedResults.length} search results</p>
             <div className="max-h-[68dvh] overflow-y-auto p-2 scroll-slim">
               {mergedResults.slice(0, 30).map((item) => {
                 const content = (
@@ -296,6 +332,11 @@ export function AdminCommandPalette() {
                   </div>
                 );
               })}
+              {mergedResults.length > 30 ? (
+                <p role="note" className="px-3 py-3 text-xs text-muted-foreground">
+                  Showing the first 30 of {mergedResults.length} matches. Refine your search to find more.
+                </p>
+              ) : null}
               {!mergedResults.length ? (
                 <p className="p-7 text-center text-sm text-muted-foreground">
                   Nothing in Solaris matches that search.

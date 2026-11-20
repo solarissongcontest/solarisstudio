@@ -34,10 +34,7 @@ export function AdminNav() {
           <ListTree className="size-4" />
           All Organizer tools
         </Link>
-        <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
-          Core workflows are visible in their workspaces. Search and All Organizer tools are for
-          specialist tasks.
-        </p>
+
       </div>
     </nav>
   );

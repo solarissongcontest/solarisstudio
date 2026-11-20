@@ -35,6 +35,8 @@ describe("V3 Organizer Overview projection", () => {
     expect(route).toContain("projection.readiness.blocking");
     expect(route).toContain("projection.readiness.incomplete");
     expect(route).toContain("projection.readiness.ready");
-    expect(route).toContain("Deterministic edition health");
+    expect(route).toContain("projection.readiness.overall");
+    expect(route).toContain("new Date(projection.readiness.calculatedAt).toLocaleTimeString()");
+    expect(route).toContain("projection.readiness.stateVersion");
   });
 });

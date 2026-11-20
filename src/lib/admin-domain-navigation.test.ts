@@ -33,7 +33,8 @@ describe("Organizer domain navigation", () => {
     expect(adminNav).toContain("buildAdminDomainNavigation");
     expect(adminNav).not.toContain("buildAdminNavigation");
     expect(adminNav).not.toContain("groups.map");
-    expect(adminNav).toContain("Core workflows are visible in their workspaces");
+    expect(adminNav).toContain("All Organizer tools");
+    expect(adminNav).not.toContain("Core workflows are visible in their workspaces");
     expect(adminNav).toContain('to="/admin/menu"');
   });
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Edition } from "@/lib/data";
-import { resolveAdminEditionContext } from "./admin-edition-context";
+import { matchesAdminEditionRoute, resolveAdminEditionContext } from "./admin-edition-context";
 
 const editions = [
   { id: "older", slug: "ssc21", edition_number: 21, name: "Older" },
@@ -21,5 +21,29 @@ describe("resolveAdminEditionContext", () => {
 
   it("fails closed when context is stale instead of choosing another loaded edition", () => {
     expect(resolveAdminEditionContext(editions, "deleted-or-stale")).toBeNull();
+  });
+});
+
+describe("Organizer edition route safety", () => {
+  it("matches the exact edition segment on detail and nested routes", () => {
+    expect(matchesAdminEditionRoute("/admin/ssc22", "ssc22")).toBe(true);
+    expect(matchesAdminEditionRoute("/admin/ssc22/", "ssc22")).toBe(true);
+    expect(matchesAdminEditionRoute("/admin/entries/ssc22", "ssc22")).toBe(true);
+    expect(matchesAdminEditionRoute("/admin/entries/ssc22/revisions", "ssc22")).toBe(true);
+    expect(matchesAdminEditionRoute("/admin/publication/ssc22", "ssc22")).toBe(true);
+  });
+
+  it("never confuses editions with shared slug prefixes", () => {
+    expect(matchesAdminEditionRoute("/admin/entries/ssc22", "ssc2")).toBe(false);
+    expect(matchesAdminEditionRoute("/admin/shows/ssc22/rundown", "ssc2")).toBe(false);
+    expect(matchesAdminEditionRoute("/admin/ssc22", "ssc2")).toBe(false);
+    expect(matchesAdminEditionRoute("/admin/design/ssc23", "ssc22")).toBe(false);
+  });
+
+  it("does not treat unrelated Organizer routes as edition contexts", () => {
+    expect(matchesAdminEditionRoute("/admin/operations", "ssc22")).toBe(false);
+    expect(matchesAdminEditionRoute("/admin/tasks", "ssc22")).toBe(false);
+    expect(matchesAdminEditionRoute("/admin/entries/ssc22-extra", "ssc22")).toBe(false);
+    expect(matchesAdminEditionRoute("/admin/entries/ssc22", "")).toBe(false);
   });
 });
