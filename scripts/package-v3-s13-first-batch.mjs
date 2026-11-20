@@ -10,13 +10,27 @@ export const candidate='docs/v3/recovery-candidates/forward-only-s13-foundation.
 export const inputs=[candidate,...['preconditions','dark-acl','postconditions'].map(x=>'docs/v3/recovery-candidates/s13-first-batch-'+x+'.sql')];
 export const evidencePaths=[
  'docs/v3/recovery-candidates/evidence/s13-current-hosted-preflight-2026-11-19.json',
- 'docs/v3/recovery-candidates/evidence/s13-s16-current-hosted-catalog-2026-11-20.json'];
+ 'docs/v3/recovery-candidates/evidence/s13-s16-current-hosted-catalog-2026-11-20.json',
+ 'docs/v3/recovery-candidates/evidence/s13-first-batch-postgrest-watch-2026-11-20.json'];
 export const canonicalPaths=[
  'supabase/migrations/20261019111000_v3_s13_migration_hardening.sql',
  'supabase/migrations/20261019113300_v3_s13_strict_registration_restore.sql'];
 const digest=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 export function reconcileEffects(){
- const [preflight,current]=evidencePaths.map(p=>JSON.parse(fs.readFileSync(path.join(root,p),'utf8')));
+ const [preflight,current,watch]=evidencePaths.map(p=>JSON.parse(fs.readFileSync(path.join(root,p),'utf8')));
+ assert.equal(watch.projectRef,preflight.project_id);
+ assert.deepEqual(watch.s13TargetEffects,{present:0,absent:14});
+ assert.equal(watch.relevantEnabledDdlHandlers,1);
+ assert.equal(watch.handler.eventTriggerName,'pgrst_ddl_watch');
+ assert.equal(watch.handler.event,'ddl_command_end');
+ assert.equal(watch.handler.enabled,'O');
+ assert.equal(watch.handler.tags,null);
+ assert.equal(watch.handler.functionIdentity,'extensions.pgrst_ddl_watch()');
+ assert.equal(watch.handler.functionOwner,'supabase_admin');
+ assert.equal(watch.handler.functionLanguage,'plpgsql');
+ assert.equal(watch.handler.securityDefiner,false);
+ assert.equal(watch.handler.definitionMd5,'afaad7193dcf8f81e728d2bedb85e43e');
+ assert.equal(watch.sharedS13Helper.definitionMd5,'84d3f05e5f537908732a3875ba0178e6');
  assert.equal(preflight.project_id,'dkxmnvekiopyesuzggeu');
  assert.equal(current.project_ref,preflight.project_id);
  assert.equal(preflight.production_observation.checked_targets,14);
@@ -40,7 +54,10 @@ export function reconcileEffects(){
    externalDependency:{identity:'private.studio2_request_is_service_role()',action:'preserve',
       observedAt:preflight.production_observation.observed_at,owner:'postgres',
       definitionMd5:preflight.production_observation.helper_definition_md5,aclMd5:preflight.production_observation.helper_acl_md5},
-   unverifiedPreconditions:['Fresh exact-target preflight at approved execution','Relevant DDL event-handler closure','Implicit index/sequence/type namespace collisions'],
+   qualifiedDdlHandler:{identity:watch.handler.functionIdentity,eventTrigger:watch.handler.eventTriggerName,
+     definitionMd5:watch.handler.definitionMd5,owner:watch.handler.functionOwner,observedAt:watch.observedDate,
+     behavior:'PostgREST schema reload notification only'},
+   unverifiedPreconditions:['Fresh exact-target preflight at approved execution','No additional or changed DDL handlers','Implicit index/sequence/type namespace collisions'],
    history:{recorded:current.supabase_history.count,tip:current.supabase_history.tip,historyWrites:0}};
 }
 export function renderBatch(){
