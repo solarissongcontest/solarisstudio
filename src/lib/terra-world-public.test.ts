@@ -26,6 +26,7 @@ import {
   fetchWorldPublicEnabled,
   fetchWorldProjection,
   parseWorldDirectoryRows,
+  parseWorldDirectoryUrlPage,
   parseWorldProjection,
 } from "./terra-world-public";
 
@@ -154,6 +155,15 @@ describe("TG3 world publication-safe projections", () => {
   it("removes PostgREST filter delimiters and limits search length", () => {
     expect(cleanWorldSearch(" GUARD),status.eq.private% ")).toBe("GUARDstatuseqprivate");
     expect(cleanWorldSearch("a".repeat(200))).toHaveLength(64);
+  });
+
+  it("accepts only bounded one-based URL page numbers", () => {
+    expect(parseWorldDirectoryUrlPage(undefined)).toBe(1);
+    expect(parseWorldDirectoryUrlPage("2")).toBe(2);
+    expect(parseWorldDirectoryUrlPage(1001)).toBe(1001);
+    for (const invalid of [null, true, "", "0", "02", "-3", "1.5", "1002", "Infinity", 0, 2.5, 1002]) {
+      expect(parseWorldDirectoryUrlPage(invalid)).toBe(1);
+    }
   });
 
   it("requests only public organizations and bounded pages", async () => {
