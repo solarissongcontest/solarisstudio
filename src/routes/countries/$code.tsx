@@ -175,15 +175,6 @@ function CountryProfilePage() {
   const country = (countries ?? []).find(
     (item) => item.short_code.toUpperCase() === code.toUpperCase(),
   );
-  useEffect(() => {
-    // Direct fragment links must arrive at their section after the Country
-    // projection resolves. Use no smooth animation for reduced-motion safety.
-    if (isAppMode || !routeHash || sectionFromCountryHash(routeHash) === "overview") return;
-    document.getElementById(sectionFromCountryHash(routeHash))?.scrollIntoView({
-      block: "start",
-      behavior: "auto",
-    });
-  }, [isAppMode, routeHash, country?.id]);
   const countrySidebarItems = (countries ?? []).map((item) => ({
     key: item.id,
     label: item.name,
@@ -239,6 +230,17 @@ function CountryProfilePage() {
   const archiveLoading = !archiveEnabled || archiveIsLoading(...archiveQueries);
   const archiveError = archiveHasError(...archiveQueries);
   const visualLoading = Boolean(country?.id) && (countryThemeQuery.isLoading || designV2Query.isLoading);
+
+  useEffect(() => {
+    // Direct links must scroll after identity/design loading ends; otherwise
+    // the Country loading placeholder would swallow the first hash jump.
+    if (!country || visualLoading || isAppMode || !routeHash ||
+      sectionFromCountryHash(routeHash) === "overview") return;
+    document.getElementById(sectionFromCountryHash(routeHash))?.scrollIntoView({
+      block: "start",
+      behavior: "auto",
+    });
+  }, [isAppMode, routeHash, country?.id, visualLoading]);
 
   if (countriesQuery.isLoading || visualLoading) {
     return (
