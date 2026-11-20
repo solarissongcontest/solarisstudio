@@ -37,6 +37,11 @@ describe("ordinary-web country section permalinks", () => {
     expect(route).toContain('className="country-web-section-nav"');
     expect(route).toContain("hash={countrySectionHash(item.value)}");
     expect(route).toContain('aria-current={tab === item.value ? "page" : undefined}');
+    expect(route).toContain('id={tab} className="country-web-section-anchor"');
+    expect(route).toContain("scrollIntoView({");
+    expect(route).toContain("behavior: \"auto\"");
+    expect(route).toContain("country?.id]");
+    expect(styles).toContain("scroll-margin-top: 5rem");
     expect(styles).toContain("overflow-x: auto");
     expect(styles).toContain("@media (max-width: 47.99rem)");
   });
