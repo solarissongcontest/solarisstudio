@@ -314,3 +314,74 @@ body .countries-library-hero.directory-page-hero h1 {
   line-height:1.15 !important;
   text-transform:none !important
 }
+
+
+/* Country changes: a verified public editorial entrance, not a second
+ * participant reader or speculative current-edition status badge. */
+.v3-countries-discovery .v3-countries-current-pulse {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .9rem 1.5rem;
+  padding: 1rem 0 1.15rem;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.v3-countries-discovery .v3-countries-current-pulse__eyebrow {
+  font-size: .7rem;
+  font-weight: 750;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.v3-countries-discovery .v3-countries-current-pulse h3 {
+  margin-top: .22rem;
+  font-size: clamp(1rem, 3vw, 1.25rem);
+  font-weight: 740;
+  line-height: 1.22;
+  letter-spacing: -.02em;
+}
+.v3-countries-discovery .v3-countries-current-pulse p:last-child {
+  margin-top: .3rem;
+  font-size: .8rem;
+  line-height: 1.55;
+  color: var(--muted-foreground);
+}
+.v3-countries-discovery .v3-countries-current-pulse__link {
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  min-height: 44px;
+  max-width: 100%;
+  color: var(--foreground);
+  font-size: .82rem;
+  font-weight: 700;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.v3-countries-discovery .v3-countries-current-pulse__link:hover {
+  color: var(--primary);
+}
+.v3-countries-discovery .v3-countries-current-pulse__link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.v3-countries-discovery #countries-current-movement {
+  scroll-margin-top: 5.5rem;
+}
+@media (min-width: 68rem) {
+  .v3-countries-discovery .v3-countries-current-pulse {
+    align-items: flex-end;
+  }
+}
+@media (max-width: 28rem) {
+  .v3-countries-discovery .v3-countries-current-pulse {
+    gap: .5rem;
+  }
+}
+@media (forced-colors: active) {
+  .v3-countries-discovery .v3-countries-current-pulse {
+    border-color: CanvasText;
+  }
+}
