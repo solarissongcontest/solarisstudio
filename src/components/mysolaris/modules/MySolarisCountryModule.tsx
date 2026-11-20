@@ -448,6 +448,7 @@ function OwnedCountryHub({
     setHistoryFocus(target);
   };
 
+  const focusedHistoryEdition = editions?.find((edition) => edition.id === historyFocus);
   const countrySearch = targetCountryId ? { country: targetCountryId } : {};
 
   const run = async (task: () => Promise<unknown>, success: string) => {
@@ -1129,11 +1130,21 @@ function OwnedCountryHub({
 
       {section === "history" && activeTab === "entries" && (
         <div className="space-y-5">
-          {!organizerOverride && <CountryHodHistoryPanel inline />}
+          {!organizerOverride && isAppMode && <CountryHodHistoryPanel inline />}
           <Panel
-          title="SSC entries"
-          description="Each edition has one artist and one song. Reaching the final does not create a second participation."
-        >
+            title={
+              !isAppMode && historyFocus === "add"
+                ? "Add edition participation"
+                : !isAppMode && historyFocus
+                  ? focusedHistoryEdition ? `Edit ${editionLabel(focusedHistoryEdition)}` : "Edit edition"
+                  : "SSC entries"
+            }
+            description={
+              isAppMode
+                ? "Each edition has one artist and one song. Reaching the final does not create a second participation."
+                : undefined
+            }
+          >
 
           <div className="space-y-3">
             <p className="sr-only">Edit once per edition: use the same song and artist for each show in this edition.</p>
@@ -1307,6 +1318,11 @@ function OwnedCountryHub({
             </div>
           )}
           </Panel>
+          {!organizerOverride && !isAppMode && (
+            <section className="solaris-history-hod-secondary" aria-label="Delegation history">
+              <CountryHodHistoryPanel inline />
+            </section>
+          )}
         </div>
       )}
     </AppShell>
