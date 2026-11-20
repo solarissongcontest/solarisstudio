@@ -332,6 +332,7 @@ function CountryProfilePage() {
       (editionMap.get(b.edition_id)?.edition_number ?? -1) -
       (editionMap.get(a.edition_id)?.edition_number ?? -1),
   );
+  const publishedGrandFinalEditionIds = new Set(finalResults.map((result) => result.edition_id));
 
   const qualificationFor = (editionId: string) =>
     resolveCountryEditionQualification(country.id, editionId, publicArchive);
@@ -352,7 +353,7 @@ function CountryProfilePage() {
       return [edition?.name, edition?.slug, edition ? editionLabel(edition) : null];
     },
     qualificationFor,
-    (editionId) => finalResults.some((result) => result.edition_id === editionId),
+    (editionId) => publishedGrandFinalEditionIds.has(editionId),
   );
 
   const qualificationEditionIds = new Set<string>();
