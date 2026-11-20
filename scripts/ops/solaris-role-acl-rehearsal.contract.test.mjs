@@ -71,10 +71,8 @@ test('raw restoration diagnostics and private data are not echoed', () => {
 });
 
 
-test('TOC role parser collects exactly 225 table owners, not arbitrary object names', () => {
-  const start = "<<'PYROLE'\n";
-  const end = '\nPYROLE\n';
-  const snippet = source.split(start)[1].split(end)[0];
+test('TOC owner parser requires 225 app, 1 migration ledger and 10 other TABLE entries', () => {
+  const snippet = source.split("<<'PYROLE'\n")[1].split('\nPYROLE\n')[0];
   const work = mkdtempSync(join(tmpdir(), 'solaris-role-toc-test-'));
   try {
     const toc = join(work, 'sample.toc');
@@ -82,39 +80,48 @@ test('TOC role parser collects exactly 225 table owners, not arbitrary object na
       (i + 1) + '; 1259 ' + (1000 + i) +
       ' TABLE public sample_' + (i + 1) + ' postgres');
     const ledger = '226; 1259 9001 TABLE supabase_migrations schema_migrations supabase_admin';
+    const extras = Array.from({ length: 10 }, (_, i) =>
+      (227 + i) + '; 1259 ' + (2000 + i) +
+      ' TABLE other_schema helper_' + (i + 1) + ' supabase_admin');
     const dataLines = Array.from({ length: 225 }, (_, i) =>
-      (i + 226) + '; 0 ' + (1000 + i) +
+      (237 + i) + '; 0 ' + (1000 + i) +
       ' TABLE DATA public sample_' + (i + 1) + ' postgres');
     const unrelated = Array.from({ length: 125 }, (_, i) =>
-      (i + 451) + '; 0 ' + (2000 + i) +
+      (462 + i) + '; 0 ' + (3000 + i) +
       (i % 2 ? ' INDEX public idx_' + i + ' arbitraryvalidowner' + i :
                ' ACL public object_' + i + ' arbitraryvalidowner' + i));
-    const unusual = '576; 0 0 ACL public complicated descriptor-tail!not_an_owner';
-    writeFileSync(toc, [...tableLines, ledger, ...dataLines, ...unrelated, unusual, ''].join('\n'));
-    const result = spawnSync('python3', ['-c', snippet, toc], { encoding: 'utf8' });
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /CREATE ROLE/);
-    assert.doesNotMatch(result.stdout, /arbitraryvalidowner/);
-    assert.doesNotMatch(result.stdout, /descriptor-tail/);
+    const unusual = '587; 0 0 ACL public weird-owner!NOT_A_ROLE';
+    const makeToc = (tables = tableLines, migration = [ledger], other = extras) =>
+      [...tables, ...migration, ...other, ...dataLines, ...unrelated, unusual, ''].join('\n');
+    function run(tables, migration, other) {
+      writeFileSync(toc, makeToc(tables, migration, other));
+      return spawnSync('python3', ['-c', snippet, toc], { encoding: 'utf8' });
+    }
 
-    tableLines[0] = '1; 1259 1000 TABLE public sample_1 unsafe-owner';
-    writeFileSync(toc, [...tableLines, ledger, ...dataLines, unusual, ''].join('\n'));
-    const bad = spawnSync('python3', ['-c', snippet, toc], { encoding: 'utf8' });
-    assert.notEqual(bad.status, 0);
-    assert.match(bad.stderr, /unusual TABLE owner field/);
-    assert.equal(bad.stdout.trim(), '', 'No SQL emitted for unsafe TABLE owner');
+    const ok = run(tableLines, [ledger], extras);
+    assert.equal(ok.status, 0, ok.stderr);
+    assert.match(ok.stderr, /application=225, ledger=1, other=10, total=236/);
+    assert.match(ok.stdout, /CREATE ROLE/);
+    assert.doesNotMatch(ok.stdout, /arbitraryvalidowner|NOT_A_ROLE/);
 
-    writeFileSync(toc, [...tableLines.slice(1), ledger, ...dataLines, unusual, ''].join('\n'));
-    const missingTable = spawnSync('python3', ['-c', snippet, toc], { encoding: 'utf8' });
-    assert.notEqual(missingTable.status, 0);
-    assert.match(missingTable.stderr, /unexpected TABLE inventory/);
-    tableLines[0] = '1; 1259 1000 TABLE public sample_1 postgres';
-    const withoutLedger = [...tableLines, ...dataLines, unusual, ''].join('\n');
-    writeFileSync(toc, withoutLedger);
-    const missingLedger = spawnSync('python3', ['-c', snippet, toc], { encoding: 'utf8' });
-    assert.notEqual(missingLedger.status, 0);
-    assert.match(missingLedger.stderr, /unexpected TABLE inventory/);
+    const badTables = [...tableLines];
+    badTables[0] = '1; 1259 1000 TABLE public sample_1 unsafe-owner';
+    const unsafe = run(badTables, [ledger], extras);
+    assert.notEqual(unsafe.status, 0);
+    assert.match(unsafe.stderr, /unusual TABLE owner field/);
+    assert.equal(unsafe.stdout.trim(), '', 'Unsafe owner must emit no SQL');
 
+    for (const [label, tables, migration, other] of [
+      ['missing app table', tableLines.slice(1), [ledger], extras],
+      ['missing ledger', tableLines, [], extras],
+      ['missing extra table', tableLines, [ledger], extras.slice(1)],
+      ['unexpected extra table', tableLines, [ledger], [...extras, extras[0]]],
+    ]) {
+      const res = run(tables, migration, other);
+      assert.notEqual(res.status, 0, label);
+      assert.match(res.stderr, /unexpected TABLE inventory/, label);
+      assert.equal(res.stdout.trim(), '', label + ' must emit no SQL');
+    }
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
