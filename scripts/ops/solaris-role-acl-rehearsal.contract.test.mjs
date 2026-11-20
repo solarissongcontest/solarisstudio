@@ -81,6 +81,7 @@ test('TOC role parser collects exactly 225 table owners, not arbitrary object na
     const tableLines = Array.from({ length: 225 }, (_, i) =>
       (i + 1) + '; 1259 ' + (1000 + i) +
       ' TABLE public sample_' + (i + 1) + ' postgres');
+    const ledger = '226; 1259 9001 TABLE supabase_migrations schema_migrations supabase_admin';
     const dataLines = Array.from({ length: 225 }, (_, i) =>
       (i + 226) + '; 0 ' + (1000 + i) +
       ' TABLE DATA public sample_' + (i + 1) + ' postgres');
@@ -89,7 +90,7 @@ test('TOC role parser collects exactly 225 table owners, not arbitrary object na
       (i % 2 ? ' INDEX public idx_' + i + ' arbitraryvalidowner' + i :
                ' ACL public object_' + i + ' arbitraryvalidowner' + i));
     const unusual = '576; 0 0 ACL public complicated descriptor-tail!not_an_owner';
-    writeFileSync(toc, [...tableLines, ...dataLines, ...unrelated, unusual, ''].join('\n'));
+    writeFileSync(toc, [...tableLines, ledger, ...dataLines, ...unrelated, unusual, ''].join('\n'));
     const result = spawnSync('python3', ['-c', snippet, toc], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /CREATE ROLE/);
@@ -97,16 +98,22 @@ test('TOC role parser collects exactly 225 table owners, not arbitrary object na
     assert.doesNotMatch(result.stdout, /descriptor-tail/);
 
     tableLines[0] = '1; 1259 1000 TABLE public sample_1 unsafe-owner';
-    writeFileSync(toc, [...tableLines, ...dataLines, unusual, ''].join('\n'));
+    writeFileSync(toc, [...tableLines, ledger, ...dataLines, unusual, ''].join('\n'));
     const bad = spawnSync('python3', ['-c', snippet, toc], { encoding: 'utf8' });
     assert.notEqual(bad.status, 0);
     assert.match(bad.stderr, /unusual TABLE owner field/);
     assert.equal(bad.stdout.trim(), '', 'No SQL emitted for unsafe TABLE owner');
 
-    writeFileSync(toc, [...tableLines.slice(1), ...dataLines, unusual, ''].join('\n'));
+    writeFileSync(toc, [...tableLines.slice(1), ledger, ...dataLines, unusual, ''].join('\n'));
     const missingTable = spawnSync('python3', ['-c', snippet, toc], { encoding: 'utf8' });
     assert.notEqual(missingTable.status, 0);
-    assert.match(missingTable.stderr, /unexpected TABLE owner inventory/);
+    assert.match(missingTable.stderr, /unexpected TABLE inventory/);
+    const withoutLedger = [...tableLines, ...dataLines, unusual, ''].join('\n');
+    writeFileSync(toc, withoutLedger);
+    const missingLedger = spawnSync('python3', ['-c', snippet, toc], { encoding: 'utf8' });
+    assert.notEqual(missingLedger.status, 0);
+    assert.match(missingLedger.stderr, /unexpected TABLE inventory/);
+
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
