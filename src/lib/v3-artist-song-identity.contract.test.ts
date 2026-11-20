@@ -16,12 +16,11 @@ describe("Public V3 P9 Artist/Song identity contract", () => {
     expect(identity).toContain("encodeURIComponent(publicEntityId)");
   });
 
-  it("keeps current Explore music discovery on published Entry context rather than invented entity URLs", () => {
+  it("routes Explore music to the durable publication-safe catalogue, never an Edition substitute", () => {
     const explore = source("src/integrations/v3/explore-source.server.ts");
 
-    expect(explore).toContain(
-      'songsAndArtists: currentEdition ? `/editions/${currentEdition.slug}` : "/editions"',
-    );
+    expect(explore).toContain('songsAndArtists: "/music"');
+    expect(explore).not.toContain('songsAndArtists: currentEdition ?');
     expect(explore).not.toContain('"/artists/');
     expect(explore).not.toContain('"/songs/');
   });

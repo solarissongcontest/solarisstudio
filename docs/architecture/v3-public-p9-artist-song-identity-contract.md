@@ -139,6 +139,14 @@ An Organizer-capable user opens the public app while an Entry is scheduled/unpub
 
 Two records later prove to be the same Artist or Song. System performs an auditable canonical merge/redirect; previously shared durable URLs resolve safely instead of silently changing with display text.
 
+## Staged integration in GitHub (21 November 2026)
+
+The original findings below describe the production authority as observed on 18 October 2026. They are historical evidence, not a claim that a durable identity schema has already been deployed.
+
+The new **source-only, unpublished P9 integration candidate** combines the System-owned opaque Artist/Song registry and publication-safe RPC source (#1647), strict Public projection consumer (#1363), dedicated discovery and detail pages (#1867), and Explore routing. It uses `/music`, `/songs`, `/artists` and opaque-ID detail paths, never mutable display-name slugs. Its server functions use the System publication-safe projection rather than raw Entry tables.
+
+This source integration is **not** evidence that the P9 migration is installed, that identities have been curated/backfilled, that all historical music is paginated or that any public release flag has been enabled. The bounded list index cannot claim full historical catalogue coverage. CI must use disposable localhost Supabase; production migration and rollout require separate System and release authorization.
+
 ## Release gate
 
 P9 remains **foundation / System identity blocked** until:

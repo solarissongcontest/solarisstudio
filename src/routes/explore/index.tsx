@@ -9,6 +9,7 @@ import {
   Gamepad2,
   History,
   RadioTower,
+  Music2,
   Sparkles,
   ChevronRight,
   Search,
@@ -31,7 +32,7 @@ export const Route = createFileRoute("/explore/")({
       { title: "Explore — Solaris Studio" },
       {
         name: "description",
-        content: "Browse Solaris Song Contest editions, countries, shows, stories and archive history.",
+        content: "Explore Solaris editions, countries, published songs and artists, shows, stories and archive history.",
       },
     ],
   }),
@@ -51,6 +52,13 @@ const PRIMARY_DESTINATIONS: Array<{
     description: "Open delegation histories, entries, records and country pages.",
     eyebrow: "Delegations",
     icon: Flag,
+  },
+  {
+    to: "/music",
+    title: "Songs & artists",
+    description: "Discover published artists, songs and their verified contest appearances.",
+    eyebrow: "Music catalogue",
+    icon: Music2,
   },
   {
     to: "/editions",
@@ -205,7 +213,7 @@ function ExploreWebEditorial() {
       <header className="explore-web-editorial__masthead">
         <p className="explore-web-editorial__eyebrow">Solaris Studio / Explore</p>
         <h1>Explore Solaris</h1>
-        <p className="explore-web-editorial__intro">Discover countries, editions, shows and stories from across the contest.</p>
+        <p className="explore-web-editorial__intro">Discover countries, editions, music, shows and stories from across the contest.</p>
         <div className="explore-web-editorial__search" role="search">
           <Search className="size-5 shrink-0" aria-hidden="true" />
           <span className="explore-web-editorial__search-copy">
