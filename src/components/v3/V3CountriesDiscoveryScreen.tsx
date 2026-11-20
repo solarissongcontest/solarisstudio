@@ -74,7 +74,12 @@ export function V3CountriesDiscoveryScreen({
     () => new Set(discovery.participating.map((country) => country.id)),
     [discovery.participating],
   );
-  const pendingCurrentParticipants = Boolean(activeEdition?.id) && participantsQuery.isLoading;
+  // During any public input refresh, the selected lineup is being verified,
+  // not unavailable. Keep the control's accessible label truthful.
+  const pendingCurrentParticipants = Boolean(activeEdition?.id) && (
+    participantsQuery.isLoading || participantsQuery.isFetching ||
+    editionsQuery.isFetching || countriesQuery.isFetching
+  );
   // Edition and country projections can become stale independently of the
   // lineup query. Never present old movement claims during any revalidation.
   const currentLineupReady = Boolean(activeEdition?.id) && participantsQuery.isSuccess &&

@@ -31,6 +31,8 @@ describe("Countries directory three deliberate experiences", () => {
     expect(screen).toContain("effectiveParticipatingScope(participatingOnly, currentLineupReady)");
     expect(screen).toContain("FlagFrame");
     expect(screen).toContain("const verifyingRequestedLineup = participatingOnly && !currentLineupReady");
+    expect(screen).toContain("participantsQuery.isLoading || participantsQuery.isFetching");
+    expect(screen).toContain("editionsQuery.isFetching || countriesQuery.isFetching");
     expect(screen).toContain("const selectedScopeButtonParticipatingOnly = selectedParticipatingOnly || verifyingRequestedLineup");
     expect(screen).toContain("verifyingRequestedLineup ? (");
     expect(screen).toContain('<ArchiveDataLoading label="Verifying published participant lineup…" />');
