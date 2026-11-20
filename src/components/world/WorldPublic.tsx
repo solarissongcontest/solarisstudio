@@ -10,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { publicWorldRolloutDisplay } from "@/lib/terra-world-rollout-gate";
 import {
   WORLD_DIRECTORY_PAGE_SIZE,
+  WORLD_DIRECTORY_MAX_PAGE_INDEX,
+  cleanWorldSearch,
   currentWorldMemberships,
   fetchWorldDirectory,
   fetchFeaturedWorldOrganizations,
@@ -182,25 +184,45 @@ export function WorldLanding() {
   );
 }
 
-export function WorldDirectory() {
-  const [input, setInput] = useState("");
-  const [term, setTerm] = useState("");
-  const [filter, setFilter] = useState<WorldDirectoryFilter>("all");
-  const [page, setPage] = useState(0);
+type WorldDirectoryProps = {
+  term: string;
+  filter: WorldDirectoryFilter;
+  page: number;
+  onTermChange: (term: string) => void;
+  onFilterChange: (filter: WorldDirectoryFilter) => void;
+  onPageChange: (page: number) => void;
+  onReset: () => void;
+};
+
+export function WorldDirectory({
+  term, filter, page, onTermChange, onFilterChange, onPageChange, onReset,
+}: WorldDirectoryProps) {
+  const [input, setInput] = useState(term);
+  // Deep links, refresh and browser history must restore the same filters.
+  useEffect(() => setInput(term), [term]);
   useEffect(() => {
-    const handle = window.setTimeout(() => {
-      setTerm(input);
-      setPage(0);
-    }, 300);
+    if (cleanWorldSearch(input) === term) return;
+    const handle = window.setTimeout(() => onTermChange(cleanWorldSearch(input)), 300);
     return () => window.clearTimeout(handle);
-  }, [input]);
+  }, [input, term, onTermChange]);
   const directory = useQuery({
     queryKey: ["world", "public", "organizations", term, filter, page],
     queryFn: () => fetchWorldDirectory({ term, filter, page }),
     staleTime: 90_000,
+    refetchOnMount: "always",
     retry: false,
   });
-  const total = directory.data?.total ?? 0;
+  // The directory may retain its last successful page while an authoritative
+  // background recheck is in progress or has failed. Do not display stale rows.
+  const verifiedDirectory = directory.isSuccess && directory.isFetchedAfterMount &&
+    !directory.isFetching && !directory.isError && !directory.isRefetchError
+    ? directory.data : null;
+  const total = verifiedDirectory?.total ?? 0;
+  useEffect(() => {
+    if (!verifiedDirectory || page === 0) return;
+    const lastPage = Math.max(0, Math.ceil(verifiedDirectory.total / WORLD_DIRECTORY_PAGE_SIZE) - 1);
+    if (page > lastPage) onPageChange(lastPage);
+  }, [page, verifiedDirectory, onPageChange]);
   return (
     <PublicFrame>
       <Link to="/world" className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
@@ -210,7 +232,7 @@ export function WorldDirectory() {
         <Kicker>World directory</Kicker>
         <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-5xl">Organizations</h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-          International institutions and alliances.
+          Explore the public profiles of international institutions. Private organizations and unpublished institutions are never listed here.
         </p>
       </div>
       <div className="world-editorial-directory-tools mt-8 grid gap-3 border-y border-border py-5 sm:grid-cols-[minmax(0,1fr)_12rem]">
@@ -228,7 +250,7 @@ export function WorldDirectory() {
           <span className="sr-only">Organization status</span>
           <select
             value={filter}
-            onChange={(event) => { setFilter(event.target.value as WorldDirectoryFilter); setPage(0); }}
+            onChange={(event) => onFilterChange(event.target.value as WorldDirectoryFilter)}
             className="min-h-12 w-full rounded-xl border border-border bg-background px-4 text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             <option value="all">All public</option>
@@ -238,16 +260,18 @@ export function WorldDirectory() {
         </label>
       </div>
       <div className="mt-6" aria-live="polite">
-        {directory.isPending ? <LoadingWorld label="Searching public organizations" /> : null}
-        {directory.isError ? <QueryFailure message="Search could not be completed. Your filters are still here." retry={() => void directory.refetch()} /> : null}
-        {directory.isSuccess ? (
+        {!(directory.isError || directory.isRefetchError) && (directory.isPending || directory.isFetching)
+          ? <LoadingWorld label="Verifying public organizations" /> : null}
+        {directory.isError || directory.isRefetchError
+          ? <QueryFailure message="Search could not be verified. Your filters are still here." retry={() => void directory.refetch()} /> : null}
+        {verifiedDirectory ? (
           <>
             <p className="text-sm text-muted-foreground">
               {total} {total === 1 ? "organization" : "organizations"} found
             </p>
-            {directory.data.organizations.length ? (
+            {verifiedDirectory.organizations.length ? (
               <div className="mt-3 divide-y divide-border">
-                {directory.data.organizations.map((organization) =>
+                {verifiedDirectory.organizations.map((organization) =>
                   <OrganizationRow key={organization.id} organization={organization} />)}
               </div>
             ) : (
@@ -255,18 +279,18 @@ export function WorldDirectory() {
                 <Building2 className="size-6 text-muted-foreground" aria-hidden="true" />
                 <h2 className="mt-3 font-semibold">No matching organizations</h2>
                 <p className="mt-1 text-sm text-muted-foreground">Try another name or a different status filter.</p>
-                <button type="button" onClick={() => { setInput(""); setTerm(""); setFilter("all"); setPage(0); }}
+                <button type="button" onClick={() => { setInput(""); onReset(); }}
                   className="mt-4 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold">Clear filters</button>
               </div>
             )}
             {total > WORLD_DIRECTORY_PAGE_SIZE ? (
               <nav className="mt-6 flex items-center justify-between gap-3 border-t border-border pt-5" aria-label="Organization pages">
                 <button type="button" disabled={page === 0}
-                  onClick={() => setPage((n) => Math.max(0, n - 1))}
+                  onClick={() => onPageChange(Math.max(0, page - 1))}
                   className="min-h-11 rounded-xl border border-border px-4 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
                 <span className="text-xs text-muted-foreground">Page {page + 1} of {Math.ceil(total / WORLD_DIRECTORY_PAGE_SIZE)}</span>
-                <button type="button" disabled={(page + 1) * WORLD_DIRECTORY_PAGE_SIZE >= total}
-                  onClick={() => setPage((n) => n + 1)}
+                <button type="button" disabled={(page + 1) * WORLD_DIRECTORY_PAGE_SIZE >= total || page >= WORLD_DIRECTORY_MAX_PAGE_INDEX}
+                  onClick={() => onPageChange(page + 1)}
                   className="min-h-11 rounded-xl border border-border px-4 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40">Next</button>
               </nav>
             ) : null}

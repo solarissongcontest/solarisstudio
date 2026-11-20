@@ -75,6 +75,20 @@ export type WorldProjection = {
 
 export type WorldDirectoryFilter = "all" | "current" | "historical";
 export const WORLD_DIRECTORY_PAGE_SIZE = 12;
+export const WORLD_DIRECTORY_MAX_PAGE_INDEX = 1000;
+
+/**
+ * The public URL uses one-based page numbers; the bounded data reader uses
+ * zero-based indexes. Invalid, fractional and padded URL pages start at 1.
+ */
+export function parseWorldDirectoryUrlPage(value: unknown): number {
+  if (typeof value !== "string" && typeof value !== "number") return 1;
+  if (typeof value === "string" && !/^[1-9][0-9]{0,3}$/.test(value)) return 1;
+  const page = Number(value);
+  return Number.isSafeInteger(page) && page >= 1 &&
+    page <= WORLD_DIRECTORY_MAX_PAGE_INDEX + 1 ? page : 1;
+}
+
 
 const object = (value: unknown): Record<string, unknown> | null =>
   typeof value === "object" && value !== null && !Array.isArray(value)
