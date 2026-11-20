@@ -48,7 +48,13 @@ describe("edition public page architecture", () => {
   it("keeps artwork and logo as distinct hero roles and glass out of content panels", () => {
     expect(route).toContain("artwork={edition.artwork_url ?? null}");
     expect(route).toContain("logo={edition.logo ?? null}");
-    expect(primitives).toContain('data-has-logo={logo ? "true" : "false"}');
+    // The legacy/app hero retains its logo role, but the visible role must
+    // reflect failed media after the web and PWA error fallback resolves.
+    expect(primitives).toContain('data-has-logo={visibleLogo ? "true" : "false"}');
+    expect(primitives).toContain('data-has-artwork={visibleArtwork ? "true" : "false"}');
+    expect(primitives).toContain('const visibleLogo = logo && logo !== failedLogo ? logo : null;');
+    expect(primitives).toContain('onError={() => setFailedLogo(visibleLogo)}');
+    expect(primitives).toContain('onError={() => setFailedArtwork(visibleArtwork)}');
     expect(css).toContain(":where(.glass, .data-panel):not(.public-current-status)");
     expect(css).toContain("backdrop-filter: none !important");
   });
