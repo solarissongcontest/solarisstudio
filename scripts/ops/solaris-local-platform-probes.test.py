@@ -64,14 +64,14 @@ class Tests(unittest.TestCase):
         ids=[x*64 for x in 'abcd']; network='e'*64
         config.update(runtime_containers=ids,gateway_container=ids[0],database_container=ids[1])
         observed=[{'Id':identity,'State':{'Running':True},'HostConfig':{'NetworkMode':'internal','Privileged':False},
-                   'NetworkSettings':{'Networks':{'internal':{'NetworkID':network}},'Ports':{'8000/tcp':[{'HostIp':'127.0.0.1','HostPort':'54321'}]} if i==0 else {}},'Mounts':[]}
+                   'NetworkSettings':{'Networks':{'internal':{'NetworkID':network,'IPAddress':'172.19.0.2'}},'Ports':{'8000/tcp':[{'HostIp':'127.0.0.1','HostPort':'54321'}]} if i==0 else {}},'Mounts':[]}
                    for i,identity in enumerate(ids)]
         def responses(internal=True,version=b'170011\n'):
             return [subprocess.CompletedProcess([],0,json.dumps(observed).encode()),
-                    subprocess.CompletedProcess([],0,json.dumps([{'Id':network,'Internal':internal}]).encode()),
+                    subprocess.CompletedProcess([],0,json.dumps([{'Id':network,'Internal':internal,'IPAM':{'Config':[{'Subnet':'172.19.0.0/16'}]}}]).encode()),
                     subprocess.CompletedProcess([],0,version)]
         with patch.object(module.subprocess,'run',side_effect=responses()) as call:
-            module.verify_runtime(config)
+            self.assertEqual(module.verify_runtime(config),('172.19.0.2',54321))
             self.assertIn('/var/run/postgresql',call.call_args.args[0])
         for internal,version in [(False,b'170011'),(True,b'170006')]:
             with patch.object(module.subprocess,'run',side_effect=responses(internal,version)):

@@ -43,6 +43,11 @@ binds the expected file to that observed target. No private snapshot is committe
 This later capture found **zero effective API TRUNCATE grants on all five named
 critical tables**; do not repeat the earlier finding as current. This is a dated
 grant observation, not general S16 certification or a change made by this PR.
+Other table/default grants remain in the captured scope, including provider-owned
+TRUNCATE defaults. Therefore probe every newly created recovery object under its
+actual creating owner; do not infer safety from five existing tables or blindly
+replay an emergency repair whose before-state has already changed. Platform-owner
+defaults need their own supported authority/qualification, never blanket revocation.
 
 ## One consolidated private operator pass
 
@@ -92,7 +97,7 @@ to ChatGPT, CI or GitHub. The implementing environment has no access to those fi
 
    ```json
    {
-     "base_url": "http://127.0.0.1:54321",
+     "base_url": "http://127.0.0.1:8000",
      "synthetic_fixture": true,
      "egress_isolated": true,
      "runtime_containers": ["GATEWAY_64_HEX_ID", "DB_64_HEX_ID", "AUTH_64_HEX_ID", "STORAGE_64_HEX_ID"],
@@ -117,13 +122,15 @@ to ChatGPT, CI or GitHub. The implementing environment has no access to those fi
      --report "$HOME/solaris-recovery/platform-canaries-result.private.json"
    ```
 
-   This sends only bounded GET requests to literal loopback, ignores proxies,
+   This sends only bounded GET requests to the exact inspected internal gateway, ignores proxies,
    rejects redirects, verifies both Auth identities, rejects absent/expired Auth
    credentials and unauthorized admin access, verifies exact permitted object
    bytes and rejects wrong-user/anonymous/expired/public-path access. Before sending HTTP, the runner inspects the exact running gateway/Auth/Storage/
    DB containers: all networks must be Docker-internal, all published ports must
    bind literal loopback, no privileged container or Docker socket, and the requested
-   port must belong to that gateway. It checks actual PG17.11 over a forced local
+   logical URL port is used only at that exact gateway IP inside its verified
+   private Docker subnet. Internal networks need not publish host ports; arbitrary
+   targets/redirects remain forbidden. It checks actual PG17.11 over a forced local
    Unix socket. The operator must list the complete stack; an unlisted host proxy,
    external callback or production connection is forbidden. An attestation alone
    cannot bypass these checks. HTTP contract tests use
