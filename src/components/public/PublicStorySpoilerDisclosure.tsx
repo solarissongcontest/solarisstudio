@@ -47,5 +47,21 @@ export function PublicStorySpoilerDisclosure({
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {spoilerFree ? (
+        <div className="mt-4 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setRevealed(false)}
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-xs font-semibold text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            <EyeOff size={16} aria-hidden="true" />
+            Hide story details again
+          </button>
+        </div>
+      ) : null}
+      {children}
+    </>
+  );
 }
