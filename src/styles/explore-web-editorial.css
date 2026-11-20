@@ -1,0 +1,204 @@
+/* Explore root for ordinary mobile and desktop browsers.
+ * Deliberately separate from the installed PWA and independent of data ownership.
+ * Route, search, World and publication authority live in their existing owners. */
+.explore-web-editorial {
+  --explore-line: var(--border, rgba(255,255,255,.14));
+  width: 100%;
+  max-width: 76rem;
+  min-width: 0;
+  margin-inline: auto;
+  padding-block: clamp(1.4rem, 3vw, 2.75rem) 4rem;
+}
+.explore-web-editorial__masthead {
+  max-width: 58rem;
+  margin-bottom: clamp(1.75rem, 4vw, 3rem);
+}
+.explore-web-editorial__eyebrow,
+.explore-web-editorial__feature-kicker {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: .7rem;
+  font-weight: 750;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.explore-web-editorial__masthead h1 {
+  margin: .6rem 0 .75rem;
+  font-family: "Iowan Old Style", "Baskerville", "Times New Roman", serif;
+  font-size: clamp(2.6rem, 7vw, 5.5rem);
+  font-weight: 650;
+  line-height: 1.07;
+  letter-spacing: -.05em;
+  text-wrap: balance;
+}
+.explore-web-editorial__intro {
+  margin: 0;
+  max-width: 52ch;
+  color: var(--muted-foreground);
+  font-size: clamp(.91rem, 1.8vw, 1.05rem);
+  line-height: 1.65;
+}
+.explore-web-editorial__search {
+  display: flex;
+  align-items: center;
+  gap: .85rem;
+  max-width: 46rem;
+  margin-top: clamp(1.25rem, 2.5vw, 2rem);
+  min-height: 4rem;
+  border: 1px solid var(--explore-line);
+  background: color-mix(in srgb, var(--foreground) 3%, transparent);
+  padding: .6rem .75rem .6rem 1rem;
+}
+.explore-web-editorial__search > svg { color: var(--primary); }
+.explore-web-editorial__search-copy {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: .15rem;
+}
+.explore-web-editorial__search-copy strong { font-size: .88rem; font-weight: 700; }
+.explore-web-editorial__search-copy > span {
+  color: var(--muted-foreground);
+  font-size: .73rem;
+  line-height: 1.45;
+}
+.explore-web-editorial__search button {
+  flex: 0 0 auto;
+  min-width: 5.5rem;
+  color: var(--foreground);
+  border: 1px solid var(--explore-line);
+}
+.explore-web-editorial__feature {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 1.5rem;
+  min-height: clamp(15rem, 32svh, 22rem);
+  overflow: clip;
+  padding: clamp(1.5rem, 4vw, 3.25rem);
+  margin-bottom: clamp(2rem, 5vw, 3.5rem);
+  color: #fff;
+  background: radial-gradient(ellipse at 76% 19%, rgba(87,143,173,.37), transparent 53%),
+    linear-gradient(137deg, #1d3f53, #0b2538 57%, #05121e);
+}
+.explore-web-editorial__feature::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 64%;
+  z-index: -1;
+  background: linear-gradient(0deg, #06111e, transparent);
+}
+.explore-web-editorial__feature-kicker { color: rgba(255,255,255,.78); }
+.explore-web-editorial__feature h2 {
+  max-width: 19ch;
+  margin: .65rem 0;
+  color: #fff;
+  font-family: "Iowan Old Style", "Baskerville", "Times New Roman", serif;
+  font-size: clamp(2rem, 5vw, 4.25rem);
+  letter-spacing: -.045em;
+  line-height: 1.07;
+  text-wrap: balance;
+}
+.explore-web-editorial__feature p:last-child {
+  max-width: 52ch;
+  margin: 0;
+  color: rgba(255,255,255,.83);
+  font-size: .9rem;
+  line-height: 1.6;
+}
+.explore-web-editorial__feature-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .7rem;
+  min-height: 2.85rem;
+  padding: .65rem 1rem;
+  color: #071a27;
+  background: #f0f6f9;
+  font-size: .85rem;
+  font-weight: 750;
+  text-decoration: none;
+}
+.explore-web-editorial__feature-link:hover { background: #fff; }
+.explore-web-editorial__columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2rem; }
+.explore-web-editorial__collection { min-width: 0; margin-bottom: 2.25rem; }
+.explore-web-editorial__section-heading { margin-bottom: 1.1rem; }
+.explore-web-editorial__section-heading h2 {
+  margin: .35rem 0 0;
+  font-size: clamp(1.45rem, 2.5vw, 2rem);
+  font-weight: 720;
+  letter-spacing: -.03em;
+  line-height: 1.2;
+}
+.explore-web-editorial__list { border-top: 1px solid var(--explore-line); }
+.explore-web-editorial__row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+  min-height: 5.1rem;
+  padding: 1rem .2rem;
+  border-bottom: 1px solid var(--explore-line);
+  color: var(--foreground);
+  text-decoration: none;
+}
+.explore-web-editorial__row-icon {
+  display: grid;
+  flex: 0 0 2.3rem;
+  place-items: center;
+  color: var(--primary);
+}
+.explore-web-editorial__row-copy { display: grid; flex: 1 1 auto; gap: .25rem; min-width: 0; }
+.explore-web-editorial__row-title { font-size: .96rem; font-weight: 720; line-height: 1.35; }
+.explore-web-editorial__row-description {
+  font-size: .78rem;
+  color: var(--muted-foreground);
+  line-height: 1.55;
+}
+.explore-web-editorial__row > svg { color: var(--muted-foreground); }
+.explore-web-editorial__row:hover .explore-web-editorial__row-title { color: var(--primary); }
+.explore-web-editorial :is(a, button):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.explore-web-editorial > .public-hub-section {
+  margin-block: .8rem 2.75rem;
+  padding: 0;
+}
+.explore-web-editorial > .public-hub-section .public-hub-section-heading { margin-bottom: .75rem; }
+.explore-web-editorial__more .explore-web-editorial__list { display: grid; }
+@media (min-width: 58rem) {
+  .explore-web-editorial__columns {
+    grid-template-columns: minmax(0, 1.35fr) minmax(17rem, .8fr);
+    gap: clamp(2rem, 5vw, 5rem);
+  }
+  .explore-web-editorial__feature {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+  .explore-web-editorial__feature-link { flex: 0 0 auto; }
+  .explore-web-editorial__more .explore-web-editorial__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 2rem;
+  }
+}
+@media (max-width: 25rem) {
+  .explore-web-editorial__search { gap: .6rem; padding-left: .7rem; }
+  .explore-web-editorial__search-copy > span { display: none; }
+  .explore-web-editorial__search button { min-width: 4rem; }
+  .explore-web-editorial__row { gap: .65rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .explore-web-editorial * { scroll-behavior: auto; animation: none !important; transition: none !important; }
+}
+@media (forced-colors: active) {
+  .explore-web-editorial__feature { background: Canvas; color: CanvasText; border: 1px solid CanvasText; }
+  .explore-web-editorial__feature h2 { color: CanvasText; }
+  .explore-web-editorial__feature-link { border: 1px solid LinkText; }
+  .explore-web-editorial__search, .explore-web-editorial__row { border-color: CanvasText; }
+}
