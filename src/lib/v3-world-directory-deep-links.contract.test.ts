@@ -28,4 +28,26 @@ describe("World institution directory deep links", () => {
     expect(view).toContain("onPageChange(Math.max(0, page - 1))");
     expect(view).toContain("page >= WORLD_DIRECTORY_MAX_PAGE_INDEX");
   });
+
+  it("passes the canonical validated directory search on every World organization index link", () => {
+    const owners = [
+      "src/components/world/WorldBodiesPublic.tsx",
+      "src/components/world/WorldCountryInternational.tsx",
+      "src/components/world/WorldExploreEntry.tsx",
+      "src/components/world/WorldPublic.tsx",
+      "src/components/world/WorldUnifiedSearch.tsx",
+    ];
+    const expected = 'search={{ q: "", status: "all", page: 1 }}';
+    let checked = 0;
+    for (const path of owners) {
+      const source = readFileSync(path, "utf8");
+      const references = [...source.matchAll(/to="\\/world\\/organizations"/g)];
+      expect(references.length).toBeGreaterThan(0);
+      for (const reference of references) {
+        expect(source.slice(reference.index!, reference.index! + 95)).toContain(expected);
+        checked++;
+      }
+    }
+    expect(checked).toBe(9);
+  });
 });
