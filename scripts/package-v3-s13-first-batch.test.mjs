@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {renderBatch,inputs} from './package-v3-s13-first-batch.mjs';
+import {renderBatch,inputs,reconcileEffects} from './package-v3-s13-first-batch.mjs';
 test('S13 batch reuses immutable core, one transaction and no official/global writers',()=>{
  const batch=renderBatch(),core=fs.readFileSync(inputs[0],'utf8');
  assert.deepEqual(Object.keys(batch),['preflight.sql','install.sql','postcheck.sql']);
@@ -9,7 +9,7 @@ test('S13 batch reuses immutable core, one transaction and no official/global wr
  assert.ok(batch['install.sql'].includes(canonical),'Original complete implementation must remain exact');
  assert.equal((batch['install.sql'].match(/^begin;$/gm)||[]).length,1);
  assert.equal((batch['install.sql'].match(/^commit;$/gm)||[]).length,1);
- assert.ok(batch['install.sql'].lastIndexOf('revoke all on function')>batch['install.sql'].lastIndexOf('grant execute'));
+ assert.ok(batch['install.sql'].lastIndexOf('revoke all on function')>batch['install.sql'].lastIndexOf('grant execute on function public.v3_register_migration_contract'));
  assert.doesNotMatch(batch['install.sql'],/alter default privileges|insert into supabase_migrations|update public\.|delete from public\.|drop\s+(table|function|trigger)|create\s+extension/i);
  assert.match(batch['install.sql'],/has_sequence_privilege/);
  assert.match(batch['install.sql'],/has_any_column_privilege/);
@@ -19,3 +19,5 @@ test('S13 batch reuses immutable core, one transaction and no official/global wr
  assert.match(batch['preflight.sql'],/begin transaction read only/);
  assert.match(batch['postcheck.sql'],/begin transaction read only/);
 });
+
+test('fourteen missing S13 effects are reconciled offline, history is preserved',()=>{const x=reconcileEffects();assert.equal(x.effects.length,14);assert.ok(x.effects.every(e=>e.observed==='absent'&&e.action==='create'));assert.equal(x.history.historyWrites,0);assert.equal(x.externalDependency.action,'preserve');});

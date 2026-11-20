@@ -92,7 +92,11 @@ def validate_package(directory):
         raise RehearsalFailure('Unknown or missing batch operations')
     required=['docs/v3/recovery-candidates/forward-only-s13-foundation.sql']+[
         'docs/v3/recovery-candidates/s13-first-batch-'+part+'.sql' for part in ('preconditions','dark-acl','postconditions')]+[
-        'scripts/package-v3-s13-first-batch.mjs','scripts/rehearse-v3-s13-first-batch.py']
+        'scripts/package-v3-s13-first-batch.mjs','scripts/rehearse-v3-s13-first-batch.py',
+        'supabase/migrations/20261019111000_v3_s13_migration_hardening.sql',
+        'supabase/migrations/20261019113300_v3_s13_strict_registration_restore.sql',
+        'docs/v3/recovery-candidates/evidence/s13-current-hosted-preflight-2026-11-19.json',
+        'docs/v3/recovery-candidates/evidence/s13-s16-current-hosted-catalog-2026-11-20.json']
     if sorted(e['path'] for e in manifest['inputs'])!=sorted(required):
         raise RehearsalFailure('Missing or unknown exact-source input')
     if manifest.get('target')!={'projectRef':'dkxmnvekiopyesuzggeu','database':'postgres','postgresVersionNum':170011,'actor':'postgres'}:

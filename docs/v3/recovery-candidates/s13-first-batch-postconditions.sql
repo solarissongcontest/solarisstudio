@@ -8,6 +8,10 @@ begin
       or exists(select 1 from pg_policy where polrelid=to_regclass(format('private.%I',t))) then
       raise exception 'S13 batch table owner/RLS source contract differs: %',t using errcode='55000';
     end if;
+    if exists(select 1 from pg_class c cross join lateral aclexplode(coalesce(c.relacl,acldefault('r',c.relowner))) a
+       where c.oid=to_regclass(format('private.%I',t)) and a.grantee<>c.relowner) then
+      raise exception 'S13 batch table has nonowner grants: %',t using errcode='42501';
+    end if;
     foreach r in array array['anon','authenticated','service_role'] loop
       foreach p in array array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER','MAINTAIN'] loop
         if has_table_privilege(r,format('private.%I',t),p) then
@@ -40,6 +44,11 @@ begin
     if not exists(select 1 from pg_proc where oid=to_regprocedure(f) and pg_get_userbyid(proowner)='postgres'
         and prosecdef and proconfig=array['search_path=pg_catalog, public, private']) then
       raise exception 'S13 batch function authority/search path differs: %',f using errcode='55000';
+    end if;
+    if exists(select 1 from pg_proc p cross join lateral aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
+       where p.oid=to_regprocedure(f) and a.grantee<>p.proowner and
+       (f<>'public.v3_schema_compatibility(integer)' or pg_get_userbyid(a.grantee) not in ('anon','authenticated','service_role') or a.is_grantable)) then
+      raise exception 'S13 batch function has unapproved grants: %',f using errcode='42501';
     end if;
     foreach r in array array['anon','authenticated','service_role'] loop
       if has_function_privilege(r,f,'EXECUTE') <> (f='public.v3_schema_compatibility(integer)') then

@@ -8,7 +8,34 @@ import {fileURLToPath} from 'node:url';
 const root=path.resolve(fileURLToPath(new URL('..',import.meta.url)));
 export const candidate='docs/v3/recovery-candidates/forward-only-s13-foundation.sql';
 export const inputs=[candidate,...['preconditions','dark-acl','postconditions'].map(x=>'docs/v3/recovery-candidates/s13-first-batch-'+x+'.sql')];
+export const evidencePaths=[
+ 'docs/v3/recovery-candidates/evidence/s13-current-hosted-preflight-2026-11-19.json',
+ 'docs/v3/recovery-candidates/evidence/s13-s16-current-hosted-catalog-2026-11-20.json'];
+export const canonicalPaths=[
+ 'supabase/migrations/20261019111000_v3_s13_migration_hardening.sql',
+ 'supabase/migrations/20261019113300_v3_s13_strict_registration_restore.sql'];
 const digest=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
+export function reconcileEffects(){
+ const [preflight,current]=evidencePaths.map(p=>JSON.parse(fs.readFileSync(path.join(root,p),'utf8')));
+ assert.equal(preflight.project_id,'dkxmnvekiopyesuzggeu');
+ assert.equal(current.project_ref,preflight.project_id);
+ assert.equal(preflight.production_observation.checked_targets,14);
+ assert.equal(preflight.production_observation.collisions,0);
+ assert.equal(preflight.production_observation.helper_definition_md5,'84d3f05e5f537908732a3875ba0178e6');
+ const relations=current.catalog.tables.filter(r=>r.identity.startsWith('private.v3_')&&!r.identity.includes('archive'));
+ const functions=current.catalog.functions.filter(r=>r.identity.startsWith('public.v3_'));
+ const indexes=current.catalog.indexes;
+ assert.equal(relations.length,5);assert.equal(functions.length,7);assert.equal(indexes.length,2);
+ const effects=[...relations.map(x=>({...x,kind:'table'})),...functions.map(x=>({...x,kind:'function'})),...indexes.map(x=>({...x,kind:'index'}))];
+ assert.ok(effects.every(x=>x.exists_now===false),'Previously absent S13 effects changed; requalify');
+ return {observedAt:current.captured_at,sourceEvidence:evidencePaths[1],
+   effects:effects.map(x=>({identity:x.identity,kind:x.kind,observed:'absent',action:'create'})),
+   externalDependency:{identity:'private.studio2_request_is_service_role()',action:'preserve',
+      observedAt:preflight.production_observation.observed_at,owner:'postgres',
+      definitionMd5:preflight.production_observation.helper_definition_md5,aclMd5:preflight.production_observation.helper_acl_md5},
+   unverifiedPreconditions:['Fresh exact-target preflight at approved execution','Relevant DDL event-handler closure','Implicit index/sequence/type namespace collisions'],
+   history:{recorded:current.supabase_history.count,tip:current.supabase_history.tip,historyWrites:0}};
+}
 export function renderBatch(){
  const source=fs.readFileSync(path.join(root,candidate),'utf8');
  assert.equal(digest(source),'d9463fbb1399261f0a05d1f6ab1ab08ba8e07b9d5c1821feaddd95e9ce53d14d','Existing candidate changed: explicit requalification required');
@@ -32,13 +59,14 @@ export function renderBatch(){
 }
 export function packageBatch(output){
  const sha=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
- const sourcePaths=[...inputs,'scripts/package-v3-s13-first-batch.mjs','scripts/rehearse-v3-s13-first-batch.py'];
+ const sourcePaths=[...inputs,...canonicalPaths,...evidencePaths,'scripts/package-v3-s13-first-batch.mjs','scripts/rehearse-v3-s13-first-batch.py'];
  for(const p of sourcePaths){
   const expected=execFileSync('git',['show',sha+':'+p],{cwd:root});
   assert.equal(digest(expected),digest(fs.readFileSync(path.join(root,p))),'Uncommitted batch source: '+p);
  }
  fs.mkdirSync(output,{recursive:false,mode:0o700});
  const sql=renderBatch();
+ const reconciliation=reconcileEffects();
  for(const [name,bytes]of Object.entries(sql))fs.writeFileSync(path.join(output,name),bytes,{flag:'wx',mode:0o600});
  const manifest={schemaVersion:1,batchId:'S13-FOUNDATION-DARK-1',sourceSha:sha,target:{projectRef:'dkxmnvekiopyesuzggeu',database:'postgres',postgresVersionNum:170011,actor:'postgres'},
   scope:{privateTables:5,publicRpcs:7,secondaryIndexes:2,semanticContractSeeds:2,supabaseHistoryWrites:0,existingContestRowWrites:0,apiMutationRpcsEnabled:0},
@@ -48,7 +76,7 @@ export function packageBatch(output){
   retry:'Before commit: rollback then identical guarded retry. After commit: duplicate refused; inspect postchecks; never drop/replay.',
   rollback:'Transactional rollback before commit. After commit: leave new owner-only metadata installed and repair forward; do not restore over live data or drop dependencies.',
   authVaultAreSqlDependencies:false,productionAuthorized:false,qualification:{recoveredPrivateDatabaseRehearsal:false,livePreflightFresh:false,status:'AWAITING_BATCH_SPECIFIC_EVIDENCE'},
-  evidence:['docs/v3/recovery-candidates/evidence/s13-current-hosted-preflight-2026-11-19.json','docs/v3/recovery-candidates/evidence/s13-s16-current-hosted-catalog-2026-11-20.json']};
+  reconciliation,evidence:evidencePaths};
  fs.writeFileSync(path.join(output,'manifest.json'),JSON.stringify(manifest,null,2)+'\n',{flag:'wx',mode:0o600});
  return manifest;
 }

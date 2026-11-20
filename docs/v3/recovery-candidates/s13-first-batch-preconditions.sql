@@ -1,6 +1,6 @@
 -- Preconditions for ONLY the dark S13 foundation batch; no shared objects altered.
 do $s13_first_batch_preconditions$
-declare r record;
+declare r record; v_name text;
 begin
   if current_setting('server_version_num') <> '170011'
      or session_user <> 'postgres' or current_user <> 'postgres'
@@ -32,6 +32,20 @@ begin
       and md5(pg_get_functiondef(oid))='84d3f05e5f537908732a3875ba0178e6'
       and md5(coalesce(array_to_string(proacl::text[],','),''))='341a58cafc38a872c684592babc76f83') then
     raise exception 'S13 batch current hosted helper fingerprint differs' using errcode='55000';
+  end if;
+  foreach v_name in array array[
+    'v3_migration_contracts_pkey','v3_schema_compatibility_pkey','v3_schema_compatibility_history_pkey',
+    'v3_backfill_jobs_pkey','v3_migration_parity_runs_pkey','v3_migration_parity_runs_sequence_key',
+    'v3_schema_compatibility_history_id_seq','v3_migration_parity_runs_sequence_seq'
+  ] loop
+    if to_regclass(format('private.%I',v_name)) is not null then
+      raise exception 'S13 batch implicit relation name collision: %',v_name using errcode='55000';
+    end if;
+  end loop;
+  if not exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='private' and c.relname in ('v3_migration_contracts','v3_schema_compatibility','v3_schema_compatibility_history','v3_backfill_jobs','v3_migration_parity_runs')) and exists(select 1 from pg_type t join pg_namespace n on n.oid=t.typnamespace where n.nspname='private'
+     and t.typname in ('v3_migration_contracts','v3_schema_compatibility','v3_schema_compatibility_history','v3_backfill_jobs','v3_migration_parity_runs',
+     '_v3_migration_contracts','_v3_schema_compatibility','_v3_schema_compatibility_history','_v3_backfill_jobs','_v3_migration_parity_runs')) then
+    raise exception 'S13 batch implicit table type name collision' using errcode='55000';
   end if;
   -- Supabase event handlers are not guessed or disabled. Unobserved handlers
   -- relevant to this batch must be separately qualified, otherwise fail closed.
