@@ -43,6 +43,13 @@ describe("Country web editorial identity transition", () => {
     const css = styles();
     expect(route).toContain('{ value: "history", label: "History" }');
     expect(route).toContain('{ value: "world", label: "World" }');
+    expect(route).toContain('const APP_TABS = [');
+    expect(route).toContain('const BROWSER_TABS = [');
+    expect(route).toContain('options={APP_TABS}');
+    expect(route).toContain('BROWSER_TABS.map((section)');
+    expect(route).toContain('{isAppMode ? (');
+    expect(route).toContain('{!isAppMode && tab === "history" && (');
+    expect(route).toContain('{!isAppMode && tab === "world" && (');
     expect(route).toContain('function countryTabFromHash(hash: string): Tab');
     expect(route).toContain('window.addEventListener("popstate", restoreSection)');
     expect(route).toContain('window.history.pushState(window.history.state');
