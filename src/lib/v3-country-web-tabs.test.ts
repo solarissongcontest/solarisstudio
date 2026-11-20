@@ -40,7 +40,8 @@ describe("ordinary-web country section permalinks", () => {
     expect(route).toContain('id={tab} className="country-web-section-anchor"');
     expect(route).toContain("scrollIntoView({");
     expect(route).toContain("behavior: \"auto\"");
-    expect(route).toContain("country?.id]");
+    expect(route).toContain("country?.id, visualLoading]");
+    expect(route).toContain("if (!country || visualLoading || isAppMode");
     expect(styles).toContain("scroll-margin-top: 5rem");
     expect(styles).toContain("overflow-x: auto");
     expect(styles).toContain("@media (max-width: 47.99rem)");
