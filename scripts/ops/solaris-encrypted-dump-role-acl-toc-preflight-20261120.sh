@@ -36,8 +36,18 @@ test "$ACTUAL" = '995088d139b5cc2fb63c8295cea5dfd8ede2e1c976ab7f6f7f3611b987742f
 }
 
 docker info >/dev/null 2>&1 || { echo 'STOP: Docker unavailable'; exit 1; }
+# Cloud Shell may discard previously downloaded Docker images.
+# Pull only the exact PostgreSQL 17.11 image tag used in the verified restore.
+# Network access is required only for this Docker image download; the
+# pg_restore reader below runs with --network none and does not access prod.
+if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+  echo '[setup] Downloading missing PostgreSQL 17.11 image'
+  docker pull "$IMAGE" >/dev/null || {
+    echo 'STOP: required PostgreSQL image could not be downloaded'; exit 1;
+  }
+fi
 docker image inspect "$IMAGE" >/dev/null 2>&1 || {
-  echo 'STOP: vetted local PostgreSQL image not found (no automatic pull)'; exit 1;
+  echo 'STOP: PostgreSQL image is still unavailable'; exit 1;
 }
 TOC=$(mktemp "$B/role-acl-toc-private-XXXXXXXX")
 cleanup() { rm -f -- "$TOC"; }
