@@ -10,6 +10,8 @@ import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/s
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import { showPublishesResults } from "@/lib/publication";
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
+import { matchesShowDirectorySearch, resolveShowDirectoryFacet } from "@/lib/v3-shows-directory-filters";
 import { formatEventDateTime } from "@/lib/public-time";
 import { getV3ShowBrowsePage, V3_SHOW_BROWSE_PAGE_SIZE } from "@/lib/v3-show-browse-page";
 import {
@@ -31,6 +33,7 @@ const STATE_ORDER: ShowDiscoveryState[] = [
 ];
 
 export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { presentation?: V3DirectoryPresentation }) {
+  const { allowsReleased } = usePublicLaunchAvailability();
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
   const [search, setSearch] = useState("");
@@ -40,7 +43,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
   // Keyed pagination resets synchronously with any filter change, without a
   // render/effect cycle that could briefly reveal a stale historical window.
   const normalizedSearch = search.trim().toLowerCase();
-  const browseFilterKey = JSON.stringify([normalizedSearch, editionId, kind, state]);
+  // The effective public facets are included below after the destination list resolves.
   const [browseWindowState, setBrowseWindowState] = useState({ key: "", page: 1 });
 
   const discovery = useMemo(
@@ -73,19 +76,24 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
       (left, right) => (right.edition_number ?? -1) - (left.edition_number ?? -1),
     );
   }, [allItems]);
+  // An edition can disappear from public discovery during a publication change.
+  // Keep the rendered facet and the actual query on the same permitted value.
+  const effectiveEditionId = resolveShowDirectoryFacet(editionId, editions.map((edition) => edition.id));
+  const effectiveKind = resolveShowDirectoryFacet(kind, kinds);
+  const browseFilterKey = JSON.stringify([normalizedSearch, effectiveEditionId, effectiveKind, state]);
   const browseItems = useMemo(
     () =>
       allItems.filter(
         (item) =>
-          (!normalizedSearch || [
+          matchesShowDirectorySearch(normalizedSearch, [
             item.show.name, editionLabel(item.edition),
             showKindLabel(item.show.kind), item.stateLabel,
-          ].join(" ").toLowerCase().includes(normalizedSearch)) &&
-          (editionId === "all" || item.edition.id === editionId) &&
-          (kind === "all" || item.show.kind === kind) &&
+          ]) &&
+          (effectiveEditionId === "all" || item.edition.id === effectiveEditionId) &&
+          (effectiveKind === "all" || item.show.kind === effectiveKind) &&
           (state === "all" || item.state === state),
       ),
-    [allItems, editionId, kind, state, normalizedSearch],
+    [allItems, effectiveEditionId, effectiveKind, state, normalizedSearch],
   );
 
   const browseWindow = useMemo(
@@ -95,16 +103,16 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
     ),
     [browseItems, browseFilterKey, browseWindowState],
   );
-  const activeFilterCount = Number(editionId !== "all") + Number(kind !== "all") + Number(state !== "all");
+  const activeFilterCount = Number(effectiveEditionId !== "all") + Number(effectiveKind !== "all") + Number(state !== "all");
   // Shared fields render in the app filter sheet or desktop/mobile-web filter row,
   // avoiding duplicate controls, translation drift and client bundle cost.
   const filterFields = [
     {
-      label: "Edition", allLabel: "All editions", value: editionId, onChange: setEditionId,
+      label: "Edition", allLabel: "All editions", value: effectiveEditionId, onChange: setEditionId,
       options: editions.map((edition) => ({ value: edition.id, label: editionLabel(edition) })),
     },
     {
-      label: "Show type", allLabel: "All show types", value: kind, onChange: setKind,
+      label: "Show type", allLabel: "All show types", value: effectiveKind, onChange: setKind,
       options: kinds.map((value) => ({ value, label: showKindLabel(value) })),
     },
     {
@@ -126,11 +134,11 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
       <AppEmptyState
         title="No public shows yet"
         description="Published shows will appear here when their public pages become available."
-        action={
+        action={allowsReleased("/editions") ? (
           <Link to="/editions" className="solaris-app-empty-action">
             Browse editions
           </Link>
-        }
+        ) : undefined}
       />
     );
   }
