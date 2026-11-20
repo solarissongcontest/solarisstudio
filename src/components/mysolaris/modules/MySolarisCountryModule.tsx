@@ -39,6 +39,7 @@ import {
   type Participant,
 } from "@/lib/data";
 import { NAV_TARGETS } from "@/lib/navigation-targets";
+import "@/styles/v3-mysolaris-history-editorial.css";
 
 const EMPTY_PROFILE = {
   capital: "",
