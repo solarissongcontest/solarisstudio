@@ -93,6 +93,12 @@ on:
       - "src/lib/v3-s16-edition-runtime-api-dml.contract.test.ts"
       - "src/lib/v3-s16-internal-entry-api-dml.contract.test.ts"
       - "src/lib/v3-s16-permission-r3-legacy-overload.contract.test.ts"
+      # P16 physical Permission Engine legacy-service writer retirement needs
+      # independent exact-SHA, local-only PostgreSQL 17 S14 Publication proof.
+      - "supabase/migrations/20261117230000_v3_s16_permission_legacy_service_rpc_retirement.sql"
+      - ".github/tests/v3-s16-permission-legacy-service-rpc-retirement.sql"
+      - "src/lib/v3-s16-permission-legacy-service-rpc-retirement.contract.test.ts"
+      - "src/lib/studio2-persistence.ts"
       - ".github/scripts/v3-observed-owner-recovery-local.sh"
       - "scripts/v3-s13-s16-stage-provenance.mjs"
       - "scripts/v3-s13-s16-stage-provenance.test.mjs"
