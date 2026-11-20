@@ -110,6 +110,21 @@
   font-size: .9rem;
   line-height: 1.6;
 }
+.explore-web-editorial__feature-meta {
+  margin: .1rem 0 .65rem;
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .035em;
+  line-height: 1.55;
+  color: rgba(255,255,255,.84);
+}
+.explore-web-editorial__feature > div {
+  min-width: 0;
+  max-width: 58rem;
+}
+.explore-web-editorial__feature h2 {
+  overflow-wrap: anywhere;
+}
 .explore-web-editorial__feature-link {
   display: inline-flex;
   align-items: center;
