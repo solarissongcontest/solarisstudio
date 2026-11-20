@@ -4,7 +4,9 @@ import { BookOpen, CalendarDays, Clock3, Search, Sparkles, ChevronRight, X } fro
 import { useMemo, useState } from 'react';
 
 import { AppShell } from '@/components/AppShell';
+import { PublicStorySpoilerDisclosure } from '@/components/public/PublicStorySpoilerDisclosure';
 import { useSolarisApp } from '@/components/app/AppRuntime';
+import { useAppExperiencePreferences } from '@/lib/app-experience';
 import { SolarisSearchField } from '@/components/app/SolarisSearchField';
 import { useV3DirectoryPresentation, type V3DirectoryPresentation } from '@/lib/v3-directory-presentation';
 import '@/styles/v3-directory-family.css';
@@ -74,6 +76,7 @@ function StoriesArchivePage() {
 
 function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryPresentation }) {
   const referenceDate = Route.useLoaderData();
+  const { preferences } = useAppExperiencePreferences();
   const [storyLimit, setStoryLimit] = useState(PUBLIC_STORY_INITIAL_BATCH);
   const storiesQuery = useQuery({
     queryKey: ['public-storylines', storyLimit],
@@ -136,6 +139,11 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
           </header>
         )}
 
+        <PublicStorySpoilerDisclosure
+          key={preferences.spoilerFree ? "spoiler-protected" : "spoilers-open"}
+          spoilerFree={preferences.spoilerFree}
+          subject="published edition stories and historical moments"
+        >
         <section className="mt-6" aria-labelledby="stories-heading">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Published narratives</p>
@@ -273,8 +281,7 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
             <ArchiveEmpty icon={CalendarDays} title="No published moments for today" copy="The historical calendar fills as reviewed stories are published." compact />
           )}
         </section>
-
-
+        </PublicStorySpoilerDisclosure>
       </div>
     </AppShell>
   );
