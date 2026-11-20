@@ -35,8 +35,8 @@ describe("installed app archive loading policy", () => {
     expect(data).toContain('"results",\n      "edition"');
     expect(edition).toContain("useEditionResults(edition?.id)");
     expect(edition).toContain("const resultList = editionResults ?? []");
-    expect(edition).toContain("allResults: resultList");
-    expect(edition).toContain("allShows: publicShows");
+    expect(edition).not.toContain("allResults:");
+    expect(edition).not.toContain("allShows:");
     expect(edition).not.toContain("useAllResults");
     expect(edition).not.toContain("useAllShows");
     expect(edition).not.toContain("historyEnabled");
