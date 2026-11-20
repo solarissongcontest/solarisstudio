@@ -139,9 +139,12 @@ export function WorldLanding() {
     queryKey: ["world", "public", "featured"],
     queryFn: fetchFeaturedWorldOrganizations,
     staleTime: 90_000,
+    refetchOnMount: "always",
     retry: false,
   });
-  const featured = directory.data ?? [];
+  // A cached institution is not fresh publication evidence during a refetch.
+  const featured = directory.isSuccess && !directory.isFetching && !directory.isRefetchError
+    ? directory.data ?? [] : [];
   return (
     <PublicFrame>
       <header className="world-editorial-landing">
@@ -151,8 +154,14 @@ export function WorldLanding() {
           Countries, alliances and institutions.
         </p>
         <div className="mt-7 flex flex-wrap gap-3">
-          <Link to="/world/organizations" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground">
+          <Link to="/world/search" search={{ q: "", c: 0, o: 0, type: "all" }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground">
+            <Search className="size-4" aria-hidden="true" /> Search the world
+          </Link>
+          <Link to="/world/organizations" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-5 text-sm font-semibold">
             <Landmark className="size-4" aria-hidden="true" /> Organizations
+          </Link>
+          <Link to="/world/countries" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-5 text-sm font-semibold">
+            <Globe2 className="size-4" aria-hidden="true" /> World countries
           </Link>
           <Link to="/countries" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-5 text-sm font-semibold">
             <Globe2 className="size-4" aria-hidden="true" /> Countries
@@ -169,14 +178,14 @@ export function WorldLanding() {
             Browse all <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
         </div>
-        {directory.isPending ? <LoadingWorld label="Loading institutions" /> : null}
-        {directory.isError ? <QueryFailure message="The organization directory could not be retrieved." retry={() => void directory.refetch()} /> : null}
-        {directory.isSuccess && featured.length > 0 ? (
+        {(directory.isPending || directory.isFetching) ? <LoadingWorld label="Loading institutions" /> : null}
+        {(directory.isError || directory.isRefetchError) ? <QueryFailure message="The organization directory could not be retrieved." retry={() => void directory.refetch()} /> : null}
+        {directory.isSuccess && !directory.isFetching && !directory.isRefetchError && featured.length > 0 ? (
           <div className="divide-y divide-border">
             {featured.map((organization) => <OrganizationRow key={organization.id} organization={organization} />)}
           </div>
         ) : null}
-        {directory.isSuccess && featured.length === 0 ? (
+        {directory.isSuccess && !directory.isFetching && !directory.isRefetchError && featured.length === 0 ? (
           <p className="py-8 text-sm text-muted-foreground">No featured public institutional profiles are available right now.</p>
         ) : null}
       </section>
