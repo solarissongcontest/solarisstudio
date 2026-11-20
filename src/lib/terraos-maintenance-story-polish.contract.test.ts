@@ -22,6 +22,19 @@ describe("TerraOS maintenance Story interaction polish", () => {
     expect(polishIndex).toBeGreaterThan(runtimeIndex);
   });
 
+  it("replaces oversized maintenance PNGs with local SVGs without losing alt text or motion", () => {
+    expect(polish).toContain("upgradeMomentArtworkToVectors");
+    expect(polish).toContain("/terraos-maintenance/blue-motion.svg");
+    expect(polish).toContain("/terraos-maintenance/live-stage.svg");
+    expect(polish).toContain("const vector = image.cloneNode(false)");
+    expect(polish).toContain("image.removeAttribute('data-photo-parallax')");
+    expect(polish).toContain("vector.dataset.vectorArtwork = 'true'");
+    expect(polish).toContain("vector.addEventListener('error'");
+    expect(polish).toContain("image.hidden = false");
+    expect(polish).toContain("upgradeMomentArtworkToVectors();");
+    expect(polish).not.toContain("https://");
+  });
+
   it("keeps the entire Story card tappable even over its fixture preview", () => {
     expect(baseCss).toContain(".terra-preview-frame");
     expect(baseCss).toContain("pointer-events:none");

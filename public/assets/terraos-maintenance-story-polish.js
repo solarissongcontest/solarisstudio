@@ -54,6 +54,39 @@
     document.head.appendChild(style);
   }
 
+
+  function upgradeMomentArtworkToVectors() {
+    const replacements = [
+      ['moment-a.png', '/assets/terraos-maintenance/moment-a.png', '/terraos-maintenance/blue-motion.svg'],
+      ['moment-b.png', '/assets/terraos-maintenance/moment-b.png', '/terraos-maintenance/live-stage.svg'],
+    ];
+
+    root.querySelectorAll('img[src*="/assets/terraos-maintenance/moment-"]').forEach((image) => {
+      if (!(image instanceof HTMLImageElement) || image.dataset.vectorFallback === 'true') return;
+      const source = image.getAttribute('src') || '';
+      const replacement = replacements.find(([needle]) => source.includes(needle));
+      if (!replacement) return;
+
+      // Clone BEFORE changing the original so the visible vector inherits the
+      // original alt text and parallax marker. Keep the PNG for error recovery.
+      const vector = image.cloneNode(false);
+      if (!(vector instanceof HTMLImageElement)) return;
+      vector.src = replacement[2];
+      vector.dataset.vectorArtwork = 'true';
+      vector.removeAttribute('loading');
+
+      image.dataset.vectorFallback = 'true';
+      image.src = replacement[1];
+      image.hidden = true;
+      image.removeAttribute('data-photo-parallax');
+      vector.addEventListener('error', () => {
+        image.hidden = false;
+        vector.remove();
+      }, { once: true });
+      image.insertAdjacentElement('afterend', vector);
+    });
+  }
+
   function focusDirectDeepLink() {
     if (!window.location.hash.startsWith('#story-')) return;
     const layer = document.querySelector('[data-story-layer]');
@@ -118,6 +151,8 @@
     if (!layer || layer.hidden) return;
     enrichParticipateStory(layer);
     enrichMeStory(layer);
+    // The Story layer is mounted lazily, so upgrade those images on reveal too.
+    upgradeMomentArtworkToVectors();
   }
 
   function bindLayerEnhancer() {
@@ -149,6 +184,9 @@
   // own its own foreground palette instead of inheriting black/grey text from
   // the surrounding light section.
   installConfirmationContrastStyle();
+
+  // Keep large desktop art crisp while retaining local raster fallbacks.
+  upgradeMomentArtworkToVectors();
 
   // The base Story runtime has already resolved the initial hash by the time
   // this script executes. Give direct deep links an intentional focus target
