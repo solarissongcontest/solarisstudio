@@ -271,7 +271,7 @@ for internal_bucket in sorted(set(buckets.values())):
 probe_bucket = sorted(set(buckets.values()))[0]
 probe_key = "__solaris_restore_pipe_selftest_" + hashlib.sha256(os.urandom(32)).hexdigest()
 probe_target = "recovery/" + probe_bucket + "/" + probe_key
-probe_bytes = b"solaris S3 streaming probe: \\x00\\xff\\x80\\n"
+probe_bytes = b"solaris S3 streaming probe: \x00\xff\x80\n"
 mc("pipe", probe_target, data=probe_bytes, capture=False)
 probe_result = mc("cat", probe_target)
 if probe_result != probe_bytes:
