@@ -27,19 +27,56 @@ Production was never contacted; disposable container will now be deleted.
 - `televoting.televote_aggregations` exists in the restored database.
 - The script configuration isolated Docker networking and did not include a connection to hosted production.
 
+## Additional owner-observed Storage SHA-256 verification (20 November 2026)
+
+The owner later supplied a Google Cloud Shell screenshot of the read-only verifier
+`scripts/ops/solaris-storage-manifest-verify-20261120.sh` at commit
+`1f017a9cac129a618506e5d614e47bb57295e564`.
+
+```text
+Storage TAR regular files: 109
+Object members (excluding manifest): 108
+Unsafe entries: 0
+Manifest files: 1
+Manifest object records: 108
+Manifest SHA-256/size fields valid: 108
+Unmatched expected content digests: 0
+Unreferenced archive content digests: 0
+PASS: all 108 manifest hashes and sizes match archived bytes
+Bucket+path mapping confirmed: 55 / 108
+Path-only mapping (bucket not proved): 0
+NOTE: some bucket/path mappings cannot be certified from archive naming
+Storage-service restoration: NOT YET TESTED
+```
+
+Interpretation: all **108 object payloads** match the manifest SHA-256/size
+**multiset**, proving complete archived content coverage against the owner's
+manifest. The literal archive-member name resolves to the manifest bucket/path
+for **55/108**, leaving **53** bucket/path name mappings unproven by this
+heuristic. Those 53 are **not missing bytes**; an isolated restoration can map
+each manifest record to payload by its verified digest/size if the manifest
+itself is the approved path authority. Repeated identical digests can still
+resolve byte contents deterministically (they are byte-identical), but bucket
+authorization and metadata fidelity remain a separate requirement.
+
+**Next Storage gate:** provider-compatible isolated Storage-service restoration
+using the manifest's bucket/path as the intended destination and digest/size
+for payload selection; validate target object bytes, metadata, bucket policies
+and private authorization. No such provider-level round-trip is claimed.
+
 ## What this does NOT prove
 
 - Individual row/data integrity and official contest vote/result parity were not checked in this run.
 - The backup is a scoped November 15 archive, not a complete or current recovery point.
 - Dummy placeholder roles were used and the script restored with `--no-owner --no-acl`: original privileges, grants, role membership and effective RLS behavior were **not** restored or certified.
-- The Storage archive was fully streamed and 109 TAR entries were listed; per-object digest/manifest parity and an isolated Storage-service round-trip remain **OPEN**.
+- The Storage archive was fully streamed and all 108 object payload SHA-256/size pairs matched the manifest. Only 55/108 archive member names matched manifest bucket/path heuristics; the isolated Storage-service round-trip and access-policy validation remain **OPEN**.
 - Auth/Vault keys, migration-history ledger, provider-managed schema dependencies, external integrations and edge secrets remain **OPEN**.
 - The isolated container was disposable and was not retained as a production-derived migration rehearsal fixture.
 - This evidence authorizes **NO** blanket source migration replay, mutation of production Supabase, approval of S13–S16, activation of public writes, or Cloudflare promotion.
 
 ## Next gates (in order)
 
-1. Validate Storage manifest and object digests, then perform real isolated Storage-service restoration and access-policy probes.
+1. Use verified Storage manifest content hashes to map all 108 source payloads to intended bucket/path keys, then perform real isolated Storage-service restoration with object-byte, metadata and access-policy probes.
 2. Attest original roles/column grants, Auth/Vault/migration-history recoverability and operational configuration.
 3. Obtain a sufficiently current recovery point and exact current production-catalog fingerprint.
 4. Apply the exact reviewed forward-only S13/S14/Confirmation/Televote/Jury/Results/S16 manifest in a separate isolated production-derived environment and run positive/negative authority, historical vote and results parity checks.
