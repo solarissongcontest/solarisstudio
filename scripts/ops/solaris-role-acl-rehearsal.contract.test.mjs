@@ -33,6 +33,11 @@ test('archive ownership/ACLs are NOT intentionally discarded', () => {
 });
 
 test('all PostgreSQL operations are isolated and the ephemeral container is cleaned', () => {
+  // Prevent the previously observed invalid literal Docker name ending in "$".
+  assert.match(source, /^CONTAINER="solaris-role-acl-test-\$\{BASHPID\}"$/m);
+  assert.doesNotMatch(source, /^CONTAINER="[^"]*-\$"$/m);
+  assert.match(source, /--name "\$CONTAINER"/);
+
   assert.match(source, /docker run -d --name "\$CONTAINER" --network none/);
   assert.match(source, /docker run --rm --network none -i/);
   assert.match(source, /listen_addresses=/);
