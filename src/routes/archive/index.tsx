@@ -19,41 +19,41 @@ export const Route = createFileRoute("/archive/")({
   component: ArchiveRootPage,
 });
 
-// A navigation catalogue, never a second archive projection or a public read
-// of unpublished entry, voting, or Organizer records.
+// Navigation only: archive entities and publication remain with their canonical
+// owners. A dedicated Songs/Artists catalogue must not be invented by duplicating
+// Reference; published credits remain searchable there until P9 identity exists.
 const ARCHIVE_DESTINATIONS = [
-  { title: "Editions", description: "Browse contest editions and their published historical context.", to: "/editions", group: "history" },
-  { title: "Countries", description: "Follow country identities, entries, results and participation history.", to: "/countries", group: "history" },
-  { title: "Songs & artists", description: "Find already-revealed songs and artists in published Solaris Reference records.", to: "/encyclopedia", group: "history" },
-  { title: "Shows", description: "Open published semi-finals, finals and other historical show records.", to: "/shows", group: "history" },
-  { title: "Stories", description: "Read current and historical stories already released to the public.", to: "/stories", group: "history" },
-  { title: "Records", description: "Explore official all-time records and published contest outcomes in Results.", to: "/records", group: "history" },
-  { title: "Reference", description: "Search publication-safe Solaris history across connected public entities.", to: "/encyclopedia", group: "reference" },
-  { title: "Archive Games", description: "Play retained historical games without changing official contest truth.", to: "/archive-games", group: "reference" },
+  { title: "Editions", description: "Browse published contest editions in their original historical context.", to: "/editions", group: "contests", aliases: ["ssc", "contests", "years"] },
+  { title: "Shows", description: "Find published semi-finals, finals and official broadcast history.", to: "/shows", group: "contests", aliases: ["broadcasts", "finals", "schedule"] },
+  { title: "Countries", description: "Follow national participation, published entries and delegation history.", to: "/countries", group: "countries-stories", aliases: ["nations", "delegations", "entries"] },
+  { title: "Stories", description: "Read edition stories and past moments that have been released publicly.", to: "/stories", group: "countries-stories", aliases: ["timeline", "moments", "history"] },
+  { title: "Reference", description: "Search published entries, song and artist credits, countries and contest facts.", to: "/encyclopedia", group: "reference-results", aliases: ["songs", "artists", "music", "entries", "wiki", "knowledge"] },
+  { title: "Records", description: "Open official all-time records and historical results in Results.", to: "/records", group: "reference-results", aliases: ["results", "rankings", "winners"] },
+  { title: "Archive Games", description: "Play retained historical experiences built from public contest history.", to: "/archive-games", group: "reference-results", aliases: ["games", "play", "history"] },
 ] as const;
 
-const GROUPS: V3DirectoryGroup[] = [
-  {
-    id: "history", label: "Published history",
-    items: ARCHIVE_DESTINATIONS.filter((item) => item.group === "history").map((item) => ({
-      id: item.to, title: item.title, description: item.description, to: item.to,
-    })),
-  },
-  {
-    id: "reference", label: "Reference and games",
-    items: ARCHIVE_DESTINATIONS.filter((item) => item.group === "reference").map((item) => ({
-      id: item.to, title: item.title, description: item.description, to: item.to,
-    })),
-  },
-];
+const ARCHIVE_SECTIONS = [
+  { id: "contests", label: "Contests and broadcasts" },
+  { id: "countries-stories", label: "Countries and stories" },
+  { id: "reference-results", label: "Reference and records" },
+] as const;
+
+const GROUPS: V3DirectoryGroup[] = ARCHIVE_SECTIONS.map(({ id, label }) => ({
+  id,
+  label,
+  items: ARCHIVE_DESTINATIONS.filter((item) => item.group === id).map((item) => ({
+    id: item.to, title: item.title, description: item.description,
+    to: item.to, aliases: item.aliases,
+  })),
+}));
 
 function ArchiveRootPage() {
   return (
     <V3DirectoryFamilyIndex
       title="Archive"
       eyebrow="HISTORICAL SOLARIS"
-      intro="Published Solaris history, kept in its original contest context."
-      browserIntro="Explore published SSC history in its original edition and time context."
+      intro="Read the contest by edition, country and subject. Only published history appears here."
+      browserIntro="Browse published editions, national histories and official archive subjects."
       searchLabel="Search archive"
       searchPlaceholder="Search archive subjects…"
       scopeLabel="All topics"
