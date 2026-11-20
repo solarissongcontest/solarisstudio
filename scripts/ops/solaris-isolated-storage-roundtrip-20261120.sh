@@ -3,7 +3,7 @@
 # - ALL connections confined to Docker --internal bridge network
 # - NO published ports, production credentials, production APIs, host mounts
 # - Encrypted original never modified, no decrypted files written on host
-# - Restored bytes stored ONLY in disposable MinIO container tmpfs
+# - Restored bytes stored ONLY in disposable S3-compatible SILO container tmpfs
 # - Private object paths/keys/passwords never printed
 # NOTE: Does NOT certify Supabase Storage RLS, metadata or Auth/Vault.
 set -Eeuo pipefail
@@ -11,11 +11,11 @@ umask 077
 
 BASE="$HOME/solaris-recovery"
 IDENTITY="$BASE/recovery-private.key"
-IMAGE_SVC="minio/minio:latest"
-IMAGE_MC="minio/mc:latest"
+IMAGE_SVC="pgsty/silo:RELEASE.2026-11-12T00-00-00Z"
+IMAGE_MC="pgsty/mc:RELEASE.2026-11-12T00-00-00Z"
 IMAGE_CURL="curlimages/curl:latest"
 NETWORK="solaris-offline-store-$$"
-SERVICE="solaris-minio-$$"
+SERVICE="solaris-silo-$"
 SERVICE_USER="solarisrestore"
 SERVICE_PASSWORD="$(openssl rand -hex 24)"
 CREATED_NETWORK=0
@@ -52,10 +52,10 @@ test "$(sha256sum "$ARCHIVE" | cut -c 1-64)" = \
   || stop 'encrypted Storage archive SHA-256 changed'
 docker info >/dev/null 2>&1 || stop 'Docker is not running'
 
-echo '[1/4] Preparing temporary Docker images'
+echo '[1/4] Preparing temporary pinned S3-compatible Docker images'
 for image in "$IMAGE_SVC" "$IMAGE_MC" "$IMAGE_CURL"; do
   docker image inspect "$image" >/dev/null 2>&1 || \
-    docker pull "$image" >/dev/null || stop 'cannot download required test image'
+    docker pull "$image" >/dev/null || stop "cannot download required test image: $image"
 done
 
 echo '[2/4] Starting an isolated, private S3-compatible service'
