@@ -46,6 +46,7 @@ describe("Country web editorial identity transition", () => {
     expect(route).toContain('const APP_TABS = [');
     expect(route).toContain('const BROWSER_TABS = [');
     expect(route).toContain('options={APP_TABS}');
+    expect(route).toContain('setTab((current) => APP_TABS.some((item) => item.value === current) ? current : "overview")');
     expect(route).toContain('BROWSER_TABS.map((section)');
     expect(route).toContain('{isAppMode ? (');
     expect(route).toContain('{!isAppMode && tab === "history" && (');
