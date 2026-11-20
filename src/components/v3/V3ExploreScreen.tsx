@@ -102,7 +102,7 @@ function itemCountLabel(count: number): string {
 function CurrentEditionCard({ edition }: { edition: V3ExploreEditionCard }) {
   const status = experiencePresentation(edition.experience);
   const meta = editionMeta(edition);
-  const { allows } = usePublicLaunchAvailability();
+  const { allowsReleased } = usePublicLaunchAvailability();
   const [failedArtwork, setFailedArtwork] = useState<string | null>(null);
   const [failedLogo, setFailedLogo] = useState<string | null>(null);
   const visibleArtwork = edition.artworkUrl && edition.artworkUrl !== failedArtwork
@@ -134,7 +134,7 @@ function CurrentEditionCard({ edition }: { edition: V3ExploreEditionCard }) {
           ) : null}
           <h2>{edition.name}</h2>
           {meta ? <p className="v3-explore-feature__meta">{meta}</p> : null}
-          {allows(edition.href) ? (
+          {allowsReleased(edition.href) ? (
             <Link to={edition.href as any} className="v3-explore-feature__primary">
               Discover edition <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
@@ -142,7 +142,7 @@ function CurrentEditionCard({ edition }: { edition: V3ExploreEditionCard }) {
         </div>
       </div>
 
-      {edition.experience === "live" && edition.liveHref ? (
+      {edition.experience === "live" && edition.liveHref && allowsReleased(edition.liveHref) ? (
         <div className="v3-explore-feature__related" data-v3-explore-live-action="">
           <V3ActionCard
             title="Open Live Mode"
@@ -153,7 +153,7 @@ function CurrentEditionCard({ edition }: { edition: V3ExploreEditionCard }) {
         </div>
       ) : null}
 
-      {edition.nextEvent ? (
+      {edition.nextEvent && allowsReleased(edition.nextEvent.href) ? (
         <div className="v3-explore-feature__related">
           <V3ActionCard
             title={edition.nextEvent.title}
