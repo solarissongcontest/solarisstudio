@@ -5,12 +5,16 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 describe("canonical Country + Wiki completion contract", () => {
-  it("exposes the full six-section Country information architecture", () => {
+  it("preserves six installed Country sections and adds web-only History and World", () => {
     const route = source("src/routes/countries/$code.tsx");
     for (const tab of ["Overview", "Entries", "Results", "Voting", "Relationships", "Form"]) {
       expect(route).toContain(`label: "${tab}"`);
     }
-    expect(route).toContain('title="Current entry"');
+    expect(route).toContain('const APP_TABS = [');
+    expect(route).toContain('const BROWSER_TABS = [');
+    expect(route).toContain('options={APP_TABS}');
+    expect(route).toContain('BROWSER_TABS.map((section)');
+    expect(route).toContain('title="Latest entry"');
     expect(route).toContain('title="Entry history"');
     expect(route).toContain("canonicalEditionEntries");
   });
@@ -114,9 +118,9 @@ describe("canonical Country + Wiki completion contract", () => {
     const route = source("src/routes/countries/$code.tsx");
     const world = source("src/components/CountryWorldOverview.tsx");
     expect(world.indexOf('title="About"')).toBeLessThan(world.indexOf('title="Quick Facts"'));
-    const glance = route.indexOf('title="SSC at a glance"');
-    const current = route.indexOf('title="Current entry"');
-    const recent = route.indexOf('title="Recent SSC history"');
+    const glance = route.indexOf('title="At a glance"');
+    const current = route.indexOf('title="Latest entry"');
+    const recent = route.indexOf('title="Recent results"');
     const allTime = route.indexOf('title="All-time record"');
     expect(glance).toBeGreaterThan(-1);
     expect(glance).toBeLessThan(current);
