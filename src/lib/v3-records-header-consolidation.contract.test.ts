@@ -46,10 +46,13 @@ describe("Public Records browser presentation consolidation", () => {
     expect(route).toContain("const categoryTotal = tab === \"all\"");
     expect(route).toContain("data-records-website-count");
     expect(route).toContain("Clear search");
-    expect(route).toContain('onClick={() => { setTab("all"); setRecordSearch(""); }}');
+    expect(route).toContain("onClick={showAllRecords}");
     expect(route).toContain(") : isAppMode ? (");
     expect(route).toContain("No published records are available yet.");
     expect(route).toContain("min-h-11 cursor-pointer");
+    expect(route).toContain('role="search" aria-label="Search published records"');
+    expect(route).toContain('window.addEventListener("popstate", restoreFromLocation)');
+    expect(route).toContain('createRecordsDirectorySearch(window.location.search');
   });
 
   it("does not link to country profiles blocked by the current public release", () => {

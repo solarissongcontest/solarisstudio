@@ -1,6 +1,6 @@
 import "@/styles/v3-records-website-editorial.css";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import {
@@ -17,6 +17,10 @@ import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { V3RecordsGate } from "@/components/v3/V3RecordsGate";
 import { buildCanonicalFanRecordsWithCoverage } from "@/lib/canonical-fan-records";
 import { filterPublishedFanRecords } from "@/lib/fan-records-search";
+import {
+  createRecordsDirectorySearch,
+  parseRecordsDirectoryState,
+} from "@/lib/fan-records-directory-state";
 import {
   useAllJuryVotes,
   useAllParticipants,
@@ -148,6 +152,47 @@ function LegacyRecordsPage() {
   const presentationMode = usePublicPresentationMode();
   const mobileWeb = presentationMode === "mobile-web";
 
+  // The website has shareable discovery filters. The installed PWA retains its
+  // existing category, independent of browser query parameters.
+  useEffect(() => {
+    if (isAppMode) return;
+    const restoreFromLocation = () => {
+      const state = parseRecordsDirectoryState(window.location.search);
+      setTab(state.category);
+      setRecordSearch(state.search);
+    };
+    restoreFromLocation();
+    window.addEventListener("popstate", restoreFromLocation);
+    return () => window.removeEventListener("popstate", restoreFromLocation);
+  }, [isAppMode]);
+
+  const updateBrowserLocation = (
+    category: Tab,
+    search: string,
+    method: "pushState" | "replaceState",
+  ) => {
+    if (isAppMode) return;
+    const nextSearch = createRecordsDirectorySearch(window.location.search, { category, search });
+    const next = `${window.location.pathname}${nextSearch}${window.location.hash}`;
+    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (next !== current) window.history[method](window.history.state, "", next);
+  };
+  const changeCategory = (category: Tab) => {
+    if (category === tab) return;
+    setTab(category);
+    updateBrowserLocation(category, recordSearch, "pushState");
+  };
+  const changeSearch = (value: string) => {
+    const search = value.slice(0, 160);
+    setRecordSearch(search);
+    updateBrowserLocation(tab, search, "replaceState");
+  };
+  const showAllRecords = () => {
+    setTab("all");
+    setRecordSearch("");
+    updateBrowserLocation("all", "", "pushState");
+  };
+
   const { records, archivedFinalEditions } = useMemo(
     () =>
       buildCanonicalFanRecordsWithCoverage({
@@ -225,7 +270,7 @@ function LegacyRecordsPage() {
               <button
                 type="button"
                 key={option.value}
-                onClick={() => setTab(option.value)}
+                onClick={() => changeCategory(option.value)}
                 aria-pressed={tab === option.value}
                 className={tab === option.value
                   ? "min-h-12 shrink-0 whitespace-nowrap border-b-2 border-primary px-1 text-sm font-semibold text-foreground"
@@ -236,22 +281,23 @@ function LegacyRecordsPage() {
             ))}
           </nav>
         ) : (
-          <ResponsiveTabs value={tab} options={TABS} onChange={setTab} label="Record category" className="mb-5" />
+          <ResponsiveTabs value={tab} options={TABS} onChange={changeCategory} label="Record category" className="mb-5" />
         )}
 
         {!isAppMode ? (
-          <div className="records-editorial-searchbar">
+          <div className="records-editorial-searchbar" role="search" aria-label="Search published records">
             <label htmlFor="records-editorial-query">Search published records</label>
             <input
               id="records-editorial-query"
               type="search"
               value={recordSearch}
-              onChange={(event) => setRecordSearch(event.target.value)}
+              onChange={(event) => changeSearch(event.target.value)}
               placeholder="Record, country, artist or song"
               autoComplete="off"
+              maxLength={160}
             />
             {recordSearch.length > 0 ? (
-              <button type="button" className="records-editorial-clear" onClick={() => setRecordSearch("")}>
+              <button type="button" className="records-editorial-clear" onClick={() => changeSearch("")}>
                 Clear search
               </button>
             ) : null}
@@ -284,7 +330,7 @@ function LegacyRecordsPage() {
               <button
                 type="button"
                 className="records-editorial-reset"
-                onClick={() => { setTab("all"); setRecordSearch(""); }}
+                onClick={showAllRecords}
               >
                 Show all published records
               </button>
