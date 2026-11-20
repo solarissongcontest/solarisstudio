@@ -500,3 +500,89 @@ html:not([data-solaris-app]) .solaris-history-entry > summary:hover,
 html:not([data-solaris-app]) .solaris-history-add > summary:hover {
   background: color-mix(in oklab, var(--primary) 10%, var(--surface));
 }
+
+
+/* Country browser composition: the hero is one editorial canvas; identity and
+   actions belong to the content transition, not a stack of overlay buttons. */
+html:not([data-solaris-app]) .country-editorial-profile .country-editorial-hero {
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
+}
+html:not([data-solaris-app]) .country-editorial-profile .country-editorial-identity-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .75rem 1.1rem;
+  min-width: 0;
+  margin: 0 0 clamp(1rem, 2vw, 1.5rem);
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--v3-editorial-rule);
+}
+html:not([data-solaris-app]) .country-editorial-profile .country-editorial-identity-strip > :first-child {
+  flex: 0 0 auto;
+}
+html:not([data-solaris-app]) .country-editorial-profile .country-editorial-identity-summary {
+  display: flex;
+  flex: 1 1 8rem;
+  min-width: 0;
+  flex-direction: column;
+  gap: .2rem;
+  font-size: .82rem;
+  line-height: 1.35;
+}
+html:not([data-solaris-app]) .country-editorial-profile .country-editorial-identity-code {
+  color: var(--foreground);
+  font-weight: 760;
+  letter-spacing: .08em;
+}
+html:not([data-solaris-app]) .country-editorial-profile .country-editorial-identity-native,
+html:not([data-solaris-app]) .country-editorial-profile .country-editorial-identity-region {
+  color: var(--muted-foreground);
+}
+html:not([data-solaris-app]) .country-editorial-profile .country-editorial-identity-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .15rem .7rem;
+}
+html:not([data-solaris-app]) .country-editorial-profile .country-editorial-identity-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: .3rem;
+  color: var(--foreground);
+  font-size: .82rem;
+  font-weight: 620;
+  text-decoration: none;
+}
+html:not([data-solaris-app]) .country-editorial-profile .country-editorial-identity-links a:hover {
+  color: var(--primary);
+}
+html:not([data-solaris-app]) .country-editorial-profile .country-editorial-identity-links a:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+html:not([data-solaris-app]) .country-editorial-profile .country-editorial-identity-follow {
+  margin-left: auto;
+}
+@media (max-width: 767px) {
+  html:not([data-solaris-app]) .country-editorial-profile .country-editorial-identity-strip {
+    gap: .7rem;
+    padding-block: .75rem;
+  }
+  html:not([data-solaris-app]) .country-editorial-profile .country-editorial-identity-links {
+    order: 3;
+    width: 100%;
+    border-top: 1px solid var(--v3-editorial-rule);
+    padding-top: .3rem;
+  }
+  html:not([data-solaris-app]) .country-editorial-profile .country-editorial-identity-follow {
+    order: 2;
+  }
+}
+@media (forced-colors: active) {
+  html:not([data-solaris-app]) .country-editorial-profile .country-editorial-identity-links a:focus-visible {
+    outline-color: Highlight;
+  }
+}
