@@ -23,7 +23,7 @@ describe("V3 editorial directory family: Stories and Reference", () => {
     expect(gate).toContain("hideSpoilers={hideSpoilers}");
     expect(gate).toContain("StoryFallbackSpoilerContext.Provider value={protectedContent}");
     expect(stories).toContain("<PublicStorySpoilerDisclosure");
-    expect(stories).toContain("queryKey: [\'public-storylines\', storyLimit]");
+    expect(stories).toContain("queryKey: ['public-storylines', storyLimit]");
   });
 
   it("does not confuse a user search with a failed or unpublished Stories archive", () => {
