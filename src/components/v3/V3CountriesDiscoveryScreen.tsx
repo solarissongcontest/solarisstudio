@@ -75,8 +75,12 @@ export function V3CountriesDiscoveryScreen({
     [discovery.participating],
   );
   const pendingCurrentParticipants = Boolean(activeEdition?.id) && participantsQuery.isLoading;
+  // Edition and country projections can become stale independently of the
+  // lineup query. Never present old movement claims during any revalidation.
   const currentLineupReady = Boolean(activeEdition?.id) && participantsQuery.isSuccess &&
-    !participantsQuery.isFetching && !participantsQuery.isRefetchError;
+    !participantsQuery.isFetching && !participantsQuery.isRefetchError &&
+    editionsQuery.isSuccess && !editionsQuery.isFetching && !editionsQuery.isRefetchError &&
+    countriesQuery.isSuccess && !countriesQuery.isFetching && !countriesQuery.isRefetchError;
   // An unavailable optional lineup must never strand the visitor on its selected scope.
   const selectedParticipatingOnly = effectiveParticipatingScope(participatingOnly, currentLineupReady);
   const publishedStatuses = useMemo(

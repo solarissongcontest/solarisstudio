@@ -8,6 +8,15 @@ describe("Explore countries editorial movement and stale filter protection", () 
   it("only advertises movement after the authoritative public lineup read succeeds", () => {
     expect(countries).toContain("const currentLineupReady = Boolean(activeEdition?.id) && participantsQuery.isSuccess");
     expect(countries).toContain("currentParticipants: participantsQuery.isSuccess ? participantsQuery.data ?? [] : []");
+    const freshnessGate = countries.slice(
+      countries.indexOf("const currentLineupReady ="),
+      countries.indexOf("const publishedStatuses ="),
+    );
+    // A valid roster is insufficient when its Edition or Country source has
+    // become stale during a separate refresh.
+    expect(freshnessGate).toContain("!participantsQuery.isFetching && !participantsQuery.isRefetchError");
+    expect(freshnessGate).toContain("editionsQuery.isSuccess && !editionsQuery.isFetching && !editionsQuery.isRefetchError");
+    expect(freshnessGate).toContain("countriesQuery.isSuccess && !countriesQuery.isFetching && !countriesQuery.isRefetchError");
     expect(countries).toContain("currentLineupReady && movementGroups.length > 0");
     // Both the teaser and detail rows must withhold unverified lineup movements.
     expect(countries.split("currentLineupReady && movementGroups.length > 0").length - 1).toBe(2);
