@@ -14,7 +14,7 @@ import { FlagFrame } from "@/components/FlagMedia";
 import type { CountryDirectoryPresentation } from "@/lib/country-directory-presentation";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { type Country, useCountries, useEditions } from "@/lib/data";
-import { countryDirectoryRegionOptions, effectiveParticipatingScope, filterCountryDirectory } from "@/lib/v3-country-directory-filters";
+import { countryDirectoryRegionOptions, effectiveParticipatingScope, filterCountryDirectory, shouldHoldCountryLineupUrlScope } from "@/lib/v3-country-directory-filters";
 import { resolvePublicDirectoryFacet } from "@/lib/v3-public-directory-search";
 import { MAX_PUBLIC_DIRECTORY_QUERY_LENGTH, normalizePublicDirectoryUrlQuery } from "@/lib/v3-directory-url-search";
 import { type CountryDirectoryUrlSearch } from "@/lib/v3-explore-browse-url";
@@ -106,8 +106,11 @@ export function V3CountriesDiscoveryScreen({
       !urlSearch || !onUrlSearchChange) return;
     // A requested SSC lineup needs a fresh read before it can be accepted or
     // denied. Keep its URL unchanged while the optional roster is still loading.
-    if (participatingOnly && activeEdition?.id &&
-      (participantsQuery.isLoading || participantsQuery.isFetching)) return;
+    if (shouldHoldCountryLineupUrlScope(
+      participatingOnly,
+      editionsQuery.isSuccess && !editionsQuery.isFetching && !editionsQuery.isRefetchError,
+      Boolean(activeEdition?.id) && (participantsQuery.isLoading || participantsQuery.isFetching),
+    )) return;
     const next: CountryDirectoryUrlSearch = {
       q: normalizePublicDirectoryUrlQuery(search),
       region: effectiveRegion === "all" ? undefined : effectiveRegion,
@@ -118,7 +121,9 @@ export function V3CountriesDiscoveryScreen({
     const timer = window.setTimeout(() => onUrlSearchChange(next), 250);
     return () => window.clearTimeout(timer);
   }, [countriesQuery.isSuccess, countriesQuery.isFetching, countriesQuery.isRefetchError,
-    participantsQuery.isLoading, activeEdition?.id, participatingOnly, selectedParticipatingOnly,
+    editionsQuery.isSuccess, editionsQuery.isFetching, editionsQuery.isRefetchError,
+    participantsQuery.isLoading, participantsQuery.isFetching,
+    activeEdition?.id, participatingOnly, selectedParticipatingOnly,
     search, effectiveRegion, urlSearch?.q, urlSearch?.region, urlSearch?.scope, onUrlSearchChange]);
 
   const collectionCount = selectedParticipatingOnly
