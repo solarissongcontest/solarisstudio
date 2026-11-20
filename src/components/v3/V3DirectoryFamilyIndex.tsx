@@ -167,7 +167,12 @@ export function V3DirectoryFamilyIndex({
           </section>
         ))}
       </div>
-      {!visible ? (
+      {!visible ? total === 0 ? (
+        <AppEmptyState
+          title={`No public ${itemNoun} available`}
+          description="No destinations in this collection are currently available in the public release."
+        />
+      ) : (
         <AppEmptyState
           title={`No matching ${itemNoun}`}
           description={emptyText}
