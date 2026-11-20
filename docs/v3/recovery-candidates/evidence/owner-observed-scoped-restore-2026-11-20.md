@@ -213,6 +213,38 @@ provider settings or `supabase_migrations` history. These need separate
 protected recovery artifacts/attestation and positive/negative authorization
 rehearsals before production cutover.
 
+## Hosted permissions fingerprint baseline (20 November 2026, read-only)
+
+Using bounded SELECTs over PostgreSQL catalogs (no private rows, secrets,
+media, user identities or SQL bodies), the connected Supabase project reported:
+
+| Schema | Tables | RLS-enabled | Explicit table ACLs | RLS policies | Explicit column ACLs | Table owner/ACL digest SHA-256 |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| auth | 27 | 16 | 27 | 0 | 0 | `8f329f2a8c9d5912237cae44373b17b5e9d37c195a852ef8420f28fbad18536f` |
+| private | 13 | 1 | 12 | 0 | 0 | `9d7d119f0d4a6caa086f0d8a83c173388f7858aa21611188105745ef4cb92087` |
+| public | 149 | 149 | 149 | 197 | 2 | `868f63c6f61ad87edc56ea03f1d362906c9d9c0e78c71af3efbc3e93be83e981` |
+| storage | 10 | 10 | 9 | 10 | 0 | `d0703297d0e3fb86340d92dfee386c98b9a48815ea93117e5c2d67a3e505ee8e` |
+| televoting | 26 | 26 | 26 | 58 | 0 | `ad19940a504a5cc06fe7ec7ebf9f45c38c3e61c0ed44c310851bd734b648bad0` |
+
+* Fingerprints hash sorted relation identities, owner names, explicit table ACL
+  arrays and RLS flags. They are **baseline evidence only**. A full parity
+  proof requires a matching comparison algorithm and original roles, **not**
+  simply a familiar number of RLS-enabled tables.
+* Policy digests and explicit column-ACL digests were also captured in the
+  bounded tool observation but are not a replacement for effective user/role
+  authorization tests. The policy count is **265** across the five scoped
+  schemas.
+* The successful earlier isolated restore used `--no-owner --no-acl`,
+  therefore **actual restored ownership/ACL fidelity remains UNPROVEN**.
+* No claim is made that the scoped database dump includes migration history,
+  provider-managed Vault encryption roots, Auth provider secrets, or global role
+  memberships. Those remain recovery blockers.
+
+The next safe operator-side diagnostic is a read-only **encrypted archive TOC
+inventory** checking whether the source custom-format dump even contains ACL,
+DEFAULT ACL and role-owner metadata before designing another isolated role-
+faithful restore. Preserve all raw TOC entries privately; report counts only.
+
 ## What this does NOT prove
 
 - Individual row/data integrity and official contest vote/result parity were not checked in this run.
