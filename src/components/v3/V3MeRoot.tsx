@@ -31,7 +31,10 @@ export function V3MeRoot({ viewerId, editionId }: { viewerId: string; editionId:
     return () => window.removeEventListener(CONFIRMATION_SUBMITTED_EVENT, refresh);
   }, [queryClient, viewerId]);
 
-  if (!ownsIdentity || workspace.isLoading) {
+  // No-data pending state is not evidence that personal history is unavailable.
+  // Keep the Me surface in an explicit resolving state until the caller-scoped
+  // summary has either produced canonical data or failed authoritatively.
+  if (!ownsIdentity || workspace.isLoading || summary.isPending) {
     return <V3AppShell editionLabel="Solaris Studio" phaseLabel="Me" activeArea="me"><p role="status" className="p-6">Opening your account…</p></V3AppShell>;
   }
   const current = editions.data?.find((edition) => edition.id === editionId) ?? null;
@@ -50,8 +53,12 @@ export function V3MeRoot({ viewerId, editionId }: { viewerId: string; editionId:
     historyAvailable: scoped,
     history: scoped ? [...summary.data!.history].filter((item) => item.edition_id !== editionId).sort((a,b) => b.edition_number-a.edition_number).map((item) => ({ editionId: item.edition_id, editionName: item.edition_name, roleLabel: "Recorded delegation confirmation", completed: false, href: "/my-solaris/history" })) : [],
     activity: { verifiedReceiptCount: scoped ? summary.data!.receipt_count : null, awaitingAuthoritativeReceiptCount: null, href: "/my-solaris/activity" },
-    following: { followedCountryCount: following ? following.filter((item) => item.entity_type === "country").length : null, followedContentCount: following ? following.filter((item) => item.entity_type !== "country").length : null, href: "/my-solaris/activity" },
-    preferenceLinks: [{ key: "settings", label: "Experience preferences", href: "/settings" }, { key: "notifications", label: "Notifications", href: "/notifications" }],
+    following: { followedCountryCount: following ? following.filter((item) => item.entity_type === "country").length : null, followedContentCount: following ? following.filter((item) => item.entity_type !== "country").length : null, href: "/my-solaris/saved" },
+    preferenceLinks: [
+      { key: "fan-identity", label: "Public fan identity", href: "/my-solaris/profile" },
+      { key: "settings", label: "Experience preferences", href: "/settings" },
+      { key: "notifications", label: "Notifications", href: "/notifications" },
+    ],
     accountLinks: [{ key: "account", label: "Account and security", href: "/my-solaris/account" }],
     canEnterOrganizer: account?.access.isOrganizer === true, organizerHref: "/admin",
   });
