@@ -139,6 +139,8 @@ test('script has no duplicate or truncated execution bodies', () => {
     assert.equal([...source.matchAll(pattern)].length, 1,
       'Unexpected duplication of recovery script section: ' + pattern);
   }
-  assert.ok(source.trimEnd().endsWith(
-    "echo 'Production was never contacted; disposable container will now be deleted.'"));
+  assert.match(source, /if \[ "\$PERMISSION_COMPARISON" != MATCH \]; then[\s\S]*exit 2/);
+  assert.match(source, /permissions-restored\.private\.json/);
+  assert.match(source, /permission-differences\.private\.json/);
+  assert.doesNotMatch(source, /difference is dated drift/);
 });

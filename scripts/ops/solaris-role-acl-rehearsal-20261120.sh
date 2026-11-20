@@ -9,7 +9,13 @@ KEY="$BASE/recovery-private.key"
 IMAGE="supabase/postgres:17.11.0.019"
 CONTAINER="solaris-role-acl-test-${BASHPID}"
 REPORT=""
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+SNAPSHOT_SQL="$SCRIPT_DIR/solaris-permission-snapshot.sql"
+COMPARATOR="$SCRIPT_DIR/solaris-permission-compare.py"
+# Optional, approved catalog-only JSON; never use a connection string here.
+EXPECTED_PERMISSIONS="${SOLARIS_EXPECTED_PERMISSIONS:-}"
 STARTED=0
+PERMISSION_COMPARISON=BLOCKED
 cleanup() {
   local rc=$?
   trap - EXIT
@@ -26,9 +32,13 @@ if ! command -v age >/dev/null 2>&1; then
   echo '[setup] Installing age in this Cloud Shell session'
   sudo apt-get update -qq && sudo apt-get install -y age || abort 'age installation failed'
 fi
-for cmd in age docker sha256sum tar find; do
+for cmd in age docker sha256sum tar find python3; do
   command -v "$cmd" >/dev/null 2>&1 || abort "$cmd is not installed"
 done
+test -s "$SNAPSHOT_SQL" && test -s "$COMPARATOR" || abort 'Run from the complete reviewed checkout; catalog helpers missing'
+if [ -n "$EXPECTED_PERMISSIONS" ]; then
+  python3 "$COMPARATOR" --validate "$EXPECTED_PERMISSIONS" || abort 'Expected catalog snapshot is invalid or incomplete'
+fi
 test -s "$KEY" || abort 'Age private key is missing at expected location (never upload it)'
 
 # Cloud Shell transient files can disappear during a find; search backup folder
@@ -239,11 +249,31 @@ if age -d -i "$KEY" "$DB" | docker exec -i "$CONTAINER" sh -c '
     || abort "Expected 27 restored DEFAULT ACL entries; got $DEFAULT_ACL_COUNT"
   echo "DEFAULT ACL entries present: $DEFAULT_ACL_COUNT / 27"
 
-  # Compare the local table-owner/ACL/RLS fingerprints with the bounded
-  # 2026-11-20 production METADATA baseline. This backup is Nov 15, so a
-  # difference is dated drift, never a reason to modify production or falsely
-  # claim failed file integrity. The actual GRANT/ALTER OWNER replay itself
-  # must have succeeded transactionally before this comparison runs.
+  # Retain object-level catalog evidence before deleting the disposable container.
+  # This captures metadata only; sensitive role-setting values are excluded.
+  docker exec -i "$CONTAINER" psql -X -qAt -U supabase_admin -d postgres \
+    -v ON_ERROR_STOP=1 <"$SNAPSHOT_SQL" >"$REPORT/permissions-restored.private.json" \
+    2>"$REPORT/permissions-capture.private.log" || abort 'Bounded local catalog capture failed'
+  python3 "$COMPARATOR" --validate "$REPORT/permissions-restored.private.json" \
+    || abort 'Restored catalog snapshot is incomplete'
+  if [ -n "$EXPECTED_PERMISSIONS" ]; then
+    if python3 "$COMPARATOR" "$EXPECTED_PERMISSIONS" "$REPORT/permissions-restored.private.json" \
+      --report "$REPORT/permission-differences.private.json"; then
+      PERMISSION_COMPARISON=MATCH
+      echo 'SCOPED normalized permissions match; full platform recovery remains uncertified'
+    else
+      COMPARISON_RC=$?
+      if [ "$COMPARISON_RC" != 2 ]; then abort 'Permission comparison failed'; fi
+      echo 'BLOCKED: permission differences or uncaptured settings; inspect private object-level report'
+      # Continue existing read-only probes to collect all independent evidence in one run.
+    fi
+  else
+    echo 'BLOCKED: approved current-hosted object snapshot absent; four mismatches remain unresolved'
+  fi
+
+  # Historical raw per-schema fingerprints remain diagnostic only. A difference
+  # could be representation, real permission changes, role recovery or other drift.
+  # No cause is assumed without the normalized object comparison above.
   HOSTED_MATCHES=0
   HOSTED_DRIFTS=0
   while IFS='|' read -r SCHEMA OWNER_DIGEST; do
@@ -259,7 +289,7 @@ if age -d -i "$KEY" "$DB" | docker exec -i "$CONTAINER" sh -c '
       echo "Hosted Nov20 vs Nov15 replay $SCHEMA owner/ACL/RLS: MATCH"
       HOSTED_MATCHES=$((HOSTED_MATCHES + 1))
     else
-      echo "Hosted Nov20 vs Nov15 replay $SCHEMA owner/ACL/RLS: DIFFERENT (dated drift/role change requires review)"
+      echo "Hosted Nov20 vs Nov15 replay $SCHEMA owner/ACL/RLS: DIFFERENT (cause unresolved; inspect object-level evidence)"
       HOSTED_DRIFTS=$((HOSTED_DRIFTS + 1))
     fi
   done < <(docker exec "$CONTAINER" psql -X -U supabase_admin -d postgres -At \
@@ -277,7 +307,7 @@ if age -d -i "$KEY" "$DB" | docker exec -i "$CONTAINER" sh -c '
     GROUP BY n.nspname ORDER BY n.nspname;")
   test "$((HOSTED_MATCHES + HOSTED_DRIFTS))" = 5 || abort 'Incomplete schema digest comparison'
   echo "Dated hosted-owner/ACL digest matches: $HOSTED_MATCHES / 5"
-  echo 'NOTE: 2026-11-15 backup vs 2026-11-20 hosted drift cannot certify CURRENT ownership parity.'
+  echo 'NOTE: dated raw fingerprints cannot certify current ownership parity.'
 
   # Safely probe effective privilege and row-security activation while
   # impersonating nonprivileged roles. Fake JWT subject never corresponds
@@ -357,3 +387,7 @@ else
   exit 1
 fi
 echo 'Production was never contacted; disposable container will now be deleted.'
+if [ "$PERMISSION_COMPARISON" != MATCH ]; then
+  echo 'BLOCKED: object-level permission reconciliation incomplete (private diagnostics retained)' >&2
+  exit 2
+fi

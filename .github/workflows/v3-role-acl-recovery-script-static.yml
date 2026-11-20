@@ -1,4 +1,4 @@
-name: V3 isolated role and ACL recovery script static safety
+name: V3 isolated role and ACL recovery safety
 
 on:
   push:
@@ -6,11 +6,21 @@ on:
     paths:
       - scripts/ops/solaris-role-acl-rehearsal-20261120.sh
       - scripts/ops/solaris-role-acl-rehearsal.contract.test.mjs
+      - scripts/ops/solaris-permission-snapshot.sql
+      - scripts/ops/solaris-permission-compare.py
+      - scripts/ops/solaris-permission-compare.test.py
+      - scripts/ops/solaris-local-platform-probes.py
+      - scripts/ops/solaris-local-platform-probes.test.py
       - .github/workflows/v3-role-acl-recovery-script-static.yml
   pull_request:
     paths:
       - scripts/ops/solaris-role-acl-rehearsal-20261120.sh
       - scripts/ops/solaris-role-acl-rehearsal.contract.test.mjs
+      - scripts/ops/solaris-permission-snapshot.sql
+      - scripts/ops/solaris-permission-compare.py
+      - scripts/ops/solaris-permission-compare.test.py
+      - scripts/ops/solaris-local-platform-probes.py
+      - scripts/ops/solaris-local-platform-probes.test.py
       - .github/workflows/v3-role-acl-recovery-script-static.yml
   workflow_dispatch:
 
@@ -27,3 +37,19 @@ jobs:
         run: bash -n scripts/ops/solaris-role-acl-rehearsal-20261120.sh
       - name: Validate Python syntax and security gates
         run: node --test scripts/ops/solaris-role-acl-rehearsal.contract.test.mjs
+      - name: Test fail-closed comparison without private archives
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 python3 scripts/ops/solaris-permission-compare.test.py
+          PYTHONDONTWRITEBYTECODE=1 python3 scripts/ops/solaris-local-platform-probes.test.py
+  synthetic-pg17:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch exact synthetic-only PostgreSQL version
+        run: docker pull postgres:17.11
+      - name: Test owner/ACL restore, RLS, role changes and rollback without network
+        env:
+          SOLARIS_SYNTHETIC_PG: "1"
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python3 scripts/ops/solaris-permission-compare.test.py
