@@ -13,13 +13,12 @@ import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { ArchiveDataLoading } from "@/components/ArchiveDataState";
 import { supabase } from "@/integrations/supabase/client";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
+import { MAX_REFERENCE_QUERY_LENGTH, parseReferenceUrlSearch, referenceQueryFromUrl } from "@/lib/v3-reference-url-search";
 import { parseReferenceSearchRows } from "@/lib/v3-reference-search-rows";
 
 export const Route = createFileRoute("/encyclopedia/")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    // Backward-compatible search hint only. This must not become Artist identity.
-    artist: typeof search.artist === "string" ? search.artist : undefined,
-  }),
+  validateSearch: parseReferenceUrlSearch,
   head: () => ({
     meta: [
       { title: "Reference — Solaris Studio" },
@@ -65,7 +64,6 @@ const RESULT_LABELS: Record<ResultKind, string> = {
 };
 const KINDS = Object.keys(KIND_LABELS) as Kind[];
 const REFERENCE_SEARCH_DELAY_MS = 300;
-const MAX_REFERENCE_QUERY_LENGTH = 120;
 const BROWSE_DESTINATIONS = [
   { kind: "edition", label: "Editions", description: "Browse every published Solaris edition.", href: "/editions" },
   { kind: "country", label: "Countries", description: "Open canonical country profiles and participation history.", href: "/countries" },
@@ -97,11 +95,33 @@ function parseCoverage(value: unknown): Coverage {
 
 function ReferencePage() {
   const { platformResolved } = useSolarisApp();
+  const { allowsReleased } = usePublicLaunchAvailability();
   const presentation = useV3DirectoryPresentation();
   const search = Route.useSearch();
-  const [query, setQuery] = useState(search.artist ?? "");
-  const [kind, setKind] = useState<Kind>("all");
+  const navigate = Route.useNavigate();
+  const urlQuery = referenceQueryFromUrl(search);
+  const urlKind: Kind = search.kind ?? "all";
+  const [query, setQuery] = useState(urlQuery);
+  const [kind, setKind] = useState<Kind>(urlKind);
   const normalizedQuery = query.trim();
+  // Restore public navigation history without making a URL an authorization source.
+  useEffect(() => setQuery(urlQuery), [urlQuery]);
+  useEffect(() => setKind(urlKind), [urlKind]);
+  useEffect(() => {
+    if (!platformResolved || query.length > MAX_REFERENCE_QUERY_LENGTH) return;
+    if (normalizedQuery === urlQuery && kind === urlKind) return;
+    const timeoutId = window.setTimeout(() => {
+      void navigate({
+        search: {
+          q: normalizedQuery || undefined,
+          kind: kind === "all" ? undefined : kind,
+          artist: undefined,
+        },
+        replace: true,
+      });
+    }, REFERENCE_SEARCH_DELAY_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [platformResolved, query.length, normalizedQuery, urlQuery, kind, urlKind, navigate]);
   const [settledQuery, setSettledQuery] = useState(normalizedQuery);
   useEffect(() => {
     if (settledQuery === normalizedQuery) return;
@@ -115,11 +135,16 @@ function ReferencePage() {
     queryKey: ["studio2-feature", "public_encyclopedia"],
     queryFn: () => isStudio2FeatureEnabled("public_encyclopedia"),
     staleTime: 30_000,
+    refetchOnMount: "always",
+    retry: false,
   });
+  // Navigation restores filters only, not access to a private/public rollout.
+  const referenceReleased = feature.isSuccess && !feature.isFetching &&
+    !feature.isRefetchError && feature.data === true;
 
   const coverageQuery = useQuery({
     queryKey: ["v3", "reference", "coverage"],
-    enabled: feature.data === true,
+    enabled: referenceReleased,
     staleTime: 60 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc(
@@ -137,7 +162,7 @@ function ReferencePage() {
       "search",
       settledQuery.toLocaleLowerCase(),
     ],
-    enabled: feature.data === true && !dedicatedTopicOnly && normalizedQuery.length >= 2 &&
+    enabled: referenceReleased && !dedicatedTopicOnly && normalizedQuery.length >= 2 &&
       normalizedQuery.length <= MAX_REFERENCE_QUERY_LENGTH && !searchPending,
     staleTime: 60_000,
     queryFn: async () => {
@@ -156,22 +181,25 @@ function ReferencePage() {
   // Topic choices must also filter the idle browse index, not only typed search hits.
   // Entries have no independent public directory yet: users search the published projection.
   const browseDestinations = BROWSE_DESTINATIONS.filter((destination) =>
-    kind === "all" || destination.kind === kind,
+    (kind === "all" || destination.kind === kind) && allowsReleased(destination.href),
   );
 
+  // React Query can retain a previously published result after a failed refresh.
+  // A fresh public result is required before any archive row becomes a link.
+  const verifiedReferenceRows = referenceQuery.isSuccess && !referenceQuery.isFetching &&
+    !referenceQuery.isRefetchError ? referenceQuery.data ?? [] : [];
   const filtered = useMemo(
-    () =>
-      kind === "all"
-        ? referenceQuery.data ?? []
-        : (referenceQuery.data ?? []).filter((item) => item.kind === kind),
-    [kind, referenceQuery.data],
+    () => verifiedReferenceRows.filter(
+      (item) => (kind === "all" || item.kind === kind) && allowsReleased(item.href),
+    ),
+    [kind, verifiedReferenceRows, allowsReleased],
   );
 
   if (!platformResolved) {
     return <div data-directory-boot="" role="status" aria-label="Opening Reference" className="min-h-20" />;
   }
 
-  if (feature.isLoading) {
+  if (feature.isLoading || feature.isFetching) {
     return (
       <AppShell>
         <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
@@ -182,7 +210,7 @@ function ReferencePage() {
     );
   }
 
-  if (feature.isError) {
+  if (feature.isError || feature.isRefetchError) {
     return (
       <AppShell>
         <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
@@ -201,7 +229,7 @@ function ReferencePage() {
     );
   }
 
-  if (feature.data !== true) {
+  if (!referenceReleased) {
     return (
       <AppShell>
         <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
@@ -217,11 +245,11 @@ function ReferencePage() {
     );
   }
 
-  const coverage = coverageQuery.data;
+  const coverage = coverageQuery.isSuccess && !coverageQuery.isFetching && !coverageQuery.isRefetchError ? coverageQuery.data : undefined;
   const coverageValue = (value: number | undefined) =>
-    coverageQuery.isLoading
+    coverageQuery.isLoading || coverageQuery.isFetching
       ? "…"
-      : coverageQuery.isError || value === undefined
+      : coverageQuery.isError || coverageQuery.isRefetchError || value === undefined
         ? "—"
         : value;
 
@@ -258,7 +286,7 @@ function ReferencePage() {
           <StatTile label="Shows" value={coverageValue(coverage?.shows)} />
           <StatTile label="Stories" value={coverageValue(coverage?.stories)} />
         </div>
-        {coverageQuery.isError ? (
+        {coverageQuery.isError || coverageQuery.isRefetchError ? (
           <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
             <p>Archive totals are temporarily unavailable. Search and reference links still work.</p>
             <button type="button" onClick={() => void coverageQuery.refetch()}
@@ -375,11 +403,11 @@ function ReferencePage() {
         <div className="mt-5 rounded-2xl border border-border bg-surface p-7 text-center text-sm text-muted-foreground" role="status">
           Search terms must be no longer than {MAX_REFERENCE_QUERY_LENGTH} characters.
         </div>
-      ) : searchPending || referenceQuery.isLoading ? (
+      ) : searchPending || referenceQuery.isLoading || referenceQuery.isFetching ? (
         <div className="mt-5 rounded-2xl border border-border bg-surface p-7 text-center text-sm text-muted-foreground">
           Searching the published reference…
         </div>
-      ) : referenceQuery.isError ? (
+      ) : referenceQuery.isError || referenceQuery.isRefetchError ? (
         <Panel title="Reference search is temporarily unavailable">
           <p className="text-sm text-muted-foreground">
             Solaris could not load the bounded public search projection. No private archive data
@@ -455,6 +483,7 @@ function ReferencePage() {
 }
 
 function ReferenceDirectoryHeader({ presentation }: { presentation: V3DirectoryPresentation }) {
+  const { allowsReleased } = usePublicLaunchAvailability();
   if (presentation === "mobile-web") {
     return (
       <header className="v3-directory-mobile-header" data-directory-mobile-header="">
@@ -478,7 +507,7 @@ function ReferenceDirectoryHeader({ presentation }: { presentation: V3DirectoryP
       eyebrow="Explore Solaris"
       title="Reference"
       description="A publication-safe knowledge base across editions, countries, published entries and shows."
-      actions={<Link to="/countries" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold">Browse countries →</Link>}
+      actions={allowsReleased("/countries") ? <Link to="/countries" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold">Browse countries →</Link> : undefined}
     />
   );
 }

@@ -14,7 +14,8 @@ describe("V3 Reference convergence", () => {
     expect(source).toContain('isStudio2FeatureEnabled("public_encyclopedia")');
     expect(source).toContain('enabled: platformResolved');
     expect(source).toContain('referenceRollout.data === true');
-    expect(source).toContain('if (!platformResolved || referenceRollout.isLoading)');
+    expect(source).toContain('if (!platformResolved || referenceRollout.isLoading || referenceRollout.isFetching)');
+    expect(source).toContain('referenceRollout.isSuccess && !referenceRollout.isRefetchError');
     expect(source).toContain('<Navigate to="/encyclopedia" search={{ artist: undefined }} replace />');
   });
 
@@ -22,8 +23,9 @@ describe("V3 Reference convergence", () => {
     const source = wikiRoot();
 
     expect(source).toContain('return isAppMode ? <AppWikiIndexPage /> : <WebWikiIndexPage />');
-    expect(source).toContain('referenceRollout.isError');
-    expect(source).toContain('referenceRollout.isLoading');
+    expect(source).toContain('referenceRollout.isSuccess && !referenceRollout.isRefetchError');
+    expect(source).toContain('referenceRollout.isLoading || referenceRollout.isFetching');
+    expect(source).toContain('refetchOnMount: "always"');
   });
 
   it("routes rolled-out Wiki country articles to canonical Country identity", () => {
@@ -45,12 +47,15 @@ describe("V3 Reference convergence", () => {
   });
 
   it("keeps historical Wiki routes stable when the rollout is unresolved or fails", () => {
-    for (const file of ["src/routes/wiki/index.tsx", "src/routes/wiki/$code.tsx"]) {
-      const source = read(file);
-      expect(source).toContain('enabled: platformResolved');
-      expect(source).toContain('!platformResolved || referenceRollout.isLoading');
-      expect(source).toContain('!referenceRollout.isError && referenceRollout.data === true');
-    }
+    const root = wikiRoot();
+    expect(root).toContain('enabled: platformResolved');
+    expect(root).toContain('!platformResolved || referenceRollout.isLoading || referenceRollout.isFetching');
+    expect(root).toContain('referenceRollout.isSuccess && !referenceRollout.isRefetchError && referenceRollout.data === true');
+    expect(root).toContain('refetchOnMount: "always"');
+    const country = wikiCountry();
+    expect(country).toContain('enabled: platformResolved');
+    expect(country).toContain('!platformResolved || referenceRollout.isLoading');
+    expect(country).toContain('!referenceRollout.isError && referenceRollout.data === true');
     expect(wikiRoot()).toContain("return isAppMode ? <AppWikiIndexPage /> : <WebWikiIndexPage />");
     expect(wikiCountry()).toContain("<CountryWikiExperience code={code} />");
   });

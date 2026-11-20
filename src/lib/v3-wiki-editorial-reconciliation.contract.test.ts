@@ -16,7 +16,8 @@ describe("V3 Wiki: editorial presentation and public-refresh reconciliation", ()
   });
 
   it("never treats a cached public country row as current publication authority", () => {
-    expect(wiki.split("countriesQuery.isSuccess && !countriesQuery.isFetching && !countriesQuery.isRefetchError").length - 1).toBe(2);
+    expect(wiki.split("countriesQuery.isSuccess && !countriesQuery.isFetching && !countriesQuery.isRefetchError").length - 1).toBeGreaterThanOrEqual(2);
+    expect(wiki.split("const countries = countriesQuery.isSuccess").length - 1).toBe(2);
     expect(wiki).toContain("countriesQuery.isError || countriesQuery.isRefetchError");
     expect(wiki).toContain("countriesQuery.isLoading || countriesQuery.isFetching");
     expect(wiki).toContain("WikiPublicReadError");

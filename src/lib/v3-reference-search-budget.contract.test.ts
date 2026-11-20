@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { MAX_REFERENCE_QUERY_LENGTH } from "./v3-reference-url-search";
 
 const reference = readFileSync("src/routes/encyclopedia/index.tsx", "utf8");
 
@@ -16,7 +17,8 @@ describe("V3 Reference search request budget", () => {
   });
 
   it("respects the server search length limit and avoids an unbounded fallback", () => {
-    expect(reference).toContain("const MAX_REFERENCE_QUERY_LENGTH = 120");
+    expect(reference).toContain("MAX_REFERENCE_QUERY_LENGTH, parseReferenceUrlSearch");
+    expect(MAX_REFERENCE_QUERY_LENGTH).toBe(120);
     expect(reference).toContain("normalizedQuery.length >= 2");
     expect(reference).toContain("normalizedQuery.length > MAX_REFERENCE_QUERY_LENGTH");
     expect(reference).toContain("Search terms must be no longer than");
