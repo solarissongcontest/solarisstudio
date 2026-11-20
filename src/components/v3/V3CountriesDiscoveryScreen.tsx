@@ -158,6 +158,20 @@ export function V3CountriesDiscoveryScreen({
       </header>
       )}
 
+      {currentLineupReady && movementGroups.length > 0 ? (
+        <section className="v3-countries-current-pulse" aria-label="Current edition country changes">
+          <div>
+            <p className="v3-countries-current-pulse__eyebrow">This edition</p>
+            <h3>Countries in motion</h3>
+            <p>Explore newly participating and changed delegations using published lineup data.</p>
+          </div>
+          <a href="#countries-current-movement" className="v3-countries-current-pulse__link">
+            {movementGroups.map((group) => `${group.countries.length} ${group.label.toLowerCase()}`).join(" · ")}
+            <ChevronRight size={17} aria-hidden="true" />
+          </a>
+        </section>
+      ) : null}
+
       <section
         id="countries-browse-all"
         aria-labelledby="countries-page-title"
