@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Check, ChevronRight, Search, SlidersHorizontal, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
@@ -8,6 +8,10 @@ import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/s
 import { useV3DirectoryPresentation, type V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import { directoryCountLabel } from "@/lib/v3-directory-count";
 import { matchesPublicDirectorySearch } from "@/lib/v3-public-directory-search";
+import {
+  MAX_PUBLIC_DIRECTORY_QUERY_LENGTH,
+  parseEditionDirectoryUrlSearch,
+} from "@/lib/v3-directory-url-search";
 import "@/styles/v3-directory-family.css";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
@@ -27,6 +31,7 @@ import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 import { usePublicFinalWinners } from "@/lib/public-final-winners";
 
 export const Route = createFileRoute("/editions/")({
+  validateSearch: parseEditionDirectoryUrlSearch,
   head: () => ({
     meta: [
       { title: "Editions — Solaris Song Contest" },
@@ -65,8 +70,24 @@ type EditionCard = {
 function EditionsPage() {
   const { platformResolved } = useSolarisApp();
   const presentation = useV3DirectoryPresentation();
-  const [search, setSearch] = useState("");
-  const [scope, setScope] = useState<EditionDirectoryScope>("all");
+  const urlSearch = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const [search, setSearch] = useState(urlSearch.q ?? "");
+  const [scope, setScope] = useState<EditionDirectoryScope>(urlSearch.scope ?? "all");
+  const changeSearch = (value: string) =>
+    setSearch(value.slice(0, MAX_PUBLIC_DIRECTORY_QUERY_LENGTH));
+  useEffect(() => setSearch(urlSearch.q ?? ""), [urlSearch.q]);
+  useEffect(() => setScope(urlSearch.scope ?? "all"), [urlSearch.scope]);
+  useEffect(() => {
+    if (!platformResolved) return;
+    const q = search.trim() || undefined;
+    const selectedScope = scope === "all" ? undefined : scope;
+    if (q === urlSearch.q && selectedScope === urlSearch.scope) return;
+    const timer = window.setTimeout(() => {
+      void navigate({ search: { q, scope: selectedScope }, replace: true });
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [platformResolved, search, scope, urlSearch.q, urlSearch.scope, navigate]);
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
   const countriesQuery = useCountries();
@@ -233,7 +254,7 @@ function EditionsPage() {
     <EditionDirectoryControls
       presentation={presentation}
       search={search}
-      setSearch={setSearch}
+      setSearch={changeSearch}
       scope={scope}
       setScope={setScope}
       latestCount={latestCount}

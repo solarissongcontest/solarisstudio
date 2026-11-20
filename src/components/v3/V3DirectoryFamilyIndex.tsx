@@ -11,6 +11,7 @@ import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/s
 import { useV3DirectoryPresentation, type V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import { directoryCountLabel, resolveDirectoryScope } from "@/lib/v3-directory-count";
 import { matchesPublicDirectorySearch } from "@/lib/v3-public-directory-search";
+import { MAX_PUBLIC_DIRECTORY_QUERY_LENGTH, type PublicDirectoryUrlSearch } from "@/lib/v3-directory-url-search";
 import "@/styles/v3-directory-family.css";
 
 export type V3DirectoryItem = {
@@ -47,6 +48,8 @@ export function V3DirectoryFamilyIndex({
   groups,
   context,
   noShell = false,
+  urlSearch,
+  onUrlSearchChange,
 }: {
   variant?: "tools" | "sitemap" | "archive";
   title: string;
@@ -62,15 +65,34 @@ export function V3DirectoryFamilyIndex({
   context?: ReactNode;
   /** Rules owns its own governed rollout shell. */
   noShell?: boolean;
+  /** Optional validated permalink state, supplied by the owning route. */
+  urlSearch?: PublicDirectoryUrlSearch;
+  onUrlSearchChange?: (search: PublicDirectoryUrlSearch) => void;
 }) {
   const { allowsReleased: allows } = usePublicLaunchAvailability();
   groups = groups.map(group => ({ ...group, items: group.items.filter(item => allows(item.to)) }))
     .filter(group => group.items.length > 0);
   const { platformResolved } = useSolarisApp();
   const presentation = useV3DirectoryPresentation();
-  const [search, setSearch] = useState("");
-  const [area, setArea] = useState("all");
+  const [search, setSearch] = useState(urlSearch?.q ?? "");
+  const [area, setArea] = useState(urlSearch?.area ?? "all");
+  const changeSearch = (value: string) =>
+    setSearch(value.slice(0, MAX_PUBLIC_DIRECTORY_QUERY_LENGTH));
   const effectiveArea = resolveDirectoryScope(area, groups);
+  // Restore browser back/forward navigation; never use URL filters as access control.
+  useEffect(() => setSearch(urlSearch?.q ?? ""), [urlSearch?.q]);
+  useEffect(() => setArea(urlSearch?.area ?? "all"), [urlSearch?.area]);
+  useEffect(() => {
+    if (!platformResolved || !urlSearch || !onUrlSearchChange) return;
+    const q = search.trim() || undefined;
+    const selectedArea = effectiveArea === "all" ? undefined : effectiveArea;
+    if (q === urlSearch.q && selectedArea === urlSearch.area) return;
+    // Replace typing history rather than adding a history entry per keystroke.
+    const timer = window.setTimeout(
+      () => onUrlSearchChange({ q, area: selectedArea }), 250,
+    );
+    return () => window.clearTimeout(timer);
+  }, [platformResolved, search, effectiveArea, urlSearch?.q, urlSearch?.area, onUrlSearchChange]);
   // Revoked/unpublished category choices must not silently come back later.
   useEffect(() => {
     if (effectiveArea !== area) setArea("all");
@@ -107,12 +129,12 @@ export function V3DirectoryFamilyIndex({
   }
 
   const searchField = presentation === "installed-app" ? (
-    <SolarisSearchField value={search} onChange={setSearch} label={searchLabel} placeholder={searchPlaceholder} />
+    <SolarisSearchField value={search} onChange={changeSearch} label={searchLabel} placeholder={searchPlaceholder} />
   ) : (
     <div className="v3-directory-search" role="search">
       <Search size={18} aria-hidden="true" />
       <input type="search" className="solaris-app-search-input" value={search} aria-label={searchLabel}
-        onChange={(event) => setSearch(event.target.value)} placeholder={searchPlaceholder} autoComplete="off" />
+        onChange={(event) => changeSearch(event.target.value)} placeholder={searchPlaceholder} autoComplete="off" />
       {search ? (
         <button type="button" className="v3-directory-search-clear" aria-label="Clear search" onClick={() => setSearch("")}>
           <X size={16} aria-hidden="true" />

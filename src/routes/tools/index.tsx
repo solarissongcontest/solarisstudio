@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { parsePublicDirectoryUrlSearch } from "@/lib/v3-directory-url-search";
 
 import { V3DirectoryFamilyIndex, type V3DirectoryGroup } from "@/components/v3/V3DirectoryFamilyIndex";
 import { PUBLIC_TOOL_GROUPS } from "@/lib/v3-tool-directory";
 
 export const Route = createFileRoute("/tools/")({
+  validateSearch: parsePublicDirectoryUrlSearch,
   head: () => ({
     meta: [
       { title: "Tools — Solaris Studio" },
@@ -27,8 +29,12 @@ const GROUPS: V3DirectoryGroup[] = PUBLIC_TOOL_GROUPS.map((group) => ({
 }));
 
 function ToolsPage() {
+  const urlSearch = Route.useSearch();
+  const navigate = Route.useNavigate();
   return (
     <V3DirectoryFamilyIndex
+      urlSearch={urlSearch}
+      onUrlSearchChange={(next) => { void navigate({ search: next, replace: true }); }}
       variant="tools"
       title="Tools"
       eyebrow="DISCOVER & ANALYSE"

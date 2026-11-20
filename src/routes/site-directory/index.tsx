@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { parsePublicDirectoryUrlSearch } from "@/lib/v3-directory-url-search";
 
 import { V3DirectoryFamilyIndex, type V3DirectoryGroup } from "@/components/v3/V3DirectoryFamilyIndex";
 import { publicSearchText } from "@/lib/public-navigation";
@@ -11,6 +12,7 @@ import {
 } from "@/lib/v3-site-directory";
 
 export const Route = createFileRoute("/site-directory/")({
+  validateSearch: parsePublicDirectoryUrlSearch,
   head: () => ({
     meta: [
       { title: "All Solaris pages — Solaris Studio" },
@@ -37,8 +39,12 @@ const GROUPS: V3DirectoryGroup[] = SITE_DIRECTORY_AREA_ORDER.map((area) => ({
 })).filter((group) => group.items.length > 0);
 
 function SiteDirectoryPage() {
+  const urlSearch = Route.useSearch();
+  const navigate = Route.useNavigate();
   return (
     <V3DirectoryFamilyIndex
+      urlSearch={urlSearch}
+      onUrlSearchChange={(next) => { void navigate({ search: next, replace: true }); }}
       variant="sitemap"
       title={GLOBAL_MAINTENANCE_MODE ? "Available Solaris pages" : "All Solaris pages"}
       eyebrow="FIND YOUR WAY"
