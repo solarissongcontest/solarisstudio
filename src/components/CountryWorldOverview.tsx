@@ -43,11 +43,10 @@ export function CountryWorldOverview({ country }: { country: Country }) {
         description="Terra Solaris national profile"
         actions={
           <Link
-            to="/wiki/$code"
-            params={{ code: country.short_code }}
+            to="/wiki"
             className="rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold"
           >
-            Open Wiki →
+            Browse Wiki / Reference →
           </Link>
         }
       >
@@ -98,16 +97,14 @@ export function CountryWorldSupplement({
   return (
     <div className="space-y-5">
       <CountryNationalFinals country={country} />
-      {data?.schemaReady ? (
-        <CountryCustomSections
-          country={country}
-          profile={data.profile}
-          sections={data.sections}
-          media={data.media}
-          surface="country"
-          defaultLayout={defaultLayout}
-        />
-      ) : null}
+      <CountryCustomSections
+        country={country}
+        profile={data?.profile}
+        sections={data?.schemaReady ? data.sections : []}
+        media={data?.schemaReady ? data.media : []}
+        surface="country"
+        defaultLayout={defaultLayout}
+      />
     </div>
   );
 }
