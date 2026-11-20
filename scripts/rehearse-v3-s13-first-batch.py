@@ -176,7 +176,9 @@ def rehearse(container,source_db,package,output,baseline_kind):
     validate_container(container); manifest=validate_package(package)
     if not re.fullmatch('[a-z_][a-z_0-9]{0,62}',source_db):raise RehearsalFailure('Unreviewed source database identifier')
     if sql(container,source_db,"SELECT current_setting('server_version_num')")!='170011':raise RehearsalFailure('Actual PostgreSQL17.11 required')
-    cron=sql(container,source_db,"SELECT coalesce(current_setting('cron.launch_active_jobs',true),'not_installed')")
+    # pg_cron marks this GUC superuser-only. Read it with the isolated bootstrap
+    # admin after container validation; never grant the restricted owner broader rights.
+    cron=sql(container,source_db,"SELECT coalesce(current_setting('cron.launch_active_jobs',true),'not_installed')",actor='supabase_admin')
     if cron not in ('off','not_installed'):raise RehearsalFailure('Local restored cron must be disabled')
     baseline=tables(container,source_db)
     if baseline_kind=='recovered-private':
