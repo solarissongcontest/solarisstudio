@@ -34,7 +34,7 @@ const EDITION_ROUTE_FAMILIES = [
 
 export function matchesAdminEditionRoute(pathname: string, editionSlug: string): boolean {
   if (!editionSlug) return false;
-  const normalized = pathname.replace(/\\/$/, "");
+  const normalized = pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
   if (normalized === `/admin/${editionSlug}`) return true;
   return EDITION_ROUTE_FAMILIES.some((family) => {
     const prefix = `/admin/${family}/${editionSlug}`;
