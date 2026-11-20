@@ -118,42 +118,29 @@ supabase_functions_admin supabase_privileged_role supabase_read_only_user
 supabase_realtime_admin supabase_replication_admin supabase_storage_admin
 pgsodium_keymaker pgsodium_keyholder pgsodium_keyiduser
 """.split())
+# Only TABLE definition records provide the owner evidence we need here.
+# pg_restore TOC entries for indexes, ACLs, triggers and functions often end
+# with *object identifiers*, not role names. Counting those as owners falsely
+# reports dozens of invented roles and breaks this safe local rehearsal.
 owners = set()
 table_definitions = 0
-unparsed_other_entries = 0
 valid_role = re.compile(r'[A-Za-z_][A-Za-z_0-9$]{0,62}\Z')
 for line in toc.splitlines():
-    m = re.match(r'^\d+;\s+\d+\s+\d+\s+(.+)$', line)
+    m = re.match(r'^\d+;\s+\d+\s+\d+\s+TABLE\s+(.+)$', line)
     if not m:
         continue
     rest = m.group(1)
-    # pg_restore human-oriented TOC can give non-table descriptors with
-    # unusual trailing tokens which are not valid role identifiers.
-    # TABLE owner entries remain strict, while real pg_restore remains the
-    # authority for owners, grants and other object dependencies.
-    table_definition = (rest.startswith('TABLE ') and
-                        not rest.startswith(('TABLE DATA ', 'TABLE ATTACH ')))
-    if table_definition:
-        table_definitions += 1
-    elif not re.match(r'^(?:TABLE DATA|SCHEMA|ACL|DEFAULT ACL|POLICY|'
-                      r'FUNCTION|PROCEDURE|SEQUENCE|VIEW|MATERIALIZED VIEW|'
-                      r'TYPE|INDEX|TRIGGER|EXTENSION)\s+', rest):
+    if rest.startswith(('DATA ', 'ATTACH ')):
         continue
+    table_definitions += 1
+    # Only parse the trailing owner field, never interpolate a TOC token as
+    # SQL. The verified November 15 archive contains 225 TABLE definitions.
     candidate = rest.rsplit(None, 1)[-1]
-    if candidate == '-':
-        continue
     if not valid_role.fullmatch(candidate):
-        if table_definition:
-            raise SystemExit('STOP: unusual TABLE owner field; no roles generated')
-        unparsed_other_entries += 1
-        continue
+        raise SystemExit('STOP: unusual TABLE owner field; no roles generated')
     owners.add(candidate)
 if table_definitions != 225 or not owners or len(owners) > 50:
     raise SystemExit('STOP: unexpected TABLE owner inventory')
-if unparsed_other_entries:
-    print('NOTICE: ignored %d non-table TOC descriptor tails; '
-          'the actual owner/ACL restore remains fail-closed' %
-          unparsed_other_entries, file=sys.stderr)
 roles = sorted(known | owners)
 if len(roles) > 75: raise SystemExit("STOP: role inventory is too large")
 for role in roles:
