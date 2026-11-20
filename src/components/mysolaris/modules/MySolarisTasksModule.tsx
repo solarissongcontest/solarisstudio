@@ -270,6 +270,7 @@ export function MySolarisTasksModule() {
               <AppTaskCenter
                 editionLabel={`${snapshot.context.editionName} · ${snapshot.context.countryName}`}
                 tasks={tasksFromHodWorkspace(snapshot)}
+                readOnly={organizerInspection}
               />
             ) : null}
 
