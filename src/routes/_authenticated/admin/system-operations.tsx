@@ -330,7 +330,7 @@ function SystemOperationsPage() {
                       key={delivery.id}
                       className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between"
                     >
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-sm font-semibold">
                             {humanize(delivery.eventType)}
@@ -340,21 +340,23 @@ function SystemOperationsPage() {
                           </AdminStatus>
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {humanize(delivery.category)} · {delivery.route}
+                          {deliveryOperationalSummary(delivery)}
                         </p>
                         <p className="mt-1 text-[11px] text-muted-foreground">
-                          {delivery.displayedAt
-                            ? `Displayed ${formatDate(delivery.displayedAt)}`
-                            : delivery.receivedAt
-                              ? `Received by device ${formatDate(delivery.receivedAt)}`
-                              : delivery.providerAcceptedAt
-                                ? `Provider accepted ${formatDate(delivery.providerAcceptedAt)}`
-                                : `Created ${formatDate(delivery.createdAt)}`}
+                          {humanize(delivery.category)} · {delivery.route} · {deliveryStageLabel(delivery)}
                         </p>
                         {delivery.error ? (
-                          <p className="mt-2 max-w-3xl text-xs leading-5 text-amber-100/80">
-                            {delivery.error}
-                          </p>
+                          <details className="mt-2 max-w-3xl rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+                            <summary className="cursor-pointer text-xs font-semibold text-muted-foreground hover:text-foreground">
+                              Technical delivery details
+                            </summary>
+                            <p className="mt-2 break-words text-xs leading-5 text-amber-100/80">
+                              {delivery.error}
+                            </p>
+                            <p className="mt-2 break-words text-[11px] leading-5 text-muted-foreground">
+                              Delivery {delivery.id} · scheduled {formatDate(delivery.scheduledFor)}
+                            </p>
+                          </details>
                         ) : null}
                       </div>
                       {delivery.status === "failed" ? (
@@ -411,7 +413,7 @@ function SystemOperationsPage() {
               <AdminCardHeader
                 eyebrow="Scheduler"
                 title="Solaris background jobs"
-                description="Only Solaris-owned cron jobs are shown. A failed scheduled action remains operational evidence instead of disappearing into the database scheduler."
+                description="Only Solaris-owned cron jobs are shown. Operational meaning stays visible first; scheduler identifiers and raw messages are available under Technical details."
                 action={
                   <AdminStatus tone={jobAttention ? "attention" : "ready"}>
                     {jobAttention ? "Review" : "Healthy"}
@@ -427,26 +429,13 @@ function SystemOperationsPage() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="font-semibold">{job.name}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {job.schedule}
+                          <p className="font-semibold">{jobDisplayName(job.name)}</p>
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                            {jobOperationalSummary(job)}
                           </p>
                         </div>
-                        <AdminStatus
-                          tone={
-                            !job.active || job.deadLettered
-                              ? "blocked"
-                              : job.lastStatus &&
-                                  !["succeeded", "success"].includes(job.lastStatus.toLowerCase())
-                                ? "attention"
-                                : "ready"
-                          }
-                        >
-{!job.active
-                            ? "inactive"
-                            : job.deadLettered
-                              ? "dead-letter"
-                              : job.lastStatus ?? "waiting"}
+                        <AdminStatus tone={jobTone(job)}>
+                          {jobStatusLabel(job)}
                         </AdminStatus>
                       </div>
                       <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -461,23 +450,12 @@ function SystemOperationsPage() {
                           value={job.lastEndAt ? formatDate(job.lastEndAt) : "—"}
                         />
                       </div>
-                      {job.lastMessage ? (
-                        <p className="mt-3 break-words text-xs leading-5 text-muted-foreground">
-                          {job.lastMessage}
-                        </p>
-                      ) : null}
                       <div className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                           Recovery
                         </p>
                         <p className="mt-1 text-xs font-semibold">
-                          {job.recoveryMode === "healthy"
-                            ? "No recovery needed"
-                            : job.recoveryMode === "scheduled_retry"
-                              ? "Automatic retry on the next scheduled run"
-                              : job.recoveryMode === "scheduled_retry_dead_letter"
-                                ? "Dead-letter attention · scheduler still retries automatically"
-                                : "Operator intervention required · scheduler job is inactive"}
+                          {jobRecoveryLabel(job)}
                         </p>
                         {job.consecutiveFailures > 0 ? (
                           <p className="mt-1 text-[11px] text-muted-foreground">
@@ -490,7 +468,27 @@ function SystemOperationsPage() {
                         ) : null}
                       </div>
 
-
+                      <details className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.018] p-3">
+                        <summary className="cursor-pointer text-xs font-semibold text-muted-foreground hover:text-foreground">
+                          Technical job details
+                        </summary>
+                        <dl className="mt-2 grid gap-2 text-[11px] leading-5 text-muted-foreground">
+                          <div>
+                            <dt className="font-semibold text-foreground/80">Scheduler name</dt>
+                            <dd className="break-words">{job.name}</dd>
+                          </div>
+                          <div>
+                            <dt className="font-semibold text-foreground/80">Cron schedule</dt>
+                            <dd className="break-words">{job.schedule}</dd>
+                          </div>
+                          {job.lastMessage ? (
+                            <div>
+                              <dt className="font-semibold text-foreground/80">Last scheduler message</dt>
+                              <dd className="break-words">{job.lastMessage}</dd>
+                            </div>
+                          ) : null}
+                        </dl>
+                      </details>
                     </div>
                   ))}
                 </div>
@@ -562,8 +560,94 @@ function deliveryTone(status: DeliveryStatus) {
   return "neutral" as const;
 }
 
+function deliveryOperationalSummary(delivery: DeliveryRow) {
+  switch (delivery.status) {
+    case "failed":
+      return "This notification was conclusively marked failed. A safe same-operation retry is available.";
+    case "processing":
+      return "Delivery is in progress. Do not replay it manually while the bounded queue lease is active.";
+    case "pending":
+      return "Waiting for the dispatcher to claim this delivery.";
+    case "suppressed":
+      return "Delivery was intentionally suppressed by policy. No retry is required.";
+    case "sent":
+      return delivery.displayedAt
+        ? "The device displayed this notification."
+        : delivery.receivedAt
+          ? "The device received this notification; display has not been recorded yet."
+          : delivery.providerAcceptedAt
+            ? "The provider accepted this notification; device receipt has not been recorded yet."
+            : "The dispatcher marked this notification sent.";
+  }
+}
+
+function deliveryStageLabel(delivery: DeliveryRow) {
+  if (delivery.displayedAt) return `Displayed ${formatDate(delivery.displayedAt)}`;
+  if (delivery.receivedAt) return `Received by device ${formatDate(delivery.receivedAt)}`;
+  if (delivery.providerAcceptedAt) return `Provider accepted ${formatDate(delivery.providerAcceptedAt)}`;
+  if (delivery.sentAt) return `Sent ${formatDate(delivery.sentAt)}`;
+  return `Created ${formatDate(delivery.createdAt)}`;
+}
+
+function jobDisplayName(name: string) {
+  const withoutPrefix = name.replace(/^solaris[-_: ]*/i, "");
+  return humanize(withoutPrefix || name);
+}
+
+function jobOperationalSummary(job: JobRow) {
+  if (!job.active) {
+    return "Scheduled work is stopped. An operator must restore this job before its next responsibility can run.";
+  }
+  if (job.deadLettered) {
+    return "Repeated failures need attention. Solaris keeps the failure visible as an Organizer task until a successful run clears it.";
+  }
+  if (job.recoveryMode === "operator_intervention") {
+    return "Automatic recovery is not available. Review the job before relying on this automation.";
+  }
+  if (job.recoveryMode === "scheduled_retry_dead_letter") {
+    return "Repeated failures are recorded, but the scheduler will still make the next bounded retry automatically.";
+  }
+  if (job.recoveryMode === "scheduled_retry") {
+    return "The last run failed. Solaris will retry automatically on the next scheduled run.";
+  }
+  if (!job.lastStatus) {
+    return "No completed run has been recorded yet.";
+  }
+  if (!["succeeded", "success"].includes(job.lastStatus.toLowerCase())) {
+    return "The latest completed run did not succeed. Review the recovery state before relying on this automation.";
+  }
+  return "The latest completed run succeeded and no recovery is currently required.";
+}
+
+function jobRecoveryLabel(job: JobRow) {
+  switch (job.recoveryMode) {
+    case "healthy":
+      return "No recovery needed";
+    case "scheduled_retry":
+      return "Automatic retry on the next scheduled run";
+    case "scheduled_retry_dead_letter":
+      return "Dead-letter attention · scheduler still retries automatically";
+    case "operator_intervention":
+      return "Operator intervention required · scheduler job is inactive";
+  }
+}
+
+function jobStatusLabel(job: JobRow) {
+  if (!job.active) return "inactive";
+  if (job.deadLettered) return "dead-letter";
+  return job.lastStatus ?? "waiting";
+}
+
+function jobTone(job: JobRow) {
+  if (!job.active || job.deadLettered) return "blocked" as const;
+  if (job.lastStatus && !["succeeded", "success"].includes(job.lastStatus.toLowerCase())) {
+    return "attention" as const;
+  }
+  return "ready" as const;
+}
+
 function humanize(value: string) {
-  return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return value.replaceAll("_", " ").replace(/[-:]+/g, " ").replace(/\s+/g, " ").trim().replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function formatDate(value: string) {
