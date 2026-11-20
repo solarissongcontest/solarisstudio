@@ -51,14 +51,46 @@ done
 test "$READY" = 1 || { echo 'Isolated PostgreSQL not ready'; exit 1; }
 docker exec "$C" createdb -U postgres -T template0 solaris_restore
 echo '[5/5] Attempting isolated transactional restore'
-if age -d -i "$K" "$D" | docker exec -i "$C" sh -c 'pg_restore -U postgres -d solaris_restore --clean --if-exists --no-owner --no-acl --exit-on-error --single-transaction >/dev/null 2>/tmp/restore.log; r=$?; cat >/dev/null; cat /tmp/restore.log >&2; exit "$r"' 2>"$R/restore.private.log"; then
-  echo 'ISOLATED DATABASE RESTORE SUCCESSFUL'
-  docker exec "$C" psql -U postgres -d solaris_restore -At -c "select 'Restored tables: ' || count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind='r' and n.nspname in ('public','private','televoting','auth','storage','vault')"
-else
-  echo 'RESTORE FAILED; sanitized cause (no private rows):'
+# A scoped Supabase dump may reference a provider-managed schema without
+# containing CREATE SCHEMA for that dependency. Only bootstrap known schema
+# names in this disposable, network-disabled database. Do not fake success:
+# every retry must pass the full transactional pg_restore.
+RESTORED=0
+PRECREATED=""
+MISSING_SCHEMA=""
+for ATTEMPT in 1 2 3 4; do
+  echo "Restore attempt $ATTEMPT"
+  if age -d -i "$K" "$D" | docker exec -i "$C" sh -c 'pg_restore -U postgres -d solaris_restore --clean --if-exists --no-owner --no-acl --exit-on-error --single-transaction >/dev/null 2>/tmp/restore.log; r=$?; cat >/dev/null; cat /tmp/restore.log >&2; exit "$r"' 2>"$R/restore.private.log"; then
+    RESTORED=1
+    break
+  fi
+  MISSING_SCHEMA=$(grep -m 1 -oE 'schema "[a-z_][a-z0-9_]*" does not exist' "$R/restore.private.log" | sed -E 's/^schema "([^"]+)" does not exist$/\1/' || true)
+  case "$MISSING_SCHEMA" in
+    extensions|auth|storage|private|vault|televoting|net|cron|realtime|graphql|graphql_public)
+      case " $PRECREATED " in
+        *" $MISSING_SCHEMA "*) echo 'Previously prepared schema still missing. Stopping.'; break ;;
+      esac
+      echo "Restored fixture needs existing schema '$MISSING_SCHEMA'; creating it in isolated database only."
+      docker exec "$C" psql -U postgres -d solaris_restore -v ON_ERROR_STOP=1 -c "CREATE SCHEMA IF NOT EXISTS \"$MISSING_SCHEMA\";" >/dev/null || break
+      PRECREATED="$PRECREATED $MISSING_SCHEMA"
+      ;;
+    *) break ;;
+  esac
+done
+if [ "$RESTORED" != 1 ]; then
+  echo 'ISOLATED RESTORE NOT COMPLETED'
+  if [ -n "$MISSING_SCHEMA" ]; then
+    echo "Missing schema: $MISSING_SCHEMA"
+  fi
+  echo 'First redacted error:'
   grep -m 1 -oE 'extension "[a-zA-Z0-9_]+" is not available' "$R/restore.private.log" || \
-  (grep -m 1 -E '(pg_restore: error:|ERROR:)' "$R/restore.private.log" | sed -E 's/"[^"]*"/"[hidden]"/g' | cut -c 1-180) || true
-  echo "Full private log: $R/restore.private.log"
+    (grep -m 1 -E '(pg_restore: error:|ERROR:)' "$R/restore.private.log" | sed -E 's/"[^"]*"/"[hidden]"/g' | cut -c 1-180) || true
+  echo "Private diagnostic log: $R/restore.private.log"
   exit 1
+fi
+echo 'ISOLATED DATABASE RESTORE SUCCESSFUL (owner/ACL and Supabase services not restored)'
+docker exec "$C" psql -U postgres -d solaris_restore -At -c "select 'Restored tables: ' || count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind='r' and n.nspname in ('public','private','televoting','auth','storage','vault')"
+if [ -n "$PRECREATED" ]; then
+  echo "Local-only compatibility schemas created: $PRECREATED"
 fi
 echo 'Production unchanged. Still requires Storage service, role/Auth/Vault and migration rehearsal certification.'
