@@ -7,7 +7,7 @@ begin
      or current_setting('session_replication_role') <> 'origin' then
     raise exception 'S13 batch requires PG17.11, postgres owner session and origin triggers' using errcode='55000';
   end if;
-  if not exists(select 1 from pg_roles where rolname='postgres' and not rolsuper and rolbypassrls and rolcanlogin)
+  if not exists(select 1 from pg_roles where rolname='postgres' and not rolsuper and rolbypassrls)
      or not exists(select 1 from pg_database where datname=current_database() and pg_get_userbyid(datdba)='postgres') then
     raise exception 'S13 batch requires observed non-superuser postgres owner' using errcode='55000';
   end if;
@@ -32,6 +32,10 @@ begin
       and md5(pg_get_functiondef(oid))='84d3f05e5f537908732a3875ba0178e6'
       and md5(coalesce(array_to_string(proacl::text[],','),''))='341a58cafc38a872c684592babc76f83') then
     raise exception 'S13 batch current hosted helper fingerprint differs' using errcode='55000';
+  end if;
+  if exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='private'
+    and c.relname in ('v3_migration_contracts','v3_schema_compatibility','v3_schema_compatibility_history','v3_backfill_jobs','v3_migration_parity_runs')) then
+    raise exception 'S13 recovery blocked: target already exists; reconcile effects first' using errcode='55000';
   end if;
   foreach v_name in array array[
     'v3_migration_contracts_pkey','v3_schema_compatibility_pkey','v3_schema_compatibility_history_pkey',

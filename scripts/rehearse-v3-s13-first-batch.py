@@ -33,9 +33,11 @@ def exec_pg(container,*args,input=None):
     return command('docker','exec','-i',container,'env','-u','PGHOSTADDR','-u','PGSERVICE','-u','PGSERVICEFILE',
                    '-u','PGOPTIONS','-u','PGPASSWORD','-u','PGDATABASE','PGPASSFILE=/dev/null',*args,input=input)
 
-def sql(container,database,source):
+def sql(container,database,source,actor='postgres'):
+    if actor not in ('postgres','supabase_admin','anon','authenticated','service_role'):raise RehearsalFailure('Unreviewed SQL actor')
+    prefix='' if actor=='supabase_admin' else 'SET SESSION AUTHORIZATION '+actor+';\n'
     return exec_pg(container,'psql','-X','-qAt','-h','/var/run/postgresql','-p','5432',
-                   '-U','postgres','-d',database,'-v','ON_ERROR_STOP=1','-v','VERBOSITY=verbose',input=source.encode()).decode().strip()
+                   '-U','supabase_admin','-d',database,'-v','ON_ERROR_STOP=1','-v','VERBOSITY=verbose',input=(prefix+source).encode()).decode().strip()
 
 def tables(container,database):
     return json.loads(sql(container,database,"SELECT coalesce(json_agg(format('%I.%I',n.nspname,c.relname) ORDER BY n.nspname,c.relname),'[]') FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind IN ('r','p') AND n.nspname!~'^pg_' AND n.nspname<>'information_schema';"))
@@ -43,7 +45,7 @@ def tables(container,database):
 def data_digest(container,database,identities):
     if not identities:raise RehearsalFailure('Empty original-table preservation scope')
     args=['docker','exec',container,'env','-u','PGHOSTADDR','-u','PGSERVICE','-u','PGSERVICEFILE','-u','PGOPTIONS','-u','PGPASSWORD',
-          '-u','PGDATABASE','PGPASSFILE=/dev/null','pg_dump','-h','/var/run/postgresql','-p','5432','-U','postgres','-d',database,
+          '-u','PGDATABASE','PGPASSFILE=/dev/null','pg_dump','-h','/var/run/postgresql','-p','5432','-U','supabase_admin','-d',database,
           '--restrict-key=S13BatchLocalPreservationOnly','--no-comments']
     for identity in identities:args.extend(['--table',identity])
     # Stream into a digest, not stdout/files/memory/private logs. Dump errors are never echoed.
@@ -80,7 +82,7 @@ def catalog_digest(container,database):
       UNION ALL SELECT 'membership|'||to_jsonb(m)::text FROM pg_auth_members m
     ) SELECT encode(sha256(convert_to(coalesce(string_agg(value,chr(10) ORDER BY value),''),'UTF8')),'hex') FROM records;
     COMMIT;"""
-    return sql(container,database,source)
+    return sql(container,database,source,actor='supabase_admin')
 
 def validate_package(directory):
     manifest=json.loads((directory/'manifest.json').read_text())
@@ -117,7 +119,7 @@ def validate_package(directory):
     return manifest
 
 def expect_denial(container,database,statement,role):
-    try:sql(container,database,'BEGIN; SET LOCAL ROLE '+role+'; '+statement+'; ROLLBACK;')
+    try:sql(container,database,'BEGIN; '+statement+'; ROLLBACK;',actor=role)
     except subprocess.CalledProcessError as error:
         if b'42501' not in error.stderr:raise RehearsalFailure('Denial was not an authorization failure') from None
     else:raise RehearsalFailure('Unexpected API mutation permission')
@@ -135,7 +137,7 @@ def rehearse(container,source_db,package,output,baseline_kind):
     before_data=data_digest(container,source_db,baseline);before_catalog=catalog_digest(container,source_db)
     clone='solaris_s13_batch_'+uuid.uuid4().hex[:16];created=False
     try:
-        sql(container,source_db,f'CREATE DATABASE {clone} OWNER postgres TEMPLATE {source_db}');created=True
+        sql(container,source_db,f'CREATE DATABASE {clone} OWNER postgres TEMPLATE {source_db}',actor='supabase_admin');created=True
         clone_before_data=data_digest(container,clone,baseline);clone_before_catalog=catalog_digest(container,clone)
         if clone_before_data!=before_data or clone_before_catalog!=before_catalog:
             raise RehearsalFailure('Cloned baseline differs before installation')
@@ -153,7 +155,7 @@ def rehearse(container,source_db,package,output,baseline_kind):
         sql(container,clone,install)
         sql(container,clone,(package/'postcheck.sql').read_text())
         for role in ('anon','authenticated','service_role'):
-            state=json.loads(sql(container,clone,'SET ROLE '+role+'; SELECT public.v3_schema_compatibility(1);'))
+            state=json.loads(sql(container,clone,'SELECT public.v3_schema_compatibility(1);',actor=role))
             if state['status']!='compatible':raise RehearsalFailure('Compatibility read failed')
             for table in TABLES:
                 expect_denial(container,clone,'TRUNCATE private.'+table,role)
@@ -178,7 +180,7 @@ def rehearse(container,source_db,package,output,baseline_kind):
                 'baselineKind':baseline_kind,'privateBackupOriginIndependentlyVerified':False,
                 'operatorAssertedRecoveredBaseline':baseline_kind=='recovered-private',
                 'batchAcceptancePassed':True,'existingTablesVerified':len(baseline),'existingDataPreserved':True,
-                'existingCatalogPermissionsPreserved':True,'sourceDatabaseUnchanged':True,'transactionInterruptionRollback':True,
+                'existingCatalogPermissionsPreserved':True,'cloneOwnerMappedToObservedPostgres':True,'sourceDatabaseUnchanged':True,'transactionInterruptionRollback':True,
                 'identicalRetryPassed':True,'duplicateInstallationRefused':True,'apiWritersEnabled':False,
                 'productionAuthorized':False,'authVaultRestorationCertified':False,
                 'dataSha256':before_data,'catalogSha256':before_catalog}
@@ -186,7 +188,7 @@ def rehearse(container,source_db,package,output,baseline_kind):
         with os.fdopen(fd,'w')as out:json.dump(result,out,indent=2);out.write('\n')
         return result
     finally:
-        if created:sql(container,source_db,'DROP DATABASE '+clone)
+        if created:sql(container,source_db,'DROP DATABASE '+clone,actor='supabase_admin')
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)

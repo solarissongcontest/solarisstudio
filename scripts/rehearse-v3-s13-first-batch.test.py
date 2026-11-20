@@ -18,7 +18,8 @@ class Tests(unittest.TestCase):
     def command(cls,*args,input=None):return subprocess.run(args,input=input,capture_output=True,check=True).stdout
     @classmethod
     def sql(cls,source,database='postgres',user='postgres'):
-        return cls.command('docker','exec','-i',cls.container,'psql','-X','-qAt','-U',user,'-d',database,'-v','ON_ERROR_STOP=1','-v','VERBOSITY=verbose',input=source.encode()).decode().strip()
+        prefix='' if user=='supabase_admin' else 'SET SESSION AUTHORIZATION '+user+';\n'
+        return cls.command('docker','exec','-i',cls.container,'psql','-X','-qAt','-U','supabase_admin','-d',database,'-v','ON_ERROR_STOP=1','-v','VERBOSITY=verbose',input=(prefix+source).encode()).decode().strip()
     @classmethod
     def setUpClass(cls):
         if os.environ.get('SOLARIS_RUN_LOCAL_DB_REHEARSAL')!='YES':raise RuntimeError('Explicit isolated opt-in required')
@@ -32,9 +33,10 @@ class Tests(unittest.TestCase):
                 if subprocess.run(['docker','exec',cls.container,'sh','-c','test "$(cat /proc/1/comm)" = postgres && pg_isready -U supabase_admin'],capture_output=True).returncode==0:break
                 time.sleep(.2)
             else:raise RuntimeError('Isolated PG startup failed; no hosted fallback')
-            cls.sql('CREATE ROLE postgres LOGIN NOSUPERUSER CREATEDB CREATEROLE REPLICATION BYPASSRLS; CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS; GRANT anon,authenticated,service_role TO postgres; ALTER DATABASE postgres OWNER TO postgres;',user='supabase_admin')
+            cls.sql('CREATE ROLE postgres NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE BYPASSRLS; CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS; GRANT CREATE ON DATABASE postgres TO postgres;',user='supabase_admin')
             fixture=(ROOT/'docs/v3/recovery-candidates/fixtures/s13-production-dependency-subset-20261107.sql').read_text()
             cls.sql(fixture)
+            cls.sql('REVOKE CREATE ON DATABASE postgres FROM postgres',user='supabase_admin')
             cls.sql('''CREATE TABLE public.s13_prior_results(id integer PRIMARY KEY, published_points integer);
                 INSERT INTO public.s13_prior_results SELECT id,id*12 FROM generate_series(1,66) id;
                 CREATE TABLE public.s13_prior_votes(id integer PRIMARY KEY, private_value text);
@@ -46,7 +48,7 @@ class Tests(unittest.TestCase):
                 CREATE TRIGGER preserve_guard BEFORE UPDATE OR DELETE ON public.s13_prior_results FOR EACH ROW EXECUTE FUNCTION private.s13_preserve_guard();
                 CREATE SCHEMA supabase_migrations AUTHORIZATION postgres;
                 CREATE TABLE supabase_migrations.schema_migrations(version text PRIMARY KEY,name text);
-                INSERT INTO supabase_migrations.schema_migrations VALUES('20261101181812','synthetic-ledger-preservation-marker');''')
+                INSERT INTO supabase_migrations.schema_migrations VALUES('20261101181812','synthetic-ledger-preservation-marker');''',user='supabase_admin')
         except BaseException:
             cls.command('docker','rm','-f',cls.container);cls.tmp.cleanup();raise
     @classmethod
@@ -55,8 +57,8 @@ class Tests(unittest.TestCase):
     def clone(self):
         import uuid
         name='s13_test_'+uuid.uuid4().hex[:12]
-        self.sql('CREATE DATABASE '+name+' OWNER postgres TEMPLATE postgres')
-        self.addCleanup(lambda:self.sql('DROP DATABASE '+name))
+        self.sql('CREATE DATABASE '+name+' OWNER postgres TEMPLATE postgres',user='supabase_admin')
+        self.addCleanup(lambda:self.sql('DROP DATABASE '+name,user='supabase_admin'))
         return name
     def test_01_complete_dark_batch_clone_rehearsal(self):
         proof=Path(self.tmp.name)/'proof.json'
@@ -109,6 +111,6 @@ class Tests(unittest.TestCase):
                 self.assertEqual(module.catalog_digest(self.container,db),before)
     def test_06_no_source_database_or_clone_left_over(self):
         self.assertEqual(self.sql("SELECT count(*) FROM pg_database WHERE datname LIKE 'solaris_s13_batch_%'"),'0')
-        self.assertEqual(self.sql('SELECT count(*) FROM public.s13_prior_results'),'66')
+        self.assertEqual(self.sql('SELECT count(*) FROM public.s13_prior_results',user='supabase_admin'),'66')
         self.assertEqual(self.sql("SELECT count(*) FROM pg_class WHERE oid=to_regclass('private.v3_migration_contracts')"),'0')
 if __name__=='__main__':unittest.main()
