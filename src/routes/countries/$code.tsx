@@ -606,8 +606,7 @@ function CountryProfilePage() {
             {hasContestData && stats ? (
               <>
                 <Panel
-                  title="SSC at a glance"
-                  description="Published participation record."
+                  title="At a glance"
                 >
                   <div className="grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-5">
                     <StatTile label="Participations" value={stats.participations} />
@@ -622,8 +621,7 @@ function CountryProfilePage() {
                 </Panel>
 
                 <Panel
-                  title="Current entry"
-                  description="Latest published entry."
+                  title="Latest entry"
                 >
                   {latestEntry ? (
                     <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
@@ -646,8 +644,7 @@ function CountryProfilePage() {
                 </Panel>
 
                 <Panel
-                  title="Recent SSC history"
-                  description="One row per edition, with direct listening links when the delegation has added them."
+                  title="Recent results"
                   actions={
                     <button
                       type="button"
@@ -711,7 +708,7 @@ function CountryProfilePage() {
                 ) : null}
 
                 {hostedEditions.length > 0 && (
-                  <Panel title="Hosted editions" description="Published SSC editions hosted by this country.">
+                  <Panel title="Hosted editions">
                     <div className="flex flex-wrap gap-2">
                       {hostedEditions.map((edition) => (
                         <Link
@@ -797,7 +794,6 @@ function CountryProfilePage() {
             <div className="space-y-5">
               <Panel
                 title="Latest entry"
-                description="The newest published canonical entry remains prominent; the full chronology follows below."
               >
                 {latestEntry ? (
                   <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
@@ -834,8 +830,7 @@ function CountryProfilePage() {
           hasContestData ? (
             <div className="space-y-5">
               <Panel
-                title="Placement timeline"
-                description="One archived placement per edition. Lower placement is better."
+                title="Placement history"
               >
                 {chartData.length ? (
                   <Suspense
@@ -858,7 +853,6 @@ function CountryProfilePage() {
                 </Panel>
                 <Panel
                   title="Qualification history"
-                  description="Q means a top-N semi-final qualification. AQ means a direct Grand Final place. Wildcard means the country finished outside the semi-final top N but still reached the Grand Final through the wildcard route."
                 >
                   {qualificationRows.length ? (
                     <div className="divide-y divide-border/60">
@@ -912,7 +906,7 @@ function CountryProfilePage() {
           hasContestData ? (
             <Panel
               title="Closest relationships"
-              description="Countries with the strongest repeated two-way support in the published archive."
+              description="Mutual jury support over time."
             >
               {relationshipRows.length ? (
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -956,7 +950,6 @@ function CountryProfilePage() {
             <div className="space-y-5">
               <Panel
                 title="Current form"
-                description="A recent-performance summary. This is optional context, not another version of the country history."
               >
                 <div className="grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-4">
                   <StatTile
@@ -1075,7 +1068,7 @@ function NoContestData({ countryName }: { countryName: string }) {
   return (
     <Panel>
       <p className="text-sm leading-relaxed text-muted-foreground">
-        No published Solaris Song Contest data is available for {countryName} in this section yet.
+        No published contest history for {countryName} yet.
       </p>
     </Panel>
   );
