@@ -40,19 +40,33 @@ test("hidden public URLs fail closed at the Worker before app SSR", async ({ req
   }
 });
 
-test("public home navigation does not advertise unpublished areas", async ({ page }) => {
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  const nav = page.locator('nav[aria-label="Main navigation"], nav[aria-label="Primary navigation"]');
-  const links = await nav.locator("a[href]").evaluateAll((items) =>
-    items.map((item) => new URL((item as HTMLAnchorElement).href).pathname),
-  );
-  expect(links).not.toContain("/explore");
-  expect(links).not.toContain("/results");
-  expect(links).not.toContain("/my-solaris");
-  expect(links).not.toContain("/me");
-  // A direct refreshed browser navigation must also respect the server gate.
-  const blocked = await page.goto("/results", { waitUntil: "domcontentloaded" });
-  expect(blocked?.status()).toBe(404);
+test("public home navigation does not advertise unpublished areas", async ({ context }) => {
+  // Independent documents are essential for the installed WebKit project.
+  // A second full navigation on the Home document can fail inside WebKit
+  // before receiving any HTTP response. Do not weaken either release gate.
+  const homePage = await context.newPage();
+  try {
+    await homePage.goto("/", { waitUntil: "domcontentloaded" });
+    const nav = homePage.locator('nav[aria-label="Main navigation"], nav[aria-label="Primary navigation"]');
+    const links = await nav.locator("a[href]").evaluateAll((items) =>
+      items.map((item) => new URL((item as HTMLAnchorElement).href).pathname),
+    );
+    expect(links).not.toContain("/explore");
+    expect(links).not.toContain("/results");
+    expect(links).not.toContain("/my-solaris");
+    expect(links).not.toContain("/me");
+  } finally {
+    await homePage.close();
+  }
+
+  // This is still a REAL browser direct load, not a mocked/request-only 404.
+  const blockedPage = await context.newPage();
+  try {
+    const blocked = await blockedPage.goto("/results", { waitUntil: "domcontentloaded" });
+    expect(blocked?.status()).toBe(404);
+  } finally {
+    await blockedPage.close();
+  }
 });
 
 test("installed app launch never restores a hidden destination", async ({ page }, testInfo) => {
