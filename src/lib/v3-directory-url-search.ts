@@ -13,6 +13,7 @@ export type PublicDirectoryUrlSearch = {
 export type EditionDirectoryUrlSearch = {
   q?: string;
   scope?: "latest" | "past";
+  order?: "oldest";
 };
 
 /** Normalize URL and local values alike to avoid repeated-space rewrite loops. */
@@ -45,5 +46,6 @@ export function parseEditionDirectoryUrlSearch(
     q: cleanPublicQuery(value.q),
     scope: value.scope === "latest" || value.scope === "past"
       ? value.scope : undefined,
+    order: value.order === "oldest" ? "oldest" : undefined,
   };
 }

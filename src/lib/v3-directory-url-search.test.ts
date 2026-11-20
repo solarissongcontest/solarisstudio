@@ -33,13 +33,13 @@ describe("Public Explore permalink filters", () => {
     expect(normalizePublicDirectoryUrlQuery("  ")).toBeUndefined();
   });
 
-  it("allows only known Edition scopes and never accepts an arbitrary state", () => {
-    expect(parseEditionDirectoryUrlSearch({ q: "SSC 22", scope: "past" }))
-      .toEqual({ q: "SSC 22", scope: "past" });
+  it("permits oldest-first edition history but rejects unsupported URL sort values", () => {
+    expect(parseEditionDirectoryUrlSearch({ q: "SSC 22", scope: "past", order: "oldest" }))
+      .toEqual({ q: "SSC 22", scope: "past", order: "oldest" });
     expect(parseEditionDirectoryUrlSearch({ q: "Tetlehamn", scope: "latest" }))
-      .toEqual({ q: "Tetlehamn", scope: "latest" });
-    expect(parseEditionDirectoryUrlSearch({ q: "SSC", scope: "hidden" }))
-      .toEqual({ q: "SSC", scope: undefined });
+      .toEqual({ q: "Tetlehamn", scope: "latest", order: undefined });
+    expect(parseEditionDirectoryUrlSearch({ q: "SSC", scope: "hidden", order: "newest" }))
+      .toEqual({ q: "SSC", scope: undefined, order: undefined });
   });
 
   it("wires validated search and category history to each public-only directory", () => {
@@ -65,6 +65,8 @@ describe("Public Explore permalink filters", () => {
     expect(editions).toContain("Route.useSearch()");
     expect(editions).toContain("Route.useNavigate()");
     expect(editions).toContain("replace: true");
+    expect(editions).toContain("orderedPast.map((card)");
+    expect(editions).toContain('aria-label="Sort past editions"');
     expect(editions).toContain("matchesPublicDirectorySearch(normalizedSearch");
     expect(editions).toContain("usePublicFinalWinners(publishedFinalShowIds)");
     expect(editions).not.toContain("useAllResults");
