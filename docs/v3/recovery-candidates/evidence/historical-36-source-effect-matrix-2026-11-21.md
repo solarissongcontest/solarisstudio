@@ -5,7 +5,7 @@
 - Project: `dkxmnvekiopyesuzggeu` · database `postgres` · PostgreSQL 17.11
 - GitHub source reviewed at `94546072463fd9cbd3c6d8a00cd5fcaa37288f0a`.
 - The hosted `supabase_migrations.schema_migrations` history remains **497 entries**, tip `20261101181812`. The **36 historical identities are still missing**, and no fake ledger repair has occurred.
-- Counts by source effects: `11` newly/effect verified (including the earlier S13 foundation), `2` previously satisfied ACL-only effects, `2` partial, `1` obsolete intermediate window to reconcile, and `22` pending/unqualified. **Do not interpret this as 36 migrations to replay** or as complete effect equivalence based only on object presence.
+- Counts by source effects: `11` newly/effect verified (including the earlier S13 foundation), `2` previously satisfied ACL-only effects, `2` partial, `1` obsolete intermediate window to reconcile, and `20` pending/unqualified. **Do not interpret this as 36 migrations to replay** or as complete effect equivalence based only on object presence.
 - Exact historical SQL files are immutable. Legacy ledger gaps are not automatically safe to repair. New effect SQL must be forward-only, dependency-ordered, independently rehearsed against the restored owner/ACL baseline, and protected by exact-target preflight and postcheck.
 
 ### A · S14 Televote source/projection
