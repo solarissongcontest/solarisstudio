@@ -6,7 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
-import { ArchiveDataError, ArchiveDataLoading } from "@/components/ArchiveDataState";
+import { ArchiveDataLoading } from "@/components/ArchiveDataState";
+import { PublicDataState } from "@/components/public/PublicDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useCountries } from "@/lib/data";
@@ -31,6 +32,22 @@ export const Route = createFileRoute("/wiki/")({
 
 const DIRECTORY_PAGE_SIZE = 18;
 const ALL_COUNTRIES_SCOPE = new Set<string>();
+
+function WikiPublicReadError({ onRetry, retrying }: { onRetry: () => void; retrying: boolean }) {
+  return (
+    <PublicDataState
+      kind="error"
+      title="Wiki articles unavailable"
+      description="The public country library could not be refreshed. Previously cached country links are hidden until the read succeeds."
+      action={
+        <button type="button" onClick={onRetry} disabled={retrying}
+          className="min-h-11 rounded-lg border border-border bg-surface px-4 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+          {retrying ? "Retrying…" : "Retry Wiki articles"}
+        </button>
+      }
+    />
+  );
+}
 
 function WikiIndexPage() {
   const { isAppMode, platformResolved } = useSolarisApp();
@@ -89,7 +106,7 @@ function AppWikiIndexPage() {
   }), [countries, effectiveRegion, search]);
 
   if (countriesQuery.isLoading || countriesQuery.isFetching) return <AppShell><ArchiveDataLoading label="Loading the Wiki…" /></AppShell>;
-  if (countriesQuery.isError || countriesQuery.isRefetchError) return <AppShell><ArchiveDataError /></AppShell>;
+  if (countriesQuery.isError || countriesQuery.isRefetchError) return <AppShell><WikiPublicReadError onRetry={() => void countriesQuery.refetch()} retrying={countriesQuery.isFetching} /></AppShell>;
 
   return (
     <AppShell>
@@ -229,7 +246,7 @@ function WebWikiIndexPage() {
   useEffect(() => setHydrated(true), []);
 
   if (!hydrated || countriesQuery.isLoading || countriesQuery.isFetching) return <AppShell><PageHeader eyebrow="Terra Solaris" title="Wiki" description="Browse national profiles and country histories." /><ArchiveDataLoading label="Loading the Wiki library…" /></AppShell>;
-  if (countriesQuery.isError || countriesQuery.isRefetchError) return <AppShell><PageHeader eyebrow="Terra Solaris" title="Wiki" description="Browse national profiles and country histories." /><ArchiveDataError /></AppShell>;
+  if (countriesQuery.isError || countriesQuery.isRefetchError) return <AppShell><PageHeader eyebrow="Terra Solaris" title="Wiki" description="Browse national profiles and country histories." /><WikiPublicReadError onRetry={() => void countriesQuery.refetch()} retrying={countriesQuery.isFetching} /></AppShell>;
 
   return (
     <AppShell>
