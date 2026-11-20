@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { FlagChip } from "@/components/FlagChip";
 import { CinematicEditorialHero } from "@/components/v3/CinematicEditorialHero";
 import type { CountryDesignV2 } from "@/lib/country-design-v2";
+import { safeCinematicColor } from "@/lib/cinematic-hero";
 import "@/styles/v3-country-web-cinematic.css";
 
 type Props = {
@@ -28,6 +29,7 @@ export function CountryWebCinematicHero({
   code, name, nativeName, region, description, flagImage,
   accentColor, publishedDesign, actions,
 }: Props) {
+  const safeAccent = safeCinematicColor(accentColor) ?? "#40628a";
   const background = publishedDesign?.background;
   const publishedImageUrl =
     background?.mode === "image" ? background.imageUrl : null;
@@ -49,11 +51,11 @@ export function CountryWebCinematicHero({
         fallbackColors={[accentColor, publishedDesign?.palette.backgroundSecondary]}
       />
       <section className="country-web-cinematic__identity" aria-label={`${name} identity and actions`}>
-        <FlagChip code={code} color={accentColor ?? "#40628a"} image={flagImage} size="lg" />
+        <FlagChip code={code} color={safeAccent} image={flagImage} size="lg" />
         <div className="country-web-cinematic__details">
           <p className="country-web-cinematic__code">{code.toUpperCase()}{region ? ` · ${region}` : ""}</p>
           {description ? <p className="country-web-cinematic__description">{description}</p> :
-            <p className="country-web-cinematic__description">Explore this country's published Solaris history and profile.</p>}
+            <p className="country-web-cinematic__description">No public country description has been recorded.</p>}
         </div>
         {actions ? <div className="country-web-cinematic__actions">{actions}</div> : null}
       </section>
