@@ -3,6 +3,7 @@ import { Check, ChevronDown, Search, Trophy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { editionLabel as formatEditionLabel, useEditions } from "@/lib/data";
+import { matchesOrganizerEditionSearch } from "@/lib/admin-edition-picker-search";
 import { useAdminContext } from "./AdminContext";
 import { AdminSheet } from "./AdminUI";
 
@@ -42,22 +43,12 @@ export function AdminSelectors() {
   const savedEdition = orderedEditions.find((edition) => edition.id === editionId) ?? null;
   const activeEdition = routeEdition ?? savedEdition ?? orderedEditions[0] ?? null;
 
-  const filteredEditions = useMemo(() => {
-    const needle = search.trim().toLowerCase();
-    if (!needle) return orderedEditions;
-    return orderedEditions.filter((edition) =>
-      [
-        formatEditionLabel(edition),
-        edition.name,
-        edition.slug,
-        edition.host_city ?? "",
-        edition.edition_number == null ? "" : String(edition.edition_number),
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(needle),
-    );
-  }, [orderedEditions, search]);
+  const filteredEditions = useMemo(
+    () => orderedEditions.filter((edition) =>
+      matchesOrganizerEditionSearch(edition, formatEditionLabel(edition), search),
+    ),
+    [orderedEditions, search],
+  );
 
   useEffect(() => {
     if (!activeEdition) return;
@@ -147,7 +138,7 @@ export function AdminSelectors() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex min-h-10 max-w-[10rem] min-w-0 items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.035] px-2.5 text-left transition hover:bg-white/[0.055] sm:max-w-[16rem]"
+          className="flex min-h-11 max-w-[10rem] min-w-0 items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.035] px-2.5 text-left transition hover:bg-white/[0.055] sm:max-w-[16rem]"
           aria-haspopup="dialog"
           aria-expanded={open}
         >
@@ -191,6 +182,7 @@ export function AdminSelectors() {
                 key={edition.id}
                 type="button"
                 onClick={() => void changeEdition(edition.id)}
+                aria-pressed={active}
                 className={`flex w-full min-w-0 items-center gap-3 rounded-xl border p-3 text-left transition ${
                   active
                     ? "border-sky-200/20 bg-sky-200/[0.08]"
