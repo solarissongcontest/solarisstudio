@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { directoryCountLabel } from "./v3-directory-count";
+import { directoryCountLabel, resolveDirectoryScope } from "./v3-directory-count";
 
 describe("V3 directory result count semantics", () => {
   it("distinguishes rendered page, filtered matches and complete available collection", () => {
@@ -14,5 +14,18 @@ describe("V3 directory result count semantics", () => {
       .toBe("Showing 0 of 0 matches · 12 tools total");
     expect(directoryCountLabel({ available: 12, matches: 4, rendered: 4, noun: "tools" }))
       .toBe("Showing 4 of 4 matches · 12 tools total");
+  });
+
+  it("returns to visible categories if rollout revokes the selected destination", () => {
+    const publishedGroups = [{ id: "results" }, { id: "history" }];
+    expect(resolveDirectoryScope("results", publishedGroups)).toBe("results");
+    expect(resolveDirectoryScope("history", publishedGroups)).toBe("history");
+    expect(resolveDirectoryScope("all", publishedGroups)).toBe("all");
+
+    // The former category must not produce zero visible rows under the
+    // misleading "All categories" label after it becomes unpublished.
+    expect(resolveDirectoryScope("results", [{ id: "history" }])).toBe("all");
+    expect(resolveDirectoryScope("removed-category", publishedGroups)).toBe("all");
+    expect(resolveDirectoryScope("results", [])).toBe("all");
   });
 });
