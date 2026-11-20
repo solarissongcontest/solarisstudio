@@ -202,7 +202,14 @@ function AffiliationGroup({
           {organization.name.slice(0, 3)}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold">{organization.name}</span>
+          <Link
+            to="/world/organizations/$slug"
+            params={{ slug: organization.slug }}
+            search={{ tab: "overview" }}
+            className="inline-flex min-h-11 items-center text-sm font-semibold underline-offset-4 hover:text-primary hover:underline focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            {organization.name}
+          </Link>
           {organization.officialName !== organization.name ? (
             <span className="block text-xs text-muted-foreground">{organization.officialName}</span>
           ) : null}
@@ -318,6 +325,21 @@ export function WorldCountryInternational({ code }: { code: string }) {
           </Link>
         </div>
       </header>
+      <nav aria-label="International membership sections"
+        className="mt-6 flex flex-wrap items-center gap-2 border-b border-border pb-5 text-sm">
+        <a href="#world-country-current"
+          className="inline-flex min-h-11 items-center rounded-full border border-border px-4 font-semibold hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+          Current memberships
+        </a>
+        <a href="#world-country-historical"
+          className="inline-flex min-h-11 items-center rounded-full border border-border px-4 font-semibold hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+          Former affiliations
+        </a>
+        <Link to="/world/organizations"
+          className="inline-flex min-h-11 items-center rounded-full border border-border px-4 font-semibold text-primary hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+          Browse organizations
+        </Link>
+      </nav>
       <p className="world-country-editorial-context mt-6 max-w-3xl text-sm leading-7 text-muted-foreground">
         International memberships are separate from Song Contest participation.
       </p>
@@ -326,13 +348,13 @@ export function WorldCountryInternational({ code }: { code: string }) {
       {institutionError ? <FailureState title="Institution identities unavailable" retry={() => void institutions.refetch()} /> : null}
       {institutionsReady ? <>
         <AffiliationGroup title="Current memberships"
-          description="Published memberships, including observers and associates."
+          description="Current published memberships, including observers, associates and suspended memberships."
           phase="current" page={currentPage} setPage={setCurrentPage}
           data={verifiedCurrent} loading={!current.isError && (current.isPending || current.isFetching || !current.isFetchedAfterMount)} error={current.isError}
           fetching={current.isFetching} institutions={verifiedInstitutions ?? []} retry={() => void current.refetch()} />
         <div className="border-t border-border" />
         <AffiliationGroup title="Former affiliations"
-          description="Previous published memberships."
+          description="Published historical terms. Former affiliation does not imply present membership."
           phase="historical" page={historyPage} setPage={setHistoryPage}
           data={verifiedHistorical} loading={!historical.isError && (historical.isPending || historical.isFetching || !historical.isFetchedAfterMount)} error={historical.isError}
           fetching={historical.isFetching} institutions={verifiedInstitutions ?? []} retry={() => void historical.refetch()} />
