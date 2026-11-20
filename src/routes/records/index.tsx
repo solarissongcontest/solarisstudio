@@ -1,3 +1,4 @@
+import "@/styles/v3-records-website-editorial.css";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
