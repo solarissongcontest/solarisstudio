@@ -72,6 +72,35 @@ describe("public contest state", () => {
     expect(selected?.edition_number).toBe(22);
   });
 
+  it("never promotes cancelled editions to the active Current Contest", () => {
+    expect(resolveCurrentPublicEdition([
+      edition({ status: "cancelled" }),
+      edition({ id: "edition-21", edition_number: 21, slug: "ssc-21", status: "active" }),
+    ])?.id).toBe("edition-21");
+    expect(resolveCurrentPublicEdition([edition({ status: "canceled" })])).toBeNull();
+    const state = resolvePublicContestState({
+      editions: [edition({ status: "cancelled" })],
+      shows: [show({ status: "live" })],
+      results: [result()],
+    });
+    expect(state.phase).toBe("between_editions");
+    expect(state.primaryAction?.to).toBe("/explore");
+  });
+
+  it("prioritizes cancellation over stale Live and Results decoration", () => {
+    const state = resolvePublicEditionState({
+      edition: edition({ status: "cancelled" }),
+      shows: [show({ status: "live" })],
+      results: [result()],
+    });
+    expect(state.lifecycle).toBe("cancelled");
+    expect(state.phase).toBe("post_edition");
+    expect(state.statusKey).toBe("closed");
+    expect(state.statusLabel).toBe("Cancelled");
+    expect(state.primaryAction?.to).toBe("/editions/ssc-22");
+    expect(state.primaryAction?.to).not.toBe("/participate");
+  });
+
   it("resolves an individual edition without recursion", () => {
     const state = resolvePublicEditionState({
       edition: edition({ status: "active" }),

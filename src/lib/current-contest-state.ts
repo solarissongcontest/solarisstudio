@@ -39,7 +39,7 @@ function editionNumber(edition: Edition) {
 }
 
 function isTerminalLifecycle(state: EditionState) {
-  return state === "post_edition" || state === "archived";
+  return state === "post_edition" || state === "archived" || state === "cancelled";
 }
 
 export function resolveCurrentPublicEdition(
@@ -49,13 +49,15 @@ export function resolveCurrentPublicEdition(
     .filter((edition) => edition.published)
     .sort((a, b) => editionNumber(b) - editionNumber(a));
 
-  return (
-    published.find(
-      (edition) => !isTerminalLifecycle(normalizeLegacyEditionStatus(edition.status)),
-    ) ??
-    published[0] ??
-    null
+  const active = published.find(
+    (edition) => !isTerminalLifecycle(normalizeLegacyEditionStatus(edition.status)),
   );
+  if (active) return active;
+
+  // Historical fallback must never elevate a cancelled edition to Current Contest.
+  return published.find(
+    (edition) => normalizeLegacyEditionStatus(edition.status) !== "cancelled",
+  ) ?? null;
 }
 
 function exactLiveShow(shows: readonly Show[]) {
@@ -112,6 +114,7 @@ function phaseFromLifecycle(state: EditionState): PublicContestPhase {
       return "results_published";
     case "post_edition":
     case "archived":
+    case "cancelled":
       return "post_edition";
   }
 }
@@ -219,6 +222,19 @@ function presentation(
   }
 }
 
+function cancelledPresentation(
+  edition: Edition,
+): Omit<PublicContestState, "edition" | "phase" | "lifecycle"> {
+  const label = edition.edition_number == null ? edition.name : `SSC ${edition.edition_number}`;
+  return {
+    statusKey: "closed",
+    statusLabel: "Cancelled",
+    headline: `${label} was cancelled`,
+    description: "This edition is not active. Published historical information remains available on its edition page.",
+    primaryAction: { label: "Explore edition", to: editionPath(edition) },
+  };
+}
+
 export function resolvePublicEditionState({
   edition,
   shows,
@@ -230,6 +246,16 @@ export function resolvePublicEditionState({
 }): PublicContestState {
   const lifecycle = normalizeLegacyEditionStatus(edition.status);
   const editionShows = shows.filter((show) => show.edition_id === edition.id);
+
+  // Cancellation outranks stale live/show flags and unverified result rows.
+  if (lifecycle === "cancelled") {
+    return {
+      edition,
+      phase: "post_edition",
+      lifecycle,
+      ...cancelledPresentation(edition),
+    };
+  }
 
   // Historical completion is authoritative. A stale show runtime flag must
   // never resurrect Live on an archived or completed edition.

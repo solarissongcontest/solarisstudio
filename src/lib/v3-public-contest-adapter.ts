@@ -23,6 +23,7 @@ import type {
 
 function editionState(state: PublicContestState): V3EditionState {
   if (!state.edition || state.phase === "between_editions") return "planning";
+  if (state.lifecycle === "cancelled") return "cancelled";
   if (state.lifecycle === "archived") return "archived";
   if (state.lifecycle === "post_edition") return "completed";
   if (
@@ -110,6 +111,20 @@ function publicationState(state: PublicContestState): V3PublicationState | null 
 export function v3ContestDomainFromPublicState(
   state: PublicContestState,
 ): V3ContestDomainSnapshot {
+  // Legacy post_edition phase does not certify completion or publication
+  // when the edition's canonical lifecycle says cancelled.
+  if (state.lifecycle === "cancelled") {
+    return {
+      edition: "cancelled",
+      confirmationWindow: "cancelled",
+      submissionWindow: "cancelled",
+      show: "cancelled",
+      jury: "closed",
+      televote: "closed",
+      results: "hidden",
+      publication: null,
+    };
+  }
   return {
     edition: editionState(state),
     confirmationWindow: confirmationWindow(state.phase),

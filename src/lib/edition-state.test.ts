@@ -31,6 +31,8 @@ describe('edition state engine', () => {
     expect(normalizeLegacyEditionStatus('voting')).toBe('televoting');
     expect(normalizeLegacyEditionStatus('live_show')).toBe('live_show');
     expect(normalizeLegacyEditionStatus('completed')).toBe('post_edition');
+    expect(normalizeLegacyEditionStatus('cancelled')).toBe('cancelled');
+    expect(normalizeLegacyEditionStatus('canceled')).toBe('cancelled');
     expect(normalizeLegacyEditionStatus(null)).toBe('planning');
   });
 
@@ -43,6 +45,17 @@ describe('edition state engine', () => {
     expect(normalizeLegacyEditionStatus('active')).toBe('submissions');
     expect(normalizeLegacyEditionStatus('voting')).toBe('televoting');
     expect(normalizeLegacyEditionStatus('finished')).toBe('post_edition');
+  });
+
+  it('keeps cancellation terminal and every inferred subsystem non-actionable', () => {
+    for (const target of ['planning', 'confirmations', 'jury_voting', 'results'] as const) {
+      expect(canTransitionEdition('cancelled', target)).toBe(false);
+      expect(getEditionTransition('cancelled', target)).toBeNull();
+    }
+    expect(defaultSubsystemStatesForEdition('cancelled')).toEqual({
+      confirmations: 'locked', submissions: 'locked', juryVoting: 'locked',
+      televoting: 'locked', results: 'locked', predictions: 'locked',
+    });
   });
 
   it('derives safe subsystem defaults from the edition lifecycle', () => {

@@ -162,4 +162,25 @@ describe("V3 runtime-state adapter", () => {
       }).edition,
     ).toBe("archived");
   });
+  it("fails closed on cancelled editions with stale open/public subsystem state", () => {
+    const domain = v3ContestDomainFromRuntime({
+      runtime: runtime({
+        edition: "cancelled",
+        subsystems: {
+          confirmations: "open", submissions: "open", juryVoting: "open",
+          televoting: "open", results: "published", predictions: "open",
+        },
+      }),
+      show: "live",
+    });
+    expect(domain).toEqual({
+      edition: "cancelled", confirmationWindow: "cancelled",
+      submissionWindow: "cancelled", show: "cancelled", jury: "closed",
+      televote: "closed", results: "hidden", publication: null,
+    });
+    expect(projectV3Experience(domain)).toEqual({
+      mode: "cancelled", live: false, votingOpen: false, resultsPublic: false,
+    });
+  });
+
 });
