@@ -27,6 +27,19 @@ describe("Edition browser-native editorial navigation", () => {
     expect(route).toContain("grandFinalPublication?.results");
   });
 
+  it("places web navigation immediately after the hero without moving installed app controls", () => {
+    const route = read("src/routes/editions/$slug.tsx");
+    expect(route.match(/<EditionNavigation/g)).toHaveLength(1);
+    expect(route).toContain("const editionNavigation = (");
+    const heroIndex = route.indexOf("<EditionHero");
+    const browserNavIndex = route.indexOf("{!isAppMode && editionNavigation}");
+    const statusIndex = route.indexOf("<PublicCurrentStatus");
+    const appNavIndex = route.indexOf("{isAppMode && editionNavigation}");
+    expect(heroIndex).toBeLessThan(browserNavIndex);
+    expect(browserNavIndex).toBeLessThan(statusIndex);
+    expect(statusIndex).toBeLessThan(appNavIndex);
+  });
+
   it("keeps the new presentation browser-only and keyboard accessible", () => {
     const css = read("src/styles/v3-visual-editorial-redesign.css");
     expect(css).toContain("html:not([data-solaris-app]) .edition-editorial-refresh .edition-navigation--editorial");
