@@ -4,7 +4,7 @@ import { resolveCinematicObjectPosition, safeCinematicColor, type CinematicFocal
 import "@/styles/v3-cinematic-entities.css";
 
 export type CinematicEditorialHeroProps = {
-  kind: "country" | "edition";
+  kind: "country" | "edition" | "show";
   title: string;
   eyebrow: string;
   subtitle?: string | null;
