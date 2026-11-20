@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Archive, BarChart3, BookOpen, GitCompareArrows, Globe2, Trophy, Vote } from "lucide-react";
 
 import type { ReactNode } from "react";
+import type { CountryDesignV2 } from "@/lib/country-design-v2";
 import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { CinematicEditorialHero } from "./CinematicEditorialHero";
 import type { V3CountryExploreProjection } from "@/lib/v3-explore-entities";
@@ -18,6 +19,7 @@ export type V3DelegationScreenProps = {
   projection: V3CountryExploreProjection;
   followControl: ReactNode;
   hideResultSpoilers: boolean;
+  publishedDesign?: CountryDesignV2 | null;
   activeEditionLabel?: string | null;
   worldEnabled?: boolean;
 };
@@ -71,6 +73,7 @@ export function V3DelegationScreen({
   projection,
   followControl,
   hideResultSpoilers,
+  publishedDesign,
   activeEditionLabel,
   worldEnabled = false,
 }: V3DelegationScreenProps) {
@@ -81,6 +84,11 @@ export function V3DelegationScreen({
   const wiki = projection.actions.wiki;
   const compare = projection.actions.compare;
   const currentResult = projection.currentResult;
+  const background = publishedDesign?.background;
+  const publishedHeroImage = background?.mode === "image" ? background.imageUrl : null;
+  const publishedFocalPoint = background
+    ? [background.positionX / 100, background.positionY / 100] as const
+    : null;
 
   return (
     <V3Screen className="cinematic-entity-screen">
@@ -90,8 +98,9 @@ export function V3DelegationScreen({
           eyebrow="Terra Solaris · Country"
           title={projection.name}
           subtitle={[projection.nativeName !== projection.name ? projection.nativeName : null, projection.region].filter(Boolean).join(" · ")}
-          imageUrl={null}
-          fallbackColors={[projection.colors.primary, projection.colors.secondary]}
+          imageUrl={publishedHeroImage}
+          focalPoint={publishedFocalPoint}
+          fallbackColors={[projection.colors.primary, publishedDesign?.palette.backgroundSecondary ?? projection.colors.secondary]}
         />
       </div>
       <section className="cinematic-country-identity" aria-label="Country identity">
