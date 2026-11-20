@@ -90,10 +90,13 @@ function EditionsPage() {
   const resultsQuery = usePublicFinalWinners(publishedFinalShowIds);
   // Invalidate cached winner labels on a failed refresh rather than showing
   // historical data as if the public result read just succeeded.
-  const results = resultsQuery.isSuccess ? resultsQuery.data : undefined;
+  const winnerResultsFresh =
+    resultsQuery.isSuccess && !resultsQuery.isFetching && !resultsQuery.isRefetchError;
+  const results = winnerResultsFresh ? resultsQuery.data : undefined;
   const winnerReadState: EditionCard["winnerReadState"] =
     publishedFinalShowIds.length === 0 ? "ready" :
-    resultsQuery.isError ? "error" : resultsQuery.isSuccess ? "ready" : "loading";
+    resultsQuery.isError || resultsQuery.isRefetchError ? "error" :
+    winnerResultsFresh ? "ready" : "loading";
 
   const editionList = useMemo(
     () =>
