@@ -449,3 +449,113 @@ body[data-entity-theme="edition"] .edition-public-page .edition-hero[data-has-ar
     align-self: flex-start;
   }
 }
+
+/* Explore V3 ordinary WEB Edition hero. This is intentionally scoped away
+ * from installed PWA fallback: both share canonical edition data, not the
+ * same hero composition or navigation shell. The hero blends into its canvas
+ * instead of behaving as a large framed dashboard card. */
+body[data-entity-theme="edition"] .edition-public-page[data-v3-web-cinematic] .edition-hero {
+  isolation: isolate;
+  display: flex;
+  align-items: flex-end;
+  min-height: clamp(28rem, 56svh, 43rem);
+  border: 0;
+  border-radius: 0;
+  background: var(--background);
+  overflow: clip;
+}
+body[data-entity-theme="edition"] .edition-public-page[data-v3-web-cinematic] .edition-hero::after {
+  content: none;
+}
+body[data-entity-theme="edition"] .edition-public-page[data-v3-web-cinematic] .edition-hero-artwork {
+  display: block;
+  z-index: 0;
+  opacity: 1;
+}
+body[data-entity-theme="edition"] .edition-public-page[data-v3-web-cinematic] .edition-hero-artwork img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: none;
+}
+body[data-entity-theme="edition"] .edition-public-page[data-v3-web-cinematic] .edition-hero-artwork::after {
+  background:
+    linear-gradient(0deg,
+      var(--background) 0%,
+      color-mix(in oklab, var(--background) 92%, transparent) 13%,
+      color-mix(in oklab, var(--background) 58%, transparent) 36%,
+      transparent 77%),
+    linear-gradient(90deg,
+      color-mix(in oklab, var(--background) 45%, transparent),
+      transparent 90%);
+}
+body[data-entity-theme="edition"] .edition-public-page[data-v3-web-cinematic] .edition-hero-copy {
+  position: relative;
+  z-index: 2;
+  flex: 1 1 auto;
+  align-self: flex-end;
+  align-items: flex-start;
+  max-width: min(100%, 66rem);
+  border: 0;
+  padding: clamp(6rem, 11vw, 10rem) clamp(1.35rem, 5vw, 5rem) clamp(2.5rem, 5vw, 4.25rem);
+  text-align: left;
+}
+body[data-entity-theme="edition"] .edition-public-page[data-v3-web-cinematic] .edition-hero-status {
+  margin-bottom: clamp(2.5rem, 6vw, 6rem);
+}
+body[data-entity-theme="edition"] .edition-public-page[data-v3-web-cinematic] .edition-hero h1 {
+  max-width: 17ch;
+  font-size: clamp(3.25rem, 7.4vw, 7.75rem);
+  line-height: .97;
+  letter-spacing: -.055em;
+  text-wrap: balance;
+}
+body[data-entity-theme="edition"] .edition-public-page[data-v3-web-cinematic] .edition-artwork-plate {
+  position: absolute;
+  top: clamp(1.25rem, 3vw, 2.5rem);
+  right: clamp(1.25rem, 3vw, 2.5rem);
+  z-index: 3;
+  display: block;
+  width: min(22vw, 10rem);
+  max-height: 6rem;
+  margin: 0;
+  padding: 0;
+}
+body[data-entity-theme="edition"] .edition-public-page[data-v3-web-cinematic] .edition-artwork-plate img {
+  display: block;
+  width: 100%;
+  max-height: 6rem;
+  border-radius: 0;
+  object-fit: contain;
+  filter: drop-shadow(0 .3rem 1rem rgb(0 0 0 / .35));
+}
+@media (max-width: 47.99rem) {
+  body[data-entity-theme="edition"] .edition-public-page[data-v3-web-cinematic] .edition-hero {
+    min-height: clamp(23rem, 51svh, 33rem);
+  }
+  body[data-entity-theme="edition"] .edition-public-page[data-v3-web-cinematic] .edition-hero-copy {
+    order: 0;
+    align-self: flex-end;
+    align-items: flex-start;
+    width: 100%;
+    padding: 5.5rem 1.15rem 2.25rem;
+    text-align: left;
+  }
+  body[data-entity-theme="edition"] .edition-public-page[data-v3-web-cinematic] .edition-hero-status {
+    align-self: flex-start;
+    margin-bottom: 2.75rem;
+  }
+  body[data-entity-theme="edition"] .edition-public-page[data-v3-web-cinematic] .edition-hero h1 {
+    font-size: clamp(2.7rem, 11.5vw, 4.75rem);
+  }
+  body[data-entity-theme="edition"] .edition-public-page[data-v3-web-cinematic] .edition-artwork-plate {
+    top: 1rem;
+    right: 1rem;
+    width: min(29vw, 6.5rem);
+    max-height: 3.5rem;
+  }
+  body[data-entity-theme="edition"] .edition-public-page[data-v3-web-cinematic] .edition-artwork-plate img {
+    max-height: 3.5rem;
+  }
+}
