@@ -64,19 +64,60 @@ using the manifest's bucket/path as the intended destination and digest/size
 for payload selection; validate target object bytes, metadata, bucket policies
 and private authorization. No such provider-level round-trip is claimed.
 
+## Additional owner-observed isolated S3 round-trip (20 November 2026)
+
+The owner supplied a Google Cloud Shell screenshot of the local S3 test using
+`scripts/ops/solaris-isolated-storage-roundtrip-20261120.sh` at exact commit
+`7308ffe420403b4788d4ff6ab62e1d57f2cc2e6b`. The test used a
+temporary, Docker-internal S3-compatible SILO service and disposable buckets,
+not the hosted Supabase project. Summary lines observed:
+
+```text
+PASS: all 108 source payloads match authoritative manifest
+Logical Supabase buckets: 3
+Isolated S3 buckets: 3
+PASS: isolated S3 binary upload/download self-test
+PASS: 108/108 objects uploaded to private isolated S3 service
+PASS: 108/108 S3 API download hashes and sizes match source manifest
+PASS: unauthenticated object GET denied for all isolated test buckets
+LOCAL S3 OBJECT-RESTORE ROUNDTRIP SUCCESSFUL
+Production never contacted. Test containers and object bytes deleted on script exit.
+```
+
+**Scope of success:** 108/108 manifests-to-object-byte mapping, S3 API upload
+and readback checksum/size parity, and anonymous GET rejection for all **three
+private isolated test buckets**. The service was disposable and the tested
+bucket identities were locally mapped; this is **NOT** a Supabase Storage API
+round trip or restoration of the original Supabase bucket-policy semantics.
+The script's stdout confirms cleanup was reached, but independent Docker
+cleanup inspection was not performed.
+
+**Live catalog observation, bounded read-only query, 20 November 2026:** the
+hosted Supabase `storage.buckets` catalog currently contains **6 buckets**,
+**3** marked public. The catalog contains **10** `storage` RLS policies,
+**7** marked `PERMISSIVE` in `pg_policies`. These are **policy mode** counts,
+not a claim that those policies permit public access. The 3 logical buckets
+in the November 15 archive do not establish coverage of the 6 buckets at this
+later observation; inventory exact manifest bucket IDs and compare securely
+without publishing their names or object keys.
+
+**Remaining:** actual Supabase-compatible Storage API fixture restore,
+original bucket identity/visibility, metadata, JWT/RLS role tests, authorized
+private/public readback, Auth/Vault and backup coverage completeness.
+
 ## What this does NOT prove
 
 - Individual row/data integrity and official contest vote/result parity were not checked in this run.
 - The backup is a scoped November 15 archive, not a complete or current recovery point.
 - Dummy placeholder roles were used and the script restored with `--no-owner --no-acl`: original privileges, grants, role membership and effective RLS behavior were **not** restored or certified.
-- The Storage archive was fully streamed and all 108 object payload SHA-256/size pairs matched the manifest. Only 55/108 archive member names matched manifest bucket/path heuristics; the isolated Storage-service round-trip and access-policy validation remain **OPEN**.
+- The Storage archive was fully streamed and all 108 object payload SHA-256/size pairs matched the manifest. Only 55/108 archive member names matched manifest bucket/path heuristics; the **S3-compatible** isolated Storage-service round-trip **PASSED**; Supabase Storage API restore and access-policy validation remain **OPEN**.
 - Auth/Vault keys, migration-history ledger, provider-managed schema dependencies, external integrations and edge secrets remain **OPEN**.
 - The isolated container was disposable and was not retained as a production-derived migration rehearsal fixture.
 - This evidence authorizes **NO** blanket source migration replay, mutation of production Supabase, approval of S13–S16, activation of public writes, or Cloudflare promotion.
 
 ## Next gates (in order)
 
-1. Use verified Storage manifest content hashes to map all 108 source payloads to intended bucket/path keys, then perform real isolated Storage-service restoration with object-byte, metadata and access-policy probes.
+1. Verify dated 3-bucket archive coverage against the current 6-bucket hosted inventory; perform an **isolated Supabase Storage API** restore/probe for object metadata, bucket visibility, authenticated and unauthenticated authorization. The separate S3-compatible 108-object round-trip is already completed.
 2. Attest original roles/column grants, Auth/Vault/migration-history recoverability and operational configuration.
 3. Obtain a sufficiently current recovery point and exact current production-catalog fingerprint.
 4. Apply the exact reviewed forward-only S13/S14/Confirmation/Televote/Jury/Results/S16 manifest in a separate isolated production-derived environment and run positive/negative authority, historical vote and results parity checks.
