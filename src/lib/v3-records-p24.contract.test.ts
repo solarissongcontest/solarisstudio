@@ -157,6 +157,12 @@ describe("Public V3 P24 Records", () => {
     expect(combined).not.toContain("localStorage");
     expect(combined).not.toContain("sessionStorage");
     expect(combined).not.toContain("VITE_SOLARIS_APP_V3_RECORDS");
-    expect(combined).not.toContain("window.location.search");
+    // Published-record search/category permalinks may read the browser query string.
+    // The server-owned V3 rollout gate may not use that string to bypass rollout.
+    const gate = read("src/components/v3/V3RecordsGate.tsx");
+    const route = read("src/routes/records/index.tsx");
+    expect(gate).not.toContain("window.location.search");
+    expect(route).toContain("parseRecordsDirectoryState(window.location.search)");
+    expect(route).toContain("if (isAppMode) return;");
   });
 });
