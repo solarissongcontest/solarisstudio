@@ -136,6 +136,33 @@ certify backup coverage of Auth/Vault configuration and secrets, original
 grants/ownership, RLS positive/negative access tests, a Supabase-specific
 Storage API restoration, or a source-to-host migration rehearsal.
 
+## Owner-observed Nov 15 manifest bucket identity match (20 November 2026)
+
+Screenshot of the read-only Cloud Shell command
+`scripts/ops/solaris-storage-bucket-identity-compare-20261120.sh`
+at commit `2be460804e9fa45cbb286655c4cff1b42db68a0e`:
+
+```text
+Nov 15 archived objects: 108
+Nov 15 archived populated buckets: 3
+bucket hash prefix: 3cd69f7a19514465 object count: 47
+bucket hash prefix: 8a47ec53ee41941d object count: 7
+bucket hash prefix: 9874ed086020c7de object count: 54
+READ-ONLY BUCKET IDENTITY SUMMARY COMPLETE
+```
+
+These exactly match the three populated Supabase buckets in the
+same-day hosted metadata query. All other hosted bucket object counts are
+zero. **Bucket ID and per-bucket object-count parity therefore pass.**
+The source-to-host object **key set** still needs equality proof; a separate
+read-only key-set fingerprint verifier is provided at
+`scripts/ops/solaris-storage-object-key-set-compare-20261120.sh`.
+
+Additional bounded hosted metadata checks confirmed presence of the
+`auth.users`, `auth.sessions`, `vault.secrets`, and migration ledger
+relations, 6 inspected core roles, and 10 RLS-enabled Storage base tables,
+but **not** a recoverability or enforcement certification.
+
 ## What this does NOT prove
 
 - Individual row/data integrity and official contest vote/result parity were not checked in this run.
