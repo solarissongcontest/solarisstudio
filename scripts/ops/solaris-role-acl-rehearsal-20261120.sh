@@ -131,7 +131,8 @@ for line in toc.splitlines():
     # unusual trailing tokens which are not valid role identifiers.
     # TABLE owner entries remain strict, while real pg_restore remains the
     # authority for owners, grants and other object dependencies.
-    table_definition = rest.startswith('TABLE ')
+    table_definition = (rest.startswith('TABLE ') and
+                        not rest.startswith(('TABLE DATA ', 'TABLE ATTACH ')))
     if table_definition:
         table_definitions += 1
     elif not re.match(r'^(?:TABLE DATA|SCHEMA|ACL|DEFAULT ACL|POLICY|'
