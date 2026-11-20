@@ -225,7 +225,7 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
               <button type="button"
                 className="min-h-11 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 disabled={storiesQuery.isFetching}
-                onClick={() => setStoryLimit((limit) => nextPublicStoryBatchLimit(limit)}>
+                onClick={() => setStoryLimit((limit) => nextPublicStoryBatchLimit(limit))}>
                 {storiesQuery.isFetching ? "Loading more stories…" : "Load more published stories"}
               </button>
               <span className="text-xs text-muted-foreground">More published archive records may be available.</span>
