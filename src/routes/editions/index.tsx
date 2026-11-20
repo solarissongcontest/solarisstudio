@@ -258,7 +258,7 @@ function EditionsPage() {
                 </AppGroupedList>
               </section>
             ) : null}
-            {!visible.length ? <EditionDirectoryEmpty onReset={reset} /> : null}
+            {!visible.length ? <EditionDirectoryEmpty onReset={reset} hasPublishedEditions={cards.length > 0} /> : null}
           </AppScreen>
         ) : (
           <>
@@ -302,7 +302,7 @@ function EditionsPage() {
                     )}
                   </section>
                 ) : null}
-                {!visible.length ? <EditionDirectoryEmpty onReset={reset} /> : null}
+                {!visible.length ? <EditionDirectoryEmpty onReset={reset} hasPublishedEditions={cards.length > 0} /> : null}
               </div>
             </div>
           </>
@@ -454,12 +454,20 @@ function EditionDesktopCard({ card }: { card: EditionCard }) {
   );
 }
 
-function EditionDirectoryEmpty({ onReset }: { onReset: () => void }) {
-  return (
+function EditionDirectoryEmpty({ onReset, hasPublishedEditions }: {
+  onReset: () => void;
+  hasPublishedEditions: boolean;
+}) {
+  return hasPublishedEditions ? (
     <AppEmptyState
       title="No matching editions"
       description="Try another edition number, country or host city."
       action={<button type="button" onClick={onReset} className="solaris-app-empty-action">Clear filters</button>}
+    />
+  ) : (
+    <AppEmptyState
+      title="No public editions yet"
+      description="Published editions will appear in this historical collection when they are released."
     />
   );
 }
