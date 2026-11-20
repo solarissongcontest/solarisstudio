@@ -21,6 +21,13 @@ describe("Explore P9 music-first routing integration", () => {
     expect(web).toContain('allowsReleased(item.to)');
     expect(policy).toContain("export const LIMITED_PUBLIC_LAUNCH = true");
     expect(policy).not.toContain('"/music",');
+    const directory = source("src/lib/public-navigation.ts");
+    expect(directory).toContain('destination("music", "/music", "explore"');
+    expect(directory).toContain('destination("songs", "/songs", "explore"');
+    expect(directory).toContain('destination("artists", "/artists", "explore"');
+    // Search palette must also apply release availability to navigation results.
+    expect(source("src/components/public/PublicCommandPalette.tsx")).toContain("unfilteredSearchResults.filter(item => allows(item.href))");
+
   });
 
   it("requires durable opaque P9 IDs and independently publication-safe readers", () => {
