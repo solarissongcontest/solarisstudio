@@ -38,4 +38,21 @@ describe("Country web editorial identity transition", () => {
     expect(css).toContain("border-bottom: 1px solid var(--v3-editorial-rule)");
     expect(css).toContain("@media (max-width: 767px)");
   });
+  it("keeps World and chronology in dedicated browser sections with shareable browser history", () => {
+    const route = countryRoute();
+    const css = styles();
+    expect(route).toContain('{ value: "history", label: "History" }');
+    expect(route).toContain('{ value: "world", label: "World" }');
+    expect(route).toContain('function countryTabFromHash(hash: string): Tab');
+    expect(route).toContain('window.addEventListener("popstate", restoreSection)');
+    expect(route).toContain('window.history.pushState(window.history.state');
+    expect(route).toContain('className="country-editorial-section-nav"');
+    expect(route).toContain('aria-pressed={tab === section.value}');
+    expect(route).toContain('className="country-editorial-history-list"');
+    expect(route).toContain('className="country-editorial-world"');
+    expect(css).toContain('country-editorial-section-button[aria-pressed="true"]');
+    expect(css).toContain('country-editorial-history-list > li');
+    expect(css).toContain('overflow-x: auto');
+  });
+
 });
