@@ -40,7 +40,7 @@ export function CountryWebCinematicHero({
     .filter(Boolean).join(" · ");
 
   return (
-    <div className="country-web-cinematic" data-country-web-experience="editorial">
+    <div id="country-overview" className="country-web-cinematic" data-country-web-experience="editorial">
       <CinematicEditorialHero
         kind="country"
         eyebrow="Terra Solaris · Country"
