@@ -171,13 +171,13 @@ export function V3DelegationScreen({
         <div id="country-result" className="cinematic-entity-anchor">
         <V3Section title="Current result">
           {hideResultSpoilers ? (
-            <V3ActionCard
+            allowsReleased(currentResult.showHref) ? <V3ActionCard
               title="Official result published"
               description="Spoiler-free mode is hiding this delegation's placement and points until you deliberately open the result."
               icon={Trophy}
               tone="neutral"
               to={currentResult.showHref}
-            />
+            /> : <V3Surface className="p-4"><p className="text-sm text-white/70">Spoiler-free mode is hiding this published result.</p></V3Surface>
           ) : (
             <V3Surface level="raised" className="p-5">
               <div className="flex items-start justify-between gap-4">
@@ -194,7 +194,7 @@ export function V3DelegationScreen({
                       <span>Televote {currentResult.televotePoints} pts</span>
                     ) : null}
                   </div>
-                  {currentResult.editionHref ? (
+                  {currentResult.editionHref && allowsReleased(currentResult.editionHref) ? (
                     <Link
                       to={currentResult.editionHref as any}
                       className="mt-3 inline-block text-xs font-semibold text-white/55 hover:text-primary hover:underline"
@@ -207,12 +207,12 @@ export function V3DelegationScreen({
                 </div>
                 <V3StatusChip tone="success">Published</V3StatusChip>
               </div>
-              <Link
+              {allowsReleased(currentResult.showHref) ? <Link
                 to={currentResult.showHref as any}
                 className="mt-5 inline-flex min-h-11 items-center rounded-xl border border-white/10 bg-white/[0.045] px-4 text-sm font-semibold text-white/80 transition hover:bg-white/[0.08] hover:text-white"
               >
                 Open official result
-              </Link>
+              </Link> : null}
             </V3Surface>
           )}
         </V3Section>
