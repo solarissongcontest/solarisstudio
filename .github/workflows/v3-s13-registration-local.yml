@@ -1,0 +1,80 @@
+name: V3 S13 isolated registration foundation rehearsal
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/v3-s13-registration-local.yml"
+      - "scripts/rehearse-v3-s13-foundation-local.sh"
+      - "supabase/migrations/20261019111000_v3_s13_migration_hardening.sql"
+      - "supabase/migrations/20261019112900_v3_s13_migration_registration_context.sql"
+      - "supabase/migrations/20261019113300_v3_s13_strict_registration_restore.sql"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  s13-local:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      SOLARIS_RUN_LOCAL_DB_REHEARSAL: "YES"
+      SOLARIS_VERIFICATION_TARGET: local
+      SOLARIS_LOCAL_DB_PORT: "54322"
+      SOLARIS_LOCAL_DB_PASSWORD: postgres
+      SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PROJECT_ID: local
+      SUPABASE_PROJECT_REF: local
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - "127.0.0.1:54322:5432"
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Refuse stale code and hosted credentials
+        env:
+          REVIEWED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$REVIEWED_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          [[ "$(git rev-parse HEAD)" == "$REVIEWED_SHA" ]] || exit 1
+          [[ "$SOLARIS_VERIFICATION_TARGET" == local ]] || exit 1
+          [[ "$SUPABASE_URL" == http://127.0.0.1:54321 ]] || exit 1
+          for key in DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN PGSERVICE PGSERVICEFILE PGHOSTADDR PGHOST; do
+            [[ -z "${!key:-}" ]] || { echo "FAIL CLOSED: inherited $key" >&2; exit 1; }
+          done
+      - name: Install local PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+      - name: Check script shell syntax
+        run: bash -n scripts/rehearse-v3-s13-foundation-local.sh
+      - name: Rehearse S13 historical source SQL on isolated loopback
+        shell: bash
+        run: bash scripts/rehearse-v3-s13-foundation-local.sh
+      - name: Check disposable fixture was dropped
+        shell: bash
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          left="$(psql -w -X -qAt -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -c "select count(*) from pg_database where datname like 'solaris_v3_s13_local_%'")"
+          [[ "$left" == 0 ]] || { echo "Disposable database not cleaned: $left" >&2; exit 1; }
+      - name: State scope of evidence
+        run: |
+          echo "This only proves the original S13 framework SQL on an isolated synthetic Postgres 16 fixture."
+          echo "It does NOT prove production parity, a forward-only recovery upgrade, or owner authorization."
