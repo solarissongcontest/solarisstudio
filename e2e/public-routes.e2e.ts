@@ -103,7 +103,10 @@ test("Country History web search uses only published rows and preserves desktop/
 });
 
 test("published Country and Edition use continuous cinematic browser heroes with no installed dock", async ({ page, baseURL }, testInfo) => {
-  test.skip(!["public-390", "public-1440"].includes(testInfo.project.name));
+  const auditWidths = process.env.E2E_FULL_AUDIT === "1"
+    ? ["public-320", "public-390", "public-430", "public-768", "public-1024", "public-1440"]
+    : ["public-390", "public-1440"];
+  test.skip(!auditWidths.includes(testInfo.project.name));
   if (!process.env.E2E_SUPABASE_URL) throw new Error("Missing local E2E_SUPABASE_URL: refusing screenshot audit.");
   const target = new URL(process.env.E2E_SUPABASE_URL);
   if (target.protocol !== "http:" ||
