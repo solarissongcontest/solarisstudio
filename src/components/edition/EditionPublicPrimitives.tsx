@@ -9,7 +9,6 @@ export function EditionHero({
   subtitle,
   description,
   artwork,
-  artworkAlt,
   logo,
   logoAlt,
   liquidGlass = false,
