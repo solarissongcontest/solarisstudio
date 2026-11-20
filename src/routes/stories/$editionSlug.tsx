@@ -4,6 +4,7 @@ import { ArrowLeft, BookOpen, CalendarDays } from 'lucide-react';
 
 import { AppShell } from '@/components/AppShell';
 import { PublicStorySpoilerDisclosure } from '@/components/public/PublicStorySpoilerDisclosure';
+import { PublicShareStoryButton } from '@/components/public/PublicShareStoryButton';
 import { useSolarisApp } from '@/components/app/AppRuntime';
 import { useAppExperiencePreferences } from '@/lib/app-experience';
 import { V3StoryDetailGate, useV3StoryFallbackSpoilerProtection } from '@/components/v3/V3StoriesGates';
@@ -116,6 +117,7 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
               {story.subtitle ? <p className="mt-3 text-lg font-semibold text-foreground/80">{story.subtitle}</p> : null}
               {story.introduction ? <p className="mt-5 text-base leading-relaxed text-muted-foreground">{story.introduction}</p> : null}
               <p className="mt-4 text-xs text-muted-foreground">Published {formatSolarisStoryDate(story.publishedAt)} · {story.items.length} reviewed moments</p>
+              <PublicShareStoryButton title={story.title} />
             </header>
 
             <section className="v3-story-web-timeline relative mt-12" aria-label={`${story.editionName} timeline`}>
