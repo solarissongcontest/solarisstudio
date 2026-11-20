@@ -25,10 +25,13 @@ describe("Terra Solaris World deep-route editorial continuity",()=>{
  it("styles real published public bodies rather than constructing missing Court/proposal records",()=>{
   expect(bodies).toContain("readPublicWorldBodies");
   expect(bodies).toContain("readPublicWorldBody");
-  expect(bodies).toContain("world-bodies-editorial-header");
+  expect(bodies).toContain("world-bodies-page-header");
+  expect(bodies).toContain("world-bodies-frame");
   expect(css).toContain(".world-country-affiliation-list");
   expect(css).toContain(".world-search-editorial-hero");
-  expect(css).toContain(".world-bodies-editorial-header");
+  const bodiesCss=readFileSync("src/styles/v3-world-bodies-editorial.css","utf8");
+  expect(bodiesCss).toContain(".world-bodies-page-header");
+  expect(bodiesCss).toContain("html:not([data-solaris-app]) .world-bodies-editorial");
   expect(bodies).not.toContain("supabaseAdmin");
  });
 });
