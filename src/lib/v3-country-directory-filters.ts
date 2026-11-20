@@ -1,5 +1,15 @@
 import { matchesPublicDirectorySearch } from "./v3-public-directory-search";
 
+/** Preserve a participant-scope permalink until the public edition and lineup
+ * have been checked. A slow edition lookup must not erase a valid deep link. */
+export function shouldHoldCountryLineupUrlScope(
+  requested: boolean,
+  editionSourceReady: boolean,
+  lineupReadPending: boolean,
+): boolean {
+  return requested && (!editionSourceReady || lineupReadPending);
+}
+
 /** Current-edition selection is usable only with a successful published lineup read. */
 export function effectiveParticipatingScope(requested: boolean, currentLineupReady: boolean): boolean {
   return requested && currentLineupReady;
