@@ -35,6 +35,7 @@ test('one operator procedure invokes the private restore and clone-only hook saf
  assert.match(wrapper,/operatorBoundPrivateArchiveRehearsalPassed/);
  assert.match(restore,/--check-package "\$S13_BATCH_PACKAGE"/);
  assert.match(restore,/--baseline-kind recovered-private/);
+ assert.match(restore,/S13-only scope: independent completed Storage verification not repeated/);
  assert.ok(restore.indexOf('--check-package')<restore.indexOf("echo '[1/4]"));
  assert.ok(restore.indexOf('S13_BATCH_PROOF:')<restore.indexOf('# Retain object-level catalog evidence'));
  assert.doesNotMatch(wrapper,/supabase (db push|migration repair)|wrangler|https?:\/\//);

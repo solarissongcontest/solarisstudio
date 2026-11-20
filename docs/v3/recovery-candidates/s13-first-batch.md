@@ -75,7 +75,8 @@ SOLARIS_REVIEWED_SOURCE_SHA=EXACT_40_CHARACTER_REVIEWED_SHA \
   bash scripts/ops/solaris-s13-first-batch-operator.sh
 ```
 
-This reuses the already successful owner/ACL-preserving restore. Its only new
+This reuses the already successful owner/ACL-preserving DB restore. S13-only
+mode does not require or reread the independently verified Storage archive. Its only new
 step is a first-batch rehearsal **on a separate database clone before disposal**:
 
 1. Verify committed package/source hashes before decrypting the archive.

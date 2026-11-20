@@ -54,12 +54,15 @@ test -s "$KEY" || abort 'Age private key is missing at expected location (never 
 # Cloud Shell transient files can disappear during a find; search backup folder
 # first, and never accept an absent or empty encrypted artifact.
 DB=$(find "$BASE" -maxdepth 6 -type f -name 'solaris-db-20261115T170928Z.dump*.age' -print -quit 2>/dev/null || true)
-ST=$(find "$BASE" -maxdepth 6 -type f -name 'solaris-storage-20261115T175307Z.tar.age' -print -quit 2>/dev/null || true)
 if [ -z "$DB" ]; then DB=$(find "$HOME" -maxdepth 6 -type f -name 'solaris-db-20261115T170928Z.dump*.age' -print -quit 2>/dev/null || true); fi
-if [ -z "$ST" ]; then ST=$(find "$HOME" -maxdepth 6 -type f -name 'solaris-storage-20261115T175307Z.tar.age' -print -quit 2>/dev/null || true); fi
-test -s "$DB" && test -s "$ST" || abort 'One or both encrypted backups are missing'
+test -s "$DB" || abort 'Encrypted database backup is missing'
 test "$(sha256sum "$DB" | cut -c 1-64)" = 995088d139b5cc2fb63c8295cea5dfd8ede2e1c976ab7f6f7f3611b987742fae || abort 'Database backup SHA-256 mismatch'
-test "$(sha256sum "$ST" | cut -c 1-64)" = 87eb13d9768c1b7b658fa3289853939aed5216af33979b777e8b4ca2f4b3d980 || abort 'Storage backup SHA-256 mismatch'
+if [ -z "$S13_BATCH_PACKAGE" ]; then
+  ST=$(find "$BASE" -maxdepth 6 -type f -name 'solaris-storage-20261115T175307Z.tar.age' -print -quit 2>/dev/null || true)
+  if [ -z "$ST" ]; then ST=$(find "$HOME" -maxdepth 6 -type f -name 'solaris-storage-20261115T175307Z.tar.age' -print -quit 2>/dev/null || true); fi
+  test -s "$ST" || abort 'Encrypted Storage backup is missing'
+  test "$(sha256sum "$ST" | cut -c 1-64)" = 87eb13d9768c1b7b658fa3289853939aed5216af33979b777e8b4ca2f4b3d980 || abort 'Storage backup SHA-256 mismatch'
+fi
 REPORT=$(mktemp -d "$BASE/role-acl-test-XXXXXXXX")
 echo "Private diagnostics: $REPORT"
 
@@ -69,9 +72,13 @@ echo '[1/4] Checking backup archive readability and Storage member bytes'
 age -d -i "$KEY" "$DB" | docker run --rm --network none -i "$IMAGE" \
   sh -c 'pg_restore --list; r=$?; cat >/dev/null; exit "$r"' \
   >"$REPORT/archive-toc.private.txt" || abort 'Database archive listing failed'
-age -d -i "$KEY" "$ST" | tar -tf - >"$REPORT/storage-list.private.txt" || abort 'Storage TAR listing failed'
-age -d -i "$KEY" "$ST" | tar -xOf - >/dev/null || abort 'Storage member stream failed'
-echo "PASS: Storage TAR entries $(wc -l < "$REPORT/storage-list.private.txt")"
+if [ -z "$S13_BATCH_PACKAGE" ]; then
+  age -d -i "$KEY" "$ST" | tar -tf - >"$REPORT/storage-list.private.txt" || abort 'Storage TAR listing failed'
+  age -d -i "$KEY" "$ST" | tar -xOf - >/dev/null || abort 'Storage member stream failed'
+  echo "PASS: Storage TAR entries $(wc -l < "$REPORT/storage-list.private.txt")"
+else
+  echo 'S13-only scope: independent completed Storage verification not repeated or recertified'
+fi
 
 echo '[2/4] Initializing clean isolated PostgreSQL cluster, without Supabase init SQL'
 # Bypass docker-entrypoint.sh, which otherwise pre-creates auth and other schemas.
