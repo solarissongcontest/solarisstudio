@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Check, ChevronRight, Search, SlidersHorizontal, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
@@ -19,12 +19,12 @@ import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading
 import { FlagChip } from "@/components/FlagChip";
 import {
   editionLabel,
-  useAllResults,
   useAllShows,
   useCountries,
   useEditions,
 } from "@/lib/data";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
+import { usePublicFinalWinners } from "@/lib/public-final-winners";
 
 export const Route = createFileRoute("/editions/")({
   head: () => ({
@@ -57,49 +57,43 @@ type EditionCard = {
   editionShows: any[];
   winner: any;
   winnerResult: any;
+  winnerReadState: "ready" | "loading" | "error";
   hosts: HostLocation[];
 };
 
 function EditionsPage() {
   const { isAppMode, platformResolved } = useSolarisApp();
   const presentation = useV3DirectoryPresentation();
-  const [resultsEnabled, setResultsEnabled] = useState(!isAppMode);
   const [search, setSearch] = useState("");
   const [scope, setScope] = useState<EditionDirectoryScope>("all");
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
-  const resultsQuery = useAllResults({ enabled: resultsEnabled });
   const countriesQuery = useCountries();
   const { data: editions } = editionsQuery;
   const { data: shows } = showsQuery;
-  const { data: results } = resultsQuery;
   const { data: countries } = countriesQuery;
 
-  useEffect(() => {
-    if (!isAppMode) {
-      setResultsEnabled(true);
-      return;
-    }
-
-    const idleWindow = window as typeof window & {
-      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
-      cancelIdleCallback?: (handle: number) => void;
-    };
-    let timeout = 0;
-    let idle: number | null = null;
-    const enable = () => setResultsEnabled(true);
-
-    if (idleWindow.requestIdleCallback) {
-      idle = idleWindow.requestIdleCallback(enable, { timeout: 650 });
-    } else {
-      timeout = window.setTimeout(enable, 220);
-    }
-
-    return () => {
-      if (idle != null) idleWindow.cancelIdleCallback?.(idle);
-      if (timeout) window.clearTimeout(timeout);
-    };
-  }, [isAppMode]);
+  // A directory needs only the first-place rows of already published finals.
+  // Derive the finite allowlist from published Edition, public Show and
+  // results-publication gates before executing the optional winner read.
+  const publishedFinalShowIds = useMemo(() => {
+    const publicEditionIds = new Set((editions ?? []).filter((item) => item.published).map((item) => item.id));
+    return [...new Set((shows ?? [])
+      .filter((show) =>
+        publicEditionIds.has(show.edition_id) &&
+        isShowPublic(show) &&
+        (show.kind === "grand-final" || show.kind === "final") &&
+        resolveShowPublication(show).results,
+      )
+      .map((show) => show.id))].sort();
+  }, [editions, shows]);
+  const resultsQuery = usePublicFinalWinners(publishedFinalShowIds);
+  // Invalidate cached winner labels on a failed refresh rather than showing
+  // historical data as if the public result read just succeeded.
+  const results = resultsQuery.isSuccess ? resultsQuery.data : undefined;
+  const winnerReadState: EditionCard["winnerReadState"] =
+    publishedFinalShowIds.length === 0 ? "ready" :
+    resultsQuery.isError ? "error" : resultsQuery.isSuccess ? "ready" : "loading";
 
   const editionList = useMemo(
     () =>
@@ -170,10 +164,11 @@ function EditionsPage() {
           editionShows,
           winner,
           winnerResult,
+          winnerReadState: publication?.results ? winnerReadState : "ready",
           hosts: [...hostMap.values()],
         };
       }),
-    [editionList, shows, results, countryMap],
+    [editionList, shows, results, countryMap, winnerReadState],
   );
 
   const latest = cards[0] ?? null;
@@ -199,9 +194,7 @@ function EditionsPage() {
   ));
   const visibleLatest = visible.find((card) => card.edition.id === latest?.edition.id) ?? null;
   const visiblePast = visible.filter((card) => card.edition.id !== latest?.edition.id);
-  const archiveQueries = isAppMode
-    ? [editionsQuery, showsQuery, countriesQuery]
-    : [editionsQuery, showsQuery, resultsQuery, countriesQuery];
+  const archiveQueries = [editionsQuery, showsQuery, countriesQuery];
 
   // Never flash website navigation before the installed runtime is resolved.
   if (!platformResolved) {
@@ -214,7 +207,7 @@ function EditionsPage() {
         {presentation === "desktop-web" ? (
           <PageHeader eyebrow="Contest archive" title="Editions" description="Browse the published Solaris Song Contest editions." />
         ) : null}
-        <ArchiveDataLoading label={isAppMode ? "Loading editions…" : "Loading editions and results…"} />
+        <ArchiveDataLoading label="Loading published editions…" />
       </AppShell>
     );
   }
@@ -456,7 +449,7 @@ function EditionDesktopCard({ card }: { card: EditionCard }) {
       </span>
       <span className="v3-directory-card-description">{card.editionShows.length} published show{card.editionShows.length === 1 ? "" : "s"}</span>
       <span className="v3-directory-card-description">Host: <HostLine hosts={card.hosts} /></span>
-      <span className="v3-directory-card-description">Winner: <WinnerLine winner={card.winner} points={card.winnerResult?.total_points} /></span>
+      <span className="v3-directory-card-description">Winner: <WinnerLine winner={card.winner} points={card.winnerResult?.total_points} readState={card.winnerReadState} /></span>
     </Link>
   );
 }
@@ -496,7 +489,13 @@ function HostLine({ hosts }: { hosts: HostLocation[] }) {
   );
 }
 
-function WinnerLine({ winner, points }: { winner: any; points?: number | null }) {
+function WinnerLine({ winner, points, readState = "ready" }: {
+  winner: any;
+  points?: number | null;
+  readState?: EditionCard["winnerReadState"];
+}) {
+  if (readState === "loading") return <span className="text-muted-foreground">Checking published winner…</span>;
+  if (readState === "error") return <span className="text-muted-foreground">Winner details temporarily unavailable</span>;
   if (!winner) return <span className="text-muted-foreground">Result not public yet</span>;
   return (
     <span className="inline-flex min-w-0 items-center gap-1.5">
@@ -513,7 +512,7 @@ function WinnerLine({ winner, points }: { winner: any; points?: number | null })
 }
 
 function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?: boolean }) {
-  const { edition, editionShows, winner, winnerResult, hosts } = card;
+  const { edition, editionShows, winner, winnerResult, winnerReadState, hosts } = card;
 
   return (
     <section aria-labelledby="current-edition-heading">
@@ -540,7 +539,7 @@ function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?:
         <div className="v3-editions-feature-meta mt-3 grid gap-1.5 border-t border-border/60 pt-3 text-sm sm:grid-cols-3">
           <p><span className="text-muted-foreground">Shows:</span> {editionShows.length}</p>
           <p className="min-w-0"><span className="text-muted-foreground">Host:</span> <HostLine hosts={hosts} /></p>
-          {winner ? <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} /></p> : null}
+          {winner ? <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} readState={winnerReadState} /></p> : null}
         </div>
       </Link>
     </section>
@@ -548,7 +547,7 @@ function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?:
 }
 
 function ArchiveEdition({ card, appMode = false }: { card: EditionCard; appMode?: boolean }) {
-  const { edition, editionShows, winner, winnerResult, hosts } = card;
+  const { edition, editionShows, winner, winnerResult, winnerReadState, hosts } = card;
 
   return (
     <Link
@@ -563,7 +562,7 @@ function ArchiveEdition({ card, appMode = false }: { card: EditionCard; appMode?
             <p className="mt-1 text-xs text-muted-foreground">
               {editionShows.length} public show{editionShows.length === 1 ? "" : "s"}
             </p>
-            <p className="mt-1 min-w-0 text-xs"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} /></p>
+            <p className="mt-1 min-w-0 text-xs"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} readState={winnerReadState} /></p>
           </div>
           <span className="shrink-0 text-primary" aria-hidden="true">›</span>
         </>
@@ -581,7 +580,7 @@ function ArchiveEdition({ card, appMode = false }: { card: EditionCard; appMode?
 
           <div className="min-w-0 space-y-1 text-xs">
             <p className="min-w-0"><span className="text-muted-foreground">Host:</span> <HostLine hosts={hosts} /></p>
-            <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} /></p>
+            <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} readState={winnerReadState} /></p>
           </div>
 
           <span className="hidden shrink-0 text-base font-semibold text-primary transition-transform group-hover:translate-x-0.5 sm:block">→</span>
