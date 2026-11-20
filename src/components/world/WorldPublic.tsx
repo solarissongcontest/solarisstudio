@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, Building2, Globe2, Landmark, Search, Users } fro
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { AppShell } from "@/components/AppShell";
+import "@/styles/v3-world-editorial.css";
 import { FlagChip } from "@/components/FlagChip";
 import { supabase } from "@/integrations/supabase/client";
 import { publicWorldRolloutDisplay } from "@/lib/terra-world-rollout-gate";
@@ -69,7 +70,7 @@ export function WorldPublicGate({
 function PublicFrame({ children }: { children: ReactNode }) {
   return (
     <AppShell>
-      <div className="mx-auto w-full max-w-6xl px-1 pb-24 pt-4 sm:px-4 sm:pt-7">
+      <div className="world-editorial-frame mx-auto w-full max-w-6xl px-1 pb-24 pt-4 sm:px-4 sm:pt-7">
         {children}
       </div>
     </AppShell>
@@ -109,16 +110,18 @@ function OrganizationRow({ organization }: { organization: WorldOrganization }) 
       to="/world/organizations/$slug"
       params={{ slug: organization.slug }}
       search={{ tab: "overview" }}
-      className="group flex min-h-20 items-center gap-4 border-b border-border/70 py-4 last:border-0 focus-visible:rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+      className="world-editorial-organization-row group flex min-h-20 items-center gap-4 border-b border-border/70 py-4 last:border-0 focus-visible:rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
     >
       <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground" aria-hidden="true">
         <Landmark className="size-5" />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-base font-semibold text-foreground group-hover:underline">{organization.shortName}</span>
-        <span className="mt-1 block text-sm text-muted-foreground">{organization.officialName}</span>
+        {organization.officialName !== organization.shortName ? (
+          <span className="mt-1 block text-sm text-muted-foreground">{organization.officialName}</span>
+        ) : null}
         {organization.description ? (
-          <span className="mt-1 block line-clamp-2 text-sm leading-5 text-muted-foreground">{organization.description}</span>
+          <span className="world-editorial-organization-description mt-1 block line-clamp-2 text-sm leading-5 text-muted-foreground">{organization.description}</span>
         ) : null}
       </span>
       <span className="hidden shrink-0 rounded-full border border-border px-3 py-1 text-xs capitalize text-muted-foreground sm:block">
@@ -139,23 +142,22 @@ export function WorldLanding() {
   const featured = directory.data ?? [];
   return (
     <PublicFrame>
-      <div className="max-w-3xl">
-        <Kicker>Explore · Terra Solaris</Kicker>
-        <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight sm:text-6xl">A world beyond the stage.</h1>
+      <header className="world-editorial-landing">
+        <Kicker>World</Kicker>
+        <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight sm:text-6xl">Terra Solaris</h1>
         <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-          Explore the countries and institutions of Terra Solaris, including GUARD, UNITY and future recognized unions.
-          Official leadership and membership appear only when they are recorded in Solaris.
+          Countries, alliances and institutions.
         </p>
         <div className="mt-7 flex flex-wrap gap-3">
           <Link to="/world/organizations" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground">
-            <Landmark className="size-4" aria-hidden="true" /> Explore organizations
+            <Landmark className="size-4" aria-hidden="true" /> Organizations
           </Link>
           <Link to="/countries" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-5 text-sm font-semibold">
-            <Globe2 className="size-4" aria-hidden="true" /> Discover countries
+            <Globe2 className="size-4" aria-hidden="true" /> Countries
           </Link>
         </div>
-      </div>
-      <section className="mt-12 border-t border-border pt-8" aria-labelledby="world-institutions-title">
+      </header>
+      <section className="world-editorial-featured mt-12 border-t border-border pt-8" aria-labelledby="world-institutions-title">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
           <div>
             <Kicker>Institutions</Kicker>
@@ -204,14 +206,14 @@ export function WorldDirectory() {
       <Link to="/world" className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" aria-hidden="true" /> Terra Solaris
       </Link>
-      <div className="mt-5 max-w-3xl">
+      <div className="world-editorial-directory-header mt-5 max-w-3xl">
         <Kicker>World directory</Kicker>
         <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-5xl">Organizations</h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-          Explore the public profiles of international institutions. Private organizations and unpublished institutions are never listed here.
+          International institutions and alliances.
         </p>
       </div>
-      <div className="mt-8 grid gap-3 border-y border-border py-5 sm:grid-cols-[minmax(0,1fr)_12rem]">
+      <div className="world-editorial-directory-tools mt-8 grid gap-3 border-y border-border py-5 sm:grid-cols-[minmax(0,1fr)_12rem]">
         <label className="flex min-h-12 items-center gap-3 rounded-xl border border-border bg-background px-4 focus-within:ring-2 focus-within:ring-ring">
           <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <span className="sr-only">Search organizations by name</span>
@@ -357,7 +359,7 @@ export function WorldOrganizationPage({
       ) : null}
       {projection.data ? (
         <>
-          <header className="mt-5 max-w-4xl">
+          <header className="world-editorial-institution-header mt-5 max-w-4xl">
             <Kicker>Terra Solaris · International institution</Kicker>
             <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight sm:text-6xl">{projection.data.organization.shortName}</h1>
             <p className="mt-2 text-base font-medium text-muted-foreground">{projection.data.organization.officialName}</p>
@@ -366,7 +368,7 @@ export function WorldOrganizationPage({
               <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">{currentMembers.length} current {currentMembers.length === 1 ? "membership" : "memberships"}</span>
             </div>
           </header>
-          <nav aria-label="Organization sections" className="mt-8 flex gap-1 overflow-x-auto border-b border-border pb-1">
+          <nav aria-label="Organization sections" className="world-editorial-institution-nav mt-8 flex gap-1 overflow-x-auto border-b border-border pb-1">
             {(["overview", "leadership", "members"] as const).map((tab) => (
               <button key={tab} type="button" aria-current={view === tab ? "page" : undefined}
                 onClick={() => onViewChange(tab)}

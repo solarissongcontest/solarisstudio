@@ -1,0 +1,189 @@
+/*
+ * Solaris Studio V3 — World website presentation.
+ * Public publication/rollout and membership authority remain in WorldPublic.tsx.
+ * No synthetic photography, map, organizations, member counts, or flags.
+ * Installed app uses its separately governed layout.
+ */
+html:not([data-solaris-app]) .world-editorial-frame {
+  --world-rule: color-mix(in oklab, var(--foreground) 15%, transparent);
+  --world-muted: color-mix(in oklab, var(--foreground) 65%, transparent);
+  width: min(100%, 78rem);
+  padding-inline: clamp(1rem, 3vw, 2.75rem);
+  padding-top: clamp(1.1rem, 3vw, 2.75rem);
+  padding-bottom: max(3.5rem, env(safe-area-inset-bottom));
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-landing {
+  position: relative;
+  overflow: clip;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  width: 100%;
+  max-width: none;
+  min-height: clamp(23rem, 43vw, 37rem);
+  padding: clamp(1.3rem, 4.5vw, 4rem);
+  border: 1px solid color-mix(in oklab, var(--primary) 19%, var(--world-rule));
+  border-radius: clamp(1rem, 2.4vw, 1.65rem);
+  background:
+    radial-gradient(ellipse at 92% 4%, color-mix(in oklab, var(--primary) 15%, transparent), transparent 60%),
+    linear-gradient(150deg, color-mix(in oklab, var(--surface) 71%, var(--background)), var(--background));
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-landing > h1 {
+  max-width: 15ch;
+  margin-top: .8rem;
+  font-size: clamp(2.9rem, 8vw, 7.25rem);
+  font-weight: 740;
+  line-height: .94;
+  letter-spacing: -.07em;
+  text-wrap: balance;
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-landing > p:not(:first-child) {
+  max-width: 41ch;
+  margin-top: clamp(.8rem, 2vw, 1.5rem);
+  color: var(--world-muted);
+  font-size: clamp(1rem, 1.9vw, 1.3rem);
+  line-height: 1.45;
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-landing > div:last-child {
+  display: flex;
+  gap: .75rem;
+  margin-top: clamp(1.5rem, 2.7vw, 2.4rem);
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-landing > div:last-child a {
+  min-height: 48px;
+  border-radius: .75rem;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-featured {
+  margin-top: clamp(2rem, 4vw, 4rem);
+  padding-top: clamp(1.2rem, 3vw, 2.5rem);
+  border-color: var(--world-rule);
+}
+html:not([data-solaris-app]) .world-editorial-frame #world-institutions-title {
+  font-size: clamp(1.55rem, 3vw, 2.35rem);
+  letter-spacing: -.04em;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-organization-row {
+  min-height: 6rem;
+  padding-block: clamp(.9rem, 2vw, 1.4rem);
+  border-color: var(--world-rule);
+  transition: background-color 160ms ease;
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-organization-row:hover {
+  background: color-mix(in oklab, var(--surface) 55%, transparent);
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-organization-row > span:first-child {
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid var(--world-rule);
+  border-radius: .75rem;
+  background: transparent;
+  color: var(--primary);
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-organization-row > span:nth-child(2) > span:first-child {
+  font-size: clamp(1rem, 1.65vw, 1.22rem);
+  font-weight: 710;
+  letter-spacing: -.022em;
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-organization-row .world-editorial-organization-description {
+  max-width: 60ch;
+  line-height: 1.55;
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-directory-header {
+  max-width: 66rem;
+  padding-bottom: clamp(1rem, 3vw, 2.5rem);
+  border-bottom: 1px solid var(--world-rule);
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-directory-header h1 {
+  max-width: 20ch;
+  font-size: clamp(2.25rem, 5.2vw, 4.65rem);
+  line-height: 1;
+  letter-spacing: -.06em;
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-directory-header p {
+  max-width: 55ch;
+  color: var(--world-muted);
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-directory-tools {
+  gap: .75rem;
+  border: 0;
+  padding-block: 1rem;
+  margin-top: clamp(.8rem, 2vw, 1.4rem);
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-directory-tools :is(input, select) {
+  min-height: 48px;
+  font-size: .9rem;
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-directory-tools > label:first-child {
+  background: color-mix(in oklab, var(--surface) 60%, transparent);
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-institution-header {
+  width: 100%;
+  max-width: 70rem;
+  padding-bottom: clamp(1.25rem, 3vw, 2.5rem);
+  border-bottom: 1px solid var(--world-rule);
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-institution-header h1 {
+  max-width: 16ch;
+  font-size: clamp(2.5rem, 6vw, 5.7rem);
+  line-height: 1;
+  letter-spacing: -.065em;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-institution-nav {
+  min-height: 50px;
+  margin-top: .6rem;
+  border-color: var(--world-rule);
+  scrollbar-width: thin;
+}
+html:not([data-solaris-app]) .world-editorial-frame .world-editorial-institution-nav > button {
+  flex: 0 0 auto;
+  min-height: 48px;
+  font-size: .88rem;
+  border-bottom-width: 2px;
+}
+html:not([data-solaris-app]) .world-editorial-frame :is(h2, h3) {
+  letter-spacing: -.028em;
+  text-wrap: balance;
+}
+@media (max-width: 767px) {
+  html:not([data-solaris-app]) .world-editorial-frame .world-editorial-landing {
+    min-height: 24rem;
+    padding: 1.4rem 1.15rem;
+  }
+  html:not([data-solaris-app]) .world-editorial-frame .world-editorial-landing > h1 {
+    font-size: clamp(2.6rem, 11vw, 4rem);
+  }
+  html:not([data-solaris-app]) .world-editorial-frame .world-editorial-landing > div:last-child {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  html:not([data-solaris-app]) .world-editorial-frame .world-editorial-landing > div:last-child a {
+    width: 100%;
+    justify-content: center;
+  }
+  html:not([data-solaris-app]) .world-editorial-frame .world-editorial-organization-row {
+    gap: .8rem;
+    padding-block: 1.1rem;
+  }
+  html:not([data-solaris-app]) .world-editorial-frame .world-editorial-organization-row .world-editorial-organization-description {
+    display: none;
+  }
+  html:not([data-solaris-app]) .world-editorial-frame .world-editorial-institution-header h1 {
+    font-size: clamp(2.4rem, 11vw, 4.3rem);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-solaris-app]) .world-editorial-frame .world-editorial-organization-row,
+  html:not([data-solaris-app]) .world-editorial-frame .world-editorial-landing a {
+    transition: none;
+  }
+}
+@media (forced-colors: active) {
+  html:not([data-solaris-app]) .world-editorial-frame .world-editorial-organization-row:focus-visible {
+    outline-color: Highlight;
+  }
+}
