@@ -91,7 +91,7 @@ class Tests(unittest.TestCase):
         self.sql('CREATE FUNCTION private.s13_unreviewed_event() RETURNS event_trigger LANGUAGE plpgsql AS $$BEGIN RETURN; END$$; CREATE EVENT TRIGGER s13_unreviewed ON ddl_command_end EXECUTE FUNCTION private.s13_unreviewed_event();',db,user='supabase_admin')
         before=module.catalog_digest(self.container,db)
         with self.assertRaises(subprocess.CalledProcessError) as caught:self.sql((self.package/'install.sql').read_text(),db)
-        self.assertIn(b'DDL event triggers require explicit qualification',caught.exception.stderr)
+        self.assertIn(b'S13 batch unqualified DDL event handler',caught.exception.stderr)
         self.assertEqual(module.catalog_digest(self.container,db),before)
     def test_04_package_tampering_and_false_private_origin_refused(self):
         copy=Path(self.tmp.name)/'tampered';shutil.copytree(self.package,copy)
@@ -110,6 +110,67 @@ class Tests(unittest.TestCase):
                 with self.assertRaises(subprocess.CalledProcessError) as caught:self.sql('BEGIN; '+sql+'; '+(ROOT/'docs/v3/recovery-candidates/s13-first-batch-postconditions.sql').read_text(),db)
                 self.assertIn(b'42501',caught.exception.stderr)
                 self.assertEqual(module.catalog_digest(self.container,db),before)
+    def test_07_qualified_postgrest_ddl_watcher_is_preserved(self):
+        # Observed hosted Supabase PostgreSQL 17.11 watcher, definition pinned
+        # read-only on 20 November. The handler only NOTIFYs schema reload;
+        # any different/mutating handler must still be rejected by preflight.
+        db=self.clone()
+        self.sql('CREATE SCHEMA extensions AUTHORIZATION supabase_admin',db,user='supabase_admin')
+        self.sql(r"""CREATE OR REPLACE FUNCTION extensions.pgrst_ddl_watch()
+ RETURNS event_trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+DECLARE
+  cmd record;
+BEGIN
+  FOR cmd IN SELECT * FROM pg_event_trigger_ddl_commands()
+  LOOP
+    IF cmd.command_tag IN (
+      'CREATE SCHEMA', 'ALTER SCHEMA'
+    , 'CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO', 'ALTER TABLE'
+    , 'CREATE FOREIGN TABLE', 'ALTER FOREIGN TABLE'
+    , 'CREATE VIEW', 'ALTER VIEW'
+    , 'CREATE MATERIALIZED VIEW', 'ALTER MATERIALIZED VIEW'
+    , 'CREATE FUNCTION', 'ALTER FUNCTION'
+    , 'CREATE TRIGGER'
+    , 'CREATE TYPE', 'ALTER TYPE'
+    , 'CREATE RULE'
+    , 'COMMENT'
+    )
+    -- don't notify in case of CREATE TEMP table or other objects created on pg_temp
+    AND cmd.schema_name is distinct from 'pg_temp'
+    THEN
+      NOTIFY pgrst, 'reload schema';
+    END IF;
+  END LOOP;
+END; $function$;""",db,user='supabase_admin')
+        self.sql("CREATE EVENT TRIGGER pgrst_ddl_watch ON ddl_command_end EXECUTE FUNCTION extensions.pgrst_ddl_watch()",db,user='supabase_admin')
+        definition=self.sql("SELECT md5(pg_get_functiondef('extensions.pgrst_ddl_watch()'::regprocedure))",db,user='supabase_admin')
+        self.assertEqual(definition,'afaad7193dcf8f81e728d2bedb85e43e',
+                         'The test must reproduce the exact hosted definition')
+        before=module.catalog_digest(self.container,db)
+        self.sql((self.package/'preflight.sql').read_text(),db)
+        self.sql((self.package/'install.sql').read_text(),db)
+        self.sql((self.package/'postcheck.sql').read_text(),db)
+        self.assertEqual(module.catalog_digest(self.container,db),before,
+                         'Provider-owned PostgREST watcher and previous catalog must be unchanged')
+        self.assertEqual(self.sql("SELECT evtenabled FROM pg_event_trigger WHERE evtname='pgrst_ddl_watch'",db),
+                         'O','Provider watcher must never be disabled')
+
+        # Changing its exact function body or ownership must refuse future
+        # batches. Never permit arbitrary event handlers through a name match.
+        different=self.clone()
+        self.sql('CREATE SCHEMA extensions AUTHORIZATION supabase_admin',different,user='supabase_admin')
+        self.sql("""CREATE FUNCTION extensions.pgrst_ddl_watch() RETURNS event_trigger
+                     LANGUAGE plpgsql AS $ BEGIN NULL; END $;""",different,user='supabase_admin')
+        self.sql("CREATE EVENT TRIGGER pgrst_ddl_watch ON ddl_command_end EXECUTE FUNCTION extensions.pgrst_ddl_watch()",different,user='supabase_admin')
+        initial=module.catalog_digest(self.container,different)
+        with self.assertRaises(subprocess.CalledProcessError) as caught:
+            self.sql((self.package/'install.sql').read_text(),different)
+        self.assertIn(b'S13 batch unqualified DDL event handler',caught.exception.stderr)
+        self.assertEqual(module.catalog_digest(self.container,different),initial)
+
     def test_06_no_source_database_or_clone_left_over(self):
         self.assertEqual(self.sql("SELECT count(*) FROM pg_database WHERE datname LIKE 'solaris_s13_batch_%'"),'0')
         self.assertEqual(self.sql('SELECT count(*) FROM public.s13_prior_results',user='supabase_admin'),'66')
