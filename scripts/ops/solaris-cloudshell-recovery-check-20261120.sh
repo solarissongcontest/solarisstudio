@@ -2,6 +2,20 @@
 # LOCAL-ONLY Solaris Studio recovery check. Never connects to production.
 set -euo pipefail
 umask 077
+# Cloud Shell system packages are ephemeral across environment restarts.
+# Fail closed rather than letting pg_restore misdiagnose an empty pipe.
+if ! command -v age >/dev/null 2>&1; then
+  echo '[0/5] age missing in this Cloud Shell session; installing it'
+  command -v sudo >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1 || {
+    echo 'ERROR: sudo/apt-get unavailable; cannot install age automatically'
+    exit 1
+  }
+  sudo apt-get update -qq && sudo apt-get install -y age || {
+    echo 'ERROR: age installation failed; database backup untouched'
+    exit 1
+  }
+fi
+command -v age >/dev/null 2>&1 || { echo 'ERROR: age unavailable'; exit 1; }
 B="$HOME/solaris-recovery"
 K="$B/recovery-private.key"
 # A live Cloud Shell HOME has transient .gemini lockfiles which can vanish
