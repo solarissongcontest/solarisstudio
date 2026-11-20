@@ -49,7 +49,13 @@ for i in $(seq 1 50); do
   sleep 1
 done
 test "$READY" = 1 || { echo 'Isolated PostgreSQL not ready'; exit 1; }
-docker exec "$C" createdb -U postgres -T template0 solaris_restore
+# pg_cron only installs in the cluster's postgres database, so do not
+# create/use a separate solaris_restore database here. This Docker cluster
+# is fresh and --network none; it cannot reach the hosted Supabase instance.
+test "$(docker exec "$C" psql -U postgres -d postgres -At -v ON_ERROR_STOP=1 -c 'SELECT current_database()')" = postgres || {
+  echo 'ERROR: not connected to isolated postgres database'; exit 1;
+}
+echo 'Using disposable postgres database (pg_cron requirement)'
 echo '[5/5] Preparing the fresh database from the backup TOC'
 # The dump may omit CREATE SCHEMA for provider-managed schemas. Create only
 # schema containers, never fake missing tables or rows. The source backup
@@ -60,15 +66,10 @@ archive_declares_schema() {
 }
 for schema in public private auth storage televoting extensions vault; do
   if archive_declares_schema "$schema"; then
-    # PG17 template0 can contain an empty public schema. The dump owns it
-    # when SCHEMA public is in the archive, so remove that empty duplicate.
-    if [ "$schema" = public ]; then
-      docker exec "$C" psql -U postgres -d solaris_restore -v ON_ERROR_STOP=1 \
-        -c 'DROP SCHEMA IF EXISTS public CASCADE' >/dev/null
-      echo 'Backup owns public schema; removed default empty copy'
-    fi
+    # Archive owns the schema DDL; never drop initialized Supabase schemas.
+    :
   else
-    docker exec "$C" psql -U postgres -d solaris_restore -v ON_ERROR_STOP=1 \
+    docker exec "$C" psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
       -c "CREATE SCHEMA IF NOT EXISTS \"$schema\"" >/dev/null
     echo "Created missing schema container '$schema' in isolated database only"
   fi
@@ -77,11 +78,11 @@ echo '[5/5] Attempting transactional restore WITHOUT --clean'
 # --clean is for overwriting existing objects; this database is fresh.
 # On empty destinations, cleanup can fail before archive tables are created.
 # --single-transaction aborts everything on any restore error.
-if age -d -i "$K" "$D" | docker exec -i "$C" sh -c 'pg_restore -U postgres -d solaris_restore --no-owner --no-acl --exit-on-error --single-transaction >/dev/null 2>/tmp/restore.log; r=$?; cat >/dev/null; cat /tmp/restore.log >&2; exit "$r"' 2>"$R/restore.private.log"; then
+if age -d -i "$K" "$D" | docker exec -i "$C" sh -c 'pg_restore -U postgres -d postgres --no-owner --no-acl --exit-on-error --single-transaction >/dev/null 2>/tmp/restore.log; r=$?; cat >/dev/null; cat /tmp/restore.log >&2; exit "$r"' 2>"$R/restore.private.log"; then
   echo 'ISOLATED DATABASE RESTORE SUCCESSFUL (ownership/ACL and Supabase services not certified)'
-  docker exec "$C" psql -U postgres -d solaris_restore -At -v ON_ERROR_STOP=1 \
+  docker exec "$C" psql -U postgres -d postgres -At -v ON_ERROR_STOP=1 \
     -c "select 'Restored tables=' || count(*) || ', RLS-enabled=' || count(*) filter (where c.relrowsecurity) from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind='r' and n.nspname in ('public','private','televoting','auth','storage')"
-  docker exec "$C" psql -U postgres -d solaris_restore -At -v ON_ERROR_STOP=1 \
+  docker exec "$C" psql -U postgres -d postgres -At -v ON_ERROR_STOP=1 \
     -c "select 'televoting.televote_aggregations present=' || (to_regclass('televoting.televote_aggregations') is not null)"
 else
   echo 'ISOLATED RESTORE NOT COMPLETED'
