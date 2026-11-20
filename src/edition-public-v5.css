@@ -421,3 +421,31 @@ body[data-entity-theme="edition"][data-edition-public-style="glass"] .edition-pu
     background: color-mix(in oklab, var(--surface) 90%, transparent) !important;
   }
 }
+
+/* Explore V3: an edition logo is an optional independent mark, never a
+ * substitute for official background artwork. When no logo is published (or
+ * its URL fails), use the full editorial width rather than an empty plate
+ * column. This applies to ordinary web only; the installed V3 screen owns its
+ * own cinematic composition. */
+body[data-entity-theme="edition"] .edition-public-page .edition-hero[data-has-logo="false"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+body[data-entity-theme="edition"] .edition-public-page .edition-hero[data-has-logo="false"] .edition-hero-copy {
+  border-right: 0;
+  max-width: min(100%, 72rem);
+}
+body[data-entity-theme="edition"] .edition-public-page .edition-hero[data-has-artwork="false"] {
+  background:
+    radial-gradient(ellipse at 83% 22%, color-mix(in oklab, var(--primary) 20%, transparent), transparent 55%),
+    linear-gradient(145deg, var(--surface), var(--background));
+}
+@media (max-width: 47.99rem) {
+  body[data-entity-theme="edition"] .edition-public-page .edition-hero[data-has-logo="false"] .edition-hero-copy {
+    align-items: flex-start;
+    align-self: stretch;
+    text-align: left;
+  }
+  body[data-entity-theme="edition"] .edition-public-page .edition-hero[data-has-logo="false"] .edition-hero-status {
+    align-self: flex-start;
+  }
+}
