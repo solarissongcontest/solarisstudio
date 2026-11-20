@@ -122,6 +122,15 @@
   .v3-directory-family .v3-directory-desktop-card{transition:none}
 }
 
+/* Explicit filter recovery without needing an empty-result state. */
+.v3-directory-family .v3-directory-clear-filters{
+  display:inline-flex;min-height:40px;align-items:center;margin:-.4rem 0 .8rem;
+  padding:.25rem .35rem;color:var(--foreground);font-size:.82rem;
+  font-weight:650;text-decoration:underline;text-underline-offset:.2em
+}
+.v3-directory-family .v3-directory-clear-filters:focus-visible{
+  outline:2px solid var(--primary);outline-offset:2px;border-radius:.25rem
+}
 /* Edition chronology has one featured object and a restrained historical collection. */
 .v3-editions-directory .v3-editions-feature{padding:1rem;border-radius:.85rem}
 .v3-editions-directory .v3-editions-feature h2{

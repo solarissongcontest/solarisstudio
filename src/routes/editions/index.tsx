@@ -10,6 +10,7 @@ import { directoryCountLabel } from "@/lib/v3-directory-count";
 import { matchesPublicDirectorySearch } from "@/lib/v3-public-directory-search";
 import {
   MAX_PUBLIC_DIRECTORY_QUERY_LENGTH,
+  normalizePublicDirectoryUrlQuery,
   parseEditionDirectoryUrlSearch,
 } from "@/lib/v3-directory-url-search";
 import "@/styles/v3-directory-family.css";
@@ -80,7 +81,7 @@ function EditionsPage() {
   useEffect(() => setScope(urlSearch.scope ?? "all"), [urlSearch.scope]);
   useEffect(() => {
     if (!platformResolved) return;
-    const q = search.trim() || undefined;
+    const q = normalizePublicDirectoryUrlQuery(search);
     const selectedScope = scope === "all" ? undefined : scope;
     if (q === urlSearch.q && selectedScope === urlSearch.scope) return;
     const timer = window.setTimeout(() => {
@@ -275,6 +276,9 @@ function EditionsPage() {
             </header>
             {control}
             <p className="v3-directory-results-count" role="status" aria-live="polite">{directoryCountLabel({ available: cards.length, matches: visible.length, rendered: visible.length, noun: "published editions" })}</p>
+                {visible.length > 0 && (search.trim() || scope !== "all") ? (
+                  <button type="button" className="v3-directory-clear-filters" onClick={reset}>Clear filters</button>
+                ) : null}
             {visibleLatest ? <LatestEdition card={visibleLatest} appMode /> : null}
             {visiblePast.length ? (
               <section className="v3-directory-group" aria-labelledby="app-edition-archive">
@@ -313,6 +317,9 @@ function EditionsPage() {
               <div className="v3-directory-results">
                 {control}
                 <p className="v3-directory-results-count" role="status" aria-live="polite">{directoryCountLabel({ available: cards.length, matches: visible.length, rendered: visible.length, noun: "published editions" })}</p>
+                {visible.length > 0 && (search.trim() || scope !== "all") ? (
+                  <button type="button" className="v3-directory-clear-filters" onClick={reset}>Clear filters</button>
+                ) : null}
                 {visibleLatest ? <LatestEdition card={visibleLatest} /> : null}
                 {visiblePast.length ? (
                   <section className="v3-directory-group v3-editions-history" aria-labelledby="editions-archive-heading">

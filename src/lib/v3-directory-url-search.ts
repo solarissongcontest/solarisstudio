@@ -15,11 +15,14 @@ export type EditionDirectoryUrlSearch = {
   scope?: "latest" | "past";
 };
 
-function cleanPublicQuery(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
+/** Normalize URL and local values alike to avoid repeated-space rewrite loops. */
+export function normalizePublicDirectoryUrlQuery(value: string): string | undefined {
   const clean = value.replace(/\p{Cc}/gu, " ").replace(/\s+/g, " ").trim()
     .slice(0, MAX_PUBLIC_DIRECTORY_QUERY_LENGTH).trim();
   return clean || undefined;
+}
+function cleanPublicQuery(value: unknown): string | undefined {
+  return typeof value === "string" ? normalizePublicDirectoryUrlQuery(value) : undefined;
 }
 
 export function parsePublicDirectoryUrlSearch(

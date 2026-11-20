@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   MAX_PUBLIC_DIRECTORY_QUERY_LENGTH,
+  normalizePublicDirectoryUrlQuery,
   parseEditionDirectoryUrlSearch,
   parsePublicDirectoryUrlSearch,
 } from "./v3-directory-url-search";
@@ -25,6 +26,11 @@ describe("Public Explore permalink filters", () => {
       .toHaveLength(MAX_PUBLIC_DIRECTORY_QUERY_LENGTH);
     expect(parsePublicDirectoryUrlSearch({ area: "A".repeat(100) }).area)
       .toBeUndefined();
+  });
+
+  it("normalizes repeated spaces so a shared URL settles without navigation loops", () => {
+    expect(normalizePublicDirectoryUrlQuery(" SSC    22  ")).toBe("SSC 22");
+    expect(normalizePublicDirectoryUrlQuery("  ")).toBeUndefined();
   });
 
   it("allows only known Edition scopes and never accepts an arbitrary state", () => {

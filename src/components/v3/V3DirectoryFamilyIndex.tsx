@@ -11,7 +11,7 @@ import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/s
 import { useV3DirectoryPresentation, type V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import { directoryCountLabel, resolveDirectoryScope } from "@/lib/v3-directory-count";
 import { matchesPublicDirectorySearch } from "@/lib/v3-public-directory-search";
-import { MAX_PUBLIC_DIRECTORY_QUERY_LENGTH, type PublicDirectoryUrlSearch } from "@/lib/v3-directory-url-search";
+import { MAX_PUBLIC_DIRECTORY_QUERY_LENGTH, normalizePublicDirectoryUrlQuery, type PublicDirectoryUrlSearch } from "@/lib/v3-directory-url-search";
 import "@/styles/v3-directory-family.css";
 
 export type V3DirectoryItem = {
@@ -84,7 +84,7 @@ export function V3DirectoryFamilyIndex({
   useEffect(() => setArea(urlSearch?.area ?? "all"), [urlSearch?.area]);
   useEffect(() => {
     if (!platformResolved || !urlSearch || !onUrlSearchChange) return;
-    const q = search.trim() || undefined;
+    const q = normalizePublicDirectoryUrlQuery(search);
     const selectedArea = effectiveArea === "all" ? undefined : effectiveArea;
     if (q === urlSearch.q && selectedArea === urlSearch.area) return;
     // Replace typing history rather than adding a history entry per keystroke.
@@ -180,6 +180,9 @@ export function V3DirectoryFamilyIndex({
     <>
       <div className="v3-directory-controls">{searchField}{scopeControl}</div>
       <p className="v3-directory-results-count" role="status" aria-live="polite">{resultCount}</p>
+      {visible > 0 && (search.trim() || effectiveArea !== "all") ? (
+        <button type="button" className="v3-directory-clear-filters" onClick={reset}>Clear filters</button>
+      ) : null}
       <div className="v3-directory-groups">
         {scoped.filter((group) => group.items.length > 0).map((group) => (
           <section key={group.id} className="v3-directory-group" aria-labelledby={`directory-${group.id}`}>
