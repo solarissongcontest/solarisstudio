@@ -63,4 +63,14 @@ describe("Country web editorial identity transition", () => {
     expect(css).toContain('overflow-x: auto');
   });
 
+  it("uses an actual browser contest snapshot rather than duplicating the entire World profile", () => {
+    const route = countryRoute();
+    const css = styles();
+    expect(route).toContain('{isAppMode ? <CountryWorldOverview country={country} /> : null}');
+    expect(route).toContain('variant={isAppMode ? "data" : "editorial"}');
+    expect(route).toContain('className="country-editorial-stat-strip');
+    expect(route).toContain('<CountryWorldSupplement country={country} defaultLayout={publishedDesign?.content.defaultLayout}');
+    expect(css).toContain('html:not([data-solaris-app]) .country-editorial-profile .country-editorial-stat-strip');
+  });
+
 });
