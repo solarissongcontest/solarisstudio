@@ -93,7 +93,7 @@ function ResultSection({ id, title, count, browse, page, onPageChange, children 
         {title === "Countries" ? (
           <Link to="/world/countries" className="text-sm font-semibold text-primary">Browse countries</Link>
         ) : (
-          <Link to="/world/organizations" className="text-sm font-semibold text-primary">Browse organizations</Link>
+          <Link to="/world/organizations" search={{ q: "", status: "all", page: 1 }} className="text-sm font-semibold text-primary">Browse organizations</Link>
         )}
       </div>
       {children}
@@ -221,7 +221,7 @@ export function WorldUnifiedSearchPage({
               <Link to="/world/countries" className="inline-flex min-h-11 items-center gap-2 rounded-xl border px-4">
                 <Globe2 className="size-4" aria-hidden="true" /> Countries
               </Link>
-              <Link to="/world/organizations" className="inline-flex min-h-11 items-center gap-2 rounded-xl border px-4">
+              <Link to="/world/organizations" search={{ q: "", status: "all", page: 1 }} className="inline-flex min-h-11 items-center gap-2 rounded-xl border px-4">
                 <Landmark className="size-4" aria-hidden="true" /> Organizations
               </Link>
             </div>
