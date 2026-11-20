@@ -120,7 +120,37 @@ pgsodium_keymaker pgsodium_keyholder pgsodium_keyiduser
 """.split())
 owners = set()
 for line in toc.splitlines():
-    m = re.match(r'^\d+;\s+\d+\s+\d+\s+(.+)
+    m = re.match(r'^\d+;\s+\d+\s+\d+\s+(.+)$', line)
+    if not m: continue
+    rest = m.group(1)
+    if not re.match(r'^(?:TABLE(?: DATA)?|SCHEMA|ACL|DEFAULT ACL|POLICY|'
+                    r'FUNCTION|PROCEDURE|SEQUENCE|VIEW|MATERIALIZED VIEW|'
+                    r'TYPE|INDEX|TRIGGER|EXTENSION)\s+', rest): continue
+    name = rest.rsplit(None, 1)[-1]
+    if name == '-': continue
+    if not re.fullmatch(r'[A-Za-z_][A-Za-z_0-9$]{0,62}', name):
+        raise SystemExit("STOP: unusual archived owner name; no unsafe SQL will be generated")
+    owners.add(name)
+if not owners or len(owners) > 50:
+    raise SystemExit("STOP: unexpected archived role-owner inventory")
+roles = sorted(known | owners)
+if len(roles) > 75: raise SystemExit("STOP: role inventory is too large")
+for role in roles:
+    if role.startswith("pg_"): continue
+    if role == "supabase_admin": continue  # initdb superuser already exists
+    lit = role.replace("'", "''")
+    # Only the observed hosted service_role and postgres identities bypass RLS;
+    # all other roles have minimal NOLOGIN/NOBYPASSRLS local attributes.
+    bypass = "BYPASSRLS" if role in ("service_role","postgres") else "NOBYPASSRLS"
+    print('DO $role_seed$ BEGIN IF NOT EXISTS'
+          " (SELECT 1 FROM pg_roles WHERE rolname = '%s') THEN "
+          "EXECUTE 'CREATE ROLE ' || quote_ident('%s') || ' NOLOGIN %s'; "
+          "END IF; END $role_seed$;" % (lit, lit, bypass))
+PYROLE
+docker exec -i "$CONTAINER" psql -X -q -U supabase_admin -d postgres \
+  -v ON_ERROR_STOP=1 -f - < "$REPORT/roles.private.sql" \
+  > "$REPORT/role-seed.private.log" 2>&1 || abort 'Local role seed failed (see private log)'
+echo 'Restricted local role placeholders prepared; membership recovery remains OPEN'
 archive_defines_schema() {
   grep -Eq "^[[:space:]]*[0-9]+;[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+SCHEMA[[:space:]]+-[[:space:]]+$1([[:space:]]|$)" "$REPORT/archive-toc.private.txt"
 }
@@ -233,79 +263,6 @@ else
   grep -m 1 -oE 'extension "[a-zA-Z0-9_]+" is not available' "$REPORT/restore.private.log" || \
   (grep -m 1 -E 'pg_restore: error:|ERROR:' "$REPORT/restore.private.log" | sed -E 's/"[^"]*"/"[hidden]"/g' | cut -c 1-180) || true
   echo 'Full private diagnostics were kept in the local recovery folder; do not share them.'
-  exit 1
-fi
-echo 'Production was never contacted; disposable container will now be deleted.'
-, line)
-    if not m: continue
-    rest = m.group(1)
-    if not re.match(r'^(?:TABLE(?: DATA)?|SCHEMA|ACL|DEFAULT ACL|POLICY|'
-                    r'FUNCTION|PROCEDURE|SEQUENCE|VIEW|MATERIALIZED VIEW|'
-                    r'TYPE|INDEX|TRIGGER|EXTENSION)\s+', rest): continue
-    name = rest.rsplit(None, 1)[-1]
-    if name == '-': continue
-    if not re.fullmatch(r'[A-Za-z_][A-Za-z_0-9$]{0,62}', name):
-        raise SystemExit("STOP: unusual archived owner name; no unsafe SQL will be generated")
-    owners.add(name)
-if not owners or len(owners) > 50:
-    raise SystemExit("STOP: unexpected archived role-owner inventory")
-roles = sorted(known | owners)
-if len(roles) > 75: raise SystemExit("STOP: role inventory is too large")
-for role in roles:
-    if role.startswith("pg_"): continue
-    if role == "supabase_admin": continue  # initdb superuser already exists
-    lit = role.replace("'", "''")
-    # Only the observed hosted service_role and postgres identities bypass RLS;
-    # all other roles have minimal NOLOGIN/NOBYPASSRLS local attributes.
-    bypass = "BYPASSRLS" if role in ("service_role","postgres") else "NOBYPASSRLS"
-    print('DO $role_seed$ BEGIN IF NOT EXISTS'
-          " (SELECT 1 FROM pg_roles WHERE rolname = '%s') THEN "
-          "EXECUTE 'CREATE ROLE ' || quote_ident('%s') || ' NOLOGIN %s'; "
-          "END IF; END $role_seed$;" % (lit, lit, bypass))
-PYROLE
-docker exec -i "$CONTAINER" psql -X -q -U supabase_admin -d postgres \
-  -v ON_ERROR_STOP=1 -f - < "$REPORT/roles.private.sql" \
-  > "$REPORT/role-seed.private.log" 2>&1 || abort 'Local role seed failed (see private log)'
-echo 'Restricted local role placeholders prepared; membership recovery remains OPEN'
-archive_defines_schema() {
-  grep -Eq "^[[:space:]]*[0-9]+;[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+SCHEMA[[:space:]]+-[[:space:]]+$1([[:space:]]|$)" "$REPORT/archive-toc.private.txt"
-}
-for SCH in public private auth storage televoting extensions; do
-  if archive_defines_schema "$SCH"; then
-    if [ "$SCH" = public ]; then
-      docker exec "$CONTAINER" psql -X -U supabase_admin -d postgres -v ON_ERROR_STOP=1 \
-        -c 'DROP SCHEMA IF EXISTS public' >/dev/null || abort 'Could not remove empty public schema'
-    fi
-  else
-    docker exec "$CONTAINER" psql -X -U supabase_admin -d postgres -v ON_ERROR_STOP=1 \
-      -c "CREATE SCHEMA IF NOT EXISTS \"$SCH\"" >/dev/null || abort "Could not create schema $SCH"
-  fi
-done
-grep -Eq ' TABLE televoting televote_aggregations ' "$REPORT/archive-toc.private.txt" || abort 'Televote table definition not in archive'
-grep -Eq ' TABLE DATA televoting televote_aggregations ' "$REPORT/archive-toc.private.txt" || abort 'Televote table-data entry not in archive'
-
-echo '[4/4] Restoring application dump into clean isolated database'
-if age -d -i "$KEY" "$DB" | docker exec -i "$CONTAINER" sh -c '
-  pg_restore -U supabase_admin -d postgres \
-    --no-owner --no-acl --exit-on-error --single-transaction \
-    >/dev/null 2>/tmp/restore.private.log
-  rc=$?
-  cat >/dev/null
-  cat /tmp/restore.private.log >&2
-  exit "$rc"
-' 2>"$REPORT/restore.private.log"; then
-  echo 'ISOLATED SCOPED DATABASE RESTORE SUCCESSFUL'
-  docker exec "$CONTAINER" psql -X -U supabase_admin -d postgres -At -v ON_ERROR_STOP=1 \
-    -c "SELECT 'Restored tables=' || count(*) || '; RLS tables=' || count(*) FILTER (WHERE c.relrowsecurity) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind='r' AND n.nspname IN ('public','private','televoting','auth','storage')"
-  docker exec "$CONTAINER" psql -X -U supabase_admin -d postgres -At -v ON_ERROR_STOP=1 \
-    -c "SELECT 'Televote table present=' || (to_regclass('televoting.televote_aggregations') IS NOT NULL)"
-
-else
-  echo 'ISOLATED RESTORE BLOCKED'
-  grep -m 1 -oE '(schema|relation) "[a-zA-Z0-9_.]+" (does not exist|already exists)' "$REPORT/restore.private.log" || \
-  grep -m 1 -oE 'extension "[a-zA-Z0-9_]+" is not available' "$REPORT/restore.private.log" || \
-  (grep -m 1 -E 'pg_restore: error:|ERROR:' "$REPORT/restore.private.log" | sed -E 's/"[^"]*"/"[hidden]"/g' | cut -c 1-180) || true
-  echo "Full private diagnostic: $REPORT/restore.private.log"
   exit 1
 fi
 echo 'Production was never contacted; disposable container will now be deleted.'
