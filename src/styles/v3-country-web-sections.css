@@ -48,3 +48,12 @@
 @media (prefers-reduced-motion: reduce) {
   .country-web-section-nav a { transition: none; }
 }
+
+/* Real fragment destinations remain separate from the installed PWA shell.
+ * Leave enough space below the browser header after a direct deep link.
+ */
+.country-web-section-anchor {
+  display: block;
+  height: 0;
+  scroll-margin-top: 5rem;
+}
