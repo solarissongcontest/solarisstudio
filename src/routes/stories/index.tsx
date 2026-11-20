@@ -91,7 +91,10 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
 
   const stories = storiesQuery.data ?? [];
   const anniversary = anniversaryQuery.data ?? null;
-  const canLoadMoreStories = !storiesQuery.isError && canExpandPublicStoryBatch(stories.length, storyLimit);
+  const canLoadMoreStories = !storiesQuery.isError && (
+    canExpandPublicStoryBatch(stories.length, storyLimit) ||
+    (storiesQuery.isFetching && stories.length < storyLimit)
+  );
   const [search, setSearch] = useState("");
   const filteredStories = useMemo(() => {
     const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
