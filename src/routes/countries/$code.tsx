@@ -175,6 +175,15 @@ function CountryProfilePage() {
   const country = (countries ?? []).find(
     (item) => item.short_code.toUpperCase() === code.toUpperCase(),
   );
+  useEffect(() => {
+    // Direct fragment links must arrive at their section after the Country
+    // projection resolves. Use no smooth animation for reduced-motion safety.
+    if (isAppMode || !routeHash || sectionFromCountryHash(routeHash) === "overview") return;
+    document.getElementById(sectionFromCountryHash(routeHash))?.scrollIntoView({
+      block: "start",
+      behavior: "auto",
+    });
+  }, [isAppMode, routeHash, country?.id]);
   const countrySidebarItems = (countries ?? []).map((item) => ({
     key: item.id,
     label: item.name,
@@ -564,6 +573,8 @@ function CountryProfilePage() {
             className="mb-5"
           />
         )}
+
+        {!isAppMode ? <span id={tab} className="country-web-section-anchor" aria-hidden="true" /> : null}
 
         {archiveLoading ? (
           <ArchiveDataLoading label="Loading country history…" />
