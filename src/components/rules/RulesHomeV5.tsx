@@ -32,6 +32,7 @@ import {
 import { getRuleContext } from "@/lib/rule-context";
 import { roleplayQuickAnswersForVersion } from "@/lib/ssc-rules/roleplay-quick-answers";
 import { compareRulebookVersions } from "@/lib/ssc-rules/runtime-overlay";
+import "@/styles/v3-rules-editorial.css";
 
 function actionFromStoredPath(path: string | null): GovernanceActionKey | null {
   if (!path) return null;
@@ -133,16 +134,15 @@ export function RulesHomeV5({
   };
 
   return (
-    <SolarisDepthPage tone="rules" className="pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+    <SolarisDepthPage tone="rules" className="v3-rules-editorial pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
       <SolarisDepthSafeZone>
         <header className="pb-2">
-          {!isAppMode ? <SolarisDepthEyebrow tone="primary">Rules</SolarisDepthEyebrow> : null}
-          <div className={isAppMode ? "flex flex-wrap items-baseline gap-x-2 gap-y-1" : "mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1"}>
+          <div className={isAppMode ? "flex flex-wrap items-baseline gap-x-2 gap-y-1" : "flex flex-wrap items-baseline gap-x-2 gap-y-1"}>
             <h1 className="text-2xl font-bold tracking-[-0.03em] sm:text-3xl">Official regulations</h1>
             <span className="text-xs text-muted-foreground">General Regulations · v{version}</span>
           </div>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Find out what the rules mean for you. Search for a topic, ask a question or browse the chapters.
+            Search the current rulebook or browse by chapter.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground" data-v3-rulebook-release-meta="">
             <span aria-label={`Current rulebook version ${version}`}>Current version · v{version}</span>
@@ -157,16 +157,19 @@ export function RulesHomeV5({
         </header>
 
         <form
+          role="search"
           onSubmit={(event) => {
             event.preventDefault();
             submitSearch();
           }}
           className="mt-4"
         >
-          <label className="flex min-h-14 items-center gap-3 rounded-[1.35rem] border border-sky-200/15 bg-[linear-gradient(180deg,rgba(255,255,255,.045),transparent_45%),rgba(5,19,41,.92)] px-4 shadow-[0_14px_38px_rgba(0,5,22,.2)] transition focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10">
+          <div className="v3-rules-search-box flex min-h-14 items-center gap-3 rounded-[1.35rem] border border-sky-200/15 bg-[linear-gradient(180deg,rgba(255,255,255,.045),transparent_45%),rgba(5,19,41,.92)] px-4 shadow-[0_14px_38px_rgba(0,5,22,.2)] transition focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10">
             <Search className="size-4.5 shrink-0 text-primary" aria-hidden="true" />
-            <span className="sr-only">Ask about a rule</span>
+            <label className="sr-only" htmlFor="v3-rules-query">Search rules</label>
             <input
+              id="v3-rules-query"
+              type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search rules or ask a question…"
@@ -180,11 +183,14 @@ export function RulesHomeV5({
             >
               {isAppMode ? <Search className="size-4" aria-hidden="true" /> : "Search"}
             </button>
-          </label>
+          </div>
         </form>
 
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-          <span>Try</span>
+        <details className="v3-rules-search-suggestions mt-2">
+          <summary className="inline-flex min-h-10 cursor-pointer items-center text-xs font-semibold text-primary">
+            Common searches
+          </summary>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
           {["take over a country without an HoD", "friend voting", "artist eligibility", "deadlines"].map((example) => (
             <button
               key={example}
@@ -198,7 +204,8 @@ export function RulesHomeV5({
               {example}
             </button>
           ))}
-        </div>
+          </div>
+        </details>
 
         <GovernanceStatusStrip context="rules" className="mt-3" />
       </SolarisDepthSafeZone>
@@ -222,58 +229,6 @@ export function RulesHomeV5({
           </Link>
         </SolarisDepthSafeZone>
       ) : null}
-
-      <SolarisDepthSafeZone className="mt-7">
-        <Link to="/rules/chapters/$chapter" params={{ chapter: "roleplay-worldbuilding" }} className="block">
-          <div className="group overflow-hidden rounded-[1.45rem] border border-indigo-300/15 bg-[radial-gradient(circle_at_88%_0%,rgba(129,140,248,.18),transparent_34%),linear-gradient(180deg,rgba(255,255,255,.035),transparent_40%),rgba(7,18,42,.78)] p-4 transition hover:border-indigo-300/25 sm:p-5">
-            <div className="grid gap-4 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
-              <span className="grid size-11 place-items-center rounded-2xl border border-indigo-300/15 bg-indigo-300/[0.08] text-indigo-100">
-                <Map className="size-5" aria-hidden="true" />
-              </span>
-              <span className="min-w-0">
-                <span className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-[0.15em] text-indigo-200/75">{compareRulebookVersions(version, "4.2") >= 0 ? "Chapter 22" : "New chapter · 22"}</span>
-                  <span className="rounded-full border border-indigo-300/15 bg-indigo-300/[0.06] px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-indigo-100">Worldbuilding</span>
-                </span>
-                <span className="mt-1 block text-base font-bold">Roleplay & Worldbuilding</span>
-                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  Create country stories, understand when you need permission, and learn how the official map can change.
-                </span>
-              </span>
-              <ArrowRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-indigo-200" />
-            </div>
-          </div>
-        </Link>
-      </SolarisDepthSafeZone>
-
-      <SolarisDepthSafeZone className="mt-7">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <SolarisDepthEyebrow>Quick answers</SolarisDepthEyebrow>
-          <Link to="/rules/answers" className="text-xs font-bold text-primary">
-            See all
-          </Link>
-        </div>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {quick.map((answer) => (
-            <Link
-              key={answer.id}
-              to="/rules/answers"
-              hash={answer.id}
-              className="group rounded-2xl border border-white/[0.08] bg-white/[0.025] p-3.5 transition hover:border-primary/20 hover:bg-white/[0.04]"
-            >
-              <div className="flex items-start gap-3">
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold leading-5">{answer.question}</span>
-                  <span className="mt-1 block line-clamp-2 text-xs leading-5 text-muted-foreground">
-                    {answer.explanation}
-                  </span>
-                </span>
-                <span className="solaris-depth-verdict shrink-0">{answer.answer}</span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </SolarisDepthSafeZone>
 
       <SolarisDepthSafeZone className="mt-7">
         <SolarisDepthEyebrow>Rulebook</SolarisDepthEyebrow>
@@ -326,6 +281,58 @@ export function RulesHomeV5({
           />
         </SolarisDepthSurface>
       </SolarisDepthSafeZone>
+      <SolarisDepthSafeZone className="mt-7">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <SolarisDepthEyebrow>Quick answers</SolarisDepthEyebrow>
+          <Link to="/rules/answers" className="text-xs font-bold text-primary">
+            See all
+          </Link>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {quick.map((answer) => (
+            <Link
+              key={answer.id}
+              to="/rules/answers"
+              hash={answer.id}
+              className="v3-rules-answer-item group rounded-2xl border border-white/[0.08] bg-white/[0.025] p-3.5 transition hover:border-primary/20 hover:bg-white/[0.04]"
+            >
+              <div className="flex items-start gap-3">
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold leading-5">{answer.question}</span>
+                  <span className="mt-1 block line-clamp-2 text-xs leading-5 text-muted-foreground">
+                    {answer.explanation}
+                  </span>
+                </span>
+                <span className="solaris-depth-verdict shrink-0">{answer.answer}</span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </SolarisDepthSafeZone>
+
+      <SolarisDepthSafeZone className="mt-7">
+        <Link to="/rules/chapters/$chapter" params={{ chapter: "roleplay-worldbuilding" }} className="block">
+          <div className="v3-rules-feature-spotlight group overflow-hidden rounded-[1.45rem] border border-indigo-300/15 bg-[radial-gradient(circle_at_88%_0%,rgba(129,140,248,.18),transparent_34%),linear-gradient(180deg,rgba(255,255,255,.035),transparent_40%),rgba(7,18,42,.78)] p-4 transition hover:border-indigo-300/25 sm:p-5">
+            <div className="grid gap-4 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
+              <span className="grid size-11 place-items-center rounded-2xl border border-indigo-300/15 bg-indigo-300/[0.08] text-indigo-100">
+                <Map className="size-5" aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-[0.15em] text-indigo-200/75">{compareRulebookVersions(version, "4.2") >= 0 ? "Chapter 22" : "New chapter · 22"}</span>
+                  <span className="rounded-full border border-indigo-300/15 bg-indigo-300/[0.06] px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-indigo-100">Worldbuilding</span>
+                </span>
+                <span className="mt-1 block text-base font-bold">Roleplay & Worldbuilding</span>
+                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                  Create country stories, understand when you need permission, and learn how the official map can change.
+                </span>
+              </span>
+              <ArrowRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-indigo-200" />
+            </div>
+          </div>
+        </Link>
+      </SolarisDepthSafeZone>
+
     </SolarisDepthPage>
   );
 }
@@ -342,7 +349,7 @@ function RuleDestination({
   description: string;
 }) {
   return (
-    <Link to={to as any} className="solaris-depth-row group rounded-xl px-1 transition hover:bg-white/[0.035]">
+    <Link to={to as any} className="solaris-depth-row v3-rules-chapter-link group rounded-xl px-1 transition hover:bg-white/[0.035]">
       <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.025] text-primary">
         <Icon className="size-4" />
       </span>
