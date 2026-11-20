@@ -32,6 +32,6 @@ describe("Organizer Guide discoverability", () => {
     );
     expect(capability).toBeDefined();
     expect(capability?.classification).toEqual("contextualize");
-    expect(capability?.migrationStatus).toEqual("building");
+    expect(capability?.migrationStatus).toEqual("parity");
   });
 });
