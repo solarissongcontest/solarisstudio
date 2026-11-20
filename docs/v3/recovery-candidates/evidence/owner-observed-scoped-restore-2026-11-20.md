@@ -325,11 +325,62 @@ runs that corrected revision against the private encrypted backup. The other
 ten TABLE owners must be resolved safely during the same networkless restore;
 their precise schema identities are not claimed in public evidence.
 
+
+## Owner-observed isolated owner/ACL restoration success (20 November 2026, 20:00 Finland)
+
+The operator supplied a Cloud Shell screenshot of the **network-isolated,
+transactional owner/ACL-preserving restore** using
+`scripts/ops/solaris-role-acl-rehearsal-20261120.sh` at commit
+`cea115fd9bd1463f6ae0599af3d90ce3a2b9c9ab`. The run completed
+successfully and deleted its disposable PostgreSQL container. It used the
+operator-held private November 15 encrypted archive, **not production**.
+
+```text
+[3/4] TABLE owner inventory verified: application=225, ledger=1, other=10, total=236
+Restricted local role placeholders prepared; membership recovery remains OPEN
+[4/4] Applying original archive ownership and ACL entries in isolated PostgreSQL
+ISOLATED ARCHIVE OWNER/ACL RESTORE APPLIED
+Restored tables=225; RLS tables=202; tables with explicit ACL=209; table-owner role identities=3
+RLS policies present: 265 / 265
+DEFAULT ACL entries present: 27 / 27
+Hosted Nov20 vs Nov15 replay auth owner/ACL/RLS: DIFFERENT
+Hosted Nov20 vs Nov15 replay private owner/ACL/RLS: DIFFERENT
+Hosted Nov20 vs Nov15 replay public owner/ACL/RLS: DIFFERENT
+Hosted Nov20 vs Nov15 replay storage owner/ACL/RLS: MATCH
+Hosted Nov20 vs Nov15 replay televoting owner/ACL/RLS: DIFFERENT
+Dated hosted-owner/ACL digest matches: 1 / 5
+PASS: anon role: RLS active, Auth tables not readable, edition read granted
+PASS: authenticated role: RLS active, Auth tables not readable, edition read granted
+PASS: anon can execute read-only, RLS-governed public edition query
+PASS: authenticated can execute read-only, RLS-governed public edition query
+PASS: anon direct auth.users SELECT is denied by PostgreSQL
+PASS: authenticated direct auth.users SELECT is denied by PostgreSQL
+ISOLATED OWNER/ACL REPLAY AND SCOPED AUTHORIZATION PROBES SUCCESSFUL
+Production was never contacted; disposable container will now be deleted.
+```
+
+**Completed:** a scoped permission-preserving archival database restore, including
+225 application TABLE objects, 265 RLS policies, 27 default ACL objects, and
+successful positive and negative read-only role probes. The 209 explicit
+table ACL count is from the restored `relacl` catalog, not the number of
+`pg_restore` ACL TOC entries (1,058). Those are different measures.
+
+**Unresolved:** only Storage's owner/ACL/RLS fingerprint matched current
+hosted production. The other four differences **cannot be attributed to
+Nov15–Nov20 changes without further evidence**; restore role configuration,
+catalog comparisons, or drift could be involved. The role fixture does not
+restore all global role flags, memberships or provider secrets. The probe
+matrix was scoped, not a full app-user/delegation/organizer authorization test.
+Auth/Vault encryption-root configuration, Supabase-specific Storage API
+recovery, newer restore point and ordered S13–S16 migration rehearsal remain
+**NO-GO**. Do not infer permission completeness or approve production
+migrations solely from this result.
+
 ## What this does NOT prove
 
 - Individual row/data integrity and official contest vote/result parity were not checked in this run.
 - The backup is a scoped November 15 archive, not a complete or current recovery point.
-- Dummy placeholder roles were used and the script restored with `--no-owner --no-acl`: original privileges, grants, role membership and effective RLS behavior were **not** restored or certified.
+- **Initial** scoped database restoration used `--no-owner --no-acl`; it did not test original permissions. A **later** isolated owner/ACL-preserving restoration and scoped role authorization probes succeeded (above), but original global role flags, membership parity and full effective RLS behavior are still **not** certified.
 - The Storage archive was fully streamed and all 108 object payload SHA-256/size pairs matched the manifest. Only 55/108 archive member names matched manifest bucket/path heuristics; the **S3-compatible** isolated Storage-service round-trip **PASSED**; Supabase Storage API restore and access-policy validation remain **OPEN**.
 - Auth/Vault keys, migration-history ledger, provider-managed schema dependencies, external integrations and edge secrets remain **OPEN**.
 - The isolated container was disposable and was not retained as a production-derived migration rehearsal fixture.
@@ -337,8 +388,8 @@ their precise schema identities are not claimed in public evidence.
 
 ## Next gates (in order)
 
-1. Verify dated 3-bucket archive coverage against the current 6-bucket hosted inventory; perform an **isolated Supabase Storage API** restore/probe for object metadata, bucket visibility, authenticated and unauthenticated authorization. The separate S3-compatible 108-object round-trip is already completed.
-2. Attest original roles/column grants, Auth/Vault/migration-history recoverability and operational configuration.
+1. The Nov15 three populated bucket identities and all 108 object-key sets matched the dated hosted inventory; now perform an **isolated Supabase Storage API** restore/probe for metadata, bucket visibility and positive/negative authenticated/unauthenticated authorization. The separate S3-compatible 108-object round-trip is already completed.
+2. Reconcile the four current-hosted versus Nov15 owner/ACL/RLS digest differences, then attest global roles/memberships/column grants and Auth/Vault/migration-history recoverability and operational configuration.
 3. Obtain a sufficiently current recovery point and exact current production-catalog fingerprint.
 4. Apply the exact reviewed forward-only S13/S14/Confirmation/Televote/Jury/Results/S16 manifest in a separate isolated production-derived environment and run positive/negative authority, historical vote and results parity checks.
 5. Only after recovery and rehearsal certification, obtain explicit operator approval for the exact production SQL bytes and deployment sequence.
