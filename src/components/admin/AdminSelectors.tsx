@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { editionLabel as formatEditionLabel, useEditions } from "@/lib/data";
 import { matchesOrganizerEditionSearch } from "@/lib/admin-edition-picker-search";
 import { useAdminContext } from "./AdminContext";
+import { matchesAdminEditionRoute } from "./admin-edition-context";
 import { AdminSheet } from "./AdminUI";
 
 export function AdminSelectors() {
@@ -25,23 +26,11 @@ export function AdminSelectors() {
     [editions],
   );
 
-  const routeEdition =
-    orderedEditions.find(
-      (edition) =>
-        pathname === `/admin/${edition.slug}` ||
-        pathname.startsWith(`/admin/design/${edition.slug}`) ||
-        pathname.startsWith(`/admin/edition-theme/${edition.slug}`) ||
-        pathname.startsWith(`/admin/shows/${edition.slug}`) ||
-        pathname.startsWith(`/admin/entries/${edition.slug}`) ||
-        pathname.startsWith(`/admin/lineup-sync/${edition.slug}`) ||
-        pathname.startsWith(`/admin/participant-status/${edition.slug}`) ||
-        pathname.startsWith(`/admin/jury/${edition.slug}`) ||
-        pathname.startsWith(`/admin/televote/${edition.slug}`) ||
-        pathname.startsWith(`/admin/voting-system/${edition.slug}`) ||
-        pathname.startsWith(`/admin/publication/${edition.slug}`),
-    ) ?? null;
+  const routeEdition = orderedEditions.find(
+    (edition) => matchesAdminEditionRoute(pathname, edition.slug),
+  ) ?? null;
   const savedEdition = orderedEditions.find((edition) => edition.id === editionId) ?? null;
-  const activeEdition = routeEdition ?? savedEdition ?? orderedEditions[0] ?? null;
+  const activeEdition = routeEdition ?? savedEdition ?? null;
 
   const filteredEditions = useMemo(
     () => orderedEditions.filter((edition) =>

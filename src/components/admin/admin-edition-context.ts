@@ -14,3 +14,30 @@ export function resolveAdminEditionContext(
   if (!editionId) return null;
   return editions.find((edition) => edition.id === editionId) ?? null;
 }
+
+/**
+ * Match a complete edition route segment, not a shared slug prefix.
+ * For example, /admin/entries/ssc22 must never select edition ssc2.
+ */
+const EDITION_ROUTE_FAMILIES = [
+  "design",
+  "edition-theme",
+  "shows",
+  "entries",
+  "lineup-sync",
+  "participant-status",
+  "jury",
+  "televote",
+  "voting-system",
+  "publication",
+] as const;
+
+export function matchesAdminEditionRoute(pathname: string, editionSlug: string): boolean {
+  if (!editionSlug) return false;
+  const normalized = pathname.replace(/\\/$/, "");
+  if (normalized === `/admin/${editionSlug}`) return true;
+  return EDITION_ROUTE_FAMILIES.some((family) => {
+    const prefix = `/admin/${family}/${editionSlug}`;
+    return normalized === prefix || normalized.startsWith(`${prefix}/`);
+  });
+}
