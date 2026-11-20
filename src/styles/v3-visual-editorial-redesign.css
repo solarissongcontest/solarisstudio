@@ -737,3 +737,69 @@ html:not([data-solaris-app]) .country-editorial-profile .country-editorial-world
     border-bottom: 3px solid Highlight;
   }
 }
+
+
+/* Edition web navigation stays in context with the artwork and supports the
+   full published section list without hiding half the page behind "More". */
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-navigation--editorial {
+  min-width: 0;
+  width: 100%;
+  padding: 0;
+  margin-top: -.5rem;
+  overflow: visible;
+  border: 0;
+  border-bottom: 1px solid var(--v3-editorial-rule);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-navigation-editorial {
+  display: flex;
+  gap: clamp(.65rem, 1.4vw, 1.3rem);
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-padding-inline: .5rem;
+  scrollbar-width: thin;
+}
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-navigation-editorial a {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: .55rem .15rem .75rem;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: .86rem;
+  font-weight: 620;
+  white-space: nowrap;
+  text-decoration: none;
+}
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-navigation-editorial a[aria-current="location"] {
+  border-bottom-color: var(--primary);
+  color: var(--foreground);
+  font-weight: 750;
+}
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-navigation-editorial a:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -3px;
+}
+@media (max-width: 767px) {
+  html:not([data-solaris-app]) .edition-editorial-refresh .edition-navigation-editorial {
+    gap: .8rem;
+  }
+  html:not([data-solaris-app]) .edition-editorial-refresh .edition-navigation-editorial a {
+    font-size: .82rem;
+  }
+}
+@media (forced-colors: active) {
+  html:not([data-solaris-app]) .edition-editorial-refresh .edition-navigation-editorial a[aria-current="location"] {
+    border-bottom-color: Highlight;
+  }
+}
