@@ -157,6 +157,11 @@ describe("TG3 world publication-safe projections", () => {
   });
 
   it("requests only public organizations and bounded pages", async () => {
+    // Page 2 is zero-based: one returned row requires at least 25 total records.
+    // A count of 1 would correctly fail the publication-safe count contract.
+    mocks.chain.range.mockResolvedValueOnce({
+      data: [row], count: 2 * WORLD_DIRECTORY_PAGE_SIZE + 1, error: null,
+    });
     const result = await fetchWorldDirectory({ term: "", filter: "all", page: 2 });
     expect(mocks.from).toHaveBeenCalledWith("world_organizations");
     expect(mocks.chain.select).toHaveBeenCalledWith(
@@ -164,6 +169,13 @@ describe("TG3 world publication-safe projections", () => {
     expect(mocks.chain.eq).toHaveBeenCalledWith("public_visibility", "public");
     expect(mocks.chain.range).toHaveBeenCalledWith(2 * WORLD_DIRECTORY_PAGE_SIZE, 3 * WORLD_DIRECTORY_PAGE_SIZE - 1);
     expect(result.organizations).toHaveLength(1);
+    expect(result.total).toBe(2 * WORLD_DIRECTORY_PAGE_SIZE + 1);
+  });
+
+  it("rejects an inconsistent later-page count even when a row is returned", async () => {
+    mocks.chain.range.mockResolvedValueOnce({ data: [row], count: 1, error: null });
+    await expect(fetchWorldDirectory({ term: "", filter: "all", page: 2 }))
+      .rejects.toThrow("page count could not be verified");
   });
 
   it("rejects missing count proof instead of displaying a false zero", async () => {
