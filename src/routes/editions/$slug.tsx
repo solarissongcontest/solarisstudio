@@ -320,6 +320,7 @@ function LegacyEditionPage() {
 
         <EditionNavigation
           liquidGlass={liquidGlass}
+          editorialWeb={!isAppMode}
           label={`Explore ${editionLabel(edition)}`}
           items={[
             { href: "#edition-overview", label: "Overview" },
