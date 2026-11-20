@@ -24,6 +24,16 @@ describe("V3 Reference publication and editorial parity", () => {
     expect(reference).toContain("if (!referenceReleased)");
   });
 
+  it("keeps Reference URL search and topic filtering shareable without a second search owner", () => {
+    expect(reference).toContain("validateSearch: parseReferenceUrlSearch");
+    expect(reference).toContain("referenceQueryFromUrl(search)");
+    expect(reference).toContain("Route.useNavigate()");
+    expect(reference).toContain('kind: kind === "all" ? undefined : kind');
+    expect(reference).toContain("replace: true");
+    expect(reference).toContain("setQuery(urlQuery)");
+    expect(reference).toContain("setKind(urlKind)");
+  });
+
   it("keeps a single bounded published-record search and no archive-vote fallback", () => {
     expect(reference).toContain('rpc(');
     expect(reference).toContain('"solaris_public_search"');
