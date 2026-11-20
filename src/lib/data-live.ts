@@ -18,11 +18,18 @@ export * from "./data";
 const PAGE_SIZE = 1000;
 const ARCHIVE_STALE_TIME = 60 * 60 * 1000;
 
-type ArchiveTable =
-  | "jury_votes"
-  | "televote_votes"
-  | "results"
-  | "participants";
+const ARCHIVE_SELECTS = {
+  jury_votes:
+    "id,edition_id,show_id,voter_country_id,voter_id,voter_entity_id,receiving_country_id,receiving_entity_id,points",
+  televote_votes:
+    "id,edition_id,show_id,country_id,contest_entity_id,points",
+  results:
+    "id,edition_id,show_id,country_id,contest_entity_id,jury_points,televote_points,total_points,final_rank",
+  participants:
+    "id,edition_id,show_id,country_id,contest_entity_id,artist,song,running_order,semi_final,qualified,notes",
+} as const;
+
+type ArchiveTable = keyof typeof ARCHIVE_SELECTS;
 
 export type CompleteArchiveOptions = {
   /**
@@ -57,7 +64,7 @@ async function fetchCompleteArchive<T>(table: ArchiveTable): Promise<T[]> {
 
   for (let from = 0; ; from += PAGE_SIZE) {
     const { data, error } = await (supabase.from(table) as any)
-      .select("*")
+      .select(ARCHIVE_SELECTS[table])
       .order("id", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
 

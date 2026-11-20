@@ -124,6 +124,9 @@ export type CountryThemeRow = {
   updated_at: string;
 };
 
+const COUNTRY_THEME_SELECT =
+  "country_id,background_primary,background_secondary,background_tertiary,accent,text_primary,text_muted,surface,background_mode,gradient_style,gradient_angle,background_image_url,background_image_storage_path,background_position_x,background_position_y,background_overlay,background_blur,hero_layout,decoration_style,updated_at";
+
 export type EditionThemeColors = Partial<VisualTheme> & {
   palette?: string[];
   generatedFromArtwork?: boolean;
@@ -254,7 +257,7 @@ export function useCountryThemes(options?: { enabled?: boolean }) {
     enabled: options?.enabled ?? true,
     queryKey: ["country-themes"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("country_themes").select("*");
+      const { data, error } = await supabase.from("country_themes").select(COUNTRY_THEME_SELECT);
       if (error) throw error;
       return (data ?? []) as CountryThemeRow[];
     },
@@ -269,7 +272,7 @@ export function useCountryTheme(countryId?: string | null) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("country_themes")
-        .select("*")
+        .select(COUNTRY_THEME_SELECT)
         .eq("country_id", countryId)
         .maybeSingle();
       if (error) throw error;
@@ -310,7 +313,7 @@ export function useSaveCountryTheme(countryId?: string | null) {
       const { data, error } = await supabase
         .from("country_themes")
         .upsert(payload, { onConflict: "country_id" })
-        .select("*")
+        .select(COUNTRY_THEME_SELECT)
         .single();
       if (error) throw error;
       return data as CountryThemeRow;
@@ -362,18 +365,15 @@ export async function saveEditionVisualTheme(input: {
     palette: input.palette ?? [],
     generatedFromArtwork: Boolean(input.generatedFromArtwork),
   };
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("editions")
     .update({
       artwork_url: input.artworkUrl,
       artwork_storage_path: input.artworkStoragePath,
       theme_colors: themeColors,
     })
-    .eq("id", input.editionId)
-    .select("*")
-    .single();
+    .eq("id", input.editionId);
   if (error) throw error;
-  return data;
 }
 
 export async function extractThemeFromImage(file: File): Promise<{ theme: VisualTheme; palette: string[] }> {
