@@ -17,7 +17,7 @@ export const Route = createFileRoute("/integrity/appeal/$caseId")({
   head: () => ({
     meta: [
       { title: "Appeal Integrity Decision — Solaris" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
       {
         name: "description",
         content:

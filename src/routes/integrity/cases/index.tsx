@@ -19,7 +19,7 @@ export const Route = createFileRoute("/integrity/cases/")({
   head: () => ({
     meta: [
       { title: "My Integrity Cases — Solaris" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: IntegrityCasesPage,

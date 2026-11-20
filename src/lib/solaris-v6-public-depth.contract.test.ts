@@ -17,6 +17,16 @@ const RULES_ROUTES = [
   "src/routes/rules/interpretations.tsx",
 ] as const;
 
+const SENSITIVE_INTEGRITY_ROUTES = [
+  "src/routes/integrity/cases/index.tsx",
+  "src/routes/integrity/cases/$caseId.tsx",
+  "src/routes/integrity/appeals.tsx",
+  "src/routes/integrity/appeal.$caseId.tsx",
+  "src/routes/integrity/recover.tsx",
+  "src/routes/integrity/anonymous-appeal.tsx",
+  "src/routes/integrity/preclearance.tsx",
+] as const;
+
 describe("Solaris V6 Rules and Trust depth harmonisation", () => {
   it("keeps every required Trust surface on the shared Integrity depth grammar", () => {
     for (const path of INTEGRITY_ROUTES) {
@@ -37,12 +47,11 @@ describe("Solaris V6 Rules and Trust depth harmonisation", () => {
     }
   });
 
-  it("keeps protected case and appeal detail non-indexable", () => {
-    for (const path of [
-      "src/routes/integrity/cases/$caseId.tsx",
-      "src/routes/integrity/appeal.$caseId.tsx",
-    ]) {
-      expect(source(path), path).toContain('{ name: "robots", content: "noindex" }');
+  it("keeps sensitive case, appeal and private-guidance surfaces out of indexing and crawler link-following", () => {
+    for (const path of SENSITIVE_INTEGRITY_ROUTES) {
+      expect(source(path), path).toContain(
+        '{ name: "robots", content: "noindex, nofollow" }',
+      );
     }
   });
 

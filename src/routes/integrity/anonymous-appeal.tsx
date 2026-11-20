@@ -22,7 +22,7 @@ export const Route = createFileRoute("/integrity/anonymous-appeal")({
         content:
           "Recover an anonymous Integrity decision with its case code and recovery key, then submit an eligible appeal.",
       },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: AnonymousAppealPage,
