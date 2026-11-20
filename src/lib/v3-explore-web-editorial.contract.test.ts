@@ -35,6 +35,12 @@ describe("Explore website editorial completion", () => {
     expect(route).toContain(".filter((item) => allowsReleased(item.to))");
   });
 
+  it("does not pretend Edition Overview is a dedicated music catalogue", () => {
+    expect(installed).toContain('collection.key !== "songs-and-artists"');
+    expect(installed).toContain("discoverableCollections.map");
+    expect(installed).toContain("discoverableCollections.length");
+  });
+
   it("never presents unreleased Live or upcoming Show links on the installed edition feature", () => {
     expect(installed).toContain("allowsReleased(edition.href)");
     expect(installed).toContain("edition.liveHref && allowsReleased(edition.liveHref)");
