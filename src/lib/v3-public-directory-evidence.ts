@@ -132,7 +132,7 @@ export const V3_PUBLIC_DIRECTORY_EVIDENCE: readonly PublicDirectoryEvidence[] = 
     productParity: "unverified",
   }),
   registerDirectory({
-    id: "music", route: "/music", capabilityId: "explore-root",
+    id: "music", route: "/music", capabilityId: "p9-music-catalogue",
     domainOwner: "music", canonicalReadModel: "published song and artist discovery projection",
     installedApp: "focused published music previews and catalogue links",
     mobileWeb: "editorial music discovery and browser links",
@@ -140,7 +140,7 @@ export const V3_PUBLIC_DIRECTORY_EVIDENCE: readonly PublicDirectoryEvidence[] = 
     productParity: "unverified",
   }),
   registerDirectory({
-    id: "songs", route: "/songs", capabilityId: "explore-root",
+    id: "songs", route: "/songs", capabilityId: "p9-music-catalogue",
     domainOwner: "music", canonicalReadModel: "durable published Song identities",
     installedApp: "music-focused compact song rows",
     mobileWeb: "song titles and linked artist context",
@@ -148,7 +148,7 @@ export const V3_PUBLIC_DIRECTORY_EVIDENCE: readonly PublicDirectoryEvidence[] = 
     productParity: "unverified",
   }),
   registerDirectory({
-    id: "artists", route: "/artists", capabilityId: "explore-root",
+    id: "artists", route: "/artists", capabilityId: "p9-music-catalogue",
     domainOwner: "music", canonicalReadModel: "durable published Artist identities",
     installedApp: "identity and portrait-first collection",
     mobileWeb: "editorial artist rows and song links",

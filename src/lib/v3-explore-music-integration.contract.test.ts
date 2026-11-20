@@ -42,6 +42,11 @@ describe("Explore P9 music-first routing integration", () => {
     expect(artistRoute).toContain("artistId");
     expect(songRoute).toContain("songId");
     expect(server).not.toContain('.from("entries")');
+    const s15 = source("src/lib/v3-system-zero-orphan-registry.ts");
+    expect(s15).toContain('path: "src/integrations/v3/music-entities-source.server.ts", coordinatorDomain: "entry"');
+    const evidence = source("src/lib/v3-public-directory-evidence.ts");
+    expect(evidence).toContain('id: "music", route: "/music", capabilityId: "p9-music-catalogue"');
+
     const capabilities = source("src/lib/v3-public-capability-supplements.ts");
     expect(capabilities).toContain('id: "p9-music-catalogue"');
     for (const root of ["/music", "/songs", "/artists"]) expect(capabilities).toContain(root);
