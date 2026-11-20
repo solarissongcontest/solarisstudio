@@ -6,6 +6,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { ExternalLink, Inbox } from "lucide-react";
 import { type CSSProperties, type ReactNode } from "react";
 
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { useAdminNotifications } from "@/lib/admin-ops";
 import { resolveOrganizerV6Screen } from "@/lib/organizer-v6-screen-registry";
 import { useScrollMorphProgress } from "@/lib/use-scroll-morph-progress";
@@ -18,6 +19,8 @@ import { AdminHealthStrip } from "./AdminHealthStrip";
 import { AdminPermissionShadowProbe } from "./AdminPermissionShadowProbe";
 import { OrganizerV6MobileChrome } from "./OrganizerV6MobileChrome";
 import { OrganizerV3MobileChrome } from "./OrganizerV3MobileChrome";
+import { OrganizerV3WebNavigation } from "./OrganizerV3WebNavigation";
+import { OrganizerLegacyWebNavigation } from "./OrganizerLegacyWebNavigation";
 import { JuryVotingWindowControl } from "./JuryVotingWindowControl";
 import { AdminSelectors } from "./AdminSelectors";
 
@@ -32,7 +35,13 @@ export function AdminShell({
   const screen = resolveOrganizerV6Screen(pathname);
   const morphProgress = useScrollMorphProgress({ resetKey: pathname });
   const organizerV3 = useV3RolloutProbe(true);
-  const organizerV3Enabled = organizerV3.data?.organizerEnabled === true;
+  // No legacy/app navigation can be selected until the server rollout probe
+  // confirms its own generation. An unknown feature state is not "V6".
+  const organizerModeResolved =
+    !organizerV3.isLoading && !organizerV3.isError && organizerV3.data != null;
+  const organizerV3Enabled =
+    organizerModeResolved && organizerV3.data?.organizerEnabled === true;
+  const { isAppMode, platformResolved } = useSolarisApp();
   const organizerToolbarStyle = {
     "--organizer-toolbar-title-scale": (1.035 - morphProgress * 0.035).toFixed(4),
     "--organizer-toolbar-title-y": `${(1 - morphProgress) * 1.25}px`,
@@ -51,6 +60,7 @@ export function AdminShell({
       <div
         className="admin-control-room relative min-h-screen overflow-x-clip [&_.site-nav]:hidden [&_.mobile-quick-nav]:hidden [&_.app-background]:hidden [&_.app-main]:!max-w-none [&_.app-main]:!p-0"
         data-organizer-generation={organizerV3Enabled ? "v3" : "legacy"}
+        data-organizer-runtime={!platformResolved ? "resolving" : isAppMode ? "app" : "web"}
       >
         <AdminPermissionShadowProbe />
         <header
@@ -118,13 +128,32 @@ export function AdminShell({
         </header>
 
         <div className="relative z-10">
+          {!organizerModeResolved ? (
+            <div className="mx-auto flex min-h-11 max-w-5xl items-center justify-between gap-3 px-3 py-2 text-xs text-muted-foreground" role="status" aria-live="polite">
+              <span>{organizerV3.isError ? "Organizer navigation could not be verified." : "Checking Organizer navigation…"}</span>
+              {organizerV3.isError ? (
+                <button type="button" onClick={() => void organizerV3.refetch()} className="min-h-11 rounded-lg border border-white/15 px-3 font-semibold text-foreground">
+                  Retry navigation
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {organizerModeResolved && platformResolved && !isAppMode ? (
+            organizerV3Enabled
+              ? <OrganizerV3WebNavigation pathname={pathname} />
+              : <OrganizerLegacyWebNavigation pathname={pathname} />
+          ) : null}
           <AdminEditionScopedWorkspace
             showJuryWindowControl={showJuryWindowControl}
             showContextLock={!pageOwnsContextLock}
           >
             {children}
           </AdminEditionScopedWorkspace>
-          {organizerV3Enabled ? <OrganizerV3MobileChrome /> : <OrganizerV6MobileChrome />}
+          {organizerModeResolved && platformResolved && isAppMode
+            ? organizerV3Enabled
+              ? <OrganizerV3MobileChrome />
+              : <OrganizerV6MobileChrome />
+            : null}
         </div>
       </div>
     </AdminContextProvider>

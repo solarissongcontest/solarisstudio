@@ -31,7 +31,15 @@ describe("V3 Organizer reversible cutover", () => {
     expect(shell).toContain("useV3RolloutProbe(true)");
     expect(shell).toContain("organizerV3.data?.organizerEnabled === true");
     expect(shell).toContain('data-organizer-generation={organizerV3Enabled ? "v3" : "legacy"}');
-    expect(shell).toContain("organizerV3Enabled ? <OrganizerV3MobileChrome /> : <OrganizerV6MobileChrome />");
+    // Only the installed runtime may render fixed V3/V6 navigation, and
+    // a pending/failed server rollout may not silently select legacy.
+    expect(shell).toContain("organizerModeResolved && platformResolved && isAppMode");
+    expect(shell).toContain("? <OrganizerV3MobileChrome />");
+    expect(shell).toContain(": <OrganizerV6MobileChrome />");
+    expect(shell).toContain("organizerModeResolved && platformResolved && !isAppMode");
+    expect(shell).toContain("? <OrganizerV3WebNavigation pathname={pathname} />");
+    expect(shell).toContain(": <OrganizerLegacyWebNavigation pathname={pathname} />");
+    expect(shell).toContain("!organizerV3.isLoading && !organizerV3.isError && organizerV3.data != null");
   });
 
   it("uses the canonical five Organizer areas on the shared V3 Liquid primitive", () => {
