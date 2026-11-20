@@ -81,8 +81,11 @@ test('TOC owner parser ignores unusual non-table descriptor tails without relaxi
     const tableLines = Array.from({ length: 225 }, (_, i) =>
       (i + 1) + '; 1259 ' + (1000 + i) +
       ' TABLE public sample_' + (i + 1) + ' postgres');
-    const unusual = '226; 0 0 ACL public complicated descriptor-tail!not_an_owner';
-    writeFileSync(toc, [...tableLines, unusual, ''].join('\n'));
+    const dataLines = Array.from({ length: 225 }, (_, i) =>
+      (i + 226) + '; 0 ' + (1000 + i) +
+      ' TABLE DATA public sample_' + (i + 1) + ' postgres');
+    const unusual = '451; 0 0 ACL public complicated descriptor-tail!not_an_owner';
+    writeFileSync(toc, [...tableLines, ...dataLines, unusual, ''].join('\n'));
     const result = spawnSync('python3', ['-c', snippet, toc], {
       encoding: 'utf8',
     });
@@ -92,7 +95,7 @@ test('TOC owner parser ignores unusual non-table descriptor tails without relaxi
     assert.doesNotMatch(result.stdout, /descriptor-tail/);
 
     tableLines[0] = '1; 1259 1000 TABLE public sample_1 unsafe-owner';
-    writeFileSync(toc, [...tableLines, unusual, ''].join('\n'));
+    writeFileSync(toc, [...tableLines, ...dataLines, unusual, ''].join('\n'));
     const bad = spawnSync('python3', ['-c', snippet, toc], { encoding: 'utf8' });
     assert.notEqual(bad.status, 0);
     assert.match(bad.stderr, /unusual TABLE owner field/);
