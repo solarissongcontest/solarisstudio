@@ -10,6 +10,7 @@ import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useV3DirectoryPresentation, type V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import { directoryCountLabel, resolveDirectoryScope } from "@/lib/v3-directory-count";
+import { matchesPublicDirectorySearch } from "@/lib/v3-public-directory-search";
 import "@/styles/v3-directory-family.css";
 
 export type V3DirectoryItem = {
@@ -75,17 +76,18 @@ export function V3DirectoryFamilyIndex({
     if (effectiveArea !== area) setArea("all");
   }, [area, effectiveArea]);
 
-  const searched = useMemo(() => {
-    const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    return groups.map((group) => ({
-      ...group,
-      items: group.items.filter((item) => {
-        const text = [group.label, item.title, item.description, item.eyebrow,
-          ...(item.aliases ?? []), item.searchText].filter(Boolean).join(" ").toLowerCase();
-        return terms.every((term) => text.includes(term));
-      }),
-    }));
-  }, [groups, search]);
+  const searched = useMemo(() => groups.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => matchesPublicDirectorySearch(search, [
+      group.label,
+      group.description,
+      item.title,
+      item.description,
+      item.eyebrow,
+      ...(item.aliases ?? []),
+      item.searchText,
+    ])),
+  })), [groups, search]);
   const total = groups.reduce((sum, group) => sum + group.items.length, 0);
   const searchMatches = searched.reduce((sum, group) => sum + group.items.length, 0);
   const scoped = searched.filter((group) => effectiveArea === "all" || effectiveArea === group.id);
