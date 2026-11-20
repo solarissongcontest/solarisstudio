@@ -4,14 +4,17 @@ import { BookOpen, CalendarDays, Clock3, Search, Sparkles, ChevronRight, X } fro
 import { useMemo, useState } from 'react';
 
 import { AppShell } from '@/components/AppShell';
+import { PublicStorySpoilerDisclosure } from '@/components/public/PublicStorySpoilerDisclosure';
+import { useAppExperiencePreferences } from '@/lib/app-experience';
 import { useSolarisApp } from '@/components/app/AppRuntime';
 import { SolarisSearchField } from '@/components/app/SolarisSearchField';
 import { useV3DirectoryPresentation, type V3DirectoryPresentation } from '@/lib/v3-directory-presentation';
 import '@/styles/v3-directory-family.css';
 import '@/styles/v3-stories-editorial.css';
-import { V3StoriesIndexGate } from '@/components/v3/V3StoriesGates';
+import { V3StoriesIndexGate, useV3StoryFallbackSpoilerProtection } from '@/components/v3/V3StoriesGates';
 import { SOLARIS_TIME_ZONE } from '@/lib/public-time';
 import { loadAnniversaryEngine, loadPublicStorylines } from '@/lib/studio2-storytelling';
+import { canExpandPublicStoryBatch, canExpandPublishedStorySearch, nextPublicStoryBatchLimit, publicStoryBatchAtServerCap, PUBLIC_STORY_INITIAL_BATCH, PUBLIC_STORY_RPC_MAX } from '@/lib/v3-public-story-browse';
 
 export const Route = createFileRoute('/stories/')({
   head: () => ({
@@ -73,10 +76,15 @@ function StoriesArchivePage() {
 
 function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryPresentation }) {
   const referenceDate = Route.useLoaderData();
+  const { preferences } = useAppExperiencePreferences();
+  const installedFallbackProtection = useV3StoryFallbackSpoilerProtection();
+  const spoilerFree = installedFallbackProtection ?? preferences.spoilerFree;
+  const [storyLimit, setStoryLimit] = useState(PUBLIC_STORY_INITIAL_BATCH);
   const storiesQuery = useQuery({
-    queryKey: ['public-storylines'],
-    queryFn: () => loadPublicStorylines(30),
+    queryKey: ['public-storylines', storyLimit],
+    queryFn: () => loadPublicStorylines(storyLimit),
     staleTime: 60_000,
+    retry: false,
   });
   const anniversaryQuery = useQuery({
     queryKey: ['studio2-anniversary-engine', referenceDate],
@@ -84,9 +92,18 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
     staleTime: 60_000,
   });
 
-  const stories = storiesQuery.data ?? [];
-  const anniversary = anniversaryQuery.data ?? null;
+  // A cached response is not a current publication decision during refetch.
+  const stories = storiesQuery.isSuccess && !storiesQuery.isFetching && !storiesQuery.isRefetchError
+    ? storiesQuery.data ?? [] : [];
+  const anniversary = anniversaryQuery.isSuccess && !anniversaryQuery.isFetching &&
+    !anniversaryQuery.isRefetchError ? anniversaryQuery.data ?? null : null;
   const [search, setSearch] = useState("");
+  const canLoadMoreStories = storiesQuery.isSuccess && !storiesQuery.isFetching &&
+    canExpandPublicStoryBatch(stories.length, storyLimit);
+  const searchCoverageIncomplete = canLoadMoreStories &&
+    canExpandPublishedStorySearch(search, stories.length, storyLimit);
+  const reachedStoryLimit = storiesQuery.isSuccess && !storiesQuery.isFetching &&
+    publicStoryBatchAtServerCap(stories.length, storyLimit);
   const filteredStories = useMemo(() => {
     const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
     return stories.filter((story) => {
@@ -127,6 +144,11 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
           </header>
         )}
 
+        <PublicStorySpoilerDisclosure
+          key={spoilerFree ? "spoiler-protected" : "spoilers-open"}
+          spoilerFree={spoilerFree}
+          subject="published edition stories and historical moments"
+        >
         <section className="mt-6" aria-labelledby="stories-heading">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Published narratives</p>
@@ -150,16 +172,17 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
             </div>
           )}
           <p className="v3-directory-results-count" role="status" aria-live="polite">
-            {presentation === "installed-app" ? `${filteredStories.length} of ${stories.length} published stories in this batch` : `${filteredStories.length} stories`}
+            {filteredStories.length} of {stories.length} published stories in this batch
+            {searchCoverageIncomplete ? " · More published stories may match beyond this batch" : ""}
           </p>
-          {storiesQuery.isError ? (
+          {storiesQuery.isError || storiesQuery.isRefetchError ? (
             <ArchiveEmpty
               icon={BookOpen}
               title="Published stories could not be loaded"
               copy="Solaris could not read the story archive. This is a loading failure, not confirmation that no stories are published."
               onRetry={() => void storiesQuery.refetch()}
             />
-          ) : storiesQuery.isLoading ? (
+          ) : storiesQuery.isLoading || storiesQuery.isFetching ? (
             <ArchiveEmpty icon={BookOpen} title="Loading edition stories…" copy="Only explicitly published narratives appear here." />
           ) : filteredStories.length ? (
             <div className={presentation === "mobile-web" ? "v3-directory-mobile-list mt-4" : "mt-4 grid gap-4 md:grid-cols-2"}>
@@ -218,9 +241,37 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
             <ArchiveEmpty icon={Sparkles}
               title={search.trim() && stories.length ? "No matching stories" : "No edition stories published yet"}
               copy={search.trim() && stories.length
-                ? "Try a different title, edition or moment."
+                ? "Try another title, edition or moment, or load more published history."
                 : "Story drafts remain private until organizers explicitly publish them."} />
           )}
+          {canLoadMoreStories ? (
+            <div className="mt-5 flex flex-wrap items-center gap-3" data-v3-stories-batch="">
+              <button type="button"
+                className="min-h-11 rounded-lg border border-border bg-surface px-4 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                disabled={storiesQuery.isFetching}
+                onClick={() => setStoryLimit((limit) => nextPublicStoryBatchLimit(limit))}>
+                Load more published stories
+              </button>
+              <span className="text-xs text-muted-foreground">Older published records may be available.</span>
+            </div>
+          ) : null}
+          {searchCoverageIncomplete ? (
+            <button type="button"
+              className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold text-primary hover:bg-primary/10"
+              disabled={storiesQuery.isFetching}
+              onClick={() => setStoryLimit(PUBLIC_STORY_RPC_MAX)}>
+              Search more published history
+            </button>
+          ) : null}
+          {reachedStoryLimit ? (
+            <p className="mt-3 max-w-prose text-xs leading-5 text-muted-foreground" role="status">
+              Showing the latest 100 published edition stories. Earlier history may exist beyond this archive search limit.
+            </p>
+          ) : null}
+          {search.trim() && stories.length > 0 && filteredStories.length === 0 ? (
+            <button type="button" className="mt-3 min-h-11 text-sm font-semibold text-primary underline-offset-4 hover:underline"
+              onClick={() => setSearch("")}>Clear story search</button>
+          ) : null}
         </section>
 
         <section className="mt-10" aria-labelledby="today-heading">
@@ -234,26 +285,32 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
             ) : null}
           </div>
 
-          {anniversaryQuery.isError ? (
+          {anniversaryQuery.isError || anniversaryQuery.isRefetchError ? (
             <ArchiveEmpty
               icon={Clock3}
               title="Calendar moments could not be loaded"
               copy="The public history service did not respond. Reconnect and try again."
               onRetry={() => void anniversaryQuery.refetch()}
             />
-          ) : anniversaryQuery.isLoading ? (
+          ) : anniversaryQuery.isLoading || anniversaryQuery.isFetching ? (
             <ArchiveEmpty icon={Clock3} title="Reading the archive…" copy="Matching published story moments to today's calendar date." />
           ) : anniversary?.onThisDay.length ? (
             <div className={presentation === "mobile-web" ? "v3-directory-mobile-list mt-4" : "mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3"}>
               {anniversary.onThisDay.slice(0, 6).map((moment, index) => (
                 <article key={`${moment.editionSlug ?? 'moment'}-${moment.occurredAt}-${index}`} className={presentation === "mobile-web" ? "v3-story-mobile-moment v3-stories-date-item border-b border-border py-4" : "v3-stories-date-item rounded-2xl border border-border/60 bg-card/55 p-5"}>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-[11px] font-black uppercase tracking-[0.14em] text-primary">{moment.yearsAgo ?? '?'} years ago</span>
+                    <span className="text-[11px] font-black uppercase tracking-[0.14em] text-primary">{moment.yearsAgo != null ? `${moment.yearsAgo} years ago` : 'Archive moment'}</span>
                     {presentation === "installed-app" ? <span className="text-xs text-muted-foreground">{moment.importance}</span> : null}
                   </div>
                   <h3 className="mt-3 text-lg font-bold tracking-[-0.02em]">{moment.headline}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{moment.summary}</p>
                   <p className="mt-4 text-xs text-muted-foreground">{moment.editionName ?? 'Solaris Song Contest'}</p>
+                  {moment.editionSlug ? (
+                    <Link to="/stories/$editionSlug" params={{ editionSlug: moment.editionSlug }}
+                      className="mt-2 inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                      Read this edition story <ChevronRight size={15} aria-hidden="true" />
+                    </Link>
+                  ) : null}
                 </article>
               ))}
             </div>
@@ -261,8 +318,7 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
             <ArchiveEmpty icon={CalendarDays} title="No published moments for today" copy="The historical calendar fills as reviewed stories are published." compact />
           )}
         </section>
-
-
+        </PublicStorySpoilerDisclosure>
       </div>
     </AppShell>
   );

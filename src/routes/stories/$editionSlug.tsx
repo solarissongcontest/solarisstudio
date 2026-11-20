@@ -1,10 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowLeft, BookOpen, CalendarDays } from 'lucide-react';
 
 import { AppShell } from '@/components/AppShell';
+import { PublicStorySpoilerDisclosure } from '@/components/public/PublicStorySpoilerDisclosure';
+import { PublicShareStoryButton } from '@/components/public/PublicShareStoryButton';
+import { useAppExperiencePreferences } from '@/lib/app-experience';
+import { usePublicLaunchAvailability } from '@/lib/public-launch-context';
 import { useSolarisApp } from '@/components/app/AppRuntime';
-import { V3StoryDetailGate } from '@/components/v3/V3StoriesGates';
+import { V3StoryDetailGate, useV3StoryFallbackSpoilerProtection } from '@/components/v3/V3StoriesGates';
 import { loadPublicStoryline } from '@/lib/studio2-storytelling';
 import { formatSolarisStoryDate } from '@/lib/public-story-date';
 import '@/styles/v3-stories-editorial.css';
@@ -72,12 +76,18 @@ function EditionStoryPage() {
 }
 
 function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
+  const { preferences } = useAppExperiencePreferences();
+  const { allowsReleased } = usePublicLaunchAvailability();
+  const installedFallbackProtection = useV3StoryFallbackSpoilerProtection();
+  const spoilerFree = installedFallbackProtection ?? preferences.spoilerFree;
   const storyQuery = useQuery({
     queryKey: ['public-storyline', editionSlug],
     queryFn: () => loadPublicStoryline(editionSlug),
     staleTime: 60_000,
+    retry: false,
   });
-  const story = storyQuery.data ?? null;
+  const story = storyQuery.isSuccess && !storyQuery.isFetching && !storyQuery.isRefetchError
+    ? storyQuery.data ?? null : null;
 
   return (
     <AppShell>
@@ -86,9 +96,9 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
           <ArrowLeft className="size-4" /> Story archive
         </a>
 
-        {storyQuery.isLoading ? (
+        {storyQuery.isLoading || storyQuery.isFetching ? (
           <EmptyStory title="Loading edition story…" copy="Reading the published narrative." />
-        ) : storyQuery.isError ? (
+        ) : storyQuery.isError || storyQuery.isRefetchError ? (
           <EmptyStory
             title="Edition story could not be loaded"
             copy="Solaris could not read this published story. This is a temporary loading error, not proof the story is unpublished."
@@ -97,7 +107,11 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
         ) : !story ? (
           <EmptyStory title="No published story for this edition" copy="The edition may not have a reviewed storyline yet, or its storyline has been returned to draft for editing." />
         ) : (
-          <>
+          <PublicStorySpoilerDisclosure
+            key={`${editionSlug}:${spoilerFree ? "protected" : "open"}`}
+            spoilerFree={spoilerFree}
+            subject="this published story"
+          >
             <header className="v3-story-article-header mt-8 max-w-3xl">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">
                 {story.editionNumber != null ? `SSC ${story.editionNumber}` : story.editionName}
@@ -107,6 +121,13 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
               {story.subtitle ? <p className="mt-3 text-lg font-semibold text-foreground/80">{story.subtitle}</p> : null}
               {story.introduction ? <p className="mt-5 text-base leading-relaxed text-muted-foreground">{story.introduction}</p> : null}
               <p className="mt-4 text-xs text-muted-foreground">Published {formatSolarisStoryDate(story.publishedAt)} · {story.items.length} reviewed moments</p>
+              <PublicShareStoryButton title={story.title} />
+              {allowsReleased(`/editions/${story.editionSlug}`) ? (
+                <Link to="/editions/$slug" params={{ slug: story.editionSlug }}
+                  className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                  Explore {story.editionName}
+                </Link>
+              ) : null}
             </header>
 
             <section className="v3-story-article-timeline relative mt-12" aria-label={`${story.editionName} timeline`}>
@@ -131,7 +152,7 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
                 ))}
               </div>
             </section>
-          </>
+          </PublicStorySpoilerDisclosure>
         )}
       </div>
     </AppShell>

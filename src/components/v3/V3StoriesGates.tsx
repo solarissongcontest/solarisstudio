@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 
 import { V3AppShell } from "@/components/v3/V3AppShell";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
@@ -15,6 +15,28 @@ import {
 import { V3Screen, V3Surface } from "./V3Foundation";
 import { V3StoriesIndexScreen } from "./V3StoriesIndexScreen";
 import { V3StoryDetailScreen } from "./V3StoryDetailScreen";
+
+/**
+ * Keep the exact server-verified spoiler decision when a V3 Story screen
+ * falls back to its legacy renderer. No second rollout/preference request.
+ * null means ordinary web, where the shared local public preference applies.
+ */
+const StoryFallbackSpoilerContext = createContext<boolean | null>(null);
+
+export function useV3StoryFallbackSpoilerProtection(): boolean | null {
+  return useContext(StoryFallbackSpoilerContext);
+}
+
+function StoryFallback({ protectedContent, children }: {
+  protectedContent: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <StoryFallbackSpoilerContext.Provider value={protectedContent}>
+      {children}
+    </StoryFallbackSpoilerContext.Provider>
+  );
+}
 
 function LoadingStories({ title }: { title: string }) {
   return (
@@ -57,11 +79,11 @@ export function V3StoriesIndexGate({ fallback }: { fallback: ReactNode }) {
   }
 
   if (bundle.isError || !bundle.data || rollout.isError || !rollout.data) {
-    return <>{fallback}</>;
+    return <StoryFallback protectedContent={hideSpoilers}>{fallback}</StoryFallback>;
   }
 
   if (rollout.data.enabled !== true || rollout.data.exploreEnabled !== true) {
-    return <>{fallback}</>;
+    return <StoryFallback protectedContent={hideSpoilers}>{fallback}</StoryFallback>;
   }
 
   return (
@@ -95,11 +117,11 @@ export function V3StoryDetailGate({
   }
 
   if (bundle.isError || !bundle.data || rollout.isError || !rollout.data) {
-    return <>{fallback}</>;
+    return <StoryFallback protectedContent={hideSpoilers}>{fallback}</StoryFallback>;
   }
 
   if (rollout.data.enabled !== true || rollout.data.exploreEnabled !== true) {
-    return <>{fallback}</>;
+    return <StoryFallback protectedContent={hideSpoilers}>{fallback}</StoryFallback>;
   }
 
   return (
