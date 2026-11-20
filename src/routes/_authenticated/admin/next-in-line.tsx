@@ -3,6 +3,7 @@ import { Clock3, ExternalLink, Music2, RefreshCw, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminCard,
@@ -63,6 +64,7 @@ type NextInLineWindowPreview = {
 };
 
 type PendingWindowChange = {
+  actorId: string;
   editionId: string;
   preview: NextInLineWindowPreview;
   operationId: string;
@@ -93,12 +95,18 @@ export const Route = createFileRoute("/_authenticated/admin/next-in-line")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: NextInLineAdminPage,
+  component: NextInLineAdminScope,
 });
 
-function NextInLineAdminPage() {
+function NextInLineAdminScope() {
+  const actorId = useAuthenticatedUser().id;
+  return <NextInLineAdminPage key={actorId} actorId={actorId} />;
+}
+
+function NextInLineAdminPage({ actorId }: { actorId: string }) {
   const { editionId } = useAdminContext();
   const editionIdRef = useRef(editionId);
+  const actorIdRef = useRef(actorId);
   const search = Route.useSearch();
   const [rows, setRows] = useState<NextInLineRow[]>([]);
   const [query, setQuery] = useState(search.country ?? "");
@@ -113,6 +121,14 @@ function NextInLineAdminPage() {
   const [changeReason, setChangeReason] = useState("");
   const [pendingWindowChange, setPendingWindowChange] = useState<PendingWindowChange | null>(null);
   const [windowBusy, setWindowBusy] = useState(false);
+
+  useEffect(() => {
+    actorIdRef.current = actorId;
+    return () => {
+      // Invalidate old actor's in-flight previews when this workspace unmounts.
+      actorIdRef.current = "";
+    };
+  }, [actorId]);
 
   useEffect(() => {
     editionIdRef.current = editionId;
@@ -185,8 +201,9 @@ function NextInLineAdminPage() {
   }, [editionId, refreshNonce]);
 
   async function prepareWindowChange(targetStatus: NextInLineWindowStatus) {
-    if (!editionId || windowBusy) return;
+    if (!editionId || !actorId || windowBusy) return;
     const operationEditionId = editionId;
+    const operationActorId = actorId;
     setWindowBusy(true);
     setWindowError(null);
     try {
@@ -203,7 +220,7 @@ function NextInLineAdminPage() {
         p_closes_at: requestedClosesAt,
       });
       if (previewResult.error) throw new Error(previewResult.error.message);
-      if (editionIdRef.current !== operationEditionId) return;
+      if (editionIdRef.current !== operationEditionId || actorIdRef.current !== operationActorId) return;
 
       const preview = nextInLinePreviewForEdition(previewResult.data, operationEditionId);
       const operation = createOrganisationCommand({
@@ -221,13 +238,14 @@ function NextInLineAdminPage() {
 
       setChangeReason("");
       setPendingWindowChange({
+        actorId: operationActorId,
         editionId: operationEditionId,
         preview,
         operationId: operation.operationId,
         idempotencyKey: operation.idempotencyKey,
       });
     } catch (caught) {
-      if (editionIdRef.current === operationEditionId) {
+      if (editionIdRef.current === operationEditionId && actorIdRef.current === operationActorId) {
         setWindowError(errorText(caught));
       }
     } finally {
@@ -236,8 +254,18 @@ function NextInLineAdminPage() {
   }
 
   async function applyWindowChange() {
-    if (!editionId || !pendingWindowChange || !changeReason.trim() || windowBusy) return;
+    if (!editionId || !actorId || !pendingWindowChange || !changeReason.trim() || windowBusy) return;
     const operationEditionId = editionId;
+    const operationActorId = actorId;
+    if (
+      pendingWindowChange.actorId !== operationActorId ||
+      actorIdRef.current !== operationActorId
+    ) {
+      setPendingWindowChange(null);
+      setChangeReason("");
+      setWindowError("Organizer account changed after this preview. Review the authenticated account before applying a window change.");
+      return;
+    }
     if (
       pendingWindowChange.editionId !== operationEditionId ||
       pendingWindowChange.preview.editionId !== operationEditionId
@@ -264,12 +292,12 @@ function NextInLineAdminPage() {
         p_expected_version: preview.expectedVersion,
       });
       if (result.error) throw new Error(result.error.message);
-      if (editionIdRef.current !== operationEditionId) return;
+      if (editionIdRef.current !== operationEditionId || actorIdRef.current !== operationActorId) return;
       setPendingWindowChange(null);
       setChangeReason("");
       setRefreshNonce((value) => value + 1);
     } catch (caught) {
-      if (editionIdRef.current === operationEditionId) {
+      if (editionIdRef.current === operationEditionId && actorIdRef.current === operationActorId) {
         setWindowError(errorText(caught));
       }
     } finally {
