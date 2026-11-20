@@ -28,7 +28,7 @@ describe("public-web Edition identity artwork", () => {
     expect(html).toContain('data-has-logo="false"');
     expect(html).toContain('class="edition-hero-artwork"');
     expect(html).not.toContain('class="edition-artwork-plate"');
-    expect((html.match(/<img\\b/g) ?? [])).toHaveLength(1);
+    expect((html.match(/<img\b/g) ?? [])).toHaveLength(1);
   });
 
   it("gives the independently published logo its own foreground identity", () => {
@@ -36,7 +36,7 @@ describe("public-web Edition identity artwork", () => {
     expect(html).toContain('data-has-logo="true"');
     expect(html).toContain('class="edition-artwork-plate"');
     expect(html).toContain('alt="Official logo"');
-    expect((html.match(/<img\\b/g) ?? [])).toHaveLength(2);
+    expect((html.match(/<img\b/g) ?? [])).toHaveLength(2);
   });
 
   it("keeps a readable editorial fallback without invented media", () => {
