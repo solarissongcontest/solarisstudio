@@ -30,8 +30,8 @@ def validate_container(container):
         raise RehearsalFailure('Require running network-none, unprivileged container without published ports')
 
 def exec_pg(container,*args,input=None):
-    return command('docker','exec','-i','-e','PGHOSTADDR=','-e','PGSERVICE=','-e','PGSERVICEFILE=',
-                   '-e','PGOPTIONS=','-e','PGPASSWORD=','-e','PGPASSFILE=/dev/null',container,*args,input=input)
+    return command('docker','exec','-i',container,'env','-u','PGHOSTADDR','-u','PGSERVICE','-u','PGSERVICEFILE',
+                   '-u','PGOPTIONS','-u','PGPASSWORD','-u','PGDATABASE','PGPASSFILE=/dev/null',*args,input=input)
 
 def sql(container,database,source):
     return exec_pg(container,'psql','-X','-qAt','-h','/var/run/postgresql','-p','5432',
@@ -42,8 +42,8 @@ def tables(container,database):
 
 def data_digest(container,database,identities):
     if not identities:raise RehearsalFailure('Empty original-table preservation scope')
-    args=['docker','exec','-e','PGHOSTADDR=','-e','PGSERVICE=','-e','PGSERVICEFILE=','-e','PGOPTIONS=','-e','PGPASSWORD=',
-          '-e','PGPASSFILE=/dev/null',container,'pg_dump','-h','/var/run/postgresql','-p','5432','-U','postgres','-d',database,
+    args=['docker','exec',container,'env','-u','PGHOSTADDR','-u','PGSERVICE','-u','PGSERVICEFILE','-u','PGOPTIONS','-u','PGPASSWORD',
+          '-u','PGDATABASE','PGPASSFILE=/dev/null','pg_dump','-h','/var/run/postgresql','-p','5432','-U','postgres','-d',database,
           '--restrict-key=S13BatchLocalPreservationOnly','--no-comments']
     for identity in identities:args.extend(['--table',identity])
     # Stream into a digest, not stdout/files/memory/private logs. Dump errors are never echoed.

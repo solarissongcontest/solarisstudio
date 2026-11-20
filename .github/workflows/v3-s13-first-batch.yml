@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      SOLARIS_RUN_LOCAL_DB_REHEARSAL: YES
+      SOLARIS_RUN_LOCAL_DB_REHEARSAL: 'YES'
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - uses: actions/checkout@v4
