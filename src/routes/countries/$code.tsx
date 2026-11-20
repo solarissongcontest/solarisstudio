@@ -1,5 +1,5 @@
 import { PublicLaunchLink as Link } from "@/components/public/PublicLaunchLink";
-import { createFileRoute} from "@tanstack/react-router";
+import { createFileRoute, useRouterState } from "@tanstack/react-router";
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 
 import { AppShell, Panel, StatTile } from "@/components/AppShell";
@@ -40,6 +40,8 @@ import {
   useEditions,
 } from "@/lib/data-live";
 import { canonicalEditionEntries, canonicalEntryFor } from "@/lib/entry-utils";
+import { countrySectionHash, sectionFromCountryHash } from "@/lib/v3-country-web-tabs";
+import "@/styles/v3-country-web-sections.css";
 import { computeCountryForm } from "@/lib/form";
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 import {
@@ -119,6 +121,14 @@ type Tab = (typeof TABS)[number]["value"];
 function CountryProfilePage() {
   const { code } = Route.useParams();
   const { isAppMode } = useSolarisApp();
+  const navigate = Route.useNavigate();
+  const routeHash = useRouterState({ select: (state) => state.location.hash });
+  const [appTab, setAppTab] = useState<Tab>("overview");
+  const tab: Tab = isAppMode ? appTab : sectionFromCountryHash(routeHash);
+  const changeTab = (next: Tab) => {
+    if (isAppMode) setAppTab(next);
+    else void navigate({ hash: countrySectionHash(next) });
+  };
   const [archiveEnabled, setArchiveEnabled] = useState(!isAppMode);
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
@@ -134,7 +144,7 @@ function CountryProfilePage() {
   const { data: results } = resultsQuery;
   const { data: jury } = juryQuery;
   const { data: televote } = televoteQuery;
-  const [tab, setTab] = useState<Tab>("overview");
+
 
   useEffect(() => {
     if (!isAppMode) {
@@ -533,14 +543,27 @@ function CountryProfilePage() {
           />
         )}
 
-        <ResponsiveTabs
-          value={tab}
-          options={TABS}
-          onChange={setTab}
-          label="Country section"
-          collapseAt="lg"
-          className="mb-5"
-        />
+        {!isAppMode ? (
+          <nav className="country-web-section-nav" aria-label="Country sections">
+            {TABS.map((item) => (
+              <Link key={item.value} to="/countries/$code"
+                params={{ code: country.short_code }}
+                hash={countrySectionHash(item.value)}
+                aria-current={tab === item.value ? "page" : undefined}>
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        ) : (
+          <ResponsiveTabs
+            value={tab}
+            options={TABS}
+            onChange={changeTab}
+            label="Country section"
+            collapseAt="lg"
+            className="mb-5"
+          />
+        )}
 
         {archiveLoading ? (
           <ArchiveDataLoading label="Loading country history…" />
@@ -600,7 +623,7 @@ function CountryProfilePage() {
                   actions={
                     <button
                       type="button"
-                      onClick={() => setTab("results")}
+                      onClick={() => changeTab("results")}
                       className="rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold text-primary"
                     >
                       Full results →
