@@ -61,7 +61,8 @@ for (const route of publicRouteAuditSet) {
 
 test("published Country and Edition use continuous cinematic browser heroes with no installed dock", async ({ page, baseURL }, testInfo) => {
   test.skip(!["public-390", "public-1440"].includes(testInfo.project.name));
-  const target = new URL(process.env.E2E_SUPABASE_URL ?? "http://127.0.0.1:54321");
+  if (!process.env.E2E_SUPABASE_URL) throw new Error("Missing local E2E_SUPABASE_URL: refusing screenshot audit.");
+  const target = new URL(process.env.E2E_SUPABASE_URL);
   if (target.protocol !== "http:" ||
       !["127.0.0.1", "localhost", "[::1]", "::1"].includes(target.hostname) ||
       target.username || target.password || !target.port) {
