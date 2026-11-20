@@ -6,6 +6,7 @@
   --cinematic-canvas: var(--background, #020817);
   margin-bottom: clamp(1.25rem, 3vw, 2.5rem);
   min-width: 0;
+  scroll-margin-top: 5rem;
 }
 .country-web-cinematic .cinematic-entity-hero {
   min-height: clamp(25rem, 50svh, 41rem);
