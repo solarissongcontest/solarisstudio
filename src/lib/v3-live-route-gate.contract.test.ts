@@ -9,34 +9,31 @@ const gateSource = () =>
   );
 
 describe("Public V3 Live route reconnect boundary", () => {
-  it("falls back only when an initial authoritative rollout or Live snapshot is absent", () => {
+  it("uses legacy only when rollout explicitly disables V3, never because authority is missing", () => {
     const gate = gateSource();
 
-    expect(gate).toContain("if (!rollout.data || !v3Enabled)");
-    expect(gate).toContain("if (!bundle.data)");
-    expect(gate).not.toContain("rollout.isError || !rollout.data");
-    expect(gate).not.toContain("bundle.isError || !bundle.data");
-    // The intentional rollout-off fallback stays, but read failures must
-    // take the retry branch before either fallback can mount legacy queries.
-    expect(gate.indexOf("if (rollout.isError && !rollout.data)")).toBeLessThan(
-      gate.indexOf("if (!rollout.data || !v3Enabled)"),
-    );
-    expect(gate.indexOf("if (bundle.isError && !bundle.data)")).toBeLessThan(
-      gate.indexOf("if (!bundle.data)"),
-    );
+    expect(gate).toContain("if (!rollout.data) {");
+    expect(gate).toContain("if (!v3Enabled) {");
+    expect(gate).toContain("if (!bundle.data) {");
+    expect(gate).not.toContain("if (!rollout.data || !v3Enabled)");
+    expect(gate).toContain("Official Live rollout state could not be verified");
+    expect(gate).toContain("Official Live state could not be verified");
+    expect(gate.split("return <>{fallback}</>;").length - 1).toBe(1);
   });
 
-  it("fails closed with manual retry before an initial server read is available", () => {
+  it("fails closed with manual retry when rollout or V3 bundle is absent", () => {
     const gate = gateSource();
     const rolloutError = gate.indexOf("if (rollout.isError && !rollout.data)");
-    const rolloutFallback = gate.indexOf("if (!rollout.data || !v3Enabled)");
+    const rolloutMissing = gate.indexOf("if (!rollout.data) {");
+    const serverDisabled = gate.indexOf("if (!v3Enabled) {");
     const bundleError = gate.indexOf("if (bundle.isError && !bundle.data)");
-    const bundleFallback = gate.indexOf("if (!bundle.data)");
+    const bundleMissing = gate.indexOf("if (!bundle.data) {");
 
     expect(rolloutError).toBeGreaterThan(0);
+    expect(rolloutError).toBeLessThan(rolloutMissing);
+    expect(rolloutMissing).toBeLessThan(serverDisabled);
     expect(bundleError).toBeGreaterThan(0);
-    expect(rolloutError).toBeLessThan(rolloutFallback);
-    expect(bundleError).toBeLessThan(bundleFallback);
+    expect(bundleError).toBeLessThan(bundleMissing);
     expect(gate).toContain('onRetry={() => { void rollout.refetch(); }}');
     expect(gate).toContain('onRetry={() => { void bundle.refetch(); }}');
     expect(gate).toContain('refreshing={rollout.isFetching}');

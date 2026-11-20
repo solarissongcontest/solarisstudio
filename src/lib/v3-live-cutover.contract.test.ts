@@ -47,14 +47,16 @@ describe("Public V3 Live route cutover", () => {
     expect(source).not.toContain("V3BottomNavigation");
   });
 
-  it("preserves reversible initial fallback without discarding cached V3 authority on refetch errors", () => {
+  it("keeps reversible rollout-off fallback but never uses legacy on unverified Live reads", () => {
     const source = gate();
-    expect(source).toContain("if (!rollout.data || !v3Enabled)");
-    expect(source).toContain("if (!bundle.data)");
-    expect(source).not.toContain("rollout.isError || !rollout.data");
-    expect(source).not.toContain("bundle.isError || !bundle.data");
+    expect(source).toContain("if (!rollout.data) {");
+    expect(source).toContain("if (!v3Enabled) {");
+    expect(source).toContain("if (!bundle.data) {");
+    expect(source).not.toContain("if (!rollout.data || !v3Enabled)");
+    expect(source).toContain("Official Live rollout state could not be verified");
+    expect(source).toContain("Official Live state could not be verified");
     expect(source).toContain("rollout.isError || bundle.isError");
-    expect(source.match(/return <>{fallback}<\/>;/g)?.length).toBe(2);
+    expect(source.split("return <>{fallback}</>;").length - 1).toBe(1);
   });
 
   it("preserves the existing Show Mode wake-lock preference as progressive enhancement", () => {
