@@ -105,6 +105,37 @@ without publishing their names or object keys.
 original bucket identity/visibility, metadata, JWT/RLS role tests, authorized
 private/public readback, Auth/Vault and backup coverage completeness.
 
+## Follow-up live-production metadata-only inventory (20 November 2026)
+
+A bounded read-only connected Supabase catalog query (no object contents, no
+secret values, no production mutations) established:
+
+- **6** hosted buckets: **3** with object metadata rows and **3** empty.
+- The three populated buckets have **54, 47 and 7** recorded object rows
+  (**108 total**). Each of those 108 metadata rows has `created_at` before
+  the November 15 Storage archive time, and no rows appear after that time in
+  the queried `storage.objects` inventory.
+- The November 15 manifest also reports **108 objects across 3 bucket IDs**.
+  Count concordance is strong supporting evidence, **not** a proof of
+  per-object key or bucket-ID identity parity. The exact manifest bucket IDs
+  and keys are intentionally not published in this report.
+- `auth.users`, `auth.sessions`, `vault.secrets`, and
+  `supabase_migrations.schema_migrations` relations exist in production.
+- **6/6** inspected core database roles exist.
+- **10/10** inspected regular `storage` tables have RLS enabled and
+  **10** Storage policy definitions are present. Four policies name `anon`,
+  eight name `authenticated` (some policies include multiple roles).
+  **Presence is NOT authorization correctness, nor proof those policies have
+  been recovered in an isolated environment.**
+- Hosted migration ledger remains **497** records, tip
+  `20261101181812`; V3 migration differences remain unresolved and have
+  **not** been installed.
+
+These observations advance the **source-inventory baseline only**. They do not
+certify backup coverage of Auth/Vault configuration and secrets, original
+grants/ownership, RLS positive/negative access tests, a Supabase-specific
+Storage API restoration, or a source-to-host migration rehearsal.
+
 ## What this does NOT prove
 
 - Individual row/data integrity and official contest vote/result parity were not checked in this run.
