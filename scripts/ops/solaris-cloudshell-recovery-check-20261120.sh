@@ -42,32 +42,40 @@ echo "Storage entries: $(wc -l < "$R/storage-names.private.txt")"
 C="solaris-mobile-restore-$$"
 trap 'docker rm -f "$C" >/dev/null 2>&1 || true' EXIT
 echo '[4/5] Starting fresh network-isolated Supabase PostgreSQL 17.11'
-docker run --rm -d --name "$C" --network none -e POSTGRES_HOST_AUTH_METHOD=trust supabase/postgres:17.11.0.019 postgres -c config_file=/etc/postgresql/postgresql.conf -c cron.launch_active_jobs=off >/dev/null
+docker run --rm -d --name "$C" --network none --tmpfs /var/lib/postgresql/data:rw,size=1g --memory 3g -e POSTGRES_HOST_AUTH_METHOD=trust supabase/postgres:17.11.0.019 postgres -c config_file=/etc/postgresql/postgresql.conf -c cron.launch_active_jobs=off >/dev/null
 READY=0
 for i in $(seq 1 50); do
-  if docker exec "$C" pg_isready -U postgres >/dev/null 2>&1; then READY=1; break; fi
+  if docker exec "$C" pg_isready -U supabase_admin >/dev/null 2>&1; then READY=1; break; fi
   sleep 1
 done
 test "$READY" = 1 || { echo 'Isolated PostgreSQL not ready'; exit 1; }
+# Only the disposable, network-isolated container may be modified below.
+# Supabase's postgres role is intentionally restricted. The earlier Nov 15
+# successful isolated restore used supabase_admin, and DROP ... FORCE needs
+# privileges to terminate initialized background sessions.
+ADMIN_SUPER=$(docker exec "$C" psql -X -U supabase_admin -d template1 -At -v ON_ERROR_STOP=1 -c "SELECT rolsuper FROM pg_roles WHERE rolname='supabase_admin'")
+test "$ADMIN_SUPER" = t || {
+  echo 'STOP: supabase_admin is not superuser in disposable recovery container'; exit 1;
+}
 # Restore into the only allowed pg_cron DB (postgres), but remove the
 # Supabase image's initialized database *inside the disposable container*.
 # This is how the November 15 production-derived scoped restore succeeded.
 # For safety, all commands here run through docker exec "$C"; this container
 # was created above with --network none and no mounted volumes or ports.
 echo '[5/5] Verifying pg_cron is disabled by server startup configuration'
-if [ "$(docker exec "$C" psql -X -U postgres -d template1 -At -v ON_ERROR_STOP=1 -c "SELECT setting FROM pg_settings WHERE name='cron.launch_active_jobs'")" != off ]; then
+if [ "$(docker exec "$C" psql -X -U supabase_admin -d template1 -At -v ON_ERROR_STOP=1 -c "SELECT setting FROM pg_settings WHERE name='cron.launch_active_jobs'")" != off ]; then
   echo 'pg_cron was not disabled at startup; stopping.'; exit 1
 fi
 echo '[5/5] Recreating only the network-isolated postgres database from template0'
-docker exec "$C" psql -X -U postgres -d template1 -v ON_ERROR_STOP=1 \
+docker exec "$C" psql -X -U supabase_admin -d template1 -v ON_ERROR_STOP=1 \
   -c "DROP DATABASE postgres WITH (FORCE)" >/dev/null || {
     echo 'Could not drop the disposable container postgres database; stopping.'; exit 1;
   }
-docker exec "$C" psql -X -U postgres -d template1 -v ON_ERROR_STOP=1 \
+docker exec "$C" psql -X -U supabase_admin -d template1 -v ON_ERROR_STOP=1 \
   -c "CREATE DATABASE postgres TEMPLATE template0" >/dev/null || {
     echo 'Could not recreate isolated postgres database; stopping.'; exit 1;
   }
-test "$(docker exec "$C" psql -X -U postgres -d postgres -At -v ON_ERROR_STOP=1 -c 'SELECT current_database()')" = postgres || {
+test "$(docker exec "$C" psql -X -U supabase_admin -d postgres -At -v ON_ERROR_STOP=1 -c 'SELECT current_database()')" = postgres || {
   echo 'Isolated postgres database unavailable; stopping.'; exit 1;
 }
 # A scoped application dump often expects schemas (e.g. televoting) to
@@ -82,11 +90,11 @@ for schema in public private auth storage televoting extensions vault; do
     # template0 includes a default public schema; avoid collision only when
     # the archive itself declares ownership of CREATE SCHEMA public.
     if [ "$schema" = public ]; then
-      docker exec "$C" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 \
+      docker exec "$C" psql -X -U supabase_admin -d postgres -v ON_ERROR_STOP=1 \
         -c 'DROP SCHEMA IF EXISTS public' >/dev/null
     fi
   else
-    docker exec "$C" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 \
+    docker exec "$C" psql -X -U supabase_admin -d postgres -v ON_ERROR_STOP=1 \
       -c "CREATE SCHEMA IF NOT EXISTS \"$schema\"" >/dev/null
   fi
 done
@@ -101,11 +109,11 @@ echo '[5/5] Attempting transactional restore WITHOUT --clean'
 # --clean is for overwriting existing objects; this database is fresh.
 # On empty destinations, cleanup can fail before archive tables are created.
 # --single-transaction aborts everything on any restore error.
-if age -d -i "$K" "$D" | docker exec -i "$C" sh -c 'pg_restore -U postgres -d postgres --no-owner --no-acl --exit-on-error --single-transaction >/dev/null 2>/tmp/restore.log; r=$?; cat >/dev/null; cat /tmp/restore.log >&2; exit "$r"' 2>"$R/restore.private.log"; then
+if age -d -i "$K" "$D" | docker exec -i "$C" sh -c 'pg_restore -U supabase_admin -d postgres --no-owner --no-acl --exit-on-error --single-transaction >/dev/null 2>/tmp/restore.log; r=$?; cat >/dev/null; cat /tmp/restore.log >&2; exit "$r"' 2>"$R/restore.private.log"; then
   echo 'ISOLATED DATABASE RESTORE SUCCESSFUL (ownership/ACL and Supabase services not certified)'
-  docker exec "$C" psql -U postgres -d postgres -At -v ON_ERROR_STOP=1 \
+  docker exec "$C" psql -U supabase_admin -d postgres -At -v ON_ERROR_STOP=1 \
     -c "select 'Restored tables=' || count(*) || ', RLS-enabled=' || count(*) filter (where c.relrowsecurity) from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind='r' and n.nspname in ('public','private','televoting','auth','storage')"
-  docker exec "$C" psql -U postgres -d postgres -At -v ON_ERROR_STOP=1 \
+  docker exec "$C" psql -U supabase_admin -d postgres -At -v ON_ERROR_STOP=1 \
     -c "select 'televoting.televote_aggregations present=' || (to_regclass('televoting.televote_aggregations') is not null)"
 else
   echo 'ISOLATED RESTORE NOT COMPLETED'
