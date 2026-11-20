@@ -34,16 +34,19 @@ describe("V3 Public completion Chat 3 discovery roots", () => {
   it("keeps Shows state-led instead of rendering edition headings followed by one grouped list", () => {
     const route = source("src/routes/shows/index.tsx");
     const screen = source("src/components/v3/V3ShowsDiscoveryScreen.tsx");
+    const spotlights = source("src/lib/v3-show-spotlights.ts");
 
     expect(route).toContain("V3ShowsDiscoveryScreen");
-    expect(screen).toContain('eyebrow: "Live now"');
-    expect(screen).toContain('eyebrow: "Up next"');
-    expect(screen).toContain('eyebrow: "Recent"');
-    expect(screen).toContain('eyebrow: "Current edition"');
-    expect(screen).toContain("collection.items.length > 0");
+    expect(screen).toContain("buildShowSpotlights");
+    for (const label of ["Live now", "Up next", "Recent", "Current edition"]) {
+      expect(spotlights).toContain(`eyebrow: "${label}"`);
+    }
+    expect(spotlights).toContain("items.length ? [{ ...source, items }] : []");
+    expect(screen).toContain("spotlightCollections.map");
     expect(screen).toContain('<ShowCollection key={collection.id} presentation={presentation} {...collection} />');
     expect(screen).toContain('id="shows-browse-title"');
-    expect(screen).toContain(">All shows</h2>");
+    expect(screen).toContain('"All shows"');
+    expect(screen).toContain('"All public shows"');
     expect(screen).toContain('aria-labelledby="shows-browse-title"');
     expect(screen).toContain('eyebrow="Archive"');
     expect(screen).toContain("showPublishesResults(item.show)");
