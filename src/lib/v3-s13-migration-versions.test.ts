@@ -45,6 +45,49 @@ describe("System V3 S13 migration identity integrity", () => {
     });
   });
 
+  it("rejects malformed calendar instants for all November-2026 onward migrations", () => {
+    const invalid = auditV3S13MigrationVersions([
+      "20261107006000_v3_tg15_invalid_minutes.sql",
+      "20261104126000_v3_tg6_invalid_minutes.sql",
+      "20261131010000_impossible_november_day.sql",
+      "20270229010000_impossible_non_leap_february.sql",
+    ]);
+    expect(invalid.clean).toBe(false);
+    expect(invalid.issues).toEqual([
+      {
+        filename: "20261104126000_v3_tg6_invalid_minutes.sql",
+        reason: "invalid_migration_calendar_version",
+        version: "20261104126000",
+      },
+      {
+        filename: "20261107006000_v3_tg15_invalid_minutes.sql",
+        reason: "invalid_migration_calendar_version",
+        version: "20261107006000",
+      },
+      {
+        filename: "20261131010000_impossible_november_day.sql",
+        reason: "invalid_migration_calendar_version",
+        version: "20261131010000",
+      },
+      {
+        filename: "20270229010000_impossible_non_leap_february.sql",
+        reason: "invalid_migration_calendar_version",
+        version: "20270229010000",
+      },
+    ]);
+  });
+
+  it("accepts valid boundary times and grandfathered older synthetic identifiers", () => {
+    const report = auditV3S13MigrationVersions([
+      "20260817242000_legacy_synthetic_identifier.sql",
+      "20261003018000_legacy_synthetic_identifier.sql",
+      "20261104125100_v3_tg6_valid_reschedule.sql",
+      "20261107005500_v3_tg15_valid_founder_intake.sql",
+      "20280229000000_valid_leap_february.sql",
+    ]);
+    expect(report).toEqual({ filesChecked: 5, clean: true, issues: [] });
+  });
+
   it("checks historical and new versions together to catch backdated collisions", () => {
     const report = auditV3S13MigrationVersions([
       "20260901010000_old.sql",

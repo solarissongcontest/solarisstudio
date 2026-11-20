@@ -184,13 +184,25 @@ export const TERRA_GOVERNANCE_DOMAIN_REGISTRY: readonly TerraGovernanceDomainOwn
   },
 ] as const;
 
+/**
+ * Only TG1/TG2 SQL files actually MERGED into source main belong here.
+ * Existence in this array proves neither production adoption nor certification.
+ * Keep it synchronized with supabase/migrations; staged swarm PR migrations
+ * must not appear until merged and reconciled through the integration queue.
+ */
 export const TERRA_GOVERNANCE_FOUNDATION_MIGRATIONS = [
   "20261102170500_v3_tg1_world_country_control_foundation.sql",
   "20261102171500_v3_tg2_world_institution_core.sql",
   "20261102171600_v3_tg2_world_institution_access.sql",
   "20261102171700_v3_tg2_world_office_term_canonical_alignment.sql",
   "20261102171800_v3_tg2_world_office_term_dependents.sql",
+  "20261102171950_v3_tg1_current_controller_identity_guard.sql",
   "20261104115831_v3_tg2_world_identity_linkage_privacy.sql",
+  "20261104120600_v3_tg1_controller_login_privacy.sql",
+  "20261104120800_v3_tg2_nonpublic_organ_office_privacy.sql",
+  "20261104120900_v3_tg2_cross_organization_organ_integrity.sql",
+  "20261104121500_v3_tg2_office_term_effective_authority.sql",
+  "20261104121600_v3_tg2_membership_effective_representation.sql",
 ] as const;
 
 export const TERRA_GOVERNANCE_FOUNDATION_EVENT_TYPES = [
