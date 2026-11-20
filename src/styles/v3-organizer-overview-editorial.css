@@ -1,0 +1,170 @@
+/*
+ * Organizer Overview, screenshot-audit pass.
+ * Only ordinary browser web receives this operational composition.
+ * Authoritative query, permissions, tasks, incidents and readiness stay untouched.
+ */
+html:not([data-solaris-app]) .admin-control-room .admin-organizer-overview {
+  --overview-rule: color-mix(in oklab, var(--foreground) 13%, transparent);
+  --overview-muted: var(--muted-foreground);
+  min-width: 0;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-organizer-overview .admin-workspace-header {
+  margin-bottom: clamp(.8rem, 2vw, 1.4rem);
+}
+html:not([data-solaris-app]) .admin-control-room .admin-organizer-overview .admin-overview-context {
+  align-items: flex-start;
+  min-width: 0;
+  gap: .7rem 1.3rem;
+  border: 0;
+  border-bottom: 1px solid var(--overview-rule);
+  border-radius: 0;
+  padding: .5rem 0 1rem;
+  background: transparent;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-organizer-overview .admin-overview-context h2 {
+  overflow-wrap: anywhere;
+  white-space: normal;
+  text-overflow: clip;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-first {
+  align-items: start;
+  min-width: 0;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-priorities {
+  min-width: 0;
+  background: color-mix(in oklab, var(--admin-surface) 83%, transparent);
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-next {
+  min-width: 0;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-priorities .admin-list-row {
+  align-items: flex-start;
+  min-width: 0;
+  padding-block: .9rem;
+  border-bottom: 1px solid var(--overview-rule);
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-priorities .admin-list-row:last-child {
+  border-bottom: 0;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-readiness {
+  min-width: 0;
+  margin-top: clamp(1.15rem, 2.5vw, 2rem);
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-readiness-active {
+  min-width: 0;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-readiness-group {
+  min-width: 0;
+  border: 0;
+  border-top: 1px solid var(--overview-rule);
+  border-radius: 0;
+  padding: .8rem 0 0;
+  background: transparent;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-readiness-item {
+  border: 0;
+  border-bottom: 1px solid var(--overview-rule);
+  border-radius: 0;
+  padding: .7rem .15rem;
+  background: transparent;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-readiness-item:hover,
+html:not([data-solaris-app]) .admin-control-room .admin-overview-domain-row:hover {
+  background: color-mix(in oklab, var(--admin-surface) 80%, transparent);
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-ready-details {
+  min-width: 0;
+  margin-top: 1rem;
+  border-top: 1px solid var(--overview-rule);
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-ready-details > summary,
+html:not([data-solaris-app]) .admin-control-room .admin-overview-secondary-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .7rem 1rem;
+  min-height: 48px;
+  padding: .7rem .1rem;
+  cursor: pointer;
+  list-style: none;
+  color: var(--foreground);
+  font-size: .86rem;
+  font-weight: 710;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-ready-details > summary::-webkit-details-marker,
+html:not([data-solaris-app]) .admin-control-room .admin-overview-secondary-summary::-webkit-details-marker {
+  display: none;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-ready-details > summary::after,
+html:not([data-solaris-app]) .admin-control-room .admin-overview-secondary-summary::after {
+  content: "+";
+  font-size: 1.1rem;
+  font-weight: 400;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-ready-details[open] > summary::after,
+html:not([data-solaris-app]) .admin-control-room .admin-overview-secondary[open] > summary::after {
+  content: "−";
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-ready-details > summary span:last-child,
+html:not([data-solaris-app]) .admin-control-room .admin-overview-secondary-summary span:last-child {
+  margin-left: auto;
+  color: var(--overview-muted);
+  font-size: .76rem;
+  font-weight: 520;
+  text-align: right;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-ready-details summary:focus-visible,
+html:not([data-solaris-app]) .admin-control-room .admin-overview-secondary-summary:focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-readiness-version {
+  margin-top: .65rem;
+  color: var(--overview-muted);
+  font-size: .71rem;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-secondary {
+  min-width: 0;
+  border-top: 1px solid var(--overview-rule);
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-secondary-summary {
+  min-height: 52px;
+  font-size: .95rem;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-secondary > section {
+  min-width: 0;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-domain-row {
+  min-width: 0;
+  border: 0;
+  border-bottom: 1px solid var(--overview-rule);
+  border-radius: 0;
+  background: transparent;
+  overflow-wrap: anywhere;
+}
+html:not([data-solaris-app]) .admin-control-room .admin-overview-domain-row:focus-visible,
+html:not([data-solaris-app]) .admin-control-room .admin-overview-readiness-item:focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: -2px;
+}
+@media (max-width: 639px) {
+  html:not([data-solaris-app]) .admin-control-room .admin-overview-first {
+    gap: .85rem;
+  }
+  html:not([data-solaris-app]) .admin-control-room .admin-overview-context .admin-status {
+    align-self: flex-start;
+  }
+  html:not([data-solaris-app]) .admin-control-room .admin-overview-readiness-active {
+    grid-template-columns: minmax(0,1fr);
+  }
+  html:not([data-solaris-app]) .admin-control-room .admin-overview-secondary-summary {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+}
+@media (forced-colors: active) {
+  html:not([data-solaris-app]) .admin-control-room .admin-overview-ready-details summary:focus-visible,
+  html:not([data-solaris-app]) .admin-control-room .admin-overview-secondary-summary:focus-visible {
+    outline-color: Highlight;
+  }
+}
