@@ -21,3 +21,21 @@ test('S13 batch reuses immutable core, one transaction and no official/global wr
 });
 
 test('fourteen missing S13 effects are reconciled offline, history is preserved',()=>{const x=reconcileEffects();assert.equal(x.effects.length,14);assert.ok(x.effects.every(e=>e.observed==='absent'&&e.action==='create'));assert.equal(x.history.historyWrites,0);assert.equal(x.externalDependency.action,'preserve');});
+
+test('one operator procedure invokes the private restore and clone-only hook safely',async()=>{
+ const {spawnSync}=await import('node:child_process');
+ for(const file of ['scripts/ops/solaris-s13-first-batch-operator.sh','scripts/ops/solaris-role-acl-rehearsal-20261120.sh']){
+  const result=spawnSync('bash',['-n',file],{encoding:'utf8'});assert.equal(result.status,0,result.stderr);
+ }
+ const wrapper=fs.readFileSync('scripts/ops/solaris-s13-first-batch-operator.sh','utf8');
+ const restore=fs.readFileSync('scripts/ops/solaris-role-acl-rehearsal-20261120.sh','utf8');
+ assert.match(wrapper,/SOLARIS_REVIEWED_SOURCE_SHA/);
+ assert.match(wrapper,/\$\{PIPESTATUS\[0\]\}/);
+ assert.match(wrapper,/restore_rc.*== 2/);
+ assert.match(wrapper,/operatorBoundPrivateArchiveRehearsalPassed/);
+ assert.match(restore,/--check-package "\$S13_BATCH_PACKAGE"/);
+ assert.match(restore,/--baseline-kind recovered-private/);
+ assert.ok(restore.indexOf('--check-package')<restore.indexOf("echo '[1/4]"));
+ assert.ok(restore.indexOf('S13_BATCH_PROOF:')<restore.indexOf('# Retain object-level catalog evidence'));
+ assert.doesNotMatch(wrapper,/supabase (db push|migration repair)|wrangler|https?:\/\//);
+});
