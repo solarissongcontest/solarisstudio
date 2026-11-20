@@ -803,3 +803,89 @@ html:not([data-solaris-app]) .edition-editorial-refresh .edition-navigation-edit
     border-bottom-color: Highlight;
   }
 }
+
+
+/* Official Edition artwork is a full-bleed atmosphere, not a duplicated logo
+   plate. Only the ordinary browser presentation opts into this design. */
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-web-cinematic {
+  --cinematic-canvas: var(--background, #071023);
+  min-width: 0;
+}
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-web-cinematic .cinematic-entity-hero {
+  min-height: clamp(25rem, 43vw, 39rem);
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--cinematic-canvas);
+}
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-web-cinematic .cinematic-entity-hero__copy {
+  padding: clamp(5rem, 8vw, 8rem) clamp(1.2rem, 4vw, 4.2rem) clamp(4rem, 7vw, 6rem);
+}
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-web-cinematic .cinematic-entity-hero__title {
+  max-width: 22ch;
+  font-size: clamp(3rem, 7vw, 7rem);
+  overflow-wrap: anywhere;
+}
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-web-cinematic .cinematic-entity-hero__fade {
+  background:
+    linear-gradient(0deg, var(--cinematic-canvas) 0%, rgba(2,8,23,.9) 12%, rgba(2,8,23,.5) 35%, transparent 70%),
+    linear-gradient(90deg, rgba(2,8,23,.35), transparent 85%);
+}
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-web-cinematic__identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .8rem 1.4rem;
+}
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-web-cinematic__status {
+  flex: 0 0 auto;
+}
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-web-cinematic__logo {
+  display: block;
+  width: auto;
+  height: auto;
+  max-height: 4rem;
+  max-width: min(45vw, 12rem);
+  object-fit: contain;
+}
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-web-cinematic__winner {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: .9rem clamp(.4rem, 2.5vw, 2rem);
+  border-block: 1px solid var(--v3-editorial-rule);
+  background: var(--cinematic-canvas);
+}
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-web-cinematic__description {
+  max-width: 72ch;
+  margin: 1.25rem clamp(.3rem, 2.5vw, 2rem);
+  color: var(--foreground);
+  font-size: clamp(.875rem, 1.2vw, 1.025rem);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+html:not([data-solaris-app]) .edition-editorial-refresh .edition-web-cinematic + .edition-current-status {
+  margin-top: .75rem;
+}
+@media (max-width: 767px) {
+  html:not([data-solaris-app]) .edition-editorial-refresh .edition-web-cinematic .cinematic-entity-hero {
+    min-height: clamp(19rem, 49svh, 29rem);
+  }
+  html:not([data-solaris-app]) .edition-editorial-refresh .edition-web-cinematic .cinematic-entity-hero__copy {
+    padding: 4rem 1.15rem 3rem;
+  }
+  html:not([data-solaris-app]) .edition-editorial-refresh .edition-web-cinematic .cinematic-entity-hero__title {
+    font-size: clamp(2.6rem, 11vw, 4.9rem);
+  }
+  html:not([data-solaris-app]) .edition-editorial-refresh .edition-web-cinematic__winner {
+    padding-inline: .35rem;
+  }
+  html:not([data-solaris-app]) .edition-editorial-refresh .edition-web-cinematic__description {
+    margin-inline: .35rem;
+  }
+}
+@media (forced-colors: active), (prefers-contrast: more) {
+  html:not([data-solaris-app]) .edition-editorial-refresh .edition-web-cinematic .cinematic-entity-hero__fade {
+    background: linear-gradient(0deg, var(--cinematic-canvas) 0%, #020817 42%, rgba(2,8,23,.86) 78%);
+  }
+}
