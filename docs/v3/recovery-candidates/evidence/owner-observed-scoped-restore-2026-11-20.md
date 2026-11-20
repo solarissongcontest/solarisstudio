@@ -183,6 +183,36 @@ integrity and independent S3 object-readback were proven by separate tests.
 This does **not** prove hosted object-byte equality, Auth/Vault recovery,
 original Supabase bucket access rules or full provider-level Storage restore.
 
+## Current hosted role/ACL and RLS baseline (read-only inspection, 20 November 2026)
+
+A bounded **catalog-only** query (no private rows, media, credentials or
+secrets) identified **225** application table identities spanning
+`public`, `private`, `televoting`, `auth`, and `storage`, including
+**202** RLS-enabled tables. Another one-table `vault` provider-managed
+schema is outside this scoped application count.
+
+| Schema | Table identities | RLS enabled | Tables with explicit relacl | anon SELECT effective | anon INSERT effective | authenticated SELECT effective | authenticated INSERT effective |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| auth | 27 | 16 | 27 | 0 | 0 | 0 | 0 |
+| private | 13 | 1 | 12 | 0 | 0 | 0 | 0 |
+| public | 149 | 149 | 149 | 62 | 64 | 90 | 66 |
+| storage | 10 | 10 | 9 | 7 | 3 | 7 | 3 |
+| televoting | 26 | 26 | 26 | 10 | 0 | 18 | 18 |
+| vault (provider-managed) | 1 | 0 | 1 | 0 | 0 | 0 | 0 |
+
+These numbers are **effective table privileges**, not proofs of row visibility
+under RLS or findings of vulnerability. Some existing DML grants on launch
+critical objects are explicitly known source cutover work; do not change
+them directly without the canonical guarded migration authority sequence.
+
+The scoped DB backup was restored with `--no-owner --no-acl` and created
+placeholder roles, so **ownership and grant parity remain unproven**, despite
+the matching table and RLS counts. The 15-Nov dump includes only five scoped
+schemas; do **not** assume it backs up role globals, Vault crypto roots,
+provider settings or `supabase_migrations` history. These need separate
+protected recovery artifacts/attestation and positive/negative authorization
+rehearsals before production cutover.
+
 ## What this does NOT prove
 
 - Individual row/data integrity and official contest vote/result parity were not checked in this run.
