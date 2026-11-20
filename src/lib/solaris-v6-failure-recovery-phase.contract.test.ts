@@ -54,14 +54,17 @@ describe("Solaris V6 failure recovery phase", () => {
       "src/routes/_authenticated/admin/system-operations.tsx",
     );
 
-    for (const consumer of [results, publication, moderation, system]) {
+    const retryAdapter = source("src/lib/v3-organizer-delivery-retry.ts");
+
+    for (const consumer of [results, publication, moderation, retryAdapter]) {
       expect(consumer).toContain("resolveSolarisV6OperationRecovery");
     }
+    expect(system).toContain("retryFailedDeliveryWithReconciliation");
 
     expect(results).toContain("stableOperationIdentity");
     expect(publication).toContain("stableOperationIdentity");
     expect(moderation).toContain("stableOperationIdentity");
-    expect(system).toContain("stableOperationIdentity");
+    expect(retryAdapter).toContain("stableOperationIdentity: true");
   });
 
   it("keeps offline reconnect update edition and gesture recovery fail-safe", () => {
