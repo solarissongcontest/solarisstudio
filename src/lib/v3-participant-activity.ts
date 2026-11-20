@@ -27,10 +27,16 @@ export type V3ParticipantActivityItem = {
   reconciliationState: V3ParticipantActivityReconciliationState;
 };
 
+export type V3ParticipantActivityCursor = {
+  before: string;
+  operationId: string;
+};
+
 export type V3ParticipantActivityBundle = {
   schemaReady: boolean;
   items: V3ParticipantActivityItem[];
   nextBefore: string | null;
+  nextOperationId: string | null;
   generatedAt: string | null;
 };
 
@@ -50,6 +56,9 @@ const RECONCILIATION_STATES = new Set<V3ParticipantActivityReconciliationState>(
   "unavailable",
 ]);
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 function objectValue(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -58,6 +67,11 @@ function objectValue(value: unknown): Record<string, unknown> | null {
 
 function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function uuidValue(value: unknown): string | null {
+  const candidate = stringValue(value);
+  return candidate && UUID_PATTERN.test(candidate) ? candidate : null;
 }
 
 function hasUnsafeControlCharacter(value: string) {
@@ -81,8 +95,36 @@ export function emptyV3ParticipantActivityBundle(): V3ParticipantActivityBundle 
     schemaReady: false,
     items: [],
     nextBefore: null,
+    nextOperationId: null,
     generatedAt: null,
   };
+}
+
+export function getV3ParticipantActivityNextCursor(
+  bundle: V3ParticipantActivityBundle,
+): V3ParticipantActivityCursor | null {
+  if (!bundle.schemaReady || !bundle.nextBefore || !bundle.nextOperationId) return null;
+  return {
+    before: bundle.nextBefore,
+    operationId: bundle.nextOperationId,
+  };
+}
+
+export function mergeV3ParticipantActivityPages(
+  pages: readonly V3ParticipantActivityBundle[],
+): V3ParticipantActivityItem[] {
+  const seen = new Set<string>();
+  const merged: V3ParticipantActivityItem[] = [];
+
+  for (const page of pages) {
+    for (const item of page.items) {
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      merged.push(item);
+    }
+  }
+
+  return merged;
 }
 
 export function parseV3ParticipantActivity(
@@ -129,10 +171,15 @@ export function parseV3ParticipantActivity(
       })
     : [];
 
+  const nextBefore = stringValue(root.next_before ?? root.nextBefore);
+  const nextOperationId = uuidValue(root.next_operation_id ?? root.nextOperationId);
+  const hasCompleteCursor = Boolean(nextBefore && nextOperationId);
+
   return {
     schemaReady: true,
     items,
-    nextBefore: stringValue(root.next_before ?? root.nextBefore),
+    nextBefore: hasCompleteCursor ? nextBefore : null,
+    nextOperationId: hasCompleteCursor ? nextOperationId : null,
     generatedAt: stringValue(root.generated_at ?? root.generatedAt),
   };
 }
