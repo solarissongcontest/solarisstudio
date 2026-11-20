@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, Search, ShieldAlert } from "lucide-react";
+import { CheckCircle2, RefreshCw, Search, ShieldAlert } from "lucide-react";
 
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import {
   AdminCard,
   AdminEmptyState,
@@ -17,6 +18,7 @@ import {
 import { getMergedTelevotingRoundsPage } from "@/integrations/televoting/rounds.functions";
 
 export function V3ScopedIntegrityReview({ editionId }: { editionId: string }) {
+  const actorId = useAuthenticatedUser().id;
   const getRoundsPage = useServerFn(getMergedTelevotingRoundsPage);
   const listVotes = useServerFn(listMergedModerationSubmissions);
   const [roundId, setRoundId] = useState("all");
@@ -24,17 +26,23 @@ export function V3ScopedIntegrityReview({ editionId }: { editionId: string }) {
   const [search, setSearch] = useState("");
 
   const roundsQuery = useQuery({
-    queryKey: ["v3-organizer-integrity-rounds", editionId],
+    queryKey: ["v3-organizer-integrity-rounds", actorId, editionId],
     queryFn: () => getRoundsPage({ data: { editionId } }),
-    staleTime: 10_000,
+    enabled: Boolean(actorId),
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const rounds = roundsQuery.data?.edition?.rounds ?? [];
   const roundIds = useMemo(() => rounds.map((round) => round.id), [rounds]);
 
   const submissionsQuery = useQuery({
-    queryKey: ["v3-organizer-integrity-submissions", editionId, roundIds],
-    enabled: Boolean(roundsQuery.data?.linked && roundIds.length),
+    queryKey: ["v3-organizer-integrity-submissions", actorId, editionId, roundIds],
+    enabled: Boolean(actorId && roundsQuery.data?.linked && roundIds.length),
     queryFn: async () => {
       const rows = await Promise.all(
         roundIds.map(async (scopedRoundId) => {
@@ -53,9 +61,12 @@ export function V3ScopedIntegrityReview({ editionId }: { editionId: string }) {
       for (const submission of rows.flat()) byId.set(submission.id, submission);
       return [...byId.values()];
     },
-    staleTime: 10_000,
-    refetchInterval: 60_000,
-    refetchIntervalInBackground: false,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const submissions = submissionsQuery.data ?? [];
@@ -108,9 +119,23 @@ export function V3ScopedIntegrityReview({ editionId }: { editionId: string }) {
         title="Integrity review"
         description="Review only ballots from voting rounds linked to the exact edition selected in Solaris Organizer. Human decisions and sanctions stay unavailable until their server commands are edition-scoped."
         actions={
-          <AdminStatus tone={counts.suspicious ? "attention" : "neutral"}>
-            {counts.suspicious} flagged
-          </AdminStatus>
+          <div className="flex flex-wrap items-center gap-2">
+            <AdminStatus tone={error ? "blocked" : counts.suspicious ? "attention" : "neutral"}>
+              {error ? "Evidence unavailable" : loading ? "Checking ballots…" : `${counts.suspicious} flagged`}
+            </AdminStatus>
+            <button
+              type="button"
+              className="admin-action-secondary inline-flex min-h-11 items-center gap-2"
+              disabled={!actorId || roundsQuery.isFetching || submissionsQuery.isFetching}
+              onClick={() => {
+                void Promise.all([roundsQuery.refetch(), submissionsQuery.refetch()]);
+              }}
+              aria-label={error ? "Retry integrity evidence" : "Refresh integrity evidence"}
+            >
+              <RefreshCw className="size-4" aria-hidden="true" />
+              {error ? "Retry" : "Refresh"}
+            </button>
+          </div>
         }
       />
 
@@ -144,12 +169,14 @@ export function V3ScopedIntegrityReview({ editionId }: { editionId: string }) {
         </AdminCard>
       ) : (
         <>
-          <section className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Integrity ballot status">
-            <Metric label="Ballots" value={counts.all} />
-            <Metric label="Needs review" value={counts.suspicious} attention={counts.suspicious > 0} />
-            <Metric label="Verified" value={counts.verified} />
-            <Metric label="Excluded" value={counts.deleted} />
-          </section>
+          {!loading && !error ? (
+            <section className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Integrity ballot status">
+              <Metric label="Ballots" value={counts.all} />
+              <Metric label="Needs review" value={counts.suspicious} attention={counts.suspicious > 0} />
+              <Metric label="Verified" value={counts.verified} />
+              <Metric label="Excluded" value={counts.deleted} />
+            </section>
+          ) : null}
 
           <AdminCard className="mb-4 !p-3">
             <div className="grid gap-3 sm:grid-cols-2">

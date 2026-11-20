@@ -22,8 +22,27 @@ describe("V3 Organizer Voting integrity scope", () => {
   it("loads only rounds linked to the exact Solaris edition", () => {
     expect(scopedReview).toContain("getMergedTelevotingRoundsPage");
     expect(scopedReview).toContain("getRoundsPage({ data: { editionId } })");
-    expect(scopedReview).toContain('["v3-organizer-integrity-rounds", editionId]');
+    expect(scopedReview).toContain('["v3-organizer-integrity-rounds", actorId, editionId]');
     expect(scopedReview).not.toContain("getMergedTelevotingRounds()");
+  });
+
+  it("partitions private voting evidence by authenticated actor and evicts inactive cache", () => {
+    expect(scopedReview).toContain('import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext"');
+    expect(scopedReview).toContain("const actorId = useAuthenticatedUser().id");
+    expect(scopedReview).toContain('queryKey: ["v3-organizer-integrity-rounds", actorId, editionId]');
+    expect(scopedReview).toContain('queryKey: ["v3-organizer-integrity-submissions", actorId, editionId, roundIds]');
+    expect(scopedReview).toContain("enabled: Boolean(actorId)");
+    expect(scopedReview).toContain("enabled: Boolean(actorId && roundsQuery.data?.linked && roundIds.length)");
+    expect(scopedReview.match(/gcTime: 0/g)).toHaveLength(2);
+    expect(scopedReview.match(/retry: false/g)).toHaveLength(2);
+    expect(scopedReview.match(/refetchInterval: false/g)).toHaveLength(2);
+    expect(scopedReview.match(/refetchOnWindowFocus: false/g)).toHaveLength(2);
+    expect(scopedReview.match(/refetchOnReconnect: false/g)).toHaveLength(2);
+    expect(scopedReview).not.toContain("refetchInterval: 60_000");
+    expect(scopedReview).toContain("roundsQuery.refetch()");
+    expect(scopedReview).toContain("submissionsQuery.refetch()");
+    expect(scopedReview).toContain("Evidence unavailable");
+    expect(scopedReview).toContain("!loading && !error");
   });
 
   it("never uses the global all-round moderation read", () => {
