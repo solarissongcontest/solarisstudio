@@ -56,10 +56,19 @@ trap cleanup EXIT
 echo '[1/2] Decrypting archive into a network-isolated pg_restore TOC reader'
 # Entire archive streams through the isolated client; TOC only goes to a
 # local 0600 temporary file. No raw table or role names are printed.
+# pg_restore --list can stop reading the input after the archive TOC.
+# Consume the remainder of the age stream so age can finish authentication
+# cleanly; otherwise Bash pipefail treats an early SIGPIPE as an archive failure.
+set +e
 age -d -i "$K" "$DB" |
   docker run --rm --network none -i "$IMAGE" \
-    sh -c 'pg_restore --list' > "$TOC" ||
-  { echo 'STOP: encrypted archive/TOC inspection failed'; exit 1; }
+    sh -c 'pg_restore --list; r=$?; cat >/dev/null; exit "$r"' > "$TOC"
+PIPE_RESULTS=("${PIPESTATUS[@]}")
+set -e
+if [ "${PIPE_RESULTS[0]}" -ne 0 ] || [ "${PIPE_RESULTS[1]}" -ne 0 ]; then
+  echo "STOP: TOC reader failed (decryption exit ${PIPE_RESULTS[0]}; pg_restore exit ${PIPE_RESULTS[1]})"
+  exit 1
+fi
 
 echo '[2/2] Reporting metadata counts; deleting private TOC at exit'
 python3 - "$TOC" <<'PY'
