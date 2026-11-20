@@ -1,0 +1,177 @@
+/*
+ * Solaris Stories: a digital editorial publication for the regular website.
+ * Installed PWA retains its own separately governed composition.
+ */
+html:not([data-solaris-app]) .v3-editorial-stories {
+  --story-rule: color-mix(in oklab, var(--foreground) 15%, transparent);
+  --story-soft: color-mix(in oklab, var(--surface) 55%, transparent);
+  max-width: 78rem;
+  padding-top: clamp(1.25rem, 3vw, 3rem);
+}
+html:not([data-solaris-app]) .v3-editorial-stories .v3-directory-mobile-header {
+  border-bottom-color: var(--story-rule);
+}
+html:not([data-solaris-app]) .v3-editorial-stories #stories-heading,
+html:not([data-solaris-app]) .v3-editorial-stories #today-heading {
+  font-size: clamp(1.5rem, 2.8vw, 2.25rem);
+  letter-spacing: -.045em;
+  line-height: 1.12;
+}
+html:not([data-solaris-app]) .v3-editorial-stories [aria-labelledby="stories-heading"] > div:first-child {
+  padding-bottom: .95rem;
+  border-bottom: 1px solid var(--story-rule);
+}
+html:not([data-solaris-app]) .v3-editorial-stories .v3-stories-feature {
+  grid-column: 1 / -1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: .85rem;
+  overflow: clip;
+  min-height: clamp(18rem, 34vw, 26rem);
+  padding: clamp(1.4rem, 4vw, 3.5rem);
+  border: 1px solid color-mix(in oklab, var(--primary) 22%, var(--story-rule));
+  border-radius: 1.25rem;
+  color: var(--foreground);
+  text-decoration: none;
+  background:
+    radial-gradient(ellipse at 90% 5%, color-mix(in oklab, var(--primary) 18%, transparent), transparent 58%),
+    linear-gradient(155deg, color-mix(in oklab, var(--surface) 80%, var(--background)), var(--background));
+}
+html:not([data-solaris-app]) .v3-editorial-stories .v3-stories-feature-edition {
+  font-size: .72rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  font-weight: 750;
+  color: var(--primary);
+}
+html:not([data-solaris-app]) .v3-editorial-stories .v3-stories-feature h3 {
+  max-width: 21ch;
+  font-family: var(--font-display, Georgia, serif);
+  font-size: clamp(2.1rem, 4.8vw, 4.6rem);
+  font-weight: 740;
+  line-height: 1.05;
+  letter-spacing: -.058em;
+  text-wrap: balance;
+}
+html:not([data-solaris-app]) .v3-editorial-stories .v3-stories-feature-subtitle {
+  max-width: 48ch;
+  font-weight: 650;
+  color: color-mix(in oklab, var(--foreground) 82%, transparent);
+}
+html:not([data-solaris-app]) .v3-editorial-stories .v3-stories-feature-intro {
+  max-width: 68ch;
+  font-size: .93rem;
+  line-height: 1.65;
+  color: var(--muted-foreground);
+}
+html:not([data-solaris-app]) .v3-editorial-stories .v3-stories-feature-moment {
+  display: grid;
+  gap: .25rem;
+  margin-top: .5rem;
+  padding-left: 1rem;
+  border-left: 2px solid color-mix(in oklab, var(--primary) 50%, transparent);
+}
+html:not([data-solaris-app]) .v3-editorial-stories .v3-stories-feature-moment > span {
+  font-size: .68rem;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  font-weight: 750;
+  color: var(--muted-foreground);
+}
+html:not([data-solaris-app]) .v3-editorial-stories .v3-stories-feature-moment > strong {
+  font-size: 1.04rem;
+  line-height: 1.4;
+}
+html:not([data-solaris-app]) .v3-editorial-stories .v3-stories-feature-link {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  margin-top: auto;
+  min-height: 44px;
+  font-size: .86rem;
+  font-weight: 750;
+  color: var(--primary);
+}
+html:not([data-solaris-app]) .v3-editorial-stories .v3-stories-feature:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+html:not([data-solaris-app]) .v3-editorial-stories .v3-stories-teaser {
+  border: 0;
+  border-top: 1px solid var(--story-rule);
+  border-radius: 0;
+  background: transparent;
+  padding: clamp(1rem, 2.2vw, 1.5rem) .25rem;
+}
+html:not([data-solaris-app]) .v3-editorial-stories .v3-stories-teaser > h3 {
+  font-size: clamp(1.3rem, 2.3vw, 2rem);
+  letter-spacing: -.04em;
+  line-height: 1.2;
+}
+html:not([data-solaris-app]) .v3-editorial-stories .v3-stories-teaser-moment {
+  border-left: 2px solid var(--story-rule);
+  padding-left: .8rem;
+}
+html:not([data-solaris-app]) .v3-editorial-stories .v3-stories-date-item {
+  border: 0;
+  border-bottom: 1px solid var(--story-rule);
+  border-radius: 0;
+  background: transparent;
+  padding: 1.1rem .2rem 1.4rem;
+}
+html:not([data-solaris-app]) .v3-editorial-story-detail {
+  max-width: 80rem;
+  --story-rule: color-mix(in oklab, var(--foreground) 14%, transparent);
+}
+html:not([data-solaris-app]) .v3-editorial-story-detail .v3-story-article-header {
+  padding-bottom: clamp(1.5rem, 3vw, 2.5rem);
+  border-bottom: 1px solid var(--story-rule);
+}
+html:not([data-solaris-app]) .v3-editorial-story-detail .v3-story-article-header h1 {
+  max-width: 20ch;
+  font-size: clamp(2.5rem, 6vw, 5.3rem);
+  line-height: 1.04;
+  letter-spacing: -.055em;
+  text-wrap: balance;
+}
+html:not([data-solaris-app]) .v3-editorial-story-detail .v3-story-article-header > p {
+  max-width: 65ch;
+}
+html:not([data-solaris-app]) .v3-editorial-story-detail .v3-story-article-timeline {
+  max-width: 66rem;
+}
+html:not([data-solaris-app]) .v3-editorial-story-detail .v3-story-article-event {
+  border: 0;
+  border-bottom: 1px solid var(--story-rule);
+  border-radius: 0;
+  background: transparent;
+  padding: clamp(1rem, 2vw, 1.7rem);
+}
+html:not([data-solaris-app]) .v3-editorial-story-detail .v3-story-article-event h2 {
+  font-size: clamp(1.4rem, 2.5vw, 2.1rem);
+  font-weight: 700;
+  line-height: 1.2;
+}
+html:not([data-solaris-app]) .v3-editorial-story-detail .v3-story-article-event p {
+  max-width: 68ch;
+  line-height: 1.7;
+}
+@media (max-width: 767px) {
+  html:not([data-solaris-app]) .v3-editorial-stories .v3-stories-feature {
+    min-height: 17rem;
+    margin-block: .6rem .9rem;
+    padding: 1.5rem 1.2rem;
+  }
+  html:not([data-solaris-app]) .v3-editorial-stories .v3-stories-web-row span span:last-child {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-solaris-app]) .v3-editorial-stories :is(.v3-stories-feature,.v3-stories-teaser) {
+    transition: none;
+  }
+}

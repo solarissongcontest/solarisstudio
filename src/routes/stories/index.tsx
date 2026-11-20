@@ -8,6 +8,7 @@ import { useSolarisApp } from '@/components/app/AppRuntime';
 import { SolarisSearchField } from '@/components/app/SolarisSearchField';
 import { useV3DirectoryPresentation, type V3DirectoryPresentation } from '@/lib/v3-directory-presentation';
 import '@/styles/v3-directory-family.css';
+import '@/styles/v3-stories-editorial.css';
 import { V3StoriesIndexGate } from '@/components/v3/V3StoriesGates';
 import { SOLARIS_TIME_ZONE } from '@/lib/public-time';
 import { loadAnniversaryEngine, loadPublicStorylines } from '@/lib/studio2-storytelling';
@@ -103,12 +104,12 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
 
   return (
     <AppShell>
-      <div className="v3-directory-family v3-stories-directory mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12" data-directory-experience={presentation}>
+      <div className="v3-directory-family v3-stories-directory v3-editorial-stories mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12" data-directory-experience={presentation}>
         {presentation === "mobile-web" ? (
           <header className="v3-directory-mobile-header" data-directory-mobile-header="">
                         <p className="v3-directory-eyebrow">PUBLISHED NARRATIVES</p>
             <h1>Stories</h1>
-            <p>Read the moments that shaped Solaris, edition by edition.</p>
+
           </header>
         ) : presentation === "installed-app" ? (
           <header className="v3-directory-app-heading">
@@ -121,7 +122,7 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
             <p className="v3-directory-eyebrow">PUBLISHED NARRATIVES</p>
             <h1 className="mt-2 font-sans text-4xl font-bold tracking-[-0.035em] text-foreground">Stories</h1>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-              Read published edition stories and the moments that shaped Solaris.
+              Published stories from Solaris editions.
             </p>
           </header>
         )}
@@ -129,7 +130,7 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
         <section className="mt-6" aria-labelledby="stories-heading">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Published narratives</p>
-            <h2 id="stories-heading" className="mt-1 text-2xl font-bold tracking-[-0.03em]">Edition stories</h2>
+            <h2 id="stories-heading" className="mt-1 text-2xl font-bold tracking-[-0.03em]">{presentation === "installed-app" ? "Edition stories" : "Latest stories"}</h2>
           </div>
 
           {presentation === "installed-app" ? (
@@ -149,7 +150,7 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
             </div>
           )}
           <p className="v3-directory-results-count" role="status" aria-live="polite">
-            {filteredStories.length} of {stories.length} published stories in this batch
+            {presentation === "installed-app" ? `${filteredStories.length} of ${stories.length} published stories in this batch` : `${filteredStories.length} stories`}
           </p>
           {storiesQuery.isError ? (
             <ArchiveEmpty
@@ -163,10 +164,31 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
           ) : filteredStories.length ? (
             <div className={presentation === "mobile-web" ? "v3-directory-mobile-list mt-4" : "mt-4 grid gap-4 md:grid-cols-2"}>
               {filteredStories.map((story) => (
-                presentation === "mobile-web" ? (
+                presentation !== "installed-app" && !search.trim() && story === filteredStories[0] ? (
+                  <Link
+                    key={story.editionId}
+                    to="/stories/$editionSlug"
+                    params={{ editionSlug: story.editionSlug }}
+                    className="v3-stories-feature group"
+                  >
+                    <span className="v3-stories-feature-edition">
+                      {story.editionNumber != null ? `SSC ${story.editionNumber}` : story.editionName}
+                    </span>
+                    <h3>{story.title}</h3>
+                    {story.subtitle ? <p className="v3-stories-feature-subtitle">{story.subtitle}</p> : null}
+                    {story.introduction ? <p className="v3-stories-feature-intro line-clamp-3">{story.introduction}</p> : null}
+                    {story.heroMoment ? (
+                      <div className="v3-stories-feature-moment">
+                        <span>Defining moment</span>
+                        <strong>{story.heroMoment.headline}</strong>
+                      </div>
+                    ) : null}
+                    <span className="v3-stories-feature-link">Read story <ChevronRight size={18} aria-hidden="true" /></span>
+                  </Link>
+                ) : presentation === "mobile-web" ? (
                   <Link key={story.editionId} to="/stories/$editionSlug"
                     params={{ editionSlug: story.editionSlug }}
-                    className="v3-directory-mobile-row">
+                    className="v3-directory-mobile-row v3-stories-web-row">
                     <span className="min-w-0 flex-1">
                       <strong>{story.title}</strong>
                       <span>{story.editionNumber != null ? `SSC ${story.editionNumber}` : story.editionName} · {story.itemCount} moments</span>
@@ -175,7 +197,7 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
                     <ChevronRight size={19} className="shrink-0" aria-hidden="true" />
                   </Link>
                 ) : (
-                <Link key={story.editionId} to="/stories/$editionSlug" params={{ editionSlug: story.editionSlug }} className="group rounded-2xl border border-border/60 bg-card/55 p-5 transition hover:-translate-y-0.5 hover:border-primary/25 hover:bg-card/75">
+                <Link key={story.editionId} to="/stories/$editionSlug" params={{ editionSlug: story.editionSlug }} className="v3-stories-teaser group rounded-2xl border border-border/60 bg-card/55 p-5 transition hover:border-primary/25 hover:bg-card/75">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-[11px] font-black uppercase tracking-[0.14em] text-primary">
                       {story.editionNumber != null ? `SSC ${story.editionNumber}` : story.editionName}
@@ -186,10 +208,7 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
                   {story.subtitle ? <p className="mt-1 text-sm font-semibold text-foreground/80">{story.subtitle}</p> : null}
                   <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted-foreground">{story.introduction ?? story.heroMoment?.summary ?? 'Open the reviewed edition timeline.'}</p>
                   {story.heroMoment ? (
-                    <div className="mt-5 rounded-xl border border-border/50 bg-background/35 p-3">
-                      <p className="text-[10px] font-black uppercase tracking-[0.13em] text-muted-foreground">Defining moment</p>
-                      <p className="mt-1 text-sm font-semibold">{story.heroMoment.headline}</p>
-                    </div>
+                    <p className="v3-stories-teaser-moment mt-4 text-sm font-semibold">{story.heroMoment.headline}</p>
                   ) : null}
                 </Link>
                 )
@@ -208,7 +227,7 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
           <div className="flex items-end justify-between gap-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">{referenceDate}</p>
-              <h2 id="today-heading" className="mt-1 text-2xl font-bold tracking-[-0.03em]">On this day in Solaris</h2>
+              <h2 id="today-heading" className="mt-1 text-2xl font-bold tracking-[-0.03em]">On this day</h2>
             </div>
             {!anniversaryQuery.isError && anniversary?.sscAnniversary ? (
               <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{anniversary.sscAnniversary.label}</span>
@@ -227,10 +246,10 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
           ) : anniversary?.onThisDay.length ? (
             <div className={presentation === "mobile-web" ? "v3-directory-mobile-list mt-4" : "mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3"}>
               {anniversary.onThisDay.slice(0, 6).map((moment, index) => (
-                <article key={`${moment.editionSlug ?? 'moment'}-${moment.occurredAt}-${index}`} className={presentation === "mobile-web" ? "v3-story-mobile-moment border-b border-border py-4" : "rounded-2xl border border-border/60 bg-card/55 p-5"}>
+                <article key={`${moment.editionSlug ?? 'moment'}-${moment.occurredAt}-${index}`} className={presentation === "mobile-web" ? "v3-story-mobile-moment v3-stories-date-item border-b border-border py-4" : "v3-stories-date-item rounded-2xl border border-border/60 bg-card/55 p-5"}>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-[11px] font-black uppercase tracking-[0.14em] text-primary">{moment.yearsAgo ?? '?'} years ago</span>
-                    <span className="text-xs text-muted-foreground">{moment.importance}</span>
+                    {presentation === "installed-app" ? <span className="text-xs text-muted-foreground">{moment.importance}</span> : null}
                   </div>
                   <h3 className="mt-3 text-lg font-bold tracking-[-0.02em]">{moment.headline}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{moment.summary}</p>

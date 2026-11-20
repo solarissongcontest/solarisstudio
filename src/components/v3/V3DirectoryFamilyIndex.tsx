@@ -44,6 +44,7 @@ export function V3DirectoryFamilyIndex({
   groups,
   context,
   noShell = false,
+  visualClassName,
 }: {
   variant?: "tools" | "sitemap";
   title: string;
@@ -59,6 +60,7 @@ export function V3DirectoryFamilyIndex({
   context?: ReactNode;
   /** Rules owns its own governed rollout shell. */
   noShell?: boolean;
+  visualClassName?: string;
 }) {
   const { allowsReleased: allows } = usePublicLaunchAvailability();
   groups = groups.map(group => ({ ...group, items: group.items.filter(item => allows(item.to)) }))
@@ -170,7 +172,7 @@ export function V3DirectoryFamilyIndex({
   );
 
   const content = (
-      <div className="v3-directory-family v3-editorial-directory" data-directory-experience={presentation} data-directory-kind={variant}>
+      <div className={`v3-directory-family v3-editorial-directory${visualClassName ? ` ${visualClassName}` : ""}`} data-directory-experience={presentation} data-directory-kind={variant}>
         {presentation === "installed-app" ? (
           <AppScreen>
             <header className="v3-directory-app-heading">

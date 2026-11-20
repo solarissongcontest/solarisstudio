@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Archive } from "lucide-react";
+import "@/styles/v3-archive-editorial.css";
 
 import { V3DirectoryFamilyIndex, type V3DirectoryGroup } from "@/components/v3/V3DirectoryFamilyIndex";
 
@@ -22,14 +23,14 @@ export const Route = createFileRoute("/archive/")({
 // A navigation catalogue, never a second archive projection or a public read
 // of unpublished entry, voting, or Organizer records.
 const ARCHIVE_DESTINATIONS = [
-  { title: "Editions", description: "Browse contest editions and their published historical context.", to: "/editions", group: "history" },
-  { title: "Countries", description: "Follow country identities, entries, results and participation history.", to: "/countries", group: "history" },
-  { title: "Songs & artists", description: "Find already-revealed songs and artists in published Solaris Reference records.", to: "/encyclopedia", group: "history" },
-  { title: "Shows", description: "Open published semi-finals, finals and other historical show records.", to: "/shows", group: "history" },
-  { title: "Stories", description: "Read current and historical stories already released to the public.", to: "/stories", group: "history" },
-  { title: "Records", description: "Explore official all-time records and published contest outcomes in Results.", to: "/records", group: "history" },
-  { title: "Reference", description: "Search publication-safe Solaris history across connected public entities.", to: "/encyclopedia", group: "reference" },
-  { title: "Archive Games", description: "Play retained historical games without changing official contest truth.", to: "/archive-games", group: "reference" },
+  { title: "Editions", description: "Past contests and hosts.", to: "/editions", group: "history" },
+  { title: "Countries", description: "Entries, results and participation.", to: "/countries", group: "history" },
+  { title: "Songs & artists", description: "Published songs and artists.", to: "/encyclopedia", group: "history" },
+  { title: "Shows", description: "Semi-finals, finals and special shows.", to: "/shows", group: "history" },
+  { title: "Stories", description: "Published stories and historical moments.", to: "/stories", group: "history" },
+  { title: "Records", description: "Records and all-time rankings.", to: "/records", group: "history" },
+  { title: "Reference", description: "Search published Solaris records.", to: "/encyclopedia", group: "reference" },
+  { title: "Archive Games", description: "Historical games.", to: "/archive-games", group: "reference" },
 ] as const;
 
 const GROUPS: V3DirectoryGroup[] = [
@@ -51,9 +52,10 @@ function ArchiveRootPage() {
   return (
     <V3DirectoryFamilyIndex
       title="Archive"
+      visualClassName="v3-editorial-archive"
       eyebrow="HISTORICAL SOLARIS"
-      intro="Published Solaris history, kept in its original contest context."
-      browserIntro="Explore published SSC history in its original edition and time context."
+      intro="Published contests, shows and records."
+      browserIntro="Published contests, shows and records."
       searchLabel="Search archive"
       searchPlaceholder="Search archive subjects…"
       scopeLabel="All topics"
@@ -74,8 +76,8 @@ function ArchiveContext() {
         <div>
           <h2 id="archive-context-heading" className="text-sm font-bold">Historical context stays historical</h2>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Archive destinations show published records from their own edition and time context.
-            Current participation responsibilities belong in Participate, not in historical browsing.
+            Published history from its original editions.
+            Current participation responsibilities belong in Participate.
           </p>
         </div>
       </div>

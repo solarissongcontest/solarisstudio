@@ -7,6 +7,7 @@ import { useSolarisApp } from '@/components/app/AppRuntime';
 import { V3StoryDetailGate } from '@/components/v3/V3StoriesGates';
 import { loadPublicStoryline } from '@/lib/studio2-storytelling';
 import { formatSolarisStoryDate } from '@/lib/public-story-date';
+import '@/styles/v3-stories-editorial.css';
 
 export const Route = createFileRoute('/stories/$editionSlug')({
   head: ({ params }) => {
@@ -80,7 +81,7 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
 
   return (
     <AppShell>
-      <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
+      <div className="v3-editorial-story-detail mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
         <a href="/stories" className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" /> Story archive
         </a>
@@ -97,7 +98,7 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
           <EmptyStory title="No published story for this edition" copy="The edition may not have a reviewed storyline yet, or its storyline has been returned to draft for editing." />
         ) : (
           <>
-            <header className="mt-8 max-w-3xl">
+            <header className="v3-story-article-header mt-8 max-w-3xl">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">
                 {story.editionNumber != null ? `SSC ${story.editionNumber}` : story.editionName}
                 {story.eventDate ? ` · ${story.eventDate}` : ''}
@@ -108,7 +109,7 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
               <p className="mt-4 text-xs text-muted-foreground">Published {formatSolarisStoryDate(story.publishedAt)} · {story.items.length} reviewed moments</p>
             </header>
 
-            <section className="relative mt-12" aria-label={`${story.editionName} timeline`}>
+            <section className="v3-story-article-timeline relative mt-12" aria-label={`${story.editionName} timeline`}>
               <div className="absolute bottom-0 left-[17px] top-1 w-px bg-border/70 sm:left-[21px]" aria-hidden="true" />
               <div className="space-y-6">
                 {story.items.map((item, index) => (
@@ -116,12 +117,11 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
                     <div className="absolute left-2.5 top-1.5 grid size-4 place-items-center rounded-full border border-primary/40 bg-background sm:left-3.5" aria-hidden="true">
                       <span className="size-1.5 rounded-full bg-primary" />
                     </div>
-                    <div className="rounded-2xl border border-border/60 bg-card/55 p-5 sm:p-6">
+                    <div className="v3-story-article-event rounded-2xl border border-border/60 bg-card/55 p-5 sm:p-6">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.13em] text-muted-foreground">
                           <CalendarDays className="size-3.5" /> {formatSolarisStoryDate(item.occurredAt)}
                         </span>
-                        <span className="rounded-full border border-border/60 px-2.5 py-1 text-[10px] font-bold text-muted-foreground">importance {item.importance}</span>
                       </div>
                       <h2 className="mt-3 text-xl font-black tracking-[-0.025em] sm:text-2xl">{item.headline}</h2>
                       <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">{item.summary}</p>
