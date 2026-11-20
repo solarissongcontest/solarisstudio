@@ -11,6 +11,10 @@ describe("MySolaris country History browser redesign", () => {
     expect(source).toContain('className="solaris-history-web-list"');
     expect(source).toContain('className="solaris-history-web-row"');
     expect(source).toContain('className="solaris-history-web-back"');
+    expect(source).toContain('focusedHistoryEdition ? `Edit ${editionLabel(focusedHistoryEdition)}` : "Edit edition"');
+    expect(source).toContain('className="solaris-history-hod-secondary"');
+    expect(source).toContain('!organizerOverride && isAppMode && <CountryHodHistoryPanel inline />');
+    expect(source).toContain('!organizerOverride && !isAppMode && (');
     expect(source).toContain('myEntries.filter((group) => isAppMode || group.editionId === historyFocus)');
     expect(source).toContain('openHistoryFocus("add")');
     expect(source).toContain('isAppMode || historyFocus === "add"');
@@ -45,6 +49,7 @@ describe("MySolaris country History browser redesign", () => {
     expect(source).toContain('import "@/styles/v3-mysolaris-history-editorial.css"');
     expect(css).toContain('html:not([data-solaris-app]) .solaris-history-web-row');
     expect(css).toContain('.solaris-history-entry[data-history-focused="true"]');
+    expect(css).toContain('.solaris-history-hod-secondary');
     expect(css).toContain('min-height: 44px');
     expect(css).toContain(':focus-visible');
     expect(css).toContain('prefers-reduced-motion: reduce');
