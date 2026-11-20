@@ -50,6 +50,24 @@ export type V3FantasyState =
   | "live_scoring"
   | "settled";
 
+/**
+ * A team can be scored before the server finishes scoring the entire game.
+ * Never reveal a partially written score merely because one team says "scored".
+ * The canonical scoring command only marks a game scored after results publication.
+ */
+export function canShowV3FantasyTeamScore(
+  game: V3FantasyGame | null,
+  team: V3FantasyTeam | null,
+): boolean {
+  return Boolean(
+    game?.status === "scored" &&
+    team?.game_id === game.id &&
+    team.state === "scored" &&
+    typeof team.score === "number" &&
+    Number.isFinite(team.score),
+  );
+}
+
 export function resolveV3FantasyState(input: {
   game: V3FantasyGame | null;
   team: V3FantasyTeam | null;
@@ -61,7 +79,7 @@ export function resolveV3FantasyState(input: {
   const opensAt = Date.parse(game.opens_at);
   const locksAt = Date.parse(game.locks_at);
   if (Number.isFinite(opensAt) && nowMs < opensAt) return "upcoming";
-  if (game.status === "scored" || team?.state === "scored") return "settled";
+  if (game.status === "scored") return "settled";
   if (game.status === "scoring") return "live_scoring";
   if (
     game.status === "locked" ||
@@ -72,6 +90,18 @@ export function resolveV3FantasyState(input: {
   }
   if (team) return "submitted";
   return "open";
+}
+
+/**
+ * Keep a user's unsaved roster through background refreshes. Switching accounts
+ * or games is a different authority scope and must restore that scope instead.
+ */
+export function shouldRestoreV3FantasyRoster(input: {
+  rosterScope: string;
+  draftScope: string;
+  draftDirty: boolean;
+}) {
+  return !input.draftDirty || input.rosterScope !== input.draftScope;
 }
 
 export function restoreV3FantasyRoster(
@@ -98,10 +128,24 @@ export function fantasyRosterReady(input: {
   selected: readonly string[];
   choices: readonly V3FantasyChoice[];
 }) {
-  return (
-    input.selected.length === input.game.roster_size &&
-    fantasyBudgetUsed(input.selected, input.choices) <= input.game.budget
+  if (input.selected.length !== input.game.roster_size || new Set(input.selected).size !== input.selected.length) {
+    return false;
+  }
+
+  const eligibleCosts = new Map(
+    input.choices
+      .filter((choice) =>
+        choice.game_id === input.game.id &&
+        choice.eligible &&
+        Number.isFinite(choice.cost) &&
+        choice.cost >= 0,
+      )
+      .map((choice) => [choice.country_id, choice.cost]),
   );
+  if (!input.selected.every((countryId) => eligibleCosts.has(countryId))) return false;
+
+  const total = input.selected.reduce((sum, countryId) => sum + eligibleCosts.get(countryId)!, 0);
+  return Number.isFinite(input.game.budget) && total <= input.game.budget;
 }
 
 export function fantasyStateLabel(state: V3FantasyState) {

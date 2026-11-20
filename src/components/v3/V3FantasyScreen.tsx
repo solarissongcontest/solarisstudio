@@ -3,6 +3,7 @@ import { CheckCircle2, Crown, LockKeyhole, Sparkles, Trophy, Users } from "lucid
 import type { Country } from "@/lib/data";
 import {
   canEditV3FantasyRoster,
+  canShowV3FantasyTeamScore,
   fantasyRosterReady,
   fantasyStateLabel,
   type V3FantasyChoice,
@@ -29,6 +30,7 @@ export function V3FantasyScreen({
   countries,
   selected,
   captain,
+  dirty,
   cost,
   state,
   team,
@@ -47,6 +49,7 @@ export function V3FantasyScreen({
   countries: ReadonlyMap<string, Country>;
   selected: readonly string[];
   captain: string;
+  dirty: boolean;
   cost: number;
   state: V3FantasyState;
   team: V3FantasyTeam | null;
@@ -65,6 +68,13 @@ export function V3FantasyScreen({
   const rosterProgress = game.roster_size > 0 ? (selected.length / game.roster_size) * 100 : 0;
   const budgetProgress = game.budget > 0 ? (cost / game.budget) * 100 : 0;
   const locked = !editable;
+  const invalidSelection = selected.filter((id) => !choices.some((choice) =>
+    choice.game_id === game.id &&
+    choice.country_id === id &&
+    choice.eligible &&
+    Number.isFinite(choice.cost) &&
+    choice.cost >= 0,
+  ));
 
   return (
     <V3Screen className="pb-8">
@@ -81,6 +91,7 @@ export function V3FantasyScreen({
               Game and history
               <select
                 value={game.id}
+                disabled={submitting}
                 onChange={(event) => onGame?.(event.target.value)}
                 className="min-h-11 rounded-xl border border-[var(--v3-border)] bg-[var(--v3-bg-elevated)] px-3 text-sm font-medium text-[var(--v3-text-primary)]"
               >
@@ -132,7 +143,7 @@ export function V3FantasyScreen({
                 <button
                   type="button"
                   key={choice.country_id}
-                  disabled={locked}
+                  disabled={locked || submitting}
                   onClick={() => onToggle(choice.country_id)}
                   className={cn(
                     "flex min-h-14 items-center gap-3 rounded-xl border px-3 text-left disabled:cursor-default disabled:opacity-70",
@@ -156,7 +167,7 @@ export function V3FantasyScreen({
             <label className="grid gap-2 text-sm font-semibold">
               <span className="inline-flex items-center gap-2"><Crown className="size-4" aria-hidden="true" /> Captain</span>
               <select
-                disabled={locked || !selected.length}
+                disabled={locked || submitting || !selected.length}
                 value={captain}
                 onChange={(event) => onCaptain(event.target.value)}
                 className="min-h-11 rounded-xl border border-[var(--v3-border)] bg-[var(--v3-bg-elevated)] px-3 text-sm text-[var(--v3-text-primary)] disabled:opacity-60"
@@ -172,7 +183,24 @@ export function V3FantasyScreen({
               <LockKeyhole className="size-4" aria-hidden="true" /> This roster is no longer editable in the current game state.
             </p>
           ) : null}
+          {invalidSelection.length ? (
+            <div className="mt-3 space-y-2 text-sm text-[var(--v3-danger)]" role="alert">
+              <p>One or more saved countries are no longer eligible. Remove them to update your roster.</p>
+              {invalidSelection.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  disabled={locked || submitting}
+                  onClick={() => onToggle(id)}
+                  className="mr-2 min-h-11 rounded-xl border border-current px-3 text-left disabled:opacity-50"
+                >
+                  Remove {countries.get(id)?.name ?? "unavailable country"}
+                </button>
+              ))}
+            </div>
+          ) : null}
           {cost > game.budget ? <p className="mt-3 text-sm text-[var(--v3-danger)]">Budget exceeded.</p> : null}
+          {dirty ? <p role="status" className="mt-3 text-sm text-[var(--v3-text-secondary)]">Unsaved roster changes. Only a successful save is official.</p> : null}
           {submitError ? <p className="mt-3 text-sm text-[var(--v3-danger)]" role="alert">{submitError}</p> : null}
 
           <button
@@ -185,12 +213,12 @@ export function V3FantasyScreen({
           </button>
           {team ? (
             <p className="mt-2 text-xs text-[var(--v3-text-tertiary)]">
-              Canonical team state: {team.state}{team.score != null ? ` · ${team.score.toFixed(1)} points` : ""}
+              Canonical team state: {team.state}{canShowV3FantasyTeamScore(game, team) ? ` · ${team.score!.toFixed(1)} points` : ""}
             </p>
           ) : null}
         </V3Section>
 
-        <V3Section title="Leaderboard" meta={state === "settled" || state === "live_scoring" ? "Published scoring" : "When available"}>
+        <V3Section title="Leaderboard" meta={state === "settled" ? "Published scoring" : "When available"}>
           <V3Surface className="overflow-hidden">
             {standings.length ? standings.slice(0, 25).map((row, index) => {
               const isViewer = Boolean(viewerId && row.profileId === viewerId);
