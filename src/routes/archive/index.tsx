@@ -27,7 +27,7 @@ const ARCHIVE_DESTINATIONS = [
   { title: "Shows", description: "Find published semi-finals, finals and official broadcast history.", to: "/shows", group: "contests", aliases: ["broadcasts", "finals", "schedule"] },
   { title: "Countries", description: "Follow national participation, published entries and delegation history.", to: "/countries", group: "countries-stories", aliases: ["nations", "delegations", "entries"] },
   { title: "Stories", description: "Read edition stories and past moments that have been released publicly.", to: "/stories", group: "countries-stories", aliases: ["timeline", "moments", "history"] },
-  { title: "Reference", description: "Search published entries, song and artist credits, countries and contest facts.", to: "/encyclopedia", group: "reference-results", aliases: ["songs", "artists", "music", "entries", "wiki", "knowledge"] },
+  { title: "Wiki & Reference", description: "Read published country articles. Broader contest Reference opens here when its rollout is enabled.", to: "/wiki", group: "reference-results", aliases: ["wiki", "encyclopedia", "country articles", "knowledge"] },
   { title: "Records", description: "Open official all-time records and historical results in Results.", to: "/records", group: "reference-results", aliases: ["results", "rankings", "winners"] },
   { title: "Archive Games", description: "Play retained historical experiences built from public contest history.", to: "/archive-games", group: "reference-results", aliases: ["games", "play", "history"] },
 ] as const;
