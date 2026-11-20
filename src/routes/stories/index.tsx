@@ -227,7 +227,7 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
           <div className="flex items-end justify-between gap-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">{referenceDate}</p>
-              <h2 id="today-heading" className="mt-1 text-2xl font-bold tracking-[-0.03em]">On this day in Solaris</h2>
+              <h2 id="today-heading" className="mt-1 text-2xl font-bold tracking-[-0.03em]">On this day</h2>
             </div>
             {!anniversaryQuery.isError && anniversary?.sscAnniversary ? (
               <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{anniversary.sscAnniversary.label}</span>

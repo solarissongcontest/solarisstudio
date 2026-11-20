@@ -103,7 +103,15 @@ describe("Solaris visual-system completion contract", () => {
     expect(analytics).toContain("grid grid-cols-2 gap-1");
 
     const primitives = source("src/components/admin/AdminWorkspacePrimitives.tsx");
-    expect(primitives).toContain("grid grid-cols-2 gap-1 sm:flex sm:flex-wrap");
+    // Browser workspaces use a readable scrollable row rather than squeezing
+    // longer labels into tiny mobile columns.
+    expect(primitives).toContain("admin-editorial-workspace-tabs flex gap-1 overflow-x-auto");
+    const workspaceCss = source("src/styles/v3-organizer-workspaces-editorial.css");
+    expect(workspaceCss).toContain("overflow-x: auto");
+    expect(workspaceCss).toContain("min-height: 44px");
+    expect(workspaceCss).toContain("white-space: nowrap");
+    expect(workspaceCss).toContain("html:not([data-solaris-app])");
+    expect(workspaceCss).toContain("prefers-reduced-motion: reduce");
   });
 
   it("keeps MySolaris and Country Hub on one workspace model with explicit edge states", () => {
