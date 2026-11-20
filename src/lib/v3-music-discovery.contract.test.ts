@@ -32,8 +32,8 @@ describe("V3 Songs & Artists discovery", () => {
     expect(source).toContain("Browse songs");
     expect(source).toContain("Browse artists");
     expect(source).toContain("v3-music-browse-link");
-    expect(source).toContain("searchable publication-safe Song index");
-    expect(source).toContain("searchable publication-safe Artist index");
+    expect(songsRoute()).toContain("searchable publication-safe Solaris Song index");
+    expect(artistsRoute()).toContain("searchable publication-safe Solaris Artist index");
     expect(source).not.toContain("complete publication-safe Song collection");
     expect(source).not.toContain("complete publication-safe Artist collection");
   });
@@ -139,7 +139,7 @@ describe("V3 Songs & Artists discovery", () => {
 
   it("separates retryable projection failures from invalid or non-public identity", () => {
     expect(dataError()).toContain("Retry");
-    expect(dataError()).toContain("onRetry={() => void onRetry()}");
+    expect(dataError()).toContain("onClick={() => void onRetry()}");
     expect(dataError()).toContain("will not substitute raw Entry data");
 
     for (const source of [songsRoute(), artistsRoute(), songRoute(), artistRoute()]) {

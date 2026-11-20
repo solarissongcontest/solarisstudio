@@ -7,15 +7,15 @@ const screen = readFileSync(
 );
 
 describe("V3 Explore Artist/Song identity honesty", () => {
-  it("describes current music discovery as published Entry context, not first-class entity identity", () => {
+  it("describes staged first-class music identity without inventing Entry-based entity links", () => {
     expect(screen).toContain(
-      '"songs-and-artists": "Published song and artist labels in their Entry and Edition context"',
+      '"songs-and-artists": "Publication-safe music discovery with durable Song and Artist identities"',
     );
     expect(screen).toContain("published entries, shows and stories");
     expect(screen).not.toContain("The songs and artists in the public Solaris catalogue");
   });
 
-  it("does not advertise standalone Artist or Song routes before System identity exists", () => {
+  it("does not invent direct Song or Artist identity routes in the Explore root", () => {
     expect(screen).not.toMatch(/\/artists\//);
     expect(screen).not.toMatch(/\/songs\//);
   });

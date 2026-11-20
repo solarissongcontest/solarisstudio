@@ -22,7 +22,7 @@ describe("Public V3 P9 Artist/Song consumer", () => {
   it("consumes only the System-owned publication-safe music RPCs", () => {
     const server = source(SOURCE);
 
-    for (const rpc of PUBLIC_RPC_NAMES) expect(server).toContain(`\"${rpc}\"`);
+    for (const rpc of PUBLIC_RPC_NAMES) expect(server).toContain(`"${rpc}"`);
     expect(server).not.toContain(".from(");
     expect(server).not.toContain("private.v3_music");
     expect(server).not.toContain('from("entries")');
@@ -58,8 +58,8 @@ describe("Public V3 P9 Artist/Song consumer", () => {
     const model = source(MODEL);
     const screens = source(SCREENS);
 
-    expect(model).toContain("v3ArtistHref(id)");
-    expect(model).toContain("v3SongHref(id)");
+    expect(model).toContain("export function v3ArtistHref(id: string)");
+    expect(model).toContain("export function v3SongHref(id: string)");
     expect(screens).toContain("v3ArtistHref(artist.id)");
     expect(screens).toContain("v3SongHref(song.id)");
     expect(model).not.toContain("slugify");

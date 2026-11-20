@@ -170,7 +170,7 @@ export function V3MusicDiscoveryScreen({
           <MissingCollection label="Songs" onRetry={onRetrySongs} />
         )}
         <Link className="v3-music-browse-link"
-          to={query ? `/songs?q=${encodeURIComponent(query)}` : "/songs"}>
+          to="/songs" search={{ q: query || undefined }}>
           <Disc3 size={17} aria-hidden="true" />
           Browse songs
           <ChevronRight size={17} aria-hidden="true" />
@@ -199,7 +199,7 @@ export function V3MusicDiscoveryScreen({
           <MissingCollection label="Artists" onRetry={onRetryArtists} />
         )}
         <Link className="v3-music-browse-link"
-          to={query ? `/artists?q=${encodeURIComponent(query)}` : "/artists"}>
+          to="/artists" search={{ q: query || undefined }}>
           <MicVocal size={17} aria-hidden="true" />
           Browse artists
           <ChevronRight size={17} aria-hidden="true" />

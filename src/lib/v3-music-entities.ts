@@ -46,16 +46,16 @@ export type V3SongDetail = {
   serverTime: string;
 };
 
-export type V3MusicRedirect = {
-  kind: "artist_redirect" | "song_redirect";
+export type V3MusicRedirect<K extends "artist_redirect" | "song_redirect" = "artist_redirect" | "song_redirect"> = {
+  kind: K;
   schemaVersion: 1;
   requestedId: string;
   redirectTo: string;
   serverTime: string;
 };
 
-export type V3ArtistProjection = V3ArtistDetail | V3MusicRedirect | null;
-export type V3SongProjection = V3SongDetail | V3MusicRedirect | null;
+export type V3ArtistProjection = V3ArtistDetail | V3MusicRedirect<"artist_redirect"> | null;
+export type V3SongProjection = V3SongDetail | V3MusicRedirect<"song_redirect"> | null;
 
 export type V3ArtistIndexProjection = {
   schemaVersion: 1;
