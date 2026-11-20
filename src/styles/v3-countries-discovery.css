@@ -385,3 +385,22 @@ body .countries-library-hero.directory-page-hero h1 {
     border-color: CanvasText;
   }
 }
+
+/* Search/filter recovery belongs with the Country directory, not its shell. */
+.v3-countries-discovery .v3-directory-clear-filters {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  margin: .25rem 0 .8rem;
+  padding: .3rem .4rem;
+  color: var(--foreground);
+  font-size: .84rem;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: .2em;
+}
+.v3-countries-discovery .v3-directory-clear-filters:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: .3rem;
+}

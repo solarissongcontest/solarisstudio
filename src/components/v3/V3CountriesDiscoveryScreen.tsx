@@ -75,7 +75,8 @@ export function V3CountriesDiscoveryScreen({
     [discovery.participating],
   );
   const pendingCurrentParticipants = Boolean(activeEdition?.id) && participantsQuery.isLoading;
-  const currentLineupReady = Boolean(activeEdition?.id) && participantsQuery.isSuccess;
+  const currentLineupReady = Boolean(activeEdition?.id) && participantsQuery.isSuccess &&
+    !participantsQuery.isFetching && !participantsQuery.isRefetchError;
   // An unavailable optional lineup must never strand the visitor on its selected scope.
   const selectedParticipatingOnly = effectiveParticipatingScope(participatingOnly, currentLineupReady);
   const publishedStatuses = useMemo(
@@ -105,7 +106,8 @@ export function V3CountriesDiscoveryScreen({
       !urlSearch || !onUrlSearchChange) return;
     // A requested SSC lineup needs a fresh read before it can be accepted or
     // denied. Keep its URL unchanged while the optional roster is still loading.
-    if (participatingOnly && activeEdition?.id && participantsQuery.isLoading) return;
+    if (participatingOnly && activeEdition?.id &&
+      (participantsQuery.isLoading || participantsQuery.isFetching)) return;
     const next: CountryDirectoryUrlSearch = {
       q: normalizePublicDirectoryUrlQuery(search),
       region: effectiveRegion === "all" ? undefined : effectiveRegion,

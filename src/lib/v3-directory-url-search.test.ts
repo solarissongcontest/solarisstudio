@@ -56,7 +56,12 @@ describe("Public Explore permalink filters", () => {
     expect(family).toContain("group.items.filter(item => allows(item.to))");
     expect(family).toContain("urlSearch?.q");
     expect(family).toContain("window.setTimeout");
-    expect(family).toContain("replace");
+    // Navigation owns URL replacement; the shared view owns debounce.
+    expect(family).toContain("window.setTimeout");
+    for (const route of ["tools", "archive", "site-directory"]) {
+      expect(readFileSync(`src/routes/${route}/index.tsx`, "utf8"))
+        .toContain("replace: true");
+    }
   });
 
   it("restores and persists Edition filters while retaining published-only winner reads", () => {
