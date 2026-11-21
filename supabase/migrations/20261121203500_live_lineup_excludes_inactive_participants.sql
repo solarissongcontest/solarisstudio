@@ -280,6 +280,44 @@ create trigger v3_reject_inactive_country_jury_ballot
   before insert on public.jury_ballot_submissions
   for each row execute function private.v3_reject_inactive_country_jury_ballot();
 
+-- Guard both Organizer draft assignments and canonical accepted score rows.
+-- The historical rows remain untouched; only new or changed scores are
+-- rejected when either the voting or receiving country is inactive.
+create or replace function private.v3_reject_inactive_jury_score()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $trigger$
+begin
+  if exists (
+    select 1 from public.participants p
+    where p.edition_id = new.edition_id
+      and p.participation_status in ('withdrawn', 'disqualified')
+      and (
+        p.country_id = new.voter_country_id
+        or p.country_id = new.receiving_country_id
+        or p.contest_entity_id = new.voter_entity_id
+        or p.contest_entity_id = new.receiving_entity_id
+      )
+  ) then
+    raise exception 'Inactive Jury countries cannot cast or receive official points'
+      using errcode = '42501';
+  end if;
+  return new;
+end;
+$trigger$;
+
+revoke all on function private.v3_reject_inactive_jury_score() from public, anon, authenticated, service_role;
+drop trigger if exists v3_reject_inactive_manual_jury_score on private.v3_jury_manual_scores;
+create trigger v3_reject_inactive_manual_jury_score
+  before insert or update on private.v3_jury_manual_scores
+  for each row execute function private.v3_reject_inactive_jury_score();
+drop trigger if exists v3_reject_inactive_public_jury_score on public.jury_votes;
+create trigger v3_reject_inactive_public_jury_score
+  before insert or update on public.jury_votes
+  for each row execute function private.v3_reject_inactive_jury_score();
+
 -- S13 adoption: forward-only contract, no historic ballots or participant
 -- evidence deleted. Inactive rows are excluded from live scopes only.
 select public.v3_register_migration_contract(
