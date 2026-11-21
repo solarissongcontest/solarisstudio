@@ -99,7 +99,9 @@ describe("V3 Jury reliability foundation", () => {
     expect(server).toContain("_request_hash: null");
     expect(server).toContain('receipt.authority !== "authoritative_server"');
     expect(server).toContain("Number.isSafeInteger(stateVersion)");
-    expect(server).toContain("normalizeReceipt(result.receipt)");
+    expect(server).toContain("normalizeReceipt(result.receipt, { showId: input.showId, operationId: input.operationId })");
+    expect(server).toContain("normalizeReceipt(result.receipt, { operationId })");
+    expect(server).toContain("normalizeReceipt(result.receipt, { showId })");
   });
 
   it("submits through the V3 command and reconciles an ambiguous response", () => {

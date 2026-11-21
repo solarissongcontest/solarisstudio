@@ -93,10 +93,14 @@ function normalizeDraftResult(value: Record<string, unknown>): V3JuryDraftResult
   };
 }
 
-function normalizeReceipt(value: unknown): V3JuryReceipt | undefined {
+function normalizeReceipt(value: unknown, scope: { showId?: string; operationId?: string }): V3JuryReceipt | undefined {
   const receipt = objectOrNull(value) as WireReceipt | null;
   if (!receipt) return undefined;
   if (receipt.authority !== "authoritative_server") throw new Error("The jury authority returned an untrusted receipt.");
+  if ((scope.showId && receipt.show_id !== scope.showId) ||
+      (scope.operationId && receipt.operation_id !== scope.operationId)) {
+    throw new Error("The jury authority returned a receipt for a different show or operation.");
+  }
   const stateVersion = Number(receipt.state_version);
   if (!Number.isSafeInteger(stateVersion) || stateVersion < 1) throw new Error("The jury authority returned an invalid state version.");
   return {
@@ -148,13 +152,13 @@ export async function submitV3JuryBallotServer(input: { showId: string; entries:
     _operation_id: input.operationId,
     _request_hash: null,
   });
-  return { ok: result.ok === true, ballotSubmissionId: optionalString(result.ballot_submission_id), showId: optionalString(result.show_id), receipt: normalizeReceipt(result.receipt) };
+  return { ok: result.ok === true, ballotSubmissionId: optionalString(result.ballot_submission_id), showId: optionalString(result.show_id), receipt: normalizeReceipt(result.receipt, { showId: input.showId, operationId: input.operationId }) };
 }
 
 export async function reconcileV3JurySubmissionServer(operationId: string) {
   const result = await authenticatedRpc("v3_reconcile_jury_submission", { _operation_id: operationId });
   if (result.found !== true) return { found: false as const };
-  return { found: true as const, ok: result.ok === true, ballotSubmissionId: optionalString(result.ballot_submission_id), showId: optionalString(result.show_id), receipt: normalizeReceipt(result.receipt) };
+  return { found: true as const, ok: result.ok === true, ballotSubmissionId: optionalString(result.ballot_submission_id), showId: optionalString(result.show_id), receipt: normalizeReceipt(result.receipt, { operationId }) };
 }
 
 export async function lookupV3JuryReceiptServer(showId: string) {
@@ -166,6 +170,6 @@ export async function lookupV3JuryReceiptServer(showId: string) {
     ballotSubmissionId: optionalString(result.ballot_submission_id),
     submittedAt: optionalString(result.submitted_at),
     serverTime: optionalString(result.server_time),
-    receipt: normalizeReceipt(result.receipt),
+    receipt: normalizeReceipt(result.receipt, { showId }),
   };
 }
