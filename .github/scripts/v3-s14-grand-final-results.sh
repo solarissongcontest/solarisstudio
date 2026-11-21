@@ -73,7 +73,7 @@ where result.show_id='$show_id'::uuid
 }
 
 review_s14_final_jury_ballots_valid() {
-  log "Grand-final results: resolve all 66 submitted Jury ballots through governed review"
+  log "Grand-final results: resolve all 65 eligible Jury ballots through governed review"
   local index=0 ballot_id expected_version operation_id
 
   while IFS= read -r ballot_id; do
@@ -93,8 +93,8 @@ review_s14_final_jury_ballots_valid() {
     expect_json "Grand Final Jury ballot $index valid" status valid
   done < <(db_scalar "select id::text from public.jury_ballot_submissions where show_id='$FINAL_ID'::uuid and status='submitted' order by voter_country_id,id;")
 
-  [[ "$index" == "66" ]] || fail "Grand Final results reviewed $index submitted Jury ballots instead of 66"
-  [[ "$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id='$FINAL_ID'::uuid and status='valid';")" == "66" ]] || fail "not all 66 Grand Final Jury ballots are valid after review"
+  [[ "$index" == "65" ]] || fail "Grand Final results reviewed $index submitted Jury ballots instead of 65"
+  [[ "$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id='$FINAL_ID'::uuid and status='valid';")" == "65" ]] || fail "not all 65 Grand Final Jury ballots are valid after review"
   [[ "$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id='$FINAL_ID'::uuid and status in ('submitted','needs_review');")" == "0" ]] || fail "pending Grand Final Jury review remains before result calculation"
 }
 
@@ -156,14 +156,14 @@ run_s14_grand_final_results() {
   valid_count="$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id='$FINAL_ID'::uuid and status='valid';")"
   published_count="$(db_scalar "select count(*) from televoting.rounds where id='$S14_FINAL_TELEVOTE_ROUND_ID'::uuid and results_status='published' and calculation_version > 0;")"
 
-  if [[ "$submitted_count" == "66" && "$valid_count" == "0" && "$published_count" == "0" ]]; then
+  if [[ "$submitted_count" == "65" && "$valid_count" == "0" && "$published_count" == "0" ]]; then
     review_s14_final_jury_ballots_valid
     publish_s14_final_televote_result_through_app
 
-  elif [[ "$submitted_count" == "0" && "$valid_count" == "66" && "$published_count" == "1" ]]; then
+  elif [[ "$submitted_count" == "0" && "$valid_count" == "65" && "$published_count" == "1" ]]; then
     log "Resuming Grand Final Results from verified published-source checkpoint"
 
-    [[ "$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id='$FINAL_ID'::uuid;")" == "66" ]] || fail "Unexpected extra Jury submissions"
+    [[ "$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id='$FINAL_ID'::uuid;")" == "65" ]] || fail "Unexpected extra Jury submissions"
     [[ "$(db_scalar "select count(*) from public.results where show_id='$FINAL_ID'::uuid;")" == "20" ]] || fail "Resume requires 20 Studio result rows"
     [[ "$(db_scalar "select count(*) from public.televoting_round_bindings where remote_round_id='$S14_FINAL_TELEVOTE_ROUND_ID' and show_id='$FINAL_ID'::uuid and frozen_at is not null;")" == "1" ]] || fail "Resume requires frozen Televote binding"
     [[ "$(db_scalar "select count(*) from public.integration_events where service='televoting' and event_type='round.results.imported' and remote_id='$S14_FINAL_TELEVOTE_ROUND_ID' and status='completed';")" -ge 1 ]] || fail "Resume requires completed synchronization receipt"
@@ -194,7 +194,7 @@ run_s14_grand_final_results() {
   jury_ready="$(result_snapshot_value "$FINAL_ID" preconditions.juryReady)"
   televote_ready="$(result_snapshot_value "$FINAL_ID" preconditions.televoteReady)"
   calculation_ready="$(result_snapshot_value "$FINAL_ID" preconditions.calculationReady)"
-  [[ "$jury_ready" == "true" ]] || fail "Grand Final Jury truth is not ready after 66 valid reviews"
+  [[ "$jury_ready" == "true" ]] || fail "Grand Final Jury truth is not ready after 65 valid reviews"
   [[ "$televote_ready" == "true" && "$calculation_ready" == "true" ]] || fail "S14 Grand Final published Televote source did not satisfy canonical Studio result readiness"
   assert_s14_final_televote_source_parity
 
