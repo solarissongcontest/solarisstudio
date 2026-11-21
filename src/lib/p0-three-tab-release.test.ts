@@ -8,6 +8,8 @@ const app = readFileSync("src/components/AppShell.tsx", "utf8");
 const dock = readFileSync("src/components/app/AppTabBar.tsx", "utf8");
 const drawer = readFileSync("src/components/public/PublicSiteNavigation.tsx", "utf8");
 const worker = readFileSync("src/server.ts", "utf8");
+const v3Shell = readFileSync("src/components/v3/V3AppShell.tsx", "utf8");
+const previewProvider = readFileSync("src/components/public/PublicLaunchAvailability.tsx", "utf8");
 
 describe("P0 limited release restricts public navigation, including installed tab gestures", () => {
   it("preserves future navigation catalogs but opens only Home and Participate tabs", () => {
@@ -28,6 +30,10 @@ describe("P0 limited release restricts public navigation, including installed ta
     expect(dock).toContain("const tabAreas = adminPreview ? PUBLIC_GLOBAL_AREAS : LAUNCH_TAB_AREAS");
     expect(app).toContain("adminPreview={publicUser.organizer}");
     expect(worker).toContain("!limitedPublicLaunchAllows(url.pathname)");
+    expect(v3Shell).toContain("usePublicLaunchAvailability()");
+    expect(v3Shell).toContain("allowsReleased(destination.to)");
+    expect(previewProvider).toContain("organizer.isSuccess && organizer.data === true");
+    expect(previewProvider).not.toContain("!organizer.isFetching && organizer.data === true");
   });
 
   it("denies Explore, Results and Me on the actual limited launch, and maintains emergency denials", () => {
