@@ -121,7 +121,7 @@ export function buildResidualArchive(root = process.cwd()) {
   first.body = first.body.slice(0, oldStart) + first.body.slice(oldEnd);
   const candidate = pre + stages.map(s => s.body).join("") + post;
   requireExactly(candidate, "create or replace function private.v3_edition_final_results_ready(", 0, "unexpected helper downgrade");
-  requireExactly(candidate, "create or replace function private.studio2_reconcile_all_organizer_tasks(", 4, "final task producer pipeline");
+  requireExactly(candidate, "create or replace function private.studio2_reconcile_all_organizer_tasks(", 3, "final task producer pipeline");
   requireExactly(candidate, "commit;", 1, "single recovery transaction");
   if (!candidate.startsWith("-- SOLARIS V3 S14 / ARCHIVE FORWARD-EFFECT CANDIDATE.")
     || !candidate.trimEnd().endsWith("commit;")
