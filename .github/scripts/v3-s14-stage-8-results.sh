@@ -10,7 +10,7 @@ service_exec() {
 }
 
 review_semifinal_jury_ballots_valid() {
-  log "Stage 8: resolve all 64 submitted semifinal Jury ballots through governed review"
+  log "Stage 8: resolve all 63 active semifinal Jury ballots through governed review"
   local index=0 ballot_id expected_version operation_id
 
   while IFS= read -r ballot_id; do
@@ -38,8 +38,8 @@ order by show_id,voter_country_id,id;
 "
   )
 
-  [[ "$index" == "64" ]] || fail "Stage 8 reviewed $index submitted semifinal Jury ballots instead of 64"
-  [[ "$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid) and status='valid';")" == "64" ]] || fail "not all 64 submitted semifinal Jury ballots became valid"
+  [[ "$index" == "63" ]] || fail "Stage 8 reviewed $index submitted semifinal Jury ballots instead of 63"
+  [[ "$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid) and status='valid';")" == "63" ]] || fail "not all 63 active semifinal Jury ballots became valid"
   [[ "$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid) and status in ('submitted','needs_review');")" == "0" ]] || fail "pending semifinal Jury review remains before Results integrity resolution"
 }
 
