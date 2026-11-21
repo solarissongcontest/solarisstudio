@@ -25,7 +25,7 @@ import {
   markTelevotingRoundSubmitted,
 } from "@/integrations/televoting/anti-abuse";
 import { televotingSupabase } from "@/integrations/televoting/client";
-import { VotingDeclarationCheckbox, VotingIntegrityReasonList } from "@/components/voting/VotingIntegrityExplanation";
+import { VotingDeclarationCheckbox, VotingIntegrityReasonList, voterIntegrityBannerClass } from "@/components/voting/VotingIntegrityExplanation";
 import { VOTER_DECLARATION_LABELS, voterIntegrityMessage, voterIntegrityErrorMessage } from "@/integrations/televoting/voter-integrity-copy";
 import {
   VOTE_INTEGRITY_AUTOMATION,
@@ -34,7 +34,6 @@ import {
   VOTE_INTEGRITY_INDEPENDENCE,
   VOTE_INTEGRITY_PRESSURE,
   type VoteIntegrityReport,
-  type VoteIntegritySeverity,
 } from "@/integrations/televoting/integrity";
 import {
   attestMergedTelevotingVote,
@@ -107,13 +106,6 @@ function storedReceipt(roundId: string) {
   }
 }
 
-function severityClass(severity: VoteIntegritySeverity) {
-  if (severity === "critical") return "border-red-300/30 bg-red-300/10 text-red-100";
-  if (severity === "high") return "border-orange-300/30 bg-orange-300/10 text-orange-100";
-  if (severity === "strong") return "border-amber-300/30 bg-amber-300/10 text-amber-100";
-  if (severity === "review") return "border-cyan-300/25 bg-cyan-300/10 text-cyan-100";
-  return "border-sky-300/20 bg-sky-300/10 text-sky-100";
-}
 
 export function TelevotingBooth({
   roundId,
@@ -435,7 +427,7 @@ export function TelevotingBooth({
     const message = voterIntegrityMessage(integrityReport.interventionLevel);
     return (
       <section className="mx-auto max-w-2xl space-y-4">
-        <div className={cn("rounded-2xl border p-5 sm:p-6", severityClass(integrityReport.severity))}>
+        <div className={cn("rounded-2xl border p-5 sm:p-6", voterIntegrityBannerClass(integrityReport.interventionLevel))}>
           <div className="flex items-start gap-3">
             <ShieldAlert className="mt-0.5 size-6 shrink-0" />
             <div>
@@ -471,7 +463,7 @@ export function TelevotingBooth({
 
     return (
       <section className="mx-auto max-w-3xl space-y-4">
-        <div className={cn("rounded-2xl border p-5 sm:p-7", severityClass(integrityReport.severity))}>
+        <div className={cn("rounded-2xl border p-5 sm:p-7", voterIntegrityBannerClass(integrityReport.interventionLevel))}>
           <div className="flex items-start gap-3">
             <ShieldAlert className="mt-0.5 size-6 shrink-0" />
             <div>
