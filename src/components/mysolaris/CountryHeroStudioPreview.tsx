@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useReducer, useRef, useState } from "react";
 
 import { CinematicEditorialHero } from "@/components/v3/CinematicEditorialHero";
 import type { CountryDesignV2 } from "@/lib/country-design-v2";
@@ -51,6 +51,7 @@ export function CountryHeroStudioPreview({
   const [fileError, setFileError] = useState<string | null>(null);
   const [checkingPreview, setCheckingPreview] = useState(false);
   const [cropHistory, editCrop] = useReducer(heroCropHistory, initialHeroCropHistory);
+  const cropControlId = useId();
   const draftFocus = cropHistory.present;
   const currentImage = design.background.mode === "image"
     ? design.background.imageUrl
@@ -194,14 +195,14 @@ export function CountryHeroStudioPreview({
       </div>
       {visibleLocalPreview ? (
         <div className="country-hero-preview__focus" aria-label="Private draft focal point controls">
-          <label>
+          <label htmlFor={`${cropControlId}-horizontal`}>
             Horizontal focal point <output>{draftFocus[0]}%</output>
-            <input type="range" min="0" max="100" step="1" value={draftFocus[0]}
+            <input id={`${cropControlId}-horizontal`} type="range" min="0" max="100" step="1" value={draftFocus[0]}
               onChange={(event) => editCrop({ type: "edit", point: [Number(event.target.value), draftFocus[1]] })} />
           </label>
-          <label>
+          <label htmlFor={`${cropControlId}-vertical`}>
             Vertical focal point <output>{draftFocus[1]}%</output>
-            <input type="range" min="0" max="100" step="1" value={draftFocus[1]}
+            <input id={`${cropControlId}-vertical`} type="range" min="0" max="100" step="1" value={draftFocus[1]}
               onChange={(event) => editCrop({ type: "edit", point: [draftFocus[0], Number(event.target.value)] })} />
           </label>
           <div className="country-hero-preview__switch" role="group" aria-label="Local crop edit history">
