@@ -7,6 +7,7 @@ const fixture = vi.hoisted(() => ({
   loadCanonical: vi.fn(),
   loadSettings: vi.fn(),
   limit: vi.fn(),
+  assertRoster: vi.fn(),
 }));
 
 // No network or hosted Supabase client is instantiated by this test.
@@ -26,6 +27,12 @@ vi.mock("@/integrations/supabase/client.server", () => ({
       },
     }),
   },
+}));
+
+// The round-before-history test isolates the new read-only roster authority.
+// Roster parity and fail-closed behavior have their own regression tests.
+vi.mock("@/integrations/televoting/participation-guard.server", () => ({
+  assertLinkedTelevoteRosterCurrent: fixture.assertRoster,
 }));
 
 vi.mock("@/integrations/televoting/canonical-context.server", () => ({
@@ -61,6 +68,7 @@ beforeEach(() => {
   fixture.loadCanonical.mockReset();
   fixture.loadSettings.mockReset();
   fixture.limit.mockReset();
+  fixture.assertRoster.mockReset();
 });
 
 describe("S8 Televote preflight round gate", () => {
@@ -112,6 +120,7 @@ describe("S8 Televote preflight round gate", () => {
       "Historical voting queries must not run before round validation",
     );
     expect(fixture.queriedTables).toEqual(["rounds", "vote_submissions"]);
+    expect(fixture.assertRoster).toHaveBeenCalledTimes(1);
     expect(fixture.loadCanonical).toHaveBeenCalledTimes(1);
     expect(fixture.loadSettings).toHaveBeenCalledTimes(1);
   });

@@ -51,7 +51,8 @@ select (
     db_exec "
 update public.participants
 set running_order=null, running_order_allocation=null, updated_at=now()
-where show_id='$show_id'::uuid;
+where show_id='$show_id'::uuid
+  and coalesce(participation_status, 'confirmed') = 'confirmed';
 update public.shows
 set lineup_stage='allocation', updated_at=now()
 where id='$show_id'::uuid;
@@ -63,6 +64,7 @@ with ordered as (
   select id, row_number() over (order by country_id, id) as rn
   from public.participants
   where show_id='$show_id'::uuid
+    and coalesce(participation_status, 'confirmed') = 'confirmed'
 )
 select coalesce(jsonb_agg(jsonb_build_object(
   'id', id,
@@ -83,7 +85,8 @@ from ordered;
     order_json="$(db_scalar "
 select coalesce(jsonb_agg(id order by country_id desc, id desc), '[]'::jsonb)::text
 from public.participants
-where show_id='$show_id'::uuid;
+where show_id='$show_id'::uuid
+  and coalesce(participation_status, 'confirmed') = 'confirmed';
 ")"
     rpc_request "$ORGANIZER_A_TOKEN" admin_set_show_running_order "{\"_show_id\":\"$show_id\",\"_participant_ids\":$order_json}"
     expect_success "atomic running order $show_id"
@@ -91,11 +94,11 @@ where show_id='$show_id'::uuid;
     db_exec "update public.shows set lineup_stage='running_order', updated_at=now() where id='$show_id'::uuid;"
 
     CURRENT_STAGE="stage-5-running-orders:invariants:$show_id"
-    show_count="$(db_scalar "select count(*) from public.participants where show_id='$show_id'::uuid;")"
-    ordered_count="$(db_scalar "select count(*) from public.participants where show_id='$show_id'::uuid and running_order is not null;")"
-    distinct_count="$(db_scalar "select count(distinct running_order) from public.participants where show_id='$show_id'::uuid;")"
-    max_order="$(db_scalar "select coalesce(max(running_order),0) from public.participants where show_id='$show_id'::uuid;")"
-    allocation_count="$(db_scalar "select count(*) from public.participants where show_id='$show_id'::uuid and running_order_allocation is not null;")"
+    show_count="$(db_scalar "select count(*) from public.participants where show_id='$show_id'::uuid and coalesce(participation_status, 'confirmed') = 'confirmed';")"
+    ordered_count="$(db_scalar "select count(*) from public.participants where show_id='$show_id'::uuid and running_order is not null and coalesce(participation_status, 'confirmed') = 'confirmed';")"
+    distinct_count="$(db_scalar "select count(distinct running_order) from public.participants where show_id='$show_id'::uuid and coalesce(participation_status, 'confirmed') = 'confirmed';")"
+    max_order="$(db_scalar "select coalesce(max(running_order),0) from public.participants where show_id='$show_id'::uuid and coalesce(participation_status, 'confirmed') = 'confirmed';")"
+    allocation_count="$(db_scalar "select count(*) from public.participants where show_id='$show_id'::uuid and running_order_allocation is not null and coalesce(participation_status, 'confirmed') = 'confirmed';")"
     [[ "$show_count" -gt 0 ]] || fail "show $show_id has no participants"
     [[ "$ordered_count" == "$show_count" && "$distinct_count" == "$show_count" && "$max_order" == "$show_count" ]] || fail "show $show_id running order is not a unique contiguous 1..N sequence"
     [[ "$allocation_count" == "$show_count" ]] || fail "show $show_id has incomplete allocation evidence"
@@ -109,7 +112,7 @@ where show_id='$show_id'::uuid;
   for show_id in "$SEMI_ONE_ID" "$SEMI_TWO_ID"; do
     publication_index=$((publication_index + 1))
     CURRENT_STAGE="stage-5-running-orders:publication:$show_id"
-    show_count="$(db_scalar "select count(*) from public.participants where show_id='$show_id'::uuid;")"
+    show_count="$(db_scalar "select count(*) from public.participants where show_id='$show_id'::uuid and coalesce(participation_status, 'confirmed') = 'confirmed';")"
     [[ "$show_count" -gt 0 ]] || fail "show $show_id has no participants at publication time"
     expected_version="$(db_scalar "select version from public.studio2_show_publication_controls where show_id='$show_id'::uuid;")"
     [[ -n "$expected_version" ]] || fail "show $show_id has no publication control version"
@@ -135,7 +138,7 @@ where show_id='$show_id'::uuid;
     [[ "$(printf '%s' "$HTTP_BODY" | json_value '0.publication_config.running_order')" == "true" ]] || fail "anonymous show $show_id does not expose running-order publication"
 
     CURRENT_STAGE="stage-5-running-orders:anonymous-participants:$show_id"
-    request GET "$API_URL/rest/v1/participants?show_id=eq.$show_id&select=id,running_order&order=running_order.asc" "$ANON_KEY" "$ANON_KEY"
+    request GET "$API_URL/rest/v1/participants?show_id=eq.$show_id&or=(participation_status.is.null,participation_status.eq.confirmed)&select=id,running_order&order=running_order.asc" "$ANON_KEY" "$ANON_KEY"
     expect_success "anonymous running-order lookup $show_id"
     public_count="$(python3 -c 'import json,sys; print(len(json.load(sys.stdin)))' <<< "$HTTP_BODY")"
     [[ "$public_count" == "$show_count" ]] || fail "anonymous running order for $show_id returned $public_count of $show_count participants"

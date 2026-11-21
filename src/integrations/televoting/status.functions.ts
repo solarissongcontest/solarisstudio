@@ -51,3 +51,25 @@ export const getMergedTelevotingServerStatus = createServerFn({ method: "GET" })
     return { votingReady, adminReady };
   },
 );
+
+/** Independent readiness probe for a specific live round. Never exposes any
+ * of its stale country entries when the canonical lineup changed. */
+export const getMergedTelevotingRoundRosterReady = createServerFn({ method: "POST" })
+  .inputValidator((data: { roundId: string }) => {
+    if (!data?.roundId) throw new Error("Missing voting round");
+    return data;
+  })
+  .handler(async ({ data }) => {
+    try {
+      const { assertLinkedTelevoteRosterCurrent } = await import(
+        "@/integrations/televoting/participation-guard.server"
+      );
+      await assertLinkedTelevoteRosterCurrent(data.roundId);
+      return { ready: true, reason: null as string | null };
+    } catch (caught) {
+      return {
+        ready: false,
+        reason: caught instanceof Error ? caught.message : "Televoting participant verification failed",
+      };
+    }
+  });

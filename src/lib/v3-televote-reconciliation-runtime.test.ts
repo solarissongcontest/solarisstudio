@@ -16,11 +16,19 @@ function runtime(readResults: unknown[], writeResult: unknown) {
   const write = vi.fn(async (_name: string, _args: Record<string, unknown>) => writeResult);
   const schema = vi.fn(() => ({ rpc: read }));
   const rate = vi.fn();
+  const assertLinkedTelevoteRosterCurrent = vi.fn(async () => {});
   const exports: { submit?: (data: typeof input) => Promise<unknown> } = {};
-  runInNewContext(code + "\nexports.submit = submitMergedTelevotingVoteServer;", { exports, submitTelevoteWithReconciliation, verifiedTelevoteReceipt, televotingPublicServer: { rpc: write, schema }, enforceTelevotingRateLimit: rate, getTelevotingNetworkSignals: () => ({ ipHash: "ip", ipCountry: "XX", isVpn: false }), Error });
-  return { submit: exports.submit!, read, write, schema, rate };
+  runInNewContext(code + "\nexports.submit = submitMergedTelevotingVoteServer;", { exports, submitTelevoteWithReconciliation, verifiedTelevoteReceipt, televotingPublicServer: { rpc: write, schema }, enforceTelevotingRateLimit: rate, assertLinkedTelevoteRosterCurrent, getTelevotingNetworkSignals: () => ({ ipHash: "ip", ipCountry: "XX", isVpn: false }), Error });
+  return { submit: exports.submit!, read, write, schema, rate, assertLinkedTelevoteRosterCurrent };
 }
 describe("production Televote server recovery adapter", () => {
+  it("fails closed when a participant is withdrawn after preflight", async () => {
+    const r = runtime([], { data: { id: "should-not-write" }, error: null });
+    r.assertLinkedTelevoteRosterCurrent.mockRejectedValueOnce(new Error("Televoting roster changed"));
+    await expect(r.submit(input)).rejects.toThrow("Televoting roster changed");
+    expect(r.write).not.toHaveBeenCalled();
+  });
+
   it("replays the exact receipt before attempting the legacy mutator", async () => {
     const r = runtime([{ data: receipt, error: null }], null);
     expect(await r.submit(input)).toEqual(receipt);
