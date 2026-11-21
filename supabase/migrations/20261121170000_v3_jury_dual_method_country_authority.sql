@@ -540,14 +540,16 @@ begin
       select 1 from private.v3_jury_manual_scores d
       where d.show_id=p_show_id and d.voter_identity=v_identity
         and not d.points=any(v_scale));
-  -- Public votes and result-sync triggers see only complete manual ballots.
-  -- Deletion/insertion are atomic with this operation, never a partial result.
-  delete from public.jury_votes j
-  where j.show_id=p_show_id and j.edition_id=p_edition_id
-    and j.ballot_submission_id is null
-    and ((v_country is not null and j.voter_country_id=v_country)
-      or (v_country is null and coalesce(j.voter_entity_id,j.voter_id)=v_identity));
+  -- During a correction, retain the LAST officially complete manual ballot
+  -- until the revised scale is complete. Private drafts never change results.
+  -- On completion replace every allocation atomically; triggers recalculate
+  -- against the final committed ballot, never a partly corrected draft.
   if v_complete then
+    delete from public.jury_votes j
+    where j.show_id=p_show_id and j.edition_id=p_edition_id
+      and j.ballot_submission_id is null
+      and ((v_country is not null and j.voter_country_id=v_country)
+        or (v_country is null and coalesce(j.voter_entity_id,j.voter_id)=v_identity));
     insert into public.jury_votes(
       edition_id,show_id,voter_id,voter_country_id,voter_entity_id,
       receiving_country_id,receiving_entity_id,points)
