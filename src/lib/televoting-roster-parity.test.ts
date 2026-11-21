@@ -17,5 +17,6 @@ describe("official Televoting participation roster", () => {
   it("fails closed for duplicates and empty active rosters", () => {
     expect(linkedTelevoteRosterMatches(["A", "B"], ["A", "A"])).toBe(false);
     expect(linkedTelevoteRosterMatches([], [])).toBe(false);
+    expect(linkedTelevoteRosterMatches(["NOR", ""], ["NOR", ""])).toBe(false);
   });
 });
