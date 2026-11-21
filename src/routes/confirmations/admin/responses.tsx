@@ -1,7 +1,8 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, CircleAlert, Search, ShieldAlert, XCircle } from "lucide-react";
 
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { useAdminContext } from "@/components/admin/AdminContext";
 import {
   AdminCard,
@@ -234,6 +235,7 @@ function matchesFilter(row: ResponseRow, filter: ResponseFilter) {
 function ConfirmationResponsesPage() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { editionId } = useAdminContext();
+  const actorId = useAuthenticatedUser().id;
 
   if (pathname.startsWith(`${Route.fullPath}/`)) {
     if (!editionId) {
@@ -252,13 +254,14 @@ function ConfirmationResponsesPage() {
     return <Outlet />;
   }
 
-  return <ConfirmationResponsesList />;
+  return <ConfirmationResponsesList key={`${actorId}:${editionId}`} />;
 }
 
 function ConfirmationResponsesList() {
   const { editionId, editionLabel } = useAdminContext();
   const [rows, setRows] = useState<ResponseRow[]>([]);
   const [loadedEditionId, setLoadedEditionId] = useState<string | null>(null);
+  const authGeneration = useRef(0);
   const [authEpoch, setAuthEpoch] = useState(0);
   const [retryEpoch, setRetryEpoch] = useState(0);
   const [pageIndex, setPageIndex] = useState(0);
@@ -278,6 +281,7 @@ function ConfirmationResponsesList() {
   useEffect(() => {
     const { data: { subscription } } = confirmationsSupabase.auth.onAuthStateChange((event: string) => {
       if (!["SIGNED_IN", "SIGNED_OUT", "USER_UPDATED", "TOKEN_REFRESHED"].includes(event)) return;
+      authGeneration.current += 1;
       setRows([]);
       setNextRows([]);
       setNextError(null);
@@ -294,6 +298,7 @@ function ConfirmationResponsesList() {
   // There is no all-editions response fetch and no fallback to one.
   useEffect(() => {
     let alive = true;
+    const generation = authGeneration.current;
     setRows([]);
     setLoadedEditionId(null);
     setTotalResponses(0);
@@ -309,7 +314,7 @@ function ConfirmationResponsesList() {
       limit: RESPONSE_PAGE_SIZE,
       offset: pageIndex * RESPONSE_PAGE_SIZE,
     }).then((page) => {
-      if (!alive) return;
+      if (!alive || generation !== authGeneration.current) return;
       if (pageIndex > 0 && page.offset >= page.total) {
         setPageIndex(Math.max(0, Math.ceil(page.total / RESPONSE_PAGE_SIZE) - 1));
         return;
@@ -319,11 +324,11 @@ function ConfirmationResponsesList() {
       setTotalResponses(page.total);
       setHasNextPage(page.has_more);
     }).catch((caught: unknown) => {
-      if (!alive) return;
+      if (!alive || generation !== authGeneration.current) return;
       setRows([]);
       setLoadedEditionId(null);
       setError(describeConfirmationResponseLoadFailure(caught));
-    }).finally(() => { if (alive) setLoading(false); });
+    }).finally(() => { if (alive && generation === authGeneration.current) setLoading(false); });
     return () => { alive = false; };
   }, [editionId, pageIndex, authEpoch, retryEpoch]);
 
@@ -337,6 +342,7 @@ function ConfirmationResponsesList() {
 
   useEffect(() => {
     let alive = true;
+    const generation = authGeneration.current;
     setNextRows([]);
     setNextError(null);
     if (!editionId) {
@@ -350,7 +356,7 @@ function ConfirmationResponsesList() {
         const result = await confirmationsSupabase.rpc("admin_confirmation_next_in_line", {
           _edition_id: editionId,
         });
-        if (!alive) return;
+        if (!alive || generation !== authGeneration.current) return;
         if (result.error) {
           setNextError(result.error.message || "Next in Line responses could not be loaded.");
           setNextRows([]);
@@ -358,11 +364,11 @@ function ConfirmationResponsesList() {
           setNextRows(Array.isArray(result.data) ? (result.data as unknown as NextInLineRow[]) : []);
         }
       } catch (caught: unknown) {
-        if (!alive) return;
+        if (!alive || generation !== authGeneration.current) return;
         setNextRows([]);
         setNextError(caught instanceof Error ? caught.message : "Next in Line responses could not be loaded.");
       } finally {
-        if (alive) setNextLoading(false);
+        if (alive && generation === authGeneration.current) setNextLoading(false);
       }
     })();
 
@@ -552,7 +558,7 @@ function ConfirmationResponsesList() {
             <p className="text-xs text-muted-foreground">
               Page {pageIndex + 1} · {rows.length ? pageIndex * RESPONSE_PAGE_SIZE + 1 : 0}–
               {pageIndex * RESPONSE_PAGE_SIZE + rows.length} of {totalResponses}.
-              Search and filters apply to this page only.
+              Review, Problems and Ready counts, search and filters apply to this page only.
             </p>
             <div className="flex gap-2">
               <button type="button" className="admin-action-secondary !min-h-9" disabled={pageIndex === 0}
