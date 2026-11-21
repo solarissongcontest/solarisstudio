@@ -12,6 +12,19 @@ export function participationStatus(participant: ParticipationAwareParticipant):
     : "confirmed";
 }
 
+/**
+ * The participation preview/apply RPCs require exactly one subject identity.
+ * Global countries have both IDs on participant rows, so never pass both.
+ */
+export function participationStatusCommandSubject(
+  participant: Pick<ParticipationAwareParticipant, "country_id" | "contest_entity_id">,
+  isGlobalCountry: boolean,
+): { countryId: string | null; contestEntityId: string | null } {
+  return isGlobalCountry
+    ? { countryId: participant.country_id, contestEntityId: null }
+    : { countryId: null, contestEntityId: participant.contest_entity_id ?? participant.country_id };
+}
+
 export function isCompetingParticipant(participant: ParticipationAwareParticipant): boolean {
   return participationStatus(participant) === "confirmed";
 }
