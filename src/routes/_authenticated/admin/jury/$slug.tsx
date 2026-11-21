@@ -210,7 +210,8 @@ function JuryWorkspace() {
       .map((participant) => participant.contest_entity_id).filter((id): id is string => Boolean(id)),
   ), [allParticipants]);
   const activeShowVoters = useMemo(() => showVoters.filter((voter) =>
-    !inactiveCountryIds.has(voter.country_id) && !inactiveEntityIds.has(voter.contest_entity_id)
+    (!voter.country_id || !inactiveCountryIds.has(voter.country_id)) &&
+    (!voter.contest_entity_id || !inactiveEntityIds.has(voter.contest_entity_id))
   ), [showVoters, inactiveCountryIds, inactiveEntityIds]);
   const { data: acceptedJuryVotes = [], isLoading: loadingAcceptedVotes } = useJuryVotes(selectedShow?.id);
   const { data: pendingManualJuryVotes = [], isLoading: loadingManualVotes } = useQuery({
