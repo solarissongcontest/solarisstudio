@@ -37,6 +37,22 @@ describe("Confirmation / Entry method transitions and post-review recovery", () 
     expect(verifier).toContain("syncSubmission: syncConfirmationSubmissionToSolarisInternal");
   });
 
+  it("protects already published canonical entries before any participant or Entry writes", () => {
+    expect(sync).toContain('status: "publication_locked"');
+    expect(sync).toContain('.eq("publication_status", "published")');
+    expect(sync).toContain('canonicalGuard.data?.status === "published"');
+    expect(sync).toContain("governed Organizer correction workflow");
+    expect(sync.indexOf("const publishedParticipant =")).toBeLessThan(
+      sync.indexOf("const entityLookup ="),
+    );
+    expect(sync.indexOf("const publishedParticipant =")).toBeLessThan(
+      sync.indexOf("const participantLookup ="),
+    );
+    expect(sync.indexOf("const publishedParticipant =")).toBeLessThan(
+      sync.indexOf('      .upsert(entryPayload, { onConflict: "edition_id,country_id" })'),
+    );
+  });
+
   it("keeps all destructive method-switch sites behind a strict forward-only guard", () => {
     expect(migration).toContain("v_internal_count <> 2 or v_nf_count <> 2");
     expect(migration).toContain("pg_get_functiondef");
