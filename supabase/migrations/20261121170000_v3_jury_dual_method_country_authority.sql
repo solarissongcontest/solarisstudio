@@ -603,9 +603,10 @@ begin
   into v_after from private.v3_jury_manual_scores d
   where d.show_id=p_show_id and d.voter_identity=v_identity;
 
-  insert into public.admin_audit_log(actor_id,action,table_name,record_id,before_data,after_data)
+  insert into public.admin_audit_log(
+    actor_id,action,table_name,record_id,edition_id,country_id,before_data,after_data)
   values(auth.uid(),'jury_manual_score_'||p_action,'jury_votes',
-    v_identity::text,v_before,
+    v_identity::text,p_edition_id,v_country,v_before,
     jsonb_build_object('scores',v_after,'version',v_state.revision+1,
       'complete',v_complete,'showId',p_show_id,'editionId',p_edition_id,
       'operationId',p_operation_id,'reason',nullif(btrim(coalesce(p_reason,'')),'')));
