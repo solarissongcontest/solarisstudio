@@ -56,10 +56,12 @@ describe("show line-up lifecycle", () => {
     expect(workspace).toContain("(showParticipants as LifecycleParticipant[]).map(participantKey)");
   });
 
-  it("requires allocation completion before running order starts", () => {
+  it("opens running order directly without forcing a draw for active entries", () => {
     expect(workspace).toContain("const allocationComplete = lifecycleParticipants.length > 0 && allocatedCount === lifecycleParticipants.length");
-    expect(workspace).toContain("if (!activeShow || !allocationComplete) return");
-    expect(workspace).toContain('await setStage("running_order")');
+    expect(workspace).toContain("if (!activeShow || !lifecycleParticipants.length) return");
+    expect(workspace).toContain('rpc("admin_open_show_running_order"');
+    expect(workspace).toContain("Edit running order without completing allocation");
+    expect(workspace).not.toContain('await setStage("running_order")');
   });
 
   it("offers balanced random/bulk assignment without writing until save", () => {
