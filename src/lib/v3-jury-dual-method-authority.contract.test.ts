@@ -85,6 +85,38 @@ describe("SSC22 dual-method Jury authority (forward-only contract)", () => {
     expect(apply).toContain("studio2_access_allowed('jury.ballots.manage',p_edition_id,true)");
   });
 
+  it("fails closed on drift in either retired Organizer command", () => {
+    expect(migration).toContain("Legacy Organizer Jury command definition drift");
+    expect(migration).toContain("7d4086203bb359201fe93523cf5a62d35fb5c9da22fc9d3f0845bc182d47d136");
+    expect(migration).toContain("4acfeebd38bd85cc22c8bbbd01dd1023539f7e061e287eddc1aeaffee0f98d3a");
+  });
+
+  it("resolves DNV by actual country even when the status row stores only voter_id", () => {
+    const account = part("public.v3_submit_jury_ballot");
+    const manual = part("public.v3_organizer_jury_score_apply");
+    expect(account).toContain("status.show_id,status.voter_id,status.voter_country_id,status.voter_entity_id");
+    expect(manual).toContain("st.show_id,st.voter_id,st.voter_country_id,st.voter_entity_id");
+    expect(account).toContain("=v_account.country_id");
+    expect(manual).toContain("=v_identity");
+  });
+
+  it("detects a complete pre-cutover manual ballot in preview before asking for corrections", () => {
+    const preview = part("public.v3_organizer_jury_score_preview");
+    const apply = part("public.v3_organizer_jury_score_apply");
+    expect(preview).toContain("v_legacy_complete");
+    expect(preview).toContain("count(distinct j.points)=cardinality(v_scale)");
+    expect(preview).toContain("'complete',coalesce(v_complete,false) or coalesce(v_legacy_complete,false)");
+    expect(apply).toContain("Correcting a complete Jury ballot requires an explicit reason");
+    expect(organizer).toContain('window.prompt("Reason for correcting this completed Organizer-entered Jury ballot:")');
+  });
+
+  it("never dereferences an absent OLD or NEW trigger row", () => {
+    const guard = part("private.v3_jury_protect_submitted_vote");
+    expect(guard).toContain("if tg_op in ('UPDATE','DELETE') then");
+    expect(guard).toContain("if tg_op='DELETE' then return old; end if;");
+    expect(guard).toContain("if new.ballot_submission_id is null");
+  });
+
   it("retains the existing Organizer workflow with server-version preview, feedback and refresh", () => {
     expect(organizer).toContain('rpc("v3_organizer_jury_score_preview"');
     expect(organizer).toContain('rpc("v3_organizer_jury_score_apply"');
