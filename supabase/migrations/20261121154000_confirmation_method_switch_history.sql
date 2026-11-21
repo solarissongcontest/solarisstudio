@@ -36,6 +36,13 @@ begin
 
   select pg_get_functiondef('public.submit_confirmation(jsonb)'::regprocedure)
     into v_definition;
+  -- Match the current PG17.11 hosted function contract exactly before editing
+  -- generated DDL. Pattern matches alone do not prove the deployed semantics.
+  if encode(sha256(convert_to(v_definition,'UTF8')),'hex')
+     is distinct from '094afca871b8185f2eb877bfc9ccd9676dbfb7366b52656ff9d3f0af2f8de2e6' then
+    raise exception 'submit_confirmation deployed definition fingerprint changed; independent compatibility review required'
+      using errcode = '55000';
+  end if;
 
   select count(*) into v_internal_count
     from regexp_matches(v_definition, v_internal_pattern, 'gi');
@@ -154,6 +161,11 @@ begin
   select pg_get_functiondef(
     'public.find_entry_duplicate(uuid,uuid,text,text,text)'::regprocedure
   ) into v_definition;
+  if encode(sha256(convert_to(v_definition,'UTF8')),'hex')
+     is distinct from 'd0b41e6f807613cdbb11a020455ff4c13d5f96dd9adb9dd006b2a64b3915641f' then
+    raise exception 'find_entry_duplicate deployed definition fingerprint changed; independent compatibility review required'
+      using errcode = '55000';
+  end if;
 
   if strpos(v_definition, v_internal_join) = 0
      or strpos(v_definition, v_nf_join) = 0
@@ -199,6 +211,18 @@ begin
   ]
   loop
     select pg_get_functiondef(v_name) into v_definition;
+    if (
+      v_name = 'public.admin_confirmation_response(uuid)'::regprocedure
+      and encode(sha256(convert_to(v_definition,'UTF8')),'hex')
+        is distinct from 'fe4fde03547d6faf1ee32f2a7d796169d609d6e9cc46b8e256c68a524e954ce4'
+    ) or (
+      v_name = 'public.admin_confirmation_responses_for_edition(uuid,integer,integer)'::regprocedure
+      and encode(sha256(convert_to(v_definition,'UTF8')),'hex')
+        is distinct from '494f8e32b36946f932bcd2c9c8de15cad05de2d6dd6583167fb0a089b68c919a'
+    ) then
+      raise exception 'Organizer Confirmation projection deployed definition fingerprint changed: %', v_name
+        using errcode = '55000';
+    end if;
     if strpos(v_definition, v_anchor) = 0 then
       raise exception 'Organizer NF projection differs from reviewed contract: %', v_name
         using errcode = '55000';
