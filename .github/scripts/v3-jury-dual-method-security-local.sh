@@ -58,6 +58,14 @@ expect_json "account replay" receipt.replayed true
 rpc_request "$USER_A_TOKEN" v3_organizer_jury_score_apply "{\"p_edition_id\":\"$EDITION_ID\",\"p_show_id\":\"$DUAL_SHOW\",\"p_voter_id\":null,\"p_voter_country_id\":\"$COUNTRY_A\",\"p_voter_entity_id\":null,\"p_receiving_country_id\":\"$MANUAL_COUNTRY\",\"p_receiving_entity_id\":null,\"p_points\":12,\"p_action\":\"assign\",\"p_expected_version\":0,\"p_operation_id\":\"00000000-0000-4000-8000-00000000b723\"}"
 expect_failure "account-first manual overwrite denied"
 [[ "$(db_scalar "select count(*) from public.jury_votes where show_id='$DUAL_SHOW' and voter_country_id='$COUNTRY_A' and ballot_submission_id='$ACCOUNT_BALLOT_ID'")" == 10 ]] || fail "Account evidence changed"
+# DNV cannot rewrite an accepted account ballot, whether the status uses
+# the country column or an aliasing show voter ID.
+expect_db_failure "accepted account ballot cannot become did-not-vote" \
+  "insert into public.jury_ballot_statuses(edition_id,show_id,voter_country_id,status) values('$EDITION_ID','$DUAL_SHOW','$COUNTRY_A','did_not_vote');"
+ACCOUNT_VOTER="$(db_scalar "select id from public.voters where show_id='$DUAL_SHOW' and country_id='$COUNTRY_A' limit 1")"
+expect_db_failure "voter-id alias cannot mark an accepted account ballot absent" \
+  "insert into public.jury_ballot_statuses(edition_id,show_id,voter_id,status) values('$EDITION_ID','$DUAL_SHOW','$ACCOUNT_VOTER','did_not_vote');"
+[[ "$(db_scalar "select count(*) from public.jury_ballot_statuses where show_id='$DUAL_SHOW' and (voter_country_id='$COUNTRY_A' or voter_id='$ACCOUNT_VOTER')")" == 0 ]] || fail "DNV status appeared after account ballot"
 
 # No-account Organizer manual path, real RPC/roles/score scale, one point per
 # operation and exactly ten score allocations before acceptance.
@@ -81,6 +89,10 @@ for point in 12 10 8 7 6 5 4 3 2 1; do
   if [[ "$index" -lt 9 ]]; then
     expect_json "manual draft remains partial" complete false
     [[ "$(db_scalar "select count(*) from public.jury_votes where show_id='$DUAL_SHOW' and voter_country_id='$MANUAL_COUNTRY'")" == 0 ]] || fail "Partial manual scores counted"
+    if [[ "$index" -eq 0 ]]; then
+      expect_db_failure "partial Organizer draft cannot become did-not-vote" \
+        "insert into public.jury_ballot_statuses(edition_id,show_id,voter_country_id,status) values('$EDITION_ID','$DUAL_SHOW','$MANUAL_COUNTRY','did_not_vote');"
+    fi
   else
     expect_json "manual ten-point scale complete" complete true
   fi
@@ -88,6 +100,10 @@ for point in 12 10 8 7 6 5 4 3 2 1; do
 done
 [[ "$(db_scalar "select count(*) from public.jury_votes where show_id='$DUAL_SHOW' and voter_country_id='$MANUAL_COUNTRY'")" == 10 ]] || fail "Manual completion count"
 [[ "$(db_scalar "select sum(points) from public.jury_votes where show_id='$DUAL_SHOW' and voter_country_id='$MANUAL_COUNTRY'")" == 58 ]] || fail "Manual point total"
+expect_db_failure "accepted Organizer manual ballot cannot become did-not-vote" \
+  "insert into public.jury_ballot_statuses(edition_id,show_id,voter_country_id,status) values('$EDITION_ID','$DUAL_SHOW','$MANUAL_COUNTRY','did_not_vote');"
+[[ "$(db_scalar "select count(*) from public.jury_ballot_statuses where show_id='$DUAL_SHOW' and voter_country_id='$MANUAL_COUNTRY'")" == 0 ]] || fail "DNV status appeared after manual ballot"
+[[ "$(db_scalar "select count(*) from public.jury_votes where show_id='$DUAL_SHOW' and voter_country_id='$MANUAL_COUNTRY'")" == 10 ]] || fail "DNV attempt mutated accepted manual scores"
 rpc_request "$USER_A_TOKEN" v3_organizer_jury_score_apply "$last_body"
 expect_success "manual lost-response replay"
 expect_json "manual replay stable" replayed true
