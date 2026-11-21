@@ -65,18 +65,24 @@ select jsonb_agg(jsonb_build_object(
   [[ "$(db_scalar "select count(distinct running_order) from public.participants where show_id='$FINAL_ID'::uuid;")" == "20" ]] || fail "grand-final running order is not unique"
   [[ "$(db_scalar "select min(running_order)||':'||max(running_order) from public.participants where show_id='$FINAL_ID'::uuid;")" == "1:20" ]] || fail "grand-final running order is not contiguous 1..20"
 
-  # A final Jury roster contains all 66 original delegations. Eligibility then
-  # remains explicit and deterministic even though only twenty countries are in
-  # the final lineup.
+  # Final Jury voting contains only eligible delegations. The withdrawal
+  # recorded earlier in this rehearsal must not be reintroduced as a voter,
+  # even though the archived edition history retains that country.
   db_exec "delete from public.voters where show_id='$FINAL_ID'::uuid;"
   db_exec "
 insert into public.voters(edition_id,show_id,country_id,name,sort_order)
 select '$EDITION_ID'::uuid,'$FINAL_ID'::uuid,c.id,'S14 Final Jury '||lpad(row_number() over(order by c.id)::text,2,'0'),row_number() over(order by c.id)
 from public.countries c
 where c.region='S14'
+  and not exists (
+    select 1 from public.participants inactive
+    where inactive.edition_id='$EDITION_ID'::uuid
+      and inactive.country_id=c.id
+      and inactive.participation_status in ('withdrawn','disqualified')
+  )
 order by c.id;
 "
-  [[ "$(db_scalar "select count(*) from public.voters where show_id='$FINAL_ID'::uuid;")" == "66" ]] || fail "grand-final Jury roster does not contain all 66 delegations"
+  [[ "$(db_scalar "select count(*) from public.voters where show_id='$FINAL_ID'::uuid;")" == "65" ]] || fail "grand-final Jury roster must exclude the withdrawn delegation"
 
   # Prepare a distinct final Televote round whose entry set is an exact projection
   # of the twenty finalist countries. Actual voting remains a later lifecycle step.
