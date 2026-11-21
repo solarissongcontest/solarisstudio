@@ -192,4 +192,7 @@ expect_json "legacy ballot recognized" submitted true
 expect_json "legacy receipt remains unavailable" found false
 expect_json "legacy status explicit" legacy true
 
+# Run the new dual-method acceptance on the same loopback-only Auth/REST fixture.
+source .github/scripts/v3-jury-dual-method-security-local.sh
+
 log "PASS: V3 Jury hostile security rehearsal complete"
