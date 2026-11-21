@@ -11,6 +11,10 @@ import {
 import { AdminCard, AdminPageHeader } from "@/components/admin/AdminUI";
 import { selectOrganizerEdition } from "@/lib/admin-edition-selection";
 import { editionLabel, useEditions } from "@/lib/data";
+import { PUBLIC_DESTINATIONS, publicSearchText } from "@/lib/public-navigation";
+import { publicLaunchAllows } from "@/lib/public-launch-availability";
+import { SITE_DIRECTORY_AREA_ORDER, SITE_DIRECTORY_AREA_LABELS } from "@/lib/v3-site-directory";
+import { ensureAdminPagePreviewSession } from "@/lib/admin-page-preview-client";
 
 export const Route = createFileRoute("/_authenticated/admin/menu")({
   head: () => ({ meta: [{ title: "All pages — Solaris Organizer" }] }),
@@ -21,6 +25,8 @@ function OrganizerMenu() {
   const { editionId } = useAdminContext();
   const { data: editions = [], isLoading: editionsLoading } = useEditions();
   const [query, setQuery] = useState("");
+  const [openingPreview, setOpeningPreview] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const activeEdition = selectOrganizerEdition(editions, editionId);
   const domains = buildAdminDomainNavigation(
     activeEdition?.slug,
@@ -30,6 +36,30 @@ function OrganizerMenu() {
     () => filterGroups(buildAdminNavigation(activeEdition?.slug), query),
     [activeEdition?.slug, query],
   );
+  const publicPages = useMemo(() => {
+    const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    return SITE_DIRECTORY_AREA_ORDER.map((area) => ({
+      area,
+      label: SITE_DIRECTORY_AREA_LABELS[area],
+      items: PUBLIC_DESTINATIONS.filter((item) =>
+        item.area === area &&
+        terms.every((term) => `${publicSearchText(item)} ${item.to}`.includes(term))
+      ),
+    })).filter((group) => group.items.length);
+  }, [query]);
+
+  const openPreview = async (href: string) => {
+    if (openingPreview) return;
+    setOpeningPreview(href);
+    setPreviewError(null);
+    try {
+      await ensureAdminPagePreviewSession();
+      window.location.assign(href);
+    } catch {
+      setPreviewError("Organizer preview could not be verified. Check your session and try again.");
+      setOpeningPreview(null);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -179,6 +209,52 @@ function OrganizerMenu() {
           <p className="mt-1 text-xs text-muted-foreground">Try the task, feature or page name.</p>
         </AdminCard>
       )}
+
+      <section className="mt-8" id="admin-all-public-pages" aria-label="All public and hidden pages">
+        <div className="mb-3 px-1">
+          <h2 className="text-lg font-bold text-foreground">Public & hidden pages</h2>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Every registered Solaris destination is listed, including pages withheld from the public launch and contextual pages.
+            Previewing a page does not publish it or override voting, data, or role permissions.
+          </p>
+        </div>
+        {previewError ? <p role="alert" className="mb-3 text-sm text-rose-200">{previewError}</p> : null}
+        {publicPages.length ? publicPages.map((group) => (
+          <AdminCard key={group.area} className="mb-3 !p-3 sm:!p-4">
+            <div className="mb-2 flex items-center justify-between gap-3 px-1">
+              <h3 className="text-sm font-bold text-foreground">{group.label}</h3>
+              <span className="text-xs text-muted-foreground">{group.items.length} pages</span>
+            </div>
+            <div className="grid gap-1 sm:grid-cols-2">
+              {group.items.map((item) => {
+                const unreleased = !publicLaunchAllows(item.to);
+                const restricted = item.auth && item.auth !== "public";
+                return (
+                  <a
+                    key={item.id}
+                    href={item.to}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      void openPreview(item.to);
+                    }}
+                    aria-busy={openingPreview === item.to}
+                    className="admin-list-row group !rounded-xl !border-0 !px-2.5"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-foreground">{item.label}</span>
+                      <span className="mt-0.5 block text-[11px] text-muted-foreground">{item.description}</span>
+                      <span className="mt-1 block text-[10px] text-sky-100/80">
+                        {item.to} {unreleased ? " · Hidden from public" : restricted ? " · Role restricted" : " · Public"}
+                      </span>
+                    </span>
+                    <ExternalLink className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  </a>
+                );
+              })}
+            </div>
+          </AdminCard>
+        )) : <AdminCard><p className="text-sm text-muted-foreground">No public page matches “{query.trim()}”.</p></AdminCard>}
+      </section>
     </div>
   );
 }
