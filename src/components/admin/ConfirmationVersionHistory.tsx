@@ -122,11 +122,9 @@ export function ConfirmationVersionHistory({
       let syncWarning: string | null = null;
 
       try {
-        const current = await confirmationsSupabase.rpc('admin_confirmation_response', {
-          _submission_id: submissionId,
-        });
-        if (current.error) throw current.error;
-        const sync = await syncToSolaris({ data: { snapshot: current.data } });
+        // Read the authoritative current state server-side, not from the
+        // restored historical snapshot or an untrusted browser response.
+        const sync = await syncToSolaris({ data: { submissionId } });
         if (!sync.ok) syncWarning = sync.message ?? 'Canonical Solaris sync needs attention.';
       } catch (syncError) {
         syncWarning = syncError instanceof Error
