@@ -84,6 +84,17 @@ describe("Confirmation / Entry method transitions and post-review recovery", () 
     expect(migration).not.toContain("drop function public.submit_confirmation");
   });
 
+  it("distinguishes an unpublished show assignment from a real Entry publication lock", () => {
+    // S14 assigns countries to unpublished shows before they submit songs.
+    // Assignment itself is not permission to replace public/locked material.
+    expect(migration).not.toContain("p.show_id is not null");
+    expect(migration).toContain("and e.status = 'published'");
+    expect(migration).toContain("where sh.id = p.show_id and sh.published");
+    expect(migration).toContain("p.publication_status = 'published'");
+    expect(migration).toContain("coalesce(nf.results_published, false)");
+    expect(migration).toContain("existing.participating is distinct from");
+  });
+
   it("preserves the canonical service-role isolation and local-only test contract", () => {
     const ci = read(".github/workflows/ci.yml");
     const browser = read(".github/workflows/browser-audit.yml");
