@@ -85,8 +85,11 @@ describe("country account jury voting contract", () => {
     expect(control).toContain("studio2_apply_jury_voting_status");
     expect(control).toContain("Open jury voting");
     expect(control).toContain("Close jury voting");
-    expect(manual).toContain('rpc("assign_jury_vote"');
-    expect(manual).toContain('rpc("clear_jury_point"');
+    expect(manual).toContain('rpc("v3_organizer_jury_score_preview"');
+    expect(manual).toContain('rpc("v3_organizer_jury_score_apply"');
+    expect(manual).toContain('rpc("v3_organizer_jury_manual_snapshot"');
+    expect(manual).not.toContain('rpc("assign_jury_vote"');
+    expect(manual).not.toContain('rpc("clear_jury_point"');
   });
 
   it("shows Jury voting as a separate country-account service on Participate", () => {
