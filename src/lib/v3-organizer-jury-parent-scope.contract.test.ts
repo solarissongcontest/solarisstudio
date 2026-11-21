@@ -27,8 +27,8 @@ describe("V3 Organizer Jury parent edition boundary", () => {
   });
 
   it("protects the existing ballot and roster surfaces behind one parent gate while preserving governed window authority", () => {
-    expect(workspace).toContain('rpc("assign_jury_vote"');
-    expect(workspace).toContain('rpc("clear_jury_point"');
+    expect(workspace).toContain('rpc("v3_organizer_jury_score_preview"');
+    expect(workspace).toContain('rpc("v3_organizer_jury_score_apply"');
     expect(shell).toContain("JuryVotingWindowControl");
     expect(windowControl).toContain('rpc("studio2_jury_window_change_preview"');
     expect(windowControl).toContain('rpc("studio2_apply_jury_voting_status"');
@@ -40,9 +40,11 @@ describe("V3 Organizer Jury parent edition boundary", () => {
     expect(boundary).not.toContain(".from(");
   });
 
-  it("does not claim that legacy Jury correction and roster paths are final V3 authority", () => {
-    expect(workspace).toContain('rpc("assign_jury_vote"');
-    expect(workspace).toContain('rpc("clear_jury_point"');
-    expect(workspace).not.toContain("executeGovernedJuryCorrectionCommand");
+  it("keeps correction policy fail-closed while Organizer uses governed score commands", () => {
+    expect(workspace).toContain('rpc("v3_organizer_jury_score_preview"');
+    expect(workspace).toContain('rpc("v3_organizer_jury_score_apply"');
+    expect(workspace).toContain("lockedByAccount");
+    expect(workspace).not.toContain('rpc("assign_jury_vote"');
+    expect(workspace).not.toContain('rpc("clear_jury_point"');
   });
 });
