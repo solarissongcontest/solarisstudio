@@ -46,12 +46,12 @@ type DragState = {
   moved: boolean;
 };
 
-function isPrimaryArea(value: string): value is PrimaryArea {
-  return LAUNCH_TAB_AREAS.some((area) => area.id === value);
+function isPrimaryArea(value: string, areas = LAUNCH_TAB_AREAS): value is PrimaryArea {
+  return areas.some((area) => area.id === value);
 }
 
-function rootDestinationForIndex(index: number, signedIn: boolean) {
-  const area = LAUNCH_TAB_AREAS[index];
+function rootDestinationForIndex(index: number, signedIn: boolean, areas = LAUNCH_TAB_AREAS) {
+  const area = areas[index];
   if (!area) return null;
   return appTabRoot(area.id, signedIn);
 }
@@ -60,19 +60,22 @@ export function AppTabBar({
   pathname,
   searchStr = "",
   signedIn,
+  adminPreview = false,
   participateBadge = 0,
   meBadge = 0,
 }: {
   pathname: string;
   searchStr?: string;
   signedIn: boolean;
+  adminPreview?: boolean;
   participateBadge?: number;
   meBadge?: number;
 }) {
+  const tabAreas = adminPreview ? PUBLIC_GLOBAL_AREAS : LAUNCH_TAB_AREAS;
   const navigate = useNavigate();
   const chrome = resolveAppRouteChrome(pathname, searchStr);
   const routeArea: PrimaryArea =
-    chrome.tab && isPrimaryArea(chrome.tab) ? chrome.tab : "home";
+    chrome.tab && isPrimaryArea(chrome.tab, tabAreas) ? chrome.tab : "home";
   const tabbarMode = chrome.tabBar;
   const [railMode, setRailMode] = useState(false);
   const [dragPreviewIndex, setDragPreviewIndex] = useState<number | null>(null);
@@ -170,12 +173,12 @@ export function AppTabBar({
   const activeArea: PrimaryArea = routeArea;
   const activeIndex = Math.max(
     0,
-    LAUNCH_TAB_AREAS.findIndex((area) => area.id === activeArea),
+    tabAreas.findIndex((area) => area.id === activeArea),
   );
   const visualActiveIndex = dragging ? activeIndex : dragPreviewIndex ?? activeIndex;
 
   const openTab = (index: number) => {
-    const area = LAUNCH_TAB_AREAS[index];
+    const area = tabAreas[index];
     if (!area) return;
     const target = getAppTabDestination(area.id, signedIn);
     const root = appTabRoot(area.id, signedIn);
@@ -195,7 +198,7 @@ export function AppTabBar({
   };
 
   const activateCurrentTab = (index: number) => {
-    const area = LAUNCH_TAB_AREAS[index];
+    const area = tabAreas[index];
     if (!area) return;
     const root = appTabRoot(area.id, signedIn);
     const normalizedPath = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
@@ -249,7 +252,7 @@ export function AppTabBar({
     setDragPreviewIndex(null);
   }, [endHold, resetDragDom]);
 
-  const navigationIdentity = `${pathname}|${searchStr}|${signedIn ? "signed-in" : "anonymous"}`;
+  const navigationIdentity = `${pathname}|${searchStr}|${signedIn ? "signed-in" : "anonymous"}|${adminPreview ? "organizer" : "public"}`;
   const previousNavigationIdentity = useRef(navigationIdentity);
 
   // React Router may change routes/auth while an active pointer still owns the
@@ -384,7 +387,7 @@ export function AppTabBar({
       rawDelta: event.clientX - drag.startX,
       originIndex: drag.originIndex,
       slotWidth: origin.width,
-      itemCount: LAUNCH_TAB_AREAS.length,
+      itemCount: tabAreas.length,
       activationRatio: 0.62,
     });
     setDragPreviewIndex((current) => (current === preview ? current : preview));
@@ -409,7 +412,7 @@ export function AppTabBar({
       rawDelta: event.clientX - drag.startX,
       originIndex: drag.originIndex,
       slotWidth: origin?.width ?? 1,
-      itemCount: LAUNCH_TAB_AREAS.length,
+      itemCount: tabAreas.length,
       activationRatio: 0.72,
     });
     const moved = drag.moved;
@@ -426,7 +429,7 @@ export function AppTabBar({
     clearDrag();
 
     if (!moved || targetIndex === drag.originIndex) return;
-    const area = LAUNCH_TAB_AREAS[targetIndex];
+    const area = tabAreas[targetIndex];
     if (!area) return;
     const target = getAppTabDestination(area.id, signedIn);
 
@@ -458,7 +461,7 @@ export function AppTabBar({
       data-collapsed={collapsed ? "true" : "false"}
       data-layout={railMode ? "rail" : "bar"}
       data-mode={tabbarMode}
-      style={{ "--solaris-tab-count": LAUNCH_TAB_AREAS.length, "--solaris-tab-gap-total": `${Math.max(0, LAUNCH_TAB_AREAS.length - 1) * 0.15}rem` } as CSSProperties}
+      style={{ "--solaris-tab-count": tabAreas.length, "--solaris-tab-gap-total": `${Math.max(0, tabAreas.length - 1) * 0.15}rem` } as CSSProperties}
       onPointerDown={() => {
         if (collapsed) expandTabBar();
       }}
@@ -473,9 +476,9 @@ export function AppTabBar({
         <KubeLiquidGlassBackdrop className="solaris-app-tabbar-backdrop" sourceKey={pathname} />
         <span className="solaris-app-tab-indicator" aria-hidden="true" />
 
-        {LAUNCH_TAB_AREAS.map((area, index) => {
+        {tabAreas.map((area, index) => {
           const Icon = ICONS[area.id];
-          const to = rootDestinationForIndex(index, signedIn)!;
+          const to = rootDestinationForIndex(index, signedIn, tabAreas)!;
           const active = activeArea === area.id;
           const visuallyActive = index === visualActiveIndex;
           const badge =
