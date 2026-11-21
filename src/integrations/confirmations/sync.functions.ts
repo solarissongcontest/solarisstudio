@@ -54,7 +54,7 @@ export type ConfirmationSolarisSyncResult = {
     | "canonical_newer"
     | "canonical_owned"
     | "superseded_submission"
-    | "source_changed"
+    | "projection_failed"
     | "publication_event_failed";
   editionId?: string;
   countryId?: string;
@@ -704,7 +704,21 @@ export async function syncConfirmationSubmissionToSolarisInternal(
       message: "Historical Confirmation skipped; the newest response remains authoritative.",
     };
   }
-  return syncConfirmationSnapshotToSolarisInternal(snapshot);
+  try {
+    return await syncConfirmationSnapshotToSolarisInternal(snapshot);
+  } catch (caught) {
+    // An Organizer decision may already have committed before projection ran.
+    // Make that gap visible to the existing integration_events recovery task
+    // system, using the same canonical writer's audit channel.
+    const message = caught instanceof Error ? caught.message : String(caught);
+    const failure: ConfirmationSolarisSyncResult = {
+      ok: false,
+      status: "projection_failed",
+      message: `Official Entry synchronization is pending: ${message.slice(0, 240)}`,
+    };
+    await recordSyncEvent(db, snapshot, failure, failure.message);
+    return failure;
+  }
 }
 
 /**
