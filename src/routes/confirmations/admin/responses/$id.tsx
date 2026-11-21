@@ -816,7 +816,7 @@ function ResponseDetailPage() {
       payload: { action, entryId },
       expectedVersion: preview.expectedVersion,
     });
-    const { error: rpcError } = await confirmationsSupabase.rpc(
+    const { data: winnerOperationResult, error: rpcError } = await confirmationsSupabase.rpc(
       "studio2_apply_confirmation_winner_change",
       {
         p_national_final_id: data.national_final.id,
@@ -837,6 +837,13 @@ function ResponseDetailPage() {
       },
     );
     if (rpcError) throw rpcError;
+    const winnerReceipt = normalizeSystemReceipt(winnerOperationResult);
+    if (!winnerReceipt || winnerReceipt.status !== "succeeded") {
+      throw new Error(
+        winnerReceipt?.error?.message ??
+          "The National Final winner change was not confirmed by an authoritative operation receipt. Reconcile before retrying.",
+      );
+    }
     await afterOrganizerDecision();
   }
 
