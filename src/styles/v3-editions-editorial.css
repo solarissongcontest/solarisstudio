@@ -40,6 +40,59 @@ html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-mobile
   gap: 1rem;
   min-height: 5.6rem;
 }
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-mobile-row > span:nth-child(2) {
+  display: grid;
+  gap: .35rem;
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-mobile-row strong,
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-mobile-winner {
+  overflow-wrap: anywhere;
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-mobile-winner {
+  display: block;
+  font-size: .8rem;
+  color: var(--muted-foreground);
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-mobile-winner > .inline-flex {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.v3-editions-directory .v3-editions-winner-name {
+  flex: 1 1 8rem;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.v3-editions-directory .v3-editions-winner-identity {
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-details .truncate,
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-mobile-row .truncate {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.v3-editions-directory .v3-editions-winner-recovery {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem 1rem;
+  padding-block: .75rem;
+  border-block: 1px solid var(--border);
+  font-size: .875rem;
+}
+.v3-editions-directory .v3-editions-winner-recovery button {
+  min-height: 44px;
+  padding: .5rem .75rem;
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: .2em;
+}
+.v3-editions-directory .v3-editions-winner-recovery button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
 html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-mobile-number {
   flex: 0 0 2.8rem;
   display: grid;
