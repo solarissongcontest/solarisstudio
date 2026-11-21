@@ -20,6 +20,17 @@ begin
     or to_regprocedure('public.clear_jury_point(uuid,uuid,uuid,uuid,uuid,integer)') is null
   then raise exception 'Legacy Organizer source missing; refuse unqualified cutover' using errcode='55000';
   end if;
+  -- Both existing Organizer interfaces are retired by this migration. Refuse
+  -- replacement when either original command drifted since production review.
+  if encode(sha256(convert_to(pg_get_functiondef(
+       to_regprocedure('public.assign_jury_vote(uuid,uuid,uuid,uuid,uuid,uuid,uuid,integer)')), 'UTF8')), 'hex')
+       is distinct from '7d4086203bb359201fe93523cf5a62d35fb5c9da22fc9d3f0845bc182d47d136'
+    or encode(sha256(convert_to(pg_get_functiondef(
+       to_regprocedure('public.clear_jury_point(uuid,uuid,uuid,uuid,uuid,integer)')), 'UTF8')), 'hex')
+       is distinct from '4acfeebd38bd85cc22c8bbbd01dd1023539f7e061e287eddc1aeaffee0f98d3a'
+  then raise exception 'Legacy Organizer Jury command definition drift; refuse authority cutover'
+       using errcode='55000';
+  end if;
 end $pre$;
 
 -- Private drafts cannot be mistaken for accepted public votes. Only a complete
@@ -174,7 +185,9 @@ begin
   if exists (
     select 1 from public.jury_ballot_statuses status
     where status.show_id=_show_id and status.status='did_not_vote'
-      and status.voter_country_id=v_account.country_id
+      and private.v3_jury_resolve_voter(
+        status.show_id,status.voter_id,status.voter_country_id,status.voter_entity_id
+      )=v_account.country_id
   ) then
     raise exception 'Your country is marked did-not-vote. Contact the Organizer before voting.'
       using errcode='23514';
@@ -256,11 +269,15 @@ create function private.v3_jury_protect_submitted_vote()
 returns trigger language plpgsql security definer
 set search_path=pg_catalog,public,private as $protect$
 begin
-  if tg_op in ('UPDATE','DELETE') and old.ballot_submission_id is not null then
-    raise exception 'Accepted account Jury score evidence is immutable'
-      using errcode='23514';
+  -- OLD does not exist for INSERT, and NEW does not exist for DELETE.
+  if tg_op in ('UPDATE','DELETE') then
+    if old.ballot_submission_id is not null then
+      raise exception 'Accepted account Jury score evidence is immutable'
+        using errcode='23514';
+    end if;
   end if;
-  if tg_op in ('INSERT','UPDATE') and new.ballot_submission_id is null
+  if tg_op='DELETE' then return old; end if;
+  if new.ballot_submission_id is null
      and new.voter_country_id is not null and exists (
        select 1 from public.jury_ballot_submissions b
        where b.show_id=new.show_id and b.voter_country_id=new.voter_country_id
@@ -268,7 +285,6 @@ begin
     raise exception 'Account and manual Jury scores cannot coexist'
       using errcode='23505';
   end if;
-  if tg_op='DELETE' then return old;end if;
   return new;
 end $protect$;
 revoke all on function private.v3_jury_protect_submitted_vote()
@@ -312,6 +328,7 @@ create function public.v3_organizer_jury_score_preview(
 ) returns jsonb language plpgsql stable security definer
 set search_path=pg_catalog,public,private as $preview$
 declare v_identity uuid;v_revision bigint;v_complete boolean;v_country uuid;
+        v_legacy_complete boolean:=false;v_scale integer[];
 begin
   perform private.v3_assert_jury_vote_object_scope(
     p_edition_id,p_show_id,p_voter_id,p_voter_country_id,p_voter_entity_id,null,null,null);
@@ -324,8 +341,29 @@ begin
     (select ce.country_id from public.contest_entities ce where ce.id=p_voter_entity_id));
   select revision,complete into v_revision,v_complete from private.v3_jury_manual_states
     where show_id=p_show_id and voter_identity=v_identity;
+  -- Before a legacy manual ballot is first edited, the new private revision
+  -- store has no row. The Organizer must still see it as complete and supply
+  -- the mandatory correction reason. Otherwise preview and apply disagree.
+  if coalesce(v_revision,0)=0 then
+    select array_agg(value::integer) into v_scale
+    from jsonb_array_elements_text(coalesce(
+      (select voting_config->'juryPoints' from public.shows where id=p_show_id),
+      '[12,10,8,7,6,5,4,3,2,1]'::jsonb
+    )) scale(value);
+    select cardinality(v_scale)>0
+      and count(*)=cardinality(v_scale)
+      and count(distinct j.points)=cardinality(v_scale)
+      and coalesce(bool_and(j.points=any(v_scale)),false)
+    into v_legacy_complete
+    from public.jury_votes j
+    where j.show_id=p_show_id and j.edition_id=p_edition_id
+      and j.ballot_submission_id is null
+      and ((v_country is not null and j.voter_country_id=v_country)
+        or (v_country is null and coalesce(j.voter_entity_id,j.voter_id)=v_identity));
+  end if;
   return jsonb_build_object(
-    'expectedVersion',coalesce(v_revision,0),'complete',coalesce(v_complete,false),
+    'expectedVersion',coalesce(v_revision,0),
+    'complete',coalesce(v_complete,false) or coalesce(v_legacy_complete,false),
     'lockedByAccount',v_country is not null and exists(
       select 1 from public.jury_ballot_submissions b
       where b.show_id=p_show_id and b.voter_country_id=v_country),
@@ -395,9 +433,9 @@ begin
   if exists(
     select 1 from public.jury_ballot_statuses st
     where st.show_id=p_show_id and st.status='did_not_vote'
-      and ((v_country is not null and st.voter_country_id=v_country)
-        or (p_voter_id is not null and st.voter_id=p_voter_id)
-        or (p_voter_entity_id is not null and st.voter_entity_id=p_voter_entity_id))
+      and private.v3_jury_resolve_voter(
+        st.show_id,st.voter_id,st.voter_country_id,st.voter_entity_id
+      )=v_identity
   ) then raise exception 'Restore this Jury from did-not-vote before entering scores' using errcode='23514';end if;
   if exists(select 1 from public.voters v where v.show_id=p_show_id) then
     if not exists(
