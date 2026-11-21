@@ -56,6 +56,13 @@ describe("Confirmation / Entry method transitions and post-review recovery", () 
   it("keeps all destructive method-switch sites behind a strict forward-only guard", () => {
     expect(migration).toContain("v_internal_count <> 2 or v_nf_count <> 2");
     expect(migration).toContain("pg_get_functiondef");
+    // Hosted PG17.11 metadata was inspected read-only on 2026-11-21.
+    // Drift must fail closed instead of text-patching a changed SECURITY DEFINER.
+    expect(migration).toContain("094afca871b8185f2eb877bfc9ccd9676dbfb7366b52656ff9d3f0af2f8de2e6");
+    expect(migration).toContain("d0b41e6f807613cdbb11a020455ff4c13d5f96dd9adb9dd006b2a64b3915641f");
+    expect(migration).toContain("fe4fde03547d6faf1ee32f2a7d796169d609d6e9cc46b8e256c68a524e954ce4");
+    expect(migration).toContain("494f8e32b36946f932bcd2c9c8de15cad05de2d6dd6583167fb0a089b68c919a");
+    expect(migration).toContain("independent compatibility review required");
     expect(migration).toContain("inactive NF history retained");
     expect(migration).toContain("inactive Internal history retained");
     expect(migration).toContain("existing.selection_method is distinct from 'internal'");
