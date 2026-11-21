@@ -42,6 +42,7 @@ import {
 import { useCountries } from "@/lib/data";
 import { NAV_TARGETS, countrySearch } from "@/lib/navigation-targets";
 import { countryThemeToVisual, useCountryTheme } from "@/lib/visual-theme";
+import "@/styles/v3-mysolaris-designer-editorial.css";
 
 type EditorMode = "simple" | "advanced";
 type PreviewPage = "country" | "wiki";
@@ -296,8 +297,8 @@ function CountryDesignEditor({
           </button>
         </div>
 
-        <div className="grid gap-5 2xl:grid-cols-[minmax(420px,.82fr)_minmax(0,1.18fr)] 2xl:items-start">
-          <div className="space-y-4">
+        <div className="mysolaris-designer-web-shell grid gap-5 2xl:grid-cols-[minmax(420px,.82fr)_minmax(0,1.18fr)] 2xl:items-start">
+          <div className="mysolaris-designer-web-settings space-y-4">
             <Panel title="Surface" description="One material language applies across the whole page. Sections vary by emphasis, not by randomly switching material.">
               <OptionGrid
                 value={design.surface}
@@ -397,8 +398,8 @@ function CountryDesignEditor({
             </Panel>
 
             <Panel
-              title="Country Hero Studio · V3 preview"
-              description="See how the new cinematic Country page treats an existing image and fades into the rest of the page. This is a preview, not a V3 publication control."
+              title="Country Hero Studio"
+              description="Private cinematic preview for your country. No image is uploaded or published here."
             >
               <CountryHeroStudioPreview
                 name={country.name}
@@ -585,7 +586,7 @@ function CountryDesignEditor({
             </Panel>
           </div>
 
-          <div className="2xl:sticky 2xl:top-24">
+          <div className="mysolaris-designer-web-preview 2xl:sticky 2xl:top-24">
             <Panel
               title="Live public renderer"
               description="This preview uses the same V2 hero, surface tokens and real country sections as the public routes. Click editable regions to jump their design focus."

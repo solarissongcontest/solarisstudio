@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useReducer, useRef, useState } from "react";
 
 import { CinematicEditorialHero } from "@/components/v3/CinematicEditorialHero";
 import type { CountryDesignV2 } from "@/lib/country-design-v2";
+import { heroCropHistory, initialHeroCropHistory } from "@/lib/country-hero-crop-history";
 import {
   localHeroPreviewDimensionsError,
   localHeroPreviewFileError,
@@ -49,7 +50,9 @@ export function CountryHeroStudioPreview({
   const visibleLocalPreview = localPreview?.countryCode === code ? localPreview : null;
   const [fileError, setFileError] = useState<string | null>(null);
   const [checkingPreview, setCheckingPreview] = useState(false);
-  const [draftFocus, setDraftFocus] = useState<[number, number]>([50, 50]);
+  const [cropHistory, editCrop] = useReducer(heroCropHistory, initialHeroCropHistory);
+  const cropControlId = useId();
+  const draftFocus = cropHistory.present;
   const currentImage = design.background.mode === "image"
     ? design.background.imageUrl
     : null;
@@ -82,6 +85,7 @@ export function CountryHeroStudioPreview({
     setLocalPreview(null);
     setFileError(null);
     setCheckingPreview(false);
+    editCrop({ type: "reset" });
   }, [code, cancelPendingDecode]);
 
   const chooseLocalImage = async (file: File | undefined) => {
@@ -124,7 +128,7 @@ export function CountryHeroStudioPreview({
       }
 
       setLocalPreview({ countryCode: selectedCountry, url: blobUrl, name: file.name, ...dimensions });
-      setDraftFocus([50, 50]);
+      editCrop({ type: "reset" });
       setFileError(null);
     } catch {
       if (blobUrl) {
@@ -191,16 +195,25 @@ export function CountryHeroStudioPreview({
       </div>
       {visibleLocalPreview ? (
         <div className="country-hero-preview__focus" aria-label="Private draft focal point controls">
-          <label>
+          <label htmlFor={`${cropControlId}-horizontal`}>
             Horizontal focal point <output>{draftFocus[0]}%</output>
-            <input type="range" min="0" max="100" step="1" value={draftFocus[0]}
-              onChange={(event) => setDraftFocus((current) => [Number(event.target.value), current[1]])} />
+            <input id={`${cropControlId}-horizontal`} type="range" min="0" max="100" step="1" value={draftFocus[0]}
+              onChange={(event) => editCrop({ type: "edit", point: [Number(event.target.value), draftFocus[1]] })} />
           </label>
-          <label>
+          <label htmlFor={`${cropControlId}-vertical`}>
             Vertical focal point <output>{draftFocus[1]}%</output>
-            <input type="range" min="0" max="100" step="1" value={draftFocus[1]}
-              onChange={(event) => setDraftFocus((current) => [current[0], Number(event.target.value)])} />
+            <input id={`${cropControlId}-vertical`} type="range" min="0" max="100" step="1" value={draftFocus[1]}
+              onChange={(event) => editCrop({ type: "edit", point: [draftFocus[0], Number(event.target.value)] })} />
           </label>
+          <div className="country-hero-preview__switch" role="group" aria-label="Local crop edit history">
+            <button type="button" disabled={!cropHistory.past.length} onClick={() => editCrop({ type: "undo" })}>Undo crop</button>
+            <button type="button" disabled={!cropHistory.future.length} onClick={() => editCrop({ type: "redo" })}>Redo crop</button>
+            <button type="button" disabled={draftFocus[0] === 50 && draftFocus[1] === 50}
+              onClick={() => editCrop({ type: "edit", point: [50, 50] })}>Center crop</button>
+          </div>
+          <p className="country-hero-preview__upload-note">
+            Crop edits stay in this tab for this image only. Changing the image or country clears them. This is not publication revision history.
+          </p>
         </div>
       ) : null}
       <div className="country-hero-preview__switch" role="group" aria-label="Choose preview experience">

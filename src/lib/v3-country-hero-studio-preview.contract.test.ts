@@ -19,7 +19,8 @@ describe("MySolaris Country Hero Studio safe first slice", () => {
   });
   it("mounts the preview in existing authorized MySolaris Country designer without adding a competing writer", () => {
     expect(editor).toContain("<CountryHeroStudioPreview");
-    expect(editor).toContain("Country Hero Studio · V3 preview");
+    expect(editor).toContain('title="Country Hero Studio"');
+    expect(editor).toContain("Private cinematic preview for your country. No image is uploaded or published here.");
     expect(preview).not.toContain("uploadVerifiedFile");
     expect(preview).not.toContain(".from(");
     expect(preview).not.toContain("mutateAsync");
