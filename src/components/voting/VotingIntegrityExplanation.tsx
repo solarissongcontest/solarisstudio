@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { IntegrityIntervention } from "@/integrations/televoting/integrity-policy";
 import { voterIntegrityReasons } from "@/integrations/televoting/voter-integrity-copy";
 import { cn } from "@/lib/utils";
 
@@ -58,4 +59,13 @@ export function VotingDeclarationCheckbox({
       </details>
     </div>
   );
+}
+
+/** Visual severity follows the actual required action, not the raw risk score. */
+export function voterIntegrityBannerClass(intervention?: IntegrityIntervention) {
+  if (intervention === "provisional_review") return "border-red-300/30 bg-red-300/10 text-red-100";
+  if (intervention === "enhanced_declaration") return "border-orange-300/30 bg-orange-300/10 text-orange-100";
+  if (intervention === "declaration") return "border-amber-300/30 bg-amber-300/10 text-amber-100";
+  if (intervention === "review") return "border-cyan-300/25 bg-cyan-300/10 text-cyan-100";
+  return "border-sky-300/20 bg-sky-300/10 text-sky-100";
 }
