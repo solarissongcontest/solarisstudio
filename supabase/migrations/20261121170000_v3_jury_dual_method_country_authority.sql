@@ -242,6 +242,32 @@ begin
 end
 $submit$;
 
+-- Even a privileged internal writer cannot silently mutate immutable
+-- account-linked score evidence or mix manual scores with that ballot.
+create function private.v3_jury_protect_submitted_vote()
+returns trigger language plpgsql security definer
+set search_path=pg_catalog,public,private as $protect$
+begin
+  if tg_op in ('UPDATE','DELETE') and old.ballot_submission_id is not null then
+    raise exception 'Accepted account Jury score evidence is immutable'
+      using errcode='23514';
+  end if;
+  if tg_op in ('INSERT','UPDATE') and new.ballot_submission_id is null
+     and new.voter_country_id is not null and exists (
+       select 1 from public.jury_ballot_submissions b
+       where b.show_id=new.show_id and b.voter_country_id=new.voter_country_id
+     ) then
+    raise exception 'Account and manual Jury scores cannot coexist'
+      using errcode='23505';
+  end if;
+  return case when tg_op='DELETE' then old else new end;
+end $protect$;
+revoke all on function private.v3_jury_protect_submitted_vote()
+  from public,anon,authenticated,service_role;
+create trigger v3_jury_protect_submitted_vote
+before insert or update or delete on public.jury_votes
+for each row execute function private.v3_jury_protect_submitted_vote();
+
 -- Organizer's one-score-at-a-time actions use a server-issued revision and
 -- operation identity. This read-only preview exposes no data to non-Organizers.
 create function public.v3_organizer_jury_score_preview(
@@ -337,6 +363,25 @@ begin
         or (p_voter_id is not null and st.voter_id=p_voter_id)
         or (p_voter_entity_id is not null and st.voter_entity_id=p_voter_entity_id))
   ) then raise exception 'Restore this Jury from did-not-vote before entering scores' using errcode='23514';end if;
+  if exists(select 1 from public.voters v where v.show_id=p_show_id) then
+    if not exists(
+      select 1 from public.voters v
+      where v.show_id=p_show_id and (
+        (v_country is not null and v.country_id=v_country)
+        or (v_country is null and p_voter_entity_id is not null
+          and v.contest_entity_id=p_voter_entity_id)
+        or (v_country is null and p_voter_id is not null and v.id=p_voter_id))
+    ) then
+      raise exception 'Voting delegation is absent from the show-specific Jury roster'
+        using errcode='42501';
+    end if;
+  elsif v_country is not null and not exists (
+    select 1 from public.participants p
+    where p.show_id=p_show_id and p.country_id=v_country
+      and (p.participation_status is null or p.participation_status='confirmed')
+  ) then
+    raise exception 'Voting country is not eligible in this show' using errcode='42501';
+  end if;
   if coalesce((v_show.voting_config->>'juryEnabled')::boolean,true)=false then
     raise exception 'Jury scoring is disabled for this show' using errcode='23514';
   end if;
@@ -403,6 +448,19 @@ begin
   if v_state.revision is distinct from p_expected_version then
     raise exception 'Jury scores changed since the preview. Refresh and retry.'
       using errcode='40001';
+  end if;
+  -- Editing a completed manual ballot is a governed, reasoned correction,
+  -- including a legacy complete ballot encountered for the first time.
+  if (v_state.complete or (v_state.revision=0 and
+      (select count(*) from public.jury_votes j
+       where j.show_id=p_show_id and j.edition_id=p_edition_id
+         and j.ballot_submission_id is null
+         and ((v_country is not null and j.voter_country_id=v_country)
+           or (v_country is null and coalesce(j.voter_entity_id,j.voter_id)=v_identity))
+      )=cardinality(v_scale)))
+     and nullif(btrim(coalesce(p_reason,'')),'') is null then
+    raise exception 'Correcting a complete Jury ballot requires an explicit reason'
+      using errcode='22023';
   end if;
   -- Adopt any preexisting manual allocations once, without changing historical
   -- accepted points until an Organizer actually edits that ballot.
@@ -497,6 +555,19 @@ grant execute on function public.v3_organizer_jury_manual_snapshot(uuid)
   to authenticated,service_role;
 grant execute on function public.v3_organizer_jury_score_apply(uuid,uuid,uuid,uuid,uuid,uuid,uuid,integer,text,bigint,uuid,text)
   to authenticated,service_role;
+
+-- Revision and private-state authority must not leak through API-role table
+-- grants; the three callables remain capability guarded.
+do $post_authority$
+declare actor text;
+begin
+  foreach actor in array array['anon','authenticated','service_role'] loop
+    if has_table_privilege(actor,'private.v3_jury_manual_scores','SELECT,INSERT,UPDATE,DELETE,TRUNCATE')
+      or has_table_privilege(actor,'private.v3_jury_manual_states','SELECT,INSERT,UPDATE,DELETE,TRUNCATE')
+      or has_table_privilege(actor,'private.v3_jury_manual_operations','SELECT,INSERT,UPDATE,DELETE,TRUNCATE')
+    then raise exception 'Direct manual Jury draft authority is exposed to %',actor using errcode='42501';end if;
+  end loop;
+end $post_authority$;
 
 -- Retire the mutable legacy entry points, but keep their owner-only definitions
 -- for audited historical provenance. Organizer UI uses the CAS command above.
