@@ -273,3 +273,191 @@ expect_eq "NF response revision advances once" "$(scalar "select edit_count from
 expect_eq "NF round remains closed after correction" "$(scalar "select status from public.submission_rounds where id='$ROUND_ID';")" "closed"
 
 log "PASS: participant NF winner intent stages safely and promotes only after exact Organizer review"
+
+expect_guard_denial() {
+  local label="$1" sql="$2" result
+  if result="$(psql "$DB_URL" -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -q -c "$sql" 2>&1)"; then
+    fail "$label unexpectedly succeeded"
+  fi
+  [[ "$result" == *42501* && "$result" == *"Published or competition-locked entries require an Organizer correction"* ]] || fail "$label failed for an unexpected reason: $result"
+  log "PASS: $label"
+}
+
+# A published NF cannot switch ownership or clear its winner through an
+# ordinary edit, even when all song fields are omitted. SQL failure must roll
+# back version evidence as well as official data.
+apply_governed_response_access true '00000000-0000-4000-8000-00000000e797' 'published-nf-denial-open' 'Local denial probe'
+NF_STATE_BEFORE="$(scalar "select md5(row_to_json(n)::text) from public.national_finals n where id='$NF_ID';")"
+NF_VERSIONS_BEFORE="$(scalar "select count(*) from public.submission_versions where submission_id='$SUBMISSION_ID';")"
+expect_guard_denial "published NF method switch refused" "
+  set role authenticated;
+  set request.jwt.claims = '{\"sub\":\"$HOD_USER_ID\",\"role\":\"authenticated\"}';
+  select public.v3_submit_confirmation(
+    jsonb_build_object('round_id','$ROUND_ID','country','Maintenance NF Land',
+      'participating',true,'selection_method','internal','browser_session_id','$SESSION_ID'),
+    '00000000-0000-4000-8000-00000000e798'::uuid,'published-nf-switch-denied','$SESSION_ID');"
+expect_eq "rejected NF switch preserves official winner" "$(scalar "select md5(row_to_json(n)::text) from public.national_finals n where id='$NF_ID';")" "$NF_STATE_BEFORE"
+expect_eq "rejected NF switch preserves versions" "$(scalar "select count(*) from public.submission_versions where submission_id='$SUBMISSION_ID';")" "$NF_VERSIONS_BEFORE"
+
+log "Rehearsing reversible NF -> Internal -> NF changes on the isolated database"
+# The previous fixture intentionally published its NF lineup. The test now
+# explicitly moves this synthetic local-only fixture into an editable state;
+# a real published NF would require governed Organizer correction instead.
+exec_sql "update public.national_finals set lineup_published=false,results_published=false where id='$NF_ID';"
+apply_governed_response_access true '00000000-0000-4000-8000-00000000e791' 'switch-nf-to-internal-open' 'Local method switch permitted'
+SWITCH_TOKEN="$(as_user "$HOD_USER_ID" "select public.public_create_country_account_edit_token('$ROUND_ID'::uuid)->>'token';")"
+[[ -n "$SWITCH_TOKEN" ]] || fail "NF -> Internal token not granted"
+SWITCH_HASH="$(scalar "select encode(extensions.digest(convert_to('$SWITCH_TOKEN','UTF8'),'sha256'),'hex');")"
+NF_COUNT_BEFORE="$(scalar "select count(*) from public.national_final_entries where national_final_id='$NF_ID';")"
+NF_WINNER_BEFORE="$(scalar "select coalesce(winning_entry_id::text,'') from public.national_finals where id='$NF_ID';")"
+
+NF_TO_INTERNAL="$(as_user "$HOD_USER_ID" "
+  select public.v3_submit_confirmation(
+    jsonb_build_object(
+      'round_id','$ROUND_ID','instagram_username','maintenance_nf_hod',
+      'country','Maintenance NF Land','country_account','NFW','has_country_account',true,
+      'participating',true,'selection_method','internal',
+      'entry_unknown',false,'nf_entries_unknown',false,
+      'artist','Internal Switch Artist','song_title','Internal Switch Song',
+      'song_url','https://example.invalid/internal-switch',
+      'preview_start','00:10','final_clip_start','00:20',
+      'replacement_video_required',false,
+      'nf_name','Fixture National Final',
+      'browser_session_id','$SESSION_ID','edit_token_hash','$SWITCH_HASH'
+    ),
+    '00000000-0000-4000-8000-00000000e792'::uuid,
+    'local-switch-nf-to-internal','$SESSION_ID'
+  )::text;")"
+expect_eq "NF -> Internal save accepted" "$(python3 -c 'import json,sys; print(str(json.loads(sys.argv[1]).get("ok",False)).lower())' "$NF_TO_INTERNAL")" "true"
+expect_eq "same Confirmation ID survives switch" "$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("submission_id",""))' "$NF_TO_INTERNAL")" "$SUBMISSION_ID"
+expect_eq "active method changed to Internal" "$(scalar "select selection_method from public.submissions where id='$SUBMISSION_ID';")" "internal"
+expect_eq "original National Final row remains" "$(scalar "select count(*) from public.national_finals where id='$NF_ID' and submission_id='$SUBMISSION_ID';")" "1"
+expect_eq "all NF candidates retained" "$(scalar "select count(*) from public.national_final_entries where national_final_id='$NF_ID';")" "$NF_COUNT_BEFORE"
+expect_eq "prior reviewed NF winner retained as historical evidence" "$(scalar "select coalesce(winning_entry_id::text,'') from public.national_finals where id='$NF_ID';")" "$NF_WINNER_BEFORE"
+expect_eq "new internal song awaits review" "$(scalar "select review_status from public.internal_entries where submission_id='$SUBMISSION_ID';")" "pending"
+
+apply_governed_response_access true '00000000-0000-4000-8000-00000000e793' 'switch-internal-to-nf-open' 'Return to saved National Final history'
+RETURN_TOKEN="$(as_user "$HOD_USER_ID" "select public.public_create_country_account_edit_token('$ROUND_ID'::uuid)->>'token';")"
+[[ -n "$RETURN_TOKEN" ]] || fail "Internal -> NF token not granted"
+RETURN_HASH="$(scalar "select encode(extensions.digest(convert_to('$RETURN_TOKEN','UTF8'),'sha256'),'hex');")"
+
+INTERNAL_TO_NF="$(as_user "$HOD_USER_ID" "
+  select public.v3_submit_confirmation(
+    jsonb_build_object(
+      'round_id','$ROUND_ID','instagram_username','maintenance_nf_hod',
+      'country','Maintenance NF Land','country_account','NFW','has_country_account',true,
+      'participating',true,'selection_method','national_final',
+      'entry_unknown',false,'nf_entries_unknown',false,
+      'artist','Fixture Winner Artist','song_title','Corrected Winner',
+      'song_url','https://example.invalid/nf-winner-corrected',
+      'preview_start','00:10','final_clip_start','00:20',
+      'replacement_video_required',false,'nf_name','Fixture National Final',
+      'expected_entry_count',2,
+      'nf_entries',jsonb_build_array(
+        jsonb_build_object('artist','Fixture Winner Artist','song_title','Corrected Winner',
+          'song_url','https://example.invalid/nf-winner-corrected'),
+        jsonb_build_object('artist','Fixture Other Artist','song_title','Other Song',
+          'song_url','https://example.invalid/nf-other')
+      ),
+      'nf_date_type','unknown','nf_result_date_type','unknown',
+      'browser_session_id','$SESSION_ID','edit_token_hash','$RETURN_HASH'
+    ),
+    '00000000-0000-4000-8000-00000000e794'::uuid,
+    'local-switch-internal-to-nf','$SESSION_ID'
+  )::text;")"
+expect_eq "Internal -> NF save accepted" "$(python3 -c 'import json,sys; print(str(json.loads(sys.argv[1]).get("ok",False)).lower())' "$INTERNAL_TO_NF")" "true"
+expect_eq "NF method active again" "$(scalar "select selection_method from public.submissions where id='$SUBMISSION_ID';")" "national_final"
+expect_eq "original internal selection preserved" "$(scalar "select song_title from public.internal_entries where submission_id='$SUBMISSION_ID';")" "Internal Switch Song"
+expect_eq "NF candidates still retained" "$(scalar "select count(*) from public.national_final_entries where national_final_id='$NF_ID';")" "$NF_COUNT_BEFORE"
+expect_eq "NF winner not silently reapproved" "$(scalar "select coalesce(winning_entry_id::text,'') from public.national_finals where id='$NF_ID';")" ""
+expect_eq "all surviving NF candidates require fresh Organizer review" "$(scalar "select count(*) from public.national_final_entries where national_final_id='$NF_ID' and review_status='accepted';")" "0"
+expect_eq "switch did not duplicate Confirmation" "$(scalar "select count(*) from public.submissions where id='$SUBMISSION_ID';")" "1"
+expect_eq "both edits added version snapshots" "$(scalar "select count(*) from public.submission_versions where submission_id='$SUBMISSION_ID';")" "3"
+
+# Reversible switching must work in BOTH directions, not merely NF -> Internal
+# -> NF. Returning to Internal cannot resurrect an approval from the inactive
+# period or delete the previously reviewed NF candidates.
+apply_governed_response_access true '00000000-0000-4000-8000-00000000e795' 'switch-nf-back-to-internal-open' 'Return to saved Internal history'
+BACK_TOKEN="$(as_user "$HOD_USER_ID" "select public.public_create_country_account_edit_token('$ROUND_ID'::uuid)->>'token';")"
+[[ -n "$BACK_TOKEN" ]] || fail "NF -> Internal return token not granted"
+BACK_HASH="$(scalar "select encode(extensions.digest(convert_to('$BACK_TOKEN','UTF8'),'sha256'),'hex');")"
+BACK_TO_INTERNAL="$(as_user "$HOD_USER_ID" "
+  select public.v3_submit_confirmation(
+    jsonb_build_object(
+      'round_id','$ROUND_ID','instagram_username','maintenance_nf_hod',
+      'country','Maintenance NF Land','country_account','NFW','has_country_account',true,
+      'participating',true,'selection_method','internal',
+      'entry_unknown',false,'nf_entries_unknown',false,
+      'artist','Internal Switch Artist','song_title','Internal Switch Song',
+      'song_url','https://example.invalid/internal-switch',
+      'preview_start','00:10','final_clip_start','00:20',
+      'replacement_video_required',false,
+      'browser_session_id','$SESSION_ID','edit_token_hash','$BACK_HASH'
+    ),
+    '00000000-0000-4000-8000-00000000e796'::uuid,
+    'local-switch-nf-back-to-internal','$SESSION_ID'
+  )::text;")"
+expect_eq "return to Internal accepted" "$(python3 -c 'import json,sys; print(str(json.loads(sys.argv[1]).get("ok",False)).lower())' "$BACK_TO_INTERNAL")" "true"
+expect_eq "Internal reactivation keeps canonical response ID" "$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("submission_id",""))' "$BACK_TO_INTERNAL")" "$SUBMISSION_ID"
+expect_eq "original internal data is restored" "$(scalar "select song_title from public.internal_entries where submission_id='$SUBMISSION_ID';")" "Internal Switch Song"
+expect_eq "restored internal approval remains pending" "$(scalar "select review_status from public.internal_entries where submission_id='$SUBMISSION_ID';")" "pending"
+expect_eq "NF candidate evidence survives repeated switching" "$(scalar "select count(*) from public.national_final_entries where national_final_id='$NF_ID';")" "$NF_COUNT_BEFORE"
+expect_eq "returned Internal never activates historical NF winner" "$(scalar "select coalesce(winning_entry_id::text,'') from public.national_finals where id='$NF_ID';")" ""
+expect_eq "third method switch keeps all four historical versions" "$(scalar "select count(*) from public.submission_versions where submission_id='$SUBMISSION_ID';")" "4"
+log "PASS: bidirectional NF/Internal/NF/Internal history and review invalidation"
+
+
+log "Published Internal metadata correction and material-change denial"
+exec_sql "insert into public.participants(edition_id,country_id,artist,song,publication_status)
+  values ('$EDITION_ID','$COUNTRY_ID','Internal Switch Artist','Internal Switch Song','published');
+  insert into public.entries(edition_id,country_id,artist,song_title,status)
+  values ('$EDITION_ID','$COUNTRY_ID','Internal Switch Artist','Internal Switch Song','confirmed');"
+apply_governed_response_access true '00000000-0000-4000-8000-00000000e799' 'published-metadata-open' 'Local metadata-only correction'
+# Reconstruct every effective field from authoritative stored rows, then vary
+# only Instagram. No browser snapshot is used for Entry synchronization.
+METADATA_PAYLOAD="$(scalar "select (jsonb_build_object(
+  'round_id',s.round_id,'country',s.country,'country_account',s.country_account,
+  'has_country_account',s.has_country_account,'participating',s.participating,
+  'selection_method',s.selection_method,'entry_unknown',s.entry_unknown,'nf_entries_unknown',s.nf_entries_unknown,
+  'reveal_date_type',s.reveal_date_type,'reveal_exact_date',s.reveal_exact_date,'reveal_approximate_text',s.reveal_approximate_text,
+  'nf_date_type',s.nf_date_type,'nf_exact_date',s.nf_exact_date,'nf_approximate_text',s.nf_approximate_text,
+  'nf_result_date_type',s.nf_result_date_type,'nf_result_exact_date',s.nf_result_exact_date,'nf_result_approximate_text',s.nf_result_approximate_text,
+  'artist',i.artist,'song_title',i.song_title,'song_url',i.song_url,
+  'preview_start',i.preview_start,'preview_end',i.preview_end,
+  'final_clip_start',i.final_clip_start,'final_clip_end',i.final_clip_end,
+  'replacement_video_required',i.replacement_video_required,'replacement_video_url',i.replacement_video_url,
+  'instagram_username','metadata_only_updated','browser_session_id','$SESSION_ID'))::text
+  from public.submissions s join public.internal_entries i on i.submission_id=s.id where s.id='$SUBMISSION_ID';")"
+INTERNAL_BEFORE="$(scalar "select md5(row_to_json(i)::text) from public.internal_entries i where submission_id='$SUBMISSION_ID';")"
+VERSIONS_BEFORE="$(scalar "select count(*) from public.submission_versions where submission_id='$SUBMISSION_ID';")"
+EDIT_COUNT_BEFORE="$(scalar "select edit_count from public.submissions where id='$SUBMISSION_ID';")"
+for probe in replacement partial; do
+  if [[ "$probe" == replacement ]]; then
+    PROBE_PAYLOAD="'$METADATA_PAYLOAD'::jsonb || '{\"song_title\":\"Unauthorized replacement\"}'::jsonb"
+  else
+    PROBE_PAYLOAD="jsonb_build_object('round_id','$ROUND_ID','country','Maintenance NF Land','browser_session_id','$SESSION_ID')"
+  fi
+  # Repeat the exact failed operation: it must not create success receipts or
+  # version rows, nor consume the authorized one-shot correction.
+  for attempt in 1 2; do
+    expect_guard_denial "published Internal $probe denied (attempt $attempt)" "
+      set role authenticated;
+      set request.jwt.claims = '{\"sub\":\"$HOD_USER_ID\",\"role\":\"authenticated\"}';
+      select public.v3_submit_confirmation($PROBE_PAYLOAD,
+        '00000000-0000-4000-8000-00000000e800'::uuid,'published-internal-denied','$SESSION_ID');"
+  done
+done
+expect_eq "failed operations leave no accepted receipts" "$(scalar "select count(*) from private.v3_confirmation_operations where idempotency_key in ('00000000-0000-4000-8000-00000000e798'::uuid,'00000000-0000-4000-8000-00000000e800'::uuid);")" "0"
+expect_eq "denials preserve internal evidence" "$(scalar "select md5(row_to_json(i)::text) from public.internal_entries i where submission_id='$SUBMISSION_ID';")" "$INTERNAL_BEFORE"
+expect_eq "denials preserve version count" "$(scalar "select count(*) from public.submission_versions where submission_id='$SUBMISSION_ID';")" "$VERSIONS_BEFORE"
+METADATA_RESULT="$(as_user "$HOD_USER_ID" "select public.v3_submit_confirmation('$METADATA_PAYLOAD'::jsonb,
+  '00000000-0000-4000-8000-00000000e801'::uuid,'published-metadata-correction','$SESSION_ID')::text;")"
+expect_eq "published metadata correction succeeds" "$(python3 -c 'import json,sys; print(str(json.loads(sys.argv[1]).get("ok",False)).lower())' "$METADATA_RESULT")" "true"
+METADATA_REPLAY="$(as_user "$HOD_USER_ID" "select public.v3_submit_confirmation('$METADATA_PAYLOAD'::jsonb,
+  '00000000-0000-4000-8000-00000000e801'::uuid,'published-metadata-correction','$SESSION_ID')::text;")"
+expect_eq "successful metadata receipt replays" "$(python3 -c 'import json,sys; a,b=map(json.loads,sys.argv[1:]); assert b["receipt"].pop("replayed") is True; a["receipt"].pop("replayed"); print(str(a==b).lower())' "$METADATA_RESULT" "$METADATA_REPLAY")" "true"
+expect_eq "metadata edit advances count once" "$(scalar "select edit_count from public.submissions where id='$SUBMISSION_ID';")" "$((EDIT_COUNT_BEFORE+1))"
+expect_eq "metadata edit records one original version" "$(scalar "select count(*) from public.submission_versions where submission_id='$SUBMISSION_ID';")" "$((VERSIONS_BEFORE+1))"
+expect_eq "metadata edit consumes one-shot permission" "$(scalar "select editing_allowed::text from public.submissions where id='$SUBMISSION_ID';")" "false"
+expect_eq "metadata edit keeps same submission" "$(scalar "select count(*) from public.submissions where id='$SUBMISSION_ID' and instagram_username='metadata_only_updated';")" "1"
+expect_eq "metadata edit preserves published song" "$(scalar "select song from public.participants where edition_id='$EDITION_ID' and country_id='$COUNTRY_ID';")" "Internal Switch Song"

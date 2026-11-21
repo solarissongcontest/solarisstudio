@@ -128,6 +128,7 @@ type ResponseDetail = {
     nf_name: string | null;
     expected_entry_count: number | null;
     winning_entry_id: string | null;
+    pending_winning_entry_id?: string | null;
     entries: ReviewEntry[];
   } | null;
   history: HistoryItem[];
@@ -185,6 +186,7 @@ function detailState(data: ResponseDetail): DetailState {
     if (reviewStates.includes("declined")) return "issue";
     if (reviewStates.some((status) => status !== "accepted")) return "review";
     const winnerId = data.national_final?.winning_entry_id;
+    if (data.national_final?.pending_winning_entry_id && !winnerId) return "review";
     return winnerId && entries.some((entry) => entry.id === winnerId) ? "ready" : "neutral";
   }
 
@@ -675,7 +677,10 @@ function ResponseDetailPage() {
       setSyncingSolaris(true);
       setSolarisSyncError(null);
       try {
-        const result = await syncToSolaris({ data: { snapshot: detail } });
+        const result = await syncToSolaris({ data: {
+          submissionId: detail.id,
+          editionId: detail.edition?.id,
+        } });
         setSolarisSync(result);
         if (!result.ok) setSolarisSyncError(result.message ?? "Solaris sync needs attention.");
         return result;
@@ -764,6 +769,21 @@ function ResponseDetailPage() {
     return () => { requestGeneration.current += 1; };
   }, [load]);
 
+  // The reviewed operation has already committed before this consequence.
+  // Never misreport a projection failure as a failed authoritative review.
+  const afterOrganizerDecision = useCallback(async () => {
+    if (!data) return;
+    try {
+      const sync = await syncSnapshot(data);
+      if (!sync.ok) toast.warning(sync.message ?? "Official Entry synchronization needs attention.");
+    } catch (caught) {
+      toast.warning("Review saved. Official Entry synchronization is pending. Use Sync with Solaris to retry.");
+      console.error("[Confirmations] Post-review projection requires recovery", caught);
+    } finally {
+      await load();
+    }
+  }, [data, load, syncSnapshot]);
+
   async function changeWinner(action: "select" | "clear", reason: string, entryId: string | null) {
     if (!data?.national_final) return;
 
@@ -796,7 +816,7 @@ function ResponseDetailPage() {
       payload: { action, entryId },
       expectedVersion: preview.expectedVersion,
     });
-    const { error: rpcError } = await confirmationsSupabase.rpc(
+    const { data: winnerOperationResult, error: rpcError } = await confirmationsSupabase.rpc(
       "studio2_apply_confirmation_winner_change",
       {
         p_national_final_id: data.national_final.id,
@@ -817,7 +837,14 @@ function ResponseDetailPage() {
       },
     );
     if (rpcError) throw rpcError;
-    await load();
+    const winnerReceipt = normalizeSystemReceipt(winnerOperationResult);
+    if (!winnerReceipt || winnerReceipt.status !== "succeeded") {
+      throw new Error(
+        winnerReceipt?.error?.message ??
+          "The National Final winner change was not confirmed by an authoritative operation receipt. Reconcile before retrying.",
+      );
+    }
+    await afterOrganizerDecision();
   }
 
   async function setWinner(entry: ReviewEntry, reason: string) {
@@ -1007,7 +1034,7 @@ function ResponseDetailPage() {
           </div>
         </AdminCard>
 
-        {data.internal_entry ? (
+        {data.internal_entry && data.selection_method === "internal" ? (
           <section>
             <div className="mb-2 flex items-end justify-between gap-3 px-1">
               <div>
@@ -1023,20 +1050,22 @@ function ResponseDetailPage() {
               targetType="internal"
               editionId={data.edition?.id}
               submissionId={data.id}
-              onChanged={load}
+              onChanged={afterOrganizerDecision}
             />
           </section>
         ) : null}
 
-        {data.national_final ? (
+        {data.national_final && data.selection_method === "national_final" ? (
           <AdminCard>
             <AdminCardHeader
               eyebrow="Entry review"
               title={data.national_final.nf_name || "National Final"}
-              description={`${activeNfEntries.length} active ${activeNfEntries.length === 1 ? "entry" : "entries"}${data.national_final.winning_entry_id ? " · winner selected" : " · winner not selected"}`}
+              description={`${activeNfEntries.length} active ${activeNfEntries.length === 1 ? "entry" : "entries"}${data.national_final.winning_entry_id ? " · winner selected" : data.national_final.pending_winning_entry_id ? " · declared winner awaiting review" : " · winner not selected"}`}
               action={
                 data.national_final.winning_entry_id ? (
                   <AdminStatus tone="ready">Winner set</AdminStatus>
+                ) : data.national_final.pending_winning_entry_id ? (
+                  <AdminStatus tone="attention">Winner awaiting review</AdminStatus>
                 ) : activeNfEntries.length &&
                   activeNfEntries.every((entry) => entry.review_status === "accepted") ? (
                   <AdminStatus tone="neutral">Waiting for winner</AdminStatus>
@@ -1084,7 +1113,7 @@ function ResponseDetailPage() {
                   editionId={data.edition?.id}
                   submissionId={data.id}
                   winner={data.national_final?.winning_entry_id === entry.id}
-                  onChanged={load}
+                  onChanged={afterOrganizerDecision}
                   onWinner={(reason) => setWinner(entry, reason)}
                   onClearWinner={
                     data.national_final?.winning_entry_id === entry.id ? clearWinner : undefined

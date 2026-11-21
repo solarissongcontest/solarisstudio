@@ -1,5 +1,5 @@
 import { CheckCircle2, LoaderCircle, Plus, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,8 @@ import {
   submitMaintenanceConfirmation,
   type MaintenanceConfirmationSubmitResult,
 } from "@/lib/maintenance-confirmation-editor";
-import { prefillFromSubmission } from "@/lib/prefill";
+import { prefillFromSubmission, prefillSelectionSongCache } from "@/lib/prefill";
+import { switchConfirmationSelectionMethod, type SelectionSongCache } from "@/lib/confirmation-selection-switch";
 import { getBrowserSessionId } from "@/lib/session";
 import {
   emptyPayload,
@@ -20,6 +21,7 @@ import {
   parseTimestamp,
   type ConfirmationPayload,
   type DateType,
+  type SelectionMethod,
 } from "@/lib/ssc";
 
 function Field({
@@ -140,6 +142,8 @@ export function MaintenanceConfirmationEditor({
   const [data, setData] = useState<ConfirmationPayload>(() =>
     prefillFromSubmission(submission, emptyPayload(round.id)),
   );
+  const selectionSongCache = useRef<SelectionSongCache>(prefillSelectionSongCache(submission));
+  const [proposedMethod, setProposedMethod] = useState<SelectionMethod | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -155,6 +159,15 @@ export function MaintenanceConfirmationEditor({
         entry.song_url === data.song_url,
     );
   }, [data.artist, data.nf_entries, data.selection_method, data.song_title, data.song_url]);
+
+  function applySelectionMethod(method: SelectionMethod) {
+    const switched = switchConfirmationSelectionMethod(data, method, selectionSongCache.current);
+    selectionSongCache.current = switched.cache;
+    setData(switched.payload);
+    setProposedMethod(null);
+    setFailure(null);
+    setErrors({});
+  }
 
   function set<K extends keyof ConfirmationPayload>(key: K, value: ConfirmationPayload[K]) {
     setData((current) => ({ ...current, [key]: value }));
@@ -391,7 +404,11 @@ export function MaintenanceConfirmationEditor({
           <select
             className="min-h-11 w-full rounded-lg border border-border bg-secondary/40 px-3 text-sm text-foreground outline-none focus:border-primary"
             value={data.selection_method}
-            onChange={(event) => set("selection_method", event.target.value as ConfirmationPayload["selection_method"])}
+            onChange={(event) => {
+              const next = event.target.value as SelectionMethod;
+              if (!next || next === data.selection_method) return;
+              setProposedMethod(next);
+            }}
           >
             <option value="">Choose a method</option>
             <option value="internal">Internal Selection</option>
@@ -399,6 +416,25 @@ export function MaintenanceConfirmationEditor({
             <option value="unknown">Not known yet</option>
           </select>
         </Field>
+        {proposedMethod ? (
+          <div role="alert" className="rounded-xl border border-amber-300/35 bg-amber-300/[0.06] p-4 text-sm">
+            <p className="font-semibold">Change the submitted selection method?</p>
+            <p className="mt-1 leading-6 text-muted-foreground">
+              Solaris will keep this same Confirmation and retain previous-method
+              entries and review history. The newly active selection needs
+              Organizer approval. Published or competition-locked entries cannot
+              be changed through ordinary editing.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={() => setProposedMethod(null)}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={() => applySelectionMethod(proposedMethod)}>
+                Change method
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </Section>
 
       <Section title="Entry details" description="Artist, song and media details." open>

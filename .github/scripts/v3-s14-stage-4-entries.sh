@@ -213,13 +213,18 @@ PY
   # reconciles every show-specific participant row. No direct canonical write.
   ENTRY_FOUR_SUBMISSION="$(db_scalar "select id from public.submissions where round_id='$CONFIRMATION_ROUND_ID'::uuid and country='S14 Delegation 04' limit 1;")"
   ENTRY_FOUR_EVIDENCE_COUNT="$(db_scalar "select count(*) from private.v3_entry_versions where submission_id='$ENTRY_FOUR_SUBMISSION'::uuid;")"
+  ENTRY_FOUR_HISTORY_BEFORE="$(db_scalar "select md5(row_to_json(i)::text) from public.internal_entries i where submission_id='$ENTRY_FOUR_SUBMISSION'::uuid;")"
   WITHDRAW_OPERATION='14000000-0000-4004-8600-000000000004'
   WITHDRAW_SESSION='s14-entry-04-withdraw'
   rpc_request "$ANON_KEY" v3_submit_confirmation "{\"payload\":{\"round_id\":\"$CONFIRMATION_ROUND_ID\",\"browser_session_id\":\"$WITHDRAW_SESSION\",\"instagram_username\":\"s14_hod_04\",\"country\":\"S14 Delegation 04\",\"country_account\":\"S14 Delegation 04\",\"has_country_account\":true,\"participating\":false,\"selection_method\":\"\",\"entry_unknown\":false,\"nf_entries_unknown\":false},\"_idempotency_key\":\"$WITHDRAW_OPERATION\",\"_request_hash\":\"caller-hash-is-not-authority\",\"_browser_session_id\":\"$WITHDRAW_SESSION\"}"
   expect_success "participant Entry withdrawal"
   expect_json "participant Entry withdrawal accepted" ok true
   expect_json "participant withdrawal preserves submission identity" submission_id "$ENTRY_FOUR_SUBMISSION"
-  [[ "$(db_scalar "select count(*) from public.internal_entries where submission_id='$ENTRY_FOUR_SUBMISSION'::uuid;")" == "0" ]] || fail "withdrawn delegation still exposes an active internal Entry"
+  # Retained method content is history, not an active selection. Withdrawal
+  # must deactivate it through canonical participation/method authority while
+  # preserving the exact accepted row and immutable version evidence.
+  [[ "$(db_scalar "select count(*) from public.internal_entries i join public.submissions s on s.id=i.submission_id where s.id='$ENTRY_FOUR_SUBMISSION'::uuid and s.participating and s.selection_method='internal';")" == "0" ]] || fail "withdrawn delegation still exposes an active internal Entry"
+  [[ "$(db_scalar "select md5(row_to_json(i)::text) from public.internal_entries i where submission_id='$ENTRY_FOUR_SUBMISSION'::uuid;")" == "$ENTRY_FOUR_HISTORY_BEFORE" ]] || fail "withdrawal changed retained Internal history"
   [[ "$(db_scalar "select count(*) from private.v3_entry_versions where submission_id='$ENTRY_FOUR_SUBMISSION'::uuid;")" -ge "$ENTRY_FOUR_EVIDENCE_COUNT" ]] || fail "withdrawal destroyed immutable Entry evidence"
 
   sync_confirmation_to_solaris "$ENTRY_FOUR_SUBMISSION"
@@ -235,7 +240,7 @@ PY
   [[ "$(db_scalar "select count(*) from public.participants where edition_id='$EDITION_ID'::uuid and country_id='$WITHDRAW_COUNTRY_ID'::uuid and participation_status<>'withdrawn';")" == "0" ]] || fail "withdrawal left confirmed show-specific participant state"
 
   [[ "$(db_scalar "select count(*) from public.internal_entries i join public.submissions s on s.id=i.submission_id left join private.v3_entry_versions v on v.id=i.current_version_id where s.round_id='$CONFIRMATION_ROUND_ID'::uuid and (v.id is null or v.entry_id is distinct from i.id or v.submission_id is distinct from s.id or v.revision is distinct from i.content_revision or i.review_status<>'accepted' or i.reviewed_version_id is distinct from i.current_version_id);")" == "0" ]] || fail "accepted Entry state is not bound to valid immutable exact-version evidence"
-  [[ "$(db_scalar "select count(*) from public.internal_entries i join public.submissions s on s.id=i.submission_id where s.round_id='$CONFIRMATION_ROUND_ID'::uuid;")" == "63" ]] || fail "withdrawal did not leave the expected 63 active Entries"
+  [[ "$(db_scalar "select count(*) from public.internal_entries i join public.submissions s on s.id=i.submission_id where s.round_id='$CONFIRMATION_ROUND_ID'::uuid and s.participating and s.selection_method='internal';")" == "63" ]] || fail "withdrawal did not leave the expected 63 active Entries"
   log "S14_INVARIANT_ENTRY_COMPLETE"
 
   apply_confirmation_round_change editing '{"enabled":false}' '14000000-0000-4004-8000-000000000006' 's14-entry-correction-close'

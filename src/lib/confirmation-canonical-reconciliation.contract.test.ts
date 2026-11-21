@@ -59,6 +59,9 @@ describe("confirmation canonical reconciliation", () => {
 
   it("keeps manual snapshot sync organizer-protected", () => {
     expect(sync).toContain("await requireSolarisOrganizerServer()");
-    expect(sync).toContain("syncConfirmationSnapshotToSolarisInternal(data.snapshot)");
+    expect(sync).toContain("syncConfirmationSubmissionToSolarisInternal(data.submissionId)");
+    expect(sync).toContain('actorDb.rpc("studio2_access_allowed"');
+    expect(sync).toContain("snapshot.edition?.id !== data.editionId");
+    expect(sync).not.toContain("syncConfirmationSnapshotToSolarisInternal(data.snapshot)");
   });
 });

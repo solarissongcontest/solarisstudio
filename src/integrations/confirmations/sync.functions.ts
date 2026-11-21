@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import { createServerFn } from "@tanstack/react-start";
 
-import { requireSolarisOrganizerServer } from "@/integrations/supabase/organizer.server";
+import { createSolarisAuthenticatedClientServer, requireSolarisOrganizerServer } from "@/integrations/supabase/organizer.server";
 
 type ConfirmationReviewEntry = {
   id?: string | null;
@@ -53,6 +53,9 @@ export type ConfirmationSolarisSyncResult = {
     | "unmatched_edition"
     | "canonical_newer"
     | "canonical_owned"
+    | "publication_locked"
+    | "superseded_submission"
+    | "projection_failed"
     | "publication_event_failed";
   editionId?: string;
   countryId?: string;
@@ -343,7 +346,7 @@ async function syncConfirmationSnapshotToSolarisInternal(
   const intendedCanonicalStatus = snapshot.participating ? "confirmed" : "withdrawn";
   const canonicalGuard = await db
     .from("entries")
-    .select("id,source,status,updated_at")
+    .select("id,source,status,artist,song_title,updated_at")
     .eq("edition_id", edition.id)
     .eq("country_id", country.id)
     .maybeSingle();
@@ -358,6 +361,37 @@ async function syncConfirmationSnapshotToSolarisInternal(
       entryId: canonicalGuard.data.id,
       message:
         "Solaris already owns this canonical entry outside Confirmations. Automatic reconciliation was stopped instead of overwriting it.",
+    };
+    await recordSyncEvent(db, snapshot, result, result.message);
+    return result;
+  }
+
+  // A published *entry* is not an ordinary Confirmation projection target.
+  // Participation may be announced before the song is accepted, so publishing
+  // the participant alone must NOT block the first legitimate accepted Entry.
+  // The guard runs before creating entities or mutating any participant/Entry.
+  // Later publication corrections require the governed Organizer workflow.
+  const publishedParticipant = await db
+    .from("participants")
+    .select("id")
+    .eq("edition_id", edition.id)
+    .eq("country_id", country.id)
+    .eq("publication_status", "published")
+    .limit(1);
+  if (publishedParticipant.error) throw new Error(publishedParticipant.error.message);
+  const officialEntryAlreadyPresent =
+    Boolean(cleanText(canonicalGuard.data?.artist) && cleanText(canonicalGuard.data?.song_title));
+  if (
+    canonicalGuard.data?.status === "published" ||
+    ((publishedParticipant.data?.length ?? 0) > 0 && officialEntryAlreadyPresent)
+  ) {
+    const result: ConfirmationSolarisSyncResult = {
+      ok: false,
+      status: "publication_locked",
+      editionId: edition.id,
+      countryId: country.id,
+      entryId: canonicalGuard.data?.id,
+      message: "This Entry or participant is already published. Ordinary Confirmation synchronization cannot replace it; use the governed Organizer correction workflow.",
     };
     await recordSyncEvent(db, snapshot, result, result.message);
     return result;
@@ -682,14 +716,82 @@ export async function syncConfirmationSubmissionToSolarisInternal(
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const db = supabaseAdmin as any;
   const snapshot = await loadConfirmationSnapshotForSolarisSync(db, submissionId);
-  return syncConfirmationSnapshotToSolarisInternal(snapshot);
+  // Reconciliation can traverse historical submissions for the same country.
+  // The latest in-place response owns the projection; older submissions are
+  // history and must never overwrite it, even on delayed/out-of-order retries.
+  const current = await db
+    .from("submissions")
+    .select("id")
+    .eq("edition_id", snapshot.edition?.id)
+    .eq("country", snapshot.country)
+    .order("updated_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (current.error) throw new Error(current.error.message);
+  if (current.data?.id && current.data.id !== submissionId) {
+    return {
+      ok: true,
+      status: "superseded_submission",
+      message: "Historical Confirmation skipped; the newest response remains authoritative.",
+    };
+  }
+  try {
+    return await syncConfirmationSnapshotToSolarisInternal(snapshot);
+  } catch (caught) {
+    // An Organizer decision may already have committed before projection ran.
+    // Make that gap visible to the existing integration_events recovery task
+    // system, using the same canonical writer's audit channel.
+    const message = caught instanceof Error ? caught.message : String(caught);
+    const failure: ConfirmationSolarisSyncResult = {
+      ok: false,
+      status: "projection_failed",
+      message: `Official Entry synchronization is pending: ${message.slice(0, 240)}`,
+    };
+    await recordSyncEvent(db, snapshot, failure, failure.message);
+    return failure;
+  }
 }
 
+/**
+ * Organizer recovery always reads the current authoritative Submission/Entry
+ * rows. A browser response snapshot is never mutation authority: it may be
+ * stale, from another edition, or forged.
+ */
 export const syncConfirmationSnapshotToSolaris = createServerFn({ method: "POST" })
-  .inputValidator((data: { snapshot: unknown }) => ({
-    snapshot: assertSnapshot(data?.snapshot),
-  }))
+  .inputValidator((data: { submissionId?: unknown; editionId?: unknown }) => {
+    const submissionId = typeof data?.submissionId === "string" ? data.submissionId.trim() : "";
+    const editionId = typeof data?.editionId === "string" ? data.editionId.trim() : "";
+    if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(submissionId)) {
+      throw new Error("A valid Confirmation submission ID is required.");
+    }
+    if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(editionId)) {
+      throw new Error("An exact Organizer edition ID is required.");
+    }
+    return { submissionId, editionId };
+  })
   .handler(async ({ data }) => {
     await requireSolarisOrganizerServer();
-    return syncConfirmationSnapshotToSolarisInternal(data.snapshot);
+    // Resolve the permission from this request's authenticated actor. The
+    // privileged source reader below must never substitute for the caller's
+    // edition-scoped Confirmation capability.
+    const actorDb = createSolarisAuthenticatedClientServer() as any;
+    const permission = await actorDb.rpc("studio2_access_allowed", {
+      p_capability: "confirmation.manage",
+      p_edition_id: data.editionId,
+      p_strict_before_cutover: true,
+    });
+    if (permission.error || permission.data !== true) {
+      throw new Error("Organizer lacks current Confirmation management access for this edition.");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const snapshot = await loadConfirmationSnapshotForSolarisSync(
+      supabaseAdmin as any,
+      data.submissionId,
+    );
+    if (snapshot.edition?.id !== data.editionId) {
+      throw new Error("Confirmation no longer belongs to the selected Organizer edition.");
+    }
+    return syncConfirmationSubmissionToSolarisInternal(data.submissionId);
   });

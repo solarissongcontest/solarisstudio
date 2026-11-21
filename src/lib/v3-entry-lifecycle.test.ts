@@ -186,4 +186,83 @@ describe("V3 Entry review lifecycle", () => {
     expect(correction.issue).toBe("Correct candidate metadata.");
     expect(correction.affectedCandidateIds).toEqual(["entry-2"]);
   });
+
+  it("ignores archived Internal acceptance when the active selection is National Final", () => {
+    const active = deriveV3EntryLifecycle(
+      confirmation({
+        selectionMethod: "national_final",
+        internalEntry: candidate({
+          id: "archived-internal",
+          reviewStatus: "accepted",
+          reviewedVersionId: "version-1",
+          reviewMatchesCurrentVersion: true,
+        }),
+        nationalFinal: {
+          id: "active-nf",
+          name: "New Final",
+          winnerEntryId: null,
+          entries: [candidate({ id: "pending-nf" })],
+        },
+      }),
+    );
+    expect(active.state).toBe("awaiting-review");
+    expect(active.affectedCandidateIds).toEqual(["pending-nf"]);
+  });
+
+  it("ignores archived NF reviews when Internal is active", () => {
+    const active = deriveV3EntryLifecycle(
+      confirmation({
+        selectionMethod: "internal",
+        internalEntry: candidate({ reviewStatus: "pending" }),
+        nationalFinal: {
+          id: "archived-nf",
+          name: "Old final",
+          winnerEntryId: "archived-winner",
+          entries: [candidate({
+            id: "archived-winner",
+            reviewStatus: "accepted",
+            reviewedVersionId: "version-1",
+            reviewMatchesCurrentVersion: true,
+          })],
+        },
+      }),
+    );
+    expect(active.state).toBe("awaiting-review");
+    expect(active.affectedCandidateIds).toEqual(["entry-1"]);
+  });
+
+  it("does not treat inactive history as active when the method is unknown", () => {
+    const active = deriveV3EntryLifecycle(
+      confirmation({
+        selectionMethod: "unknown",
+        internalEntry: candidate({
+          reviewStatus: "accepted",
+          reviewedVersionId: "version-1",
+          reviewMatchesCurrentVersion: true,
+        }),
+      }),
+    );
+    expect(active.state).toBe("awaiting-review");
+  });
+
+  it("does not accept an NF before an exact-reviewed winner is selected", () => {
+    const active = deriveV3EntryLifecycle(
+      confirmation({
+        selectionMethod: "national_final",
+        internalEntry: null,
+        nationalFinal: {
+          id: "nf-2",
+          name: "Final",
+          winnerEntryId: null,
+          entries: [candidate({
+            id: "approved-candidate",
+            reviewStatus: "accepted",
+            reviewedVersionId: "version-1",
+            reviewMatchesCurrentVersion: true,
+          })],
+        },
+      }),
+    );
+    expect(active.state).toBe("awaiting-review");
+  });
 });

@@ -277,8 +277,10 @@ export function V3EntryScreen({
             </V3Surface>
           )}
 
-          {internalEntry ? <CandidateCard candidate={internalEntry} /> : null}
-          {nationalFinal ? (
+          {confirmation?.selectionMethod === "internal" && internalEntry
+            ? <CandidateCard candidate={internalEntry} />
+            : null}
+          {confirmation?.selectionMethod === "national_final" && nationalFinal ? (
             <div className="grid gap-3" data-v3-entry-national-final="">
               <div className="flex items-end justify-between gap-3 px-1">
                 <div>
