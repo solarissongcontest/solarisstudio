@@ -6,6 +6,7 @@ import {
   ArrowUp,
   Check,
   Flag,
+  GripVertical,
   ListOrdered,
   MoreHorizontal,
   Plus,
@@ -14,7 +15,7 @@ import {
   Trash2,
   UserRoundPlus,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 
@@ -46,6 +47,7 @@ import {
 } from "@/lib/data";
 import { DEFAULT_ACCENT, entityDisplayMap, type ContestEntityRow } from "@/lib/entities";
 import { reportSupabaseError } from "@/lib/errors";
+import { balancedAllocationDraft, fillUnallocatedDraft, reorderRunningOrder } from "@/lib/show-lineup-quick-actions";
 import { isCompetingParticipant } from "@/lib/participation-status";
 
 type LineupStage = "lineup" | "allocation" | "running_order";
@@ -113,6 +115,8 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
   const [allocationDirty, setAllocationDirty] = useState(false);
   const [runningOrderDraft, setRunningOrderDraft] = useState<string[]>([]);
   const [runningOrderDirty, setRunningOrderDirty] = useState(false);
+  const activeDragRef = useRef<{ id: string; pointerId: number } | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
 
   useEffect(() => {
     // Preserve an explicit deep-linked show while the asynchronous show list
@@ -170,6 +174,15 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
     allocationDraft[participant.id] ?? participant.running_order_allocation ?? "";
   const allocatedCount = lifecycleParticipants.filter((participant) => Boolean(allocationValue(participant))).length;
   const allocationComplete = lifecycleParticipants.length > 0 && allocatedCount === lifecycleParticipants.length;
+  const allocationCounts: Record<Allocation, number> = {
+    first_half: 0,
+    second_half: 0,
+    producer_choice: 0,
+  };
+  for (const participant of lifecycleParticipants) {
+    const value = allocationValue(participant);
+    if (value) allocationCounts[value]++;
+  }
 
   useEffect(() => {
     if (!activeShowId) return;
@@ -227,7 +240,8 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
     try {
       const { error: clearError } = await (supabase.from("participants") as any)
         .update({ running_order: null, running_order_allocation: null })
-        .eq("show_id", activeShow.id);
+        .eq("show_id", activeShow.id)
+        .in("id", lifecycleParticipants.map((participant) => participant.id));
       if (clearError) throw clearError;
       await setStage("allocation");
       toast.success("Allocation draw started. No running order exists yet.");
@@ -241,6 +255,26 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
 
   function assignAllocation(participantId: string, value: Allocation | null) {
     setAllocationDraft((current) => ({ ...current, [participantId]: value ?? "" }));
+    setAllocationDirty(true);
+  }
+
+  function snapshotAllocationDraft(): Record<string, Allocation | ""> {
+    return Object.fromEntries(
+      lifecycleParticipants.map((participant) => [participant.id, allocationValue(participant)]),
+    );
+  }
+
+  function randomizeAllocation(mode: "all" | "unassigned") {
+    if (busy || !lifecycleParticipants.length) return;
+    const ids = lifecycleParticipants.map((participant) => participant.id);
+    setAllocationDraft(balancedAllocationDraft(ids, snapshotAllocationDraft(), mode));
+    setAllocationDirty(true);
+  }
+
+  function fillUnallocated(group: Allocation) {
+    if (busy || !lifecycleParticipants.length) return;
+    const ids = lifecycleParticipants.map((participant) => participant.id);
+    setAllocationDraft(fillUnallocatedDraft(ids, snapshotAllocationDraft(), group));
     setAllocationDirty(true);
   }
 
@@ -480,6 +514,34 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
     }
   }
 
+  function startRunningOrderDrag(event: ReactPointerEvent<HTMLButtonElement>, id: string) {
+    if (busy || stage !== "running_order" || (event.pointerType === "mouse" && event.button !== 0)) return;
+    event.preventDefault();
+    activeDragRef.current = { id, pointerId: event.pointerId };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDraggingId(id);
+  }
+
+  function moveRunningOrderDrag(event: ReactPointerEvent<HTMLButtonElement>) {
+    const drag = activeDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const target = document.elementFromPoint(event.clientX, event.clientY)
+      ?.closest<HTMLElement>("[data-running-row-id]");
+    const targetId = target?.dataset.runningRowId;
+    if (!targetId || targetId === drag.id) return;
+    setRunningOrderDraft((current) => reorderRunningOrder(current, drag.id, targetId));
+    setRunningOrderDirty(true);
+  }
+
+  function finishRunningOrderDrag(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (activeDragRef.current?.pointerId !== event.pointerId) return;
+    activeDragRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    setDraggingId(null);
+  }
+
   function moveEntry(index: number, direction: -1 | 1) {
     if (stage !== "running_order") return;
     setRunningOrderDraft((current) => {
@@ -623,7 +685,7 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
     ? "Countries are in the show, listed A–Z. There is no running order yet."
     : stage === "allocation"
       ? "Draw First half, Second half or Producer choice for every country. Running-order positions still do not exist."
-      : "Allocation is complete. These numbered positions are the editable running-order draft.";
+      : "Drag entries into position or use the arrow controls, then save the running-order draft.";
 
   return (
     <AdminPage>
@@ -692,7 +754,7 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
           <div className="mb-4 flex flex-col gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold">{allocationDirty ? "Unsaved allocation changes" : "Allocation draw saved"}</p>
-              <p className="mt-1 text-xs text-muted-foreground">All allocation choices are committed in one atomic save.</p>
+              <p className="mt-1 text-xs text-muted-foreground">Randomize or assign countries in bulk, review the draft, then save once.</p>
             </div>
             <div className="flex gap-2">
               <button type="button" className="admin-action-secondary" disabled={!allocationDirty || busy} onClick={resetAllocationDraft}>Reset</button>
@@ -702,11 +764,46 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
             </div>
           </div>
         ) : null}
+        {stage === "allocation" && lifecycleParticipants.length ? (
+          <div className="mb-4 space-y-3 rounded-xl border border-white/[0.09] bg-white/[0.025] p-3 sm:p-4">
+            <div>
+              <p className="text-sm font-semibold">Quick allocation</p>
+              <p className="mt-1 text-xs text-muted-foreground">Balance countries across all three groups. Everything stays a draft until you press Save draw.</p>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {(Object.keys(allocationLabels) as Allocation[]).map((group) => (
+                <div key={group} className="rounded-lg border border-white/[0.07] bg-white/[0.025] px-2 py-3 text-center">
+                  <p className="numeric text-lg font-bold">{allocationCounts[group]}</p>
+                  <p className="mt-1 text-[10px] leading-4 text-muted-foreground">{allocationLabels[group]}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="admin-action-primary" disabled={busy} onClick={() => randomizeAllocation("all")}>
+                <Shuffle className="size-4" /> Random balanced draw
+              </button>
+              <button type="button" className="admin-action-secondary" disabled={busy || allocationComplete} onClick={() => randomizeAllocation("unassigned")}>
+                <Shuffle className="size-4" /> Randomize blanks
+              </button>
+            </div>
+            <div className="border-t border-white/[0.07] pt-3">
+              <p className="mb-2 text-xs text-muted-foreground">Or assign all remaining blanks in one action:</p>
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(allocationLabels) as Allocation[]).map((group) => (
+                  <button key={group} type="button" className="admin-action-secondary !min-h-9 !px-3 text-xs"
+                    disabled={busy || allocationComplete} onClick={() => fillUnallocated(group)}>
+                    {allocationLabels[group]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : null}
         {stage === "running_order" && lifecycleParticipants.length ? (
           <div className="mb-4 flex flex-col gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold">{runningOrderDirty ? "Unsaved running-order changes" : "Running order saved"}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Move as many entries as needed, then commit the complete order once.</p>
+              <p className="mt-1 text-xs text-muted-foreground">Drag the grip to reorder on desktop or mobile, or use the arrow buttons. Save once when ready.</p>
             </div>
             <div className="flex gap-2">
               <button type="button" className="admin-action-secondary" disabled={!runningOrderDirty || busy} onClick={resetRunningOrderDraft}>Reset</button>
@@ -726,9 +823,10 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
               const display = displayMap.get(key);
               const subtitle = participant.artist && participant.song ? `${participant.artist} · ${participant.song}` : participant.artist || participant.song || "Artist / song not added";
               return (
-                <div key={participant.id} className="flex min-w-0 items-center gap-2 py-3 first:pt-0 last:pb-0">
+                <div key={participant.id} data-running-row-id={stage === "running_order" ? participant.id : undefined}
+                  className={`flex min-w-0 items-center gap-2 py-3 first:pt-0 last:pb-0 ${draggingId === participant.id ? "rounded-lg bg-sky-200/[0.07] ring-1 ring-sky-200/30" : ""}`}>
                   {stage === "running_order" ? (
-                    <span className="numeric grid size-9 shrink-0 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.035] text-sm font-bold">{participant.running_order ?? "—"}</span>
+                    <span className="numeric grid size-9 shrink-0 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.035] text-sm font-bold">{index + 1}</span>
                   ) : (
                     <span className="grid min-w-9 shrink-0 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.025] px-2 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">A–Z</span>
                   )}
@@ -755,7 +853,22 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
                   ) : null}
 
                   {stage === "running_order" ? (
-                    <div className="flex shrink-0 gap-1">
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button type="button" disabled={busy} onPointerDown={(event) => startRunningOrderDrag(event, participant.id)}
+                        onPointerMove={moveRunningOrderDrag} onPointerUp={finishRunningOrderDrag}
+                        onPointerCancel={finishRunningOrderDrag}
+                        onKeyDown={(event) => {
+                          if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+                            event.preventDefault();
+                            moveEntry(index, event.key === "ArrowUp" ? -1 : 1);
+                          }
+                        }}
+                        className="admin-action-quiet size-10 !p-0 touch-none cursor-grab select-none active:cursor-grabbing"
+                        title="Drag to reorder. Arrow keys also work."
+                        aria-label={`Drag ${display?.name ?? "entry"} to reorder`}
+                        aria-pressed={draggingId === participant.id}>
+                        <GripVertical className="size-4" />
+                      </button>
                       <button type="button" disabled={busy || index === 0} onClick={() => moveEntry(index, -1)} className="admin-action-quiet size-9 !p-0" aria-label={`Move ${display?.name ?? "entry"} up`}><ArrowUp className="size-4" /></button>
                       <button type="button" disabled={busy || index === runningDraftParticipants.length - 1} onClick={() => moveEntry(index, 1)} className="admin-action-quiet size-9 !p-0" aria-label={`Move ${display?.name ?? "entry"} down`}><ArrowDown className="size-4" /></button>
                     </div>
