@@ -15,14 +15,16 @@ describe("S14 Grand Final voting preparation", () => {
     expect(finalLeg).toContain("S14_GRAND_FINAL_PREPARED_FROM_CANONICAL_QUALIFIERS");
   });
 
-  it("reuses governed Jury authority for all 66 delegations", () => {
+  it("reuses governed Jury authority for 65 eligible delegations", () => {
     expect(finalVoting).toContain("governed_jury_window_change");
     expect(jury).toContain("studio2_jury_window_change_preview");
     expect(jury).toContain("studio2_apply_jury_voting_status");
     expect(finalVoting).toContain("seq 1 66");
     expect(finalVoting).toContain("v3_submit_jury_ballot");
     expect(finalVoting).toContain("v3_reconcile_jury_submission");
-    expect(finalVoting).toContain("660");
+    expect(finalVoting).toContain("650");
+    expect(finalVoting).toContain("Grand Final voting requires the 65 eligible-delegation Jury roster");
+    expect(finalVoting).toContain("if (( i == 4 )); then continue; fi");
     expect(finalVoting).toContain("own-country Jury vote survived canonical validation");
     expect(finalVoting).not.toMatch(/insert\s+into\s+public\.jury_votes/i);
   });
