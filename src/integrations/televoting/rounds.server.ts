@@ -1,8 +1,8 @@
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 import {
   ensureCanonicalTelevotingEditionsServer,
-  syncMergedRoundFromSolarisServer,
 } from "@/integrations/televoting/solaris-sync.server";
 import type { MergedRoundStatusPreview } from "@/integrations/televoting/rounds.functions";
 
@@ -21,9 +21,10 @@ export type MergedAdminRoundServer = {
 async function audit(
   actor: { id: string; username: string },
   action: string,
-  values: { targetType?: string; targetId?: string; oldValues?: unknown; newValues?: unknown },
+  values: { targetType?: string; targetId?: string; oldValues?: unknown; newValues?: unknown; auditId?: string },
 ) {
-  await televotingAdmin.from("admin_audit_log").insert({
+  const { error } = await televotingAdmin.from("admin_audit_log").insert({
+    ...(values.auditId ? { id: values.auditId } : {}),
     actor_admin_id: actor.id,
     actor_username: actor.username,
     action,
@@ -32,6 +33,9 @@ async function audit(
     old_values: values.oldValues ?? null,
     new_values: values.newValues ?? null,
   });
+  // A replay of a client-keyed creation must not produce duplicate audit rows.
+  // Keep historical audit behaviour unchanged for other operations.
+  if (values.auditId && error && error.code !== "23505") throw new Error(error.message);
 }
 
 export async function getMergedTelevotingRoundsServer() {
@@ -83,64 +87,109 @@ export async function getMergedTelevotingRoundsServer() {
   }));
 }
 
-export async function createMergedTelevotingRoundServer(data: { editionId: string; name: string }) {
+export async function createMergedTelevotingRoundServer(data: {
+  editionId: string;
+  name: string;
+  roundId: string;
+}) {
   const actor = await requireMergedTelevotingAdminServer();
-  const canonicalEditions = await ensureCanonicalTelevotingEditionsServer();
-  const edition = canonicalEditions.find((candidate) => candidate.id === data.editionId);
-  if (!edition) throw new Error("Choose a canonical Solaris edition");
+  await requireSolarisCapabilityServer("voting.manage", data.editionId);
 
-  const { data: row, error } = await televotingAdmin
+  // The page already uses this exact-edition, read-only RPC. Never run the
+  // catalogue-wide edition synchronizer just to create one draft: that loops
+  // over historical editions and can exhaust Cloudflare Worker subrequests.
+  const { data: rawOverview, error: overviewError } = await televotingAdmin.rpc(
+    "admin_rounds_page_overview",
+    { p_solaris_edition_id: data.editionId },
+  );
+  if (overviewError) throw new Error(overviewError.message);
+  const overview = rawOverview as {
+    linked?: boolean;
+    edition?: { id?: string; solaris_id?: string; edition_number?: number } | null;
+  } | null;
+  const remoteEditionId = overview?.edition?.id;
+  if (!overview?.linked || !remoteEditionId || overview.edition?.solaris_id !== data.editionId) {
+    throw new Error("This Solaris edition is not linked to public voting. Link it before creating a round.");
+  }
+
+  // A stable client-generated UUID prevents duplicate drafts after an uncertain
+  // Worker response. Replays may only recover the same unchanged draft.
+  const { data: inserted, error: insertError } = await televotingAdmin
     .from("rounds")
-    .insert({ edition_id: edition.id, name: data.name, status: "draft" })
+    .insert({ id: data.roundId, edition_id: remoteEditionId, name: data.name, status: "draft" })
     .select("id,name")
     .single();
-  if (error) throw new Error(error.message);
+  const replay = insertError?.code === "23505";
+  if (insertError && !replay) throw new Error(insertError.message);
+
+  let row: { id: string; name: string } | null = inserted;
+  if (replay) {
+    const { data: existing, error: readError } = await televotingAdmin
+      .from("rounds")
+      .select("id,edition_id,name,status")
+      .eq("id", data.roundId)
+      .maybeSingle();
+    if (readError) throw new Error(readError.message);
+    if (!existing || existing.edition_id !== remoteEditionId || existing.name !== data.name || existing.status !== "draft") {
+      throw new Error("This round creation can no longer be safely retried. Refresh the voting rounds.");
+    }
+    row = { id: existing.id, name: existing.name };
+  }
+  if (!row) throw new Error("Round creation returned no round. Refresh before retrying.");
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const solaris = supabaseAdmin as any;
-  const now = new Date().toISOString();
-  const { error: bindingError } = await solaris.from("televoting_round_bindings").upsert(
-    {
-      remote_round_id: row.id,
-      remote_edition_id: edition.id,
-      edition_id: edition.solaris_id,
-      show_id: null,
-      source_mode: "edition",
-      last_synced_at: null,
-      frozen_at: null,
-      updated_at: now,
-    },
-    { onConflict: "remote_round_id" },
-  );
-  if (bindingError) throw new Error(bindingError.message);
-
-  let syncWarning: string | null = null;
-  try {
-    await syncMergedRoundFromSolarisServer({
-      roundId: row.id,
-      sourceMode: "edition",
-      showId: null,
-    });
-  } catch (caught) {
-    // Keep the newly-created draft bound even when an edition does not yet have
-    // enough confirmed participants to form a valid voting round. Future
-    // confirmation changes will retry it automatically.
-    syncWarning = caught instanceof Error ? caught.message : "Canonical line-up could not be populated yet";
+  let alreadyBound = false;
+  if (replay) {
+    const { data: binding, error: bindingReadError } = await solaris
+      .from("televoting_round_bindings")
+      .select("remote_edition_id,edition_id")
+      .eq("remote_round_id", row.id)
+      .maybeSingle();
+    if (bindingReadError) throw new Error(bindingReadError.message);
+    if (binding) {
+      if (binding.remote_edition_id !== remoteEditionId || binding.edition_id !== data.editionId) {
+        throw new Error("Existing round binding has a different edition. No changes were made.");
+      }
+      alreadyBound = true;
+    }
   }
 
+  if (!alreadyBound) {
+    const now = new Date().toISOString();
+    const { error: bindingError } = await solaris.from("televoting_round_bindings").upsert(
+      {
+        remote_round_id: row.id,
+        remote_edition_id: remoteEditionId,
+        edition_id: data.editionId,
+        show_id: null,
+        source_mode: "edition",
+        last_synced_at: null,
+        frozen_at: null,
+        updated_at: now,
+      },
+      { onConflict: "remote_round_id" },
+    );
+    if (bindingError) throw new Error(bindingError.message);
+  }
+
+  // Line-up synchronization is a separate explicit Organizer action, after
+  // selecting the appropriate edition/show source. Do not make draft creation
+  // fan out into per-country/per-entry writes.
   await audit(actor, "create_round", {
+    auditId: row.id,
     targetType: "round",
     targetId: row.id,
     newValues: {
       name: data.name,
-      edition_id: edition.id,
-      solaris_edition_id: edition.solaris_id,
-      edition_number: edition.edition_number,
+      edition_id: remoteEditionId,
+      solaris_edition_id: data.editionId,
+      edition_number: overview.edition?.edition_number ?? null,
       canonical_source: "edition",
-      canonical_sync_warning: syncWarning,
+      lineup_requires_configuration: true,
     },
   });
-  return { ...row, sync_warning: syncWarning };
+  return { ...row, sync_warning: null };
 }
 
 export async function renameMergedTelevotingRoundServer(data: { id: string; name: string }) {
