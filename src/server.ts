@@ -21,6 +21,13 @@ import {
   maintenancePublicWebsiteEnabled,
 } from "./lib/maintenance";
 import { LIMITED_PUBLIC_LAUNCH, limitedPublicLaunchAllows } from "./lib/public-launch-availability";
+import {
+  ADMIN_PAGE_PREVIEW_COOKIE,
+  ADMIN_PAGE_PREVIEW_MAX_AGE,
+  ADMIN_PAGE_PREVIEW_SESSION_PATH,
+  isAdminPreviewPagePath,
+  verifyAdminPagePreviewToken,
+} from "./lib/admin-page-preview";
 import { renderMaintenanceHodPortal } from "./lib/maintenance-hod-portal";
 import { renderMaintenancePage } from "./lib/maintenance-page";
 import { renderV42MaintenancePreview } from "./lib/rules-v42-maintenance-preview";
@@ -611,14 +618,63 @@ export default {
         return limitedAppLaunchResponse(request.method);
       }
 
+      // Organizer preview is an authenticated read-only page exception, NOT a
+      // public feature rollout or a bypass for Supabase RLS/publication state.
+      // A browser cannot set this cookie without a valid global Organizer role.
+      if (!GLOBAL_MAINTENANCE_MODE && url.pathname === ADMIN_PAGE_PREVIEW_SESSION_PATH) {
+        const origin = request.headers.get("origin");
+        if (origin !== url.origin) return new Response(null, { status: 403 });
+        const cookieSettings = `Path=/; HttpOnly; SameSite=Strict${url.protocol === "https:" ? "; Secure" : ""}`;
+        if (request.method === "DELETE") {
+          return new Response(null, {
+            status: 204,
+            headers: {
+              "set-cookie": `${ADMIN_PAGE_PREVIEW_COOKIE}=; Max-Age=0; ${cookieSettings}`,
+              "cache-control": "no-store",
+            },
+          });
+        }
+        if (request.method !== "POST") return new Response(null, { status: 405 });
+        const match = /^Bearer ([A-Za-z0-9_.-]{1,4096})$/.exec(request.headers.get("authorization") ?? "");
+        const permitted = match && await verifyAdminPagePreviewToken(match[1], {
+          url: hod.supabaseUrl,
+          publishableKey: hod.publishableKey,
+        });
+        if (!permitted) return new Response(null, {
+          status: 403,
+          headers: { "cache-control": "no-store" },
+        });
+        return new Response(JSON.stringify({ enabled: true }), {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+            "cache-control": "private, no-store",
+            "x-robots-tag": "noindex, nofollow",
+            "set-cookie": `${ADMIN_PAGE_PREVIEW_COOKIE}=${encodeURIComponent(match![1])}; Max-Age=${ADMIN_PAGE_PREVIEW_MAX_AGE}; ${cookieSettings}`,
+          },
+        });
+      }
+
       // Removing outage maintenance never implies releasing the whole V3 app.
       // Enforce the limited public surface before TanStack SSR or routing.
+      let adminPagePreviewGranted = false;
       if (
         !GLOBAL_MAINTENANCE_MODE && LIMITED_PUBLIC_LAUNCH &&
         !limitedPublicLaunchAllows(url.pathname) &&
         !isLimitedLaunchInfrastructurePath(url.pathname)
       ) {
-        return limitedLaunchUnavailableResponse(request.method);
+        if ((request.method === "GET" || request.method === "HEAD") &&
+            isAdminPreviewPagePath(url.pathname)) {
+          const raw = readCookie(request, ADMIN_PAGE_PREVIEW_COOKIE);
+          const token = raw ? (() => {
+            try { return decodeURIComponent(raw); } catch { return ""; }
+          })() : "";
+          adminPagePreviewGranted = await verifyAdminPagePreviewToken(token, {
+            url: hod.supabaseUrl,
+            publishableKey: hod.publishableKey,
+          });
+        }
+        if (!adminPagePreviewGranted) return limitedLaunchUnavailableResponse(request.method);
       }
 
       // Explicit public, static, zero-network rulebook preview during maintenance.
@@ -764,6 +820,13 @@ export default {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       const normalized = await normalizeCatastrophicSsrResponse(response);
+      if (adminPagePreviewGranted) {
+        const headers = new Headers(normalized.headers);
+        headers.set("cache-control", "private, no-store");
+        headers.set("x-robots-tag", "noindex, nofollow");
+        headers.set("vary", "Cookie");
+        return new Response(normalized.body, { status: normalized.status, headers });
+      }
 
       // Never leave the guarded recovery page blank on a failed app render.
       // Keep all ordinary maintenance writes blocked; this fallback is static.
