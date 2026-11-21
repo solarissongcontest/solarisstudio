@@ -15,7 +15,7 @@ function Frame({ children }: { children: ReactNode }) {
   // AppShell owns the single page <main> landmark and shared navigation.
   // Keep it mounted through platform detection, so SSR and app hydration
   // never replace the entire navigation with a standalone loading <div>.
-  return <AppShell><div className={"world-bodies-frame mx-auto w-full pb-28 " +
+  return <AppShell><div className={"world-bodies-frame mx-auto w-full pb-28 [overflow-wrap:anywhere] " +
     (isAppMode ? "" : "world-bodies-editorial ") +
     (isAppMode ? "max-w-2xl px-3 pt-3" : "max-w-6xl px-4 pt-6 sm:px-6 sm:pt-8")}>
     {platformResolved ? children : (
@@ -228,7 +228,7 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
         <p className="mt-4 text-sm capitalize text-muted-foreground">{result.body.type.replace(/_/g, " ")} · {result.body.status}</p>
       </header>
       <div className="world-body-reading-grid mt-8 grid gap-8 border-t border-border pt-7 lg:grid-cols-[minmax(0,1fr)_16rem]">
-        <section className="max-w-2xl"><h2 className="text-xl font-semibold">About this body</h2>
+        <section className="min-w-0 max-w-2xl"><h2 className="text-xl font-semibold">About this body</h2>
           <p className="mt-4 whitespace-pre-line leading-7 text-muted-foreground">
             {result.body.description || "An official description has not been published."}
           </p>
@@ -236,7 +236,7 @@ export function WorldBodyDetails({ slug, bodySlug }: { slug: string; bodySlug: s
             className="mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary">
             All public bodies <ArrowRight className="size-4" aria-hidden="true" /></Link>
         </section>
-        <aside className="world-body-detail-aside border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+        <aside className="world-body-detail-aside min-w-0 border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
           <h2 className="font-semibold">Active offices of this body</h2>
           <p className="mt-2 text-xs leading-5 text-muted-foreground">
             Currently active public office definitions only. This is not a historical office roster;
