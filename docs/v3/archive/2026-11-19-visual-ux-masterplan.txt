@@ -1,0 +1,364 @@
+# SOLARIS STUDIO V3
+# VISUAL & UX REDESIGN MASTERPLAN
+## Kuvakaappausauditointi, sovittu designsuunta ja koko tuotteen viimeistely
+
+Päiväys: 19.11.2026
+Status: tässä keskustelussa sovittu visuaalinen ja käytettävyyslähtöinen suunnittelusuunta sekä sen pohjalta koottu toteutussuunnitelma. EI väite siitä, että uudistus olisi toteutettu, hyväksytty julkaistavaksi tai että kaikki ehdotukset olisivat jo kanonista koodia.
+Soveltamisala: Solaris Studion julkinen desktop-web ja tavallinen mobile web, Organizer sekä Delegation/MySolaris. Asennetun PWA:n kuvakaappaukset jätettiin tämän auditoinnin ulkopuolelle, koska ne eivät edustaneet oikeaa vertailtavaa designia. PWA:n olemassa olevia oikeita vaatimuksia, toimintoja tai erillistä designia ei saa rikkoa myöhemmissä muutoksissa.
+
+Tämän suunnitelman tarkoitus on nostaa Solaris Studio merkittävästi nykyistä korkeammalle visuaaliselle ja käytettävyydelliselle tasolle. Kyse ei ole kosmeettisesta faceliftistä, vaan sivujen sommittelun, sisältöhierarkian, navigoinnin, typografian ja yksityiskohtien huolellisesta uudelleensuunnittelusta.
+
+============================================================
+1. MITÄ TARKASTELTIIN JA MITÄ HAVAITTIIN
+============================================================
+
+1.1 Tarkastelun perusta
+
+19.11.2026 laadittiin 528 kuvakaappauksen vertailuaineisto. Tämä auditointi keskittyi desktop-webin ja tavallisen mobile webin pysyviin julkisiin sivuihin sekä Organizerin ja delegaation näkymiin, ei väliaikaiseen suppeaan navigaatioon eikä asennetun PWA:n kuvakaappauksiin.
+
+Tarkasteltuja kokonaisuuksia olivat mm. Home, Explore, Countries ja Country detail, Editions ja Edition detail, Shows, Results, Records, Wiki, Rules, Stories/Archive, Organizerin edition-työtilat, Tasks, Design, Control Room sekä MySolaris/Delegation History.
+
+Kuvat otettiin nykyisen lähdekoodin eristetyssä testiympäristössä synteettisellä datalla, eikä niitä pidä erehtyä pitämään tuotantodatan täydellisenä esityksenä. Puuttuvia kuvia, lippuja ja tyhjiä tietosisältöjä ei siksi automaattisesti luokitella tuotannon virheiksi. Käyttöliittymän rakenne, keskinäiset mittasuhteet, navigaatio ja sommittelu ovat silti arvioitavissa.
+
+1.2 Havaitut pääongelmat
+
+- Sivusto on tunnistettavasti Solaris, mutta monet sivut näyttävät enemmän geneeriseltä dashboardilta kuin korkeatasoiselta kilpailu- ja maailma-alustalta.
+- Kortteja, paneeleja, laatikoita ja pillereitä on usein liikaa. Kortti kortin sisällä tekee sivusta raskaan.
+- Otsikot, selitystekstit, hakukentät ja suodattimet vievät joskus huomion varsinaiselta sisällöltä.
+- Visuaalinen hierarkia on heikko: tärkeä ja toissijainen sisältö voivat näyttää yhtä painavilta.
+- Sivujen rytmi ja välitykset vaihtelevat. Tyhjä tila on toisinaan mittasuhteiltaan epätarkkaa eikä tarkoituksellista.
+- Country- ja Edition-detailien identiteetti voisi olla paljon näyttävämpi, henkilökohtaisempi ja kuvallisempi.
+- Countries-, Shows- ja Rules-sivujen mobiilialku vie liikaa tilaa ennen varsinaista sisältöä.
+- Tavallisen mobile webin kuvissa näkyi PWA-tyylinen kiinteä viiden kohteen alapalkki ja lisäksi verkkosivun muu navigaatio. Tämä pitää tarkistaa ja korjata varsinaisen mobile-web-shellin mukaiseksi.
+- Organizer on toiminnallisesti tarkoituksenmukainen, mutta mobiilissa otsakkeet, välilehdet ja suodattimet ruuhkautuvat. Tasks-sivun tilasuodattimien tekstit rivittyvät käyttökelvottoman kapeiksi.
+- MySolaris/Delegationin pitkät hallintalomakkeet ja historialomakkeet ovat raskaita ja vaativat selkeämmän rakenteen.
+- Liialliset kuvailevat, markkinointimaiset ja kehittäjämäiset tekstit saavat tuotteen näyttämään tekoälyn generoimalta tai sisäiseltä hallintatyökalulta.
+
+1.3 Säilytettävät vahvuudet
+
+- Tumma Solaris-värimaailma ja tunnistettava identiteetti.
+- Kilpailulle ja eri osa-alueille soveltuvat hillityt korostusvärit.
+- Organizerin oma ammattimainen luonne ja desktopin sivunavigaation perusajatus.
+- Laaja todellinen toiminnallisuus, historia, tulosdata, World, osallistuminen ja käyttöoikeuksien mukaiset työkalut.
+- Liquid Glass harkitusti navigoinnissa ja ohjaimissa, ei kaikkialla sisällössä.
+
+============================================================
+2. SOVITTU VISUAALINEN SUUNTA
+============================================================
+
+Työnimi: CINEMATIC EDITORIAL SOLARIS.
+
+Solaris Studio näyttää laadukkaalta, tyylikkäältä, harkitusti näyttävältä ja aidolta kilpailuorganisaation tuotteelta. Se saa olla persoonallinen, mutta ei koristeellinen vain koristeellisuuden vuoksi.
+
+Neljä toisiaan tukevaa ilmettä:
+
+A. CINEMATIC: Country-, Edition- ja suuret tapahtumasivut. Vahva laadukas kuva/artwork, suuri tarkoituksellinen otsikko, tunnelma, hienovarainen syvyys ja saumaton siirtymä sisältöön.
+B. EDITORIAL: Home, Explore, Wiki, Stories ja Archive. Laadukkaan digitaalisen julkaisun ja tietosanakirjan typografia, sommittelu ja kuvarytmi.
+C. DATA-DRIVEN: Results, Records, Voting ja analytiikka. Tulokset, rankingit, liput, luvut ja vertailut ovat pääasia. Näyttävä ei tarkoita vaikealukuisuutta.
+D. OPERATIONAL: Organizer ja MySolaris. Rauhallinen, täsmällinen ja tehokas ammattityökalu. Ei tarpeettomia suuria heroja tai koristeita.
+
+Nämä eivät ole neljä eri tuotetta. Yhteinen Solaris-designjärjestelmä yhdistää ne, mutta yksittäisen sivun kompositio määräytyy sisällön ja käyttötarkoituksen mukaan.
+
+Pääperiaate: HIERARKIA ENNEN KORISTELUA. Selkeys ja estetiikka vahvistavat toisiaan. Tavoitteena on huomattava laadunparannus, ei pienten reunapyöristysten vaihtaminen.
+
+============================================================
+3. KOKO TUOTTEEN DESIGNJÄRJESTELMÄ
+============================================================
+
+3.1 Sommittelu
+
+- Yksi selvä visuaalinen pääasia sivua kohti.
+- Ensin kiinnostavin tai tärkein sisältö, sen jälkeen tukitiedot ja työkalut.
+- Vähemmän päällekkäisiä otsake-, konteksti-, toolbar- ja navigointitasoja.
+- Ei korttia jokaiselle faktalle. Hyödynnetään typografiaa, selkeitä rivejä, erotinviivoja, kuvia ja taulukoita.
+- Korostettu kortti vain silloin, kun sisältö todella ansaitsee korostuksen.
+- Desktopin tila käytetään tarkoituksellisesti. Ei kapeaa mobiilisivua keskellä valtavaa tyhjää aluetta eikä turhaa kolmea identtistä korttisaraketta.
+- Mobiilissa tärkeä sisältö alkaa nopeasti; turhat johdannot ja isot navigaatiopinot poistetaan.
+
+3.2 Typografia
+
+- Selkeä ja harmoninen typografinen asteikko: näyttävä hero-otsikko, vahva sivuotsikko, hyvin erottuvat osio-otsikot, mukavan kokoinen leipäteksti ja luettava metadata.
+- Editorial-/display-typografiaa käytetään harkiten otsikoissa, ei tavallisissa painikkeissa ja lomakkeissa.
+- Pitkien maan- ja editionnimien rivittyminen suunnitellaan. Pieni harmaa teksti ei saa olla pääasiallinen tapa esittää tärkeää tietoa.
+- Virallisten nimien, päivämäärien ja numeroiden tulee erottua ilman ylikorostusta.
+
+3.3 Värit, pinnat ja välistykset
+
+- Säilytetään Solaris-peruspaletti, mutta yhtenäistetään taustat, korostusvärit, reunat, radiukset ja tilavärit.
+- Yhden sivun sisällä on rajattu, perusteltu pintahierarkia; ei jatkuvaa eri tummuisten laatikoiden kasaamista.
+- Käytetään olemassa olevien tokenien mukaista säännöllistä välistystä. Suunnittelun lähtöasteikko 4, 8, 12, 16, 24, 32 ja 48 px tilanteen mukaan.
+- Osioiden välinen tila saa olla suuri, jos se selittää rakenteen, ei sattumanvaraisesti.
+- Liquid Glass kuuluu ensisijaisesti sopiviin navigointi- ja ohjauskerroksiin, ei jokaiseen tietokorttiin.
+
+3.4 Kuvat ja identiteetit
+
+- Maa ja kilpailu saavat oman tunnistettavan visuaalisen identiteetin.
+- Maan kanoninen lippu säilyy aina oikeassa 3:2-kuvasuhteessa eikä korvaudu herokuvalla.
+- Hyvät kuvat saavat näyttää kuvina, eivät pieninä laatikon koristeina.
+- Kuva- ja artwork-rajaukset ovat responsiivisia, luettavia ja tarvittaessa focal-point-ohjattuja.
+- Puuttuvalle kuvalle suunnitellaan laadukas, identiteettiin sopiva fallback; ei rikkinäisen median vaikutelmaa.
+
+3.5 Liike ja yksityiskohdat
+
+- Hienovaraiset siirtymät, selkeät hover/focus/pressed/selected-tilat ja luonnollinen palaute.
+- Ei pakotettua jatkuvaa liikettä, turhaa parallaxia tai näyttävyyttä käytettävyyden kustannuksella.
+- Reduced Motion ja saavutettavuus huomioidaan.
+- Tyhjät, lataavat, virheelliset, lukitut, tulevat, live- ja valmistuneet tilat suunnitellaan yhtä huolellisesti kuin täydet sivut.
+
+============================================================
+4. KIELI JA SISÄLTÖ: EI AI-YAPPINGIA
+============================================================
+
+Tämä on käyttäjän nimenomaisesti päättämä laatukriteeri.
+
+- Julkiset sivut käyttävät lyhyttä, luonnollista, täsmällistä kieltä.
+- Älä täytä sivua esittelyteksteillä, jotka vain kertovat otsikon uudestaan.
+- Ei AI-tyylisiä iskulauseita, turhaa innostunutta markkinointikieltä tai jatkuvaa 'discover/explore/experience your journey' -retoriikkaa.
+- Ei ohjelmistokehittäjien termejä tavalliselle käyttäjälle. Esimerkiksi 'entity', 'payload', 'workflow', 'configuration', 'operational surface' tai 'server-authoritative state' eivät kuulu julkisten sivujen käyttöliittymäteksteihin.
+- Otsikko 'Countries' voi riittää. Hakukenttä ja suodattimet kertovat jo, mitä sivulla tehdään.
+- Painikkeen teksti kertoo toiminnon: 'View results', 'Edit entry', 'Save changes'. Ei monisanaisia, epämääräisiä lupauksia.
+- Vältä samaa selitystä otsakkeessa, kortissa ja alaosassa.
+- Virhe-, lupa-, tallennus- ja julkaisutilanteissa on kuitenkin annettava tarpeellinen, ymmärrettävä tieto ja seuraava askel. Lyhyys ei tarkoita epäselvyyttä.
+- Wiki-artikkelit, Worldin taustoitukset, historia ja varsinaiset säännöt saavat ja niiden pitääkin olla tarvittaessa pitkiä: käyttäjä tulee niihin lukemaan sisältöä.
+- Organizerissa saa näkyä täsmällisiä alan termejä silloin, kun ne ovat käyttäjän tehtävän kannalta tarpeellisia, mutta ei kehittäjien sisäistä sanastoa tarpeettomasti.
+- Kirjoitetaan kuin oikea toimitus, kilpailuorganisaatio ja tuotetiimi. Ei kuin chatbotti, joka selittää käyttäjälle käyttöliittymäänsä.
+
+============================================================
+5. KOLME ERILLISTÄ KÄYTTÖKOKEMUSTA
+============================================================
+
+Solaris on yksi tuote ja yksi kanoninen tieto, mutta kolme erilaista käyttöliittymäkokemusta:
+
+A. Tavallinen MOBILE WEB: premium-editorial mobiiliverkkosivusto, oma web-header, normaali selaus ja back/forward, jaettavat osoitteet ja verkkosivumainen navigointi. Ei asennetun PWA:n viiden välilehden app-dockia oletuksena.
+B. DESKTOP WEB: leveän näytön hyödyt, tarkoituksellinen navigaatio ja sommittelu, taulukot, vertailut, sarakkeet ja hiiri/näppäimistökäytettävyys.
+C. INSTALLED PWA: erillinen sovellusmainen kokemus, jonka olemassa oleva hyväksytty navigaatio ja safe-zone-vaatimukset pysyvät voimassa. Tämän chatin virheellisiä PWA-kuvia ei käytetä redesignin lähtökohtana.
+
+Tärkeä rajaus: keskustelun kuvakaappausanalyysissa oli mukana A ja B sekä Organizer/MySolaris niiden sisällä; C jätettiin nimenomaisesti pois kuvien virheellisyyden vuoksi. Tämä EI ole päätös poistaa PWA:ta tuotteesta tai jättää sitä myöhemmissä regressiotesteissä huomioimatta.
+
+Mobile web ei ole pienennetty desktop eikä PWA selainpalkilla. Desktop ei ole venytetty mobiilisivu. Kun yhteisiä komponentteja muutetaan, kaikkien tuettujen kokemusten vaikutukset tarkistetaan.
+
+============================================================
+6. JULKINEN PUOLI: SIVUKOHTAISET VAATIMUKSET
+============================================================
+
+6.1 Home
+
+- Etusivu tuntuu aidolta kilpailuportaalilta eikä dashboardin korttiluettelolta.
+- Yksi selvä pääuutinen / ajankohtainen edition tai show tilanteen mukaan.
+- Sen jälkeen tarkoituksenmukaiset nostot: ohjelma, live, tulokset, uutiset ja pikalinkit.
+- Vältetään loputonta samanarvoista korttijonoa ja irrallisia statuslaatikoita.
+- Sisältö heijastaa todellista kanonista tilaa eikä keksi näyttävää filler-sisältöä.
+
+6.2 Explore
+
+- Selkeä tapa löytää maat, editionit, show't, historia, Wiki ja muu sisältö.
+- Tärkeimmät kategoriat erotetaan visuaalisesti, ei vain samoina linkkikortteina.
+- Haku helposti löydettävissä, mutta ei ylisuurena sisällön edessä.
+- Käyttäjän pitää ymmärtää seuraava sopiva polku yhdellä silmäyksellä.
+
+6.3 Countries-hakemisto
+
+- Otsake kompaktimmaksi; varsinainen maalista tulee näkyviin aikaisin.
+- Haku ja alue-/maasuodattimet yhdeksi selkeäksi kokonaisuudeksi.
+- Liput, nimet ja alueet muodostavat laadukkaan selattavan maaluettelon tai sopivan korttigridin.
+- Mobile web: helposti luettavat rivit; desktop: harkittu väljempi sommittelu.
+- Ei turhaa toistoa kahden jättipainikkeen, hakukentän ja suodatinalueen välillä.
+
+6.4 Country detail: kokonainen cinematic-redesign
+
+- Ei vain banneria nykyisen sivun päälle, vaan nykyisen sommittelun korvaaminen kokonaisuudella.
+- Herokuvan päällä selkeä maan nimi ja korkeintaan lyhyt todellinen lisätieto.
+- Kuva sulautuu pehmeästi sisältötaustaan. Ei näkyvää kuvan ja sivun saumaa eikä erillistä hero-korttia.
+- Heron jälkeen 3:2-lippu ja tiivis identiteettirivi, jossa ei toisteta samaa jättiotsikkoa.
+- Helposti löydettävät osiot: Overview, Entries, Results, History, World, Voting ja Stories silloin kun sisältö ja oikea reitti ovat olemassa.
+- Overview näyttää todelliset tärkeimmät nostot, ei koko historian dumpattua tietokantaa.
+- Pitkät historiat ja tulokset avautuvat tarkoituksenmukaisiin yksityiskohtaisiin näkymiin.
+- World-tiedot perustuvat kanonisiin lähteisiin eikä niitä keksitä ulkoasun vuoksi.
+- Mobile webin hero on oma maltillisempi editorial-kompositionsa, desktopin hero leveämpi ja näyttävämpi.
+- Maa voi tuntua yksilölliseltä säilyttäen Solaris-brändin ja luettavuuden.
+- MySolarisin oikeutettu Country Hero Studio tukee uploadia, focal-point-rajausta, eri käyttötilojen esikatselua, hyväksyttyä julkaisua ja palautusta erillisen olemassa olevan spesifikaation mukaan.
+
+6.5 Editions-hakemisto
+
+- Nykyinen edition on selkeästi huomion keskipisteessä.
+- Historialliset editionit ovat selattavia ja visuaalisesti kiinnostavia, esimerkiksi aikajana-/arkistomaisessa esityksessä.
+- Ei pitkä sarja samanlaisia abstrakteja kortteja ilman editionien identiteettiä.
+
+6.6 Edition detail: cinematic editorial
+
+- Virallinen edition-artwork kuuluu sivun visuaalisen identiteetin keskiöön.
+- Hero, nimi, status, ohjelma ja sisältö muodostavat yhden jatkuvan sommittelun.
+- Ei niin, että hero päättyy ja erillinen irrallinen dashboard alkaa alusta.
+- Mobile web ja desktop saavat eri mittasuhteet ja tietotiheyden.
+- Editionin media on virallisen julkaisupolun alaista, eikä country-omistaja hallitse sitä.
+- Tuleva, live, valmis ja historiallinen edition esitetään oikean tilan mukaan.
+
+6.7 Shows
+
+- Hakemisto tuntuu ohjelmaoppaalta ja tapahtumien aikajanalta.
+- Tulevat, live-, päättyneet ja arkistoidut show't erottuvat helposti.
+- Haun ja suodattimien mobiilikorkeus minimoidaan tarpeelliseen.
+- Show'n oikea aikataulu, tilat, media ja tulokset korostuvat; ei päällekkäisiä listauksia ilman selvää tarkoitusta.
+
+6.8 Results
+
+- Scoreboard ja julkaistut tulokset ovat pääosassa.
+- Voittaja, sijoitukset, pisteet, liput, kierrokset ja relevantit vertailut ovat välittömästi ymmärrettäviä.
+- Pääasiallinen data ei huku ympärillä oleviin kuvaileviin kortteihin.
+- Syvempi analytiikka on saatavilla sen jälkeen, ei tulosten tilalla.
+- Serverin virallinen, julkaistu laskenta pysyy koskemattomana.
+
+6.9 Records / Voting / analyysi
+
+- Suuret ennätysluvut, rankingit ja vertailut selkeiksi.
+- Tarkat datavisualisoinnit, liput ja pitkän historian selattavuus.
+- Mobiilissa ei puristeta desktopin leveitä taulukoita lukukelvottomiksi.
+- Oikea piste-/äänestysdata eikä näyttäväksi keksitty analyysi.
+
+6.10 Wiki, World, Stories ja Archive
+
+- Wiki tuntuu korkeatasoiselta digitaaliselta tietosanakirjalta: selkeät artikkelit, johdannot, sisällysluettelot, infoboxit ja luettava tekstipalsta.
+- Worldille annetaan kunnollinen tila kanonisille maa- ja yhteiskuntatiedoille.
+- Stories muistuttaa toimituksellista julkaisua: vahvat otsikot, kuvat ja sisällöllinen rytmi.
+- Archive muistuttaa helposti selattavaa historiallista kokonaisuutta: aikakaudet, editionit ja kronologia.
+- Artikkelien pituutta ei leikata, mutta ympäriltä poistetaan tarpeeton käyttöliittymäpuhe.
+
+6.11 Rules
+
+- Selkeä lukemista ja löytämistä palveleva sääntökeskus.
+- Haku ja aihejako ovat helposti saatavilla, mutta eivät hallitse koko ensimmäistä näyttöä.
+- Varsinainen sääntöteksti, viittaukset ja tarkennukset säilyvät täsmällisinä.
+
+============================================================
+7. ORGANIZER: AMMATTIMAINEN JA SELKEÄ
+============================================================
+
+Organizerille ei kopioida julkisen puolen cinematic hero -mallia. Sen arvo syntyy nopeudesta, selkeydestä, luotettavuudesta ja hallittavista työtiloista.
+
+- Säilytetään järkevä desktop-sivunavigaatio ja edition-konteksti.
+- Vähennetään päällekkäisiä otsake-, status-, välilehti- ja navigointirivejä.
+- Dashboardissa tärkeimmät toimet ja todelliset poikkeamat ennen yleisiä informaatiokortteja.
+- Tasks-näkymässä tehtävät ovat ensisijaisia. Tilasuodattimet mobiilissa vieritettäväksi riviksi, sopiviksi valikoiksi tai muuksi luettavaksi ratkaisuksi. Ei tekstien rikki puristamista.
+- Control Roomissa live-tilat, turvalliset kriittiset toiminnot ja vahvistukset erottuvat välittömästi.
+- Design/Broadcast-työkaluissa esikatselu on pääosassa; asetukset eivät syrjäytä sitä.
+- Monimutkaiset lomakkeet ja editorit jaetaan selkeisiin tehtäväkokonaisuuksiin ja niillä on näkyvät tallennus-/julkaisutilat.
+- Kaikki tärkeät tehtävät ovat käytettäviä myös tuetuilla mobiilinäkymillä, ei vain desktopin pienennettyinä kortteina.
+- Oikeuksien, julkaisujen ja kriittisten operaatioiden auktoriteetti säilyy nykyisissä turvallisissa palvelinpoluissa.
+
+============================================================
+8. MYSOLARIS / DELEGATION: OMAN MAAN SELKEÄ HALLINTA
+============================================================
+
+- Kokemuksen tulee tuntua oman maan hallinnalta, ei yhdeltä pitkältä lomakesivulta.
+- Selkeät käyttäjälle ymmärrettävät kokonaisuudet, esim. Overview, Entry, History, Media ja Settings vain todellisiin toimintoihin sovitettuna.
+- Historyn pitkä muokkauslista ja uuden osallistumisen lomake eivät automaattisesti täytä samaa sivua.
+- Yksittäisen editionin muokkaus tapahtuu fokusoidussa näkymässä, jossa on selkeä paluu historiaan.
+- Vahva kuva- ja lippuidentiteetti silloin, kun se auttaa maata tunnistamaan oman hallintansa.
+- Hero Studio käyttää omaa rajattua editoripolkua ja preview/publish-tiloja, ei sekavaa modaaliketjua.
+- Tyhjä tila erottaa aidosti puuttuvat tehtävät, vielä julkaisemattoman sisällön ja käyttöoikeuden puutteen toisistaan.
+- Delegaatioroolien oikeudet ovat todellisia; painikkeen piilottaminen ei korvaa palvelinvaltuutusta.
+
+============================================================
+9. NAVIGOINTI, RESPONSIVIISUUS JA KÄYTETTÄVYYS
+============================================================
+
+- Tavallisen mobile webin omalla headerilla, sivunavigaatiolla ja selaimen normaalilla historiakäyttäytymisellä pitää olla etusija. Ei väärää asennetun appin alapalkkia.
+- Desktopissa käyttökelpoinen sivunavigaatio, selkeä konteksti ja tarkoitukselliset sisältöpalstat.
+- Vain yksi ensisijainen CTA tilanteessa; toissijaiset toiminnot järjestetään näkyvästi mutta rauhallisemmin.
+- Kaikki merkittävät interaktiiviset elementit ovat helposti osuttavia (lähtökohtaisesti noin 44 × 44 CSS-pikseliä kosketuksella, kun mahdollista).
+- Ei vaakasuuntaista koko sivun ylivuotoa, leikattuja nimiä, peittyviä toimintoja tai epäselviä aktiivisia välilehtiä.
+- Pitkät suodatinrivit voivat vieriä sivuttain; pitkiä datataulukoita varten on oma mobiili-esitystapa.
+- Hakua, suodattimia ja sekundaarisia säätimiä ei kasvateta sisällön tärkeintä elementtiä suuremmiksi.
+- Selaimen back/forward, syvälinkit, reload, jakaminen ja fokuksen palautuminen toimivat luontevasti.
+- Tilanteen mukaan käytetään progressiivista avaamista ja mielekkäitä osionäkymiä sen sijaan, että kaikki näytetään yhtenä pitkänä sivuna.
+
+============================================================
+10. SAAVUTETTAVUUS, TILAT JA SUORITUSKYKY
+============================================================
+
+- WCAG 2.2 AA tavoitetaso; kontrasti, otsikkorakenne, ruudunlukijat ja näkyvät fokusindikaattorit.
+- Luettavuus on varmistettava myös vaaleiden, tummien ja kirjavien herokuvien päällä.
+- Näppäimistö, kosketus, zoomaus, suuret fonttikoot ja Reduced Motion.
+- Kuvien lataus ei saa heilauttaa sivua; tarjotaan vakaat paikkavaraukset ja optimoidut kuvasuhteet.
+- Tyhjät, keskeneräiset, live-, virhe-, offline-, puuttuva media-, lukittu- ja tulosten spoilerisuojatut tilat testataan.
+- Ei hienoa animaatiota, joka hidastaa tärkeää toimintoa.
+- Ei tuhansien kuvien tai historiarivien lataamista vain, jotta Overview näyttää täydeltä.
+- Kanoniset release-, permission-, spoiler-, RLS-, media- ja audit-säännöt säilyvät.
+- Testiautomaatio käyttää eristettyä paikallista tai erikseen hyväksyttyä ei-tuotantoympäristöä. Ei tuotanto-Supabasea kuvakaappausten tai E2E-auditoinnin pohjana.
+
+============================================================
+11. KONKREETTINEN TOTEUTUSJÄRJESTYS
+============================================================
+
+P0 — KÄYTETTÄVYYS- JA SHELL-ONGELMAT
+- Varmistetaan mobile webin oikea, PWA:sta erillinen navigaatio ja poistetaan mahdolliset duplikaatit.
+- Korjataan Organizerin rikkoutuvat mobiilisuodattimet, leikattu teksti, peittyvät painikkeet ja ilmeiset ylivuodot.
+- Määritellään kaksi oikeaa kuvakaappausbaselinea (mobile web ja desktop), eikä käytetä virheellistä PWA-auditointia visuaalisena lähteenä.
+
+P1 — YHTEINEN VISUAALINEN PERUSTA
+- Vakiinnutetaan typografia, välitykset, surface-hierarkia, iconografia, painikkeet, lomakkeet, listat, tilat ja page mastheadit.
+- Poistetaan tarpeettomat korttitasot, turhat tekstiselitykset ja toistuvat otsakkeet.
+- Muutetaan yhteisiä komponentteja hallitusti, ei massiivisella globaalilla CSS-korjauspinolla.
+
+P2 — COUNTRY + EDITION, MERKITTÄVIN VISUAALINEN HYÖTY
+- Toteutetaan jo erikseen määritellyn Country & Edition Cinematic Editorial Redesign -spesifikaation mukainen kokonaisuudistus hyväksytyssä järjestyksessä.
+- Ei lisätä uutta hero-kuvaa vanhan sekavan sivun päälle.
+- Huomioidaan maakohtaisen Hero Studion turvallinen kuva- ja julkaisuelinkaari sekä editionin virallinen artwork.
+
+P3 — JULKISET PYSYVÄT SIVUT
+- Home, Explore, Countries, Editions, Shows ja tärkeät löydettävyysreitit.
+- Sen jälkeen Results, Records, Wiki, World, Stories, Archive ja Rules oman sisältötyyppinsä mukaisesti.
+
+P4 — ORGANIZER + MYSOLARIS
+- Tehtäväkeskeiset työtilat, mobiiliasettelun korjaukset, editorien esikatselut ja delegaation historiapolut.
+- Ei muutoksia toimivaan domain-/julkaisuauktoriteettiin ilman erillistä hyväksyttyä suunnitelmaa.
+
+P5 — KOKO TUOTTEEN LAATUKIERROS
+- Yksittäisten sivujen tarkka vertailu ennen/jälkeen; kuvakaappaukset koko sivusta, ei vain herosta.
+- Varmistetaan samat laatukriteerit tyhjille, poikkeaville ja pitkille sisällöille sekä eri näytöille.
+- Toteutuksen valmistuminen ja tuotantojulkaisu hyväksytään erikseen projektin kanonisten release-porttien mukaan.
+
+Järjestys kuvaa suunnittelun prioriteetteja; turvallisuutta tai käyttöönoton portteja ei saa ohittaa sen perusteella.
+
+============================================================
+12. DESIGN-READY HYVÄKSYNTÄKRITEERIT
+============================================================
+
+Sivu EI ole valmis vain siksi, että se näyttää yhdessä kuvassa hyvältä.
+
+1. Sivulla on heti tunnistettava tärkein sisältö tai päätoiminto.
+2. Otsakkeet, navigaatio ja suodattimet eivät peitä olennaista sisältöä.
+3. Tavallinen mobile web näyttää selvästi verkkosivulta, ei väärin renderöidyltä PWA:lta.
+4. Desktop hyödyntää tilaa tarkoituksenmukaisesti.
+5. Teksti on luonnollista, lyhyttä ja käyttäjän näkökulmasta ymmärrettävää; ei AI-yappingia.
+6. Ei tarpeettomia sisäkkäisiä kortteja, irrallisia laatikkoryhmiä tai epätasaista välistystä.
+7. Kuvat, liput ja artwork ovat oikein rajattuja, luettavia ja asianmukaisilla fallbackeilla.
+8. Tärkeät toiminnot, sivun sisäinen navigaatio ja palaaminen toimivat.
+9. Pitkät nimet, puuttuvat mediat, tyhjät listat, virheet ja rajatut käyttöoikeudet on testattu.
+10. Ei visuaalisia regressioita tuetuissa selain- tai asennetuissa PWA-kokemuksissa, vaikka auditoinnin PWA-kuvia ei käytetty lähtökohtana.
+11. Kanoninen data, julkaisuajankohdat, tulokset ja oikeudet pysyvät ennallaan.
+12. Muutoksille on todelliset tarkistetut kuvakaappaukset ja testitulokset; mitään ei merkitä valmiiksi pelkän suunnitelman perusteella.
+
+Tarkistusleveydet vähintään: pieni mobile web noin 320–375 px, yleinen 390 px, suuri puhelin noin 430 px, tabletin tavallinen web, laptop ja desktop noin 1440 px sekä tarvittavat kapeat selainikkunat. Oikealle toteutusversiolle tehdään lisäksi asennetun PWA:n regressiotarkistus erillisen kanonisen ohjeen mukaan.
+
+============================================================
+13. MITÄ TÄMÄ MASTERPLAN EI KORVAA
+============================================================
+
+Tämä on koko tuotteen visuaalinen täydentävä suuntasuunnitelma. Se ei korvaa eikä anna lupaa rikkoa seuraavia olemassa olevia lähteitä ja sopimuksia:
+
+- SOLARIS-STUDIO-V3-THREE-EXPERIENCE-DESIGN-MANIFESTO: erillisten runtime-kokemusten periaate.
+- SOLARIS-STUDIO-V3-COUNTRY-EDITION-CINEMATIC-REDESIGN-CANONICAL-SPEC: Country/Edition-designin yksityiskohtainen korvaava ehdotus ja hyväksyntäehdot.
+- Admin/Public/System/World/Navigation/Release- ja canonical authority -dokumenttien toiminnallisuus, turvallisuus, RLS, release-portit ja julkaisuauktoriteetti.
+
+Jos erillisen Country/Edition-spesifikaation ja tämän yleissuunnitelman välillä on tekninen tai sisällöllinen ero, käytetään yksityiskohtaista hyväksyttyä spesifikaatiota sekä voimassa olevaa korkeampaa tuotanto-/turvallisuuskanonia. Tämä dokumentti ei väitä erikseen kirjoitettua korvaavaa ehdotusta jo hyväksytyksi.
+
+============================================================
+14. LOPULLINEN TUOTEVAATIMUS
+============================================================
+
+Solaris Studio V3:n tulee näyttää niin harkitulta ja viimeistellyltä, että sen laaja kilpailumaailma, maat, editionit, tulokset ja historia tuntuvat todelliselta laadukkaalta digitaaliselta tuotteelta. Sisältö on kauniisti esitetty ja heti ymmärrettävää. Mobile web on oikea premium-verkkosivu; desktop hyödyntää tilansa; Organizer ja MySolaris ovat helppoja ja tehokkaita. Kaikki näyttää samaan Solaris-maailmaan kuuluvalta mutta jokainen sivu on suunniteltu omaan tehtäväänsä.
+
+Vähemmän laatikoita. Vähemmän turhaa tekstiä. Vähemmän kehittäjäkieltä. Enemmän identiteettiä, kuvia, rytmiä, selkeyttä, laatua ja oikeasti toimivaa käyttöliittymää.
+
+EI vain facelift. KOKO VISUAALISEN KOKEMUKSEN HARKITTU UUDISTUS.
