@@ -58,6 +58,20 @@ describe("V3 Organizer Participation Status edition context", () => {
     expect(route).toContain("}, [organizerEditionId, edition?.id]);");
   });
 
+  it("uses a single mutually exclusive country/entity subject for both preview and apply", () => {
+    expect(route).toContain("...participationStatusCommandSubject(sample, global)");
+    expect(route).not.toContain("countryId: global ? sample.country_id : null");
+    expect(route).toContain("p_country_id: group.countryId");
+    expect(route).toContain("p_contest_entity_id: group.contestEntityId");
+    expect(route).toContain("p_country_id: pending.group.countryId");
+    expect(route).toContain("p_contest_entity_id: pending.group.contestEntityId");
+  });
+
+  it("shows backend preview/apply errors rather than generic fallback toast", () => {
+    expect(route).toContain('throw new Error(error.message || "Participation impact preview failed")');
+    expect(route).toContain('throw new Error(error.message || "Participation status update failed")');
+  });
+
   it("preserves the canonical preview/version/idempotency command contract", () => {
     expect(route).toContain('"studio2_participation_status_change_preview"');
     expect(route).toContain('"studio2_apply_participation_status"');
