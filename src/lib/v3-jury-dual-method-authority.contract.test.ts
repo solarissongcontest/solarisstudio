@@ -83,7 +83,13 @@ describe("SSC22 dual-method Jury authority (forward-only contract)", () => {
     expect(apply).toContain("Voting delegation is absent from the show-specific Jury roster");
     expect(apply).toContain("Jury self-voting is prohibited");
     expect(apply).toContain("Jury recipient is not eligible in this show");
-    expect(part("private.v3_jury_protect_manual_dnv")).toContain("private.v3_jury_lock_country");
+    const dnv = part("private.v3_jury_protect_manual_dnv");
+    expect(dnv).toContain("private.v3_jury_lock_country");
+    expect(dnv.indexOf("private.v3_jury_lock_country")).toBeLessThan(dnv.indexOf("from public.jury_ballot_submissions b"));
+    expect(dnv).toContain("b.voter_country_id = v_identity");
+    expect(dnv).toContain("from public.jury_votes j");
+    expect(dnv).toContain("Cannot mark did-not-vote after Jury scores have been accepted");
+    expect(dnv).toContain("from private.v3_jury_manual_scores d");
   });
 
   it("governs manual correction with revision, operation replay and audit", () => {
