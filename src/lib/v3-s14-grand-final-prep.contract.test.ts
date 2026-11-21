@@ -49,7 +49,8 @@ describe("S14 canonical qualifier-to-final preparation", () => {
   });
 
   it("prepares explicit canonical Jury and Televote sources for the final", () => {
-    expect(finalLeg).toContain("grand-final Jury roster does not contain all 66 delegations");
+    expect(finalLeg).toContain("grand-final Jury roster must exclude the withdrawn delegation");
+    expect(finalLeg).toContain('show_id=\'$FINAL_ID\'::uuid;\")\" == \"65\"');
     expect(finalLeg).toContain("S14_FINAL_TELEVOTE_ROUND_ID");
     expect(finalLeg).toContain("televoting_round_bindings");
     expect(finalLeg).toContain("grand-final Televote round does not contain exactly 20 finalists");
