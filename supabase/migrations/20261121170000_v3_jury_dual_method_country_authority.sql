@@ -416,7 +416,7 @@ create function public.v3_organizer_jury_score_apply(
 ) returns jsonb language plpgsql volatile security definer
 set search_path=pg_catalog,public,private as $apply$
 declare
-  v_identity uuid;v_country uuid;v_recipient uuid;v_show public.shows%rowtype;
+  v_identity uuid;v_country uuid;v_recipient uuid;v_target_country uuid;v_show public.shows%rowtype;
   v_state private.v3_jury_manual_states%rowtype;v_op private.v3_jury_manual_operations%rowtype;
   v_req jsonb;v_scale integer[];v_count int;v_distinct int;v_capacity int;
   v_complete boolean;v_result jsonb;v_before jsonb;v_after jsonb;
@@ -503,16 +503,16 @@ begin
     -- Canonicalize global contest entities to the receiving COUNTRY. A target
     -- chosen once by country ID and again by global entity ID is still one
     -- recipient, and both must enforce the same self-voting rule.
-    v_recipient:=coalesce(
+    v_target_country:=coalesce(
       p_receiving_country_id,
-      (select ce.country_id from public.contest_entities ce where ce.id=p_receiving_entity_id),
-      p_receiving_entity_id
+      (select ce.country_id from public.contest_entities ce where ce.id=p_receiving_entity_id)
     );
+    v_recipient:=coalesce(v_target_country,p_receiving_entity_id);
     if v_recipient is null or not exists(
       select 1 from public.participants p where p.show_id=p_show_id
         and (p.participation_status is null or p.participation_status='confirmed')
-        and ((p_receiving_country_id is not null and p.country_id=p_receiving_country_id)
-           or (p_receiving_country_id is null and p.contest_entity_id=p_receiving_entity_id))
+        and ((v_target_country is not null and p.country_id=v_target_country)
+           or (v_target_country is null and p.contest_entity_id=p_receiving_entity_id))
     ) then
       raise exception 'Jury recipient is not eligible in this show' using errcode='23514';
     end if;
@@ -591,7 +591,7 @@ begin
       edition_id,show_id,voter_identity,voter_id,voter_country_id,voter_entity_id,
       receiving_country_id,receiving_entity_id,recipient_identity,points)
     values(p_edition_id,p_show_id,v_identity,p_voter_id,v_country,p_voter_entity_id,
-      p_receiving_country_id,p_receiving_entity_id,v_recipient,p_points);
+      v_target_country,p_receiving_entity_id,v_recipient,p_points);
   end if;
 
   select count(*)::integer,
