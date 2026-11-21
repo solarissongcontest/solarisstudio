@@ -1,23 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 
-import { useAdminContext } from "@/components/admin/AdminContext";
-import { VotingRoundsView } from "@/components/televoting/VotingRoundsView";
-
+// This route owns the shared nested location only. The rounds overview is
+// rendered by rounds/index.tsx; the edition-verified entries editor lives
+// beneath rounds/$id.tsx and must be reachable through both parent outlets.
 export const Route = createFileRoute("/televoting/admin/rounds")({
   head: () => ({
-    meta: [
-      { title: "Voting Rounds — Solaris Organizer" },
-      { name: "robots", content: "noindex, nofollow" },
-    ],
+    meta: [{ name: "robots", content: "noindex, nofollow" }],
   }),
-  component: VotingRoundsRoute,
+  component: Outlet,
 });
-
-function VotingRoundsRoute() {
-  const { editionId } = useAdminContext();
-
-  // VotingRoundsView owns draft/rename/delete/status confirmation state. Remount
-  // it when Organizer scope changes so commands prepared for edition A cannot
-  // survive into edition B after the global edition selector changes.
-  return <VotingRoundsView key={editionId ?? "unscoped"} />;
-}
