@@ -6,6 +6,7 @@ import {
   type TelevoteRecoveryHandle,
 } from "@/lib/v3-televote-reconciliation";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { assertLinkedTelevoteRosterCurrent } from "@/integrations/televoting/participation-guard.server";
 import { televotingPublicServer } from "@/integrations/televoting/public.server";
 import { enforceTelevotingRateLimit } from "@/integrations/televoting/rate-limit.server";
 import { getTelevotingNetworkSignals } from "@/integrations/televoting/network.server";
@@ -118,7 +119,6 @@ export async function submitMergedTelevotingVoteServer(data: TelevoteReconciliat
 
   // Revalidate at the final write boundary: a withdrawal can happen after
   // preflight, and a cached browser ballot is not authoritative.
-  const { assertLinkedTelevoteRosterCurrent } = await import("@/integrations/televoting/participation-guard.server");
   await assertLinkedTelevoteRosterCurrent(data.roundId);
 
   return submitTelevoteWithReconciliation(
