@@ -58,13 +58,25 @@ begin
   -- Do not permit ordinary delegation edits to rewrite an already published
   -- or lineup-bound entry. The governed Organizer correction flow owns these.
   v_patched := replace(v_patched, v_guard_anchor, $guard$
-  if is_edit and exists (
+  if is_edit and (
+    exists (
+      select 1
+      from public.national_finals nf
+      where nf.submission_id = existing.id
+        and (coalesce(nf.lineup_published, false) or coalesce(nf.results_published, false))
+        and (
+          existing.selection_method is distinct from nullif(payload ->> 'selection_method', '')
+          or existing.participating is distinct from coalesce((payload ->> 'participating')::boolean, true)
+        )
+    )
+    or exists (
     select 1
     from public.participants p
     join public.countries c on c.id = p.country_id
     where p.edition_id = r.edition_id
       and lower(btrim(c.name)) = lower(btrim(existing.country))
       and (p.publication_status = 'published' or p.show_id is not null)
+    )
   ) then
     raise exception 'Published or competition-locked entries require an Organizer correction'
       using errcode = '42501';
