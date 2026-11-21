@@ -24,7 +24,7 @@ describe("simple voting-integrity copy", () => {
     expect(voterIntegrityMessage("notice").title).toBe("Please check your votes");
     expect(voterIntegrityMessage("review").title).toBe("Your votes need another look");
     expect(voterIntegrityMessage("declaration").title).toBe("Please confirm your votes");
-    expect(voterIntegrityMessage("enhanced_declaration").title).toBe("Your vote has been flagged for review");
+    expect(voterIntegrityMessage("enhanced_declaration").title).toBe("Your vote needs an extra check");
     expect(voterIntegrityMessage("provisional_review").title).toBe("Your vote needs organizer review");
     expect(VOTER_INTEGRITY_MESSAGES.provisional_review.body).toContain("not proof");
   });
