@@ -8,6 +8,7 @@ import { ExternalLink, Inbox } from "lucide-react";
 import { type CSSProperties, type ReactNode } from "react";
 
 import { useAdminNotifications } from "@/lib/admin-ops";
+import { AdminPagePreviewSessionSync } from "@/lib/admin-page-preview-client";
 import { resolveOrganizerV6Screen } from "@/lib/organizer-v6-screen-registry";
 import { useScrollMorphProgress } from "@/lib/use-scroll-morph-progress";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
@@ -54,6 +55,7 @@ export function AdminShell({
         data-organizer-generation={organizerV3Enabled ? "v3" : "legacy"}
       >
         <AdminPermissionShadowProbe />
+        <AdminPagePreviewSessionSync />
         <header
           className="sticky top-0 z-[70] border-b border-white/[0.07] bg-[#06101f]/88 backdrop-blur-2xl"
           data-solaris-organizer-toolbar=""

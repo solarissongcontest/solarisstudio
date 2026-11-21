@@ -207,12 +207,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (pathname.startsWith("/admin")) return <>{children}</>;
 
   const signOut = async () => {
+    if (access.isOrganizer) {
+      await fetch("/api/admin-page-preview-session", {
+        method: "DELETE", credentials: "same-origin",
+      }).catch(() => undefined);
+    }
     await supabase.auth.signOut();
     window.location.href = "/";
   };
 
   const publicUser = buildPublicUserContext({ userId: access.userId, access });
-  const globalAreas = publicGlobalAreasForContext(publicUser).filter((area) => publicLaunchAllows(area.to));
+  const globalAreas = publicGlobalAreasForContext(publicUser).filter((area) => publicUser.organizer || publicLaunchAllows(area.to));
   const publicArchetype = publicRouteArchetype(pathname);
   const publicLayout = publicLayoutTokenForArchetype(publicArchetype);
   const publicArea = publicAreaForPath(pathname);
@@ -462,6 +467,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             pathname={pathname}
             searchStr={searchStr}
             signedIn={Boolean(access.userId)}
+            adminPreview={publicUser.organizer}
             participateBadge={attention.participate}
             meBadge={attention.me}
           />
