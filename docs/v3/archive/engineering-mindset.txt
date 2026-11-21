@@ -1,0 +1,823 @@
+TerraOS 3 Implementation Mindset and Engineering Doctrine
+
+Purpose
+
+This document defines the default engineering mindset for all remaining TerraOS 3 / Solaris Studio V3 implementation work.
+
+It exists because previous difficult work, especially the Results / PR #1400 effort, showed that large amounts of time can be lost when implementation proceeds by reacting to individual failures rather than establishing canonical architecture first.
+
+The objective of future sessions is not merely to make individual tests green.
+
+The objective is to finish TerraOS 3 efficiently, safely and systematically by eliminating architectural ambiguity, completing full vertical slices and resolving root causes rather than individual symptoms.
+
+This doctrine applies to:
+
+* System V3
+* Organizer V3
+* Public / Participant / Fan V3
+* navigation and shell
+* voting
+* Results
+* Confirmation
+* Entry
+* media
+* lifecycle
+* identity and sessions
+* Integrity
+* Archive
+* notifications
+* release certification
+* all other remaining TerraOS 3 implementation work
+
+⸻
+
+1. Core mindset
+
+The default question must NOT be:
+
+What file, test or CI job should be fixed next?
+
+The default question must be:
+
+What canonical capability or architectural root cause can be completed properly so that multiple downstream problems disappear together?
+
+Do not optimize for the number of commits.
+
+Do not optimize for making the nearest red CI box green.
+
+Optimize for removal of architectural uncertainty and release risk.
+
+⸻
+
+2. Prove the architecture before chasing symptoms
+
+Before modifying a major domain, establish its actual architecture.
+
+For each important domain determine:
+
+Canonical state
+Canonical mutation authority
+All existing writers
+Readers
+Authorization boundary
+Version/concurrency rules
+Audit/history requirements
+Operation identity
+Receipt/readback behavior
+Events
+Async consequences
+Reconciliation
+Recovery
+Legacy paths
+Cutover state
+Release evidence
+
+Do this before repeatedly patching symptoms.
+
+If these answers are unclear, resolving them is part of the implementation task.
+
+⸻
+
+3. One canonical authority
+
+Every critical piece of TerraOS 3 state must have a clearly defined canonical owner.
+
+For important mutation domains there should be one governed mutation authority.
+
+Examples include:
+
+* edition lifecycle
+* show lifecycle
+* show cues
+* participation
+* Entry
+* Confirmation
+* Jury
+* Televote
+* Results
+* media verification
+* account/session security
+* Integrity cases and appeals
+
+Do not allow several application paths to behave as equal authorities over the same canonical state.
+
+Every discovered writer must be classified as one of:
+
+canonical governed command
+sanctioned internal implementation
+temporary compatibility path
+legacy second writer
+unauthorized writer
+obsolete writer
+
+Do not merely allowlist competing writers because they already exist.
+
+If several findings originate from the same competing writer, fix the writer once instead of patching every finding separately.
+
+⸻
+
+4. Work by root cause, not finding count
+
+If an audit reports:
+
+13 lifecycle findings
+13 Televote findings
+2 Entry findings
+
+do not automatically create 28 separate fixes.
+
+First ask:
+
+How many actual architectural causes generated these findings?
+
+For example, thirteen findings may originate from:
+
+* one old service-role writer;
+* one legacy mutation RPC;
+* one direct browser write;
+* one missing canonical operation boundary.
+
+Fixing those root causes may resolve many findings simultaneously.
+
+Always prefer:
+
+identify shared cause
+→ repair architecture
+→ regenerate findings
+
+over:
+
+fix finding 1
+fix finding 2
+fix finding 3
+...
+
+⸻
+
+5. Complete vertical slices
+
+Do not consider a feature complete merely because its UI exists.
+
+A TerraOS 3 capability should be treated as a full vertical slice.
+
+Typical slice:
+
+schema
+↓
+canonical state
+↓
+canonical command / RPC
+↓
+authorization
+↓
+versioning / CAS
+↓
+operation identity
+↓
+audit / receipt
+↓
+event
+↓
+required consequences
+↓
+canonical read
+↓
+reconciliation / recovery
+↓
+UI
+↓
+legacy cutover
+↓
+focused tests
+↓
+integration rehearsal
+↓
+release evidence
+
+Not every capability requires every layer, but required layers must be explicit.
+
+Do not leave important architecture implicit.
+
+⸻
+
+6. Separate canonical truth from derived state
+
+Canonical state must remain correct independently of optional asynchronous systems whenever possible.
+
+Examples of derived or secondary behavior may include:
+
+* realtime updates
+* dashboards
+* analytics
+* notification presentation
+* caches
+* projections
+* convenience indexes
+
+Do not make critical correctness depend on these unless the product genuinely requires it.
+
+Example:
+
+session revoked
+→ canonical authorization immediately rejects session
+
+must not require:
+
+session.revoked event
+→ async consumer
+→ projection update
+→ eventual denial
+
+Similarly, official lifecycle or Results truth should not depend on optional UI projections becoming current.
+
+⸻
+
+7. Events are consequences, not automatically authorities
+
+For every event ask:
+
+What state changed?
+Who changed it?
+Was critical state already committed?
+What does this event cause?
+Is that consequence required for correctness?
+Can it be rebuilt?
+Can it be reconciled?
+What happens if delivery fails?
+
+Do not automatically require the same maturity for every event.
+
+Classify consequences according to actual semantics:
+
+* integrity-critical
+* delivery-critical
+* derived
+* observational / pure-read
+
+Unknown critical behavior must fail closed.
+
+Optional projection or analytics maturity should not become a hard release blocker merely for symmetry.
+
+⸻
+
+8. Authorization must use canonical truth
+
+Security decisions must not depend on stale derived state.
+
+Critical authorization changes such as:
+
+* session revocation
+* account access
+* permission revision
+* role/capability changes
+
+must become effective at the canonical authorization boundary.
+
+Security tests should explicitly prove that stale:
+
+* event consumers
+* realtime state
+* caches
+* UI state
+* analytics
+
+cannot preserve access that should already be revoked.
+
+⸻
+
+9. Use the database as part of the architecture
+
+For critical domains, source-code inspection alone is insufficient.
+
+Inspect real database authority where necessary:
+
+* table ownership
+* RLS
+* grants
+* direct DML
+* function ownership
+* SECURITY DEFINER
+* EXECUTE permissions
+* search_path
+* triggers
+* trigger functions
+* updatable views
+* service-role writers
+* legacy RPCs
+
+The architecture is not whatever TypeScript says it is.
+
+The architecture is what the runtime and database actually permit.
+
+⸻
+
+10. Do not confuse service_role with canonical authority
+
+service_role is an operational credential, not proof that a writer is legitimate.
+
+Every service-role mutation path must be understood as one of:
+
+governed system operation
+sanctioned internal implementation
+temporary compatibility path
+unauthorized second writer
+
+Prefer explicit governed operations for critical state.
+
+Do not normalize raw service-role table mutation simply because it is server-side.
+
+⸻
+
+11. Distinguish execution safety from release readiness
+
+A major lesson from TerraOS 3 development is:
+
+safe to run an integration rehearsal
+≠
+safe to release
+
+Tests such as S14 must be allowed to run once the prerequisites required for safe, meaningful execution are satisfied.
+
+Do not require all migration debt to disappear before executing the rehearsal that is itself required to discover defects.
+
+Execution may still be blocked by:
+
+* production-isolation failure
+* migration-adoption failure
+* critical security failure
+* critical canonical-authority failure
+* unknown high-risk state
+* missing lifecycle prerequisite
+
+But it should not automatically be blocked by:
+
+* tracked debt
+* optional analytics
+* optional realtime
+* rebuildable projections
+* obsolete findings
+* noncritical evidence debt
+
+Final release certification remains stricter than execution eligibility.
+
+⸻
+
+12. Run end-to-end rehearsals early enough to be useful
+
+Integration rehearsals are diagnostic tools.
+
+They are not ceremonies performed only after every implementation detail is already believed perfect.
+
+Once a workflow is safe enough to rehearse:
+
+RUN IT.
+
+If it fails:
+
+capture first semantic failure
+→ reproduce focused
+→ identify root cause
+→ fix root cause
+→ add regression
+→ rerun stage
+→ rerun complete workflow
+
+Do not use manual database repair to make the rehearsal pass.
+
+The purpose is to reveal real system defects.
+
+⸻
+
+13. Fix the first semantic failure, not every red box
+
+CI failure must be interpreted.
+
+A red job can mean:
+
+* product defect
+* architecture defect
+* migration defect
+* test defect
+* infrastructure defect
+* runner capacity issue
+* Docker issue
+* stale SHA/evidence issue
+
+Do not modify unrelated product code merely because a workflow is red.
+
+Determine the actual failure class first.
+
+In particular:
+
+A red Results-related PR does not imply Results code needs changing.
+
+⸻
+
+14. Preserve ownership boundaries
+
+Each domain must have an explicit owner.
+
+Do not solve integration problems by casually moving implementation across domain boundaries.
+
+For example, Results-specific behavior belongs to the Results owner.
+
+Shared infrastructure may:
+
+* enforce integration contracts;
+* detect unauthorized writers;
+* verify compatibility;
+* report a dependency.
+
+It should not duplicate another domain’s canonical implementation.
+
+This prevents overlapping authorities and enormous restacking problems.
+
+⸻
+
+15. Track release risk, not just unfinished work
+
+Raw unfinished-item counts are useful for project tracking but poor engineering priorities.
+
+TerraOS 3 should prominently track:
+
+hard release blockers
+required conditional blockers
+canonical-authority violations
+end-to-end workflows not proven
+
+Tracked migration debt should remain visible without dominating release work.
+
+Example:
+
+111 tracked findings
+
+is less operationally useful than:
+
+11 hard blockers
+32 shared non-Results authority conflicts
+S14 not yet proven
+
+Prioritize according to risk and dependency.
+
+⸻
+
+16. Debt must remain visible
+
+Do not hide unfinished work merely to reduce counts.
+
+If critical correctness is proven but noncritical projection maturity remains, move that remaining work to tracked debt with an explicit reason.
+
+Do not delete the finding.
+
+A good risk model allows:
+
+hard blocker ↓
+tracked debt ↑
+
+when that accurately reflects reality.
+
+That is progress.
+
+⸻
+
+17. Build tests around invariants
+
+Tests should prove architecture, not only examples.
+
+Examples:
+
+revoked session cannot use Data API
+foreign actor cannot mutate another country's object
+stale version cannot overwrite newer state
+retry of same operation is idempotent
+different operation cannot reuse receipt
+legacy writer cannot bypass canonical command
+failed event delivery cannot corrupt canonical truth
+derived projection can be rebuilt from canonical source
+
+These tests are more valuable than large quantities of shallow route-presence tests.
+
+⸻
+
+18. Design for recovery
+
+For important operations ask before implementation:
+
+What happens if the client loses the response after the server commits?
+
+Use appropriate mechanisms:
+
+* stable operation ID
+* receipt
+* readback
+* reconciliation
+* idempotency
+
+Do not treat network ambiguity as an unusual edge case.
+
+It is part of distributed system behavior.
+
+⸻
+
+19. Exact-SHA evidence
+
+Release evidence must belong to the exact candidate being certified.
+
+Never rely on:
+
+* latest green branch run
+* previous SHA
+* stale artifact
+* synthetic candidate label
+* mismatched checkout
+* ambiguous risk report
+
+Evidence should include, as applicable:
+
+* candidate SHA
+* producer
+* run/job
+* result
+* artifact
+* digest
+* timestamp
+
+If provenance is ambiguous, fail closed.
+
+⸻
+
+20. Do not let certification machinery replace implementation
+
+Release scanners, manifests and evidence systems are important.
+
+They are not the product.
+
+Do not spend an implementation session improving certification infrastructure while major real authority or workflow defects remain unless the certification defect directly prevents trustworthy verification.
+
+Default priority:
+
+real security/integrity defect
+↓
+canonical-authority defect
+↓
+mandatory workflow defect
+↓
+end-to-end rehearsal
+↓
+release certification
+↓
+noncritical debt
+
+⸻
+
+21. Codex sessions must perform multiple substantive tasks
+
+A successful commit is a checkpoint, not an automatic stopping point.
+
+Default session loop:
+
+inspect live state
+↓
+select highest-value root cause
+↓
+implement
+↓
+focused verify
+↓
+commit
+↓
+push
+↓
+regenerate risk/authority
+↓
+continue to next root cause
+
+A session should continue until:
+
+* safely actionable work is exhausted;
+* an external dependency genuinely blocks progress;
+* another PR owns all remaining work;
+* or tool/session capacity is exhausted.
+
+Do not stop after one small successful patch.
+
+⸻
+
+22. Do not endlessly re-audit completed work
+
+At the beginning of a session:
+
+* refetch current main;
+* refetch integration branch;
+* inspect changes since handoff;
+* regenerate current blockers;
+* inspect relevant CI.
+
+Then begin implementation.
+
+Do not spend most of the session rediscovering evidence already established on the current ancestry.
+
+Revisit an accepted area only when:
+
+* affected by new changes;
+* evidence is invalidated;
+* CI identifies a real regression;
+* architecture conflicts with a newly discovered writer.
+
+⸻
+
+23. Group work by dependency order
+
+When several unfinished areas exist, prefer foundational dependencies first.
+
+Typical priority:
+
+security / identity
+↓
+canonical mutation authority
+↓
+core lifecycle
+↓
+mandatory contest workflows
+↓
+integration rehearsal
+↓
+release certification
+↓
+conditional launch work
+↓
+migration debt / polish
+
+Do not polish secondary UI while critical authority remains unresolved.
+
+⸻
+
+24. Every major domain should have an explicit contract
+
+Where practical, maintain a machine-readable or test-enforced domain contract containing:
+
+canonical tables
+canonical commands
+authorized actors
+version rules
+events
+required consequences
+forbidden direct writers
+legacy compatibility paths
+reconciliation strategy
+
+The repository should explain its architecture directly.
+
+Future Codex sessions should not have to reconstruct basic ownership from dozens of unrelated files.
+
+⸻
+
+25. TerraOS 3 completion strategy
+
+TerraOS 3 should be completed domain-by-domain.
+
+A domain is not considered genuinely complete because:
+
+* the screen exists;
+* a route exists;
+* a migration exists;
+* a registry says accepted;
+* CI happens to be green.
+
+A domain is complete when the required vertical slice is proven:
+
+canonical ownership
++
+governed mutation
++
+authorization
++
+failure behavior
++
+recovery
++
+read path
++
+cutover
++
+integration evidence
+
+⸻
+
+26. Questions every implementation session should ask
+
+Before implementing:
+
+1. What is the actual root cause?
+2. What canonical state is involved?
+3. Who can currently write it?
+4. Who should be able to write it?
+5. Can one fix eliminate several findings?
+6. What invariant needs proving?
+7. Is the failure semantic or infrastructure?
+8. What older path must disappear after cutover?
+9. What can safely remain tracked debt?
+10. What integration rehearsal becomes possible after this fix?
+
+After implementing:
+
+1. Did canonical authority become clearer or stricter?
+2. Did any unauthorized writer remain?
+3. Did risk actually move?
+4. What dependent blocker is now actionable?
+5. Can an end-to-end rehearsal now run?
+6. What is the next highest-value root cause?
+
+⸻
+
+27. Anti-patterns
+
+Avoid:
+
+red CI → randomly edit nearby code
+
+Avoid:
+
+one finding → one patch
+
+when several findings share a cause.
+
+Avoid:
+
+UI exists → feature complete
+
+Avoid:
+
+service_role → automatically legitimate
+
+Avoid:
+
+event exists → event must be authoritative
+
+Avoid:
+
+tracked debt exists → integration rehearsal forbidden
+
+Avoid:
+
+scanner green → architecture correct
+
+Avoid:
+
+first commit pushed → session finished
+
+Avoid:
+
+unknown writer → allowlist it
+
+Avoid:
+
+old compatibility path → leave forever
+
+⸻
+
+28. Preferred engineering pattern
+
+The default TerraOS 3 pattern is:
+
+UNDERSTAND
+    ↓
+find canonical state and all writers
+CONSOLIDATE
+    ↓
+establish one governed authority
+ENFORCE
+    ↓
+authorization + DB/runtime boundaries
+PROVE
+    ↓
+focused invariants + negative tests
+REHEARSE
+    ↓
+real end-to-end workflow
+CERTIFY
+    ↓
+exact-SHA release evidence
+CONTINUE
+    ↓
+next highest-value root cause
+
+⸻
+
+29. Final principle
+
+For the remainder of TerraOS 3:
+
+Do not ask only what feature should be built next.
+
+Ask:
+
+What canonical capability or architectural root cause can be finished completely so that the largest amount of downstream uncertainty disappears with it?
+
+The objective is not to produce the most patches.
+
+The objective is to make the remaining system progressively simpler, more canonical and easier to prove.
+
+Every completed domain should reduce the difficulty of the domains that follow.
+
+That is the default engineering mindset for TerraOS 3.

@@ -1,0 +1,2602 @@
+# SOLARIS STUDIO V3  
+# PUBLIC PRODUCT, DESIGN & NAVIGATION COMPLETION MASTER PLAN
+
+## Consolidated canonical redesign plan for Public / Participant / Fan V3
+
+---
+
+# 0. STATUS AND AUTHORITY OF THIS DOCUMENT
+
+This document consolidates and extends the existing Solaris Studio V3 Public design requirements into one implementation-ready product and visual completion plan.
+
+It is intended to close the gap between:
+
+- technically migrated V3 routes;
+- canonical Public capability implementation;
+- genuine V3 information architecture;
+- visual/product parity;
+- responsive quality;
+- the intended iPhone-first navigation experience;
+- final release certification.
+
+The existing canonical V3 plans remain authoritative for:
+
+- domain ownership;
+- database truth;
+- authorization;
+- operations;
+- receipts;
+- publication;
+- privacy;
+- security;
+- production isolation;
+- migration safety;
+- Organizer responsibilities;
+- system reliability.
+
+This document is specifically authoritative for the consolidated **Public product structure, layouts, visual composition, navigation behaviour, entity presentation, responsive design and product-parity acceptance** described below.
+
+Where visual ambitions conflict with security, accessibility, canonical state, data integrity or production safety, those requirements win.
+
+The canonical Public top-level areas remain:
+
+**Home · Explore · Participate · Results · Me**
+
+This distinction is final.
+
+---
+
+# PART I  
+# THE ACTUAL V3 PRODUCT STANDARD
+
+## 1. V3 is not a reskin
+
+A route is not V3 merely because it has:
+
+- the V3 background;
+- new typography;
+- rounded corners;
+- Liquid Glass controls;
+- a new header;
+- blue gradients;
+- the V3 tab bar.
+
+A screen fails V3 product acceptance if it preserves the same:
+
+- layout;
+- list hierarchy;
+- composition;
+- information density;
+- interaction model
+
+while merely changing presentation.
+
+The mandatory review question is:
+
+> **If all V3 colours and surface styling were removed, would this still obviously be the old Solaris screen?**
+
+If yes, redesign it.
+
+---
+
+# 2. Product parity is separate from technical migration
+
+The current project must stop allowing one word such as `cutover` to imply all of:
+
+- route migrated;
+- backend migrated;
+- frontend integrated;
+- legacy removed;
+- visually redesigned;
+- responsive;
+- accessible;
+- release-certified.
+
+These are different facts.
+
+Every Public capability should expose at least four dimensions:
+
+### A. Capability migration
+
+Examples:
+
+- missing
+- mapped
+- building
+- implemented
+- integrated
+- cutover
+- retired
+- merged
+
+### B. Product parity
+
+Recommended states:
+
+- `unaudited`
+- `legacy`
+- `partial`
+- `parity`
+
+### C. Verification
+
+Examples:
+
+- untested
+- component-tested
+- workflow-tested
+- responsive-tested
+- visual-tested
+
+### D. Certification
+
+- uncertified
+- candidate-certified
+- released
+
+Example:
+
+> **Edition**  
+> Backend/capability: cut over  
+> Product parity: partial  
+> Responsive: tested  
+> Certification: not certified
+
+A technically migrated route must never be presented as complete V3 while its visual/product experience remains legacy.
+
+The canonical capability model already distinguishes implementation, parity, cutover and certification.
+
+---
+
+# 3. Public V3 design character
+
+Solaris V3 should feel:
+
+- editorial rather than administrative;
+- calm rather than card-heavy;
+- information-rich without becoming dense;
+- premium without coating everything in glass;
+- app-like rather than website-like on phone;
+- expressive at important moments;
+- restrained during ordinary browsing;
+- clearly structured before decoration is added.
+
+High-impact moments may become expressive.
+
+Routine content should remain quiet.
+
+If every section glows, blurs, floats and animates, hierarchy disappears.
+
+Liquid Glass belongs primarily to the **control/navigation layer**, not the content layer. The canonical source already requires normal content to remain mainly flat.
+
+Apple similarly positions Liquid Glass as a distinct functional layer for controls/navigation rather than something to put throughout ordinary content.
+
+---
+
+# PART II  
+# DESIGN SYSTEM AND LAYOUT FOUNDATIONS
+
+## 4. Content surface hierarchy
+
+Public V3 should use four major surface classes.
+
+### Level 0: Background
+
+The application canvas.
+
+May contain:
+
+- subtle edition tint;
+- very restrained depth;
+- background extension beneath floating controls;
+- artwork-derived ambience on appropriate entity pages.
+
+It must not compete with content.
+
+### Level 1: Content
+
+Primary page content should largely be flat.
+
+Examples:
+
+- text;
+- lists;
+- ranking rows;
+- story previews;
+- song rows;
+- timelines;
+- metadata;
+- section groupings.
+
+Do not wrap every section in a floating card.
+
+### Level 2: Emphasized content
+
+Use cards selectively for genuinely bounded objects such as:
+
+- a current-edition hero;
+- urgent responsibility;
+- live show status;
+- result winner;
+- receipt;
+- media player;
+- significant empty/error state.
+
+### Level 3: Control material
+
+This is where Liquid Glass belongs:
+
+- bottom navigation;
+- floating controls;
+- compact tool groups;
+- segmented controls;
+- transient sheets;
+- selected navigation lens;
+- selected sliders/toggles where appropriate.
+
+---
+
+# 5. Kill over-cardification
+
+A recurring V3 anti-pattern has been:
+
+> outer rounded card  
+> → inner rounded card  
+> → rounded search field  
+> → rounded icon container  
+> → rounded button
+
+This must stop.
+
+Use:
+
+- spacing;
+- typography;
+- separators;
+- hierarchy;
+- alignment;
+- background transitions
+
+before adding another box.
+
+Rules already explicitly require one visually clear search surface rather than card-within-card search composition.
+
+Apply the same principle throughout Public V3.
+
+---
+
+# 6. Root-page content budget
+
+Root and Overview screens summarize.
+
+Dedicated collection screens contain the full dataset.
+
+Never dump:
+
+- all countries;
+- all participants;
+- all songs;
+- all shows;
+- all stories;
+- every analysis tool
+
+onto a root page merely because the projection returned them.
+
+General principle:
+
+> **Overview tells me what matters.  
+> Collection lets me explore everything.**
+
+---
+
+# 7. Phone-first design
+
+Public V3 is designed around approximately the **390×844 iPhone class** first, while also validating smaller and larger phones.
+
+Every design must then adapt to:
+
+- small phone;
+- standard phone;
+- large phone;
+- tablet portrait;
+- tablet landscape;
+- desktop;
+- wide desktop.
+
+Mobile must never contain:
+
+- compressed desktop tables;
+- tiny controls;
+- unreachable floating actions;
+- navigation obstruction;
+- top-chrome obstruction;
+- drag-only functionality;
+- endless Overview pages.
+
+Desktop is the same product, not an unrelated admin-style web version.
+
+A reasonable desktop composition is:
+
+**Navigation / sidebar · Main content · Optional contextual panel**
+
+without changing the conceptual IA.
+
+---
+
+# PART III  
+# GLOBAL PUBLIC SHELL
+
+## 8. Top chrome
+
+The current V3 top area must become less vertically expensive.
+
+### Mobile target
+
+The top chrome should normally communicate only:
+
+- current context where necessary;
+- page title where necessary;
+- one or two meaningful global actions;
+- temporary state such as Live.
+
+Avoid simultaneously stacking:
+
+- giant edition label;
+- giant title;
+- subtitle;
+- context line;
+- giant action row;
+- another section header.
+
+### Behaviour
+
+On scrolling:
+
+- page content must gain visual priority;
+- the chrome may condense where appropriate;
+- content must never disappear underneath it;
+- safe-area spacing remains correct;
+- sticky elements must not stack into a giant obstruction.
+
+The known visual audit specifically flags top chrome as too vertically expensive.
+
+---
+
+# 9. Global transitions
+
+Route changes should feel continuous but not theatrical.
+
+Use:
+
+- short crossfade/translation for hierarchy changes;
+- directional motion for push/pop;
+- direct manipulation for tab swipe;
+- immediate acknowledgement;
+- skeletons only when necessary.
+
+Avoid:
+
+- fullscreen fade to blank;
+- repeated splash screens;
+- long hero animations on routine navigation;
+- transition animations that block input.
+
+Major motion should target approximately 60 fps and tab acknowledgement under ~100 ms.
+
+---
+
+# PART IV  
+# THE NEW BOTTOM NAVIGATION SYSTEM
+
+## 10. Bottom navigation is a release-critical V3 system
+
+The bottom navigation is no longer “verify only.”
+
+It is a canonical product requirement.
+
+The exact public destinations remain:
+
+1. Home
+2. Explore
+3. Participate
+4. Results
+5. Me
+
+The visual target remains:
+
+> **current Instagram iPhone floating navigation geometry**  
+> + **Solaris destinations and icons**  
+> + **a slightly more Apple-like Liquid Glass interpretation**.
+
+But the interaction target is now clarified further using the discussed Liquid Glass references.
+
+---
+
+# 11. Navigation visual target
+
+At first glance the bar should look like a modern iPhone floating tab bar, not:
+
+- a generic frosted card;
+- a website navigation pill;
+- five buttons inside a glass rectangle;
+- an oversized dock.
+
+Required matching dimensions include:
+
+- shell silhouette;
+- pill geometry;
+- horizontal inset;
+- vertical placement;
+- safe-area relationship;
+- expanded height;
+- compact height;
+- icon centre positions;
+- icon optical size;
+- selected lens dimensions;
+- lens radius;
+- lens relation to shell;
+- visual density;
+- shadow extent.
+
+Freeze the approved Instagram reference before final geometry tuning.
+
+Create measured reference tokens:
+
+- shellWidth
+- shellMaxWidth
+- shellHeightExpanded
+- shellHeightCompact
+- horizontalInset
+- bottomInset
+- shellRadius
+- slotWidth
+- iconOpticalSize
+- iconCenterX[]
+- lensWidth
+- lensHeight
+- lensRadius
+- lensOvershootMax
+- compactWidth
+- compactHeight
+- shadowSpreadBudget
+
+Do not call N0 complete without a real approved reference package.
+
+---
+
+# 12. Quiet shell, expressive lens
+
+The outer shell should remain relatively calm.
+
+Most of the physical Liquid Glass personality belongs to the **selected lens**.
+
+The shell provides:
+
+- a subtle transparent material;
+- separation from content;
+- restrained highlight;
+- background blur;
+- safe icon legibility.
+
+The selected lens provides:
+
+- refraction;
+- specular rim;
+- subtle chromatic edge;
+- physical deformation;
+- long-press expansion;
+- drag/stretch behaviour;
+- spring settlement.
+
+Do not make the entire bar behave like jelly.
+
+---
+
+# 13. Normal tap
+
+Normal navigation remains immediate.
+
+Sequence:
+
+**tap destination**  
+→ immediate tactile/visual acknowledgement  
+→ lens begins moving  
+→ route changes  
+→ lens settles on selected icon
+
+A normal tap does not require long press.
+
+Selecting the active root tab should preserve the existing expected behaviour such as returning toward the root/top.
+
+---
+
+# 14. Long-press lens activation
+
+This is now a first-class interaction requirement.
+
+When the currently selected lens is held:
+
+### Phase A: touch down
+
+Immediately:
+
+- slight lens compression;
+- tiny specular change;
+- subtle haptic where supported.
+
+### Phase B: long-press threshold
+
+After approximately 250–350 ms, tuned on device:
+
+- lens expands;
+- refraction strengthens;
+- radius becomes softer/more liquid;
+- specular highlight intensifies slightly;
+- the object feels “picked up”;
+- second subtle haptic confirms engagement.
+
+The exact scale should be measured visually, likely in approximately the 1.3–1.45× family rather than blindly copying a demo.
+
+Apple's custom Liquid Glass controls explicitly support interactive scaling, bouncing and shimmering responses.
+
+---
+
+# 15. Dragging the engaged lens
+
+While held:
+
+- lens centre follows finger directly;
+- no spring runs while finger owns the object;
+- leading edge stretches in drag direction;
+- trailing edge lags subtly;
+- visual deformation is velocity-aware;
+- icon emphasis interpolates continuously;
+- crossing a destination centre may generate a light haptic;
+- hit geometry remains stable;
+- edge movement uses nonlinear resistance.
+
+At Home/Me boundaries:
+
+- outward motion is resisted;
+- small bounded overshoot is allowed;
+- nonexistent destinations are never exposed.
+
+The existing canonical specification already requires pointer following, directional stretch, icon interpolation and edge resistance.
+
+An open-source implementation now used as a technical reference demonstrates press-and-hold bubble morph, drag-to-switch and momentum deformation with spring physics.
+
+---
+
+# 16. Lens optics
+
+The lens should be actual refractive glass rather than merely another translucent gradient.
+
+Preferred architecture:
+
+**Lens geometry**  
+→ displacement field  
+→ SVG `feDisplacementMap` / equivalent renderer  
+→ actual apparent pixel bending  
+→ restrained chromatic edge  
+→ specular highlight  
+→ tint/blur  
+→ fallback material
+
+Aave's production web implementation demonstrates generated displacement maps and Safari-specific handling for real glass-like refraction.
+
+Implementation requirements:
+
+- position updates must be cheap;
+- drag should use refs/CSS variables/compositor-friendly updates;
+- avoid React rerender per pointer frame;
+- regenerate expensive optical data only when lens geometry meaningfully changes;
+- isolate filter work;
+- degrade effects before degrading responsiveness;
+- provide Safari/iOS-specific validation;
+- provide fallback where advanced distortion is unavailable.
+
+---
+
+# 17. Release physics
+
+On release:
+
+1. measure displacement;
+2. preserve velocity;
+3. resolve destination;
+4. settle page, lens and icon emphasis together;
+5. use one interaction owner.
+
+Fast flick:
+
+- may commit with less travel.
+
+Slow drag:
+
+- requires more deliberate displacement.
+
+Cancelled drag:
+
+- returns to original destination;
+- creates no history entry.
+
+Committed drag:
+
+- settles naturally;
+- creates only the canonical target route;
+- does not trigger a second unrelated animation.
+
+---
+
+# 18. Whole-page top-level swipe
+
+The final Public V3 must support:
+
+**horizontal finger drag**  
+→ current page follows finger  
+→ adjacent page appears live  
+→ lens moves with exactly the same progress  
+→ icon emphasis interpolates  
+→ release chooses destination  
+→ page + lens settle together.
+
+This is explicitly required by the canonical navigation specification.
+
+The existing `V3TopLevelSwipeSurface` foundation must not count as implemented merely because the component exists.
+
+It becomes implemented only when:
+
+- the real shell mounts it;
+- real route owners provide safe previous/current/next surfaces;
+- gesture ownership works;
+- route memory survives;
+- no duplicate data subscriptions appear;
+- accessibility isolation works;
+- actual device interaction passes.
+
+---
+
+# 19. Gesture arbitration
+
+Whole-page swipe must fail closed.
+
+Vertical scrolling wins when gesture intent is vertical.
+
+Nested horizontal content wins for:
+
+- scorecharts;
+- tables;
+- media rails;
+- carousels;
+- sliders;
+- chip rails;
+- sortable rows;
+- charts.
+
+Global swipe is disabled around:
+
+- critical forms;
+- active submission workflows;
+- modal/sheet ownership;
+- iOS edge-back gestures;
+- keyboard-sensitive contexts.
+
+Long press and drag must always have non-gesture alternatives. Long press is never essential for access.
+
+---
+
+# 20. Expanded and compact states
+
+The bar supports a genuine compact/retracted morphology.
+
+Near page top:
+
+**expanded wins**
+
+Sustained downward scrolling:
+
+**compact state**
+
+Upward intent:
+
+**expand sooner**
+
+Tiny scroll oscillations:
+
+**do nothing**
+
+Compact mode must not simply use:
+
+`transform: scale(...)`
+
+if that shrinks touch targets or changes proportions incorrectly.
+
+Compact mode must preserve:
+
+- selected state readability;
+- touch targets;
+- material quality;
+- safe area;
+- proper icon placement.
+
+---
+
+# PART V  
+# HOME
+
+## 21. Home's purpose
+
+Home answers:
+
+> **What matters to me right now?**
+
+It is personal and operational.
+
+It must not become:
+
+- a discovery feed;
+- an archive;
+- an everything dashboard;
+- a giant task list.
+
+Its permanent skeleton remains:
+
+1. Context
+2. Now
+3. Current Contest
+4. Coming Up
+5. Latest
+
+Optional personalization may follow.
+
+---
+
+# 22. Home content budget
+
+Maximum normal density:
+
+| Content | Maximum |
+|---|---:|
+| Primary action | 1 |
+| Secondary actions | 2 |
+| Current contest hero | 1 |
+| Upcoming | 3 |
+| Latest | 3 |
+| Secondary personalization | 1 |
+
+Overflow links into the correct destination.
+
+Do not turn Home into Dashboard 2.
+
+---
+
+# 23. Home state system
+
+Home must be visually stable while changing priority.
+
+### Calm
+
+- greeting/context;
+- all caught up;
+- current edition;
+- next event;
+- recent updates.
+
+### Action required
+
+One major responsibility becomes primary.
+
+Example hierarchy:
+
+**1 thing needs your attention**  
+Jury voting  
+8/15 complete  
+deadline  
+**Continue**
+
+Current contest remains visible underneath.
+
+### Urgent
+
+The same layout becomes more urgent without becoming a completely different page.
+
+Time remaining becomes dominant.
+
+### Show day
+
+The upcoming show becomes the central moment.
+
+### Live
+
+Show state becomes dominant but does **not** automatically force Live Mode.
+
+### Voting open
+
+Voting CTA appears according to eligibility/state.
+
+### Results available
+
+Respect spoiler preference.
+
+### Post-edition
+
+Winner/edition completion transitions gracefully toward archive and the next edition.
+
+---
+
+# PART VI  
+# EXPLORE
+
+## 24. Explore's purpose
+
+Explore answers:
+
+> **What can I discover in Solaris?**
+
+It is more editorial than Home.
+
+It may use:
+
+- stronger artwork;
+- larger typography;
+- curated rows;
+- horizontally browsable collections;
+- interesting entity relationships.
+
+It must not become an infinite engagement feed.
+
+---
+
+# 25. Explore root
+
+Canonical order:
+
+### Search
+
+One strong universal search surface.
+
+### Current edition
+
+Large editorial hero.
+
+### Discover
+
+- Countries
+- Songs & Artists
+- Shows
+- Stories
+
+### Archive
+
+- Editions
+- Reference
+- historical discovery
+
+### More
+
+- Anniversary
+- retained games
+- specialist discovery
+
+The master plan currently describes Wiki/Encyclopedia under archive, but where their user job overlaps they converge into Reference.
+
+---
+
+# 26. Explore must not be a directory of cards
+
+Explore root should show curated reasons to enter destinations.
+
+Examples:
+
+- **SSC 22 is approaching**
+- **Latest reveals**
+- **Countries returning this edition**
+- **Shows this week**
+- **Recently published stories**
+- **From the archive**
+
+Each row has:
+
+- clear reason for existing;
+- bounded item count;
+- obvious “See all” route;
+- editorial ordering rather than random database ordering.
+
+No root section should show the complete dataset.
+
+---
+
+# PART VII  
+# EDITIONS
+
+## 27. Edition is a living event hub
+
+An Edition page is not a database dump.
+
+Top identity area:
+
+- edition artwork;
+- edition name;
+- host;
+- state;
+- next meaningful event;
+- meaningful state action.
+
+Primary sub-navigation:
+
+- Overview
+- Participants
+- Songs
+- Schedule
+- Stories
+- Results
+
+During Live:
+
+- Live state becomes dominant;
+- Live Mode is easily accessible.
+
+After Results:
+
+- winner/result identity becomes prominent.
+
+---
+
+# 28. Edition Overview budget
+
+The current implementation must stop rendering every participant, entry and show directly on Overview.
+
+Suggested Overview budget:
+
+### Hero
+
+One state-aware edition hero.
+
+### Participants preview
+
+Approximately 6–8 meaningful participants.
+
+Then:
+
+**View all participants**
+
+### Songs preview
+
+Approximately 4–6 songs/recent reveals.
+
+Then:
+
+**View all songs**
+
+### Schedule preview
+
+Approximately 2–3 next/recent events.
+
+### Stories
+
+Approximately 1–3 relevant stories.
+
+### Results
+
+Only when meaningful according to publication/spoiler state.
+
+The dedicated Participants, Songs, Schedule and Stories views own full collections.
+
+---
+
+# 29. Edition Participants
+
+This becomes an intentional participant discovery surface.
+
+Support:
+
+- search;
+- region/participation filters where meaningful;
+- state;
+- canonical 3:2 flags;
+- entry availability;
+- result availability;
+- country/delegation navigation.
+Avoid a giant anonymous list.
+
+Use visual grouping according to contest relevance rather than simply alphabetical database rows where the context benefits from it.
+
+---
+
+# 30. Edition Songs
+
+Dedicated music experience.
+
+Each item should make clear:
+
+- artwork/media identity;
+- song;
+- artist;
+- country;
+- publication state;
+- playable/openable media where public;
+- result where public.
+
+Published Spotify/YouTube/other approved media must be surfaced rather than buried. The canonical audit explicitly identifies this gap.
+
+---
+
+# 31. Edition artwork
+
+Artwork should support metadata such as:
+
+- focal point;
+- safe text region;
+- dominant colour.
+
+Responsive cropping follows focal data.
+
+Never rely on artwork coincidentally being dark enough for text.
+
+Use controlled contrast treatment.
+
+---
+
+# PART VIII  
+# SONGS & ARTISTS
+
+## 32. Dedicated discovery surface
+
+This is a major blocker.
+
+**Explore → Songs & Artists must never route to Edition Overview as a substitute.**
+
+Create a real Songs & Artists discovery root.
+
+Possible sections:
+
+- Current edition songs
+- Featured artists
+- Recent reveals
+- Recently added media
+- Historical music
+- Browse by edition
+- Search
+- Filters
+
+This becomes one of Solaris V3's strongest fan-facing discovery experiences.
+
+---
+
+# 33. Song card/component
+
+A reusable song presentation should support:
+
+- artwork;
+- title;
+- artist;
+- country flag;
+- edition;
+- reveal/publication context;
+- media provider icons;
+- play/open action where permitted;
+- result context where permitted.
+
+Do not make every song merely:
+
+`flag · country · text · chevron`
+
+Music should visually feel like music.
+
+---
+
+# 34. Song entity
+
+First-class Song page:
+
+- artwork;
+- song title;
+- artist;
+- country;
+- edition;
+- credits;
+- published media;
+- Spotify;
+- YouTube;
+- other providers;
+- show appearances;
+- official result;
+- analysis links;
+- related stories;
+- Artist link;
+- Country link.
+
+Publication rules remain authoritative.
+
+No unpublished content may leak through route guessing/search/media metadata.
+
+---
+
+# 35. Artist entity
+
+First-class Artist page:
+
+- image;
+- name;
+- biography;
+- associated country/countries;
+- songs;
+- editions;
+- results;
+- stories.
+
+Artist is not merely metadata under a Song.
+
+---
+
+# PART IX  
+# COUNTRIES
+
+## 36. Countries discovery root
+
+The current simple directory/list composition must be replaced.
+
+Countries should feel like entity discovery.
+
+Root possibilities:
+
+### Current edition
+
+- participating;
+- returning;
+- debuting;
+- withdrawn/not participating where relevant.
+
+### Explore
+
+- regions;
+- followed countries;
+- recent results;
+- recent stories;
+- historic participation.
+
+### Browse all
+
+Only here show the complete country directory.
+
+Search/filter should be first-class.
+
+The canonical visual audit classifies current Countries as legacy composition/reskin.
+
+---
+
+# 37. Country entity
+
+Header:
+
+- canonical 3:2 flag;
+- country name;
+- follow control;
+- current-edition status;
+- subtle country-accent identity.
+
+Sections:
+
+- Current
+- Entries
+- Results
+- History
+- Voting profile
+- related stories where appropriate.
+
+The page should answer immediately:
+
+- Is this country participating now?
+- What is its current song?
+- How did it recently perform?
+- How can I explore its history?
+
+---
+
+# 38. Historical identity
+
+Historical editions may use edition-correct:
+
+- flag;
+- display name;
+- identity
+
+without rewriting the canonical country's lineage.
+
+---
+
+# PART X  
+# DELEGATION DETAIL
+
+## 39. Delegation is distinct from public Country identity
+
+Country is the public historical entity.
+
+Delegation is the edition/participation-specific identity.
+
+Delegation detail should visually communicate:
+
+- country;
+- edition;
+- delegation identity;
+- participant/entry status where public;
+- relevant published personnel;
+- current submission/public information;
+- relationship to Country entity.
+
+The current V3 structure is promising but visual identity remains incomplete according to the canonical audit.
+
+---
+
+# PART XI  
+# SHOWS AND LIVE
+
+## 40. Shows discovery
+
+Current grouped-by-edition list is not acceptable.
+
+Shows must become a discovery surface.
+
+Recommended hierarchy:
+
+### Live / happening now
+
+Only when applicable.
+
+### Up next
+
+Nearest upcoming shows.
+
+### Recent
+
+Recently ended shows/results.
+
+### Current edition
+
+Contextual show collection.
+
+### Browse
+
+By:
+
+- edition;
+- show type;
+- state;
+- historical period.
+
+Full archive comes later in the page or dedicated archive.
+
+---
+
+# 41. Show card
+
+Show card should communicate:
+
+- show name;
+- edition;
+- type;
+- scheduled/live/ended state;
+- time;
+- context action;
+- result status where published.
+
+A Live show should not look like an ordinary archive row.
+
+---
+
+# 42. Show entity
+
+Show page may contain:
+
+- identity;
+- time;
+- state;
+- entries;
+- running order;
+- voting;
+- result;
+- stories;
+- broadcast link where published.
+
+---
+
+# 43. Live Mode
+
+Live Mode is intentionally entered.
+
+It contains:
+
+- current performance;
+- current running-order position;
+- next performer;
+- running order;
+- updates;
+- voting state;
+- show details.
+
+Home may strongly advertise Live but does not automatically throw the user into it.
+
+Explicitly design:
+
+- delayed show;
+- technical pause;
+- changed running order;
+- skipped performance;
+- interrupted show;
+- delayed voting;
+- extended voting;
+- delayed result;
+- cancellation.
+
+---
+
+# PART XII  
+# STORIES
+
+## 44. Stories directory
+
+Stories are editorial content rather than another generic list.
+
+Support discovery by:
+
+- current;
+- edition;
+- country;
+- history.
+
+Use strong artwork where available.
+
+Avoid infinite algorithmic feed behaviour.
+
+---
+
+# 45. Story entity
+
+Story detail:
+
+- artwork;
+- publication time;
+- content;
+- related entities;
+- related stories;
+- sharing.
+
+Entity linking is important.
+
+A story about Oland / an artist / SSC 19 should link directly into those entities.
+
+---
+
+# PART XIII  
+# REFERENCE, WIKI AND ENCYCLOPEDIA
+
+## 46. Converge overlapping products
+
+Audit Wiki and Encyclopedia.
+
+Where they solve the same job:
+
+**merge them into Reference.**
+
+Do not retain two nearly identical knowledge systems because history happened to create them.
+
+---
+
+# 47. Reference root
+
+Reference is not another country directory.
+
+It should feel like a real knowledge base.
+
+Root may include:
+
+- search;
+- major categories;
+- popular/current references;
+- recently updated articles;
+- edition reference;
+- contest rules/history;
+- country/history reference;
+- terminology;
+- navigation by topic.
+
+---
+
+# 48. Reference article
+
+Support:
+
+- article title;
+- hierarchy/breadcrumb;
+- contents;
+- headings;
+- internal article links;
+- links to entities;
+- search;
+- related articles;
+- canonical URL;
+- historical context;
+- safe legacy redirect.
+
+Current Wiki country-directory composition is explicitly not sufficient.
+
+---
+
+# PART XIV  
+# ARCHIVE
+
+## 49. Archive is deliberate historical discovery
+
+Archive may expose:
+
+- Editions;
+- Countries;
+- Songs;
+- Artists;
+- Shows;
+- Stories;
+- Reference;
+- retained Games.
+
+Historical content must always show its context clearly.
+
+An old result must not look like current live state.
+
+An old edition must not show stale current-edition CTAs.
+
+---
+
+# PART XV  
+# PARTICIPATE
+
+## 50. Participate's purpose
+
+Participate answers:
+
+> **What am I responsible for, and what can I participate in?**
+
+Two layers:
+
+### Responsibilities
+
+Official obligations.
+
+### Optional participation
+
+Fan/public activities.
+
+These must never have equal visual priority.
+
+---
+
+# 51. Journey
+
+Top of Participate:
+
+**SSC XX · Your responsibilities**
+
+Example:
+
+- Confirmation ✓ Complete
+- Entry ✓ Verified
+- Media ✓ Complete
+- Jury ● In progress · 8/15
+
+Results are **not** a journey step.
+
+---
+
+# 52. Action hierarchy
+
+Below Journey:
+
+### Needs attention
+
+Current required actions.
+
+### Next
+
+Upcoming official action.
+
+### Optional now
+
+Televote / predictions / Fantasy etc.
+
+### Completed
+
+Collapsed historical workflow record.
+
+This must feel like an actionable personal workspace, not an admin dashboard.
+
+---
+
+# 53. Focused workflows
+
+Confirmation, Entry, Media, Jury and other consequential workflows should be able to suppress distracting global chrome when required.
+
+Critical task design:
+
+- strong state;
+- clear progress;
+- save state;
+- explicit review;
+- uncertainty/reconciliation;
+- safe exit;
+- receipt.
+
+No accidental swipe-away during dangerous submission states.
+
+---
+
+# PART XVI  
+# RESULTS
+
+## 54. Results' purpose
+
+Results answers:
+
+> **What happened?**
+
+Official outcome is always the first priority.
+
+Do not open with a wall of analysis tools.
+
+---
+
+# 55. Results hierarchy
+
+### Official result
+
+Winner, ranking, points.
+
+### Modes
+
+- Combined
+- Jury
+- Televote
+
+### Personal context
+
+Where relevant:
+
+**Your result**  
+Oland · 1st · 312 points
+
+### Explore this result
+
+- Scorechart
+- Jury vs Televote
+- Country breakdown
+
+### More analysis
+
+- Relationships
+- Voting DNA
+- Records
+- Compare
+- Result Lab
+- Replay
+- simulations.
+
+Analysis is progressively disclosed.
+
+---
+
+# 56. Expressive result reveal
+
+The first meaningful view immediately after publication may use a brief expressive sequence:
+
+edition transition  
+→ winner  
+→ country  
+→ points  
+→ podium
+
+approximately 0.8–1.5 seconds.
+
+Later visits open normally.
+
+Do not force the reveal every time.
+
+Respect Reduced Motion.
+
+---
+
+# 57. Scorecharts and dense results
+
+Phone:
+
+- vertical-first layout;
+- horizontal regions only where necessary;
+- sticky labels where useful;
+- no desktop table crushed into 390 px;
+- bottom nav never covers important rows;
+- content-owned horizontal gesture always wins over tab swipe.
+
+---
+
+# PART XVII  
+# ME
+
+## 58. Me's purpose
+
+Me answers:
+
+> **Who am I in Solaris, what have I done, and how is my account configured?**
+
+MySolaris is no longer a separate primary mental model.
+
+Responsibilities belong in Participate.
+
+Identity/history/settings belong in Me.
+
+---
+
+# 59. Me structure
+
+Recommended hierarchy:
+
+### Identity
+
+- profile;
+- country/delegation relationships;
+- fan/public identity.
+
+### Current
+
+Relevant current-edition personal status, without duplicating Participate tasks.
+
+### History
+
+Edition participation history.
+
+### Activity
+
+- jury submissions;
+- votes;
+- public participation;
+- meaningful account activity.
+
+### Receipts
+
+Canonical submission receipts.
+
+### Following & Saved
+
+Entities/content.
+
+### Preferences
+
+- spoiler setting;
+- notifications;
+- appearance-related preferences where applicable.
+
+### Account
+
+Identity/account management.
+
+### Devices & Sessions
+
+Active sessions and security.
+
+This corresponds to the canonical Me screen inventory.
+
+---
+
+# PART XVIII  
+# SEARCH
+
+## 60. One canonical global search
+
+Search supports:
+
+- editions;
+- countries;
+- songs;
+- artists;
+- shows;
+- stories;
+- public rules;
+- tools;
+- retained Reference content.
+
+Search presentation:
+
+- one strong search field;
+- immediate suggestions;
+- grouped result types;
+- query history only where useful;
+- no giant nested card stack.
+
+Quality:
+
+- normalization;
+- typo tolerance;
+- aliases;
+- historical names;
+- prefix matching;
+- cancellation/debounce;
+- bounded result groups.
+
+Search is permission and spoiler aware.
+
+---
+
+# PART XIX  
+# NOTIFICATIONS
+
+## 61. Notification centre redesign
+
+Current over-cardification must be removed.
+
+Notification centre should be a calm chronological communication surface.
+
+Use:
+
+- grouped dates/status where useful;
+- typography and separators;
+- small entity icons/flags;
+- direct action where required.
+
+Do not expose internal system language such as:
+
+- raw operation terminology;
+- internal event names;
+- projection jargon;
+- developer-state descriptions.
+
+Translate canonical backend state into user meaning.
+
+The visual audit explicitly identifies over-cardification and internal-system wording as current blockers.
+
+---
+
+# 62. Notification settings
+
+Settings should use native-feeling controls.
+
+Sections:
+
+- important contest activity;
+- delegation responsibilities;
+- live/show alerts;
+- results;
+- followed entities;
+- stories/editorial;
+- optional engagement;
+- quiet hours.
+
+### Quiet Hours
+
+Do not rely on ugly desktop-like raw time inputs as the final mobile design.
+
+Use a deliberate mobile interaction such as:
+
+- clear start/end rows;
+- platform-friendly time picker/sheet;
+- overnight range explanation;
+- explicit active state;
+- timezone visibility where relevant.
+
+---
+
+# PART XX  
+# RULES AND HELP
+
+## 63. Rules
+
+Preserve the strong redesigned V3 concept.
+
+Root supports:
+
+- official regulations;
+- current version;
+- effective date;
+- previous versions;
+- search;
+- quick answers;
+- rulebook;
+- relevant rules;
+- clarifications;
+- situation checking where supported.
+
+---
+
+# 64. Rules layout correction
+
+Search must be visually clear and singular.
+
+Do not build:
+
+outer card  
+→ inner card  
+→ search pill  
+→ icon bubble.
+
+Use:
+
+- one strong search surface;
+- suggestions below;
+- common questions;
+- context-aware relevant rules;
+- sticky elements only when they do not consume excessive viewport.
+
+---
+
+# PART XXI  
+# LOADING, LAUNCH AND TRANSITION STATES
+
+## 65. Remove legacy TSBC launch presentation
+
+The first meaningful V3 frame must already belong to Solaris V3.
+
+TSBC legacy loader must disappear from V3 launch.
+
+---
+
+# 66. Cold launch
+
+Show:
+
+- V3 background/material;
+- Solaris identity;
+- minimal branding;
+- shell as soon as practical.
+
+Do not use:
+
+- long splash animation;
+- fake progress;
+- marketing carousel;
+- irrelevant logo theatre.
+
+---
+
+# 67. Warm launch
+
+If cached content exists:
+
+1. render it immediately;
+2. restore navigation/tab state;
+3. refresh authoritative state in background;
+4. show subtle updating status only if needed.
+
+Never replace valid cached content with fullscreen loading.
+
+---
+
+# 68. Skeleton system
+
+Skeleton geometry mirrors actual components.
+
+Examples:
+
+### Song
+
+- artwork block;
+- title;
+- artist;
+- media action geometry.
+
+### Participant
+
+- flag/art;
+- country;
+- status;
+- metadata.
+
+### Result
+
+- rank;
+- country;
+- score.
+
+Never use one generic rectangle everywhere.
+
+---
+
+# PART XXII  
+# SYSTEM SURFACES
+
+## 69. Explicitly design all non-happy-path surfaces
+
+V3 includes more than routes.
+
+Explicitly design:
+
+- launch;
+- auth;
+- session restore;
+- loading;
+- offline;
+- reconnect;
+- stale state;
+- service update;
+- maintenance;
+- degraded service;
+- permission change;
+- unavailable feature;
+- 404;
+- stale deep link;
+- reconciliation;
+- uncertain operation;
+- auth return.
+
+No developer placeholders in production.
+
+---
+
+# 70. Error language
+
+Errors must describe the user/domain state.
+
+Good:
+
+> **Your vote may already have been received. Checking…**
+
+Bad:
+
+> RPC invocation failed: 409 operation version conflict.
+
+Users should not have to reverse-engineer infrastructure to learn whether their jury vote exists.
+
+---
+
+# PART XXIII  
+# MEDIA
+
+## 71. Public media presentation
+
+Published media must become a real part of V3 entity presentation.
+
+Support approved providers:
+
+- Spotify;
+- YouTube;
+- other providers.
+
+Rules:
+
+- media actions are visible on Song;
+- Edition Songs can expose media;
+- Country current entry can expose media;
+- Show may expose broadcast media;
+- unpublished content remains private.
+
+Avoid forcing users through three detail pages just to reach an official song link.
+
+---
+
+# PART XXIV  
+# ACCESSIBILITY
+
+## 72. Baseline
+
+Target WCAG 2.2 AA.
+
+Support:
+
+- VoiceOver/screen reader;
+- keyboard;
+- visible focus;
+- large text;
+- Reduced Motion;
+- Reduced Transparency;
+- minimum touch geometry;
+- non-colour status signals.
+
+---
+
+# 73. Gesture alternatives
+
+Every:
+
+- drag;
+- swipe;
+- long press
+
+has an accessible alternative.
+Long press improves the experience.
+
+It never becomes the only way to select a tab.
+
+---
+
+# PART XXV  
+# PERFORMANCE
+
+## 74. Performance targets
+
+Target:
+
+- warm shell perceived render < ~500 ms;
+- input acknowledgement < ~100 ms;
+- tab acknowledgement < ~100 ms;
+- major motion ~60 fps;
+- cached root content immediate;
+- negligible layout shift.
+
+On weaker devices:
+
+**responsiveness beats blur fidelity.**
+
+Liquid Glass may degrade from:
+
+high refraction  
+→ simpler refraction  
+→ backdrop blur  
+→ transparent material
+
+without breaking navigation.
+
+---
+
+# PART XXVI  
+# CURRENT PUBLIC BLOCKERS THAT MUST BE CLOSED
+
+## 75. Explicit blocker matrix
+
+| Area | Current problem | Required V3 closure |
+|---|---|---|
+| Countries | legacy directory/list composition | real editorial discovery + dedicated Browse All |
+| Shows | edition-grouped legacy list | current/upcoming/recent/historical discovery hierarchy |
+| Wiki | country directory inside V3 shell | merge overlapping job into real Reference |
+| Songs & Artists | routes to Edition instead of dedicated surface | build discovery root + first-class entities |
+| Edition | partly V3 but overlong | bounded Overview + dedicated collections |
+| Participants | full collection dumped into hub | dedicated participant experience |
+| Songs | full collection dumped into hub | dedicated music experience |
+| Delegation | incomplete identity treatment | finish dedicated delegation presentation |
+| Notifications | too many cards/internal language | flatter chronological communication UI |
+| Quiet Hours | desktop-style time control | native-feeling mobile time workflow |
+| Rules | nested search/card composition | one clean search + corrected sticky behaviour |
+| Top chrome | too tall | condensed context-aware shell |
+| Bottom nav | wrong final visual/interaction parity | new Instagram geometry + genuine liquid lens + long press + direct manipulation |
+| Whole-page swipe | implementation foundation exists but not integrated | wire into real shell safely |
+| Loading | legacy TSBC treatment | Solaris V3 cold/warm launch experience |
+
+These align with the canonical known Public blockers, with the bottom-navigation finding now strengthened by the dedicated navigation specification and implementation audit.
+
+---
+
+# PART XXVII  
+# REGRESSION RULES
+
+## 76. Product-architecture tests
+
+Add tests that fail if:
+
+### Songs & Artists
+
+`Explore → Songs & Artists`
+
+ever routes to Edition Overview as substitute.
+
+### Edition
+
+Overview renders unlimited full participant/song/show collections.
+
+### Shows
+
+root regresses to nothing more than:
+
+`edition heading → rows → next edition heading`.
+
+### Countries
+
+root becomes nothing more than all-country rows.
+
+### Reference
+
+root becomes a second country directory.
+
+### Results
+
+analysis tools appear before the official result.
+
+### Participate
+
+optional play receives equal or greater hierarchy than official responsibilities.
+
+### Me
+
+critical tasks migrate back out of Participate and into another confusing personal hub.
+
+### Navigation
+
+N6/N8 cannot be `implemented` merely because an unused compositor file exists.
+
+Actual mounted integration is required.
+
+### N0
+
+Navigation geometry parity cannot be claimed until the real approved reference package exists.
+
+### N14
+
+Navigation cannot be certified without:
+
+- geometry comparison;
+- screenshot golden pass;
+- human reference review;
+- real-device iPhone evidence.
+
+---
+
+# PART XXVIII  
+# VISUAL REGRESSION SET
+
+## 77. Required Public goldens
+
+At minimum maintain intentional screenshots for:
+
+- Launch
+- Home calm
+- Home action
+- Home urgent
+- Home live
+- Explore
+- Edition Overview
+- Edition Participants
+- Edition Songs
+- Countries discovery
+- Country
+- Songs & Artists
+- Song
+- Artist
+- Shows discovery
+- Show
+- Live
+- Story
+- Reference
+- Rules
+- Participate
+- Entry correction
+- Jury
+- Televote
+- Results
+- Scorechart mobile
+- Me
+- Notifications
+- Notification Settings
+- Auth return
+- Offline
+- Reconciliation/error
+
+The existing canonical golden set already requires most of these core screens.
+
+---
+
+# 78. Bottom navigation golden set
+
+Separate navigation snapshots:
+
+1. standard iPhone, light, first tab, expanded;
+2. standard iPhone, dark, middle tab;
+3. last tab;
+4. compact;
+5. narrow phone;
+6. pressed;
+7. long-press engaged;
+8. dragged between tabs;
+9. edge overshoot;
+10. whole-page swipe 25%;
+11. whole-page swipe 50%;
+12. whole-page swipe 75%;
+13. Reduced Motion;
+14. Reduced Transparency;
+15. keyboard open;
+16. installed-PWA safe area.
+
+---
+
+# PART XXIX  
+# COMPLETION DASHBOARD REFORM
+
+## 79. Stop source-file existence from proving user-visible implementation
+
+The V3 completion dashboard must distinguish:
+
+### Foundation exists
+
+Component/helper exists in repository.
+
+### Integrated
+
+Production shell actually mounts/uses it.
+
+### Product parity
+
+The visible result satisfies canonical IA/design.
+
+### Tested
+
+Relevant tests pass.
+
+### Certified
+
+Final acceptance evidence exists.
+
+Example:
+
+`V3TopLevelSwipeSurface.tsx exists`
+
+means:
+
+**foundation**
+
+not:
+
+**whole-page swipe implemented**
+
+unless the actual shell uses it.
+
+---
+
+# 80. Add Product Parity dashboard
+
+Every major Public item should display:
+
+| Dimension | Example |
+|---|---|
+| Capability | cutover |
+| Product parity | partial |
+| Responsive | tested |
+| Visual regression | missing |
+| Accessibility | tested |
+| Certification | missing |
+
+This makes unfinished visual/product work impossible to hide behind migration terminology.
+
+---
+
+# PART XXX  
+# IMPLEMENTATION WAVES
+
+## 81. Wave 0 — Product accounting and reference freeze
+
+Before major redesign coding:
+
+- re-fetch current main;
+- classify active PR ownership;
+- add product-parity state;
+- fix navigation completion-dashboard false positives;
+- freeze real navigation visual references;
+- document geometry tokens;
+- establish golden viewport set.
+
+---
+
+# 82. Wave 1 — Shared visual/navigation foundations
+
+Implement:
+
+- corrected top chrome;
+- correct bottom-nav geometry;
+- new liquid lens renderer;
+- long-press activation;
+- direct lens manipulation;
+- compact morphology;
+- spring physics;
+- safe areas;
+- obstruction budgets;
+- reusable entity-row/card patterns;
+- page section primitives;
+- editorial hero primitives;
+- media components.
+
+Do not redesign every page independently.
+
+---
+
+# 83. Wave 2 — Music + Edition architecture
+
+Do together because they depend on one another.
+
+### Songs & Artists
+
+- dedicated root;
+- Song entity;
+- Artist entity;
+- reusable song presentation;
+- published media.
+
+### Edition
+
+- bounded Overview;
+- Participants;
+- Songs;
+- Schedule;
+- Stories;
+- Results;
+- state-aware hero.
+
+This closes one of the biggest structural gaps first.
+
+---
+
+# 84. Wave 3 — Discovery entities
+
+Implement together:
+
+- Countries root;
+- Country entity finishing;
+- Delegation identity;
+- Shows discovery;
+- Show entity refinement;
+- Stories;
+- entity cross-linking.
+
+Reuse common discovery components.
+
+---
+
+# 85. Wave 4 — Reference / archive convergence
+
+- merge overlapping Wiki/Encyclopedia user jobs;
+- build Reference;
+- article page;
+- redirects;
+- archive root;
+- historical context rules;
+- Anniversary/retained games classification.
+
+---
+
+# 86. Wave 5 — Top-level experience refinement
+
+Apply the final system to:
+
+- Home;
+- Explore;
+- Participate;
+- Results;
+- Me.
+
+Do not rebuild already-correct domain logic.
+
+Focus on:
+
+- hierarchy;
+- content budgets;
+- state expression;
+- cross-links;
+- consistency.
+
+---
+
+# 87. Wave 6 — Supporting surfaces
+
+Finish:
+
+- Search;
+- Notifications;
+- Notification Settings;
+- Rules;
+- Launch/loading;
+- Auth return;
+- Offline;
+- errors;
+- maintenance;
+- degraded mode;
+- reconciliation.
+
+Small screens are still part of the product.
+
+---
+
+# 88. Wave 7 — Whole-page navigation integration
+
+Only after adjacent top-level surfaces can be provided safely:
+
+- mount the three-surface compositor;
+- integrate Home/Explore/Participate/Results/Me;
+- reuse same visual progress for lens and page;
+- implement gesture arbitration;
+- preserve tab route/scroll memory;
+- verify no duplicate subscriptions;
+- test iOS Back;
+- test keyboard;
+- test auth transition;
+- test PWA resume.
+
+---
+
+# 89. Wave 8 — Product parity certification
+
+Run:
+
+### Level 1
+
+- TypeScript
+- lint
+- unit tests
+- contract tests
+- component tests
+
+### Level 2
+
+- targeted integration
+- responsive
+- Playwright
+- workflow tests
+
+### Level 3
+
+- Browser Audit
+- visual regression
+- navigation golden suite
+- migration/parity report
+
+### Final candidate only
+
+- accessibility
+- production-isolation verification
+- full contest rehearsal
+- real iPhone navigation review
+- recovery evidence
+- exact-SHA V3 certification.
+
+The canonical testing hierarchy already reserves the heaviest verification for stable milestones and release candidates.
+
+---
+
+# PART XXXI  
+# SCREEN-LEVEL DEFINITION OF DONE
+
+## 90. Every Public screen must answer
+
+Before product parity:
+
+- What is its purpose?
+- Who is it for?
+- What owns the route?
+- What is its canonical data source?
+- What is its loading state?
+- What is empty?
+- What is stale?
+- What is offline?
+- What is error?
+- What if permission changes?
+- What does mobile look like?
+- What does desktop look like?
+- Does the keyboard break it?
+- Does bottom navigation cover it?
+- Does top chrome cover it?
+- Is VoiceOver correct?
+- Is keyboard focus correct?
+- Is Reduced Motion correct?
+- Is spoiler policy correct?
+- Is publication policy correct?
+- Is deep linking correct?
+- Has legacy migration been classified?
+- Are regressions covered?
+- Does the acceptance scenario pass?
+
+A pretty screen is not parity.
+
+---
+
+# PART XXXII  
+# FINAL DESIGN ACCEPTANCE
+
+## 91. Public V3 passes only when
+
+### Navigation
+
+The five-area model is coherent.
+
+The floating iPhone tab bar satisfies the approved geometry and interaction target.
+
+The long-press Liquid Glass lens feels like a physical object rather than a CSS highlight.
+
+Whole-page swipe and lens movement share one continuous interaction.
+
+### Home
+
+The user understands what matters now.
+
+### Explore
+
+Discovery feels editorial rather than like a database browser.
+
+### Entities
+
+Edition, Country, Delegation, Song, Artist, Show, Story and Reference belong to one coherent product family.
+
+### Participate
+
+Official responsibilities clearly outrank optional play.
+
+### Results
+
+Official outcomes dominate and analysis is progressive.
+
+### Me
+
+Identity/history/settings form one clear personal space.
+
+### Mobile
+
+No overlapping chrome, bottom-bar obstruction, desktop compression or kilometre-long Overview pages.
+
+### Loading
+
+No legacy TSBC launch experience.
+
+### Legacy
+
+No V2 composition appears merely inside a V3 shell.
+
+### Long tail
+
+Rare routes, settings, archive screens and transitions are intentionally classified.
+
+These are the canonical Public acceptance principles.
+
+---
+
+# 92. The final V3 visual test
+
+For every screen:
+
+> Remove the colours, glass and gradients mentally.
+
+Then ask:
+
+> **Does the layout, hierarchy, content density and interaction still clearly belong to a new generation of Solaris?**
+
+If no:
+
+**the page is not finished.**
+
+---
+
+# 93. Final navigation test
+
+Someone familiar with the approved iPhone reference should first notice:
+
+**Solaris icons**
+
+not:
+
+- wrong bar size;
+- wrong spacing;
+- wrong lens;
+- wrong compact shape;
+- wrong vertical placement.
+
+During interaction they should feel:
+
+- immediate touch response;
+- convincing lens engagement;
+- direct finger ownership;
+- liquid deformation;
+- velocity-aware release;
+- synchronized page/lens movement.
+
+The selected lens should feel like the same interaction family seen in modern Liquid Glass app navigation rather than a static selected-tab background.
+
+The open-source implementation research demonstrates that press-and-hold morphing, momentum deformation and drag-to-switch can be implemented on the web, while Apple's own platform guidance confirms interactive Liquid Glass as a control/navigation material.
+
+---
+
+# 94. FINAL RULE
+
+Solaris V3 is not complete because:
+
+- routes compile;
+- the navbar exists;
+- a migration says cutover;
+- Browser Audit passes;
+- screenshots contain V3 colours;
+- files named `V3Something.tsx` exist.
+
+It is complete when:
+
+**product architecture, visual design, canonical behaviour, responsive experience, accessibility, migration, system integrity and exact-release evidence all describe the same finished product.**
+
+The canonical master plan explicitly rejects fake completion and requires the app to visibly and structurally feel like a new generation.
+
+Until then:
+
+**Public V3 remains in implementation.**

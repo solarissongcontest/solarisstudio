@@ -1,0 +1,317 @@
+SOLARIS STUDIO V3
+
+UNIVERSAL VISUAL REDESIGN & THREE-EXPERIENCE COMPLETION PLAN
+
+Status: implementation specification, not a completion certificate
+Scope: public directory roots, relevant entity/detail pages, and visual consistency of the five principal public product areas
+Authority: supplements the existing canonical V3 Three-Experience Design Manifesto, updated Public Product/Design/Navigation Master Plan, safe-zone and bottom-navigation specifications, and System/publication/release contracts. It does not override them.
+
+1. Why the existing implementation is not acceptable
+
+The three supplied installed-iPhone screenshots expose the gap:
+
+• Countries: relatively compact, engaging flag grid, but the two collection buttons do not clearly distinguish the selected scope. The underlying code defaults to All countries, so 67 matching may be correct; this is first an active-state clarity failure, not proof of a wrong query. The opening introduction and control stack are also taller than necessary.
+• Editions: different, display-like headline typography; a large search/filter stack; the current-edition card is disproportionately tall; past entries feel like an unrelated layout and lose browsing density.
+• Tools: headline treatment differs from Countries; full-width filter control feels excessive; “Browse” followed by “Follow the contest” creates two weak heading levels; long boxed rows resemble a settings page instead of useful tool discovery.
+• All three: common dark background and floating dock exist, but they do not share a coherent information rhythm. The dock visually overlaps list content in the captured scroll positions; verify the final item is actually scrollable above it and never treat a screenshot alone as proof that content is inaccessible.
+
+Root cause to correct: common color and shell do not equal common design language. The actual code has a specialized Countries screen, separate Editions composition and the generic V3DirectoryFamilyIndex for Tools/Site Directory. The generic component must be improved without forcing all domains into the same card/list layout.
+
+2. Exact product contract
+
+Solaris is one product, one canonical backend, three deliberately different presentations:
+
+1. Installed PWA: canonical AppShell, compact app toolbar, touch-first focused collections, sheets, native-feeling back/drill-down, existing five-tab floating Liquid Glass navigation. No mobile-web masthead or website footer.
+2. Mobile browser: compact editorial website header, browser-native breadcrumbs, full-width readable rows or content-specific grids, conventional links/history, no installed floating dock by default. Never switch to app mode because the viewport is narrow.
+3. Desktop/browser: existing desktop shell, visible IA, contextual filter rail when helpful, higher information density, wider editorial layouts and keyboard/mouse utility. Installed tablets stay in the installed-app family; tablet browsers stay web.
+
+All three share canonical queries, server-owned feature flags, authorization, state, IDs, publication rules and URLs. No three full hidden trees, no duplicate fetches, no device-specific business logic.
+
+3. The unified visual grammar
+
+These are proposed implementation targets, to be reconciled with existing Solaris tokens and approved screenshots, not claims that they are already canonical CSS values.
+
+3.1 Typography and hierarchy
+
+• Body/UI font: existing standard Solaris interface typeface. Stop using decorative/block display lettering for ordinary directory titles; reserve expressive display type for approved contest artwork and major editorial moments only.
+• Installed directory heading: approximately 30–34 CSS px, 700–780 weight, tight but readable line-height. Country, Edition, Tools, Archive and Rulebook titles must visually be siblings.
+• Mobile-web masthead: approximately 28–32 px; compact eyebrow and at most one short explanatory sentence. Ordinary page titles should not wrap into unnecessarily tall two/three-line banners.
+• Desktop masthead: approximately 36–44 px depending on page importance; editorial, not gigantic.
+• Section heading: 19–23 px with one semantic heading, not stacked “Browse” + another heading unless an eyebrow genuinely adds context.
+• Collection row title: 15–17 px; metadata 12–14 px with adequate contrast; status chips consistent across domains.
+• Numbers/counters: tabular numerals. Scope labels and results must match actual currently selected filters.
+
+3.2 Spacing and sizing
+
+• Reuse one 4/8/12/16/24/32 px spacing scale. No arbitrary per-page gaps.
+• Default installed-phone horizontal page inset roughly 16–20 px; mobile web about 16–20 px; desktop main content constrained to appropriate readable widths.
+• Search controls approximately 46–50 px high and the same perceived height, icon size, border, radius, placeholder style and focus ring across directories within each experience.
+• Category controls at least 44 px practical tap height; compact when only one filter is present; sheets for app, select/pills for mobile web, persistent rail for suitable desktop directories.
+• Use consistent card corner families: small for chips, medium for rows, larger only for genuinely emphasized objects. Avoid giant boxes wrapping ordinary lists.
+• A directory masthead + controls should expose actual content promptly on a standard installed iPhone. Shorten generic descriptions instead of stacking three introductory text blocks.
+
+3.3 Surfaces and color
+
+• Level 0: quiet dark/light canvas and subtle contextual ambience.
+• Level 1: default text, flat lists, thin separators, flags, thumbnails and metadata. Prefer whitespace over another rounded card.
+• Level 2: selective featured edition, live show, major story, receipt or exceptional state.
+• Level 3: glass primarily in app navigation, transient controls and selected UI where approved, never coating each ordinary item.
+• One set of semantic colors for primary, accent, muted text, surface, border, selected/pressed, live, upcoming, completed, locked, unpublished and error. Do not use decorative accents to suggest a false data state.
+• 3:2 flags remain canonical. Missing media must use designed neutral placeholders, not invented photos/cover art.
+
+3.4 Interactions, filters and state
+
+• One shared accessible search contract: label, clear control, keyboard action, normalization, URL query behavior where relevant, loading/result/empty/retry.
+• One consistent filter taxonomy: collection scope (e.g. SSC 22 vs All), facet (region, period, type), query. Distinguish these visually and semantically.
+• An active collection choice must be unmistakable without relying on color alone: selected fill, border, check/mark if appropriate, aria-pressed, and matching results label.
+• Count labels distinguish total published, matches after filters and currently displayed items. Example: “67 countries” and “Showing 24 of 67,” not an ambiguous isolated “67 matching.”
+• Never assume a fixed list of available categories if its public data can change. Clear/reset restores coherent default scope and URL.
+• Provide loading skeleton, genuine empty state, no-search-results state, failure + retry, feature-disabled/locked state, published-content-only behavior and long/missing-content handling for each directory.
+
+3.5 Global safe zones and navigation
+
+• Keep top OS safe-zone protection in the shared shell, not a bespoke padding-top per page. No meaningful text, buttons or icon controls behind status bar/Dynamic Island/browser chrome.
+• Keep existing Liquid Glass tab bar geometry, behavior, selected lens and five canonical destinations owned by Navigation lane.
+• In installed-app mode, shell-owned scroll padding must account for dock height + floating gap + bottom safe area + comfortable margin, including final item, sheet controls, keyboard and focus scrolling. Do not pad every card individually.
+• The mobile browser gets its own header and browser-navigation conventions; no floating installed-app dock. Desktop gets its own global navigation. Avoid duplicate shell renderers.
+
+4. Shared implementation architecture
+
+Use existing ownership, do not create competing frameworks:
+
+• Runtime decision stays with useV3DirectoryPresentation / established Country runtime hook and AppShell platform resolution. Viewport only selects layout within the web family, never installed status.
+• Share semantic collection logic, not entire incompatible page compositions: DirectoryTitle, DirectorySearch, CollectionScope, FacetControl, ResultCount, SectionHeading, ItemStatus, DirectoryEmpty/Error, DirectoryItemLink.
+• Introduce domain composition slots/variants for V3DirectoryFamilyIndex where appropriate: flag-grid, chronology, broadcast-list, editorial-story, reference-index, rulebook-outline, music-catalogue, action-directory, sitemap.
+• Preserve a single source query/model per route and transform once to a common semantic view-model. Branch only the visible presentation between installed/mobile-web/desktop; do not mount all modes invisibly.
+• Use scoped design tokens and CSS; consolidate existing v3-directory-family.css and specialized directory files by design responsibility without erasing genuine domain differentiation. No uncontrolled global !important overrides.
+• Do not rewrite working shells, Supabase RLS or navigation ownership to fix ordinary spacing.
+• Keep bundles lazy and the fixed 1,800 KiB combined JS+CSS gzip budget. Aim for at least 30 KiB buffer on the integrated release build, subject to evidence, rather than a brittle 1 KiB pass. Use exact-head reports.
+
+5. Root-by-root redesign: 12 routes
+
+Each route below has three separate visual acceptance targets. Data/permissions remain identical.
+
+5.1 /countries — Countries discovery
+
+Installed PWA: One compact title/intro, clear All countries vs SSC 22 scope with unmistakable selected state, shared search, compact region-sheet trigger, and the established two-column 3:2 flag grid. Region displayed consistently; long names wrap/ellipsize intentionally. Current movement (debuts/withdrawals) becomes a bounded secondary section rather than competing with browse.
+
+Mobile web: Editorial Countries heading, brief current-edition context, a compact scope selector, search and native region filter; readable flag-led rows with region and optional published status. No forced two-column grid on very narrow browser widths.
+
+Desktop web: Editorial intro, persistent region rail, current-edition context and responsive multi-column flag explorer; scannable states and generous whitespace.
+
+Fix now: Ensure default participatingOnly=false looks like All selected; check both click actions and displayed 34/67 totals against the same published view. Verify no mismatched count when search or region changes. Avoid replacing currently correct flag discovery.
+
+5.2 /editions — Contest chronology
+
+Installed PWA: Replace the inconsistent display-font heading with the shared directory heading. One compact featured SSC 22 block containing state, host, next event (if public), and a single action; move status and any unavailable winner explanation to subdued metadata. List past editions as compact, browsable timeline rows, not oversized individual slabs.
+
+Mobile web: Small editorial masthead, one featured current edition, chronological list showing edition, published host/year/state and winner only when public; native year/status filter.
+
+Desktop web: Wider chronology with an edition-artwork feature when available, filter rail (year/era/status), a well-spaced 2-column timeline/card grid, and clear lifecycle changes.
+
+Fix now: Remove redundant labels and excessive vertical dead space, unify search/filter sizes, preserve publication-state rules and historical navigation.
+
+5.3 /tools — Useful actions, not a settings list
+
+Installed PWA: Shared ordinary heading typography; compact search and category sheet; groups such as Contest, Results & analysis, Play & predict, History. Use a simple icon + tool name + one useful explanation + chevron. Avoid outer card plus inner row cards and the awkward “Browse / Follow the contest” heading stack.
+
+Mobile web: Clean category sections with lightweight full-width linked rows, no heavy nested panels; browser links naturally shareable.
+
+Desktop web: Categorized tools workspace with visible category navigation and 2-column useful action items, optional featured tools if evidence supports them; high scan density.
+
+Fix now: Fix category count/status placement, repeated border boxes, headline and grouping semantics. Keep tool destinations and permissions intact.
+
+5.4 /site-directory — All Solaris pages
+
+Installed PWA: Searchable grouped destination index with familiar section names and compact rows. It should feel like an organized app navigation directory, not the Explore homepage copied again.
+
+Mobile web: Lightweight alphabetical/topic sitemap, real links/breadcrumbs, direct deep links and search, minimal cards.
+
+Desktop web: Multi-column site map with categories and destination descriptions; fast keyboard scanning.
+
+Fix now: Reuse shared controls, distinguish site directory from Explore and Tools, exclude hidden/private/unsupported destinations, preserve alias search.
+
+5.5 /shows — Broadcast discovery (PR #2058)
+
+Installed PWA: Order Live now → Up next → Recent → Browse according to actual canonical state. Live is one prominent exception; normal show entries are compact. Search/filter sheets subordinate to live relevance.
+
+Mobile web: Schedule-oriented rows with clear show title, edition, local time/timezone, type, status and published broadcast/result links; no desktop cards squeezed into a phone.
+
+Desktop web: Editorial featured live/upcoming show, contextual edition/type/status filter rail and timeline/grid of scheduled/history shows.
+
+Fix now: Preserve public results and live lifecycle authority; never infer live from clock alone, never expose unpublished broadcast links. Resolve current PR Quality failures after the exact bundle fix.
+
+5.6 /archive — Historical discovery (PR #2058)
+
+Installed PWA: Small archive identity header, deliberate categories and concise featured history. Navigation is permitted, but the page must communicate what historical area each destination opens.
+
+Mobile web: Editorial history index with chronological/subject groupings and readable link rows.
+
+Desktop web: Historical index with subject rail and contextual previews drawn only from canonical published projections; not a second archive database.
+
+Fix now: Distinguish Archive from Editions; remove generic repeated directory cards. Use historically correct dates/states and no current-edition CTA on old records. Do not invent previews if published projections are unavailable.
+
+5.7 /stories — Editorial content (PR #2059)
+
+Installed PWA: One meaningful featured published story followed by compact cover/heading rows; category/edition filter sheet; no infinite generic feed.
+
+Mobile web: Magazine-style featured story, publication date and readable editorial list, native browser links.
+
+Desktop web: Large editorial lead plus smaller story columns, edition/country browse rails where canonical metadata exists.
+
+Fix now: Respect the current V3 Stories rollout gate, spoiler preferences and server publication. Search and retry must not imply unpublished data exists.
+
+5.8 /encyclopedia + /wiki — Reference and compatibility (PRs #2059/#2060)
+
+Installed PWA: Strong search, a handful of real knowledge categories, compact topic rows and category sheet.
+
+Mobile web: Readable reference index with article links and browser-oriented breadcrumbs, not country directory tiles pasted into another route.
+
+Desktop web: Knowledge-base layout: persistent category rail, search, article/topic index, optional recent/featured entries only when canonical data supports them.
+
+Fix now: /encyclopedia is the canonical destination when authorized; /wiki historical links retain safe rollout-aware redirects. Preserve bounded queries, error recovery, public-only content and no leaked article metadata.
+
+5.9 /rules/chapters — Official Rulebook (PR #2061)
+
+Installed PWA: Compact consistent heading, search, filter sheet and grouped numbered chapters. One tap reaches the official chapter; no unnecessary “browse” wrapper.
+
+Mobile web: Official numbered index, concise descriptions, native search and category choice, clear breadcrumbs.
+
+Desktop web: Chapter outline in a rail, readable chapter groups in main column; use existing official Rules shell rather than duplicating it.
+
+Fix now: Preserve the exact 22 canonical chapters, Worldbuilding #22, deep links, official numbering/permissions. Prevent tiny three-column cards at 200% text and enforce accessible search/filter and scroll. Do not allow decorative Rules typography to break the directory heading system.
+
+5.10 /music — Songs & Artists discovery (PRs #1647 → #1363 → #1867)
+
+Installed PWA: Music-first current/public discovery: meaningful song artwork where published, artist imagery when available, playable media controls only when legitimately supported, 6-song/6-artist bounded previews and links to full catalogs.
+
+Mobile web: Editorial music front page with featured public selections and separate Songs/Artists pathways; browsable search and links.
+
+Desktop web: Strong music discovery landing page with featured rows, album-art/artist-aware grid, edition/context browsing and quick access to full indexes.
+
+Fix now: Replace generic nested V3 surfaces with music-specific composition. Do not invent release chronology, covers or providers. Durable opaque identity and server-publication RPCs are prerequisites. Previews are not a complete catalogue.
+
+5.11 /songs — Song catalogue
+
+Installed PWA: Search and compact artwork/title/artist rows with edition/country context when publicly available. Explicit “show more”/page navigation; never silently stop at 50 records.
+
+Mobile web: One-column readable song catalogue with artwork/placeholder, title, artist, edition and published status; searchable and deep-linkable.
+
+Desktop web: Denser catalog with meaningful filter rail and well-sized cover tiles/rows; sort by supported public fields only.
+
+Fix now: The current System list RPC is bounded at 100 and the frontend defaults to 50 without a full-history pagination contract. Treat server-owned pagination/cursor (or another canonical discoverability contract) as a System dependency; do not claim complete historical coverage until it exists. Keep music identity separate from Entry display strings.
+
+5.12 /artists — Artist catalogue
+
+Installed PWA: Search and artist-led avatar/name list with linked published songs; do not present generic database-ID tiles.
+
+Mobile web: Clear artist rows with identity, songs and historical edition context when public, correct missing-photo treatment.
+
+Desktop web: Gallery/list hybrid and contextual discovery/filtering; keep image sizes consistent and namesakes distinct via durable IDs.
+
+Fix now: Same backend pagination/discovery dependency as Songs; preserve aliases, merge redirects and publication-safe appearances. No alias/name-based identity guesses.
+
+6. Detail-page completion (a separate deliverable)
+
+Country (/countries/$code): app = compact identity, follow and drill-down; mobile web = 3:2 flag editorial masthead, concise current entry and web section links; desktop = richer country narrative, sectional side context. Preserve country personality and published histories. Reconcile PR #1990 without overriding correct app behavior.
+
+Edition (/editions/...): app = state-aware overview and focused Participants/Songs/Schedule/Stories/Results; mobile web = editorial edition masthead and clear URL section links; desktop = artwork/state hero, contextual rail, richer grids. Keep Overview previews bounded (about 6–8 participants, 4–6 songs, 2–3 schedule entries, 1–3 stories as suggested in the public master plan).
+
+Show (/shows/...): app = show status, live action and focused running order; mobile web = schedule/broadcast details with readable results; desktop = show identity plus running-order/results panels. Preserve real delayed/cancelled/voting states and publication gating.
+
+Song (/songs/$songId): app = artwork/media and linked credit drill-down; mobile web = editorial song/artist/edition page; desktop = media and relationship layout. Only show public media, provider links, results and stories where owned projections actually expose them.
+
+Artist (/artists/$artistId): app = identity with songs and appearances; mobile web = biography and clear links; desktop = richer discography and historical context. Durable identity survives duplicate names/aliases.
+
+Story (/stories/...): app = clean reader, compact actions; mobile web = article hierarchy, byline/date and share; desktop = longform layout with related entities. Respect spoiler/publication policy.
+
+Reference article (/encyclopedia/... and legacy /wiki/...): app = article header/contents sheet; mobile web = readable sections, internal anchors, related links; desktop = table of contents rail, article width discipline and citations/context where available. Legacy links resolve canonically.
+
+Rule chapter (/rules/chapters/...): app = official chapter, search and adjacent navigation; mobile web = readable numbered rules with deep links; desktop = outline rail and selected chapter content. Do not fork canonical Rules truth.
+
+Tool/result detail destinations: audit scorecharts, comparisons, predictions, Fantasy, calendar, voting DNA and other listed tools for consistent heading, control, status and shell treatment. Preserve their specialized interfaces rather than replacing every view with a generic list.
+
+7. Consistency review of the five product roots
+
+The directory pass must not make the rest of V3 feel like a different product:
+
+• Home: canonical Context → Now → Current Contest → Coming Up → Latest; one primary action, at most two secondary actions, bounded summaries. Do not convert it into a discovery feed.
+• Explore: one universal search and a curated Current edition → Discover → Archive → More hierarchy. Show short previews and “See all” links; not a wall of destination cards.
+• Participate: responsibilities and deadlines first, optional fan activities clearly secondary; distinct workflow states and preserved command/receipt authority. Visual consistency only, not a risky workflow rewrite.
+• Results: official result/story hierarchy first, data tools second; charts/tables specially designed per experience; protect spoilers and publication.
+• Me: identity/current/history/activity/receipts/following/preferences/account with compact coherent sections; don’t copy critical tasks out of Participate.
+
+Apply the same standard to global search, notification centre/settings, auth, launch, offline, error/retry and maintenance. Organizer follows the same token and runtime principle, but remains a separately owned operational-design lane with stronger data density and no unilateral shared-shell rewrites.
+
+8. Concrete implementation order and PR discipline
+
+Phase 0 — Evidence freeze and visual baseline
+
+1. Re-fetch main, open PRs, heads, checks and branch ownership. Capture each current route in installed 390px, mobile-web 390px and desktop 1440px, plus small-phone/tablet/zoom stress cases.
+2. Record the existing visual deviations and interaction defects, including ambiguous Countries scope state, oversized Editions current hero and awkward Tools headings. Confirm publication and navigation contracts before changing them.
+3. Approve one shared directory reference board with the actual Countries screenshot, a corrected Editions composition, a corrected Tools composition and examples for every domain family. Screenshots, not CSS class names, are the design reference.
+
+Phase 1 — Shared visual foundation (Public/Navigation owner coordination)
+4. Establish heading, search, filter, row, card, metadata, status and spacing tokens; add scoped reusable controls. Keep existing V3DirectoryFamilyIndex as semantic foundation where useful but allow specialized compositions.
+5. Fix selected-scope affordance, normalized result counts and app dock scroll protection. Do not change existing app dock visual design unless its own owner approves it.
+6. Add a small cross-directory component gallery / visual harness for common header, search, filter, row and empty states across dark/light and zoom modes.
+
+Phase 2 — Repair already merged roots
+7. Countries: correct state visual, counts and density, retain flag grid.
+8. Editions: unify heading/control grammar, compact featured edition and past chronology.
+9. Tools: eliminate stacked headings and generic nested boxes; action-oriented grouping.
+10. Site Directory: coherent navigation index and harmonized controls.
+11. Merge this corrective slice only with exact-head Quality, Browser Audit, budget, visual and accessibility evidence. A merged older PR is not a visual certification.
+
+Phase 3 — Complete active directory PRs
+12. Complete and merge #2061 Rules when exact-head proof still matches the current main and chapter semantics are correct.
+13. Fix any exact Quality root causes in #2058 and #2059; avoid rerunning expensive Browser Audit without relevant code changes. Validate Shows/Archive then Stories/Reference independently and again in combination.
+14. Keep the already merged shared optimization #2066; do not raise the 1,800 KiB budget. Refresh the next PR against every new main and avoid blindly overwriting shared files.
+
+Phase 4 — Music identity, catalogues, then discovery
+15. System owner finishes #1647 migration/contract replay against disposable Supabase and publication guards.
+16. Public owner lands #1363 consuming canonical identity and #1867 discovery and detail surfaces in dependency order.
+17. Implement actual Songs/Artists/Music three-experience visuals. Add a System-owned paginated catalogue if complete history is required; keep bounded previews truthful until then.
+
+Phase 5 — Details, overlap reconciliation and wider parity
+18. Review #1990 Country/Wiki detail work. Compare #1865/#1866 with integrated roots and extract only unmatched valid features; no duplicate directory implementations. Leave PR close/merge decisions evidence-backed.
+19. Complete the related entity/detail-page matrix and check Home/Explore/Participate/Results/Me visual consistency without changing domain ownership.
+
+Phase 6 — Machine-readable certification and final integrated release
+20. Integrate directory evidence with the existing V3 capability/product-parity dashboard (continuing the work proposed in #2067). Track route, domain, source model, all three compositions, screenshots, accessibility, performance, exact head and human approval. A merged PR cannot auto-certify itself.
+21. Perform one combined production-client build and complete multi-page screenshot review on a frozen candidate. Fix cumulative bundle growth and cross-page inconsistencies.
+22. Publish exact candidate-SHA evidence and certify only after all required gates pass.
+
+9. Visual QA matrix and interaction acceptance
+
+Representative environments: installed 320/390/430-width phone, installed tablet; browser 320/390/430 phone; tablet browser portrait+landscape; narrowed desktop web; 1440px and 1920px desktop; light/dark if supported; 200% text/zoom, keyboard, reduced motion/transparency. Capture top, one scrolled content state, last-item-above-dock state, filter-open, empty/error and representative detail screen.
+
+Real tests required:
+
+• Correct runtime shell; zero duplicated navigation or wrong-browser dock.
+• Search, clear, scope, category filters, result counts, show-more/pagination, URL synchronization, browser back/forward, direct deep links.
+• Last list item not obscured; keyboard focus scrolls into view; top-safe-zone and sticky-header safety; no horizontal overflow at 320px or at large text.
+• Proper 3:2 flags, long names, missing artwork, absent public fields, empty history, many items, many editions, long story titles and heavy category sets.
+• No unpublished content revealed by search/results, no historical data mislabeled current, no spoiler leaks, no role-dependent widening of public views.
+• Screen reader labels, heading order, live region announcements, focus indicators, 44px controls, contrast and keyboard-only task completion, targeting WCAG 2.2 AA.
+• Real rendered screenshots and visual comparison for each required route/experience; three CSS classes are not evidence of quality.
+• CI uses isolated local or disposable Supabase only, fails closed when unavailable and never connects tests to production.
+• Combined JS+CSS gzip remains <=1,800 KiB, with independent exact-head budget and browser evidence; no artificial exemptions or lazy-route defeats.
+
+10. Page-by-page acceptance rubric
+
+A page is not complete until every item is true:
+
+1. Identity: purpose and domain priority immediately obvious, within one screen.
+2. Family resemblance: heading, search, filter, status, spacing and control language recognizably consistent with other V3 directories.
+3. Domain difference: Countries still feel geographic, Editions historical, Shows broadcast-led, Stories editorial, Reference encyclopedic, Music music-first, Rules official and Tools action-focused.
+4. Three true experiences: installed app, mobile browser and desktop are deliberately different and actually rendered, not hidden copies.
+5. Truth: official counts, permissions, links, spoiler rules and publication states are backed by canonical sources.
+6. Usability: actions, last content, search and deep links remain reachable with keyboard/touch, safe zones and zoom.
+7. Evidence: exact-head Quality + Browser Audit + bundle checks pass, screenshots reviewed, accessibility evidence attached and registry status truthful.
+
+Explicit rejection criteria
+
+Reject a page that has any of: decorative block-font headings in routine directories; a new arbitrary search/filter geometry; giant empty hero cards; nested card-in-card rows; a generic one-size-fits-all item layout; visually misleading active filter; duplicate mobile navigation; dock-occluded final items; invented historical/media data; screenshot-only fixes that break other experiences; or an unpaginated list advertised as a complete catalogue.
+
+Final outcome: One Solaris Studio. One authoritative backend. One visual design system with page-specific identity. Three genuinely native-to-context frontend experiences. Every directory and related detail page tested and visually certified, rather than simply merged.

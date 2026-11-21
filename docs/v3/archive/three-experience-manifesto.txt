@@ -1,0 +1,224 @@
+# SOLARIS STUDIO V3
+# THE THREE-EXPERIENCE DESIGN MANIFESTO
+
+Status: CANONICAL PRODUCT-DESIGN REQUIREMENT
+Scope: All Solaris Studio V3 public, participant, fan, delegation, and Organizer interfaces wherever available
+Purpose: Permanently separate the installed mobile app, mobile browser website, and desktop browser website into three deliberately designed experiences.
+
+## 0. THE FUNDAMENTAL RULE
+
+Solaris Studio is ONE product with ONE canonical backend and THREE DISTINCT FRONTEND EXPERIENCES:
+
+A. INSTALLED MOBILE APP / PWA: immersive, mobile-native, app-first.
+B. MOBILE BROWSER WEBSITE: premium, editorial, browser-native, phone-first.
+C. DESKTOP / LAPTOP WEBSITE: expansive, information-rich, desktop-native.
+
+THESE ARE NOT THREE SIZES OF THE SAME LAYOUT.
+THEY ARE NOT THREE DIFFERENT PRODUCTS.
+THEY ARE THREE INTENTIONAL PRESENTATIONS OF THE SAME SOLARIS STUDIO.
+
+A phone browser must never look like a broken or compressed installed app. An installed app must never look like a website with its address bar removed. A laptop website must never look like a phone screen stretched across a monitor.
+
+Changing a desktop breakpoint, reducing padding, or hiding the app bottom bar does not, by itself, constitute a mobile-web design.
+
+## 1. SHARED TRUTH, SEPARATE PRESENTATION
+
+All experiences MUST share canonical data, domain rules, identity, permissions, server-owned rollout decisions, published results, contest integrity, and relevant user workflows. Do not create competing Supabase state, divergent voting calculations, separate submission authority, or browser-only business rules.
+
+But each experience MUST have its own appropriate shell, navigation composition, content hierarchy, spacing, interaction language, and page presentation. Share domain logic, data hooks, semantic models, and genuinely reusable controls; do not force reuse of whole page compositions when it damages one of the experiences.
+
+Access must be determined by canonical authorization and explicit rollout policy, not merely by screen size or whether the site is installed. Where a workflow is intentionally staged to a specific client, preserve the server-owned rollout contract and provide the appropriate alternative or clear explanation elsewhere.
+
+## 2. EXPERIENCE A: INSTALLED MOBILE PWA / APP
+
+Identity: an immersive, confident, touch-native Solaris application.
+
+The installed experience MUST:
+- Be detected by the established Solaris runtime mechanism, including supported standalone/iOS/native modes; never assume that a narrow viewport alone means installed app.
+- Use the canonical app shell and the five primary destinations: Home, Explore, Participate, Results, Me.
+- Preserve the approved floating Liquid Glass bottom-navigation design, its geometry, active lens, minimized states and interaction contract, subject to accessibility and device capability.
+- Respect iPhone safe areas, status bar, home indicator, on-screen keyboard, and full-screen/standalone behavior; no obscured content or controls.
+- Prefer app-oriented task flows, focused screens, sheets, drill-down navigation, relevant gestures, and clear states.
+- Make Participation, personal tasks, submissions, notifications, Live, and Results easy to reach without behaving like a conventional multi-column website.
+- Keep ordinary content mostly calm and flat. Liquid Glass belongs primarily to controls and navigation, not to every card or article.
+- Support keyboard, screen readers, reduced motion, reduced transparency, conventional tap alternatives to gestures, and back-navigation behavior.
+- Adapt intelligently on larger installed-device viewports without suddenly becoming the browser desktop shell.
+
+The installed app MUST NOT inherit the mobile website header/menu merely because both run on an iPhone. It MUST NOT display an ordinary browser site's footer or duplicate web navigation alongside its app shell.
+
+## 3. EXPERIENCE B: MOBILE BROWSER WEBSITE
+
+Identity: a beautiful, responsive MOBILE WEBSITE, not a lesser PWA.
+
+This is the experience for someone visiting Solaris Studio in Safari, Chrome or another browser on a phone without launching an installed application. It is a first-class product surface, not a fallback.
+
+The mobile browser website MUST:
+- Use a purpose-built mobile WEB header, sensible browser-oriented navigation, page context, search and back paths. Do not copy the installed application's five-tab floating dock by default.
+- Work comfortably with visible and collapsing browser chrome, URL bars, back/forward navigation, history, links, refresh and sharing.
+- Use compact editorial mastheads, readable typography, restrained section dividers, appropriate image/flag dimensions, and deliberately ordered information.
+- Present important content above the fold without stacking giant logos, title banners, sticky bars, subheaders and decorative cards.
+- Offer obvious navigation between sections, including short accessible tabs or section links where useful. Scrolling and reading should feel like a polished website, not a collection of app screens.
+- Use full available content width sensibly, but retain comfortable reading line length and side padding.
+- Render dense information as purpose-built mobile lists, disclosure panels or readable tables; never squeeze desktop matrices into phone width.
+- Keep every meaningful action reachable by touch with at least 44-by-44 CSS-pixel practical targets where possible.
+- Respect viewport changes, browser bottom controls, virtual keyboard, notch/safe-area behavior and device rotation.
+- Preserve access to essential public information and supported authorized workflows without requiring app installation.
+- Be fast, accessible, SEO/deep-link friendly where applicable, and resilient when the user navigates directly into a country, edition, show or result.
+
+The mobile browser website MUST NOT display the installed app shell simply because the viewport is 390 pixels wide. It MUST NOT use browser-hostile fixed overlays or pretend to be a full-screen native application. And it MUST NOT be the desktop page with smaller fonts, tighter columns and horizontally overflowing content.
+
+## 4. EXPERIENCE C: DESKTOP AND LAPTOP WEBSITE
+
+Identity: a substantial, expressive, highly usable web experience designed for wide screens, mouse, keyboard and deeper exploration.
+
+The desktop website MUST:
+- Use the established desktop web shell, with navigation/sidebar, main content and an optional contextual panel when the page benefits from it.
+- Take advantage of horizontal space with intentional grids, comparison views, expanded charts, readable tables, multi-column stories and richer context.
+- Preserve visual hierarchy, generous but disciplined spacing and sensible maximum reading widths. Do not stretch paragraphs across the entire monitor.
+- Make site-wide discovery and navigation readily visible. Do not reproduce the app's floating phone dock as desktop navigation.
+- Support hover where useful, visible keyboard focus, shortcuts where appropriate, resizable windows and accessible controls without making hover mandatory.
+- Allow Organizer workflows, deep Results analysis, archives and complex comparisons to be productive rather than feeling like enlarged phone cards.
+- Maintain the same Solaris brand, editorial personality and underlying information architecture as the other experiences.
+
+The desktop website MUST NOT be a stretched mobile screen. Equally, it MUST NOT be a separate conceptual product with different official truth or missing canonical workflows.
+
+## 5. TABLETS, WINDOW RESIZING AND EDGE CASES
+
+There are THREE EXPERIENCE FAMILIES, not exactly three fixed device resolutions.
+
+First determine runtime: installed/standalone/native versus ordinary browser. Then use actual available viewport, input capabilities and orientation to select the appropriate composition WITHIN that family.
+
+- A browser window narrowed on a laptop must gracefully adopt mobile/tablet WEB composition; it must not become the installed app.
+- An iPad/tablet browser remains a web experience, with a deliberate tablet layout that is neither a cramped desktop nor an oversized phone.
+- An installed app on a tablet remains within the app family but may use a more spacious app composition.
+- A phone in landscape remains in its correct runtime family.
+- Browser chrome visibility, touch capability and user-agent strings are not reliable substitutes for explicit runtime detection.
+- Breakpoints are layout tools, NOT product-identity detectors.
+- During initial rendering/hydration, prevent incorrect-shell flashes, doubled navigation or impossible navigation states; use the existing platform-resolution contract.
+
+## 6. THE COUNTRY-PAGE RULE: THE REFERENCE IMPLEMENTATION
+
+Country pages are the mandatory first reference for this distinction.
+
+For the SAME country and SAME canonical content:
+
+INSTALLED APP:
+- Use the app's dedicated country/delegation presentation where its canonical rollout authorizes it.
+- Emphasize useful app navigation, compact identity, relevant current state and focused drill-down sections.
+- Preserve the existing server-authoritative app cutover and safe fallback behavior.
+
+MOBILE BROWSER:
+- Use a distinct editorial country masthead with a properly proportioned 3:2 flag, country name, native name/region where relevant, follow action, current-entry summary and concise facts.
+- Use mobile-web-native section navigation for Entries, Results, History, Voting, Relationships and other relevant sections, preserving all real functionality.
+- Make long histories navigable and expandable rather than stacking endless cards.
+- Do not reuse giant desktop hero treatments or installed-app toolbars.
+
+DESKTOP BROWSER:
+- Use a richer editorial country profile, full-width hero where appropriate, clearly separated sections, side context where useful, and information density appropriate to a laptop.
+- Preserve the intentional Country Design V2/personality treatment without leaking oversized effects into the mobile website.
+
+The 3:2 country-flag contract, canonical names, data, URLs, follow state, entry history, published results and permissions remain consistent in all three experiences. The PRESENTATION changes; the truth does not.
+
+## 7. APPLY THIS CONTRACT TO EVERY IMPORTANT ROUTE
+
+The same distinction is binding across:
+- Home and Explore
+- Country discovery and Country profiles
+- Wiki / Encyclopedia
+- Editions, Shows and Live Center
+- Entries, artists, songs and media
+- Results, scoreboards, archives and voting analysis
+- Predictions, Fantasy and fan experiences
+- Participate, Confirmation, submissions, jury and televoting where authorized
+- MySolaris, notifications, settings and profiles
+- Organizer and administration surfaces wherever device access is supported
+
+Each screen MUST answer three questions before it can be called visually complete:
+1. What is the installed-app composition?
+2. What is the mobile-browser WEBSITE composition?
+3. What is the desktop WEBSITE composition?
+
+The answer cannot be "the same page with different padding" unless a reviewer can demonstrate that the genuinely shared composition fits all three modes without compromising the experience.
+
+Not every page needs three entirely separate React files. It DOES need three intentionally verified presentation outcomes.
+
+## 8. VISUAL AND INTERACTION RULES SHARED BY ALL THREE
+
+All experiences MUST be recognizably Solaris Studio through typography, brand language, canonical flags, editorial sensibility and trustworthy information design.
+
+- Establish hierarchy before decoration.
+- Do not make every content container a glowing, blurred, elevated card.
+- Use Liquid Glass primarily for app/navigation/control surfaces according to the canonical V3 material specification, not as indiscriminate page decoration.
+- Use subtle but legible transitions; performance and reduced-motion behavior outrank fancy effects.
+- Avoid giant headers and duplicated navigation stacks.
+- Show a useful summary first; put full datasets in dedicated browse, archive, results or detail surfaces.
+- Never hide important information solely to make a screenshot look cleaner. Reorganize it.
+- Preserve loading, empty, error, locked, upcoming, live and completed states in each experience.
+- Use WCAG 2.2 AA as the accessibility target, with visible focus, semantic headings, usable contrast and screen-reader-friendly controls.
+- Use real content and extreme cases: long country names, missing images, narrow devices, localization and large text.
+
+## 9. ENGINEERING RULES: PREVENT DESIGN LEAKAGE
+
+Implement one canonical domain/data layer and explicit, testable runtime/layout composition boundaries. Build shared semantic components and experience-specific layout components where appropriate.
+
+MANDATORY:
+- Use Solaris's existing installed-app runtime detection and route/cutover contracts as the source of truth, extending them carefully rather than replacing them with viewport guesses.
+- Keep CSS and design tokens appropriately scoped. A country desktop selector must not unexpectedly style the mobile website or installed app.
+- Avoid global overrides, broad !important patches and legacy-specific selectors that make one platform look right by breaking another.
+- Do not mount multiple conflicting interactive shells or duplicate forms just to hide one with CSS.
+- Avoid divergent local copies of official state, authorization and business logic.
+- Preserve URL semantics, browser history, deep links, permissions and the single canonical information architecture.
+- Test loading and resizing transitions so navigation, scroll restoration and unsaved form state survive mode-appropriate changes.
+- Coordinate shared-shell changes with the existing owner/lane; avoid colliding with unrelated V3 feature PRs.
+
+A developer MUST NOT "fix" mobile-web visual problems by changing app-wide navigation, weakening the installed PWA, or degrading desktop unless those changes are separately intended, reviewed and tested.
+
+## 10. RELEASE ACCEPTANCE AND REGRESSION GATES
+
+A changed public-facing page is NOT V3-complete until all applicable experiences are checked on the EXACT code revision proposed for release.
+
+Minimum verification matrix:
+- Small phone browser: approximately 320-375 CSS pixels wide.
+- Standard iPhone-class browser: approximately 390 x 844.
+- Large phone browser: approximately 430 CSS pixels wide.
+- Installed iPhone PWA/standalone mode: standard and small-phone classes.
+- Tablet browser: portrait and landscape.
+- Desktop browser: ordinary laptop and wide desktop sizes.
+- Narrowed desktop browser window, rotated phone, increased text size and keyboard-open states where relevant.
+
+For each mode verify:
+- Correct shell and navigation: no web/app hybrid, duplicate bars or wrong mode.
+- Content accessible: no clipped flags, cut-off titles, horizontal page scrolling, broken sections or unusable tables.
+- Top/bottom safe zones: no content hidden behind browser chrome, sticky header, app dock, home indicator or keyboard.
+- Actual interaction: tabs, links, follow, filters, charts, forms, back behavior, loading/error states and deep links work.
+- Real permission and server-rollout behavior is unchanged.
+- Accessibility and performance remain acceptable.
+- Visual evidence demonstrates genuinely different, fit-for-purpose compositions, not only passing viewport tests.
+
+Automated QA, CI and browser auditing MUST use isolated local or explicitly approved non-production test services and MUST NEVER point at hosted production Supabase. Preserve existing fail-closed guards and exact-SHA CI/certification requirements. Do not report checks as passed unless they actually ran and passed on the relevant head.
+
+If a page passes desktop but looks bad or breaks in a mobile browser, it FAILS. If it passes mobile web but damages the installed PWA, it FAILS. If the app is polished but laptop navigation is an enlarged phone dock, it FAILS.
+
+## 11. HOW TO HANDLE EXISTING AND FUTURE WORK
+
+- Do not declare V3 visual parity for a route based only on a responsive CSS patch or a working desktop screenshot.
+- Audit existing routes for incorrect reuse across app, mobile web and desktop web; fix the real layout boundary instead of applying accumulating exceptions.
+- When changing any shared component, explicitly assess impact on all three experiences and test affected routes.
+- Keep currently correct app behavior and server rollout intact while improving mobile web and desktop; no unnecessary rewrites.
+- Prefer incremental, mergeable, testable fixes that complete a coherent route across the matrix.
+- Add regression tests and visual references for the distinctions so future automated edits cannot casually erase them.
+- Record any unsupported device/mode combination as an explicit release gap, not as silently accepted parity.
+
+## 12. AUTHORITY AND NON-NEGOTIABLE FINAL STANDARD
+
+This is a binding, cross-cutting PRODUCT AND PRESENTATION requirement for Solaris Studio V3 and later work. It supplements the canonical Public Product, Mobile Shell, Bottom Bar, System, Organizer, and Release/CERTIFICATION plans. It clarifies the three-experience distinction wherever earlier wording loosely called all phone interfaces "mobile" or "app-like". It does NOT override security, privacy, contest integrity, canonical server authority, accessibility, production safety, or more specific later project-owner requirements.
+
+FINAL STANDARD:
+
+Opening Solaris Studio in an installed iPhone app must feel like a real, premium application.
+Opening Solaris Studio in Safari on that very same iPhone must feel like a real, premium mobile website.
+Opening Solaris Studio on a laptop must feel like a real, premium desktop website.
+
+All three must be immediately usable, clearly related, technically consistent and visibly designed for their environment.
+
+**ONE SOLARIS. ONE TRUTH. THREE INTENTIONAL EXPERIENCES.**

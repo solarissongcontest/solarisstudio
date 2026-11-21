@@ -1,0 +1,527 @@
+# SOLARIS STUDIO V3
+# COUNTRY & EDITION CINEMATIC EDITORIAL REDESIGN
+## Country Page V3:n korvaava kokonaisspesifikaatio · MySolaris Hero Studio · Edition Hero -uudistus
+
+**Versio:** 1.0 · 19.11.2026  
+**Status:** Projektinomistajan hyväksyttäväksi tarkoitettu **korvaava V3-tuote- ja designspesifikaatio**. Ei väite toteutuksesta, käyttöönotosta tai jo annetusta hyväksynnästä.  
+**Soveltamisala:** julkinen Country-sivu, siihen johtavat Country-nostot, oman maan julkisen profiilin kuvallinen hallinta MySolarisissa sekä Edition-sivujen hero- ja Overview-kokemus.  
+**Päätavoite:** kokonaan uuden sukupolven, kuvallisesti näyttävä, rauhallinen ja tarkasti sommiteltu Solaris-kokemus. Tämän dokumentin käyttäminen **ei tarkoita** koko Solaris V3:n system-, tietoturva- tai World-spesifikaatioiden korvaamista.
+
+---
+
+## 0. KANONINEN KORVAUS JA YHTEENSOPIVUUS
+
+### 0.1 Tämä on kokonainen redesign, ei vanhan sivun päälle lisätty banneri
+
+Uusi Country-sivu suunnitellaan alusta lähtien yhtenäiseksi tuotteeksi: sen yläosan visuaalinen rakenne, ensimmäinen sisältönäkymä, ankkuri-/alasivunavigaatio, osioiden sommittelu, sisältökortit, typografia, välistykset, mobiilikäyttäytyminen, historialliset tilat ja muokkauskokemus määritellään yhdessä. Vanha V3-kompaktiprofiili ei saa säilyä heron alle lisättynä erillisenä käyttöliittymänä. Erityisesti poistetaan päällekkäiset otsikot, satunnaiset korttikoot, päällekkäiset sisältölaatikot, toistuvat toimintorivit ja muodottomat pystysuuntaiset tyhjät välit.
+
+### 0.2 Korvattavat aiemmat Country/Edition-UX-määritykset
+
+Kun projektinomistaja ottaa tämän spesifikaation kanoniseksi, se **korvaa seuraavien dokumenttien Country-sivun visuaalista rakennetta koskevat vaatimukset** ja täsmentää vastaavat Edition-hero-vaatimukset:
+
+| Aiempi lähde | Korvattava/tarkennettava kokonaisuus |
+|---|---|
+| `v3-plan.txt` | §40 Country screen: pelkkä lippu/nimi/status-otsake ja tavanomainen osiolista eivät enää määritä lopullista Country-sommittelua. |
+| `Public side v3 (use this for v3 public implementation).txt` | P8 Country-projektion esittämistapa, P43 Country Hub/Page Builder/Theme -käyttökokemus ja Country-sivun visuaaliset käytännöt. Varsinaiset domain-tilat ja capabilityt säilyvät. |
+| `Complete v3 coordinative master plan.txt` | Country Detail / Country & Delegation -sivujen vanha header- ja yleissommittelumalli sekä Edition Hero -visuaalisen esityksen yleisluontoiset vaatimukset. |
+| `updated-PUBLIC-PRODUCT,-DESIGN-&-NAVIGATION-COMPLETION-MASTER-PLAN-v3.txt` | §37 Country entity ja edition-artworkin visuaalinen käyttö; Countries-hakemiston tietosisällön periaatteet säilyvät, mutta Country-kohdesivu saa uuden komposition. |
+| `Full specifix v3 page design plan.txt` | Country- ja Edition-detail-sivujen visuaalinen kompositio ja hero; hakemistojen toimivat suodatus-/hakusäännöt jäävät voimaan. |
+| `SOLARIS-STUDIO-V3-THREE-EXPERIENCE-DESIGN-MANIFESTO(1).txt` | Country-esimerkin **vanha layout-esitys** täsmentyy tässä kokonaan uudeksi; kolmen aidosti erillisen käyttökokemuksen pakollisuus pysyy. Mobiiliverkon hero ei ole työpöytäheron pienennetty kopio. |
+
+**Ei korvata:** Systemin kanonista dataa, RLS-/käyttöoikeuksia, `country_accounts`-omistajuutta, Worldin virallisia faktoja, versionhallittuja historiatietoja, julkaisu- ja spoilerisääntöjä, Supabase-egress-suojauksia, PWA-pohjanavigaatiota, top safe zone -sääntöä, WCAG-tavoitetta, release-sertifiointia tai soft launchin turvallisuusportteja. Jos ristiriita syntyy, tuotantoturvallisuus ja oikea domain-tieto voittavat esitystavan.
+
+### 0.3 Mikä on jo olemassa ja mikä on uusi ehdotus?
+
+Nykyiset spesifikaatiot tunnistavat jo `public.country_accounts`-omistajuuden, `public.country_profiles`, `public.country_profile_sections`, `public.country_media`, Country Hubin Page Builderin/Theme-asetukset, kolmen käyttötilan eron, 3:2-liput sekä Edition-artworkin focal point -ajatuksen. **Uutta tässä ovat Country Hero Studio, sen tarkka julkaisu- ja esikatselupolku sekä koko Country/Edition-sivun korvaava cinematic-editorial designjärjestelmä.** Tietokantakentät ja komponenttinimet alla ovat tavoitesopimuksia, eivät tarkistetun lähdekoodin valmiita rajapintoja.
+
+---
+
+## 1. VISUAALINEN VISIO
+
+### 1.1 Referenssin ydin
+
+Käytetään kahta käyttäjän hyväksymää visuaalista referenssiperhettä:
+
+1. **Tumma premium editorial / library -referenssi:** hienostunut vahva otsikkotypografia, tarkat sisällön välit, toimituksellinen kuvarytmi, kompaktit listat ilman jatkuvaa korttikuorrutusta.
+2. **Vita Travels -referenssi:** suuri immersive kuva, kuvan päällä rohkea nimi/otsikko, huolellinen gradientti, lyhyt kuvaus ja rauhallinen siirtymä käyttöliittymän seuraaviin osiin.
+
+Referenssejä **ei kopioida sellaisenaan** eikä niiden typografiaa käytetä kaikkialla. Toteutus on Solaris-identiteetin mukainen ja olemassa olevaan navigaatioon yhteensopiva.
+
+### 1.2 Tavoiteltu tunne
+
+Country page: *"Tämä maa tuntuu omalta paikaltaan Terra Solaris -maailmassa."*  
+Edition page: *"Tämä kilpailu on oman aikakautensa visuaalinen tapahtuma."*
+
+Laatutavoite on harkittu näyttävyys, ei yleinen lasi/gradientti/kaartuva laatikko -efekti. Yksi vahva kuva voi olla koko näytön tärkein visuaalinen asia. Muun sisällön on tällöin oltava rauhallisempaa, luettavampaa ja selkeästi ryhmiteltyä.
+
+### 1.3 Ehdottomat suunnitteluperiaatteet
+
+- Kuva ja siihen sulautuva tausta muodostavat **yhden jatkuvan pinnan**. Heroa ei kehystetä erilliseksi jättiläiskortiksi.
+- Pääotsikko on luettava ja sijoitettu tarkoituksellisesti. Ei tekstiä sattumanvaraisen kuvan päälle.
+- Maan lippu säilyy **kanonisena 3:2-identiteettinä**, mutta ei kilpaile jättikuvan kanssa.
+- Yksi tilanne, yksi ensisijainen toiminto. Ei kuutta yhtä painavaa nappia heron päälle.
+- Kaikkia sisältöosioita ei ympäröidä korteilla; listat, taulukot, artikkelit ja metatiedot saavat omat perustellut kompositionsa.
+- Oikea julkaisutieto ratkaisee sisällön. Ulkoasu ei koskaan keksi entryä, voittoa, poliittista faktaa tai kuvaa.
+- World on maan profiilin täysivaltainen osa, mutta vanhat Entry/Results/History/Voting-kokonaisuudet eivät katoa.
+
+---
+
+## 2. COUNTRY-SIVUN UUSI KOKONAISRAKENNE
+
+### 2.1 Ensimmäinen näkymä, sivun tarina
+
+1. **Cinematic Hero:** maan valitsema kuva / tarkkaan suunniteltu fallback. Yllä pieni, käyttötilan mukainen takaisin-/jakamis- tai hakutoiminto. Maan nimi isolla, kunnollinen kontrasti; alue tai virallinen nimitarkenne lyhyesti.
+2. **Visual Fade Bridge:** kuvan alin 25–40 % sulautuu asteittain sivun päätaustaan, ilman näkyvää vaakasaumaa. Hero-kuvan tekstin alla oleva paikallinen scrim ei saa näyttää erilliseltä harmaalta laatikolta.
+3. **Country Identity Strip:** 3:2-lippu, virallinen/nykyinen nimi tarvittaessa, nykyinen julkinen status, Follow. Tätä ei saa toistaa toisena jättiotsikkona heron alla.
+4. **Section Navigation:** Overview · Entries · Results · History · World · Voting (ja Stories, kun sisältöä/kanoninen reitti on). Pienellä näytöllä osa välilehdistä on sivuttaissuunnassa selattavia, ei miniatyyriseksi puristettuja. Valittuna olo on yksiselitteinen.
+5. **Overview:** suoraan keskeiset sisällöt (nyt osallistuminen, julkaistu entry, viimeisin julkaistu tulos, lyhyet faktat, World-status ja merkittävät tarinat). Ei kokonaista historian tietokantadumppia.
+6. **Dedicated Views:** Entries, Results, History, World, Voting/Relationships ja Stories: täydet aineistot omissa näkymissään, pitkä historia suodatettavana ja haettavana.
+
+**Konteksti ennen koristeita:** jos maa ei osallistu nykyiseen editioniin, sanotaan se lyhyesti. Jos entry tai tulos on vielä julkaisematon, sitä ei näytetä edes hero-teksteissä tai metatietolaskureissa.
+
+### 2.2 Navigointisopimus
+
+- Explore → Countries → Country avaa Country Overview'n.
+- Näkymillä on vakaat, suoraan jaettavat URL:t ja toimivat back/forward/deep link -polut. Suositellut semanttiset kohteet ovat `overview`, `entries`, `results`, `history`, `world`, `voting` ja `stories`; olemassa olevat reitit ja alias-/redirect-säännöt kartoitetaan **ennen** uudelleennimeämistä.
+- Välilehdet eivät saa olla riippuvaisia yksinomaan Client State -muuttujasta, jos sama sisältö on tarkoitettu linkitettäväksi.
+- Historianäkymä ei oletusarvoisesti vaihda nykyisen maan pysyvää identiteettiä. Yksittäisen editionin historia käyttää sen aikakauden nimeä ja lippua.
+- Omistajan Edit-väylä on näkyvissä vain asianmukaisella luvalla, mutta pelkän napin piilottaminen ei ole käyttöoikeusvalvontaa.
+
+### 2.3 Overview'n tietoarvojärjestys
+
+**A. Current:** osallistumistila ja julkaistu tämän editionin osallistuminen, tarvittaessa yksi ensisijainen linkki.  
+**B. Snapshot:** 3–6 lyhyttä, oikeasti ylläpidettyä tietoa; näyttävämpi faktarivi kuin satunnaiset tile-kortit.  
+**C. Contest legacy:** viimeisimmät julkaistut osallistumiset ja tulokset, vain sopiva esikatselumäärä.  
+**D. Terra Solaris:** hallitus, johtaja tai yhteiskunnallinen tieto *vain kun se on kanonisesti saatavilla*; linkki laajempaan World-näkymään.  
+**E. Stories & media:** 1–3 julkaistua tarinaa/kuvaa, jos saatavilla.  
+**F. Related:** relevantit historialliset ja tulos-/voting-polut.
+
+Näytetään vain käyttökelpoisia osioita. Tyhjistä edistyneistä World-moduuleista ei rakenneta kahdeksaa "No data" -korttia.
+
+---
+
+## 3. CINEMATIC HERO: KUVA, FADE, OTSIKKO
+
+### 3.1 Kuvan visuaalinen käsittely
+
+- Kuva täyttää hero-pinnan reunasta reunaan kyseisen käyttötilan turvallisessa kompositiossa (`object-fit: cover` / `background-size: cover` soveltuvasti).
+- Rajaus perustuu tallennettuun normalisoituun **focal pointiin (x, y välillä 0–1)**, ei automaattisesti keskustaan.
+- Alareunan **fade** alkaa suunnittelun lähtökohtana noin 60–70 % hero-korkeudesta ja päättyy 100 %:ssa täsmälleen nykyisen teeman sisältötaustaan. Käytä useampaa gradienttipysäkkiä, älä näkyvää 50 % opacity -kalvoa tai äkillistä mustaa palkkia.
+- Otsikon luettavuuteen voi tulla erillinen pehmeä, paikallinen scrim/varjo. Tämä ei korvaa alareunan fadea.
+- Kuva ei saa näyttää "sivun sisään upotetulta hero-kortilta". Sen ylä-, sivu- ja alarajojen käsittely määritetään käyttötilan mukaan.
+- Kuvan hallitseva sävy voi vaikuttaa *hillitysti* vain kuvalliseen ambienceen, ei teksti-/tilavärien semantiikkaan eikä WCAG-kontrastiin.
+- Älä zoomaa tai liu'uta hero-kuvaa väkisin jokaisella vierityksellä. Mahdollinen kevyt parallax/scroll-muutos on sallittu vain, jos mitattu suorituskyky ja Reduced Motion -tila sen sallivat. Perusdesign toimii täysin ilman animaatiota.
+
+### 3.2 Nimikkeet ja heron informaatio
+
+- Maan nimi: yksi selkeä, persoonallinen typografinen pääelementti. Hero voi käyttää Solarisille hyväksyttyä eleganttia display-/serif-tyyliä, mutta tavalliset käyttöliittymälabelit käyttävät yhteistä UI-fonttia.
+- Yksi korkeintaan kaksirivinen lisätieto: esim. alue, virallinen nimimuoto tai lyhyt kanoninen motto, **ei automaattista tekaistua taglinea**.
+- Älä laita heroon yhtä aikaa nimeä, virallista nimeä, kahta status-pillia, flagia, suurta nappia, historialistaa ja sosiaalilinkkejä.
+- Käyttötilan mukainen oikea AppTopChrome / web-header pysyy saavutettavissa ja täysin Top System Safe Zonen alapuolella.
+
+### 3.3 Hero-korkeus ja turvallinen näkymä
+
+Nämä ovat **suunnittelun testattavia lähtöarvoja**, eivät universaaleja hardcoded CSS -vakioita:
+
+| Kokemus | Hero-malli | Ehdotettu lähtömitta |
+|---|---|---|
+| Installed iPhone PWA | Eniten immersiivinen, säilyttäen global shellin safe zonen ja dockin | noin 62–76 % käytettävissä olevasta näkymästä, järkevä minimi ja maksimi; pienellä/zoomatulla näytöllä lyhyempi |
+| Tavallinen mobiiliselain | Toimituksellinen täysleveä kuvanosto, ei PWA-sovellusheron kopio | noin 300–450 CSS px tai käyttökokemuksen mukaan, tärkeä identiteetti ja sisältönavigaatio nopeasti näkyviin |
+| Desktop-verkkosivu | Laaja, vaakakuvaa hyödyntävä näyttävä country-masthead | noin 420–620 CSS px laajalla ruudulla; vältetään jättimäinen tyhjä pystysivu |
+| Tablet / landscape | Näyttömuodon ja käyttötilan mukainen mukautus | raja-arvot, ettei kuva, nimi tai navigaatio leikkaudu |
+
+PWA:ssa sisältö saa jatkua kuvan alle ja tavallista sisältöä alkaa tarvittaessa vasta vierittäessä, mutta navigointi ei saa olla käyttökelvoton tai kuvan takana. Lähtökohtaisesti heron jälkeen näkyvän alueen tulee vihjata sisällön jatkumisesta.
+
+### 3.4 Fallback-tilat
+
+1. Julkaistu, kelvollinen maan oma hero-kuva: käytetään sitä.
+2. Mikäli vanhassa profiilissa on julkinen ja oikeutettu olemassa oleva country media / design-personality-kuva: voidaan valita sen turvallinen migraatiovastine **vain erikseen tarkistetulla mappingilla**.
+3. Muutoin suunniteltu **flag-led abstract identity hero**: lipun väreistä johdettu mutta kontrastiltaan kontrolloitu sommittelu, ei koko lipun venyttämistä hero-suhteeseen.
+4. Virheellinen tai poistettu kuva: fallback automaattisesti ja vakaa layout; ei rikkinäisen kuvan ikonia eikä vanhan poistuneen kuvan julkista palautumista cachejen kautta.
+
+**3:2-lippua ei koskaan korvata hero-kuvalla.** Se säilyy itsenäisenä kanonisena tunnisteena.
+
+---
+
+## 4. DESIGNJÄRJESTELMÄ: EI EPÄJOHDONMUKAISIA LAATIKKOJA
+
+### 4.1 Välistysten semanttiset tasot
+
+Yhteinen asteikko: **4 · 8 · 12 · 16 · 24 · 32 px**, tarvittaessa 40/48/64 px harkituille suurille osioerotuksille. Käytä olemassa olevia Solaris-tokenien ekvivalentteja; älä luo kilpailevaa `country-gap-17` -maailmaa.
+
+| Tilanne | Lähtöväli | Periaate |
+|---|---:|---|
+| Ikoni ja samaan kontrolliin kuuluva teksti | 8 px | tiivis yksi kokonaisuus |
+| Sama metatietoryhmä | 4–8 px | näkyy yhdeltä kokonaisuudelta |
+| Kaksi saman listan riviä | 12–16 px / erotin | säännöllinen skannattava rytmi |
+| Otsikko ja sitä seuraava tieto | 12–16 px | ei 40 px tyhjää ilman syytä |
+| Osion sisäiset sisältöryhmät | 16–24 px | hierarkinen mutta kompakti |
+| Eri pääosiot | 32–48 px | todellinen ryhmäraja |
+| Hero → identity/navigation | gradientin läpi määritelty jatkuva siirtymä; sen jälkeen 16–24 px | ei äkillistä laatikkosaumaa |
+
+**Rakenne ratkaisee:** samantyyppisten elementtien välinen toistuva väli on yhdenmukainen. Suuri väli on sallittu vain, jos se välittää hierarkiaa. Satunnaisesti koskettavat kortit, 6 px ja 53 px väli vuorottelevissa sisarelementeissä tai eri section-komponenttien omat ylivertaiset margin-topit ovat hyväksyntävirheitä.
+
+### 4.2 Sommittelu ja surface-hierarkia
+
+- Tausta: rauhallinen tumma/light-teeman mukainen Solaris canvas; hero-faden päätepiste käyttää *täsmälleen samaa taustaväriä*.
+- Varsinainen sisältö: pääosin tasaisia rivejä, kuvia, typografiaa, erottimia ja huolellista tyhjää tilaa.
+- Emphasized card vain oikeasti korostettavalle sisällölle: current entry, tärkeä julkaisu, merkittävä World-tapahtuma.
+- Liquid Glass: vain appin navigointi- ja ohjauskerroksessa soveltuvasti. Ei tavallisiin tietolaatikoihin.
+- Vältä **kortti kortin sisällä**, eri radius joka rivillä, hyödytöntä "kelluvaa laattaa" tai ulkoasua, jossa jokainen metatieto omassa pillerissään.
+- Jokaisella sivulla on yksi luettava pääsisältölinja; desktopissa toinen sarake vain todellista kontekstia varten.
+
+### 4.3 Typografia
+
+- Hero-nimi: tarkoituksellinen suuri, typografisesti erottuva nimi, responsiivinen skaala ja turvallinen rivittyminen myös pitkille nimille.
+- Sivun alaotsikot: sama Solaris-UI-otsikkoperhe koko Exploressa.
+- Artikkelit ja historia: toimituksellinen lukutypografia, ei silmälle liian pieni harmaa monospace.
+- Sekundaarinen metadata: vähintään saavutettavan kokoista ja kontrastista. Referenssikuvien erittäin pientä tekstiä ei kopioida.
+- Monospace tai display-tyyli vain harkitussa metatiedossa, ei joka ikisessä navigointilabelissa.
+
+---
+
+## 5. KOLME ERILLISTÄ COUNTRY-KOKEMUSTA
+
+### 5.1 Asennettu PWA / mobiilisovellus
+
+- Aito cinematic full-bleed -tuntuma. Maan hero saa kasvaa näyttäväksi, mutta AppTopChrome-painikkeet, status ja pääotsikko ovat aina turvallisella alueella.
+- Joustava rajaus, nimen sijainti kuvan ala-/keskialueen mukaan esikatselulla testattuna; fade jatkuu rauhallisesti Overview-alueeseen.
+- Nykyinen viiden välilehden **Home · Explore · Participate · Results · Me** Liquid Glass -dock säilyy globaalina; Country-osioille tehdään erillinen kevyt sisäinen navigaatio, ei toista pohjadockia.
+- Navigoinnin sisältöä ei peitetä dockin alle, ja viimeinen listan kohde on vieritettävissä näkyviin.
+- Hitaissa yhteyksissä ensin heron paikkavaraus / matala resoluutio, sitten tarkempi versio ilman suurta CLS-hyppyä.
+
+### 5.2 Tavallinen mobiiliselain
+
+- Erottuva **mobiiliwebin** otsake ja selaimen back/share-käytös. Ei PWA-dockia.
+- Suuri, mutta lyhyempi kuva kuin asennetussa appissa. Otsikko ja 3:2-lippu luetaan helposti; sections-navigaatio saavutetaan nopeasti.
+- Heroa ei venytetä väkisin koko Safari-ruudun pituiseksi eikä fixed-elementeillä estetä selaimen normaalia vieritystä.
+- Vakaat URL-ankkurit, tekstin jako, hakukoneystävälliset julkiset faktat ja normaalit linkit.
+
+### 5.3 Desktop / laptop
+
+- Laaja kuvallinen country-masthead, jossa tilaa näyttävälle nimelle, mutta sivun koko informaatioarkkitehtuuri pysyy näkyvänä.
+- Hero-fade laskeutuu leveään pääsisältöön. Sen alla voi olla pääsisältö + todellinen kontekstisivupalkki (faktat, maailman jäsenyydet), ei kolmea identtistä korttisaraketta.
+- Rich history ja result/entry -näkymissä käytetään leveitä taulukoita tai rajattuja dataset-komponentteja aidosti työpöytämäisesti.
+- Hiiri ja näppäimistö toimivat; hover on lisäetu eikä pakollinen toiminto.
+
+### 5.4 Sama totuus kaikille
+
+Aina samat identiteetit, julkaistut tiedot, tilat, käyttöoikeudet, lippu ja sisällön linkit. **Kolme kompositiota, ei kolme tietokantalukua tai tietomallia.** Sama sivu ei renderöi kolmea piilossa olevaa DOM-puuta ja tee kolmea kyselyä.
+
+---
+
+## 6. MYSOLARIS: COUNTRY HERO STUDIO
+
+### 6.1 Käyttäjän näkökulmasta
+
+Oman maan nykyinen valtuutettu hallinnoija voi valita **kuvan, joka on hänen maansa julkisen Country-sivun tärkein visuaalinen kansikuva**. Hallinta löytyy MySolaris-ympäristöstä. V3:n johdonmukainen käyttöpolku:
+
+**Me → My Country / Delegation → Public Country Profile → Appearance → Hero image**
+
+Vanha **MySolaris → Country → Page Builder / Theme** tarjoaa toimivan redirectin / navigointisisäänkäynnin samaan V3-editoriin. MySolaris ei muutu kuudenneksi päätason välilehdeksi eikä toista koko Country Hubia. Sisällön authoring kuuluu oman maan hallintaan, virallinen julkaisu silti oikean käyttöoikeuspolun taakse.
+
+### 6.2 Käyttöpolku
+
+1. **Open editor:** näkyy julkaistu kuva tai fallback ja selkeä nykyinen tila.
+2. **Choose image:** valitse puhelimen Kuvat/Tiedostot tai tietokoneelta. Selitetään kuvasuhde, koko ja oikeudet.
+3. **Validate:** todellinen tiedostotyyppi, mitat, koko, mahdollinen riskisisältö ja käyttöoikeus. Lähetys ei julkaise kuvaa vielä.
+4. **Crop / focal point:** käyttäjä voi siirtää kuvaa ja määrittää tärkeimmän kohdan; erilliset "fit"/focal-esikatselut kolmea kokemusta varten.
+5. **Preview:** asennettu PWA, mobiiliverkko ja desktop samassa editorissa; näytetään oikea nimi, lippu, tekstit ja fade. Julkaisematon kuva on näkyvissä vain luvallisessa esikatselussa.
+6. **Adjust:** muuta rajausta, valitse tarvittaessa hallittu paikallinen kontrasti-/tummennustaso; ei vapaata, accessibilityn rikkovaa CSS-muokkausta.
+7. **Publish:** palvelin tarkastaa nykyisen maan hallintaoikeuden, assetin valmiuden, revision ja moderointitilan. Vasta hyväksytty komento vaihtaa julkisen kuvan.
+8. **Receipt:** julkaisu kuitataan, uusi versio voidaan lukea takaisin ja julkisivun välimuistit päivittyvät.
+9. **Replace / Remove / Restore:** uuden kuvan julkaisu tai paluu fallbackiin, hallittu revision versiointi ja tapahtumaloki.
+
+### 6.3 Selkeät editorin osat
+
+- **Current hero:** nykyinen kansikuva, julkisuustila ja viimeinen julkaisu.
+- **Image:** Upload / Replace / Remove.
+- **Composition:** focal point, rajauksen esikatselu, automaattinen fade.
+- **Accessibility:** vaihtoehtoinen kuvateksti (alt), tarvittaessa valokuvan lähde/tekijätieto; kontrastitesti.
+- **Preview modes:** App · Mobile Web · Desktop.
+- **Publish changes:** versiotarkistettu toiminto ja selkeä onnistumis-/virhetila.
+
+Editorin ei pidä olla sekava Page Builder -modaalipino. Hero Studio on yksi keskitetty toiminto, jonka voi saavuttaa sekä MySolarisin Page Builder -kohdasta että Country-profiilin authorized Edit-linkistä.
+
+### 6.4 Luvat
+
+- `country_accounts` tai sen kanoninen seuraaja omistaa **nykyisen maan controllerin totuuden**.
+- Käyttöoikeus ratkaistaan palvelimella nykyisistä actor/country/capability-tiedoista; HoD-nimike yksin ei riitä, jos delegoidut oikeudet poikkeavat roolista.
+- Tavallinen vierailija tai toisen maan hallinnoija ei voi muokata eikä nähdä keskeneräisiä kuvia tai julkaisemattomia esikatselu-URL:eja.
+- Maa saa hallita kuvaansa myös sellaisella editionilla, jolla se ei osallistu kilpailuun. Worldin pysyvä country-identiteetti ei riipu editionista.
+- Järjestäjällä voi olla rajattu moderointi- ja pakotettu palautustoiminto perustelulla/auditilla, ei hiljaista ylikirjoitusta.
+- Controller-vaihdos peruuttaa vanhan käyttäjän keskeneräisen editorin julkaisuvaltuudet ja private draft -käyttöoikeudet heti; historiallinen tekijätieto säilyy tarvittaessa.
+
+### 6.5 Kuvan tekniset rajat (ehdotetut lähtöarvot)
+
+- Tuetut kuvat vähintään JPEG, PNG ja WebP; iPhone-HEIC vain, jos järjestelmän turvallinen muunnospolku on oikeasti testattu. Animoitu GIF tai SVG ei ole kelvollinen hero-kuva.
+- Suositeltu lähdekuva: laadukas maisema / symbolinen kuva, mieluiten vähintään noin **1920 × 1080 px** tai vastaava, jotta desktop-rajauksessa riittää yksityiskohtia. Käyttöliittymä kertoo tilanteen, jos pieni kuva näyttäisi sumealta.
+- Lähtökohtainen enimmäislähetyskoko esim. **15 MB** (säädettävä, rajoja ei lukita speksiin ilman nykyisen infrastruktuurin tarkistusta).
+- Tiedoston mitat, tyyppi ja dekoodattavuus validoidaan serveripuolella; EXIF-metatiedot ja mahdolliset paikkatiedot poistetaan julkaistavista johdannaisista.
+- Responsiiviset derivative-koot, sopivat modernit formaatit ja rajoitettu määrä crop-variantteja tuotetaan luotettavassa palveluputkessa. Samaa 15 MB alkuperäistä ei jaella jokaiselle kävijälle.
+- Käyttäjä vahvistaa oikeuden julkaista kuva; palvelun sisältö- ja moderointisäännöt koskevat myös kuvia.
+
+---
+
+## 7. DATA, UPLOAD, JULKAISU JA TURVALLISUUS
+
+### 7.1 Hyödynnetään olemassa olevia omistajia
+
+- `public.country_accounts`: nykyinen country controller; **ei** uutta rinnakkaista omistustaulua.
+- `public.country_profiles`: julkinen profiili ja siihen liitetty julkaistun hero-media-assetin viite.
+- `public.country_media`: media-assetin identiteetti, tila, versio, derivaatit ja oikeutettu historiallinen viittaus. Jos nykyinen malli ei sovellu jokaiseen kenttään, tehdään Systemin omistama lisäys olemassa olevaan malliin.
+- `public.country_profile_sections`: Page Builderin nykyiset muut sisältöosiot; eivät omista hero-publication truthia.
+- Vanhoja kuvaviitteitä ei ylikirjoiteta sokkona. Vanhat Country Design V2 -sisällöt ja media kartoitetaan ennen migraatiota.
+
+### 7.2 Looginen tavoitesopimus (ei väitetä valmiiksi toteutetuksi)
+
+```ts
+type CountryHeroPresentation = {
+  countryId: string;                 // pysyvä maa-ID, ei slug-identiteetti
+  publishedAssetId: string | null;
+  revision: number;
+  focalX: number;                   // 0..1
+  focalY: number;                   // 0..1
+  altText: string | null;
+  creditText?: string | null;
+  cropMode: "cover";
+  contrastTreatment: "auto" | "soft" | "strong";
+  publicationState: "published" | "fallback";
+  updatedAt: string;
+};
+
+type CountryHeroDraft = {
+  countryId: string;
+  draftAssetId: string;
+  basePublishedRevision: number;
+  focalX: number;
+  focalY: number;
+  altText: string | null;
+  creditText?: string | null;
+  contrastTreatment: "auto" | "soft" | "strong";
+  processingState:
+    | "uploading"
+    | "processing"
+    | "ready"
+    | "rejected"
+    | "failed";
+};
+```
+
+Varsinainen skeema suunnitellaan nykyisten taulujen, RPC:iden, tallennuspalvelun ja RLS:n perusteella. Älä tallenna toista eri tauluissa kilpailevaa `current_hero_url`-arvoa. Julkaistun hero-asetuksen viite on yksi kanoninen totuus. Revision on estettävä kahden laitteen hiljainen ylikirjoitus.
+
+### 7.3 Turvallinen elinkaari
+
+`LOCAL SELECTED → UPLOADING PRIVATE → PROCESSING → READY DRAFT → PREVIEW → PUBLISHING → PUBLISHED`.
+
+Vaihtoehtoiset tilat: `REJECTED`, `FAILED`, `CONFLICT`, `REMOVED/FALLBACK`, `MODERATED`.
+
+- Uploadin valmistuminen **ei** tarkoita julkaistua sisältöä.
+- Esikatselun draft-media on suojattu. Palvelin ei paljasta draft-kuvia julkisen asset-URL:n, searchin tai CDN:n kautta.
+- Julkaisu suoritetaan rajatun, auditoidun, revision tarkistavan auktoritatiivisen palvelinoperaation kautta; se on idempotentti tarpeen mukaan.
+- Uuden julkaisun jälkeen vanhat julkiset assetit/invalidaatiot käsitellään tarkoituksellisella välimuististrategialla (versioned URL / cache-bust), ei massiivisella pollauksella.
+- Jos julkaisu epäonnistuu, vanha julkaistu kuva pysyy julkisena. Käyttäjälle kerrotaan mitä tapahtui ja miten jatkaa.
+- Kuvalle tapahtuva epäasiallinen käyttö voidaan palauttaa fallbackiin suojatulla Organizer-toiminnolla, jolla on syy ja audit-merkintä.
+
+### 7.4 Taustajärjestelmien rajat
+
+Oikea Country/World-identiteetti pysyy muuttumattomana. Hero-muutos ei saa kirjoittaa edition-identiteettiä, äänestystä, tuloksia, delegaation jäsenyyttä tai hallituksen virallisia faktoja. Kuvat eivät muuta järjestelmätason valtuuksia tai julkaisutietoa. Julkaistun maan profiilikuvan muutos voi tarvittaessa herättää vain rajatun cache-/search-päivityksen, ei koko Historyn tai Worldin uudelleenrakennusta.
+
+---
+
+## 8. WORLD, HISTORY, RESULTS JA MUUT COUNTRY-OSAT
+
+### 8.1 World-integraatio
+
+Country Overview sisältää World-noston **vain oikeista kanonisista tiedoista**, esim. hallintomuoto, johtajuus, kansainväliset jäsenyydet tai viimeisimmät viralliset julkaisut. World-näkymä mahdollistaa linkit maan hallintoon, politiikkaan, järjestöihin, asiakirjoihin, lakien ja vaalien historiaan, jos relevantit TG-järjestelmät ovat julkaistuina.
+
+- World-tietojen omistajuus pysyy Terra Solaris Governance -spesifikaatiossa.
+- Maa voi olla olemassa ilman nykyistä kilpailuosallistumista.
+- Hero on **country identity -mediaa**, eikä se saa korvata hallituksen, kansainvälisen organisaation tai poliittisen tapahtuman omaa mediakenttää automaattisesti.
+- Keskeneräiset World-toiminnot pysyvät feature-gatettuina; Country-sivulla ei ole kuolleita "coming soon" -linkkiketjuja.
+
+### 8.2 Entries ja Results
+
+- Julkaistun entryn tiivistelmä voi saada yhden korostetun musiikkikortin, mutta sen alle ei tule heti toista sisäkkäistä korttia.
+- Results-osa hakee oikeasta Results-versiosta ja julkaisukäytännöstä; Country-sivu ei laske kilpailun virallisia sijoituksia uudelleen eikä vuoda tulevia tuloksia.
+- Voting Profile / Relationships säilyvät saavutettavina, mutta ne linkitetään tarvittaessa Results-järjestelmän omistamiin näkymiin.
+
+### 8.3 Historiallinen identiteetti
+
+- Nykyinen Country-hero ei koskaan muuta historiallista maan lippua, nimeä eikä vanhoja entryjä.
+- Historiallisten edition-näkymien country-identiteetti tulee aikakauden oikeasta kanonisesta datasta.
+- Jos myöhemmin tuetaan erillisiä historiallisia hero-kuvia, se määritellään uutena ominaisuutena eikä takaisinpäin automaattisesti kopioimalla nykyistä kuvaa joka vuoteen.
+
+---
+
+## 9. EDITION PAGE: SAMA DESIGN-LAATU, ERI OMISTAJUUS
+
+### 9.1 Kokonaisuudistus, ei Country-sivun kopio
+
+Edition-sivu saa saman huolitellun *cinematic-to-editorial* -siirtymän, mutta sen visuaalinen identiteetti perustuu viralliseen edition-artworkiin, logoon, tuotantopakettiin ja julkaistuun tapahtumatietoon. **Maan omistaja ei saa muuttaa Edition-hero-kuvaa MySolarisista.** Editionin julkaisua ja brändiä hallitsee sen kanonisesti valtuutettu Organizer-/edition-järjestelmä.
+
+### 9.2 Editionin yläosan uusi rakenne
+
+1. Virallinen Edition-artwork suurena, käyttötilan mukaan rajattuna cinematic-hero-kuvana.
+2. Paikallinen kontrastikerros; monipysäkkinen fade suoraan sivun sisältötaustaan.
+3. Erottuva edition-numero/nimi, lyhyt julkinen host-/ajankohtatieto, oikea current/historical/lifecycle-status.
+4. Yksi tärkein kontekstuaalinen linkki (esim. Current Contest, Schedule, Watch/Live, Results **vain jos julkaistu**).
+5. Kevyt in-page-navigation: Overview · Participants · Songs · Shows/Schedule · Stories · Results (soveltuvin julkaisutiedoin).
+6. Overview: rajatut, tarkoitukselliset nostot, ei kaikkien osallistujien/tulosten valtavaa korttiseinää.
+
+### 9.3 Edition-asettelun kolme kokemusta
+
+- **Installed PWA:** immersiivinen iso artwork, pääotsikko ja luettavat kontekstit; dockille ja Top Safe Zonelle varatut tilat.
+- **Mobile Web:** matalampi premium-editorial artwork-masthead; sivun oma selattava tabs-/ankkurinavigaatio, normaali web-header.
+- **Desktop:** laaja edition-artwork, selkeä konteksti ja mahdollinen lisäsarake aikataululle/edition-tiedoille.
+
+Hero ei saa peittää julkaistujen kappaleiden oikeita mediatoimintoja, eikä editionin historian oleminen arkistoitu saa näyttää aktiiviselta Live-tilalta.
+
+### 9.4 Edition-artworkin käsittely
+
+Käytetään nykyisen Edition-artworkin **focal point, safe text region, dominant colour, version** -periaatteita. Kehitetään vain tarvittavat renderöinti- ja esikatselukomponentit. Ei uutta rinnakkaista edition-artwork-totuutta tai erillistä Country Hero Studio -editoria Editionille.
+
+---
+
+## 10. INTERAKTIOT, TILAT JA ACCESSIBILITY
+
+### 10.1 Jokainen tila on suunniteltu
+
+Yksittäisille Country-, Edition- ja editorinäkymille on hyväksyttävä vähintään:
+
+- loading / low-res image preview;
+- no image / fallback;
+- valid published hero;
+- too-bright / too-dark / busy background;
+- missing or invalid asset;
+- upload processing / progress / error / retry;
+- publication pending / success / conflict / denied;
+- stale login / country controller changed;
+- offline read-only / reconnect;
+- not participating / withdrawn / disqualified / historical only;
+- unpublished entry / unpublished results / spoilers hidden;
+- long country name / different alphabets / zoom / large text;
+- World feature off / missing optional government data;
+- reduced motion / reduced transparency / keyboard navigation.
+
+### 10.2 Accessibility
+
+- Tavoite **WCAG 2.2 AA** kaikissa kolmessa kokemuksessa.
+- Nimi ja tärkeä metadata kontrastitarkistetaan oikeita vaaleita, tummia ja kirjavia kuvia vasten; älä luota vain CSS-shadowiin.
+- Hero ei saa luoda tärkeää tiedollista sisältöä, jota ei ole tekstimuodossa. Alt-teksti kuvailee kuvaa, ei toista pelkkää maan nimeä.
+- Focal point -säätö onnistuu myös ilman drag-elettä: painikkeet/nuoliohjaus ja näppäimistö.
+- Välilehdet, editorin toiminnot ja kaikki merkittävät painikkeet ovat oikeasti fokusoitavia ja riittävän kokoisia (~44 × 44 px käytännön kosketuskohteet).
+- Reduced Motion poistaa tarpeettomat liikkeet; fade on staattinen ja toimii edelleen.
+- Tärkeät status-/virhetekstit eivät saa olla läpikuultavia kuvan päällä ilman luettavaa taustaa.
+- Top System Safe Zone koskee myös ensimmäistä renderöityä framea sekä iOS PWA -tilaa, skrollausta, näppäimistöä ja näyttötilan vaihtoa.
+
+---
+
+## 11. SUORITUSKYKY JA TUOTANTOEGRESS
+
+- Päähero on tyypillinen LCP-ehdokas: kuvalle esikokoonpano, `srcset`/`sizes`, oikeat resoluutiot, reservattu mitta ja tarpeen mukainen preload/high priority vain näkyvälle herolle.
+- Turha kuvien samanaikainen lataus, valtavat alkuperäiset mediat, jatkuvat refetchit ja duplikaatit ovat kiellettyjä.
+- Uusi Country-sivu ei saa laukaista Worldin, Resultsien ja koko historian kaikkia dataset-kyselyitä ensimmäisessä renderissä. Yksittäiset alaruudut/osiot hakevat tarvitsemansa rajatun tiedon.
+- Tuotannon Supabasea ei koskaan käytetä CI:n, Playwrightin, kuvakaappausauditoinnin tai muuhun automaattiseen testiliikenteeseen. Käytetään paikallista/eristettyä infrastruktuuria.
+- Kuvien optimointi ja välimuistit tulee suunnitella niin, ettei 66+ maan hero-valokuvat aiheuta ylimääräistä tuotannon egress-kulutusta.
+- Alkuperäinen asset ja siitä johdetut responsiiviset mediat tallennetaan turvallisesti; julkinen sivu ei tarvitse privileged Supabase clientia.
+- V3:n olemassa oleva bundle-budget ja per-route lazy loading säilyvät; hero-editorin kuvankäsittelykoodi ei lataudu tavalliselle vierailijalle.
+- Kenttämittaus tavoittelee V3:n olemassa olevia CWV-rajoja (LCP ~2,5 s, INP ~200 ms, CLS ~0,1 75. persentiilillä mahdollisuuksien mukaan).
+
+---
+
+## 12. TOTEUTUS- JA MIGRAATIOJÄRJESTYS
+
+**Tämä dokumentti on suunnitelma. Yksikään alla oleva vaihe ei ole tämän tekstin perusteella jo toteutettu.**
+
+**R1 — Realiteettikartoitus ja design-evidence**  
+Tarkista nykyinen `main`, nykyiset Country/Edition-komponentit, Country Design V2 / V3 -reittien tilanne, Page Builder/Theme -polut, `country_profiles`/`country_media`-rajapinnat, aktiiviset PR:t, feature flagit ja lokeista vahvistettavat rajat. Tee tästä rajattu toteutuslista. Ota screenshotit nykyisistä oikeista kolmesta käyttötilasta.
+
+**R2 — Design-system ja hyväksytty referenssi**  
+Luo yksi hyväksyttävä Country Hero -referenssikompositio sekä Edition-kompositio: molemmat jokaisessa kolmessa käyttötilassa. Valitse välistys- ja typografiatokenit, fade-käyrä, hero-min/max-rajoitukset ja fallbackit. Kiinnitä käyttäjän toimittamat kaksi kuvareferenssiä suunnitteluevidenssiin, ei tekijänoikeudettomana kuvakopiona.
+
+**R3 — CountryHero-datakontrakti + editori**  
+Hyödynnä nykyisiä Country-media- ja profiiliomistajia; Systemin omistama forward-only-migraatio vain mikäli todella tarpeen. Toteuta upload/processing, focal point, alt, turvallinen preview, versioitu publish/remove ja audit.
+
+**R4 — Country Public kolmelle kokemukselle**  
+Toteuta yksi kanoninen CountryProjection-kulutus ja kolme harkittua kompositiota. Uudista koko hero→identity→sections→overview -rakenne ja kaikki sisällön tilat. Ei pelkkää bannerilisäystä.
+
+**R5 — Historical, Results ja World -integraatio**  
+Säilytä kaikki vanhat kyvykkyydet, oikeat historical identity -tiedot, julkaisusuojat, World-linkit, Voting Profile ja nykyiset URL:t. Sulje legacy-kaksoisesitykset vain parity-evidenssillä.
+
+**R6 — Edition Hero/Overview**  
+Toteuta sama design-taso editionien virallisella artworkilla ja oikealla lifecycle/publication-säännöllä, ei country-upload-editorilla.
+
+**R7 — Vertailu, testaus ja rollout**  
+Oikeat mobiili-, desktop- ja PWA-kuvakaappaukset sekä pitkät nimet, vaikeat kuvat, tyhjät tilat ja keskeytykset. Käyttöönotto feature flagilla: internal → authorized testers → public, jokaiselle kohteelle oma todistettava hyväksyntä. Älä ota keskeneräistä Country/Edition-redesignia osaksi jo turvallisesti julkaistua soft launchia vahingossa.
+
+### 12.1 Työnjako
+
+- **Public UX/Frontend:** Country-/Edition-kompositiot, responsive ja design QA.
+- **Me/MySolaris/Country authoring:** oman maan editoripolku, draft/preview states, legacy-sisäänkäynnit.
+- **System/Media:** datakontraktit, storage, versionointi, RLS, palvelinoperaatiot, migraatio, audit ja cache.
+- **World:** maan viralliset institutionaaliset tiedot ja niiden julkaisu, ei hero-kuvien ylläpito.
+- **Organizer:** valtuutettu edition-artwork ja mahdollinen rajattu media moderation.
+- **Navigation:** safe zone, dock, shell-käyttäytyminen.
+- **QA/Release:** screenshot-evidence, regression, exact-SHA ja hyväksytty rollout.
+
+---
+
+## 13. TARKKA VISUAALINEN HYVÄKSYNTÄMATRISI
+
+Vähimmäismatriisi ennen julkista aktivointia:
+
+| Tarkistus | Installed iPhone PWA | Mobile web | Desktop |
+|---|:---:|:---:|:---:|
+| Country oikealla, laadukkaalla kuvalla | ✓ | ✓ | ✓ |
+| Country kirkkaalla/sekavalla kuvalla | ✓ | ✓ | ✓ |
+| Country ilman kuvaa / fallback | ✓ | ✓ | ✓ |
+| Pitkä nimi ja suurennettu teksti | ✓ | ✓ | ✓ |
+| Hero–fade–identity–navigation yhtenäinen | ✓ | ✓ | ✓ |
+| Kaikki Country-alasivut toimivat | ✓ | ✓ | ✓ |
+| World pois päältä / World julkaistu | ✓ | ✓ | ✓ |
+| Edition artwork / historiallinen edition | ✓ | ✓ | ✓ |
+| Julkaisemattoman sisällön salassapito | ✓ | ✓ | ✓ |
+| Näppäimistö/focus/safe zone/dock clearance | ✓ | ✓ | ✓ |
+| MySolaris editor / preview / publish | ✓ | ✓ | ✓ |
+
+Käytetään oikean kokoisia testiruudukoita: vähintään pieni puhelin (~360 px), tavallinen iPhone (~390 px), suuri puhelin (~430 px), tablet ja työpöytä (~1280/1440 px); mittasuhteet eivät saa olla screenshotin perusteella sopivia vain yhteen ruutuun. Testaa vaalea ja tumma teema, jos molemmat ovat tuettuja kyseisellä pinnalla.
+
+### 13.1 Ei-hyväksyttävät lopputulokset
+
+Redesign **hylätään**, jos yksikin seuraavista jää todetusti jäljelle:
+
+- vanha Country V3 -header jää erilliseksi kaksoisotsikoksi uuden heron alle;
+- kuva ja sivun tausta katkeavat näkyvällä saumalla tai "hassulla mustalla raidalla";
+- tärkeä teksti tai nappi menee Dynamic Islandin/statuspalkin tai aladockin alle;
+- hero-kuva venyttää 3:2-lippua tai rikkoo identiteetin;
+- joissain samanarvoisissa kohdissa kortit ovat kiinni toisissaan ja toisissa satunnaisen kaukana;
+- nested-card -kompositiot peittävät sisällön;
+- mobiiliverkko on vain PWA-app UI selainpalkilla;
+- desktop on venytetty mobiilisivu;
+- alaruudut ovat vain URL-tyhjiä placeholder-näkymiä;
+- World-tieto on keksitty tai release-gate vuotaa;
+- kuva julkaistaan ilman oikeaa maan hallintaoikeutta;
+- esikatselun draft-kuva on julkinen;
+- vanhan controllerin oikeudet säilyvät vaihdoksen jälkeen;
+- alkuperäiset mediat aiheuttavat tarpeetonta tuotantoegressiä;
+- automaattinen testi on yhteydessä hosted production Supabaseen;
+- sivusta on kuvakaappaus vain yläosasta mutta loppusivun välistykset/navigointi ovat testaamatta.
+
+---
+
+## 14. FEATURE-READY / DESIGN-READY / RELEASE-READY
+
+**Feature-ready:** kaikki vaaditut kyvykkyydet, MySolaris-upload ja julkaisu sekä Country/Edition-linkit ovat todella toimivia ja server-authoritative.  
+**Design-ready:** kaikki kolme kokemusta, heron fade, typografia, responsiiviset rajaukset, kaikki sections-osiot ja yhtenäinen spacing ovat hyväksyttyjen referenssien tasoisia oikeilla kuvakaappauksilla.  
+**Release-ready:** turvallisuus, julkaisupolitiikka, migraatiot, accessibility, egress, regressiotestit ja exact-SHA-evidence on tarkistettu oikealle rollout-kandidaatille. Julkinen aktivointi on erikseen hyväksytty.
+
+Mikään näistä ei yksin merkitse kahta muuta. **Kolmen statuksen on oltava hyväksyttyjä ennen Country Cinematic V3 -rolloutin valmistuneeksi merkitsemistä.**
+
+---
+
+## 15. LOPULLINEN TUOTEVAATIMUS
+
+**Kun käyttäjä avaa oman maan Country-sivun, hän näkee suuren, itse valitsemansa kuvan. Maan nimi asettuu huolitellusti kuvan päälle; kuva sulautuu alareunasta lähes huomaamattomasti sivun taustaan; heti sen jälkeen alkavat siisti maan identiteetti, helpot osiot ja hyvä sisältö. Sama sivu näyttää aidosti suunnitellulta asennetussa iPhone-PWA:ssa, tavallisessa mobiiliselaimessa ja desktopissa. MySolarisissa käyttäjä voi vaihtaa kuvan ja rajauksen turvallisesti. Jokaisen muun Country-osionkin design on samalla tasolla. Edition-sivu tuntuu saman design-perheen kilpailuun sopivalta visuaaliselta vastineelta.**
+
+Tätä ei saa tulkita tehtäväksi "lisää kuva vanhaan Country-sivuun". Se on tehtävä **"korvaa nykyinen Country V3 -tuotekokemus hyväksytyllä Cinematic Editorial Country V3:lla ja uudista Edition Hero/Overview samaan laatutasoon"**.

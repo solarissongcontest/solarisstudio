@@ -1,0 +1,1415 @@
+# SOLARIS STUDIO V3 — MAXIMUM-SPEED IMPLEMENTATION PROTOCOL
+
+## STATUS OF THIS DOCUMENT
+
+This document defines **how Solaris Studio V3 must be implemented as quickly as safely possible**.
+
+It does **not** replace the canonical V3 specifications.
+
+The canonical V3 plans remain the source of truth for **what must exist, how it must behave, and what constitutes completion**.
+
+This document governs:
+
+- implementation order,
+- prioritization,
+- batching,
+- parallelization,
+- testing strategy,
+- CI strategy,
+- migration strategy,
+- repository workflow,
+- completion tracking,
+- release certification,
+- and avoidance of wasted implementation time.
+
+The purpose is simple:
+
+> **Reach genuine canonical Solaris Studio V3 completion in the shortest possible wall-clock time without weakening correctness, production safety, architecture, testing, migration integrity, or release evidence.**
+
+Speed must come from better execution.
+
+Speed must **not** come from skipping required work.
+
+---
+
+# 1. CANONICAL SOURCES
+
+The following documents remain authoritative and must be followed whenever relevant:
+
+- `v3-plan.txt`
+- `V3 System plan (use this when u need to implement system stuff).txt`
+- `Public side v3 (use this for v3 public implementation).txt`
+- `Admin v3 (use this for admin v3 implementing).txt`
+- `V3 bottom bar plan (use this for making the bottom page bar).txt`
+- any newer canonical Organizer operational specification explicitly designated by the project owner
+- any canonical migration, infrastructure, security, database, or workflow specification explicitly designated by the project owner
+
+When requirements conflict:
+
+1. newer explicit project-owner instruction wins,
+2. domain-specific canonical specification wins over generic execution guidance,
+3. production safety and data integrity must never be weakened merely to move faster.
+
+This execution protocol must never be used to justify deviating from a canonical V3 requirement.
+
+---
+
+# 2. PRIMARY OBJECTIVE
+
+Every implementation run must maximize **real progress toward release-certified V3 completion**.
+
+Do not optimize for:
+
+- number of commits,
+- number of PRs,
+- number of changed files,
+- visible UI activity,
+- cosmetic polish,
+- passing one isolated test,
+- or appearing busy.
+
+Optimize for:
+
+> **How much canonical V3 functionality becomes correctly implemented, regression-protected, integrated, and permanently closable during this run?**
+
+The preferred outcome of every substantial implementation session is:
+
+1. inspect current repository and canonical state,
+2. identify the highest-value unfinished V3 work,
+3. implement as much of that work as safely possible,
+4. finish shared foundations before duplicating logic,
+5. batch sibling domains,
+6. integrate frontend + backend + database + tests together,
+7. verify the work,
+8. continue immediately into the next highest-value unfinished area,
+9. stop only when the run can no longer make safe meaningful progress.
+
+Do **not** stop after completing one small task if more implementation can safely continue.
+
+---
+
+# 3. SPEED PRINCIPLE: ATTACK THE CRITICAL PATH
+
+Implementation order must be determined by **dependency leverage**, not by cosmetic visibility or document numbering alone.
+
+Prioritize work that unlocks multiple later phases.
+
+Examples include:
+
+- shared operation infrastructure,
+- event/outbox infrastructure,
+- projection invalidation and rebuild systems,
+- authorization machinery,
+- workflow consequence infrastructure,
+- reconciliation,
+- migration tooling,
+- observability,
+- shared Organizer projections,
+- canonical capability registries,
+- shared participant workflow infrastructure,
+- cross-device draft handling.
+
+If one shared implementation can prevent ten later domain-specific patches, build the shared implementation first.
+
+Do not repeatedly solve the same architectural problem inside individual features.
+
+---
+
+# 4. FREEZE FINISHED ARCHITECTURE
+
+Repeatedly reopening completed architectural decisions is prohibited unless there is objective evidence of a defect.
+
+A completed area should only be revisited if at least one of the following is true:
+
+- a canonical requirement is still unmet,
+- a regression is demonstrated,
+- a test exposes incorrect behavior,
+- a production invariant is violated,
+- a dependency change invalidates previous work,
+- a security/privacy concern is discovered,
+- migration evidence reveals incompatibility,
+- exact-SHA verification fails.
+
+Do not re-audit completed architecture merely because another implementation session has started.
+
+Do not rewrite correct code for stylistic preference.
+
+Do not redesign components that already satisfy canonical requirements while release blockers remain.
+
+Maintain a strong distinction between:
+
+- **unfinished**
+- **incorrect**
+- **finished**
+
+Finished work stays closed.
+
+---
+
+# 5. NEVER IMPLEMENT THE SAME FEATURE FIVE TIMES
+
+Every meaningful feature should be implemented as a **vertical slice**.
+
+Where applicable, a single implementation pass should include:
+
+1. schema/invariant requirements,
+2. migration,
+3. server contract,
+4. authorization,
+5. command/action,
+6. projection/read model,
+7. frontend integration,
+8. loading state,
+9. empty state,
+10. error state,
+11. retry/recovery behavior,
+12. optimistic/pending behavior where appropriate,
+13. mobile behavior,
+14. accessibility,
+15. tests,
+16. migration verification,
+17. relevant observability.
+
+Do not intentionally split work into:
+
+- backend now,
+- frontend later,
+- errors later,
+- mobile later,
+- tests later,
+- migration safety later.
+
+That creates repeated context loading and hidden integration defects.
+
+Complete the slice as far as safely possible in one pass.
+
+---
+
+# 6. BATCH SIBLING DOMAINS
+
+Related domains must be implemented in waves whenever they share infrastructure.
+
+Example participant workflow grouping:
+
+### PARTICIPATION WAVE
+- Confirmation
+- Entry
+- Media
+
+### VOTING WAVE
+- Jury
+- Televote
+- Results
+
+### COMMUNICATION / ENGAGEMENT WAVE
+- Notices
+- Notifications
+- Following
+- participation consequences
+- engagement consequences
+
+### ORGANIZER OPERATIONS WAVE
+- operational state
+- task generation
+- workflow exceptions
+- incident surfaces
+- reconciliation
+- publication state
+
+When several domains use the same:
+
+- operation contract,
+- receipt structure,
+- invariant model,
+- authorization pattern,
+- event schema,
+- projection logic,
+- error taxonomy,
+- UI state machine,
+
+implement the shared pattern once and migrate the entire sibling group immediately.
+
+Avoid one-domain-at-a-time repetition.
+
+---
+
+# 7. PARALLELIZE INDEPENDENT WORK
+
+Never serialize work merely because it appears sequential in a specification.
+
+Treat Solaris V3 as several cooperating implementation tracks.
+
+## TRACK A — SYSTEM
+
+Examples:
+
+- system domain ownership,
+- operation infrastructure,
+- event/outbox,
+- projections,
+- reconciliation,
+- authorization,
+- limits,
+- observability,
+- migration framework,
+- recovery,
+- capacity,
+- release certification.
+
+## TRACK B — PUBLIC APPLICATION
+
+Examples:
+
+- shell,
+- Home,
+- Explore,
+- Participate,
+- Results,
+- Me,
+- public feature parity,
+- PWA,
+- accessibility,
+- responsive behavior.
+
+## TRACK C — ORGANIZER
+
+Examples:
+
+- Organizer shell,
+- Overview,
+- Tasks,
+- Control,
+- voting controls,
+- result publication,
+- communications,
+- production,
+- operations,
+- governance,
+- platform controls.
+
+## TRACK D — SHARED EXPERIENCE
+
+Examples:
+
+- navigation,
+- motion,
+- Liquid Glass controls,
+- page viewport transitions,
+- tab memory,
+- gestures,
+- responsive primitives,
+- shared design system.
+
+## TRACK E — QA / CERTIFICATION
+
+Examples:
+
+- generated capability reports,
+- migration rehearsal,
+- regression coverage,
+- full contest rehearsal,
+- exact-SHA verification.
+
+Work from different tracks may proceed without waiting for unrelated work when contracts are already stable.
+
+Do not block System progress because navigation CI is running.
+
+Do not block Organizer work because a Public visual regression test is running.
+
+Do not block Public feature implementation because an unrelated migration rehearsal is still executing.
+
+---
+
+# 8. USE MACHINE-READABLE REGISTRIES AS THE SOURCE OF IMPLEMENTATION STATUS
+
+Completion must not be tracked from memory.
+
+Use canonical machine-readable registries wherever possible.
+
+These should cover at minimum:
+
+- system domains,
+- capability ownership,
+- public capabilities,
+- Organizer capabilities,
+- workflow dependencies,
+- domain consequences,
+- commands,
+- projections,
+- authorization requirements,
+- invariants,
+- migrations,
+- route coverage,
+- test coverage.
+
+Every capability should resolve to an objective implementation state such as:
+
+- `missing`
+- `foundation`
+- `implemented`
+- `integrated`
+- `tested`
+- `certified`
+
+A feature must not be considered finished merely because a route or component exists.
+
+Use generated reports to identify gaps.
+
+Do not repeatedly perform manual repository archaeology when a registry can answer the question deterministically.
+
+---
+
+# 9. GENERATE VERIFICATION INSTEAD OF HAND-WRITING REPETITIVE CHECKS
+
+Whenever requirements follow structured rules, generate their verification.
+
+Examples:
+
+- capability coverage,
+- permission matrices,
+- authorization tests,
+- invariant tests,
+- domain consequence coverage,
+- route coverage,
+- projection coverage,
+- migration parity reports,
+- command ownership checks,
+- direct-browser-mutation detection,
+- unsupported workflow state checks,
+- stale task detection,
+- production-endpoint isolation checks.
+
+Do not manually maintain dozens of nearly identical tests when the canonical registry can generate them.
+
+Generated verification should make entire defect classes difficult to reintroduce.
+
+---
+
+# 10. CI MUST BE STAGED BY COST
+
+Do not run the most expensive verification for every microscopic change.
+
+Use a layered strategy.
+
+## LEVEL 1 — FAST LOCAL / PR FEEDBACK
+
+Run frequently:
+
+- type checking,
+- linting,
+- unit tests,
+- invariant tests,
+- generated registry checks,
+- focused command tests,
+- focused component tests.
+
+These should fail quickly.
+
+---
+
+## LEVEL 2 — AFFECTED WORKFLOW TESTS
+
+Run after a coherent slice changes:
+
+- targeted integration tests,
+- affected Playwright flows,
+- relevant responsive checks,
+- relevant migration tests,
+- affected Organizer/Public workflow tests.
+
+---
+
+## LEVEL 3 — MILESTONE VERIFICATION
+
+Run when a substantial slice is stable:
+
+- Browser Audit,
+- broader visual regression,
+- complete migration rehearsal,
+- wider integration suite,
+- capability parity reports,
+- full responsive matrix where relevant.
+
+---
+
+## LEVEL 4 — RELEASE CERTIFICATION
+
+Run only against the actual candidate release SHA:
+
+- all canonical CI,
+- migration rehearsal,
+- security/authorization verification,
+- production-isolation checks,
+- accessibility evidence,
+- responsive evidence,
+- full contest rehearsal,
+- recovery evidence,
+- exact-SHA release report.
+
+Do not continuously restart extremely expensive CI because of unrelated tiny edits.
+
+---
+
+# 11. KILL LONG CI LOOPS
+
+Long-running CI must not become a development bottleneck.
+
+When a slow test fails:
+
+1. identify the exact failing condition,
+2. reproduce it with the smallest targeted test possible,
+3. fix the root cause,
+4. add a focused regression test,
+5. run the expensive suite again only when the local/targeted evidence is clean.
+
+Do not repeatedly make speculative changes followed by full Browser Audit runs.
+
+Do not use full Browser Audit as a debugging tool.
+
+Do not run a complete migration rehearsal after every CSS change.
+
+Do not rerun every workflow if only one isolated workflow changed.
+
+The slowest test suite must be the **final verifier**, not the primary debugger.
+
+---
+
+# 12. ROOT-CAUSE FIXES ONLY
+
+Never patch merely until a test becomes green.
+
+When a defect is found:
+
+1. identify the underlying cause,
+2. determine whether sibling instances exist,
+3. fix the defect class,
+4. add regression protection,
+5. verify affected domains,
+6. only then close it.
+
+Do not:
+
+- hard-code around the test,
+- suppress an error,
+- loosen an invariant,
+- disable a failing assertion,
+- skip a migration check,
+- hide a visual defect,
+- introduce a special case that violates canonical architecture.
+
+A fast wrong fix is slower than a correct fix because the same defect will return later.
+
+---
+
+# 13. PRIORITY ORDER
+
+When several unfinished items exist, prefer approximately this ordering:
+
+## P0 — PRODUCTION SAFETY
+
+- production Supabase isolation,
+- destructive migration prevention,
+- historical data integrity,
+- authentication and authorization,
+- privacy,
+- critical workflow correctness.
+
+## P1 — SHARED ARCHITECTURE
+
+- canonical operations,
+- receipts,
+- events/outbox,
+- projections,
+- consequences,
+- reconciliation,
+- migration infrastructure.
+
+## P2 — CRITICAL CONTEST WORKFLOWS
+
+- Confirmation,
+- Entry,
+- Media,
+- Jury,
+- Televote,
+- Results,
+- Organizer controls for those workflows.
+
+## P3 — ORGANIZER OPERATIONAL CONTROL
+
+- Overview,
+- Tasks,
+- Control,
+- live operational state,
+- exceptions,
+- publication,
+- communications.
+
+## P4 — CORE PUBLIC PRODUCT
+
+- Home,
+- Explore,
+- Participate,
+- Results,
+- Me,
+- essential supporting routes.
+
+## P5 — LONG-TAIL CAPABILITY PARITY
+
+Complete the remaining canonical Public and Organizer capabilities.
+
+## P6 — POLISH
+
+- minor animation refinement,
+- low-impact visual tweaks,
+- secondary micro-interactions,
+- non-blocking beautification.
+
+A P6 issue must not consume time while significant P0–P5 work remains unless the canonical plan explicitly makes it a release requirement.
+
+---
+
+# 14. DO NOT CONFUSE POLISH WITH COMPLETION
+
+The V3 visual system matters.
+
+The navigation experience matters.
+
+Motion matters.
+
+Liquid Glass behavior matters.
+
+But visual work must remain proportional to release importance.
+
+Do not spend hours adjusting tiny optical differences while:
+
+- a critical Organizer command still mutates directly from the browser,
+- a workflow lacks idempotency,
+- a projection cannot reconcile,
+- a migration is unsafe,
+- authorization remains ambiguous,
+- a canonical capability is missing.
+
+Visual parity should be completed deliberately, but not allowed to starve architectural blockers.
+
+---
+
+# 15. USE EXISTING CORRECT SYSTEMS
+
+V3 is not permission to rewrite functioning Solaris domain logic unnecessarily.
+
+Preserve and reuse correct behavior whenever possible.
+
+Before replacing existing functionality, determine whether it is:
+
+- architecturally incorrect,
+- duplicated,
+- unsafe,
+- incompatible with canonical V3 projections,
+- missing required functionality,
+- or merely visually old.
+
+If the underlying domain behavior is correct, migrate or wrap it rather than rewriting it solely because V3 exists.
+
+Rewriting correct systems increases risk and implementation time.
+
+---
+
+# 16. MINIMIZE PR OVERHEAD WITHOUT CREATING UNREVIEWABLE CHAOS
+
+Do not create one PR per trivial change.
+
+Prefer coherent PRs representing:
+
+- one architectural foundation,
+- one domain wave,
+- one major feature slice,
+- one migration phase,
+- one certification milestone.
+
+A PR should still be understandable and safely reviewable.
+
+Avoid both extremes:
+
+### BAD
+
+40 tiny PRs where each contains one helper or one CSS adjustment.
+
+### ALSO BAD
+
+one enormous PR containing unrelated database, navigation, Organizer, Results, and deployment changes with no coherent boundary.
+
+The ideal unit is:
+
+> **largest coherent change that can be understood, tested, and reverted safely.**
+
+---
+
+# 17. DO NOT WAIT FOR UNRELATED PRs
+
+If one PR is blocked only by long-running CI and another independent task is available, continue implementation in a separate safe branch/stack.
+
+Do not sit idle.
+
+Do not modify the same files from multiple concurrent tracks if doing so creates merge-risk greater than the time saved.
+
+Parallel work should be based on low-conflict boundaries.
+
+---
+
+# 18. MAINTAIN A CLEAR DEPENDENCY GRAPH
+
+Before implementing a large remaining area, understand:
+
+- what it depends on,
+- what depends on it,
+- which shared contracts it uses,
+- whether another open PR already implements part of it,
+- whether an older PR is stale or superseded.
+
+Do not implement duplicate versions of the same foundation in parallel.
+
+Do not blindly merge old stacked PRs merely because they remain open.
+
+Before continuing an old PR, determine whether current `main` already supersedes it.
+
+---
+
+# 19. OPEN PRs ARE NOT A TODO LIST
+
+The existence of an open V3 PR does not mean its work is still required.
+
+Open PRs may be:
+
+- stale,
+- superseded,
+- experimental,
+- partially merged elsewhere,
+- dependent on an abandoned design,
+- useful only as a source of specific commits.
+
+Always compare against current `main`.
+
+Do not waste time reviving obsolete work.
+
+---
+
+# 20. DATABASE CHANGES MUST BE SAFE BY DEFAULT
+
+Speed never overrides database safety.
+
+For migrations:
+
+- inspect current schema,
+- inspect existing migrations,
+- preserve historical data,
+- make migrations repeatable where required,
+- avoid unsafe destructive operations,
+- stage constraints where necessary,
+- backfill before enforcement,
+- verify parity,
+- rehearse from realistic starting states,
+- validate production delta assumptions.
+
+Never treat hosted production as a disposable test environment.
+
+Never run automated tests against production Solaris Supabase.
+
+Never solve schema problems by deleting historical data unless explicitly required and approved.
+
+---
+
+# 21. COMMANDS MUST BE IDEMPOTENT WHERE REQUIRED
+
+Critical submissions and state transitions must remain safe under:
+
+- duplicate clicks,
+- retries,
+- network timeouts,
+- browser reload,
+- reconnect,
+- concurrent requests,
+- stale clients.
+
+Where canonical architecture requires an operation ID or idempotency key, use it consistently.
+
+Do not allow implementation speed to reintroduce duplicate confirmation, voting, submission, or publication behavior.
+
+---
+
+# 22. CROSS-SYSTEM CONSEQUENCES MUST BE EXPLICIT
+
+Do not hide critical side effects inside frontend logic.
+
+A canonical state change should trigger required consequences through explicit system behavior.
+
+Examples may include:
+
+- task creation/removal,
+- notification generation,
+- access changes,
+- projection invalidation,
+- result recalculation,
+- Organizer attention state,
+- deadline consequences,
+- workflow readiness.
+
+The frontend may display consequences.
+
+It must not secretly own critical workflow truth.
+
+---
+
+# 23. PROJECTIONS MUST BE REBUILDABLE
+
+Core V3 projections must not be magical caches whose correctness depends on history behaving perfectly.
+
+Where required, provide:
+
+- invalidation,
+- rebuild,
+- verification,
+- reconciliation,
+- lag measurement.
+
+If a projection can become wrong but cannot be rebuilt deterministically, it is not production-ready.
+
+---
+
+# 24. ORGANIZER MUST CONTROL THE REAL SYSTEM
+
+Do not build Organizer interfaces that visually appear functional while bypassing canonical system state.
+
+Organizer actions must use authoritative:
+
+- commands,
+- permissions,
+- workflow state,
+- versioning,
+- consequences,
+- receipts,
+- reconciliation.
+
+If Public behavior exists, verify whether Organizer needs a corresponding control, inspection surface, exception workflow, or visibility state.
+
+Do not assume Public-only behavior is operationally manageable.
+
+---
+
+# 25. EVERY ERROR STATE IS PART OF THE FEATURE
+
+Critical workflows are not complete if only the happy path exists.
+
+Implement relevant states such as:
+
+- pending,
+- success,
+- duplicate,
+- conflict,
+- stale version,
+- unauthorized,
+- expired,
+- already completed,
+- network failure,
+- ambiguous completion,
+- retry available,
+- retry unsafe,
+- reconciliation required.
+
+Error handling must follow the canonical operation/error model.
+
+Do not expose raw infrastructure errors to users when a domain-level state exists.
+
+---
+
+# 26. MOBILE IS NOT A LATER PORT
+
+Public and Organizer V3 are mobile products.
+
+Every major slice must be evaluated on mobile during implementation.
+
+Do not complete desktop first and postpone mobile architecture.
+
+Verify:
+
+- viewport,
+- safe areas,
+- virtual keyboard,
+- touch targets,
+- scrolling,
+- bottom navigation obstruction,
+- gesture conflicts,
+- modals/sheets,
+- sticky controls,
+- long content,
+- offline/reconnect behavior where relevant.
+
+---
+
+# 27. ACCESSIBILITY IS NOT END-OF-PROJECT CLEANUP
+
+Use accessible primitives while implementing.
+
+Do not intentionally create an inaccessible V3 and plan to repair it at the end.
+
+Relevant requirements include:
+
+- semantic structure,
+- labels,
+- keyboard behavior,
+- focus management,
+- reduced motion,
+- contrast,
+- screen reader behavior,
+- state announcements,
+- touch target sizing.
+
+Automated accessibility checks should run continuously where practical.
+
+---
+
+# 28. CROSS-DEVICE STATE MUST NOT SILENTLY DESTROY USER WORK
+
+For drafts and editable workflow state:
+
+- define authoritative server state,
+- track revision/version where required,
+- detect conflict,
+- preserve recoverable local state,
+- do not silently overwrite newer work,
+- surface conflict resolution where necessary.
+
+Critical cross-device behavior must be implemented as infrastructure, not as isolated page-specific hacks.
+
+---
+
+# 29. OBSERVABILITY MUST BE IMPLEMENTED WHILE FEATURES ARE BUILT
+
+Do not wait until V3 is “finished” to make it observable.
+
+Critical operations should emit enough information to trace:
+
+- request,
+- operation,
+- domain,
+- user/session where appropriate and safe,
+- correlation ID,
+- result,
+- failure class,
+- deployment version.
+
+Do not log secrets or sensitive information unnecessarily.
+
+Observability should help answer:
+
+> What happened?
+
+> To which operation?
+
+> On which deployment?
+
+> In which domain?
+
+> Did retry occur?
+
+> Was the canonical state committed?
+
+---
+
+# 30. DO NOT DECLARE COMPLETION FROM CODE ALONE
+
+Implementation is not certification.
+
+A feature may be:
+
+- coded,
+- merged,
+- tested,
+- certified.
+
+These are distinct states.
+
+V3 must not be declared complete merely because all planned files appear to exist.
+
+Final completion requires the canonical release gates.
+
+---
+
+# 31. FULL CONTEST REHEARSAL IS MANDATORY
+
+Before canonical V3 completion, perform a realistic complete seeded contest rehearsal.
+
+The rehearsal should exercise relevant lifecycle phases such as:
+
+- edition setup,
+- delegation state,
+- confirmations,
+- entries,
+- media,
+- jury,
+- televote,
+- results,
+- publication,
+- notifications,
+- Organizer attention/tasks,
+- public projections.
+
+The purpose is to verify interactions between domains.
+
+Passing isolated module tests is not enough.
+
+---
+
+# 32. EXACT-SHA RELEASE EVIDENCE
+
+Final V3 evidence must correspond to the exact commit being released.
+
+If code changes after certification:
+
+> certification is no longer final.
+
+Do not cite old CI evidence for a newer release candidate.
+
+The final release commit must have objective evidence covering all required release gates.
+
+---
+
+# 33. RELEASE CERTIFICATION MUST NOT BE SKIPPED TO MEET A DATE
+
+The following categories must not be removed merely to shorten implementation time:
+
+- database integrity,
+- migration rehearsal,
+- authorization,
+- privacy,
+- idempotency,
+- concurrency,
+- recovery,
+- production isolation,
+- accessibility,
+- required responsive behavior,
+- full contest rehearsal,
+- exact-SHA verification.
+
+If completion takes longer because one of these exposes a real defect, fix the defect.
+
+Do not redefine “complete.”
+
+---
+
+# 34. AUTOMATION SHOULD REPLACE HUMAN MEMORY
+Any recurring manual release check should be considered a candidate for automation.
+
+Examples:
+
+- migration completeness,
+- direct production endpoint detection,
+- capability parity,
+- route ownership,
+- missing permission tests,
+- invalid domain dependencies,
+- unhandled command classes,
+- projection coverage,
+- stale Organizer task rules.
+
+Human memory is not a release system.
+
+---
+
+# 35. AVOID CONTEXT THRASHING
+
+Do not repeatedly jump between unrelated tiny tasks.
+
+Prefer sustained work on one dependency cluster until it reaches a stable closure point.
+
+Example:
+
+BAD:
+
+- change Results CSS
+- inspect auth
+- edit bottom nav animation
+- add one migration
+- return to Results
+- inspect Organizer route
+- change unrelated icon
+
+BETTER:
+
+- complete event/outbox foundation
+- migrate all target domains
+- test them
+- close the phase
+- move to the next dependency cluster
+
+Context switching wastes implementation time and increases defects.
+
+---
+
+# 36. EVERY RUN MUST START FROM CURRENT REALITY
+
+At the beginning of implementation work:
+
+1. inspect latest `main`,
+2. inspect active V3 PRs,
+3. determine which work has already merged,
+4. determine which open PRs are stale/superseded,
+5. inspect relevant CI,
+6. inspect relevant migrations,
+7. inspect connected Supabase state when database work requires it,
+8. consult the canonical specifications relevant to the next work.
+
+Do not rely blindly on an earlier conversation’s repository state.
+
+The project may have advanced.
+
+However:
+
+> Do not turn this into a multi-hour re-audit.
+
+Inspect only enough to identify the correct current critical path.
+
+---
+
+# 37. DO NOT SPEND THE RUN PLANNING WORK THAT CAN BE IMPLEMENTED
+
+Once the next safe implementation target is clear, implement it.
+
+Do not repeatedly produce plans, audits, summaries, and recommendations instead of modifying the codebase.
+
+Planning is appropriate when:
+
+- dependencies are genuinely unclear,
+- a dangerous migration requires design,
+- canonical specifications conflict,
+- implementation strategy materially affects architecture.
+
+Otherwise, act.
+
+---
+
+# 38. DO NOT STOP AFTER ONE SUCCESS
+
+After finishing a coherent feature or phase:
+
+1. verify it,
+2. commit/PR appropriately,
+3. update completion status,
+4. immediately identify the next highest-value unfinished dependency,
+5. continue.
+
+Do not end a run merely because the first requested issue was solved if the instruction is to continue V3 implementation.
+
+---
+
+# 39. DO NOT ASK FOR CONFIRMATION FOR ROUTINE IMPLEMENTATION
+
+When canonical specifications already provide enough information:
+
+- make the implementation decision,
+- follow the specification,
+- continue.
+
+Do not repeatedly ask the project owner which obvious next step should be done.
+
+Ask only when a truly product-level choice is missing and cannot safely be inferred from canonical plans.
+
+When uncertainty is minor, prefer the most conservative canonical-compatible implementation and continue.
+
+---
+
+# 40. PERFORMANCE WORK MUST TARGET REAL BOTTLENECKS
+
+Do not prematurely micro-optimize.
+
+Prioritize:
+
+- duplicate fetches,
+- unnecessary polling,
+- large payloads,
+- repeated full-table reads,
+- uncontrolled retries,
+- duplicate realtime subscriptions,
+- unnecessary rerenders,
+- expensive initial bundles,
+- blocking network waterfalls.
+
+Measure where practical.
+
+Do not trade architectural clarity for insignificant microbenchmarks.
+
+---
+
+# 41. DO NOT CREATE NEW TECHNICAL DEBT JUST TO MOVE FASTER
+
+Temporary code is permitted only when:
+
+- clearly isolated,
+- explicitly tracked,
+- safe,
+- and does not weaken a release requirement.
+
+Avoid:
+
+- TODO-driven production behavior,
+- duplicate sources of truth,
+- hidden fallback state,
+- hard-coded production identifiers,
+- temporary direct database mutations from the browser,
+- bypassed authorization,
+- commented-out tests,
+- disabled constraints,
+- knowingly broken mobile paths.
+
+Anything likely to require immediate rewrites is not actually faster.
+
+---
+
+# 42. COMPLETION DASHBOARD
+
+Maintain or generate an objective view of V3 progress.
+
+At minimum it should make it possible to determine:
+
+### SYSTEM
+- S0–S16 status
+
+### PUBLIC
+- P0–P50 capability status
+
+### ORGANIZER
+- O0–O18 status
+
+### NAVIGATION
+- N0–N14 status
+
+Each item should ideally record:
+
+- implementation state,
+- relevant owner/code location,
+- tests,
+- migration dependency,
+- open PR if any,
+- blocking dependency,
+- certification evidence.
+
+Do not manually guess V3 percentage from visual impressions.
+
+---
+
+# 43. CRITICAL-PATH RULE FOR NEWLY DISCOVERED WORK
+
+Whenever a new issue is discovered, classify it.
+
+### BLOCKER
+
+Prevents canonical correctness, safety, release, or downstream implementation.
+
+Fix immediately.
+
+### HIGH
+
+Affects major workflow correctness or several later features.
+
+Prioritize strongly.
+
+### MEDIUM
+
+Required for canonical parity but does not block current architecture.
+
+Schedule within the relevant domain wave.
+
+### LOW
+
+Polish or low-risk edge improvement.
+
+Do not interrupt higher-value work.
+
+Do not allow every discovered imperfection to become an immediate context switch.
+
+---
+
+# 44. DEFINITION OF “FAST”
+
+Fast does **not** mean:
+
+- fewer tests,
+- less migration safety,
+- weaker architecture,
+- hiding failures,
+- shipping incomplete workflow states,
+- skipping long-tail required capabilities,
+- ignoring mobile,
+- ignoring Organizer,
+- calling partial implementation “done.”
+
+Fast means:
+
+- fewer repeated audits,
+- fewer context switches,
+- larger coherent slices,
+- shared foundations,
+- generated verification,
+- smarter CI,
+- parallel independent tracks,
+- fewer unnecessary rewrites,
+- less waiting,
+- immediate continuation after each completed slice.
+
+---
+
+# 45. DEFINITION OF DONE
+
+Solaris Studio V3 is not complete until the canonical plans are objectively satisfied.
+
+At minimum, final certification must establish the required state for:
+
+- V3 architectural compliance,
+- Public capability parity,
+- Organizer capability parity,
+- system-domain ownership,
+- database integrity,
+- operation/command correctness,
+- idempotency,
+- concurrency,
+- authorization,
+- privacy,
+- abuse protection,
+- consequence handling,
+- events/outbox where required,
+- projection integrity,
+- reconciliation,
+- observability,
+- service health expectations,
+- recovery,
+- capacity,
+- migration safety,
+- production isolation,
+- accessibility,
+- responsive behavior,
+- full contest rehearsal,
+- release evidence tied to the exact final SHA.
+
+If any canonical release criterion fails, V3 is not 100% complete.
+
+---
+
+# 46. EXECUTION MODE FOR FUTURE CHATGPT IMPLEMENTATION RUNS
+
+When ChatGPT is given repository and infrastructure access and instructed to continue Solaris Studio V3, it should operate under the following default behavior:
+
+> Inspect current project state just enough to understand what has changed since the previous run.
+
+> Read the canonical plan sections relevant to the next unfinished critical-path work.
+
+> Prefer shared architecture and high-leverage blockers.
+
+> Implement complete vertical slices.
+
+> Batch sibling domains.
+
+> Reuse established patterns.
+
+> Add migrations, backend contracts, frontend integration, tests, and regression protection together.
+
+> Run cheap targeted verification first.
+
+> Escalate to expensive verification only when the slice is stable.
+
+> Do not reopen already-proven work without evidence.
+
+> Do not waste time on low-value polish while architectural or workflow gaps remain.
+
+> Continue from one completed slice into the next within the same run.
+
+> Never weaken production safety for speed.
+
+> Never claim completion without objective evidence.
+
+---
+
+# 47. AGGRESSIVE TARGET
+
+The implementation process should behave as though wall-clock time matters.
+
+The preferred execution profile is:
+
+### FIRST
+Complete high-leverage shared System foundations.
+
+### SIMULTANEOUSLY WHERE SAFE
+Advance Public, Organizer, shared navigation, and generated QA work.
+
+### NEXT
+Rapidly migrate domain waves onto the shared architecture.
+
+### THEN
+Close long-tail capability parity.
+
+### FINALLY
+Run full-system hardening, contest rehearsal, migration evidence, recovery evidence, and exact-SHA certification.
+
+The goal is to make the final phase primarily:
+
+> **verification of already-correct implementation**
+
+rather than:
+
+> **discovering that half the product still needs to be built.**
+
+---
+
+# 48. ABSOLUTE RULE
+
+When choosing between:
+
+### OPTION A
+A change that makes Solaris V3 look more complete
+
+and
+
+### OPTION B
+A change that makes Solaris V3 objectively closer to satisfying its canonical release criteria,
+
+choose **OPTION B**.
+
+Every time.
+
+---
+
+# FINAL DIRECTIVE
+
+Implement Solaris Studio V3 with maximum safe velocity.
+
+Be critical.
+
+Be skeptical of apparent completion.
+
+Avoid duplicated work.
+
+Avoid needless waiting.
+
+Avoid repeated audits.
+
+Avoid cosmetic distraction.
+
+Use shared systems.
+
+Batch related work.
+
+Parallelize independent work.
+
+Automate verification.
+
+Use targeted tests during development.
+
+Reserve expensive full-system checks for stable milestones.
+
+Preserve all canonical product requirements.
+
+Preserve production safety.
+
+Do not lower the definition of done.
+
+And once one piece is finished:
+
+> **continue immediately to the next highest-value unfinished piece until no further safe meaningful progress can be made in the current run.**

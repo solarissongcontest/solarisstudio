@@ -1,0 +1,170 @@
+SOLARIS STUDIO V3
+
+Final-week release sprint: 8–15 November 2026
+
+Target: Sunday, 15 November 2026 at 20:00 Finland time (EET).
+Status: Aggressive target, not a certified release commitment.
+Owner: Solaris Studio project owner / designated release manager.
+Primary repository: solarissongcontest/solarisstudio.
+
+1. Verified starting point (8 November)
+
+• GitHub main at review: 16555c5e016366456a59ec63331c2c8924259a08. Re-fetch the SHA before every integration or certification decision.
+• Production Supabase operational state: degraded, version 2, not read_only. The protected read-only-to-degraded preflight previously passed with zero critical failures. This proves operational recovery checks, not V3 release readiness.
+• Application-wide Worker maintenance remains enabled in source: GLOBAL_MAINTENANCE_MODE = true. Database mode and public-site maintenance are separate controls.
+• The 7 November production migration-frontier evidence reports 36 absent post-cutover migration-history versions and 32 newer pending versions. These are dated audit counts and must be regenerated; missing history alone does not prove an SQL effect is absent, although subsequent investigations confirmed important missing effects.
+• S13/S14 Archive forward recovery is locally verified in draft PR #2403, but explicitly not authorized for production. Televote source/authority integration is draft PR #2404. Relevant negative-scores fix #2402 has been merged.
+• Current GitHub Actions on the newest main were still running at inspection. A green run from an older commit cannot certify the release candidate.
+
+Core judgment: A full, canonically complete V3 launch in seven days has significant schedule risk. A safe, explicitly scoped public/pilot reopening is more achievable. Run the full-release critical path first and never silently downgrade the scope or relabel a pilot as “V3 complete.”
+
+2. Release rulebook (no shortcuts)
+
+1. No production tests in CI. Every Playwright, migration rehearsal, crawler, preview, audit and automated integration job must use an isolated local Supabase stack and loopback application target. Missing local infrastructure means fail closed. Preserve all egress guards.
+2. One authority per critical domain. No second writer for Confirmation, Entry, Jury, Televote, Results, publication, Archive, identity, or edition/show state. Permissions must be proven by database grants/RLS/RPCs, not just React.
+3. Migrations are System-owned. Do not run missing historical scripts against production blindly, rewrite old migration history, manufacture no-op entries, or make unapproved schema changes.
+4. Every release gate is tied to the exact commit SHA. Build, Quality, Browser, S13, S14, S15, S16, security, Results, migration compatibility, performance/bundle, navigation and full-contest rehearsal evidence must come from that candidate.
+5. Hard blockers = 0 and required conditional blockers = 0 for the intended released scope. Genuine missing mandatory workflows and unsafe writers cannot be reclassified as “debt” to meet the date.
+6. Separate explicit approval is required before a hosted migration, a production deploy and opening public write workflows. No automation gets implied permission merely because CI is green.
+7. Production recovery must be ready first: backup/restoration and rollback strategy, operator checklist, narrow smoke testing, error and egress monitoring, and correct replacement deadlines.
+
+3. Ownership and parallel work
+
+|Lane                         |Single owner / source of truth        |Work until launch                                                                                                                                                                            |
+|-----------------------------|--------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|**System & DB**              |System/Supabase session               |Migration-frontier reconciliation, forward-only changes, S13/S14 recovery, canonical writers, RLS and recovery rehearsals. Only this lane edits `supabase/migrations/**`.                    |
+|**Public 2A / 2B**           |Public owners, split by existing plan |Complete required discovery/Results/Live and Participate/Me/identity/fan workflows, publication/privacy behavior and the three distinct experiences. No invented backend owners.             |
+|**Organizer & voting**       |Organizer and domain owners           |Entry/media review, operational controls, jury/televote, lifecycle, results publication, current actor/edition scope, receipts and risk-tiered actions. Escalate missing RPCs to System.     |
+|**Navigation & design**      |Navigation owner                      |Installed iOS app, mobile-browser website and desktop web parity; floating dock, system safe zone, keyboard/focus, PWA lifecycle and accessibility. Do not modify voting/database authority. |
+|**QA / Integrator / Release**|**One** designated integration manager|Main-branch/PR triage, single merge queue, release-risk matrix, CI, local full-contest rehearsal, completion registries, exact-SHA manifest, release approval packet and production go/no-go.|
+
+World/Governance and other extended V3 features retain their assigned owners. If a feature is canonically required for the 15 November release, it must meet its release criteria. Otherwise obtain a documented owner-approved narrower release scope and keep the unfinished feature disabled/unreachable; do not quietly declare it finished.
+
+4. The daily execution schedule
+
+Sunday 8 November — Establish one truthful release baseline
+
+• Record exact main SHA, current production runtime mode, Worker maintenance state, PR inventory, merged capability statuses, CI state and real database migration frontier.
+• Produce one release blocker matrix: item, actual root cause, risk class (hard / conditional / tracked debt / replaced), owner, dependencies, target proof, ETA and next action. Regenerate counts from the repo and current metadata, not old PR bodies.
+• Map the 36 documented missing-history versions and 32 pending versions to verified SQL effects and dependency groups, without assuming all 68 require separate fixes.
+• Lock a single merge queue. Mark duplicate, stale, donor and superseded PRs; do not merge the oldest or loudest PR just because it exists.
+• Freeze new product scope, not critical bug fixes. Establish whether 15 November means full V3 certification or an explicitly approved limited release.
+
+End-of-day evidence: one live blocker board, one current exact main SHA, a named owner for each hard blocker and a written launch-scope decision.
+
+Monday 9 November — Prove the production migration baseline
+
+• System owner performs bounded read-only metadata/catalog inspection of actual hosted objects, versions, function signatures, triggers, RLS, grants, indexes, and relevant dependencies. No production data crawling.
+• Classify every post-cutover gap: effect already present / partly present / absent. Confirm S13 foundations and the S14 Archive/Televote/Results dependency chain against current production reality.
+• Build or refresh a sanitized hosted-head-equivalent local fixture. Do not assume that a clean 494/494 (or newer) source replay proves a safe upgrade of the hosted database.
+• QA runs offline frontier comparison and source-ownership/S15/S16 inventory checks; all test infrastructure stays local.
+• Other lanes finish independent, high-risk privacy and auth fixes while waiting on System contracts.
+
+End-of-day evidence: signed migration-effect inventory, dependency graph, explicit forward-repair sequence, and a list of remaining unknowns. Escalation: if the hosted-equivalent baseline cannot be built safely, treat full launch as at serious risk.
+
+Tuesday 10 November — Produce and locally prove forward-only repairs
+
+• Complete S13 migration-registration recovery first, preserving the immutable bootstrap/cutover boundary. Then handle dependent S6/S9/S10 and S14 effects in real dependency order, not simply file timestamp order.
+• Integrate one reviewed, forward-only recovery series covering absent effects: Archive guards/Task convergence, Televote source provenance and replay safety, Results publication, deterministic conflicts, participant/notification consequences and needed grants. No blind production backfills.
+• Rehearse both (a) clean full source replay and (b) upgrade from sanitized hosted-head-equivalent local state. Verify idempotency, restart after failure, negative authorization, concurrency, duplicate/reordered operations and no partial application.
+• Integrate or supersede draft PRs #2393 / #2403 / #2404 with correct owners; reuse merged #2402. Close overlapping donors only after proving coverage.
+
+End-of-day evidence: locally green migration/recovery chain plus explicit failure/rollback procedures. Hard gate: no safe forward-only plan by tonight means full-release date is no longer dependable.
+
+Wednesday 11 November — Close the integrity-critical vertical slices
+
+• Verify end-to-end Confirmation → Entry/media → Jury → Televote → Results/Publication → Archive against the recovered local schema.
+• Prove one canonical writer per critical table, version checks, fresh authorization, actor/edition/round isolation, idempotency, receipts, state transitions and no leaks before official publication.
+• Exercise signed Combined-score deductions, Televote source/projection consistency, jury secrecy, public result spoiler gating and publication correction/replay.
+• Organizer owner closes consequential workflows using System’s contracts; Public owners close participant/Live/Results consumption without direct browser mutation.
+• QA runs targeted S14 and S16 negative tests and tracks true runtime blockers rather than stale CI or documentation noise.
+
+End-of-day evidence: all mission-critical workflows tested on the hosted-equivalent local state, with an explicit list of remaining failing scenarios. Decision checkpoint: if any critical voting/result authority flaw remains unexplained, prepare a scoped launch rather than asserting full completion.
+
+Thursday 12 November — Complete user-visible product and integration
+
+• Finish the required launch-scope Public, Participant, Organizer, navigation and World capabilities to product parity, not merely route presence.
+• Verify three intentional experiences: installed mobile PWA, ordinary phone browser, and desktop browser. Test phone safe zones, dock clearance, keyboard/focus, deep links, login/session transitions, reduced motion, no duplicate navigation and responsive dense results.
+• Verify current published rules (v4.2) and maintenance copy agree; respect real publication, permission and historical-data policy.
+• Run accessibility and browser journeys for anonymous visitor, fan, delegation member, HoD, organizer and denied-role cases. Validate representative old and current editions.
+• Stop creating new designs; merge only missing required functionality or proven regressions. Integrator maintains one clean merge queue with conflict owners.
+
+End-of-day evidence: required capability/product-parity registry, passing focused browser tests, no unresolved user-facing hard or required conditional blockers. No cosmetic feature creep.
+
+Friday 13 November — Full contest rehearsal and release-risk closure
+
+• Run the complete S14 contest lifecycle rehearsal on isolated infrastructure, including failures, retries and recovery, not just happy-path voting.
+• Run S15 zero-orphan, S16 real mutation-authority audit, security/privacy/RLS, Results source truth, local hosted-equivalent migration replay, production endpoint isolation and bundle-performance gates.
+• Generate the live release-risk report: hard blockers, release-scope conditional blockers, tracked V3 debt, obsolete/replaced. Confirm evidence owners and actual current source SHA.
+• Draft the operator runbook: reversible application deploy, guarded schema upgrade, data/backup preservation, migration postconditions, scheduled publications, replacement deadlines, egress monitoring and maintenance re-entry.
+
+End-of-day gate: zero hard blockers, zero release-scope conditional blockers, full rehearsal passing and the migration upgrade rehearsed. Otherwise full V3 no-go, independent of the calendar.
+
+Saturday 14 November — Freeze, certify, and authorize the release
+
+• Merge final approved changes, then freeze one exact candidate SHA. Pause/limit the hourly merge integrator and all other automatic branch mutations affecting the candidate. Emergency fixes require refreezing and recertifying.
+• Run the complete exact-SHA CI fan-in: Quality/build/typecheck, isolated Browser, app bundle, production isolation, S13, S14 full contest, S15, S16, authentication/privacy/RLS, Results, three-experience UX/accessibility and local production-upgrade rehearsal.
+• The single release certifier emits release-manifest.json with the candidate SHA, zero blockers, gate result and workflow IDs. No remembered green check substitutes for this file.
+• Separate human operator reviews backup/recovery, frontier and release manifest. Only after explicit approval may the System owner execute the guarded production migration; only after separate approval may the deploy be promoted. Do not use CI to touch hosted Supabase.
+• Conduct small, bounded, deliberate operator verification of the live environment. Do not run production Playwright or high-volume smoke tests.
+
+End-of-day gate: certified exact SHA, reconciled hosted schema, verified deployment, safe rollback and no critical production anomalies. Otherwise keep public maintenance or approved limited scope.
+
+Sunday 15 November — Gradual public reopening and final go/no-go
+
+• Confirm the actual deployed Cloudflare Worker version/commit, Supabase schema/runtime mode, Auth and Storage, relevant feature flags and operational health; verify the version matches the approved candidate.
+• Open access in a controlled order: (1) public read-only content; (2) login and personalized reads; (3) participant/Organizer write workflows; (4) time-sensitive voting and publication only after their own checks. Do not assume changing GLOBAL_MAINTENANCE_MODE or database mode alone opens all services safely.
+• Perform bounded, authorized manual journeys only, including negative-permission cases. Watch errors, database egress, retries, realtime, queued jobs, stalled submissions, result integrity and publication state.
+• Publish accurate reopening notices and replacement deadlines before reopening any time-limited workflow that expired during maintenance.
+• At 20:00 EET: announce V3 fully released only if all full-release gates remain green in production. If not, announce the actual permitted scope, not a fictional completion claim.
+
+Immediate rollback triggers: vote/result integrity discrepancy, unauthorized writer or privacy leak, unrecoverable failed submission, uncontrolled production Supabase egress, or critical database/runtime failure. Re-enable the protected maintenance circuit breaker, stop dangerous workflows and preserve audit evidence; do not blindly roll back forward-only schema changes.
+
+5. Daily stand-up contract (all owners)
+
+Every lane posts one concise update twice daily, including:
+
+• current SHA and branch/PR;
+• merged, tested and certified capability IDs;
+• hard/conditional blockers with root causes;
+• files owned / shared-file conflicts;
+• next dependency and exact acceptance evidence;
+• local test and production-egress isolation result.
+
+Integrator rejects duplicate efforts, stale PR-head CI, unexplained source-of-truth changes, and merge trains that invalidate release-candidate evidence.
+
+6. Formal decision points
+
+|Time (Finland)    |Decision                                                                                                                                |
+|------------------|----------------------------------------------------------------------------------------------------------------------------------------|
+|**9 Nov evening** |Is the real production migration/effect inventory complete enough to design safe repair?                                                |
+|**10 Nov evening**|Does the forward-only recovery pass hosted-equivalent local tests? If not, full release is at severe risk.                              |
+|**11 Nov evening**|Do all official voting, submissions, publication and canonical-writer workflows work safely? If not, no full release claim.             |
+|**13 Nov evening**|Are all hard and required conditional blockers at zero, with S14/S15/S16 green? If not, full V3 no-go.                                  |
+|**14 Nov**        |Is the exact candidate certified and the production migration separately approved and successfully verified? If not, do not open writes.|
+|**15 Nov 20:00**  |Full V3 GO only with production evidence. Otherwise a clearly labeled, owner-approved safe pilot or continued maintenance.              |
+
+7. Definition of done (not negotiable)
+
+The project may be described as “Solaris Studio V3 released” only when:
+
+• The exact deployed commit SHA has a passing canonical release manifest.
+• Every required launch capability has its documented product parity and migration/ownership classification; no unknown or silently dropped critical capability.
+• Zero hard blockers and zero required conditional blockers for the full release.
+• The production SQL migration frontier is legitimately reconciled and compatibility proven; no invented migration-history coverage.
+• S14 full lifecycle, S15 ownership and S16 mutation-authority checks pass on the exact candidate.
+• Official results, jury and televoting are secure, correct and publication-safe.
+• Public, installed mobile and desktop experiences meet required navigation, safe area, accessibility and authorization acceptance.
+• CI/Playwright uses only isolated local Supabase; no production egress regression.
+• Release manager has explicit approvals, a rollback/recovery plan and real post-deploy verification.
+
+If any item fails: preserve the integrity gates. An explicit limited pilot can be launched only with written owner approval, a documented smaller scope, hard blockers cleared for every exposed path and unfinished features disabled/unreachable. A pilot is progress, not completion.
+
+Reference links
+
+• Repository: https://github.com/solarissongcontest/solarisstudio
+• Hosted frontier operator evidence: https://github.com/solarissongcontest/solarisstudio/blob/main/docs/v3/production-frontier-preflight.md
+• Maintenance flag: https://github.com/solarissongcontest/solarisstudio/blob/main/src/lib/maintenance.ts
+• S13/S14 forward recovery: https://github.com/solarissongcontest/solarisstudio/pull/2403
+• Televote mutation-authority integration: https://github.com/solarissongcontest/solarisstudio/pull/2404
+• Integrated security/QA: https://github.com/solarissongcontest/solarisstudio/pull/2386
