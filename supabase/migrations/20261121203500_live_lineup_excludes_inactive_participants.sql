@@ -318,6 +318,160 @@ create trigger v3_reject_inactive_public_jury_score
   before insert or update on public.jury_votes
   for each row execute function private.v3_reject_inactive_jury_score();
 
+-- Opening the running-order editor must not depend on an optional draw.
+-- This is a single Organizer-authorized transaction: validate active entries,
+-- persist their exact ordering, then change the edit stage. It never creates
+-- placeholder allocations or rewrites historical/archived shows.
+create or replace function public.admin_open_show_running_order(
+  _show_id uuid,
+  _participant_ids uuid[]
+)
+returns void
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $function$
+declare
+  v_edition_id uuid;
+begin
+  select s.edition_id into v_edition_id
+  from public.shows s where s.id = _show_id for update;
+  if v_edition_id is null then
+    raise exception 'Show not found.' using errcode = 'P0002';
+  end if;
+  if not public.studio2_access_allowed('entry.edit', v_edition_id, true) then
+    raise exception 'Missing Solaris capability: entry.edit' using errcode = '42501';
+  end if;
+
+  perform public.admin_set_show_running_order(_show_id, _participant_ids);
+  update public.shows
+     set lineup_stage = 'running_order', updated_at = now()
+   where id = _show_id and lineup_stage is distinct from 'running_order';
+end;
+$function$;
+
+revoke all on function public.admin_open_show_running_order(uuid, uuid[]) from public, anon;
+grant execute on function public.admin_open_show_running_order(uuid, uuid[]) to authenticated, service_role;
+
+-- Create one explicit jury from an authenticated Organizer action. The
+-- account-ballet voters table has no unique country roster constraint;
+-- serialize by show and enforce duplicate/withdrawal checks here.
+create or replace function public.admin_add_show_jury(
+  _show_id uuid,
+  _kind text,
+  _country_id uuid default null,
+  _name text default null,
+  _flag_image text default null,
+  _accent_color text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $function$
+declare
+  v_edition_id uuid;
+  v_country public.countries%rowtype;
+  v_entity_id uuid;
+  v_name text;
+  v_id uuid;
+  v_next_order integer;
+begin
+  select s.edition_id into v_edition_id
+  from public.shows s where s.id = _show_id for update;
+  if v_edition_id is null then
+    raise exception 'Jury show not found' using errcode = 'P0002';
+  end if;
+  if not public.studio2_access_allowed('voting.manage', v_edition_id, true) then
+    raise exception 'Missing Solaris capability: voting.manage' using errcode = '42501';
+  end if;
+  if _kind not in ('country','external-country','organization','person','custom') then
+    raise exception 'Invalid jury type' using errcode = '22023';
+  end if;
+  if exists (select 1 from public.jury_voting_windows w where w.show_id = _show_id and w.status = 'open') then
+    raise exception 'Close official Jury voting before editing its roster' using errcode = '55000';
+  end if;
+  if not exists (select 1 from public.voters where show_id = _show_id) then
+    raise exception 'Create an editable jury roster from active participants before adding juries' using errcode = '55000';
+  end if;
+
+  if _kind in ('country','external-country') then
+    if _country_id is null then
+      raise exception 'Choose a country for this jury' using errcode = '22023';
+    end if;
+    select * into v_country from public.countries where id = _country_id;
+    if not found then
+      raise exception 'Selected jury country does not exist' using errcode = '22023';
+    end if;
+    if exists (
+      select 1 from public.participants p
+      where p.edition_id = v_edition_id and p.country_id = _country_id
+        and p.participation_status in ('withdrawn','disqualified')
+    ) then
+      raise exception 'A withdrawn or disqualified country cannot be added to this Jury roster' using errcode = '22023';
+    end if;
+    if _kind = 'country' then
+      select p.contest_entity_id into v_entity_id
+      from public.participants p
+      where p.show_id = _show_id and p.country_id = _country_id
+        and coalesce(p.participation_status, 'confirmed') = 'confirmed'
+      order by p.id limit 1;
+      if not found then
+        raise exception 'This country is not a participating entry; select External country instead' using errcode = '22023';
+      end if;
+    else
+      if exists (
+        select 1 from public.participants p
+        where p.show_id = _show_id and p.country_id = _country_id
+          and coalesce(p.participation_status,'confirmed') = 'confirmed'
+      ) then
+        raise exception 'An active participant must be added as a Country jury, not External country' using errcode = '22023';
+      end if;
+    end if;
+    if exists (
+      select 1 from public.voters v where v.show_id = _show_id and v.country_id = _country_id
+    ) then
+      raise exception 'This country already has a Jury roster entry' using errcode = '23505';
+    end if;
+    v_name := v_country.name;
+  else
+    if _country_id is not null then
+      raise exception 'Custom Jury identities must not claim a country account' using errcode = '22023';
+    end if;
+    v_name := btrim(coalesce(_name, ''));
+    if length(v_name) < 2 or length(v_name) > 120 then
+      raise exception 'Jury name must contain 2–120 characters' using errcode = '22023';
+    end if;
+    if exists (
+      select 1 from public.voters v
+      where v.show_id = _show_id and v.kind = _kind and lower(btrim(v.name)) = lower(v_name)
+    ) then
+      raise exception 'A Jury with that name and type already exists' using errcode = '23505';
+    end if;
+  end if;
+
+  select coalesce(max(sort_order),0) + 1 into v_next_order
+  from public.voters where show_id = _show_id;
+
+  insert into public.voters (
+    edition_id,show_id,country_id,contest_entity_id,name,kind,
+    flag_image,accent_color,sort_order
+  ) values (
+    v_edition_id,_show_id,_country_id,v_entity_id,v_name,_kind,
+    coalesce(nullif(btrim(_flag_image),''),v_country.flag_image),
+    coalesce(nullif(btrim(_accent_color),''),v_country.accent_color,'#8888aa'),
+    v_next_order
+  ) returning id into v_id;
+
+  return v_id;
+end;
+$function$;
+
+revoke all on function public.admin_add_show_jury(uuid, text, uuid, text, text, text)
+  from public, anon;
+grant execute on function public.admin_add_show_jury(uuid, text, uuid, text, text, text)
+  to authenticated, service_role;
+
 -- S13 adoption: forward-only contract, no historic ballots or participant
 -- evidence deleted. Inactive rows are excluded from live scopes only.
 select public.v3_register_migration_contract(
