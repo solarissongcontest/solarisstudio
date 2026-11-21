@@ -280,5 +280,11 @@ create trigger v3_reject_inactive_country_jury_ballot
   before insert on public.jury_ballot_submissions
   for each row execute function private.v3_reject_inactive_country_jury_ballot();
 
+-- S13 adoption: forward-only contract, no historic ballots or participant
+-- evidence deleted. Inactive rows are excluded from live scopes only.
+select public.v3_register_migration_contract(
+  'v3.participation.active-only-live-voting-lineups', 1, 'forward_fix_only', false, null,
+  'Active-only performance order and allocation RPCs, fail-closed country-account jury eligibility and ballot submission; retained withdrawn/disqualified history'
+);
 notify pgrst, 'reload schema';
 commit;
