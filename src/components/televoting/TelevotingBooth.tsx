@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  AlertTriangle,
   ArrowLeft,
   CheckCircle2,
   Minus,
@@ -26,6 +25,8 @@ import {
   markTelevotingRoundSubmitted,
 } from "@/integrations/televoting/anti-abuse";
 import { televotingSupabase } from "@/integrations/televoting/client";
+import { VotingDeclarationCheckbox, VotingIntegrityReasonList } from "@/components/voting/VotingIntegrityExplanation";
+import { VOTER_DECLARATION_LABELS, voterIntegrityMessage } from "@/integrations/televoting/voter-integrity-copy";
 import {
   VOTE_INTEGRITY_AUTOMATION,
   VOTE_INTEGRITY_CONSEQUENCE,
@@ -106,30 +107,12 @@ function storedReceipt(roundId: string) {
   }
 }
 
-function severityLabel(severity: VoteIntegritySeverity) {
-  if (severity === "critical") return "Critical pattern";
-  if (severity === "high") return "High concern";
-  if (severity === "strong") return "Strong pattern";
-  if (severity === "review") return "Review required";
-  if (severity === "notable") return "Notable pattern";
-  return "No notable pattern";
-}
-
 function severityClass(severity: VoteIntegritySeverity) {
   if (severity === "critical") return "border-red-300/30 bg-red-300/10 text-red-100";
   if (severity === "high") return "border-orange-300/30 bg-orange-300/10 text-orange-100";
   if (severity === "strong") return "border-amber-300/30 bg-amber-300/10 text-amber-100";
   if (severity === "review") return "border-cyan-300/25 bg-cyan-300/10 text-cyan-100";
   return "border-sky-300/20 bg-sky-300/10 text-sky-100";
-}
-
-function reasonLabel(reason: string) {
-  if (reason === "historical_relationship") return "Unusual historical support pattern";
-  if (reason === "reciprocal_pattern") return "Reciprocal support pattern";
-  if (reason === "recent_persistence") return "Repeated recent support";
-  if (reason === "unusual_similarity") return "Unusual ballot similarity";
-  if (reason === "multiple_relationships") return "Several unusual relationships";
-  return "Unusual voting pattern";
 }
 
 export function TelevotingBooth({
@@ -405,9 +388,13 @@ export function TelevotingBooth({
     return (
       <section className="glass-strong p-7 text-center sm:p-9">
         <CheckCircle2 className="mx-auto size-9 text-emerald-200" />
-        <h2 className="mt-4 text-2xl font-medium">Vote recorded</h2>
+        <h2 className="mt-4 text-2xl font-medium">{integrityReport?.interventionLevel === "provisional_review" ? "Vote submitted for review" : integrityReport?.requiresAttestation ? "Declaration submitted" : "Vote recorded"}</h2>
         <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-          Your ballot for {roundName} has been recorded. Automatic integrity checks and the normal duplicate protections are complete.
+          {integrityReport?.interventionLevel === "provisional_review"
+            ? `Your vote for ${roundName} has been recorded for organizer review. It has not been automatically rejected.`
+            : integrityReport?.requiresAttestation
+              ? `Your vote and signed declaration for ${roundName} have been recorded. Organizers may review the vote if needed.`
+              : `Your vote for ${roundName} has been recorded.`}
         </p>
       </section>
     );
@@ -445,42 +432,26 @@ export function TelevotingBooth({
   }
 
   if (stage === "review" && integrityReport) {
-    const isReview = integrityReport.interventionLevel === "review";
+    const message = voterIntegrityMessage(integrityReport.interventionLevel);
     return (
       <section className="mx-auto max-w-2xl space-y-4">
-        <div className={cn("rounded-2xl border p-6", severityClass(integrityReport.severity))}>
+        <div className={cn("rounded-2xl border p-5 sm:p-6", severityClass(integrityReport.severity))}>
           <div className="flex items-start gap-3">
-            <ShieldCheck className="mt-0.5 size-6 shrink-0" />
+            <ShieldAlert className="mt-0.5 size-6 shrink-0" />
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.15em]">Automatic Voting Integrity System</p>
-              <h2 className="mt-2 text-2xl font-black">{isReview ? "Please review your ballot" : "A voting-integrity notice"}</h2>
-              <p className="mt-2 text-sm leading-6 opacity-90">
-                Solaris noticed an unusual voting pattern. This is <strong>not</strong> a finding of misconduct. Make sure your ballot reflects your own independent preferences before continuing.
-              </p>
+              <p className="text-xs font-bold uppercase tracking-wide">Voting check</p>
+              <h2 className="mt-2 text-xl font-bold">{message.title}</h2>
+              <p className="mt-2 text-sm leading-6">{message.body}</p>
             </div>
           </div>
         </div>
-
-        {integrityReport.reasonCategories?.length ? (
-          <div className="glass-strong p-5">
-            <p className="text-xs font-bold">General reason categories</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {integrityReport.reasonCategories.map((reason) => (
-                <span key={reason} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-muted-foreground">
-                  {reasonLabel(reason)}
-                </span>
-              ))}
-            </div>
-            <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
-              Exact detector thresholds are kept private. The warning exists to encourage an independent review, not to accuse you of cheating.
-            </p>
-          </div>
-        ) : null}
-
+        <VotingIntegrityReasonList categories={integrityReport.reasonCategories} />
         <div className="grid gap-2 sm:grid-cols-2">
-          <Button variant="outline" className="min-h-12" onClick={returnToBallot} disabled={attestationMutation.isPending || submitMutation.isPending}><ArrowLeft className="size-4" /> Review my votes</Button>
+          <Button variant="outline" className="min-h-12" onClick={returnToBallot} disabled={attestationMutation.isPending || submitMutation.isPending}>
+            <ArrowLeft className="size-4" /> Change my votes
+          </Button>
           <Button className="min-h-12" onClick={submitPendingReviewedBallot} disabled={submitMutation.isPending}>
-            <ShieldCheck className="size-4" /> {submitMutation.isPending ? "Submitting…" : "My ballot is correct"}
+            <ShieldCheck className="size-4" /> {submitMutation.isPending ? "Submitting…" : "My votes are correct"}
           </Button>
         </div>
       </section>
@@ -496,104 +467,50 @@ export function TelevotingBooth({
       acceptedPressure &&
       acceptedConsequences;
     const provisional = integrityReport.interventionLevel === "provisional_review";
+    const message = voterIntegrityMessage(integrityReport.interventionLevel);
 
     return (
       <section className="mx-auto max-w-3xl space-y-4">
         <div className={cn("rounded-2xl border p-5 sm:p-7", severityClass(integrityReport.severity))}>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <ShieldAlert className="size-6 shrink-0" />
-                <p className="text-xs font-black uppercase tracking-[0.15em]">Automatic Voting Integrity System</p>
-                <span className="rounded-full border border-current/20 px-2.5 py-1 text-[10px] font-bold">{severityLabel(integrityReport.severity)} · {integrityReport.riskScore}/100</span>
-                {integrityReport.confidence != null ? <span className="rounded-full border border-current/20 px-2.5 py-1 text-[10px] font-bold">Confidence {integrityReport.confidence}%</span> : null}
-              </div>
-              <h2 className="mt-4 text-2xl font-black sm:text-3xl">Voting Integrity Declaration required</h2>
-              <p className="mt-3 text-sm leading-6 opacity-90">
-                <strong>No person flagged this ballot.</strong> Solaris detected a combination of patterns strong enough to require an explicit declaration before submission.
-              </p>
-              <p className="mt-2 text-sm leading-6 opacity-80">
-                An automated flag is not proof of misconduct. Recent editions carry more weight than older history, while older patterns still contribute context.
-              </p>
-              {provisional ? <p className="mt-3 rounded-xl border border-red-200/20 bg-red-950/20 p-3 text-xs leading-5">Because this case also contains unusually strong current-round coordination evidence, the ballot will be recorded for organizer integrity review rather than automatically rejected.</p> : null}
-            </div>
-            <Button type="button" variant="outline" onClick={returnToBallot} disabled={attestationMutation.isPending || submitMutation.isPending}><ArrowLeft className="size-4" /> Change my votes</Button>
-          </div>
-        </div>
-
-        <div className="glass-strong p-5 sm:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-sky-100/65">Why this requires a declaration</p>
-              <h3 className="mt-1 text-xl font-bold">Relevant relationship evidence</h3>
-            </div>
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] text-muted-foreground">Relationship risk {integrityReport.relationshipRisk}/100</span>
-          </div>
-
-          {integrityReport.reasonCategories?.length ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {integrityReport.reasonCategories.map((reason) => <span key={reason} className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[10px] text-muted-foreground">{reasonLabel(reason)}</span>)}
-            </div>
-          ) : null}
-
-          <div className="mt-4 space-y-3">
-            {integrityReport.findings.map((finding, index) => (
-              <article key={`${finding.lens}-${finding.targetCode}-${index}`} className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-bold">{finding.targetName}</p>
-                      <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-semibold">{finding.lens === "hod" ? "HOD history" : "Country history"}</span>
-                    </div>
-                    <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{finding.scopeLabel}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-center text-[10px] sm:grid-cols-3">
-                    <MiniStat label="Editions" value={String(finding.uniqueEditions)} />
-                    <MiniStat label="Recent evidence" value={finding.effectiveRecentEditions == null ? "–" : finding.effectiveRecentEditions.toFixed(1)} />
-                    <MiniStat label="Confidence" value={`${finding.confidence}%`} />
-                  </div>
-                </div>
-                {finding.reasons.length ? <ul className="mt-3 space-y-1.5 text-xs leading-5 text-muted-foreground">{finding.reasons.map((reason) => <li key={reason}>• {reason}</li>)}</ul> : null}
-              </article>
-            ))}
-          </div>
-
-          <div className="mt-4 rounded-xl border border-white/8 bg-black/10 p-3 text-[11px] leading-5 text-muted-foreground">
-            Historical check scanned {integrityReport.history.televoteBallotsConsidered} stored televote ballot{integrityReport.history.televoteBallotsConsidered === 1 ? "" : "s"} and {integrityReport.history.juryBallotsConsidered} jury ballot{integrityReport.history.juryBallotsConsidered === 1 ? "" : "s"}. Four-edition-old evidence is worth about 60% of current-edition evidence in the recent-history model.
-          </div>
-        </div>
-
-        <div className="glass-strong border border-red-200/15 p-5 sm:p-6">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 size-6 shrink-0 text-red-200" />
+            <ShieldAlert className="mt-0.5 size-6 shrink-0" />
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-red-100/70">Voting Integrity Declaration</p>
-              <h3 className="mt-1 text-xl font-black">Confirm each statement individually</h3>
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">You can instead return to the ballot and change your votes. Nothing has been submitted yet.</p>
+              <p className="text-xs font-bold uppercase tracking-wide">Voting check</p>
+              <h2 className="mt-2 text-2xl font-bold">{message.title}</h2>
+              <p className="mt-2 text-sm leading-6">{message.body}</p>
+              <p className="mt-2 text-sm leading-6">Nothing has been submitted yet. You can go back and change your votes.</p>
             </div>
           </div>
-
-          <div className="mt-5 space-y-3">
-            <IntegrityCheckbox checked={acceptedAutomatic} onChange={setAcceptedAutomatic}>{VOTE_INTEGRITY_AUTOMATION}</IntegrityCheckbox>
-            <IntegrityCheckbox checked={acceptedIndependence} onChange={setAcceptedIndependence}>{VOTE_INTEGRITY_INDEPENDENCE}</IntegrityCheckbox>
-            <IntegrityCheckbox checked={acceptedCoordination} onChange={setAcceptedCoordination}>{VOTE_INTEGRITY_COORDINATION}</IntegrityCheckbox>
-            <IntegrityCheckbox checked={acceptedPressure} onChange={setAcceptedPressure}>{VOTE_INTEGRITY_PRESSURE}</IntegrityCheckbox>
-            <IntegrityCheckbox checked={acceptedConsequences} onChange={setAcceptedConsequences}>{VOTE_INTEGRITY_CONSEQUENCE}</IntegrityCheckbox>
+        </div>
+        <VotingIntegrityReasonList categories={integrityReport.reasonCategories} />
+        <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
+          <h3 className="text-xl font-bold">Voting declaration</h3>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {provisional
+              ? "Your vote will be recorded for organizer review after you sign. It will not be rejected automatically."
+              : "Please read and confirm each statement before submitting."}
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">The full wording of each statement is available below it and is part of what you sign.</p>
+          <div className="mt-4 space-y-3">
+            <VotingDeclarationCheckbox checked={acceptedAutomatic} onChange={setAcceptedAutomatic} shortText={VOTER_DECLARATION_LABELS.automation} fullText={VOTE_INTEGRITY_AUTOMATION} />
+            <VotingDeclarationCheckbox checked={acceptedIndependence} onChange={setAcceptedIndependence} shortText={VOTER_DECLARATION_LABELS.independence} fullText={VOTE_INTEGRITY_INDEPENDENCE} />
+            <VotingDeclarationCheckbox checked={acceptedCoordination} onChange={setAcceptedCoordination} shortText={VOTER_DECLARATION_LABELS.coordination} fullText={VOTE_INTEGRITY_COORDINATION} />
+            <VotingDeclarationCheckbox checked={acceptedPressure} onChange={setAcceptedPressure} shortText={VOTER_DECLARATION_LABELS.pressure} fullText={VOTE_INTEGRITY_PRESSURE} />
+            <VotingDeclarationCheckbox checked={acceptedConsequences} onChange={setAcceptedConsequences} shortText={VOTER_DECLARATION_LABELS.consequences} fullText={VOTE_INTEGRITY_CONSEQUENCE} />
           </div>
-
           <label className="mt-5 block">
-            <span className="text-xs font-bold text-foreground">Sign by typing your voting username exactly</span>
+            <span className="text-sm font-semibold">Type your voting username to sign</span>
             <Input value={signedName} onChange={(event) => setSignedName(event.target.value)} placeholder={username.trim()} autoComplete="off" className="mt-2" />
-            <span className="mt-2 block text-[11px] text-muted-foreground">Signature must match “{username.trim()}”. The signed declaration is stored with this ballot's integrity record.</span>
           </label>
-
           <div className="mt-5 grid gap-2 sm:grid-cols-2">
-            <Button type="button" variant="outline" className="min-h-12" onClick={returnToBallot} disabled={attestationMutation.isPending || submitMutation.isPending}><ArrowLeft className="size-4" /> Change my votes instead</Button>
-            <Button type="button" className="min-h-12 bg-red-600 text-white hover:bg-red-500" disabled={!canSign || attestationMutation.isPending || submitMutation.isPending} onClick={() => attestationMutation.mutate()}>
-              <PenLine className="size-4" /> {attestationMutation.isPending || submitMutation.isPending ? "Recording declaration…" : "Sign declaration & submit"}
+            <Button type="button" variant="outline" className="min-h-12" onClick={returnToBallot} disabled={attestationMutation.isPending || submitMutation.isPending}>
+              <ArrowLeft className="size-4" /> Change my votes
+            </Button>
+            <Button type="button" className="min-h-12" disabled={!canSign || attestationMutation.isPending || submitMutation.isPending} onClick={() => attestationMutation.mutate()}>
+              <PenLine className="size-4" /> {attestationMutation.isPending || submitMutation.isPending ? "Recording declaration…" : provisional ? "Sign and submit for review" : "Sign and submit"}
             </Button>
           </div>
-        </div>
+        </section>
       </section>
     );
   }
@@ -650,25 +567,4 @@ export function TelevotingBooth({
       </div>
     </section>
   );
-}
-
-function IntegrityCheckbox({
-  checked,
-  onChange,
-  children,
-}: {
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className={cn("flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition", checked ? "border-emerald-200/20 bg-emerald-200/[0.055]" : "border-white/10 bg-white/[0.025]")}>
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="mt-1 size-4 shrink-0 accent-emerald-400" />
-      <span className="text-xs leading-5 text-muted-foreground">{children}</span>
-    </label>
-  );
-}
-
-function MiniStat({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-lg border border-white/8 bg-black/10 px-2 py-2"><p className="font-bold text-foreground">{value}</p><p className="mt-0.5 text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{label}</p></div>;
 }
