@@ -55,7 +55,7 @@ export async function assertLinkedTelevoteRosterCurrent(roundId: string): Promis
 
   const { data: participants, error: participantsError } = await query;
   if (participantsError) throw new Error("Could not verify active Solaris participants");
-  const countryIds: string[] = [...new Set(
+  const countryIds: string[] = [...new Set<string>(
     (participants ?? []).map((row: { country_id: string | null }) => row.country_id)
       .filter((id: string | null): id is string => Boolean(id)),
   )];
