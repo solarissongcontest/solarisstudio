@@ -445,6 +445,7 @@ for probe in replacement partial; do
         '00000000-0000-4000-8000-00000000e800'::uuid,'published-internal-denied','$SESSION_ID');"
   done
 done
+expect_eq "failed operations leave no accepted receipts" "$(scalar "select count(*) from private.v3_confirmation_operations where idempotency_key in ('00000000-0000-4000-8000-00000000e798'::uuid,'00000000-0000-4000-8000-00000000e800'::uuid);")" "0"
 expect_eq "denials preserve internal evidence" "$(scalar "select md5(row_to_json(i)::text) from public.internal_entries i where submission_id='$SUBMISSION_ID';")" "$INTERNAL_BEFORE"
 expect_eq "denials preserve version count" "$(scalar "select count(*) from public.submission_versions where submission_id='$SUBMISSION_ID';")" "$VERSIONS_BEFORE"
 METADATA_RESULT="$(as_user "$HOD_USER_ID" "select public.v3_submit_confirmation('$METADATA_PAYLOAD'::jsonb,
