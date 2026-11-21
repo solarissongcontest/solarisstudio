@@ -120,4 +120,55 @@ rpc_request "$LATE_TOKEN" v3_submit_jury_ballot "{\"_show_id\":\"$DUAL_SHOW\",\"
 expect_failure "manual-first account conflict denied"
 [[ "$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id='$DUAL_SHOW' and voter_country_id='$MANUAL_COUNTRY'")" == 0 ]] || fail "Account/manual conflict inserted duplicate submission"
 [[ "$(db_scalar "select count(*) from public.jury_votes where show_id='$DUAL_SHOW' and voter_country_id='$MANUAL_COUNTRY'")" == 10 ]] || fail "Account conflict changed manual votes"
+
+# Race the two official methods for one synthetic country using independent
+# authenticated REST requests. Exactly one may commit. Neither retries nor
+# caller-selected voter IDs can create a second accepted official ballot.
+log "Racing account vs Organizer manual entry for one country on local Supabase"
+RACE_COUNTRY="$(db_scalar "select ('00000000-0000-4000-8000-'||lpad(to_hex(50987),12,'0'))::text")"
+create_user v3-jury-synthetic-race@solaris.invalid
+RACE_USER_ID="$LAST_USER_ID"
+sign_in v3-jury-synthetic-race@solaris.invalid
+RACE_USER_TOKEN="$LAST_TOKEN"
+db_exec "insert into public.country_accounts(user_id,country_id,status) values('$RACE_USER_ID','$RACE_COUNTRY','active');"
+RACE_PREFLIGHT='00000000-0000-4000-8000-00000000f731'
+db_exec "insert into televoting.vote_preflight_checks(id,round_id,username_normalized,country_code,ballot_map,channel,canonical_edition_id,show_id,account_user_id,expires_at) values('$RACE_PREFLIGHT',null,'synthetic-jury-race','Q11','$ACCOUNT_MAP'::jsonb,'jury','$EDITION_ID','$DUAL_SHOW','$RACE_USER_ID',now()+interval '30 minutes');"
+RACE_ACCOUNT_BODY="{\"_show_id\":\"$DUAL_SHOW\",\"_entries\":$ACCOUNT_BALLOT,\"_preflight_id\":\"$RACE_PREFLIGHT\",\"_operation_id\":\"00000000-0000-4000-8000-00000000b731\"}"
+RACE_MANUAL_BODY="{\"p_edition_id\":\"$EDITION_ID\",\"p_show_id\":\"$DUAL_SHOW\",\"p_voter_id\":null,\"p_voter_country_id\":\"$RACE_COUNTRY\",\"p_voter_entity_id\":null,\"p_receiving_country_id\":\"$MANUAL_COUNTRY\",\"p_receiving_entity_id\":null,\"p_points\":12,\"p_action\":\"assign\",\"p_expected_version\":0,\"p_operation_id\":\"00000000-0000-4000-8000-00000000b732\"}"
+RACE_OUT="$(mktemp -d)"
+(
+  rpc_request "$RACE_USER_TOKEN" v3_submit_jury_ballot "$RACE_ACCOUNT_BODY"
+  printf '%s' "$HTTP_STATUS" > "$RACE_OUT/account.status"
+  printf '%s' "$HTTP_BODY" > "$RACE_OUT/account.body"
+) &
+race_account_pid=$!
+(
+  rpc_request "$USER_A_TOKEN" v3_organizer_jury_score_apply "$RACE_MANUAL_BODY"
+  printf '%s' "$HTTP_STATUS" > "$RACE_OUT/manual.status"
+  printf '%s' "$HTTP_BODY" > "$RACE_OUT/manual.body"
+) &
+race_manual_pid=$!
+wait "$race_account_pid"
+wait "$race_manual_pid"
+account_status="$(cat "$RACE_OUT/account.status")"
+manual_status="$(cat "$RACE_OUT/manual.status")"
+account_ok=0; manual_ok=0
+(( account_status>=200 && account_status<300 )) && account_ok=1 || true
+(( manual_status>=200 && manual_status<300 )) && manual_ok=1 || true
+if (( account_ok+manual_ok!=1 )); then
+  fail "Dual-method same-country race outcome is unsafe: account $account_status $(cat "$RACE_OUT/account.body"); manual $manual_status $(cat "$RACE_OUT/manual.body")"
+fi
+race_account_rows="$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id='$DUAL_SHOW' and voter_country_id='$RACE_COUNTRY'")"
+race_manual_rows="$(db_scalar "select count(*) from private.v3_jury_manual_scores where show_id='$DUAL_SHOW' and voter_identity='$RACE_COUNTRY'")"
+race_official_rows="$(db_scalar "select count(*) from public.jury_votes where show_id='$DUAL_SHOW' and voter_country_id='$RACE_COUNTRY'")"
+if (( account_ok==1 )); then
+  [[ "$race_account_rows" == 1 && "$race_manual_rows" == 0 && "$race_official_rows" == 10 ]] ||
+    fail "Account won race but Organizer draft or official ballot was inconsistent"
+else
+  [[ "$race_account_rows" == 0 && "$race_manual_rows" == 1 && "$race_official_rows" == 0 ]] ||
+    fail "Organizer won race but second account ballot leaked into canonical results"
+fi
+rm -rf "$RACE_OUT"
+log "PASS: shared lock yields one winner for simultaneous country-account and Organizer commands"
+
 log "PASS: local SSC22-shaped account/manual authority, no-account entry, full scale, correction, receipt and negative tests"
