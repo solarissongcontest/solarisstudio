@@ -594,7 +594,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
       <div className="space-y-4">
         {report.interventionLevel === "notice" || report.interventionLevel === "review" ? (
           <section className={cn("rounded-2xl border p-5 sm:p-7", severityClass(report.severity))}>
-            <div className="flex items-start gap-3"><ShieldAlert className="mt-0.5 size-6 shrink-0" /><div><p className="text-xs font-black uppercase tracking-[0.15em]">Voting integrity review</p><h2 className="mt-2 text-2xl font-black">{voterIntegrityMessage(report.interventionLevel).title}</h2><p className="mt-2 text-sm leading-6 opacity-85">{voterIntegrityMessage(report.interventionLevel).body}</p></div></div>
+            <div className="flex items-start gap-3"><ShieldAlert className="mt-0.5 size-6 shrink-0" /><div><p className="text-xs font-black uppercase tracking-[0.15em]">Voting check</p><h2 className="mt-2 text-2xl font-black">{voterIntegrityMessage(report.interventionLevel).title}</h2><p className="mt-2 text-sm leading-6 opacity-85">{voterIntegrityMessage(report.interventionLevel).body}</p></div></div>
           </section>
         ) : (
           <Panel title="Voting check complete" description="No extra steps needed">
@@ -619,7 +619,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <ShieldAlert className="size-5 shrink-0" />
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em]">Voting integrity review</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em]">Voting check</p>
                 
               </div>
               <h2 className="mt-3 text-xl font-bold tracking-[-.02em]">{voterIntegrityMessage(report.interventionLevel).title}</h2>
@@ -687,7 +687,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
 
 function JuryBallotReview({ round, selections }: { round: JuryRound; selections: Array<string | null> }) {
   return (
-    <Panel title="Review your jury allocations" description={`SSC ${round.edition_number} · ${round.show_name} · Confirm every point before submission.`}>
+    <Panel title="Review your jury votes" description={`SSC ${round.edition_number} · ${round.show_name} · Check each score before submitting.`}>
       <div className="divide-y divide-border/60" data-jury-final-review="allocations">
         {round.point_scale.map((points, index) => {
           const targetId = selections[index];
