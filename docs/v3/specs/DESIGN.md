@@ -104,9 +104,19 @@ Country is a full entity story, not an old compact profile with an image above i
 - Long country names, native names, metadata and language variants must wrap without overflows.
 - The artistic emphasis must not interfere with published entry and result information.
 
+### Country composition acceptance details
+
+The hero uses the saved normalized focal point (x/y in 0–1), with a fade beginning around 60–70% and ending exactly in the current content background. These are visual starting points, not fixed geometry: installed phone approximately 62–76% of usable viewport, mobile website approximately 300–450 CSS px, desktop approximately 420–620 CSS px. Short/zoomed screens and landscape must keep identity and navigation usable. NAVIGATION owns the safe bounds.
+
+Use an approved published image; a legacy image requires an explicitly reviewed mapping. Otherwise use a controlled flag-led abstract identity fallback, preserving a separate 3:2 flag. Removed/invalid images fall back without layout shift or resurrecting withdrawn cached media. The design works without animation; optional parallax requires measured performance and reduced-motion support.
+
+Country sections remain Overview · Entries · Results · History · World · Voting, with Stories when published. Preserve stable shareable section URLs, back/forward restoration and horizontally scrollable phone section navigation. Do not create a second dock. Overview summarizes current participation, published entry/result and relevant World facts; full histories belong in dedicated searchable views.
+
 ## 7. MySolaris Country Hero Studio
 
-UI preview and authoritative media publication are different capabilities.
+UI preview and authoritative media publication are different capabilities. The canonical entry is Me → My Country / Delegation → Public Country Profile → Appearance → Hero image. Existing MySolaris Page Builder / Theme and authorized Country Edit links lead to this same editor, without a sixth root tab or duplicate renderer.
+
+One focused editor presents Current hero, Image, Composition, Accessibility, Preview modes and Publish changes. Include alt text, optional credit, local contrast treatment, replace/remove/restore and explicit processing, rejection, conflict and recovery states. Upload success never implies publication. Existing published media stays visible after failed publication. Technical validation, access revocation and lifecycle requirements are owned by [SYSTEM](SYSTEM.md#country-hero-media-contract).
 
 The final experience includes choose/upload, validation and processing feedback, focal point/crop and responsive previews, draft history, publish review, authoritative acknowledgement, revision history, rollback and visible recovery.
 

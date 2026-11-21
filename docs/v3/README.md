@@ -1,6 +1,6 @@
 # Solaris Studio V3: canonical specifications
 
-**One feature, one source of truth.** This directory is the persistent GitHub home for Solaris Studio V3 specifications. It is intended to replace the confusing collection of competing uploaded plans with one active authority per subject. The documents were sourced from the project's owner-provided attachments; this reorganization is proposed for owner review and becomes the repository's canonical documentation structure after approval/integration.
+**One feature, one source of truth.** This directory is the persistent GitHub home for Solaris Studio V3 specifications. It is intended to replace the confusing collection of competing uploaded plans with one active authority per subject. The documents were sourced from the project's owner-provided attachments; the owner has directed implementation against this documentation in PR #2622, including its actual unmerged head. This source authority does not authorize a source merge, production deployment or release.
 
 ## Start here
 

@@ -5105,3 +5105,17 @@ A backup can actually be restored.
 And every release can prove those claims against the exact code being deployed.
 
 Only then should Solaris Studio V3 be considered system-complete.
+
+## Country Hero media contract
+
+Reconciled from the archived 19 November Country/Edition source §§6–7; this section owns the media lifecycle, while DESIGN owns its editor and public composition. These are required contracts to qualify against existing code, not a claim that an API or schema is implemented.
+
+- Reuse current `country_accounts` controller/capability authority, `country_profiles`, `country_media` and existing processing/storage services. No competing ownership table, upload authority or `current_hero_url` truth. Country identity is independent of current contest participation.
+- Server checks actual type, dimensions, size and decodability. JPEG, PNG and WebP are required; HEIC is allowed only through a tested safe conversion. Animated GIF and SVG are not hero inputs. Strip EXIF/location metadata from published derivatives. Confirm publication rights and apply moderation rules.
+- Around 1920×1080 is source-quality guidance and 15 MB was an illustrative proposed upload limit, not an approved infrastructure constant. Qualify and enforce actual limits server-side; give truthful client feedback. Generate bounded responsive derivatives in a trusted pipeline rather than delivering originals to every visitor.
+- Lifecycle: local selection → private upload → processing → ready draft → preview → publishing → published, with rejected/failed/conflict/removed/fallback/moderated alternatives. Drafts and preview URLs remain private, including search and CDN surfaces.
+- Publication rechecks actor, country, capability, ready asset, moderation and expected published revision atomically, uses stable idempotency where required and returns an auditable receipt. Preserve normalized focal point, alt/credit, contrast treatment, asset/version identity and revision. Read back the acknowledged published revision.
+- Controller transfer immediately revokes former-controller private draft and publication access. A HoD title alone is not sufficient authority. Organizer moderation/forced fallback requires an explicit capability, reason and audit.
+- Failure preserves the prior public revision. Replacement, removal, rollback and restore preserve history and audit. Use versioned asset URLs/bounded invalidation, not mass polling, and prevent withdrawn assets returning from cache.
+- Hero changes do not rewrite edition identities, entries, results, membership or official World facts. Public readers expose only approved published revisions. Historical names, flags and records remain reproducible.
+- Existing legacy media needs explicit mapping before migration. New schema/storage configuration and hosted migration remain separately authorized System operations.

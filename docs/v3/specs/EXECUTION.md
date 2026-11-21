@@ -1,3 +1,5 @@
+> Current process precedence: root AGENTS.md, issue #574 (overflow #2464) and [merge-review-policy.md](../merge-review-policy.md) govern coordination. General parallel-development guidance below does not activate additional mutators or require a second AI reviewer. The owner-authorized session may proceed through sequential scoped tasks; production operations remain separately authorized.
+
 SOLARIS STUDIO V3
 
 THE EFFICIENT EXECUTION PHILOSOPHY
