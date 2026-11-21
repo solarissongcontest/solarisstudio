@@ -190,10 +190,16 @@ print(json.dumps(rows,separators=(",",":")))
     submitted_total=$((submitted_total + 1))
   done
 
+  # The negative assertion above deliberately exercised an obsolete explicit
+  # roster entry for the withdrawn delegation. Drop that test-only roster row
+  # before Results: a noncompeting country is not a pending voting obligation.
+  db_exec "delete from public.voters where edition_id='$EDITION_ID'::uuid and country_id='$WITHDRAW_COUNTRY_ID'::uuid and show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid);"
+  [[ "$(db_scalar "select count(*) from public.voters where edition_id='$EDITION_ID'::uuid and show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid);")" == "65" ]] || fail "withdrawn Jury identity remained in the active rehearsal roster"
+
   [[ "$submitted_total" == "63" ]] || fail "S14 Jury submitted $submitted_total ballots instead of 63 active ballots"
   [[ "$(db_scalar "select count(*) from public.jury_ballot_submissions where edition_id='$EDITION_ID'::uuid and show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid) and status='submitted';")" == "63" ]] || fail "canonical Jury submission count is not 63 active ballots"
   [[ "$(db_scalar "select count(*) from public.jury_votes where edition_id='$EDITION_ID'::uuid and show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid);")" == "630" ]] || fail "canonical Jury score rows are not 63 complete ten-score ballots"
-  [[ "$(db_scalar "select count(*) from public.voters v where v.edition_id='$EDITION_ID'::uuid and v.show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid) and not exists (select 1 from public.jury_ballot_submissions b where b.show_id=v.show_id and b.voter_country_id=v.country_id);")" == "3" ]] || fail "S14 Jury did not preserve exactly two absent plus one withdrawn ballot"
+  [[ "$(db_scalar "select count(*) from public.voters v where v.edition_id='$EDITION_ID'::uuid and v.show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid) and not exists (select 1 from public.jury_ballot_submissions b where b.show_id=v.show_id and b.voter_country_id=v.country_id);")" == "2" ]] || fail "S14 Jury did not preserve exactly two missing active ballots"
   [[ "$(db_scalar "select count(*) from (select show_id,voter_country_id,count(*) from public.jury_ballot_submissions where edition_id='$EDITION_ID'::uuid group by show_id,voter_country_id having count(*)>1) duplicates;")" == "0" ]] || fail "duplicate final Jury ballot detected"
   [[ "$(db_scalar "select count(*) from public.jury_votes where edition_id='$EDITION_ID'::uuid and voter_country_id=receiving_country_id;")" == "0" ]] || fail "own-country Jury vote survived canonical validation"
   [[ "$(db_scalar "select count(*) from private.v3_jury_drafts d join public.country_accounts ca on ca.user_id=d.user_id join public.countries c on c.id=ca.country_id where c.region='S14';")" == "0" ]] || fail "submitted S14 Jury drafts were not reconciled away"
