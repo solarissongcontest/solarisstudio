@@ -681,38 +681,48 @@ function JuryWorkspace() {
       setView("roster");
       return;
     }
-    setDraft({ ...emptyVoter });
+    // Once every participating country already has a jury, adding another
+    // means an external country. Select the useful default automatically.
+    const missingParticipant = participants.some((participant) =>
+      participant.country_id && !showVoters.some((voter) => voter.country_id === participant.country_id)
+    );
+    setDraft({ ...emptyVoter, kind: missingParticipant ? "country" : "external-country" });
     setAddOpen(true);
   }
 
   async function addVoter() {
-    if (!edition || !selectedShow || !explicitRoster) return;
+    if (!edition || !selectedShow || !explicitRoster || busy) return;
+    const showId = selectedShow.id;
     const country = countries.find((item) => item.id === draft.countryId);
     const countryKind = draft.kind === "country" || draft.kind === "external-country";
     const name = countryKind ? country?.name ?? "" : draft.name.trim();
-    if (!name) return;
+    if (!name || (countryKind && !country)) {
+      toast.error(countryKind ? "Choose a country that is not already a jury." : "Enter a jury name.");
+      return;
+    }
+    if (country && showVoters.some((voter) => voter.country_id === country.id)) {
+      toast.error("This country already has a jury in the selected show.");
+      return;
+    }
     setBusy(true);
     try {
-      const identity = draft.kind === "country" && draft.countryId
-        ? identityFor(draft.countryId)
-        : { country_id: draft.countryId, contest_entity_id: null };
-      const { error } = await (supabase.from("voters") as any).insert({
-        edition_id: edition.id,
-        show_id: selectedShow.id,
-        ...identity,
-        name,
-        kind: draft.kind,
-        flag_image: draft.flag_image.trim() || country?.flag_image || null,
-        accent_color: draft.accent_color.trim() || country?.accent_color || "#8888aa",
-        sort_order: Math.max(0, ...showVoters.map((voter) => voter.sort_order ?? 0)) + 1,
+      // Server-authoritative Organizer command checks edition/show membership,
+      // participation, duplicates and the voting-window lock atomically.
+      const { error } = await (supabase as any).rpc("admin_add_show_jury", {
+        _show_id: showId,
+        _kind: draft.kind,
+        _country_id: countryKind ? draft.countryId : null,
+        _name: countryKind ? null : name,
+        _flag_image: draft.flag_image.trim() || country?.flag_image || null,
+        _accent_color: draft.accent_color.trim() || country?.accent_color || "#8888aa",
       });
       if (error) throw error;
-      toast.success("Jury added");
+      toast.success(`${name} added to the ${selectedShow.name} jury roster`);
       setDraft({ ...emptyVoter });
       setAddOpen(false);
       await refresh();
     } catch (caught) {
-      toast.error(reportSupabaseError(caught, "Jury could not be added."));
+      toast.error(reportSupabaseError(caught, "Jury could not be added. Check your Organizer voting permission and selected country."));
     } finally {
       setBusy(false);
     }
@@ -795,7 +805,10 @@ function JuryWorkspace() {
   const participatingCountryIds = new Set(participants.map((participant) => identityFor(participant.country_id).country_id).filter((id): id is string => !!id));
   const countryChoices = countries.filter((country) =>
     !inactiveCountryIds.has(country.id) &&
-    (draft.kind !== "country" || participatingCountryIds.has(country.id))
+    !showVoters.some((voter) => voter.country_id === country.id) &&
+    (draft.kind === "country"
+      ? participatingCountryIds.has(country.id)
+      : !participatingCountryIds.has(country.id))
   );
 
   const statusForVoter = (key: string, given: number) => {
