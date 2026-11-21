@@ -182,4 +182,34 @@ begin
 end
 $duplicates$;
 
+
+-- Organizer-only projections distinguish a staged participant winner from
+-- "no winner". Exact-version review still owns canonical winning_entry_id.
+-- Do not expose pending identity through anonymous/public projections.
+do $organizer_read$
+declare
+  v_name regprocedure;
+  v_definition text;
+  v_patched text;
+  v_anchor constant text := '''winning_entry_id'', nf.winning_entry_id,';
+begin
+  foreach v_name in array array[
+    'public.admin_confirmation_response(uuid)'::regprocedure,
+    'public.admin_confirmation_responses_for_edition(uuid,integer,integer)'::regprocedure
+  ]
+  loop
+    select pg_get_functiondef(v_name) into v_definition;
+    if strpos(v_definition, v_anchor) = 0 then
+      raise exception 'Organizer NF projection differs from reviewed contract: %', v_name
+        using errcode = '55000';
+    end if;
+    v_patched := replace(
+      v_definition, v_anchor,
+      v_anchor || E'\n        ''pending_winning_entry_id'', nf.pending_winning_entry_id,'
+    );
+    execute v_patched;
+  end loop;
+end
+$organizer_read$;
+
 commit;
