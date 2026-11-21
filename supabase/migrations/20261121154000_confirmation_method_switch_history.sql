@@ -131,4 +131,55 @@ elsif sub.selection_method = 'national_final' then
 end
 $patch$;
 
+
+-- The original duplicate checker treated every row in internal_entries and
+-- national_final_entries as an active candidate. With preserved inactive
+-- history that would falsely reject another country's legitimate entry and
+-- leak historical song matches through duplicate checks. Preserve its
+-- established cross-edition matching scope but restrict it to active methods.
+do $duplicates$
+declare
+  v_definition text;
+  v_patched text;
+  v_internal_join constant text :=
+    E'join public.submissions s on s.id = i.submission_id\n    where';
+  v_nf_join constant text :=
+    E'join public.submissions s on s.id = nf.submission_id\n    where';
+  v_artist_or constant text :=
+    E'public.normalize_entry_text(i.artist) = na\n        or public.normalize_entry_text(e.artist) = na';
+begin
+  if to_regprocedure('public.find_entry_duplicate(uuid,uuid,text,text,text)') is null then
+    raise exception 'Missing canonical Confirmation duplicate checker' using errcode = '55000';
+  end if;
+  select pg_get_functiondef(
+    'public.find_entry_duplicate(uuid,uuid,text,text,text)'::regprocedure
+  ) into v_definition;
+
+  if strpos(v_definition, v_internal_join) = 0
+     or strpos(v_definition, v_nf_join) = 0
+     or strpos(v_definition, v_artist_or) = 0 then
+    raise exception 'Duplicate checker differs from reviewed migration baseline'
+      using errcode = '55000';
+  end if;
+
+  v_patched := replace(
+    v_definition, v_internal_join,
+    E'join public.submissions s on s.id = i.submission_id\n    where s.selection_method = ''internal'' and s.participating = true and'
+  );
+  v_patched := replace(
+    v_patched, v_nf_join,
+    E'join public.submissions s on s.id = nf.submission_id\n    where s.selection_method = ''national_final'' and s.participating = true and'
+  );
+  v_patched := replace(
+    v_patched, v_artist_or,
+    E'(s.selection_method = ''internal'' and public.normalize_entry_text(i.artist) = na)\n        or (s.selection_method = ''national_final'' and public.normalize_entry_text(e.artist) = na)'
+  );
+  if v_patched = v_definition then
+    raise exception 'Duplicate checker inactive-history filter was not applied'
+      using errcode = '55000';
+  end if;
+  execute v_patched;
+end
+$duplicates$;
+
 commit;
