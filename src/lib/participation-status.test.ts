@@ -5,6 +5,7 @@ import {
   filterResultsToCompetingParticipants,
   participationStatus,
   participationStatusLabel,
+  participationStatusCommandSubject,
   type ParticipationAwareParticipant,
 } from "./participation-status";
 
@@ -49,6 +50,29 @@ describe("participation status", () => {
 
     expect(participants).toHaveLength(3);
     expect(filterResultsToCompetingParticipants(results, participants).map((row) => row.country_id)).toEqual(["active"]);
+  });
+
+  it("passes a single country identity for global countries with both database IDs", () => {
+    const global = participant("country-1", "withdrawn");
+    global.contest_entity_id = "entity-1";
+    expect(participationStatusCommandSubject(global, true)).toEqual({
+      countryId: "country-1",
+      contestEntityId: null,
+    });
+  });
+
+  it("uses entity identity only for custom edition-only countries", () => {
+    const custom = participant("custom-country", "confirmed");
+    custom.contest_entity_id = "custom-entity";
+    expect(participationStatusCommandSubject(custom, false)).toEqual({
+      countryId: null,
+      contestEntityId: "custom-entity",
+    });
+    custom.contest_entity_id = null;
+    expect(participationStatusCommandSubject(custom, false)).toEqual({
+      countryId: null,
+      contestEntityId: "custom-country",
+    });
   });
 
   it("treats missing/legacy status as active and labels statuses for the UI", () => {
