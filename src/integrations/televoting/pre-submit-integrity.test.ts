@@ -50,10 +50,10 @@ describe("pre-submit voting integrity", () => {
     expect(migration).toContain("v_preflight.requires_attestation and v_preflight.attested_at is null");
     expect(functions).toContain("preflightToken");
     expect(functions).toContain("attestMergedTelevotingVote");
-    expect(booth).toContain("No person flagged this ballot");
-    expect(booth).toContain("Automatic Voting Integrity System");
+    expect(booth).toContain("voterIntegrityMessage(integrityReport.interventionLevel)");
+    expect(booth).toContain("VotingIntegrityReasonList");
     expect(booth).toContain("Change my votes");
-    expect(booth).toContain("Sign declaration & submit");
+    expect(booth).toContain("Sign and submit");
   });
 
   it("records an explicit independent-voting oath and consequence warning", () => {

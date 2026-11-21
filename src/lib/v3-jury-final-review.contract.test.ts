@@ -34,7 +34,7 @@ describe("official jury ballot final review", () => {
       juryPage.indexOf("function IntegrityEvidence"),
     );
     expect(declarations).toContain("<JuryBallotReview round={round} selections={selections} />");
-    expect(declarations).toContain("Sign declaration and submit jury vote");
+    expect(declarations).toContain("Sign and submit jury vote");
   });
 
   it("keeps the governed submission command and authoritative receipt requirement", () => {
