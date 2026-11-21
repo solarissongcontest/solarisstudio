@@ -310,20 +310,21 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
   }
 
   async function startRunningOrder() {
-    if (!activeShow || !allocationComplete) return;
+    if (!activeShow || !lifecycleParticipants.length) return;
     setBusy(true);
     try {
-      if (allocationDirty) await persistAllocationDraft();
-      const ids = alphaParticipants.map((participant) => participant.id);
-      const { error } = await (supabase as any).rpc("admin_set_show_running_order", {
+      // Preserve a complete draw if present. A draw is optional for an
+      // Organizer-managed show, so incomplete allocation never blocks editing.
+      if (allocationComplete && allocationDirty) await persistAllocationDraft();
+      const ids = runningParticipants.map((participant) => participant.id);
+      const { error } = await (supabase as any).rpc("admin_open_show_running_order", {
         _show_id: activeShow.id,
         _participant_ids: ids,
       });
       if (error) throw error;
-      await setStage("running_order");
       setRunningOrderDraft(ids);
       setRunningOrderDirty(false);
-      toast.success("Running-order workspace started with an editable A–Z draft.");
+      toast.success("Running-order editor opened. Drag or move entries and save the exact order.");
       await refresh();
     } catch (caught) {
       toast.error(reportSupabaseError(caught, "Running-order workspace could not be started."));
@@ -692,7 +693,7 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
       <AdminPageHeader
         eyebrow={editionLabel(edition)}
         title="Line-up, allocation & running order"
-        description="Build the show in the correct order: countries first, allocation draw second, running order last."
+        description="Manage entries, optionally record the allocation draw, or directly edit the running order when the show is ready."
         actions={
           <div className="flex gap-2">
             <button type="button" className="admin-action-primary" onClick={() => setAddOpen(true)} disabled={!activeShow}><Plus className="size-4" /> Add entry</button>
@@ -729,10 +730,17 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
           <StageTile number="3" label="Running order" active={stage === "running_order"} done={false} />
         </div>
         {stage === "lineup" && lifecycleParticipants.length ? (
-          <button type="button" disabled={busy} onClick={() => void startAllocation()} className="admin-action-primary mt-4 w-full"><Shuffle className="size-4" /> Start allocation draw <ArrowRight className="size-4" /></button>
+          <button type="button" disabled={busy} onClick={() => void startAllocation()} className="admin-action-secondary mt-4 w-full"><Shuffle className="size-4" /> Start optional allocation draw <ArrowRight className="size-4" /></button>
         ) : null}
-        {stage === "allocation" ? (
-          <button type="button" disabled={busy || !allocationComplete} onClick={() => void startRunningOrder()} className="admin-action-primary mt-4 w-full"><ListOrdered className="size-4" /> {allocationComplete ? "Start running order" : `Allocate ${lifecycleParticipants.length - allocatedCount} more first`} <ArrowRight className="size-4" /></button>
+        {stage !== "running_order" && lifecycleParticipants.length ? (
+          <div className="mt-3 space-y-1">
+            <button type="button" disabled={busy} onClick={() => void startRunningOrder()} className="admin-action-primary w-full">
+              <ListOrdered className="size-4" /> {allocationComplete ? "Open running-order editor" : "Edit running order without completing allocation"} <ArrowRight className="size-4" />
+            </button>
+            {!allocationComplete && (
+              <p className="text-xs text-muted-foreground">Allocation is optional. Existing saved positions are retained; only the active entries will appear.</p>
+            )}
+          </div>
         ) : null}
       </AdminCard>
 
