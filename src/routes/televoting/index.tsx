@@ -13,7 +13,7 @@ import type { MergedTelevotingEntry } from "@/components/televoting/TelevotingBo
 import { TelevotingBoothWithReceipt } from "@/components/televoting/TelevotingBoothWithReceipt";
 import { Button } from "@/components/ui/button";
 import { televotingSupabase } from "@/integrations/televoting/client";
-import { getMergedTelevotingServerStatus } from "@/integrations/televoting/status.functions";
+import { getMergedTelevotingServerStatus, getMergedTelevotingRoundRosterReady } from "@/integrations/televoting/status.functions";
 import { resolveTelevotingAvailability } from "@/lib/v3-televote-availability";
 
 export const Route = createFileRoute("/televoting/")({
@@ -117,6 +117,7 @@ async function loadOpenRound(): Promise<OpenRound | null> {
 function TelevotingPage() {
   const queryClient = useQueryClient();
   const getServerStatus = useServerFn(getMergedTelevotingServerStatus);
+  const checkRoundRoster = useServerFn(getMergedTelevotingRoundRosterReady);
 
   const { data, isLoading, error, refetch: refetchRound } = useQuery({
     queryKey: ["merged-televoting-open-round"],
@@ -133,7 +134,16 @@ function TelevotingPage() {
   } = useQuery({
     // A newly opened round must not inherit readiness from a previous round.
     queryKey: ["merged-televoting-server-status", data?.round.id],
-    queryFn: () => getServerStatus(),
+    queryFn: async () => {
+      const roundId = data?.round.id;
+      if (!roundId) throw new Error("Select a voting round");
+      const [backend, roster] = await Promise.all([
+        getServerStatus(),
+        checkRoundRoster({ data: { roundId } }),
+      ]);
+      return { ...backend, rosterReady: roster.ready, rosterReason: roster.reason,
+        votingReady: backend.votingReady && roster.ready };
+    },
     enabled: Boolean(data),
     staleTime: 30_000,
     // When the backend is unavailable, recover automatically. Do not poll a
@@ -196,7 +206,7 @@ function TelevotingPage() {
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">{data.round.editions?.name ?? "Solaris Song Contest"}</p>
                   <h2 className="mt-2 font-display text-2xl font-bold">{data.round.name}</h2>
-                  <p className="mt-2 text-sm text-muted-foreground">{data.entries.length} voting entries</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{serverStatus?.rosterReady ? `${data.entries.length} voting entries` : "Verifying eligible entries"}</p>
                 </div>
                 <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-xs text-emerald-100">
                   <span className="size-2 rounded-full bg-emerald-300" /> Open
@@ -220,27 +230,11 @@ function TelevotingPage() {
               />
             ) : (
               <>
-                <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {data.entries.map((entry) => (
-                    <article key={entry.id} className="data-panel min-h-32 p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-border bg-surface">
-                          {entry.image ? <img src={entry.image} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" /> : <span className="text-xl">{entry.flag || "✦"}</span>}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold">{entry.display_name}</p>
-                          <p className="mt-1 truncate text-xs text-muted-foreground">{entry.display_code}{entry.subtitle ? ` · ${entry.subtitle}` : ""}</p>
-                        </div>
-                      </div>
-                    </article>
-                  ))}
-                </section>
-
                 <ParticipationStatusPanel
                   tone={availability === "error" ? "danger" : "warning"}
                   icon={<ShieldCheck className="size-5" />}
                   title={availability === "error" ? "Voting availability could not be checked" : "Voting is temporarily unavailable"}
-                  description="This round is visible, but Solaris cannot verify voting readiness. A previous submission is not affected. Checking again does not submit a ballot."
+                  description={serverStatus?.rosterReady === false ? (serverStatus.rosterReason ?? "Voting lineup is stale. The Organizer must synchronize the round.") : "The round is visible, but Solaris cannot verify voting readiness. A previous submission is not affected."}
                 >
                   <Button type="button" variant="outline" onClick={() => void refetchStatus()}>Check availability again</Button>
                 </ParticipationStatusPanel>
