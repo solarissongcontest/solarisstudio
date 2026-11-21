@@ -40,6 +40,17 @@ describe("SSC22 dual-method Jury authority (forward-only contract)", () => {
     expect(apply).toContain("v_state.revision is distinct from p_expected_version");
   });
 
+  it("recognizes older Organizer votes keyed only by voter or contest entity", () => {
+    const account = part("public.v3_submit_jury_ballot");
+    expect(account).toContain("j.ballot_submission_id is null");
+    expect(account).toContain("where v.id=j.voter_id and v.country_id=v_account.country_id");
+    expect(account).toContain("where ce.id=j.voter_entity_id and ce.country_id=v_account.country_id");
+    expect(account).toContain("Organizer Jury scores already exist for this country");
+    expect(account.indexOf("if found then")).toBeLessThan(
+      account.indexOf("Organizer Jury scores already exist for this country")
+    );
+  });
+
   it("prevents an Organizer from modifying linked account evidence", () => {
     const guard = part("private.v3_jury_protect_submitted_vote");
     const apply = part("public.v3_organizer_jury_score_apply");
