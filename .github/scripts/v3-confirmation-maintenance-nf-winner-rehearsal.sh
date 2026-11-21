@@ -273,3 +273,79 @@ expect_eq "NF response revision advances once" "$(scalar "select edit_count from
 expect_eq "NF round remains closed after correction" "$(scalar "select status from public.submission_rounds where id='$ROUND_ID';")" "closed"
 
 log "PASS: participant NF winner intent stages safely and promotes only after exact Organizer review"
+
+log "Rehearsing reversible NF -> Internal -> NF changes on the isolated database"
+# The previous fixture intentionally published its NF lineup. The test now
+# explicitly moves this synthetic local-only fixture into an editable state;
+# a real published NF would require governed Organizer correction instead.
+exec_sql "update public.national_finals set lineup_published=false,results_published=false where id='$NF_ID';"
+apply_governed_response_access true '00000000-0000-4000-8000-00000000e791' 'switch-nf-to-internal-open' 'Local method switch permitted'
+SWITCH_TOKEN="$(as_user "$HOD_USER_ID" "select public.public_create_country_account_edit_token('$ROUND_ID'::uuid)->>'token';")"
+[[ -n "$SWITCH_TOKEN" ]] || fail "NF -> Internal token not granted"
+SWITCH_HASH="$(scalar "select encode(extensions.digest(convert_to('$SWITCH_TOKEN','UTF8'),'sha256'),'hex');")"
+NF_COUNT_BEFORE="$(scalar "select count(*) from public.national_final_entries where national_final_id='$NF_ID';")"
+NF_WINNER_BEFORE="$(scalar "select coalesce(winning_entry_id::text,'') from public.national_finals where id='$NF_ID';")"
+
+NF_TO_INTERNAL="$(as_user "$HOD_USER_ID" "
+  select public.v3_submit_confirmation(
+    jsonb_build_object(
+      'round_id','$ROUND_ID','instagram_username','maintenance_nf_hod',
+      'country','Maintenance NF Land','country_account','NFW','has_country_account',true,
+      'participating',true,'selection_method','internal',
+      'entry_unknown',false,'nf_entries_unknown',false,
+      'artist','Internal Switch Artist','song_title','Internal Switch Song',
+      'song_url','https://example.invalid/internal-switch',
+      'preview_start','00:10','final_clip_start','00:20',
+      'replacement_video_required',false,
+      'nf_name','Fixture National Final',
+      'browser_session_id','$SESSION_ID','edit_token_hash','$SWITCH_HASH'
+    ),
+    '00000000-0000-4000-8000-00000000e792'::uuid,
+    'local-switch-nf-to-internal','$SESSION_ID'
+  )::text;")"
+expect_eq "NF -> Internal save accepted" "$(python3 -c 'import json,sys; print(str(json.loads(sys.argv[1]).get("ok",False)).lower())' "$NF_TO_INTERNAL")" "true"
+expect_eq "same Confirmation ID survives switch" "$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("submission_id",""))' "$NF_TO_INTERNAL")" "$SUBMISSION_ID"
+expect_eq "active method changed to Internal" "$(scalar "select selection_method from public.submissions where id='$SUBMISSION_ID';")" "internal"
+expect_eq "original National Final row remains" "$(scalar "select count(*) from public.national_finals where id='$NF_ID' and submission_id='$SUBMISSION_ID';")" "1"
+expect_eq "all NF candidates retained" "$(scalar "select count(*) from public.national_final_entries where national_final_id='$NF_ID';")" "$NF_COUNT_BEFORE"
+expect_eq "prior reviewed NF winner retained as historical evidence" "$(scalar "select coalesce(winning_entry_id::text,'') from public.national_finals where id='$NF_ID';")" "$NF_WINNER_BEFORE"
+expect_eq "new internal song awaits review" "$(scalar "select review_status from public.internal_entries where submission_id='$SUBMISSION_ID';")" "pending"
+
+apply_governed_response_access true '00000000-0000-4000-8000-00000000e793' 'switch-internal-to-nf-open' 'Return to saved National Final history'
+RETURN_TOKEN="$(as_user "$HOD_USER_ID" "select public.public_create_country_account_edit_token('$ROUND_ID'::uuid)->>'token';")"
+[[ -n "$RETURN_TOKEN" ]] || fail "Internal -> NF token not granted"
+RETURN_HASH="$(scalar "select encode(extensions.digest(convert_to('$RETURN_TOKEN','UTF8'),'sha256'),'hex');")"
+
+INTERNAL_TO_NF="$(as_user "$HOD_USER_ID" "
+  select public.v3_submit_confirmation(
+    jsonb_build_object(
+      'round_id','$ROUND_ID','instagram_username','maintenance_nf_hod',
+      'country','Maintenance NF Land','country_account','NFW','has_country_account',true,
+      'participating',true,'selection_method','national_final',
+      'entry_unknown',false,'nf_entries_unknown',false,
+      'artist','Fixture Winner Artist','song_title','Corrected Winner',
+      'song_url','https://example.invalid/nf-winner-corrected',
+      'preview_start','00:10','final_clip_start','00:20',
+      'replacement_video_required',false,'nf_name','Fixture National Final',
+      'expected_entry_count',2,
+      'nf_entries',jsonb_build_array(
+        jsonb_build_object('artist','Fixture Winner Artist','song_title','Corrected Winner',
+          'song_url','https://example.invalid/nf-winner-corrected'),
+        jsonb_build_object('artist','Fixture Other Artist','song_title','Other Song',
+          'song_url','https://example.invalid/nf-other')
+      ),
+      'nf_date_type','unknown','nf_result_date_type','unknown',
+      'browser_session_id','$SESSION_ID','edit_token_hash','$RETURN_HASH'
+    ),
+    '00000000-0000-4000-8000-00000000e794'::uuid,
+    'local-switch-internal-to-nf','$SESSION_ID'
+  )::text;")"
+expect_eq "Internal -> NF save accepted" "$(python3 -c 'import json,sys; print(str(json.loads(sys.argv[1]).get("ok",False)).lower())' "$INTERNAL_TO_NF")" "true"
+expect_eq "NF method active again" "$(scalar "select selection_method from public.submissions where id='$SUBMISSION_ID';")" "national_final"
+expect_eq "original internal selection preserved" "$(scalar "select song_title from public.internal_entries where submission_id='$SUBMISSION_ID';")" "Internal Switch Song"
+expect_eq "NF candidates still retained" "$(scalar "select count(*) from public.national_final_entries where national_final_id='$NF_ID';")" "$NF_COUNT_BEFORE"
+expect_eq "NF winner not silently reapproved" "$(scalar "select coalesce(winning_entry_id::text,'') from public.national_finals where id='$NF_ID';")" ""
+expect_eq "all surviving NF candidates require fresh Organizer review" "$(scalar "select count(*) from public.national_final_entries where national_final_id='$NF_ID' and review_status='accepted';")" "0"
+expect_eq "switch did not duplicate Confirmation" "$(scalar "select count(*) from public.submissions where id='$SUBMISSION_ID';")" "1"
+expect_eq "both edits added version snapshots" "$(scalar "select count(*) from public.submission_versions where submission_id='$SUBMISSION_ID';")" "3"
+log "PASS: method changes preserve inactive entry history and require fresh approval"
