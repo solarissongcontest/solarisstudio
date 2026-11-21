@@ -7,6 +7,11 @@ on:
       # An S16 workflow/policy gate update also needs its own exact-SHA PG17.11
       # Publication execution evidence, or S16 correctly remains uncertified.
       - ".github/workflows/v3-s16-catalog-rehearsal.yml"
+      # S16 catalog/local-role probe changes must launch their own independent
+      # exact-SHA S14 Publication evidence producer before cross-certification.
+      - ".github/scripts/v3-s16-catalog-rehearsal.sh"
+      - ".github/tests/v3-s16-*.sql"
+      - "src/lib/v3-s16-*.contract.test.ts"
       - ".github/workflows/v3-s14-archive-forward-effects-local.yml"
       - "scripts/rehearse-v3-s14-archive-forward-effects-local.sh"
       - "scripts/v3-s14-archive-forward-effects.contract.test.mjs"
