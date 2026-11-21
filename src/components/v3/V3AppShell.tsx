@@ -30,6 +30,7 @@ import {
 import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
 import { cn } from "@/lib/utils";
 import { LIMITED_PUBLIC_LAUNCH, publicLaunchAllows } from "@/lib/public-launch-availability";
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { V3DesktopPrimaryNavigation } from "./V3DesktopPrimaryNavigation";
 import { V3MobileWebPrimaryNavigation } from "./V3MobileWebPrimaryNavigation";
@@ -261,7 +262,10 @@ export function V3AppShell({
     searchStr,
   ]);
 
-  const visibleDestinations = V3_SHELL_DESTINATIONS.filter((destination) => publicLaunchAllows(destination.to));
+  // Use the same signed-in Organizer preview policy as PublicLaunchRouteBoundary,
+  // so every V3 web/PWA navigation surface keeps hidden pages discoverable.
+  const { allowsReleased } = usePublicLaunchAvailability();
+  const visibleDestinations = V3_SHELL_DESTINATIONS.filter((destination) => allowsReleased(destination.to));
   const navigationDestinations: V3LiquidTabDestination[] = visibleDestinations.map(
     ({ id, label, to, icon, emphasis }) => ({
       id,
