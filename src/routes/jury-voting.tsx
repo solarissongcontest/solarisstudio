@@ -24,7 +24,7 @@ import {
 } from "@/integrations/jury-voting/jury-voting.functions";
 import { buildTelevotingClientIdentity } from "@/integrations/televoting/anti-abuse";
 import { VotingDeclarationCheckbox, VotingIntegrityReasonList } from "@/components/voting/VotingIntegrityExplanation";
-import { VOTER_DECLARATION_LABELS, voterIntegrityMessage } from "@/integrations/televoting/voter-integrity-copy";
+import { VOTER_DECLARATION_LABELS, voterIntegrityMessage, voterIntegrityErrorMessage } from "@/integrations/televoting/voter-integrity-copy";
 import {
   VOTE_INTEGRITY_AUTOMATION,
   VOTE_INTEGRITY_CONSEQUENCE,
@@ -509,7 +509,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
       // The preflight token alone must never trigger an official write.
       setStage(nextReport.requiresAttestation ? "integrity" : "review");
     },
-    onError: (caught) => toast.error(caught instanceof Error ? caught.message : "The automatic integrity check failed"),
+    onError: (caught) => toast.error(voterIntegrityErrorMessage(caught, "We couldn\u0027t check your votes right now. Nothing has been submitted. Please try again.")),
   });
 
   const attestationMutation = useMutation({
@@ -528,7 +528,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
       return report.token;
     },
     onSuccess: (token) => submitMutation.mutate(token),
-    onError: (caught) => toast.error(caught instanceof Error ? caught.message : "The integrity declaration could not be recorded"),
+    onError: (caught) => toast.error(voterIntegrityErrorMessage(caught, "We couldn\u0027t record your declaration. Nothing has been submitted. Please try again.")),
   });
 
   function returnToBallot() {
