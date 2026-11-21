@@ -66,11 +66,24 @@ begin
   -- the effective values written by the pinned function, including defaults
   -- for omitted keys: a partial payload must never evade this guard.
   v_patched := replace(v_patched, v_guard_anchor, $guard$
+  -- A published lineup may still accept proposed song revisions for exact
+  -- Organizer review, but cannot change selection ownership/participation.
+  -- Published results and official Entries receive the full material lock.
+  if is_edit and exists (
+    select 1 from public.national_finals nf where nf.submission_id = existing.id
+      and (coalesce(nf.lineup_published,false) or coalesce(nf.results_published,false))
+      and (existing.selection_method is distinct from nullif(payload->>'selection_method','')
+        or existing.participating is distinct from coalesce((payload->>'participating')::boolean,true))
+  ) then
+    raise exception 'Published or competition-locked entries require an Organizer correction'
+      using errcode = '42501';
+  end if;
+
   if is_edit and (
     exists (
       select 1 from public.national_finals nf
       where nf.submission_id = existing.id
-        and (coalesce(nf.lineup_published, false) or coalesce(nf.results_published, false))
+        and coalesce(nf.results_published, false)
     )
     or exists (
       select 1 from public.participants p
