@@ -36,7 +36,17 @@ begin
   select count(distinct x)::integer into v_distinct
   from unnest(coalesce(_participant_ids, '{}'::uuid[])) as x;
 
-  if v_supplied <> v_expected or v_distinct <> v_expected then
+  if v_distinct <> v_supplied then
+    raise exception 'Running order cannot repeat an entry.' using errcode = '22023';
+  end if;
+  -- Legacy callers may include inactive show rows. Validate the complete
+  -- active subset and ignore only the inactive rows, never foreign IDs.
+  select count(*)::integer into v_supplied
+  from unnest(coalesce(_participant_ids, '{}'::uuid[])) as supplied(id)
+  join public.participants p on p.id = supplied.id
+    and p.show_id = _show_id
+    and coalesce(p.participation_status, 'confirmed') = 'confirmed';
+  if v_supplied <> v_expected then
     raise exception 'Running order must contain every active show participant exactly once.' using errcode = '22023';
   end if;
 
@@ -45,25 +55,28 @@ begin
     from unnest(coalesce(_participant_ids, '{}'::uuid[])) as supplied(id)
     left join public.participants p on p.id = supplied.id
       and p.show_id = _show_id
-      and coalesce(p.participation_status, 'confirmed') = 'confirmed'
     where p.id is null
   ) then
-    raise exception 'Running order contains an inactive participant or a participant from another show.' using errcode = '22023';
+    raise exception 'Running order contains a participant from another show.' using errcode = '22023';
   end if;
 
   -- One statement keeps the existing statement-level result-sync batching.
   -- Inactive rows are left untouched for history; read and voting paths exclude them.
   with desired as (
-    select supplied.id, supplied.ordinality::integer as position
+    select supplied.id,
+      row_number() over(order by supplied.ordinality)::integer as position
     from unnest(coalesce(_participant_ids, '{}'::uuid[]))
       with ordinality as supplied(id, ordinality)
+    join public.participants active on active.id = supplied.id
+      and active.show_id = _show_id
+      and coalesce(active.participation_status,'confirmed') = 'confirmed'
   )
   update public.participants p
-     set running_order = (select d.position from desired d where d.id = p.id),
+     set running_order = desired.position,
          updated_at = now()
-   where p.show_id = _show_id
-     and coalesce(p.participation_status,'confirmed') = 'confirmed'
-     and p.running_order is distinct from (select d.position from desired d where d.id = p.id);
+    from desired
+   where p.id = desired.id
+     and p.running_order is distinct from desired.position;
 end;
 $function$;
 
@@ -99,7 +112,17 @@ begin
 
   select count(*)::integer, count(distinct item.id)::integer into v_supplied, v_distinct
   from jsonb_to_recordset(coalesce(_allocations, '[]'::jsonb)) as item(id uuid, allocation text);
-  if v_supplied <> v_expected or v_distinct <> v_expected then
+  if v_supplied <> v_distinct then
+    raise exception 'Allocation draw cannot repeat an entry.' using errcode = '22023';
+  end if;
+  -- Accept legacy all-show payloads while enforcing exactly one assignment
+  -- for every ACTIVE competitor. Inactive historical rows are ignored.
+  select count(*)::integer into v_supplied
+  from jsonb_to_recordset(coalesce(_allocations, '[]'::jsonb)) as item(id uuid, allocation text)
+  join public.participants p on p.id = item.id
+    and p.show_id = _show_id
+    and coalesce(p.participation_status,'confirmed') = 'confirmed';
+  if v_supplied <> v_expected then
     raise exception 'Allocation draw must contain every active show participant exactly once.' using errcode = '22023';
   end if;
   if exists (
@@ -107,22 +130,24 @@ begin
     from jsonb_to_recordset(coalesce(_allocations, '[]'::jsonb)) as item(id uuid, allocation text)
     left join public.participants p on p.id = item.id
       and p.show_id = _show_id
-      and coalesce(p.participation_status, 'confirmed') = 'confirmed'
     where p.id is null or item.allocation not in ('first_half', 'second_half', 'producer_choice')
   ) then
-    raise exception 'Allocation draw contains an inactive/invalid participant or allocation.' using errcode = '22023';
+    raise exception 'Allocation draw contains an unknown participant or invalid allocation.' using errcode = '22023';
   end if;
 
   with desired as (
     select item.id, item.allocation
     from jsonb_to_recordset(coalesce(_allocations, '[]'::jsonb)) as item(id uuid, allocation text)
+    join public.participants active on active.id = item.id
+      and active.show_id = _show_id
+      and coalesce(active.participation_status,'confirmed') = 'confirmed'
   )
   update public.participants p
-     set running_order_allocation = (select d.allocation from desired d where d.id = p.id),
+     set running_order_allocation = desired.allocation,
          updated_at = now()
-   where p.show_id = _show_id
-     and coalesce(p.participation_status,'confirmed') = 'confirmed'
-     and p.running_order_allocation is distinct from (select d.allocation from desired d where d.id = p.id);
+    from desired
+   where p.id = desired.id
+     and p.running_order_allocation is distinct from desired.allocation;
 end;
 $function$;
 
