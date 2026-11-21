@@ -1,0 +1,416 @@
+SOLARIS STUDIO V3
+
+14 NOVEMBER 2026 SOFT-LAUNCH EXECUTION PLAN
+
+Status: Launch preparation
+Target date: Saturday, 14 November 2026
+Release type: Public soft launch with progressively enabled features
+Starting GitHub main: bb3004ce6359974e57003ef0bd7e72da87d566aa
+Primary priority: Reliable contest participation and Organizer operations
+
+⸻
+
+1. Executive decision
+
+Solaris Studio V3 will no longer wait for every planned feature to reach completion before opening to the public.
+
+Instead, Solaris Studio will launch with a smaller set of fully functional, verified features.
+
+All unfinished features will remain hidden or restricted until individually verified and authorized for release.
+
+The November 14 launch must deliver:
+
+1. A functional, polished Solaris Studio homepage.
+2. Working authentication and user permissions.
+3. Working country confirmations.
+4. Working jury voting.
+5. Working televoting.
+6. Working Organizer controls for every enabled contest workflow.
+7. Essential participant information, deadlines, status and submission receipts.
+8. Any additional public features that independently pass the release requirements.
+
+The release must preserve existing Solaris contest data, security, canonical authority and publication rules.
+
+The launch date is a target, not permission to bypass integrity or security requirements.
+
+2. Initial launch scope
+
+2.1 Required public features
+
+Capability	Required outcome
+Home	Complete, polished, current contest information
+Authentication	Secure sign-in, account/session handling
+Confirmations	View, submit, edit when permitted, receive confirmation
+Jury	Open eligible ballot, save draft, submit, receive receipt
+Televoting	Vote in eligible round, submit once according to rules, receive receipt
+Participate	Display available actions, deadlines and status
+Me	Essential account, delegation and submission information
+Explore	Minimum verified country/edition discovery
+Search	Verified public destinations only
+Rules	Accessible current official contest rules and voting instructions
+
+The five canonical public navigation areas remain Home · Explore · Participate · Results · Me.
+
+They may initially provide reduced functionality, but must not contain broken links, misleading controls or fabricated data.
+
+2.2 Conditional public features
+
+These can be added to the November 14 release only if already integrated, verified and publication-safe:
+
+* Country and edition profiles.
+* Published historical results and scorecharts.
+* Current edition schedule.
+* Official announcements.
+* Entry and artist information.
+* Notifications.
+* Live Show information.
+
+Results publication must not be enabled merely because the Results page renders. Official publication and correction workflows require independent verification.
+
+2.3 Deferred features
+
+Keep these unavailable in the initial release unless independently certified:
+
+* Fantasy SSC.
+* Prediction League.
+* Voting DNA and advanced analytics.
+* Time Machine.
+* Experimental Labs.
+* Advanced historical/archive tools.
+* Full Terra Solaris World and institutional governance.
+* Unfinished community, personalization and specialist experiences.
+* Other unverified V3 capabilities.
+
+Do not delete their implementation.
+
+Continue development separately and enable them incrementally after launch.
+
+3. Required Organizer system
+
+Organizer functionality is a prerequisite for activating the corresponding public feature.
+
+3.1 Confirmation management
+
+Organizers must be able to:
+
+* Open and close confirmation rounds.
+* Configure eligible delegations and requirements.
+* Monitor responses.
+* Review confirmation statuses.
+* Perform approved waive/reconfirm operations.
+* Extend or reopen deadlines when permitted.
+* Inspect records and recover uncertain operations.
+
+All changes must use the canonical Confirmation authority.
+
+3.2 Jury management
+
+Organizers must be able to:
+
+* Configure jury rounds and eligible voters.
+* Open and close rounds.
+* Monitor submitted and missing ballots.
+* Inspect permitted integrity information.
+* Manage valid corrections or exceptional cases.
+* Verify final ballot counts.
+
+Unpublished jury allocations must remain secret.
+
+3.3 Televoting management
+
+Organizers must be able to:
+
+* Configure voting rounds.
+* Open, close and control voting.
+* Monitor incoming votes and totals.
+* Enforce voting eligibility and limitations.
+* Investigate discrepancies.
+* Verify that official totals originate from canonical voting records.
+
+Unsafe direct database writers must not remain accessible.
+
+3.4 Essential Organizer experience
+
+Release only the workspaces required to support the enabled contest systems:
+
+* Overview.
+* Delegations / Confirmations.
+* Voting / Jury.
+* Voting / Televote.
+* Relevant integrity and recovery controls.
+* Results/publication controls only when required and certified.
+
+Every critical action must use verified permissions, explicit edition/show context, server validation and appropriate audit/receipt mechanisms.
+
+4. Technical work priorities
+
+Priority 0: Production database safety
+
+Owner: System / Supabase
+
+This is the highest-risk release dependency.
+
+Required work:
+
+1. Recheck the actual current production migration and schema-effect frontier using bounded read-only inspection.
+2. Distinguish migration-history differences from genuinely missing database effects.
+3. Verify the existing source-defined local beta baseline.
+4. Complete and rehearse necessary forward-only recovery changes on isolated infrastructure.
+5. Verify canonical database writers, grants, RLS and protected commands.
+6. Prepare production migration approval, backups, restoration and rollback procedures.
+7. Obtain explicit authorization before any hosted database changes.
+
+The merged S02 baseline in PR #2446 is useful progress, but does not establish production equivalence.
+
+No broad migration replay, history rewriting or unverified SQL application is permitted.
+
+Priority 1: Complete voting safety
+
+Owner: System / Voting
+
+Immediate focus:
+
+* Select and integrate one safe S08 solution from PR #2447 and PR #2448, avoiding duplicate implementations.
+* Remove unsafe Organizer televote direct-write paths.
+* Ensure stale or cross-edition voting contexts fail closed.
+* Verify jury ballot secrecy.
+* Verify round status and deadline enforcement.
+* Verify ballot uniqueness, idempotency, retries and receipts.
+* Verify correct vote aggregation.
+* Protect unpublished results.
+
+Resolve the root cause of voting failures rather than merely making individual tests pass.
+
+Priority 2: Complete essential Organizer workflows
+
+Owner: Organizer
+
+Prioritize:
+
+* Confirmation management and reviews, including the remaining work in PR #2283.
+* Jury voting administration.
+* Televoting administration.
+* Current edition/show context safety.
+* Error, retry and recovery states.
+
+Avoid spending this release period on unrelated Organizer dashboards or cosmetic redesigns.
+
+Priority 3: Prepare the public application
+
+Owner: Public / Navigation
+
+Complete and verify:
+
+* Home.
+* Authentication and session transitions.
+* Participate.
+* Confirmation UI.
+* Jury UI.
+* Televoting UI.
+* Minimal Explore, Results and Me surfaces.
+* Feature rollout and route restrictions.
+
+The installed PWA, mobile browser and desktop website must support their intended launch workflows safely.
+
+Preserve the existing V3 visual design, floating bottom navigation, protected mobile top safe zone and accessible controls.
+
+Do not undertake another complete visual redesign.
+
+Priority 4: Build the soft-launch feature gate
+
+Owner: System / Public / Release Integrator
+
+Introduce or adapt the existing rollout infrastructure to support:
+
+State	Behavior
+Public	Available to eligible users
+Testing	Available only to explicitly authorized testers
+Hidden	Unavailable to ordinary users
+
+The state must be centrally governed and server-enforced.
+
+Hidden features must not leak through:
+
+* Navigation.
+* Search results.
+* Deep links.
+* API access.
+* PWA shortcuts.
+* Notifications.
+* Direct backend mutations.
+
+A hidden UI button is not a security boundary.
+
+5. Execution schedule
+
+Thursday, 12 November: Critical-path integration
+
+Objective: establish one achievable launch scope and eliminate the most dangerous blockers.
+
+System:
+
+* Recheck production-frontier evidence and required recovery dependencies.
+* Resolve safe local voting-authority implementation candidates.
+* Identify remaining production-only migration prerequisites.
+
+Organizer:
+
+* Integrate essential Confirmation review safety.
+* Close highest-risk Jury and Televote Organizer control gaps.
+
+Public:
+
+* Audit launch-critical user journeys.
+* Establish minimum functional Home, Participate and account surfaces.
+* Identify which existing public features can be included without further development.
+
+QA / Integrator:
+
+* Refresh main, open PRs and CI.
+* Create one active merge queue.
+* Produce a release-specific hard-blocker list.
+* Record the exact acceptance criteria for each enabled feature.
+
+End-of-day milestone: A frozen initial feature list, a single integration plan and named owners for every remaining critical blocker.
+
+Friday, 13 November: Finish and verify
+
+Objective: complete the smallest safe release candidate.
+
+Morning:
+
+* Integrate required System and voting corrections.
+* Finish Organizer workflow integration.
+* Complete public feature gating and essential route handling.
+* Verify database compatibility and authorization.
+
+Afternoon:
+
+* Run focused Confirmation, Jury and Televote tests on isolated local Supabase.
+* Verify the Organizer-to-participant workflow.
+* Complete cross-role and cross-edition negative tests.
+* Verify mobile PWA, mobile website and desktop critical journeys.
+
+Evening:
+
+* Run a full isolated contest lifecycle rehearsal covering the enabled official domains and their required downstream integrity.
+* Verify Results/source truth, publication and recovery contracts where relevant.
+* Generate candidate-specific QA, security and release evidence.
+* Fix any remaining real launch blockers.
+
+End-of-day milestone: A release candidate that is either fully verified for its intended scope or explicitly marked NO-GO with named blockers.
+
+No new optional features should enter the candidate after this point.
+
+Saturday, 14 November: Final certification and launch
+
+Objective: release only if all mandatory gates pass.
+
+Morning:
+
+1. Freeze the release candidate.
+2. Record its exact Git commit SHA.
+3. Verify all required checks for that SHA.
+4. Confirm the production migration/recovery plan and operational readiness.
+5. Confirm every public feature has a corresponding verified Organizer and backend capability.
+6. Confirm hidden features are actually inaccessible.
+7. Complete the formal launch GO/NO-GO review.
+
+If approved:
+
+* Perform individually authorized production changes in dependency order.
+* Deploy the certified application candidate.
+* Perform a tiny, bounded production smoke test using authorized accounts.
+* Confirm actual authentication and authorized workflow behavior.
+* Confirm maintenance and feature rollout state.
+* Open the approved public features.
+* Monitor errors, critical writes, voting integrity and Supabase traffic.
+
+Update public-facing maintenance messaging and the existing November 15 estimate to match the approved release decision.
+
+Do not automatically open the site at midnight or at a hardcoded time.
+
+6. Mandatory release certification
+
+The public soft launch is permitted only when every applicable requirement passes.
+
+Functional
+
+* [ ]	Home loads correctly.
+* [ ]	Authentication works.
+* [ ]	Confirmations can be completed successfully.
+* [ ]	Jury ballots can be submitted and recovered.
+* [ ]	Televotes can be submitted and verified.
+* [ ]	Organizer controls operate correctly.
+* [ ]	Deadlines and statuses are authoritative.
+* [ ]	Submission receipts are accurate.
+* [ ]	Published and unpublished information are correctly separated.
+
+Integrity and security
+
+* [ ]	No unauthorized critical mutations.
+* [ ]	No unsafe competing database writers.
+* [ ]	No voting leaks or duplicate critical submissions.
+* [ ]	Cross-account and cross-edition isolation verified.
+* [ ]	Critical state survives retries and recoverable failures.
+* [ ]	Required database migrations safely reconciled.
+* [ ]	No automated tests contact production Supabase.
+* [ ]	Production recovery and rollback controls prepared.
+
+Experience
+
+* [ ]	Installed mobile PWA critical workflows work.
+* [ ]	Supported mobile-browser workflows work.
+* [ ]	Supported desktop workflows work.
+* [ ]	Navigation and safe areas work.
+* [ ]	Unfinished features are hidden.
+* [ ]	No misleading or dead-end controls.
+* [ ]	Critical errors provide safe recovery guidance.
+
+Release evidence
+
+* [ ]	Required tests pass on the exact release SHA.
+* [ ]	Necessary local full-contest rehearsal passes.
+* [ ]	All in-scope hard blockers are zero.
+* [ ]	All in-scope conditional blockers are zero.
+* [ ]	Explicit launch-scope approval recorded.
+* [ ]	Production migration approval recorded separately.
+* [ ]	Production deployment and public-write approval recorded separately.
+
+7. Launch GO/NO-GO rules
+
+GO: All mandatory workflows and integrity requirements pass, production compatibility is verified, and the release has explicit approval.
+
+NO-GO: Any security, voting integrity, mandatory workflow, database migration or release-certification blocker remains unresolved.
+
+If the required public release cannot safely be completed by November 14, use that date for a controlled, clearly labeled owner-only beta or a safe read-only preview, if independently approved.
+
+Do not enable official public voting merely to meet the date.
+
+8. After launch
+
+Continue development without reopening completed architecture unnecessarily.
+
+Recommended expansion sequence:
+
+1. Finish public country, edition, entry and artist/song experiences.
+2. Complete Results, Scoreboard, Live and archival experiences.
+3. Improve notifications, account features and participant history.
+4. Release Fantasy, Predictions and fan-engagement features.
+5. Expand advanced analysis and historical tools.
+6. Complete Terra Solaris World and institutional governance.
+7. Finish remaining Organizer functionality and full V3 certification.
+
+Each feature must have its own implementation, testing, rollout and verification evidence.
+
+9. Final launch definition
+
+Solaris Studio V3 Soft Launch is ready when users can reliably perform the core contest actions, organizers can safely control those actions, and the released application is coherent, secure and usable.
+
+Full V3 feature completeness is not required on November 14.
+
+Official contest integrity is.
+
+Target: 14 November 2026.
+
+Release strategy: Small, functional, polished, verified and progressively expandable.
