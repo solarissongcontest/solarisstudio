@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useFanSession } from "@/lib/prediction-data";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 import { LIMITED_PUBLIC_LAUNCH, PUBLIC_LAUNCH_FLAGS, type PublicLaunchFlags } from "@/lib/public-launch-availability";
 import { PublicLaunchContext } from "@/lib/public-launch-context";
+import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
+import { supabase } from "@/integrations/supabase/client";
 
 /** Shares four existing, caller-evaluated flags across all Public consumers.
  * No cohort lists, local tester override, new flag, polling or mutation API.
@@ -67,14 +69,47 @@ export function FlagDrivenPublicLaunchAvailabilityProvider({
   );
 }
 
-/** Restricted launch does not query disabled optional feature flags. */
+/** Limited public launch remains closed by default. Only a live, verified
+ * global Organizer role can reveal additional UI; RLS and publication rules
+ * retain independent authority. SSR never starts an account lookup. */
+function LimitedPublicLaunchAvailabilityProvider({ children }: { children: ReactNode }) {
+  const [actor, setActor] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (alive) setActor(data.session?.user.id ?? null);
+    }).catch(() => { if (alive) setActor(null); });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (alive) setActor(session?.user.id ?? null);
+    });
+    return () => { alive = false; subscription.unsubscribe(); };
+  }, []);
+  const organizer = useQuery({
+    queryKey: ["admin-page-preview-access", actor],
+    enabled: actor !== null,
+    queryFn: () => hasSolarisOrganizerAccess(actor!),
+    retry: false,
+    staleTime: 30_000,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
+  const adminPreview = Boolean(actor) && organizer.isSuccess &&
+    !organizer.isFetching && organizer.data === true;
+  return (
+    <PublicLaunchContext.Provider value={{
+      active: true, flags: {}, adminPreview,
+      checking: Boolean(actor) && (organizer.isPending || organizer.isFetching),
+      error: Boolean(actor) && organizer.isError,
+      retry: () => { void organizer.refetch(); },
+    }}>
+      {children}
+    </PublicLaunchContext.Provider>
+  );
+}
+
 export function PublicLaunchAvailabilityProvider({ children, enabled = true }: { children: ReactNode; enabled?: boolean }) {
   if (LIMITED_PUBLIC_LAUNCH) {
-    return (
-      <PublicLaunchContext.Provider value={{ active: true, flags: {}, checking: false, error: false, retry: () => {} }}>
-        {children}
-      </PublicLaunchContext.Provider>
-    );
+    return <LimitedPublicLaunchAvailabilityProvider>{children}</LimitedPublicLaunchAvailabilityProvider>;
   }
   return <FlagDrivenPublicLaunchAvailabilityProvider enabled={enabled}>{children}</FlagDrivenPublicLaunchAvailabilityProvider>;
 }
