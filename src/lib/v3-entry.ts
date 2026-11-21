@@ -231,8 +231,15 @@ export function deriveV3EntryResubmissionDiff(
 function lifecycleCandidates(
   confirmation: V3EntryConfirmationProjection,
 ): readonly V3EntryCandidate[] {
-  if (confirmation.internalEntry) return [confirmation.internalEntry];
-  return confirmation.nationalFinal?.entries ?? [];
+  // Switching methods preserves historical source rows. Only the method that
+  // the canonical Confirmation currently selects may determine readiness.
+  if (confirmation.selectionMethod === "internal") {
+    return confirmation.internalEntry ? [confirmation.internalEntry] : [];
+  }
+  if (confirmation.selectionMethod === "national_final") {
+    return confirmation.nationalFinal?.entries ?? [];
+  }
+  return [];
 }
 
 /**
@@ -296,7 +303,13 @@ export function deriveV3EntryLifecycle(
     (candidate) =>
       candidate.reviewStatus === "accepted" && candidate.reviewMatchesCurrentVersion,
   );
-  if (acceptedCurrent.length === candidates.length) {
+  const hasReviewedNfWinner =
+    confirmation.selectionMethod !== "national_final" ||
+    Boolean(
+      confirmation.nationalFinal?.winnerEntryId &&
+      acceptedCurrent.some((entry) => entry.id === confirmation.nationalFinal?.winnerEntryId),
+    );
+  if (acceptedCurrent.length === candidates.length && hasReviewedNfWinner) {
     return {
       state: "accepted",
       issue: null,
