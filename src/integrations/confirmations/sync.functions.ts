@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import { createServerFn } from "@tanstack/react-start";
 
-import { requireSolarisOrganizerServer } from "@/integrations/supabase/organizer.server";
+import { createSolarisAuthenticatedClientServer, requireSolarisOrganizerServer } from "@/integrations/supabase/organizer.server";
 
 type ConfirmationReviewEntry = {
   id?: string | null;
@@ -765,19 +765,32 @@ export const syncConfirmationSnapshotToSolaris = createServerFn({ method: "POST"
     if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(submissionId)) {
       throw new Error("A valid Confirmation submission ID is required.");
     }
-    if (editionId && !/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(editionId)) {
-      throw new Error("Invalid Organizer edition scope.");
+    if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(editionId)) {
+      throw new Error("An exact Organizer edition ID is required.");
     }
     return { submissionId, editionId };
   })
   .handler(async ({ data }) => {
     await requireSolarisOrganizerServer();
+    // Resolve the permission from this request's authenticated actor. The
+    // privileged source reader below must never substitute for the caller's
+    // edition-scoped Confirmation capability.
+    const actorDb = createSolarisAuthenticatedClientServer() as any;
+    const permission = await actorDb.rpc("studio2_access_allowed", {
+      p_capability: "confirmation.manage",
+      p_edition_id: data.editionId,
+      p_strict_before_cutover: true,
+    });
+    if (permission.error || permission.data !== true) {
+      throw new Error("Organizer lacks current Confirmation management access for this edition.");
+    }
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const snapshot = await loadConfirmationSnapshotForSolarisSync(
       supabaseAdmin as any,
       data.submissionId,
     );
-    if (data.editionId && snapshot.edition?.id !== data.editionId) {
+    if (snapshot.edition?.id !== data.editionId) {
       throw new Error("Confirmation no longer belongs to the selected Organizer edition.");
     }
     return syncConfirmationSubmissionToSolarisInternal(data.submissionId);
