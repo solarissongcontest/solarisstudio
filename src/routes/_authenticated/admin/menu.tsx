@@ -12,7 +12,7 @@ import { AdminCard, AdminPageHeader } from "@/components/admin/AdminUI";
 import { selectOrganizerEdition } from "@/lib/admin-edition-selection";
 import { editionLabel, useEditions } from "@/lib/data";
 import { PUBLIC_DESTINATIONS, publicSearchText } from "@/lib/public-navigation";
-import { publicLaunchAllows } from "@/lib/public-launch-availability";
+import { PUBLIC_LAUNCH_ROUTES, publicLaunchAllows } from "@/lib/public-launch-availability";
 import { SITE_DIRECTORY_AREA_ORDER, SITE_DIRECTORY_AREA_LABELS } from "@/lib/v3-site-directory";
 import { ensureAdminPagePreviewSession } from "@/lib/admin-page-preview-client";
 
@@ -46,6 +46,17 @@ function OrganizerMenu() {
         terms.every((term) => `${publicSearchText(item)} ${item.to}`.includes(term))
       ),
     })).filter((group) => group.items.length);
+  }, [query]);
+
+  // Soft-launch restrictions can identify routes before they are added to
+  // the editorial public navigation catalog. Do not silently omit those.
+  const additionalHiddenPages = useMemo(() => {
+    const existing = new Set(PUBLIC_DESTINATIONS.map((item) => item.to));
+    const terms = query.toLowerCase().trim().split(/\\s+/).filter(Boolean);
+    return PUBLIC_LAUNCH_ROUTES.filter((item) =>
+      !existing.has(item.path) &&
+      terms.every((term) => item.path.toLowerCase().replaceAll("-", " ").includes(term))
+    );
   }, [query]);
 
   const openPreview = async (href: string) => {
@@ -254,6 +265,27 @@ function OrganizerMenu() {
             </div>
           </AdminCard>
         )) : <AdminCard><p className="text-sm text-muted-foreground">No public page matches “{query.trim()}”.</p></AdminCard>}
+        {additionalHiddenPages.length ? (
+          <AdminCard className="mb-3 !p-3 sm:!p-4">
+            <h3 className="mb-2 px-1 text-sm font-bold text-foreground">Other launch-restricted routes</h3>
+            <div className="grid gap-1 sm:grid-cols-2">
+              {additionalHiddenPages.map((item) => (
+                <a key={item.path} href={item.path}
+                  onClick={(event) => { event.preventDefault(); void openPreview(item.path); }}
+                  aria-busy={openingPreview === item.path}
+                  className="admin-list-row !rounded-xl !border-0 !px-2.5">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-foreground">
+                      {item.path.split("/").filter(Boolean).at(-1)?.replaceAll("-", " ") ?? item.path}
+                    </span>
+                    <span className="mt-1 block text-[10px] text-sky-100/80">{item.path} · Hidden from public</span>
+                  </span>
+                  <ExternalLink className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                </a>
+              ))}
+            </div>
+          </AdminCard>
+        ) : null}
       </section>
     </div>
   );
