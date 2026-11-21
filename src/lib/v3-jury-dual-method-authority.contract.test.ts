@@ -82,6 +82,8 @@ describe("SSC22 dual-method Jury authority (forward-only contract)", () => {
     expect(apply).toContain("v_op.request is distinct from v_req");
     expect(apply).toContain("'replayed',true");
     expect(apply).toContain("insert into public.admin_audit_log");
+    expect(apply).toContain("record_id,edition_id,country_id,before_data,after_data");
+    expect(apply).toContain("v_identity::text,p_edition_id,v_country,v_before");
     expect(apply).toContain("studio2_access_allowed('jury.ballots.manage',p_edition_id,true)");
   });
 
